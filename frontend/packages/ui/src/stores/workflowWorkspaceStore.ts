@@ -7,6 +7,7 @@
 
 import { get, writable } from "svelte/store";
 import { getApiEndpoint } from "../config/api";
+import { registerWorkspaceCacheClear } from "../services/workspaceCacheLifecycle";
 
 export type WorkflowNodeType =
   | "schedule_trigger"
@@ -65,9 +66,18 @@ export type WorkflowAuthoringWarning = {
   message: string;
 };
 
+export type WorkflowBindingRequirement = {
+  type: "schedule" | "app_skill" | "notification_preferences" | "chat_destination";
+  node_id: string;
+  app_id?: string;
+  skill_id?: string;
+};
+
 export type WorkflowDetail = WorkflowSummary & {
   graph: WorkflowGraph;
   authoring_warnings?: WorkflowAuthoringWarning[];
+  binding_requirements?: WorkflowBindingRequirement[];
+  completed_binding_requirements?: WorkflowBindingRequirement[];
 };
 
 export type WorkflowVersionSummary = {
@@ -127,11 +137,10 @@ export type WorkflowRun = {
   cancellation_requested_at?: number | null;
   cancelled_at?: number | null;
   node_runs?: WorkflowNodeRun[];
-};
-
-export type WorkflowRunDetail = WorkflowRun & {
   output_summary?: Record<string, unknown>;
 };
+
+export type WorkflowRunDetail = WorkflowRun;
 
 export type WorkflowRequestInit = {
   method?: string;
@@ -142,12 +151,15 @@ export type WorkflowRequestInit = {
 type WorkspaceLoadStatus = "idle" | "loading" | "refreshing" | "ready" | "error";
 
 export type WorkflowWorkspaceState = {
+  generation: number;
   workflows: WorkflowSummary[];
   selectedWorkflow: WorkflowDetail | null;
   selectedWorkflowId: string | null;
   runs: WorkflowRun[];
   detailsById: Record<string, WorkflowDetail>;
   runsByWorkflowId: Record<string, WorkflowRun[]>;
+  detailLoadedAtById: Record<string, number>;
+  runsLoadedAtById: Record<string, number>;
   listStatus: WorkspaceLoadStatus;
   detailStatus: WorkspaceLoadStatus;
   runsStatus: WorkspaceLoadStatus;
@@ -158,12 +170,15 @@ export type WorkflowWorkspaceState = {
 const WORKFLOW_CACHE_STALE_MS = 60_000;
 
 const initialState: WorkflowWorkspaceState = {
+  generation: 0,
   workflows: [],
   selectedWorkflow: null,
   selectedWorkflowId: null,
   runs: [],
   detailsById: {},
   runsByWorkflowId: {},
+  detailLoadedAtById: {},
+  runsLoadedAtById: {},
   listStatus: "idle",
   detailStatus: "idle",
   runsStatus: "idle",
@@ -175,6 +190,8 @@ const store = writable<WorkflowWorkspaceState>(initialState);
 let workflowsInFlight: Promise<WorkflowSummary[]> | null = null;
 const detailsInFlight = new Map<string, Promise<WorkflowDetail>>();
 const runsInFlight = new Map<string, Promise<WorkflowRun[]>>();
+const detailRevisions = new Map<string, number>();
+const runRevisions = new Map<string, number>();
 let cacheRevision = 0;
 let cacheGeneration = 0;
 
@@ -186,9 +203,23 @@ function isFresh(lastLoadedAt: number | null): boolean {
   return lastLoadedAt !== null && Date.now() - lastLoadedAt < WORKFLOW_CACHE_STALE_MS;
 }
 
+function bumpRevision(revisions: Map<string, number>, workflowId: string): void {
+  revisions.set(workflowId, (revisions.get(workflowId) ?? 0) + 1);
+  // A request started before a local write must not be reused by a later read.
+  if (revisions === detailRevisions) detailsInFlight.delete(workflowId);
+  if (revisions === runRevisions) runsInFlight.delete(workflowId);
+}
+
 function assertCurrentGeneration(requestGeneration: number): void {
   if (requestGeneration !== cacheGeneration) {
     throw new Error("Workflow request was cancelled because the workspace cache reset.");
+  }
+}
+
+export class WorkflowApiError extends Error {
+  constructor(message: string, public status: number, public code?: string) {
+    super(message);
+    this.name = 'WorkflowApiError';
   }
 }
 
@@ -196,8 +227,18 @@ export async function workflowApiRequest<T>(
   path: string,
   init: WorkflowRequestInit = {},
 ): Promise<T> {
+  const response = await workflowApiFetch(path, init);
+  return (await response.json()) as T;
+}
+
+export async function workflowApiFetch(
+  path: string,
+  init: WorkflowRequestInit = {},
+  accept = "application/json",
+  signal?: AbortSignal,
+): Promise<Response> {
   const headers = new Headers();
-  headers.set("Accept", "application/json");
+  headers.set("Accept", accept);
   headers.set("Content-Type", "application/json");
   for (const [name, value] of Object.entries(init.headers ?? {})) {
     headers.set(name, value);
@@ -208,16 +249,17 @@ export async function workflowApiRequest<T>(
     ...requestInit,
     credentials: "include",
     headers,
+    signal,
   });
 
   if (!response.ok) {
     const data = await response.json().catch(() => null);
     const detail = data?.detail;
     const message = typeof detail === "string" ? detail : detail?.message ?? data?.message;
-    throw new Error(message || (response.status === 429 ? "Too many requests. Please wait a moment and try again." : `Workflow request failed with HTTP ${response.status}`));
+    throw new WorkflowApiError(message || (response.status === 429 ? "Too many requests. Please wait a moment and try again." : `Workflow request failed with HTTP ${response.status}`), response.status, detail?.code);
   }
 
-  return (await response.json()) as T;
+  return response;
 }
 
 function replaceWorkflow(
@@ -232,13 +274,15 @@ function replaceWorkflow(
 function setSelectedFromCaches(workflowId: string | null): void {
   store.update((state) => {
     if (!workflowId) {
-      return { ...state, selectedWorkflowId: null, selectedWorkflow: null, runs: [] };
+      return { ...state, selectedWorkflowId: null, selectedWorkflow: null, runs: [], detailStatus: "idle", runsStatus: "idle" };
     }
     return {
       ...state,
       selectedWorkflowId: workflowId,
       selectedWorkflow: state.detailsById[workflowId] ?? null,
       runs: state.runsByWorkflowId[workflowId] ?? [],
+      detailStatus: state.detailsById[workflowId] ? "ready" : "idle",
+      runsStatus: Object.hasOwn(state.runsByWorkflowId, workflowId) ? "ready" : "idle",
     };
   });
 }
@@ -256,7 +300,11 @@ export const workflowWorkspaceStore = {
 
   async loadWorkflows(options: { force?: boolean } = {}): Promise<WorkflowSummary[]> {
     const current = get(store);
-    if (!options.force && current.workflows.length > 0 && isFresh(current.lastLoadedAt)) {
+    if (!options.force && current.lastLoadedAt !== null && isFresh(current.lastLoadedAt)) {
+      return current.workflows;
+    }
+    if (!options.force && current.lastLoadedAt !== null) {
+      void this.loadWorkflows({ force: true }).catch(() => undefined);
       return current.workflows;
     }
     if (workflowsInFlight) return workflowsInFlight;
@@ -265,14 +313,15 @@ export const workflowWorkspaceStore = {
 
     store.update((state) => ({
       ...state,
-      listStatus: state.workflows.length > 0 ? "refreshing" : "loading",
+      listStatus: state.lastLoadedAt !== null ? "refreshing" : "loading",
       error: null,
     }));
 
-    workflowsInFlight = workflowApiRequest<{ workflows: WorkflowSummary[] }>("/v1/workflows")
+    const requestPromise = workflowApiRequest<{ workflows: WorkflowSummary[] }>("/v1/workflows")
       .then((data) => {
+        if (requestGeneration !== cacheGeneration) return get(store).workflows;
         store.update((state) => {
-          if (requestGeneration !== cacheGeneration || requestRevision !== cacheRevision) {
+          if (requestRevision !== cacheRevision) {
             return {
               ...state,
               listStatus: "ready",
@@ -296,18 +345,20 @@ export const workflowWorkspaceStore = {
         return data.workflows;
       })
       .catch((error) => {
+        if (requestGeneration !== cacheGeneration) throw error;
         store.update((state) => ({
           ...state,
-          listStatus: requestGeneration !== cacheGeneration || requestRevision !== cacheRevision ? state.listStatus : "error",
-          error: requestGeneration !== cacheGeneration || requestRevision !== cacheRevision
+          listStatus: requestRevision !== cacheRevision ? state.listStatus : "error",
+          error: requestRevision !== cacheRevision
             ? state.error
             : errorMessage(error, "Failed to load workflows."),
         }));
         throw error;
       })
       .finally(() => {
-        workflowsInFlight = null;
+        if (workflowsInFlight === requestPromise) workflowsInFlight = null;
       });
+    workflowsInFlight = requestPromise;
 
     return workflowsInFlight;
   },
@@ -317,69 +368,106 @@ export const workflowWorkspaceStore = {
     const requestGeneration = cacheGeneration;
     const current = get(store);
     const cachedDetail = current.detailsById[workflowId];
-    const cachedRuns = current.runsByWorkflowId[workflowId];
-    if (!options.force && cachedDetail && cachedRuns) return cachedDetail;
+    const detailFresh = !!cachedDetail && isFresh(current.detailLoadedAtById[workflowId] ?? null);
+    const runsFresh = Object.hasOwn(current.runsByWorkflowId, workflowId)
+      && isFresh(current.runsLoadedAtById[workflowId] ?? null);
+    if (!options.force && cachedDetail && !detailFresh) {
+      void this.selectWorkflow(workflowId, { force: true }).catch(() => undefined);
+      return cachedDetail;
+    }
 
+    if (options.force || !runsFresh) {
+      const requestRevision = runRevisions.get(workflowId) ?? 0;
+      store.update((state) => ({
+        ...state,
+        runsStatus: state.selectedWorkflowId === workflowId
+          ? (Object.hasOwn(state.runsByWorkflowId, workflowId) ? "refreshing" : "loading")
+          : state.runsStatus,
+      }));
+      let pending = runsInFlight.get(workflowId);
+      if (!pending) {
+        pending = workflowApiRequest<{ runs: WorkflowRun[] }>(
+          `/v1/workflows/${encodeURIComponent(workflowId)}/runs`,
+        ).then((data) => data.runs);
+        runsInFlight.set(workflowId, pending);
+      }
+      const runsPromise = pending;
+      void runsPromise.then((runs) => {
+        if (requestGeneration !== cacheGeneration || requestRevision !== (runRevisions.get(workflowId) ?? 0)) return;
+        store.update((state) => ({
+          ...state,
+          runs: state.selectedWorkflowId === workflowId ? runs : state.runs,
+          runsByWorkflowId: { ...state.runsByWorkflowId, [workflowId]: runs },
+          runsLoadedAtById: { ...state.runsLoadedAtById, [workflowId]: Date.now() },
+          runsStatus: state.selectedWorkflowId === workflowId ? "ready" : state.runsStatus,
+        }));
+      }).catch((error) => {
+        if (requestGeneration !== cacheGeneration || requestRevision !== (runRevisions.get(workflowId) ?? 0)) return;
+        store.update((state) => state.selectedWorkflowId === workflowId
+          ? { ...state, runsStatus: "error", error: errorMessage(error, "Failed to load workflow runs.") }
+          : state);
+      }).finally(() => {
+        if (runsInFlight.get(workflowId) === runsPromise) runsInFlight.delete(workflowId);
+      });
+    }
+
+    if (!options.force && detailFresh) return cachedDetail;
+
+    const requestRevision = detailRevisions.get(workflowId) ?? 0;
     store.update((state) => ({
       ...state,
-      selectedWorkflowId: workflowId,
-      detailStatus: cachedDetail ? "refreshing" : "loading",
-      runsStatus: cachedRuns ? "refreshing" : "loading",
-      error: null,
+      detailStatus: state.selectedWorkflowId === workflowId ? (cachedDetail ? "refreshing" : "loading") : state.detailStatus,
+      error: state.selectedWorkflowId === workflowId ? null : state.error,
     }));
-
-    const detailPromise = detailsInFlight.get(workflowId) ?? workflowApiRequest<{ workflow: WorkflowDetail }>(
-      `/v1/workflows/${encodeURIComponent(workflowId)}`,
-    ).then((data) => data.workflow);
-    detailsInFlight.set(workflowId, detailPromise);
-
-    const runsPromise = runsInFlight.get(workflowId) ?? workflowApiRequest<{ runs: WorkflowRun[] }>(
-      `/v1/workflows/${encodeURIComponent(workflowId)}/runs`,
-    ).then((data) => data.runs);
-    runsInFlight.set(workflowId, runsPromise);
-
+    let pending = detailsInFlight.get(workflowId);
+    if (!pending) {
+      pending = workflowApiRequest<{ workflow: WorkflowDetail }>(
+        `/v1/workflows/${encodeURIComponent(workflowId)}`,
+      ).then((data) => data.workflow);
+      detailsInFlight.set(workflowId, pending);
+    }
+    const detailPromise = pending;
     try {
-      const [workflow, runs] = await Promise.all([detailPromise, runsPromise]);
+      const workflow = await detailPromise;
       assertCurrentGeneration(requestGeneration);
+      if (requestRevision !== (detailRevisions.get(workflowId) ?? 0)) {
+        const latest = get(store).detailsById[workflowId];
+        if (!latest) throw new Error("Workflow changed while its detail was loading.");
+        return latest;
+      }
       store.update((state) => {
-        const isStillSelected = state.selectedWorkflowId === workflow.id;
+        const isStillSelected = state.selectedWorkflowId === workflowId;
         return {
           ...state,
           workflows: replaceWorkflow(state.workflows, workflow),
           selectedWorkflow: isStillSelected ? workflow : state.selectedWorkflow,
-          runs: isStillSelected ? runs : state.runs,
-          detailsById: { ...state.detailsById, [workflow.id]: workflow },
-          runsByWorkflowId: { ...state.runsByWorkflowId, [workflow.id]: runs },
+          detailsById: { ...state.detailsById, [workflowId]: workflow },
+          detailLoadedAtById: { ...state.detailLoadedAtById, [workflowId]: Date.now() },
           detailStatus: isStillSelected ? "ready" : state.detailStatus,
-          runsStatus: isStillSelected ? "ready" : state.runsStatus,
           error: isStillSelected ? null : state.error,
         };
       });
       return workflow;
     } catch (error) {
-      store.update((state) => {
-        if (requestGeneration !== cacheGeneration || state.selectedWorkflowId !== workflowId) return state;
-        return {
-          ...state,
-          detailStatus: "error",
-          runsStatus: "error",
-          error: errorMessage(error, "Failed to load workflow."),
-        };
-      });
+      store.update((state) => requestGeneration === cacheGeneration && state.selectedWorkflowId === workflowId
+        ? { ...state, detailStatus: "error", error: errorMessage(error, "Failed to load workflow.") }
+        : state);
       throw error;
     } finally {
-      detailsInFlight.delete(workflowId);
-      runsInFlight.delete(workflowId);
+      if (detailsInFlight.get(workflowId) === detailPromise) detailsInFlight.delete(workflowId);
     }
   },
 
   upsertWorkflow(workflow: WorkflowDetail): void {
     cacheRevision += 1;
+    bumpRevision(detailRevisions, workflow.id);
     store.update((state) => ({
       ...state,
       workflows: replaceWorkflow(state.workflows, workflow),
       selectedWorkflow: state.selectedWorkflowId === workflow.id ? workflow : state.selectedWorkflow,
       detailsById: { ...state.detailsById, [workflow.id]: workflow },
+      detailLoadedAtById: { ...state.detailLoadedAtById, [workflow.id]: Date.now() },
+      detailStatus: state.selectedWorkflowId === workflow.id ? "ready" : state.detailStatus,
       error: null,
       lastLoadedAt: Date.now(),
     }));
@@ -406,6 +494,29 @@ export const workflowWorkspaceStore = {
     this.upsertWorkflow(workflow);
     setSelectedFromCaches(workflow.id);
     return workflow;
+  },
+
+  async importWorkflowFile(document: unknown): Promise<WorkflowDetail> {
+    const requestGeneration = cacheGeneration;
+    const data = await workflowApiRequest<{ workflow: WorkflowDetail }>("/v1/workflows/file-import", {
+      method: "POST",
+      body: JSON.stringify(document),
+    });
+    assertCurrentGeneration(requestGeneration);
+    this.upsertWorkflow(data.workflow);
+    setSelectedFromCaches(data.workflow.id);
+    return data.workflow;
+  },
+
+  async completeBindingRequirement(workflowId: string, input: WorkflowBindingRequirement & { chat_id?: string; new_chat?: boolean }): Promise<WorkflowDetail> {
+    const requestGeneration = cacheGeneration;
+    const data = await workflowApiRequest<{ workflow: WorkflowDetail }>(
+      `/v1/workflows/${encodeURIComponent(workflowId)}/binding-requirements/complete`,
+      { method: "POST", body: JSON.stringify(input) },
+    );
+    assertCurrentGeneration(requestGeneration);
+    this.upsertWorkflow(data.workflow);
+    return data.workflow;
   },
 
   async patchWorkflow(workflowId: string, payload: Record<string, unknown>): Promise<WorkflowDetail> {
@@ -461,9 +572,13 @@ export const workflowWorkspaceStore = {
     });
     assertCurrentGeneration(requestGeneration);
     cacheRevision += 1;
+    bumpRevision(detailRevisions, workflowId);
+    bumpRevision(runRevisions, workflowId);
     store.update((state) => {
       const { [workflowId]: _removedDetail, ...detailsById } = state.detailsById;
       const { [workflowId]: _removedRuns, ...runsByWorkflowId } = state.runsByWorkflowId;
+      const { [workflowId]: _removedDetailLoadedAt, ...detailLoadedAtById } = state.detailLoadedAtById;
+      const { [workflowId]: _removedRunsLoadedAt, ...runsLoadedAtById } = state.runsLoadedAtById;
       const workflows = state.workflows.filter((workflow) => workflow.id !== workflowId);
       const selectedWorkflowId = state.selectedWorkflowId === workflowId ? null : state.selectedWorkflowId;
       return {
@@ -474,6 +589,8 @@ export const workflowWorkspaceStore = {
         runs: selectedWorkflowId ? state.runs : [],
         detailsById,
         runsByWorkflowId,
+        detailLoadedAtById,
+        runsLoadedAtById,
         lastLoadedAt: Date.now(),
       };
     });
@@ -488,6 +605,7 @@ export const workflowWorkspaceStore = {
     });
     assertCurrentGeneration(requestGeneration);
     cacheRevision += 1;
+    bumpRevision(runRevisions, workflowId);
     store.update((state) => {
       const runs = [data.run, ...(state.runsByWorkflowId[workflowId] ?? [])];
       return {
@@ -497,15 +615,20 @@ export const workflowWorkspaceStore = {
         )),
         runs: state.selectedWorkflowId === workflowId ? runs : state.runs,
         runsByWorkflowId: { ...state.runsByWorkflowId, [workflowId]: runs },
+        runsLoadedAtById: { ...state.runsLoadedAtById, [workflowId]: Date.now() },
+        runsStatus: state.selectedWorkflowId === workflowId ? "ready" : state.runsStatus,
       };
     });
     return data.run;
   },
 
   async getWorkflowRun(workflowId: string, runId: string): Promise<WorkflowRunDetail> {
+    const requestGeneration = cacheGeneration;
     const data = await workflowApiRequest<{ run: WorkflowRunDetail }>(
       `/v1/workflows/${encodeURIComponent(workflowId)}/runs/${encodeURIComponent(runId)}`,
     );
+    assertCurrentGeneration(requestGeneration);
+    bumpRevision(runRevisions, workflowId);
     store.update((state) => {
       const existingRuns = state.runsByWorkflowId[workflowId] ?? [];
       const hasRun = existingRuns.some((run) => run.id === runId);
@@ -519,17 +642,22 @@ export const workflowWorkspaceStore = {
         )),
         runs: state.selectedWorkflowId === workflowId ? workflowRuns : state.runs,
         runsByWorkflowId: { ...state.runsByWorkflowId, [workflowId]: workflowRuns },
+        runsLoadedAtById: { ...state.runsLoadedAtById, [workflowId]: Date.now() },
+        runsStatus: state.selectedWorkflowId === workflowId ? "ready" : state.runsStatus,
       };
     });
     return data.run;
   },
 
   async cancelWorkflowRun(workflowId: string, runId: string): Promise<"cancellation_requested" | "cancelled"> {
+    const requestGeneration = cacheGeneration;
     const data = await workflowApiRequest<{ run_id: string; status: "cancellation_requested" | "cancelled" }>(
       `/v1/workflows/${encodeURIComponent(workflowId)}/runs/${encodeURIComponent(runId)}/cancel`,
       { method: "POST", body: JSON.stringify({}) },
     );
+    assertCurrentGeneration(requestGeneration);
     cacheRevision += 1;
+    bumpRevision(runRevisions, workflowId);
     store.update((state) => {
       const updateRuns = (items: WorkflowRun[]) => items.map((run) => (
         run.id === runId ? { ...run, status: data.status } : run
@@ -539,18 +667,23 @@ export const workflowWorkspaceStore = {
         ...state,
         runs: state.selectedWorkflowId === workflowId ? workflowRuns : state.runs,
         runsByWorkflowId: { ...state.runsByWorkflowId, [workflowId]: workflowRuns },
+        runsLoadedAtById: { ...state.runsLoadedAtById, [workflowId]: Date.now() },
+        runsStatus: state.selectedWorkflowId === workflowId ? "ready" : state.runsStatus,
       };
     });
     return data.status;
   },
 
   async deleteWorkflowRun(workflowId: string, runId: string): Promise<"deleted" | "deletion_pending"> {
+    const requestGeneration = cacheGeneration;
     const data = await workflowApiRequest<{ status: "deleted" | "deletion_pending" }>(`/v1/workflows/${encodeURIComponent(workflowId)}/runs/${encodeURIComponent(runId)}`, { method: "DELETE" });
+    assertCurrentGeneration(requestGeneration);
     if (data.status === "deleted") {
       cacheRevision += 1;
+      bumpRevision(runRevisions, workflowId);
       store.update(state => {
         const remaining = (state.runsByWorkflowId[workflowId] ?? []).filter(run => run.id !== runId);
-        return { ...state, runs: state.selectedWorkflowId === workflowId ? remaining : state.runs, runsByWorkflowId: { ...state.runsByWorkflowId, [workflowId]: remaining } };
+        return { ...state, runs: state.selectedWorkflowId === workflowId ? remaining : state.runs, runsByWorkflowId: { ...state.runsByWorkflowId, [workflowId]: remaining }, runsLoadedAtById: { ...state.runsLoadedAtById, [workflowId]: Date.now() }, runsStatus: state.selectedWorkflowId === workflowId ? "ready" : state.runsStatus };
       });
     }
     return data.status;
@@ -562,6 +695,10 @@ export const workflowWorkspaceStore = {
     workflowsInFlight = null;
     detailsInFlight.clear();
     runsInFlight.clear();
-    store.set({ ...initialState });
+    detailRevisions.clear();
+    runRevisions.clear();
+    store.set({ ...initialState, generation: cacheGeneration });
   },
 };
+
+registerWorkspaceCacheClear(() => workflowWorkspaceStore.reset());

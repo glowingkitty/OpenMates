@@ -16,6 +16,8 @@ import {
 import { getMasterKey } from "./cryptoKeyStorage";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { listProjects } from "./projectService";
+import { getWorkspaceCacheIdentity, WorkspaceQueryCache } from "./workspaceQueryCache";
+import { registerWorkspaceCacheClear } from "./workspaceCacheLifecycle";
 
 export type UserTaskStatus = "backlog" | "todo" | "in_progress" | "blocked" | "done";
 export type UserTaskAssigneeType = "user" | "openmates" | "external_ai" | "unassigned";
@@ -245,6 +247,23 @@ export interface WorkflowRunTaskProjectionViewModel {
 
 export type TasksBoardItem = UserTaskViewModel | WorkflowRunTaskProjectionViewModel;
 
+/** Local create publication may follow a cache subscription for the same ID. */
+export function prependTaskBoardItem(items: TasksBoardItem[], task: UserTaskViewModel): TasksBoardItem[] {
+  return [task, ...items.filter((item) => item.task_id !== task.task_id)];
+}
+
+/** Keep successive board actions for one Task behind its final reorder. */
+export function createTaskMoveSequencer(): (taskId: string, move: () => Promise<void>) => Promise<void> {
+  const tails = new Map<string, Promise<void>>();
+  return (taskId, move) => {
+    const operation = (tails.get(taskId) ?? Promise.resolve()).then(move);
+    const settled = operation.then(() => undefined, () => undefined);
+    tails.set(taskId, settled);
+    void settled.then(() => { if (tails.get(taskId) === settled) tails.delete(taskId); });
+    return operation;
+  };
+}
+
 export interface CreateUserTaskInput {
   title: string;
   description?: string;
@@ -265,6 +284,94 @@ export interface ListUserTasksFilters {
   chatId?: string;
   externalChat?: ExternalChatContext;
   projectId?: string;
+}
+
+const taskBoardCache = new WorkspaceQueryCache<TasksBoardItem[]>({ ttlMs: 60_000, maxEntries: 32 });
+const taskEntityCache = new WorkspaceQueryCache<UserTaskViewModel>({ ttlMs: 60_000, maxEntries: 128 });
+const taskEligibilityCache = new WorkspaceQueryCache<boolean>({ ttlMs: 60_000, maxEntries: 1 });
+const knownTaskFilters = new Map<string, ListUserTasksFilters>();
+const deletedTaskIds = new Set<string>();
+let knownTaskScope: string | null = null;
+registerWorkspaceCacheClear(() => { knownTaskFilters.clear(); deletedTaskIds.clear(); knownTaskScope = null; });
+
+function ensureTaskScope(): void {
+  const scope = getWorkspaceCacheIdentity();
+  if (scope !== knownTaskScope) { knownTaskFilters.clear(); deletedTaskIds.clear(); knownTaskScope = scope; }
+}
+
+function taskQueryKey(filters: ListUserTasksFilters): string {
+  return JSON.stringify([filters.status ?? null, filters.chatId ?? null, filters.projectId ?? null,
+    filters.externalChat?.provider ?? null, filters.externalChat?.id ?? null]);
+}
+
+function taskMatchesFilter(task: UserTaskViewModel, filters: ListUserTasksFilters): boolean {
+  return (!filters.status || task.status === filters.status)
+    && (!filters.chatId || task.primaryChatId === filters.chatId)
+    && (!filters.projectId || task.linkedProjectIds.includes(filters.projectId))
+    && (!filters.externalChat || (task.externalChat?.provider === filters.externalChat.provider
+      && task.externalChat?.id === filters.externalChat.id));
+}
+
+function rememberTask(task: UserTaskViewModel, expectedScope: string | null): UserTaskViewModel {
+  ensureTaskScope();
+  if (!expectedScope || expectedScope !== getWorkspaceCacheIdentity()) return task;
+  const existing = peekUserTask(task.task_id);
+  if (existing && (existing.version > task.version || (existing.version === task.version && existing.updatedAt > task.updatedAt))) return existing;
+  deletedTaskIds.delete(task.task_id);
+  taskEntityCache.set(task.task_id, task);
+  for (const [key, filters] of knownTaskFilters) {
+    const list = taskBoardCache.peek(key);
+    if (!list) { taskBoardCache.invalidate(key); continue; }
+    const without = list.filter((candidate) => candidate.task_id !== task.task_id);
+    const wasPresent = without.length !== list.length;
+    if (list.length >= 100 && (!wasPresent || !taskMatchesFilter(task, filters))) {
+      taskBoardCache.invalidate(key); // A truncated result needs server order/refill.
+      continue;
+    }
+    taskBoardCache.set(key, taskMatchesFilter(task, filters) ? [task, ...without] : without);
+  }
+  return task;
+}
+
+function forgetTask(taskId: string, expectedScope: string | null): void {
+  ensureTaskScope();
+  if (!expectedScope || expectedScope !== getWorkspaceCacheIdentity()) return;
+  deletedTaskIds.add(taskId);
+  taskEntityCache.invalidate(taskId);
+  for (const key of knownTaskFilters.keys()) {
+    const list = taskBoardCache.peek(key);
+    if (list) taskBoardCache.set(key, list.filter((candidate) => candidate.task_id !== taskId));
+    else taskBoardCache.invalidate(key);
+  }
+}
+
+export function peekTaskBoardItems(filters: ListUserTasksFilters = {}): TasksBoardItem[] | undefined {
+  ensureTaskScope();
+  return taskBoardCache.peek(taskQueryKey(filters));
+}
+
+export function peekUserTasks(filters: ListUserTasksFilters = {}): UserTaskViewModel[] | undefined {
+  return peekTaskBoardItems(filters)?.filter((task): task is UserTaskViewModel => !isWorkflowRunTaskProjectionViewModel(task));
+}
+
+export function peekUserTask(taskId: string): UserTaskViewModel | undefined {
+  ensureTaskScope();
+  if (deletedTaskIds.has(taskId)) return undefined;
+  let newest = taskEntityCache.peek(taskId);
+  for (const key of knownTaskFilters.keys()) {
+    const task = taskBoardCache.peek(key)?.find((item) => item.task_id === taskId);
+    if (task && !isWorkflowRunTaskProjectionViewModel(task)
+      && (!newest || task.version > newest.version || (task.version === newest.version && task.updatedAt > newest.updatedAt))) newest = task;
+  }
+  return newest;
+}
+
+export function isUserTaskDeleted(taskId: string): boolean { ensureTaskScope(); return deletedTaskIds.has(taskId); }
+
+export function peekTaskAssignmentEligibility(): boolean | undefined { return taskEligibilityCache.peek("owner"); }
+export function subscribeUserTasks(listener: () => void): () => void {
+  const unsubscribers = [taskBoardCache.subscribe(listener), taskEntityCache.subscribe(listener), taskEligibilityCache.subscribe(listener)];
+  return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
 }
 
 export interface ExtractUserTaskProposalsInput {
@@ -476,24 +583,63 @@ async function buildTaskKeyWrappers(
 }
 
 export async function getTaskAssignmentEligibility(): Promise<boolean> {
-  // Eligibility is owner-scoped server provenance, independent of board filters
-  // and mutable assignment/chat context. Never infer it from visible Tasks.
-  const data = await requestJson<{ eligible_external_ai?: string[] }>("/v1/user-tasks?limit=1");
-  if (!Array.isArray(data.eligible_external_ai)) throw new Error("Task assignment eligibility is unavailable");
-  return data.eligible_external_ai.includes("codex");
+  return taskEligibilityCache.load("owner", async () => {
+    const data = await requestJson<{ eligible_external_ai?: string[] }>("/v1/user-tasks/assignment-eligibility");
+    if (!Array.isArray(data.eligible_external_ai)) throw new Error("Task assignment eligibility is unavailable");
+    return data.eligible_external_ai.includes("codex");
+  });
 }
 
-export async function listTaskBoardItems(filters: ListUserTasksFilters = {}): Promise<TasksBoardItem[]> {
-  const data = await requestJson<{ tasks: Array<EncryptedUserTaskRecord | WorkflowRunTaskProjectionRecord> }>(`/v1/user-tasks${await buildQuery(filters)}`);
-  const decrypted = await Promise.all(data.tasks.map(async (task) => {
-    if (isWorkflowRunTaskProjection(task)) return workflowRunTaskProjection(task);
-    return decryptTask(task);
-  }));
-  return decrypted.filter((task): task is TasksBoardItem => task !== null);
+export async function listTaskBoardItems(filters: ListUserTasksFilters = {}, options: { force?: boolean } = {}): Promise<TasksBoardItem[]> {
+  ensureTaskScope();
+  const cacheScope = getWorkspaceCacheIdentity();
+  const key = taskQueryKey(filters);
+  knownTaskFilters.set(key, { ...filters });
+  if (knownTaskFilters.size > 32) knownTaskFilters.delete(knownTaskFilters.keys().next().value!);
+  return taskBoardCache.load(key, async () => {
+    const data = await requestJson<{ tasks: Array<EncryptedUserTaskRecord | WorkflowRunTaskProjectionRecord>; eligible_external_ai?: string[] }>(`/v1/user-tasks${await buildQuery(filters)}`);
+    if (cacheScope && cacheScope === getWorkspaceCacheIdentity() && Array.isArray(data.eligible_external_ai)) {
+      taskEligibilityCache.set("owner", data.eligible_external_ai.includes("codex"));
+    }
+    const decrypted = await Promise.all(data.tasks.map(async (task) => {
+      if (isWorkflowRunTaskProjection(task)) return workflowRunTaskProjection(task);
+      return decryptTask(task);
+    }));
+    return decrypted.filter((task): task is TasksBoardItem => task !== null);
+  }, options);
 }
 
 export async function listUserTasks(filters: ListUserTasksFilters = {}): Promise<UserTaskViewModel[]> {
   return (await listTaskBoardItems(filters)).filter((task): task is UserTaskViewModel => !isWorkflowRunTaskProjectionViewModel(task));
+}
+
+/** An ID read decrypts exactly the selected encrypted Task record. */
+export async function getUserTask(taskId: string): Promise<UserTaskViewModel> {
+  const warm = peekUserTask(taskId);
+  const cacheScope = getWorkspaceCacheIdentity();
+  const load = () => taskEntityCache.load(taskId, async () => {
+    let data: { task: EncryptedUserTaskRecord; eligible_external_ai?: string[] };
+    try {
+      data = await requestJson<{ task: EncryptedUserTaskRecord; eligible_external_ai?: string[] }>(`/v1/user-tasks/${encodeURIComponent(taskId)}`);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('Tasks API failed (404)')) forgetTask(taskId, cacheScope);
+      throw error;
+    }
+    if (cacheScope && cacheScope === getWorkspaceCacheIdentity() && Array.isArray(data.eligible_external_ai)) {
+      taskEligibilityCache.set("owner", data.eligible_external_ai.includes("codex"));
+    }
+    const task = await decryptTask(data.task);
+    if (!task) throw new Error(`Task ${taskId} could not be decrypted`);
+    const latest = peekUserTask(taskId);
+    return latest && (latest.version > task.version || (latest.version === task.version && latest.updatedAt > task.updatedAt)) ? latest : task;
+  });
+  if (!warm) return load();
+  if (taskEntityCache.isFresh(taskId)) return warm;
+  for (const key of knownTaskFilters.keys()) {
+    if (taskBoardCache.isFresh(key) && taskBoardCache.peek(key)?.some((task) => task.task_id === taskId)) return warm;
+  }
+  void load().catch((error) => console.error('[Tasks] Failed to refresh selected task:', error));
+  return warm;
 }
 
 function taskActivityPath(taskId: string, teamId?: string, cursor?: string): string {
@@ -592,12 +738,15 @@ export function isWorkflowRunTaskProjectionViewModel(task: TasksBoardItem): task
 
 export async function cancelWorkflowRunTaskProjection(task: WorkflowRunTaskProjectionViewModel): Promise<void> {
   if (!task.workflowRunId) throw new Error("Workflow run projection has no run id to cancel");
+  const cacheScope = getWorkspaceCacheIdentity();
   await requestJson(`/v1/workflows/${encodeURIComponent(task.workflowId)}/runs/${encodeURIComponent(task.workflowRunId)}/cancel`, {
     method: "POST",
   });
+  if (cacheScope && cacheScope === getWorkspaceCacheIdentity()) taskBoardCache.invalidate();
 }
 
 export async function createUserTask(input: CreateUserTaskInput): Promise<UserTaskViewModel> {
+  const cacheScope = getWorkspaceCacheIdentity();
   if (input.primaryChatId && input.externalChat) throw new Error("A task cannot use both native chat and external chat context.");
   if (input.externalChat) assertExternalChatContext(input.externalChat);
   const taskKey = generateEmbedKey();
@@ -639,7 +788,7 @@ export async function createUserTask(input: CreateUserTaskInput): Promise<UserTa
   });
   const decrypted = await decryptTask(data.task);
   if (!decrypted) throw new Error("Created task could not be decrypted");
-  return decrypted;
+  return rememberTask(decrypted, cacheScope);
 }
 
 export async function listUserTaskKeyWrappers(taskId: string): Promise<UserTaskKeyWrapperRecord[]> {
@@ -690,6 +839,7 @@ export async function extractUserTaskProposals(input: ExtractUserTaskProposalsIn
 }
 
 export async function updateUserTask(task: UserTaskViewModel, patch: Partial<CreateUserTaskInput> & { status?: UserTaskStatus }): Promise<UserTaskViewModel> {
+  const cacheScope = getWorkspaceCacheIdentity();
   if (patch.primaryChatId && patch.externalChat) throw new Error("A task cannot use both native chat and external chat context.");
   if (patch.externalChat) assertExternalChatContext(patch.externalChat);
   const taskKey = await decryptChatKeyWithMasterKey(task.encrypted.encrypted_task_key ?? "");
@@ -735,20 +885,21 @@ export async function updateUserTask(task: UserTaskViewModel, patch: Partial<Cre
   });
   const decrypted = await decryptTask(data.task);
   if (!decrypted) throw new Error("Updated task could not be decrypted");
-  return decrypted;
+  return rememberTask(decrypted, cacheScope);
 }
 
-async function decryptTaskActionResponse(data: { task: EncryptedUserTaskRecord }): Promise<UserTaskViewModel> {
+async function decryptTaskActionResponse(data: { task: EncryptedUserTaskRecord }, cacheScope: string | null): Promise<UserTaskViewModel> {
   const decrypted = await decryptTask(data.task);
   if (!decrypted) throw new Error("Task action response could not be decrypted");
-  return decrypted;
+  return rememberTask(decrypted, cacheScope);
 }
 
 export async function completeUserTask(task: UserTaskViewModel): Promise<UserTaskViewModel> {
+  const cacheScope = getWorkspaceCacheIdentity();
   return decryptTaskActionResponse(await requestJson<{ task: EncryptedUserTaskRecord }>(`/v1/user-tasks/${task.task_id}/complete`, {
     method: "POST",
     body: JSON.stringify({ version: task.version }),
-  }));
+  }), cacheScope);
 }
 
 export async function blockUserTask(
@@ -756,6 +907,7 @@ export async function blockUserTask(
   blockedReasonCode: BlockedReasonCode = "needs_user_input",
   blockedReason = "",
 ): Promise<UserTaskViewModel> {
+  const cacheScope = getWorkspaceCacheIdentity();
   const taskKey = await decryptChatKeyWithMasterKey(task.encrypted.encrypted_task_key ?? "");
   if (!taskKey) throw new Error("Could not decrypt task key");
   return decryptTaskActionResponse(await requestJson<{ task: EncryptedUserTaskRecord }>(`/v1/user-tasks/${task.task_id}/block`, {
@@ -765,24 +917,27 @@ export async function blockUserTask(
       blocked_reason_code: blockedReasonCode,
       ...(blockedReason ? { encrypted_blocked_reason: await encryptWithEmbedKey(blockedReason, taskKey) } : {}),
     }),
-  }));
+  }), cacheScope);
 }
 
 export async function unblockUserTask(task: UserTaskViewModel): Promise<UserTaskViewModel> {
+  const cacheScope = getWorkspaceCacheIdentity();
   return decryptTaskActionResponse(await requestJson<{ task: EncryptedUserTaskRecord }>(`/v1/user-tasks/${task.task_id}/unblock`, {
     method: "POST",
     body: JSON.stringify({ version: task.version }),
-  }));
+  }), cacheScope);
 }
 
 export async function skipUserTask(task: UserTaskViewModel): Promise<UserTaskViewModel> {
+  const cacheScope = getWorkspaceCacheIdentity();
   return decryptTaskActionResponse(await requestJson<{ task: EncryptedUserTaskRecord }>(`/v1/user-tasks/${task.task_id}/skip`, {
     method: "POST",
     body: JSON.stringify({ version: task.version }),
-  }));
+  }), cacheScope);
 }
 
 export async function reorderUserTasks(moves: ReorderUserTaskMoveInput[]): Promise<UserTaskViewModel[]> {
+  const cacheScope = getWorkspaceCacheIdentity();
   const data = await requestJson<{ tasks: EncryptedUserTaskRecord[] }>("/v1/user-tasks/reorder", {
     method: "POST",
     body: JSON.stringify({
@@ -797,17 +952,20 @@ export async function reorderUserTasks(moves: ReorderUserTaskMoveInput[]): Promi
     }),
   });
   const decrypted = await Promise.all(data.tasks.map((task) => decryptTask(task)));
-  return decrypted.filter((task): task is UserTaskViewModel => task !== null);
+  return decrypted.filter((task): task is UserTaskViewModel => task !== null).map((task) => rememberTask(task, cacheScope));
 }
 
 export async function deleteUserTask(task: UserTaskViewModel | WorkflowRunTaskProjectionViewModel): Promise<void> {
+  const cacheScope = getWorkspaceCacheIdentity();
   const params = new URLSearchParams({ version: String(task.version) });
   await requestJson(`/v1/user-tasks/${task.task_id}?${params.toString()}`, {
     method: "DELETE",
   });
+  forgetTask(task.task_id, cacheScope);
 }
 
 export async function startUserTaskWithAI(task: UserTaskViewModel): Promise<UserTaskViewModel> {
+  const cacheScope = getWorkspaceCacheIdentity();
   const body: Record<string, unknown> = {
     version: task.version,
     updated_at: nowSeconds(),
@@ -835,5 +993,5 @@ export async function startUserTaskWithAI(task: UserTaskViewModel): Promise<User
   });
   const decrypted = await decryptTask(data.task);
   if (!decrypted) throw new Error("Started task could not be decrypted");
-  return decrypted;
+  return rememberTask(decrypted, cacheScope);
 }

@@ -23,19 +23,32 @@ struct SettingsAppsFullView: View {
     @State private var isLoading = true
     @State private var searchText = ""
     @State private var selectedApp: AppInfo?
+    @State private var appInitialDetailPath: [String] = []
     @State private var isShowingAllApps = false
     @State private var mostUsedAppIDs: [String] = []
     let onOpenExampleChat: (String) -> Void
+    private let deepLinkPath: String?
+    private let memoriesDiscovery: Bool
+    private let onMemoryCategory: ((String, String) -> Void)?
+    private let onChildNavigationChanged: ((SettingsChildBannerNavigation?) -> Void)?
+    private let onReturnToMemories: (() -> Void)?
 
-    init(onOpenExampleChat: @escaping (String) -> Void = { chatId in
+    init(deepLinkPath: String? = nil, onOpenExampleChat: @escaping (String) -> Void = { chatId in
         guard let url = URL(string: "openmates://chat/\(chatId)") else { return }
         NotificationCenter.default.post(
             name: .deepLinkReceived,
             object: nil,
             userInfo: ["url": url]
         )
-    }) {
+    }, memoriesDiscovery: Bool = false, onMemoryCategory: ((String, String) -> Void)? = nil,
+       onChildNavigationChanged: ((SettingsChildBannerNavigation?) -> Void)? = nil, onReturnToMemories: (() -> Void)? = nil) {
+        self.memoriesDiscovery = memoriesDiscovery
+        self.onMemoryCategory = onMemoryCategory
+        self.onChildNavigationChanged = onChildNavigationChanged
+        self.onReturnToMemories = onReturnToMemories
+        _isShowingAllApps = State(initialValue: memoriesDiscovery || deepLinkPath == "all")
         self.onOpenExampleChat = onOpenExampleChat
+        self.deepLinkPath = deepLinkPath
     }
 
     struct AppInfo: Identifiable, Decodable {
@@ -264,14 +277,16 @@ struct SettingsAppsFullView: View {
     var body: some View {
         Group {
             if let selectedApp {
-                AppDetailView(app: selectedApp, onOpenExampleChat: onOpenExampleChat) {
+                AppDetailView(app: selectedApp, onOpenExampleChat: onOpenExampleChat,
+                    initialDetailPath: appInitialDetailPath, usesSharedBanner: memoriesDiscovery, onMemoryCategory: onMemoryCategory) {
                     withAnimation(.easeOut(duration: 0.2)) {
                         self.selectedApp = nil
+                        appInitialDetailPath = []
                     }
                 }
                 .transition(.move(edge: .trailing))
             } else if isShowingAllApps {
-                SettingsAllAppsNativeView(apps: apps, onSelect: { app in
+                SettingsAllAppsNativeView(apps: apps, initialFilter: memoriesDiscovery ? .settingsMemories : .all, showsBackButton: !memoriesDiscovery, onSelect: { app in
                     withAnimation(.easeOut(duration: 0.2)) {
                         selectedApp = app
                     }
@@ -311,7 +326,34 @@ struct SettingsAppsFullView: View {
                 }
             }
         }
-        .task { await loadApps() }
+        .task {
+            await loadApps()
+            publishChildNavigation()
+            guard let deepLinkPath else { return }
+            if deepLinkPath == "all" { isShowingAllApps = true }
+            else if let appID = deepLinkPath.split(separator: "/").first {
+                appInitialDetailPath = Array(deepLinkPath.split(separator: "/").dropFirst()).map(String.init)
+                selectedApp = apps.first { $0.id == String(appID) }
+            }
+        }
+        .onChange(of: selectedApp?.id) { _, _ in publishChildNavigation() }
+        .onAppear { publishChildNavigation() }
+        .onDisappear { onChildNavigationChanged?(nil) }
+    }
+
+    private func publishChildNavigation() {
+        guard memoriesDiscovery else { return }
+        if let app = selectedApp {
+            onChildNavigationChanged?(SettingsChildBannerNavigation(title: app.name, description: app.description ?? "",
+                icon: app.iconName ?? AppIconView.iconName(forAppId: app.id),
+                breadcrumb: AppStrings.settingsMemories + " / " + AppStrings.showAllApps, appColorID: app.id,
+                onBack: { selectedApp = nil; appInitialDetailPath = [] }))
+        } else {
+            onChildNavigationChanged?(SettingsChildBannerNavigation(title: AppStrings.showAllApps,
+                description: "", icon: "app",
+                breadcrumb: AppStrings.settings + " / " + AppStrings.settingsMemories,
+                onBack: { onReturnToMemories?() }))
+        }
     }
 
     private func loadApps() async {
@@ -336,6 +378,7 @@ struct SettingsAppsFullView: View {
                 category: "settings_apps"
             )
         }
+        if memoriesDiscovery { isLoading = false; return }
         do {
             let response: MostUsedAppsResponse = try await APIClient.shared.request(
                 .get,
@@ -789,6 +832,13 @@ private struct SettingsAllAppsNativeView: View {
     let apps: [SettingsAppsFullView.AppInfo]
     let onSelect: (SettingsAppsFullView.AppInfo) -> Void
     let onBack: () -> Void
+    let showsBackButton: Bool
+
+    init(apps: [SettingsAppsFullView.AppInfo], initialFilter: SettingsAllAppsFilter = .all,
+         showsBackButton: Bool = true, onSelect: @escaping (SettingsAppsFullView.AppInfo) -> Void, onBack: @escaping () -> Void) {
+        self.apps = apps; self.onSelect = onSelect; self.onBack = onBack; self.showsBackButton = showsBackButton
+        _filter = State(initialValue: initialFilter)
+    }
 
     @State private var query = ""
     @State private var filter: SettingsAllAppsFilter = .all
@@ -822,7 +872,7 @@ private struct SettingsAllAppsNativeView: View {
                     .frame(height: 0)
                     .accessibilityIdentifier("settings-all-apps-page")
 
-                backButton
+                if showsBackButton { backButton }
                 searchField
                 filterRow
                 sortRow
@@ -925,14 +975,33 @@ struct AppDetailView: View {
     let app: SettingsAppsFullView.AppInfo
     let onOpenExampleChat: (String) -> Void
     let onBack: () -> Void
+    let initialDetailPath: [String]
+    let usesSharedBanner: Bool
+    let onMemoryCategory: ((String, String) -> Void)?
 
     @State private var selectedSkill: SettingsAppsFullView.AppSkill?
     @State private var selectedFocusMode: SettingsAppsFullView.AppSkill?
     @State private var selectedMemory: SettingsAppsFullView.AppSkill?
     @State private var selectedContent: SettingsAppsFullView.ContentType?
+    @State private var missingInitialDetail = false
+    @State private var appliedInitialDetail = false
+
+    init(app: SettingsAppsFullView.AppInfo, onOpenExampleChat: @escaping (String) -> Void,
+         initialDetailPath: [String] = [], usesSharedBanner: Bool = false, onMemoryCategory: ((String, String) -> Void)? = nil, onBack: @escaping () -> Void) {
+        self.app = app
+        self.onOpenExampleChat = onOpenExampleChat
+        self.initialDetailPath = initialDetailPath
+        self.usesSharedBanner = usesSharedBanner; self.onMemoryCategory = onMemoryCategory
+        self.onBack = onBack
+    }
 
     var body: some View {
-        if let selectedSkill {
+        Group {
+        if missingInitialDetail {
+            Text(AppStrings.localized("documentation.page_not_found"))
+                .font(.omP).foregroundStyle(Color.fontSecondary)
+                .accessibilityIdentifier("settings-deep-link-unavailable")
+        } else if let selectedSkill {
             AppSkillDetailNativeView(app: app, skill: selectedSkill, onOpenExampleChat: onOpenExampleChat) {
                 withAnimation(.easeOut(duration: 0.2)) {
                     self.selectedSkill = nil
@@ -963,6 +1032,21 @@ struct AppDetailView: View {
         } else {
             appDetailBody
         }
+        }
+        .onAppear {
+            guard !appliedInitialDetail else { return }
+            appliedInitialDetail = true
+            guard initialDetailPath.count == 2 else { return }
+            let id = initialDetailPath[1]
+            switch initialDetailPath[0] {
+            case "skills": selectedSkill = app.skills?.first { $0.id == id }
+            case "focus", "focus-modes": selectedFocusMode = app.focusModes?.first { $0.id == id }
+            case "memories", "settings-memories": selectedMemory = app.settingsAndMemories?.first { $0.id == id }
+            case "content-types": selectedContent = app.contentTypes.first { $0.id == id }
+            default: break
+            }
+            missingInitialDetail = selectedSkill == nil && selectedFocusMode == nil && selectedMemory == nil && selectedContent == nil
+        }
     }
 
     private var appDetailBody: some View {
@@ -971,6 +1055,7 @@ struct AppDetailView: View {
                 .frame(height: 0)
                 .accessibilityIdentifier("settings-app-detail-page")
 
+            if !usesSharedBanner {
             Button(action: onBack) {
                 HStack(spacing: .spacing3) {
                     Icon("back", size: 20)
@@ -1002,6 +1087,8 @@ struct AppDetailView: View {
                 .padding(.horizontal, .spacing5)
             }
 
+            }
+
             if let skills = app.skills, !skills.isEmpty {
                 OMSettingsSection(AppStrings.appStoreSkills, icon: "skill") {
                     ForEach(skills) { skill in
@@ -1018,9 +1105,8 @@ struct AppDetailView: View {
                 OMSettingsSection(AppStrings.appStoreMemories, icon: "settings") {
                     ForEach(memories) { memory in
                         detailRow(memory, identifier: "settings-app-memory-row-\(memory.id)") {
-                            withAnimation(.easeOut(duration: 0.2)) {
-                                selectedMemory = memory
-                            }
+                            if let onMemoryCategory { onMemoryCategory(app.id, memory.id) }
+                            else { withAnimation(.easeOut(duration: 0.2)) { selectedMemory = memory } }
                         }
                     }
                 }

@@ -5,6 +5,8 @@
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/embeds/events/EventEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/events/EventEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/EntryWithMapTemplate.svelte
+//          frontend/packages/ui/src/components/embeds/EmbedLeafletMap.svelte
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
 //          TypographyTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
@@ -50,28 +52,27 @@ struct EventResultCard: View {
 
 private struct EventPreviewDetails: View {
     let event: EventResultSummary
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     var body: some View {
         HStack(alignment: .center, spacing: .spacing5) {
             VStack(alignment: .leading, spacing: .spacing2) {
-                Text(event.title)
-                    .font(.omSmall)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(Color.grey100)
-                    .lineLimit(3)
-                    .multilineTextAlignment(.leading)
-
                 VStack(alignment: .leading, spacing: 1) {
-                    if let date = event.shortDate {
+                    if let date = event.shortDay {
                         Text(date)
-                            .font(.omXs)
-                            .fontWeight(.medium)
+                            .font(.omSmall.weight(.semibold))
+                            .foregroundStyle(Color.grey70)
+                            .lineLimit(1)
+                    }
+                    if let time = event.shortTime {
+                        Text(time)
+                            .font(.omSmall.weight(.semibold))
                             .foregroundStyle(Color.grey70)
                             .lineLimit(1)
                     }
                     if let location = event.shortLocation {
                         Text(location)
-                            .font(.omXs)
+                            .font(.omXxs)
                             .foregroundStyle(Color.grey60)
                             .lineLimit(1)
                     }
@@ -101,23 +102,25 @@ private struct EventPreviewDetails: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            if let imageURL = event.imageURL, let url = URL(string: imageURL) {
+            if horizontalSizeClass != .compact,
+               let imageURL = event.imageURL, let url = URL(string: imageURL) {
                 CachedRemoteImage(url: url) { image in
-                    image.resizable().aspectRatio(contentMode: .fill)
+                    image.resizable().aspectRatio(contentMode: .fit)
                 } placeholder: {
                     Color.grey20
                 }
-                .frame(width: 104, height: 126)
+                .frame(width: 104, height: 104)
                 .clipped()
             }
         }
-        .padding(.vertical, .spacing4)
+        .padding(.vertical, 2)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     }
 }
 
 private struct EventFullscreenDetails: View {
     let event: EventResultSummary
+    @State private var loadedImageURL: String?
 
     var body: some View {
         EmbedMapDetailTemplate(mapConfiguration: event.mapConfiguration) {
@@ -128,14 +131,21 @@ private struct EventFullscreenDetails: View {
     private var eventDetailContent: some View {
         VStack(alignment: .leading, spacing: .spacing8) {
             if let imageURL = event.imageURL, let url = URL(string: imageURL) {
-                CachedRemoteImage(url: url) { image in
-                    image.resizable().aspectRatio(contentMode: .fill)
-                } placeholder: {
-                    Color.grey20
+                GeometryReader { viewport in
+                    CachedRemoteImage(url: url, onSuccess: { loadedImageURL = imageURL }) { image in
+                        image.resizable().aspectRatio(contentMode: .fill)
+                    } placeholder: {
+                        Color.grey20
+                    }
+                    .frame(width: viewport.size.width, height: 190)
+                    .clipShape(RoundedRectangle(cornerRadius: .radius5))
+                    .clipped()
+                    // Match the banner's hit and accessibility bounds to its painted viewport.
+                    .contentShape(Rectangle())
                 }
                 .frame(height: 190)
-                .clipShape(RoundedRectangle(cornerRadius: .radius5))
-                .clipped()
+                .accessibilityIdentifier("event-fullscreen-image")
+                .accessibilityValue(loadedImageURL == imageURL ? "loaded" : "loading")
             }
 
             HStack(spacing: .spacing4) {
@@ -194,6 +204,8 @@ struct EmbedMapConfiguration {
     var route: [CLLocationCoordinate2D] = []
     var latitudeDelta: CLLocationDegrees = 0.025
     var longitudeDelta: CLLocationDegrees = 0.025
+    // EntryWithMapTemplate offsets its marker into the unobscured map region.
+    var centerOffsetX: CGFloat = 0
 }
 
 struct EmbedMapMarker: Identifiable {
@@ -212,24 +224,33 @@ struct EmbedMapDetailTemplate<Content: View>: View {
     @ViewBuilder let content: () -> Content
 
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @State private var containerWidth: CGFloat = 0
 
     private var usesWideMapLayout: Bool {
-        horizontalSizeClass != .compact
+        containerWidth > 0 ? containerWidth > 600 : horizontalSizeClass != .compact
     }
+    #if canImport(MapKit)
+    private var positionedMapConfiguration: EmbedMapConfiguration? {
+        guard var configuration = mapConfiguration else { return nil }
+        configuration.centerOffsetX = usesWideMapLayout ? (24 + 345) / 2 : 0
+        return configuration
+    }
+    #endif
 
     var body: some View {
         #if canImport(MapKit)
-        if let mapConfiguration {
+        if let mapConfiguration = positionedMapConfiguration {
             if usesWideMapLayout {
                 ZStack(alignment: .topLeading) {
                     EmbedFullscreenMapView(configuration: mapConfiguration)
 
                     detailCard
                         .frame(width: 345)
-                        .padding(.top, .spacing8)
-                        .padding(.leading, .spacing8)
+                        .padding(.top, .spacing12)
+                        .padding(.leading, .spacing12)
                 }
                 .frame(maxWidth: .infinity, minHeight: 540, alignment: .topLeading)
+                .background { containerWidthObserver }
             } else {
                 VStack(spacing: 0) {
                     EmbedFullscreenMapView(configuration: mapConfiguration)
@@ -237,6 +258,7 @@ struct EmbedMapDetailTemplate<Content: View>: View {
                     detailCard
                 }
                 .frame(maxWidth: .infinity, alignment: .top)
+                .background { containerWidthObserver }
             }
         } else {
             detailCard
@@ -248,6 +270,13 @@ struct EmbedMapDetailTemplate<Content: View>: View {
             .padding(.horizontal, .spacing8)
             .padding(.vertical, .spacing10)
         #endif
+    }
+
+    private var containerWidthObserver: some View {
+        GeometryReader { proxy in
+            Color.clear.onAppear { containerWidth = proxy.size.width }
+                .onChange(of: proxy.size.width) { _, width in containerWidth = width }
+        }
     }
 
     private var detailCard: some View {
@@ -266,6 +295,7 @@ private struct EmbedFullscreenMapView: View {
     @State private var position: MapCameraPosition
     @State private var currentRegion: MKCoordinateRegion
     @State private var mapRefreshID = UUID()
+    @State private var mapViewportWidth: CGFloat = 0
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     init(configuration: EmbedMapConfiguration) {
@@ -278,7 +308,7 @@ private struct EmbedFullscreenMapView: View {
     var body: some View {
         ZStack(alignment: zoomControlAlignment) {
             #if os(iOS)
-            EmbedMKMapView(configuration: configuration, region: $currentRegion)
+            EmbedMKMapView(configuration: configuration, region: $currentRegion, viewportWidth: mapViewportWidth)
                 .zIndex(0)
             #else
             Map(position: $position, interactionModes: .all) {
@@ -288,8 +318,10 @@ private struct EmbedFullscreenMapView: View {
                 }
                 ForEach(configuration.markers) { marker in
                     Annotation(marker.title, coordinate: marker.coordinate) {
-                        Icon("pin", size: 40)
-                            .foregroundStyle(Color.buttonPrimary)
+                        Icon("maps", size: 40)
+                            .accessibilityIdentifier("embed-location-marker")
+                            .accessibilityLabel(marker.title)
+                            .foregroundStyle(AppGradientPalette.colors(for: "maps").start)
                             .shadow(color: .black.opacity(0.28), radius: 7, x: 0, y: 3)
                             .offset(y: -20)
                     }
@@ -298,19 +330,39 @@ private struct EmbedFullscreenMapView: View {
             .id(mapRefreshID)
             .mapControlVisibility(.hidden)
             .onMapCameraChange { context in
-                currentRegion = context.region
+                var logicalRegion = context.region
+                if mapViewportWidth > 0 {
+                    logicalRegion.center.longitude += logicalRegion.span.longitudeDelta * configuration.centerOffsetX / mapViewportWidth
+                }
+                currentRegion = logicalRegion
             }
             .zIndex(0)
             #endif
 
             zoomControls
-                .padding(.trailing, horizontalSizeClass == .compact ? 12 : .spacing8)
-                .padding(.top, horizontalSizeClass == .compact ? 12 : 0)
+                .padding(.trailing, horizontalSizeClass == .compact ? 18 : 30)
+                .padding(.top, horizontalSizeClass == .compact ? 18 : 0)
                 .contentShape(Rectangle())
                 .allowsHitTesting(true)
                 .zIndex(10)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background {
+            GeometryReader { geometry in
+                Color.clear.onAppear { updateMapWidth(geometry.size.width) }
+                    .onChange(of: geometry.size.width) { _, width in updateMapWidth(width) }
+            }
+        }
+    }
+
+    private func updateMapWidth(_ width: CGFloat) {
+        guard mapViewportWidth != width else { return }
+        mapViewportWidth = width
+        #if !os(iOS)
+        var visibleRegion = currentRegion
+        if width > 0 { visibleRegion.center.longitude -= visibleRegion.span.longitudeDelta * configuration.centerOffsetX / width }
+        position = .region(visibleRegion)
+        #endif
     }
 
     private var zoomControlAlignment: Alignment {
@@ -323,28 +375,23 @@ private struct EmbedFullscreenMapView: View {
                 zoom(by: 0.35)
             }
 
-            Rectangle()
-                .fill(Color.grey30)
-                .frame(width: 30, height: 1)
-
             mapControlButton(iconName: "minus", accessibilityLabel: AppStrings.zoomOut) {
                 zoom(by: 2.85)
             }
         }
-        .background(Color.white)
-        .clipShape(RoundedRectangle(cornerRadius: .radius3))
-        .overlay {
-            RoundedRectangle(cornerRadius: .radius3)
-                .stroke(Color.black.opacity(0.18), lineWidth: 1)
-        }
-        .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 2)
+        // Deployed MapsView global Leaflet styles apply to entry maps too:
+        // 57px controls, 39px rounded ends, no border or shadow.
+        .background(Color.grey0)
+        .clipShape(Capsule())
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("embed-location-zoom-controls")
     }
 
     private func mapControlButton(iconName: String, accessibilityLabel: String, action: @escaping () -> Void) -> some View {
-        Icon(iconName, size: 18)
-            .foregroundStyle(Color.black.opacity(0.78))
-            .frame(width: 30, height: 30)
-            .background(Color.white)
+        Icon(iconName, size: 20)
+            .foregroundStyle(LinearGradient.primary)
+            .frame(width: 57, height: 57)
+            .background(Color.grey0)
             .contentShape(Rectangle())
             .onTapGesture(perform: action)
             .help(Text(accessibilityLabel))
@@ -362,7 +409,9 @@ private struct EmbedFullscreenMapView: View {
         mapRefreshID = UUID()
         #else
         withAnimation(.easeInOut(duration: 0.18)) {
-            position = .region(region)
+            var visibleRegion = region
+            if mapViewportWidth > 0 { visibleRegion.center.longitude -= visibleRegion.span.longitudeDelta * configuration.centerOffsetX / mapViewportWidth }
+            position = .region(visibleRegion)
         }
         mapRefreshID = UUID()
         #endif
@@ -401,6 +450,7 @@ private struct EmbedFullscreenMapView: View {
 private struct EmbedMKMapView: UIViewRepresentable {
     let configuration: EmbedMapConfiguration
     @Binding var region: MKCoordinateRegion
+    let viewportWidth: CGFloat
 
     func makeCoordinator() -> Coordinator {
         Coordinator(region: $region)
@@ -416,6 +466,9 @@ private struct EmbedMKMapView: UIViewRepresentable {
         mapView.isPitchEnabled = false
         mapView.showsCompass = false
         mapView.showsScale = false
+        mapView.showsUserLocation = false
+        mapView.accessibilityIdentifier = "embed-location-map"
+        mapView.accessibilityValue = "rendering"
         mapView.pointOfInterestFilter = .includingAll
         return mapView
     }
@@ -424,9 +477,13 @@ private struct EmbedMKMapView: UIViewRepresentable {
         context.coordinator.parent = self
         context.coordinator.syncMapAnnotations(on: mapView)
         context.coordinator.syncMapOverlays(on: mapView)
-        if !context.coordinator.region(mapView.region, isCloseTo: region) {
+        var visibleRegion = region
+        if viewportWidth > 0 {
+            visibleRegion.center.longitude -= region.span.longitudeDelta * configuration.centerOffsetX / viewportWidth
+        }
+        if !context.coordinator.region(mapView.region, isCloseTo: visibleRegion) {
             context.coordinator.isProgrammaticRegionChange = true
-            mapView.setRegion(region, animated: true)
+            mapView.setRegion(visibleRegion, animated: true)
             DispatchQueue.main.async {
                 context.coordinator.isProgrammaticRegionChange = false
             }
@@ -444,7 +501,15 @@ private struct EmbedMKMapView: UIViewRepresentable {
 
         func mapView(_ mapView: MKMapView, regionDidChangeAnimated animated: Bool) {
             guard !isProgrammaticRegionChange else { return }
-            region = mapView.region
+            var logicalRegion = mapView.region
+            if let parent, parent.viewportWidth > 0 {
+                logicalRegion.center.longitude += logicalRegion.span.longitudeDelta * parent.configuration.centerOffsetX / parent.viewportWidth
+            }
+            region = logicalRegion
+        }
+
+        func mapViewDidFinishRenderingMap(_ mapView: MKMapView, fullyRendered: Bool) {
+            mapView.accessibilityValue = fullyRendered ? "rendered" : "rendering"
         }
 
         func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
@@ -453,11 +518,29 @@ private struct EmbedMKMapView: UIViewRepresentable {
             let annotationView = mapView.dequeueReusableAnnotationView(withIdentifier: identifier)
                 ?? MKAnnotationView(annotation: annotation, reuseIdentifier: identifier)
             annotationView.annotation = annotation
-            annotationView.image = UIImage(named: "pin")?.withRenderingMode(.alwaysTemplate)
-            annotationView.tintColor = UIColor(Color.buttonPrimary)
+            // MKAnnotationView draws its image directly; a template image does
+            // not reliably inherit the annotation view's tint. Bake the shared
+            // web maps-start token into the SVG raster before assigning it.
+            let markerColor = UIColor(AppGradientPalette.colors(for: "maps").start)
+            if let source = UIImage(named: "maps") {
+                // SVG assets can remain vector-backed after withTintColor and
+                // MapKit subsequently resolves their original black fill.
+                // Resolve the alpha mask into actual colored pixels instead.
+                let bounds = CGRect(x: 0, y: 0, width: 40, height: 40)
+                annotationView.image = UIGraphicsImageRenderer(size: bounds.size).image { context in
+                    source.draw(in: bounds)
+                    context.cgContext.setBlendMode(.sourceIn)
+                    context.cgContext.setFillColor(markerColor.cgColor)
+                    context.cgContext.fill(bounds)
+                }.withRenderingMode(.alwaysOriginal)
+            }
+            annotationView.tintColor = markerColor
             annotationView.centerOffset = CGPoint(x: 0, y: -20)
             annotationView.canShowCallout = false
             annotationView.frame.size = CGSize(width: 40, height: 40)
+            annotationView.isAccessibilityElement = true
+            annotationView.accessibilityIdentifier = "embed-location-marker"
+            annotationView.accessibilityLabel = annotation.title ?? nil
             return annotationView
         }
 
@@ -532,7 +615,7 @@ private struct EventTypeBadge: View {
 
     var body: some View {
         Text(label.uppercased())
-            .font(compact ? .omMicro : .omXs)
+            .font(.custom("Lexend Deca", size: compact ? 10 : 12))
             .fontWeight(.semibold)
             .foregroundStyle(Color.grey0)
             .padding(.horizontal, compact ? .spacing4 : .spacing6)
@@ -626,6 +709,9 @@ struct EventResultSummary: Identifiable {
         EventValue.formatShortDate(dateStart)
     }
 
+    var shortDay: String? { EventValue.formatShortDay(dateStart) }
+    var shortTime: String? { EventValue.formatShortTime(dateStart) }
+
     var shortLocation: String? {
         if isOnline { return "Online" }
         let locationParts: [String?] = [venueCity, venueCountry]
@@ -666,8 +752,10 @@ struct EventResultSummary: Identifiable {
 
     var feeText: String? {
         guard isPaid == true, let feeAmount else { return nil }
-        let currency = feeCurrency ?? ""
-        return currency.isEmpty ? String(format: "%.0f", feeAmount) : "\(currency) \(String(format: feeAmount.rounded() == feeAmount ? "%.0f" : "%.2f", feeAmount))"
+        guard let currency = feeCurrency, !currency.isEmpty else {
+            return feeAmount.formatted()
+        }
+        return feeAmount.formatted(.currency(code: currency))
     }
 
     var dateTimeLines: [String] {
@@ -771,7 +859,23 @@ enum EventValue {
         guard let value, let date = parseDate(value) else { return nil }
         let formatter = DateFormatter()
         formatter.locale = Locale.current
-        formatter.dateFormat = "MMM d - h:mm a"
+        formatter.dateFormat = "EEE, MMM d · h:mm a"
+        return formatter.string(from: date)
+    }
+
+    static func formatShortDay(_ value: String?) -> String? {
+        guard let value, let date = parseDate(value) else { return nil }
+        let formatter = DateFormatter()
+        formatter.locale = Locale.current
+        formatter.dateFormat = "MMM d"
+        return formatter.string(from: date)
+    }
+
+    static func formatShortTime(_ value: String?) -> String? {
+        guard let value, let date = parseDate(value) else { return nil }
+        let formatter = DateFormatter()
+        formatter.locale = Locale.current
+        formatter.dateFormat = "h:mm a"
         return formatter.string(from: date)
     }
 

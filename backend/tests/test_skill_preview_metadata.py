@@ -27,6 +27,8 @@ sys.modules.setdefault("backend.core.api.app.services.cache", cache_stub)
 
 directus_stub = types.ModuleType("backend.core.api.app.services.directus")
 directus_stub.DirectusService = object
+# Keep real submodules importable for other tests collected in the same process.
+directus_stub.__path__ = [str(Path(__file__).resolve().parents[1] / "core/api/app/services/directus")]
 sys.modules.setdefault("backend.core.api.app.services.directus", directus_stub)
 
 encryption_stub = types.ModuleType("backend.core.api.app.utils.encryption")
@@ -200,6 +202,20 @@ def test_embed_metadata_merge_strips_raw_finance_request_payloads() -> None:
     assert "Acme Payroll" not in serialized
     assert "Coffee Shop" not in serialized
     assert "secret-token" not in serialized
+
+
+# contract-test: direct surface=rest_api assertions=app-skills.search-relevance.safe-finalization
+def test_workflow_parent_preview_metadata_is_self_contained_and_bounded() -> None:
+    from backend.core.api.app.services.embed_service import EmbedService
+
+    results = [{"title": "Rain alert", "summary": "Checks Berlin weather", "graph": {"secret": "private"},
+                "vault_key_id": "private", "id": f"workflow-{index}"} for index in range(30)]
+    for skill_id in ("search", "create-or-modify"):
+        metadata = EmbedService._build_parent_preview_metadata("workflows", skill_id, results)
+        previews = metadata["preview_results"]
+        assert len(previews) <= 10
+        assert previews[0] == {"title": "Rain alert", "summary": "Checks Berlin weather"}
+        assert "private" not in json.dumps(metadata)
 
 
 # contract-test: direct surface=rest_api assertions=app-skills.search-relevance.safe-finalization

@@ -16,6 +16,20 @@ final class DevPreviewLaunchConfigurationTests: XCTestCase {
         XCTAssertNil(DevPreviewLaunchConfiguration.parse(url: try XCTUnwrap(URL(string: "openmates://chat/synthetic-chat"))))
     }
 
+    // contract-test: supporting surface=gui.apple assertions=settings-ui.composition.canonical-and-accessible
+    func testChatSettingsPreviewRoutesAcceptImplementedFixtures() throws {
+        for variant in ["chat-settings", "chat-settings-usage", "chat-settings-plans", "chat-settings-shared", "chat-settings-public"] {
+            let requested = try XCTUnwrap(DevPreviewLaunchConfiguration.parse(arguments: [
+                "--dev-preview", "composer", "--dev-preview-variant", variant
+            ]))
+            XCTAssertNil(requested.error, variant)
+            XCTAssertEqual(requested.component, .composer)
+            XCTAssertEqual(requested.variant, variant)
+            let fromURL = try XCTUnwrap(DevPreviewLaunchConfiguration.parse(url: try previewURL(path: "composer", query: ["variant": variant])))
+            XCTAssertEqual(fromURL, requested)
+        }
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testURLArgumentsAndEnvironmentHaveSameConfigurationIdentity() throws {
         let props = #"{"markdown":"Synthetic 🪐 message","compact":false,"count":3,"tags":["a","b"]}"#

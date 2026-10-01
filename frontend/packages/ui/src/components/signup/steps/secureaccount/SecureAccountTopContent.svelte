@@ -158,6 +158,7 @@
                 },
                 body: JSON.stringify({
                     hashed_email: hashedEmail,
+                    signup_transaction_token: storeData.signupTransactionToken,
                     user_id: null, // New user signup
                     username: storeData.username // Send username for passkey displayName
                 }),
@@ -368,6 +369,7 @@
                     hashed_email: hashedEmail,
                     username: storeData.username,
                     invite_code: requireInviteCodeValue ? storeData.inviteCode : "",
+                    signup_transaction_token: storeData.signupTransactionToken,
                     encrypted_email: encryptedEmailForServer,
                     encrypted_email_with_master_key: encryptedEmailWithMasterKey, // For passwordless login
                     encrypted_device_name: encryptedDeviceName || null, // Encrypted device name (client-side encrypted)
@@ -433,6 +435,7 @@
                 ...store,
                 username: '',
                 inviteCode: '',
+                signupTransactionToken: '',
                 email: ''
             }));
 

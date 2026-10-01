@@ -287,6 +287,8 @@ struct UserProfile: Codable, Identifiable {
     let backupReminderIntervalDays: Int?
     let defaultAiModelSimple: String?
     let defaultAiModelComplex: String?
+    // Third request-tier default returned by the canonical session profile.
+    var defaultAiModelMostDemanding: String? = nil
     let followUpSuggestionsEnabled: Bool?
     let quickTipsEnabled: Bool?
 }

@@ -7,6 +7,50 @@ import XCTest
 
 @MainActor
 final class ChatAudioPipelineTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle,message-input.embeds.gated-send
+    func testFailedRecordingUploadRetainsLocalAudioAndTypedAuthenticationFailure() async throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("audio-upload-failure-\(UUID().uuidString).m4a")
+        let audio = Data([1, 2, 3, 4])
+        try audio.write(to: url)
+        defer { try? FileManager.default.removeItem(at: url) }
+        let trackingID = UUID().uuidString
+        defer { PendingUploadStore.shared.cancelUpload(id: trackingID) }
+        let noSend = expectation(description: "Failed recording does not replay a pending message")
+        noSend.isInverted = true
+        let observer = NotificationCenter.default.addObserver(forName: .pendingDeferredSendRequested, object: nil, queue: nil) { note in
+            if note.userInfo?["chatId"] as? String == "recording-failure-fixture" { noSend.fulfill() }
+        }
+        defer { NotificationCenter.default.removeObserver(observer) }
+        PendingUploadStore.shared.addPendingSend(chatId: "recording-failure-fixture", content: "fixture pending audio",
+            blockingUploadIds: [trackingID])
+        let result = await AudioRecordingUploadService.prepare(url: url, duration: 1,
+            chatId: "recording-failure-fixture", trackingId: trackingID,
+            uploadOperation: {
+                PendingUploadStore.shared.markError(id: trackingID,
+                    message: AudioRecordingUploadService.failureMessage(APIError.httpError(status: 401, message: "fixture")))
+                return nil
+            })
+        XCTAssertNil(result)
+        XCTAssertEqual(try Data(contentsOf: url), audio, "Failure must preserve the recorded bytes for explicit retry")
+        guard case .error(let message) = PendingUploadStore.shared.activeUploads[trackingID]?.status else {
+            return XCTFail("Failed audio must remain an upload blocker")
+        }
+        XCTAssertEqual(message, AppStrings.localized("settings.app_settings_memories.authentication_required"))
+        XCTAssertEqual(AudioRecordingUploadService.failureMessage(APIError.httpError(status: 500, message: "fixture")), AppStrings.uploadProgressError)
+        XCTAssertTrue(PendingUploadStore.shared.hasActiveUploads(chatId: "recording-failure-fixture"))
+        XCTAssertTrue(PendingUploadStore.shared.hasPendingSends(chatId: "recording-failure-fixture"))
+        await fulfillment(of: [noSend], timeout: 0.1)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle,message-input.privacy-context
+    func testRecordingUploadScopeRejectsDifferentAccountAndUploadDestination() {
+        let original = AudioRecordingUploadScope.capture()
+        XCTAssertTrue(original.isCurrent)
+        XCTAssertFalse(AudioRecordingUploadScope(accountGeneration: UUID(), apiURL: original.apiURL, uploadURL: original.uploadURL).isCurrent)
+        XCTAssertFalse(AudioRecordingUploadScope(accountGeneration: original.accountGeneration, apiURL: original.apiURL,
+            uploadURL: URL(string: "https://different.example.test")!).isCurrent)
+    }
+
     // contract-test: direct surface=gui.apple assertions=message-input.embeds.gated-send,chats.message.identity-idempotent
     func testRecordingDeferredSendRetainsEmbedAndIdentityAcrossReconnect() async throws {
         let nodeID = "composer:embed:recording-reconnect"

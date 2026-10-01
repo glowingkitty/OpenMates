@@ -1,0 +1,2226 @@
+{
+  "observed_date": "2026-09-30",
+  "environment": "https://app.dev.openmates.org",
+  "account": "Verified personal DEV TEST account; no credential or account content retained",
+  "browser": "Headless Chromium 153.0.8010.12 on Linux ARM64 dev host",
+  "viewports": [
+    {
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "width": 390,
+      "height": 844
+    }
+  ],
+  "method": "Desktop user clicks; mobile hash route transitions; content-ready DOM condition followed by the next requestAnimationFrame. Instrumented fetch, WebCrypto decrypt, IndexedDB requests and long tasks. No full HAR, trace or account-content exports.",
+  "privacy": "Only normalized endpoint paths, timings, counts and bundle identifiers are retained. Screenshots and credentials are excluded.",
+  "limitations": [
+    "Small observational sample, not a statistically representative percentile benchmark.",
+    "Mobile viewport is not physical mobile hardware.",
+    "Crypto/IndexedDB duration sums overlap and are not a decomposition of wall time.",
+    "The first project detail settled to a README error; exclude it from successful detail timing.",
+    "One attempted chat switch selected the already active chat and timed out; exclude it.",
+    "Update notification intercepted some clicks; those attempts produced no valid sample.",
+    "Reload loaded a newer bundle; use it only as qualitative recovery evidence, not a same-build timing comparison.",
+    "Chat A and B were verified to have encrypted titles and wrapped chat keys; each displayed two source messages with embeds.",
+    "The deployed bundle identifiers do not establish equality with the local source revision."
+  ],
+  "attribution": [
+    {
+      "path": "/v1/user-plans",
+      "keys": [
+        "chat_id",
+        "limit"
+      ],
+      "limit": "3",
+      "ms": 545
+    },
+    {
+      "path": "/v1/user-tasks",
+      "keys": [
+        "chat_id"
+      ],
+      "limit": null,
+      "ms": 530
+    },
+    {
+      "path": "/v1/user-plans",
+      "keys": [
+        "chat_id",
+        "limit"
+      ],
+      "limit": "3",
+      "ms": 618
+    },
+    {
+      "path": "/v1/user-tasks",
+      "keys": [
+        "chat_id"
+      ],
+      "limit": null,
+      "ms": 746
+    },
+    {
+      "path": "/v1/user-plans",
+      "keys": [
+        "chat_id",
+        "limit"
+      ],
+      "limit": "3",
+      "ms": 1019
+    },
+    {
+      "path": "/v1/user-tasks",
+      "keys": [
+        "chat_id"
+      ],
+      "limit": null,
+      "ms": 1134
+    }
+  ],
+  "loadedAssets": [
+    "/_app/immutable/entry/start.D-nUXPFj.js",
+    "/_app/immutable/entry/app.CD6NLTDV.js"
+  ],
+  "reload": {
+    "documentReady": "complete",
+    "sourceCount": "2",
+    "chatLoadState": "ready",
+    "fetches": [
+      {
+        "path": "/v1/settings/server-status",
+        "status": 200,
+        "start_ms": 1572,
+        "duration_ms": 241
+      },
+      {
+        "path": "/v1/features/availability",
+        "status": 200,
+        "start_ms": 1802,
+        "duration_ms": 889
+      },
+      {
+        "path": "/v1/apps/most-used",
+        "status": 200,
+        "start_ms": 2683,
+        "duration_ms": 163
+      },
+      {
+        "path": "/v1/settings/server-status",
+        "status": 200,
+        "start_ms": 1801,
+        "duration_ms": 1046
+      },
+      {
+        "path": "/v1/health",
+        "status": 200,
+        "start_ms": 2779,
+        "duration_ms": 990
+      },
+      {
+        "path": "/v1/anonymous/free-usage/status",
+        "status": 200,
+        "start_ms": 1980,
+        "duration_ms": 1912
+      },
+      {
+        "path": "/v1/settings/server-status",
+        "status": 200,
+        "start_ms": 1812,
+        "duration_ms": 2081
+      },
+      {
+        "path": "/v1/teams",
+        "status": 200,
+        "start_ms": 2797,
+        "duration_ms": 1199
+      },
+      {
+        "path": "/v1/user-plans",
+        "status": 200,
+        "start_ms": 2796,
+        "duration_ms": 1205
+      },
+      {
+        "path": "/v1/settings/server-status",
+        "status": 200,
+        "start_ms": 2804,
+        "duration_ms": 1432
+      },
+      {
+        "path": "/v1/users/:id/profile-image",
+        "status": 200,
+        "start_ms": 2186,
+        "duration_ms": 2108
+      },
+      {
+        "path": "/v1/user-tasks",
+        "status": 200,
+        "start_ms": 2800,
+        "duration_ms": 1560
+      },
+      {
+        "path": "/v1/referrals/status",
+        "status": 200,
+        "start_ms": 2240,
+        "duration_ms": 2122
+      },
+      {
+        "path": "/v1/user-plans",
+        "status": 200,
+        "start_ms": 2899,
+        "duration_ms": 1567
+      },
+      {
+        "path": "/v1/chats/:id/messages/window",
+        "status": 200,
+        "start_ms": 3084,
+        "duration_ms": 1494
+      },
+      {
+        "path": "/v1/user-plans",
+        "status": 200,
+        "start_ms": 2923,
+        "duration_ms": 1845
+      },
+      {
+        "path": "/v1/user-tasks",
+        "status": 200,
+        "start_ms": 2900,
+        "duration_ms": 1870
+      },
+      {
+        "path": "/v1/user-plans",
+        "status": 200,
+        "start_ms": 3050,
+        "duration_ms": 2056
+      },
+      {
+        "path": "/v1/user-tasks",
+        "status": 200,
+        "start_ms": 2925,
+        "duration_ms": 2338
+      },
+      {
+        "path": "/v1/user-plans",
+        "status": 200,
+        "start_ms": 3061,
+        "duration_ms": 2368
+      },
+      {
+        "path": "/v1/user-tasks",
+        "status": 200,
+        "start_ms": 3052,
+        "duration_ms": 2478
+      }
+    ],
+    "loadedAssets": [
+      "/_app/immutable/entry/start.BeWK4WQ9.js"
+    ]
+  },
+  "measurements": [
+    {
+      "label": "desktop-tasks-first",
+      "start": null,
+      "armed": null,
+      "shell": 99.5,
+      "content": 1621.4000000953674,
+      "loadingSeen": true,
+      "frames": 38,
+      "done": true,
+      "paint": 1663.6000003814697,
+      "fetches": [
+        {
+          "path": "/v1/settings/server-status",
+          "status": 200,
+          "start_ms": 109,
+          "duration_ms": 388
+        },
+        {
+          "path": "/v1/teams",
+          "status": 200,
+          "start_ms": 76,
+          "duration_ms": 425
+        },
+        {
+          "path": "/v1/user-plans",
+          "status": 200,
+          "start_ms": 69,
+          "duration_ms": 612
+        },
+        {
+          "path": "/v1/admin/client-logs",
+          "status": 200,
+          "start_ms": 141,
+          "duration_ms": 561
+        },
+        {
+          "path": "/v1/telemetry/traces",
+          "status": 200,
+          "start_ms": 252,
+          "duration_ms": 453
+        },
+        {
+          "path": "/v1/settings/server-status",
+          "status": 200,
+          "start_ms": 110,
+          "duration_ms": 696
+        },
+        {
+          "path": "/v1/referrals/status",
+          "status": 200,
+          "start_ms": 70,
+          "duration_ms": 912
+        },
+        {
+          "path": "/v1/projects",
+          "status": 200,
+          "start_ms": 67,
+          "duration_ms": 1049
+        },
+        {
+          "path": "/v1/referrals/status",
+          "status": 200,
+          "start_ms": 72,
+          "duration_ms": 1369
+        },
+        {
+          "path": "/v1/user-tasks",
+          "status": 200,
+          "start_ms": 68,
+          "duration_ms": 1426
+        },
+        {
+          "path": "/v1/user-tasks",
+          "status": 200,
+          "start_ms": 87,
+          "duration_ms": 1443
+        }
+      ],
+      "decrypt": {
+        "count": 810,
+        "sum_ms": 681,
+        "max_ms": 3
+      },
+      "idb": {
+        "count": 1,
+        "sum_ms": 16,
+        "max_ms": 16
+      },
+      "longtask": {
+        "count": 2,
+        "sum_ms": 187,
+        "max_ms": 104
+      }
+    },
+    {
+      "label": "desktop-projects-first",
+      "start": null,
+      "armed": null,
+      "shell": 71.59999990463257,
+      "content": 714,
+      "loadingSeen": false,
+      "frames": 18,
+      "done": true,
+      "paint": 758.5999999046326,
+      "fetches": [
+        {
+          "path": "/v1/teams",
+          "status": 200,
+          "start_ms": 57,
+          "duration_ms": 309
+        },
+        {
+          "path": "/v1/settings/server-status",
+          "status": 200,
+          "start_ms": 78,
+          "duration_ms": 289
+        },
+        {
+          "path": "/v1/admin/client-logs",
+          "status": 200,
+          "start_ms": 106,
+          "duration_ms": 372
+        },
+        {
+          "path": "/v1/settings/server-status",
+          "status": 200,
+          "start_ms": 79,
+          "duration_ms": 499
+        },
+        {
+          "path": "/v1/referrals/status",
+          "status": 200,
+          "start_ms": 55,
+          "duration_ms": 573
+        },
+        {
+          "path": "/v1/projects",
+          "status": 200,
+          "start_ms": 53,
+          "duration_ms": 647
+        },
+        {
+          "path": "/v1/referrals/status",
+          "status": 200,
+          "start_ms": 57,
+          "duration_ms": 874
+        }
+      ],
+      "decrypt": {
+        "count": 40,
+        "sum_ms": 3,
+        "max_ms": 0
+      },
+      "idb": {
+        "count": 1,
+        "sum_ms": 13,
+        "max_ms": 13
+      },
+      "longtask": {
+        "count": 1,
+        "sum_ms": 68,
+        "max_ms": 68
+      }
+    },
+    {
+      "label": "desktop-workflows-first",
+      "start": null,
+      "armed": null,
+      "shell": 138.2000002861023,
+      "content": 138.2000002861023,
+      "loadingSeen": false,
+      "frames": 2,
+      "done": true,
+      "paint": 189.2000002861023,
+      "fetches": [
+        {
+          "path": "/v1/teams",
+          "status": 200,
+          "start_ms": 106,
+          "duration_ms": 243
+        },
+        {
+          "path": "/v1/settings/server-status",
+          "status": 200,
+          "start_ms": 149,
+          "duration_ms": 207
+        },
+        {
+          "path": "/v1/admin/client-logs",
+          "status": 200,
+          "start_ms": 173,
+          "duration_ms": 191
+        },
+        {
+          "path": "/v1/referrals/status",
+          "status": 200,
+          "start_ms": 103,
+          "duration_ms": 367
+        },
+        {
+          "path": "/v1/settings/server-status",
+          "status": 200,
+          "start_ms": 150,
+          "duration_ms": 322
+        },
+        {
+          "path": "/v1/referrals/status",
+          "status": 200,
+          "start_ms": 105,
+          "duration_ms": 550
+        }
+      ],
+      "decrypt": {
+        "count": 24,
+        "sum_ms": 1,
+        "max_ms": 0
+      },
+      "idb": {
+        "count": 1,
+        "sum_ms": 8,
+        "max_ms": 8
+      },
+      "longtask": {
+        "count": 1,
+        "sum_ms": 138,
+        "max_ms": 138
+      }
+    },
+    {
+      "label": "desktop-tasks-repeat-1",
+      "start": null,
+      "armed": null,
+      "shell": 52.299999713897705,
+      "content": 1473.8999996185303,
+      "loadingSeen": true,
+      "frames": 36,
+      "done": true,
+      "paint": 1544.2999997138977,
+      "fetches": [
+        {
+          "path": "/v1/settings/server-status",
+          "status": 200,
+          "start_ms": 60,
+          "duration_ms": 382
+        },
+        {
+          "path": "/v1/admin/client-logs",
+          "status": 200,
+          "start_ms": 79,
+          "duration_ms": 386
+        },
+        {
+          "path": "/v1/teams",
+          "status": 200,
+          "start_ms": 34,
+          "duration_ms": 590
+        },
+        {
+          "path": "/v1/user-plans",
+          "status": 200,
+          "start_ms": 32,
+          "duration_ms": 594
+        },
+        {
+          "path": "/v1/settings/server-status",
+          "status": 200,
+          "start_ms": 61,
+          "duration_ms": 660
+        },
+        {
+          "path": "/v1/referrals/status",
+          "status": 200,
+          "start_ms": 32,
+          "duration_ms": 878
+        },
+        {
+          "path": "/v1/projects",
+          "status": 200,
+          "start_ms": 30,
+          "duration_ms": 966
+        },
+        {
+          "path": "/v1/referrals/status",
+          "status": 200,
+          "start_ms": 34,
+          "duration_ms": 1278
+        },
+        {
+          "path": "/v1/user-tasks",
+          "status": 200,
+          "start_ms": 31,
+          "duration_ms": 1342
+        },
+        {
+          "path": "/v1/user-tasks",
+          "status": 200,
+          "start_ms": 39,
+          "duration_ms": 1342
+        },
+        {
+          "path": "/_app/version.json",
+          "status": 200,
+          "start_ms": 1511,
+          "duration_ms": 330
+        },
+        {
+          "path": "/v1/admin/client-logs",
+          "status": 200,
+          "start_ms": 1862,
+          "duration_ms": 80
+        }
+      ],
+      "decrypt": {
+        "count": 750,
+        "sum_ms": 761,
+        "max_ms": 4
+      },
+      "idb": {
+        "count": 4,
+        "sum_ms": 8,
+        "max_ms": 5
+      },
+      "longtask": {
+        "count": 2,
+        "sum_ms": 140,
+        "max_ms": 86
+      }
+    },
+    {
+      "label": "desktop-projects-repeat-1",
+      "start": null,
+      "armed": null,
+      "shell": 50.700000286102295,
+      "content": 705.8000001907349,
+      "loadingSeen": false,
+      "frames": 17,
+      "done": true,
+      "paint": 744,
+      "fetches": [
+        {
+          "path": "/v1/settings/server-status",
+          "status": 200,
+          "start_ms": 60,
+          "duration_ms": 246
+        },
+        {
+          "path": "/v1/admin/client-logs",
+          "status": 200,
+          "start_ms": 94,
+          "duration_ms": 230
+        },
+        {
+          "path": "/v1/teams",
+          "status": 200,
+          "start_ms": 38,
+          "duration_ms": 391
+        },
+        {
+          "path": "/v1/settings/server-status",
+          "status": 200,
+          "start_ms": 61,
+          "duration_ms": 447
+        },
+        {
+          "path": "/v1/admin/client-logs",
+          "status": 200,
+          "start_ms": 350,
+          "duration_ms": 164
+        },
+        {
+          "path": "/v1/referrals/status",
+          "status": 200,
+          "start_ms": 36,
+          "duration_ms": 583
+        },
+        {
+          "path": "/v1/projects",
+          "status": 200,
+          "start_ms": 35,
+          "duration_ms": 637
+        },
+        {
+          "path": "/v1/admin/client-logs",
+          "status": 200,
+          "start_ms": 687,
+          "duration_ms": 115
+        },
+        {
+          "path": "/v1/referrals/status",
+          "status": 200,
+          "start_ms": 38,
+          "duration_ms": 854
+        }
+      ],
+      "decrypt": {
+        "count": 40,
+        "sum_ms": 4,
+        "max_ms": 0
+      },
+      "idb": {
+        "count": 3,
+        "sum_ms": 18,
+        "max_ms": 16
+      },
+      "longtask": {
+        "count": 1,
+        "sum_ms": 53,
+        "max_ms": 53
+      }
+    },
+    {
+      "label": "desktop-project-detail-first",
+      "start": null,
+      "armed": null,
+      "shell": 62.299999713897705,
+      "content": 334.7999997138977,
+      "loadingSeen": true,
+      "frames": 13,
+      "done": true,
+      "paint": 351.40000009536743,
+      "fetches": [
+        {
+          "path": "/v1/admin/client-logs",
+          "status": 200,
+          "start_ms": 77,
+          "duration_ms": 165
+        },
+        {
+          "path": "/v1/projects/:id/sources",
+          "status": 200,
+          "start_ms": 10,
+          "duration_ms": 279
+        },
+        {
+          "path": "/v1/projects/:id/items",
+          "status": 200,
+          "start_ms": 8,
+          "duration_ms": 311
+        },
+        {
+          "path": "/v1/admin/client-logs",
+          "status": 200,
+          "start_ms": 411,
+          "duration_ms": 76
+        }
+      ],
+      "decrypt": {
+        "count": 2,
+        "sum_ms": 0,
+        "max_ms": 0
+      },
+      "idb": {
+        "count": 4,
+        "sum_ms": 3,
+        "max_ms": 1
+      },
+      "longtask": {
+        "count": 0,
+        "sum_ms": 0,
+        "max_ms": 0
+      }
+    },
+    {
+      "label": "desktop-workflows-repeat-1",
+      "start": null,
+      "armed": null,
+      "shell": 93.2999997138977,
+      "content": 93.2999997138977,
+      "loadingSeen": false,
+      "frames": 2,
+      "done": true,
+      "paint": 105.7999997138977,
+      "fetches": [
+        {
+          "path": "/v1/teams",
+          "status": 200,
+          "start_ms": 66,
+          "duration_ms": 319
+        },
+        {
+          "path": "/v1/settings/server-status",
+          "status": 200,
+          "start_ms": 104,
+          "duration_ms": 288
+        },
+        {
+          "path": "/v1/admin/client-logs",
+          "status": 200,
+          "start_ms": 153,
+          "duration_ms": 245
+        },
+        {
+          "path": "/v1/referrals/status",
+          "status": 200,
+          "start_ms": 64,
+          "duration_ms": 478
+        },
+        {
+          "path": "/v1/settings/server-status",
+          "status": 200,
+          "start_ms": 105,
+          "duration_ms": 439
+        },
+        {
+          "path": "/v1/admin/client-logs",
+          "status": 200,
+          "start_ms": 490,
+          "duration_ms": 147
+        },
+        {
+          "path": "/v1/referrals/status",
+          "status": 200,
+          "start_ms": 66,
+          "duration_ms": 797
+        }
+      ],
+      "decrypt": {
+        "count": 24,
+        "sum_ms": 1,
+        "max_ms": 0
+      },
+      "idb": {
+        "count": 2,
+        "sum_ms": 12,
+        "max_ms": 11
+      },
+      "longtask": {
+        "count": 1,
+        "sum_ms": 98,
+        "max_ms": 98
+      }
+    },
+    {
+      "label": "desktop-workflow-detail-first",
+      "start": null,
+      "armed": null,
+      "shell": 875.1999998092651,
+      "content": 875.1999998092651,
+      "loadingSeen": false,
+      "frames": 14,
+      "done": true,
+      "paint": 912.2999997138977,
+      "fetches": [
+        {
+          "path": "/v1/workflows/:id/runs",
+          "status": 200,
+          "start_ms": 4,
+          "duration_ms": 641
+        },
+        {
+          "path": "/v1/workflows/:id",
+          "status": 200,
+          "start_ms": 3,
+          "duration_ms": 797
+        }
+      ],
+      "decrypt": {
+        "count": 0,
+        "sum_ms": 0,
+        "max_ms": 0
+      },
+      "idb": {
+        "count": 1,
+        "sum_ms": 3,
+        "max_ms": 3
+      },
+      "longtask": {
+        "count": 1,
+        "sum_ms": 70,
+        "max_ms": 70
+      }
+    },
+    {
+      "label": "desktop-tasks-repeat-2",
+      "start": null,
+      "armed": null,
+      "shell": 58.39999961853027,
+      "content": 1571.6999998092651,
+      "loadingSeen": true,
+      "frames": 39,
+      "done": true,
+      "paint": 1651.5999999046326,
+      "fetches": [
+        {
+          "path": "/v1/teams",
+          "status": 200,
+          "start_ms": 35,
+          "duration_ms": 440
+        },
+        {
+          "path": "/v1/settings/server-status",
+          "status": 200,
+          "start_ms": 66,
+          "duration_ms": 413
+        },
+        {
+          "path": "/v1/user-plans",
+          "status": 200,
+          "start_ms": 32,
+          "duration_ms": 449
+        },
+        {
+          "path": "/v1/admin/client-logs",
+          "status": 200,
+          "start_ms": 97,
+          "duration_ms": 403
+        },
+        {
+          "path": "/v1/settings/server-status",
+          "status": 200,
+          "start_ms": 67,
+          "duration_ms": 678
+        },
+        {
+          "path": "/v1/referrals/status",
+          "status": 200,
+          "start_ms": 33,
+          "duration_ms": 898
+        },
+        {
+          "path": "/v1/projects",
+          "status": 200,
+          "start_ms": 31,
+          "duration_ms": 997
+        },
+        {
+          "path": "/v1/referrals/status",
+          "status": 200,
+          "start_ms": 35,
+          "duration_ms": 1401
+        },
+        {
+          "path": "/v1/user-tasks",
+          "status": 200,
+          "start_ms": 32,
+          "duration_ms": 1442
+        },
+        {
+          "path": "/v1/user-tasks",
+          "status": 200,
+          "start_ms": 40,
+          "duration_ms": 1441
+        }
+      ],
+      "decrypt": {
+        "count": 750,
+        "sum_ms": 855,
+        "max_ms": 5
+      },
+      "idb": {
+        "count": 1,
+        "sum_ms": 5,
+        "max_ms": 5
+      },
+      "longtask": {
+        "count": 3,
+        "sum_ms": 201,
+        "max_ms": 84
+      }
+    },
+    {
+      "label": "desktop-projects-repeat-2",
+      "start": null,
+      "armed": null,
+      "shell": 77.30000019073486,
+      "content": 596.5,
+      "loadingSeen": false,
+      "frames": 14,
+      "done": true,
+      "paint": 637.8000001907349,
+      "fetches": [
+        {
+          "path": "/v1/settings/server-status",
+          "status": 200,
+          "start_ms": 85,
+          "duration_ms": 160
+        },
+        {
+          "path": "/v1/teams",
+          "status": 200,
+          "start_ms": 36,
+          "duration_ms": 341
+        },
+        {
+          "path": "/v1/admin/client-logs",
+          "status": 200,
+          "start_ms": 105,
+          "duration_ms": 280
+        },
+        {
+          "path": "/v1/settings/server-status",
+          "status": 200,
+          "start_ms": 86,
+          "duration_ms": 346
+        },
+        {
+          "path": "/v1/referrals/status",
+          "status": 200,
+          "start_ms": 33,
+          "duration_ms": 506
+        },
+        {
+          "path": "/v1/projects",
+          "status": 200,
+          "start_ms": 32,
+          "duration_ms": 556
+        },
+        {
+          "path": "/v1/referrals/status",
+          "status": 200,
+          "start_ms": 36,
+          "duration_ms": 706
+        }
+      ],
+      "decrypt": {
+        "count": 40,
+        "sum_ms": 3,
+        "max_ms": 0
+      },
+      "idb": {
+        "count": 1,
+        "sum_ms": 6,
+        "max_ms": 6
+      },
+      "longtask": {
+        "count": 0,
+        "sum_ms": 0,
+        "max_ms": 0
+      }
+    },
+    {
+      "label": "desktop-project-detail-second-project",
+      "start": null,
+      "armed": null,
+      "shell": 101.69999980926514,
+      "content": 346.8999996185303,
+      "loadingSeen": true,
+      "frames": 12,
+      "done": true,
+      "paint": 362.59999990463257,
+      "fetches": [
+        {
+          "path": "/v1/admin/client-logs",
+          "status": 200,
+          "start_ms": 77,
+          "duration_ms": 150
+        },
+        {
+          "path": "/v1/projects/:id/sources",
+          "status": 200,
+          "start_ms": 6,
+          "duration_ms": 289
+        },
+        {
+          "path": "/v1/projects/:id/items",
+          "status": 200,
+          "start_ms": 5,
+          "duration_ms": 339
+        },
+        {
+          "path": "/v1/telemetry/traces",
+          "status": 200,
+          "start_ms": 237,
+          "duration_ms": 124
+        }
+      ],
+      "decrypt": {
+        "count": 0,
+        "sum_ms": 0,
+        "max_ms": 0
+      },
+      "idb": {
+        "count": 2,
+        "sum_ms": 2,
+        "max_ms": 1
+      },
+      "longtask": {
+        "count": 0,
+        "sum_ms": 0,
+        "max_ms": 0
+      }
+    },
+    {
+      "label": "desktop-chat-home-return",
+      "start": null,
+      "armed": null,
+      "shell": 191.2999997138977,
+      "content": 191.2999997138977,
+      "loadingSeen": false,
+      "frames": 2,
+      "done": true,
+      "paint": 207.19999980926514,
+      "fetches": [
+        {
+          "path": "/v1/teams",
+          "status": 200,
+          "start_ms": 167,
+          "duration_ms": 186
+        },
+        {
+          "path": "/v1/settings/server-status",
+          "status": 200,
+          "start_ms": 204,
+          "duration_ms": 152
+        },
+        {
+          "path": "/v1/referrals/status",
+          "status": 200,
+          "start_ms": 164,
+          "duration_ms": 332
+        },
+        {
+          "path": "/v1/settings/server-status",
+          "status": 200,
+          "start_ms": 206,
+          "duration_ms": 291
+        },
+        {
+          "path": "/v1/admin/client-logs",
+          "status": 200,
+          "start_ms": 418,
+          "duration_ms": 200
+        },
+        {
+          "path": "/v1/settings/server-status",
+          "status": 200,
+          "start_ms": 251,
+          "duration_ms": 479
+        },
+        {
+          "path": "/v1/settings/reminders",
+          "status": 200,
+          "start_ms": 549,
+          "duration_ms": 366
+        },
+        {
+          "path": "/v1/admin/client-logs",
+          "status": 200,
+          "start_ms": 677,
+          "duration_ms": 251
+        }
+      ],
+      "decrypt": {
+        "count": 187,
+        "sum_ms": 11,
+        "max_ms": 0
+      },
+      "idb": {
+        "count": 44,
+        "sum_ms": 764,
+        "max_ms": 117
+      },
+      "longtask": {
+        "count": 1,
+        "sum_ms": 190,
+        "max_ms": 190
+      }
+    },
+    {
+      "label": "desktop-chat-A-first",
+      "start": null,
+      "armed": null,
+      "shell": 105.5,
+      "content": 367,
+      "loadingSeen": false,
+      "frames": 5,
+      "done": true,
+      "paint": 592.9000000953674,
+      "fetches": [
+        {
+          "path": "/v1/user-plans",
+          "status": 200,
+          "start_ms": 82,
+          "duration_ms": 307
+        },
+        {
+          "path": "/v1/user-tasks",
+          "status": 200,
+          "start_ms": 101,
+          "duration_ms": 289
+        },
+        {
+          "path": "/v1/user-plans",
+          "status": 200,
+          "start_ms": 154,
+          "duration_ms": 473
+        },
+        {
+          "path": "/v1/user-tasks",
+          "status": 200,
+          "start_ms": 156,
+          "duration_ms": 518
+        },
+        {
+          "path": "/v1/chats/:id/messages/window",
+          "status": 200,
+          "start_ms": 264,
+          "duration_ms": 487
+        },
+        {
+          "path": "/v1/user-plans",
+          "status": 200,
+          "start_ms": 164,
+          "duration_ms": 596
+        },
+        {
+          "path": "/v1/user-tasks",
+          "status": 200,
+          "start_ms": 165,
+          "duration_ms": 828
+        },
+        {
+          "path": "/v1/admin/client-logs",
+          "status": 200,
+          "start_ms": 813,
+          "duration_ms": 187
+        },
+        {
+          "path": "/v1/debug/sync",
+          "status": 200,
+          "start_ms": 656,
+          "duration_ms": 369
+        },
+        {
+          "path": "/v1/admin/client-logs",
+          "status": 200,
+          "start_ms": 1153,
+          "duration_ms": 106
+        }
+      ],
+      "decrypt": {
+        "count": 264,
+        "sum_ms": 26,
+        "max_ms": 1
+      },
+      "idb": {
+        "count": 64,
+        "sum_ms": 2097,
+        "max_ms": 620
+      },
+      "longtask": {
+        "count": 3,
+        "sum_ms": 378,
+        "max_ms": 171
+      }
+    },
+    {
+      "label": "desktop-chat-B-first",
+      "start": null,
+      "armed": null,
+      "shell": 53.59999990463257,
+      "content": 1412.1999998092651,
+      "loadingSeen": false,
+      "frames": 16,
+      "done": true,
+      "paint": 1536.2999997138977,
+      "fetches": [
+        {
+          "path": "/v1/user-plans",
+          "status": 200,
+          "start_ms": 26,
+          "duration_ms": 471
+        },
+        {
+          "path": "/v1/user-tasks",
+          "status": 200,
+          "start_ms": 36,
+          "duration_ms": 916
+        },
+        {
+          "path": "/v1/user-plans",
+          "status": 200,
+          "start_ms": 100,
+          "duration_ms": 873
+        },
+        {
+          "path": "/v1/user-tasks",
+          "status": 200,
+          "start_ms": 101,
+          "duration_ms": 892
+        },
+        {
+          "path": "/v1/chats/:id/messages/window",
+          "status": 200,
+          "start_ms": 183,
+          "duration_ms": 817
+        },
+        {
+          "path": "/v1/user-plans",
+          "status": 200,
+          "start_ms": 110,
+          "duration_ms": 891
+        },
+        {
+          "path": "/v1/user-tasks",
+          "status": 200,
+          "start_ms": 112,
+          "duration_ms": 1001
+        },
+        {
+          "path": "/v1/admin/client-logs",
+          "status": 200,
+          "start_ms": 1204,
+          "duration_ms": 113
+        },
+        {
+          "path": "/v1/debug/sync",
+          "status": 200,
+          "start_ms": 1166,
+          "duration_ms": 245
+        },
+        {
+          "path": "/v1/admin/client-logs",
+          "status": 200,
+          "start_ms": 1770,
+          "duration_ms": 77
+        },
+        {
+          "path": "/v1/admin/client-logs",
+          "status": 200,
+          "start_ms": 1869,
+          "duration_ms": 76
+        },
+        {
+          "path": "/v1/admin/client-logs",
+          "status": 200,
+          "start_ms": 1961,
+          "duration_ms": 81
+        },
+        {
+          "path": "/v1/admin/client-logs",
+          "status": 200,
+          "start_ms": 2065,
+          "duration_ms": 82
+        },
+        {
+          "path": "/v1/admin/client-logs",
+          "status": 200,
+          "start_ms": 2160,
+          "duration_ms": 80
+        }
+      ],
+      "decrypt": {
+        "count": 405,
+        "sum_ms": 44,
+        "max_ms": 1
+      },
+      "idb": {
+        "count": 55,
+        "sum_ms": 10425,
+        "max_ms": 1098
+      },
+      "longtask": {
+        "count": 5,
+        "sum_ms": 354,
+        "max_ms": 117
+      }
+    },
+    {
+      "label": "desktop-chat-A-repeat-1",
+      "start": null,
+      "armed": null,
+      "shell": 47.5,
+      "content": 978.4000000953674,
+      "loadingSeen": false,
+      "frames": 12,
+      "done": true,
+      "paint": 1106,
+      "fetches": [
+        {
+          "path": "/v1/user-plans",
+          "status": 200,
+          "start_ms": 28,
+          "duration_ms": 272
+        },
+        {
+          "path": "/v1/user-tasks",
+          "status": 200,
+          "start_ms": 34,
+          "duration_ms": 550
+        },
+        {
+          "path": "/v1/user-plans",
+          "status": 200,
+          "start_ms": 93,
+          "duration_ms": 617
+        },
+        {
+          "path": "/v1/user-tasks",
+          "status": 200,
+          "start_ms": 95,
+          "duration_ms": 618
+        },
+        {
+          "path": "/v1/chats/:id/messages/window",
+          "status": 200,
+          "start_ms": 226,
+          "duration_ms": 561
+        },
+        {
+          "path": "/v1/user-plans",
+          "status": 200,
+          "start_ms": 104,
+          "duration_ms": 684
+        },
+        {
+          "path": "/v1/user-tasks",
+          "status": 200,
+          "start_ms": 107,
+          "duration_ms": 1052
+        },
+        {
+          "path": "/v1/debug/sync",
+          "status": 200,
+          "start_ms": 582,
+          "duration_ms": 578
+        },
+        {
+          "path": "/v1/admin/client-logs",
+          "status": 200,
+          "start_ms": 1177,
+          "duration_ms": 138
+        }
+      ],
+      "decrypt": {
+        "count": 198,
+        "sum_ms": 15,
+        "max_ms": 0
+      },
+      "idb": {
+        "count": 44,
+        "sum_ms": 6392,
+        "max_ms": 708
+      },
+      "longtask": {
+        "count": 4,
+        "sum_ms": 288,
+        "max_ms": 88
+      }
+    },
+    {
+      "label": "desktop-chat-B-repeat-1",
+      "start": null,
+      "armed": null,
+      "shell": 51.700000286102295,
+      "content": 1187.2000002861023,
+      "loadingSeen": false,
+      "frames": 14,
+      "done": true,
+      "paint": 1252,
+      "fetches": [
+        {
+          "path": "/v1/user-plans",
+          "status": 200,
+          "start_ms": 19,
+          "duration_ms": 695
+        },
+        {
+          "path": "/v1/user-tasks",
+          "status": 200,
+          "start_ms": 27,
+          "duration_ms": 689
+        },
+        {
+          "path": "/v1/telemetry/traces",
+          "status": 200,
+          "start_ms": 320,
+          "duration_ms": 399
+        },
+        {
+          "path": "/v1/user-plans",
+          "status": 200,
+          "start_ms": 86,
+          "duration_ms": 635
+        },
+        {
+          "path": "/v1/user-tasks",
+          "status": 200,
+          "start_ms": 87,
+          "duration_ms": 789
+        },
+        {
+          "path": "/v1/chats/:id/messages/window",
+          "status": 200,
+          "start_ms": 159,
+          "duration_ms": 998
+        },
+        {
+          "path": "/v1/user-plans",
+          "status": 200,
+          "start_ms": 96,
+          "duration_ms": 1062
+        },
+        {
+          "path": "/v1/user-tasks",
+          "status": 200,
+          "start_ms": 97,
+          "duration_ms": 1075
+        },
+        {
+          "path": "/v1/debug/sync",
+          "status": 200,
+          "start_ms": 706,
+          "duration_ms": 467
+        },
+        {
+          "path": "/v1/admin/client-logs",
+          "status": 200,
+          "start_ms": 1192,
+          "duration_ms": 77
+        },
+        {
+          "path": "/v1/admin/client-logs",
+          "status": 200,
+          "start_ms": 1291,
+          "duration_ms": 108
+        },
+        {
+          "path": "/v1/admin/client-logs",
+          "status": 200,
+          "start_ms": 1416,
+          "duration_ms": 87
+        },
+        {
+          "path": "/v1/admin/client-logs",
+          "status": 200,
+          "start_ms": 1522,
+          "duration_ms": 128
+        },
+        {
+          "path": "/v1/admin/client-logs",
+          "status": 200,
+          "start_ms": 1668,
+          "duration_ms": 99
+        },
+        {
+          "path": "/v1/admin/client-logs",
+          "status": 200,
+          "start_ms": 1794,
+          "duration_ms": 120
+        },
+        {
+          "path": "/v1/admin/client-logs",
+          "status": 200,
+          "start_ms": 1930,
+          "duration_ms": 79
+        }
+      ],
+      "decrypt": {
+        "count": 289,
+        "sum_ms": 35,
+        "max_ms": 1
+      },
+      "idb": {
+        "count": 52,
+        "sum_ms": 5960,
+        "max_ms": 711
+      },
+      "longtask": {
+        "count": 4,
+        "sum_ms": 280,
+        "max_ms": 92
+      }
+    },
+    {
+      "label": "desktop-workflows-repeat-2",
+      "start": null,
+      "armed": null,
+      "shell": 129.69999980926514,
+      "content": 129.69999980926514,
+      "loadingSeen": false,
+      "frames": 2,
+      "done": true,
+      "paint": 144.09999990463257,
+      "fetches": [
+        {
+          "path": "/v1/settings/server-status",
+          "status": 200,
+          "start_ms": 142,
+          "duration_ms": 185
+        },
+        {
+          "path": "/v1/teams",
+          "status": 200,
+          "start_ms": 95,
+          "duration_ms": 353
+        },
+        {
+          "path": "/v1/admin/client-logs",
+          "status": 200,
+          "start_ms": 189,
+          "duration_ms": 268
+        },
+        {
+          "path": "/v1/settings/server-status",
+          "status": 200,
+          "start_ms": 142,
+          "duration_ms": 398
+        },
+        {
+          "path": "/v1/referrals/status",
+          "status": 200,
+          "start_ms": 92,
+          "duration_ms": 567
+        }
+      ],
+      "decrypt": {
+        "count": 116,
+        "sum_ms": 8,
+        "max_ms": 0
+      },
+      "idb": {
+        "count": 1,
+        "sum_ms": 26,
+        "max_ms": 26
+      },
+      "longtask": {
+        "count": 1,
+        "sum_ms": 129,
+        "max_ms": 129
+      }
+    },
+    {
+      "label": "desktop-workflow-detail-repeat",
+      "start": null,
+      "armed": null,
+      "shell": 59.40000009536743,
+      "content": 59.40000009536743,
+      "loadingSeen": false,
+      "frames": 2,
+      "done": true,
+      "paint": 119.90000009536743,
+      "fetches": [
+        {
+          "path": "/v1/admin/client-logs",
+          "status": 200,
+          "start_ms": 77,
+          "duration_ms": 225
+        }
+      ],
+      "decrypt": {
+        "count": 0,
+        "sum_ms": 0,
+        "max_ms": 0
+      },
+      "idb": {
+        "count": 1,
+        "sum_ms": 3,
+        "max_ms": 3
+      },
+      "longtask": {
+        "count": 1,
+        "sum_ms": 65,
+        "max_ms": 65
+      }
+    },
+    {
+      "label": "desktop-tasks-repeat-3",
+      "start": null,
+      "armed": null,
+      "shell": 62.09999990463257,
+      "content": 1894.6999998092651,
+      "loadingSeen": true,
+      "frames": 48,
+      "done": true,
+      "paint": 1931.9000000953674,
+      "fetches": [
+        {
+          "path": "/v1/settings/server-status",
+          "status": 200,
+          "start_ms": 69,
+          "duration_ms": 458
+        },
+        {
+          "path": "/v1/user-plans",
+          "status": 200,
+          "start_ms": 40,
+          "duration_ms": 742
+        },
+        {
+          "path": "/v1/admin/client-logs",
+          "status": 200,
+          "start_ms": 98,
+          "duration_ms": 702
+        },
+        {
+          "path": "/v1/teams",
+          "status": 200,
+          "start_ms": 47,
+          "duration_ms": 897
+        },
+        {
+          "path": "/v1/settings/server-status",
+          "status": 200,
+          "start_ms": 70,
+          "duration_ms": 876
+        },
+        {
+          "path": "/v1/referrals/status",
+          "status": 200,
+          "start_ms": 41,
+          "duration_ms": 1125
+        },
+        {
+          "path": "/v1/projects",
+          "status": 200,
+          "start_ms": 38,
+          "duration_ms": 1249
+        },
+        {
+          "path": "/v1/referrals/status",
+          "status": 200,
+          "start_ms": 46,
+          "duration_ms": 1648
+        },
+        {
+          "path": "/v1/user-tasks",
+          "status": 200,
+          "start_ms": 39,
+          "duration_ms": 1729
+        },
+        {
+          "path": "/v1/user-tasks",
+          "status": 200,
+          "start_ms": 53,
+          "duration_ms": 1769
+        },
+        {
+          "path": "/v1/admin/client-logs",
+          "status": 200,
+          "start_ms": 2193,
+          "duration_ms": 86
+        }
+      ],
+      "decrypt": {
+        "count": 750,
+        "sum_ms": 628,
+        "max_ms": 2
+      },
+      "idb": {
+        "count": 4,
+        "sum_ms": 21,
+        "max_ms": 8
+      },
+      "longtask": {
+        "count": 2,
+        "sum_ms": 128,
+        "max_ms": 67
+      }
+    },
+    {
+      "label": "mobile-workflows-return",
+      "start": null,
+      "armed": null,
+      "shell": 58,
+      "content": 58,
+      "loadingSeen": false,
+      "frames": 2,
+      "done": true,
+      "paint": 69.59999990463257,
+      "fetches": [
+        {
+          "path": "/v1/settings/server-status",
+          "status": 200,
+          "start_ms": 63,
+          "duration_ms": 179
+        },
+        {
+          "path": "/v1/teams",
+          "status": 200,
+          "start_ms": 43,
+          "duration_ms": 290
+        },
+        {
+          "path": "/v1/admin/client-logs",
+          "status": 200,
+          "start_ms": 141,
+          "duration_ms": 196
+        },
+        {
+          "path": "/v1/settings/server-status",
+          "status": 200,
+          "start_ms": 64,
+          "duration_ms": 301
+        },
+        {
+          "path": "/v1/referrals/status",
+          "status": 200,
+          "start_ms": 40,
+          "duration_ms": 398
+        },
+        {
+          "path": "/v1/referrals/status",
+          "status": 200,
+          "start_ms": 42,
+          "duration_ms": 586
+        }
+      ],
+      "decrypt": {
+        "count": 24,
+        "sum_ms": 2,
+        "max_ms": 0
+      },
+      "idb": {
+        "count": 1,
+        "sum_ms": 59,
+        "max_ms": 59
+      },
+      "longtask": {
+        "count": 1,
+        "sum_ms": 54,
+        "max_ms": 54
+      }
+    },
+    {
+      "label": "mobile-tasks-return-1",
+      "start": null,
+      "armed": null,
+      "shell": 41.90000009536743,
+      "content": 1522.5,
+      "loadingSeen": true,
+      "frames": 55,
+      "done": true,
+      "paint": 1560.4000000953674,
+      "fetches": [
+        {
+          "path": "/v1/settings/server-status",
+          "status": 200,
+          "start_ms": 45,
+          "duration_ms": 370
+        },
+        {
+          "path": "/v1/admin/client-logs",
+          "status": 200,
+          "start_ms": 64,
+          "duration_ms": 378
+        },
+        {
+          "path": "/v1/teams",
+          "status": 200,
+          "start_ms": 29,
+          "duration_ms": 576
+        },
+        {
+          "path": "/v1/user-plans",
+          "status": 200,
+          "start_ms": 26,
+          "duration_ms": 581
+        },
+        {
+          "path": "/v1/settings/server-status",
+          "status": 200,
+          "start_ms": 46,
+          "duration_ms": 664
+        },
+        {
+          "path": "/v1/referrals/status",
+          "status": 200,
+          "start_ms": 27,
+          "duration_ms": 857
+        },
+        {
+          "path": "/v1/projects",
+          "status": 200,
+          "start_ms": 25,
+          "duration_ms": 975
+        },
+        {
+          "path": "/v1/admin/client-logs",
+          "status": 200,
+          "start_ms": 970,
+          "duration_ms": 212
+        },
+        {
+          "path": "/v1/referrals/status",
+          "status": 200,
+          "start_ms": 29,
+          "duration_ms": 1370
+        },
+        {
+          "path": "/v1/user-tasks",
+          "status": 200,
+          "start_ms": 37,
+          "duration_ms": 1412
+        },
+        {
+          "path": "/v1/user-tasks",
+          "status": 200,
+          "start_ms": 26,
+          "duration_ms": 1426
+        },
+        {
+          "path": "/v1/telemetry/traces",
+          "status": 200,
+          "start_ms": 1921,
+          "duration_ms": 102
+        }
+      ],
+      "decrypt": {
+        "count": 750,
+        "sum_ms": 649,
+        "max_ms": 2
+      },
+      "idb": {
+        "count": 5,
+        "sum_ms": 10,
+        "max_ms": 7
+      },
+      "longtask": {
+        "count": 1,
+        "sum_ms": 64,
+        "max_ms": 64
+      }
+    },
+    {
+      "label": "mobile-projects-return-1",
+      "start": null,
+      "armed": null,
+      "shell": 62.80000019073486,
+      "content": 640.0999999046326,
+      "loadingSeen": false,
+      "frames": 22,
+      "done": true,
+      "paint": 668.4000000953674,
+      "fetches": [
+        {
+          "path": "/v1/settings/server-status",
+          "status": 200,
+          "start_ms": 67,
+          "duration_ms": 215
+        },
+        {
+          "path": "/v1/teams",
+          "status": 200,
+          "start_ms": 51,
+          "duration_ms": 347
+        },
+        {
+          "path": "/v1/admin/client-logs",
+          "status": 200,
+          "start_ms": 144,
+          "duration_ms": 260
+        },
+        {
+          "path": "/v1/settings/server-status",
+          "status": 200,
+          "start_ms": 69,
+          "duration_ms": 384
+        },
+        {
+          "path": "/v1/referrals/status",
+          "status": 200,
+          "start_ms": 48,
+          "duration_ms": 517
+        },
+        {
+          "path": "/v1/projects",
+          "status": 200,
+          "start_ms": 47,
+          "duration_ms": 568
+        },
+        {
+          "path": "/v1/referrals/status",
+          "status": 200,
+          "start_ms": 50,
+          "duration_ms": 706
+        }
+      ],
+      "decrypt": {
+        "count": 40,
+        "sum_ms": 4,
+        "max_ms": 0
+      },
+      "idb": {
+        "count": 1,
+        "sum_ms": 61,
+        "max_ms": 61
+      },
+      "longtask": {
+        "count": 1,
+        "sum_ms": 60,
+        "max_ms": 60
+      }
+    },
+    {
+      "label": "mobile-tasks-return-2",
+      "start": null,
+      "armed": null,
+      "shell": 44.69999980926514,
+      "content": 1607.9000000953674,
+      "loadingSeen": true,
+      "frames": 57,
+      "done": true,
+      "paint": 1647,
+      "fetches": [
+        {
+          "path": "/v1/settings/server-status",
+          "status": 200,
+          "start_ms": 49,
+          "duration_ms": 364
+        },
+        {
+          "path": "/v1/admin/client-logs",
+          "status": 200,
+          "start_ms": 73,
+          "duration_ms": 368
+        },
+        {
+          "path": "/v1/teams",
+          "status": 200,
+          "start_ms": 31,
+          "duration_ms": 589
+        },
+        {
+          "path": "/v1/user-plans",
+          "status": 200,
+          "start_ms": 28,
+          "duration_ms": 598
+        },
+        {
+          "path": "/v1/settings/server-status",
+          "status": 200,
+          "start_ms": 50,
+          "duration_ms": 693
+        },
+        {
+          "path": "/v1/referrals/status",
+          "status": 200,
+          "start_ms": 28,
+          "duration_ms": 914
+        },
+        {
+          "path": "/v1/projects",
+          "status": 200,
+          "start_ms": 26,
+          "duration_ms": 1020
+        },
+        {
+          "path": "/v1/referrals/status",
+          "status": 200,
+          "start_ms": 30,
+          "duration_ms": 1441
+        },
+        {
+          "path": "/v1/user-tasks",
+          "status": 200,
+          "start_ms": 27,
+          "duration_ms": 1506
+        },
+        {
+          "path": "/v1/user-tasks",
+          "status": 200,
+          "start_ms": 39,
+          "duration_ms": 1496
+        }
+      ],
+      "decrypt": {
+        "count": 750,
+        "sum_ms": 653,
+        "max_ms": 3
+      },
+      "idb": {
+        "count": 1,
+        "sum_ms": 11,
+        "max_ms": 11
+      },
+      "longtask": {
+        "count": 1,
+        "sum_ms": 64,
+        "max_ms": 64
+      }
+    },
+    {
+      "label": "desktop-task-route-detail-first",
+      "start": null,
+      "armed": null,
+      "shell": 36.19999980926514,
+      "content": 1601.5,
+      "loadingSeen": false,
+      "frames": 92,
+      "done": true,
+      "paint": 1605.2999997138977,
+      "fetches": [
+        {
+          "path": "/v1/settings/server-status",
+          "status": 200,
+          "start_ms": 40,
+          "duration_ms": 264
+        },
+        {
+          "path": "/v1/teams",
+          "status": 200,
+          "start_ms": 20,
+          "duration_ms": 452
+        },
+        {
+          "path": "/v1/telemetry/traces",
+          "status": 200,
+          "start_ms": 47,
+          "duration_ms": 452
+        },
+        {
+          "path": "/v1/admin/client-logs",
+          "status": 200,
+          "start_ms": 55,
+          "duration_ms": 448
+        },
+        {
+          "path": "/v1/settings/server-status",
+          "status": 200,
+          "start_ms": 41,
+          "duration_ms": 593
+        },
+        {
+          "path": "/v1/admin/client-logs",
+          "status": 200,
+          "start_ms": 570,
+          "duration_ms": 163
+        },
+        {
+          "path": "/v1/referrals/status",
+          "status": 200,
+          "start_ms": 18,
+          "duration_ms": 894
+        },
+        {
+          "path": "/v1/admin/client-logs",
+          "status": 200,
+          "start_ms": 896,
+          "duration_ms": 258
+        },
+        {
+          "path": "/v1/referrals/status",
+          "status": 200,
+          "start_ms": 20,
+          "duration_ms": 1440
+        },
+        {
+          "path": "/v1/user-tasks",
+          "status": 200,
+          "start_ms": 27,
+          "duration_ms": 1504
+        },
+        {
+          "path": "/v1/user-tasks",
+          "status": 200,
+          "start_ms": 17,
+          "duration_ms": 1517
+        },
+        {
+          "path": "/v1/user-tasks/:id/activity",
+          "status": 200,
+          "start_ms": 1594,
+          "duration_ms": 312
+        },
+        {
+          "path": "/v1/user-tasks/:id/dependencies",
+          "status": 200,
+          "start_ms": 1596,
+          "duration_ms": 357
+        }
+      ],
+      "decrypt": {
+        "count": 734,
+        "sum_ms": 708,
+        "max_ms": 2
+      },
+      "idb": {
+        "count": 3,
+        "sum_ms": 8,
+        "max_ms": 7
+      },
+      "longtask": {
+        "count": 1,
+        "sum_ms": 62,
+        "max_ms": 62
+      }
+    },
+    {
+      "label": "mobile-chat-A-workspace-return",
+      "start": null,
+      "armed": null,
+      "shell": 176.69999980926514,
+      "content": 1513.4000000953674,
+      "loadingSeen": false,
+      "frames": 29,
+      "done": true,
+      "paint": 1550.6999998092651,
+      "fetches": [
+        {
+          "path": "/v1/settings/server-status",
+          "status": 200,
+          "start_ms": 193,
+          "duration_ms": 273
+        },
+        {
+          "path": "/v1/teams",
+          "status": 200,
+          "start_ms": 153,
+          "duration_ms": 313
+        },
+        {
+          "path": "/v1/settings/server-status",
+          "status": 200,
+          "start_ms": 195,
+          "duration_ms": 495
+        },
+        {
+          "path": "/v1/user-plans",
+          "status": 200,
+          "start_ms": 277,
+          "duration_ms": 545
+        },
+        {
+          "path": "/v1/user-tasks",
+          "status": 200,
+          "start_ms": 292,
+          "duration_ms": 530
+        },
+        {
+          "path": "/v1/referrals/status",
+          "status": 200,
+          "start_ms": 150,
+          "duration_ms": 672
+        },
+        {
+          "path": "/v1/settings/server-status",
+          "status": 200,
+          "start_ms": 453,
+          "duration_ms": 433
+        },
+        {
+          "path": "/v1/user-plans",
+          "status": 200,
+          "start_ms": 508,
+          "duration_ms": 617
+        },
+        {
+          "path": "/v1/user-tasks",
+          "status": 200,
+          "start_ms": 510,
+          "duration_ms": 746
+        },
+        {
+          "path": "/v1/debug/sync",
+          "status": 200,
+          "start_ms": 581,
+          "duration_ms": 679
+        },
+        {
+          "path": "/v1/chats/:id/messages/window",
+          "status": 200,
+          "start_ms": 589,
+          "duration_ms": 826
+        },
+        {
+          "path": "/v1/admin/client-logs",
+          "status": 200,
+          "start_ms": 1124,
+          "duration_ms": 318
+        },
+        {
+          "path": "/v1/user-plans",
+          "status": 200,
+          "start_ms": 530,
+          "duration_ms": 1019
+        },
+        {
+          "path": "/v1/referrals/status",
+          "status": 200,
+          "start_ms": 152,
+          "duration_ms": 1398
+        },
+        {
+          "path": "/v1/user-tasks",
+          "status": 200,
+          "start_ms": 532,
+          "duration_ms": 1134
+        }
+      ],
+      "decrypt": {
+        "count": 526,
+        "sum_ms": 44,
+        "max_ms": 1
+      },
+      "idb": {
+        "count": 117,
+        "sum_ms": 3583,
+        "max_ms": 734
+      },
+      "longtask": {
+        "count": 3,
+        "sum_ms": 258,
+        "max_ms": 115
+      }
+    }
+  ],
+  "excluded_recorded_attempts": [
+    {
+      "label": "desktop-chat-B-first-sidebar",
+      "reason": "Selected already active chat; readiness expected a different chat."
+    }
+  ]
+}

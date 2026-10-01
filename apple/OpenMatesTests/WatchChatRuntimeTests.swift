@@ -9,6 +9,75 @@ import CryptoKit
 
 @MainActor
 final class WatchChatRuntimeTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=apple-notifications.action.routing-coherent
+    func testNotificationJoinsInflightRefreshBeforeResolvingUncachedTarget() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let gate = WatchChatFetchGate()
+        let api = FakeWatchChatAPI(chats: [
+            Self.remoteChat(id: "target", title: "Target", lastMessageAt: "2026-07-01T10:00:00Z"),
+        ], chatFetchGate: gate)
+        let runtime = WatchChatRuntime(api: api, cache: WatchChatOfflineCache(directory: directory),
+                                       crypto: FakeWatchChatCrypto(), syncSocket: nil)
+        let refresh = Task { await runtime.refresh() }
+        await gate.waitUntilStarted()
+        let open = Task { await runtime.openNotificationChat(chatID: "target") }
+        await Task.yield()
+        XCTAssertTrue(runtime.isSyncing)
+        XCTAssertFalse(runtime.chatLoadFailed)
+        XCTAssertNil(runtime.selectedChatId)
+        await gate.release()
+        let result = await open.value
+        await refresh.value
+        XCTAssertEqual(result, .opened)
+        XCTAssertEqual(runtime.selectedChatId, "target")
+        XCTAssertEqual(api.fetchRecentChatsCallCount, 1)
+        XCTAssertEqual(api.fetchMessagesCallCount, 1)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-notifications.action.routing-coherent
+    func testNotificationTransientResolutionFailureRemainsRetryable() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let api = FakeWatchChatAPI(chats: [
+            Self.remoteChat(id: "target", title: "Target", lastMessageAt: "2026-07-01T10:00:00Z"),
+        ], chatFetchError: APIError.httpError(status: 503, message: "fixture temporary outage"))
+        let runtime = WatchChatRuntime(api: api, cache: WatchChatOfflineCache(directory: directory),
+                                       crypto: FakeWatchChatCrypto(), syncSocket: nil)
+        let failed = await runtime.openNotificationChat(chatID: "target")
+        XCTAssertEqual(failed, .retry)
+        XCTAssertNil(runtime.selectedChatId)
+        api.chatFetchError = nil
+        let retried = await runtime.openNotificationChat(chatID: "target")
+        XCTAssertEqual(retried, .opened)
+        XCTAssertEqual(runtime.selectedChatId, "target")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-notifications.action.routing-coherent
+    func testNotificationHydratesExactTargetAndMissingTargetNeverOpensAnotherChat() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let api = FakeWatchChatAPI(chats: [
+            Self.remoteChat(id: "latest", title: "Latest", lastMessageAt: "2026-07-05T10:00:00Z"),
+            Self.remoteChat(id: "target", title: "Target", lastMessageAt: "2026-07-01T10:00:00Z"),
+        ])
+        let runtime = WatchChatRuntime(api: api, cache: WatchChatOfflineCache(directory: directory),
+                                       crypto: FakeWatchChatCrypto(), syncSocket: nil)
+        let opened = await runtime.openNotificationChat(chatID: "target")
+        XCTAssertEqual(opened, .opened)
+        XCTAssertEqual(runtime.selectedChatId, "target")
+        XCTAssertEqual(api.fetchMessagesCallCount, 1)
+        let missing = await runtime.openNotificationChat(chatID: "missing")
+        XCTAssertEqual(missing, .unavailable)
+        XCTAssertNil(runtime.selectedChatId)
+        XCTAssertTrue(runtime.chatLoadFailed)
+        XCTAssertEqual(api.fetchMessagesCallCount, 1)
+        WatchChatAccountLifecycle.invalidate()
+        let stale = await runtime.openNotificationChat(chatID: "latest")
+        XCTAssertEqual(stale, .stale)
+        XCTAssertNil(runtime.selectedChatId)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.browse-search-open,apple-watch.chats.new-text-reply
     func testWatchInitialSyncIncludesRequiredPersonalContextEpoch() {
         let state = WatchSyncClientState(
@@ -53,9 +122,11 @@ final class WatchChatRuntimeTests: XCTestCase {
             "encrypted_chat_key": staleWrapper,
             "chat_key_wrappers": [
                 ["id": "older", "hashed_chat_id": WatchChatKeyWrapperRecord.hashedChatId(for: chatId),
-                 "key_type": "master", "encrypted_chat_key": staleWrapper, "wrapper_version": 1],
+                 "key_type": "master", "encrypted_chat_key": staleWrapper, "wrapper_version": 1,
+                 "created_at": 1_777_777_777],
                 ["id": "current", "hashed_chat_id": WatchChatKeyWrapperRecord.hashedChatId(for: chatId),
-                 "key_type": "master", "encrypted_chat_key": selectedWrapper, "wrapper_version": 2],
+                 "key_type": "master", "encrypted_chat_key": selectedWrapper, "wrapper_version": 2,
+                 "created_at": 1_777_777_778],
             ],
         ]]]
         let decoder = JSONDecoder()
@@ -66,6 +137,7 @@ final class WatchChatRuntimeTests: XCTestCase {
         XCTAssertEqual(response.chats.count, 1)
         XCTAssertEqual(chat.messagesV, 2)
         XCTAssertEqual(chat.chatKeyWrappers.count, 2)
+        XCTAssertEqual(chat.chatKeyWrappers.map(\.createdAt), ["1777777777", "1777777778"])
         let resolution = await WatchChatKeyResolver.resolve(
             chatId: chat.id, wrappers: chat.chatKeyWrappers,
             encryptedChatKey: chat.encryptedChatKey, masterKey: masterKey
@@ -75,6 +147,26 @@ final class WatchChatRuntimeTests: XCTestCase {
         XCTAssertNil(resolved.outboundWrapped, "A stale row wrapper must disable replies rather than send a mismatched key")
         let selectedBytes = resolved.key.withUnsafeBytes { Data($0) }
         XCTAssertEqual(selectedBytes, chatKey.withUnsafeBytes { Data($0) })
+    }
+
+    // contract-test: direct surface=gui.apple assertions=apple-watch.chats.browse-search-open
+    func testChatListWrapperTimestampAcceptsLegacyStringAndMissingValues() throws {
+        let hash = WatchChatKeyWrapperRecord.hashedChatId(for: "fixture-chat")
+        let payload: [String: Any] = ["chats": [[
+            "id": "fixture-chat",
+            "chat_key_wrappers": [
+                ["hashed_chat_id": hash, "key_type": "master", "encrypted_chat_key": "wrapped-a",
+                 "wrapper_version": 1, "created_at": "1777777777"],
+                ["hashed_chat_id": hash, "key_type": "master", "encrypted_chat_key": "wrapped-b",
+                 "wrapper_version": 2],
+            ],
+        ]]]
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let response = try decoder.decode(WatchChatListEnvelope.self, from: JSONSerialization.data(withJSONObject: payload))
+
+        XCTAssertEqual(response.chats.count, 1)
+        XCTAssertEqual(response.chats[0].chatKeyWrappers.map(\.createdAt), ["1777777777", nil])
     }
 
     // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.browse-search-open
@@ -416,7 +508,7 @@ final class WatchChatRuntimeTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: directory) }
         let cache = WatchChatOfflineCache(directory: directory)
         let chat = Self.chat(id: "chat-a", title: "Alpha", lastMessageAt: "2026-07-06T10:00:00Z")
-        let socket = FakeWatchChatSyncSocket(shouldRejectSend: true)
+        let socket = FakeWatchChatSyncSocket(shouldRejectSend: true, rejectionCode: "version_conflict")
         let runtime = WatchChatRuntime(
             api: FakeWatchChatAPI(
                 chats: [Self.remoteChat(id: "chat-a", title: "Alpha", lastMessageAt: "2026-07-06T10:00:00Z")],
@@ -432,13 +524,24 @@ final class WatchChatRuntimeTests: XCTestCase {
         XCTAssertEqual(runtime.selectedMessages.last?.isPending, true)
         let snapshot = await cache.loadSnapshot()
         let saved = try XCTUnwrap(snapshot.pendingTextSends.first)
-        let preflight = try XCTUnwrap(JSONSerialization.jsonObject(with: saved.preflightJSON) as? [String: Any])
-        let inference = try XCTUnwrap(JSONSerialization.jsonObject(with: saved.inferenceJSON) as? [String: Any])
+        XCTAssertTrue(saved.preflightJSON.isEmpty)
+        XCTAssertTrue(saved.inferenceJSON.isEmpty)
+        let encryptedPrepared = try XCTUnwrap(saved.encryptedPreparedTurn)
+        let plaintext = try await FakeWatchChatCrypto().decryptText(encryptedPrepared, for: chat)
+        let prepared = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(plaintext.utf8)) as? [String: Any])
+        let preflight = try XCTUnwrap(prepared["preflight"] as? [String: Any])
+        let inference = try XCTUnwrap(prepared["inference"] as? [String: Any])
         XCTAssertEqual(preflight["turn_id"] as? String, saved.id)
         XCTAssertEqual(preflight["expected_messages_v"] as? Int, 0)
         XCTAssertEqual((preflight["encrypted_user_message"] as? [String: Any])?["encrypted_content"] as? String, "encrypted:Pending reply")
         XCTAssertEqual((inference["message"] as? [String: Any])?["content"] as? String, "Pending reply")
         XCTAssertNil(preflight["encrypted_chat_metadata"], "Existing titled chats do not resend initial metadata")
+        let anotherSend = await runtime.sendText("Blocked new text")
+        XCTAssertFalse(anotherSend)
+        let afterRejectedReplay = await cache.loadSnapshot()
+        XCTAssertEqual(afterRejectedReplay.pendingTextSends, [saved], "Admission diagnostics cannot change the persisted encrypted turn")
+        XCTAssertEqual(socket.attemptedTurns.map(\.id), [saved.id, saved.id])
+        XCTAssertTrue(socket.sentTurns.isEmpty)
     }
 
     // contract-test: direct surface=gui.apple assertions=apple-watch.chats.new-text-reply
@@ -447,7 +550,7 @@ final class WatchChatRuntimeTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: directory) }
         let cache = WatchChatOfflineCache(directory: directory)
         let chat = Self.chat(id: "chat-a", title: "Alpha", lastMessageAt: "2026-07-06T10:00:00Z")
-        let socket = FakeWatchChatSyncSocket(shouldRejectSend: true)
+        let socket = FakeWatchChatSyncSocket(shouldRejectSend: true, rejectionCode: "preflight_mismatch")
         let runtime = WatchChatRuntime(
             api: FakeWatchChatAPI(chats: [Self.remoteChat(id: chat.id, title: "Alpha", lastMessageAt: "2026-07-06T10:00:00Z")]),
             cache: cache, crypto: FakeWatchChatCrypto(), syncSocket: socket,
@@ -456,15 +559,24 @@ final class WatchChatRuntimeTests: XCTestCase {
         await runtime.refresh()
         await runtime.openChat(chat)
         let firstQueued = await runtime.sendText("First")
+        let queued = await cache.loadSnapshot()
+        let original = try XCTUnwrap(queued.pendingTextSends.first)
         let blockedNewSend = await runtime.sendText("Second")
         XCTAssertTrue(firstQueued)
         XCTAssertFalse(blockedNewSend)
         XCTAssertNotEqual(runtime.errorMessage, WatchChatRuntimeError.sendInProgress.localizedDescription)
+        let stillQueued = await cache.loadSnapshot()
+        XCTAssertEqual(stillQueued.pendingTextSends, [original])
+        XCTAssertEqual(socket.attemptedTurns.map(\.id), [original.id, original.id])
 
         socket.shouldRejectSend = false
         let secondSent = await runtime.sendText("Second")
         XCTAssertTrue(secondSent)
         XCTAssertEqual(socket.sentTurns.count, 2)
+        XCTAssertEqual(socket.sentTurns[0].id, original.id)
+        XCTAssertEqual(socket.sentTurns[0].encryptedContent, original.encryptedContent)
+        XCTAssertNotEqual(socket.sentTurns[1].id, original.id)
+        XCTAssertEqual(socket.sentTurns[1].encryptedContent, "encrypted:Second")
         let saved = await cache.loadSnapshot()
         XCTAssertTrue(saved.pendingTextSends.isEmpty)
         XCTAssertEqual(runtime.selectedMessages.filter(\.isPending).count, 0)
@@ -537,7 +649,7 @@ final class WatchChatRuntimeTests: XCTestCase {
     }
 
     // contract-test: direct surface=gui.apple assertions=apple-watch.chats.new-text-reply
-    func testCreateNewChatLeavesListAndSelectsLocalChat() async throws {
+    func testCreateNewChatSelectsTransientComposerWithoutSavingEmptyChat() async throws {
         let directory = temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
         let runtime = WatchChatRuntime(
@@ -547,7 +659,8 @@ final class WatchChatRuntimeTests: XCTestCase {
         await runtime.refresh()
         XCTAssertNil(runtime.selectedChatId)
         await runtime.createNewChat()
-        XCTAssertEqual(runtime.chats.count, 1)
+        XCTAssertTrue(runtime.chats.isEmpty)
+        XCTAssertEqual(runtime.selectedChat?.id, "new-chat")
         XCTAssertEqual(runtime.selectedChatId, "new-chat")
         XCTAssertTrue(runtime.selectedMessages.isEmpty)
     }
@@ -588,6 +701,7 @@ final class WatchChatRuntimeTests: XCTestCase {
         XCTAssertEqual(runtime.chats.first?.title, "Decrypted title")
         XCTAssertEqual(runtime.chats.first?.preview, "Decrypted summary")
         XCTAssertEqual(runtime.selectedMessages.first?.content, "Decrypted message")
+        XCTAssertEqual(api.fetchMessagesCallCount, 1, "An omitted message version must not suppress transcript fetching")
     }
 
     // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.compact-layout
@@ -694,7 +808,7 @@ final class WatchChatRuntimeTests: XCTestCase {
 
         XCTAssertEqual(socket.connectedSession, WatchSyncSession(sessionId: "watch-session", token: "watch-ws-token"))
         XCTAssertEqual(socket.connectedSyncState?.clientChatIds, ["chat-a"])
-        XCTAssertEqual(socket.connectedSyncState?.clientChatVersions, [:])
+        XCTAssertEqual(socket.connectedSyncState?.clientChatVersions, ["chat-a": ["messages_v": 0, "title_v": 0, "metadata_v": 0, "draft_v": 0]])
         XCTAssertEqual(socket.connectedSyncState?.clientEmbedIds, [])
     }
 
@@ -888,9 +1002,33 @@ private actor WatchAudioUploadGate {
     }
 }
 
+private actor WatchChatFetchGate {
+    private var started = false
+    private var startedWaiter: CheckedContinuation<Void, Never>?
+    private var releaseWaiter: CheckedContinuation<Void, Never>?
+
+    func waitUntilStarted() async {
+        if started { return }
+        await withCheckedContinuation { startedWaiter = $0 }
+    }
+
+    func suspendFetch() async {
+        started = true
+        startedWaiter?.resume()
+        startedWaiter = nil
+        await withCheckedContinuation { releaseWaiter = $0 }
+    }
+
+    func release() {
+        releaseWaiter?.resume()
+        releaseWaiter = nil
+    }
+}
+
 private final class FakeWatchChatAPI: WatchChatAPI, @unchecked Sendable {
     private let shouldThrow: Bool
-    private let chatFetchError: Error?
+    var chatFetchError: Error?
+    private let chatFetchGate: WatchChatFetchGate?
     private let ignoresChatOffset: Bool
     private let maxAcceptedChatLimit: Int?
     private let chats: [WatchRemoteChat]
@@ -916,7 +1054,8 @@ private final class FakeWatchChatAPI: WatchChatAPI, @unchecked Sendable {
         transientChatFetchFailures: Int = 0,
         transientMessageFetchFailures: Int = 0,
         uploadedAudio: WatchUploadedAudio? = nil,
-        uploadGate: WatchAudioUploadGate? = nil
+        uploadGate: WatchAudioUploadGate? = nil,
+        chatFetchGate: WatchChatFetchGate? = nil
     ) {
         self.chats = chats
         self.messagesByChatId = messagesByChatId
@@ -928,9 +1067,11 @@ private final class FakeWatchChatAPI: WatchChatAPI, @unchecked Sendable {
         self.transientMessageFetchFailures = transientMessageFetchFailures
         self.uploadedAudio = uploadedAudio
         self.uploadGate = uploadGate
+        self.chatFetchGate = chatFetchGate
     }
 
     func fetchRecentChats(limit: Int, offset: Int) async throws -> [WatchRemoteChat] {
+        await chatFetchGate?.suspendFetch()
         fetchRecentChatsCallCount += 1
         lastRequestedChatLimit = limit
         requestedChatOffsets.append(offset)
@@ -1092,9 +1233,14 @@ private final class FakeWatchChatSyncSocket: WatchChatSyncSocket {
     private(set) var connectedSyncState: WatchSyncClientState?
     private(set) var didDisconnect = false
     private(set) var sentTurns: [WatchPendingTextSend] = []
+    private(set) var attemptedTurns: [WatchPendingTextSend] = []
     var shouldRejectSend: Bool
+    var rejectionCode: String?
 
-    init(shouldRejectSend: Bool = false) { self.shouldRejectSend = shouldRejectSend }
+    init(shouldRejectSend: Bool = false, rejectionCode: String? = nil) {
+        self.shouldRejectSend = shouldRejectSend
+        self.rejectionCode = rejectionCode
+    }
 
     func connect(session: WatchSyncSession, syncState: WatchSyncClientState) {
         connectedSession = session
@@ -1104,7 +1250,11 @@ private final class FakeWatchChatSyncSocket: WatchChatSyncSocket {
     func disconnect() { didDisconnect = true }
     func setChangeHandler(_ handler: (@MainActor () -> Void)?) {}
     func sendTurn(_ pending: WatchPendingTextSend) async throws {
-        if shouldRejectSend { throw WatchChatRuntimeError.preflightRejected }
+        attemptedTurns.append(pending)
+        if shouldRejectSend {
+            if let rejectionCode { throw WatchTurnAdmissionDiagnostic.serverRejection(stage: .preflight, code: rejectionCode) }
+            throw WatchChatRuntimeError.preflightRejected
+        }
         sentTurns.append(pending)
     }
 }
@@ -1113,19 +1263,26 @@ private final class FakeWatchChatSyncSocket: WatchChatSyncSocket {
 private final class FakeWatchChatCrypto: WatchChatCrypto {
     private let decryptedValues: [String: String]
     private let omittedChatIds: Set<String>
+    private let draftKey = SymmetricKey(size: .bits256)
 
     init(decryptedValues: [String: String] = [:], omittedChatIds: Set<String> = []) {
         self.decryptedValues = decryptedValues
         self.omittedChatIds = omittedChatIds
     }
 
+    private func openedText(_ ciphertext: String) -> String? {
+        if let value = decryptedValues[ciphertext] { return value }
+        guard ciphertext.hasPrefix("encrypted:") else { return nil }
+        return String(ciphertext.dropFirst("encrypted:".count))
+    }
+
     func decryptChat(_ chat: WatchRemoteChat) async -> WatchChatSummary? {
         guard !omittedChatIds.contains(chat.id) else { return nil }
         return WatchChatSummary(
             id: chat.id,
-            title: chat.encryptedTitle.flatMap { decryptedValues[$0] } ?? chat.title,
+            title: chat.encryptedTitle.flatMap(openedText) ?? chat.title,
             lastMessageAt: chat.lastMessageAt ?? chat.updatedAt,
-            preview: chat.encryptedChatSummary.flatMap { decryptedValues[$0] } ?? chat.chatSummary,
+            preview: chat.encryptedChatSummary.flatMap(openedText) ?? chat.chatSummary,
             isPinned: chat.isPinned,
             encryptedTitle: chat.encryptedTitle,
             encryptedPreview: chat.encryptedChatSummary,
@@ -1135,7 +1292,7 @@ private final class FakeWatchChatCrypto: WatchChatCrypto {
     }
 
     func decryptMessage(_ message: WatchRemoteMessage) async -> WatchChatMessage {
-        let content = message.encryptedContent.flatMap { decryptedValues[$0] } ?? message.content
+        let content = message.encryptedContent.flatMap(openedText) ?? message.content
         let embedRefs = message.embedRefs ?? WatchMessageContentSanitizer.inlineEmbedRefs(content: content)
         return WatchChatMessage(
             id: message.id,
@@ -1152,6 +1309,21 @@ private final class FakeWatchChatCrypto: WatchChatCrypto {
     func encryptText(_ text: String, for chat: WatchChatSummary) async throws -> String {
         "encrypted:\(text)"
     }
+    func decryptText(_ ciphertext: String, for chat: WatchChatSummary) async throws -> String {
+        guard let value = openedText(ciphertext) else { throw WatchChatRuntimeError.missingChatKey }
+        return value
+    }
+    func encryptDraft(_ text: String) async throws -> String {
+        try await CryptoManager.shared.encryptWithMasterKey(text, masterKey: draftKey)
+    }
+    func decryptDraft(_ ciphertext: String) async throws -> String {
+        try await CryptoManager.shared.decryptContent(base64String: ciphertext, key: draftKey)
+    }
+    func createChat(withID id: String) async throws -> WatchChatSummary {
+        WatchChatSummary(id: id, title: nil, lastMessageAt: nil, preview: nil,
+                         isPinned: false, encryptedTitle: "encrypted:", encryptedPreview: nil,
+                         encryptedChatKey: "wrapped-new-key")
+    }
     func createChat() async throws -> WatchChatSummary {
         WatchChatSummary(id: "new-chat", title: nil, lastMessageAt: nil, preview: nil,
                          isPinned: false, encryptedTitle: "encrypted:", encryptedPreview: nil,
@@ -1160,5 +1332,408 @@ private final class FakeWatchChatCrypto: WatchChatCrypto {
     func recoveryPublicKey(for chat: WatchChatSummary) async throws -> String { "recovery-public-key" }
     func encryptedAudioEmbed(_ embed: WatchPendingAudioEmbed, chat: WatchChatSummary, messageId: String) async throws -> [[String: Any]] {
         [["embed_id": embed.id, "encrypted_content": "encrypted-embed-content"]]
+    }
+}
+
+@MainActor
+extension WatchChatRuntimeTests {
+    // contract-test: direct surface=gui.apple assertions=drafts.persistence.local-first-encrypted,drafts.draft-only.lifecycle,apple-watch.chats.new-text-reply
+    func testWatchDraftPromotesOnContentRestoresSameIdentityAndClearsUnsavedShell() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let cache = WatchChatOfflineCache(directory: directory)
+        let crypto = FakeWatchChatCrypto()
+        let runtime = WatchChatRuntime(currentUserId: "synthetic-owner", api: FakeWatchChatAPI(), cache: cache, crypto: crypto, syncSocket: nil)
+        await runtime.createNewChat()
+        XCTAssertTrue(runtime.chats.isEmpty)
+        let emptySnapshot = await cache.loadSnapshot()
+        XCTAssertTrue(emptySnapshot.chats.isEmpty)
+        runtime.updateComposerDraft("Public fixture draft", chatId: "new-chat")
+        await runtime.leaveChat() // Flush debounce through the real persistence path.
+        let snapshot = await cache.loadSnapshot()
+        XCTAssertEqual(snapshot.chats.map(\.id), ["new-chat"])
+        XCTAssertEqual(snapshot.accountID, "synthetic-owner")
+        let encrypted = try XCTUnwrap(snapshot.encryptedDrafts["new-chat"]?.encryptedMarkdown)
+        XCTAssertNotEqual(encrypted, "Public fixture draft")
+        let decryptedDraft = try await crypto.decryptDraft(encrypted)
+        XCTAssertEqual(decryptedDraft, "Public fixture draft")
+        XCTAssertFalse(String(decoding: try JSONEncoder().encode(snapshot), as: UTF8.self).contains("Public fixture draft"))
+        let draftAPI = FakeWatchChatAPI(shouldThrow: true)
+        let reopened = WatchChatRuntime(currentUserId: "synthetic-owner", api: draftAPI, cache: cache, crypto: crypto, syncSocket: nil)
+        await reopened.loadCachedSnapshot()
+        XCTAssertEqual(reopened.composerDrafts["new-chat"], "Public fixture draft")
+        await reopened.openChat(try XCTUnwrap(reopened.chats.first))
+        XCTAssertEqual(draftAPI.fetchMessagesCallCount, 0, "A known unsent draft opens locally without a server transcript")
+        XCTAssertNil(reopened.errorMessage)
+        reopened.updateComposerDraft("", chatId: "new-chat")
+        await reopened.leaveChat()
+        let cleared = await cache.loadSnapshot()
+        XCTAssertTrue(cleared.chats.isEmpty)
+        XCTAssertNil(cleared.encryptedDrafts["new-chat"]?.encryptedMarkdown)
+        XCTAssertTrue(cleared.encryptedDrafts["new-chat"]?.needsSync == true)
+    }
+
+    // contract-test: direct surface=gui.apple assertions=drafts.access.first-party-encrypted,drafts.sync.version-authoritative
+    func testWatchDraftCacheRejectsAnotherAccountAndStoppedGenerationCannotWrite() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let cache = WatchChatOfflineCache(directory: directory)
+        let crypto = FakeWatchChatCrypto()
+        let first = WatchChatRuntime(currentUserId: "owner-a", api: FakeWatchChatAPI(), cache: cache, crypto: crypto, syncSocket: nil)
+        await first.createNewChat()
+        first.updateComposerDraft("Synthetic account draft", chatId: "new-chat")
+        await first.leaveChat()
+        let second = WatchChatRuntime(currentUserId: "owner-b", api: FakeWatchChatAPI(), cache: cache, crypto: crypto, syncSocket: nil)
+        await second.loadCachedSnapshot()
+        XCTAssertTrue(second.chats.isEmpty)
+        XCTAssertTrue(second.composerDrafts.isEmpty)
+        first.stopRealtimeSync()
+        first.updateComposerDraft("Late changed draft", chatId: "new-chat")
+        await first.leaveChat()
+        let stored = await cache.loadSnapshot()
+        let text = try await crypto.decryptDraft(try XCTUnwrap(stored.encryptedDrafts["new-chat"]?.encryptedMarkdown))
+        XCTAssertEqual(text, "Synthetic account draft")
+    }
+}
+
+@MainActor
+private final class WatchDraftTestSocket: WatchChatSyncSocket {
+    var generation = 1
+    var events: [(String, [String: Any])] = []
+    func connect(session: WatchSyncSession, syncState: WatchSyncClientState) {}
+    func disconnect() { generation += 1 }
+    func setChangeHandler(_ handler: (@MainActor () -> Void)?) {}
+    func sendTurn(_ pending: WatchPendingTextSend) async throws { throw WatchChatRuntimeError.socketUnavailable }
+    func sendEvent(type: String, payload: [String: Any]) async throws { events.append((type, payload)) }
+}
+
+@MainActor
+extension WatchChatRuntimeTests {
+    // contract-test: direct surface=gui.apple assertions=drafts.sync.version-authoritative,drafts.persistence.local-first-encrypted
+    func testWatchSupersededCurrentDraftReceiptAcceptsRemoteWinnerAndNeverReplaysAfterReconnect() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let cache = WatchChatOfflineCache(directory: directory)
+        let crypto = FakeWatchChatCrypto()
+        let socket = WatchDraftTestSocket()
+        let runtime = WatchChatRuntime(api: FakeWatchChatAPI(), cache: cache, crypto: crypto, syncSocket: socket)
+        await runtime.createNewChat()
+        runtime.updateComposerDraft("Superseded public draft", chatId: "new-chat")
+        await runtime.leaveChat()
+        let staleCiphertext = try XCTUnwrap(socket.events.first?.1["encrypted_draft_md"] as? String)
+        runtime.handleDraftSyncEvent(type: "draft_update_receipt", payload: [
+            "chat_id": "new-chat", "draft_v": 1, "success": true, "superseded": true
+        ])
+        await waitForWatchDraft { socket.events.last?.0 == "phased_sync_request" }
+        XCTAssertEqual(socket.events.last?.1["refresh_chat_ids"] as? [String], ["new-chat"])
+        XCTAssertEqual(runtime.composerDrafts["new-chat"], "Superseded public draft", "The receipt does not invent replacement content")
+        let retired = await cache.loadSnapshot()
+        XCTAssertEqual(retired.encryptedDrafts["new-chat"]?.needsSync, false)
+        XCTAssertEqual(retired.encryptedDrafts["new-chat"]?.serverVersion, 0, "The lost write's allocated version does not acknowledge ciphertext")
+        await runtime.openChat(try XCTUnwrap(runtime.chats.first))
+        await runtime.leaveChat() // Back before the winning content arrives must not requeue stale text.
+        socket.generation += 1
+        await runtime.replayPendingDrafts()
+        XCTAssertEqual(socket.events.filter { $0.0 == "update_draft" }.count, 1)
+        let winner = try await crypto.encryptDraft("Winning public draft")
+        runtime.handleDraftSyncEvent(type: "chat_draft_updated", payload: [
+            "chat_id": "new-chat", "data": ["encrypted_draft_md": winner], "versions": ["draft_v": 2]
+        ])
+        await waitForWatchDraft { runtime.composerDrafts["new-chat"] == "Winning public draft" }
+        XCTAssertEqual(runtime.composerDrafts["new-chat"], "Winning public draft")
+        socket.generation += 1
+        await runtime.replayPendingDrafts()
+        XCTAssertEqual(socket.events.filter { $0.0 == "update_draft" }.count, 1)
+        let restoredSocket = WatchDraftTestSocket()
+        let restored = WatchChatRuntime(api: FakeWatchChatAPI(), cache: cache, crypto: crypto, syncSocket: restoredSocket)
+        await restored.loadCachedSnapshot()
+        await restored.replayPendingDrafts()
+        XCTAssertEqual(restored.composerDrafts["new-chat"], "Winning public draft")
+        XCTAssertFalse(restoredSocket.events.contains { $0.1["encrypted_draft_md"] as? String == staleCiphertext })
+        XCTAssertTrue(restoredSocket.events.isEmpty)
+    }
+
+    // contract-test: direct surface=gui.apple assertions=drafts.sync.version-authoritative
+    func testWatchBackDoesNotRequeueAcknowledgedDraftAfterEditingAnotherChat() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let cache = WatchChatOfflineCache(directory: directory)
+        let crypto = FakeWatchChatCrypto()
+        let socket = WatchDraftTestSocket()
+        let runtime = WatchChatRuntime(api: FakeWatchChatAPI(), cache: cache, crypto: crypto, syncSocket: socket)
+        for chatID in ["draft-a", "draft-b"] {
+            let ciphertext = try await crypto.encryptDraft("Original public draft")
+            runtime.handleDraftSyncEvent(type: "chat_draft_updated", payload: [
+                "chat_id": chatID, "data": ["encrypted_draft_md": ciphertext], "versions": ["draft_v": 1]
+            ])
+            await waitForWatchDraft { runtime.composerDrafts[chatID] == "Original public draft" }
+            await runtime.openChat(try XCTUnwrap(runtime.chats.first { $0.id == chatID }))
+            runtime.updateComposerDraft("Edited public \(chatID)", chatId: chatID)
+            await runtime.leaveChat()
+            runtime.handleDraftSyncEvent(type: "draft_update_receipt", payload: ["chat_id": chatID, "draft_v": 2, "success": true])
+        }
+        XCTAssertEqual(socket.events.filter { $0.0 == "update_draft" }.count, 2)
+        let acknowledgedCiphertext = try XCTUnwrap(socket.events.first?.1["encrypted_draft_md"] as? String)
+        await runtime.openChat(try XCTUnwrap(runtime.chats.first { $0.id == "draft-a" }))
+        await runtime.leaveChat()
+        socket.generation += 1
+        await runtime.replayPendingDrafts()
+        XCTAssertEqual(socket.events.filter { $0.0 == "update_draft" }.count, 2, "A different chat's revision cannot turn an unchanged acknowledged draft into a new write")
+        let snapshot = await cache.loadSnapshot()
+        XCTAssertEqual(snapshot.encryptedDrafts["draft-a"]?.needsSync, false)
+        XCTAssertEqual(snapshot.encryptedDrafts["draft-a"]?.encryptedMarkdown, acknowledgedCiphertext)
+    }
+
+    // contract-test: direct surface=gui.apple assertions=drafts.sync.version-authoritative
+    func testWatchSupersededReceiptRetiresCacheAcrossImmediateSocketReconnect() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let cache = WatchChatOfflineCache(directory: directory)
+        let crypto = FakeWatchChatCrypto()
+        let socket = WatchDraftTestSocket()
+        let runtime = WatchChatRuntime(api: FakeWatchChatAPI(), cache: cache, crypto: crypto, syncSocket: socket)
+        await runtime.createNewChat()
+        runtime.updateComposerDraft("Superseded reconnect draft", chatId: "new-chat")
+        await runtime.leaveChat()
+        runtime.handleDraftSyncEvent(type: "draft_update_receipt", payload: [
+            "chat_id": "new-chat", "draft_v": 1, "success": true, "superseded": true
+        ])
+        socket.generation += 1 // Reconnect before the receipt's persistence task starts.
+        var retired = false
+        for _ in 0..<100 {
+            let snapshot = await cache.loadSnapshot()
+            if snapshot.encryptedDrafts["new-chat"]?.needsSync == false { retired = true; break }
+            try? await Task.sleep(for: .milliseconds(5))
+        }
+        XCTAssertTrue(retired, "Transport replacement must not retain a stale durable write")
+        let restoredSocket = WatchDraftTestSocket()
+        let restored = WatchChatRuntime(api: FakeWatchChatAPI(), cache: cache, crypto: crypto, syncSocket: restoredSocket)
+        await restored.loadCachedSnapshot()
+        await restored.replayPendingDrafts()
+        XCTAssertTrue(restoredSocket.events.isEmpty)
+        XCTAssertFalse(socket.events.contains { $0.0 == "phased_sync_request" }, "An old transport's fetch task cannot send on the replacement socket")
+    }
+
+    // contract-test: direct surface=gui.apple assertions=drafts.sync.version-authoritative
+    func testWatchSupersededReceiptPreservesNewerLocalDraftRevision() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let cache = WatchChatOfflineCache(directory: directory)
+        let crypto = FakeWatchChatCrypto()
+        let socket = WatchDraftTestSocket()
+        let runtime = WatchChatRuntime(api: FakeWatchChatAPI(), cache: cache, crypto: crypto, syncSocket: socket)
+        await runtime.createNewChat()
+        runtime.updateComposerDraft("First public draft", chatId: "new-chat")
+        await runtime.leaveChat()
+        await runtime.openChat(try XCTUnwrap(runtime.chats.first))
+        runtime.updateComposerDraft("Newer local public draft", chatId: "new-chat")
+        runtime.handleDraftSyncEvent(type: "draft_update_receipt", payload: [
+            "chat_id": "new-chat", "draft_v": 1, "success": true, "superseded": true
+        ])
+        await runtime.replayPendingDrafts()
+        XCTAssertEqual(socket.events.filter { $0.0 == "update_draft" }.count, 1, "An edit awaiting encryption must not replay its older queued revision")
+        await runtime.leaveChat()
+        await waitForWatchDraft { socket.events.filter { $0.0 == "update_draft" }.count == 2 }
+        let newerCiphertext = try XCTUnwrap(socket.events.last?.1["encrypted_draft_md"] as? String)
+        let newerText = try await crypto.decryptDraft(newerCiphertext)
+        XCTAssertEqual(newerText, "Newer local public draft")
+        let competing = try await crypto.encryptDraft("Competing public draft")
+        runtime.handleDraftSyncEvent(type: "chat_draft_updated", payload: [
+            "chat_id": "new-chat", "data": ["encrypted_draft_md": competing], "versions": ["draft_v": 2]
+        ])
+        XCTAssertEqual(runtime.composerDrafts["new-chat"], "Newer local public draft")
+        XCTAssertFalse(socket.events.contains { $0.0 == "phased_sync_request" })
+        let snapshot = await cache.loadSnapshot()
+        XCTAssertEqual(snapshot.encryptedDrafts["new-chat"]?.needsSync, true)
+        XCTAssertEqual(snapshot.encryptedDrafts["new-chat"]?.encryptedMarkdown, newerCiphertext)
+    }
+
+    // contract-test: direct surface=gui.apple assertions=drafts.sync.version-authoritative,drafts.persistence.local-first-encrypted
+    func testWatchDraftReceiptCannotAcknowledgeNewerEditOrResurrectClearedDraft() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let cache = WatchChatOfflineCache(directory: directory)
+        let crypto = FakeWatchChatCrypto()
+        let socket = WatchDraftTestSocket()
+        let runtime = WatchChatRuntime(api: FakeWatchChatAPI(), cache: cache, crypto: crypto, syncSocket: socket)
+        await runtime.createNewChat()
+        runtime.updateComposerDraft("First public draft", chatId: "new-chat")
+        await runtime.leaveChat()
+        XCTAssertEqual(socket.events.count, 1)
+        XCTAssertEqual(socket.events.first?.0, "update_draft")
+        let firstCiphertext = try XCTUnwrap(socket.events.first?.1["encrypted_draft_md"] as? String)
+        await runtime.openChat(try XCTUnwrap(runtime.chats.first))
+        runtime.updateComposerDraft("Newer public draft", chatId: "new-chat")
+        await runtime.leaveChat()
+        XCTAssertEqual(socket.events.count, 1, "Only one unacknowledged write per chat")
+        runtime.handleDraftSyncEvent(type: "draft_update_receipt", payload: ["chat_id": "new-chat", "draft_v": 1, "success": true])
+        await runtime.replayPendingDrafts()
+        XCTAssertEqual(socket.events.count, 2)
+        XCTAssertEqual(runtime.composerDrafts["new-chat"], "Newer public draft")
+        runtime.handleDraftSyncEvent(type: "chat_draft_updated", payload: ["chat_id": "new-chat", "data": ["encrypted_draft_md": firstCiphertext], "versions": ["draft_v": 1]])
+        XCTAssertEqual(runtime.composerDrafts["new-chat"], "Newer public draft")
+        await runtime.openChat(try XCTUnwrap(runtime.chats.first))
+        runtime.updateComposerDraft("", chatId: "new-chat")
+        await runtime.leaveChat()
+        runtime.handleDraftSyncEvent(type: "draft_update_receipt", payload: ["chat_id": "new-chat", "draft_v": 2, "success": true])
+        await runtime.replayPendingDrafts()
+        XCTAssertEqual(socket.events.last?.0, "delete_draft")
+        runtime.handleDraftSyncEvent(type: "chat_draft_updated", payload: ["chat_id": "new-chat", "data": ["encrypted_draft_md": firstCiphertext], "versions": ["draft_v": 2]])
+        XCTAssertEqual(runtime.composerDrafts["new-chat"], "")
+        XCTAssertTrue(runtime.chats.isEmpty)
+    }
+
+    // contract-test: direct surface=gui.apple assertions=drafts.access.first-party-encrypted
+    func testWatchAccountInvalidationRejectsLateSnapshotWrite() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let cache = WatchChatOfflineCache(directory: directory)
+        let generation = WatchChatAccountLifecycle.generation
+        WatchChatAccountLifecycle.invalidate()
+        do {
+            try await cache.saveSnapshot(.empty, accountGeneration: generation)
+            XCTFail("A revoked account generation cannot write a snapshot")
+        } catch is CancellationError { }
+        let snapshot = await cache.loadSnapshot()
+        XCTAssertEqual(snapshot.savedAt, .distantPast)
+    }
+}
+
+@MainActor
+extension WatchChatRuntimeTests {
+    private func waitForWatchDraft(_ predicate: () -> Bool) async {
+        for _ in 0..<100 {
+            if predicate() { return }
+            try? await Task.sleep(for: .milliseconds(5))
+        }
+    }
+
+    // contract-test: direct surface=gui.apple assertions=drafts.draft-only.lifecycle
+    func testClearingWatchDraftPreservesEstablishedChatWhenTranscriptIsUnavailable() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let cache = WatchChatOfflineCache(directory: directory)
+        let crypto = FakeWatchChatCrypto()
+        let runtime = WatchChatRuntime(api: FakeWatchChatAPI(shouldThrow: true), cache: cache, crypto: crypto, syncSocket: nil)
+        let ciphertext = try await crypto.encryptDraft("Public offline draft")
+        runtime.handleDraftSyncEvent(type: "chat_draft_updated", payload: [
+            "chat_id": "established-chat", "messages_v": 7,
+            "data": ["encrypted_draft_md": ciphertext], "versions": ["draft_v": 3]
+        ])
+        await waitForWatchDraft { runtime.composerDrafts["established-chat"] == "Public offline draft" }
+        let chat = try XCTUnwrap(runtime.chats.first)
+        XCTAssertEqual(chat.messagesV, 7)
+        await runtime.openChat(chat)
+        XCTAssertTrue(runtime.selectedMessages.isEmpty)
+        runtime.updateComposerDraft("", chatId: chat.id)
+        await runtime.leaveChat()
+        XCTAssertEqual(runtime.chats.map(\.id), [chat.id])
+        XCTAssertEqual(runtime.composerDrafts[chat.id], "")
+        let snapshot = await cache.loadSnapshot()
+        XCTAssertEqual(snapshot.chats.map(\.id), [chat.id])
+        XCTAssertEqual(snapshot.chats.first?.messagesV, 7)
+        XCTAssertNil(snapshot.encryptedDrafts[chat.id]?.encryptedMarkdown)
+    }
+
+    // contract-test: direct surface=gui.apple assertions=drafts.draft-only.lifecycle,drafts.sync.version-authoritative
+    func testWatchRemoteDraftCreatesShellPreservesMetadataOmissionAndHonorsVersionedDeletion() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let crypto = FakeWatchChatCrypto()
+        let runtime = WatchChatRuntime(api: FakeWatchChatAPI(), cache: WatchChatOfflineCache(directory: directory), crypto: crypto, syncSocket: nil)
+        let ciphertext = try await crypto.encryptDraft("Remote public draft")
+        runtime.handleDraftSyncEvent(type: "chat_draft_updated", payload: ["chat_id": "remote-draft", "data": ["encrypted_draft_md": ciphertext], "versions": ["draft_v": 3]])
+        await waitForWatchDraft { runtime.composerDrafts["remote-draft"] == "Remote public draft" }
+        XCTAssertEqual(runtime.chats.map(\.id), ["remote-draft"])
+        runtime.handleDraftSyncEvent(type: "chat_details", payload: ["id": "remote-draft", "draft_v": 4])
+        XCTAssertEqual(runtime.composerDrafts["remote-draft"], "Remote public draft", "Metadata omission cannot clear content")
+        runtime.handleDraftSyncEvent(type: "draft_deleted", payload: ["chat_id": "remote-draft", "draft_v": 2])
+        XCTAssertEqual(runtime.composerDrafts["remote-draft"], "Remote public draft", "Older deletion cannot win")
+        runtime.handleDraftSyncEvent(type: "draft_deleted", payload: ["chat_id": "remote-draft", "draft_v": 4])
+        await waitForWatchDraft { runtime.chats.isEmpty }
+        XCTAssertTrue(runtime.chats.isEmpty)
+        runtime.handleDraftSyncEvent(type: "chat_draft_updated", payload: ["chat_id": "remote-draft", "data": ["encrypted_draft_md": ciphertext], "versions": ["draft_v": 4]])
+        await Task.yield()
+        XCTAssertTrue(runtime.chats.isEmpty, "An equal-version echo cannot resurrect the tombstoned shell")
+        XCTAssertEqual(runtime.composerDrafts["remote-draft"], "")
+    }
+
+    // contract-test: direct surface=gui.apple assertions=drafts.sync.version-authoritative,drafts.access.first-party-encrypted
+    func testWatchReconnectDraftVersionsRequireTombstoneAndFetchPositiveNewerDetailsThroughSupportedPhase() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let crypto = FakeWatchChatCrypto()
+        let socket = WatchDraftTestSocket()
+        let runtime = WatchChatRuntime(api: FakeWatchChatAPI(), cache: WatchChatOfflineCache(directory: directory), crypto: crypto, syncSocket: socket)
+        let ciphertext = try await crypto.encryptDraft("Synced public draft")
+        runtime.handleDraftSyncEvent(type: "phase_2_last_20_chats_ready", payload: ["context_epoch": 0, "chats": [["chat_details": ["id": "remote-draft", "encrypted_draft_md": ciphertext, "draft_v": 2]]]])
+        await waitForWatchDraft { runtime.composerDrafts["remote-draft"] == "Synced public draft" }
+        await runtime.requestDraftVersions()
+        XCTAssertEqual(socket.events.last?.0, "get_draft_versions")
+        runtime.handleDraftSyncEvent(type: "draft_versions_response", payload: ["versions": ["remote-draft": 0]])
+        await Task.yield()
+        XCTAssertEqual(runtime.composerDrafts["remote-draft"], "Synced public draft", "Absent Redis state does not delete an authoritative local draft")
+        runtime.handleDraftSyncEvent(type: "draft_versions_response", payload: ["versions": ["remote-draft": 3]])
+        await waitForWatchDraft { socket.events.last?.0 == "phased_sync_request" }
+        XCTAssertEqual(socket.events.last?.1["phase"] as? String, "phase2")
+        XCTAssertEqual(socket.events.last?.1["refresh_chat_ids"] as? [String], ["remote-draft"])
+        runtime.handleDraftSyncEvent(type: "draft_versions_response", payload: ["versions": ["remote-draft": 0], "tombstone_versions": ["remote-draft": 3]])
+        await waitForWatchDraft { runtime.chats.isEmpty }
+        XCTAssertTrue(runtime.chats.isEmpty)
+        runtime.handleDraftSyncEvent(type: "phase_2_last_20_chats_ready", payload: ["team_id": "synthetic-team", "context_epoch": 1, "chats": [["chat_details": ["id": "team-draft", "encrypted_draft_md": ciphertext, "draft_v": 10]]]])
+        await Task.yield()
+        XCTAssertFalse(runtime.chats.contains { $0.id == "team-draft" })
+    }
+
+    // contract-test: direct surface=gui.apple assertions=drafts.access.first-party-encrypted
+    func testWatchCacheRejectsSameAccountIDFromAnotherServerScope() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let cache = WatchChatOfflineCache(directory: directory)
+        let crypto = FakeWatchChatCrypto()
+        let ciphertext = try await crypto.encryptDraft("Other server draft")
+        try await cache.saveSnapshot(WatchChatSnapshot(chats: [Self.chat(id: "foreign", title: "Foreign", lastMessageAt: "2026-09-30T12:00:00Z")],
+            messagesByChatId: [:], savedAt: Date(), accountID: "same-owner", serverScope: "https://other.example/api|https://other.example",
+            encryptedDrafts: ["foreign": WatchEncryptedDraft(encryptedMarkdown: ciphertext, encryptedPreview: ciphertext, serverVersion: 2, needsSync: false)]))
+        let runtime = WatchChatRuntime(currentUserId: "same-owner", api: FakeWatchChatAPI(), cache: cache, crypto: crypto, syncSocket: nil)
+        await runtime.loadCachedSnapshot()
+        XCTAssertTrue(runtime.chats.isEmpty)
+        XCTAssertTrue(runtime.composerDrafts.isEmpty)
+    }
+}
+
+@MainActor
+extension WatchChatRuntimeTests {
+    // contract-test: direct surface=gui.apple assertions=drafts.draft-only.lifecycle,apple-watch.chats.new-text-reply
+    func testRemoteDraftSendCreatesChatKeyForSameIdentityAndPromotesItsTurn() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let crypto = FakeWatchChatCrypto()
+        let socket = FakeWatchChatSyncSocket()
+        let runtime = WatchChatRuntime(api: FakeWatchChatAPI(), cache: WatchChatOfflineCache(directory: directory), crypto: crypto,
+            syncSocket: socket, syncSession: WatchSyncSession(sessionId: "fixture-session", token: nil))
+        let ciphertext = try await crypto.encryptDraft("Remote public draft")
+        runtime.handleDraftSyncEvent(type: "chat_draft_updated", payload: ["chat_id": "remote-draft", "data": ["encrypted_draft_md": ciphertext], "versions": ["draft_v": 3]])
+        await waitForWatchDraft { runtime.chats.contains { $0.id == "remote-draft" } }
+        await runtime.openChat(try XCTUnwrap(runtime.chats.first))
+        let sent = await runtime.sendText("Remote public draft")
+        XCTAssertTrue(sent)
+        XCTAssertEqual(socket.sentTurns.first?.chatId, "remote-draft")
+        XCTAssertEqual(runtime.selectedChatId, "remote-draft")
+        XCTAssertEqual(runtime.selectedMessages.first?.role, .user)
+        XCTAssertEqual(runtime.composerDrafts["remote-draft"], "")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=drafts.sync.version-authoritative
+    func testWatchChatDTOReadsDraftCiphertextWithBothActualAPIDecoderAndRawTransportKeys() throws {
+        let json = #"{"id":"public-draft","messages_v":0,"draft_v":4,"encrypted_draft_md":"ciphertext","encrypted_draft_preview":"preview-ciphertext"}"#
+        for convertKeys in [false, true] {
+            let decoder = JSONDecoder()
+            if convertKeys { decoder.keyDecodingStrategy = .convertFromSnakeCase }
+            let dto = try decoder.decode(WatchChatDTO.self, from: Data(json.utf8))
+            XCTAssertEqual(dto.encryptedDraftMD, "ciphertext")
+            XCTAssertEqual(dto.encryptedDraftPreview, "preview-ciphertext")
+            XCTAssertEqual(dto.draftV, 4)
+        }
     }
 }

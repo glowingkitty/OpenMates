@@ -588,6 +588,12 @@ actor CryptoManager {
             key: "openmates.masterKey.\(userId)",
             data: key.withUnsafeBytes { Data($0) }
         )
+        #if !os(watchOS) && !OPENMATES_SHARE_EXTENSION
+        Task { @MainActor in
+            guard await AuthManager.currentUserId() == userId else { return }
+            await CodeRunOutputStore.shared.handleEmbedKeysAvailable()
+        }
+        #endif
     }
 
     func loadMasterKey(for userId: String) throws -> SymmetricKey? {

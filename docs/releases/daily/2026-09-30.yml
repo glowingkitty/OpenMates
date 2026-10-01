@@ -1,0 +1,4840 @@
+schema_version: 1
+cadence: daily
+date: '2026-09-30'
+generated_at: '2026-10-01T00:20:21+00:00'
+range:
+  since: '2026-09-30T00:00:00+00:00'
+  until: '2026-10-01T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 50
+  section_counts:
+    features: 13
+    bug_fixes: 30
+    improvements: 3
+    docs: 2
+    tests: 2
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 23
+  dev_only_items: 50
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  - id: skill:openmates:get-docs
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: open workflow generation fullscreen immediately'
+    section: features
+    commits:
+    - 607cd834f
+    authored_at: '2026-09-30T23:02:50+00:00'
+    changed_paths:
+    - backend/core/api/app/services/workflow_authoring_preselection.py
+    - backend/core/api/app/services/workflow_gemini_authoring.py
+    - backend/core/api/app/services/workflow_registry_planner.py
+    - backend/tests/test_workflow_authoring_preselection.py
+    - backend/tests/test_workflow_gemini_authoring.py
+    - backend/tests/test_workflow_registry_planner.py
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/components/workflow-detail-tabs.spec.ts
+    - frontend/apps/web_app/tests/workflows-input-stream.spec.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowDetailPage.preview.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte
+    - frontend/packages/ui/src/i18n/sources/workflows.yml
+    - frontend/packages/ui/src/services/workflowInputService.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: redesign workflow AI authoring and checks'
+    section: features
+    commits:
+    - e915c0960
+    authored_at: '2026-09-30T19:38:49+00:00'
+    changed_paths:
+    - backend/apps/ai/app.yml
+    - backend/apps/ai/processing/jev_decisions.py
+    - backend/core/api/app/routes/workflows.py
+    - backend/core/api/app/services/workflow_ai_service.py
+    - backend/core/api/app/services/workflow_app_skill_adapter.py
+    - backend/core/api/app/services/workflow_models.py
+    - backend/core/api/app/services/workflow_runner.py
+    - backend/tests/test_workflow_ai_check_and_ask.py
+    - backend/tests/test_workflow_app_skill_adapter.py
+    - backend/tests/test_workflow_step_test.py
+    - backend/tests/test_workflows_routes_security.py
+    - docs/plans/workflow-ask-ai-redesign/plan.yml
+    - frontend/apps/web_app/tests/components/settings-dropdown-rich.spec.ts
+    - frontend/apps/web_app/tests/components/workflow-ask-ai-editor.spec.ts
+    - frontend/apps/web_app/tests/components/workflow-ask-ai-test-preview.spec.ts
+    - frontend/apps/web_app/tests/components/workflow-check-editor.spec.ts
+    - frontend/apps/web_app/tests/components/workflow-graph-ai-authoring.spec.ts
+    - frontend/apps/web_app/tests/workflows-ai-authoring.spec.ts
+    - frontend/packages/ui/src/components/settings/elements/SettingsDropdown.preview.ts
+    - frontend/packages/ui/src/components/settings/elements/SettingsDropdown.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowAskAiTestPreview.preview.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowAskAiTestPreview.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowEditorHeader.preview.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowEditorHeader.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.preview.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowMessageEditor.preview.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowMessageEditor.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowSchemaFields.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowVariablePicker.preview.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowVariablePicker.svelte
+    - frontend/packages/ui/src/components/workflows/__tests__/workflowBuilder.test.ts
+    - frontend/packages/ui/src/components/workflows/__tests__/workflowMentionQuery.test.ts
+    - frontend/packages/ui/src/components/workflows/__tests__/workflowMessageTokens.test.ts
+    - frontend/packages/ui/src/components/workflows/workflowBuilder.ts
+    - frontend/packages/ui/src/components/workflows/workflowMentionQuery.ts
+    - frontend/packages/ui/src/components/workflows/workflowMessageTokens.ts
+    - frontend/packages/ui/src/components/workflows/workflowValuePresentation.ts
+    - frontend/packages/ui/src/i18n/sources/workflows.yml
+    - frontend/packages/ui/src/services/__tests__/workflowStepTestStream.test.ts
+    - frontend/packages/ui/src/services/workflowStepTestStream.ts
+    - frontend/packages/ui/src/stores/workflowWorkspaceStore.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/features/workflows-ui/examples.yml
+    - specifications/features/workflows-ui/specification.yml
+    - specifications/features/workflows/examples.yml
+    - specifications/features/workflows/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: register independent Watch push targets'
+    section: features
+    commits:
+    - 0b8108f0d
+    authored_at: '2026-09-30T19:17:34+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/push.py
+    - backend/core/api/app/services/push_notification_service.py
+    - backend/tests/test_watch_push_notifications.py
+    - specifications/features/apple-notifications/examples.yml
+    - specifications/features/apple-notifications/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: show validated workflow nodes with Stop and partial recovery'
+    section: features
+    commits:
+    - cc4e80265
+    authored_at: '2026-09-30T19:04:39+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/cli-workflows-natural-language-guards.spec.ts
+    - frontend/apps/web_app/tests/workflows-authoring-transaction.spec.ts
+    - frontend/apps/web_app/tests/workflows-input-stream.spec.ts
+    - frontend/apps/web_app/tests/workflows-input.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
+    - frontend/packages/openmates-cli/tests/workflows.test.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowPendingPreview.svelte
+    - frontend/packages/ui/src/i18n/sources/workflows.yml
+    - frontend/packages/ui/src/services/__tests__/workflowInputStream.test.ts
+    - frontend/packages/ui/src/services/workflowInputService.ts
+    - frontend/packages/ui/src/stores/workflowWorkspaceStore.ts
+    - scripts/ci_coverage_manifest.json
+    - scripts/workflow_authoring_cli_rollout.py
+    - scripts/workflow_authoring_stream_timing.mjs
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: stream validated workflow nodes with partial recovery and atomic saves'
+    section: features
+    commits:
+    - 7292afb94
+    authored_at: '2026-09-30T18:50:46+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/workflows/app.yml
+    - backend/apps/workflows/focus_modes/clarify-workflows/SKILL.md
+    - backend/apps/workflows/skills/__init__.py
+    - backend/apps/workflows/skills/_services.py
+    - backend/apps/workflows/skills/chat_authoring_context.py
+    - backend/apps/workflows/skills/create_or_modify_skill.py
+    - backend/core/api/app/routes/workflows.py
+    - backend/core/api/app/services/workflow_assistant_service.py
+    - backend/core/api/app/services/workflow_authoring_compiler.py
+    - backend/core/api/app/services/workflow_authoring_transaction.py
+    - backend/core/api/app/services/workflow_gemini_authoring.py
+    - backend/core/api/app/services/workflow_input_service.py
+    - backend/core/api/app/services/workflow_registry_planner.py
+    - backend/core/api/app/services/workflow_service.py
+    - backend/core/directus/Dockerfile
+    - backend/core/directus/extensions/workflow-authoring-transaction/package.json
+    - backend/core/directus/extensions/workflow-authoring-transaction/src/index.js
+    - backend/core/directus/extensions/workflow-authoring-transaction/src/operations.js
+    - backend/core/directus/extensions/workflow-authoring-transaction/test/operations.test.js
+    - backend/core/directus/schemas/workflow_authoring_operations.yml
+    - backend/core/directus/schemas/workflow_input_mutations.yml
+    - backend/core/directus/setup/migrate_workflow_runtime_indexes.sql
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/scripts/probe_workflow_authoring_transaction.py
+    - backend/tests/test_workflow_app_skill_embeds.py
+    - backend/tests/test_workflow_assistant_countdown.py
+    - backend/tests/test_workflow_authoring_compiler.py
+    - backend/tests/test_workflow_authoring_transaction.py
+    - backend/tests/test_workflow_chat_authoring_context.py
+    - backend/tests/test_workflow_gemini_authoring.py
+    - backend/tests/test_workflow_input_sessions.py
+    - backend/tests/test_workflow_registry_planner.py
+    - backend/tests/test_workflows_models.py
+    - docs/plans/workflow-ai-authoring/evidence/registry-authoring-comparison-2026-09-30.md
+    - docs/plans/workflow-ai-authoring/plan.yml
+    - specifications/features/workflows-ui/examples.yml
+    - specifications/features/workflows-ui/specification.yml
+    - specifications/features/workflows/examples.yml
+    - specifications/features/workflows/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:workflows
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/workflows/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:workflows, platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add ElevenLabs v4 speech models'
+    section: features
+    commits:
+    - bc0615e12
+    authored_at: '2026-09-30T17:45:35+00:00'
+    changed_paths:
+    - backend/apps/audio/app.yml
+    - backend/apps/audio/pricing.py
+    - backend/apps/audio/skills/speak_skill.py
+    - backend/core/api/app/routes/apps_api.py
+    - backend/providers/elevenlabs.yml
+    - backend/shared/providers/elevenlabs/client.py
+    - backend/tests/test_apps_api.py
+    - backend/tests/test_assistant_speech_projection.py
+    - backend/tests/test_assistant_speech_worker.py
+    - backend/tests/test_rest_api_audio.py
+    - frontend/apps/web_app/tests/skill-audio-speech-models.spec.ts
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/openmates-cli/tests/sdkGenerator.test.ts
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - packages/openmates-python/tests/test_sdk_generator.py
+    - scripts/ci_coverage.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:speak
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:speak
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:audio, embed:audio:speak, skill:audio:speak'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: stream independently validated workflow authoring nodes'
+    section: features
+    commits:
+    - 481c4fdaf
+    authored_at: '2026-09-30T17:35:57+00:00'
+    changed_paths:
+    - backend/core/api/app/services/workflow_authoring_compiler.py
+    - backend/core/api/app/services/workflow_authoring_preselection.py
+    - backend/core/api/app/services/workflow_gemini_authoring.py
+    - backend/scripts/compare_workflow_preselection.py
+    - backend/tests/test_workflow_authoring_compiler.py
+    - backend/tests/test_workflow_authoring_preselection.py
+    - backend/tests/test_workflow_gemini_authoring.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: extend registry workflow plans and streamed previews'
+    section: features
+    commits:
+    - 42f5c5dae
+    authored_at: '2026-09-30T15:35:34+00:00'
+    changed_paths:
+    - backend/core/api/app/services/workflow_authoring_compiler.py
+    - backend/core/api/app/services/workflow_authoring_preselection.py
+    - backend/core/api/app/services/workflow_gemini_authoring.py
+    - backend/tests/test_workflow_authoring_compiler.py
+    - backend/tests/test_workflow_authoring_preselection.py
+    - backend/tests/test_workflow_gemini_authoring.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: validate compact workflow JSON plans on the server'
+    section: features
+    commits:
+    - 318dc8ca2
+    authored_at: '2026-09-30T14:57:05+00:00'
+    changed_paths:
+    - backend/core/api/app/services/workflow_authoring_compiler.py
+    - backend/core/api/app/services/workflow_gemini_authoring.py
+    - backend/core/api/requirements.txt
+    - backend/tests/test_workflow_authoring_compiler.py
+    - backend/tests/test_workflow_gemini_authoring.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: test compact workflow authoring with streamed Gemini output'
+    section: features
+    commits:
+    - 00cf8a400
+    authored_at: '2026-09-30T14:39:13+00:00'
+    changed_paths:
+    - backend/core/api/app/services/workflow_authoring_compiler.py
+    - backend/core/api/app/services/workflow_capabilities.yml
+    - backend/core/api/app/services/workflow_capability_registry.py
+    - backend/core/api/app/services/workflow_gemini_authoring.py
+    - backend/core/api/app/services/workflow_models.py
+    - backend/scripts/benchmark_workflow_compact_authoring.py
+    - backend/tests/test_workflow_authoring_compiler.py
+    - backend/tests/test_workflow_builder_v1.py
+    - backend/tests/test_workflow_capability_metadata.py
+    - backend/tests/test_workflow_compact_authoring_benchmark.py
+    - backend/tests/test_workflow_gemini_authoring.py
+    - scripts/audit_workflow_capabilities.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: record generic workflow authoring comparison'
+    section: features
+    commits:
+    - 2f15be72a
+    authored_at: '2026-09-30T13:49:32+00:00'
+    changed_paths:
+    - backend/core/api/app/services/workflow_authoring_preselection.py
+    - backend/core/api/app/services/workflow_jev_constructor.py
+    - backend/scripts/benchmark_workflow_authoring.py
+    - backend/tests/test_workflow_authoring_benchmark.py
+    - docs/plans/workflow-ai-authoring/evidence/registry-authoring-comparison-2026-09-30.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: export and import workflow YAML files'
+    section: features
+    commits:
+    - ad0b9a300
+    authored_at: '2026-09-30T13:39:25+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_dependencies.py
+    - backend/core/api/app/routes/workflows.py
+    - backend/core/api/app/services/workflow_file_service.py
+    - backend/core/api/app/services/workflow_models.py
+    - backend/core/api/app/services/workflow_service.py
+    - backend/tests/test_workflow_file_import.py
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/cli-workflow-files.spec.ts
+    - frontend/apps/web_app/tests/components/workflow-binding-review.spec.ts
+    - frontend/apps/web_app/tests/components/workflow-detail-tabs.spec.ts
+    - frontend/apps/web_app/tests/workflow-files.spec.ts
+    - frontend/packages/openmates-cli/README.md
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/workflow-file.test.ts
+    - frontend/packages/ui/package.json
+    - frontend/packages/ui/src/components/projects/ProjectBrowserItem.svelte
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowBindingReview.preview.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowBindingReview.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowDetailPage.preview.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+    - frontend/packages/ui/src/i18n/sources/workflows.yml
+    - frontend/packages/ui/src/services/workflowFileService.ts
+    - frontend/packages/ui/src/stores/workflowWorkspaceStore.ts
+    - frontend/packages/workflowFile.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/features/workflows-ui/examples.yml
+    - specifications/features/workflows-ui/specification.yml
+    - specifications/features/workflows/examples.yml
+    - specifications/features/workflows/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:projects, platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add registry-driven workflow authoring comparison'
+    section: features
+    commits:
+    - 811c3467a
+    authored_at: '2026-09-30T12:32:35+00:00'
+    changed_paths:
+    - backend/core/api/app/services/workflow_authoring_preselection.py
+    - backend/core/api/app/services/workflow_capability_registry.py
+    - backend/core/api/app/services/workflow_jev_constructor.py
+    - backend/scripts/benchmark_workflow_authoring.py
+    - backend/tests/test_workflow_authoring_benchmark.py
+    - backend/tests/test_workflow_authoring_preselection.py
+    - docs/plans/workflow-ai-authoring/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: correct workflow composer import and Safari tint'
+    section: bug_fixes
+    commits:
+    - f50cc694f
+    authored_at: '2026-09-30T23:20:06+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/app.html
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/components/workflow-prompt-composer.spec.ts
+    - frontend/apps/web_app/tests/workflow-files.spec.ts
+    - frontend/apps/web_app/tests/workflows-editor.spec.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowHomePreviewHarness.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspacePromptComposer.preview.ts
+    - frontend/packages/ui/src/components/workspace/WorkspacePromptComposer.svelte
+    - frontend/packages/ui/src/i18n/sources/workflows.yml
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: price assistant speech at provider cost'
+    section: bug_fixes
+    commits:
+    - 9868c2f14
+    authored_at: '2026-09-30T22:19:16+00:00'
+    changed_paths:
+    - backend/apps/audio/assistant_speech/billing_task.py
+    - backend/apps/audio/pricing.py
+    - backend/tests/test_assistant_speech_live_verifier.py
+    - backend/tests/test_assistant_speech_worker.py
+    - scripts/verify_assistant_speech_live_smoke.mjs
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:audio'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve workflow intent and speed durable stop checks'
+    section: bug_fixes
+    commits:
+    - 557ebc1b1
+    authored_at: '2026-09-30T21:50:01+00:00'
+    changed_paths:
+    - backend/core/api/app/services/workflow_authoring_compiler.py
+    - backend/core/api/app/services/workflow_authoring_preselection.py
+    - backend/core/api/app/services/workflow_gemini_authoring.py
+    - backend/core/api/app/services/workflow_input_service.py
+    - backend/tests/test_workflow_authoring_compiler.py
+    - backend/tests/test_workflow_authoring_preselection.py
+    - backend/tests/test_workflow_gemini_authoring.py
+    - backend/tests/test_workflow_input_sessions.py
+    - frontend/apps/web_app/tests/cli-workflows-natural-language-guards.spec.ts
+    - scripts/workflow_authoring_cli_rollout.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve imported workflows during AI edits'
+    section: bug_fixes
+    commits:
+    - d25b19389
+    authored_at: '2026-09-30T21:25:30+00:00'
+    changed_paths:
+    - backend/core/api/app/services/workflow_authoring_compiler.py
+    - backend/core/api/app/services/workflow_gemini_authoring.py
+    - backend/core/api/app/services/workflow_registry_planner.py
+    - backend/tests/test_workflow_authoring_compiler.py
+    - backend/tests/test_workflow_gemini_authoring.py
+    - backend/tests/test_workflow_registry_planner.py
+    - scripts/workflow_authoring_cli_rollout.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: serialize workflow session graphs with public edge keys'
+    section: bug_fixes
+    commits:
+    - be2e5ebe6
+    authored_at: '2026-09-30T20:57:03+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/workflows.py
+    - backend/tests/test_workflow_input_sessions.py
+    - scripts/workflow_authoring_cli_rollout.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: render canonical Teams settings icons'
+    section: bug_fixes
+    commits:
+    - c9875b98f
+    authored_at: '2026-09-30T20:53:44+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/components/settings-teams-icons.spec.ts
+    - frontend/packages/ui/src/components/settings/AppDetailsHeader.preview.ts
+    - frontend/packages/ui/src/components/settings/SettingsTeams.preview.ts
+    - frontend/packages/ui/src/styles/icons.css
+    - frontend/packages/ui/src/utils/iconNameResolver.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: fence pair approval when request token changes'
+    section: bug_fixes
+    commits:
+    - 918f90e29
+    authored_at: '2026-09-30T20:44:28+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/components/pairing-components.spec.ts
+    - frontend/packages/ui/src/components/settings/security/SettingsSessionsConfirmPair.svelte
+    - frontend/packages/ui/src/components/settings/security/__tests__/SettingsSessionsConfirmPair.test.ts
+    - frontend/packages/ui/src/stores/pairSessionStore.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: apply Jev workflow schedule timezones safely'
+    section: bug_fixes
+    commits:
+    - 1448b2648
+    authored_at: '2026-09-30T20:33:45+00:00'
+    changed_paths:
+    - backend/core/api/app/services/workflow_authoring_compiler.py
+    - backend/core/api/app/services/workflow_authoring_preselection.py
+    - backend/core/api/app/services/workflow_gemini_authoring.py
+    - backend/tests/test_workflow_authoring_compiler.py
+    - backend/tests/test_workflow_authoring_preselection.py
+    - backend/tests/test_workflow_gemini_authoring.py
+    - frontend/apps/web_app/tests/cli-workflows-natural-language-guards.spec.ts
+    - scripts/workflow_authoring_cli_rollout.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: validate complete workflow headers before freezing streamed previews'
+    section: bug_fixes
+    commits:
+    - d21da6a0c
+    authored_at: '2026-09-30T20:06:50+00:00'
+    changed_paths:
+    - backend/core/api/app/services/workflow_authoring_compiler.py
+    - backend/core/api/app/services/workflow_authoring_preselection.py
+    - backend/core/api/app/services/workflow_gemini_authoring.py
+    - backend/core/api/app/services/workflow_registry_planner.py
+    - backend/tests/test_workflow_authoring_compiler.py
+    - backend/tests/test_workflow_authoring_preselection.py
+    - backend/tests/test_workflow_gemini_authoring.py
+    - backend/tests/test_workflow_registry_planner.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve workflow navigation caching with current editor'
+    section: bug_fixes
+    commits:
+    - 983fa46a4
+    authored_at: '2026-09-30T20:04:05+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/tasks-web-app-parity.spec.ts
+    - frontend/apps/web_app/tests/workflows-ui-contract.spec.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+    - frontend/packages/ui/src/stores/__tests__/workflowWorkspaceStore.test.ts
+    - frontend/packages/ui/src/stores/workflowWorkspaceStore.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: constrain generated workflow schedules by their type'
+    section: bug_fixes
+    commits:
+    - 2fb24b838
+    authored_at: '2026-09-30T19:53:42+00:00'
+    changed_paths:
+    - backend/core/api/app/services/workflow_authoring_compiler.py
+    - backend/core/api/app/services/workflow_authoring_preselection.py
+    - backend/core/api/app/services/workflow_gemini_authoring.py
+    - backend/core/api/app/services/workflow_registry_planner.py
+    - backend/tests/test_workflow_authoring_compiler.py
+    - backend/tests/test_workflow_authoring_preselection.py
+    - backend/tests/test_workflow_gemini_authoring.py
+    - backend/tests/test_workflow_registry_planner.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: interpret spoken workflow corrections as final requirements'
+    section: bug_fixes
+    commits:
+    - 5dded4f3f
+    authored_at: '2026-09-30T19:35:11+00:00'
+    changed_paths:
+    - backend/core/api/app/services/workflow_authoring_preselection.py
+    - backend/tests/test_workflow_authoring_preselection.py
+    - scripts/workflow_authoring_cli_rollout.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: align workflow generation routing and preserve safe failure diagnostics'
+    section: bug_fixes
+    commits:
+    - 658a872dc
+    authored_at: '2026-09-30T19:24:08+00:00'
+    changed_paths:
+    - backend/core/api/app/services/workflow_authoring_compiler.py
+    - backend/core/api/app/services/workflow_gemini_authoring.py
+    - backend/core/api/app/services/workflow_registry_planner.py
+    - backend/tests/test_workflow_authoring_compiler.py
+    - backend/tests/test_workflow_gemini_authoring.py
+    - backend/tests/test_workflow_registry_planner.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: render recent chats on workspace return and serialize task actions'
+    section: bug_fixes
+    commits:
+    - cb431abdd
+    authored_at: '2026-09-30T18:21:10+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    - frontend/apps/web_app/tests/tasks-web-app-parity.spec.ts
+    - frontend/apps/web_app/tests/workflows-ui-contract.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+    - frontend/packages/ui/src/services/__tests__/recentChatWindowCache.test.ts
+    - frontend/packages/ui/src/services/__tests__/userTaskService.test.ts
+    - frontend/packages/ui/src/services/recentChatWindowCache.ts
+    - frontend/packages/ui/src/services/userTaskService.ts
+    - scripts/ci_run_tests.py
+    - scripts/ci_startup_sync_fixture.mjs
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:tasks, platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: validate workflow schedule fields and avoid redundant AI steps'
+    section: bug_fixes
+    commits:
+    - 9ee121bb2
+    authored_at: '2026-09-30T18:07:01+00:00'
+    changed_paths:
+    - backend/core/api/app/services/workflow_authoring_compiler.py
+    - backend/core/api/app/services/workflow_gemini_authoring.py
+    - backend/scripts/compare_workflow_preselection.py
+    - backend/tests/test_workflow_authoring_compiler.py
+    - backend/tests/test_workflow_gemini_authoring.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep workflow provider schemas within supported constraints'
+    section: bug_fixes
+    commits:
+    - 68cdee798
+    authored_at: '2026-09-30T17:50:18+00:00'
+    changed_paths:
+    - backend/core/api/app/services/workflow_authoring_compiler.py
+    - backend/core/api/app/services/workflow_gemini_authoring.py
+    - backend/tests/test_workflow_authoring_compiler.py
+    - backend/tests/test_workflow_gemini_authoring.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: raise isolated CI capacity to ten concurrent jobs'
+    section: bug_fixes
+    commits:
+    - 9a24676ab
+    authored_at: '2026-09-30T17:22:13+00:00'
+    changed_paths:
+    - docs/architecture/isolated-github-tests.md
+    - scripts/ci_coordinator.py
+    - scripts/tests/test_ci_coordinator.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: publish Apple parity web support and previews'
+    section: bug_fixes
+    commits:
+    - 98692d909
+    authored_at: '2026-09-30T16:59:02+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/dev/preview/[...path]/+page.svelte
+    - frontend/apps/web_app/static/.well-known/apple-app-site-association
+    - frontend/apps/web_app/static/images/examples/group1.jpg
+    - frontend/apps/web_app/tests/apple-embed-rendering-contracts.spec.ts
+    - frontend/apps/web_app/tests/components/image-result-fullscreen-proxy.spec.ts
+    - frontend/apps/web_app/tests/components/music-fullscreen-responsive.spec.ts
+    - frontend/apps/web_app/tests/components/pdf-fullscreen-fallback-icon.spec.ts
+    - frontend/apps/web_app/tests/components/pdf-preview-fallback-icon.spec.ts
+    - frontend/apps/web_app/tests/dev-preview.spec.ts
+    - frontend/apps/web_app/tests/plan-detail-preview.spec.ts
+    - frontend/apps/web_app/tests/push-subscription-lifecycle.spec.ts
+    - frontend/packages/ui/scripts/build-tokens.js
+    - frontend/packages/ui/src/components/ChatSearchSuggestions.svelte
+    - frontend/packages/ui/src/components/NewChatSuggestions.svelte
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/images/ImageResultEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/images/ImageResultEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/images/ImageResultEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/images/ImageResultEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/music/MusicGenerateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/pdf/PDFEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/pdf/PDFEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/sheets/SheetEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/plans/PlanDetailPage.preview.ts
+    - frontend/packages/ui/src/components/plans/PlanDetailPage.svelte
+    - frontend/packages/ui/src/components/projects/ProjectBrowserItem.svelte
+    - frontend/packages/ui/src/components/projects/ProjectReadme.svelte
+    - frontend/packages/ui/src/components/projects/ProjectWorkspaceHeader.svelte
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowHomePreviewHarness.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/suggestions.yml
+    - frontend/packages/ui/src/i18n/sources/chats.yml
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - frontend/packages/ui/src/i18n/sources/projects.yml
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    - frontend/packages/ui/src/i18n/sources/tasks.yml
+    - frontend/packages/ui/src/i18n/sources/workflows.yml
+    - frontend/packages/ui/static/licenses/lucide-svelte.txt
+    - frontend/packages/ui/static/licenses/meteocons.txt
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: embed:images:image_result
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:music:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:music
+      source: backend/apps/music/app.yml
+    - id: embed:pdf:pdf
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:pdf
+      source: backend/apps/pdf/app.yml
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: embed:images:image_result, embed:images:search, embed:music:generate, embed:pdf:pdf,
+      platform:projects'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: simplify provider workflow argument grammar'
+    section: bug_fixes
+    commits:
+    - 865ab7b6a
+    authored_at: '2026-09-30T16:37:02+00:00'
+    changed_paths:
+    - backend/core/api/app/services/workflow_gemini_authoring.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: sign iOS app with native shared-link domains'
+    section: bug_fixes
+    commits:
+    - 7ada0ee45
+    authored_at: '2026-09-30T18:29:36+02:00'
+    changed_paths:
+    - apple/OpenMates/Resources/OpenMatesPasskey.entitlements
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: bound workflow provider grammar complexity'
+    section: bug_fixes
+    commits:
+    - 481a08051
+    authored_at: '2026-09-30T16:21:13+00:00'
+    changed_paths:
+    - backend/core/api/app/services/workflow_gemini_authoring.py
+    - backend/tests/test_workflow_gemini_authoring.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: constrain authoring steps to selected skill grammar'
+    section: bug_fixes
+    commits:
+    - fa9d08d3c
+    authored_at: '2026-09-30T16:08:26+00:00'
+    changed_paths:
+    - backend/core/api/app/services/workflow_gemini_authoring.py
+    - backend/tests/test_workflow_gemini_authoring.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore Apple chat and workspace parity'
+    section: bug_fixes
+    commits:
+    - '882431155'
+    authored_at: '2026-09-30T18:05:19+02:00'
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates.xcodeproj/xcshareddata/xcschemes/OpenMatesWatch.xcscheme
+    - apple/OpenMates.xcodeproj/xcshareddata/xcschemes/OpenMatesWatchUITests.xcscheme
+    - apple/OpenMates.xcodeproj/xcshareddata/xcschemes/OpenMates_iOS.xcscheme
+    - apple/OpenMates.xcodeproj/xcshareddata/xcschemes/OpenMates_iOS_UI_Tests.xcscheme
+    - apple/OpenMates.xcodeproj/xcshareddata/xcschemes/OpenMates_iOS_Unit_Tests.xcscheme
+    - apple/OpenMates.xcodeproj/xcshareddata/xcschemes/OpenMates_macOS.xcscheme
+    - apple/OpenMates/Resources/BrandAssets.xcassets/mate-general-knowledge.imageset/Contents.json
+    - apple/OpenMates/Resources/BrandAssets.xcassets/mate-general-knowledge.imageset/general_knowledge.jpeg
+    - apple/OpenMates/Resources/Info.plist
+    - apple/OpenMates/Resources/MermaidRuntime/LICENSE
+    - apple/OpenMates/Resources/MermaidRuntime/mermaid.min.js
+    - apple/OpenMates/Resources/OpenMatesMacOS.entitlements
+    - apple/OpenMates/Resources/OpenMatesPasskey.entitlements
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/App/RootView.swift
+    - apple/OpenMates/Sources/App/SceneDelegate.swift
+    - apple/OpenMates/Sources/Core/Crypto/ChatKeyManager.swift
+    - apple/OpenMates/Sources/Core/Crypto/CryptoManager.swift
+    - apple/OpenMates/Sources/Core/Crypto/ShareLinkCrypto.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/Core/Networking/APIClient.swift
+    - apple/OpenMates/Sources/Core/Networking/AudioRealtimeTranscriptionClient.swift
+    - apple/OpenMates/Sources/Core/Networking/CodeRunService.swift
+    - apple/OpenMates/Sources/Core/Networking/DeepLinkHandler.swift
+    - apple/OpenMates/Sources/Core/Networking/NativeLifecycleAcknowledgement.swift
+    - apple/OpenMates/Sources/Core/Networking/PushNotificationManager.swift
+    - apple/OpenMates/Sources/Core/Networking/S3MediaClient.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/Core/Teams/TeamWorkspaceContext.swift
+    - apple/OpenMates/Sources/Core/Teams/TeamWorkspaceContextSelector.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchCanonicalStorage.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchChatRuntime.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchEmbedPreviewModel.swift
+    - apple/OpenMates/Sources/DevPreview/DevComponentPreviewView.swift
+    - apple/OpenMates/Sources/DevPreview/DevComposerSearchPreview.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewGalleryView.swift
+    - apple/OpenMates/Sources/DevPreview/DevHistoryWelcomeFixtures.swift
+    - apple/OpenMates/Sources/DevPreview/DevPreviewLaunchConfiguration.swift
+    - apple/OpenMates/Sources/Features/Auth/ViewModels/AuthManager.swift
+    - apple/OpenMates/Sources/Features/Chat/Input/ComposerSearchSuggestions.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatSearchView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/DailyInspirationView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/SubChatBatchView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedGrouping.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/CodeRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/DocumentCanvas.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/EventEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/EventsSearchEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/ImageEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/ImageGenerateEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/ImageResultEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/ImagesSearchEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MediaRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MindMapEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MiscRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/RemotionVideoCreateRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/SearchDomainRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/SearchEmbedModels.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/SearchResultsRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/TravelConnectionEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/WebReadEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/WebSearchEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/WebsiteEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/WikiRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedBasicInfoBar.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectFileReviewCoordinator.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectHostedFileExecutor.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectHostedPatch.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectHostedPathPolicy.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectHostedWorkspaceAdapter.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectIgnoredReadGrant.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectRemoteBridgeCrypto.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectRemoteCommandCoordinator.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectRemoteSourceClient.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectReviewCards.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectReviewContextResolver.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectReviewFixtures.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectUploadService.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectWorkspaceReviewRuntime.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectsSidebarView.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectsWorkspaceModels.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectsWorkspacePreviewFixture.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectsWorkspaceService.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectsWorkspaceStore.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectsWorkspaceView.swift
+    - apple/OpenMates/Sources/Features/Settings/Privacy/SettingsPrivacyContentView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsAppsFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsBillingView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsDeveloperFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsHidePersonalDataView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsProjectsView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsServerView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSharedView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsStorageFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSubPages.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSupportView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    - apple/OpenMates/Sources/Features/Tasks/PlanDetailView.swift
+    - apple/OpenMates/Sources/Features/Tasks/TaskDetailView.swift
+    - apple/OpenMates/Sources/Features/Tasks/TaskModels.swift
+    - apple/OpenMates/Sources/Features/Tasks/TasksWorkspaceStore.swift
+    - apple/OpenMates/Sources/Features/Tasks/TasksWorkspaceView.swift
+    - apple/OpenMates/Sources/Features/Tasks/UserPlanModels.swift
+    - apple/OpenMates/Sources/Features/Tasks/UserPlansService.swift
+    - apple/OpenMates/Sources/Features/Tasks/UserTasksService.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowAIAuthoringController.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowAIAuthoringService.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowAPI.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowAskAIHints.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowChatDestinationPicker.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowDetailHeader.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowGraphEditing.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowGraphReordering.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowGraphView.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowHomeView.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowMessageTemplateEditor.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowMessageTokens.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowModels.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowPendingPreviewView.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowPromptComposerView.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowRequestScope.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowRunTimelineView.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowSchemaInputView.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowShortTemplatePreviewHost.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowStepTestController.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowStepTestService.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowStore.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowTemplateProjection.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowTemplateShareService.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowTemplateShareView.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowValueView.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowViews.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowVoiceInputView.swift
+    - apple/OpenMates/Sources/Shared/Components/AppIconView.swift
+    - apple/OpenMates/Sources/Shared/Components/ChatHistoryRenderDocument.swift
+    - apple/OpenMates/Sources/Shared/Components/Icon.swift
+    - apple/OpenMates/Sources/Shared/Components/NetworkStatusView.swift
+    - apple/OpenMates/Sources/Shared/Components/ProgressiveMarkdownRenderProjection.swift
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+    - apple/OpenMates/Sources/Shared/Components/SharedLinkBrowserView.swift
+    - apple/OpenMates/Sources/Shared/Components/ToastNotification.swift
+    - apple/OpenMates/Sources/Shared/Components/WorkspacePromptComposerView.swift
+    - apple/OpenMatesTests/APIClientUploadTransportTests.swift
+    - apple/OpenMatesTests/APIResponseDecodingDiagnosticsTests.swift
+    - apple/OpenMatesTests/AppDeepLinkRoutingTests.swift
+    - apple/OpenMatesTests/AppSkillUseDispatchParityTests.swift
+    - apple/OpenMatesTests/AudioRealtimeTranscriptionClientTests.swift
+    - apple/OpenMatesTests/ChatHistoryRenderDocumentTests.swift
+    - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+    - apple/OpenMatesTests/ChatSyncParityTests.swift
+    - apple/OpenMatesTests/CodeRunOutputSyncTests.swift
+    - apple/OpenMatesTests/ComposerSearchSuggestionTests.swift
+    - apple/OpenMatesTests/DocumentCanvasTests.swift
+    - apple/OpenMatesTests/EmbedDiffEditingParityTests.swift
+    - apple/OpenMatesTests/EmbedWireFormatTests.swift
+    - apple/OpenMatesTests/ExternalLinkDeliveryTests.swift
+    - apple/OpenMatesTests/MermaidDiagramParityTests.swift
+    - apple/OpenMatesTests/ProjectWorkspaceReviewRuntimeTests.swift
+    - apple/OpenMatesTests/ProjectsWorkspaceTests.swift
+    - apple/OpenMatesTests/PublicImageLoaderTests.swift
+    - apple/OpenMatesTests/SearchDomainRenderersTests.swift
+    - apple/OpenMatesTests/SettingsFullParityTests.swift
+    - apple/OpenMatesTests/ShortWorkflowShareTests.swift
+    - apple/OpenMatesTests/SkillApplicationParityTests.swift
+    - apple/OpenMatesTests/StreamingClientFanoutTests.swift
+    - apple/OpenMatesTests/SubChatProcessingTests.swift
+    - apple/OpenMatesTests/TasksWorkspaceTests.swift
+    - apple/OpenMatesTests/TeamWorkspaceContextTests.swift
+    - apple/OpenMatesTests/WatchCanonicalStorageTests.swift
+    - apple/OpenMatesTests/WatchChatRuntimeTests.swift
+    - apple/OpenMatesTests/WatchEmbedPreviewTests.swift
+    - apple/OpenMatesTests/WebSearchContractParityTests.swift
+    - apple/OpenMatesTests/WebSocketReconnectTests.swift
+    - apple/OpenMatesTests/WebSocketWaiterCancellationTests.swift
+    - apple/OpenMatesTests/WorkflowGraphEditingTests.swift
+    - apple/OpenMatesTests/WorkflowGraphReorderingTests.swift
+    - apple/OpenMatesTests/WorkflowMessageTokensTests.swift
+    - apple/OpenMatesTests/WorkflowStepTestServiceTests.swift
+    - apple/OpenMatesTests/WorkflowTemplateProjectionTests.swift
+    - apple/OpenMatesTests/WorkflowsParityTests.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    - apple/OpenMatesUITests/ChatNavigationParityUITests.swift
+    - apple/OpenMatesUITests/ComposerSearchSuggestionsUITests.swift
+    - apple/OpenMatesUITests/DevComponentPreviewUITests.swift
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    - apple/OpenMatesUITests/MermaidDiagramParityUITests.swift
+    - apple/OpenMatesUITests/SettingsFullParityUITests.swift
+    - apple/OpenMatesUITests/WorkflowsParityUITests.swift
+    - apple/OpenMatesWatch/Info.plist
+    - apple/OpenMatesWatch/Sources/OpenMatesWatchApp.swift
+    - apple/OpenMatesWatch/Sources/WatchAuthStore.swift
+    - apple/OpenMatesWatch/Sources/WatchChatViews.swift
+    - apple/OpenMatesWatch/Sources/WatchEmbedViews.swift
+    - apple/OpenMatesWatchUITests/WatchChatLayoutUITests.swift
+    - apple/project.yml
+    - backend/core/api/app/routes/connection_manager.py
+    - backend/core/api/app/routes/push.py
+    - backend/core/api/app/services/push_notification_service.py
+    - backend/core/api/app/services/push_subscription_lock.py
+    - backend/core/api/app/tasks/push_notification_task.py
+    - backend/core/api/app/tasks/push_worker_service.py
+    - backend/tests/test_foreground_push_delivery.py
+    - backend/tests/test_push_notification_worker.py
+    - backend/tests/test_unified_notifications.py
+    - backend/tests/test_websocket_set_active_chat.py
+    - docs/plans/apple-workspace-feature-parity/plan.yml
+    - scripts/apple_testflight_release.py
+    - scripts/tests/test_apple_testflight_release.py
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:apple-watch, platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: constrain workflow authoring JSON transport'
+    section: bug_fixes
+    commits:
+    - b916d2501
+    authored_at: '2026-09-30T16:03:06+00:00'
+    changed_paths:
+    - backend/core/api/app/services/workflow_gemini_authoring.py
+    - backend/tests/test_workflow_gemini_authoring.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: use valid compact workflow JSON and forecast data'
+    section: bug_fixes
+    commits:
+    - 63e2063d9
+    authored_at: '2026-09-30T15:55:59+00:00'
+    changed_paths:
+    - backend/apps/weather/app.yml
+    - backend/core/api/app/services/workflow_authoring_compiler.py
+    - backend/core/api/app/services/workflow_gemini_authoring.py
+    - backend/scripts/benchmark_workflow_authoring.py
+    - backend/tests/test_workflow_authoring_benchmark.py
+    - backend/tests/test_workflow_authoring_compiler.py
+    - backend/tests/test_workflow_gemini_authoring.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:weather
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/weather/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:weather, platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: guard compact workflow dates and branch continuations'
+    section: bug_fixes
+    commits:
+    - 9a04319e5
+    authored_at: '2026-09-30T15:06:56+00:00'
+    changed_paths:
+    - backend/core/api/app/services/workflow_authoring_compiler.py
+    - backend/core/api/app/services/workflow_gemini_authoring.py
+    - backend/tests/test_workflow_authoring_compiler.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: use Gemini structured response MIME enum'
+    section: bug_fixes
+    commits:
+    - 33dfd827c
+    authored_at: '2026-09-30T14:46:02+00:00'
+    changed_paths:
+    - backend/core/api/app/services/workflow_gemini_authoring.py
+    - backend/tests/test_workflow_gemini_authoring.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: constrain workflow construction to V2 contracts'
+    section: bug_fixes
+    commits:
+    - bd84c3890
+    authored_at: '2026-09-30T13:15:44+00:00'
+    changed_paths:
+    - backend/core/api/app/services/workflow_authoring_preselection.py
+    - backend/core/api/app/services/workflow_jev_constructor.py
+    - backend/scripts/benchmark_workflow_authoring.py
+    - backend/tests/test_workflow_authoring_benchmark.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: use Gemini 3.8 when Jev workflow decisions fail'
+    section: bug_fixes
+    commits:
+    - a2d8f2c88
+    authored_at: '2026-09-30T00:25:13+00:00'
+    changed_paths:
+    - backend/core/api/app/services/workflow_nl_planner.py
+    - backend/tests/test_workflow_nl_planner.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: guard natural-language workflow edits and scheduling'
+    section: bug_fixes
+    commits:
+    - 1cf90e403
+    authored_at: '2026-09-30T00:17:46+00:00'
+    changed_paths:
+    - backend/core/api/app/services/workflow_nl_planner.py
+    - backend/tests/test_workflow_nl_planner.py
+    - frontend/apps/web_app/tests/cli-workflows-natural-language-guards.spec.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements:
+  - title: 'perf: skip redundant initial workflow cancellation database read'
+    section: improvements
+    commits:
+    - aa996a127
+    authored_at: '2026-09-30T19:40:53+00:00'
+    changed_paths:
+    - backend/core/api/app/services/workflow_input_service.py
+    - backend/tests/test_workflow_input_sessions.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'perf: publish recent chats before route reads and preserve task navigation'
+    section: improvements
+    commits:
+    - 0983839a7
+    authored_at: '2026-09-30T19:01:54+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    - frontend/apps/web_app/tests/tasks-web-app-parity.spec.ts
+    - frontend/apps/web_app/tests/workflows-ui-contract.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/tasks/TaskCard.svelte
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:tasks, platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'perf: cache recent workspaces and load task details by ID'
+    section: improvements
+    commits:
+    - 44481b19c
+    authored_at: '2026-09-30T17:35:16+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/user_tasks.py
+    - backend/tests/test_user_tasks_api.py
+    - docs/plans/web-workspace-navigation-cache/live-observations.json
+    - docs/plans/web-workspace-navigation-cache/plan.yml
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    - frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
+    - frontend/apps/web_app/tests/tasks-web-app-parity.spec.ts
+    - frontend/apps/web_app/tests/workflows-ui-contract.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/Header.svelte
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/plans/PlanDetailPage.svelte
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    - frontend/packages/ui/src/components/tasks/ActiveChatTaskPreview.svelte
+    - frontend/packages/ui/src/components/tasks/TaskDetailContent.svelte
+    - frontend/packages/ui/src/components/tasks/TaskDetailPage.svelte
+    - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+    - frontend/packages/ui/src/components/workspace/detailMetadataAdapters.ts
+    - frontend/packages/ui/src/services/__tests__/projectServiceCache.test.ts
+    - frontend/packages/ui/src/services/__tests__/recentChatWindowCache.test.ts
+    - frontend/packages/ui/src/services/__tests__/teamService.test.ts
+    - frontend/packages/ui/src/services/__tests__/userPlanService.test.ts
+    - frontend/packages/ui/src/services/__tests__/userTaskService.test.ts
+    - frontend/packages/ui/src/services/__tests__/workspacePrefetchService.test.ts
+    - frontend/packages/ui/src/services/__tests__/workspaceQueryCache.test.ts
+    - frontend/packages/ui/src/services/chatMetadataCache.ts
+    - frontend/packages/ui/src/services/cryptoKeyStorage.ts
+    - frontend/packages/ui/src/services/db/__tests__/recentChatMessageMutation.test.ts
+    - frontend/packages/ui/src/services/db/chatCrudOperations.ts
+    - frontend/packages/ui/src/services/db/messageOperations.ts
+    - frontend/packages/ui/src/services/encryption/ChatKeyManager.ts
+    - frontend/packages/ui/src/services/projectService.ts
+    - frontend/packages/ui/src/services/recentChatWindowCache.ts
+    - frontend/packages/ui/src/services/referralService.ts
+    - frontend/packages/ui/src/services/teamService.ts
+    - frontend/packages/ui/src/services/userPlanService.ts
+    - frontend/packages/ui/src/services/userTaskService.ts
+    - frontend/packages/ui/src/services/workspaceCacheLifecycle.ts
+    - frontend/packages/ui/src/services/workspacePrefetchService.ts
+    - frontend/packages/ui/src/services/workspaceQueryCache.ts
+    - frontend/packages/ui/src/stores/__tests__/workflowWorkspaceStore.test.ts
+    - frontend/packages/ui/src/stores/authLoginLogoutActions.ts
+    - frontend/packages/ui/src/stores/authSessionActions.ts
+    - frontend/packages/ui/src/stores/teamStore.ts
+    - frontend/packages/ui/src/stores/workflowWorkspaceStore.ts
+    - frontend/packages/ui/src/utils/contentCache.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:plans
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: true
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:plans, platform:projects, platform:tasks, platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  docs:
+  - title: 'docs: record verified workspace navigation caching'
+    section: docs
+    commits:
+    - 51c32683b
+    authored_at: '2026-09-30T20:47:29+00:00'
+    changed_paths:
+    - docs/architecture/frontend/web-app.md
+    - docs/plans/web-workspace-navigation-cache/plan.yml
+    - docs/plans/web-workspace-navigation-cache/post-implementation-observations.json
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: optimize Apple TestFlight release workflow'
+    section: docs
+    commits:
+    - 717bcdbc2
+    authored_at: '2026-09-30T17:20:37+00:00'
+    changed_paths:
+    - .agents/skills/ios/SKILL.md
+    - .claude/skills/ios/SKILL.md
+    - docs/architecture/apple/testflight-release.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test: align workflow run checks with accessible controls'
+    section: tests
+    commits:
+    - c16742ae0
+    authored_at: '2026-09-30T20:32:12+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/workflows-ui-contract.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize navigation and workflow search fixtures'
+    section: tests
+    commits:
+    - e291d6f15
+    authored_at: '2026-09-30T19:33:23+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/tasks-web-app-parity.spec.ts
+    - frontend/apps/web_app/tests/workflows-ui-contract.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'fix: correct workflow composer import and Safari tint'
+    commits:
+    - f50cc694f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'feat: open workflow generation fullscreen immediately'
+    commits:
+    - 607cd834f
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: price assistant speech at provider cost'
+    commits:
+    - 9868c2f14
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+  - title: 'fix: preserve workflow intent and speed durable stop checks'
+    commits:
+    - 557ebc1b1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: preserve imported workflows during AI edits'
+    commits:
+    - d25b19389
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: serialize workflow session graphs with public edge keys'
+    commits:
+    - be2e5ebe6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: render canonical Teams settings icons'
+    commits:
+    - c9875b98f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: record verified workspace navigation caching'
+    commits:
+    - 51c32683b
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: fence pair approval when request token changes'
+    commits:
+    - 918f90e29
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: apply Jev workflow schedule timezones safely'
+    commits:
+    - 1448b2648
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'test: align workflow run checks with accessible controls'
+    commits:
+    - c16742ae0
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: validate complete workflow headers before freezing streamed previews'
+    commits:
+    - d21da6a0c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: preserve workflow navigation caching with current editor'
+    commits:
+    - 983fa46a4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: constrain generated workflow schedules by their type'
+    commits:
+    - 2fb24b838
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'perf: skip redundant initial workflow cancellation database read'
+    commits:
+    - aa996a127
+    section: improvements
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'feat: redesign workflow AI authoring and checks'
+    commits:
+    - e915c0960
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: interpret spoken workflow corrections as final requirements'
+    commits:
+    - 5dded4f3f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'test: stabilize navigation and workflow search fixtures'
+    commits:
+    - e291d6f15
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: align workflow generation routing and preserve safe failure diagnostics'
+    commits:
+    - 658a872dc
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'feat: register independent Watch push targets'
+    commits:
+    - 0b8108f0d
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: show validated workflow nodes with Stop and partial recovery'
+    commits:
+    - cc4e80265
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'perf: publish recent chats before route reads and preserve task navigation'
+    commits:
+    - 0983839a7
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'feat: stream validated workflow nodes with partial recovery and atomic saves'
+    commits:
+    - 7292afb94
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:workflows
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/workflows/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: render recent chats on workspace return and serialize task actions'
+    commits:
+    - cb431abdd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: validate workflow schedule fields and avoid redundant AI steps'
+    commits:
+    - 9ee121bb2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: keep workflow provider schemas within supported constraints'
+    commits:
+    - 68cdee798
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'feat: add ElevenLabs v4 speech models'
+    commits:
+    - bc0615e12
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:speak
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:speak
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+  - title: 'feat: stream independently validated workflow authoring nodes'
+    commits:
+    - 481c4fdaf
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'perf: cache recent workspaces and load task details by ID'
+    commits:
+    - 44481b19c
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:plans
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: raise isolated CI capacity to ten concurrent jobs'
+    commits:
+    - 9a24676ab
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: optimize Apple TestFlight release workflow'
+    commits:
+    - 717bcdbc2
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: publish Apple parity web support and previews'
+    commits:
+    - 98692d909
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:images:image_result
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:music:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:music
+      source: backend/apps/music/app.yml
+    - id: embed:pdf:pdf
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:pdf
+      source: backend/apps/pdf/app.yml
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: simplify provider workflow argument grammar'
+    commits:
+    - 865ab7b6a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: sign iOS app with native shared-link domains'
+    commits:
+    - 7ada0ee45
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: bound workflow provider grammar complexity'
+    commits:
+    - 481a08051
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: constrain authoring steps to selected skill grammar'
+    commits:
+    - fa9d08d3c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: restore Apple chat and workspace parity'
+    commits:
+    - '882431155'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: constrain workflow authoring JSON transport'
+    commits:
+    - b916d2501
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: use valid compact workflow JSON and forecast data'
+    commits:
+    - 63e2063d9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:weather
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/weather/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'feat: extend registry workflow plans and streamed previews'
+    commits:
+    - 42f5c5dae
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: guard compact workflow dates and branch continuations'
+    commits:
+    - 9a04319e5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'feat: validate compact workflow JSON plans on the server'
+    commits:
+    - 318dc8ca2
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: use Gemini structured response MIME enum'
+    commits:
+    - 33dfd827c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'feat: test compact workflow authoring with streamed Gemini output'
+    commits:
+    - 00cf8a400
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'feat: record generic workflow authoring comparison'
+    commits:
+    - 2f15be72a
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'feat: export and import workflow YAML files'
+    commits:
+    - ad0b9a300
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: constrain workflow construction to V2 contracts'
+    commits:
+    - bd84c3890
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'feat: add registry-driven workflow authoring comparison'
+    commits:
+    - 811c3467a
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: use Gemini 3.8 when Jev workflow decisions fail'
+    commits:
+    - a2d8f2c88
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: guard natural-language workflow edits and scheduling'
+    commits:
+    - 1cf90e403
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'feat: redesign workflow AI authoring and checks'
+    commits:
+    - e915c0960
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'feat: stream validated workflow nodes with partial recovery and atomic saves'
+    commits:
+    - 7292afb94
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:workflows
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/workflows/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'feat: add ElevenLabs v4 speech models'
+    commits:
+    - bc0615e12
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:speak
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:speak
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+  - title: 'perf: cache recent workspaces and load task details by ID'
+    commits:
+    - 44481b19c
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:plans
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: use valid compact workflow JSON and forecast data'
+    commits:
+    - 63e2063d9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:weather
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/weather/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'feat: test compact workflow authoring with streamed Gemini output'
+    commits:
+    - 00cf8a400
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'fix: correct workflow composer import and Safari tint'
+    commits:
+    - f50cc694f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: open workflow generation fullscreen immediately'
+    commits:
+    - 607cd834f
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: price assistant speech at provider cost'
+    commits:
+    - 9868c2f14
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    newsletter_ready: false
+  - title: 'fix: preserve workflow intent and speed durable stop checks'
+    commits:
+    - 557ebc1b1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: serialize workflow session graphs with public edge keys'
+    commits:
+    - be2e5ebe6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: render canonical Teams settings icons'
+    commits:
+    - c9875b98f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: fence pair approval when request token changes'
+    commits:
+    - 918f90e29
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: apply Jev workflow schedule timezones safely'
+    commits:
+    - 1448b2648
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: preserve workflow navigation caching with current editor'
+    commits:
+    - 983fa46a4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: redesign workflow AI authoring and checks'
+    commits:
+    - e915c0960
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: register independent Watch push targets'
+    commits:
+    - 0b8108f0d
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: show validated workflow nodes with Stop and partial recovery'
+    commits:
+    - cc4e80265
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'perf: publish recent chats before route reads and preserve task navigation'
+    commits:
+    - 0983839a7
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: stream validated workflow nodes with partial recovery and atomic saves'
+    commits:
+    - 7292afb94
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:workflows
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/workflows/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: render recent chats on workspace return and serialize task actions'
+    commits:
+    - cb431abdd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: add ElevenLabs v4 speech models'
+    commits:
+    - bc0615e12
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:speak
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:audio:speak
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    newsletter_ready: false
+  - title: 'perf: cache recent workspaces and load task details by ID'
+    commits:
+    - 44481b19c
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:plans
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: publish Apple parity web support and previews'
+    commits:
+    - 98692d909
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:images:image_result
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:music:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:music
+      source: backend/apps/music/app.yml
+    - id: embed:pdf:pdf
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:pdf
+      source: backend/apps/pdf/app.yml
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: sign iOS app with native shared-link domains'
+    commits:
+    - 7ada0ee45
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: restore Apple chat and workspace parity'
+    commits:
+    - '882431155'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: use valid compact workflow JSON and forecast data'
+    commits:
+    - 63e2063d9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:weather
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/weather/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: export and import workflow YAML files'
+    commits:
+    - ad0b9a300
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: guard natural-language workflow edits and scheduling'
+    commits:
+    - 1cf90e403
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: f50cc694f52b6c31ea5c6a841ea59261e293038c
+    short_sha: f50cc694f
+    authored_at: '2026-09-30T23:20:06+00:00'
+    subject: 'fix: correct workflow composer import and Safari tint'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/app.html
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/components/workflow-prompt-composer.spec.ts
+    - frontend/apps/web_app/tests/workflow-files.spec.ts
+    - frontend/apps/web_app/tests/workflows-editor.spec.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowHomePreviewHarness.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspacePromptComposer.preview.ts
+    - frontend/packages/ui/src/components/workspace/WorkspacePromptComposer.svelte
+    - frontend/packages/ui/src/i18n/sources/workflows.yml
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:workflows
+  - sha: 607cd834fa7d1563a05d3ee6e39840a0de144231
+    short_sha: 607cd834f
+    authored_at: '2026-09-30T23:02:50+00:00'
+    subject: 'feat: open workflow generation fullscreen immediately'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/workflow_authoring_preselection.py
+    - backend/core/api/app/services/workflow_gemini_authoring.py
+    - backend/core/api/app/services/workflow_registry_planner.py
+    - backend/tests/test_workflow_authoring_preselection.py
+    - backend/tests/test_workflow_gemini_authoring.py
+    - backend/tests/test_workflow_registry_planner.py
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/components/workflow-detail-tabs.spec.ts
+    - frontend/apps/web_app/tests/workflows-input-stream.spec.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowDetailPage.preview.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte
+    - frontend/packages/ui/src/i18n/sources/workflows.yml
+    - frontend/packages/ui/src/services/workflowInputService.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:workflows
+  - sha: 9868c2f146fb5dd51b5cecad8371d8323bfeb813
+    short_sha: 9868c2f14
+    authored_at: '2026-09-30T22:19:16+00:00'
+    subject: 'fix: price assistant speech at provider cost'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/audio/assistant_speech/billing_task.py
+    - backend/apps/audio/pricing.py
+    - backend/tests/test_assistant_speech_live_verifier.py
+    - backend/tests/test_assistant_speech_worker.py
+    - scripts/verify_assistant_speech_live_smoke.mjs
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:audio
+  - sha: 557ebc1b190c7cf39933aef04035714c7d6a2e80
+    short_sha: 557ebc1b1
+    authored_at: '2026-09-30T21:50:01+00:00'
+    subject: 'fix: preserve workflow intent and speed durable stop checks'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/workflow_authoring_compiler.py
+    - backend/core/api/app/services/workflow_authoring_preselection.py
+    - backend/core/api/app/services/workflow_gemini_authoring.py
+    - backend/core/api/app/services/workflow_input_service.py
+    - backend/tests/test_workflow_authoring_compiler.py
+    - backend/tests/test_workflow_authoring_preselection.py
+    - backend/tests/test_workflow_gemini_authoring.py
+    - backend/tests/test_workflow_input_sessions.py
+    - frontend/apps/web_app/tests/cli-workflows-natural-language-guards.spec.ts
+    - scripts/workflow_authoring_cli_rollout.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:workflows
+  - sha: d25b19389d00084acd64a7b9b89ef52427fed9ce
+    short_sha: d25b19389
+    authored_at: '2026-09-30T21:25:30+00:00'
+    subject: 'fix: preserve imported workflows during AI edits'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/workflow_authoring_compiler.py
+    - backend/core/api/app/services/workflow_gemini_authoring.py
+    - backend/core/api/app/services/workflow_registry_planner.py
+    - backend/tests/test_workflow_authoring_compiler.py
+    - backend/tests/test_workflow_gemini_authoring.py
+    - backend/tests/test_workflow_registry_planner.py
+    - scripts/workflow_authoring_cli_rollout.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:workflows
+  - sha: be2e5ebe6043cd859029f9d3ed39df2a68553be0
+    short_sha: be2e5ebe6
+    authored_at: '2026-09-30T20:57:03+00:00'
+    subject: 'fix: serialize workflow session graphs with public edge keys'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/workflows.py
+    - backend/tests/test_workflow_input_sessions.py
+    - scripts/workflow_authoring_cli_rollout.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:workflows
+  - sha: c9875b98f5c0bc05714ceb93db363aba6c5f8de4
+    short_sha: c9875b98f
+    authored_at: '2026-09-30T20:53:44+00:00'
+    subject: 'fix: render canonical Teams settings icons'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/components/settings-teams-icons.spec.ts
+    - frontend/packages/ui/src/components/settings/AppDetailsHeader.preview.ts
+    - frontend/packages/ui/src/components/settings/SettingsTeams.preview.ts
+    - frontend/packages/ui/src/styles/icons.css
+    - frontend/packages/ui/src/utils/iconNameResolver.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 51c32683b9a8685df1cfad0cdaaf1e3c442cbcf4
+    short_sha: 51c32683b
+    authored_at: '2026-09-30T20:47:29+00:00'
+    subject: 'docs: record verified workspace navigation caching'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/frontend/web-app.md
+    - docs/plans/web-workspace-navigation-cache/plan.yml
+    - docs/plans/web-workspace-navigation-cache/post-implementation-observations.json
+    related_feature_ids: []
+  - sha: 918f90e299410f5aa52d945478ac9ec601fd47ef
+    short_sha: 918f90e29
+    authored_at: '2026-09-30T20:44:28+00:00'
+    subject: 'fix: fence pair approval when request token changes'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/components/pairing-components.spec.ts
+    - frontend/packages/ui/src/components/settings/security/SettingsSessionsConfirmPair.svelte
+    - frontend/packages/ui/src/components/settings/security/__tests__/SettingsSessionsConfirmPair.test.ts
+    - frontend/packages/ui/src/stores/pairSessionStore.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 1448b264853ec99767946b146b452b8dc0d1dc20
+    short_sha: 1448b2648
+    authored_at: '2026-09-30T20:33:45+00:00'
+    subject: 'fix: apply Jev workflow schedule timezones safely'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/workflow_authoring_compiler.py
+    - backend/core/api/app/services/workflow_authoring_preselection.py
+    - backend/core/api/app/services/workflow_gemini_authoring.py
+    - backend/tests/test_workflow_authoring_compiler.py
+    - backend/tests/test_workflow_authoring_preselection.py
+    - backend/tests/test_workflow_gemini_authoring.py
+    - frontend/apps/web_app/tests/cli-workflows-natural-language-guards.spec.ts
+    - scripts/workflow_authoring_cli_rollout.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:workflows
+  - sha: c16742ae0f8c93fef9d5b116eb738e6ad4440a11
+    short_sha: c16742ae0
+    authored_at: '2026-09-30T20:32:12+00:00'
+    subject: 'test: align workflow run checks with accessible controls'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/workflows-ui-contract.spec.ts
+    related_feature_ids:
+    - platform:workflows
+  - sha: d21da6a0c2803135b0052dd13b24dfd99f34d84a
+    short_sha: d21da6a0c
+    authored_at: '2026-09-30T20:06:50+00:00'
+    subject: 'fix: validate complete workflow headers before freezing streamed previews'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/workflow_authoring_compiler.py
+    - backend/core/api/app/services/workflow_authoring_preselection.py
+    - backend/core/api/app/services/workflow_gemini_authoring.py
+    - backend/core/api/app/services/workflow_registry_planner.py
+    - backend/tests/test_workflow_authoring_compiler.py
+    - backend/tests/test_workflow_authoring_preselection.py
+    - backend/tests/test_workflow_gemini_authoring.py
+    - backend/tests/test_workflow_registry_planner.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:workflows
+  - sha: 983fa46a49359fca88f96fe74949a69493ce2a02
+    short_sha: 983fa46a4
+    authored_at: '2026-09-30T20:04:05+00:00'
+    subject: 'fix: preserve workflow navigation caching with current editor'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/tasks-web-app-parity.spec.ts
+    - frontend/apps/web_app/tests/workflows-ui-contract.spec.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+    - frontend/packages/ui/src/stores/__tests__/workflowWorkspaceStore.test.ts
+    - frontend/packages/ui/src/stores/workflowWorkspaceStore.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:workflows
+  - sha: 2fb24b838222732aed4c4b9c8c2d05aed522eaff
+    short_sha: 2fb24b838
+    authored_at: '2026-09-30T19:53:42+00:00'
+    subject: 'fix: constrain generated workflow schedules by their type'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/workflow_authoring_compiler.py
+    - backend/core/api/app/services/workflow_authoring_preselection.py
+    - backend/core/api/app/services/workflow_gemini_authoring.py
+    - backend/core/api/app/services/workflow_registry_planner.py
+    - backend/tests/test_workflow_authoring_compiler.py
+    - backend/tests/test_workflow_authoring_preselection.py
+    - backend/tests/test_workflow_gemini_authoring.py
+    - backend/tests/test_workflow_registry_planner.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:workflows
+  - sha: aa996a1279422041afaeeebbc3148bfffe9c5383
+    short_sha: aa996a127
+    authored_at: '2026-09-30T19:40:53+00:00'
+    subject: 'perf: skip redundant initial workflow cancellation database read'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/workflow_input_service.py
+    - backend/tests/test_workflow_input_sessions.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:workflows
+  - sha: e915c0960b6911a8cf37c674fda612a7be928f04
+    short_sha: e915c0960
+    authored_at: '2026-09-30T19:38:49+00:00'
+    subject: 'feat: redesign workflow AI authoring and checks'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/app.yml
+    - backend/apps/ai/processing/jev_decisions.py
+    - backend/core/api/app/routes/workflows.py
+    - backend/core/api/app/services/workflow_ai_service.py
+    - backend/core/api/app/services/workflow_app_skill_adapter.py
+    - backend/core/api/app/services/workflow_models.py
+    - backend/core/api/app/services/workflow_runner.py
+    - backend/tests/test_workflow_ai_check_and_ask.py
+    - backend/tests/test_workflow_app_skill_adapter.py
+    - backend/tests/test_workflow_step_test.py
+    - backend/tests/test_workflows_routes_security.py
+    - docs/plans/workflow-ask-ai-redesign/plan.yml
+    - frontend/apps/web_app/tests/components/settings-dropdown-rich.spec.ts
+    - frontend/apps/web_app/tests/components/workflow-ask-ai-editor.spec.ts
+    - frontend/apps/web_app/tests/components/workflow-ask-ai-test-preview.spec.ts
+    - frontend/apps/web_app/tests/components/workflow-check-editor.spec.ts
+    - frontend/apps/web_app/tests/components/workflow-graph-ai-authoring.spec.ts
+    - frontend/apps/web_app/tests/workflows-ai-authoring.spec.ts
+    - frontend/packages/ui/src/components/settings/elements/SettingsDropdown.preview.ts
+    - frontend/packages/ui/src/components/settings/elements/SettingsDropdown.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowAskAiTestPreview.preview.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowAskAiTestPreview.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowEditorHeader.preview.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowEditorHeader.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.preview.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowMessageEditor.preview.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowMessageEditor.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowSchemaFields.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowVariablePicker.preview.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowVariablePicker.svelte
+    - frontend/packages/ui/src/components/workflows/__tests__/workflowBuilder.test.ts
+    - frontend/packages/ui/src/components/workflows/__tests__/workflowMentionQuery.test.ts
+    - frontend/packages/ui/src/components/workflows/__tests__/workflowMessageTokens.test.ts
+    - frontend/packages/ui/src/components/workflows/workflowBuilder.ts
+    - frontend/packages/ui/src/components/workflows/workflowMentionQuery.ts
+    - frontend/packages/ui/src/components/workflows/workflowMessageTokens.ts
+    - frontend/packages/ui/src/components/workflows/workflowValuePresentation.ts
+    - frontend/packages/ui/src/i18n/sources/workflows.yml
+    - frontend/packages/ui/src/services/__tests__/workflowStepTestStream.test.ts
+    - frontend/packages/ui/src/services/workflowStepTestStream.ts
+    - frontend/packages/ui/src/stores/workflowWorkspaceStore.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/features/workflows-ui/examples.yml
+    - specifications/features/workflows-ui/specification.yml
+    - specifications/features/workflows/examples.yml
+    - specifications/features/workflows/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+    - platform:workflows
+  - sha: 5dded4f3fabb7d88fee083f29bfe3821f5991dda
+    short_sha: 5dded4f3f
+    authored_at: '2026-09-30T19:35:11+00:00'
+    subject: 'fix: interpret spoken workflow corrections as final requirements'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/workflow_authoring_preselection.py
+    - backend/tests/test_workflow_authoring_preselection.py
+    - scripts/workflow_authoring_cli_rollout.py
+    related_feature_ids:
+    - platform:workflows
+  - sha: e291d6f1520156fcae5762ca648d7746cf254c16
+    short_sha: e291d6f15
+    authored_at: '2026-09-30T19:33:23+00:00'
+    subject: 'test: stabilize navigation and workflow search fixtures'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/tasks-web-app-parity.spec.ts
+    - frontend/apps/web_app/tests/workflows-ui-contract.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:workflows
+  - sha: 658a872dccc38c96e8f5cd4d3485c597ab08e859
+    short_sha: 658a872dc
+    authored_at: '2026-09-30T19:24:08+00:00'
+    subject: 'fix: align workflow generation routing and preserve safe failure diagnostics'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/workflow_authoring_compiler.py
+    - backend/core/api/app/services/workflow_gemini_authoring.py
+    - backend/core/api/app/services/workflow_registry_planner.py
+    - backend/tests/test_workflow_authoring_compiler.py
+    - backend/tests/test_workflow_gemini_authoring.py
+    - backend/tests/test_workflow_registry_planner.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:workflows
+  - sha: 0b8108f0d521f1583d421645e57129420200692a
+    short_sha: 0b8108f0d
+    authored_at: '2026-09-30T19:17:34+00:00'
+    subject: 'feat: register independent Watch push targets'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/push.py
+    - backend/core/api/app/services/push_notification_service.py
+    - backend/tests/test_watch_push_notifications.py
+    - specifications/features/apple-notifications/examples.yml
+    - specifications/features/apple-notifications/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    related_feature_ids: []
+  - sha: cc4e8026529738fd8ebc20b7c741ab31580c071d
+    short_sha: cc4e80265
+    authored_at: '2026-09-30T19:04:39+00:00'
+    subject: 'feat: show validated workflow nodes with Stop and partial recovery'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/cli-workflows-natural-language-guards.spec.ts
+    - frontend/apps/web_app/tests/workflows-authoring-transaction.spec.ts
+    - frontend/apps/web_app/tests/workflows-input-stream.spec.ts
+    - frontend/apps/web_app/tests/workflows-input.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
+    - frontend/packages/openmates-cli/tests/workflows.test.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowPendingPreview.svelte
+    - frontend/packages/ui/src/i18n/sources/workflows.yml
+    - frontend/packages/ui/src/services/__tests__/workflowInputStream.test.ts
+    - frontend/packages/ui/src/services/workflowInputService.ts
+    - frontend/packages/ui/src/stores/workflowWorkspaceStore.ts
+    - scripts/ci_coverage_manifest.json
+    - scripts/workflow_authoring_cli_rollout.py
+    - scripts/workflow_authoring_stream_timing.mjs
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    related_feature_ids:
+    - platform:workflows
+  - sha: 0983839a794be59f70e42796ab2a8b1f4a7b3cd7
+    short_sha: 0983839a7
+    authored_at: '2026-09-30T19:01:54+00:00'
+    subject: 'perf: publish recent chats before route reads and preserve task navigation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    - frontend/apps/web_app/tests/tasks-web-app-parity.spec.ts
+    - frontend/apps/web_app/tests/workflows-ui-contract.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/tasks/TaskCard.svelte
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:tasks
+    - platform:workflows
+  - sha: 7292afb94745e75638cd4eebba2b1046ed5f7d51
+    short_sha: 7292afb94
+    authored_at: '2026-09-30T18:50:46+00:00'
+    subject: 'feat: stream validated workflow nodes with partial recovery and atomic saves'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/workflows/app.yml
+    - backend/apps/workflows/focus_modes/clarify-workflows/SKILL.md
+    - backend/apps/workflows/skills/__init__.py
+    - backend/apps/workflows/skills/_services.py
+    - backend/apps/workflows/skills/chat_authoring_context.py
+    - backend/apps/workflows/skills/create_or_modify_skill.py
+    - backend/core/api/app/routes/workflows.py
+    - backend/core/api/app/services/workflow_assistant_service.py
+    - backend/core/api/app/services/workflow_authoring_compiler.py
+    - backend/core/api/app/services/workflow_authoring_transaction.py
+    - backend/core/api/app/services/workflow_gemini_authoring.py
+    - backend/core/api/app/services/workflow_input_service.py
+    - backend/core/api/app/services/workflow_registry_planner.py
+    - backend/core/api/app/services/workflow_service.py
+    - backend/core/directus/Dockerfile
+    - backend/core/directus/extensions/workflow-authoring-transaction/package.json
+    - backend/core/directus/extensions/workflow-authoring-transaction/src/index.js
+    - backend/core/directus/extensions/workflow-authoring-transaction/src/operations.js
+    - backend/core/directus/extensions/workflow-authoring-transaction/test/operations.test.js
+    - backend/core/directus/schemas/workflow_authoring_operations.yml
+    - backend/core/directus/schemas/workflow_input_mutations.yml
+    - backend/core/directus/setup/migrate_workflow_runtime_indexes.sql
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/scripts/probe_workflow_authoring_transaction.py
+    - backend/tests/test_workflow_app_skill_embeds.py
+    - backend/tests/test_workflow_assistant_countdown.py
+    - backend/tests/test_workflow_authoring_compiler.py
+    - backend/tests/test_workflow_authoring_transaction.py
+    - backend/tests/test_workflow_chat_authoring_context.py
+    - backend/tests/test_workflow_gemini_authoring.py
+    - backend/tests/test_workflow_input_sessions.py
+    - backend/tests/test_workflow_registry_planner.py
+    - backend/tests/test_workflows_models.py
+    - docs/plans/workflow-ai-authoring/evidence/registry-authoring-comparison-2026-09-30.md
+    - docs/plans/workflow-ai-authoring/plan.yml
+    - specifications/features/workflows-ui/examples.yml
+    - specifications/features/workflows-ui/specification.yml
+    - specifications/features/workflows/examples.yml
+    - specifications/features/workflows/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+    - app:workflows
+    - platform:workflows
+  - sha: cb431abddae62ddc44cc991febd91ac1bf8aaea6
+    short_sha: cb431abdd
+    authored_at: '2026-09-30T18:21:10+00:00'
+    subject: 'fix: render recent chats on workspace return and serialize task actions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    - frontend/apps/web_app/tests/tasks-web-app-parity.spec.ts
+    - frontend/apps/web_app/tests/workflows-ui-contract.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+    - frontend/packages/ui/src/services/__tests__/recentChatWindowCache.test.ts
+    - frontend/packages/ui/src/services/__tests__/userTaskService.test.ts
+    - frontend/packages/ui/src/services/recentChatWindowCache.ts
+    - frontend/packages/ui/src/services/userTaskService.ts
+    - scripts/ci_run_tests.py
+    - scripts/ci_startup_sync_fixture.mjs
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:tasks
+    - platform:workflows
+  - sha: 9ee121bb26863a63c0e003936bbbf18fe39beacb
+    short_sha: 9ee121bb2
+    authored_at: '2026-09-30T18:07:01+00:00'
+    subject: 'fix: validate workflow schedule fields and avoid redundant AI steps'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/workflow_authoring_compiler.py
+    - backend/core/api/app/services/workflow_gemini_authoring.py
+    - backend/scripts/compare_workflow_preselection.py
+    - backend/tests/test_workflow_authoring_compiler.py
+    - backend/tests/test_workflow_gemini_authoring.py
+    related_feature_ids:
+    - platform:workflows
+  - sha: 68cdee7984774de384ece75778fcf4eb4e0ddbec
+    short_sha: 68cdee798
+    authored_at: '2026-09-30T17:50:18+00:00'
+    subject: 'fix: keep workflow provider schemas within supported constraints'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/workflow_authoring_compiler.py
+    - backend/core/api/app/services/workflow_gemini_authoring.py
+    - backend/tests/test_workflow_authoring_compiler.py
+    - backend/tests/test_workflow_gemini_authoring.py
+    related_feature_ids:
+    - platform:workflows
+  - sha: bc0615e12950855ce7e2705e27baef6ec360a657
+    short_sha: bc0615e12
+    authored_at: '2026-09-30T17:45:35+00:00'
+    subject: 'feat: add ElevenLabs v4 speech models'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/audio/app.yml
+    - backend/apps/audio/pricing.py
+    - backend/apps/audio/skills/speak_skill.py
+    - backend/core/api/app/routes/apps_api.py
+    - backend/providers/elevenlabs.yml
+    - backend/shared/providers/elevenlabs/client.py
+    - backend/tests/test_apps_api.py
+    - backend/tests/test_assistant_speech_projection.py
+    - backend/tests/test_assistant_speech_worker.py
+    - backend/tests/test_rest_api_audio.py
+    - frontend/apps/web_app/tests/skill-audio-speech-models.spec.ts
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/openmates-cli/tests/sdkGenerator.test.ts
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - packages/openmates-python/tests/test_sdk_generator.py
+    - scripts/ci_coverage.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:audio
+    - embed:audio:speak
+    - skill:audio:speak
+  - sha: 481c4fdafc768e3e2e4a402224e52ed7ec994333
+    short_sha: 481c4fdaf
+    authored_at: '2026-09-30T17:35:57+00:00'
+    subject: 'feat: stream independently validated workflow authoring nodes'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/workflow_authoring_compiler.py
+    - backend/core/api/app/services/workflow_authoring_preselection.py
+    - backend/core/api/app/services/workflow_gemini_authoring.py
+    - backend/scripts/compare_workflow_preselection.py
+    - backend/tests/test_workflow_authoring_compiler.py
+    - backend/tests/test_workflow_authoring_preselection.py
+    - backend/tests/test_workflow_gemini_authoring.py
+    related_feature_ids:
+    - platform:workflows
+  - sha: 44481b19cfbb1be601dd24946880d6115f54b7f2
+    short_sha: 44481b19c
+    authored_at: '2026-09-30T17:35:16+00:00'
+    subject: 'perf: cache recent workspaces and load task details by ID'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/user_tasks.py
+    - backend/tests/test_user_tasks_api.py
+    - docs/plans/web-workspace-navigation-cache/live-observations.json
+    - docs/plans/web-workspace-navigation-cache/plan.yml
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    - frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
+    - frontend/apps/web_app/tests/tasks-web-app-parity.spec.ts
+    - frontend/apps/web_app/tests/workflows-ui-contract.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/Header.svelte
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/plans/PlanDetailPage.svelte
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    - frontend/packages/ui/src/components/tasks/ActiveChatTaskPreview.svelte
+    - frontend/packages/ui/src/components/tasks/TaskDetailContent.svelte
+    - frontend/packages/ui/src/components/tasks/TaskDetailPage.svelte
+    - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+    - frontend/packages/ui/src/components/workspace/detailMetadataAdapters.ts
+    - frontend/packages/ui/src/services/__tests__/projectServiceCache.test.ts
+    - frontend/packages/ui/src/services/__tests__/recentChatWindowCache.test.ts
+    - frontend/packages/ui/src/services/__tests__/teamService.test.ts
+    - frontend/packages/ui/src/services/__tests__/userPlanService.test.ts
+    - frontend/packages/ui/src/services/__tests__/userTaskService.test.ts
+    - frontend/packages/ui/src/services/__tests__/workspacePrefetchService.test.ts
+    - frontend/packages/ui/src/services/__tests__/workspaceQueryCache.test.ts
+    - frontend/packages/ui/src/services/chatMetadataCache.ts
+    - frontend/packages/ui/src/services/cryptoKeyStorage.ts
+    - frontend/packages/ui/src/services/db/__tests__/recentChatMessageMutation.test.ts
+    - frontend/packages/ui/src/services/db/chatCrudOperations.ts
+    - frontend/packages/ui/src/services/db/messageOperations.ts
+    - frontend/packages/ui/src/services/encryption/ChatKeyManager.ts
+    - frontend/packages/ui/src/services/projectService.ts
+    - frontend/packages/ui/src/services/recentChatWindowCache.ts
+    - frontend/packages/ui/src/services/referralService.ts
+    - frontend/packages/ui/src/services/teamService.ts
+    - frontend/packages/ui/src/services/userPlanService.ts
+    - frontend/packages/ui/src/services/userTaskService.ts
+    - frontend/packages/ui/src/services/workspaceCacheLifecycle.ts
+    - frontend/packages/ui/src/services/workspacePrefetchService.ts
+    - frontend/packages/ui/src/services/workspaceQueryCache.ts
+    - frontend/packages/ui/src/stores/__tests__/workflowWorkspaceStore.test.ts
+    - frontend/packages/ui/src/stores/authLoginLogoutActions.ts
+    - frontend/packages/ui/src/stores/authSessionActions.ts
+    - frontend/packages/ui/src/stores/teamStore.ts
+    - frontend/packages/ui/src/stores/workflowWorkspaceStore.ts
+    - frontend/packages/ui/src/utils/contentCache.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:plans
+    - platform:projects
+    - platform:tasks
+    - platform:workflows
+  - sha: 9a24676abe3ec01c4b02d6d7af5d7ad91aa768a6
+    short_sha: 9a24676ab
+    authored_at: '2026-09-30T17:22:13+00:00'
+    subject: 'fix: raise isolated CI capacity to ten concurrent jobs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/isolated-github-tests.md
+    - scripts/ci_coordinator.py
+    - scripts/tests/test_ci_coordinator.py
+    related_feature_ids: []
+  - sha: 717bcdbc20a2cbc102ce0175de3ceedaabe9f141
+    short_sha: 717bcdbc2
+    authored_at: '2026-09-30T17:20:37+00:00'
+    subject: 'docs: optimize Apple TestFlight release workflow'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/ios/SKILL.md
+    - .claude/skills/ios/SKILL.md
+    - docs/architecture/apple/testflight-release.md
+    related_feature_ids: []
+  - sha: 98692d909896be81372dffa4b209def94b81d9d1
+    short_sha: 98692d909
+    authored_at: '2026-09-30T16:59:02+00:00'
+    subject: 'fix: publish Apple parity web support and previews'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/dev/preview/[...path]/+page.svelte
+    - frontend/apps/web_app/static/.well-known/apple-app-site-association
+    - frontend/apps/web_app/static/images/examples/group1.jpg
+    - frontend/apps/web_app/tests/apple-embed-rendering-contracts.spec.ts
+    - frontend/apps/web_app/tests/components/image-result-fullscreen-proxy.spec.ts
+    - frontend/apps/web_app/tests/components/music-fullscreen-responsive.spec.ts
+    - frontend/apps/web_app/tests/components/pdf-fullscreen-fallback-icon.spec.ts
+    - frontend/apps/web_app/tests/components/pdf-preview-fallback-icon.spec.ts
+    - frontend/apps/web_app/tests/dev-preview.spec.ts
+    - frontend/apps/web_app/tests/plan-detail-preview.spec.ts
+    - frontend/apps/web_app/tests/push-subscription-lifecycle.spec.ts
+    - frontend/packages/ui/scripts/build-tokens.js
+    - frontend/packages/ui/src/components/ChatSearchSuggestions.svelte
+    - frontend/packages/ui/src/components/NewChatSuggestions.svelte
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/images/ImageResultEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/images/ImageResultEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/images/ImageResultEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/images/ImageResultEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/music/MusicGenerateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/pdf/PDFEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/pdf/PDFEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/sheets/SheetEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/plans/PlanDetailPage.preview.ts
+    - frontend/packages/ui/src/components/plans/PlanDetailPage.svelte
+    - frontend/packages/ui/src/components/projects/ProjectBrowserItem.svelte
+    - frontend/packages/ui/src/components/projects/ProjectReadme.svelte
+    - frontend/packages/ui/src/components/projects/ProjectWorkspaceHeader.svelte
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowHomePreviewHarness.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/suggestions.yml
+    - frontend/packages/ui/src/i18n/sources/chats.yml
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - frontend/packages/ui/src/i18n/sources/projects.yml
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    - frontend/packages/ui/src/i18n/sources/tasks.yml
+    - frontend/packages/ui/src/i18n/sources/workflows.yml
+    - frontend/packages/ui/static/licenses/lucide-svelte.txt
+    - frontend/packages/ui/static/licenses/meteocons.txt
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - embed:images:image_result
+    - embed:images:search
+    - embed:music:generate
+    - embed:pdf:pdf
+    - platform:projects
+  - sha: 865ab7b6ae0c5d58cc5a8f4d17912822b0115f64
+    short_sha: 865ab7b6a
+    authored_at: '2026-09-30T16:37:02+00:00'
+    subject: 'fix: simplify provider workflow argument grammar'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/workflow_gemini_authoring.py
+    related_feature_ids:
+    - platform:workflows
+  - sha: 7ada0ee45cd93204a24412876bcefd6a5905730d
+    short_sha: 7ada0ee45
+    authored_at: '2026-09-30T18:29:36+02:00'
+    subject: 'fix: sign iOS app with native shared-link domains'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Resources/OpenMatesPasskey.entitlements
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 481a08051c93b9516b5cb3495bd5cc64b81f5110
+    short_sha: 481a08051
+    authored_at: '2026-09-30T16:21:13+00:00'
+    subject: 'fix: bound workflow provider grammar complexity'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/workflow_gemini_authoring.py
+    - backend/tests/test_workflow_gemini_authoring.py
+    related_feature_ids:
+    - platform:workflows
+  - sha: fa9d08d3c3eb1cb14dfe022e533fa8fa918b8d34
+    short_sha: fa9d08d3c
+    authored_at: '2026-09-30T16:08:26+00:00'
+    subject: 'fix: constrain authoring steps to selected skill grammar'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/workflow_gemini_authoring.py
+    - backend/tests/test_workflow_gemini_authoring.py
+    related_feature_ids:
+    - platform:workflows
+  - sha: 88243115573bf620bf5210fd6a9a228d858c0fe6
+    short_sha: '882431155'
+    authored_at: '2026-09-30T18:05:19+02:00'
+    subject: 'fix: restore Apple chat and workspace parity'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates.xcodeproj/xcshareddata/xcschemes/OpenMatesWatch.xcscheme
+    - apple/OpenMates.xcodeproj/xcshareddata/xcschemes/OpenMatesWatchUITests.xcscheme
+    - apple/OpenMates.xcodeproj/xcshareddata/xcschemes/OpenMates_iOS.xcscheme
+    - apple/OpenMates.xcodeproj/xcshareddata/xcschemes/OpenMates_iOS_UI_Tests.xcscheme
+    - apple/OpenMates.xcodeproj/xcshareddata/xcschemes/OpenMates_iOS_Unit_Tests.xcscheme
+    - apple/OpenMates.xcodeproj/xcshareddata/xcschemes/OpenMates_macOS.xcscheme
+    - apple/OpenMates/Resources/BrandAssets.xcassets/mate-general-knowledge.imageset/Contents.json
+    - apple/OpenMates/Resources/BrandAssets.xcassets/mate-general-knowledge.imageset/general_knowledge.jpeg
+    - apple/OpenMates/Resources/Info.plist
+    - apple/OpenMates/Resources/MermaidRuntime/LICENSE
+    - apple/OpenMates/Resources/MermaidRuntime/mermaid.min.js
+    - apple/OpenMates/Resources/OpenMatesMacOS.entitlements
+    - apple/OpenMates/Resources/OpenMatesPasskey.entitlements
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/App/RootView.swift
+    - apple/OpenMates/Sources/App/SceneDelegate.swift
+    - apple/OpenMates/Sources/Core/Crypto/ChatKeyManager.swift
+    - apple/OpenMates/Sources/Core/Crypto/CryptoManager.swift
+    - apple/OpenMates/Sources/Core/Crypto/ShareLinkCrypto.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/Core/Networking/APIClient.swift
+    - apple/OpenMates/Sources/Core/Networking/AudioRealtimeTranscriptionClient.swift
+    - apple/OpenMates/Sources/Core/Networking/CodeRunService.swift
+    - apple/OpenMates/Sources/Core/Networking/DeepLinkHandler.swift
+    - apple/OpenMates/Sources/Core/Networking/NativeLifecycleAcknowledgement.swift
+    - apple/OpenMates/Sources/Core/Networking/PushNotificationManager.swift
+    - apple/OpenMates/Sources/Core/Networking/S3MediaClient.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/Core/Teams/TeamWorkspaceContext.swift
+    - apple/OpenMates/Sources/Core/Teams/TeamWorkspaceContextSelector.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchCanonicalStorage.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchChatRuntime.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchEmbedPreviewModel.swift
+    - apple/OpenMates/Sources/DevPreview/DevComponentPreviewView.swift
+    - apple/OpenMates/Sources/DevPreview/DevComposerSearchPreview.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewGalleryView.swift
+    - apple/OpenMates/Sources/DevPreview/DevHistoryWelcomeFixtures.swift
+    - apple/OpenMates/Sources/DevPreview/DevPreviewLaunchConfiguration.swift
+    - apple/OpenMates/Sources/Features/Auth/ViewModels/AuthManager.swift
+    - apple/OpenMates/Sources/Features/Chat/Input/ComposerSearchSuggestions.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatSearchView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/DailyInspirationView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/SubChatBatchView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedGrouping.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/CodeRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/DocumentCanvas.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/EventEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/EventsSearchEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/ImageEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/ImageGenerateEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/ImageResultEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/ImagesSearchEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MediaRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MindMapEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MiscRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/RemotionVideoCreateRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/SearchDomainRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/SearchEmbedModels.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/SearchResultsRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/TravelConnectionEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/WebReadEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/WebSearchEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/WebsiteEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/WikiRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedBasicInfoBar.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectFileReviewCoordinator.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectHostedFileExecutor.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectHostedPatch.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectHostedPathPolicy.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectHostedWorkspaceAdapter.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectIgnoredReadGrant.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectRemoteBridgeCrypto.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectRemoteCommandCoordinator.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectRemoteSourceClient.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectReviewCards.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectReviewContextResolver.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectReviewFixtures.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectUploadService.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectWorkspaceReviewRuntime.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectsSidebarView.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectsWorkspaceModels.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectsWorkspacePreviewFixture.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectsWorkspaceService.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectsWorkspaceStore.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectsWorkspaceView.swift
+    - apple/OpenMates/Sources/Features/Settings/Privacy/SettingsPrivacyContentView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsAppsFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsBillingView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsDeveloperFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsHidePersonalDataView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsProjectsView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsServerView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSharedView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsStorageFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSubPages.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSupportView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    - apple/OpenMates/Sources/Features/Tasks/PlanDetailView.swift
+    - apple/OpenMates/Sources/Features/Tasks/TaskDetailView.swift
+    - apple/OpenMates/Sources/Features/Tasks/TaskModels.swift
+    - apple/OpenMates/Sources/Features/Tasks/TasksWorkspaceStore.swift
+    - apple/OpenMates/Sources/Features/Tasks/TasksWorkspaceView.swift
+    - apple/OpenMates/Sources/Features/Tasks/UserPlanModels.swift
+    - apple/OpenMates/Sources/Features/Tasks/UserPlansService.swift
+    - apple/OpenMates/Sources/Features/Tasks/UserTasksService.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowAIAuthoringController.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowAIAuthoringService.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowAPI.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowAskAIHints.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowChatDestinationPicker.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowDetailHeader.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowGraphEditing.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowGraphReordering.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowGraphView.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowHomeView.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowMessageTemplateEditor.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowMessageTokens.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowModels.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowPendingPreviewView.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowPromptComposerView.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowRequestScope.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowRunTimelineView.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowSchemaInputView.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowShortTemplatePreviewHost.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowStepTestController.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowStepTestService.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowStore.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowTemplateProjection.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowTemplateShareService.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowTemplateShareView.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowValueView.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowViews.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowVoiceInputView.swift
+    - apple/OpenMates/Sources/Shared/Components/AppIconView.swift
+    - apple/OpenMates/Sources/Shared/Components/ChatHistoryRenderDocument.swift
+    - apple/OpenMates/Sources/Shared/Components/Icon.swift
+    - apple/OpenMates/Sources/Shared/Components/NetworkStatusView.swift
+    - apple/OpenMates/Sources/Shared/Components/ProgressiveMarkdownRenderProjection.swift
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+    - apple/OpenMates/Sources/Shared/Components/SharedLinkBrowserView.swift
+    - apple/OpenMates/Sources/Shared/Components/ToastNotification.swift
+    - apple/OpenMates/Sources/Shared/Components/WorkspacePromptComposerView.swift
+    - apple/OpenMatesTests/APIClientUploadTransportTests.swift
+    - apple/OpenMatesTests/APIResponseDecodingDiagnosticsTests.swift
+    - apple/OpenMatesTests/AppDeepLinkRoutingTests.swift
+    - apple/OpenMatesTests/AppSkillUseDispatchParityTests.swift
+    - apple/OpenMatesTests/AudioRealtimeTranscriptionClientTests.swift
+    - apple/OpenMatesTests/ChatHistoryRenderDocumentTests.swift
+    - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+    - apple/OpenMatesTests/ChatSyncParityTests.swift
+    - apple/OpenMatesTests/CodeRunOutputSyncTests.swift
+    - apple/OpenMatesTests/ComposerSearchSuggestionTests.swift
+    - apple/OpenMatesTests/DocumentCanvasTests.swift
+    - apple/OpenMatesTests/EmbedDiffEditingParityTests.swift
+    - apple/OpenMatesTests/EmbedWireFormatTests.swift
+    - apple/OpenMatesTests/ExternalLinkDeliveryTests.swift
+    - apple/OpenMatesTests/MermaidDiagramParityTests.swift
+    - apple/OpenMatesTests/ProjectWorkspaceReviewRuntimeTests.swift
+    - apple/OpenMatesTests/ProjectsWorkspaceTests.swift
+    - apple/OpenMatesTests/PublicImageLoaderTests.swift
+    - apple/OpenMatesTests/SearchDomainRenderersTests.swift
+    - apple/OpenMatesTests/SettingsFullParityTests.swift
+    - apple/OpenMatesTests/ShortWorkflowShareTests.swift
+    - apple/OpenMatesTests/SkillApplicationParityTests.swift
+    - apple/OpenMatesTests/StreamingClientFanoutTests.swift
+    - apple/OpenMatesTests/SubChatProcessingTests.swift
+    - apple/OpenMatesTests/TasksWorkspaceTests.swift
+    - apple/OpenMatesTests/TeamWorkspaceContextTests.swift
+    - apple/OpenMatesTests/WatchCanonicalStorageTests.swift
+    - apple/OpenMatesTests/WatchChatRuntimeTests.swift
+    - apple/OpenMatesTests/WatchEmbedPreviewTests.swift
+    - apple/OpenMatesTests/WebSearchContractParityTests.swift
+    - apple/OpenMatesTests/WebSocketReconnectTests.swift
+    - apple/OpenMatesTests/WebSocketWaiterCancellationTests.swift
+    - apple/OpenMatesTests/WorkflowGraphEditingTests.swift
+    - apple/OpenMatesTests/WorkflowGraphReorderingTests.swift
+    - apple/OpenMatesTests/WorkflowMessageTokensTests.swift
+    - apple/OpenMatesTests/WorkflowStepTestServiceTests.swift
+    - apple/OpenMatesTests/WorkflowTemplateProjectionTests.swift
+    - apple/OpenMatesTests/WorkflowsParityTests.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    - apple/OpenMatesUITests/ChatNavigationParityUITests.swift
+    - apple/OpenMatesUITests/ComposerSearchSuggestionsUITests.swift
+    - apple/OpenMatesUITests/DevComponentPreviewUITests.swift
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    - apple/OpenMatesUITests/MermaidDiagramParityUITests.swift
+    - apple/OpenMatesUITests/SettingsFullParityUITests.swift
+    - apple/OpenMatesUITests/WorkflowsParityUITests.swift
+    - apple/OpenMatesWatch/Info.plist
+    - apple/OpenMatesWatch/Sources/OpenMatesWatchApp.swift
+    - apple/OpenMatesWatch/Sources/WatchAuthStore.swift
+    - apple/OpenMatesWatch/Sources/WatchChatViews.swift
+    - apple/OpenMatesWatch/Sources/WatchEmbedViews.swift
+    - apple/OpenMatesWatchUITests/WatchChatLayoutUITests.swift
+    - apple/project.yml
+    - backend/core/api/app/routes/connection_manager.py
+    - backend/core/api/app/routes/push.py
+    - backend/core/api/app/services/push_notification_service.py
+    - backend/core/api/app/services/push_subscription_lock.py
+    - backend/core/api/app/tasks/push_notification_task.py
+    - backend/core/api/app/tasks/push_worker_service.py
+    - backend/tests/test_foreground_push_delivery.py
+    - backend/tests/test_push_notification_worker.py
+    - backend/tests/test_unified_notifications.py
+    - backend/tests/test_websocket_set_active_chat.py
+    - docs/plans/apple-workspace-feature-parity/plan.yml
+    - scripts/apple_testflight_release.py
+    - scripts/tests/test_apple_testflight_release.py
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    related_feature_ids:
+    - platform:apple-watch
+    - platform:ios
+    - platform:macos
+  - sha: b916d250197aad370fd3dc6afef5dc336fe9b779
+    short_sha: b916d2501
+    authored_at: '2026-09-30T16:03:06+00:00'
+    subject: 'fix: constrain workflow authoring JSON transport'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/workflow_gemini_authoring.py
+    - backend/tests/test_workflow_gemini_authoring.py
+    related_feature_ids:
+    - platform:workflows
+  - sha: 63e2063d901d869e0f73c94c99754e396cdd2c05
+    short_sha: 63e2063d9
+    authored_at: '2026-09-30T15:55:59+00:00'
+    subject: 'fix: use valid compact workflow JSON and forecast data'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/weather/app.yml
+    - backend/core/api/app/services/workflow_authoring_compiler.py
+    - backend/core/api/app/services/workflow_gemini_authoring.py
+    - backend/scripts/benchmark_workflow_authoring.py
+    - backend/tests/test_workflow_authoring_benchmark.py
+    - backend/tests/test_workflow_authoring_compiler.py
+    - backend/tests/test_workflow_gemini_authoring.py
+    related_feature_ids:
+    - app:weather
+    - platform:workflows
+  - sha: 42f5c5daed5aa7ea8f97f03acea575c569cf69ae
+    short_sha: 42f5c5dae
+    authored_at: '2026-09-30T15:35:34+00:00'
+    subject: 'feat: extend registry workflow plans and streamed previews'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/workflow_authoring_compiler.py
+    - backend/core/api/app/services/workflow_authoring_preselection.py
+    - backend/core/api/app/services/workflow_gemini_authoring.py
+    - backend/tests/test_workflow_authoring_compiler.py
+    - backend/tests/test_workflow_authoring_preselection.py
+    - backend/tests/test_workflow_gemini_authoring.py
+    related_feature_ids:
+    - platform:workflows
+  - sha: 9a04319e591d55be841d7c86335752801d0fb8db
+    short_sha: 9a04319e5
+    authored_at: '2026-09-30T15:06:56+00:00'
+    subject: 'fix: guard compact workflow dates and branch continuations'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/workflow_authoring_compiler.py
+    - backend/core/api/app/services/workflow_gemini_authoring.py
+    - backend/tests/test_workflow_authoring_compiler.py
+    related_feature_ids:
+    - platform:workflows
+  - sha: 318dc8ca2dfa343af30d7150e2092115a494bd18
+    short_sha: 318dc8ca2
+    authored_at: '2026-09-30T14:57:05+00:00'
+    subject: 'feat: validate compact workflow JSON plans on the server'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/workflow_authoring_compiler.py
+    - backend/core/api/app/services/workflow_gemini_authoring.py
+    - backend/core/api/requirements.txt
+    - backend/tests/test_workflow_authoring_compiler.py
+    - backend/tests/test_workflow_gemini_authoring.py
+    related_feature_ids:
+    - platform:workflows
+  - sha: 33dfd827c6b79e03b0d3344d0b4199cd907d029d
+    short_sha: 33dfd827c
+    authored_at: '2026-09-30T14:46:02+00:00'
+    subject: 'fix: use Gemini structured response MIME enum'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/workflow_gemini_authoring.py
+    - backend/tests/test_workflow_gemini_authoring.py
+    related_feature_ids:
+    - platform:workflows
+  - sha: 00cf8a40098b667648c753748516c12cc48aaff2
+    short_sha: 00cf8a400
+    authored_at: '2026-09-30T14:39:13+00:00'
+    subject: 'feat: test compact workflow authoring with streamed Gemini output'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/workflow_authoring_compiler.py
+    - backend/core/api/app/services/workflow_capabilities.yml
+    - backend/core/api/app/services/workflow_capability_registry.py
+    - backend/core/api/app/services/workflow_gemini_authoring.py
+    - backend/core/api/app/services/workflow_models.py
+    - backend/scripts/benchmark_workflow_compact_authoring.py
+    - backend/tests/test_workflow_authoring_compiler.py
+    - backend/tests/test_workflow_builder_v1.py
+    - backend/tests/test_workflow_capability_metadata.py
+    - backend/tests/test_workflow_compact_authoring_benchmark.py
+    - backend/tests/test_workflow_gemini_authoring.py
+    - scripts/audit_workflow_capabilities.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:workflows
+  - sha: 2f15be72ad53cac38375da026ade09c7a8053e23
+    short_sha: 2f15be72a
+    authored_at: '2026-09-30T13:49:32+00:00'
+    subject: 'feat: record generic workflow authoring comparison'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/workflow_authoring_preselection.py
+    - backend/core/api/app/services/workflow_jev_constructor.py
+    - backend/scripts/benchmark_workflow_authoring.py
+    - backend/tests/test_workflow_authoring_benchmark.py
+    - docs/plans/workflow-ai-authoring/evidence/registry-authoring-comparison-2026-09-30.md
+    related_feature_ids:
+    - platform:workflows
+  - sha: ad0b9a3001dd6f46bdb2d04584c7356e5a789e8f
+    short_sha: ad0b9a300
+    authored_at: '2026-09-30T13:39:25+00:00'
+    subject: 'feat: export and import workflow YAML files'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_dependencies.py
+    - backend/core/api/app/routes/workflows.py
+    - backend/core/api/app/services/workflow_file_service.py
+    - backend/core/api/app/services/workflow_models.py
+    - backend/core/api/app/services/workflow_service.py
+    - backend/tests/test_workflow_file_import.py
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/cli-workflow-files.spec.ts
+    - frontend/apps/web_app/tests/components/workflow-binding-review.spec.ts
+    - frontend/apps/web_app/tests/components/workflow-detail-tabs.spec.ts
+    - frontend/apps/web_app/tests/workflow-files.spec.ts
+    - frontend/packages/openmates-cli/README.md
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/workflow-file.test.ts
+    - frontend/packages/ui/package.json
+    - frontend/packages/ui/src/components/projects/ProjectBrowserItem.svelte
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowBindingReview.preview.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowBindingReview.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowDetailPage.preview.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+    - frontend/packages/ui/src/i18n/sources/workflows.yml
+    - frontend/packages/ui/src/services/workflowFileService.ts
+    - frontend/packages/ui/src/stores/workflowWorkspaceStore.ts
+    - frontend/packages/workflowFile.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/features/workflows-ui/examples.yml
+    - specifications/features/workflows-ui/specification.yml
+    - specifications/features/workflows/examples.yml
+    - specifications/features/workflows/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - platform:projects
+    - platform:workflows
+  - sha: bd84c3890af35c88953ada0ea959e6e79ee91594
+    short_sha: bd84c3890
+    authored_at: '2026-09-30T13:15:44+00:00'
+    subject: 'fix: constrain workflow construction to V2 contracts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/workflow_authoring_preselection.py
+    - backend/core/api/app/services/workflow_jev_constructor.py
+    - backend/scripts/benchmark_workflow_authoring.py
+    - backend/tests/test_workflow_authoring_benchmark.py
+    related_feature_ids:
+    - platform:workflows
+  - sha: 811c3467a65b8c6275cbc08eccf3a3645472e398
+    short_sha: 811c3467a
+    authored_at: '2026-09-30T12:32:35+00:00'
+    subject: 'feat: add registry-driven workflow authoring comparison'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/workflow_authoring_preselection.py
+    - backend/core/api/app/services/workflow_capability_registry.py
+    - backend/core/api/app/services/workflow_jev_constructor.py
+    - backend/scripts/benchmark_workflow_authoring.py
+    - backend/tests/test_workflow_authoring_benchmark.py
+    - backend/tests/test_workflow_authoring_preselection.py
+    - docs/plans/workflow-ai-authoring/plan.yml
+    related_feature_ids:
+    - platform:workflows
+  - sha: a2d8f2c88cb410708ef7ef93d8ed1190b1fdff4f
+    short_sha: a2d8f2c88
+    authored_at: '2026-09-30T00:25:13+00:00'
+    subject: 'fix: use Gemini 3.8 when Jev workflow decisions fail'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/workflow_nl_planner.py
+    - backend/tests/test_workflow_nl_planner.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:workflows
+  - sha: 1cf90e40395e4d934884b90367d753253570a491
+    short_sha: 1cf90e403
+    authored_at: '2026-09-30T00:17:46+00:00'
+    subject: 'fix: guard natural-language workflow edits and scheduling'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/workflow_nl_planner.py
+    - backend/tests/test_workflow_nl_planner.py
+    - frontend/apps/web_app/tests/cli-workflows-natural-language-guards.spec.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:workflows
+llm_summary:
+  overview: OpenMates focused on significant internal advancements for the unreleased Workflows platform, achieved broader
+    feature parity across Apple devices, and implemented performance optimizations for workspace navigation.
+  released_changes: []
+  bug_fixes: []
+  unreleased_progress:
+  - text: The Workflows platform received a redesigned AI authoring experience featuring real-time streaming of validated
+      nodes, partial recovery from generation failures, and atomic save operations.
+    evidence:
+      commits:
+      - e915c0960
+      - 7292afb94
+      - cc4e80265
+      - 607cd834f
+      - 557ebc1b1
+      - be2e5ebe6
+      - 1448b2648
+      - 63e2063d9
+      - 1cf90e403
+      - aa996a127
+    release_status: dev_only
+  - text: OpenMates added the ability to export and import workflows using YAML files, facilitating easier sharing and versioning
+      for developers.
+    evidence:
+      commits:
+      - ad0b9a300
+    release_status: dev_only
+  - text: The project advanced Apple platform parity, including native shared-link domain signing for iOS and independent
+      push notification registration for Apple Watch.
+    evidence:
+      commits:
+      - '882431155'
+      - 98692d909
+      - 7ada0ee45
+      - 0b8108f0d
+    release_status: dev_only
+  - text: Audio capabilities were expanded with ElevenLabs v4 speech model support and refined pricing logic for assistant
+      speech.
+    evidence:
+      commits:
+      - bc0615e12
+      - 9868c2f14
+    release_status: dev_only
+  - text: Workspace navigation was optimized through new caching layers for recent chats and workspaces, improving load times
+      when switching between contexts.
+    evidence:
+      commits:
+      - 44481b19c
+      - 0983839a7
+      - cb431abdd
+      - 983fa46a4
+    release_status: dev_only
+  internal_progress:
+  - text: OpenMates increased isolated CI capacity to ten concurrent jobs to improve test throughput.
+    evidence:
+      commits:
+      - 9a24676ab
+    release_status: dev_only
+  - text: Documentation was updated to reflect new workspace navigation caching strategies and optimized Apple TestFlight
+      release workflows.
+    evidence:
+      commits:
+      - 51c32683b
+      - 717bcdbc2
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: Redesigned AI authoring and streaming validation for Workflows.
+      evidence:
+        commits:
+        - e915c0960
+        - 7292afb94
+        - cc4e80265
+      reason: The Workflows platform is currently disabled and these changes are marked as dev-only.
+    - text: Feature parity and platform signing updates for Apple devices.
+      evidence:
+        commits:
+        - '882431155'
+        - 98692d909
+        - 7ada0ee45
+      reason: Apple platforms (iOS, macOS, Watch) are currently disabled and these changes are marked as dev-only.
+    - text: Integration of ElevenLabs v4 speech models.
+      evidence:
+        commits:
+        - bc0615e12
+      reason: This update is marked as dev-only and not yet ready for public communication.
+    rationale: No changes from this period are eligible for the newsletter as all work is currently restricted to the development
+      environment (dev_only) and associated with disabled features.
+  social_video_recommendations:
+  - idea: A demonstration of the redesigned Workflows AI authoring, showing how the system streams validated nodes and handles
+      partial recovery during generation.
+    priority: High
+    reason: This represents a major functional update to the Workflows platform with a strong visual component.
+    evidence:
+      commits:
+      - e915c0960
+      - 7292afb94
+      - cc4e80265
+  - idea: A showcase of OpenMates running on Apple Watch, highlighting independent push notification support and UI parity
+      with the mobile app.
+    priority: Medium
+    reason: Demonstrates the expanding ecosystem and multi-device support, even while in development.
+    evidence:
+      commits:
+      - 0b8108f0d
+      - '882431155'
+  quality_notes:
+  - Heavy development focus on the unreleased Workflows platform, specifically around AI authoring and streaming reliability.
+  - Substantial effort toward bringing iOS, macOS, and Apple Watch applications to feature parity with the web experience.
+  - Performance-oriented updates to workspace and chat navigation caching to reduce perceived latency.
+  validation_warnings: []

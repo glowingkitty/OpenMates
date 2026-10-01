@@ -92,6 +92,8 @@ async def _charge_video_generation_credits(
     chat_id: Optional[str],
     message_id: Optional[str],
     log_prefix: str,
+    team_id: Optional[str] = None,
+    event_id: Optional[str] = None,
 ) -> None:
     try:
         headers = {"Content-Type": "application/json"}
@@ -131,15 +133,19 @@ async def _charge_video_generation_credits(
                 "server_region": "US",
             },
         }
+        from backend.shared.python_utils.team_skill_billing import skill_billing_request
+        billing_path, charge_payload = skill_billing_request(charge_payload, team_id, event_id=event_id or "")
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.post(
-                f"{INTERNAL_API_BASE_URL}/internal/billing/charge",
+                f"{INTERNAL_API_BASE_URL}{billing_path}",
                 json=charge_payload,
                 headers=headers,
             )
             response.raise_for_status()
     except Exception as exc:
         logger.error("%s Failed to charge video generation credits: %s", log_prefix, exc, exc_info=True)
+        if team_id:
+            raise
 
 
 @app.task(bind=True, name="apps.videos.tasks.skill_generate", base=BaseServiceTask, queue="app_videos", soft_time_limit=600, time_limit=660)
@@ -183,12 +189,16 @@ async def _async_generate_video(task: BaseServiceTask, app_id: str, skill_id: st
         requested_duration_seconds = _normalize_veo_duration_seconds(arguments.get("duration_seconds"))
         requested_resolution = _normalize_veo_resolution(arguments.get("resolution", "720p"))
         estimated_credits = _estimate_veo_generation_credits(model, requested_resolution, requested_duration_seconds)
-        await ensure_credit_headroom(
-            user_id=user_id,
-            estimated_credits=estimated_credits,
-            log_prefix=log_prefix,
-            operation_name="video generation",
-        )
+        if arguments.get("team_id"):
+            from backend.shared.python_utils.team_skill_billing import ensure_team_skill_credit_headroom
+            await ensure_team_skill_credit_headroom(task._directus_service, arguments["team_id"], user_id, estimated_credits)
+        else:
+            await ensure_credit_headroom(
+                user_id=user_id,
+                estimated_credits=estimated_credits,
+                log_prefix=log_prefix,
+                operation_name="video generation",
+            )
 
         generated = await generate_video_google_veo(
             prompt=prompt,
@@ -201,7 +211,7 @@ async def _async_generate_video(task: BaseServiceTask, app_id: str, skill_id: st
         )
         generated_at = datetime.now(timezone.utc).isoformat()
         hashed_user_id = _hash_value(user_id)
-        if not external_request:
+        if not external_request or arguments.get("team_id"):
             await _charge_video_generation_credits(
                 user_id,
                 hashed_user_id,
@@ -214,6 +224,8 @@ async def _async_generate_video(task: BaseServiceTask, app_id: str, skill_id: st
                 chat_id,
                 message_id,
                 log_prefix,
+                team_id=arguments.get("team_id"),
+                event_id=str(arguments.get("embed_id") or task.request.id),
             )
 
         success, user_profile, error_msg = await task._directus_service.get_user_profile(user_id)
@@ -352,6 +364,7 @@ async def _async_generate_video(task: BaseServiceTask, app_id: str, skill_id: st
                 "visual_watermark": False,
                 "provider_watermarking": "SynthID",
             },
+            **({"team_id": arguments["team_id"]} if arguments.get("team_id") else {}),
         }
         if not external_request:
             result["aes_key"] = aes_key_b64

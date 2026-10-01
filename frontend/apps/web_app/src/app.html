@@ -12,7 +12,7 @@
 			 preventing iOS Safari from auto-zooming on input focus (all inputs use font-size >= 1rem = 16px).
 			 WCAG 2.1 SC 1.4.4 requires content to be resizable up to 200% without loss of functionality. -->
 		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
-		<!-- iOS Safari uses theme-color for the status bar and overscroll area.
+		<!-- Older Safari versions use theme-color for the status bar and overscroll area.
 		     Keep this app-theme-driven instead of OS-media-driven so manual dark/light
 		     mode matches Safari chrome even when it differs from iOS appearance. -->
 		<meta name="theme-color" content="#ffffff" />
@@ -62,14 +62,18 @@
 				left: 0;
 				right: 0;
 				width: 100vw;
-				height: 8px;
+				/* Safari's direct edge background detection requires a border box
+				   taller than 10px; smaller strips fall back to pixel sampling. */
+				height: 12px;
 				background-color: #ffffff;
 				pointer-events: none;
 				z-index: 2147483647;
 			}
 
 			.safari-browser-tint-sampler.top {
-				top: 0;
+				/* Keep the 12px border box for Safari's direct-color detection, but
+				   expose only 1px at the top edge so header tabs stay unobscured. */
+				top: -11px;
 			}
 
 			.safari-browser-tint-sampler.bottom {

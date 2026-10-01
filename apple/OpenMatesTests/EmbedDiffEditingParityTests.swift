@@ -8,6 +8,74 @@ import XCTest
 @testable import OpenMates
 
 final class EmbedDiffEditingParityTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testSourceQuoteScrollPositionCentersMeasuredExcerptAndClampsDocumentEdges() {
+        let contentHeight: CGFloat = 3688.7
+        let viewportHeight: CGFloat = 874
+        let sourceMidY: CGFloat = 2202.7 + 92 / 2
+        let anchor = SourceQuoteScrollPosition.unitAnchorY(sourceMidY: sourceMidY,
+            contentHeight: contentHeight, viewportHeight: viewportHeight)
+        let offset = anchor * (contentHeight - viewportHeight)
+        XCTAssertEqual(sourceMidY - offset, viewportHeight / 2, accuracy: 0.01,
+                       "The real failed source position must move to the visible viewport center")
+        XCTAssertEqual(SourceQuoteScrollPosition.unitAnchorY(sourceMidY: 10,
+            contentHeight: contentHeight, viewportHeight: viewportHeight), 0)
+        XCTAssertEqual(SourceQuoteScrollPosition.unitAnchorY(sourceMidY: contentHeight - 10,
+            contentHeight: contentHeight, viewportHeight: viewportHeight), 1)
+        XCTAssertEqual(SourceQuoteScrollPosition.unitAnchorY(sourceMidY: 200,
+            contentHeight: 400, viewportHeight: viewportHeight), 0)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    @MainActor
+    func testSourceQuoteCanReachProviderReadResultsWithoutLegacyTopLevelContent() {
+        let raw: [String: AnyCodable] = ["results": AnyCodable([
+            ["markdown": "First provider paragraph."],
+            ["content": "The quoted source paragraph."]
+        ])]
+        let source = WebReadEmbedRenderer.sourceContent(in: raw)
+        XCTAssertEqual(source, "First provider paragraph.\n\nThe quoted source paragraph.")
+        XCTAssertNotNil(source.flatMap { SourceQuoteMatcher.range(in: $0, quote: "The quoted source paragraph") })
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testSourceQuoteMatchingPreservesOriginalUnicodeOffsetsAndNormalizesTypography() {
+        let source = "🌱 Intro. Svelte’s new system — with smart quotes…\n   updates the DOM."
+        let quote = "Svelte's new system - with smart quotes... updates the DOM."
+        let range = SourceQuoteMatcher.range(in: source, quote: quote)
+        XCTAssertNotNil(range)
+        XCTAssertEqual(range.map { (source as NSString).substring(with: $0) },
+                       "Svelte’s new system — with smart quotes…\n   updates the DOM.")
+        XCTAssertEqual(SourceQuoteMatcher.range(in: "  Source     words", quote: "source words"),
+                       NSRange(location: 2, length: 16))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testSourceQuoteMatchingUsesVerifiedExcerptFallbackWithoutHighlightingUnrelatedText() {
+        let source = "Instead of virtual DOM diffing, Svelte writes code that updates the DOM when state changes."
+        let quote = "Svelte writes code that updates the DOM when state changes and performs extra work."
+        let range = SourceQuoteMatcher.range(in: source, quote: quote)
+        XCTAssertEqual(range.map { (source as NSString).substring(with: $0) },
+                       "Svelte writes code that updates the DOM when state changes")
+        XCTAssertNil(SourceQuoteMatcher.range(in: source, quote: "There is completely unrelated text in this verified source quotation"))
+        XCTAssertNil(SourceQuoteMatcher.range(in: source, quote: " \n "))
+        XCTAssertNil(SourceQuoteMatcher.range(in: source, quote: nil))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    @MainActor
+    func testSourceQuoteHighlightColorsOnlyMatchedSourceCharacters() throws {
+        let source = "Before. Quoted excerpt. After."
+        let attributed = SourceQuoteMatcher.attributed(source, range: SourceQuoteMatcher.range(in: source, quote: "Quoted excerpt"))
+        let coloredRuns = attributed.runs.filter { $0.backgroundColor != nil }
+        XCTAssertEqual(coloredRuns.count, 1)
+        let run = try XCTUnwrap(coloredRuns.first)
+        XCTAssertEqual(String(attributed[run.range].characters), "Quoted excerpt")
+        XCTAssertEqual(run.backgroundColor, Color.highlightYellowSolid.opacity(0.4))
+        XCTAssertEqual(String(attributed.characters), source)
+        XCTAssertTrue(SourceQuoteMatcher.attributed(source, range: nil).runs.allSatisfy { $0.backgroundColor == nil })
+    }
+
     // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity
     func testFullscreenSelectionSurvivesHydrationReorderAndRemovalByIdentity() {
         let a = embed(id: "a", type: "web-website")
@@ -306,6 +374,98 @@ final class EmbedDiffEditingParityTests: XCTestCase {
 
 @MainActor
 final class EmbedHeaderActionLayoutParityTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testHealthMapStartsAtPanelEdgeWhileCTAOwnsItsFullHitBounds() {
+        let mapped = HealthAppointmentModel(["latitude": .init(48.137), "longitude": .init(11.575)])
+        let unmapped = HealthAppointmentModel(["telehealth": .init(true)])
+        XCTAssertNotNil(mapped.mapConfiguration)
+        XCTAssertNil(unmapped.mapConfiguration)
+        let underlap = EmbedFullscreenHeaderLayout.healthMapUnderlap(
+            hasHeaderCTA: true, hasMap: mapped.mapConfiguration != nil)
+        XCTAssertEqual(underlap, 22)
+        for width: CGFloat in [402, 1_100] {
+            let panelHeight = EmbedFullscreenHeaderLayout.height(
+                viewportWidth: width, fallbackCompact: false, topContentInset: 62)
+            let fullHeaderHitHeight = panelHeight + 22
+            XCTAssertEqual(fullHeaderHitHeight - underlap, panelHeight)
+        }
+        XCTAssertEqual(EmbedFullscreenHeaderLayout.healthMapUnderlap(hasHeaderCTA: false, hasMap: true), 0)
+        XCTAssertEqual(EmbedFullscreenHeaderLayout.healthMapUnderlap(
+            hasHeaderCTA: true, hasMap: unmapped.mapConfiguration != nil), 0)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testHealthCalendarAvailabilityGroupsShareOnlyOnPhoneAndExportsWebContext() throws {
+        let data: [String: AnyCodable] = ["slot_datetime": .init("2026-04-03T10:30:00+02:00"),
+            "name": .init("Dr. Example"), "speciality": .init("Cardiology"),
+            "address": .init("Example Street 1\nMunich"), "service_name": .init("Consultation"),
+            "provider_platform": .init("Doctolib"), "price": .init(120),
+            "booking_url": .init("https://www.doctolib.de/example")]
+        let file = try XCTUnwrap(HealthAppointmentCalendarFile.make(data, now: Date(timeIntervalSince1970: 0)))
+        XCTAssertTrue(EmbedHeaderActionPolicy.usesMore(width: 402, actionCount: 1))
+        XCTAssertFalse(EmbedHeaderActionPolicy.usesMore(width: 860, actionCount: 1))
+        XCTAssertEqual(file.filename, "dr-example-cardiology-2026-04-03.ics")
+        XCTAssertTrue(file.content.contains("DTSTART:20260403T083000Z\r\nDTEND:20260403T093000Z"))
+        XCTAssertTrue(file.content.contains("SUMMARY:Dr. Example - Cardiology"))
+        XCTAssertTrue(file.content.contains("LOCATION:Example Street 1\\nMunich"))
+        let unfolded = file.content.replacingOccurrences(of: "\r\n ", with: "")
+        XCTAssertTrue(unfolded.contains("DESCRIPTION:Speciality: Cardiology\\nService: Consultation\\nProvider: Doctolib\\nPrice: 120 EUR\\nhttps://www.doctolib.de/example"))
+        XCTAssertTrue(unfolded.contains("URL:https://www.doctolib.de/example"))
+        XCTAssertTrue(unfolded.contains("DTSTAMP:19700101T000000Z"))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testCalendarParsesProviderLocalTimeFractionalOffsetAndExclusiveAllDayEnd() throws {
+        let zone = try XCTUnwrap(TimeZone(secondsFromGMT: 7_200))
+        let local = try XCTUnwrap(EmbedCalendarFile.build(title: "Appointment", start: "2026-04-03T10:30:00",
+            location: nil, description: nil, url: nil, timeZone: zone))
+        XCTAssertTrue(local.content.contains("DTSTART:20260403T083000Z"))
+        let fractional = try XCTUnwrap(EmbedCalendarFile.build(title: "Appointment", start: "2026-04-03T10:30:00.123+02:00",
+            location: nil, description: nil, url: nil, timeZone: zone))
+        XCTAssertTrue(fractional.content.contains("DTSTART:20260403T083000Z"))
+        let allDay = try XCTUnwrap(EmbedCalendarFile.build(title: "Appointment", start: "2026-04-03",
+            location: nil, description: nil, url: nil, timeZone: zone))
+        XCTAssertTrue(allDay.content.contains("DTSTART;VALUE=DATE:20260403\r\nDTEND;VALUE=DATE:20260404"))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testInvalidAppointmentDateDoesNotExposeCalendarAction() {
+        for value in ["", "not a date", "2026-02-30T10:30:00", "2026-04-03T25:30:00",
+                      "2026-04-03T10:30:00+99:00", "2026-04-03T10:30:00-99:00",
+                      "2026-04-03T10:30:00+24:00", "2026-04-03T10:30:00+01:60",
+                      "2026-04-03T10:30:00Z\r\nBEGIN:VEVENT"] {
+            XCTAssertNil(HealthAppointmentCalendarFile.make(["slot_datetime": .init(value)]), value)
+        }
+        XCTAssertNil(HealthAppointmentCalendarFile.make([:]))
+        XCTAssertFalse(EmbedHeaderActionPolicy.usesMore(width: 402, actionCount: 0))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testCalendarEscapesPropertyInjectionAndFoldsUnicodeWithoutSplittingUTF8() throws {
+        let title = "Dr. Müller, Example; \\ Notes\r\nInjected: text"
+        let file = try XCTUnwrap(EmbedCalendarFile.build(title: title, start: "2026-04-03T10:30:00Z",
+            location: "Street\rOther", description: String(repeating: "München ", count: 30), url: nil))
+        XCTAssertTrue(file.content.contains("SUMMARY:Dr. Müller\\, Example\\; \\\\ Notes\\nInjected: text"))
+        XCTAssertTrue(file.content.contains("LOCATION:Street\\nOther"))
+        XCTAssertFalse(file.content.contains("\r\nInjected:"))
+        for line in file.content.components(separatedBy: "\r\n") { XCTAssertLessThanOrEqual(line.utf8.count, 75) }
+        let unfolded = file.content.replacingOccurrences(of: "\r\n ", with: "")
+        XCTAssertTrue(unfolded.contains("DESCRIPTION:" + String(repeating: "München ", count: 30)))
+        XCTAssertTrue(file.filename.hasSuffix(".ics"))
+        XCTAssertFalse(file.filename.contains("/"))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chats.persistence.client-encrypted
+    func testCalendarContextHonorsDisplayedPIIMasking() throws {
+        let file = try XCTUnwrap(HealthAppointmentCalendarFile.make([
+            "slot_datetime": .init("2026-04-03T10:30:00Z"), "name": .init("Synthetic original"),
+            "address": .init("Synthetic original"), "service_name": .init("Synthetic original")
+        ], renderText: { $0.replacingOccurrences(of: "Synthetic original", with: "Masked") }))
+        XCTAssertFalse(file.content.contains("Synthetic original"))
+        XCTAssertTrue(file.content.contains("SUMMARY:Masked"))
+        XCTAssertTrue(file.content.contains("LOCATION:Masked"))
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testWebSearchKeepsShareDirectAtPhoneWidth() {
         XCTAssertFalse(EmbedHeaderActionPolicy.usesMore(width: 390, actionCount: 0))

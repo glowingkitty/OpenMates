@@ -385,6 +385,105 @@ social_media.description:
   sv: Undersök inlägg, kommentarer och communitysamtal.
   he: חקור פוסטים, תגובות ושיחות קהילה.
   verified_by_human: [en, de]
+hosting:
+  context: "App name for the Hosting app"
+  en: "Hosting"
+  de: "Hosting"
+  zh: "主机托管"
+  es: "Alojamiento"
+  fr: "Hébergement"
+  pt: "Hospedagem"
+  ru: "Хостинг"
+  ja: "ホスティング"
+  ko: "호스팅"
+  it: "Hosting"
+  tr: "Barındırma"
+  vi: "Lưu trữ web"
+  id: "Hosting"
+  pl: "Hosting"
+  nl: "Hosting"
+  ar: "الاستضافة"
+  hi: "होस्टिंग"
+  th: "โฮสติ้ง"
+  cs: "Hosting"
+  sv: "Webbhotell"
+  he: "אחסון אתרים"
+  verified_by_human: []
+
+hosting.description:
+  context: "Description for the Hosting app"
+  en: "Find domain names and check availability and prices."
+  de: "Domainnamen finden und Verfügbarkeit und Preise prüfen."
+  zh: "查找域名并查看可用性和价格。"
+  es: "Encuentra nombres de dominio y consulta su disponibilidad y precios."
+  fr: "Trouvez des noms de domaine et vérifiez leur disponibilité et leurs prix."
+  pt: "Encontre nomes de domínio e verifique a disponibilidade e os preços."
+  ru: "Находите доменные имена и проверяйте доступность и цены."
+  ja: "ドメイン名を探し、空き状況と料金を確認します。"
+  ko: "도메인 이름을 찾고 사용 가능 여부와 가격을 확인하세요."
+  it: "Trova nomi di dominio e verifica disponibilità e prezzi."
+  tr: "Alan adları bulun, müsaitliklerini ve fiyatlarını kontrol edin."
+  vi: "Tìm tên miền và kiểm tra tình trạng còn trống cùng giá cả."
+  id: "Temukan nama domain dan periksa ketersediaan serta harganya."
+  pl: "Znajdź nazwy domen i sprawdź ich dostępność oraz ceny."
+  nl: "Zoek domeinnamen en controleer beschikbaarheid en prijzen."
+  ar: "اعثر على أسماء النطاقات وتحقق من توفرها وأسعارها."
+  hi: "डोमेन नाम खोजें और उनकी उपलब्धता और कीमतें जाँचें।"
+  th: "ค้นหาชื่อโดเมนและตรวจสอบความพร้อมใช้งานกับราคา"
+  cs: "Najděte doménová jména a ověřte jejich dostupnost a ceny."
+  sv: "Hitta domännamn och kontrollera tillgänglighet och priser."
+  he: "מצא שמות דומיין ובדוק זמינות ומחירים."
+  verified_by_human: []
+
+hosting.skills.search_domains:
+  context: "Skill name for hosting domain search"
+  en: "Search domains"
+  de: "Domains suchen"
+  zh: "搜索域名"
+  es: "Buscar dominios"
+  fr: "Rechercher des domaines"
+  pt: "Pesquisar domínios"
+  ru: "Поиск доменов"
+  ja: "ドメインを検索"
+  ko: "도메인 검색"
+  it: "Cerca domini"
+  tr: "Alan adı ara"
+  vi: "Tìm tên miền"
+  id: "Cari domain"
+  pl: "Szukaj domen"
+  nl: "Zoek domeinen"
+  ar: "البحث عن نطاقات"
+  hi: "डोमेन खोजें"
+  th: "ค้นหาโดเมน"
+  cs: "Hledat domény"
+  sv: "Sök domäner"
+  he: "חפש דומיינים"
+  verified_by_human: []
+
+hosting.skills.search_domains.description:
+  context: "Description for hosting domain search skill"
+  en: "Check domain availability and indicative registration and renewal prices."
+  de: "Domainverfügbarkeit sowie voraussichtliche Registrierungs- und Verlängerungspreise prüfen."
+  zh: "查看域名可用性及注册和续费参考价格。"
+  es: "Consulta la disponibilidad de dominios y los precios orientativos de registro y renovación."
+  fr: "Vérifiez la disponibilité des domaines et les tarifs indicatifs d'enregistrement et de renouvellement."
+  pt: "Verifique a disponibilidade de domínios e os preços indicativos de registo e renovação."
+  ru: "Проверяйте доступность доменов и ориентировочные цены регистрации и продления."
+  ja: "ドメインの空き状況と登録・更新の参考料金を確認します。"
+  ko: "도메인 사용 가능 여부와 등록 및 갱신 예상 가격을 확인하세요."
+  it: "Verifica la disponibilità dei domini e i prezzi indicativi di registrazione e rinnovo."
+  tr: "Alan adı müsaitliğini ve tahmini kayıt ve yenileme fiyatlarını kontrol edin."
+  vi: "Kiểm tra tên miền còn trống và giá đăng ký, gia hạn tham khảo."
+  id: "Periksa ketersediaan domain serta perkiraan harga pendaftaran dan perpanjangan."
+  pl: "Sprawdź dostępność domen oraz orientacyjne ceny rejestracji i odnowienia."
+  nl: "Controleer domeinbeschikbaarheid en indicatieve registratie- en verlengingsprijzen."
+  ar: "تحقق من توفر النطاقات والأسعار التقريبية للتسجيل والتجديد."
+  hi: "डोमेन की उपलब्धता तथा पंजीकरण और नवीनीकरण की अनुमानित कीमतें जाँचें।"
+  th: "ตรวจสอบความพร้อมใช้งานของโดเมนและราคาจดทะเบียนกับต่ออายุโดยประมาณ"
+  cs: "Ověřte dostupnost domén a orientační ceny registrace a prodloužení."
+  sv: "Kontrollera domäntillgänglighet och ungefärliga priser för registrering och förnyelse."
+  he: "בדוק זמינות דומיינים ומחירי רישום וחידוש משוערים."
+  verified_by_human: []
 web:
   context: App name for the Web app
   en: Web
@@ -3337,3 +3436,135 @@ weather.day:
   sv: Väderdag
   he: יום מזג אוויר
   verified_by_human: [en, de]
+skill_form.show_settings:
+  context: Apps skill form button that opens advanced settings
+  en: Show settings
+  de: Einstellungen anzeigen
+skill_form.manual_intro:
+  context: Introduction to running an app skill without an AI chat
+  en: Use this skill directly by entering your request below.
+  de: Nutze diesen Skill direkt, indem du unten deine Anfrage eingibst.
+skill_form.via:
+  context: Provider used by an app skill
+  en: via
+  de: über
+skill_form.providers:
+  context: Providers used by an app skill
+  en: Providers
+  de: Anbieter
+skill_form.model:
+  context: Model available to an app skill
+  en: Model
+  de: Modell
+skill_form.models:
+  context: Models available to an app skill
+  en: Models
+  de: Modelle
+skill_form.request:
+  context: Fallback unit name for an app skill credit rate
+  en: request
+  de: Anfrage
+skill_form.per_request:
+  context: App skill credit rate per request
+  en: per request
+  de: pro Anfrage
+skill_form.per_second:
+  context: App skill credit rate per second
+  en: per second
+  de: pro Sekunde
+skill_form.per_minute:
+  context: App skill credit rate per minute
+  en: per minute
+  de: pro Minute
+skill_form.per_unit:
+  context: App skill credit rate per named unit
+  en: "per {unit}"
+  de: "pro {unit}"
+skill_form.one_credit_per:
+  context: Prefix for input or output token credit rates
+  en: 1 credit per
+  de: 1 Credit pro
+skill_form.input_tokens:
+  context: Input token unit in app skill pricing
+  en: input tokens
+  de: Eingabe-Token
+skill_form.output_tokens:
+  context: Output token unit in app skill pricing
+  en: output tokens
+  de: Ausgabe-Token
+skill_form.hide_settings:
+  context: Apps skill form button that closes advanced settings
+  en: Hide settings
+  de: Einstellungen ausblenden
+skill_form.settings:
+  context: Accessible label for advanced Apps skill settings
+  en: Settings
+  de: Einstellungen
+skill_form.run:
+  context: Submit an app skill directly
+  en: Run skill
+  de: Skill ausführen
+skill_form.running:
+  context: An app skill is processing
+  en: Running…
+  de: Wird ausgeführt…
+skill_form.checking:
+  context: Checking whether an anonymous user can afford one Apps skill request
+  en: Checking availability…
+  de: Verfügbarkeit wird geprüft…
+skill_form.signup:
+  context: Action required before an ineligible guest can run a skill
+  en: Sign up to use this skill
+  de: Registrieren, um diesen Skill zu nutzen
+skill_form.unavailable:
+  context: This app skill cannot currently execute
+  en: This skill is currently unavailable.
+  de: Dieser Skill ist derzeit nicht verfügbar.
+skill_form.check_fields:
+  context: Apps skill form validation summary
+  en: Check these fields before running the skill.
+  de: Prüfe diese Felder, bevor du den Skill ausführst.
+skill_form.execution_failed:
+  context: Generic safe error after app skill execution failed
+  en: The skill could not run. Please try again.
+  de: Der Skill konnte nicht ausgeführt werden. Bitte versuche es erneut.
+skill_form.validation_required:
+  context: Required Apps skill field is missing
+  en: required
+  de: erforderlich
+skill_form.validation_type:
+  context: Apps skill field has wrong value type
+  en: enter a valid value
+  de: Gib einen gültigen Wert ein
+skill_form.validation_minimum:
+  context: Apps skill numeric value is below allowed minimum
+  en: below the allowed minimum
+  de: Unter dem zulässigen Minimum
+skill_form.validation_maximum:
+  context: Apps skill numeric value is above allowed maximum
+  en: above the allowed maximum
+  de: Über dem zulässigen Maximum
+skill_form.validation_minLength:
+  context: Apps skill text is too short
+  en: too short
+  de: Zu kurz
+skill_form.validation_maxLength:
+  context: Apps skill text is too long
+  en: too long
+  de: Zu lang
+skill_form.validation_minItems:
+  context: Apps skill list has too few items
+  en: add more items
+  de: Füge weitere Einträge hinzu
+skill_form.validation_maxItems:
+  context: Apps skill list has too many items
+  en: remove some items
+  de: Entferne einige Einträge
+skill_form.validation_enum:
+  context: Apps skill value is not a listed option
+  en: choose a listed option
+  de: Wähle eine Option aus der Liste
+skill_form.validation_pattern:
+  context: Apps skill text does not match expected format
+  en: enter the expected format
+  de: Gib das erwartete Format ein

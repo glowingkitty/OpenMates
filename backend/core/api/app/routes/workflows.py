@@ -9,9 +9,15 @@
 from __future__ import annotations
 
 import time
+import json
+import asyncio
+import logging
+import hashlib
+import uuid
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from fastapi.responses import StreamingResponse
 from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -21,18 +27,21 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import get_curren
 from backend.core.api.app.services.directus.team_methods import TeamPermissionError
 from backend.core.api.app.services.feature_availability_guards import ensure_workflows_enabled
 from backend.core.api.app.services.team_workspace_service import TeamWorkspaceMoveError, move_workspace_record_to_team
-from backend.core.api.app.services.workflow_input_service import DirectusWorkflowInputRepository, WorkflowInputService
-from backend.core.api.app.services.workflow_nl_planner import WorkflowNLPlanner
+from backend.core.api.app.services.workflow_input_service import (
+    DirectusWorkflowInputRepository, DragonflyWorkflowInputCheckpointStore, WorkflowInputService,
+)
+from backend.core.api.app.services.workflow_file_service import WorkflowFileDocument, WorkflowFileImportError, WorkflowFileService, WorkflowFileTooLargeError
+from backend.core.api.app.services.workflow_registry_planner import WorkflowRegistryPlanner
 from backend.core.api.app.services.workflow_identity_service import (
     WorkflowIdentity,
     WorkflowIdentityService,
     build_preprocessing_workflow_classifier,
     normalize_workflow_identity,
 )
-from backend.core.api.app.services.workflow_models import WorkflowGraph, WorkflowNode, WorkflowNodeType, WorkflowLifecycle, WorkflowMissingInputError, WorkflowRunContentRetention, WorkflowRunStatus, validate_workflow_composition_refs
+from backend.core.api.app.services.workflow_models import WorkflowGraph, WorkflowNode, WorkflowNodeType, WorkflowLifecycle, WorkflowMissingInputError, WorkflowRunContentRetention, WorkflowRunStatus, validate_workflow_composition_refs, validate_workflow_readiness
 from backend.core.api.app.services.workflow_runtime_service import WorkflowRuntimeProtocolError, WorkflowRuntimeService
-from backend.core.api.app.services.workflow_runner import WorkflowRunner
-from backend.core.api.app.services.workflow_app_skill_adapter import WorkflowAppSkillAdapter
+from backend.core.api.app.services.workflow_runner import WorkflowRunner, _precheck_workflow_ai_check, _charge_workflow_ai_check
+from backend.core.api.app.services.workflow_app_skill_adapter import WorkflowAppSkillAdapter, WorkflowSkillBillingError
 from backend.core.api.app.services.workflow_yaml_compiler import (
     WorkflowYamlCompilationError,
     compile_workflow_yaml,
@@ -47,12 +56,14 @@ from backend.core.api.app.services.workflow_service import (
     WorkflowRunNotCancellableError,
     WorkflowService,
     WorkflowVersionCurrentError,
+    _hash_owner_id,
 )
 from backend.core.api.app.services.workflow_action_adapter import WorkflowActionAdapter, WorkflowActionExecutionError
 from backend.core.api.app.services.workflow_ai_service import (
     WorkflowAiService,
     WorkflowReferenceHint,
 )
+from backend.core.api.app.services.billing_settlement_service import BillingSettlementLock
 from backend.core.api.app.services.workflow_assistant_service import (
     DirectusWorkflowAssistantProposalRepository,
     WorkflowAssistantService,
@@ -72,6 +83,8 @@ from backend.shared.python_utils.encrypted_slug_metadata import DuplicateObjectS
 
 
 router = APIRouter(prefix="/v1/workflows", tags=["Workflows"], dependencies=[Depends(ensure_workflows_enabled)])
+logger = logging.getLogger(__name__)
+_STEP_TEST_PRODUCERS: set[asyncio.Task[None]] = set()
 
 
 class WorkflowCreateRequest(BaseModel):
@@ -124,6 +137,7 @@ class WorkflowStepTestRequest(BaseModel):
     confirmed: bool = False
     node: WorkflowNode | None = None
     upstream_outputs: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    stream: bool = False
 
 
 
@@ -183,6 +197,8 @@ class WorkflowInputStartRequest(BaseModel):
     selected_workflow_id: str | None = Field(default=None, min_length=1, max_length=200)
     selected_project_id: str | None = Field(default=None, min_length=1, max_length=200)
     timezone: str | None = Field(default=None, min_length=1, max_length=100)
+    optimistic_save: bool = False
+    idempotency_key: str | None = Field(default=None, pattern=r"^[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$")
 
     @model_validator(mode="after")
     def validate_input_source(self) -> WorkflowInputStartRequest:
@@ -219,6 +235,8 @@ class WorkflowTemplateBindingCompletionRequest(BaseModel):
 
     type: str = Field(min_length=1, max_length=100)
     node_id: str = Field(min_length=1, max_length=200)
+    chat_id: str | None = Field(default=None, min_length=1, max_length=200)
+    new_chat: bool = False
 
 
 class WorkflowAssistantDeleteConfirmationRequest(BaseModel):
@@ -281,6 +299,68 @@ def _is_ask_ai_node(node: WorkflowNode) -> bool:
         and node.config.get("app_id") == "ai"
         and node.config.get("skill_id") == "ask"
     )
+
+
+async def _paid_save_verdict(
+    service: WorkflowAiService,
+    *,
+    cache_key: str,
+    owner_id: str,
+    node_id: str,
+    skill_id: str,
+    unavailable_code: str,
+    preflight: Any,
+    evaluate: Any,
+) -> bool:
+    """Serialize one owner/text proof across workers before billing and Jev."""
+    if service.cache_service is None:
+        raise HTTPException(status_code=503, detail=unavailable_code)
+    try:
+        async with BillingSettlementLock(service.cache_service).hold(cache_key) as lease:
+            if not lease.acquired or lease.lock_lost:
+                raise HTTPException(status_code=503, detail=unavailable_code)
+            cached = await service._cache_get(cache_key)
+            if isinstance(cached, bool):
+                return cached
+            if cached == "unavailable":
+                raise HTTPException(status_code=503, detail=unavailable_code)
+            if not await preflight():
+                raise HTTPException(status_code=503, detail=unavailable_code)
+            try:
+                await _precheck_workflow_ai_check(owner_id)
+                await _charge_workflow_ai_check(
+                    user_id=owner_id,
+                    context={"workflow": {"workflow_id": "authoring", "run_id": cache_key, "node_id": node_id}},
+                    node_id=node_id, operation_id=str(uuid.uuid4()), source_override="workflow",
+                    skill_id=skill_id, billing_purpose="save_validation_jev",
+                )
+            except WorkflowSkillBillingError as exc:
+                raise HTTPException(status_code=402 if exc.code == "INSUFFICIENT_CREDITS" else 503, detail=exc.code) from exc
+            verdict = await evaluate()
+            if verdict is None:
+                await service._cache_set(cache_key, "unavailable", 30)
+                raise HTTPException(status_code=503, detail=unavailable_code)
+            if not await service._cache_set(cache_key, verdict, 24 * 60 * 60):
+                raise HTTPException(status_code=503, detail=unavailable_code)
+            return verdict
+    except RuntimeError as exc:
+        if str(exc) == "billing_settlement_busy":
+            raise HTTPException(status_code=503, detail=unavailable_code) from exc
+        raise
+
+
+def _prevalidate_paid_workflow_save(
+    graph: WorkflowGraph,
+    *,
+    prior_graph: WorkflowGraph | None = None,
+    enabled: bool = False,
+) -> None:
+    """Reject deterministic graph failures before any billable AI validation."""
+    validate_workflow_composition_refs(
+        graph, prior_graph=prior_graph, allow_data_dependencies=graph.version >= 2,
+    )
+    if enabled:
+        validate_workflow_readiness(graph, require_schedule=True)
 
 
 def _workflow_ancestors(graph: WorkflowGraph, node_id: str) -> set[str]:
@@ -364,20 +444,28 @@ async def _validate_workflow_ask_ai_nodes(
     request: Request,
     graph: WorkflowGraph,
     owner_id: str,
+    prior_graph: WorkflowGraph | None = None,
 ) -> list[dict[str, str]]:
     service = get_workflow_ai_service(request)
-    warnings: list[dict[str, str]] = []
+    previous = {node.id: node for node in prior_graph.nodes} if prior_graph else {}
     for node in graph.nodes:
         if not _is_ask_ai_node(node):
             continue
         instruction = str((node.config.get("input") or {}).get("prompt") or "")
-        result = await service.authoring_hints(
-            owner_id=owner_id,
-            instruction=instruction,
-            references=_ask_ai_reference_hints(graph, node),
-            allow_generative_fallback=True,
+        prior = previous.get(node.id)
+        if prior and _is_ask_ai_node(prior) and str((prior.config.get("input") or {}).get("prompt") or "") == instruction:
+            continue
+        # The owner-scoped daily proof lets a retried graph Save reuse its
+        # charged verdict without sending an unbilled second provider request.
+        proof = hashlib.sha256(f"{owner_id}\0{int(time.time() // 86_400)}\0{instruction}".encode()).hexdigest()
+        cache_key = f"workflow-ai:ask-validation:{proof}"
+        valid = await _paid_save_verdict(
+            service, cache_key=cache_key, owner_id=owner_id, node_id=node.id,
+            skill_id="workflow-ask-validation", unavailable_code="WORKFLOW_AI_ASK_VALIDATION_UNAVAILABLE",
+            preflight=lambda: service.preflight_ask_instruction(instruction),
+            evaluate=lambda: service.validate_ask_instruction(instruction),
         )
-        if result.verdict == "asks_to_invoke_app_skill":
+        if not valid:
             raise HTTPException(
                 status_code=422,
                 detail={
@@ -386,16 +474,37 @@ async def _validate_workflow_ask_ai_nodes(
                     "message": "You can't ask for using app skills here. Instead add a 'Use app' action to trigger an app skill.",
                 },
             )
-        if result.verdict == "unverified":
-            warnings.append(
-                {
-                    "code": "WORKFLOW_AI_ASK_VALIDATION_UNVERIFIED",
-                    "node_id": node.id,
-                    "message": result.reminder
-                    or "AI validation could not be completed. Ask AI cannot use app skills.",
-                }
-            )
-    return warnings
+    return []
+
+
+async def _validate_workflow_ai_check_nodes(
+    request: Request,
+    graph: WorkflowGraph,
+    owner_id: str,
+    prior_graph: WorkflowGraph | None = None,
+) -> None:
+    """Charge and validate only newly authored AI-check questions before saving."""
+    ai_service = get_workflow_ai_service(request)
+    previous = {node.id: node for node in prior_graph.nodes} if prior_graph else {}
+    for node in graph.nodes:
+        if node.type != WorkflowNodeType.CHECK or node.config.get("mode", "exact") != "ai":
+            continue
+        question = node.config["question"].strip()
+        prior = previous.get(node.id)
+        if prior and prior.type == WorkflowNodeType.CHECK and prior.config.get("mode") == "ai" and prior.config.get("question", "").strip() == question:
+            continue
+        # Only the authored question determines whether it is boolean; changes
+        # to selected values are checked by the combined Test/run decision.
+        proof = hashlib.sha256(f"{owner_id}\0{int(time.time() // 86_400)}\0{question}".encode()).hexdigest()
+        cache_key = f"workflow-ai:check-validation:{proof}"
+        valid = await _paid_save_verdict(
+            ai_service, cache_key=cache_key, owner_id=owner_id, node_id=node.id,
+            skill_id="workflow-check", unavailable_code="WORKFLOW_AI_CHECK_VALIDATION_UNAVAILABLE",
+            preflight=lambda: ai_service.preflight_check_question(question),
+            evaluate=lambda: ai_service.validate_check_question(question),
+        )
+        if not valid:
+            raise HTTPException(status_code=422, detail={"code": "WORKFLOW_AI_CHECK_NOT_BOOLEAN", "node_id": node.id})
 
 
 async def _resolve_create_identity(body: WorkflowCreateRequest, identity_service: WorkflowIdentityService) -> WorkflowIdentity:
@@ -568,11 +677,12 @@ def get_workflow_input_service(request: Request) -> WorkflowInputService:
     if service is None:
         service = WorkflowInputService(
             workflow_service=get_workflow_service(request),
-            planner=WorkflowNLPlanner(
+            planner=WorkflowRegistryPlanner(
                 secrets_manager=getattr(request.app.state, "secrets_manager", None),
                 workflow_service=get_workflow_service(request),
             ),
             repository=DirectusWorkflowInputRepository(payload_cipher=get_workflow_service(request).payload_cipher),
+            checkpoint_store=DragonflyWorkflowInputCheckpointStore(get_workflow_service(request).payload_cipher),
         )
         request.app.state.workflow_input_service = service
     return service
@@ -656,6 +766,10 @@ def _handle_workflow_error(exc: Exception) -> None:
         raise HTTPException(status_code=404, detail="Workflow template projection not found") from exc
     if isinstance(exc, (WorkflowTemplateProjectionError, WorkflowTemplateImportError)):
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if isinstance(exc, WorkflowFileTooLargeError):
+        raise HTTPException(status_code=413, detail=str(exc)) from exc
+    if isinstance(exc, WorkflowFileImportError):
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     if isinstance(exc, ValueError):
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     raise exc
@@ -683,6 +797,9 @@ def _is_shifted_direct_user_arg(value: Any) -> bool:
 async def list_workflows(
     request: Request,
     team_id: str | None = Query(default=None),
+    app_id: str | None = Query(default=None, min_length=1),
+    offset: int | None = Query(default=None, ge=0),
+    limit: int | None = Query(default=None, ge=1, le=50),
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowService = Depends(get_workflow_service),
     directus_service: Any = Depends(get_directus_service),
@@ -690,6 +807,17 @@ async def list_workflows(
     try:
         del request
         await _require_team_read_role(directus_service, team_id, current_user)
+        if app_id is not None or offset is not None or limit is not None:
+            page_offset = offset if offset is not None else 0
+            page_limit = limit if limit is not None else 20
+            workflows, has_more = await run_in_threadpool(
+                service.list_workflows_page, current_user.id, current_user.vault_key_id,
+                team_id, app_id, page_offset, page_limit,
+            )
+            return {
+                "workflows": [item.model_dump(mode="json") for item in workflows],
+                "has_more": has_more, "offset": page_offset, "limit": page_limit,
+            }
         workflows = await run_in_threadpool(service.list_workflows, current_user.id, current_user.vault_key_id, team_id)
         return {"workflows": [item.model_dump(mode="json") for item in workflows]}
     except Exception as exc:
@@ -707,6 +835,8 @@ async def create_workflow(
     history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
 ) -> dict[str, Any]:
     try:
+        _prevalidate_paid_workflow_save(body.graph, enabled=body.enabled)
+        await _validate_workflow_ai_check_nodes(request, body.graph, current_user.id)
         warnings = await _validate_workflow_ask_ai_nodes(request, body.graph, current_user.id)
         identity = await _resolve_create_identity(body, identity_service)
         workflow = await run_in_threadpool(
@@ -773,6 +903,7 @@ async def ask_workflows(
     service: WorkflowService = Depends(get_workflow_service),
     identity_service: WorkflowIdentityService = Depends(get_workflow_identity_service),
     history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
+    input_service: WorkflowInputService = Depends(get_workflow_input_service),
 ) -> dict[str, Any]:
     if sum(bool(value) for value in (body.create, body.exact_update, body.exact_action)) > 1:
         return _workflow_ask_fallback("Use one exact workflow ask action at a time.")
@@ -832,8 +963,12 @@ async def ask_workflows(
         try:
             before = await run_in_threadpool(service.get_workflow, body.exact_update.workflow_id, current_user.id, current_user.vault_key_id)
             patch = body.exact_update.patch
+            if patch.graph is not None:
+                _prevalidate_paid_workflow_save(patch.graph, prior_graph=before.graph,
+                                                enabled=before.enabled if patch.enabled is None else patch.enabled)
+                await _validate_workflow_ai_check_nodes(request, patch.graph, current_user.id, before.graph)
             warnings = (
-                await _validate_workflow_ask_ai_nodes(request, patch.graph, current_user.id)
+                await _validate_workflow_ask_ai_nodes(request, patch.graph, current_user.id, before.graph)
                 if patch.graph is not None
                 else []
             )
@@ -880,37 +1015,32 @@ async def ask_workflows(
     create = body.create
     processing: dict[str, Any] | None = None
     if create is None:
-        if body.selected_object_id is not None:
-            return _workflow_ask_fallback("Open a specific workflow to instruct more complex changes.")
-        if _looks_like_broad_workflow_edit(body.instruction):
-            return _workflow_ask_fallback("Open a specific workflow to instruct more complex changes.")
-        if _is_short_title_like_ask(body.instruction):
-            create = _deterministic_workflow_create(body.instruction)
-            processing = {"inference_used": False, "deterministic_short_create": True}
-        else:
-            secrets_manager = getattr(request.app.state, "secrets_manager", None)
-            if secrets_manager is None:
-                return _workflow_ask_fallback("Workspace ask inference is not configured.")
-            try:
-                result = await run_workflow_ask_pipeline(body.instruction, secrets_manager)
-                processing = result.processing
-                intent_frame = processing.get("intent_frame") or {}
-                if intent_frame.get("operation") not in (None, "create") or intent_frame.get("target_resolution_strategy") not in (None, "none"):
-                    return _workflow_ask_fallback("Open a specific workflow to instruct more complex changes.", processing=processing)
-                proposal = result.proposal
-                create = WorkflowCreateRequest(
-                    title=proposal["title"],
-                    description=proposal.get("description"),
-                    graph=proposal["graph"],
-                    enabled=bool(proposal.get("enabled", False)),
-                    source="cli_ask",
-                    created_by_assistant=True,
-                )
-            except WorkspaceAskPlanningError as exc:
-                return _workflow_ask_fallback(str(exc))
+        result = await run_in_threadpool(
+            input_service.start,
+            user_id=current_user.id, text=body.instruction,
+            selected_workflow_id=body.selected_object_id,
+            vault_key_id=current_user.vault_key_id,
+        )
+        if result.status in {"needs_clarification", "failed"}:
+            return _workflow_ask_fallback(result.message or result.error or "Workflow authoring needs more detail.")
+        details = result.workflows or ([result.workflow] if result.workflow else [])
+        return {
+            "outcome": "applied", "applied": True, "fallback_to_chat": False,
+            "fallback_message": None, "change_set_id": None,
+            "summary": f"Saved {len(details)} workflow{'s' if len(details) != 1 else ''}.",
+            "changed_entries": result.changes,
+            "undo_all_command": f"openmates workflows input-undo {result.session_id}" if result.undo_available else None,
+            "undo_entry_commands": [], "warnings": [],
+            "workflow": details[0].model_dump(mode="json", by_alias=True) if details else None,
+            "workflows": [item.model_dump(mode="json", by_alias=True) for item in details],
+            "session": result.model_dump(mode="json", by_alias=True),
+            "processing": result.authoring_metrics,
+        }
     if create is None:
         return _workflow_ask_fallback("Open a specific workflow to instruct more complex changes.")
     try:
+        _prevalidate_paid_workflow_save(create.graph, enabled=create.enabled)
+        await _validate_workflow_ai_check_nodes(request, create.graph, current_user.id)
         warnings = await _validate_workflow_ask_ai_nodes(request, create.graph, current_user.id)
         identity = await _resolve_create_identity(create, identity_service)
         workflow = await run_in_threadpool(
@@ -991,27 +1121,9 @@ async def workflow_ai_authoring_hints(
     body: WorkflowAiAuthoringRequest,
     current_user: User = Depends(get_current_user_or_api_key),
 ) -> dict[str, Any]:
-    """Return free, bounded Jev-only authoring guidance for the web editor."""
-    result = await get_workflow_ai_service(request).authoring_hints(
-        owner_id=current_user.id,
-        instruction=body.instruction,
-        references=[
-            WorkflowReferenceHint(
-                reference=item.reference,
-                label=item.label,
-                value_type=item.value_type,
-                inserted=item.inserted,
-            )
-            for item in body.references
-        ],
-        allow_generative_fallback=False,
-    )
-    return {
-        "verdict": result.verdict,
-        "validation_path": result.validation_path,
-        "suggested_references": list(result.suggested_references),
-        "reminder": result.reminder,
-    }
+    """Typing suggestions are local; paid validation occurs on Workflow Save."""
+    del request, body, current_user
+    raise HTTPException(status_code=410, detail="WORKFLOW_AI_HINTS_LOCAL_ONLY")
 
 
 @router.post("/yaml")
@@ -1028,6 +1140,8 @@ async def create_yaml_workflow(
         raise HTTPException(status_code=400, detail={"code": "WORKFLOW_YAML_INVALID", **validation})
     try:
         compilation = compile_workflow_yaml(body.source)
+        _prevalidate_paid_workflow_save(compilation.graph)
+        await _validate_workflow_ai_check_nodes(request, compilation.graph, current_user.id)
         warnings = await _validate_workflow_ask_ai_nodes(request, compilation.graph, current_user.id)
         workflow = await run_in_threadpool(
             service.create_workflow,
@@ -1075,7 +1189,9 @@ async def update_yaml_workflow(
         if existing.enabled and not validation["enable_ready"]:
             raise HTTPException(status_code=409, detail={"code": "WORKFLOW_YAML_NOT_ENABLE_READY", **validation})
         compilation = compile_workflow_yaml(body.source)
-        warnings = await _validate_workflow_ask_ai_nodes(request, compilation.graph, current_user.id)
+        _prevalidate_paid_workflow_save(compilation.graph, prior_graph=existing.graph, enabled=existing.enabled)
+        await _validate_workflow_ai_check_nodes(request, compilation.graph, current_user.id, existing.graph)
+        warnings = await _validate_workflow_ask_ai_nodes(request, compilation.graph, current_user.id, existing.graph)
         workflow = await run_in_threadpool(
             service.update_workflow,
             workflow_id,
@@ -1133,10 +1249,91 @@ async def start_workflow_input(
             selected_project_id=body.selected_project_id,
             timezone=body.timezone,
             vault_key_id=current_user.vault_key_id,
+            optimistic_save=body.optimistic_save,
+            idempotency_key=body.idempotency_key,
         )
-        return {"session": result.model_dump(mode="json")}
+        result = await _dispatch_queued_workflow_input(request, service, current_user, result)
+        return {"session": result.model_dump(mode="json", by_alias=True)}
     except Exception as exc:
         _handle_workflow_input_error(exc)
+
+
+async def _dispatch_queued_workflow_input(
+    request: Request, service: WorkflowInputService, current_user: User, result: Any,
+) -> Any:
+    if result.status != "queued":
+        return result
+    cache_key = f"workflow-input:pending:{_hash_owner_id(current_user.id)}:{result.session_id}"
+    try:
+        client = await request.app.state.cache_service.client
+        if client is not None:
+            await client.set(cache_key, json.dumps({
+                "session_id": result.session_id, "status": "queued", "event_cursor": result.event_cursor,
+                "message": result.message,
+            }), ex=10)
+        from backend.core.api.app.tasks.workflow_tasks import commit_workflow_input_task
+        commit_workflow_input_task.apply_async(args=[result.session_id], queue="workflow")
+    except Exception:
+        # The encrypted plan is durable; complete it here if the broker is unavailable.
+        committed = await run_in_threadpool(service.commit_queued, result.session_id)
+        if committed is not None:
+            result = committed
+        try:
+            client = await request.app.state.cache_service.client
+            if client is not None:
+                await client.delete(cache_key)
+        except Exception:
+            pass
+    return result
+
+
+@router.post("/input/stream")
+@limiter.limit("30/minute")
+async def stream_workflow_input(
+    request: Request,
+    body: WorkflowInputStartRequest,
+    current_user: User = Depends(get_current_user_or_api_key),
+    service: WorkflowInputService = Depends(get_workflow_input_service),
+) -> StreamingResponse:
+    """Stream validated node prefixes while planning and persist the final or partial plan."""
+    async def events():
+        queue: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue()
+        loop = asyncio.get_running_loop()
+
+        def emit(event: dict[str, Any]) -> None:
+            loop.call_soon_threadsafe(queue.put_nowait, event)
+
+        async def run() -> None:
+            try:
+                result = await run_in_threadpool(
+                    service.start,
+                    user_id=current_user.id, text=body.text, input_type=body.input_type,
+                    audio_ref=body.audio_ref, selected_workflow_id=body.selected_workflow_id,
+                    selected_project_id=body.selected_project_id, timezone=body.timezone,
+                    vault_key_id=current_user.vault_key_id, optimistic_save=body.optimistic_save,
+                    idempotency_key=body.idempotency_key,
+                    on_event=emit,
+                )
+                result = await _dispatch_queued_workflow_input(request, service, current_user, result)
+                await queue.put({"type": "session", "session": result.model_dump(mode="json", by_alias=True)})
+            except Exception:
+                await queue.put({"type": "error", "error": "Workflow input failed. Please try again."})
+            finally:
+                await queue.put(None)
+
+        task = asyncio.create_task(run())
+        try:
+            while True:
+                event = await queue.get()
+                if event is None:
+                    break
+                yield f"data: {json.dumps(event, separators=(',', ':'))}\n\n"
+        finally:
+            # The thread can still finish and save the already submitted request.
+            if not task.done():
+                task.add_done_callback(lambda finished: finished.exception() if not finished.cancelled() else None)
+
+    return StreamingResponse(events(), media_type="text/event-stream", headers={"Cache-Control": "no-cache"})
 
 
 @router.get("/input/{session_id}")
@@ -1148,8 +1345,11 @@ async def get_workflow_input_session(
     service: WorkflowInputService = Depends(get_workflow_input_service),
 ) -> dict[str, Any]:
     try:
+        # A queued status response includes its renderable preview. The short
+        # Dragonfly marker deliberately contains no private graph, so status
+        # reads use the encrypted durable session as their source of truth.
         result = await run_in_threadpool(service.status, session_id, current_user.id, current_user.vault_key_id)
-        return {"session": result.model_dump(mode="json")}
+        return {"session": result.model_dump(mode="json", by_alias=True)}
     except Exception as exc:
         _handle_workflow_input_error(exc)
 
@@ -1187,7 +1387,7 @@ async def follow_up_workflow_input(
             text=body.text,
             vault_key_id=current_user.vault_key_id,
         )
-        return {"session": result.model_dump(mode="json")}
+        return {"session": result.model_dump(mode="json", by_alias=True)}
     except Exception as exc:
         _handle_workflow_input_error(exc)
 
@@ -1207,7 +1407,14 @@ async def stop_workflow_input(
             session_id=session_id,
             vault_key_id=current_user.vault_key_id,
         )
-        return {"session": result.model_dump(mode="json")}
+        if result.status == "stopped":
+            try:
+                client = await request.app.state.cache_service.client
+                if client is not None:
+                    await client.delete(f"workflow-input:pending:{_hash_owner_id(current_user.id)}:{session_id}")
+            except Exception:
+                pass
+        return {"session": result.model_dump(mode="json", by_alias=True)}
     except Exception as exc:
         _handle_workflow_input_error(exc)
 
@@ -1227,7 +1434,7 @@ async def undo_workflow_input(
             session_id=session_id,
             vault_key_id=current_user.vault_key_id,
         )
-        return {"session": result.model_dump(mode="json")}
+        return {"session": result.model_dump(mode="json", by_alias=True)}
     except Exception as exc:
         _handle_workflow_input_error(exc)
 
@@ -1290,6 +1497,29 @@ async def import_workflow_template(
         workflow = imported.workflow.model_dump(mode="json", by_alias=True)
         workflow["binding_requirements"] = imported.binding_requirements
         return {"workflow": workflow}
+    except Exception as exc:
+        _handle_workflow_error(exc)
+
+
+@router.post("/file-import")
+@limiter.limit("30/minute")
+async def import_workflow_file(
+    request: Request,
+    body: WorkflowFileDocument,
+    current_user: User = Depends(get_current_user_or_api_key),
+    service: WorkflowService = Depends(get_workflow_service),
+) -> dict[str, Any]:
+    """Session or approved-device create surface; owner-scoped Vault storage."""
+    try:
+        file_service = WorkflowFileService(service)
+        document, graph = await run_in_threadpool(file_service.validate_document, body)
+        _prevalidate_paid_workflow_save(graph)
+        await _validate_workflow_ai_check_nodes(request, graph, current_user.id)
+        warnings = await _validate_workflow_ask_ai_nodes(request, graph, current_user.id)
+        workflow = await run_in_threadpool(
+            file_service.import_document, current_user.id, document, graph, current_user.vault_key_id,
+        )
+        return {"workflow": workflow.model_dump(mode="json", by_alias=True), "warnings": warnings}
     except Exception as exc:
         _handle_workflow_error(exc)
 
@@ -1406,9 +1636,36 @@ async def complete_workflow_template_binding(
     request: Request,
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowService = Depends(get_workflow_service),
+    directus_service: Any = Depends(get_directus_service),
 ) -> dict[str, Any]:
     """Persist only binding completion proven by the matching server service."""
     try:
+        if body.type == "chat_destination":
+            if bool(body.chat_id) == body.new_chat:
+                raise WorkflowBindingRequirementUnresolvedError("CHAT_DESTINATION_SELECTION_REQUIRED")
+            await run_in_threadpool(
+                service.get_import_binding_requirement,
+                workflow_id,
+                current_user.id,
+                "chat_destination",
+                body.node_id,
+            )
+            if body.chat_id and not await directus_service.chat.check_chat_ownership(body.chat_id, current_user.id):
+                raise WorkflowBindingRequirementUnresolvedError("CHAT_DESTINATION_NOT_OWNED")
+            completed = await run_in_threadpool(
+                service.complete_chat_destination_binding,
+                workflow_id,
+                current_user.id,
+                body.node_id,
+                chat_id=body.chat_id,
+                new_chat=body.new_chat,
+                vault_key_id=current_user.vault_key_id,
+            )
+            workflow = await run_in_threadpool(service.get_workflow, workflow_id, current_user.id, current_user.vault_key_id)
+            return {"workflow_id": workflow_id, "binding_requirement": completed, "completed": True,
+                    "workflow": workflow.model_dump(mode="json", by_alias=True)}
+        if body.chat_id or body.new_chat:
+            raise WorkflowBindingRequirementUnresolvedError("CHAT_DESTINATION_SELECTION_UNEXPECTED")
         if body.type == "schedule":
             requirement = await run_in_threadpool(
                 service.validate_schedule_binding_requirement,
@@ -1429,6 +1686,7 @@ async def complete_workflow_template_binding(
                 current_user.id,
                 body.node_id,
                 registry,
+                current_user.vault_key_id,
             )
         elif body.type == "notification_preferences":
             requirement = await run_in_threadpool(
@@ -1450,7 +1708,9 @@ async def complete_workflow_template_binding(
             current_user.id,
             requirement,
         )
-        return {"workflow_id": workflow_id, "binding_requirement": completed, "completed": True}
+        workflow = await run_in_threadpool(service.get_workflow, workflow_id, current_user.id, current_user.vault_key_id)
+        return {"workflow_id": workflow_id, "binding_requirement": completed, "completed": True,
+                "workflow": workflow.model_dump(mode="json", by_alias=True)}
     except Exception as exc:
         _handle_workflow_error(exc)
 
@@ -1679,8 +1939,12 @@ async def update_workflow(
 ) -> dict[str, Any]:
     try:
         before = await run_in_threadpool(service.get_workflow, workflow_id, current_user.id, current_user.vault_key_id)
+        if body.graph is not None:
+            _prevalidate_paid_workflow_save(body.graph, prior_graph=before.graph,
+                                            enabled=before.enabled if body.enabled is None else body.enabled)
+            await _validate_workflow_ai_check_nodes(request, body.graph, current_user.id, before.graph)
         warnings = (
-            await _validate_workflow_ask_ai_nodes(request, body.graph, current_user.id)
+            await _validate_workflow_ask_ai_nodes(request, body.graph, current_user.id, before.graph)
             if body.graph is not None
             else []
         )
@@ -1836,6 +2100,7 @@ async def run_workflow(
     try:
         workflow = await run_in_threadpool(service.get_workflow, workflow_id, current_user.id, current_user.vault_key_id)
         await run_in_threadpool(service.validate_manual_run_input, workflow, body.input)
+        await run_in_threadpool(service.ensure_import_bindings_resolved, workflow_id, current_user.id)
         idempotency_key = request.headers.get("Idempotency-Key")
         if not isinstance(idempotency_key, str) or not idempotency_key.strip():
             raise ValueError("IDEMPOTENCY_KEY_REQUIRED")
@@ -1866,7 +2131,7 @@ async def test_workflow_step(
     body: WorkflowStepTestRequest,
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowService = Depends(get_workflow_service),
-) -> dict[str, Any]:
+) -> Any:
     try:
         workflow = await run_in_threadpool(service.get_workflow, workflow_id, current_user.id, current_user.vault_key_id)
         node = _workflow_editor_node(workflow.graph, step_id, body)
@@ -1887,13 +2152,83 @@ async def test_workflow_step(
             secrets_manager=getattr(request.app.state, "secrets_manager", None),
             cache_service=getattr(request.app.state, "cache_service", None),
         )
-        run = await WorkflowRunner(service, app_skill_adapter=adapter).run_step_test(
-            draft,
-            current_user.id,
-            step_id,
-            input_override=body.input,
-            upstream_outputs=body.upstream_outputs,
-            vault_key_id=current_user.vault_key_id,
+        runner = WorkflowRunner(service, app_skill_adapter=adapter)
+        if getattr(body, "stream", False) and node.type == WorkflowNodeType.APP_SKILL_ACTION and node.config.get("app_id") == "ai" and node.config.get("skill_id") == "ask":
+            async def events():
+                queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue(maxsize=32)
+                viewer_connected = True
+                produced_run_id: str | None = None
+
+                def enqueue(event: dict[str, Any], *, terminal: bool = False) -> None:
+                    if not viewer_connected:
+                        return
+                    if terminal:
+                        while queue.full():
+                            queue.get_nowait()
+                    try:
+                        queue.put_nowait(event)
+                    except asyncio.QueueFull:
+                        # Intermediate cumulative snapshots may be skipped; the
+                        # next snapshot and terminal run are authoritative.
+                        pass
+
+                async def progress(kind: str, value: str) -> None:
+                    nonlocal produced_run_id
+                    if kind == "processing":
+                        produced_run_id = value
+                        enqueue({"type": "processing", "run_id": value})
+                    elif kind == "chunk":
+                        enqueue({"type": "chunk", "content": value})
+                    elif kind == "embeds":
+                        enqueue({"type": "embeds", "embeds": json.loads(value)})
+
+                async def produce() -> None:
+                    try:
+                        result = await runner.run_step_test(
+                            draft, current_user.id, step_id, input_override=body.input,
+                            upstream_outputs=body.upstream_outputs,
+                            vault_key_id=current_user.vault_key_id, on_progress=progress,
+                        )
+                        if result.status == WorkflowRunStatus.FAILED:
+                            failed = result.node_runs[0] if result.node_runs else None
+                            enqueue({"type": "error", "code": failed.error_code if failed else "WORKFLOW_STEP_FAILED",
+                                     "message": "Ask AI could not complete this step", "run": result.model_dump(mode="json")}, terminal=True)
+                        else:
+                            enqueue({"type": "completed", "run": result.model_dump(mode="json")}, terminal=True)
+                    except asyncio.CancelledError:
+                        raise
+                    except Exception as exc:
+                        logger.error(
+                            "Ask AI step-test producer failed workflow_id=%s step_id=%s run_id=%s exception_type=%s",
+                            workflow_id, step_id, produced_run_id, type(exc).__name__,
+                        )
+                        enqueue({"type": "error", "code": "WORKFLOW_STEP_FAILED",
+                                 "message": "Ask AI could not complete this step"}, terminal=True)
+
+                producer = asyncio.create_task(produce())
+                _STEP_TEST_PRODUCERS.add(producer)
+                producer.add_done_callback(_STEP_TEST_PRODUCERS.discard)
+                try:
+                    while True:
+                        if await request.is_disconnected():
+                            break
+                        try:
+                            event = await asyncio.wait_for(queue.get(), timeout=1.0)
+                        except TimeoutError:
+                            continue
+                        yield f"data: {json.dumps(event, separators=(',', ':'))}\n\n"
+                        if event["type"] in {"completed", "error"}:
+                            break
+                finally:
+                    # Inference can already have charged the owner. Let its run
+                    # finish and persist even when this viewer closes the stream.
+                    viewer_connected = False
+
+            return StreamingResponse(events(), media_type="text/event-stream",
+                                     headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+        run = await runner.run_step_test(
+            draft, current_user.id, step_id, input_override=body.input,
+            upstream_outputs=body.upstream_outputs, vault_key_id=current_user.vault_key_id,
         )
         return {"run": run.model_dump(mode="json")}
     except HTTPException:

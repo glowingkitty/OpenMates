@@ -1,6 +1,6 @@
 /*
 @privacy-promise: cryptographic-erasure
-Purpose: Verifies password signup, re-login with password only, and account deletion via email OTP.
+Purpose: Verifies password signup, re-login with password only, and account deletion via password plus email OTP.
 Architecture: Covers the signup route state machine and auth login flow from the deployed web app.
 Architecture Doc: See docs/architecture/app-skills.md for async auth-related flow context.
 Tests: N/A (this file is the Playwright E2E test entrypoint)
@@ -46,6 +46,7 @@ const {
 	buildSignupEmail,
 	createSignupEmailClient,
 	checkSignupEmailQuota,
+	configureCloudSignupUiForCi,
 	assertNoMissingTranslations,
 	getTestAccount,
 	getE2EDebugUrl
@@ -175,6 +176,7 @@ test('completes password signup, login with password, and delete account via ema
 	const signupUsername = emailLocal.includes('+') ? emailLocal.split('+')[1] : emailLocal;
 	const signupPassword = 'SignupTest!234Secure';
 
+	await configureCloudSignupUiForCi(page);
 	await page.goto(getE2EDebugUrl('/'));
 
 	// Dismiss "new version available" notification if present (service worker update)
@@ -348,9 +350,10 @@ test('completes password signup, login with password, and delete account via ema
 	await assertNoMissingTranslations(page);
 	logSignupCheckpoint('Re-login with password completed. No 2FA/OTP was requested.');
 
-	// ─── STEP: Delete Account via Email OTP ─────────────────────────────────────
+	// ─── STEP: Delete Account via password and Email OTP ────────────────────────
 	// Navigate to settings > account > delete account.
-	// Password-only users (no 2FA, no passkey) get email OTP verification.
+	// Password-only users (no 2FA, no passkey) re-enter their password and then
+	// confirm the emailed one-use code in the current session.
 
 	const settingsMenuForDelete = page.getByTestId('profile-container');
 	await settingsMenuForDelete.click();
@@ -373,44 +376,32 @@ test('completes password signup, login with password, and delete account via ema
 	await takeStepScreenshot(page, 'delete-account-confirmed');
 	logSignupCheckpoint('Confirmed delete account data warning.');
 
-	// Click delete button — should open the auth modal with email OTP (not 2FA).
+	// Click delete button — should request the password before email OTP.
 	await page.getByTestId('delete-account-container').getByTestId('delete-button').click();
 	const authModal = page.getByTestId('auth-modal');
 	await expect(authModal).toBeVisible({ timeout: 10000 });
+	const deletePasswordSection = authModal.locator('.auth-password');
+	await expect(deletePasswordSection).toBeVisible({ timeout: 10000 });
+	await deletePasswordSection.getByTestId('password-input').fill(signupPassword);
+	const deleteEmailRequestedAt = new Date().toISOString();
+	await deletePasswordSection.getByTestId('auth-btn').click();
 	await takeStepScreenshot(page, 'delete-account-auth-email-otp');
 
 	// Verify this is the email OTP flow (not 2FA or passkey).
 	const emailOtpSection = authModal.getByTestId('auth-email-otp');
 	await expect(emailOtpSection).toBeVisible({ timeout: 10000 });
-	logSignupCheckpoint('Auth modal shows email OTP flow (no 2FA, no passkey).');
+	logSignupCheckpoint('Password re-entry sent a one-use email code (no 2FA, no passkey).');
 
 	// Verify no 2FA input is shown.
 	const twoFactorSection = authModal.getByTestId('auth-2fa');
 	await expect(twoFactorSection).not.toBeVisible();
 
-	// Click "Send verification code" button.
-	const sendCodeButton = emailOtpSection.getByTestId('auth-btn');
-	const deleteEmailRequestedAt = new Date().toISOString();
-	await sendCodeButton.click();
-	logSignupCheckpoint('Clicked send verification code for account deletion.');
-
-	// Wait for the email OTP input to appear (means code was sent).
-	// The backend may fail with "Failed to retrieve email" if encryption keys aren't
-	// synced yet for the freshly created account. Retry once after a short wait.
+	// Wait for the OTP input after the password-backed code request.
 	const deleteOtpInput = emailOtpSection.locator('input[inputmode="numeric"]');
-	const otpVisible = await deleteOtpInput.isVisible({ timeout: 5000 }).catch(() => false);
-	if (!otpVisible) {
-		const errorText = await page.getByText(/failed to retrieve email/i).isVisible({ timeout: 2000 }).catch(() => false);
-		if (errorText) {
-			logSignupCheckpoint('Got "Failed to retrieve email" — retrying after wait.');
-			await page.waitForTimeout(3000);
-			await sendCodeButton.click();
-		}
-	}
 	await expect(deleteOtpInput).toBeVisible({ timeout: 10000 });
 	await takeStepScreenshot(page, 'delete-account-otp-input');
 
-	// Get the verification code from Gmail.
+	// Get the verification code from the configured test inbox.
 	const deleteVerificationMessage = await waitForMessage({
 		sentTo: signupEmail,
 		receivedAfter: deleteEmailRequestedAt
@@ -435,7 +426,7 @@ test('completes password signup, login with password, and delete account via ema
 	logSignupCheckpoint('Account deleted and redirected to demo chat.');
 
 	logSignupCheckpoint(
-		'Password signup + password login + email OTP account deletion flow completed successfully.',
+		'Password signup + password login + password/email account deletion flow completed successfully.',
 		{ signupEmail }
 	);
 });

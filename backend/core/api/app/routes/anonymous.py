@@ -90,6 +90,11 @@ class AnonymousStatusResponse(BaseModel):
     daily_remaining_percent: Optional[int] = Field(default=None, ge=0, le=100)
 
 
+class AnonymousSkillAvailabilityResponse(BaseModel):
+    allowed: bool
+    reason: Optional[str] = None
+
+
 class AnonymousChatResponse(BaseModel):
     status: str
     chatId: str
@@ -301,6 +306,68 @@ async def get_anonymous_free_usage_status(
         anonymous_id=local_id,
         ip_address=_extract_client_ip(request.headers, request.client.host if request.client else None),
     )))
+
+
+@router.post("/apps/{app_id}/skills/{skill_id}/availability", response_model=AnonymousSkillAvailabilityResponse)
+@limiter.limit("30/minute")
+async def anonymous_app_skill_availability(
+    request: Request,
+    app_id: str,
+    skill_id: str,
+    body: dict[str, Any],
+    directus_service: Any = Depends(_get_directus_service),
+    cache_service: Any = Depends(_get_cache_service),
+) -> AnonymousSkillAvailabilityResponse:
+    """Quote one direct request against current guest limits without reserving or dispatching it."""
+    _require_official_cloud(request)
+    anonymous_id = request.headers.get("X-OpenMates-Anonymous-ID", "")
+    if not 1 <= len(anonymous_id) <= 128:
+        raise HTTPException(status_code=422, detail={"code": "anonymous_id_required"})
+    if len(json.dumps(body).encode("utf-8")) > MAX_ANONYMOUS_SKILL_BODY_BYTES:
+        return AnonymousSkillAvailabilityResponse(allowed=False, reason="skill_input_too_large")
+    try:
+        _reject_anonymous_skill_references(body)
+    except HTTPException:
+        return AnonymousSkillAvailabilityResponse(allowed=False, reason="signup_required")
+    from backend.shared.python_utils.anonymous_skill_policy import has_single_anonymous_provider_request
+    if not has_single_anonymous_provider_request(app_id, skill_id, body):
+        return AnonymousSkillAvailabilityResponse(allowed=False, reason="invalid_request_count")
+
+    from backend.core.api.app.services.rest_skill_execution_policy import assert_rest_skill_execution_allowed
+    from backend.core.api.app.services.skill_registry import get_global_registry
+    from backend.core.api.app.utils.text_sanitization import sanitize_text_payload_for_ascii_smuggling
+    from backend.shared.python_utils.app_skill_output_safety import strip_request_security_controls
+
+    registry = get_global_registry()
+    metadata = registry.get_metadata(app_id)
+    if metadata is None or not registry.is_skill_available(app_id, skill_id):
+        return AnonymousSkillAvailabilityResponse(allowed=False, reason="skill_not_found")
+    skill = next((item for item in metadata.skills or [] if item.id == skill_id), None)
+    if skill is None:
+        return AnonymousSkillAvailabilityResponse(allowed=False, reason="skill_not_found")
+    try:
+        assert_rest_skill_execution_allowed(registry, app_id, skill_id)
+        validate_anonymous_skill_allowed(app_id, skill.model_dump())
+        sanitized_body, _ = sanitize_text_payload_for_ascii_smuggling(body, log_prefix="[anonymous skill availability]")
+        quote = _anonymous_skill_quote(request, app_id, skill, strip_request_security_controls(sanitized_body))
+    except HTTPException as exc:
+        detail = exc.detail if isinstance(exc.detail, dict) else {}
+        return AnonymousSkillAvailabilityResponse(allowed=False, reason=str(detail.get("code") or "signup_required"))
+
+    service = _anonymous_usage_service(directus_service, cache_service)
+    await _enforce_local_rate_limit(
+        service, anonymous_id=anonymous_id,
+        max_requests=ANONYMOUS_STATUS_LOCAL_RATE_LIMIT_PER_MINUTE,
+    )
+    status = await service.get_public_status(
+        anonymous_id=anonymous_id,
+        ip_address=_extract_client_ip(request.headers, request.client.host if request.client else None),
+        estimated_credits=quote,
+    )
+    return AnonymousSkillAvailabilityResponse(
+        allowed=status["active"] is True,
+        reason=None if status["active"] else status.get("reason") or "budget_exhausted",
+    )
 
 
 @router.post("/apps/{app_id}/skills/{skill_id}", include_in_schema=False)

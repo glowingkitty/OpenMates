@@ -16,7 +16,7 @@ scope:
     - Every static and dynamic route represented by the web settings registry, including future additions detected by deterministic route auditing.
     - Guest, authenticated, admin, paired/restricted-session, self-hosted, payment-disabled, demo, loading, offline, empty, error, disabled, saving, and success variants.
     - Fully functional native Incognito and Learning Mode rows, setup/explainer pages, persistence, lockout/error states, chat behavior, and shortened-content notices.
-    - Apps, All Apps, app details, skills, providers, models, content types, focus modes, app memories, reminders, embeds, examples, and native example-chat opening.
+    - Remove the Apps settings section in accordance with the current web settings menu; app-specific settings that remain elsewhere follow their owning routes.
     - Memories hub/category/create/detail/edit/delete/example/mention flows using the same encrypted data and sync contracts as web.
     - Mates list/detail/system-prompt/mention/start-chat flows using the canonical metadata source.
     - Privacy, connected accounts, personal-data protection, location privacy, retention, auto-deletion, telemetry/debug controls, and temporary debug-log sharing.
@@ -26,6 +26,7 @@ scope:
     - Rendered-web contract capture and native screenshot/UI-test evidence on iPhone, iPad, and macOS.
     - Executable reserved-account tests for sensitive, destructive, credential-rotating, billing, and policy-changing flows.
   out:
+    - Apps settings navigation and its removed All Apps/detail subtree.
     - Redesigning the web settings product or introducing Apple-only settings behavior.
     - Replacing OS-owned StoreKit purchase sheets, passkey authorization prompts, permission prompts, file/photo pickers, share sheets, camera UI, or system authentication UI.
     - Web redirects, external-browser fallbacks, silent no-op rows, placeholder pages, fixture-only production behavior, or unsupported-state cards for web-supported product flows.

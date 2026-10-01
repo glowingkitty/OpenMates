@@ -1,5 +1,6 @@
 import { expect, test } from '../helpers/cookie-audit';
 import { waitForComponentPreview } from '../helpers/component-preview';
+import type { Page } from '@playwright/test';
 
 // playwright-account: not_required reason=isolated_component_preview
 
@@ -29,6 +30,171 @@ function corsHeaders(origin: string) {
 		'access-control-allow-headers': 'content-type,x-openmates-pair-receiver'
 	};
 }
+
+function trackPairStore(page: Page) {
+	let sourceUrl = '';
+	page.on('request', (request) => {
+		if (request.url().includes('/src/stores/pairSessionStore.ts')) sourceUrl = request.url();
+	});
+	return async (token: string) => {
+		expect(sourceUrl, 'preview must use the production pair handoff store').not.toBe('');
+		await page.evaluate(
+			async ({ sourceUrl, token }) => {
+				const store = await import(/* @vite-ignore */ sourceUrl);
+				store.pendingPairToken.set(token);
+			},
+			{ sourceUrl, token }
+		);
+	};
+}
+
+// contract-test: supporting surface=gui.web assertions=auth.pair-login.lifecycle,auth.pair-login.single-use-zk
+test('mounted sender consumes a replacement token and ignores late expired request info', async ({
+	page
+}) => {
+	const replaceToken = trackPairStore(page);
+	let releaseOld!: () => void;
+	const oldRequest = new Promise<void>((resolve) => {
+		releaseOld = resolve;
+	});
+	let oldInfoStarted = false;
+	await page.route('**/v1/auth/methods', (route) =>
+		route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			headers: corsHeaders(route.request().headers().origin || 'http://localhost:5173'),
+			body: JSON.stringify({ has_passkey: false, has_password: true, has_2fa: true })
+		})
+	);
+	await page.route('**/v1/auth/pair/v2/**', async (route) => {
+		const request = route.request(),
+			path = new URL(request.url()).pathname;
+		const headers = corsHeaders(request.headers().origin || 'http://localhost:5173');
+		if (request.method() === 'OPTIONS') {
+			await route.fulfill({ status: 204, headers });
+			return;
+		}
+		if (path.endsWith('/info/ABC346')) {
+			oldInfoStarted = true;
+			await oldRequest;
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				headers,
+				body: JSON.stringify({ ...fictionalPair, expires_at: 0 })
+			});
+		} else {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				headers,
+				body: JSON.stringify({
+					...fictionalPair,
+					token: 'DEF468',
+					session_id: 'replacement-receiver',
+					device_name: 'Replacement laptop',
+					expires_at: Math.floor(Date.now() / 1000) + 300
+				})
+			});
+		}
+	});
+	await page.goto(senderPreview(390));
+	await waitForComponentPreview(page);
+	await expect.poll(() => oldInfoStarted).toBe(true);
+	const timeOrigin = await page.evaluate(() => performance.timeOrigin);
+	await replaceToken('DEF468');
+	await expect(page.getByText('Replacement laptop')).toBeVisible();
+	await expect(page.getByTestId('pair-allow-button')).toBeVisible();
+	releaseOld();
+	await expect(page.getByText('Replacement laptop')).toBeVisible();
+	await expect(page.getByTestId('pair-allow-button')).toBeEnabled();
+	expect(await page.evaluate(() => performance.timeOrigin)).toBe(timeOrigin);
+});
+
+// contract-test: supporting surface=gui.web assertions=auth.pair-login.lifecycle,auth.pair-login.single-use-zk
+test('replacement sender cancels the old approval and fences its late poll response', async ({
+	page
+}) => {
+	const replaceToken = trackPairStore(page);
+	let releaseOld!: () => void;
+	const oldPoll = new Promise<void>((resolve) => {
+		releaseOld = resolve;
+	});
+	let oldPollStarted = false,
+		replacementPolls = 0;
+	const cancelled: string[] = [];
+	await page.route('**/v1/auth/methods', (route) =>
+		route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			headers: corsHeaders(route.request().headers().origin || 'http://localhost:5173'),
+			body: JSON.stringify({ has_passkey: false, has_password: true, has_2fa: true })
+		})
+	);
+	await page.route('**/v1/auth/pair/v2/**', async (route) => {
+		const request = route.request(),
+			path = new URL(request.url()).pathname;
+		const headers = corsHeaders(request.headers().origin || 'http://localhost:5173');
+		if (request.method() === 'OPTIONS') {
+			await route.fulfill({ status: 204, headers });
+			return;
+		}
+		const token = path.split('/').at(-1)!;
+		if (request.method() === 'DELETE') {
+			cancelled.push(token);
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				headers,
+				body: JSON.stringify({ success: true })
+			});
+			return;
+		}
+		if (path.endsWith('/authorizer/ABC346')) {
+			oldPollStarted = true;
+			await oldPoll;
+		}
+		if (path.endsWith('/authorizer/DEF468')) replacementPolls++;
+		const info = {
+			...fictionalPair,
+			token,
+			session_id: `receiver-${token}`,
+			device_name: token === 'DEF468' ? 'Replacement laptop' : 'Preview laptop',
+			expires_at: Math.floor(Date.now() / 1000) + 300
+		};
+		const body = path.includes('/info/')
+			? info
+			: path.includes('/approve/')
+				? {
+						...info,
+						auto_logout_minutes: request.postDataJSON().auto_logout_minutes,
+						success: true
+					}
+				: { status: token === 'ABC346' ? 'cancelled' : 'approved' };
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			headers,
+			body: JSON.stringify(body)
+		});
+	});
+	await page.goto(senderPreview(390));
+	await waitForComponentPreview(page);
+	await page.getByTestId('pair-allow-button').click();
+	await expect(page.getByTestId('pair-pin-display')).toBeVisible({ timeout: 20_000 });
+	await expect.poll(() => oldPollStarted).toBe(true);
+	await replaceToken('DEF468');
+	await expect(page.getByText('Replacement laptop')).toBeVisible();
+	await expect(page.getByTestId('pair-pin-display')).toHaveCount(0);
+	await page.getByTestId('pair-allow-button').click();
+	await expect(page.getByTestId('pair-pin-display')).toBeVisible({ timeout: 20_000 });
+	const currentPIN = await page.getByTestId('pair-pin-display').textContent();
+	releaseOld();
+	await expect.poll(() => replacementPolls).toBeGreaterThan(0);
+	await expect(page.getByTestId('pair-pin-display')).toHaveText(currentPIN!);
+	expect(cancelled).toContain('ABC346');
+	expect(cancelled).not.toContain('DEF468');
+});
 
 // contract-test: supporting surface=gui.web assertions=auth.pair-login.single-use-zk,auth.pair-login.lifecycle
 test('receiver preview shows its code and handles cancellation on narrow and wide canvases', async ({

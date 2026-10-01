@@ -13,6 +13,7 @@
 import SwiftUI
 
 struct SettingsStorageFullView: View {
+    var initialCategory: String? = nil
     @State private var overview: StorageOverview?
     @State private var files: [StorageFileRecord] = []
     @State private var selectedCategory: StorageCategoryRecord?
@@ -41,7 +42,14 @@ struct SettingsStorageFullView: View {
                 overviewContent(overview)
             }
         }
-        .task { await loadOverview() }
+        .task {
+            await loadOverview()
+            if let initialCategory {
+                selectedCategory = overview?.breakdown.first { $0.category == initialCategory }
+                    ?? StorageCategoryRecord(category: initialCategory, bytesUsed: 0, fileCount: 0)
+                await loadFiles(category: initialCategory)
+            }
+        }
         .overlay {
             if let pendingDeletion {
                 OMConfirmDialog(

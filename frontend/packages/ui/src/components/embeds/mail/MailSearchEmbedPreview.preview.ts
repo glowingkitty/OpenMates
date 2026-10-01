@@ -9,8 +9,8 @@ const sampleResults = [
   {
     uid: "1",
     subject: "Invoice #1042 - OpenMates B.V.",
-    from: "billing@acme.com",
-    to: "admin@openmates.org",
+    from: "[EMAIL_1_com]",
+    to: "[EMAIL_4_com]",
     snippet:
       "Please find attached invoice #1042 for services rendered in February 2026.",
     date: "Thu, 28 Feb 2026 10:00:00 +0100",
@@ -20,8 +20,8 @@ const sampleResults = [
   {
     uid: "2",
     subject: "Server maintenance scheduled",
-    from: "ops@provider.com",
-    to: "admin@openmates.org",
+    from: "[EMAIL_2_com]",
+    to: "[EMAIL_4_com]",
     snippet: "Scheduled maintenance window: Saturday 22:00-02:00 UTC.",
     date: "Wed, 27 Feb 2026 14:30:00 +0100",
     timestamp: 1740659400,
@@ -30,8 +30,8 @@ const sampleResults = [
   {
     uid: "3",
     subject: "New contributor joined",
-    from: "github-noreply@github.com",
-    to: "admin@openmates.org",
+    from: "[EMAIL_3_com]",
+    to: "[EMAIL_4_com]",
     snippet:
       "A new contributor has opened a pull request in OpenMates/OpenMates.",
     date: "Mon, 25 Feb 2026 08:00:00 +0100",

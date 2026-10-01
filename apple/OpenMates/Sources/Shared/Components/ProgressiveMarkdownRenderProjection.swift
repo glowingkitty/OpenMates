@@ -3,6 +3,13 @@
 // This state belongs to one mounted message, never a global plaintext cache.
 // A completed prefix is reused; an open block remains the bounded invalidation
 // region. A single very large unfinished paragraph/list/fence can still be large.
+// ─── Web source ─────────────────────────────────────────────────────
+// TypeScript: frontend/packages/ui/src/message_parsing/streamingMessageBlocks.ts
+//             frontend/packages/ui/src/message_parsing/streamingDocDiff.ts
+// Svelte:     frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+// ────────────────────────────────────────────────────────────────────
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.streaming.progressive-presentation, chats.surface.semantic-parity
 
 import Foundation
 import SwiftUI
@@ -134,7 +141,7 @@ struct ProgressiveMarkdownRenderProjection {
                 if blocks.count > 1 {
                     let predecessor = blocks[blocks.count - 2]
                     switch predecessor.markdown {
-                    case .unorderedList?, .orderedList?, .table?, .blockquote?, .embedGroup?:
+                    case .unorderedList?, .orderedList?, .table?, .blockquote?, .embedGroup?, .resultsView?, .subChatBatch?:
                         start = predecessor.sourceStartUTF8
                     default: break
                     }

@@ -10,13 +10,18 @@ enum WorkflowNodeType: String, Codable, Sendable {
     case scheduleTrigger = "schedule_trigger"
     case manualTrigger = "manual_trigger"
     case webhookTrigger = "webhook_trigger"
+    case eventTrigger = "event_trigger"
     case appSkillAction = "app_skill_action"
     case decision
+    case check
     case `repeat`
     case createChatReport = "create_chat_report"
+    case sendChatMessage = "send_chat_message"
+    case startNewChat = "start_new_chat"
     case sendNotification = "send_notification"
     case sendEmailNotification = "send_email_notification"
     case askUser = "ask_user"
+    case wait
     case customCode = "custom_code"
     case end
 }
@@ -55,6 +60,18 @@ struct WorkflowNode: Codable, Identifiable, Sendable {
     }
 }
 
+extension WorkflowNode {
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        type = try container.decode(WorkflowNodeType.self, forKey: .type)
+        title = try container.decodeIfPresent(String.self, forKey: .title)
+        config = try container.decodeIfPresent([String: AnyCodable].self, forKey: .config) ?? [:]
+        inputMapping = try container.decodeIfPresent([String: AnyCodable].self, forKey: .inputMapping) ?? [:]
+        ui = try container.decodeIfPresent([String: AnyCodable].self, forKey: .ui) ?? [:]
+    }
+}
+
 struct WorkflowEdge: Codable, Sendable {
     let from: String
     let to: String
@@ -81,6 +98,31 @@ struct WorkflowGraph: Codable, Sendable {
     }
 }
 
+extension WorkflowGraph {
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        version = try container.decodeIfPresent(Int.self, forKey: .version) ?? 1
+        triggerNodeId = try container.decodeIfPresent(String.self, forKey: .triggerNodeId) ?? ""
+        nodes = try container.decodeIfPresent([WorkflowNode].self, forKey: .nodes) ?? []
+        edges = try container.decodeIfPresent([WorkflowEdge].self, forKey: .edges) ?? []
+        variables = try container.decodeIfPresent([String: AnyCodable].self, forKey: .variables) ?? [:]
+        limits = try container.decodeIfPresent([String: AnyCodable].self, forKey: .limits) ?? [:]
+        uiLayout = try container.decodeIfPresent([String: AnyCodable].self, forKey: .uiLayout) ?? [:]
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(version, forKey: .version)
+        if triggerNodeId.isEmpty { try container.encodeNil(forKey: .triggerNodeId) }
+        else { try container.encode(triggerNodeId, forKey: .triggerNodeId) }
+        try container.encode(nodes, forKey: .nodes)
+        try container.encode(edges, forKey: .edges)
+        try container.encode(variables, forKey: .variables)
+        try container.encode(limits, forKey: .limits)
+        try container.encode(uiLayout, forKey: .uiLayout)
+    }
+}
+
 struct WorkflowSummary: Codable, Identifiable, Sendable {
     let id: String
     let title: String
@@ -100,6 +142,9 @@ struct WorkflowSummary: Codable, Identifiable, Sendable {
     let currentVersionId: String
     let createdAt: Int
     let updatedAt: Int
+    var category: String? = nil
+    var icon: String? = nil
+    var version: Int? = nil
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -120,6 +165,9 @@ struct WorkflowSummary: Codable, Identifiable, Sendable {
         case currentVersionId = "current_version_id"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
+        case category
+        case icon
+        case version
     }
 }
 
@@ -143,6 +191,9 @@ struct WorkflowDetail: Codable, Identifiable, Sendable {
     let createdAt: Int
     let updatedAt: Int
     let graph: WorkflowGraph
+    var category: String? = nil
+    var icon: String? = nil
+    var version: Int? = nil
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -164,6 +215,9 @@ struct WorkflowDetail: Codable, Identifiable, Sendable {
         case createdAt = "created_at"
         case updatedAt = "updated_at"
         case graph
+        case category
+        case icon
+        case version
     }
 }
 
@@ -203,6 +257,77 @@ struct WorkflowNodeRun: Codable, Identifiable, Sendable {
     }
 }
 
+extension WorkflowNodeRun {
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        runId = try container.decode(String.self, forKey: .runId)
+        workflowId = try container.decode(String.self, forKey: .workflowId)
+        nodeId = try container.decode(String.self, forKey: .nodeId)
+        nodeType = try container.decode(WorkflowNodeType.self, forKey: .nodeType)
+        status = try container.decode(String.self, forKey: .status)
+        startedAt = try container.decodeIfPresent(Int.self, forKey: .startedAt)
+        finishedAt = try container.decodeIfPresent(Int.self, forKey: .finishedAt)
+        attempt = try container.decodeIfPresent(Int.self, forKey: .attempt) ?? 1
+        skippedReason = try container.decodeIfPresent(String.self, forKey: .skippedReason)
+        errorCode = try container.decodeIfPresent(String.self, forKey: .errorCode)
+        errorSummary = try container.decodeIfPresent(String.self, forKey: .errorSummary)
+        inputSummary = try container.decodeIfPresent([String: AnyCodable].self, forKey: .inputSummary) ?? [:]
+        outputSummary = try container.decodeIfPresent([String: AnyCodable].self, forKey: .outputSummary) ?? [:]
+        creditCost = try container.decodeIfPresent(Int.self, forKey: .creditCost) ?? 0
+    }
+}
+
+struct WorkflowRunSummary: Codable, Identifiable, Sendable {
+    let id: String
+    let workflowId: String
+    let versionId: String
+    var triggerType: String = "manual"
+    var status: String = "queued"
+    var startedAt: Int? = nil
+    var finishedAt: Int? = nil
+    var errorSummary: String? = nil
+    var contentAvailable: Bool = false
+
+    enum CodingKeys: String, CodingKey {
+        case id, status
+        case workflowId = "workflow_id"
+        case versionId = "version_id"
+        case triggerType = "trigger_type"
+        case startedAt = "started_at"
+        case finishedAt = "finished_at"
+        case errorSummary = "error_summary"
+        case contentAvailable = "content_available"
+    }
+}
+
+extension WorkflowRunSummary {
+    init(detail: WorkflowRunDetail) {
+        id = detail.id
+        workflowId = detail.workflowId
+        versionId = detail.versionId
+        triggerType = detail.triggerType
+        status = detail.status
+        startedAt = detail.startedAt
+        finishedAt = detail.finishedAt
+        errorSummary = detail.errorSummary
+        contentAvailable = detail.contentAvailable
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        workflowId = try container.decode(String.self, forKey: .workflowId)
+        versionId = try container.decode(String.self, forKey: .versionId)
+        triggerType = try container.decodeIfPresent(String.self, forKey: .triggerType) ?? "manual"
+        status = try container.decodeIfPresent(String.self, forKey: .status) ?? "queued"
+        startedAt = try container.decodeIfPresent(Int.self, forKey: .startedAt)
+        finishedAt = try container.decodeIfPresent(Int.self, forKey: .finishedAt)
+        errorSummary = try container.decodeIfPresent(String.self, forKey: .errorSummary)
+        contentAvailable = try container.decodeIfPresent(Bool.self, forKey: .contentAvailable) ?? false
+    }
+}
+
 struct WorkflowRunDetail: Codable, Identifiable, Sendable {
     let id: String
     let workflowId: String
@@ -239,6 +364,98 @@ struct WorkflowRunDetail: Codable, Identifiable, Sendable {
     }
 }
 
+extension WorkflowRunDetail {
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        workflowId = try container.decode(String.self, forKey: .workflowId)
+        versionId = try container.decode(String.self, forKey: .versionId)
+        triggerType = try container.decodeIfPresent(String.self, forKey: .triggerType) ?? "manual"
+        status = try container.decode(String.self, forKey: .status)
+        startedAt = try container.decodeIfPresent(Int.self, forKey: .startedAt)
+        finishedAt = try container.decodeIfPresent(Int.self, forKey: .finishedAt)
+        errorSummary = try container.decodeIfPresent(String.self, forKey: .errorSummary)
+        costSummary = try container.decodeIfPresent([String: AnyCodable].self, forKey: .costSummary) ?? [:]
+        contentRetentionMode = try container.decodeIfPresent(WorkflowRunContentRetention.self, forKey: .contentRetentionMode) ?? .last5
+        contentAvailable = try container.decodeIfPresent(Bool.self, forKey: .contentAvailable) ?? false
+        contentStorage = try container.decodeIfPresent(WorkflowRunContentStorage.self, forKey: .contentStorage)
+        contentExpiresAt = try container.decodeIfPresent(Int.self, forKey: .contentExpiresAt)
+        nodeRuns = try container.decodeIfPresent([WorkflowNodeRun].self, forKey: .nodeRuns) ?? []
+        outputSummary = try container.decodeIfPresent([String: AnyCodable].self, forKey: .outputSummary) ?? [:]
+    }
+}
+
+struct WorkflowVersionSummary: Codable, Identifiable, Sendable {
+    let versionId: String
+    let versionNumber: Int
+    let createdAt: Int
+    let createdByClient: String
+    let graphHash: String
+    let restoredFromVersionId: String?
+    let current: Bool
+    let changeSummary: [String: AnyCodable]?
+    var id: String { versionId }
+
+    enum CodingKeys: String, CodingKey {
+        case versionId = "version_id"
+        case versionNumber = "version_number"
+        case createdAt = "created_at"
+        case createdByClient = "created_by_client"
+        case graphHash = "graph_hash"
+        case restoredFromVersionId = "restored_from_version_id"
+        case current
+        case changeSummary = "change_summary"
+    }
+}
+
+struct WorkflowVersionDetail: Codable, Sendable {
+    let versionId: String
+    let versionNumber: Int
+    let graph: WorkflowGraph
+
+    enum CodingKeys: String, CodingKey {
+        case graph
+        case versionId = "version_id"
+        case versionNumber = "version_number"
+    }
+}
+
+struct WorkflowVersionHistory: Codable, Sendable {
+    let versions: [WorkflowVersionSummary]
+    let currentVersionId: String
+    let retention: [String: AnyCodable]
+
+    enum CodingKeys: String, CodingKey {
+        case versions, retention
+        case currentVersionId = "current_version_id"
+    }
+}
+
+struct WorkflowCapability: Codable, Identifiable, Sendable {
+    let type: String
+    let id: String
+    let title: String
+    let enabled: Bool
+    let reason: String?
+    let metadata: [String: AnyCodable]
+}
+
+struct WorkflowCapabilitiesResponse: Codable, Sendable {
+    let capabilities: [WorkflowCapability]
+}
+
+struct WorkflowVersionResponse: Codable, Sendable {
+    let version: WorkflowVersionDetail
+}
+
+struct WorkflowRunStatusResponse: Codable, Sendable {
+    let status: String
+}
+
+struct WorkflowDeleteResponse: Codable, Sendable {
+    let deleted: Bool
+}
+
 struct WorkflowListResponse: Codable, Sendable {
     let workflows: [WorkflowSummary]
 }
@@ -248,7 +465,7 @@ struct WorkflowResponse: Codable, Sendable {
 }
 
 struct WorkflowRunsResponse: Codable, Sendable {
-    let runs: [WorkflowRunDetail]
+    let runs: [WorkflowRunSummary]
 }
 
 struct WorkflowRunResponse: Codable, Sendable {

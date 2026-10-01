@@ -1,6 +1,6 @@
 {
   "name": "@repo/ui",
-  "version": "0.22.0",
+  "version": "0.23.0",
   "type": "module",
   "module": "index.ts",
   "main": "index.ts",
@@ -35,6 +35,10 @@
     "./components/*": "./src/components/*",
     "./utils/*": "./src/utils/*",
     "./stores/*": "./src/stores/*",
+    "./stores/uiStateStore": {
+      "types": "./src/stores/uiStateStore.ts",
+      "default": "./src/stores/uiStateStore.ts"
+    },
     "./components/settings/elements": {
       "types": "./src/components/settings/elements/index.ts",
       "svelte": "./src/components/settings/elements/index.ts",
@@ -60,6 +64,22 @@
     "./services/shortUrlEncryption": {
       "types": "./src/services/shortUrlEncryption.ts",
       "default": "./src/services/shortUrlEncryption.ts"
+    },
+    "./services/workflowInputService": {
+      "types": "./src/services/workflowInputService.ts",
+      "default": "./src/services/workflowInputService.ts"
+    },
+    "./services/workflowFileService": {
+      "types": "./src/services/workflowFileService.ts",
+      "default": "./src/services/workflowFileService.ts"
+    },
+    "./utils/appsWorkspaceRoute": {
+      "types": "./src/utils/appsWorkspaceRoute.ts",
+      "default": "./src/utils/appsWorkspaceRoute.ts"
+    },
+    "./utils/settingsHashUtils": {
+      "types": "./src/utils/settingsHashUtils.ts",
+      "default": "./src/utils/settingsHashUtils.ts"
     }
   },
   "scripts": {
@@ -108,27 +128,27 @@
     "@stripe/stripe-js": "^7.9.0",
     "@sveltejs/adapter-auto": "^6.1.0",
     "@sveltejs/kit": "2.70.2",
-    "@tiptap/core": "3.30.4",
-    "@tiptap/extension-highlight": "3.30.4",
-    "@tiptap/extension-link": "3.30.4",
-    "@tiptap/extension-mathematics": "3.30.4",
-    "@tiptap/extension-placeholder": "3.30.4",
-    "@tiptap/extension-strike": "3.30.4",
-    "@tiptap/extension-table": "3.30.4",
-    "@tiptap/extension-table-cell": "3.30.4",
-    "@tiptap/extension-table-header": "3.30.4",
-    "@tiptap/extension-table-row": "3.30.4",
-    "@tiptap/extension-underline": "3.30.4",
-    "@tiptap/extensions": "3.30.4",
-    "@tiptap/pm": "3.30.4",
-    "@tiptap/starter-kit": "3.30.4",
+    "@tiptap/core": "3.30.5",
+    "@tiptap/extension-highlight": "3.30.5",
+    "@tiptap/extension-link": "3.30.5",
+    "@tiptap/extension-mathematics": "3.30.5",
+    "@tiptap/extension-placeholder": "3.30.5",
+    "@tiptap/extension-strike": "3.30.5",
+    "@tiptap/extension-table": "3.30.5",
+    "@tiptap/extension-table-cell": "3.30.5",
+    "@tiptap/extension-table-header": "3.30.5",
+    "@tiptap/extension-table-row": "3.30.5",
+    "@tiptap/extension-underline": "3.30.5",
+    "@tiptap/extensions": "3.30.5",
+    "@tiptap/pm": "3.30.5",
+    "@tiptap/starter-kit": "3.30.5",
     "@toon-format/toon": "2.3.1",
     "@types/leaflet": "^1.9.21",
     "@types/lodash-es": "^4.17.12",
     "@types/pica": "^9.0.5",
     "@types/uuid": "^10.0.0",
     "date-fns": "^4.4.0",
-    "dompurify": "^3.4.13",
+    "dompurify": "^3.4.16",
     "function-plot": "1.25.4",
     "highlight.js": "^11.11.1",
     "highlightjs-svelte": "^1.0.6",
@@ -140,7 +160,7 @@
     "leaflet": "^1.9.4",
     "lodash-es": "^4.18.0",
     "lowlight": "^3.3.0",
-    "markdown-it": "^14.2.0",
+    "markdown-it": "^14.3.1",
     "mermaid": "^11.16.1",
     "pica": "^9.0.1",
     "prosemirror-state": "^1.4.4",
@@ -159,12 +179,12 @@
     "@types/leaflet": "^1.9.21",
     "@types/markdown-it": "^14.1.2",
     "@types/node": "^24.5.0",
-    "@vitest/coverage-v8": "^4.1.0",
+    "@vitest/coverage-v8": "^4.1.11",
     "eslint": "^9.35.0",
     "jsdom": "^25.0.1",
     "svelte": "^5.56.10",
     "svelte-check": "^4.6.0",
     "typescript": "^5.9.2",
-    "vitest": "^4.1.0"
+    "vitest": "^4.1.11"
   }
 }

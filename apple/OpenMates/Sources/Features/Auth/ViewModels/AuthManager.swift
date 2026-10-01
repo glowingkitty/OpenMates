@@ -1,6 +1,8 @@
 // Central auth state manager — mirrors the web app's authStore.ts.
 // Handles login flows (password, passkey, recovery key, backup code),
 // session persistence, and device verification state.
+// Specification: specifications/features/auth/specification.yml
+// Assertions: auth.session.lifecycle, auth.session.authoritative-enforcement, auth.session.isolation
 
 import Foundation
 import SwiftUI
@@ -17,6 +19,15 @@ private enum PasswordV2MigrationPendingStore {
     }
 }
 
+/// Captured before network execution; a late rejection cannot challenge a newer
+/// account, server, logical native session, or credential validation generation.
+struct AuthSessionRecoveryContext: Equatable, Sendable {
+    let accountID: String
+    let profile: ServerProfile
+    let sessionID: String
+    let generation: UUID
+}
+
 @MainActor
 final class AuthManager: ObservableObject {
     @Published var state: AuthState = .initializing
@@ -31,6 +42,9 @@ final class AuthManager: ObservableObject {
     private let sessionValidator: SessionValidator?
     private let profileCacheWriter: ((UserProfile) -> Void)?
     private var validationGeneration = UUID()
+    private var validationFlight: (id: UUID, context: AuthSessionRecoveryContext?, profile: ServerProfile, sessionID: String, task: Task<Void, Never>)?
+    private let sessionMasterKeyAvailable: ((String) async -> Bool)?
+    private let sessionScopeActivator: ((UserProfile) throws -> Void)?
     private(set) var lastOpenedSelectionRevision = 0
 
     /// Static accessor for the current user ID (used by ChatViewModel for key loading).
@@ -88,9 +102,13 @@ final class AuthManager: ObservableObject {
     private var pendingPassword: String?
     private var pendingEmail: String?
 
-    init(sessionValidator: SessionValidator? = nil, profileCacheWriter: ((UserProfile) -> Void)? = nil) {
+    init(sessionValidator: SessionValidator? = nil, profileCacheWriter: ((UserProfile) -> Void)? = nil,
+         sessionMasterKeyAvailable: ((String) async -> Bool)? = nil,
+         sessionScopeActivator: ((UserProfile) throws -> Void)? = nil) {
         self.sessionValidator = sessionValidator
         self.profileCacheWriter = profileCacheWriter
+        self.sessionMasterKeyAvailable = sessionMasterKeyAvailable
+        self.sessionScopeActivator = sessionScopeActivator
         Self._shared = self
     }
 
@@ -216,18 +234,74 @@ final class AuthManager: ObservableObject {
         await validateSessionAgainstServer(keepOfflineSessionOnFailure: currentUser != nil)
     }
 
+    var sessionRecoveryContext: AuthSessionRecoveryContext? {
+        guard state == .authenticated, let accountID = currentUser?.id else { return nil }
+        return AuthSessionRecoveryContext(accountID: accountID, profile: ServerProfile.current(),
+            sessionID: Self.nativeSessionId, generation: validationGeneration)
+    }
+
+    static func captureSessionRecoveryContext() -> AuthSessionRecoveryContext? {
+        _shared?.sessionRecoveryContext
+    }
+
+    static func recoverRejectedRequest(_ expected: AuthSessionRecoveryContext) async {
+        await _shared?.recoverSession(expected: expected)
+    }
+
+    /// All callers await one validation for the same identity. Stale HTTP 401s
+    /// join their pending validation, but cannot start another after it completes.
+    func recoverSession(expected: AuthSessionRecoveryContext) async {
+        #if DEBUG
+        // These cached identities have no server session. Foreground and API
+        // rejection recovery must preserve their isolated offline fixtures.
+        // The explicit rejection fixture still exercises the production route.
+        let arguments = ProcessInfo.processInfo.arguments
+        let isSyntheticOfflineFixture = arguments.contains("--ui-test-authenticated-chat-navigation")
+            || arguments.contains("--ui-test-window-drafts")
+        if isSyntheticOfflineFixture, !arguments.contains("--ui-test-rejected-native-session") { return }
+        #endif
+        guard sessionRecoveryContext == expected || (validationFlight?.id == validationGeneration && validationFlight?.context == expected) else { return }
+        guard currentUser?.id == expected.accountID, ServerProfile.current() == expected.profile,
+              Self.nativeSessionId == expected.sessionID, state == .authenticated else { return }
+        if case .requiresReauthentication = sessionValidationState { return }
+        await validateSessionAgainstServer(keepOfflineSessionOnFailure: true)
+    }
+
     private func validateSessionAgainstServer(keepOfflineSessionOnFailure: Bool) async {
-        let generation = UUID()
-        validationGeneration = generation
+        let context = sessionRecoveryContext
+        if let flight = validationFlight, flight.id == validationGeneration,
+           flight.context?.accountID == context?.accountID,
+           flight.profile == ServerProfile.current(),
+           flight.sessionID == Self.nativeSessionId {
+            await flight.task.value
+            return
+        }
+        validationFlight?.task.cancel()
+        let id = UUID()
         let profile = ServerProfile.current()
-        let sessionId = Self.nativeSessionId
-        let accountId = currentUser?.id
+        let sessionID = Self.nativeSessionId
+        let accountID = currentUser?.id
         let selectionRevision = lastOpenedSelectionRevision
+        validationGeneration = id
+        let task = Task { @MainActor [weak self] in
+            guard let self else { return }
+            await self.performSessionValidation(keepOfflineSessionOnFailure: keepOfflineSessionOnFailure,
+                generation: id, profile: profile, sessionId: sessionID, accountId: accountID,
+                selectionRevision: selectionRevision)
+        }
+        validationFlight = (id, context, profile, sessionID, task)
+        await task.value
+        if validationFlight?.id == id { validationFlight = nil }
+    }
+
+    private func performSessionValidation(keepOfflineSessionOnFailure: Bool, generation: UUID,
+        profile: ServerProfile, sessionId: String, accountId: String?, selectionRevision: Int) async {
         func ownsValidation() -> Bool {
             !Task.isCancelled && validationGeneration == generation &&
                 ServerProfile.current() == profile && Self.nativeSessionId == sessionId &&
                 currentUser?.id == accountId
         }
+        guard ownsValidation() else { return }
         sessionValidationState = .validating
         do {
             let request = SessionRequest(sessionId: sessionId, deviceInfo: makeDeviceInfo())
@@ -235,21 +309,37 @@ final class AuthManager: ObservableObject {
             if let sessionValidator {
                 response = try await sessionValidator(profile, request)
             } else {
-                response = try await api.request(.post, path: "/v1/auth/session",
-                    serverProfile: profile, body: request)
+                #if DEBUG
+                if ProcessInfo.processInfo.arguments.contains("--ui-test-rejected-native-session") {
+                    throw APIError.httpError(status: 401, message: "Synthetic rejected session")
+                }
+                #endif
+                response = try await api.validateNativeSession(serverProfile: profile, body: request,
+                    expectedAccountID: accountId, isCurrent: ownsValidation)
             }
             guard ownsValidation() else { return }
 
             if response.isAuthenticated, let user = response.user {
-                if response.needsDeviceVerification != true,
-                   (try? await crypto.loadMasterKey(for: user.id)) == nil {
+                guard accountId == nil || user.id == accountId else {
+                    webSocketToken = nil
+                    sessionValidationState = .requiresReauthentication(reason: "session_account_changed")
+                    return
+                }
+                let hasMasterKey: Bool
+                if let sessionMasterKeyAvailable {
+                    hasMasterKey = await sessionMasterKeyAvailable(user.id)
+                } else {
+                    hasMasterKey = (try? await crypto.loadMasterKey(for: user.id)) != nil
+                }
+                if response.needsDeviceVerification != true, !hasMasterKey {
                     guard ownsValidation() else { return }
                     await forceLocalLogout(reason: "missing_master_key")
                     return
                 }
                 guard ownsValidation() else { return }
                 let user = profilePreservingNewerSelection(user, since: selectionRevision)
-                try activateOfflineScope(for: user)
+                if let sessionScopeActivator { try sessionScopeActivator(user) }
+                else { try activateOfflineScope(for: user) }
                 currentUser = user
                 webSocketToken = response.wsToken
                 sessionValidationState = .onlineAuthenticated
@@ -268,8 +358,7 @@ final class AuthManager: ObservableObject {
                     state = .unauthenticated
                     return
                 }
-                if keepOfflineSessionOnFailure,
-                   !Self.requiresDestructiveLocalLogout(reason: reason) {
+                if keepOfflineSessionOnFailure {
                     webSocketToken = nil
                     sessionValidationState = .requiresReauthentication(reason: reason)
                     state = .authenticated
@@ -284,7 +373,7 @@ final class AuthManager: ObservableObject {
             if keepOfflineSessionOnFailure {
                 // An explicit rejected session is not an offline connection.
                 // Keep cached account data, but expose a real sign-in route.
-                if case APIError.httpError(status: 401, message: _) = error {
+                if case APIError.httpError(let status, _) = error, status == 401 || status == 403 {
                     sessionValidationState = .requiresReauthentication(reason: "session_expired")
                     return
                 }
@@ -648,6 +737,7 @@ final class AuthManager: ObservableObject {
 
     func forceLocalLogout(reason: String) async {
         validationGeneration = UUID()
+        PushNotificationManager.shared.invalidateRegistration()
         print("[Auth] Forced local logout reason=\(reason)")
         AppSessionCoordinator.shared.resetTransientRuntime()
         await clearComposerDraftsForLogout()
@@ -903,6 +993,7 @@ final class AuthManager: ObservableObject {
         let store = OfflineStore.shared
         let scope = OfflineStore.scopeId(userId: user.id, apiBaseURL: apiBaseURL)
         if store.activeScopeId != scope {
+            PushNotificationManager.shared.invalidateRegistration()
             AppSessionCoordinator.shared.resetTransientRuntime()
             ChatKeyManager.shared.clearAll()
             EmbedKeyManager.shared.clearAll()
@@ -1008,12 +1099,5 @@ final class AuthManager: ObservableObject {
         OpenMatesSharedEnvironment.defaults.removeObject(forKey: cachedUserDefaultsKey)
     }
 
-    private static func requiresDestructiveLocalLogout(reason: String) -> Bool {
-        let normalized = reason.lowercased()
-        return normalized.contains("revoked")
-            || normalized.contains("logout")
-            || normalized.contains("deleted")
-            || normalized.contains("disabled")
-            || normalized.contains("banned")
-    }
+
 }

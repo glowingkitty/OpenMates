@@ -5,7 +5,7 @@
 
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/Login.svelte
-//          frontend/packages/ui/src/components/settings/SettingsSessionsPairInitiate.svelte
+//          frontend/packages/ui/src/components/settings/security/SettingsSessionsPairInitiate.svelte
 // Backend: backend/core/api/routes/auth_pair.py
 // CSS:     frontend/packages/ui/src/styles/auth.css, buttons.css, fields.css
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
@@ -24,6 +24,8 @@ enum WatchPairLoginFixtureState: Equatable {
     case selfHostedShortURL
     case selfHostedDomainEntry
     case pairCodeEntry
+    case initiationFailed
+    case selfHostedInitiationFailed
 }
 
 @MainActor
@@ -118,6 +120,12 @@ struct WatchPairLoginView: View {
             case .pairCodeEntry:
                 state.pairURLString = "https://openmates.org/#pair=WATCH42"
                 state.status = .ready
+            case .initiationFailed, .selfHostedInitiationFailed:
+                state.token = nil
+                state.pairURLString = nil
+                state.status = .failed
+                state.errorMessage = WatchStrings.loginFailed
+                state.serverProfile = uiTestFixture == .selfHostedInitiationFailed ? .custom(domain: "mydomain.org") : .production
             }
         }
         _pairState = StateObject(wrappedValue: state)
@@ -153,7 +161,10 @@ struct WatchPairLoginView: View {
                         }
                     }
 
-                    if pairState.status == .expired || pairState.status == .failed {
+                    if (pairState.status == .expired || pairState.status == .failed), !showSelfHostedInput {
+                        // Server recovery must remain reachable when initiation
+                        // fails before the server provides a token or short URL.
+                        serverSelectionView
                         Button {
                             startPairing(force: true)
                         } label: {
@@ -422,37 +433,7 @@ struct WatchPairLoginView: View {
                 .padding(.top, .spacing4)
             }
 
-            if pairState.serverProfile == .production {
-                Button {
-                    pairState.customDomain = ""
-                    domainEditorVisible = false
-                    showSelfHostedInput = true
-                    selfHostedError = nil
-                } label: {
-                    Text(WatchStrings.pairSelfHostedEdition)
-                        .font(.omSmall)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(Color.grey0.opacity(0.72))
-                        .multilineTextAlignment(.center)
-                }
-                .buttonStyle(.plain)
-                .padding(.top, .spacing5)
-                .accessibilityIdentifier("watch-pair-self-host-button")
-            } else {
-                Button {
-                    WatchServerProfileStore().resetToProduction()
-                    startPairing(serverProfile: .production, force: true)
-                } label: {
-                    Text(WatchStrings.pairOfficialCloudEdition)
-                        .font(.omSmall)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(Color.grey0.opacity(0.72))
-                        .multilineTextAlignment(.center)
-                }
-                .buttonStyle(.plain)
-                .padding(.top, .spacing5)
-                .accessibilityIdentifier("watch-pair-use-production-button")
-            }
+            serverSelectionView
         }
         .frame(maxWidth: .infinity)
         .accessibilityElement(children: .contain)
@@ -529,6 +510,48 @@ struct WatchPairLoginView: View {
         }
         guard pairState.initiationTask == nil else { return }
         startPairing(force: false)
+    }
+
+    @ViewBuilder
+    private var serverSelectionView: some View {
+        if pairState.serverProfile == .production {
+            Button {
+                pairState.customDomain = ""
+                domainEditorVisible = false
+                showSelfHostedInput = true
+                selfHostedError = nil
+            } label: {
+                Text(WatchStrings.pairSelfHostedEdition)
+                    .font(.omSmall)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.grey0.opacity(0.72))
+                    .multilineTextAlignment(.center)
+            }
+            .buttonStyle(.plain)
+            .padding(.top, .spacing5)
+            .accessibilityIdentifier("watch-pair-self-host-button")
+        } else {
+            Button {
+                if uiTestFixture != nil {
+                    pairState.serverProfile = .production
+                    pairState.token = nil
+                    pairState.pairURLString = nil
+                    pairState.status = .failed
+                } else {
+                    WatchServerProfileStore().resetToProduction()
+                    startPairing(serverProfile: .production, force: true)
+                }
+            } label: {
+                Text(WatchStrings.pairOfficialCloudEdition)
+                    .font(.omSmall)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.grey0.opacity(0.72))
+                    .multilineTextAlignment(.center)
+            }
+            .buttonStyle(.plain)
+            .padding(.top, .spacing5)
+            .accessibilityIdentifier("watch-pair-use-production-button")
+        }
     }
 
     private func startPairing(serverProfile: ServerProfile? = nil, force: Bool) {

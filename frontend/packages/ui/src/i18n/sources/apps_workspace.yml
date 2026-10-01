@@ -1,0 +1,129 @@
+title:
+  context: Apps workspace interface
+  en: Apps
+  de: Apps
+app_label:
+  context: Apps workspace interface
+  en: App
+  de: App
+skill_label:
+  context: Apps workspace interface
+  en: "{app} skill"
+  de: "{app}-Skill"
+app_stats:
+  context: Apps workspace interface
+  en: "{skills} skills · {focusModes} focus modes"
+  de: "{skills} Skills · {focusModes} Fokus-Modi"
+home_prompt:
+  context: Apps workspace interface
+  en: What app do you want to use?
+  de: Welche App möchtest du verwenden?
+home_greeting:
+  context: Apps workspace interface
+  en: "Hey {name}!"
+  de: "Hey {name}!"
+quick_use_hint:
+  context: Apps workspace interface
+  en: Tap to use an app skill
+  de: Tippe, um einen App-Skill zu verwenden
+inspiration_click_to_use_skill:
+  context: Daily Inspiration action in the Apps workspace
+  en: Click to use app skill
+  de: Klicke, um einen App-Skill zu verwenden
+inspiration_tap_to_use_skill:
+  context: Daily Inspiration touch action in the Apps workspace
+  en: Tap to use app skill
+  de: Tippe, um einen App-Skill zu verwenden
+description:
+  context: Apps workspace interface
+  en: Use your apps directly and return to saved results.
+  de: Nutze deine Apps direkt und öffne gespeicherte Ergebnisse.
+recent_apps:
+  context: Apps workspace interface
+  en: Recently used apps
+  de: Zuletzt verwendete Apps
+show_all:
+  context: Apps workspace interface
+  en: Show all apps
+  de: Alle Apps anzeigen
+back_to_recent:
+  context: Apps workspace interface
+  en: Back to recent apps
+  de: Zurück zu zuletzt verwendeten Apps
+overview:
+  context: Apps workspace interface
+  en: Overview
+  de: Übersicht
+skills:
+  context: Tab showing an app's skills
+  en: Skills
+  de: Skills
+focus_modes:
+  context: Tab showing an app's focus modes
+  en: Focus modes
+  de: Fokus-Modi
+settings_memories:
+  context: Tab showing an app's memory categories
+  en: Memories
+  de: Erinnerungen
+choose_skill:
+  context: Heading above the skill cards on an app overview
+  en: Which app skill do you want to use?
+  de: Welchen App-Skill möchtest du verwenden?
+embeds:
+  context: Apps workspace interface
+  en: Embeds
+  de: Embeds
+workflows:
+  context: Apps workspace interface
+  en: Workflows
+  de: Workflows
+use_skill:
+  context: Apps workspace interface
+  en: Use skill
+  de: Skill verwenden
+library_error:
+  context: Apps workspace interface
+  en: Saved items could not be loaded.
+  de: Gespeicherte Elemente konnten nicht geladen werden.
+retry:
+  context: Apps workspace interface
+  en: Try again
+  de: Erneut versuchen
+no_embeds:
+  context: Apps workspace interface
+  en: Your saved embeds for this app will appear here.
+  de: Deine gespeicherten Embeds für diese App erscheinen hier.
+no_workflows:
+  context: Apps workspace interface
+  en: Your saved workflows using this app will appear here.
+  de: Deine gespeicherten Workflows mit dieser App erscheinen hier.
+previous:
+  context: Apps workspace interface
+  en: Previous
+  de: Zurück
+next:
+  context: Apps workspace interface
+  en: Next
+  de: Weiter
+metadata_error:
+  context: Apps workspace interface
+  en: The skill details could not be loaded.
+  de: Die Skill-Details konnten nicht geladen werden.
+request_error:
+  context: Apps workspace interface
+  en: The request could not finish. You can try again.
+  de: Die Anfrage konnte nicht abgeschlossen werden. Du kannst es erneut versuchen.
+viewer_read_only:
+  context: Apps workspace interface
+  en: Your team role allows viewing results. Ask a team member to run this skill.
+  de: Deine Teamrolle erlaubt dir, Ergebnisse anzusehen. Bitte ein Teammitglied, diesen
+    Skill auszuführen.
+not_found:
+  context: Apps workspace interface
+  en: This app or skill is unavailable.
+  de: Diese App oder dieser Skill ist nicht verfügbar.
+result_unavailable:
+  context: Apps workspace interface
+  en: This result could not be opened.
+  de: Dieses Ergebnis konnte nicht geöffnet werden.

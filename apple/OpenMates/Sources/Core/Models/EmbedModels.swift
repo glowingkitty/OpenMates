@@ -443,6 +443,8 @@ struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
     }
 
     private static func normalizedType(_ rawType: String, appId: String?, skillId: String?) -> String {
+        if rawType == "sheet" { return EmbedType.sheetsSheet.rawValue }
+        if rawType == "appointment" { return EmbedType.healthAppointment.rawValue }
         switch rawType {
         case "app_skill_use":
             return "app-skill-use"
@@ -740,11 +742,9 @@ struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
     }
 
     private static func parseScalarOrArray(_ rawValue: String) -> Any {
-        var value = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        let value = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
         if value.hasPrefix("\""), value.hasSuffix("\""), value.count >= 2 {
-            value.removeFirst()
-            value.removeLast()
-            return value
+            return cleanScalar(value)
         }
         if value.hasPrefix("["), value.hasSuffix("]") {
             let inner = value.dropFirst().dropLast()
@@ -765,6 +765,11 @@ struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
     private static func cleanScalar(_ value: String) -> String {
         var cleaned = value.trimmingCharacters(in: .whitespacesAndNewlines)
         if cleaned.hasPrefix("\""), cleaned.hasSuffix("\""), cleaned.count >= 2 {
+            // TOON quoted scalars use JSON string escaping. Stripping quotes
+            // alone leaves literal \\n in markdown tables and source excerpts.
+            if let decoded = try? JSONDecoder().decode(String.self, from: Data(cleaned.utf8)) {
+                return decoded
+            }
             cleaned.removeFirst()
             cleaned.removeLast()
         }
@@ -932,6 +937,8 @@ enum EmbedType: String, CaseIterable {
     case workflowsSearch = "app:workflows:search"
 
     static func normalized(rawValue: String) -> EmbedType? {
+        if rawValue == "sheet" { return .sheetsSheet }
+        if rawValue == "appointment" { return .healthAppointment }
         switch rawValue {
         case "audio-recording": return .recording
         case "images-image": return .image

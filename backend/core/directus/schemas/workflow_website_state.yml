@@ -1,0 +1,42 @@
+# Website comparison state. Page text, URLs and requirements exist only in Vault ciphertext.
+workflow_website_state:
+  type: collection
+  fields:
+    id:
+      type: uuid
+    workflow_id:
+      type: uuid
+      note: "[Indexed] Opaque ownership or lookup metadata."
+    hashed_user_id:
+      type: string
+      note: "[Indexed] Opaque ownership or lookup metadata."
+    source_id:
+      type: uuid
+      note: "[Indexed] Opaque ownership or lookup metadata."
+    origin_run_id:
+      type: uuid
+      note: "[Indexed] Opaque ownership or lookup metadata."
+    generation:
+      type: string
+    created_at:
+      type: integer
+    observed_at:
+      type: string
+      note: "Fetch start in milliseconds, fencing older overlapping reads."
+    kind:
+      type: string
+    consumer_key:
+      type: string
+    source_revision:
+      type: integer
+      note: "Ordering of change occurrences from the successful source read."
+    revision:
+      type: integer
+    processing_run_id:
+      type: uuid
+      note: "Run holding the bounded evaluation lease."
+    processing_expires_at:
+      type: integer
+      note: "Evaluation lease expiry for crashed workers."
+    encrypted_ref:
+      type: string

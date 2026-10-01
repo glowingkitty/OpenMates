@@ -47,6 +47,31 @@ embeds:
       type: string
       note: "[Indexed] Hashed user ID of embed owner"
 
+    app_id:
+      type: string
+      nullable: true
+      note: "[Indexed] Public app catalog ID for account-scoped saved-embed discovery. Never derived from private content on the server."
+
+    skill_id:
+      type: string
+      nullable: true
+      note: "Public app skill ID for saved-embed discovery."
+
+    hashed_team_id:
+      type: string
+      nullable: true
+      note: "[Indexed] SHA256 of the submitting Team ID; null denotes Personal scope."
+
+    workspace_origin:
+      type: string
+      nullable: true
+      note: "Origin of a retained root: web_apps or chat. Null for legacy rows and child rows."
+
+    root_embed_id:
+      type: string
+      nullable: true
+      note: "Root embed ID for a retained result graph; child rows point to the same root."
+
     # NOTE: encryption_key_embed moved to embed_keys collection
     # This allows multiple wrapped versions (master key + per-chat keys) for offline sharing
     # See embed_keys.yml for the new schema

@@ -4,19 +4,19 @@ version: 1
 status: draft
 title: Chat Share Settings
 summary: >
-  The web Settings / Chats surface exposes chat-specific settings and sharing
+  The web and Apple Settings / Chats surfaces expose chat-specific settings and sharing
   controls without promoting Chats to a normal settings section, while keeping
   generated share URLs explicit, selectable, and zero-knowledge safe.
 
 scope:
   includes:
-    - Web Settings / Chats dynamic route opened from chat header controls or settings hash deep links.
+    - Web and Apple Settings / Chats dynamic route opened from chat header controls or application deep links.
     - Chat settings header title, total known credits, scroll-collapsed title presentation, tabs, and root-back behavior.
     - Chat Share tab generated-link, copy, QR, URL reveal, stop-sharing, public example static-link, and shared-viewer read-only states.
-    - Opening valid and invalid shared chat links on the logged-out web surface.
+    - Opening valid and invalid shared chat links on web and in the anonymous Apple recipient viewer.
   excludes:
     - Embed sharing, which remains on the existing SettingsShare embed flow.
-    - New backend share APIs, Directus schema changes, SDKs, CLI, and Apple parity.
+    - New backend share APIs, Directus schema changes, SDKs, and CLI.
     - Exact pixel values, animation durations, and OS clipboard success guarantees.
 
 models:
@@ -100,7 +100,7 @@ assertions:
 applies_to:
   rest_api:
     required: false
-    role: Existing share metadata, short-link, and shared-chat read APIs may be used, but this contract owns only the browser settings/open behavior.
+    role: Existing share metadata, short-link, and shared-chat read APIs may be used; this contract owns client settings and recipient opening behavior.
   cli:
     required: false
     role: CLI sharing uses separate command contracts and has no Settings / Chats surface.
@@ -114,7 +114,7 @@ applies_to:
     parity: semantic
     implementations:
       web: {required: true}
-      apple: {required: false, role: Apple chat sharing parity is tracked separately and is out of scope for this web UI contract.}
+      apple: {required: true, role: Native chat settings and anonymous shared-chat recipients follow the same controls and link behavior.}
 
 examples:
   file: examples.yml

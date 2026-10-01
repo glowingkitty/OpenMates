@@ -1,63 +1,47 @@
-// Full AI settings — native reproduction of SettingsAI.svelte.
-// Uses OpenMates settings primitives and the authenticated profile/default-model endpoint contract.
+// AI settings provider families and authenticated response/default preferences.
+// Specification: specifications/features/settings-ui/specification.yml
+// Assertions: settings-ui.navigation.parent-return, settings-ui.parity.web-apple-shell
 // Specification: specifications/features/chats/specification.yml
 // Assertions: chats.surface.semantic-parity
-
+// Specification: specifications/features/ai-model-routing/specification.yml
+// Assertions: ai-model-routing.settings.hierarchy-canonical, ai-model-routing.preferences.exclusive-tier-defaults,
+//             ai-model-routing.catalog.capability-recommendation-variants
 // ─── Web source ─────────────────────────────────────────────────────
-// Svelte:  frontend/packages/ui/src/components/settings/SettingsAI.svelte
-// Data:    frontend/packages/ui/src/data/modelsMetadata.ts
-// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
-//          TypographyTokens.generated.swift
+// Svelte: frontend/packages/ui/src/components/settings/SettingsAI.svelte
+//         frontend/packages/ui/src/components/settings/AiTierSettings.svelte
+//         frontend/packages/ui/src/components/settings/AiProviderDetailsWrapper.svelte
+//         frontend/packages/ui/src/components/settings/AiAskModelDetails.svelte
+//         frontend/packages/ui/src/components/settings/elements/SettingsItem.svelte
+//         frontend/packages/ui/src/components/settings/elements/SettingsInfoBox.svelte
+// CSS: Inline .ai-settings-body, .ai-provider-body, .settings-item--ai-row
+// Data: frontend/packages/ui/src/data/modelsMetadata.ts, aiProviderDisplay.json
+// Tokens: ColorTokens.generated.swift, SpacingTokens.generated.swift,
+//         TypographyTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
 
 import SwiftUI
 
 struct SettingsAIFullView: View {
     var initialModelID: String? = nil
+    var initialProviderID: String? = nil
+    var initialTier: AIRequestTier? = nil
+    var onChildNavigationChanged: ((SettingsChildBannerNavigation?) -> Void)? = nil
     @EnvironmentObject private var authManager: AuthManager
     @ObservedObject private var modelCatalog = NativeModelCatalogRuntime.shared
-    @State private var autoSelectModel = true
     @State private var defaultSimpleModel = ""
     @State private var defaultComplexModel = ""
-    @State private var serverModels: [AIModel] = []
-    @State private var serverProviders: [AIProvider] = []
-    @State private var isLoading = true
-    @State private var searchText = ""
-    @State private var sortBy: AIModelSort = .performance
+    @State private var defaultMostDemandingModel = ""
+    @State private var selectedTier: AIRequestTier?
+    @State private var selectedTierProviderID: String?
+    @State private var fixturePreferences = NativeModelDisabledPreferences.Value()
     @State private var followUpSuggestionsEnabled = true
     @State private var quickTipsEnabled = true
     @State private var isSaving = false
+    @State private var isLoadingPreferences = false
+    @State private var hasLoadedPreferences = false
     @State private var errorMessage: String?
-    @State private var selectedDetail: AIDetail?
-
-    struct AIModel: Identifiable, Decodable {
-        let id: String
-        let name: String
-        let provider: String
-        let providerName: String
-        let description: String
-        let logo: String
-        let releaseDate: String
-        let inputTokensPerCredit: Int
-        let outputTokensPerCredit: Int
-        let servers: [AIProvider]
-        var isEnabled: Bool?
-
-        var tierScore: Int {
-            let lowerName = name.lowercased()
-            if lowerName.contains("opus") || lowerName.contains("gpt-5.5") || lowerName.contains("gemini 3.1 pro") {
-                return 3
-            }
-            if lowerName.contains("small") || lowerName.contains("haiku") || lowerName.contains("flash") || lowerName.contains("ministral") {
-                return 1
-            }
-            return 2
-        }
-
-        var priceScore: Int {
-            inputTokensPerCredit + outputTokensPerCredit
-        }
-    }
+    @State private var selectedProviderID: String?
+    @State private var selectedModelID: String?
 
     struct ModelDetail: Identifiable, Equatable {
         let id: String
@@ -67,649 +51,837 @@ struct SettingsAIFullView: View {
         let releaseDate: String
     }
 
-    struct AIProvider: Identifiable, Decodable, Hashable {
-        let id: String
-        let name: String
-        let region: String
-        let logo: String
-        var isEnabled: Bool
-    }
-
-    enum AIModelSort: String, CaseIterable {
-        case performance
-        case price
-        case newest
-
-        var next: AIModelSort {
-            switch self {
-            case .performance: return .price
-            case .price: return .newest
-            case .newest: return .performance
-            }
-        }
-    }
-
     var body: some View {
-        OMSettingsPage(title: AppStrings.settingsAI, showsHeader: false) {
-            OMSettingsSection(LocalizationManager.shared.text("common.pricing"), icon: "coins") {
-                VStack(alignment: .leading, spacing: .spacing5) {
-                    Text(LocalizationManager.shared.text("settings.ai_ask.ai_ask_settings.pricing_starting_at"))
-                        .font(.omSmall.weight(.semibold))
-                        .foregroundStyle(Color.fontSecondary)
-
-                    aiPricingRow(
-                        icon: "download",
-                        label: LocalizationManager.shared.text("settings.ai_ask.ai_ask_settings.input_text"),
-                        tokens: cheapestInputTokens
-                    )
-                    aiPricingRow(
-                        icon: "coins",
-                        label: LocalizationManager.shared.text("settings.ai_ask.ai_ask_settings.output_text"),
-                        tokens: cheapestOutputTokens
-                    )
-
-                    Text(LocalizationManager.shared.text("settings.ai_ask.ai_ask_settings.pricing_note"))
-                        .font(.omSmall)
-                        .italic()
-                        .foregroundStyle(Color.fontTertiary)
-                        .padding(.top, .spacing4)
-                }
-                .padding(.leading, 10)
-                .padding(.vertical, .spacing4)
-            }
-
-            if isAuthenticated {
-                OMSettingsSection(AppStrings.defaultModels, icon: "settings") {
-                    OMSettingsToggleRow(
-                        title: AppStrings.autoSelectModel,
-                        icon: "search",
-                        isOn: $autoSelectModel
-                    )
-                    .onChange(of: autoSelectModel) { _, enabled in
-                        if enabled {
-                            defaultSimpleModel = ""
-                            defaultComplexModel = ""
-                        }
-                        saveDefaults()
-                    }
-                    .accessibleToggle(AppStrings.autoSelectModel, isOn: autoSelectModel)
-
-                    Text(AppStrings.autoSelectDescription)
-                        .font(.omSmall)
-                        .foregroundStyle(Color.fontSecondary)
-                        .padding(.horizontal, .spacing5)
-                        .padding(.bottom, .spacing4)
-
-                    if !autoSelectModel {
-                        OMSettingsPickerRow(
-                            title: AppStrings.simpleRequests,
-                            icon: "ai",
-                            options: simpleModelOptions,
-                            selection: $defaultSimpleModel
-                        )
-                        .onChange(of: defaultSimpleModel) { _, _ in saveDefaults() }
-
-                        OMSettingsPickerRow(
-                            title: AppStrings.complexRequests,
-                            icon: "ai",
-                            options: complexModelOptions,
-                            selection: $defaultComplexModel
-                        )
-                        .onChange(of: defaultComplexModel) { _, _ in saveDefaults() }
-                    }
-
-                    Text(LocalizationManager.shared.text("settings.ai_ask.ai_ask_settings.manual_select_note"))
-                        .font(.omSmall)
-                        .foregroundStyle(Color.fontSecondary)
-                        .padding(.horizontal, .spacing5)
-                        .padding(.top, .spacing2)
-                }
-            }
-
-            if isAuthenticated {
-                OMSettingsSection(LocalizationManager.shared.text("settings.ai_ask.ai_ask_settings.experience"), icon: "settings") {
-                    OMSettingsToggleRow(
-                        title: LocalizationManager.shared.text("settings.ai_ask.ai_ask_settings.follow_up_suggestions"),
-                        isOn: $followUpSuggestionsEnabled,
-                        disabled: isSaving
-                    )
-                    .onChange(of: followUpSuggestionsEnabled) { oldValue, _ in saveDefaults(rollbackFollowUpsTo: oldValue) }
-
-                    OMSettingsToggleRow(
-                        title: LocalizationManager.shared.text("settings.ai_ask.ai_ask_settings.quick_tips"),
-                        isOn: $quickTipsEnabled,
-                        disabled: isSaving
-                    )
-                    .onChange(of: quickTipsEnabled) { oldValue, _ in saveDefaults(rollbackQuickTipsTo: oldValue) }
-                }
-            }
-
-            OMSettingsSection(AppStrings.availableModels, icon: "ai") {
-                Text(LocalizationManager.shared.text("settings.ai_ask.ai_ask_settings.models_description"))
-                    .font(.omSmall.weight(.medium))
-                    .foregroundStyle(Color.fontSecondary)
-                    .padding(.leading, 10)
-                    .padding(.top, .spacing2)
-
-                AIModelSearchSortBar(searchText: $searchText, sortBy: $sortBy)
-                    .padding(.leading, 10)
-                    .padding(.vertical, .spacing4)
-
-                if isLoading && serverModels.isEmpty {
-                    ProgressView()
-                        .frame(maxWidth: .infinity)
-                        .padding(.spacing6)
-                } else if filteredModels.isEmpty {
-                    Text(LocalizationManager.shared.text("settings.ai_ask.ai_ask_settings.no_models_found"))
-                        .font(.omSmall.weight(.medium))
-                        .foregroundStyle(Color.fontTertiary)
-                        .frame(maxWidth: .infinity)
-                        .padding(.spacing8)
+        OMSettingsPage(title: AppStrings.settingsAI, showsHeader: false, contentHorizontalPadding: 0, contentVerticalSpacing: 0, scrollAccessibilityIdentifier: "ai-settings-scroll") {
+            VStack(alignment: .leading, spacing: .spacing10) {
+                if let selectedModel {
+                    if onChildNavigationChanged == nil { childBackRow { selectedModelID = nil } }
+                    modelPage(selectedModel)
+                } else if let tier = selectedTier {
+                    tierPage(tier)
+                } else if let provider = selectedProvider {
+                    providerPage(provider)
                 } else {
-                    VStack(spacing: 0) {
-                        ForEach(filteredModels) { model in
-                            modelRow(model)
-                        }
-                    }
-                    .padding(.leading, .spacing5)
+                    overview
+                }
+                if let errorMessage {
+                    Text(errorMessage).font(.omSmall).foregroundStyle(Color.error)
+                        .accessibilityIdentifier("settings-ai-error")
                 }
             }
-
-            if !displayProviders.isEmpty {
-                OMSettingsSection(AppStrings.availableProviders, icon: "server") {
-                    Text(LocalizationManager.shared.text("settings.ai.available_providers_description"))
-                        .font(.omSmall.weight(.medium))
-                        .foregroundStyle(Color.fontSecondary)
-                        .padding(.leading, 10)
-                        .padding(.top, .spacing2)
-
-                    VStack(spacing: 0) {
-                        ForEach(displayProviders) { provider in
-                            providerRow(provider)
-                        }
-                    }
-                    .padding(.leading, .spacing5)
-                }
-            }
-
-            if let errorMessage {
-                Text(errorMessage)
-                    .font(.omSmall)
-                    .foregroundStyle(Color.error)
-                    .padding(.horizontal, .spacing6)
-                    .accessibilityIdentifier("settings-ai-error")
-            }
+            .frame(maxWidth: AISettingsMetrics.bodyWidth)
+            .frame(maxWidth: .infinity)
         }
+        .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("ai-settings")
         .task {
+            selectInitialRoute()
             await loadModelPreferences()
-            selectInitialModelIfAvailable()
         }
-        .onChange(of: initialModelID) { _, _ in
-            selectInitialModelIfAvailable()
-        }
-        .onChange(of: modelCatalog.catalog?.sourceDigest) { _, _ in
-            selectInitialModelIfAvailable()
-        }
-        .overlay {
-            if let selectedDetail {
-                aiDetailView(selectedDetail)
-                    .background(Color.grey0)
-                    .accessibilityIdentifier("settings-ai-detail-page")
-            }
-        }
+        .onChange(of: initialModelID) { _, _ in selectInitialRoute() }
+        .onChange(of: initialProviderID) { _, _ in selectInitialRoute() }
+        .onChange(of: initialTier) { _, _ in selectInitialRoute() }
+        .onChange(of: modelCatalog.catalog?.sourceDigest) { _, _ in selectInitialRoute() }
+        .onChange(of: selectedProviderID) { _, _ in publishChildNavigation() }
+        .onChange(of: selectedModelID) { _, _ in publishChildNavigation() }
+        .onChange(of: selectedTier) { _, _ in publishChildNavigation() }
+        .onChange(of: selectedTierProviderID) { _, _ in publishChildNavigation() }
+        .onDisappear { onChildNavigationChanged?(nil) }
     }
 
-    private var isAuthenticated: Bool {
-        authManager.currentUser != nil
-    }
+    private var overview: some View {
+        VStack(alignment: .leading, spacing: .spacing10) {
+            Text(AppStrings.aiPricingNote)
+                .font(.omSmall.weight(.medium))
+                .foregroundStyle(Color.aiSettingsPricing)
+                .padding(.horizontal, .spacing10)
+                .accessibilityLabel(AppStrings.pricing)
+                .accessibilityIdentifier("ai-pricing-note")
 
-    static func catalogModel(id: String?) -> AIModel? {
-        guard let id else { return nil }
-        return catalogModels.first { $0.id == id }
-    }
-
-    static func modelDetail(
-        id: String?,
-        canonicalModels: [NativeModelCatalog.Model]
-    ) -> ModelDetail? {
-        guard let id else { return nil }
-        if let model = canonicalModels.first(where: { $0.id == id }) {
-            return ModelDetail(
-                id: model.id,
-                name: model.name,
-                providerName: model.provider_name,
-                description: model.description ?? "",
-                releaseDate: model.release_date ?? ""
-            )
-        }
-        guard let model = catalogModel(id: id) else { return nil }
-        return detail(for: model)
-    }
-
-    private static func detail(for model: AIModel) -> ModelDetail {
-        ModelDetail(
-            id: model.id,
-            name: model.name,
-            providerName: model.providerName,
-            description: model.description,
-            releaseDate: model.releaseDate
-        )
-    }
-
-    private func selectInitialModelIfAvailable() {
-        guard let model = Self.modelDetail(
-            id: initialModelID,
-            canonicalModels: modelCatalog.catalog?.models ?? []
-        ) else { return }
-        if case .model(let selected)? = selectedDetail, selected.id == model.id { return }
-        selectedDetail = .model(model)
-    }
-
-    private var displayModels: [AIModel] {
-        let serverById = Dictionary(uniqueKeysWithValues: serverModels.map { ($0.id, $0) })
-        return Self.catalogModels.map { catalogModel in
-            var model = catalogModel
-            if let serverModel = serverById[catalogModel.id] {
-                model.isEnabled = serverModel.isEnabled
-            }
-            return model
-        }
-    }
-
-    private var filteredModels: [AIModel] {
-        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        var models = displayModels
-        if !query.isEmpty {
-            models = models.filter {
-                $0.name.lowercased().contains(query) ||
-                    $0.providerName.lowercased().contains(query) ||
-                    $0.description.lowercased().contains(query)
-            }
-        }
-
-        switch sortBy {
-        case .price:
-            return models.sorted {
-                if $0.priceScore != $1.priceScore { return $0.priceScore > $1.priceScore }
-                return $0.name < $1.name
-            }
-        case .performance:
-            return models.sorted {
-                if $0.tierScore != $1.tierScore { return $0.tierScore > $1.tierScore }
-                return $0.name < $1.name
-            }
-        case .newest:
-            return models.sorted {
-                if $0.releaseDate != $1.releaseDate { return $0.releaseDate > $1.releaseDate }
-                return $0.name < $1.name
-            }
-        }
-    }
-
-    private var displayProviders: [AIProvider] {
-        let enabledById = Dictionary(uniqueKeysWithValues: serverProviders.map { ($0.id, $0.isEnabled) })
-        var seen = Set<String>()
-        var providers: [AIProvider] = []
-        for model in Self.catalogModels {
-            for provider in model.servers where !seen.contains(provider.id) {
-                seen.insert(provider.id)
-                var merged = provider
-                if let isEnabled = enabledById[provider.id] {
-                    merged.isEnabled = isEnabled
+            if isAuthenticated {
+                VStack(alignment: .leading, spacing: .spacing5) {
+                    AISettingsHeading(title: AppStrings.defaultModels, icon: "settings")
+                    VStack(spacing: .spacing4) {
+                        ForEach(AIRequestTier.allCases, id: \.self) { tier in
+                            AISettingsPreferenceRow(tier: tier, value: modelLabel(tierSelection(tier))) {
+                                selectedTier = tier
+                            }
+                        }
+                    }
                 }
-                providers.append(merged)
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("ai-default-models-group")
             }
-        }
-        return providers.sorted {
-            if $0.region == "EU", $1.region != "EU" { return true }
-            if $0.region != "EU", $1.region == "EU" { return false }
-            return $0.name < $1.name
-        }
-    }
 
-    private var cheapestInputTokens: Int {
-        displayModels.map(\.inputTokensPerCredit).max() ?? 3_300
-    }
-
-    private var cheapestOutputTokens: Int {
-        displayModels.map(\.outputTokensPerCredit).max() ?? 2_222
-    }
-
-    private var simpleModelOptions: [OMDropdownOption] {
-        [OMDropdownOption("", label: LocalizationManager.shared.text("settings.ai_ask.ai_ask_settings.model_auto"))] +
-            displayModels
-                .sorted {
-                    if $0.tierScore != $1.tierScore { return $0.tierScore < $1.tierScore }
-                    return $0.name < $1.name
-                }
-                .map { OMDropdownOption("\($0.provider)/\($0.id)", label: $0.name) }
-    }
-
-    private var complexModelOptions: [OMDropdownOption] {
-        [OMDropdownOption("", label: LocalizationManager.shared.text("settings.ai_ask.ai_ask_settings.model_auto"))] +
-            displayModels
-                .sorted {
-                    if $0.tierScore != $1.tierScore { return $0.tierScore > $1.tierScore }
-                    return $0.name < $1.name
-                }
-                .map { OMDropdownOption("\($0.provider)/\($0.id)", label: $0.name) }
-    }
-
-    private func aiPricingRow(icon: String, label: String, tokens: Int) -> some View {
-        HStack(spacing: .spacing5) {
-            Icon(icon, size: 22)
-                .foregroundStyle(LinearGradient.primary)
-                .frame(width: 44, height: 44)
-                .background(Color.grey10)
-                .clipShape(RoundedRectangle(cornerRadius: .radius4))
-
-            Text(label)
-                .font(.omSmall.weight(.bold))
-                .foregroundStyle(Color.fontTertiary)
-                .frame(minWidth: 80, alignment: .leading)
-
-            HStack(spacing: .spacing2) {
-                Text("1")
-                Icon("coins", size: 16)
-                    .foregroundStyle(Color.fontButton)
-                    .frame(width: 18, height: 18)
-                    .background(LinearGradient.primary)
-                    .clipShape(RoundedRectangle(cornerRadius: .radius2))
-                Text("\(LocalizationManager.shared.text("settings.ai_ask.ai_ask_settings.per")) \(tokens) \(LocalizationManager.shared.text("settings.ai_ask.ai_ask_settings.tokens"))")
-            }
-            .font(.omP.weight(.medium))
-            .foregroundStyle(Color.fontPrimary)
-        }
-    }
-
-    private func modelRow(_ model: AIModel) -> some View {
-        Button {
-            selectedDetail = .model(Self.detail(for: model))
-        } label: {
-            HStack(spacing: .spacing6) {
-                ProviderLogo(name: model.logo)
-
-                VStack(alignment: .leading, spacing: .spacing1) {
-                    Text(model.name)
-                        .font(.omP.weight(.medium))
-                        .foregroundStyle(LinearGradient.primary)
-                        .lineLimit(1)
-
-                    Text(LocalizationManager.shared.text("enter_message.mention_dropdown.from_provider").replacingOccurrences(of: "{provider}", with: simplifyProviderName(model.providerName)))
-                        .font(.omSmall.weight(.medium))
-                        .foregroundStyle(Color.fontSecondary)
-                        .lineLimit(1)
-                }
-
-                Spacer()
-
-                Text(model.isEnabled == false ? AppStrings.disabled : AppStrings.enabled)
-                    .font(.omXs)
-                    .foregroundStyle(Color.fontSecondary)
-            }
-            .padding(.horizontal, .spacing8)
-            .padding(.vertical, .spacing5)
-            .frame(minHeight: 58)
-            .contentShape(RoundedRectangle(cornerRadius: .radius3))
-        }
-        .buttonStyle(.plain)
-        .opacity(model.isEnabled == false ? 0.55 : 1)
-        .accessibilityElement(children: .combine)
-        .accessibleSetting(model.name, value: simplifyProviderName(model.providerName))
-    }
-
-    private func providerRow(_ provider: AIProvider) -> some View {
-        Button {
-            selectedDetail = .provider(provider)
-        } label: {
-            HStack(spacing: .spacing6) {
-                ProviderLogo(name: provider.logo)
-
-                VStack(alignment: .leading, spacing: .spacing1) {
-                    Text(provider.name)
-                        .font(.omP.weight(.medium))
-                        .foregroundStyle(LinearGradient.primary)
-                        .lineLimit(1)
-
-                    Text(regionLabel(provider.region))
-                        .font(.omSmall.weight(.medium))
-                        .foregroundStyle(Color.fontSecondary)
-                        .lineLimit(1)
-                }
-
-                Spacer()
-
-                Text(provider.isEnabled ? AppStrings.enabled : AppStrings.disabled)
-                    .font(.omXs)
-                    .foregroundStyle(Color.fontSecondary)
-            }
-            .padding(.horizontal, .spacing8)
-            .padding(.vertical, .spacing5)
-            .frame(minHeight: 58)
-            .contentShape(RoundedRectangle(cornerRadius: .radius3))
-        }
-        .buttonStyle(.plain)
-        .accessibilityElement(children: .combine)
-        .accessibleSetting(provider.name, value: regionLabel(provider.region))
-    }
-
-    private func simplifyProviderName(_ name: String) -> String {
-        name
-            .replacingOccurrences(of: " API", with: "")
-            .replacingOccurrences(of: " AI", with: "")
-            .replacingOccurrences(of: " (MaaS)", with: "")
-    }
-
-    private func regionLabel(_ region: String) -> String {
-        switch region {
-        case "EU": return LocalizationManager.shared.text("settings.ai.provider_region_eu")
-        case "US": return LocalizationManager.shared.text("settings.ai.provider_region_us")
-        case "global": return LocalizationManager.shared.text("settings.ai.provider_region_global")
-        default: return region
-        }
-    }
-
-    private func aiDetailView(_ detail: AIDetail) -> some View {
-        OMSettingsPage(title: detail.title, showsHeader: false) {
-            OMSettingsSection {
-                OMSettingsRow(title: AppStrings.back, icon: "back", showsChevron: false) {
-                    selectedDetail = nil
+            VStack(alignment: .leading, spacing: .spacing5) {
+                AISettingsHeading(title: AppStrings.aiModelsAndAccounts, icon: "ai")
+                VStack(spacing: .spacing4) {
+                    ForEach(providerFamilies, id: \.id) { provider in
+                        AISettingsFamilyRow(title: provider.brandName,
+                                            subtitle: attribution(provider), logo: provider.logoSvg) {
+                            selectedProviderID = provider.id
+                        }
+                        .accessibilityIdentifier("ai-provider-family-card")
+                        .accessibilityValue(provider.id)
+                    }
                 }
             }
-            switch detail {
-            case .model(let model):
-                OMSettingsSection(model.name) {
-                    OMSettingsStaticRow(
-                        title: LocalizationManager.shared.text("enter_message.mention_dropdown.from_provider_label"),
-                        value: model.providerName
-                    )
-                    OMSettingsStaticRow(
-                        title: LocalizationManager.shared.text("settings.ai_ask.ai_ask_settings.release_date"),
-                        value: model.releaseDate
-                    )
-                    Text(model.description)
-                        .font(.omSmall).foregroundStyle(Color.fontSecondary).padding(.spacing6)
+            .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("ai-models-accounts-group")
+
+            if isAuthenticated {
+                VStack(alignment: .leading, spacing: .spacing5) {
+                    AISettingsHeading(title: AppStrings.aiResponseSettings, icon: "settings")
+                    AISettingsSwitchRow(title: AppStrings.aiFollowUpSuggestions, subtitle: AppStrings.aiFollowUpDescription,
+                        logo: "chat", value: Binding(get: { followUpSuggestionsEnabled }, set: { next in
+                            let previous = followUpSuggestionsEnabled
+                            followUpSuggestionsEnabled = next
+                            saveDefaults(rollbackFollowUpsTo: previous)
+                        }), disabled: isSaving || !hasLoadedPreferences,
+                        identifier: "ai-response-feature-follow-up-suggestions")
+                    AISettingsSwitchRow(title: AppStrings.aiQuickTips, subtitle: AppStrings.aiQuickTipsDescription,
+                        logo: "insight", value: Binding(get: { quickTipsEnabled }, set: { next in
+                            let previous = quickTipsEnabled
+                            quickTipsEnabled = next
+                            saveDefaults(rollbackQuickTipsTo: previous)
+                        }), disabled: isSaving || !hasLoadedPreferences,
+                        identifier: "ai-response-feature-quick-tips")
                 }
-            case .provider(let provider):
-                OMSettingsSection(provider.name) {
-                    OMSettingsStaticRow(
-                        title: LocalizationManager.shared.text("settings.ai.available_providers_region"),
-                        value: regionLabel(provider.region)
-                    )
-                    OMSettingsStaticRow(
-                        title: LocalizationManager.shared.text("common.status"),
-                        value: provider.isEnabled ? AppStrings.enabled : AppStrings.disabled
-                    )
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("ai-response-settings-group")
+            }
+        }
+    }
+
+    private func tierPage(_ tier: AIRequestTier) -> some View {
+        let models = tierModels.filter { selectedTierProviderID == nil || $0.provider_id == selectedTierProviderID }
+        let recommendedID = tier.recommendedModel(in: models)?.id
+        return VStack(alignment: .leading, spacing: .spacing10) {
+            if onChildNavigationChanged == nil {
+                childBackRow { if selectedTierProviderID != nil { selectedTierProviderID = nil } else { selectedTier = nil } }
+            }
+            Text(selectedTierProviderID == nil ? AppStrings.aiChooseTierProvider : AppStrings.aiChooseExactModel)
+                .font(.omSmall.weight(.medium)).foregroundStyle(Color.aiSettingsMuted)
+                .padding(.horizontal, .spacing10).accessibilityIdentifier("ai-tier-routing-note")
+            VStack(alignment: .leading, spacing: .spacing5) {
+                Text(AppStrings.defaultModels).font(.omP.weight(.bold)).foregroundStyle(Color.fontPrimary)
+                    .padding(.horizontal, .spacing10)
+                HStack(spacing: .spacing6) {
+                    AISettingsCapability(level: tier.capability)
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(AppStrings.auto).font(.omP.weight(.bold)).foregroundStyle(LinearGradient.primary)
+                        Text(AppStrings.aiAutoDescription).font(.omSmall.weight(.bold)).foregroundStyle(Color.aiSettingsMuted)
+                    }
+                    Spacer(minLength: 0)
+                    AISettingsToggle(isOn: Binding(get: { tierSelection(tier) == nil }, set: { _ in saveTierSelection(tier, value: nil) }),
+                        disabled: isSaving || !hasLoadedPreferences, accessibilityIdentifier: "ai-model-option-auto-toggle")
+                        .accessibilityLabel(AppStrings.auto)
+                }
+                .padding(.horizontal, .spacing10).accessibilityElement(children: .contain).accessibilityIdentifier("ai-model-option-auto")
+                Text(selectedTierProviderID.flatMap { id in providerFamilies.first { $0.id == id }?.brandName } ?? AppStrings.aiModelsAndAccounts)
+                    .font(.omP.weight(.bold)).foregroundStyle(Color.fontPrimary).padding(.horizontal, .spacing10)
+                VStack(spacing: .spacing4) {
+                    if selectedTierProviderID != nil {
+                        ForEach(models, id: \.id) { model in
+                            HStack(spacing: AISettingsMetrics.rowGap) {
+                                AISettingsFamilyRow(title: model.name,
+                                    subtitle: [model.id == recommendedID ? AppStrings.aiRecommended : nil, model.tier,
+                                        model.description, AppStrings.aiCapability(model.capability_level ?? "medium")]
+                                        .compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · "), logo: model.logo_svg, trailingPadding: isAuthenticated && canEditPreferences ? 0 : .spacing10) {
+                                    selectedModelID = model.id
+                                }.accessibilityIdentifier("ai-model-option-exact").accessibilityValue(model.id)
+                                AISettingsToggle(isOn: Binding(get: { tierSelection(tier) == model.provider_id + "/" + model.id },
+                                    set: { _ in saveTierSelection(tier, value: model.provider_id + "/" + model.id) }),
+                                    disabled: isSaving || !hasLoadedPreferences,
+                                    accessibilityIdentifier: "ai-model-option-exact-toggle-" + model.id)
+                                    .accessibilityLabel(model.name).padding(.trailing, .spacing10)
+                            }
+                        }
+                    } else {
+                        ForEach(providerFamilies.filter { provider in models.contains { $0.provider_id == provider.id } }, id: \.id) { provider in
+                            AISettingsFamilyRow(title: provider.brandName,
+                                subtitle: attribution(provider) ?? AppStrings.aiViewProviderModels, logo: provider.logoSvg) {
+                                selectedTierProviderID = provider.id
+                            }.accessibilityIdentifier("ai-provider-family-card").accessibilityValue(provider.id)
+                        }
+                    }
+                }
+            }.accessibilityElement(children: .contain)
+                .accessibilityIdentifier("ai-tier-provider-catalog")
+        }
+    }
+
+    private func providerPage(_ provider: NativeModelCatalog.ProviderDisplay) -> some View {
+        VStack(alignment: .leading, spacing: .spacing10) {
+            if onChildNavigationChanged == nil { childBackRow { selectedProviderID = nil } }
+            VStack(spacing: .spacing3) {
+                AISettingsProviderLogo(path: provider.logoSvg)
+                Text(provider.brandName).font(.omP.weight(.bold)).foregroundStyle(Color.fontPrimary)
+                if let attribution = attribution(provider) {
+                    Text(attribution).font(.omSmall.weight(.bold)).foregroundStyle(Color.aiSettingsMuted)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .accessibilityIdentifier("ai-provider-identity")
+
+            Text(AppStrings.aiProviderModelsInstruction)
+                .font(.omSmall.weight(.medium)).foregroundStyle(Color.aiSettingsMuted)
+                .padding(.horizontal, .spacing10)
+                .accessibilityIdentifier("ai-provider-guidance")
+
+            VStack(alignment: .leading, spacing: .spacing5) {
+                Text(AppStrings.aiProviderModelsHeading(provider.brandName))
+                    .font(.omP.weight(.bold)).foregroundStyle(Color.fontPrimary)
+                    .padding(.horizontal, .spacing10)
+                VStack(spacing: .spacing4) {
+                    ForEach(providerModels, id: \.id) { model in
+                        HStack(spacing: AISettingsMetrics.rowGap) {
+                            AISettingsFamilyRow(title: model.name, subtitle: modelSubtitle(model),
+                                                logo: model.logo_svg, trailingPadding: isAuthenticated && canEditPreferences ? 0 : .spacing10) {
+                                selectedModelID = model.id
+                            }
+                            .accessibilityIdentifier("provider-model-item")
+                            .accessibilityValue(model.id)
+                            if isAuthenticated, canEditPreferences {
+                                AISettingsToggle(isOn: Binding(
+                                    get: { !disabledPreferences.disabled_ai_models.contains(model.id) },
+                                    set: { setModel(model.id, enabled: $0) }),
+                                    accessibilityIdentifier: "provider-model-item-toggle-" + model.id)
+                                .accessibilityLabel(model.name)
+                                .padding(.trailing, .spacing10)
+                            }
+                        }
+                    }
+                }
+            }
+            .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("ai-provider-details")
+        }
+    }
+
+    private func modelPage(_ model: NativeModelCatalog.Model) -> some View {
+        VStack(alignment: .leading, spacing: .spacing10) {
+            Text(model.description ?? "")
+                .font(.omSmall.weight(.medium)).foregroundStyle(Color.aiSettingsMuted)
+                .padding(.horizontal, .spacing10)
+                .accessibilityIdentifier("ai-model-description")
+            if isAuthenticated, canEditPreferences {
+                HStack(spacing: AISettingsMetrics.rowGap) {
+                    AISettingsFamilyRow(title: AppStrings.aiEnableModel, subtitle: model.name, logo: model.logo_svg, trailingPadding: isAuthenticated && canEditPreferences ? 0 : .spacing10) {
+                        setModel(model.id, enabled: disabledPreferences.disabled_ai_models.contains(model.id))
+                    }
+                    AISettingsToggle(isOn: Binding(
+                        get: { !disabledPreferences.disabled_ai_models.contains(model.id) },
+                        set: { setModel(model.id, enabled: $0) }),
+                        accessibilityIdentifier: "ai-model-enabled-toggle")
+                        .accessibilityLabel(AppStrings.aiEnableModel)
+                        .padding(.trailing, .spacing10)
+                }
+            }
+            modelSection(AppStrings.aiDetails, identifier: "ai-model-summary-section") {
+                HStack(spacing: .spacing6) {
+                    AISettingsCapability(level: model.capability_level ?? "medium")
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(AppStrings.aiCapabilityTitle).font(.omSmall.weight(.bold)).foregroundStyle(Color.aiSettingsMuted)
+                        Text(AppStrings.aiCapability(model.capability_level ?? "medium"))
+                            .font(.omP.weight(.medium)).foregroundStyle(LinearGradient.primary)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, .spacing10)
+                .accessibilityIdentifier("ai-model-capability-row")
+                AISettingsDetailRow(title: AppStrings.aiModelOrigin,
+                    value: modelCatalog.catalog?.providers.first(where: { $0.id == model.provider_id })?.companyName ?? model.provider_name,
+                    icon: "openmates", identifier: "ai-model-origin-row")
+                if let date = model.release_date {
+                    AISettingsDetailRow(title: AppStrings.aiModelReleaseDate, value: AISettingsReleaseDate.string(date),
+                        icon: "time", identifier: "ai-model-release-row")
+                }
+                AISettingsDetailRow(title: AppStrings.aiModelInputTypes,
+                    value: (model.input_types ?? []).map(AppStrings.aiMediaType).joined(separator: ", "),
+                    icon: "text", identifier: "ai-model-input-types-row")
+                AISettingsDetailRow(title: AppStrings.aiModelOutputTypes,
+                    value: (model.output_types ?? []).map(AppStrings.aiMediaType).joined(separator: ", "),
+                    icon: "document", identifier: "ai-model-output-types-row")
+            }
+            if let pricing = model.pricing {
+                modelSection(AppStrings.pricing, identifier: "ai-model-pricing-section") {
+                    if let input = pricing.input_tokens_per_credit {
+                        AISettingsDetailRow(title: AppStrings.aiModelTextInput, value: AppStrings.aiPrice(input),
+                            icon: "coins", identifier: "ai-model-pricing-input-row")
+                    }
+                    if let output = pricing.output_tokens_per_credit {
+                        AISettingsDetailRow(title: AppStrings.aiModelTextOutput, value: AppStrings.aiPrice(output),
+                            icon: "coins", identifier: "ai-model-pricing-output-row")
+                    }
+                }
+            }
+            modelSection(AppStrings.aiExamples, identifier: "ai-model-example-chats") {
+                AISettingsExampleCard(title: AppStrings.simpleRequests, subtitle: AppStrings.aiSimpleRequestsDescription)
+                AISettingsExampleCard(title: AppStrings.complexRequests, subtitle: AppStrings.aiComplexRequestsDescription)
+            }
+            if !model.servers.isEmpty {
+                modelSection(AppStrings.aiModelProviders, identifier: "ai-model-provider-options") {
+                    ForEach(model.servers, id: \.id) { server in
+                        HStack(spacing: AISettingsMetrics.rowGap) {
+                            AISettingsFamilyRow(title: server.name ?? server.id,
+                                subtitle: AppStrings.aiServerRegion(server.region ?? ""), logo: "server", trailingPadding: isAuthenticated && canEditPreferences ? 0 : .spacing10) {
+                                guard isAuthenticated, canEditPreferences else { return }
+                                let disabled = disabledPreferences.disabled_ai_servers[model.id] ?? []
+                                setServer(server.id, model: model.id, enabled: disabled.contains(server.id))
+                            }
+                            if isAuthenticated, canEditPreferences {
+                                AISettingsToggle(isOn: Binding(
+                                    get: { !(disabledPreferences.disabled_ai_servers[model.id] ?? []).contains(server.id) },
+                                    set: { setServer(server.id, model: model.id, enabled: $0) }),
+                                    accessibilityIdentifier: "ai-model-provider-option-" + server.id)
+                                    .accessibilityLabel(server.name ?? server.id)
+                                    .padding(.trailing, .spacing10)
+                            }
+                        }
+                        .accessibilityElement(children: .contain)
+                        .accessibilityIdentifier("ai-model-provider-option-" + server.id + "-row")
+                    }
                 }
             }
         }
+        .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("ai-model-details")
+    }
+    private func modelSection<Content: View>(_ title: String, identifier: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: .spacing5) {
+            Text(title).font(.omP.weight(.bold)).foregroundStyle(Color.fontPrimary)
+                .padding(.horizontal, .spacing10)
+            VStack(alignment: .leading, spacing: .spacing4, content: content)
+        }.accessibilityElement(children: .contain).accessibilityIdentifier(identifier)
     }
 
-    private enum AIDetail {
-        case model(ModelDetail)
-        case provider(AIProvider)
+    private func childBackRow(_ action: @escaping () -> Void) -> some View {
+        OMSettingsRow(title: AppStrings.back, icon: "back", showsChevron: false,
+                      accessibilityIdentifier: "settings-ai-child-back", action: action)
+    }
 
-        var title: String {
-            switch self {
-            case .model(let model): return model.name
-            case .provider(let provider): return provider.name
-            }
+    private var isAuthenticated: Bool { authManager.currentUser != nil }
+    private var providerFamilies: [NativeModelCatalog.ProviderDisplay] {
+        Self.providerFamilies(catalog: modelCatalog.catalog)
+    }
+    private var selectedProvider: NativeModelCatalog.ProviderDisplay? {
+        providerFamilies.first { $0.id == selectedProviderID }
+    }
+    private var selectedModel: NativeModelCatalog.Model? {
+        modelCatalog.catalog?.models.first { $0.id == selectedModelID }
+    }
+    private var providerModels: [NativeModelCatalog.Model] {
+        Self.providerModels(catalog: modelCatalog.catalog, providerID: selectedProviderID)
+    }
+    private var usesPreferenceFixture: Bool {
+        #if DEBUG
+        return authManager.currentUser?.id == "ui-test-chat-navigation-user" &&
+            ProcessInfo.processInfo.arguments.contains("--ui-test-ai-preferences-fixture")
+        #else
+        return false
+        #endif
+    }
+    private var canEditPreferences: Bool { usesPreferenceFixture || modelCatalog.canEditPreferences }
+    private var disabledPreferences: NativeModelDisabledPreferences.Value {
+        usesPreferenceFixture ? fixturePreferences : modelCatalog.disabledPreferences
+    }
+    private func setModel(_ id: String, enabled: Bool) {
+        guard isAuthenticated else { return }
+        if usesPreferenceFixture {
+            if enabled { fixturePreferences.disabled_ai_models.remove(id) }
+            else { fixturePreferences.disabled_ai_models.insert(id) }
+        } else { modelCatalog.setModel(id, enabled: enabled) }
+    }
+    private func setServer(_ id: String, model: String, enabled: Bool) {
+        guard isAuthenticated else { return }
+        if usesPreferenceFixture {
+            if enabled { fixturePreferences.disabled_ai_servers[model, default: []].remove(id) }
+            else { fixturePreferences.disabled_ai_servers[model, default: []].insert(id) }
+        } else { modelCatalog.setServer(id, model: model, enabled: enabled) }
+    }
+    private func modelLabel(_ value: String?) -> String {
+        guard let value else { return AppStrings.auto }
+        return modelCatalog.catalog?.models.first { $0.provider_id + "/" + $0.id == value }?.name ?? value
+    }
+    private func tierSelection(_ tier: AIRequestTier) -> String? {
+        let value: String
+        switch tier {
+        case .simple: value = defaultSimpleModel
+        case .complex: value = defaultComplexModel
+        case .mostDemanding: value = defaultMostDemandingModel
+        }
+        return value.isEmpty ? nil : value
+    }
+    private func setTierSelection(_ tier: AIRequestTier, value: String?) {
+        switch tier {
+        case .simple: defaultSimpleModel = value ?? ""
+        case .complex: defaultComplexModel = value ?? ""
+        case .mostDemanding: defaultMostDemandingModel = value ?? ""
         }
     }
-
-    private func loadModelPreferences() async {
-        do {
-            let response: SessionResponse = try await APIClient.shared.request(.get, path: "/v1/auth/session")
-            defaultSimpleModel = response.user?.defaultAiModelSimple ?? ""
-            defaultComplexModel = response.user?.defaultAiModelComplex ?? ""
-            autoSelectModel = defaultSimpleModel.isEmpty && defaultComplexModel.isEmpty
-            followUpSuggestionsEnabled = response.user?.followUpSuggestionsEnabled ?? true
-            quickTipsEnabled = response.user?.quickTipsEnabled ?? true
-        } catch {
-            errorMessage = error.localizedDescription
-            NativeDiagnostics.error("AI preference load failed", category: "settings.ai")
-        }
-        isLoading = false
+    private var tierModels: [NativeModelCatalog.Model] {
+        guard let catalog = modelCatalog.catalog else { return [] }
+        let routing = catalog.routing(disabledModels: disabledPreferences.disabled_ai_models,
+            disabledServers: disabledPreferences.disabled_ai_servers, health: usesPreferenceFixture ? nil : modelCatalog.health)
+        return AIRequestTier.eligibleModels(catalog: catalog, routing: routing)
     }
-
-    private func saveDefaults(rollbackFollowUpsTo: Bool? = nil, rollbackQuickTipsTo: Bool? = nil) {
-        guard isAuthenticated, !isSaving else { return }
+    private func saveTierSelection(_ tier: AIRequestTier, value: String?) {
+        guard isAuthenticated, hasLoadedPreferences, !isSaving, value != tierSelection(tier) else { return }
+        let previous = tierSelection(tier)
+        setTierSelection(tier, value: value)
         isSaving = true
         errorMessage = nil
         Task {
             do {
-                let _: Data = try await APIClient.shared.request(
-                    .post, path: "/v1/settings/ai-model-defaults",
-                    body: AIModelDefaultsRequest(
-                        defaultAiModelSimple: autoSelectModel || defaultSimpleModel.isEmpty ? nil : defaultSimpleModel,
-                        defaultAiModelComplex: autoSelectModel || defaultComplexModel.isEmpty ? nil : defaultComplexModel,
-                        followUpSuggestionsEnabled: followUpSuggestionsEnabled,
-                        quickTipsEnabled: quickTipsEnabled
-                    )
-                )
+                if usesPreferenceFixture {
+                    if ProcessInfo.processInfo.arguments.contains("--ui-test-ai-preferences-save-failure") { throw CocoaError(.fileWriteUnknown) }
+                } else {
+                    let _: Data = try await APIClient.shared.request(.post, path: "/v1/settings/ai-model-defaults",
+                        body: AITierSelectionRequest(tier: tier, selection: value))
+                }
+            } catch {
+                setTierSelection(tier, value: previous)
+                errorMessage = AppStrings.aiPreferencesSaveError
+                NativeDiagnostics.error("AI tier preference save failed", category: "settings.ai")
+            }
+            isSaving = false
+        }
+    }
+
+    private func attribution(_ provider: NativeModelCatalog.ProviderDisplay) -> String? {
+        provider.brandName == provider.companyName ? nil : AppStrings.aiFromProvider(provider.companyName)
+    }
+    private func modelSubtitle(_ model: NativeModelCatalog.Model) -> String {
+        [AppStrings.aiCapability(model.capability_level ?? "medium"), model.description ?? ""]
+            .filter { !$0.isEmpty }.joined(separator: " · ")
+    }
+    private func publishChildNavigation() {
+        if let selectedModel {
+            onChildNavigationChanged?(SettingsChildBannerNavigation(title: selectedModel.name, description: "", onBack: {
+                selectedModelID = nil
+            }))
+        } else if let tier = selectedTier {
+            if let provider = providerFamilies.first(where: { $0.id == selectedTierProviderID }) {
+                onChildNavigationChanged?(SettingsChildBannerNavigation(title: provider.brandName,
+                    description: AppStrings.aiProviderHeaderDescription(provider.companyName), onBack: { selectedTierProviderID = nil }))
+            } else {
+                onChildNavigationChanged?(SettingsChildBannerNavigation(title: tier.title,
+                    description: tier.description, onBack: { selectedTier = nil }))
+            }
+        } else if let provider = selectedProvider {
+            onChildNavigationChanged?(SettingsChildBannerNavigation(title: provider.brandName, description: AppStrings.aiProviderHeaderDescription(provider.companyName),
+                breadcrumb: AppStrings.settings + " / " + AppStrings.settingsAI, onBack: {
+                selectedProviderID = nil
+            }))
+        } else {
+            onChildNavigationChanged?(nil)
+        }
+    }
+    private func selectInitialRoute() {
+        if let initialTier, isAuthenticated {
+            selectedTier = initialTier
+            selectedTierProviderID = initialProviderID
+        } else if let initialModelID, modelCatalog.catalog?.models.contains(where: { $0.id == initialModelID }) == true {
+            selectedModelID = initialModelID
+        } else if let initialProviderID, providerFamilies.contains(where: { $0.id == initialProviderID }) {
+            selectedProviderID = initialProviderID
+        }
+    }
+
+    // The overview uses provider product families; hosting servers belong to model
+    // details. Filter by ai.ask to avoid exposing unrelated app model families.
+    static func providerFamilies(catalog: NativeModelCatalog?) -> [NativeModelCatalog.ProviderDisplay] {
+        guard let catalog else { return [] }
+        return catalog.pickerProviders.sorted {
+            if $0.order != $1.order { return $0.order < $1.order }
+            return $0.brandName.localizedCompare($1.brandName) == .orderedAscending
+        }
+    }
+    static func providerModels(catalog: NativeModelCatalog?, providerID: String?, query: String = "") -> [NativeModelCatalog.Model] {
+        guard let providerID else { return [] }
+        let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        return (catalog?.models ?? []).filter {
+            $0.for_app_skill == "ai.ask" && $0.provider_id == providerID &&
+            (query.isEmpty || $0.name.localizedCaseInsensitiveContains(query) ||
+             ($0.description ?? "").localizedCaseInsensitiveContains(query))
+        }
+    }
+    static func catalogModel(id: String?) -> NativeModelCatalog.Model? {
+        guard let id else { return nil }
+        return NativeModelCatalogRuntime.shared.catalog?.models.first { $0.id == id }
+    }
+    static func modelDetail(id: String?, canonicalModels: [NativeModelCatalog.Model]) -> ModelDetail? {
+        guard let id, let model = canonicalModels.first(where: { $0.id == id }) ?? catalogModel(id: id) else { return nil }
+        return ModelDetail(id: model.id, name: model.name, providerName: model.provider_name,
+                           description: model.description ?? "", releaseDate: model.release_date ?? "")
+    }
+
+    private func loadModelPreferences() async {
+        guard isAuthenticated else { return }
+        if usesPreferenceFixture {
+            hasLoadedPreferences = true
+            return
+        }
+        isLoadingPreferences = true
+        defer { isLoadingPreferences = false }
+        do {
+            let response: SessionResponse = try await APIClient.shared.request(.get, path: "/v1/auth/session")
+            guard let user = response.user else { throw CocoaError(.coderValueNotFound) }
+            defaultSimpleModel = user.defaultAiModelSimple ?? ""
+            defaultComplexModel = user.defaultAiModelComplex ?? ""
+            defaultMostDemandingModel = user.defaultAiModelMostDemanding ?? ""
+            followUpSuggestionsEnabled = user.followUpSuggestionsEnabled ?? true
+            quickTipsEnabled = user.quickTipsEnabled ?? true
+            hasLoadedPreferences = true
+        } catch {
+            errorMessage = AppStrings.aiPreferencesSaveError
+            NativeDiagnostics.error("AI preference load failed", category: "settings.ai")
+        }
+    }
+    private func saveDefaults(rollbackFollowUpsTo: Bool? = nil, rollbackQuickTipsTo: Bool? = nil) {
+        guard isAuthenticated, hasLoadedPreferences, !isSaving, !isLoadingPreferences else { return }
+        let field = rollbackFollowUpsTo != nil ? "follow_up_suggestions_enabled" : "quick_tips_enabled"
+        let value = rollbackFollowUpsTo != nil ? followUpSuggestionsEnabled : quickTipsEnabled
+        isSaving = true
+        errorMessage = nil
+        Task {
+            do {
+                if usesPreferenceFixture {
+                    if ProcessInfo.processInfo.arguments.contains("--ui-test-ai-preferences-save-failure") { throw CocoaError(.fileWriteUnknown) }
+                } else {
+                    let _: Data = try await APIClient.shared.request(.post, path: "/v1/settings/ai-model-defaults", body: [field: value])
+                }
             } catch {
                 if let rollbackFollowUpsTo { followUpSuggestionsEnabled = rollbackFollowUpsTo }
                 if let rollbackQuickTipsTo { quickTipsEnabled = rollbackQuickTipsTo }
-                errorMessage = error.localizedDescription
-                NativeDiagnostics.error("AI preference save failed", category: "settings.ai")
+                errorMessage = AppStrings.aiPreferencesSaveError
+                NativeDiagnostics.error("AI response preference save failed", category: "settings.ai")
             }
             isSaving = false
         }
     }
 }
 
-private struct AIModelDefaultsRequest: Encodable {
-    let defaultAiModelSimple: String?
-    let defaultAiModelComplex: String?
-    let followUpSuggestionsEnabled: Bool
-    let quickTipsEnabled: Bool
+// Browser-computed geometry from the regular guest AI settings/provider routes
+// at a 402px viewport. SettingsItem uses local rem metrics that do not currently
+// have generated token counterparts; keep those exact metrics together.
+private enum AISettingsMetrics {
+    static let bodyWidth: CGFloat = 323
+    static let tileSize: CGFloat = 43.7
+    static let tilePadding: CGFloat = 9
+    static let rowGap: CGFloat = 13
+    static let radius: CGFloat = 8.944
 }
 
-private struct AIModelSearchSortBar: View {
-    @Binding var searchText: String
-    @Binding var sortBy: SettingsAIFullView.AIModelSort
-
+// Local reusable composition of the canonical SettingsItem ai-row variant.
+private struct AISettingsPreferenceRow: View {
+    let tier: AIRequestTier
+    let value: String
+    let action: () -> Void
     var body: some View {
-        HStack(spacing: .spacing4) {
-            HStack(spacing: .spacing3) {
-                Icon("search", size: 18)
-                    .foregroundStyle(Color.grey50)
-
-                TextField(AppStrings.searchModels, text: $searchText)
-                    .font(.omP.weight(.medium))
-                    .foregroundStyle(Color.fontPrimary)
-                    .submitLabel(.search)
-
-                if !searchText.isEmpty {
-                    Button {
-                        searchText = ""
-                    } label: {
-                        Icon("delete", size: 16)
-                            .foregroundStyle(Color.grey50)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibleButton(LocalizationManager.shared.text("common.clear"))
+        HStack(spacing: .spacing6) {
+            AISettingsCapability(level: tier.capability)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(tier.title).font(.omSmall.weight(.bold)).foregroundStyle(Color.aiSettingsMuted)
+                HStack(spacing: .spacing2) {
+                    Icon("ai", size: 22.68).foregroundStyle(LinearGradient.primary)
+                    Text(value).font(.omP.weight(.bold)).foregroundStyle(LinearGradient.primary).lineLimit(1)
                 }
             }
-            .padding(.horizontal, .spacing6)
-            .frame(height: 44)
-            .background(Color.grey0)
-            .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
-            .shadow(color: .black.opacity(0.10), radius: 4, x: 0, y: 4)
-
-            Button {
-                sortBy = sortBy.next
-            } label: {
-                Icon("sort", size: 22)
-                    .foregroundStyle(LinearGradient.primary)
-                    .frame(width: 44, height: 44)
-                    .background(Color.grey0)
-                    .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
-                    .shadow(color: .black.opacity(0.10), radius: 4, x: 0, y: 4)
-            }
-            .buttonStyle(.plain)
-            .accessibleButton(sortLabel)
-        }
-    }
-
-    private var sortLabel: String {
-        switch sortBy {
-        case .performance:
-            return LocalizationManager.shared.text("settings.ai_ask.ai_ask_settings.sort_by_performance")
-        case .price:
-            return LocalizationManager.shared.text("settings.ai_ask.ai_ask_settings.sort_by_price")
-        case .newest:
-            return LocalizationManager.shared.text("settings.ai_ask.ai_ask_settings.sort_by_new")
-        }
+            Spacer(minLength: 0)
+            Button(action: action) {
+                Icon("modify", size: 15).foregroundStyle(Color.white)
+                    .frame(width: 30, height: 30).background(LinearGradient.primary, in: Circle())
+            }.buttonStyle(.plain).accessibilityLabel(AppStrings.aiModify)
+                .accessibilityIdentifier("ai-tier-row-" + tier.rawValue + "-modify-button")
+        }.padding(.horizontal, .spacing10).frame(minHeight: AISettingsMetrics.tileSize)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("ai-tier-row-" + tier.rawValue)
     }
 }
-
-private struct ProviderLogo: View {
-    let name: String
-
+private struct AISettingsCapability: View {
+    let level: String
+    private var active: Int { ["low": 1, "medium": 2, "high": 3, "max": 4][level] ?? 0 }
+    private var color: Color {
+        switch level { case "low": return .aiCapabilityLow; case "medium": return .aiCapabilityMedium
+        case "high": return .aiCapabilityHigh; case "max": return .aiCapabilityMax; default: return .grey30 }
+    }
     var body: some View {
-        Image(name)
-            .renderingMode(.original)
-            .resizable()
-            .scaledToFit()
-            .frame(width: 32, height: 32)
-            .frame(width: 40, height: 40)
-            .background(Color.grey10)
-            .clipShape(RoundedRectangle(cornerRadius: .radius3))
+        HStack(alignment: .bottom, spacing: 0.912) {
+            ForEach(1...4, id: \.self) { bar in
+                UnevenRoundedRectangle(topLeadingRadius: .radius1, topTrailingRadius: .radius1)
+                    .fill(bar <= active ? color : Color.grey30)
+                    .frame(width: 3.64, height: [5.31, 8.85, 12.744, 17.7][bar - 1])
+            }
+        }.padding(13).frame(width: AISettingsMetrics.tileSize, height: AISettingsMetrics.tileSize)
+            .background(LinearGradient.omGradient(start: .aiIconTileStart, end: .aiIconTileEnd),
+                in: RoundedRectangle(cornerRadius: AISettingsMetrics.radius))
+            .accessibilityLabel(AppStrings.aiCapability(level)).accessibilityValue(level)
+            .accessibilityIdentifier("ai-capability-scale")
+    }
+}
+private struct AISettingsSwitchRow: View {
+    let title: String
+    let subtitle: String
+    let logo: String
+    @Binding var value: Bool
+    let disabled: Bool
+    let identifier: String
+    var body: some View {
+        HStack(spacing: AISettingsMetrics.rowGap) {
+            AISettingsFamilyRow(title: title, subtitle: subtitle, logo: logo, trailingPadding: 0) {
+                if !disabled { value.toggle() }
+            }.disabled(disabled)
+            AISettingsToggle(isOn: $value, disabled: disabled, accessibilityIdentifier: identifier + "-toggle")
+                .accessibilityLabel(title).padding(.trailing, .spacing10)
+        }.accessibilityElement(children: .contain).accessibilityIdentifier(identifier)
+    }
+}
+private struct AISettingsToggle: View {
+    @Binding var isOn: Bool
+    var disabled = false
+    let accessibilityIdentifier: String
+    var body: some View {
+        Button { if !disabled { isOn.toggle() } } label: {
+            ZStack(alignment: isOn ? .trailing : .leading) {
+                Capsule().fill(Color.grey30)
+                if isOn { Capsule().fill(LinearGradient.primary) }
+                Circle().fill(Color.fontButton).frame(width: 25, height: 25)
+                    .shadow(color: .black.opacity(0.2), radius: .spacing2, x: 0, y: .spacing1).padding(2)
+            }.frame(width: 49, height: 29)
+        }.buttonStyle(.plain).disabled(disabled)
+            .accessibilityAddTraits(.isToggle).accessibilityValue(isOn ? "On" : "Off")
+            .accessibilityIdentifier(accessibilityIdentifier)
     }
 }
 
-private extension SettingsAIFullView {
-    static let providerAWS = AIProvider(id: "aws_bedrock", name: "AWS Bedrock", region: "EU", logo: "server", isEnabled: true)
-    static let providerAnthropic = AIProvider(id: "anthropic", name: "Anthropic", region: "US", logo: "anthropic", isEnabled: true)
-    static let providerCerebras = AIProvider(id: "cerebras", name: "Cerebras", region: "US", logo: "server", isEnabled: true)
-    static let providerGoogle = AIProvider(id: "google", name: "Google Vertex AI", region: "global", logo: "google", isEnabled: true)
-    static let providerGoogleAIStudio = AIProvider(id: "google_ai_studio", name: "Google AI Studio", region: "US", logo: "google", isEnabled: true)
-    static let providerGoogleMaaS = AIProvider(id: "google_maas", name: "Google Vertex AI (MaaS)", region: "EU", logo: "google", isEnabled: true)
-    static let providerMistral = AIProvider(id: "mistral", name: "Mistral", region: "EU", logo: "mistral", isEnabled: true)
-    static let providerOpenAI = AIProvider(id: "openai", name: "OpenAI", region: "US", logo: "openai", isEnabled: true)
-    static let providerOpenRouter = AIProvider(id: "openrouter", name: "OpenRouter", region: "US", logo: "server", isEnabled: true)
-    static let providerTogether = AIProvider(id: "together", name: "Together AI", region: "US", logo: "server", isEnabled: true)
+private struct AISettingsHeading: View {
+    let title: String
+    let icon: String
+    var body: some View {
+        HStack(spacing: .spacing6) {
+            Icon(icon, size: .iconSizeLg).foregroundStyle(LinearGradient.primary)
+            Text(title).font(.omP.weight(.medium)).foregroundStyle(Color.fontPrimary)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, .spacing5)
+        .padding(.vertical, .spacing6)
+    }
+}
 
-    static let catalogModels: [AIModel] = [
-        AIModel(id: "qwen3-235b-a22b-2507", name: "Qwen 3 256b", provider: "alibaba", providerName: "Alibaba", description: "Alibaba AI Ask model", logo: "alibaba", releaseDate: "2025-07-01", inputTokensPerCredit: 550, outputTokensPerCredit: 300, servers: [providerCerebras, providerAWS, providerOpenRouter], isEnabled: true),
-        AIModel(id: "claude-haiku-4-5-20251001", name: "Claude Haiku 4.5", provider: "anthropic", providerName: "Anthropic", description: "Anthropic AI Ask model", logo: "anthropic", releaseDate: "2025-10-15", inputTokensPerCredit: 350, outputTokensPerCredit: 70, servers: [providerAWS, providerAnthropic], isEnabled: true),
-        AIModel(id: "claude-sonnet-4-6", name: "Claude Sonnet 4.6", provider: "anthropic", providerName: "Anthropic", description: "Anthropic AI Ask model", logo: "anthropic", releaseDate: "2026-02-18", inputTokensPerCredit: 110, outputTokensPerCredit: 20, servers: [providerAnthropic, providerAWS], isEnabled: true),
-        AIModel(id: "claude-opus-4-6", name: "Claude Opus 4.6", provider: "anthropic", providerName: "Anthropic", description: "Anthropic AI Ask model", logo: "anthropic", releaseDate: "2026-02-06", inputTokensPerCredit: 70, outputTokensPerCredit: 15, servers: [providerAnthropic, providerAWS], isEnabled: true),
-        AIModel(id: "claude-opus-4-7", name: "Claude Opus 4.7", provider: "anthropic", providerName: "Anthropic", description: "Anthropic AI Ask model", logo: "anthropic", releaseDate: "2026-04-16", inputTokensPerCredit: 70, outputTokensPerCredit: 15, servers: [providerAnthropic, providerAWS], isEnabled: true),
-        AIModel(id: "deepseek-v3.2", name: "DeepSeek V3.2", provider: "deepseek", providerName: "DeepSeek", description: "DeepSeek AI Ask model", logo: "deepseek", releaseDate: "2025-12-01", inputTokensPerCredit: 600, outputTokensPerCredit: 200, servers: [providerGoogleMaaS, providerOpenRouter], isEnabled: true),
-        AIModel(id: "gemini-3-flash-preview", name: "Gemini 3 Flash", provider: "google", providerName: "Google", description: "Google AI Ask model", logo: "google", releaseDate: "2025-12-17", inputTokensPerCredit: 650, outputTokensPerCredit: 110, servers: [providerGoogleAIStudio, providerGoogle], isEnabled: true),
-        AIModel(id: "gemini-3.1-pro-preview", name: "Gemini 3.1 Pro", provider: "google", providerName: "Google", description: "Google AI Ask model", logo: "google", releaseDate: "2026-02-19", inputTokensPerCredit: 170, outputTokensPerCredit: 30, servers: [providerGoogleAIStudio, providerGoogle], isEnabled: true),
-        AIModel(id: "mistral-small-2506", name: "Mistral Small 3.2", provider: "mistral", providerName: "Mistral AI", description: "Mistral AI Ask model", logo: "mistral", releaseDate: "2025-06-01", inputTokensPerCredit: 3300, outputTokensPerCredit: 1100, servers: [providerMistral, providerOpenRouter], isEnabled: true),
-        AIModel(id: "mistral-small-latest", name: "Mistral Small 4", provider: "mistral", providerName: "Mistral AI", description: "Mistral AI Ask model", logo: "mistral", releaseDate: "2025-06-01", inputTokensPerCredit: 1650, outputTokensPerCredit: 550, servers: [providerMistral, providerOpenRouter], isEnabled: true),
-        AIModel(id: "mistral-medium-latest", name: "Mistral Medium", provider: "mistral", providerName: "Mistral AI", description: "Mistral AI Ask model", logo: "mistral", releaseDate: "2025-05-01", inputTokensPerCredit: 850, outputTokensPerCredit: 170, servers: [providerMistral, providerOpenRouter], isEnabled: true),
-        AIModel(id: "ministral-8b-2512", name: "Ministral 3 8B", provider: "mistral", providerName: "Mistral AI", description: "Mistral AI Ask model", logo: "mistral", releaseDate: "2025-12-01", inputTokensPerCredit: 2222, outputTokensPerCredit: 2222, servers: [providerMistral, providerOpenRouter], isEnabled: true),
-        AIModel(id: "devstral-2512", name: "Devstral 2", provider: "mistral", providerName: "Mistral AI", description: "Mistral AI Ask model", logo: "mistral", releaseDate: "2025-12-01", inputTokensPerCredit: 850, outputTokensPerCredit: 170, servers: [providerAWS, providerMistral, providerOpenRouter], isEnabled: true),
-        AIModel(id: "kimi-k2.5", name: "Kimi K2.5", provider: "moonshot", providerName: "Moonshot AI", description: "Moonshot AI Ask model", logo: "moonshot", releaseDate: "2026-01-27", inputTokensPerCredit: 650, outputTokensPerCredit: 120, servers: [providerTogether, providerOpenRouter], isEnabled: true),
-        AIModel(id: "kimi-k2.6", name: "Kimi K2.6", provider: "moonshot", providerName: "Moonshot AI", description: "Moonshot AI Ask model", logo: "moonshot", releaseDate: "2026-04-28", inputTokensPerCredit: 275, outputTokensPerCredit: 75, servers: [providerTogether, providerOpenRouter], isEnabled: true),
-        AIModel(id: "gpt-5.5", name: "GPT-5.5", provider: "openai", providerName: "OpenAI", description: "OpenAI AI Ask model", logo: "openai", releaseDate: "2026-04-15", inputTokensPerCredit: 65, outputTokensPerCredit: 10, servers: [providerOpenAI], isEnabled: true),
-        AIModel(id: "gpt-5.4", name: "GPT-5.4", provider: "openai", providerName: "OpenAI", description: "OpenAI AI Ask model", logo: "openai", releaseDate: "2026-03-05", inputTokensPerCredit: 130, outputTokensPerCredit: 20, servers: [providerOpenAI], isEnabled: true),
-        AIModel(id: "gpt-oss-120b", name: "GPT-OSS-120b", provider: "openai", providerName: "OpenAI", description: "OpenAI AI Ask model", logo: "openai", releaseDate: "2025-08-01", inputTokensPerCredit: 1300, outputTokensPerCredit: 500, servers: [providerAWS, providerOpenRouter], isEnabled: true),
-        AIModel(id: "zai-glm-4.7", name: "GLM 4.7", provider: "zai", providerName: "Z.ai", description: "Z.ai AI Ask model", logo: "zai", releaseDate: "2025-12-22", inputTokensPerCredit: 150, outputTokensPerCredit: 120, servers: [providerCerebras, providerAWS, providerOpenRouter], isEnabled: true)
-    ]
+private struct AISettingsFamilyRow: View {
+    let title: String
+    var subtitle: String?
+    let logo: String
+    var trailingPadding: CGFloat = .spacing10
+    let action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: AISettingsMetrics.rowGap) {
+                AISettingsProviderLogo(path: logo)
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(title).font(Font.omP.weight(.bold)).foregroundStyle(LinearGradient.primary)
+                    if let subtitle {
+                        Text(subtitle).font(Font.omSmall.weight(.bold)).foregroundStyle(Color.aiSettingsMuted)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.leading, .spacing10)
+            .padding(.trailing, trailingPadding)
+            .frame(minHeight: AISettingsMetrics.tileSize)
+            .contentShape(RoundedRectangle(cornerRadius: AISettingsMetrics.radius))
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+    }
+}
+private struct AISettingsProviderLogo: View {
+    let path: String
+    var body: some View {
+        Group {
+            if path.contains("/") || path.hasSuffix(".svg") {
+                Image(URL(fileURLWithPath: path).deletingPathExtension().lastPathComponent)
+                    .renderingMode(.original).resizable().scaledToFit()
+            } else {
+                Icon(path, size: AISettingsMetrics.tileSize - AISettingsMetrics.tilePadding * 2)
+                    .foregroundStyle(LinearGradient.primary)
+            }
+        }
+            .padding(AISettingsMetrics.tilePadding)
+            .frame(width: AISettingsMetrics.tileSize, height: AISettingsMetrics.tileSize)
+            .background(LinearGradient.omGradient(start: .aiIconTileStart, end: .aiIconTileEnd))
+            .clipShape(RoundedRectangle(cornerRadius: AISettingsMetrics.radius))
+            .shadow(color: .black.opacity(0.25), radius: 2.032, x: 1.008, y: 1.008)
+    }
+}
+
+private struct AISettingsExampleCard: View {
+    let title: String
+    let subtitle: String
+    var body: some View {
+        VStack(spacing: .spacing5) {
+            Icon("chat", size: .iconSizeMd)
+            Text(title).font(.omP.weight(.bold))
+            Text(subtitle).font(.omSmall.weight(.medium))
+        }
+        .foregroundStyle(Color.white)
+        .multilineTextAlignment(.center)
+        .padding(.horizontal, .spacing10)
+        .padding(.vertical, .spacing8)
+        .frame(maxWidth: .infinity, minHeight: .spacing32 * 5)
+        .background(LinearGradient.appWeb, in: RoundedRectangle(cornerRadius: .radius8))
+        .padding(.horizontal, .spacing10)
+        .accessibilityIdentifier("ai-model-example-card")
+    }
+}
+
+private struct AISettingsDetailRow: View {
+    let title: String
+    let value: String
+    let icon: String
+    let identifier: String
+    var body: some View {
+        HStack(spacing: .spacing6) {
+            Icon(icon, size: .iconSizeMd).foregroundStyle(LinearGradient.primary)
+                .frame(width: .spacing20 + .spacing2, height: .spacing20 + .spacing2)
+                .background(LinearGradient.omGradient(start: .aiIconTileStart, end: .aiIconTileEnd))
+                .clipShape(RoundedRectangle(cornerRadius: .radius4))
+            VStack(alignment: .leading, spacing: 0) {
+                Text(title).font(.omSmall.weight(.bold)).foregroundStyle(Color.aiSettingsMuted)
+                Text(value).font(.omP.weight(.medium)).foregroundStyle(Color.fontPrimary)
+            }
+            Spacer(minLength: 0)
+        }.padding(.horizontal, .spacing10).accessibilityIdentifier(identifier)
+    }
+}
+@MainActor private enum AISettingsReleaseDate {
+    private static let parser: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }()
+    private static var cache: [String: String] = [:]
+    static func string(_ raw: String) -> String {
+        let key = Locale.current.identifier + raw
+        if let cached = cache[key] { return cached }
+        guard let date = parser.date(from: raw) else { return raw }
+        let formatted = date.formatted(.dateTime.year().month(.wide))
+        cache[key] = formatted
+        return formatted
+    }
+}
+
+private extension AppStrings {
+    static var aiMostDemandingRequests: String { localized("settings.ai_ask.ai_ask_settings.most_demanding_requests") }
+    static var aiMostDemandingDescription: String { localized("settings.ai_ask.ai_ask_settings.most_demanding_requests_description") }
+    static var aiChooseTierProvider: String { localized("settings.ai_ask.ai_ask_settings.choose_tier_provider") }
+    static var aiChooseExactModel: String { localized("settings.ai_ask.ai_ask_settings.choose_exact_model") }
+    static var aiAutoDescription: String { localized("settings.ai_ask.ai_ask_settings.auto_description") }
+    static var aiViewProviderModels: String { localized("settings.ai_ask.ai_ask_settings.view_provider_models") }
+    static var aiRecommended: String { localized("settings.ai_ask.ai_ask_settings.recommended") }
+    static var aiModify: String { localized("settings.modify") }
+    static var aiExamples: String { localized("settings.app_store.skills.examples") }
+    static var aiSimpleRequestsDescription: String { localized("settings.ai_ask.ai_ask_settings.simple_requests_description") }
+    static var aiComplexRequestsDescription: String { localized("settings.ai_ask.ai_ask_settings.complex_requests_description") }
+    static var aiEnableModel: String { localized("settings.ai_ask.ai_ask_model_details.enable_model") }
+    static var aiDetails: String { localized("common.details") }
+    static var aiCapabilityTitle: String { localized("settings.ai_ask.ai_ask_settings.capability") }
+    static var aiModelOrigin: String { localized("settings.ai_ask.ai_ask_model_details.origin") }
+    static var aiModelReleaseDate: String { localized("settings.ai_ask.ai_ask_model_details.release_date") }
+    static var aiModelInputTypes: String { localized("settings.ai_ask.ai_ask_model_details.input_types") }
+    static var aiModelOutputTypes: String { localized("settings.ai_ask.ai_ask_model_details.output_types") }
+    static var aiModelTextInput: String { localized("settings.ai_ask.ai_ask_model_details.text_input") }
+    static var aiModelTextOutput: String { localized("settings.ai_ask.ai_ask_model_details.text_output") }
+    static func aiPrice(_ tokens: Double) -> String {
+        "1 " + localized("common.credits") + " " + localized("settings.ai_ask.ai_ask_settings.per") + " " +
+        tokens.formatted(.number.grouping(.never)) + " " + localized("settings.ai_ask.ai_ask_settings.tokens")
+    }
+    static func aiMediaType(_ type: String) -> String {
+        switch type {
+        case "image": return localized("common.images")
+        case "audio": return localized("common.audio")
+        case "video": return localized("settings.ai_ask.ai_ask_model_details.input_type_video")
+        default: return localized("settings.ai_ask.ai_ask_model_details.input_type_text")
+        }
+    }
+    static func aiServerRegion(_ region: String) -> String {
+        region + " " + localized("settings.ai_ask.ai_ask_model_details.servers").lowercased()
+    }
+    static var aiPricingNote: String { localized("common.pricing") + ": " + localized("settings.ai_ask.ai_ask_settings.pricing_note") }
+    static var aiModelsAndAccounts: String { localized("settings.ai_ask.ai_ask_settings.models_and_accounts") }
+    static var aiResponseSettings: String { localized("settings.ai_ask.ai_ask_settings.response_settings") }
+    static var aiFollowUpSuggestions: String { localized("settings.ai_ask.ai_ask_settings.follow_up_suggestions") }
+    static var aiFollowUpDescription: String { localized("settings.ai_ask.ai_ask_settings.follow_up_suggestions_description") }
+    static var aiQuickTips: String { localized("settings.ai_ask.ai_ask_settings.quick_tips") }
+    static var aiQuickTipsDescription: String { localized("settings.ai_ask.ai_ask_settings.quick_tips_description") }
+    static var aiProviderModelsInstruction: String { localized("settings.ai_ask.ai_ask_settings.provider_models_instruction") }
+    static var aiPreferencesSaveError: String { localized("settings.ai_ask.ai_ask_settings.default_models_save_error") }
+    static func aiCapability(_ level: String) -> String { localized("settings.ai_ask.ai_ask_settings.capability_" + level) }
+    static func aiFromProvider(_ provider: String) -> String {
+        LocalizationManager.shared.text("enter_message.mention_dropdown.from_provider", replacements: ["provider": provider])
+    }
+    static func aiProviderHeaderDescription(_ provider: String) -> String {
+        LocalizationManager.shared.text("settings.ai_ask.ai_ask_settings.provider_header_description", replacements: ["provider": provider])
+    }
+    static func aiProviderModelsHeading(_ provider: String) -> String {
+        LocalizationManager.shared.text("settings.ai.provider_models_heading", replacements: ["provider": provider])
+    }
+}
+
+// Web AiTierSettings: default selections are exclusive within one request tier.
+// Recommendation is the nearest capability rank, with a stable model-ID tie break.
+enum AIRequestTier: String, CaseIterable {
+    case simple, complex
+    case mostDemanding = "most-demanding"
+    var capability: String {
+        switch self { case .simple: return "low"; case .complex: return "high"; case .mostDemanding: return "max" }
+    }
+    @MainActor var title: String {
+        switch self { case .simple: return AppStrings.simpleRequests; case .complex: return AppStrings.complexRequests; case .mostDemanding: return AppStrings.aiMostDemandingRequests }
+    }
+    @MainActor var description: String {
+        switch self { case .simple: return AppStrings.aiSimpleRequestsDescription; case .complex: return AppStrings.aiComplexRequestsDescription; case .mostDemanding: return AppStrings.aiMostDemandingDescription }
+    }
+    var preferenceField: String {
+        switch self {
+        case .simple: return "default_ai_model_simple"
+        case .complex: return "default_ai_model_complex"
+        case .mostDemanding: return "default_ai_model_most_demanding"
+        }
+    }
+    static func eligibleModels(catalog: NativeModelCatalog?, routing: ModelRoutingCatalog) -> [NativeModelCatalog.Model] {
+        (catalog?.models ?? []).filter {
+            $0.for_app_skill == "ai.ask" && routing.usable($0.provider_id + "/" + $0.id)
+        }
+    }
+    func recommendedModel(in models: [NativeModelCatalog.Model]) -> NativeModelCatalog.Model? {
+        let ranks = ["low": 0, "medium": 1, "high": 2, "max": 3]
+        let target = ranks[capability] ?? 0
+        return models.sorted {
+            let a = abs((ranks[$0.capability_level ?? ""] ?? 0) - target)
+            let b = abs((ranks[$1.capability_level ?? ""] ?? 0) - target)
+            return a != b ? a < b : $0.id < $1.id
+        }.first
+    }
+}
+struct AITierSelectionRequest: Encodable {
+    let tier: AIRequestTier
+    let selection: String?
+    private struct Field: CodingKey {
+        let stringValue: String
+        var intValue: Int? { nil }
+        init(_ value: String) { stringValue = value }
+        init?(stringValue: String) { self.stringValue = stringValue }
+        init?(intValue: Int) { return nil }
+    }
+    func encode(to encoder: Encoder) throws {
+        var fields = encoder.container(keyedBy: Field.self)
+        if let selection { try fields.encode(selection, forKey: Field(tier.preferenceField)) }
+        else { try fields.encodeNil(forKey: Field(tier.preferenceField)) }
+    }
 }

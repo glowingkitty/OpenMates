@@ -6,6 +6,7 @@
     eyebrow = '',
     subtitle = '',
     backLabel = '',
+    showBackLabel = false,
     backIconSize = 16,
     iconStyle = '',
     colored = false,
@@ -29,6 +30,7 @@
     eyebrow?: string;
     subtitle?: string;
     backLabel?: string;
+    showBackLabel?: boolean;
     backIconSize?: number;
     iconStyle?: string;
     colored?: boolean;
@@ -57,7 +59,7 @@
 <header class="editor-header" class:colored>
   <div class="left-actions">
     {#if backLabel}
-      <button type="button" class="breadcrumb header-control" disabled={disabled} aria-label={backLabel} title={backLabel} onclick={onBack}><Back size={backIconSize}/></button>
+      <button type="button" class="breadcrumb header-control" class:with-label={showBackLabel} disabled={disabled} aria-label={backLabel} title={backLabel} onclick={onBack}><Back size={backIconSize}/>{#if showBackLabel}<span>{backLabel}</span>{/if}</button>
     {/if}
     {#if showDelete}
       <button type="button" class="delete-control header-control" class:armed={deleteArmed} data-testid="workflow-node-delete" disabled={disabled} aria-label={deleteArmed ? confirmDeleteLabel : deleteLabel} title={deleteArmed ? confirmDeleteLabel : deleteLabel} onclick={onDelete}>
@@ -82,6 +84,7 @@
 </header>
 
 <style>
+  .editor-header.colored .breadcrumb.with-label{display:flex;gap:.25rem;width:auto;padding:0;background:transparent;box-shadow:none;color:var(--color-font-button);opacity:.65}
   .editor-header { position:relative; box-sizing:border-box; container:workflow-editor-header / inline-size; display:flex; align-items:center; justify-content:center; min-height:3.25rem; margin-inline:-1.5rem; padding:.35rem 3.5rem; border-radius:1rem 1rem 0 0; color:var(--color-font-secondary); }
   .editor-header.colored { min-height:11.5rem; padding-bottom:1.65rem; background:var(--node-gradient); color:var(--color-font-button); }
   button { border:0; box-shadow:none; background:transparent; color:inherit; font:inherit; cursor:pointer; }
@@ -100,7 +103,7 @@
   .subtitle { font-size:var(--font-size-p); font-weight:700; line-height:1.25; }
   .asset-icon { display:inline-block; flex:0 0 auto; width:var(--workflow-icon-size, 16px); height:var(--workflow-icon-size, 16px); background:currentColor; -webkit-mask:var(--workflow-icon) center/contain no-repeat; mask:var(--workflow-icon) center/contain no-repeat; }
   .close-control { position:absolute; top:.4rem; right:.65rem; display:flex; align-items:center; gap:var(--spacing-2); }
-  .close-button { width:2.5rem; }
+  .close-button { width:2.75rem; height:2.75rem; }
   .move-button { width:2.5rem; }
   .delete-control { box-sizing:border-box; grid-auto-flow:column; gap:var(--spacing-4); width:2.5rem; overflow:hidden; color:var(--color-font-button); transition:width .18s ease, padding .18s ease; }
   .delete-control.armed { width:auto; max-width:min(22rem, calc(100cqw - 7rem)); padding-inline:.65rem .85rem; }
@@ -108,11 +111,15 @@
   .header-control :global(.clickable-icon.top-button) { position:static !important; inset:auto !important; display:block; flex:0 0 auto; width:22px; height:22px; margin:0 !important; transform:none !important; background:var(--color-primary-start); }
   .delete-control :global(.clickable-icon.top-button) { background:var(--color-font-button); }
   .colored .close-control :global(.clickable-icon.top-button) { background:var(--color-font-button); }
+  @container workflow-editor-header (max-width:32rem) {
+    .breadcrumb.with-label span { display:none; }
+    .left-actions { gap:var(--spacing-2); }
+  }
   button:disabled { opacity:.5; cursor:default; }
   button:focus-visible { outline:2px solid var(--color-button-primary); outline-offset:2px; }
   @media(max-width:730px) {
     .editor-header { margin-inline:-.8rem; padding-inline:3rem; }
-    .editor-header.colored { min-height:10.625rem; padding-bottom:1.45rem; }
+    .editor-header.colored { min-height:10.625rem; padding-top:3.5rem; padding-bottom:1.45rem; }
     .title strong { max-width:11rem; }
     .colored .title strong { max-width:15rem; font-size:max(17px, 1.0625rem); }
     .colored .title .asset-icon { width:36px; height:36px; }

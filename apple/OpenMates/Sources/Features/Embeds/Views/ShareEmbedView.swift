@@ -13,7 +13,7 @@ import SwiftUI
 struct ShareEmbedView: View {
     let context: AppleShareContext
     let onClose: () -> Void
-    let onGenerated: (URL, Bool, ShareDuration) async -> Void
+    let onGenerated: (URL, Bool, ShareDuration) async throws -> Void
 
     var body: some View {
         AppleSharePanel(

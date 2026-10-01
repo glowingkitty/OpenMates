@@ -15,6 +15,11 @@ import Foundation
 import SwiftUI
 
 @MainActor struct MindMapEmbedRenderer: View {
+    static func headerCounts(data: [String: AnyCodable]?) -> String {
+        let map = NativeMindMapNormalizer.normalize(data: data)
+        return "\(map.nodeCount) nodes · \(map.edgeCount) edges"
+    }
+
     fileprivate enum Constants {
         static let nodeWidth: CGFloat = 180
         static let nodeHeight: CGFloat = 54
@@ -55,67 +60,40 @@ import SwiftUI
     }
 
     private var preview: some View {
-        VStack(alignment: .leading, spacing: .spacing4) {
-            HStack(spacing: .spacing3) {
-                Icon("diagram", size: 22)
-                    .foregroundStyle(Color.buttonPrimary)
-                Text(normalized.title)
-                    .font(.omSmall.weight(.bold))
-                    .foregroundStyle(Color.fontPrimary)
-                    .lineLimit(1)
-            }
-
+        Group {
             if normalized.status == .invalidSource {
                 Text(AppStrings.mindMapInvalidJSON)
-                    .font(.omXs)
-                    .foregroundStyle(Color.error)
-                    .lineLimit(2)
-            } else {
-                Text(normalized.outline(maxNodes: 12))
-                    .font(.omTiny)
+                    .font(.omSmall)
                     .foregroundStyle(Color.fontSecondary)
-                    .lineLimit(8)
-            }
-
-            if normalized.status == .partial {
-                Text(AppStrings.mindMapValidationWarnings)
-                    .font(.omTiny)
-                    .foregroundStyle(Color.warning)
-                    .lineLimit(1)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if let model = normalized.model {
+                graphCanvas(model: model)
+                    .allowsHitTesting(false)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .padding(.spacing6)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(normalized.title), \(AppStrings.mindMapCounts(nodes: normalized.nodeCount, edges: normalized.edgeCount))")
+        .accessibilityIdentifier("mindmap-rendered-preview")
     }
 
     private var fullscreen: some View {
         VStack(alignment: .leading, spacing: .spacing8) {
-            HStack(spacing: .spacing4) {
-                AppIconView(appId: "mindmaps", size: 44)
-                VStack(alignment: .leading, spacing: .spacing1) {
-                    Text(normalized.title)
-                        .font(.omH4.weight(.bold))
-                        .foregroundStyle(Color.fontPrimary)
-                    Text(AppStrings.mindMapCounts(nodes: normalized.nodeCount, edges: normalized.edgeCount))
-                        .font(.omSmall)
-                        .foregroundStyle(Color.fontSecondary)
-                }
-            }
-
             if normalized.status == .invalidSource {
                 invalidSourceView
             } else if let model = normalized.model {
                 graphCanvas(model: model)
-                zoomControls
+                    .overlay(alignment: .bottom) {
+                        zoomControls
+                            .padding(.horizontal, .spacing4)
+                            .padding(.bottom, .spacing4)
+                    }
                 if normalized.status == .partial {
                     warningsView
                 }
             }
 
-            sourceView
+            if normalized.status == .invalidSource { sourceView }
         }
+        .padding(.spacing8)
         .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 
@@ -176,7 +154,7 @@ import SwiftUI
                 fit(layout: NativeMindMapLayout(model: model, collapsedNodeIds: collapsedNodeIds), viewport: proxy.size)
             }
         }
-        .frame(minHeight: 420)
+        .frame(minHeight: mode == .preview ? 0 : 490)
         .clipShape(RoundedRectangle(cornerRadius: .radius8))
         .overlay(RoundedRectangle(cornerRadius: .radius8).stroke(Color.grey20, lineWidth: 1))
         .accessibilityIdentifier("mindmap-fullscreen-canvas")
@@ -277,6 +255,10 @@ import SwiftUI
                 dragStartPan = .zero
             }
         }
+        .frame(maxWidth: .infinity)
+        .padding(.spacing3)
+        .background(Color.grey0, in: Capsule())
+        .shadow(color: .black.opacity(0.12), radius: 9, y: 2)
     }
 
     private var warningsView: some View {

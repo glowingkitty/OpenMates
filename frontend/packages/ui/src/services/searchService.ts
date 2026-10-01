@@ -105,6 +105,18 @@ export interface ChatSearchResult {
   metadataSnippets: MetadataMatchSnippet[];
 }
 
+/** A locally indexed embed that can be opened from the message input. */
+export interface EmbedSearchResult {
+  embedId: string;
+  embedType: string;
+  chatId: string;
+  messageId: string;
+  title: string;
+  subtitle: string;
+  appId?: string;
+  createdAt: number;
+}
+
 /** A settings search result (settings pages) */
 export interface SettingsSearchResult {
   entry: SettingsCatalogEntry;
@@ -129,6 +141,8 @@ export interface AppCatalogSearchResult {
 export interface SearchResults {
   /** Chats with title or message matches, sorted by relevance then recency */
   chats: ChatSearchResult[];
+  /** Capped exact embed matches, populated only when requested by the composer. */
+  embeds: EmbedSearchResult[];
   /** Settings pages that match the query */
   settings: SettingsSearchResult[];
   /** App catalog entries (apps, skills, focus modes, memories) that match */
@@ -159,6 +173,9 @@ const MAX_SNIPPETS_PER_MESSAGE = 2;
  * Caps RAM usage per embed — a typical web page scrape can be 10k+ chars.
  */
 const MAX_EMBED_TEXT_CHARS = 1500;
+const MAX_CHILD_EMBEDS_TO_INDEX = 50;
+const MAX_EMBED_RESULTS_PER_CHAT = 6;
+const MAX_EMBED_RESULTS_TOTAL = 6;
 /** Cache TTL for decrypted user settings/memories search entries. */
 const SETTINGS_MEMORIES_SEARCH_CACHE_TTL_MS = 30_000;
 
@@ -582,6 +599,40 @@ function extractTextFromEmbed(
   return combined.slice(0, MAX_EMBED_TEXT_CHARS) || null;
 }
 
+function embedDisplayTitle(decoded: Record<string, unknown>, fallback: string): string {
+  for (const field of ['title', 'name', 'filename', 'route_display', 'query', 'search_query']) {
+    const value = decoded[field];
+    if (typeof value === 'string' && value.trim()) return value.trim().slice(0, 140);
+  }
+  return fallback;
+}
+
+function compactChildSearchText(decoded: Record<string, unknown>, title: string): string {
+  const fields = [
+    title, decoded.venue_name, decoded.venue_city, decoded.location,
+    decoded.provider, decoded.date_start, decoded.description,
+  ];
+  return fields.filter((value): value is string => typeof value === 'string' && !!value.trim())
+    .join(' ').replace(/\s+/g, ' ').slice(0, 320);
+}
+
+function parseChildEmbedIds(value: unknown): string[] {
+  const values = Array.isArray(value) ? value : typeof value === 'string' ? value.split('|') : [];
+  return values.filter((id): id is string => typeof id === 'string' && id.trim().length > 0);
+}
+
+function previewChildMetadata(
+  preview: unknown,
+  embedId: string,
+  embedType: string,
+): { embedId: string; embedType: string; title: string; text: string } | null {
+  if (!preview || typeof preview !== 'object' || Array.isArray(preview)) return null;
+  const record = preview as Record<string, unknown>;
+  const title = embedDisplayTitle(record, '');
+  if (!title) return null;
+  return { embedId, embedType, title, text: compactChildSearchText(record, title) };
+}
+
 /**
  * Resolve embed content for a single embed_id and return extracted searchable text.
  * Uses embedStore (IndexedDB + memory cache) to load encrypted embed content.
@@ -606,8 +657,10 @@ async function resolveEmbedText(
   _referenceData?: Record<string, unknown>,
 ): Promise<{
   text: string;
+  title: string;
   sourceLabel: string;
   embedType: string;
+  children: Array<{ embedId: string; embedType: string; title: string; text: string }>;
   appId?: string;
   skillId?: string;
   focusId?: string;
@@ -652,10 +705,35 @@ async function resolveEmbedText(
         const text = extractTextFromEmbed(normalizedType, decoded);
         if (!text) return null;
         const sourceLabel = EMBED_TYPE_LABELS[normalizedType] || "Embed";
+        const children: Array<{ embedId: string; embedType: string; title: string; text: string }> = [];
+        const previews = Array.isArray(decoded.preview_results) ? decoded.preview_results : [];
+        const exampleChildIds = parseChildEmbedIds(decoded.embed_ids ?? demoEmbed.embed_ids).slice(0, MAX_CHILD_EMBEDS_TO_INDEX);
+        for (let index = 0; index < exampleChildIds.length; index++) {
+          const childId = exampleChildIds[index];
+          const child = getExampleChatEmbed(childId);
+          if (!child) continue;
+          const preview = previewChildMetadata(previews[index], childId, child.type.replace(/_/g, '-'));
+          if (preview) {
+            children.push(preview);
+            continue;
+          }
+          const childDecoded = await decodeToonContent(child.content) as Record<string, unknown> | null;
+          if (!childDecoded || typeof childDecoded !== "object" || Array.isArray(childDecoded)) continue;
+          const childType = String(child.type || "").replace(/_/g, "-");
+          const childTitle = embedDisplayTitle(childDecoded, EMBED_TYPE_LABELS[childType] || "Embed");
+          children.push({
+            embedId: childId,
+            embedType: childType,
+            title: childTitle,
+            text: compactChildSearchText(childDecoded, childTitle),
+          });
+        }
         return {
           text,
+          title: embedDisplayTitle(decoded, sourceLabel),
           sourceLabel,
           embedType: normalizedType,
+          children,
           ...getEmbedMeta(decoded),
         };
       } catch (parseError) {
@@ -686,6 +764,8 @@ async function resolveEmbedText(
     }
 
     const allParts: string[] = [];
+    const children: Array<{ embedId: string; embedType: string; title: string; text: string }> = [];
+    let title = EMBED_TYPE_LABELS[normalizedType] || 'Embed';
     let parentEmbedMeta: {
       appId?: string;
       skillId?: string;
@@ -720,46 +800,65 @@ async function resolveEmbedText(
     if (embedData.content) {
       const decoded = await decodeToonContent(embedData.content as string);
       if (decoded) {
-        parentEmbedMeta = getEmbedMeta(decoded as Record<string, unknown>);
-        const parentText = extractTextFromEmbed(normalizedType, decoded);
+        const decodedRecord = decoded as Record<string, unknown>;
+        parentEmbedMeta = getEmbedMeta(decodedRecord);
+        title = embedDisplayTitle(decodedRecord, title);
+        const parentText = extractTextFromEmbed(normalizedType, decodedRecord);
         if (parentText) allParts.push(parentText);
 
         // COMPOSITE EMBEDS: if embed_ids is present, this is a parent embed (e.g., web search,
         // news search, maps search). The actual searchable content lives in the CHILD embeds —
         // the parent only has metadata like {app_id, skill_id, result_count, embed_ids, query}.
         // Load each child embed and extract its text.
-        const embedIds: string[] = Array.isArray(decoded.embed_ids)
-          ? decoded.embed_ids
-          : [];
+        const embedIds = parseChildEmbedIds(decodedRecord.embed_ids ?? embedData.embed_ids);
+        const previews = Array.isArray(decodedRecord.preview_results) ? decodedRecord.preview_results : [];
 
         if (embedIds.length > 0) {
-          // Limit to first 10 child embeds to bound the async work during warm-up
-          for (const childId of embedIds.slice(0, 10)) {
-            try {
-              const childData = await embedStore.get(`embed:${childId}`);
-              if (
-                !childData ||
-                typeof childData === "string" ||
-                !childData.content ||
-                childData.status === "processing"
-              )
-                continue;
+          // Index concise child metadata once, in bounded batches. Parent full-text
+          // search keeps its old first-ten limit and 1,500-character RAM budget.
+          for (let offset = 0; offset < Math.min(embedIds.length, MAX_CHILD_EMBEDS_TO_INDEX); offset += 5) {
+            const batch = embedIds.slice(offset, offset + 5);
+            const loaded = await Promise.all(batch.map(async (childId, batchIndex) => {
+              const childIndex = offset + batchIndex;
+              const preview = previewChildMetadata(previews[childIndex], childId, '');
+              // The parent already carries one compact metadata row per result.
+              // Use it for later children without decrypting every child upfront.
+              if (childIndex >= 10 && preview) return preview;
+              try {
+                const childData = await embedStore.get(`embed:${childId}`);
+                if (
+                  !childData ||
+                  typeof childData === "string" ||
+                  !childData.content ||
+                  childData.status === "processing"
+                ) return preview;
 
-              const childDecoded = await decodeToonContent(
-                childData.content as string,
-              );
-              if (!childDecoded) continue;
+                const childDecoded = await decodeToonContent(childData.content as string);
+                if (!childDecoded || typeof childDecoded !== "object" || Array.isArray(childDecoded)) return preview;
 
-              // Child type comes from the child embed's stored type, not the parent reference
-              const childType = (
-                (childData.type as string) ||
-                (childData.embed_type as string) ||
-                ""
-              ).replace(/_/g, "-");
-              const childText = extractTextFromEmbed(childType, childDecoded);
-              if (childText) allParts.push(childText);
-            } catch {
-              // Skip individual child embed failures silently
+                // Child type comes from the child embed's stored type, not the parent reference.
+                const childType = (
+                  (childData.type as string) ||
+                  (childData.embed_type as string) ||
+                  ""
+                ).replace(/_/g, "-");
+                const childRecord = childDecoded as Record<string, unknown>;
+                const childTitle = embedDisplayTitle(childRecord, EMBED_TYPE_LABELS[childType] || "Embed");
+                const childText = compactChildSearchText(childRecord, childTitle);
+                if (!childText) return preview;
+                return { embedId: childId, embedType: childType, title: childTitle, text: childText };
+              } catch {
+                // Skip individual child embed failures silently.
+                return preview;
+              }
+            }));
+            for (const child of loaded) {
+              if (!child) continue;
+              children.push(child);
+              if (offset < 10) allParts.push(child.text);
+            }
+            if (offset + 5 < Math.min(embedIds.length, MAX_CHILD_EMBEDS_TO_INDEX)) {
+              await new Promise((resolve) => setTimeout(resolve, 0));
             }
           }
         }
@@ -780,8 +879,10 @@ async function resolveEmbedText(
 
     return {
       text: combined,
+      title,
       sourceLabel,
       embedType: normalizedType,
+      children,
       ...parentEmbedMeta,
     };
   } catch (error) {
@@ -823,6 +924,8 @@ type SearchEntries = Array<{
     embedId?: string;
     /** The normalized embed type (e.g., "web-website-group", "code-code") for fullscreen dispatch */
     embedType?: string;
+    embedTitle?: string;
+    embedSubtitle?: string;
     /** Embed app identifier (for icon rendering in search snippets) */
     embedAppId?: string;
     /** Embed skill identifier when present (for secondary icon rendering) */
@@ -836,6 +939,18 @@ const messageIndex = new BoundedCache<string, SearchEntries>(MAX_SEARCH_INDEX_BY
 const pendingIndexJobs = new Map<string, Promise<SearchEntries>>();
 let activeIndexJobs = 0;
 const indexWaiters: Array<() => void> = [];
+
+/** Re-read a chat after its messages change, including newly arrived embeds. */
+export function invalidateChatSearchIndex(chatId: string): void {
+  messageIndex.delete(chatId);
+  const pending = pendingIndexJobs.get(chatId);
+  if (pending) {
+    // An in-flight warm-up may finish after the update. Remove that stale result.
+    void pending.then((entries) => {
+      if (messageIndex.get(chatId) === entries) messageIndex.delete(chatId);
+    });
+  }
+}
 let indexGeneration = 0;
 
 // Share decryption across warm-up and overlapping searches, with one global limit.
@@ -919,18 +1034,7 @@ async function buildChatMessageIndex(chatId: string, generation: number): Promis
       messages = await chatDB.getMessagesForChat(chatId);
     }
 
-    const entries: Array<{
-      messageId: string;
-      content: string;
-      createdAt: number;
-      embedSourceLabel?: string;
-      embedId?: string;
-      embedType?: string;
-      embedAppId?: string;
-      embedSkillId?: string;
-      embedFocusId?: string;
-      embedFocusModeName?: string;
-    }> = [];
+    const entries: SearchEntries = [];
 
     for (const msg of messages) {
       if (!msg.content || typeof msg.content !== "string") continue;
@@ -974,11 +1078,28 @@ async function buildChatMessageIndex(chatId: string, generation: number): Promis
             // Store embed ID and type so clicking the search result can open the embed
             embedId: ref.embed_id,
             embedType: result.embedType,
+            embedTitle: result.title,
+            embedSubtitle: result.sourceLabel,
             embedAppId: result.appId,
             embedSkillId: result.skillId,
             embedFocusId: result.focusId,
             embedFocusModeName: result.focusModeName,
           });
+          for (const child of result.children) {
+            entries.push({
+              messageId: msg.message_id,
+              content: child.text,
+              normalizedContent: child.text.toLowerCase(),
+              createdAt: msg.created_at,
+              embedSourceLabel: EMBED_TYPE_LABELS[child.embedType] || result.sourceLabel,
+              embedId: child.embedId,
+              embedType: child.embedType,
+              embedTitle: child.title,
+              embedSubtitle: EMBED_TYPE_LABELS[child.embedType] || result.sourceLabel,
+              embedAppId: result.appId,
+              embedSkillId: result.skillId,
+            });
+          }
         }
       }
     }
@@ -1245,19 +1366,7 @@ export async function addMessageToIndex(
     (e) => e.messageId !== message.message_id,
   );
 
-  const newEntries: Array<{
-    messageId: string;
-    content: string;
-    normalizedContent: string;
-    createdAt: number;
-    embedSourceLabel?: string;
-    embedId?: string;
-    embedType?: string;
-    embedAppId?: string;
-    embedSkillId?: string;
-    embedFocusId?: string;
-    embedFocusModeName?: string;
-  }> = [];
+  const newEntries: SearchEntries = [];
 
   // 1. Index the message's own text
   const messageText = stripMarkdown(rawContent);
@@ -1283,11 +1392,28 @@ export async function addMessageToIndex(
       embedSourceLabel: result.sourceLabel,
       embedId: ref.embed_id,
       embedType: result.embedType,
+      embedTitle: result.title,
+      embedSubtitle: result.sourceLabel,
       embedAppId: result.appId,
       embedSkillId: result.skillId,
       embedFocusId: result.focusId,
       embedFocusModeName: result.focusModeName,
     });
+    for (const child of result.children) {
+      newEntries.push({
+        messageId: message.message_id,
+        content: child.text,
+        normalizedContent: child.text.toLowerCase(),
+        createdAt: message.created_at,
+        embedSourceLabel: EMBED_TYPE_LABELS[child.embedType] || result.sourceLabel,
+        embedId: child.embedId,
+        embedType: child.embedType,
+        embedTitle: child.title,
+        embedSubtitle: EMBED_TYPE_LABELS[child.embedType] || result.sourceLabel,
+        embedAppId: result.appId,
+        embedSkillId: result.skillId,
+      });
+    }
   }
 
   if (generation === indexGeneration && messageIndex.get(chatId) === existing) {
@@ -1393,10 +1519,13 @@ async function searchMessagesInChat(
   activeFocusId: string | null = null,
   entries = messageIndex.get(chatId),
   signal?: AbortSignal,
-): Promise<MessageMatchSnippet[]> {
-  if (!entries) return [];
+  includeEmbeds = false,
+): Promise<{ snippets: MessageMatchSnippet[]; embeds: EmbedSearchResult[] }> {
+  if (!entries) return { snippets: [], embeds: [] };
 
   const snippets: MessageMatchSnippet[] = [];
+  const embeds: EmbedSearchResult[] = [];
+  const seenEmbedIds = new Set<string>();
   // Count how many snippets we've already emitted for each message ID
   const snippetsPerMessage = new Map<string, number>();
   const lowerQuery = query.toLowerCase();
@@ -1409,15 +1538,32 @@ async function searchMessagesInChat(
       signal?.throwIfAborted();
     }
     const entry = entries[entryIndex];
-    if (snippets.length >= MAX_SNIPPETS_PER_CHAT) break;
+    if (snippets.length >= MAX_SNIPPETS_PER_CHAT && (!includeEmbeds || embeds.length >= MAX_EMBED_RESULTS_PER_CHAT)) break;
+
+    const idx = entry.normalizedContent.indexOf(lowerQuery);
+    if (idx === -1) continue;
+
+    if (includeEmbeds && entry.embedId && entry.embedTitle &&
+        embeds.length < MAX_EMBED_RESULTS_PER_CHAT && !seenEmbedIds.has(entry.embedId)) {
+      embeds.push({
+        embedId: entry.embedId,
+        embedType: entry.embedType || '',
+        chatId,
+        messageId: entry.messageId,
+        title: entry.embedTitle,
+        subtitle: entry.embedSubtitle || entry.embedSourceLabel || 'Embed',
+        appId: entry.embedAppId,
+        createdAt: entry.createdAt,
+      });
+      seenEmbedIds.add(entry.embedId);
+    }
+
+    if (snippets.length >= MAX_SNIPPETS_PER_CHAT) continue;
 
     // Cap how many snippets come from the same message (prevents one embed-heavy
     // message from consuming all result slots and hiding other messages)
     const countForMsg = snippetsPerMessage.get(entry.messageId) ?? 0;
     if (countForMsg >= MAX_SNIPPETS_PER_MESSAGE) continue;
-
-    const idx = entry.normalizedContent.indexOf(lowerQuery);
-    if (idx === -1) continue;
 
     const { snippet, snippetMatchStart, snippetMatchLength } = buildSnippet(
       entry.content,
@@ -1446,7 +1592,7 @@ async function searchMessagesInChat(
     snippetsPerMessage.set(entry.messageId, countForMsg + 1);
   }
 
-  return snippets;
+  return { snippets, embeds };
 }
 
 /**
@@ -1582,11 +1728,13 @@ export async function search(
   isAuthenticated: boolean = false,
   isAdmin: boolean = false,
   signal?: AbortSignal,
+  includeEmbedResults = false,
 ): Promise<SearchResults> {
   signal?.throwIfAborted();
   if (!query || query.trim().length === 0) {
     return {
       chats: [],
+      embeds: [],
       settings: [],
       appCatalog: [],
       totalCount: 0,
@@ -1612,6 +1760,7 @@ export async function search(
   }
 
   const chatResults: ChatSearchResult[] = [];
+  const embedMatches: EmbedSearchResult[] = [];
 
   // Search each chat
   for (let offset = 0; offset < allSearchableChats.length; offset += MAX_CONCURRENT_INDEX_JOBS) {
@@ -1644,13 +1793,16 @@ export async function search(
     if (!chat.is_metadata_only) {
       const entries = useWarmIndexOnly ? messageIndex.get(chat.chat_id) : await indexChatMessages(chat.chat_id);
       signal?.throwIfAborted();
-      messageSnippets = await searchMessagesInChat(
+      const messageMatches = await searchMessagesInChat(
         chat.chat_id,
         trimmedQuery,
         activeFocusId,
         entries,
         signal,
+        includeEmbedResults,
       );
+      messageSnippets = messageMatches.snippets;
+      embedMatches.push(...messageMatches.embeds);
     }
 
     // Check metadata matches (summary + tags).
@@ -1730,8 +1882,24 @@ export async function search(
   const totalCount =
     chatResults.length + settingsResults.length + appCatalogResults.length;
 
+  const seenEmbedIds = new Set<string>();
+  const lowerQuery = trimmedQuery.toLowerCase();
+  const embeds = embedMatches
+    .sort((a, b) => {
+      const aTitle = a.title.toLowerCase().includes(lowerQuery) ? 1 : 0;
+      const bTitle = b.title.toLowerCase().includes(lowerQuery) ? 1 : 0;
+      return bTitle - aTitle || b.createdAt - a.createdAt;
+    })
+    .filter((entry) => {
+      if (seenEmbedIds.has(entry.embedId)) return false;
+      seenEmbedIds.add(entry.embedId);
+      return true;
+    })
+    .slice(0, MAX_EMBED_RESULTS_TOTAL);
+
   return {
     chats: chatResults,
+    embeds,
     settings: settingsResults,
     appCatalog: appCatalogResults,
     totalCount,

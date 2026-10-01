@@ -133,7 +133,9 @@ async def _charge_image_generation_credits(
     model_ref: Optional[str],
     chat_id: Optional[str],
     message_id: Optional[str],
-    log_prefix: str
+    log_prefix: str,
+    team_id: Optional[str] = None,
+    event_id: Optional[str] = None,
 ) -> None:
     """
     Charge a flat per-image credit fee for a successful image generation.
@@ -200,8 +202,12 @@ async def _charge_image_generation_credits(
             }
         }
 
+        from backend.shared.python_utils.team_skill_billing import skill_billing_request
+        billing_path, charge_payload = skill_billing_request(
+            charge_payload, team_id, event_id=event_id or ""
+        )
         async with httpx.AsyncClient(timeout=10.0) as client:
-            url = f"{INTERNAL_API_BASE_URL}/internal/billing/charge"
+            url = f"{INTERNAL_API_BASE_URL}{billing_path}"
             logger.info(f"{log_prefix} Charging {credits_charged} credits for '{app_id}.{skill_id}' (model: {model_ref})")
             response = await client.post(url, json=charge_payload, headers=headers)
             response.raise_for_status()
@@ -212,10 +218,12 @@ async def _charge_image_generation_credits(
             f"{log_prefix} HTTP error charging credits for '{app_id}.{skill_id}': "
             f"{e.response.status_code} - {e.response.text}", exc_info=True
         )
-        # Don't raise - billing failure shouldn't break image delivery
+        if team_id:
+            raise
     except Exception as e:
         logger.error(f"{log_prefix} Error charging credits for '{app_id}.{skill_id}': {e}", exc_info=True)
-        # Don't raise - billing failure shouldn't break image delivery
+        if team_id:
+            raise
 
 
 def _get_image_dimensions(image_bytes: bytes) -> Tuple[int, int]:
@@ -874,12 +882,18 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
             bool(reference_image_bytes_list),
         )
         estimated_credits = await _estimate_image_generation_credits(precheck_model_ref, log_prefix)
-        await ensure_credit_headroom(
-            user_id=user_id,
-            estimated_credits=estimated_credits,
-            log_prefix=log_prefix,
-            operation_name="image generation",
-        )
+        if arguments.get("team_id"):
+            from backend.shared.python_utils.team_skill_billing import ensure_team_skill_credit_headroom
+            await ensure_team_skill_credit_headroom(
+                task._directus_service, arguments["team_id"], user_id, estimated_credits
+            )
+        else:
+            await ensure_credit_headroom(
+                user_id=user_id,
+                estimated_credits=estimated_credits,
+                log_prefix=log_prefix,
+                operation_name="image generation",
+            )
 
         # 4. Call Provider API
         #
@@ -1135,6 +1149,8 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
             chat_id=chat_id,
             message_id=message_id,
             log_prefix=log_prefix,
+            team_id=arguments.get("team_id"),
+            event_id=str(embed_id),
         )
 
         # 6. Process image into storage formats.
@@ -1441,6 +1457,7 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
             "aspect_ratio": aspect_ratio,
             "output_filetype": output_filetype,
             "generated_at": generated_at,
+            **({"team_id": arguments["team_id"]} if arguments.get("team_id") else {}),
         }
         
         logger.info(f"{log_prefix} Image generation task completed successfully. Embed ID: {embed_id}")

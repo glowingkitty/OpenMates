@@ -89,13 +89,15 @@
 	import { locale, waitLocale, _ as translationStore } from 'svelte-i18n';
 	import { get } from 'svelte/store';
 	import { browser } from '$app/environment';
-	import { replaceState } from '$app/navigation';
+	import { afterNavigate, goto, replaceState } from '$app/navigation';
 	import { page } from '$app/state';
 	import WorkflowsRoute from './workflows/+page.svelte';
+	import AppsRoute from './apps/AppsRoute.svelte';
+	import { buildAppsWorkspaceHash } from '@repo/ui/utils/appsWorkspaceRoute';
 	import ProjectsRoute from './projects/+page.svelte';
 	import PlanDetailRoute from './plans/+page.svelte';
 	import TasksRoute from './tasks/+page.svelte';
-	import { readWorkspaceHashRoute } from '$lib/workspaceHashRoute';
+	import { isLegacyAppsWorkspaceHash, readWorkspaceHashRoute } from '$lib/workspaceHashRoute';
 
 	// --- State ---
 	let isInitialLoad = $state(true);
@@ -108,6 +110,16 @@
 	// Height (px) reserved for the dev console at the bottom of the viewport
 	const DEV_CONSOLE_HEIGHT = 280;
 	let activeChat = $state<ActiveChat | null>(null); // Fixed: Use $state for Svelte 5
+	let workflowHandoffReady = false;
+	let workflowHandoffInFlight = false;
+
+	afterNavigate(() => {
+		// A workflow can return to an already-mounted root page via SvelteKit goto,
+		// which does not always produce a native hashchange event.
+		if (workflowHandoffReady && window.location.pathname === '/') {
+			void consumePendingWorkflowClarification();
+		}
+	});
 	let isProcessingInitialHash = $state(false); // Track if we're processing initial hash load
 	let lastLoadedChatId = $state<string | null>(null);
 	let anonymousHashRecoveryChatId = $state<string | null>(null);
@@ -120,7 +132,14 @@
 	let bfcacheRestoreHandler: ((event: PageTransitionEvent) => void) | null = null; // Store BFCache restore handler for cleanup
 	let globalOpenSearchShortcutHandler: ((event: KeyboardEvent) => void) | null = null; // Persistent Cmd/Ctrl+F handler
 	let hasAutoOpenedGiftCardRedeemAfterAuth = $state(false);
-	let workspaceHashRoute = $derived(readWorkspaceHashRoute(page.url.hash));
+	// Native hash navigation can precede SvelteKit's page.url update. Keep the
+	// selected workspace in sync before any asynchronous deep-link work starts.
+	let workspaceHash = $state(browser ? window.location.hash : page.url.hash);
+	let workspaceHashRoute = $derived(readWorkspaceHashRoute(workspaceHash));
+	$effect(() => {
+		const kitHash = page.url.hash;
+		untrack(() => { workspaceHash = browser ? window.location.hash : kitHash; });
+	});
 
 	const SHORTCUT_OPEN_SEARCH_KEY = 'f';
 	const SHORTCUT_TOGGLE_CHATS_CODE = 'Backslash';
@@ -175,12 +194,14 @@
 	}
 
 	function isCurrentChatNavigationTarget(chatId: string): boolean {
+		if (browser && readWorkspaceHashRoute(window.location.hash).workspace !== 'chats') return false;
 		const currentStoreChatId = activeChatStore.get();
 		const currentHashChatId = activeChatStore.getChatIdFromHash();
-		return currentStoreChatId === chatId || currentHashChatId === chatId;
+		return (currentHashChatId ?? currentStoreChatId) === chatId;
 	}
 
 	function hasDifferentCurrentChatNavigationTarget(chatId: string): boolean {
+		if (browser && readWorkspaceHashRoute(window.location.hash).workspace !== 'chats') return true;
 		const currentHashChatId = activeChatStore.getChatIdFromHash();
 		const currentStoreChatId = activeChatStore.get();
 		const currentChatTarget = currentHashChatId ?? currentStoreChatId;
@@ -679,6 +700,15 @@
 
 		// Update the activeChatStore so the Chats component highlights it when opened
 		activeChatStore.setActiveChat(chatId);
+		// Publish a validated recent window before the public-chat module lookup and
+		// IndexedDB metadata await. The normal route still loads the canonical chat.
+		const pendingDraftChat = $authStore.isAuthenticated ? chatListCache.getPendingOrCachedChat(chatId) : null;
+		let warmSelectionPending = false;
+		if (!messageId && !embedId && !scrollToLatestResponse && !autoplayVideo
+			&& !pendingDraftChat?.encrypted_draft_md && !pendingDraftChat?.encrypted_draft_preview) {
+			warmSelectionPending = !!activeChat && (activeChat.canContinueRecentChatSelection(chatId)
+				|| activeChat.showRecentChatSelection(chatId));
+		}
 
 		// Check if this is an example chat (hardcoded with embeds)
 		if (isExampleChat(chatId)) {
@@ -922,6 +952,7 @@
 					console.debug(`[+page.svelte] Loading cached encrypted draft chat directly: ${chatId}`);
 					if (activeChat) {
 						if (skipStaleChatNavigationTarget(chatId, 'cached draft deep-link load')) return;
+						if (warmSelectionPending && !activeChat.canContinueRecentChatSelection(chatId)) return;
 						activeChat.loadChat(cachedDraftChat, { scrollToLatestResponse, messageId });
 						lastLoadedChatId = cachedDraftChat.chat_id;
 
@@ -962,6 +993,7 @@
 					// Load the chat if activeChat component is ready
 					if (activeChat) {
 						if (skipStaleChatNavigationTarget(chatId, 'deep-linked IndexedDB chat load')) return;
+						if (warmSelectionPending && !activeChat.canContinueRecentChatSelection(chatId)) return;
 						activeChat.loadChat(chat, { scrollToLatestResponse, messageId });
 						lastLoadedChatId = chat.chat_id;
 
@@ -1570,11 +1602,23 @@
 	 * Handles navigation to settings pages based on hash
 	 * @param hash The hash string (e.g., '#settings/billing/invoices/.../refund')
 	 */
-	function processSettingsDeepLink(hash: string) {
+	function processSettingsDeepLink(hash: string, options: { preserveHash?: boolean } = {}) {
+        const path = getSettingsPathFromHash(hash);
+        if (path === 'apps' || path?.startsWith('apps/')) {
+            panelState.closeSettings();
+            void goto(`/${buildAppsWorkspaceHash(path)}`, { replaceState: true, noScroll: true, keepFocus: true });
+            return;
+        }
 		processSettingsDeepLinkUnified(hash, {
 			openSettings: () => panelState.openSettings(),
 			setSettingsDeepLink: (path: string) => settingsDeepLink.set(path)
-		});
+		}, options);
+	}
+
+	function processWorkspaceSettingsPath(hash: string) {
+		if (!getSettingsPathFromHash(hash)) return;
+		// Keep the workspace route while reusing Settings alias and special-link routing.
+		processSettingsDeepLink(hash, { preserveHash: true });
 	}
 
 	/**
@@ -1637,9 +1681,11 @@
 		console.debug('[+page.svelte] onMount started');
 		// Sweep browser-local download staging left by a closed or crashed Projects tab.
 		void cleanupStaleConnectedProjectDownloads().catch(() => {});
-		await installE2ETestHooks();
 		window.addEventListener('hashchange', handleHashChange);
 		window.addEventListener('popstate', handleHashChange);
+		workspaceHash = window.location.hash;
+		await installE2ETestHooks();
+		workspaceHash = window.location.hash;
 		// Example cards can render before slower onMount setup completes, so register this early.
 		window.addEventListener('demoChatSelected', handleDemoChatSelected);
 		document.documentElement.setAttribute('data-hash-router-ready', 'true');
@@ -1876,9 +1922,10 @@
 		const originalHash = browser ? window.location.hash : '';
 		console.debug('[+page.svelte] [INIT] Original hash from URL:', originalHash);
 		const originalWorkspaceHashRoute = readWorkspaceHashRoute(originalHash);
-		if (originalWorkspaceHashRoute.workspace !== 'chats') {
-			// Workspace fragments belong to the shared shell. Mark initial deep-link
-			// processing complete so chat recovery cannot select a stale chat behind it.
+		const originalLegacyAppsHash = isLegacyAppsWorkspaceHash(originalHash);
+		if (originalWorkspaceHashRoute.workspace !== 'chats' || originalLegacyAppsHash) {
+			// Workspace fragments and legacy Apps links take precedence over chat
+			// recovery, which could otherwise select a stale chat behind the shell.
 			deepLinkProcessed = true;
 		}
 
@@ -1888,7 +1935,9 @@
 		// store with an old chat ID, which would cause it to auto-open without user intent.
 		const hashChatMatch = originalHash.match(/^#chat-id=(.+)/);
 		if (!hashChatMatch) {
-			activeChatStore.clearActiveChat();
+			// Reset stale chat state while preserving the original deep-link hash.
+			// Workspace routes and legacy Apps links need it during startup.
+			activeChatStore.setWithoutHashUpdate(null);
 			console.debug(
 				'[+page.svelte] [INIT] No chat hash in URL — cleared activeChatStore to prevent stale auto-open'
 			);
@@ -2261,16 +2310,15 @@
 			// NOTE: Auth state is now set above, so isAuthenticated() will return correct value
 			// During forced logout, the handler returns to new chat for empty/null hash.
 			const handlers = createDeepLinkHandlers();
-			const hashToProcess =
-				shouldSuppressForcedLogoutHash || originalWorkspaceHashRoute.workspace !== 'chats'
-					? ''
-					: originalHash || '';
-			await processDeepLink(hashToProcess, handlers);
+			const hashToProcess = shouldSuppressForcedLogoutHash ? '' : originalHash || '';
+			// A workspace hash is handled by the shared shell. Processing an empty
+			// chat hash here invokes onNoHash and can restore a draft or welcome chat,
+			// which overwrites the workspace fragment during a reload.
+			if (originalWorkspaceHashRoute.workspace === 'chats') {
+				await processDeepLink(hashToProcess, handlers);
+			}
 			if (originalWorkspaceHashRoute.workspace !== 'chats') {
-				const workspaceSettingsPath = getSettingsPathFromHash(originalHash);
-				if (workspaceSettingsPath) {
-					processSettingsDeepLink(buildSettingsHash(workspaceSettingsPath));
-				}
+				processWorkspaceSettingsPath(originalHash);
 			}
 			const settingsPathFromCombinedHash = originalHashChatId ? getSettingsPathFromHash(hashToProcess) : null;
 			if (settingsPathFromCombinedHash) {
@@ -3001,6 +3049,10 @@
 		bfcacheRestoreHandler = handleBfcacheRestore;
 		window.addEventListener('pageshow', handleBfcacheRestore);
 
+		// Startup can replace the hash before the normal deep-link pass reaches it.
+		// The same consumer also handles a workflow's client-side return to root.
+		workflowHandoffReady = true;
+		await consumePendingWorkflowClarification();
 		console.debug('[+page.svelte] onMount finished');
 
 		// --- Media mode ready signal ---
@@ -3145,10 +3197,23 @@
 	 * a link to the last opened chat, letting the user decide whether to open it.
 	 */
 	async function loadLastOpenedChatOrCreateNew() {
+		if (browser && readWorkspaceHashRoute(window.location.hash).workspace !== 'chats') return;
 		console.debug(
 			'[+page.svelte] Staying on new chat page for authenticated user (resume card will show last opened chat)'
 		);
 		activeChatStore.clearActiveChat();
+	}
+
+	async function consumePendingWorkflowClarification(): Promise<void> {
+		if (workflowHandoffInFlight || sessionStorage.getItem('workflow_clarification_new_chat') !== 'true') return;
+		const pending = sessionStorage.getItem('workflow_clarification_pending_message');
+		if (!pending) return;
+		workflowHandoffInFlight = true;
+		try {
+			await processDeepLink(`#message=${encodeURIComponent(pending)}`, createDeepLinkHandlers());
+		} finally {
+			workflowHandoffInFlight = false;
+		}
 	}
 
 	/**
@@ -3189,6 +3254,8 @@
 			},
 			onEmbed: handleEmbedDeepLink,
 			onNoHash: async () => {
+				// A delayed chat startup callback must not reset a workspace detail.
+				if (browser && readWorkspaceHashRoute(window.location.hash).workspace !== 'chats') return;
 				// Handle the case where no hash is present - load appropriate default chat
 				const isAuth = $authStore.isAuthenticated;
 				console.debug('[+page.svelte] onNoHash: Determining default chat to load', { isAuth });
@@ -3221,9 +3288,18 @@
 				history.replaceState(null, '', '/');
 				notFoundPathStore.set(failedPath);
 			},
-			onMessage: async (messageText: string, autoSend: boolean) => {
+			onMessage: async (messageText: string, autoSend: boolean, newChat = false) => {
 				deepLinkProcessed = true;
 				console.debug('[+page.svelte] onMessage deep link:', { autoSend, length: messageText.length });
+				const workflowClarification = sessionStorage.getItem('workflow_clarification_new_chat') === 'true';
+				if (workflowClarification || newChat) {
+					sessionStorage.removeItem('workflow_clarification_new_chat');
+					sessionStorage.removeItem('workflow_clarification_pending_message');
+					// Reset ActiveChat's current chat, draft context and temporary ID before
+					// dispatching the prefill. Clearing only the store can reuse an open chat.
+					if (activeChat?.resetToNewChat) await activeChat.resetToNewChat();
+					else activeChatStore.setWithoutHashUpdate(null);
+				}
 				// Store message for MessageInput to pick up via custom event
 				// Docs links open a new-chat draft when no chat is active. In-chat
 				// fallback links keep the current chat and only prefill its composer.
@@ -3265,12 +3341,10 @@
 		// in handleNewChatClick) to be treated as real user navigation — triggering
 		// loadDemoWelcomeChat and overwriting the new-chat state just as the user sent a message.
 		const newHash = window.location.hash;
+		workspaceHash = newHash;
 		if (readWorkspaceHashRoute(newHash).workspace !== 'chats') {
 			console.debug('[+page.svelte] Workspace hash changed:', newHash);
-			const workspaceSettingsPath = getSettingsPathFromHash(newHash);
-			if (workspaceSettingsPath) {
-				processSettingsDeepLink(buildSettingsHash(workspaceSettingsPath));
-			}
+			processWorkspaceSettingsPath(newHash);
 			return;
 		}
 		const hashChatIdMatch = newHash.match(/^#chat-id=([^&]+)/);
@@ -3560,7 +3634,9 @@
 
 <svelte:window bind:innerWidth={viewportWidth} />
 
-{#if workspaceHashRoute.workspace === 'workflows'}
+{#if workspaceHashRoute.workspace === 'apps'}
+	<AppsRoute />
+{:else if workspaceHashRoute.workspace === 'workflows'}
 	<WorkflowsRoute />
 {:else if workspaceHashRoute.workspace === 'projects'}
 	<ProjectsRoute />

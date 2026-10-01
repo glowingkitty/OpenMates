@@ -47,3 +47,23 @@ def test_extensions_are_removed_at_schema_nodes_not_from_argument_names():
     assert "x-renderer" not in items
     assert items["properties"]["name"]["anyOf"] == [{"type": "string"}]
     assert schema["x-ui"] == {"control": "form"}
+
+
+# contract-test: supporting surface=cli assertions=hosting-domains.request.validated,hosting-domains.surface-parity
+def test_hosting_grouped_tool_schema_accepts_string_and_integer_ids_in_google():
+    app_path = Path(__file__).resolve().parents[1] / "apps/hosting/app.yml"
+    app = yaml.safe_load(app_path.read_text())
+    skill = next(skill for skill in app["skills"] if skill["id"] == "search_domains")
+    original = copy.deepcopy(skill["tool_schema"])
+    schema = _sanitize_schema_for_llm_providers(skill["tool_schema"])
+    google_tools = _map_tools_to_google_format([{
+        "type": "function",
+        "function": {"name": "hosting-search_domains", "parameters": schema},
+    }])
+    declaration = google_tools[0].function_declarations[0]
+    assert declaration.name == "hosting-search_domains"
+    requests = declaration.parameters.properties["requests"]
+    assert requests.type.value == "ARRAY"
+    assert requests.items.required == ["query"]
+    assert {item.type.value for item in requests.items.properties["id"].any_of} == {"STRING", "INTEGER"}
+    assert skill["tool_schema"] == original

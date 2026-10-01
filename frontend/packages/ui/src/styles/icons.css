@@ -282,6 +282,12 @@ div.clickable-icon {
   mask-image: url("@openmates/ui/static/icons/files.svg");
 }
 
+/* SettingsInfoBox uses the same semantic info/question mapping as the shared resolver. */
+.clickable-icon.icon_info {
+  -webkit-mask-image: url("@openmates/ui/static/icons/question.svg");
+  mask-image: url("@openmates/ui/static/icons/question.svg");
+}
+
 .clickable-icon.icon_camera {
   -webkit-mask-image: url("@openmates/ui/static/icons/camera.svg");
   mask-image: url("@openmates/ui/static/icons/camera.svg");

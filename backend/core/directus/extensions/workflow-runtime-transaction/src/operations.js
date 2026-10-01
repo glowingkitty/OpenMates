@@ -1,5 +1,6 @@
 /* Durable Workflow trigger claims and event receipts. No payload or predicate plaintext crosses this boundary. */
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { websiteChanges } from './website_changes.js';
 import { deliveryHistory } from './delivery_history.js';
 
 const TRIGGERS = 'workflow_triggers';
@@ -20,6 +21,7 @@ const OPERATIONS = Object.freeze({
   start_claimed_run: new Set(['protocol_version', 'trigger_id', 'run_id', 'claim_generation', 'claim_token']),
   advance_claimed_trigger: new Set(['protocol_version', 'trigger_id', 'claim_generation', 'claim_token', 'next_run_at']),
   accept_event_trigger: new Set(['protocol_version', 'trigger_id', 'event_id', 'hashed_user_id', 'hashed_project_id', 'source', 'event_type']),
+  reconcile_stale_workflow_state: new Set(['protocol_version', 'now', 'limit', 'queued_timeout_seconds', 'active_timeout_seconds', 'wait_default_timeout_seconds']),
 });
 
 export class WorkflowRuntimeError extends Error {
@@ -243,7 +245,7 @@ async function startClaimedRun(database, raw, now) {
       });
       return { started: false, run_id: runId, status: 'missing_run', stale_claim_released: true };
     }
-    if (run.status === 'running' || run.status === 'cancellation_requested' || run.status === 'cancelled') {
+    if (['running', 'cancellation_requested', 'cancelled', 'completed', 'failed'].includes(run.status)) {
       return { started: false, run_id: run.run_id, workflow_id: run.workflow_id, version_id: run.version_id, status: run.status };
     }
     if (run.status !== 'queued' || run.claim_token_hash !== claimTokenHash) fail(409, 'stale_claim');
@@ -298,8 +300,102 @@ async function acceptEventTrigger(database, raw, now) {
   });
 }
 
-const handlers = Object.freeze({ list_due_triggers: listDueTriggers, claim_due_trigger: claimDueTrigger, accept_manual_run: acceptManualRun, start_accepted_run: startAcceptedRun, request_run_cancellation: requestRunCancellation, start_claimed_run: startClaimedRun, advance_claimed_trigger: advanceClaimedTrigger, accept_event_trigger: acceptEventTrigger });
+async function reconcileStaleWorkflowState(database, raw, now) {
+  const body = bodyFor(raw, 'reconcile_stale_workflow_state');
+  const current = integer(body.now ?? nowSeconds(now), 'invalid_now');
+  const limit = integer(body.limit, 'invalid_limit');
+  const queuedTimeout = integer(body.queued_timeout_seconds, 'invalid_timeout');
+  const activeTimeout = integer(body.active_timeout_seconds, 'invalid_timeout');
+  const waitDefaultTimeout = integer(body.wait_default_timeout_seconds, 'invalid_timeout');
+  if (!limit || limit > 500 || !queuedTimeout || !activeTimeout || !waitDefaultTimeout) fail(400, 'invalid_limit');
+  return database.transaction(async (trx) => {
+    const finished = [];
+    let offset = 0;
+    while (finished.length < limit) {
+      const candidates = await trx(RUNS).whereIn('status', ACTIVE_RUN_STATUSES)
+        .orderBy('accepted_at', 'asc').orderBy('run_id', 'asc').limit(limit).offset(offset);
+      if (!candidates.length) break;
+      offset += candidates.length;
+      let terminalizedThisPage = 0;
+      for (const candidate of candidates) {
+      const run = await trx(RUNS).where({ run_id: candidate.run_id }).forUpdate().first();
+      if (!run || !ACTIVE_RUN_STATUSES.includes(run.status)) continue;
+      const acceptedAt = Number(run.accepted_at || run.started_at || 0);
+      const startedAt = Number(run.started_at || acceptedAt);
+      const requestedAt = Number(run.cancellation_requested_at || startedAt);
+      const waitExpiresAt = Number(run.record_json?.wait_expires_at || startedAt + waitDefaultTimeout);
+      const due = run.status === 'queued' ? acceptedAt + queuedTimeout <= current
+        : run.status === 'running' ? startedAt + activeTimeout <= current
+        : run.status === 'waiting' ? waitExpiresAt <= current
+        : Math.min(startedAt + activeTimeout, requestedAt + queuedTimeout) <= current;
+      if (!due) continue;
+      const status = run.status === 'cancellation_requested' ? 'cancelled' : 'failed';
+      const reason = status === 'cancelled' ? 'Workflow cancellation completed after the worker stopped'
+        : run.status === 'waiting' ? 'Workflow user response timed out'
+        : run.status === 'queued' ? 'Workflow execution did not start in time'
+        : 'Workflow execution timed out';
+      const record = run.record_json ? { ...run.record_json, status, finished_at: current,
+        error_summary: reason, wait_expires_at: null } : null;
+      await trx(RUNS).where({ id: run.id }).update({ status, finished_at: current, error_summary: reason,
+        cancelled_at: status === 'cancelled' ? current : run.cancelled_at, record_json: record });
+      const deliveryScope = { workflow_id: run.workflow_id, run_id: run.run_id,
+        hashed_user_id: String(run.hashed_user_id || '').replace(/^user_sha256:/, '') };
+      const pending = await trx('workflow_chat_deliveries').where(deliveryScope).whereIn('status', ['delivery_pending', 'claimed']);
+      const persistedIds = new Set(pending.filter((delivery) => delivery.client_persisted_at).map((delivery) => delivery.delivery_id));
+      for (const delivery of pending) {
+        if (delivery.client_persisted_at) continue;
+        await trx('workflow_chat_deliveries').where({ id: delivery.id }).update({ status: 'cancelled', cancelled_at: current,
+          encrypted_payload: '', claim_generation: Number(delivery.claim_generation || 0) + 1,
+          claim_token_hash: null, revision: Number(delivery.revision || 0) + 1 });
+      }
+      const reservations = await trx('workflow_delivery_history').where({ workflow_id: run.workflow_id,
+        run_id: run.run_id, hashed_user_id: run.hashed_user_id, status: 'reserved' });
+      for (const reservation of reservations) {
+        if (!persistedIds.has(reservation.delivery_id)) await trx('workflow_delivery_history').where({ id: reservation.id }).del();
+      }
+      finished.push(run.run_id);
+      terminalizedThisPage += 1;
+      if (finished.length >= limit) break;
+      }
+      // The candidate set shrinks as terminal rows are written. Revisit the
+      // current page position so those shifts cannot hide the next live run.
+      offset -= terminalizedThisPage;
+      if (offset < 0) offset = 0;
+    }
+    const expired = [];
+    let deliveryOffset = 0;
+    while (expired.length < limit) {
+      const dueDeliveries = await trx('workflow_chat_deliveries').whereIn('status', ['delivery_pending', 'claimed'])
+        .where('expires_at', '<=', current).orderBy('expires_at', 'asc').orderBy('delivery_id', 'asc')
+        .limit(limit).offset(deliveryOffset);
+      if (!dueDeliveries.length) break;
+      deliveryOffset += dueDeliveries.length;
+      let expiredThisPage = 0;
+      for (const candidate of dueDeliveries) {
+      const delivery = await trx('workflow_chat_deliveries').where({ delivery_id: candidate.delivery_id }).forUpdate().first();
+      if (!delivery || !['delivery_pending', 'claimed'].includes(delivery.status) || delivery.expires_at > current) continue;
+      if (delivery.client_persisted_at) {
+        if (delivery.encrypted_payload) await trx('workflow_chat_deliveries').where({ id: delivery.id }).update({ encrypted_payload: '' });
+        continue;
+      }
+      await trx('workflow_chat_deliveries').where({ id: delivery.id }).update({ status: 'expired', expired_at: current,
+        encrypted_payload: '', claim_generation: Number(delivery.claim_generation || 0) + 1,
+        claim_token_hash: null, claim_issued_at: null, claim_expires_at: null, claim_device_id: null,
+        revision: Number(delivery.revision || 0) + 1 });
+      await trx('workflow_delivery_history').where({ delivery_id: delivery.delivery_id, status: 'reserved' }).del();
+      expired.push(delivery.delivery_id);
+      expiredThisPage += 1;
+      if (expired.length >= limit) break;
+      }
+      deliveryOffset -= expiredThisPage;
+    }
+    return { finished_run_ids: finished, expired_delivery_ids: expired };
+  });
+}
+
+const handlers = Object.freeze({ list_due_triggers: listDueTriggers, claim_due_trigger: claimDueTrigger, accept_manual_run: acceptManualRun, start_accepted_run: startAcceptedRun, request_run_cancellation: requestRunCancellation, start_claimed_run: startClaimedRun, advance_claimed_trigger: advanceClaimedTrigger, accept_event_trigger: acceptEventTrigger, reconcile_stale_workflow_state: reconcileStaleWorkflowState });
 export async function executeOperation(database, operation, body, now = new Date()) {
+  if (operation === 'website_changes') return websiteChanges(database, body, now, fail);
   if (operation === 'delivery_history') return deliveryHistory(database, body, now, fail);
   if (operation === 'health_check') {
     bodyFor(body, operation);

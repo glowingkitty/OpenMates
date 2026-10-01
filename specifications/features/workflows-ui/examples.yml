@@ -1,5 +1,29 @@
 schema_version: 1
-specification: feature.workflows-ui@5
+specification: feature.workflows-ui@7
+workflow_file_export:
+- id: more-exports-current-saved-workflow
+  assertion_ids: [workflows-ui.files.more-export]
+  given: Alice has a saved Workflow open and has changed an input in an expanded node without saving it.
+  when: She chooses Export from Show more in Template or Runs.
+  then: A .workflow.yml file downloads with the current saved definition, and the UI makes clear that the unsubmitted input edit is not included. Export is also available for a disabled blank draft.
+workflow_project_import:
+- id: project-picker-imports-workflow-in-selected-folder
+  given: Alice opens the Automation folder of her Personal Project and chooses a Workflow file in the existing upload picker.
+  when: The file is validated and imported.
+  then: A new disabled Workflow item appears in that folder, with a way to open Template and review required bindings. The Workflow document is not added as a generic file embed.
+- id: project-upload-classification-and-errors
+  given: Bob uploads an ordinary JSON note and separately uploads a malformed .workflow.yml file or a Workflow file he cannot attach to the selected Project.
+  when: The Project upload handler processes the selected file.
+  then: The note uses normal encrypted upload. The recognized invalid Workflow displays an import error without generic upload or creation; denied attachment is reported accurately and any created disabled Workflow remains reachable.
+workflow_composer_import:
+- id: drop-import-opens-disabled-template
+  given: Alice is on the Workflows start screen with a valid exported Workflow file and a typed name for a possible new Workflow.
+  when: She drags the file over the composer and drops it.
+  then: The composer shows a drop affordance, then opens the imported disabled Workflow in Template with its required recipient review. No title draft, inference request or Workflow execution occurs.
+- id: invalid-drop-preserves-title
+  given: Bob has typed Morning events in the Workflows composer and drops an invalid or unsupported Workflow file.
+  when: Import validation fails.
+  then: A readable error appears, no Workflow is created, and Morning events remains typed. Submitting that title normally still creates a disabled title draft.
 visual_language:
 - id: all-workflow-views-share-one-visual-family
   given:
@@ -84,56 +108,18 @@ workflow_identity:
     resolved_category: general_knowledge
     gradient_source: existing_category_gradients.general_knowledge
     resolved_icon: calendar
-workspace_start:
+workspace_start_layout:
 - id: desktop-recommendation-led-layout
-  given:
-    route: /workflows
-    viewport: 1440x900
-    authenticated: true
-    recent_workflows:
-    - weather
-    - invoices
-    starter_examples:
-    - rain
-    - news
-  expect:
-    vertical_regions:
-    - recommendation_banner
-    - workflow_identity_space
-    - workflow_card_carousel
-    - browse_controls
-    - bottom_composer
-    ordered_cards:
-    - weather
-    - invoices
-    - rain
-    - news
-    faint_centered_workflow_icon: true
-    horizontal_cards: true
-    show_all_and_search_centered: true
-    show_all_label: Show all
-    show_all_count_suffix: false
-    large_card_gradient_source: workflow_category
-    large_card_schedule_or_status_detail_visible: true
-    composer_floating_at_bottom: true
-    composer_placeholder: Enter a name for a new workflow
-    placeholder_centered_horizontally_and_vertically: true
-    extra_top_right_blank_workflow_button: false
+  assertion_ids: [workflows-ui.workspace.recommendation-led-composition]
+  given: Alice opens Workflows on a desktop screen with two owned Workflows and a Daily Inspiration banner.
+  when: The start view renders its continuation area.
+  then: The banner stays above the centered Workflow identity and owned continuation cards. Show my workflows, Show templates and Search sit above the floating composer. Large cards use the Workflow category gradient and useful schedule detail when enough content space is available.
 - id: mobile-retains-start-hierarchy
-  given:
-    route: /workflows
-    viewport: 390x844
-    authenticated: true
-  expect:
-    recommendation_banner_compact: true
-    identity_and_greeting_centered: true
-    recommendation_and_start_content_overlap: false
-    workflow_cards_horizontally_reachable: true
-    compact_card_content: [assigned_workflow_icon, one_line_ellipsized_title, chevron]
-    compact_badge_schedule_status_retention_detail_visible: false
-    show_all_label: Show all
-    search_visible: true
-    composer_above_safe_area: true
+  assertion_ids: [workflows-ui.workspace.recommendation-led-composition]
+  given: Bob opens Workflows on a narrow phone or a laptop whose tall inspiration banner leaves limited content space.
+  when: The continuation area chooses its card size.
+  then: Compact cards show the assigned icon, one ellipsized title line and chevron, without badges or schedule detail. The greeting stays below inspiration, the browse links remain visible above the composer, and the composer stays above the safe area.
+workspace_start:
 - id: valid-title-creates-disabled-draft
   given:
     composer_text: Daily weather check
@@ -452,17 +438,54 @@ mvp_authoring:
   when: Alice removes the Check.
   then: The builder rewrites the dependency only for an equivalent equality-to-true earlier boolean; otherwise it
     names the dependent steps, keeps the Check and leaves the saved graph valid.
+authoring_composer_preview:
+- id: authoring-voice-provisional-single
+  given: Alice opens the Workflow landing view and records a request for a daily rain alert using the shared audio control.
+  when: The request is transcribed, Gemini's complete steps arrive one at a time, and Alice selects Stop after the validated Weather node; on a separate attempt the next node fails validation twice.
+  then: The fixed bottom composer stays reachable and the information panel appears above the graph. Only backend-validated nodes appear; Stop or the second invalid node retains the valid prefix disabled with a concrete recovery notice and manual-edit option, without claiming the full rain alert was created or opening clarification chat for the generation error.
+- id: authoring-multiple-create-landing
+  given: Bob asks for a morning weather alert and an evening events digest.
+  when: Both validated Workflows are created together.
+  then: The new Workflow landing view appears with both new cards, rather than opening only one Template.
+authoring_edit_control_undo:
+- id: authoring-retains-enabled-state
+  given: Alice has an enabled apartment Workflow and requests a search-city edit plus a new rain alert.
+  when: She reviews and accepts the valid changes.
+  then: The review names both Workflows; the apartment Workflow stays enabled and the new rain alert starts disabled.
+- id: authoring-atomic-failure-and-undo-conflict
+  given: Bob asks to edit two Workflows and one completed edit has an invalid reference. Later he stops AI while it edits his enabled Weather Workflow after a valid node, then changes that Workflow manually.
+  when: He accepts the invalid pair and later requests Undo of the partial Weather edit.
+  then: Neither invalid completed edit saves. The partial edit keeps Weather's original ID and untouched later nodes but disables it; no duplicate card appears. Undo reports Bob's newer manual revision and does not replace it. Without that later revision, Undo would restore the complete prior state including enabled state.
 ask_ai_authoring:
+- id: ask-ai-chooses-source-then-fields
+  assertion_ids: [workflows-ui.mvp.ask-ai]
+  given: Alice has many earlier app steps, including Weather and Events; Events offers a title and a results list.
+  when: She scrolls the app-node row, chooses Events above the Ask AI instruction and opens Show all.
+  then: The app pills stay in one left-aligned horizontal row with single-line labels sized to their text, fixed Add outside the scroller and fades at both edges. Only fields from Events appear in the left-aligned field row, including the whole results list; choosing Weather switches the row and its Show all without mixing sources. Typing and choosing fields use free local hints without a provider call.
+- id: ask-ai-model-and-progressive-test
+  assertion_ids: [workflows-ui.mvp.ask-ai]
+  given: Alice has written an Ask AI instruction and chosen an eligible exact model with the selector below the input at bottom left.
+  when: She Tests the unsaved step and later saves and runs it.
+  then: Test shows animated Processing below its action, then progressively renders the cumulative Markdown response with OpenMates as sender and the same links and embeds as chat; the chosen model is used for Test and the saved run and is restored when Alice reopens this step.
 - id: ask-ai-editor-suggests-existing-results
   given: Alice has an Events search output and begins typing "Summarize the events and explain what makes each special" in Ask AI.
-  when: She stops editing the instruction for one second.
-  then: Jev suggests an Events results chip above the multiline field without inserting it, moving the cursor or changing the full picker order; Alice inserts it visibly, previews bounded selected values, Tests, and can use the complete Ask AI Answer downstream. Runtime presentation rules come from the known Events action rather than this hint.
-- id: ask-ai-warning-and-neutral-reminder
+  when: She pauses and chooses a suggested Events results chip.
+  then: A free local hint appears above the multiline field without inserting it, moving the cursor, calling a provider or changing the full picker order; Alice inserts it visibly, previews bounded selected values, Tests, and can use the complete Ask AI Answer downstream. Runtime presentation rules come from the known Events action rather than this hint.
+- id: ask-ai-save-validation-feedback
   given: Bob types "Search for new events for me" into Ask AI.
-  when: Jev reliably identifies a request to run an app skill, or Jev cannot give a reliable verdict.
-  then: A reliable request shows a warning below the field to add Use app and blocks Save; an uncertain or unavailable
-    verdict shows only a neutral reminder and allows Save for server-side Jev/Gemini fallback validation. A late
-    response to a previous instruction cannot change the current warning or suggestions.
+  when: Bob tries to Save the step.
+  then: Server validation rejects the new app-skill request with guidance below the field to add Use app; a provider error is shown as a validation failure, and typing or selecting values has not called Jev.
+if_authoring:
+- id: exact-if-uses-compatible-scalar-choices
+  assertion_ids: [workflows-ui.if-editor.authored-conditions]
+  given: Alice has a Weather step with a numeric rain probability, a text summary and a list of periods.
+  when: She opens If, returns with Next step, chooses Weather as the first source and compares rain probability with 60, then narrows the editor.
+  then: The blue header shows a large If title and translated Next step backlink, whose text hides when space is narrow; Delete sits farther left. Choosing Weather enters Exact rule without a second mode choice. The shared dropdown shows Weather's gradient, compatible operator icons and numeric input, while list entries are absent. She may compare a compatible field from another earlier app node instead of a literal, or choose the separate AI confirms source option to author a question.
+- id: ai-if-authors-question-with-shared-picker
+  assertion_ids: [workflows-ui.if-editor.authored-conditions]
+  given: Bob has an Events step and wants to decide whether its results suit a family outing.
+  when: He chooses AI confirms, types @ven, inserts a Venue field and Tests a valid true/false question, then tries to Save an invalid question.
+  then: The partial query highlights blue, filters fields and is wholly replaced by an Events-colored token; Test returns If true, If false or Unsure from one decision call, while invalid Save and Test show actionable errors. No provider call occurs while he types or chooses values.
 schedule_preview:
 - id: schedule_preview-example
   given: Alice chooses hourly apartment search at minute zero in Europe/Berlin.
@@ -474,10 +497,15 @@ message_budget:
   when: Alice configures Send message.
   then: She clicks the Apartments results chip and sees it inserted into the message field. No separate results section or Only results not previously sent toggle appears. Previously sent apartments are omitted automatically, and Preview shows the authored text and result cards at that position without sending or saving. Known skill cost is shown; raw JSON and deferred budget caps are absent.
 inline_action_variables:
+- id: partial-variable-query-replaces-all-typed-text
+  assertion_ids: [workflows-ui.editor.inline-action-variables]
+  given: Alice has an Events step whose output includes a venue object and a results list.
+  when: She types @ven in the Ask AI instruction and chooses Venue name from the filtered list.
+  then: The partial query is highlighted blue while she types, and the whole @ven becomes one left-aligned Events-colored token at the cursor with the Events icon and its directly addressable canonical path; Venue's object fields are selectable while Results remains a selectable whole list, and an existing @events.search.results reference still works.
 - id: inline-action-variable-shared-editor
   given: Alice has an Events search before Ask AI, AI judgment and Send message, and an app action has a variable-enabled text input.
   when: She clicks or keyboard-selects Events results in each field.
-  then: Each field inserts a readable token at the cursor, and each token and picker chip uses the Events app gradient in light and dark themes. The surrounding text stays in place, and deleting or reinserting a token works the same way everywhere.
+  then: Each field inserts a left-aligned readable token at the cursor, and each token and left-aligned picker chip uses the Events app gradient in light and dark themes. The token shows the app icon and directly addressable canonical path, such as @events.search.results or @travel.search-connections.results, while nearby text stays in place and deletion or reinsertion works the same way everywhere.
 - id: send-message-no-hidden-results-section
   given: Alice has written "Here are the upcoming events:" after an Events search but has not inserted its results.
   when: She attempts Save, then clicks the Events results chip.
@@ -488,3 +516,33 @@ run_deletion:
   when: Alice confirms deleting Run 1.
   then: The dialog explains forgetting and retained chat output; after deletion the apartment is eligible again
     and the old message run preview shows unavailable. Pending deletion is shown until any pending write is fenced.
+
+website_changes:
+- id: website-changes-1
+  assertion_ids: [workflows-ui.website-change.composition]
+  given: "Alice has added Read website for events.ccc.de before a Check."
+  when: "She selects its Has changed output or inserts its Changes output into an AI question."
+  then: "The existing Check controls remain available, readable output labels appear, and guidance explains the first silent baseline and failed-read behavior."
+
+workflow_continue_priority:
+- id: continue-prioritizes-recent-edits-and-upcoming-runs
+  assertion_ids: [workflows-ui.workspace.continue-priority]
+  given: Alice has a Workflow edited ten minutes ago, one last edited three days ago running in five minutes, one edited three hours ago, one last edited last week running tomorrow morning within 24 hours, and an older paused Workflow.
+  when: She opens Workflows.
+  then: Continue where you left off shows those five Workflows in that order. Workflows in the same edit group show newest first, and Workflows in the same scheduled group show the soonest future run first.
+- id: elapsed-and-paused-runs-are-not-upcoming
+  assertion_ids: [workflows-ui.workspace.continue-priority]
+  given: Bob has paused a Workflow whose old next-run time is five minutes away and has another Workflow with an elapsed next-run time.
+  when: He leaves the Workflows workspace visible across a priority boundary.
+  then: Neither Workflow is treated as an upcoming scheduled run; the ordering updates using the current time and each Workflow's latest creation or update time.
+workflow_library_templates:
+- id: owned-grid-sort-choice
+  assertion_ids: [workflows-ui.workspace.owned-library-and-templates]
+  given: Alice owns a newly edited paused Workflow and two older enabled Workflows scheduled in ten minutes and two hours.
+  when: She selects Show my workflows, then changes Last updated to Running next first.
+  then: The grid initially shows the newly edited Workflow first, then switches to the ten-minute run, the two-hour run, and the paused Workflow. No built-in template is mixed into that grid.
+- id: templates-create-disabled-copies
+  assertion_ids: [workflows-ui.workspace.owned-library-and-templates]
+  given: Bob is on the Workflows start screen with no Workflows of his own.
+  when: He opens Show templates and selects a built-in planning template.
+  then: A new disabled Workflow opens in Template for his review. Browsing alone creates nothing; selection performs no run or schedule activation, and the new Workflow is reachable through Show my workflows and Continue where you left off.

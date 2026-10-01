@@ -2,22 +2,23 @@ schema_version: 2
 id: workflow-ai-authoring
 title: AI workflow creation and editing from the web workspace
 status: approved
+approved_by_user: true
 goal: >-
   Let users describe one or multiple workflows in the Workflows workspace, by
   typing or recording speech, and have AI create valid workflows or edit existing
-  ones reliably. Clarify requests in chat when a valid result cannot be built.
+  ones reliably. Clarify requests only when Jev finds the instruction unclear.
   Make AI edits visible and easy to undo.
 
 scope:
   in:
     - Create one or multiple workflows from the workspace composer, or update an existing workflow from the workspace or its open editor.
-    - Reuse live audio transcription and correction, then automatically submit corrected instructions.
-    - Validate generated graphs against the executable workflow capabilities before committing an atomic request.
+    - Reuse live audio transcription and automatically submit final workflow transcripts directly to authoring; leave available text for review or show recovery when transcription fails.
+    - Validate each generated node deterministically before showing it; fully completed requests commit atomically, while Stop or a twice-invalid node retains the valid prefix.
     - Show new workflows on the landing page and show changed or removed nodes for edits.
     - Route requests needing clarification into a new chat with the workflows.clarify_workflows focus mode.
     - Let ordinary chat requests load scoped workflow authoring context and create valid workflows directly; use the clarification focus only when discussion is needed.
-    - Use Jev for bounded decisions, a fast structured LLM when Jev is unavailable, and a generative LLM for free text and unsupported recipe topology.
-    - Benchmark the bounded and generative model routes before fixing production confidence thresholds and model order.
+    - Select registered app skills and create, update, and control modes with Jev; author a compact semantic plan with Gemini 3.8 Flash and compile it into V2 from registered contracts.
+    - Stream validated complete nodes as Gemini builds them, with Stop and one correction attempt per invalid node; save a partial prefix disabled with no automatic execution when generation stops.
   out:
     - Executing or enabling a newly generated workflow without a separate user action.
     - Arbitrary code nodes or capabilities unavailable to the current user.
@@ -25,88 +26,99 @@ scope:
 
 current_state:
   frontend: >-
-    The workspace composer currently turns text into the title of an empty,
-    disabled draft. Its microphone is unavailable. The open workflow editor has
-    no natural-language composer and no AI change highlighting.
+    Revision 15b507d is deployed to dev and Vercel. Workflow-only pending clarification survives root startup and SPA navigation and is consumed once. Raw workflow transcripts auto-submit without separate correction; failed transcription preserves available text or shows recording recovery. Five focused browser/REST/CLI cases passed (runs 36805982863, 36804241207 and 36804247471). Revision 607cd834 introduced the immediate streaming shell. A local empty fullscreen shell opens synchronously on Send before Jev, Gemini or the first header. Processing appears above the graph; validated metadata and nodes update the inert shell with the fixed shared composer. Known multi-workflow batches return to the workspace. Focused stream CI run 36789254173 passed the equivalent immutable candidate. The one real dev browser creation remains blocked before inference by two-factor rejection on configured test accounts, with matching clocks and credential hashes.
   backend: >-
-    The workflow-input routes and durable session records exist, but the default
-    service has no planner or transcriber. A second strict planner contract is
-    unwired; workspace-ask uses a separate single-graph path. The assistant
-    create-or-modify skill accepts one workflow and a generic graph object;
-    chat approval currently creates it enabled. This conflicts with disabled
-    new workflows and automatic saving after clarification.
-    Existing create/update calls save records individually, so a multi-workflow
-    all-or-none commit needs an explicit transactional boundary.
+    Registry-based Jev selection, Gemini 3.8 Flash flat records, deterministic V2 validation, correction, Stop/disabled partial saves, atomic completed batches and guarded Undo are deployed. Revision 607cd834 fixes false conditional selection for filters/comparisons and requires explicit authored clock fields. Six varied CLI cases plus two targeted reruns have recorded exact instructions and summaries; all disposable workflows were removed. Revision 15b507d also aligns manual V2 branch saves with authoring dependency validation and replaces empty in-memory chat search with owner-scoped persisted exact-ID lookup plus sanitized selected graph context. Its live clarification check resolved the original in one search, asked one question and ran no future action skill; original remained unchanged with no copy. Revision 127f161f adds catalog-priced idempotent authoring billing and EUR marketplace guidance. One real CLI proof passed correct Friday/EUR structure, 13-credit wallet debit and two Billing history entries; UUID replay returned the same workflow without more inference/charges. Billing settings CI run 36796094385 passed one case.
   capability_contract: >-
-    The workflow capability registry contains skill input schemas and execution
-    metadata, while the current AI tool schema and planner context omit the
-    complete graph grammar and executable capability options. One canonical,
-    versioned authoring context and final readiness validation are needed.
-    The example request for tomorrow's rain cannot currently pass V2 readiness:
-    runtime date values support today and next-week bounds, but not tomorrow.
-    Asking for two forecast days is not equivalent because the top-level
-    rain_expected value describes the first day.
+    Revision 7c7e9e1 makes Jev Check and delivery relevance hints advisory, gives each rejected node position one corrected continuation, preserves frozen accepted prefixes and distinct provider billing, and loads owner-scoped fallback update targets before header validation. The focused local cohort passed 110 tests. Two post-deploy CLI requests matched Friday/EUR headphones and weekday/tomorrow Berlin rain branching, used one Jev and one Gemini call each, and were removed. Billing history and idempotent replay also passed. See evidence/per-node-repair-2026-10-01.md for exact inputs, timings, costs and focused browser evidence.
+    Forty registered executable skill contracts were examined; the focused live corpus exercises web, shopping, nutrition, news, weather, events and AI transformation. Four initial requests matched intent. The corrected weather comparison matched intent after one invalid-JSON retry. The final shopping proof on 127f161f preserved Friday 18:00 UTC and EUR country de/max_price 150 in one Gemini attempt. Earlier direct/staged Jev comparison and failures remain historical evidence in the comparison document; this small corpus does not establish all-capability reliability.
+  verification: >-
+    The per-node correction and advisory Jev fix is deployed as 7c7e9e1. Its planner/compiler/adapter/billing cohort passed 110 tests. Two post-deploy CLI requests matched intent and wallet billing; the price-filter case also verified Billing settings history and free idempotent replay. Focused browser run 36855517388 passed two cases with no skips or flakes against candidate 5c5c5ff3; its corrected repeated-node fixture was published as 93a3c160. See evidence/per-node-repair-2026-10-01.md.
+    The immediate fullscreen focused browser testcase passed in isolated CI at a94a685b (run 36789254173), with product source deployed as 607cd834. Authoring/provider, planner, shopping and billing checks passed; normal 127f161f deployment gates passed lint, translations, privacy audits and ten affected pytest files. Billing settings CI run 36796094385 and the live 13-credit debit/history/idempotent replay proof passed. No real browser AI timing exists because authentication failed before the authoring request. Revision 15b507d deployment gates passed six affected pytest files, lint, locale and registry validation. The three final focused CI jobs passed five cases with no skips or flakes. Live clarification passed exact target, focus, one question, no execution/copy and cleanup checks (21.688 seconds, 45 credits). Its harness spelling mismatch was corrected and existing evidence rechecked without more inference. Actual ASR recognition, live browser AI timing, live interrupted-model edits and chat completion after clarification remain unmeasured.
   reuse:
     - Chat audio already provides streamed transcription and correction.
-    - Workflow definition versions and workflow-input mutations provide a starting point for persistent AI undo. Current session undo has no version guard and restores only title and graph for edits; the new undo must include all changed metadata and preserve later manual work.
+    - Workflow definition versions and workflow-input mutations provide the basis for the implemented version-guarded batch undo; final integrated coverage verifies complete metadata restoration and protection of later manual edits.
     - Focus mentions already support explicit @focus:app:id activation.
 
 confirmed_decisions:
-  - A multi-workflow request is atomic: create none if any requested workflow needs clarification.
+  - Jev selects likely relevant skill and control context; Gemini decides which nodes the instruction actually needs. Check-mode and chat-delivery hints do not force nodes or prohibit supported builtins. Registered capability schemas, ownership, references and readiness remain authoritative.
+  - Each failing node slot gets one correction; a later failing node gets its own allowance after accepted progress. Changing a rejected node ID does not reset its allowance. Accepted prefixes remain frozen, and a stalled continuation or repeated completion failure stops safely.
+  - A fully completed multi-workflow request commits atomically. Jev routes an unclear or confusing request to clarification before generation; Stop or a twice-invalid generated node instead retains the validated prefix as a disabled partial result.
+  - A short complete instruction creates a ready disabled workflow through the natural-language authoring path. A short incomplete instruction creates a persisted disabled blank workflow with the exact request as its title and opens its editor. Only Jev-unclear or confusing requests go to clarification chat before generation; model errors in clear requests use partial-result recovery.
+  - When a schedule omits its time, use 09:00 in the browser timezone or the explicitly requested timezone. When a weekly schedule omits its day, use Monday. Show these assumptions to the user.
+  - Use Jev to select relevant registered app skills and create, update, and control modes, either directly or through app-first parallel per-app skill selection. Compare those routes for quality, latency, and cost without requiring app-first as the default. Gemini 3.8 Flash authors the compact semantic plan, including metadata, typed references, checks, branches, and information text. The backend compiler maps it to V2.
+  - Only on a Jev outage, let the regular Gemini 3.8 Flash authoring call make the same preselection and produce the same compact contract. Apply identical backend validation without a speculative extra fallback chain.
+  - Show a queued save state while the encrypted, durable plan is committed; use Dragonfly for a short-lived status cache and replay queued plans after worker loss. A workflow is shown as created only after the commit succeeds.
+  - Stream only complete nodes after deterministic per-node validation, so the user can Stop before the full request finishes. Retry an invalid node once with correction feedback. If it remains invalid, stop generation, save the valid prefix disabled with no automatic execution, and show a concrete recovery notice. Full successful batches still require whole-graph validation and an encrypted durable queue write before confirmation.
+  - A partial edit saves to the original Workflow ID, retains existing nodes not yet reached, disables the Workflow, and never creates a copy. Guarded Undo restores the whole prior state, including enabled state, unless a newer revision conflicts. A fully successful edit still preserves enabled state unless the user requests a change.
   - Save newly generated workflows disabled; save edits immediately while preserving their enabled state.
   - Prompt to save or discard unsaved manual edits before sending an AI edit.
-  - Auto-submit a corrected recording; show raw transcription for review if correction fails.
-  - After a successful batch, remain on the workspace landing page and show a New pill above each created workflow card in Continue.
+  - After the raw-versus-clean instruction checks pass, bypass separate workflow transcript correction and auto-submit the final transcript. If transcription fails, preserve available text for review or show a recording retry message. Ordinary chat correction keeps its existing behavior.
+  - On create submission, immediately open a local provisional full-screen workflow shell before Jev or Gemini replies, with a processing container above the first node. Update title and description, then show each backend-validated node as it arrives. If Jev identifies multiple workflows, switch to the workspace batch view; show New pills after commit. The provisional shell creates no saved empty workflow, copy, or fake workflow ID. A real workflow is confirmed only after durable commit.
+  - Show workflow information text above nodes and keep one shared composer, including audio, fixed at the bottom of the landing page and open editor.
   - Clarification opens a new chat and auto-sends the exact request prefixed with an @ mention for workflows.clarify_workflows.
   - List removed nodes above the graph; highlight added and edited nodes in place.
   - Provide a simple guarded Undo AI changes button. Undo the whole AI batch only when every member is still at its AI-created version; preserve later manual edits and offer version history on conflict.
-  - Generate a title, description, and icon with an LLM for every new workflow; evaluate Gemini 3.5 Flash-Lite as the default, choose the icon from the existing allowed icon catalog, and supply the required valid category when saving it.
+  - Generate title, description, and icon in the Gemini 3.8 Flash compact plan for every new workflow; choose the icon from the allowed catalog and supply the required valid category when saving.
   - Load workflow authoring knowledge for clear workflow-creation requests in chat, with selective capability context rather than an unbounded static prompt.
-  - In ordinary chat, preload the relevant recipe and selected capability schemas for a clear workflow request; activate workflows.clarify_workflows only when discussion is needed. The workspace handoff activates that mode explicitly.
+  - In ordinary chat, preload selected capability schemas and the graph contract for a clear workflow request; activate workflows.clarify_workflows only when discussion is needed. The workspace handoff activates that mode explicitly.
   - Default an unspecified schedule timezone to the user's browser IANA timezone; select an explicitly named timezone such as Berlin time, San Francisco time, or UTC from the instruction.
   - After a clarification chat has gathered enough detail, auto-save valid new workflows disabled and tell the user they must activate them; save valid edits immediately with their current enabled state and an Undo action.
-  - Allow one request to mix new workflows and edits. Plan and validate independent targets concurrently, serialize operations that touch the same workflow, then commit all results or none.
-  - Use Jev as the primary bounded decision engine, with an independent fast structured-output LLM filling the same recipe contract when Jev is unavailable.
-  - Prefer Jev-selected, backend-owned V2 workflow recipes for recognized patterns; use an LLM planner when a request falls outside recipe coverage. Benchmark both routes before final default tuning.
+  - Allow one request to mix new workflows and edits. Plan and validate independent targets concurrently and serialize operations that touch the same workflow. Commit a fully successful batch all or none; interruption may save only the validated partial prefix under the separate disabled-partial rule.
+  - Use Jev first to select relevant apps and identify whether exact conditions or AI evaluation are required; evaluate parallel per-app skill selection against direct skill selection for quality, latency, and cost.
+  - Do not restrict authoring to predefined workflow recipes. Derive node, field, reference and branch choices from registered executable contracts and the user instruction.
+  - Keep the seven-request generic-constructor benchmark as historical evidence. Its Jev and LLM construction timings use different validation boundaries, so they do not compare end-to-end latency or select the production constructor.
 
 architecture_draft:
   - Consolidate the workflow-input and workspace-ask planner contracts around one canonical V2 graph and per-user capability snapshot.
-  - Build deterministic V2 graph recipes for common patterns. Use batched Jev decision waves for routing, recipe and capability selection, and bounded fields; use deterministic parsing for exact times and supplied values. A generative model splits free-form multi-workflow prose into operation intents when bounded Jev choices cannot, then each intent uses Jev recipe selection concurrently.
+  - Build a shared registry-derived preselector and compact semantic plan contract. Compare app-first Jev selection followed by parallel per-app skill selection with direct skill selection; Gemini 3.8 Flash authors nodes, metadata, typed output references, values, and branches. The backend compiler emits canonical V2 and rejects invented capabilities. No predefined recipe list limits authoring.
   - Benchmark staged Jev country-to-city choices against direct extraction and the existing geocoder. Use a second Jev wave only when it improves ambiguous-location accuracy; send out-of-list choices through the fallback resolver rather than silently selecting a nearby city.
   - Pass the browser IANA timezone into the authoring request. Let Jev select an explicitly named timezone from bounded canonical IANA or UTC candidates, resolve aliases deterministically, and record the chosen zone in the generated schedule and visible summary.
-  - Extend and validate deterministic runtime date values for tomorrow before offering the tomorrow-weather recipe; require semantic checks in addition to graph validity, so a today forecast cannot silently satisfy a tomorrow request.
-  - Fall back to an LLM planner for novel graph topology, unsupported recipes, free text, and semantic repair; generate title, description, and icon with an LLM on every creation. Benchmark valid workflows per dollar and end-to-end latency against an LLM-only baseline.
-  - Benchmark Gemini 3.5 Flash-Lite against Gemini 3.8 Flash for Ask AI instructions containing exact earlier-node references, workflow title and description, and icon selection. Promote to 3.8 only for cases where Lite fails fidelity or validation; retain a provider-independent text fallback.
-  - For a Jev outage or low-confidence bounded decision, coalesce fields into one Gemini 3.8 Flash structured-output call, then use the same deterministic recipes and validation. Measure latency and semantic accuracy against Jev. Strict JSON syntax alone does not establish semantic correctness.
-  - Finish the backend and CLI real-inference pilot and report per-request quality, provider cost, and wall-clock time before implementing the web workspace UI.
+  - Validate the implemented tomorrow runtime date values through the generic compiler; require semantic checks in addition to graph validity, so a today forecast cannot silently satisfy a tomorrow request.
+  - Feed selected capabilities and output grammar to Gemini 3.8 Flash. Validate each complete node deterministically before streaming it to the client; allow Stop. Retry one invalid node with correction feedback, then retain the validated prefix disabled with no automatic execution and a concrete recovery notice if correction fails. Run final semantic, capability, typed-reference, and V2 readiness checks for a fully completed batch before acknowledgement.
+  - On a Jev outage, let that same Gemini 3.8 Flash call select from the registry snapshot and author the same compact contract. Apply the same compiler and validation; strict JSON syntax alone does not establish semantic correctness.
   - Bound per-request Jev waves and concurrency; handle 429/Retry-After with a fallback. OpenRouter publishes provider-passthrough limits for paid keys but no fixed Jev requests-per-second value, so measure sustained throughput before setting production concurrency.
-  - Before major implementation, build a 30-50 case synthetic Jev evaluation corpus covering routing, recipe and bounded-field choices, ambiguity, multi-workflow intent, and timezones; repeat cases and compare with an LLM baseline. After a thin recipe compiler exists, measure full-graph validity, semantic fidelity, latency, fallback frequency, and cost end to end on a larger corpus.
-  - Produce a structured batch plan with create, update, or clarify operations; validate all targets, ownership, capability bindings, graph readiness, and idempotency before a transactional commit, because the current single-workflow service does not make multiple writes atomic. Stage encrypted payloads, make owner-visible record/version changes one database transaction, and synchronize schedules through an idempotent post-commit path.
+  - Use a seven-request test set spanning single and multiple creations, edits, mixed batches, controls, dates, typed references, free text, and ambiguity. Measure full validation and queue acknowledgement in consistent stage timing boundaries; compare quality, fallback frequency, and cost without treating the earlier asymmetric benchmark as end-to-end latency.
+  - Produce a structured batch plan with create or update operations; Jev sends only unclear or confusing requests to clarification before generation. Validate all targets, ownership, capability bindings, graph readiness, and idempotency before confirming a fully completed request. Stage the encrypted plan durably before acknowledgement. Persist full batches atomically; for Stop or twice-invalid generation, persist only validated partial state disabled with no automatic execution, updating an edited Workflow in place without a copy and preserving unreached nodes.
   - Store complete before/after snapshots and stable node IDs for a durable undo; compare each current record version and graph identity to the AI commit before restoring every batch member, and return conflicts without overwriting newer manual work. Compute added, edited, and removed node sets for the UI.
-  - Use the existing audio stream and correction flow, then pass the corrected text through the same text planner.
+  - Use the existing shared audio stream and recording UI, then pass final workflow transcripts directly through the text planner. Keep the correction provider path available as an operational rollback; do not spend a correction call by default.
   - Add workflows.clarify_workflows guidance and scoped capability retrieval to chat preprocessing and the main processor; align chat workflow creation with the disabled-by-default rule.
 
 implementation_sequence:
   - phase: Authoring contract and evaluation
-    work: Define the accepted product Specification and a versioned, owner-scoped V2 capability and recipe catalog. Turn the synthetic pilots into labeled, repeatable routing, recipe, timezone, and Ask AI field evaluations with latency and cost reports. Include a direct LLM-only baseline.
+    work: Use the accepted product Specification and versioned registry capability snapshot. Compare direct Jev skill selection with app-first selection and parallel per-app skill decisions; finalize the Gemini 3.8 Flash compact semantic plan contract, including metadata, typed references, controls, and mixed operations. Preserve prior constructor comparisons as historical evidence and evaluate the selected route with seven requests and consistent validation-inclusive timing.
     dependency: None.
-  - phase: Planner and recipe compiler
-    work: Implement request segmentation, Jev decision waves, bounded confidence gates, explicit timezone selection, deterministic recipe compilation, tomorrow runtime dates, and strict semantic and V2 validation. Use a fast structured model for Jev outages and a generative planner for unsupported topology. Generate title, description, and allowed icon with an LLM.
+  - phase: Planner and graph compiler
+    work: Implement registry-derived Jev selection, Gemini 3.8 Flash compact plan authoring, deterministic per-node validation before streaming, Stop, one correction attempt for an invalid node, disabled partial-prefix recovery, explicit timezone selection, generic V2 compilation, tomorrow runtime date support, and strict semantic and V2 validation. Use the same Gemini contract when Jev is unavailable.
     dependency: The authoring contract and evaluation corpus.
   - phase: Transactional batch and undo
-    work: Plan independent create/edit targets concurrently, serialize same-target edits, and commit mixed batches atomically with staged encrypted payloads, one visible metadata transaction, post-commit schedule sync, and idempotency. Persist complete AI before/after states and version-guarded batch undo. Preserve the enabled state of edits and save new workflows disabled.
+    work: Plan independent create/edit targets concurrently, serialize same-target edits, validate a completed mixed batch, durably queue its encrypted plan, and commit it atomically in background Directus work with post-commit schedule sync and idempotency. Persist stopped or twice-invalid valid prefixes disabled with no automatic execution; edit the original Workflow in place, preserve unreached nodes, and create no copy. Persist complete AI before/after states and version-guarded batch undo including prior enabled state. Preserve the enabled state of fully successful edits and save new workflows disabled.
     dependency: Validated planner output.
   - phase: Chat integration
     work: Add workflows.clarify_workflows, exact-request workspace handoff, selective workflow context in ordinary chat, and a batch-aware chat creation/editing path that uses the same transaction and validation service. Auto-save clarified results and show activation guidance for new workflows.
     dependency: Transactional batch service.
   - phase: Workspace UI and audio
-    work: Connect landing and open-editor composers to the planner, reuse streamed transcription and correction, resolve dirty edits before submission, show New pills and node diffs, and expose guarded Undo AI changes.
+    work: Connect the shared fixed-bottom landing/editor composer and audio to the planner, immediately show a local full-screen empty shell with processing container on create submission, then stream validated metadata and nodes. Switch to workspace batch view when Jev identifies multiple workflows. Provide Stop and concrete partial-result recovery, resolve dirty edits before submission, show New pills for committed multiples and node diffs for edits, and expose guarded Undo AI changes.
     dependency: Shared backend authoring and undo APIs.
   - phase: Verification and rollout
-    work: Add focused backend and browser contract coverage, exercise real inference on the dev server with disposable synthetic state, compare valid workflows per dollar and end-to-end latency, and set concurrency and fallback thresholds from measured results before enabling broadly.
+    work: Add focused backend and browser contract coverage, exercise the selected architecture against seven real-inference requests with disposable synthetic state, and record validation-inclusive planning and durable-queue acknowledgement timings consistently. Expand to full backend and web verification before enabling broadly.
     dependency: A working vertical slice across backend, chat, and UI.
 
 research_spike:
+  exact_source_jev_comparison: >-
+    On deployed revision 68cdee7984774de384ece75778fcf4eb4e0ddbec, one
+    paired seven-case synthetic run per route found direct Jev skill selection
+    6/7 graph-valid and 4/7 intent-matching (median Jev 350.8 ms, median full
+    request 2374.6 ms) and app-first parallel per-app selection 7/7 and 6/7
+    (649.5 ms, 2546.1 ms). Both recalled every required skill and selected ten
+    extra skills. Direct estimated total cost $0.031747 is incomplete after a
+    provider failure; staged $0.032562 is complete estimated usage. Including
+    Jev, median first-header callbacks were 1877.8/1953.9 ms and first-action
+    callbacks were 2063.3/2188.9 ms for direct/staged; direct had 3/7 actions
+    before 2 seconds, staged 0/7. The callbacks do not measure UI delivery or
+    prove pre-display validation. This single sample does not identify a causal winner; see the private
+    /tmp/workflow-staged-flat-fixed-comparison-20260930.json report and the
+    aggregate evidence document.
   jev_live_sample: >-
     Eight sequential synthetic Jev 1.13 calls on the dev API key succeeded without
     429. Five broad routing/recipe/parameter calls took 305-558 ms each; three
@@ -119,8 +131,9 @@ research_spike:
   recipe_validation: >-
     A deterministic weekday 07:00 Berlin rain-chat V2 graph using today's date
     passed readiness and composition validation. Replacing today with tomorrow
-    failed preflight because the runtime date value is unsupported. This is a
-    semantic coverage gap in the current backend, not a Jev classification error.
+    failed preflight because the runtime date value was unsupported at pilot
+    time. This was a semantic gap, not a Jev classification error; tomorrow
+    runtime values have since been added.
   jev_corpus_pilot: >-
     A first-pass 30-case synthetic Jev run had 28/30 expected operation choices,
     30/30 expected timezone choices, and no request errors; median latency was
@@ -152,22 +165,22 @@ scenarios:
     title: One or several valid workflows
     given: [The user is on the Workflows landing page.]
     when: [The user describes one or several workflows.]
-    then: [Every valid workflow is created disabled with an LLM title, description, and icon; the landing page shows a New pill above each card.]
+    then: [A create submission immediately opens a local empty full-screen workflow shell with processing above the first node; validated title, description and nodes arrive one at a time. If Jev identifies multiple workflows, switch to workspace batch view and show New pills after commit. Every saved valid workflow is disabled with a Gemini 3.8 Flash title, description, and allowed icon. A short incomplete request becomes a disabled blank workflow with the exact request as its title. Missing weekly day and time default to Monday at 09:00 and are shown as assumptions.]
   - id: S-2
-    title: Ambiguous or unsupported request
-    given: [At least one requested workflow cannot be built reliably.]
-    when: [The workspace planner checks the whole request.]
-    then: [No workflow is committed and a new clarification chat receives the exact request with the Workflows focus mention.]
+    title: Jev identifies an unclear request
+    given: [The user request is unclear or confusing to Jev before generation.]
+    when: [The workspace planner checks the request.]
+    then: [No generation begins and a new clarification chat receives the exact request with the Workflows focus mention. A later Gemini error on a clear request stays in the authoring flow.]
   - id: S-3
     title: AI edit and undo
     given: [An existing workflow is selected or open.]
     when: [The user describes a change and later selects Undo AI changes.]
-    then: [The edit is saved with the enabled state preserved, changes are identified in the graph, and undo restores the prior version.]
+    then: [A fully successful edit preserves enabled state and shows node changes. A stopped partial edit saves to the original ID, retains unreached nodes, disables it, and can be undone to restore the complete prior state when no later revision conflicts.]
   - id: S-4
     title: Recorded instruction
     given: [The user records an instruction in the workflow composer.]
-    when: [Transcription and correction complete or correction fails.]
-    then: [Corrected text is submitted automatically or raw text is shown for review.]
+    when: [Final transcription completes or transcription fails.]
+    then: [The final transcript is submitted directly without a separate correction call. Failure preserves available text for review or shows recording retry guidance when no text exists. An editor instruction retains the selected workflow target.]
   - id: S-5
     title: Chat creation and clarification
     given: [The user asks in chat for a workflow or arrives from a workspace clarification handoff.]
@@ -177,39 +190,82 @@ scenarios:
     title: Provider outage and unsupported date
     given: [Jev is unavailable or a request needs tomorrow's forecast.]
     when: [The authoring pipeline builds the workflow.]
-    then: [A structured LLM can fill the same recipe contract; tomorrow resolves at run time in the schedule timezone; validation rejects an unrepresentable or semantically wrong graph.]
+    then: [The regular Gemini 3.8 Flash call selects from the same registry snapshot and authors the same compact contract; tomorrow resolves at run time in the schedule timezone; validation rejects an unrepresentable or semantically wrong graph.]
+  - id: S-7
+    title: Node streaming, interruption, and durable acknowledgement
+    given: [The user submits a workflow request from the shared fixed-bottom composer.]
+    when: [Gemini authors a plan and the backend prepares the batch.]
+    then: [The local full-screen shell appears immediately on create submission without saving an empty workflow or inventing a workflow ID. Its processing container precedes the first node; metadata and each complete node appear only after deterministic validation. Stop or a twice-invalid node saves the valid prefix disabled with no automatic execution and a concrete recovery notice; full successful batches require final validation and an encrypted durable queue write before confirmation.]
 
 acceptance_criteria:
   - {id: AC-1, scenario: S-1, text: 'A validated one or multi-workflow request commits atomically; every new workflow is disabled and has LLM-generated title, description, and icon.', required: true, status: pending, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-BATCH]}
-  - {id: AC-2, scenario: S-1, text: 'Successful creation leaves the workspace on its landing page and displays a New pill above each created workflow card in Continue.', required: true, status: pending, coverage_status: covered, verification_scope: playwright, verification_ids: [T-WEB]}
-  - {id: AC-3, scenario: S-2, text: 'Any invalid batch member causes zero commits and hands the exact instruction to a new chat with the Workflows clarification focus mention.', required: true, status: pending, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-BATCH, T-WEB]}
-  - {id: AC-4, scenario: S-3, text: 'An AI edit requires resolution of manual dirty state, preserves enabled state, marks added and edited nodes, lists removals, and can be undone after reload.', required: true, status: pending, coverage_status: covered, verification_scope: playwright, verification_ids: [T-EDIT]}
-  - {id: AC-5, scenario: S-4, text: 'Voice input streams a preview and submits corrected text automatically, while failed correction leaves raw text for review.', required: true, status: pending, coverage_status: covered, verification_scope: playwright, verification_ids: [T-VOICE]}
-  - {id: AC-6, scenario: S-5, text: 'Ordinary chat loads selected recipe and capability context for a clear request; unclear requests use workflows.clarify_workflows, and clarified valid batches auto-save with new workflows disabled and activation guidance.', required: true, status: pending, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-CHAT]}
-  - {id: AC-7, scenario: S-6, text: 'Jev and its independent structured fallback produce the same bounded plan contract, and no graph is committed without executable V2, capability, and semantic validation.', required: true, status: pending, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-PLANNER]}
+  - {id: AC-2, scenario: S-1, text: 'Create submission immediately opens a local provisional full-screen workflow shell before Jev, Gemini, or a header; processing appears above the first node, then validated title, description and nodes appear one at a time. Jev-detected multiple workflows switch to workspace batch view; committed multiples show New pills in Continue. No empty placeholder or fake workflow ID is saved.', required: true, status: satisfied, coverage_status: covered, verification_scope: playwright, verification_ids: [T-WEB]}
+  - {id: AC-3, scenario: S-2, text: 'Only a request Jev finds unclear or confusing opens clarification chat with the exact instruction before generation; Gemini errors on clear requests remain in authoring recovery.', required: true, status: pending, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-BATCH, T-WEB]}
+  - {id: AC-4, scenario: S-3, text: 'An AI edit resolves dirty state and shows node changes. A full edit preserves enabled state; a stopped partial edit saves to the original ID, keeps unreached nodes, disables it, creates no copy, and guarded Undo restores the prior state including enabled state.', required: true, status: satisfied, coverage_status: covered, verification_scope: playwright, verification_ids: [T-EDIT]}
+  - {id: AC-5, scenario: S-4, text: 'Voice input uses the shared recording UI, streams a transcript preview and submits the final workflow transcript directly without a separate correction call. Transcription failure preserves available text for review, or shows recovery for an empty recording result. An editor voice edit retains the original workflow target through clarification.', required: true, status: satisfied, coverage_status: covered, verification_scope: playwright, verification_ids: [T-VOICE]}
+  - {id: AC-6, scenario: S-5, text: 'Ordinary chat loads selected capability context and the graph contract for a clear request; unclear requests use workflows.clarify_workflows, and clarified valid batches auto-save with new workflows disabled and activation guidance.', required: true, status: pending, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-CHAT]}
+  - {id: AC-7, scenario: S-6, text: 'Jev selects registry apps, skills and modes; compare app-first parallel per-app skill selection against direct skill selection. On Jev outage Gemini authors the same compact contract. No completed graph is committed without executable V2, capability, typed-reference, and semantic validation.', required: true, status: pending, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-PLANNER]}
   - {id: AC-8, scenario: S-6, text: 'An explicit schedule timezone overrides the browser timezone; tomorrow weather resolves in that schedule timezone and never tests today’s forecast in its place.', required: true, status: pending, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-PLANNER]}
-  - {id: AC-9, scenario: S-3, text: 'Undo restores the entire AI batch only while every affected workflow remains at its AI version; later manual edits cause a conflict and remain unchanged.', required: true, status: pending, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-BATCH, T-EDIT]}
-  - {id: AC-10, scenario: S-1, text: 'One request may mix creates and edits; planning independent members may run concurrently, but any invalid member leaves all members uncommitted.', required: true, status: pending, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-BATCH]}
+  - {id: AC-9, scenario: S-3, text: 'Undo restores the entire AI batch or partial edit including prior enabled state only while every affected workflow remains at its AI version; later manual edits cause a conflict and remain unchanged.', required: true, status: pending, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-BATCH, T-EDIT]}
+  - {id: AC-10, scenario: S-1, text: 'One request may mix creates and edits; fully completed batches commit all or none, while Stop or twice-invalid generation may save only a validated disabled partial prefix.', required: true, status: pending, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-BATCH]}
+  - {id: AC-11, scenario: S-7, text: 'The shared fixed-bottom composer supports text, audio and Stop; a local processing shell appears immediately on create submission, while each complete node streams only after deterministic validation. One invalid-node correction is allowed, then the valid prefix saves disabled with a recovery notice if still invalid. Full success requires whole-batch validation and an encrypted durable queue write.', required: true, status: pending, coverage_status: covered, verification_scope: playwright, verification_ids: [T-WEB, T-PLANNER, T-BATCH]}
+  - {id: AC-12, scenario: S-1, text: 'AI workflow authoring charges measured Jev and Gemini usage using catalog token rates and stable session-step charge IDs; Billing settings retains readable model, token and credit entries; replay does not charge again. Historical unbilled requests are not charged retroactively.', required: true, status: satisfied, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-BILLING]}
 
 tests:
   - id: T-BATCH
     type: pytest
     file: backend/tests/test_workflow_input_sessions.py
-    command: pytest backend/tests/test_workflow_input_sessions.py
-    covers: [AC-1, AC-3, AC-9, AC-10]
-    assertions: [Mixed valid batches commit atomically, invalid members commit nothing, and guarded batch undo preserves later manual edits.]
+    related_files: [backend/tests/test_workflow_authoring_transaction.py]
+    command: pytest backend/tests/test_workflow_input_sessions.py backend/tests/test_workflow_authoring_transaction.py
+    covers: [AC-1, AC-3, AC-9, AC-10, AC-11]
+    assertions: [Completed mixed valid batches commit atomically after durable encrypted queueing; Stop or twice-invalid generation saves only the validated disabled prefix; partial edits update the original ID and guarded Undo restores full prior state without overwriting later manual edits.]
     red_phase: {required: false, expected: fail, evidence: {status: pending}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        reason: Scoped transaction and input checks passed. Live d25b1938 cases proved two-create atomic commit and guarded Undo conflict. The earlier unsupported Slack case failed intent after chat substitution; its 557ebc1b rerun passed with exactly one disabled Monday chat prefix and no Friday or second workflow after explicit unsupported_operation failures. Durable acknowledgement timing, mixed create/edit batching, and partial-edit recovery remain unverified.
+        scoped_passes:
+          - {kind: isolated_github_ci, run_id: '36757002613', source_commit: 7d95d5e546e509b8c537dbe388669f76d7a506a1, harness_commit: 68cdee7984774de384ece75778fcf4eb4e0ddbec, profile: e2e, artifact: isolated-test-results, result: 'One browser transaction test passed: two targets commit once; stale and guarded undo batches roll back.'}
+          - {kind: focused_unit, source: prior_transaction_proof, result: 'Eight Node transaction proof checks passed; prior transaction suite also passed.'}
+          - {kind: focused_unit, source: current_worktree, result: '32 workflow-input helper checks passed.'}
+          - {kind: live_cli, report: '/tmp/openmates-workflow-authoring-session3e12/workflow-rollout-ca9da8d1.json', source_commit: d25b19389d00084acd64a7b9b89ef52427fed9ce, result: 'Four supported structural cases passed; two-create atomic commit and guarded Undo conflict were confirmed. Unsupported Slack case passed disabled-state safety but failed intent after chat substitution.'}
+          - {kind: live_cli, report: '/tmp/openmates-workflow-authoring-session3e12/workflow-rollout-6f0921dd.json', source_commit: 557ebc1b190c7cf39933aef04035714c7d6a2e80, result: 'Unsupported batch passed strict intent and safety assertions: exactly one disabled Monday chat prefix; no Friday or second workflow; cleanup zero.'}
+  - id: T-BILLING
+    type: pytest
+    file: backend/tests/test_workflow_authoring_billing.py
+    command: backend/.venv/bin/python -m pytest backend/tests/test_workflow_authoring_billing.py
+    target: backend/tests/test_workflow_authoring_billing.py
+    execution_environment: local
+    covers: [AC-12]
+    assertions: [Catalog pricing, every metered provider step, stable private charge identity, settlement outside Jev timeout, no unpaid saved draft, and token retention.]
+    red_phase: {required: false, expected: fail, evidence: {status: pending}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        reason: "Thirty-one focused billing/planner checks passed. Billing settings CI run 36796094385 passed one case at source 98433d18108a862514729e72112655b3526b6525; live CLI proof on 127f161f reconciled 13 credits, two history entries, same-session replay with no new charge and cleanup. Report: docs/plans/workflow-ai-authoring/evidence/diverse-workflow-authoring-2026-09-30.md."
   - id: T-WEB
     type: playwright
     file: frontend/apps/web_app/tests/workflows-input.spec.ts
     command: isolated GitHub CI
     target: frontend/apps/web_app/tests/workflows-input.spec.ts
     execution_environment: isolated_github_ci
-    covers: [AC-2, AC-3]
-    assertions: [Landing state shows New pills and clarification handoff preserves the exact request.]
+    covers: [AC-2, AC-3, AC-11]
+    assertions: [Create submission immediately opens a local empty full-screen shell with processing above the first node before Jev, Gemini, or header; validated metadata and nodes appear one at a time without a saved placeholder or fake ID; Jev-detected multiples switch to workspace batch view and committed multiples show New pills; Stop supports partial recovery; only Jev-unclear requests hand off the exact instruction.]
     red_phase: {required: false, expected: fail, evidence: {status: pending}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        reason: "Focused stream CI 36804241207 passed immediate fullscreen creation, validated metadata/nodes, inert controls, multi-result view and Stop recovery. Input CI 36805982863 passed long create/edit, dirty-state choices and exact clarification handoff. Live browser AI timing remains blocked by test-account authentication; these cases use controlled stream responses."
+        scoped_passes:
+          - {kind: isolated_github_ci, run_id: '36757013549', source_commit: 7d95d5e546e509b8c537dbe388669f76d7a506a1, harness_commit: 68cdee7984774de384ece75778fcf4eb4e0ddbec, profile: e2e, artifact: isolated-test-results, result: 'One long browser case passed: single/New, editor preview and save rejection, node changes, Undo conflict/success, dirty Save/Discard/Stay, and landing edit.'}
+          - {kind: isolated_github_ci, run_id: '36759901975', source_commit: ace9b682fd0542f04820a3eaef153893b51662fc, harness_commit: cb431abddae62ddc44cc991febd91ac1bf8aaea6, profile: e2e, artifact: isolated-test-results, result: 'One long browser case passed: fragmented stream, rejection, disconnect recovery, single open, multiple New, validated nodes, retry phase, Stop, and partial warning.'}
+          - {kind: isolated_github_ci, run_id: '36789254173', source_commit: a94a685b05d5c870f2a00182fe8b45647091546b, equivalent_web_commit: 607cd834fa7d1563a05d3ee6e39840a0de144231, harness_commit: 9868c2f146fb5dd51b5cecad8371d8323bfeb813, profile: e2e, artifact: isolated-test-results, result: 'One focused browser testcase passed immediate fullscreen before response, processing above graph, validated metadata and individual nodes, inert controls, fixed composer, no fake GET/save, recovery, multiples and Stop.'}
   - id: T-EDIT
     type: playwright
     file: frontend/apps/web_app/tests/workflows-input.spec.ts
@@ -217,9 +273,18 @@ tests:
     target: frontend/apps/web_app/tests/workflows-input.spec.ts
     execution_environment: isolated_github_ci
     covers: [AC-4, AC-9]
-    assertions: [Dirty-state choice, change summary, node highlighting, enabled state, persistent undo, and a later-edit conflict work.]
+    assertions: [Dirty-state choice, change summary, node highlighting, full-edit enabled state, partial same-ID disabled edit with unreached nodes retained, persistent Undo including enabled state, and later-edit conflict work.]
     red_phase: {required: false, expected: fail, evidence: {status: pending}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        reason: "Stream CI 36804241207 passed two cases, including stopped same-ID disabled edits, retained unreached node/edges, edited highlight, full metadata/graph/enabled Undo and preservation of a later manual version. It uses a controlled generation/Undo session with real REST persistence, not a live interrupted Gemini request. The long input CI 36805982863 also passed dirty-state choices and edit/Undo flows."
+        scoped_passes:
+          - {kind: isolated_github_ci, run_id: '36757002613', source_commit: 7d95d5e546e509b8c537dbe388669f76d7a506a1, harness_commit: 68cdee7984774de384ece75778fcf4eb4e0ddbec, profile: e2e, artifact: isolated-test-results, result: 'One browser transaction test passed: two-target commit and stale/guarded undo rollback.'}
+          - {kind: isolated_github_ci, run_id: '36757013549', source_commit: 7d95d5e546e509b8c537dbe388669f76d7a506a1, harness_commit: 68cdee7984774de384ece75778fcf4eb4e0ddbec, profile: e2e, artifact: isolated-test-results, result: 'One long input browser case passed editor preview/rejection, changed-node highlights, Undo conflict/success, dirty Save/Discard/Stay, and landing edit.'}
+          - {kind: live_cli, report: '/tmp/openmates-workflow-authoring-session3e12/workflow-rollout-ca9da8d1.json', source_commit: d25b19389d00084acd64a7b9b89ef52427fed9ce, result: 'Strict schedule and app-parameter edits changed only intended fields; guarded Undo conflict preserved the later edit.'}
   - id: T-VOICE
     type: playwright
     file: frontend/apps/web_app/tests/workflows-input.spec.ts
@@ -227,52 +292,122 @@ tests:
     target: frontend/apps/web_app/tests/workflows-input.spec.ts
     execution_environment: isolated_github_ci
     covers: [AC-5]
-    assertions: [Recording preview, correction auto-submit, and raw transcript review on correction failure work.]
+    assertions: [Shared recording preview, final raw transcript auto-submit without correction, failed transcription review/recovery, and selected-workflow clarification handoff work.]
     red_phase: {required: false, expected: fail, evidence: {status: pending}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        reason: "Input CI 36805982863 passed raw transcript submission from shared recording UI, partial-text review, empty-recording recovery and one exact editor-target focus auto-send with consumed handoff state. Three live raw/clean CLI instructions matched final intent. This does not measure ASR errors or all-language quality."
+        scoped_passes:
+          - {kind: isolated_github_ci, run_id: '36757013549', source_commit: 7d95d5e546e509b8c537dbe388669f76d7a506a1, equivalent_web_commit: cc4e8026529738fd8ebc20b7c741ab31580c071d, harness_commit: 68cdee7984774de384ece75778fcf4eb4e0ddbec, profile: e2e, artifact: isolated-test-results, result: 'One browser test passed: recording preview, corrected auto-submit, correction.failed raw transcript review without submission, and edit-composer corrected submission.'}
   - id: T-CHAT
     type: pytest
-    file: backend/tests/test_workflow_chat_authoring.py
-    command: pytest backend/tests/test_workflow_chat_authoring.py
+    file: backend/tests/test_workflow_chat_authoring_context.py
+    related_files: [backend/tests/test_workflow_app_skill_embeds.py, backend/tests/test_workflow_search_selected.py, scripts/workflow_clarification_real_test.py]
+    command: pytest backend/tests/test_workflow_chat_authoring_context.py backend/tests/test_workflow_app_skill_embeds.py
     covers: [AC-6]
-    assertions: [Clear chat requests load scoped authoring context and save through the validated batch service; clarification uses the focus mode and activation guidance.]
+    assertions: [Clear chat requests load scoped authoring context and use the validated batch service; clarification uses the focus mode, activation guidance, and a partial-save notice when authoring stops.]
     red_phase: {required: false, expected: fail, evidence: {status: pending}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        reason: "Five focused selected-workflow search checks and REST/CLI CI 36804247471 pass persisted exact-ID retrieval, ownership and sanitized graph context. The live clarification turn on 15b507d resolved one exact original, activated focus, asked one question, executed no future action, kept the original and created no copy. It took 21.688 seconds and 45 credits; cleanup was verified. Live chat completion after the clarification reply and live partial-warning behavior remain unverified."
+        scoped_passes:
+          - {kind: focused_unit, source: backend_gate_729, result: '12 chat authoring/context checks passed.'}
   - id: T-PLANNER
     type: pytest
-    file: backend/tests/test_workflow_ai_authoring.py
-    command: pytest backend/tests/test_workflow_ai_authoring.py
-    covers: [AC-7, AC-8]
-    assertions: [Jev and fallback decisions normalize to one contract, exact timezones and tomorrow dates compile correctly, and invalid or semantically wrong graphs are rejected.]
+    file: backend/tests/test_workflow_registry_planner.py
+    related_files: [backend/tests/test_workflow_authoring_compiler.py, backend/tests/test_workflow_gemini_authoring.py, backend/tests/test_workflow_authoring_preselection.py]
+    command: pytest backend/tests/test_workflow_registry_planner.py backend/tests/test_workflow_authoring_compiler.py backend/tests/test_workflow_gemini_authoring.py backend/tests/test_workflow_authoring_preselection.py
+    covers: [AC-7, AC-8, AC-11]
+    assertions: [App-first versus direct Jev skill selection is compared; the outage path feeds the same compact contract; each complete node is validated before streaming, invalid nodes get one correction, typed references and dates compile, and completed invalid graphs are rejected before acknowledgement.]
     red_phase: {required: false, expected: fail, evidence: {status: pending}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        reason: Focused checks, paid creation runs and four supported structural cases passed on d25b1938. The 557ebc1b reruns passed strict Berlin weather and unsupported-batch assertions, but the full planner contract and current-source integrated UI path remain unverified.
+        scoped_passes:
+          - {kind: focused_unit, source_commit: 1448b264853ec99767946b146b452b8dc0d1dc20, result: '88 selector, planner, compiler, and provider checks passed.'}
+          - {kind: focused_unit, source: earlier_preselection_suite, result: '8 preselection checks passed.'}
+          - {kind: focused_unit, source_commit: d25b19389d00084acd64a7b9b89ef52427fed9ce, result: '59 compiler/provider, 16 root planner, 22 selector, and 34 input checks passed; API rebuild and live retest pending.'}
+          - {kind: live_cli, report: '/tmp/openmates-workflow-authoring-session3e12/workflow-rollout-92d64fa2.json', source_commit: 557ebc1b190c7cf39933aef04035714c7d6a2e80, result: 'Strict weather intent passed: full Berlin daily 08:00 today with exact rain yes/no, one Gemini generation, and cleanup zero.'}
 
 tasks:
   - id: TASK-7413
     title: Plan AI workflow creation and editing
-    status: in_progress
+    status: done
     phase: complete
-    covers: {scenarios: [S-1, S-2, S-3, S-4, S-5, S-6], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10]}
+    covers: {scenarios: [S-1, S-2, S-3, S-4, S-5, S-6, S-7], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10, AC-11]}
     expected_files: [docs/plans/workflow-ai-authoring/plan.yml]
     verification_ids: [T-BATCH, T-WEB, T-EDIT, T-VOICE, T-CHAT, T-PLANNER]
     dependencies: []
     blockers: []
-    follow_up_tasks: []
+    follow_up_tasks: [TASK-8308]
     ownership:
       files: [docs/plans/workflow-ai-authoring/plan.yml]
       shared_files: []
+  - id: TASK-8308
+    title: Implement AI workflow authoring and partial recovery
+    status: in_progress
+    phase: working_tasks
+    covers: {scenarios: [S-1, S-2, S-3, S-4, S-5, S-6, S-7], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10, AC-11]}
+    expected_files: [backend/core/api/app/services/workflow_gemini_authoring.py, backend/core/api/app/services/workflow_authoring_compiler.py, backend/core/api/app/services/workflow_authoring_transaction.py, frontend/apps/web_app/src/routes/workflows/+page.svelte, frontend/apps/web_app/tests/workflows-input.spec.ts]
+    verification_ids: [T-BATCH, T-WEB, T-EDIT, T-VOICE, T-CHAT, T-PLANNER]
+    dependencies: [TASK-7413]
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files: [backend/core/api/app/services/workflow_gemini_authoring.py, backend/core/api/app/services/workflow_authoring_compiler.py, backend/core/api/app/services/workflow_authoring_transaction.py, frontend/apps/web_app/src/routes/workflows/+page.svelte]
+      shared_files: [docs/plans/workflow-ai-authoring/plan.yml]
 
 implementation_state:
-  subject_commit: e2ee2ec6ee89e2e034a8f170818f002325ac6eaf
+  subject_commit: 557ebc1b190c7cf39933aef04035714c7d6a2e80
+  subject_commit_note: Safety source is healthy on dev API runtime docker-10fdd6d9 and normal gates passed. Berlin weather and unsupported-batch live reruns passed strict assertions and cleanup zero. Web UI subject cc4e8026529738fd8ebc20b7c741ab31580c071d has a successful Vercel deployment; the newly accepted early full-screen preview is being implemented and has no verification yet.
+  dev_backend_revision: 557ebc1b190c7cf39933aef04035714c7d6a2e80
+  dev_api_runtime: docker-10fdd6d9
+  dev_api_runtime_source: 557ebc1b190c7cf39933aef04035714c7d6a2e80
+  web_vercel_revision: cc4e8026529738fd8ebc20b7c741ab31580c071d
+  live_smoke_status: short_default_spoken_four_supported_structural_berlin_and_unsupported_reruns_passed_ui_preview_pending
 approvals:
-  specification: {status: pending}
-  plan: {status: pending}
+  specification: {status: approved, approved_at: '2026-09-30', reason: 'The user explicitly directed per-node streaming, validation, one correction retry, Stop with saved partial work, Jev-only clarification, and the app-first comparison in turn 01a0f343-564b-7cf0-a3a9-8ed40bfe4643; subsequent replies directed partial edits in the original Workflow, disabled, with no copies. This records conversational product approval, not an exact-fingerprint receipt.'}
+  plan: {status: approved, approved_at: '2026-09-30'}
 decisions:
   - id: D-1
     status: active
     decision: Record all fifteen workspace, chat, batching, Jev, timezone, and undo decisions in a draft implementation plan.
     reason: The user requested sequential code-informed clarification followed by a durable implementation plan.
     decided_at: '2026-09-29'
+  - id: D-2
+    status: active
+    decision: Use registry-derived Jev selection, Gemini 3.8 Flash compact semantic authoring, and a backend V2 compiler; complete successful batches confirm only after full validation and durable encrypted queueing, while D-3 governs interrupted partial saves.
+    reason: The selected architecture replaces the earlier candidate-constructor and recipe fallback decision tree, with later per-node and partial-save requirements recorded in D-3 and D-4.
+    decided_at: '2026-09-30'
+  - id: D-3
+    status: active
+    decision: Stream Gemini-authored nodes only after deterministic per-node validation; allow Stop, one correction attempt, disabled partial-prefix persistence, and a concrete recovery notice. Clarification chat is only for Jev-unclear requests. Compare app-first parallel per-app skill selection with direct skill selection.
+    reason: 'User instruction in turn 01a0f343-564b-7cf0-a3a9-8ed40bfe4643 on 2026-09-30: "Keep in mind that we want to stream the workflow structure as it’s generated by Gemini node by node back to client - so user can see the workflow being build without having to wait for the whole request first to finish (and can stop the creation which leaves the existing valid nodes as they are)." The same message specifies validation before streaming, one corrected retry, partial save and notice after a second failure, Jev-only clarification, and the app-first comparison.'
+    decided_at: '2026-09-30'
+  - id: D-4
+    status: active
+    decision: A partial edit saves to the original Workflow ID, disables it, retains untouched later nodes, and supports guarded Undo of the complete prior state; never create a copy.
+    reason: 'The user replied on 2026-09-30: "Save partial changes to the original and disable it" and "Definitely don’t create copies of workflows - this would quickly result in a huge mess".'
+    decided_at: '2026-09-30'
+  - id: D-5
+    status: active
+    decision: Submit final workflow transcripts without separate correction by default; keep ordinary chat correction and a workflow rollback flag.
+    reason: The user authorized bypass if confusing raw transcripts retained authoring quality. On 2026-10-01, raw weather and shopping requests with mid-sentence corrections preserved the final schedule, location, date, branches and price; the paired clean weather request produced the same behavior. This establishes a bounded text interpretation result, not ASR quality across languages.
+    decided_at: '2026-10-01'
+  - id: D-6
+    status: active
+    decision: Make Jev control relevance advisory and enforce one correction per failing node rather than one per request; preserve strict executable contracts and frozen accepted nodes.
+    reason: 'The user explicitly confirmed per-node correction and clarified that Jev loads likely relevant instructions while Gemini decides which parts to use, in turn 01a0f706-da18-7600-b82a-41e3fba7dfb5. The existing compact-plan and provisional-validation Specification covers these implementation corrections.'
+    decided_at: '2026-10-01'
 attempts:
   - id: A-1
     task_id: TASK-7413
@@ -280,13 +415,12 @@ attempts:
     approach: Research the existing workflow paths, run bounded live model pilots, and record an implementation sequence before product changes.
     recorded_at: '2026-09-29'
 handoff:
-  current_task_id: TASK-7413
-  next_action: Define the product Specification and begin the authoring-contract evaluation phase when implementation starts.
-  command: Use this Plan as the source for implementation Tasks and focused verification.
-  expected_outcome: A validated mixed-batch Workflow authoring path across workspace and chat.
-  last_verified_commit: e2ee2ec6ee89e2e034a8f170818f002325ac6eaf
+  current_task_id: TASK-8308
+  next_action: Per-node corrections and advisory Jev hints are deployed and verified through 110 focused tests, two post-deploy CLI requests and two browser cases. Preserve these results and prior corpus, billing and clarification evidence. Remaining broader verification includes actual ASR recognition, live browser AI authentication/timing, interrupted-model backend saves and completion after a clarification reply; do not repeat passing core or corpus checks.
+  command: Use the implemented task workspace and this Plan for bounded verification; record CI and deployment evidence before marking acceptance criteria complete.
+  expected_outcome: A verified mixed-batch workflow authoring path across workspace and chat, with measured durable acknowledgement timing.
+  last_verified_commit: 7c7e9e1b209604c37fd2c4b8a0bef0faea1f2813
 
 remaining_engineering_decisions:
-  - Set recipe coverage, Jev confidence gates, provider fallback order, batch-size cap, and latency/cost targets from the repeatable evaluation corpus.
-  - Define the database transaction and encrypted-payload staging mechanism without exposing partial batches.
+  - Set Jev preselection confidence gates, batch-size cap, and latency/cost targets from validation-inclusive evaluation and integrated queue measurements.
   - Keep change highlighting visible until the user dismisses the summary or another edit supersedes it; verify this behavior in UI tests.

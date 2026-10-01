@@ -42,6 +42,7 @@ import {
 import { phasedSyncState } from "./phasedSyncStateStore"; // Import phased sync state to reset on login
 import { text } from "../i18n/translations"; // Import text store for translations
 import { chatListCache } from "../services/chatListCache"; // Import chatListCache to clear stale chat data on session expiry
+import { invalidateWorkspaceCaches } from "../services/workspaceCacheLifecycle";
 import { chatMetadataCache } from "../services/chatMetadataCache"; // Import chatMetadataCache to clear stale decrypted title/metadata cache on logout
 import { clearAllSharedChatKeys } from "../services/sharedChatKeyStorage"; // Import to clear shared chat keys on session expiry
 import { workflowWorkspaceStore } from "./workflowWorkspaceStore";
@@ -1057,6 +1058,7 @@ async function performAuthCheck(
         chatListCache.clear();
         workflowWorkspaceStore.reset();
         chatDB.clearAllChatKeys();
+        invalidateWorkspaceCaches();
         chatMetadataCache.clearAll();
         clearAllSharedChatKeys().catch(() => {});
         console.debug(

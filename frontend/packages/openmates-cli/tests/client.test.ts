@@ -75,6 +75,7 @@ const {
   buildSubChatEncryptedMetadataPayloads,
   buildTurnTokenRefsRequestPayload,
   getClientMessagesVersionForSync,
+  parseEmbedContentObject,
   selectNewChatSlugValue,
 } = await import("../src/client.ts");
 const {
@@ -94,6 +95,33 @@ const {
 } = await import("../src/storage.ts");
 const { OpenMatesWsClient } = await import("../src/ws.ts");
 const { createPairApprover, createPairContext, generateGrantSecret } = await import("@repo/pairing-crypto");
+
+describe("saved embed content decoding", () => {
+  // contract-test: supporting surface=sdks.npm assertions=hosting-domains.embeds.parent-child,hosting-domains.surface-parity
+  it("retains nested TOON domain results without absorbing them into skill_id", () => {
+    const raw = "type: app_skill_use\napp_id: hosting\nskill_id: search_domains\nquery: meetly\n" +
+      "results[2]:\n  - type: domain_result\n    domain_ascii: meetly.com\n" +
+      "    availability: unavailable\n  - type: domain_result\n" +
+      "    domain_ascii: meet-there.com\n    availability: available\n" +
+      "    renewal_tiers[1]:\n      - duration_unit: y\n        min_duration: 1\n" +
+      "        price_including_tax: 23.68";
+    const decoded = parseEmbedContentObject(raw);
+    assert.equal(decoded.skill_id, "search_domains");
+    assert.deepEqual(decoded.results, [
+      { type: "domain_result", domain_ascii: "meetly.com", availability: "unavailable" },
+      { type: "domain_result", domain_ascii: "meet-there.com", availability: "available",
+        renewal_tiers: [{ duration_unit: "y", min_duration: 1, price_including_tax: 23.68 }] },
+    ]);
+  });
+
+  // contract-test: supporting surface=sdks.npm assertions=hosting-domains.surface-parity
+  it("keeps JSON and informal legacy key:value embed content readable", () => {
+    assert.deepEqual(parseEmbedContentObject('{"skill_id":"search_domains","results":[]}'),
+      { skill_id: "search_domains", results: [] });
+    assert.deepEqual(parseEmbedContentObject("type: sheet\ncontent: first line\nsecond line\nrow_count: 5"),
+      { type: "sheet", content: "first line\nsecond line", row_count: 5 });
+  });
+});
 
 after(() => {
   if (originalHome === undefined) {

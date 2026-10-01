@@ -1,0 +1,799 @@
+{
+  "observed_date": "2026-09-30",
+  "environment": "https://app.dev.openmates.org",
+  "account": "Verified personal dev test account",
+  "method": "Read-only authenticated observation in headless Chromium 153.0.8010.12 on Linux ARM64. Workspace cycles use native hash transitions. Content-ready DOM plus next animation frame approximates display readiness; these small samples are not population percentiles.",
+  "status": "Implementation and required verification complete",
+  "core_deployment_commit": "44481b19cfbb1be601dd24946880d6115f54b7f2",
+  "asset_groups": {
+    "core_desktop": "app.DGUqkJo_.js",
+    "core_mobile_and_cold_task": [
+      "start.aTI2OQZq.js",
+      "app.C9CV_s9Z.js"
+    ],
+    "first_followup_desktop": [
+      "start.U_FFPSUf.js",
+      "app.pv1Y20uY.js"
+    ],
+    "final_desktop_and_mobile": [
+      "start.donYmVSZ.js",
+      "app.CCSFWS5m.js"
+    ],
+    "final_cold_task": [
+      "start.DxCHQrwk.js",
+      "app.CttT4oMz.js"
+    ]
+  },
+  "viewports": {
+    "desktop": "1440x1000",
+    "mobile": "390x844"
+  },
+  "samples": {
+    "core_desktop_workspace": [
+      {
+        "label": "desktop-tasks-warm-1",
+        "content_ready_ms": 201.3,
+        "next_frame_ms": 243.2,
+        "loading_seen": false,
+        "domain_gets": [
+          "/v1/projects",
+          "/v1/user-plans",
+          "/v1/user-tasks",
+          "/v1/workflows"
+        ]
+      },
+      {
+        "label": "desktop-projects-warm-1",
+        "content_ready_ms": 82.6,
+        "next_frame_ms": 125,
+        "loading_seen": false,
+        "domain_gets": []
+      },
+      {
+        "label": "desktop-workflows-warm-1",
+        "content_ready_ms": 89.1,
+        "next_frame_ms": 110,
+        "loading_seen": false,
+        "domain_gets": []
+      },
+      {
+        "label": "desktop-tasks-warm-2",
+        "content_ready_ms": 127.2,
+        "next_frame_ms": 156.7,
+        "loading_seen": false,
+        "domain_gets": []
+      },
+      {
+        "label": "desktop-projects-warm-2",
+        "content_ready_ms": 65.4,
+        "next_frame_ms": 97.6,
+        "loading_seen": false,
+        "domain_gets": []
+      },
+      {
+        "label": "desktop-workflows-warm-2",
+        "content_ready_ms": 93.2,
+        "next_frame_ms": 196.1,
+        "loading_seen": false,
+        "domain_gets": []
+      },
+      {
+        "label": "desktop-tasks-warm-3",
+        "content_ready_ms": 132.1,
+        "next_frame_ms": 226.5,
+        "loading_seen": false,
+        "domain_gets": []
+      },
+      {
+        "label": "desktop-projects-warm-3",
+        "content_ready_ms": 62.4,
+        "next_frame_ms": 107.5,
+        "loading_seen": false,
+        "domain_gets": []
+      },
+      {
+        "label": "desktop-workflows-warm-3",
+        "content_ready_ms": 99,
+        "next_frame_ms": 146.9,
+        "loading_seen": false,
+        "domain_gets": []
+      }
+    ],
+    "core_mobile_workspace": [
+      {
+        "label": "mobile-warm-tasks-1",
+        "content_ready_ms": 155.5,
+        "next_frame_ms": 172.2,
+        "loading_seen": false,
+        "domain_gets": []
+      },
+      {
+        "label": "mobile-warm-projects-1",
+        "content_ready_ms": 49.5,
+        "next_frame_ms": 71.4,
+        "loading_seen": false,
+        "domain_gets": []
+      },
+      {
+        "label": "mobile-warm-workflows-1",
+        "content_ready_ms": 58.9,
+        "next_frame_ms": 72.3,
+        "loading_seen": false,
+        "domain_gets": []
+      },
+      {
+        "label": "mobile-warm-tasks-2",
+        "content_ready_ms": 126,
+        "next_frame_ms": 154.8,
+        "loading_seen": false,
+        "domain_gets": []
+      },
+      {
+        "label": "mobile-warm-projects-2",
+        "content_ready_ms": 48.8,
+        "next_frame_ms": 75.5,
+        "loading_seen": false,
+        "domain_gets": []
+      },
+      {
+        "label": "mobile-warm-workflows-2",
+        "content_ready_ms": 86.3,
+        "next_frame_ms": 108.8,
+        "loading_seen": false,
+        "domain_gets": []
+      },
+      {
+        "label": "mobile-warm-tasks-3",
+        "content_ready_ms": 113.8,
+        "next_frame_ms": 131.1,
+        "loading_seen": false,
+        "domain_gets": []
+      },
+      {
+        "label": "mobile-warm-projects-3",
+        "content_ready_ms": 47.3,
+        "next_frame_ms": 63.3,
+        "loading_seen": false,
+        "domain_gets": []
+      },
+      {
+        "label": "mobile-warm-workflows-3",
+        "content_ready_ms": 50.2,
+        "next_frame_ms": 83.8,
+        "loading_seen": false,
+        "domain_gets": []
+      }
+    ],
+    "chat_remount_before_followup": [
+      {
+        "label": "desktop-workspace-chat-B-warm-1",
+        "content_ready_ms": 1462.3,
+        "next_frame_ms": 1584.3,
+        "loading_seen": false,
+        "domain_gets": [
+          "/v1/user-plans",
+          "/v1/user-tasks"
+        ]
+      },
+      {
+        "label": "desktop-workspace-chat-B-warm-2",
+        "content_ready_ms": 1331.3,
+        "next_frame_ms": 1467.5,
+        "loading_seen": false,
+        "domain_gets": []
+      },
+      {
+        "label": "desktop-workspace-chat-B-warm-3",
+        "content_ready_ms": 1426.9,
+        "next_frame_ms": 1555.6,
+        "loading_seen": false,
+        "domain_gets": []
+      }
+    ],
+    "first_followup_desktop": [
+      {
+        "label": "final-desktop-tasks-warm-1",
+        "content_ready_ms": 145,
+        "next_frame_ms": 204.3,
+        "loading_seen": false,
+        "domain_gets": []
+      },
+      {
+        "label": "final-desktop-projects-warm-1",
+        "content_ready_ms": 65.6,
+        "next_frame_ms": 82.2,
+        "loading_seen": false,
+        "domain_gets": []
+      },
+      {
+        "label": "final-desktop-workflows-warm-1",
+        "content_ready_ms": 79.4,
+        "next_frame_ms": 94.5,
+        "loading_seen": false,
+        "domain_gets": []
+      },
+      {
+        "label": "final-desktop-workspace-chat-B-warm-1",
+        "content_ready_ms": 302.9,
+        "next_frame_ms": 442.1,
+        "loading_seen": false,
+        "domain_gets": []
+      },
+      {
+        "label": "final-desktop-chat-A-warm-1",
+        "content_ready_ms": 173.2,
+        "next_frame_ms": 273.5,
+        "loading_seen": false,
+        "domain_gets": []
+      },
+      {
+        "label": "final-desktop-workspace-chat-B-warm-1-same-component",
+        "content_ready_ms": 258.8,
+        "next_frame_ms": 427.6,
+        "loading_seen": false,
+        "domain_gets": []
+      },
+      {
+        "label": "final-desktop-tasks-warm-2",
+        "content_ready_ms": 127.3,
+        "next_frame_ms": 216.2,
+        "loading_seen": false,
+        "domain_gets": []
+      },
+      {
+        "label": "final-desktop-projects-warm-2",
+        "content_ready_ms": 66.4,
+        "next_frame_ms": 96.3,
+        "loading_seen": false,
+        "domain_gets": []
+      },
+      {
+        "label": "final-desktop-workflows-warm-2",
+        "content_ready_ms": 80.5,
+        "next_frame_ms": 116.7,
+        "loading_seen": false,
+        "domain_gets": []
+      },
+      {
+        "label": "final-desktop-workspace-chat-B-warm-2",
+        "content_ready_ms": 277.9,
+        "next_frame_ms": 401.6,
+        "loading_seen": false,
+        "domain_gets": []
+      },
+      {
+        "label": "final-desktop-chat-A-warm-2",
+        "content_ready_ms": 194.2,
+        "next_frame_ms": 300.6,
+        "loading_seen": true,
+        "domain_gets": []
+      },
+      {
+        "label": "final-desktop-workspace-chat-B-warm-2-same-component",
+        "content_ready_ms": 659.1,
+        "next_frame_ms": 834.8,
+        "loading_seen": false,
+        "domain_gets": []
+      },
+      {
+        "label": "final-desktop-tasks-warm-3",
+        "content_ready_ms": 137.9,
+        "next_frame_ms": 248.3,
+        "loading_seen": false,
+        "domain_gets": []
+      },
+      {
+        "label": "final-desktop-projects-warm-3",
+        "content_ready_ms": 88.4,
+        "next_frame_ms": 128.9,
+        "loading_seen": false,
+        "domain_gets": []
+      },
+      {
+        "label": "final-desktop-workflows-warm-3",
+        "content_ready_ms": 84.7,
+        "next_frame_ms": 149,
+        "loading_seen": false,
+        "domain_gets": []
+      },
+      {
+        "label": "final-desktop-workspace-chat-B-warm-3",
+        "content_ready_ms": 296.9,
+        "next_frame_ms": 434,
+        "loading_seen": false,
+        "domain_gets": []
+      },
+      {
+        "label": "final-desktop-chat-A-warm-3",
+        "content_ready_ms": 211.4,
+        "next_frame_ms": 318.2,
+        "loading_seen": false,
+        "domain_gets": []
+      },
+      {
+        "label": "final-desktop-workspace-chat-B-warm-3-same-component",
+        "content_ready_ms": 340.4,
+        "next_frame_ms": 505.9,
+        "loading_seen": false,
+        "domain_gets": []
+      }
+    ],
+    "final_desktop": [
+      {
+        "label": "published-desktop-tasks-1",
+        "content_ready_ms": 195.1,
+        "next_frame_ms": 240.5,
+        "loading_seen": false,
+        "domain_gets": [
+          "/v1/projects",
+          "/v1/user-plans",
+          "/v1/user-tasks"
+        ]
+      },
+      {
+        "label": "published-desktop-projects-1",
+        "content_ready_ms": 75.5,
+        "next_frame_ms": 86.4,
+        "loading_seen": false,
+        "domain_gets": [
+          "/v1/workflows"
+        ]
+      },
+      {
+        "label": "published-desktop-workflows-1",
+        "content_ready_ms": 106.6,
+        "next_frame_ms": 127.7,
+        "loading_seen": false,
+        "domain_gets": []
+      },
+      {
+        "label": "published-desktop-workspace-chat-B-1",
+        "content_ready_ms": 176.8,
+        "next_frame_ms": 317.1,
+        "loading_seen": false,
+        "domain_gets": [
+          "/v1/user-plans",
+          "/v1/user-tasks"
+        ]
+      },
+      {
+        "label": "published-desktop-chat-A-1",
+        "content_ready_ms": 97,
+        "next_frame_ms": 190.6,
+        "loading_seen": false,
+        "domain_gets": []
+      },
+      {
+        "label": "published-desktop-chat-B-1",
+        "content_ready_ms": 318.6,
+        "next_frame_ms": 449.7,
+        "loading_seen": false,
+        "domain_gets": []
+      },
+      {
+        "label": "published-desktop-tasks-2",
+        "content_ready_ms": 182.1,
+        "next_frame_ms": 252.5,
+        "loading_seen": false,
+        "domain_gets": [
+          "/v1/projects",
+          "/v1/user-plans",
+          "/v1/user-tasks"
+        ]
+      },
+      {
+        "label": "published-desktop-projects-2",
+        "content_ready_ms": 61.5,
+        "next_frame_ms": 81,
+        "loading_seen": false,
+        "domain_gets": [
+          "/v1/workflows"
+        ]
+      },
+      {
+        "label": "published-desktop-workflows-2",
+        "content_ready_ms": 84.7,
+        "next_frame_ms": 104.6,
+        "loading_seen": false,
+        "domain_gets": []
+      },
+      {
+        "label": "published-desktop-workspace-chat-B-2",
+        "content_ready_ms": 175.2,
+        "next_frame_ms": 341.7,
+        "loading_seen": false,
+        "domain_gets": [
+          "/v1/user-plans",
+          "/v1/user-tasks"
+        ]
+      },
+      {
+        "label": "published-desktop-chat-A-2",
+        "content_ready_ms": 273.6,
+        "next_frame_ms": 326,
+        "loading_seen": false,
+        "domain_gets": [
+          "/v1/user-plans",
+          "/v1/user-tasks"
+        ]
+      },
+      {
+        "label": "published-desktop-chat-B-2",
+        "content_ready_ms": 118.1,
+        "next_frame_ms": 230.4,
+        "loading_seen": false,
+        "domain_gets": []
+      },
+      {
+        "label": "published-desktop-tasks-3",
+        "content_ready_ms": 159.6,
+        "next_frame_ms": 232.3,
+        "loading_seen": false,
+        "domain_gets": [
+          "/v1/projects",
+          "/v1/user-plans",
+          "/v1/user-tasks"
+        ]
+      },
+      {
+        "label": "published-desktop-projects-3",
+        "content_ready_ms": 59.9,
+        "next_frame_ms": 137.9,
+        "loading_seen": false,
+        "domain_gets": [
+          "/v1/workflows"
+        ]
+      },
+      {
+        "label": "published-desktop-workflows-3",
+        "content_ready_ms": 84.8,
+        "next_frame_ms": 165.3,
+        "loading_seen": false,
+        "domain_gets": []
+      },
+      {
+        "label": "published-desktop-workspace-chat-B-3",
+        "content_ready_ms": 158.8,
+        "next_frame_ms": 289.6,
+        "loading_seen": false,
+        "domain_gets": []
+      },
+      {
+        "label": "published-desktop-chat-A-3",
+        "content_ready_ms": 91.6,
+        "next_frame_ms": 175.9,
+        "loading_seen": false,
+        "domain_gets": []
+      },
+      {
+        "label": "published-desktop-chat-B-3",
+        "content_ready_ms": 347.8,
+        "next_frame_ms": 483.3,
+        "loading_seen": false,
+        "domain_gets": []
+      },
+      {
+        "label": "published-desktop-sidebar-chat-A",
+        "content_ready_ms": 112.3,
+        "next_frame_ms": 199.1,
+        "loading_seen": false,
+        "domain_gets": [
+          "/v1/user-plans",
+          "/v1/user-tasks"
+        ]
+      },
+      {
+        "label": "published-desktop-sidebar-chat-B",
+        "content_ready_ms": 113.4,
+        "next_frame_ms": 134.1,
+        "loading_seen": false,
+        "domain_gets": [
+          "/v1/user-plans",
+          "/v1/user-tasks"
+        ]
+      }
+    ],
+    "final_mobile_sidebar_closed": [
+      {
+        "label": "published-mobile-tasks-1",
+        "content_ready_ms": 160.7,
+        "next_frame_ms": 207.8,
+        "loading_seen": false,
+        "domain_gets": [
+          "/v1/projects",
+          "/v1/user-plans",
+          "/v1/user-tasks"
+        ]
+      },
+      {
+        "label": "published-mobile-projects-1",
+        "content_ready_ms": 53.6,
+        "next_frame_ms": 70.5,
+        "loading_seen": false,
+        "domain_gets": [
+          "/v1/workflows"
+        ]
+      },
+      {
+        "label": "published-mobile-workflows-1",
+        "content_ready_ms": 55.8,
+        "next_frame_ms": 87.7,
+        "loading_seen": false,
+        "domain_gets": []
+      },
+      {
+        "label": "published-mobile-workspace-chat-B-1",
+        "content_ready_ms": 145.1,
+        "next_frame_ms": 316.4,
+        "loading_seen": false,
+        "domain_gets": [
+          "/v1/user-plans",
+          "/v1/user-tasks"
+        ]
+      },
+      {
+        "label": "published-mobile-chat-A-1",
+        "content_ready_ms": 2177.8,
+        "next_frame_ms": 2247.5,
+        "loading_seen": false,
+        "domain_gets": [
+          "/v1/user-plans",
+          "/v1/user-tasks"
+        ]
+      },
+      {
+        "label": "published-mobile-chat-B-1",
+        "content_ready_ms": 188.8,
+        "next_frame_ms": 304.8,
+        "loading_seen": false,
+        "domain_gets": []
+      },
+      {
+        "label": "published-mobile-tasks-2",
+        "content_ready_ms": 126.7,
+        "next_frame_ms": 178.8,
+        "loading_seen": false,
+        "domain_gets": []
+      },
+      {
+        "label": "published-mobile-projects-2",
+        "content_ready_ms": 64.2,
+        "next_frame_ms": 100,
+        "loading_seen": false,
+        "domain_gets": []
+      },
+      {
+        "label": "published-mobile-workflows-2",
+        "content_ready_ms": 62,
+        "next_frame_ms": 91,
+        "loading_seen": false,
+        "domain_gets": []
+      },
+      {
+        "label": "published-mobile-workspace-chat-B-2",
+        "content_ready_ms": 146.1,
+        "next_frame_ms": 191.6,
+        "loading_seen": false,
+        "domain_gets": []
+      },
+      {
+        "label": "published-mobile-chat-A-2",
+        "content_ready_ms": 110.2,
+        "next_frame_ms": 198.5,
+        "loading_seen": false,
+        "domain_gets": []
+      },
+      {
+        "label": "published-mobile-chat-B-2",
+        "content_ready_ms": 635.4,
+        "next_frame_ms": 774.5,
+        "loading_seen": false,
+        "domain_gets": []
+      },
+      {
+        "label": "published-mobile-tasks-3",
+        "content_ready_ms": 146.4,
+        "next_frame_ms": 171.3,
+        "loading_seen": false,
+        "domain_gets": [
+          "/v1/projects",
+          "/v1/user-plans",
+          "/v1/user-tasks",
+          "/v1/workflows"
+        ]
+      },
+      {
+        "label": "published-mobile-projects-3",
+        "content_ready_ms": 51.9,
+        "next_frame_ms": 65.3,
+        "loading_seen": false,
+        "domain_gets": []
+      },
+      {
+        "label": "published-mobile-workflows-3",
+        "content_ready_ms": 51.8,
+        "next_frame_ms": 71.4,
+        "loading_seen": false,
+        "domain_gets": []
+      },
+      {
+        "label": "published-mobile-workspace-chat-B-3",
+        "content_ready_ms": 178.4,
+        "next_frame_ms": 323.9,
+        "loading_seen": false,
+        "domain_gets": [
+          "/v1/user-plans",
+          "/v1/user-tasks"
+        ]
+      },
+      {
+        "label": "published-mobile-chat-A-3",
+        "content_ready_ms": 328.7,
+        "next_frame_ms": 381.1,
+        "loading_seen": false,
+        "domain_gets": [
+          "/v1/user-plans",
+          "/v1/user-tasks"
+        ]
+      },
+      {
+        "label": "published-mobile-chat-B-3",
+        "content_ready_ms": 125.6,
+        "next_frame_ms": 247.6,
+        "loading_seen": false,
+        "domain_gets": []
+      }
+    ]
+  },
+  "cold_task": {
+    "selected_task_gets": 1,
+    "whole_task_gets": 0,
+    "assignment_eligibility_list_gets": 0,
+    "whole_plan_gets": 0,
+    "whole_project_gets": 0,
+    "selected_task_content_visible": true,
+    "related_activity_and_dependency_requests": "Task-scoped endpoints only",
+    "timing": "Not timed across reload",
+    "decryption_attribution": "Global browser crypto includes authentication and background chat sync. The selected-record unit test proves no unrelated Task enters the Task decryption path.",
+    "final_repeat": {
+      "selected_task_gets": 1,
+      "whole_task_gets": 0,
+      "assignment_eligibility_list_gets": 0,
+      "whole_plan_gets": 0,
+      "whole_project_gets": 0,
+      "selected_task_content_visible": true,
+      "task_hash_preserved": true,
+      "bundle_group": "final_cold_task"
+    }
+  },
+  "limitations": [
+    "First loads and TTL-expired background refreshes remain network-dependent.",
+    "Updates by other dev tasks changed the deployed bundle between desktop and mobile groups; no cross-bundle same-build reload comparison is claimed.",
+    "Update-notification intercepted clicks and a failed native Task hash transition are excluded from successful latency samples.",
+    "Mobile viewport does not establish physical phone or Safari performance.",
+    "Two encrypted recent chats each have two source messages; these observations do not establish long-history performance.",
+    "No personal content, identifiers, credentials, screenshots, HAR or heap dumps are committed.",
+    "The first follow-up mobile chat samples were covered by the sidebar and are excluded. Final mobile chat samples require a closed sidebar and content at the viewport center."
+  ],
+  "conditional_persistence": "Additional encrypted IndexedDB workspace snapshots remain deferred; within-session shared memory results meet the sampled workspace targets.",
+  "first_followup_deployment_commit": "cb431abddae62ddc44cc991febd91ac1bf8aaea6",
+  "implementation_decisions": {
+    "parsed_chat_documents": "Deferred until a complete content/status, locale, PII, embed and key-epoch key is established. Current reuse is settled message windows and header snapshots.",
+    "workspace_push": "Existing local mutation notifications plus visible polling, focus and reconnect refresh; no new cross-domain WebSocket feed.",
+    "memory_evidence": "Cache entry/byte/token bounds are unit-tested. Whole-app GC/DOM counters after a few mixed cycles are exploratory; ongoing sync and lazy embed initialization prevent a steady-state leak conclusion."
+  },
+  "verification": {
+    "local_cache_service_tests": {
+      "passed": 54,
+      "files": 9,
+      "module_sha256": {
+        "frontend/packages/ui/src/services/workspaceQueryCache.ts": "d2754b0e8b9ef57ce288ed5a13bfb1fc190919ffcae8fcfb344be7d8508aaaf8",
+        "frontend/packages/ui/src/services/recentChatWindowCache.ts": "e7740dcbcce46a1f364bcab9e83f6d76a680e7190ea7e927abddd42f1303e2da",
+        "frontend/packages/ui/src/services/workspaceCacheLifecycle.ts": "908b5d0bd3775bffabf919c0d9677724eada0ffcc1e0018e376071996f976eae",
+        "frontend/packages/ui/src/services/userTaskService.ts": "d3fecb89cecfb0397f3efc749629cf791441a765b5994a244de7c4dc43703130",
+        "frontend/packages/ui/src/services/userPlanService.ts": "456bac1b550d051e07a5cd88b84c4da7c284c92b2f3cd2a078ca32cb8d73494f",
+        "frontend/packages/ui/src/services/projectService.ts": "dcc85db043e1d86865d69c5577c92ca7a6ca1a2023e0e4f6bf30d2e8d668beb9",
+        "frontend/packages/ui/src/services/workspacePrefetchService.ts": "e4a09f60d5f7057b0e2e43b22b850d6ec9c3366e6fb1ccfd08bcb78077790c0d",
+        "frontend/packages/ui/src/services/teamService.ts": "d659c8fa6118d81a091bcb509ff5825bd8cad2c9894b975e6982a82eaa03b523",
+        "frontend/packages/ui/src/stores/workflowWorkspaceStore.ts": "031e3b87a3470b7ad9ea6cc872ba05951777d3bb9321e689db49bf63cb90fa55"
+      },
+      "final_workflow_store": {
+        "passed": 5,
+        "test_file": "frontend/packages/ui/src/stores/__tests__/workflowWorkspaceStore.test.ts",
+        "test_sha256": "92ccde12b57e19343602fa1fd05b3bbfbe09b3b09dd2cea109cde21bb5565843",
+        "note": "Includes stale run-error revision fencing; focused lint and independent review passed."
+      }
+    },
+    "backend_task_api": {
+      "passed": 63,
+      "run_url": "https://github.com/glowingkitty/OpenMates/actions/runs/36741317210",
+      "module_sha256": "b1f8804b4418d0fbf1cf4a92388eda045ece27c5e012af9caf1b23f53bef3093"
+    },
+    "projects_component": {
+      "passed": 18,
+      "run_url": "https://github.com/glowingkitty/OpenMates/actions/runs/36741311283"
+    },
+    "final_browser_suites": "passed",
+    "workspace_browser": {
+      "source_commit": "b57160a3e42f073535bf5030912aedef64c63757",
+      "run_url": "https://github.com/glowingkitty/OpenMates/actions/runs/36758657891",
+      "passed": 1,
+      "skipped": 0,
+      "flaky": 0,
+      "cleanup_verified": true
+    },
+    "chat": {
+      "source_commit": "8183f5af83fb0b637d5901dcd9c1ef5d82b66497",
+      "run_url": "https://github.com/glowingkitty/OpenMates/actions/runs/36763314700",
+      "passed": 4,
+      "skipped": 0,
+      "flaky": 0,
+      "cleanup_verified": true
+    },
+    "task-component": {
+      "source_commit": "8183f5af83fb0b637d5901dcd9c1ef5d82b66497",
+      "run_url": "https://github.com/glowingkitty/OpenMates/actions/runs/36762759089",
+      "passed": 12,
+      "skipped": 0,
+      "flaky": 0
+    },
+    "final_fixture_candidate": "c587e944ccbcf4ff8dba1b14f207638488cc8c92",
+    "tasks_browser": {
+      "source_commit": "69eb10698b206466f3df7ff1d235e43a9adedd3e",
+      "run_url": "https://github.com/glowingkitty/OpenMates/actions/runs/36770391328",
+      "passed": 3,
+      "skipped": 0,
+      "flaky": 0,
+      "cleanup_verified": true
+    },
+    "final_fixture_deployment_commit": "c16742ae0f8c93fef9d5b116eb738e6ad4440a11",
+    "workflows_browser": {
+      "source_commit": "c587e944ccbcf4ff8dba1b14f207638488cc8c92",
+      "run_url": "https://github.com/glowingkitty/OpenMates/actions/runs/36773717978",
+      "passed": 3,
+      "skipped": 0,
+      "flaky": 0,
+      "cleanup_verified": true
+    }
+  },
+  "final_followup_deployment_commit": "0983839a794be59f70e42796ab2a8b1f4a7b3cd7",
+  "final_followup_candidate": "8183f5af83fb0b637d5901dcd9c1ef5d82b66497",
+  "gc_counters_exploratory": [
+    {
+      "stage": "after_prime_desktop_chat_B",
+      "documents": 63,
+      "nodes": 5083,
+      "listeners": 567,
+      "js_heap_bytes": 36225624
+    },
+    {
+      "stage": "after_three_desktop_cycles_and_sidebar_clicks_chat_B",
+      "documents": 64,
+      "nodes": 15111,
+      "listeners": 797,
+      "js_heap_bytes": 48528028
+    },
+    {
+      "stage": "after_three_mobile_cycles_chat_B",
+      "documents": 64,
+      "nodes": 19654,
+      "listeners": 894,
+      "js_heap_bytes": 51845060
+    }
+  ],
+  "remaining_latency": {
+    "mobile_outlier_ms": 2247.5,
+    "other_mobile_chat_max_ms": 774.5,
+    "source_findings": "Repeated synced status confirmations invalidate recent windows even when status is unchanged. Duplicate message broadcasts may invalidate via chatUpdated even when saveMessage skips the write. Duplicate background sync activity also grows across route remounts.",
+    "attribution_limit": "No individual live event was traced to the outlier. These are follow-up source findings, not a proven decomposition of its wall time.",
+    "scope_decision": "Preserve conservative canonical mutation/revocation fences in this implementation. Deduplicating background sync broadcasts and distinguishing no-op invalidations is a separate follow-up; instant rendering is not guaranteed after a cache invalidation."
+  },
+  "fixture_deployment_commit": "e291d6f1520156fcae5762ca648d7746cf254c16",
+  "workflow_cache_integration": {
+    "candidate": "69eb10698b206466f3df7ff1d235e43a9adedd3e",
+    "scope": "Restore approved caching alongside current Workflow authoring and streaming APIs. Clean graphs reconcile after node drafts close; cached empty lists verify unknown deep links; old run failures cannot replace newer changes.",
+    "verification": "Final isolated browser suite passed all three cases with no skips or retries. Focused store checks and independent review also passed.",
+    "deployment_commit": "983fa46a49359fca88f96fe74949a69493ce2a02",
+    "live_timing_scope": "The recorded final live asset groups were observed after the chat follow-up deployment. The later Workflow integration preserves current dev authoring changes and is verified by the final isolated browser suite; no new same-bundle timing comparison is claimed for that later deployment."
+  }
+}

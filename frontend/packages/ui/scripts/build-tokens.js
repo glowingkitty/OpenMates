@@ -31,6 +31,10 @@ const CSS_OUTPUT = resolve(GENERATED_DIR, "theme.generated.css");
 const TS_OUTPUT = resolve(GENERATED_DIR, "tokens.generated.ts");
 const ICONS_DIR = resolve(__dirname, "../static/icons");
 const ICONS_XCASSETS_DIR = resolve(SWIFT_DIR, "Icons.xcassets");
+const LUCIDE_SVELTE_ICONS_DIR = resolve(__dirname, "../node_modules/@lucide/svelte/dist/icons");
+const CATEGORY_UTILS_FILE = resolve(__dirname, "../src/utils/categoryUtils.ts");
+const METEOCONS_DIR = resolve(__dirname, "../node_modules/@meteocons/svg/fill");
+const WEATHER_ICON_COMPONENT = resolve(__dirname, "../src/components/embeds/weather/WeatherConditionIcon.svelte");
 const BRAND_FAVICON_PNG = resolve(__dirname, "../static/favicon.png");
 const APP_ICON_PNG = resolve(__dirname, "../../../../apple/mates.png");
 const MAC_APP_ICON_PNG = resolve(__dirname, "../../../../apple/mates-macos.png");
@@ -634,6 +638,14 @@ function generateSwiftGradients() {
   }
   lines.push("");
 
+  // Icon gradients share the same canonical palette as web memory/focus icons.
+  for (const [name, grad] of Object.entries(gradients.icons || {})) {
+    if (grad.start && !grad.start_ref) {
+      lines.push(`    static let icon${pascalCase(name)} = omGradient(start: Color(hex: 0x${grad.start.replace("#", "").toUpperCase()}), end: Color(hex: 0x${grad.end.replace("#", "").toUpperCase()}))`);
+    }
+  }
+  lines.push("");
+
   // Primary
   const primary = gradients.primary;
   lines.push(`    static let primary = omGradient(start: Color(hex: 0x${primary.start.replace("#", "").toUpperCase()}), end: Color(hex: 0x${primary.end.replace("#", "").toUpperCase()}))`);
@@ -1054,6 +1066,65 @@ function generateIconXcassets() {
   return svgFiles.length;
 }
 
+function categoryFallbackIconNames() {
+  const categoryUtils = readFileSync(CATEGORY_UTILS_FILE, "utf-8");
+  const categoryIcons = categoryUtils.match(/export const CATEGORY_FALLBACK_ICONS:[\s\S]*?=\s*\{([\s\S]*?)\n\};/);
+  if (!categoryIcons) throw new Error("CATEGORY_FALLBACK_ICONS not found in categoryUtils.ts");
+  const names = [...new Set([...categoryIcons[1].matchAll(/^\s*[a-z_]+:\s*"([a-z-]+)"/gm)]
+    .map(match => match[1]))].sort();
+  if (names.length === 0) throw new Error("No category fallback icons found in categoryUtils.ts");
+  return names;
+}
+
+/** Bundle the exact Lucide paths used by category fallback icons on the web. */
+function generateLucideCategoryIconAssets() {
+  if (!existsSync(LUCIDE_SVELTE_ICONS_DIR)) {
+    throw new Error("Lucide category icons are unavailable; install @lucide/svelte before building tokens");
+  }
+  // Workspace headers also use Lucide directly. Keep these prefixed so
+  // branded/static icons retain their existing asset names and shapes.
+  const names = [...new Set([
+    ...categoryFallbackIconNames(),
+    "folder", "calendar-days", "folder-kanban", "list-checks", "archive", "link", "pencil", "chevron-down",
+    "house", "cloud-rain", "newspaper", "workflow"
+  ])].sort();
+
+  for (const name of names) {
+    // Lucide exports HelpCircle as a compatibility alias of CircleQuestionMark.
+    const sourceName = name === "help-circle" ? "circle-question-mark" : name;
+    const source = readFileSync(resolve(LUCIDE_SVELTE_ICONS_DIR, `${sourceName}.svelte`), "utf-8");
+    const nodeMatch = source.match(/const iconNode = (\[[^\n]+\]);/);
+    if (!nodeMatch) throw new Error(`Lucide iconNode missing for ${name}`);
+    const iconNode = JSON.parse(nodeMatch[1]);
+    const shapes = iconNode.map(([tag, attributes]) => {
+      const fields = Object.entries(attributes)
+        .map(([key, value]) => `${key}="${String(value).replaceAll("&", "&amp;").replaceAll('"', "&quot;")}"`)
+        .join(" ");
+      return `  <${tag} ${fields} />`;
+    }).join("\n");
+    const filename = `lucide-${name}.svg`;
+    const imagesetDir = resolve(ICONS_XCASSETS_DIR, `lucide-${name}.imageset`);
+    ensureDir(imagesetDir);
+    writeFileSync(resolve(imagesetDir, filename),
+      `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">\n${shapes}\n</svg>\n`,
+      "utf-8");
+    writeFileSync(resolve(imagesetDir, "Contents.json"), JSON.stringify({
+      images: [{ filename, idiom: "universal" }],
+      info: { author: "build-tokens.js", version: 1 },
+      properties: { "preserves-vector-representation": true, "template-rendering-intent": "template" }
+    }, null, 2) + "\n", "utf-8");
+  }
+
+  const licenseDir = resolve(ICONS_XCASSETS_DIR, "lucide-license.dataset");
+  ensureDir(licenseDir);
+  copyFileSync(resolve(__dirname, "../static/licenses/lucide-svelte.txt"), resolve(licenseDir, "LICENSE.txt"));
+  writeFileSync(resolve(licenseDir, "Contents.json"), JSON.stringify({
+    data: [{ filename: "LICENSE.txt", idiom: "universal", "universal-type-identifier": "public.text" }],
+    info: { author: "build-tokens.js", version: 1 }
+  }, null, 2) + "\n", "utf-8");
+  return names.length;
+}
+
 function generateBrandImageAssets() {
   if (!existsSync(BRAND_FAVICON_PNG)) return 0;
 
@@ -1074,6 +1145,40 @@ function generateBrandImageAssets() {
   writeFileSync(resolve(imagesetDir, "Contents.json"), JSON.stringify(contents, null, 2) + "\n", "utf-8");
 
   return 1;
+}
+
+function generateWeatherImageAssets() {
+  if (!existsSync(METEOCONS_DIR)) return 0;
+
+  const component = readFileSync(WEATHER_ICON_COMPONENT, "utf-8");
+  const slugs = [...component.matchAll(/from '@meteocons\/svg\/fill\/([^']+)\.svg'/g)]
+    .map(match => match[1]);
+
+  for (const slug of slugs) {
+    const filename = `${slug}.svg`;
+    const imagesetDir = resolve(XCASSETS_DIR, `weather-condition-${slug}.imageset`);
+    ensureDir(imagesetDir);
+    copyFileSync(resolve(METEOCONS_DIR, filename), resolve(imagesetDir, filename));
+    const contents = {
+      images: [{ filename, idiom: "universal" }],
+      info: { author: "build-tokens.js", version: 1 },
+      properties: {
+        "preserves-vector-representation": true,
+        "template-rendering-intent": "original"
+      }
+    };
+    writeFileSync(resolve(imagesetDir, "Contents.json"), JSON.stringify(contents, null, 2) + "\n", "utf-8");
+  }
+
+  const licenseDir = resolve(XCASSETS_DIR, "meteocons-license.dataset");
+  ensureDir(licenseDir);
+  copyFileSync(resolve(__dirname, "../static/licenses/meteocons.txt"), resolve(licenseDir, "LICENSE.txt"));
+  writeFileSync(resolve(licenseDir, "Contents.json"), JSON.stringify({
+    data: [{ filename: "LICENSE.txt", idiom: "universal", "universal-type-identifier": "public.text" }],
+    info: { author: "build-tokens.js", version: 1 }
+  }, null, 2) + "\n", "utf-8");
+
+  return slugs.length;
 }
 
 function generateAppIconAssets() {
@@ -1155,6 +1260,16 @@ function generateSwiftIconMapping() {
     lines.push(`    static let ${propName} = "${val.sf}"`);
   }
 
+  lines.push("}");
+  lines.push("");
+
+  lines.push("// MARK: - Original Lucide category assets used by sub-chat cards");
+  lines.push("enum LucideCategoryIconAsset {");
+  lines.push(`    static let supportedNames: Set<String> = [${categoryFallbackIconNames().map(name => `"${name}"`).join(", ")}]`);
+  lines.push("    static func name(for candidate: String?, fallback: String) -> String {");
+  lines.push("        let selected = candidate.flatMap { supportedNames.contains($0) ? $0 : nil } ?? fallback");
+  lines.push("        return \"lucide-\" + selected");
+  lines.push("    }");
   lines.push("}");
   lines.push("");
 
@@ -1296,6 +1411,12 @@ function verify(generatedCSS) {
 function main() {
   const isVerify = process.argv.includes("--verify");
 
+  if (process.argv.includes("--swift-gradients-only")) {
+    ensureDir(SWIFT_DIR);
+    writeFileSync(resolve(SWIFT_DIR, "GradientTokens.generated.swift"), generateSwiftGradients(), "utf-8");
+    return;
+  }
+
   ensureDir(GENERATED_DIR);
   ensureDir(SWIFT_DIR);
   ensureDir(XCASSETS_DIR);
@@ -1325,12 +1446,18 @@ function main() {
   const brandImageCount = generateBrandImageAssets();
   console.log(`[build-tokens] Generated ${brandImageCount} brand image sets → ${XCASSETS_DIR}/`);
 
+  const weatherImageCount = generateWeatherImageAssets();
+  console.log(`[build-tokens] Generated ${weatherImageCount} weather image sets → ${XCASSETS_DIR}/`);
+
   const appIconCount = generateAppIconAssets();
   console.log(`[build-tokens] Generated ${appIconCount} app icon sets → ${XCASSETS_DIR}/`);
 
   // Generate icon xcassets (SVGs)
   const iconCount = generateIconXcassets();
   console.log(`[build-tokens] Generated ${iconCount} icon image sets → ${ICONS_XCASSETS_DIR}/`);
+
+  const lucideIconCount = generateLucideCategoryIconAssets();
+  console.log(`[build-tokens] Generated ${lucideIconCount} Lucide category icon image sets → ${ICONS_XCASSETS_DIR}/`);
 
   // Generate Swift icon mapping
   writeFileSync(resolve(SWIFT_DIR, "IconMapping.generated.swift"), generateSwiftIconMapping(), "utf-8");

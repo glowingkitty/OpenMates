@@ -391,6 +391,10 @@ describe("OpenMatesClient workflows", () => {
     await withServer(
       (request, body) => {
         if (request.url === "/v1/workflows/input" && request.method === "POST") {
+          if (body.optimistic_save === true) {
+            assert.deepEqual(body, { text: "weekly weather", input_type: "text", selected_project_id: PROJECT_ID, optimistic_save: true });
+            return { session: { session_id: "session-2", status: "queued", event_cursor: 4, undo_available: false, preview_workflow: { id: "wf-preview", title: "Weekly weather" } } };
+          }
           assert.deepEqual(body, { text: "alert me if it rains", input_type: "text", selected_project_id: PROJECT_ID });
           return { session: { session_id: "session-1", status: "executed", event_cursor: 4, undo_available: true } };
         }
@@ -415,6 +419,9 @@ describe("OpenMatesClient workflows", () => {
       async (apiUrl, seen) => {
         const client = new OpenMatesClient({ apiUrl, session: testSession() });
         assert.equal((await client.startWorkflowInput({ text: "alert me if it rains", selectedProjectId: PROJECT_ID })).session_id, "session-1");
+        const optimistic = await client.startWorkflowInput({ text: "weekly weather", selectedProjectId: PROJECT_ID, optimisticSave: true });
+        assert.equal(optimistic.status, "queued");
+        assert.equal(optimistic.preview_workflow?.title, "Weekly weather");
         assert.equal((await client.getWorkflowInputSession("session-1")).status, "executed");
         assert.equal((await client.listWorkflowInputEvents("session-1", 2))[0]?.type, "validation_passed");
         assert.equal((await client.followUpWorkflowInput("session-1", "weekdays only")).event_cursor, 7);
@@ -423,12 +430,49 @@ describe("OpenMatesClient workflows", () => {
 
         assert.deepEqual(seen.map((request) => [request.method, request.url]), [
           ["POST", "/v1/workflows/input"],
+          ["POST", "/v1/workflows/input"],
           ["GET", "/v1/workflows/input/session-1"],
           ["GET", "/v1/workflows/input/session-1/events?after_event_id=2"],
           ["POST", "/v1/workflows/input/session-1/follow-up"],
           ["POST", "/v1/workflows/input/session-1/stop"],
           ["POST", "/v1/workflows/input/session-1/undo"],
         ]);
+      },
+    );
+  });
+
+  // contract-test: supporting surface=cli assertions=workflows.authoring.atomic-update,workflows.authoring.provisional-validation
+  it("preserves plural authoring results and stable retry identity", async () => {
+    await withServer(
+      (request, body) => {
+        assert.equal(request.url, "/v1/workflows/input");
+        assert.equal(request.method, "POST");
+        if (body.text === "Create two reports") {
+          assert.equal(body.idempotency_key, "7e6a620a-f09f-4aa9-b87a-79ad9b03d32d");
+          return { session: {
+          session_id: "batch-1", status: "executed", event_cursor: 3, undo_available: true,
+          workflows: [{ id: "wf-a" }, { id: "wf-b" }],
+          preview_workflows: [{ id: "preview-a" }, { id: "preview-b" }],
+          changes: [
+            { workflow_id: "wf-a", operation: "create", added_node_ids: ["a"], changed_node_ids: [], removed_node_ids: [] },
+            { workflow_id: "wf-b", operation: "create", added_node_ids: ["b"], changed_node_ids: [], removed_node_ids: [] },
+          ],
+          } };
+        }
+        assert.equal(body.idempotency_key, "e62ed884-2612-4b4e-bb4b-48c029cf346b");
+        return { session: { session_id: "batch-2", status: "needs_clarification", event_cursor: 1, undo_available: false, workflows: [] } };
+      },
+      async (apiUrl) => {
+        const client = new OpenMatesClient({ apiUrl, session: testSession() });
+        const options = { idempotencyKey: "7e6a620a-f09f-4aa9-b87a-79ad9b03d32d" };
+        const created = await client.startWorkflowInput({ text: "Create two reports", ...options });
+        assert.deepEqual(created.workflows?.map(workflow => workflow.id), ["wf-a", "wf-b"]);
+        assert.equal(created.changes?.length, 2);
+        const replay = await client.startWorkflowInput({ text: "Create two reports", ...options });
+        assert.equal(replay.session_id, created.session_id);
+        const clarification = await client.startWorkflowInput({ text: "Ambiguous request", idempotencyKey: "e62ed884-2612-4b4e-bb4b-48c029cf346b" });
+        assert.equal(clarification.status, "needs_clarification");
+        assert.deepEqual(clarification.workflows, []);
       },
     );
   });

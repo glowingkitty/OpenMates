@@ -7,11 +7,12 @@
   import WorkspaceReportIssueButton from '../workspace/WorkspaceReportIssueButton.svelte';
   import IconTabBar, { type IconTabItem } from '../IconTabBar.svelte';
   import { getCategoryGradientColors, getLucideIcon, getValidIconName } from '../../utils/categoryUtils';
-  let { title, description, category, icon, createdAt, nextRunAt, enabled, canEnable, canRun, lastStartedRunId = null, activeTab = 'template', saving, onTabChange, onToggleEnabled, onRunWorkflow, onDeleteWorkflow, onOpenHome, onOpenShare, onUpdateIdentity }: {
+  let { title, description, category, icon, createdAt, nextRunAt, enabled, canEnable, canRun, lastStartedRunId = null, activeTab = 'template', saving, provisional = false, onTabChange, onToggleEnabled, onRunWorkflow, onDeleteWorkflow, onOpenHome, onOpenShare, onExport, onUpdateIdentity, onDraftIdentity }: {
     title: string; description: string; category: string; icon: string; createdAt?: number | null; nextRunAt?: number | null;
-    enabled: boolean; canEnable: boolean; canRun: boolean; lastStartedRunId?: string | null; activeTab: 'template' | 'runs'; saving: boolean;
-    onTabChange: (tab: 'template' | 'runs') => void; onToggleEnabled: () => void | Promise<void>; onRunWorkflow: () => void | Promise<void>; onDeleteWorkflow: () => void | Promise<void>; onOpenHome: () => void; onOpenShare: () => void; onOpenRuns: () => void; runsHref: string;
+    enabled: boolean; canEnable: boolean; canRun: boolean; lastStartedRunId?: string | null; activeTab: 'template' | 'runs'; saving: boolean; provisional?: boolean;
+    onTabChange: (tab: 'template' | 'runs') => void; onToggleEnabled: () => void | Promise<void>; onRunWorkflow: () => void | Promise<void>; onDeleteWorkflow: () => void | Promise<void>; onOpenHome: () => void; onOpenShare: () => void; onExport: () => void; onOpenRuns: () => void; runsHref: string;
     onUpdateIdentity: (title: string, description: string) => Promise<void>;
+    onDraftIdentity: (title: string, description: string) => void;
   } = $props();
   let editing = $state(false); let draftTitle = $state(''); let draftDescription = $state('');
   const tr = (key: string) => $text(`workflows.builder.${key}`);
@@ -32,12 +33,15 @@
 </script>
 
 <div class="header-toolbar" data-testid="workflow-detail-actions" use:headerOverlayControls>
-    <HeaderActionMenu resetKey={title} hasShare actionCount={canRun ? 2 : 1} forceOverflow>
+    <HeaderActionMenu resetKey={title} hasShare={!provisional} actionCount={provisional ? 0 : canRun ? 3 : 2} forceOverflow>
       {#snippet report()}<WorkspaceReportIssueButton toolbar/>{/snippet}
       {#snippet share()}<div class="new-chat-button-wrapper"><button type="button" class="header-action" data-testid="workflow-share" aria-label={tr('share')} onclick={onOpenShare} use:tooltip><span class="clickable-icon icon_share top-button" aria-hidden="true"></span><span class="action-label">{tr('share')}</span></button></div>{/snippet}
       {#snippet actions()}
+        {#if !provisional}
+        <div class="new-chat-button-wrapper"><button type="button" class="header-action" data-testid="workflow-export" aria-label={tr('file_export_aria')} disabled={saving} onclick={onExport} use:tooltip><span class="clickable-icon icon_download top-button" aria-hidden="true"></span><span class="action-label">{tr('file_export_saved')}</span></button></div>
         {#if canRun}<div class="new-chat-button-wrapper"><button type="button" class="header-action" data-testid="run-workflow" aria-label={tr('run_now')} disabled={saving} onclick={() => void onRunWorkflow()} use:tooltip><span class="workflow-icon icon-play size-20" aria-hidden="true"></span><span class="action-label">{tr('run_now')}</span></button></div>{/if}
         <div class="new-chat-button-wrapper"><button type="button" class="header-action" data-testid="delete-workflow" aria-label={tr('delete_workflow')} disabled={saving} onclick={() => void onDeleteWorkflow()} use:tooltip><span class="clickable-icon icon_delete top-button" aria-hidden="true"></span><span class="action-label">{tr('delete_workflow')}</span></button></div>
+        {/if}
       {/snippet}
       {#snippet close()}<div class="new-chat-button-wrapper"><button type="button" class="header-action" data-testid="workflow-detail-back" aria-label={tr('back')} onclick={onOpenHome} use:tooltip><span class="clickable-icon icon_close top-button" aria-hidden="true"></span><span class="action-label">{tr('back')}</span></button></div>{/snippet}
     </HeaderActionMenu>
@@ -46,24 +50,26 @@
   <span class="kicker">{tr('workflow')}</span>
   <div class="identity">
     <div data-testid="workflow-identity-icon" aria-hidden="true"><Identity size={38}/></div>
-    {#if editing}
+    {#if editing && !provisional}
       <form onsubmit={async event => { event.preventDefault(); await onUpdateIdentity(draftTitle, draftDescription); editing = false; }}>
-        <input aria-label={tr('workflow_name')} bind:value={draftTitle} required/>
-        <input aria-label={tr('description')} bind:value={draftDescription}/>
+        <input aria-label={tr('workflow_name')} bind:value={draftTitle} oninput={() => onDraftIdentity(draftTitle, draftDescription)} required/>
+        <input aria-label={tr('description')} bind:value={draftDescription} oninput={() => onDraftIdentity(draftTitle, draftDescription)}/>
         <button class="save" type="submit" disabled={saving}>{tr('save')}</button>
       </form>
+    {:else if provisional}
+      <h1 data-testid="workspace-detail-title">{title}</h1>
     {:else}
       <button type="button" class="identity-edit" onclick={editIdentity}><h1 data-testid="workspace-detail-title">{title}</h1></button>
     {/if}
     <button type="button" class="toggle" role="switch" aria-checked={enabled} aria-label={tr('workflow_on')} data-testid="toggle-workflow" disabled={saving || (!enabled && !canEnable)} onclick={() => void onToggleEnabled()}>
       <span class="workflow-icon icon-workflow size-16" aria-hidden="true"></span><span data-testid="workflow-enabled-state" data-enabled={enabled ? 'true' : 'false'}>{tr(enabled ? 'workflow_on' : 'workflow_off')}</span><i class:enabled></i>
     </button>
-    {#if !editing}<button type="button" class="identity-edit description-edit" onclick={editIdentity}><p data-testid="workspace-detail-description">{description || tr('add_description')}</p></button>{/if}
+    {#if provisional && description}<p data-testid="workspace-detail-description">{description}</p>{:else if !provisional && !editing}<button type="button" class="identity-edit description-edit" onclick={editIdentity}><p data-testid="workspace-detail-description">{description || tr('add_description')}</p></button>{/if}
   </div>
-  <span class="metadata" data-testid="workflow-detail-metadata">{metadata()}</span>
+  {#if !provisional}<span class="metadata" data-testid="workflow-detail-metadata">{metadata()}</span>{/if}
   {#if lastStartedRunId}<span class="run-started" data-testid="workflow-run-started" data-run-id={lastStartedRunId}>{tr('run_started')}</span>{/if}
 </section>
-<div class="workflow-tabs">
+{#if !provisional}<div class="workflow-tabs">
   <IconTabBar
     items={viewTabs}
     activeId={activeTab}
@@ -71,7 +77,7 @@
     testId="workflow-view-tabs"
     onChange={(tab) => onTabChange(tab as 'template' | 'runs')}
   />
-</div>
+</div>{/if}
 
 <style>
   .workflow-icon { display:inline-block; flex:0 0 auto; background:currentColor; -webkit-mask:var(--workflow-icon) center/contain no-repeat; mask:var(--workflow-icon) center/contain no-repeat; }
@@ -83,7 +89,7 @@
   .kicker { position:absolute; top:1.25rem; font-size:var(--font-size-small); font-weight:650; }
   .identity { display:grid; justify-items:center; gap:.6rem; width:100%; }
   .identity-edit { padding:0; background:transparent; border:0; color:inherit; font:inherit; cursor:pointer; text-align:center; max-width:100%; }
-  h1 { margin:.15rem 0 0; font-size:var(--font-size-h2-mobile); line-height:1.3; overflow-wrap:anywhere; }
+  h1 { margin:.15rem 0 0; color:inherit; font-size:var(--font-size-h2-mobile); line-height:1.3; overflow-wrap:anywhere; }
   .description-edit { max-width:26rem; } p { margin:.2rem 0 0; font-size:var(--font-size-p); line-height:1.4; opacity:.95; }
   .metadata { position:absolute; bottom:1rem; font-size:var(--font-size-small); opacity:.8; }
   .toggle { display:flex; align-items:center; gap:.4rem; margin:0; padding:.25rem .4rem .25rem .6rem; min-height:2rem; border:0; border-radius:2rem; font:inherit; font-size:var(--font-size-small); font-weight:650; background:var(--color-primary); color:var(--color-font-button); cursor:pointer; box-shadow:var(--shadow-sm); }

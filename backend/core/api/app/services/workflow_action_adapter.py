@@ -176,6 +176,7 @@ class WorkflowActionAdapter:
         import uuid
         from starlette.concurrency import run_in_threadpool
         from backend.core.api.app.services.workflow_delivery_history import WorkflowDeliveryHistory, canonical_result_identity, keyed_fingerprint
+        from backend.core.api.app.services.workflow_result_selection import persistable_result_embed_type
         execution = context.get("workflow") or {}
         workflow_id, run_id, node_id = (execution.get(key) for key in ("workflow_id", "run_id", "node_id"))
         if not all((workflow_id, run_id, node_id)) or execution.get("step_test"):
@@ -201,10 +202,17 @@ class WorkflowActionAdapter:
         history = WorkflowDeliveryHistory(self._workflow_service)
         key = await run_in_threadpool(history.key, workflow_id, user_id)
         destination = keyed_fingerprint(key, f"destination:v1:{node_id}:" + (f"chat:{config['chat_id']}" if config.get("chat_id") else "new-chat"))
+        website_event = execution.get("website_active")
+        if website_event and node_id not in website_event["targets"]:
+            website_event = None
         candidates, candidate_values = [], []
         for block_index, block in enumerate(preview["blocks"]):
             value = block["value"]
             if not isinstance(value, list):
+                continue
+            source = block["source"]
+            source_node = source.split(".")[1] if source.startswith("$nodes.") else ""
+            if not persistable_result_embed_type((context.get("nodes", {}).get(source_node) or {}).get("app_id")):
                 continue
             for item_index, item in enumerate(value):
                 if not isinstance(item, dict):
@@ -217,7 +225,18 @@ class WorkflowActionAdapter:
                 fingerprint = keyed_fingerprint(key, identity)
                 candidates.append({"index": len(candidates), "fingerprint": fingerprint, "only_new": True})
                 candidate_values.append((block_index, item_index, item, fingerprint))
-        selected = (set(range(len(candidate_values))) if prepared else set(await run_in_threadpool(
+        if website_event:
+            if candidates:
+                raise WorkflowActionExecutionError("WORKFLOW_WEBSITE_RESULT_LISTS_UNSUPPORTED",
+                    "Website-change notifications support text and links. Send result-list embeds in a separate workflow.")
+            selected_event = await run_in_threadpool(history.reserve, user_id=user_id, workflow_id=workflow_id,
+                run_id=run_id, node_id=node_id, delivery_id=delivery_id, destination_hash=destination,
+                candidates=[{"index": 0, "fingerprint": keyed_fingerprint(key, "website-change:" + website_event["id"]),
+                             "only_new": True, "membership_kind": "website_change", "change_id": website_event["id"]}],
+                expires_at=expires_at)
+            if not selected_event:
+                return {"type": "send_chat_message", "status": "no_new_results", "selected_count": 0}
+        selected = (set(range(len(candidate_values))) if prepared or website_event else set(await run_in_threadpool(
             history.reserve, user_id=user_id, workflow_id=workflow_id,
             run_id=run_id, node_id=node_id, delivery_id=delivery_id, destination_hash=destination,
             candidates=candidates, expires_at=expires_at)))
@@ -249,9 +268,7 @@ class WorkflowActionAdapter:
             source = blocks[b]["source"]
             source_node = source.split(".")[1] if source.startswith("$nodes.") else ""
             app_id = (context.get("nodes", {}).get(source_node) or {}).get("app_id")
-            content_type = {"news": "website", "events": "event", "home": "listing"}.get(app_id)
-            if content_type is None:
-                continue
+            content_type = persistable_result_embed_type(app_id)
             embed_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"{delivery_id}:embed:{fingerprint}"))
             embed_ids_by_original_position[(b, original_index)] = embed_id
             embeds.append({"embed_id": embed_id,
@@ -265,7 +282,7 @@ class WorkflowActionAdapter:
         if prepared:
             already_embedded = {embed["embed_id"] for embed in embeds}
             for embed in prepared.get("embeds") or []:
-                if embed["embed_id"] in text and embed["embed_id"] not in already_embedded:
+                if embed["embed_id"] not in already_embedded:
                     embeds.append(embed)
                     already_embedded.add(embed["embed_id"])
         text = _with_run_link(text, context)

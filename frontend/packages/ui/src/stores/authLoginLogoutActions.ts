@@ -26,6 +26,7 @@ import { aiTypingStore } from "./aiTypingStore";
 import { dailyInspirationStore } from "./dailyInspirationStore";
 import { webSocketService } from "../services/websocketService";
 import { chatListCache } from "../services/chatListCache";
+import { invalidateWorkspaceCaches } from "../services/workspaceCacheLifecycle";
 import { chatMetadataCache } from "../services/chatMetadataCache";
 import { clearAllSharedChatKeys } from "../services/sharedChatKeyStorage";
 import { clearAllSessionStorageDrafts } from "../services/drafts/sessionStorageDraftService";
@@ -130,6 +131,7 @@ export function resetLocalLogoutState(): void {
   // Clear process-wide caches before authStore flips so unmounted UI surfaces
   // cannot reuse stale user chat metadata after auto or manual logout.
   chatListCache.clear();
+  invalidateWorkspaceCaches();
   chatMetadataCache.clearAll();
   clearAllSessionStorageDrafts();
   chatDB.clearAllChatKeys();
@@ -803,6 +805,7 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
       cryptoService.clearAllEmailData();
       // CRITICAL: Clear in-memory chat caches even during error recovery
       chatListCache.clear();
+      invalidateWorkspaceCaches();
       chatMetadataCache.clearAll();
       chatDB.clearAllChatKeys();
       clearAllSharedChatKeys().catch(() => {});

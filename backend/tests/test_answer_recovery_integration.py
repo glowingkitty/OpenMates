@@ -30,6 +30,7 @@ pytestmark = pytest.mark.asyncio
 
 PRIMARY_MODEL = "google/answer-primary"
 ALTERNATE_MODEL = "google/answer-alternate"
+CROSS_PROVIDER_MODEL = "anthropic/answer-alternate"
 CURRENT_REQUEST = "Compare the completed search evidence and answer with citations."
 ATTACHMENT_URL = (
     "data:image/png;base64,"
@@ -186,14 +187,16 @@ def _request(history: list[dict]) -> SimpleNamespace:
     return request
 
 
-def _preprocessing(alternate_model: str | None) -> SimpleNamespace:
+def _preprocessing(
+    alternate_model: str | None, secondary_model: str | None = None
+) -> SimpleNamespace:
     return SimpleNamespace(
         load_app_settings_and_memories=[],
         rejection_reason=None,
         relevant_app_skills=[],
         selected_main_llm_model_id=PRIMARY_MODEL,
         selected_main_llm_model_name="Answer primary",
-        selected_secondary_model_id=None,
+        selected_secondary_model_id=secondary_model,
         selected_fallback_model_id=alternate_model,
         selected_mate_id="mate-1",
         category="general",
@@ -259,6 +262,7 @@ def answer_recovery_runner(monkeypatch):
         response_chunks: list[list[object]],
         *,
         alternate_model: str | None,
+        secondary_model: str | None = None,
         hidden_server_fallback: bool = False,
     ) -> tuple[list[object], list[dict], list[dict]]:
         calls_before = len(provider_calls)
@@ -273,9 +277,9 @@ def answer_recovery_runner(monkeypatch):
             ),
         )
 
-        async def fake_google_provider(**kwargs):
+        async def fake_provider(provider_id: str, **kwargs):
             call_number = len(provider_calls) - calls_before + 1
-            provider_calls.append(copy.deepcopy(kwargs))
+            provider_calls.append({**copy.deepcopy(kwargs), "provider_id": provider_id})
             chunks = response_chunks[call_number - 1]
 
             async def stream():
@@ -287,10 +291,21 @@ def answer_recovery_runner(monkeypatch):
 
             return stream()
 
+        async def fake_google_provider(**kwargs):
+            return await fake_provider("google", **kwargs)
+
+        async def fake_anthropic_provider(**kwargs):
+            return await fake_provider("anthropic", **kwargs)
+
         monkeypatch.setitem(
             llm_utils.PROVIDER_CLIENT_REGISTRY,
             "google",
             fake_google_provider,
+        )
+        monkeypatch.setitem(
+            llm_utils.PROVIDER_CLIENT_REGISTRY,
+            "anthropic",
+            fake_anthropic_provider,
         )
 
         history = _seeded_history()
@@ -300,7 +315,7 @@ def answer_recovery_runner(monkeypatch):
             async for chunk in main_processor.handle_main_processing(
                 "task-answer-recovery",
                 _request(history),
-                _preprocessing(alternate_model),
+                _preprocessing(alternate_model, secondary_model),
                 {},
                 None,
                 None,
@@ -445,6 +460,35 @@ async def test_forbidden_clean_retry_uses_one_configured_alternate(
         for chunk in timeout_output
     )
     _assert_usage(timeout_output, calls=3, successful_model=ALTERNATE_MODEL)
+
+
+async def test_repeated_forbidden_calls_prefer_a_different_provider_for_final_answer(
+    answer_recovery_runner,
+) -> None:
+    output, calls, _original_history = await answer_recovery_runner(
+        [[_forbidden_tool_call(1)], [_forbidden_tool_call(2)], [ANSWER]],
+        secondary_model=ALTERNATE_MODEL,
+        alternate_model=CROSS_PROVIDER_MODEL,
+    )
+
+    assert [call["provider_id"] for call in calls] == [
+        "google",
+        "google",
+        "anthropic",
+    ]
+    assert [call["model_id"] for call in calls] == [
+        "answer-primary",
+        "answer-primary",
+        "answer-alternate",
+    ]
+    _assert_clean_recovery_payload(calls[1])
+    _assert_clean_recovery_payload(calls[2])
+    assert "".join(chunk for chunk in output if isinstance(chunk, str)) == ANSWER
+    assert not any(
+        isinstance(chunk, dict) and chunk.get("__main_processing_failure__") is True
+        for chunk in output
+    )
+    _assert_usage(output, calls=3, successful_model=CROSS_PROVIDER_MODEL)
 
 
 # contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated

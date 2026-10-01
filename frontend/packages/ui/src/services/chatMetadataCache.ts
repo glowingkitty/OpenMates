@@ -6,6 +6,7 @@ import { chatDB } from "./db";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
 import type { Chat } from "../types/chat";
 import { formatDraftPreview } from "../utils/draftPreview";
+import { invalidateRecentChatWindow } from "./recentChatWindowCache";
 
 /**
  * Represents decrypted chat metadata for display in chat lists
@@ -287,6 +288,7 @@ class ChatMetadataCache {
    * @param chatId The chat ID to invalidate
    */
   invalidateChat(chatId: string): void {
+    invalidateRecentChatWindow(chatId);
     this.cache.delete(chatId);
     // Track this invalidation globally in case components are unmounted
     pendingInvalidations.add(chatId);

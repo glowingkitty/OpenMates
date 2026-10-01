@@ -87,6 +87,8 @@ def test_generated_metadata_includes_audio_web_search_images_generate_business_a
         "eleven_v3",
         "eleven_multilingual_v2",
         "eleven_flash_v2_5",
+        "eleven_v4",
+        "eleven_v4_turbo",
     ]
     assert (
         audio_speak["schema"]["properties"]["requests"]["items"]["properties"]["model"]["default"]

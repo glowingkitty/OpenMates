@@ -11,11 +11,15 @@
   import {
     completeUserTask,
     listUserTasks,
+    peekUserTasks,
+    subscribeUserTasks,
     reorderUserTasks,
     type UserTaskViewModel,
   } from '../../services/userTaskService';
-  import { listUserPlans, type UserPlanViewModel } from '../../services/userPlanService';
+  import { listUserPlans, peekUserPlans, subscribeUserPlans, type UserPlanViewModel } from '../../services/userPlanService';
   import { notificationStore } from '../../stores/notificationStore';
+  import { userProfile } from '../../stores/userProfile';
+  import { getWorkspaceCacheIdentity } from '../../services/workspaceQueryCache';
 
   let {
     chatId,
@@ -28,6 +32,8 @@
   let tasks = $state<UserTaskViewModel[]>([]);
   let plans = $state<UserPlanViewModel[]>([]);
   let selectedTaskId = $state<string | null>(null);
+  let requestGeneration = 0;
+  let displayedChatId: string | null = null;
 
   const actionableTasks = $derived(tasks.filter((task) => task.status !== 'done'));
   const defaultTask = $derived(
@@ -54,25 +60,33 @@
   const plansEnabled = $derived(featureAvailabilityReady && $featureAvailabilityStore.disabledById?.['platform:plans'] !== true);
 
   async function refreshTasks(): Promise<void> {
-    if (!chatId || (!tasksEnabled && !plansEnabled)) {
+    const requestedChatId = chatId;
+    const generation = ++requestGeneration;
+    if (!requestedChatId || (!tasksEnabled && !plansEnabled)) {
       tasks = [];
       plans = [];
       selectedTaskId = null;
+      displayedChatId = null;
       return;
     }
-    try {
-      const [nextTasks, nextPlans] = await Promise.all([
-        tasksEnabled ? listUserTasks({ chatId }) : Promise.resolve([]),
-        plansEnabled ? listUserPlans({ chatId, limit: 3 }) : Promise.resolve([]),
-      ]);
-      tasks = nextTasks;
-      plans = nextPlans;
-      if (selectedTaskId && !nextTasks.some((task) => task.task_id === selectedTaskId && task.status !== 'done')) {
-        selectedTaskId = null;
-      }
-    } catch (error) {
-      console.error('[ActiveChatTaskPreview] Failed to load tasks:', error);
-    }
+    const taskFilters = { chatId: requestedChatId };
+    const planFilters = { chatId: requestedChatId, limit: 3 };
+    const sameChat = displayedChatId === requestedChatId;
+    displayedChatId = requestedChatId;
+    tasks = tasksEnabled ? (peekUserTasks(taskFilters) ?? (sameChat ? tasks : [])) : [];
+    plans = plansEnabled ? (peekUserPlans(planFilters) ?? (sameChat ? plans : [])) : [];
+    if (!sameChat) selectedTaskId = null;
+    const [taskResult, planResult] = await Promise.allSettled([
+      tasksEnabled ? listUserTasks(taskFilters) : Promise.resolve([]),
+      plansEnabled ? listUserPlans(planFilters) : Promise.resolve([]),
+    ]);
+    if (generation !== requestGeneration || chatId !== requestedChatId) return;
+    if (taskResult.status === 'fulfilled') {
+      tasks = taskResult.value;
+      if (selectedTaskId && !tasks.some((task) => task.task_id === selectedTaskId && task.status !== 'done')) selectedTaskId = null;
+    } else console.error('[ActiveChatTaskPreview] Failed to load tasks:', taskResult.reason);
+    if (planResult.status === 'fulfilled') plans = planResult.value;
+    else console.error('[ActiveChatTaskPreview] Failed to load plans:', planResult.reason);
   }
 
   async function toggleCurrentTask(event: Event): Promise<void> {
@@ -114,17 +128,46 @@
   }
 
   $effect(() => {
+    const userId = $userProfile.user_id;
     void chatId;
     void tasksEnabled;
     void plansEnabled;
+    if (!userId) {
+      requestGeneration += 1;
+      tasks = [];
+      plans = [];
+      selectedTaskId = null;
+      displayedChatId = null;
+      return;
+    }
     if (!$featureAvailabilityStore.initialized) return;
     void refreshTasks();
   });
 
   onMount(() => {
     void initializeFeatureAvailability();
+    let displayedScope = getWorkspaceCacheIdentity();
+    const clearOnScopeChange = () => {
+      const scope = getWorkspaceCacheIdentity();
+      if (scope === displayedScope) return;
+      displayedScope = scope;
+      tasks = [];
+      plans = [];
+      selectedTaskId = null;
+      displayedChatId = null;
+      requestGeneration += 1;
+    };
+    const unsubscribeTasks = subscribeUserTasks(() => {
+      clearOnScopeChange();
+      if (chatId && tasksEnabled) tasks = peekUserTasks({ chatId }) ?? tasks;
+    });
+    const unsubscribePlans = subscribeUserPlans(() => {
+      clearOnScopeChange();
+      if (chatId && plansEnabled) plans = peekUserPlans({ chatId, limit: 3 }) ?? plans;
+    });
     window.addEventListener('openmates-user-tasks-changed', handleTaskChange);
     window.addEventListener('openmates-user-plans-changed', handlePlanChange);
+    return () => { unsubscribeTasks(); unsubscribePlans(); };
   });
 
   onDestroy(() => {

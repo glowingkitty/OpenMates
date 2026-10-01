@@ -1,3 +1,5 @@
+// Specification: specifications/features/chat-share-settings/specification.yml
+// Assertions: chat-share-settings.shared-link-open
 // Custom cross-platform chat and embed sharing panel.
 // Mirrors the web SettingsShare two-step configuration and generated-link flow.
 // The platform share sheet is intentionally invoked only after the user creates
@@ -45,7 +47,7 @@ struct AppleSharePanel: View {
 
     let context: AppleShareContext
     let onClose: () -> Void
-    let onGenerated: (URL, Bool, ShareDuration) async -> Void
+    let onGenerated: (URL, Bool, ShareDuration) async throws -> Void
     let onStopSharing: (() async -> Void)?
 
     @State private var password = ""
@@ -107,7 +109,7 @@ struct AppleSharePanel: View {
                     .accessibilityIdentifier("share-generation-status")
             }
 
-            options
+            options.disabled(isGenerating)
 
             if let error {
                 Text(error)
@@ -333,6 +335,12 @@ struct AppleSharePanel: View {
         Task {
             defer { isGenerating = false }
             do {
+                let fence: UserTasksAccountFence?
+                if context.isChat {
+                    guard let accountID = await AuthManager.currentUserId() else { throw UserTasksError.accountChanged }
+                    fence = UserTasksAccountFence(accountID: accountID)
+                    try await fence?.check()
+                } else { fence = nil }
                 let blob = try await ShareLinkCrypto.encryptedShareBlob(
                     identifier: context.id,
                     key: context.key,
@@ -340,17 +348,20 @@ struct AppleSharePanel: View {
                     password: passwordEnabled ? password : nil,
                     keyField: context.keyField
                 )
-                let webURL = await APIClient.shared.webAppURL
+                let webURL = if let fence { fence.serverProfile.webBaseURL } else { await APIClient.shared.webAppURL }
                 let longURL = try ShareLinkCrypto.urlWithFragment(
                     webURL
                         .appendingPathComponent(context.path)
                         .appendingPathComponent(context.id),
                     fragment: "key=\(blob)"
                 )
-                let primaryURL = try await durableShortURL(for: longURL, webURL: webURL)
+                let primaryURL = try await ShareLinkPublication.create(longURL: longURL, check: { try await fence?.check() }, shorten: {
+                    try await durableShortURL(for: longURL, webURL: webURL, fence: fence)
+                }, publish: { url, fallback in
+                    try await onGenerated(url, fallback, duration)
+                })
                 generatedURL = primaryURL.url
                 usedLongFallback = primaryURL.usedLongFallback
-                await onGenerated(primaryURL.url, usedLongFallback, duration)
             } catch {
                 self.error = AppStrings.error
                 NativeDiagnostics.error("Share link generation failed", category: "sharing")
@@ -358,22 +369,25 @@ struct AppleSharePanel: View {
         }
     }
 
-    private func durableShortURL(for longURL: URL, webURL: URL) async throws -> (url: URL, usedLongFallback: Bool) {
-        do {
-            let encrypted = try await ShareLinkCrypto.encryptedShortURL(longURL)
-            let body: [String: Any] = [
-                "token": encrypted.token,
-                "encrypted_url": encrypted.encryptedURL,
-                "content_type": context.contentType.rawValue,
-                "content_id": context.id,
-                "password_protected": passwordEnabled,
-                "ttl_seconds": duration == .noExpiration ? NSNull() : duration.rawValue
-            ]
-            let _: Data = try await APIClient.shared.request(.post, path: "/v1/share/short-url", body: body)
-            return (try ShareLinkCrypto.shortURL(webURL: webURL, token: encrypted.token, shortKey: encrypted.shortKey), false)
-        } catch let error as URLError where error.code == .notConnectedToInternet || error.code == .timedOut {
-            return (longURL, true)
+    private func durableShortURL(for longURL: URL, webURL: URL, fence: UserTasksAccountFence?) async throws -> URL {
+        let encrypted = try await ShareLinkCrypto.encryptedShortURL(longURL)
+        try await fence?.check()
+        let body: [String: Any] = [
+            "token": encrypted.token,
+            "encrypted_url": encrypted.encryptedURL,
+            "content_type": context.contentType.rawValue,
+            "content_id": context.id,
+            "password_protected": passwordEnabled,
+            "ttl_seconds": duration == .noExpiration ? NSNull() : duration.rawValue
+        ]
+        let payload = JSONRawBody(data: try JSONSerialization.data(withJSONObject: body))
+        if let fence {
+            let _: Data = try await APIClient.shared.request(.post, path: "/v1/share/short-url", serverProfile: fence.serverProfile,
+                body: payload, expectedAccountID: fence.accountID, expectedScope: fence.scope)
+        } else {
+            let _: Data = try await APIClient.shared.request(.post, path: "/v1/share/short-url", body: payload)
         }
+        return try ShareLinkCrypto.shortURL(webURL: webURL, token: encrypted.token, shortKey: encrypted.shortKey)
     }
 
     private func resetConfiguration() {
@@ -423,6 +437,7 @@ struct AppleSharePanel: View {
         switch option {
         case .noExpiration: AppStrings.shareNoExpiration
         case .oneMinute: AppStrings.shareOneMinute
+        case .tenMinutes: AppStrings.chatSettingsTenMinutes
         case .oneHour: AppStrings.shareOneHour
         case .twentyFourHours: AppStrings.shareTwentyFourHours
         case .sevenDays: AppStrings.shareSevenDays

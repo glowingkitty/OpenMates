@@ -3,6 +3,10 @@
 // Supports both Encodable bodies and raw dictionary bodies.
 // Specification: specifications/features/message-input/specification.yml
 // Assertions: message-input.embeds.gated-send
+// Specification: specifications/features/apple-notifications/specification.yml
+// Assertions: apple-notifications.registration.lifecycle
+// Specification: specifications/features/auth/specification.yml
+// Assertions: auth.session.lifecycle, auth.session.isolation
 
 import Foundation
 
@@ -13,6 +17,11 @@ struct JSONRawBody: Encodable, Sendable {
         var container = encoder.singleValueContainer()
         try container.encode(data)
     }
+}
+
+struct APIRequestTeamContext: Sendable {
+    let epoch: UInt64
+    let teamID: String?
 }
 
 actor APIClient {
@@ -64,42 +73,188 @@ actor APIClient {
         contentType: String,
         chatId: String
     ) async throws -> Data {
-        let boundary = UUID().uuidString
-        var body = Data()
-        body.append("--\(boundary)\r\n".data(using: .utf8)!)
-        body.append("Content-Disposition: form-data; name=\"file\"; filename=\"\(filename)\"\r\n".data(using: .utf8)!)
-        body.append("Content-Type: \(contentType)\r\n\r\n".data(using: .utf8)!)
-        body.append(data)
-        body.append("\r\n--\(boundary)\r\n".data(using: .utf8)!)
-        body.append("Content-Disposition: form-data; name=\"chat_id\"\r\n\r\n".data(using: .utf8)!)
-        body.append(chatId.data(using: .utf8)!)
-        body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
+        try await uploadFile(data: data, filename: filename, contentType: contentType,
+                             optionalChatID: chatId)
+    }
 
+    /// Hosted Project imports create an independently keyed embed and therefore
+    /// omit chat_id, matching uploadFileToProject's multipart contract.
+    func uploadProjectFile(data: Data, filename: String, contentType: String,
+                           serverProfile: ServerProfile? = nil,
+                           expectedAccountID: String? = nil, expectedScope: UUID? = nil) async throws -> Data {
+        try await uploadFile(data: data, filename: filename, contentType: contentType,
+                             optionalChatID: nil, serverProfile: serverProfile,
+                             expectedAccountID: expectedAccountID, expectedScope: expectedScope)
+    }
+
+    private func uploadFile(data: Data, filename: String, contentType: String,
+                            optionalChatID: String?, serverProfile: ServerProfile? = nil,
+                            expectedAccountID: String? = nil, expectedScope: UUID? = nil) async throws -> Data {
+        #if os(watchOS)
+        let capturedAccountID = expectedAccountID
+        let scope = expectedScope ?? UUID()
+        #else
+        let accountID = await AuthManager.currentUserId()
+        let capturedAccountID = expectedAccountID ?? accountID
+        let scope = await MainActor.run { expectedScope ?? OfflineStore.shared.scopeGeneration }
+        #endif
+        let boundary = UUID().uuidString
+        let body = try Self.makeUploadBody(data: data, filename: filename,
+            contentType: contentType, chatID: optionalChatID, boundary: boundary)
+        // Check the account immediately before each attempt: a refreshed cookie
+        // must never upload the previous account's private file bytes.
+        let profile = serverProfile ?? ServerProfile.current()
+        let uploadURL = profile.uploadBaseURL.appendingPathComponent("v1/upload/file")
+        let authenticationURL = profile.apiBaseURL
+        let originURL = profile.webBaseURL
+
+        try await checkUploadContext(accountID: capturedAccountID, scope: scope, profile: profile)
         let request = Self.makeUploadRequest(
-            uploadURL: uploadBaseURL.appendingPathComponent("v1/upload/file"),
-            authenticationURL: baseURL,
-            webAppURL: webAppURL,
+            uploadURL: uploadURL,
+            authenticationURL: authenticationURL,
+            webAppURL: originURL,
             boundary: boundary,
-            body: body
+            body: body,
+            pinCookies: optionalChatID == nil
         )
+        try await checkUploadContext(accountID: capturedAccountID, scope: scope, profile: profile)
+        try Task.checkCancellation()
         do {
             return try await execute(request, using: uploadSession)
         } catch where Self.shouldRetryUpload(after: error) {
-            // Refresh tokens rotate during ordinary authenticated API traffic.
-            // If another request wins that rotation while this upload is in
-            // flight, rebuild once so URLSession resolves the current cookie.
+            try await checkUploadContext(accountID: capturedAccountID, scope: scope, profile: profile)
             let retryRequest = Self.makeUploadRequest(
-                uploadURL: uploadBaseURL.appendingPathComponent("v1/upload/file"),
-                authenticationURL: baseURL,
-                webAppURL: webAppURL,
+                uploadURL: uploadURL,
+                authenticationURL: authenticationURL,
+                webAppURL: originURL,
                 boundary: boundary,
-                body: body
+                body: body,
+                pinCookies: optionalChatID == nil
             )
+            try await checkUploadContext(accountID: capturedAccountID, scope: scope, profile: profile)
+            try Task.checkCancellation()
             return try await execute(retryRequest, using: uploadSession)
         }
     }
 
+    private func checkUploadContext(accountID: String?, scope: UUID, profile: ServerProfile) async throws {
+        #if os(watchOS)
+        // Project imports and their desktop/phone account fences are unavailable
+        // in Watch. Keep the existing Watch transport bound to its service.
+        guard accountID == nil, profile.apiBaseURL == ServerProfile.current().apiBaseURL,
+              profile.uploadBaseURL == ServerProfile.current().uploadBaseURL else { throw CancellationError() }
+        #else
+        let currentAccountID = await AuthManager.currentUserId()
+        let matches = await MainActor.run {
+            Self.isUploadContextCurrent(expectedAccountID: accountID, currentAccountID: currentAccountID,
+                expectedScope: scope, currentScope: OfflineStore.shared.scopeGeneration,
+                serverProfile: profile, currentProfile: ServerProfile.current())
+        }
+        guard matches else { throw CancellationError() }
+        #endif
+    }
+
+    private func checkTeamContext(_ expected: APIRequestTeamContext?) async throws {
+        #if os(iOS) || os(macOS)
+        guard let expected else { return }
+        let matches = await MainActor.run {
+            TeamWorkspaceContext.shared.contextEpoch == expected.epoch &&
+                TeamWorkspaceContext.shared.teamID == expected.teamID
+        }
+        guard matches else { throw CancellationError() }
+        #else
+        // Watch has no Team workspace. Refuse a Team-scoped request there.
+        guard expected == nil else { throw CancellationError() }
+        #endif
+    }
+
+    static func isUploadContextCurrent(expectedAccountID: String?, currentAccountID: String?,
+        expectedScope: UUID, currentScope: UUID, serverProfile: ServerProfile,
+        currentProfile: ServerProfile) -> Bool {
+        expectedAccountID == currentAccountID && expectedScope == currentScope &&
+            serverProfile.apiBaseURL == currentProfile.apiBaseURL &&
+            serverProfile.webBaseURL == currentProfile.webBaseURL &&
+            serverProfile.uploadBaseURL == currentProfile.uploadBaseURL
+    }
+
+    static func makeUploadBody(data: Data, filename: String, contentType: String,
+                               chatID: String?, boundary: String) throws -> Data {
+        let forbidden = CharacterSet.controlCharacters
+        guard !filename.isEmpty, filename.rangeOfCharacter(from: forbidden) == nil,
+              !contentType.isEmpty, contentType.rangeOfCharacter(from: forbidden) == nil,
+              !boundary.isEmpty, boundary.rangeOfCharacter(from: forbidden) == nil else {
+            throw APIError.invalidResponse
+        }
+        let escapedFilename = filename.replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+        var body = Data()
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"file\"; filename=\"\(escapedFilename)\"\r\n".data(using: .utf8)!)
+        body.append("Content-Type: \(contentType)\r\n\r\n".data(using: .utf8)!)
+        body.append(data)
+        if let chatID {
+            body.append("\r\n--\(boundary)\r\n".data(using: .utf8)!)
+            body.append("Content-Disposition: form-data; name=\"chat_id\"\r\n\r\n".data(using: .utf8)!)
+            body.append(Data(chatID.utf8))
+        }
+        body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
+        return body
+    }
+
+    #if os(iOS) || os(macOS)
+    /// Session rotation must publish cookies under the same authority fence as
+    /// the user/token response. URLSession's automatic cookie handling otherwise
+    /// installs a late old account response before AuthManager can reject it.
+    func validateNativeSession(serverProfile: ServerProfile, body: SessionRequest,
+                               expectedAccountID: String?,
+                               isCurrent: @escaping @MainActor () -> Bool) async throws -> SessionResponse {
+        var request = buildRequest(.post, path: "/v1/auth/session", headers: nil,
+            baseURL: serverProfile.apiBaseURL, webAppURL: serverProfile.webBaseURL)
+        request.httpBody = try encoder.encode(body)
+        let prepared = request
+        request = try await MainActor.run {
+            guard isCurrent() else { throw CancellationError() }
+            var pinned = prepared
+            Self.pinAuthorizedCookies(in: &pinned)
+            return pinned
+        }
+        let data = try await execute(request, using: session, authorizeSessionResponse: { response, data in
+            guard isCurrent() else { return (false, false) }
+            guard (200...299).contains(response.statusCode) else {
+                return (true, response.statusCode == 401 || response.statusCode == 403)
+            }
+            let decoder = JSONDecoder()
+            decoder.keyDecodingStrategy = .convertFromSnakeCase
+            guard let result = try? decoder.decode(SessionResponse.self, from: data) else { return (true, false) }
+            let publishCookies = expectedAccountID == nil || result.user == nil || result.user?.id == expectedAccountID
+            return (true, publishCookies)
+        })
+        return try decodeResponse(SessionResponse.self, from: data)
+    }
+    #endif
+
     // MARK: - Encodable body
+
+    /// Watch push requests pin the verified account's cookies atomically with
+    /// its lifecycle check, before crossing into network execution.
+    func requestForWatchPush(_ method: HTTPMethod, path: String, serverProfile: ServerProfile,
+                             body: [String: String],
+                             validate: @escaping @MainActor @Sendable () throws -> Void) async throws -> Data {
+        var request = buildRequest(method, path: path, headers: nil,
+                                   baseURL: serverProfile.apiBaseURL, webAppURL: serverProfile.webBaseURL)
+        request.httpBody = try encoder.encode(body)
+        let prepared = request
+        request = try await MainActor.run {
+            try validate()
+            var pinned = prepared
+            Self.pinAuthorizedCookies(in: &pinned)
+            return pinned
+        }
+        try Task.checkCancellation()
+        let response = try await execute(request)
+        try await MainActor.run { try validate() }
+        return response
+    }
 
     func request(
         _ method: HTTPMethod,
@@ -125,7 +280,9 @@ actor APIClient {
         path: String,
         serverProfile: ServerProfile,
         body: (any Encodable)? = nil,
-        headers: [String: String]? = nil
+        headers: [String: String]? = nil,
+        expectedAccountID: String? = nil, expectedScope: UUID? = nil,
+        expectedTeamContext: APIRequestTeamContext? = nil
     ) async throws -> Data {
         var urlRequest = buildRequest(
             method,
@@ -143,7 +300,17 @@ actor APIClient {
             }
         }
 
-        return try await execute(urlRequest)
+        if let expectedAccountID, let expectedScope {
+            try await checkUploadContext(accountID: expectedAccountID, scope: expectedScope, profile: serverProfile)
+            try await checkTeamContext(expectedTeamContext)
+            Self.pinAuthorizedCookies(in: &urlRequest)
+            try await checkUploadContext(accountID: expectedAccountID, scope: expectedScope, profile: serverProfile)
+            try await checkTeamContext(expectedTeamContext)
+            try Task.checkCancellation()
+        } else if expectedAccountID != nil || expectedScope != nil || expectedTeamContext != nil {
+            throw APIError.invalidResponse
+        }
+        return try await execute(urlRequest, expectedRecoveryAccountID: expectedAccountID)
     }
 
     func request<T: Decodable>(
@@ -153,15 +320,7 @@ actor APIClient {
         headers: [String: String]? = nil
     ) async throws -> T {
         let data = try await request(method, path: path, body: body, headers: headers)
-        do {
-            return try decoder.decode(T.self, from: data)
-        } catch {
-            NativeDiagnostics.error(
-                "API response decoding failed response_type=\(String(describing: T.self)) error_type=\(type(of: error))",
-                category: "network"
-            )
-            throw error
-        }
+        return try decodeResponse(T.self, from: data)
     }
 
     func request<T: Decodable>(
@@ -169,13 +328,37 @@ actor APIClient {
         path: String,
         serverProfile: ServerProfile,
         body: (any Encodable)? = nil,
-        headers: [String: String]? = nil
+        headers: [String: String]? = nil,
+        expectedAccountID: String? = nil, expectedScope: UUID? = nil,
+        expectedTeamContext: APIRequestTeamContext? = nil
     ) async throws -> T {
-        let data = try await request(method, path: path, serverProfile: serverProfile, body: body, headers: headers)
-        return try decoder.decode(T.self, from: data)
+        let data = try await request(method, path: path, serverProfile: serverProfile, body: body, headers: headers,
+                                     expectedAccountID: expectedAccountID, expectedScope: expectedScope,
+                                     expectedTeamContext: expectedTeamContext)
+        return try decodeResponse(T.self, from: data)
     }
 
     // MARK: - Dictionary body (for ad-hoc requests without Encodable structs)
+
+    func request(_ method: HTTPMethod, path: String, serverProfile: ServerProfile,
+                 body dict: [String: Any], headers: [String: String]? = nil,
+                 expectedAccountID: String? = nil, expectedScope: UUID? = nil,
+                 expectedTeamContext: APIRequestTeamContext? = nil) async throws -> Data {
+        let raw = JSONRawBody(data: try JSONSerialization.data(withJSONObject: dict))
+        return try await request(method, path: path, serverProfile: serverProfile, body: raw, headers: headers,
+                                 expectedAccountID: expectedAccountID, expectedScope: expectedScope,
+                                 expectedTeamContext: expectedTeamContext)
+    }
+
+    func request<T: Decodable>(_ method: HTTPMethod, path: String, serverProfile: ServerProfile,
+                              body dict: [String: Any], headers: [String: String]? = nil,
+                              expectedAccountID: String? = nil, expectedScope: UUID? = nil,
+                              expectedTeamContext: APIRequestTeamContext? = nil) async throws -> T {
+        let data: Data = try await request(method, path: path, serverProfile: serverProfile, body: dict, headers: headers,
+                                          expectedAccountID: expectedAccountID, expectedScope: expectedScope,
+                                          expectedTeamContext: expectedTeamContext)
+        return try decodeResponse(T.self, from: data)
+    }
 
     func request(
         _ method: HTTPMethod,
@@ -195,10 +378,18 @@ actor APIClient {
         headers: [String: String]? = nil
     ) async throws -> T {
         let data: Data = try await request(method, path: path, body: dict, headers: headers)
-        return try decoder.decode(T.self, from: data)
+        return try decodeResponse(T.self, from: data)
     }
 
     // MARK: - Private
+
+    private func decodeResponse<T: Decodable>(_ type: T.Type, from data: Data) throws -> T {
+        do { return try decoder.decode(type, from: data) }
+        catch {
+            APIResponseDecodingDiagnostics.record(error: error, responseType: type)
+            throw error
+        }
+    }
 
     static func makeStandardSessionConfiguration() -> URLSessionConfiguration {
         makeSessionConfiguration(requestTimeout: 30, resourceTimeout: 60)
@@ -213,7 +404,8 @@ actor APIClient {
         authenticationURL: URL? = nil,
         webAppURL: URL,
         boundary: String,
-        body: Data
+        body: Data,
+        pinCookies: Bool = false
     ) -> URLRequest {
         var request = URLRequest(url: uploadURL)
         request.httpMethod = HTTPMethod.post.rawValue
@@ -247,7 +439,21 @@ actor APIClient {
         // the latest rotated token when the request is sent. A manually frozen
         // Cookie header can become invalid while another API request rotates the
         // session. Only bridge a host-only API cookie that cannot reach upload.
-        if let refreshCookie = authenticationRefreshCookie,
+        if pinCookies {
+            // Private Project file bytes must not acquire a different account's
+            // cookies from URLSession's shared jar after the authority check.
+            // A 401 retry takes a fresh snapshot only after revalidating scope.
+            var cookies = uploadCookies
+            if let refreshCookie = authenticationRefreshCookie {
+                cookies.removeAll { $0.name == refreshCookie.name }
+                cookies.append(refreshCookie)
+            }
+            request.httpShouldHandleCookies = false
+            if !cookies.isEmpty {
+                request.setValue(HTTPCookie.requestHeaderFields(with: cookies)["Cookie"],
+                    forHTTPHeaderField: "Cookie")
+            }
+        } else if let refreshCookie = authenticationRefreshCookie,
            !authenticationCookieReachesUpload {
             let cookieHeader = HTTPCookie.requestHeaderFields(with: [refreshCookie])["Cookie"]
             request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
@@ -259,6 +465,16 @@ actor APIClient {
     static func shouldRetryUpload(after error: Error) -> Bool {
         guard case APIError.httpError(status: 401, message: _) = error else { return false }
         return true
+    }
+
+    static func pinAuthorizedCookies(in request: inout URLRequest) {
+        request.httpShouldHandleCookies = false
+        guard request.value(forHTTPHeaderField: "Cookie") == nil, let url = request.url else { return }
+        let cookies = OpenMatesSharedEnvironment.cookieStorage.cookies(for: url) ?? []
+        if !cookies.isEmpty {
+            request.setValue(HTTPCookie.requestHeaderFields(with: cookies)["Cookie"],
+                forHTTPHeaderField: "Cookie")
+        }
     }
 
     private static func makeSessionConfiguration(
@@ -333,28 +549,64 @@ actor APIClient {
         #endif
     }
 
-    private func execute(_ request: URLRequest) async throws -> Data {
-        try await execute(request, using: session)
+    private func execute(_ request: URLRequest, expectedRecoveryAccountID: String? = nil) async throws -> Data {
+        try await execute(request, using: session, expectedRecoveryAccountID: expectedRecoveryAccountID)
     }
 
-    private func execute(_ request: URLRequest, using transport: URLSession) async throws -> Data {
+    private func execute(_ request: URLRequest, using transport: URLSession,
+                         expectedRecoveryAccountID: String? = nil,
+                         authorizeSessionResponse: (@MainActor (HTTPURLResponse, Data) -> (isCurrent: Bool, publishCookies: Bool))? = nil) async throws -> Data {
         #if DEBUG
         if let stubbedData = Self.uiTestIssueReportResponse(for: request) {
             return stubbedData
         }
         #endif
 
+        #if os(iOS) || os(macOS)
+        // Auth endpoints own their explicit login/session errors. Product requests
+        // capture authority before IO, and only signal recovery; writes are never
+        // automatically replayed by this path.
+        let recoveryContext: AuthSessionRecoveryContext?
+        if let url = request.url, !url.path.hasPrefix("/v1/auth/") {
+            recoveryContext = await MainActor.run {
+                let context = AuthManager.captureSessionRecoveryContext()
+                guard let context,
+                      expectedRecoveryAccountID == nil || context.accountID == expectedRecoveryAccountID,
+                      context.profile.apiBaseURL.host == url.host ||
+                      context.profile.uploadBaseURL.host == url.host else { return nil }
+                return context
+            }
+        } else { recoveryContext = nil }
+        #endif
         let (data, response) = try await transport.data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw APIError.invalidResponse
         }
 
+        if let authorizeSessionResponse {
+            try await MainActor.run {
+                let authorization = authorizeSessionResponse(httpResponse, data)
+                guard authorization.isCurrent, !Task.isCancelled else { throw CancellationError() }
+                if authorization.publishCookies, let url = request.url {
+                    let headers = httpResponse.allHeaderFields.reduce(into: [String: String]()) { values, entry in
+                        if let key = entry.key as? String, let value = entry.value as? String { values[key] = value }
+                    }
+                    let cookies = HTTPCookie.cookies(withResponseHeaderFields: headers, for: url)
+                    OpenMatesSharedEnvironment.cookieStorage.setCookies(cookies, for: url, mainDocumentURL: nil)
+                }
+            }
+        }
         guard (200...299).contains(httpResponse.statusCode) else {
             NativeDiagnostics.warning(
                 "API request failed method=\(request.httpMethod ?? "unknown") status=\(httpResponse.statusCode)",
                 category: "network"
             )
+            #if os(iOS) || os(macOS)
+            if httpResponse.statusCode == 401, let recoveryContext {
+                Task { @MainActor in await AuthManager.recoverRejectedRequest(recoveryContext) }
+            }
+            #endif
             let errorBody = try? decoder.decode(APIErrorResponse.self, from: data)
             throw APIError.httpError(
                 status: httpResponse.statusCode,
@@ -417,4 +669,37 @@ enum APIError: LocalizedError {
 
 struct APIErrorResponse: Decodable {
     let detail: String?
+}
+
+enum APIResponseDecodingDiagnostics {
+    // Only static schema names are admitted. Dictionary keys, record IDs,
+    // typed text and values never enter diagnostics.
+    private static let fields: Set<String> = [
+        "tasks", "plans", "projects", "workflows", "workflow", "task", "plan", "project",
+        "status", "assigneeType", "assigneeIdentity", "linkedProjectHashes", "linkedProjectIds",
+        "createdAt", "updatedAt", "dueAt", "position", "version", "keyWrappers", "keyType",
+        "encryptedTaskKey", "encryptedPlanKey", "encryptedTitle", "encryptedGoal", "encryptedDescription",
+        "currentVersionId", "createdByAssistant", "graph", "triggerNodeId", "inputMapping",
+        "scope", "sources", "entries", "total", "count", "data", "encryptedContent"
+    ]
+
+    static func summary(error: Error, responseType: Any.Type) -> String {
+        let kind: String
+        var path: [any CodingKey]
+        switch error {
+        case DecodingError.typeMismatch(_, let context): kind = "typeMismatch"; path = context.codingPath
+        case DecodingError.valueNotFound(_, let context): kind = "valueNotFound"; path = context.codingPath
+        case DecodingError.keyNotFound(let key, let context): kind = "keyNotFound"; path = context.codingPath + [key]
+        case DecodingError.dataCorrupted(let context): kind = "dataCorrupted"; path = context.codingPath
+        default: kind = "other"; path = []
+        }
+        let safePath = path.map { key in
+            key.intValue != nil ? "item" : (fields.contains(key.stringValue) ? key.stringValue : "field")
+        }.joined(separator: ".")
+        return "response_type=\(String(describing: responseType)) failure=\(kind) field_path=\(safePath.isEmpty ? "root" : safePath)"
+    }
+
+    static func record(error: Error, responseType: Any.Type) {
+        NativeDiagnostics.error("API response decoding failed \(summary(error: error, responseType: responseType))", category: "network")
+    }
 }

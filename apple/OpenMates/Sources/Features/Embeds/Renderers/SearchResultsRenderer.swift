@@ -130,3 +130,77 @@ struct SearchResultsRenderer: View {
         }
     }
 }
+
+/// The electronics parent uses the same compact result-card grid as the web
+/// SearchResultsTemplate. Persisted parents can carry hydrated child records
+/// or just inline WEBENCH rows while child sync is pending.
+struct ElectronicsSearchParentRenderer: View {
+    let embed: EmbedRecord
+    let allEmbedRecords: [String: EmbedRecord]
+    let mode: EmbedDisplayMode
+    let onOpenEmbed: (EmbedRecord) -> Void
+
+    private var raw: [String: AnyCodable] { embed.rawData ?? [:] }
+    private var query: String { EmbedFieldReader.string(raw, keys: ["query"]) ?? "" }
+    private var provider: String { EmbedFieldReader.string(raw, keys: ["provider"]) ?? "TI WEBENCH" }
+    private var inlineRows: [[String: Any]] {
+        let results = EmbedFieldReader.dictionaryArray(raw, key: "results")
+        return results.isEmpty ? EmbedFieldReader.dictionaryArray(raw, key: "preview_results") : results
+    }
+    private var children: [EmbedRecord] {
+        let inline = inlineRows.enumerated().map { index, row in
+            EmbedRecord(
+                id: row["embed_id"] as? String
+                    ?? (embed.childEmbedIds.indices.contains(index) ? embed.childEmbedIds[index] : nil)
+                    ?? "\(embed.id)-component-\(index)",
+                type: EmbedType.electronicsComponent.rawValue, status: .finished,
+                data: .raw(row.mapValues(AnyCodable.init)),
+                parentEmbedId: embed.id, appId: "electronics", skillId: nil,
+                embedIds: nil, createdAt: embed.createdAt
+            )
+        }
+        let hydrated = embed.childEmbedIds.compactMap { allEmbedRecords[$0] }
+        return SearchSkillPreviewModel.mergedRecords(
+            parentOrder: embed.childEmbedIds, inlineRecords: inline,
+            hydratedRecords: hydrated
+        )
+    }
+    private var resultCount: Int {
+        EmbedFieldReader.int(raw, keys: ["result_count"]) ?? children.count
+    }
+    private var topEfficiency: Double? {
+        children.compactMap { EmbedFieldReader.double($0.rawData ?? [:], keys: ["efficiency_percent"]) }.max()
+    }
+
+    var body: some View {
+        switch mode {
+        case .preview:
+            VStack(alignment: .leading, spacing: .spacing2) {
+                Text(query).font(.omSmall).fontWeight(.semibold)
+                    .foregroundStyle(Color.fontPrimary).lineLimit(2)
+                Text("\(AppStrings.via) \(provider)")
+                    .font(.omXs).foregroundStyle(Color.fontSecondary).lineLimit(1)
+                HStack(spacing: .spacing2) {
+                    Text("\(resultCount) components")
+                        .font(.omXs).foregroundStyle(Color.fontSecondary)
+                    if let topEfficiency {
+                        Text(String(format: "%.1f%% Efficiency", topEfficiency))
+                            .font(.omXs).fontWeight(.semibold)
+                            .foregroundStyle(Color.fontPrimary)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            .accessibilityIdentifier("electronics-search-preview")
+        case .fullscreen:
+            SearchResultsGrid(status: embed.status, query: query, results: children,
+                              emptyText: AppStrings.searchNoResults, webLayout: true) { child in
+                EmbedPreviewCard(embed: child, allEmbedRecords: allEmbedRecords) {
+                    onOpenEmbed(child)
+                }
+                .accessibilityIdentifier("embed-preview-\(child.id)")
+            }
+            .accessibilityIdentifier("electronics-search-fullscreen")
+        }
+    }
+}

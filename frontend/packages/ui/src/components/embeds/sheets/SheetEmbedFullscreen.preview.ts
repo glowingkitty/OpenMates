@@ -53,11 +53,14 @@ const glossaryTable = `| Term | Definition |
 | SLA | Service Level Agreement — a commitment between a service provider and a client on service quality |`;
 
 /** Default props — shows a fullscreen sheet/table view */
+const sheetData = (title: string, table: string, rowCount: number, colCount: number) => ({
+	decodedContent: { title, table, row_count: rowCount, col_count: colCount },
+	attrs: { type: 'sheets-sheet' }
+});
+
 const defaultProps = {
-	title: 'Team Directory',
-	rowCount: 8,
-	colCount: 6,
-	tableContent: teamDirectoryTable,
+	data: sheetData('Team Directory', teamDirectoryTable, 8, 6),
+	embedId: 'preview-sheet-fullscreen-1',
 	onClose: () => {},
 	hasPreviousEmbed: false,
 	hasNextEmbed: false
@@ -69,10 +72,7 @@ export default defaultProps;
 export const variants = {
 	/** Wide 8-column sales table — exercises auto col widths on numeric data */
 	salesReport: {
-		title: 'Sales Report Q4 2025',
-		rowCount: 10,
-		colCount: 8,
-		tableContent: salesReportTable,
+		data: sheetData('Sales Report Q4 2025', salesReportTable, 10, 8),
 		onClose: () => {},
 		hasPreviousEmbed: true,
 		hasNextEmbed: true,
@@ -82,19 +82,13 @@ export const variants = {
 
 	/** 8-column inventory — mixed short IDs and long product names */
 	inventory: {
-		title: 'Inventory Status',
-		rowCount: 7,
-		colCount: 8,
-		tableContent: inventoryTable,
+		data: sheetData('Inventory Status', inventoryTable, 7, 8),
 		onClose: () => {}
 	},
 
 	/** 2-column glossary — tests that wide text columns size cleanly */
 	glossary: {
-		title: 'Technical Glossary',
-		rowCount: 7,
-		colCount: 2,
-		tableContent: glossaryTable,
+		data: sheetData('Technical Glossary', glossaryTable, 7, 2),
 		onClose: () => {}
 	},
 
@@ -109,9 +103,7 @@ export const variants = {
 
 	/** Minimal — no title */
 	minimal: {
-		tableContent: `| A | B | C |\n|---|---|---|\n| 1 | 2 | 3 |`,
-		rowCount: 1,
-		colCount: 3,
+		data: sheetData('', `| A | B | C |\n|---|---|---|\n| 1 | 2 | 3 |`, 1, 3),
 		onClose: () => {}
 	}
 };

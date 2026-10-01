@@ -215,6 +215,8 @@ skills:
               prompt:
                 x-ui:
                   basic: true
+                  apps:
+                    control: textarea
                 type: string
                 minLength: 1
                 maxLength: 400
@@ -229,6 +231,8 @@ skills:
               duration_seconds:
                 x-ui:
                   basic: true
+                  apps:
+                    basic: false
                 type: number
                 minimum: 0.5
                 maximum: 2.0
@@ -243,11 +247,15 @@ skills:
               loop:
                 x-ui:
                   basic: true
+                  apps:
+                    basic: false
                 type: boolean
                 default: false
               output_format:
                 x-ui:
                   basic: true
+                  apps:
+                    basic: false
                 type: string
                 enum: [mp3_22050_32, mp3_24000_48, mp3_44100_32, mp3_44100_64, mp3_44100_96, mp3_44100_128, mp3_44100_192]
                 default: mp3_44100_128
@@ -344,6 +352,7 @@ skills:
                 minimum: 0.7
                 maximum: 1.2
                 default: 1.0
+                description: Speech speed. Eleven v4 and v4 Turbo require 1.0; custom speed is supported by the older models only.
               output_format:
                 x-ui:
                   basic: false
@@ -354,9 +363,9 @@ skills:
                 x-ui:
                   basic: false
                 type: string
-                enum: [eleven_v3, eleven_multilingual_v2, eleven_flash_v2_5]
+                enum: [eleven_v3, eleven_multilingual_v2, eleven_flash_v2_5, eleven_v4, eleven_v4_turbo]
                 default: eleven_v3
-                description: ElevenLabs TTS model. Eleven v3 is the highest-quality default; Multilingual v2 provides stable long-form speech and Flash v2.5 is the lower-cost option.
+                description: ElevenLabs TTS model. Eleven v3 is the default; v4 offers the highest quality, v4 Turbo offers expressive low-latency speech, Multilingual v2 provides stable speech, and Flash v2.5 is the lower-cost option. v4 models do not support custom speed.
             required:
               - text
               - provider

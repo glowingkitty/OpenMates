@@ -208,6 +208,10 @@ def test_dynamic_rest_schema_preserves_app_yml_field_constraints(monkeypatch) ->
                                 "query": {"type": "string", "minLength": 2},
                                 "count": {"type": "integer", "minimum": 1, "maximum": 20},
                                 "relevance_criteria": {"type": "string", "maxLength": 1000},
+                                "model": {
+                                    "type": "string", "enum": ["eleven_v4", "eleven_v4_turbo"],
+                                    "default": "eleven_v4_turbo",
+                                },
                             },
                             "required": ["query"],
                         },
@@ -240,6 +244,8 @@ def test_dynamic_rest_schema_preserves_app_yml_field_constraints(monkeypatch) ->
     assert count_schema["minimum"] == 1
     assert count_schema["maximum"] == 20
     assert relevance_schema["maxLength"] == 1000
+    assert item_schema["properties"]["model"]["enum"] == ["eleven_v4", "eleven_v4_turbo"]
+    assert item_schema["properties"]["model"]["default"] == "eleven_v4_turbo"
     assert "relevance_criteria" not in item_schema["required"]
 
 

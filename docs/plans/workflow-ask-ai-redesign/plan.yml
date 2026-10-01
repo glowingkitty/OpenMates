@@ -1,0 +1,410 @@
+schema_version: 2
+id: workflow-ask-ai-redesign
+title: Workflow Ask AI and If editor redesign
+status: verified
+goal: Implement the approved step-first variable picker, highlighted and filtered @ mentions, the supplied Figma Ask AI states,
+  the chat model selector below the input at bottom left, a real streamed Test action response rendered as an OpenMates chat
+  message, and the approved If editor and one-call AI validation and billing behavior.
+scope:
+  in:
+  - Group Ask AI references by actual earlier nodes in one left-aligned horizontally scrolling row with single-line content-width
+    pills, fixed Add, edge fades and Show all limited to the selected node.
+  - Expand object fields, stop at arrays, and preserve existing saved list references.
+  - Highlight and filter a partially typed @ query, replacing it fully with a left-aligned colored reference pill showing
+    its canonical path and app icon.
+  - Persist the chat Auto or eligible exact-model choice per Ask AI step and apply it to Test and saved runs.
+  - Stream unsaved Ask AI Test output and render cumulative Markdown and embeds with OpenMates assistant identity.
+  - Use local free hints while authoring; charge once for authoritative changed-question or changed-instruction Save validation.
+  - Present If with the blue header, translated Next step backlink whose text hides in narrow containers, farther-left Delete,
+    rich shared dropdowns, app-source exact rules and an AI confirms question option.
+  - Use one Jev Test/run call to validate and evaluate AI If, with one credit when dispatched including Unsure, owner-scoped
+    retry safety and pre-dispatch checks.
+  out:
+  - Chat creation from a Workflow step Test.
+  - Redesign of unrelated Workflow nodes, chat model preferences, or the chat renderer.
+  - Provider calls while typing or selecting values, list-entry projections, or a Gemini fallback for If decisions and Save
+    validation.
+design:
+  file_key: PzgE78TVxG0eWuEeO6o8ve
+  nodes:
+  - 6154:66957
+  - 6154:67575
+  - 6154:67619
+  - 6154:67666
+  - 6155:67845
+  frame_sizes:
+  - 773x475
+  - 773x475
+  - 773x509
+  target: Source chips above the input, a second row of source-scoped fields, blue Ask AI header and compact action row.
+  accepted_differences:
+  - The latest user correction places the model selector below the input at bottom left; this supersedes the earlier inside-bottom-right
+    decision.
+  - Shared product tokens and responsive reflow are used; these references contain one desktop breakpoint.
+  - Existing delete, movement, validation and save controls remain accessible.
+  references: test-results/figma/workflow-ask-ai/
+scenarios:
+- id: S-1
+  title: Choose earlier values and type partial references
+  given:
+  - Weather and Events nodes precede Ask AI.
+  when:
+  - The author selects a source and types a partial @ query.
+  then:
+  - A single horizontally scrolling left-aligned app row keeps fixed Add and edge fades; only that source's left-aligned fields
+    appear
+  - object fields expand
+  - arrays stay whole
+  - and choosing a match replaces the highlighted query with an app-icon pill showing the canonical path.
+- id: S-2
+  title: Choose a model and watch the unsaved Test response
+  given:
+  - An Ask AI instruction and an eligible exact model are selected.
+  when:
+  - The author Tests and later saves and runs the step.
+  then:
+  - Processing appears below Test
+  - cumulative response content renders as OpenMates
+  - and the step's model choice governs Test and saved runs.
+- id: S-3
+  title: Author an If rule from compatible earlier values
+  given:
+  - Weather and AI confirmation steps precede If.
+  when:
+  - The author opens If and builds an Exact rule or authored AI judgment question.
+  then:
+  - The blue If header hides its backlink text in narrow space and places Delete farther left; shared rich dropdowns show
+    compatible scalar choices after an app source is chosen
+  - while AI confirms opens the colored inline question picker and invalid questions show errors.
+- id: S-4
+  title: Charge each authoritative AI operation once
+  given:
+  - A new or changed Ask AI instruction or AI judgment question requires Save validation.
+  when:
+  - The owner Saves
+  - Tests
+  - runs or retries the same logical operation.
+  then:
+  - Each dispatched Jev Save validation charges one credit including rejection or provider failure; AI If Test/run uses one
+    dispatched Jev decision call for one credit including Unsure; Ask Test follows normal AI Ask Skill billing
+  - with no charge before dispatch and owner-scoped retry safety.
+acceptance_criteria:
+- id: AC-1
+  scenario: S-1
+  text: One left-aligned scrolling row holds single-line content-width upstream app pills, fixed Add and edge fades without
+    stacking; scoped fields align left, nested objects expand, arrays and saved list references remain valid, and @partial
+    fully becomes a left-aligned app-icon pill with canonical path such as @events.search.results.
+  required: true
+  status: satisfied
+  coverage_status: covered
+  verification_scope: playwright
+  verification_ids:
+  - T-EDITOR
+- id: AC-2
+  scenario: S-2
+  text: The chat Auto/exact-model selector sits below the instruction at bottom left, persists per Ask AI step and controls
+    unsaved Test and saved execution.
+  required: true
+  status: satisfied
+  coverage_status: covered
+  verification_scope: related_backend
+  verification_ids:
+  - T-MODEL
+- id: AC-3
+  scenario: S-2
+  text: Test shows Processing below its action and progressively renders cumulative Markdown and embeds in the shared assistant
+    renderer with OpenMates identity, without creating a chat.
+  required: true
+  status: satisfied
+  coverage_status: covered
+  verification_scope: playwright
+  verification_ids:
+  - T-STREAM
+- id: AC-4
+  scenario: S-3
+  text: If uses the blue header and translated Next step backlink with narrow-container label hiding and farther-left Delete,
+    rich shared dropdowns, app-source compatible scalar Exact rules without a second mode choice, and an AI confirms question
+    option with local partial mentions and invalid Save/Test feedback.
+  required: true
+  status: satisfied
+  coverage_status: covered
+  verification_scope: playwright
+  verification_ids:
+  - T-IF-UI
+- id: AC-5
+  scenario: S-4
+  text: New or changed Ask AI and AI judgment Save validation charges once per dispatched Jev call including rejection or
+    provider failure; unchanged text and owner-scoped retries do not add charges, while typing, selection, structural errors,
+    missing credentials and preparation failure before dispatch remain free.
+  required: true
+  status: satisfied
+  coverage_status: covered
+  verification_scope: related_backend
+  verification_ids:
+  - T-AI-BILLING
+- id: AC-6
+  scenario: S-4
+  text: AI judgment Test/run uses one dispatched Jev call to validate and evaluate for one credit including Unsure, while
+    Ask AI Test follows normal Ask Skill billing, without provider fallback, duplicate owner-scoped retries or a 24-hour cached
+    verdict for transient provider unavailability.
+  required: true
+  status: satisfied
+  coverage_status: covered
+  verification_scope: related_backend
+  verification_ids:
+  - T-AI-BILLING
+tests:
+- id: T-EDITOR
+  type: playwright
+  file: frontend/apps/web_app/tests/components/workflow-ask-ai-editor.spec.ts
+  command: pnpm --dir frontend/apps/web_app exec playwright test tests/components/workflow-ask-ai-editor.spec.ts
+  execution_environment: isolated_github_ci
+  target: app.dev.openmates.org
+  assertions:
+  - Source selection
+  - scoped Show all
+  - object and array fields
+  - and partial mention replacement.
+  covers:
+  - AC-1
+  red_phase:
+    required: false
+    expected: not_run
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      command: pnpm --dir frontend/apps/web_app exec playwright test tests/components/workflow-ask-ai-editor.spec.ts
+      run_id: '36765281709'
+      subject_commit: c5925f95d9489e4434367e599350946278d80cd3
+      execution_environment: isolated_github_ci
+      harness_commit: 0b8108f0d521f1583d421645e57129420200692a
+      profile: component
+      artifacts:
+      - https://github.com/glowingkitty/OpenMates/actions/runs/36765281709/artifacts/11120157773
+      timestamp: '2026-09-30T19:28:27.978880+00:00'
+- id: T-MODEL
+  type: pytest
+  file: backend/tests/test_workflow_step_test.py
+  command: pytest backend/tests/test_workflow_step_test.py
+  assertions:
+  - The selected model is used for owner-scoped step tests and saved runs.
+  covers:
+  - AC-2
+  red_phase:
+    required: false
+    expected: not_run
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      command: pytest backend/tests/test_workflow_step_test.py
+      run_id: '36765275948'
+      subject_commit: c5925f95d9489e4434367e599350946278d80cd3
+      execution_environment: isolated_github_ci
+      harness_commit: 0b8108f0d521f1583d421645e57129420200692a
+      profile: pytest
+      artifacts:
+      - https://github.com/glowingkitty/OpenMates/actions/runs/36765275948/artifacts/11120297510
+      timestamp: '2026-09-30T19:28:27.979168+00:00'
+- id: T-STREAM
+  type: playwright
+  file: frontend/apps/web_app/tests/components/workflow-ask-ai-test-preview.spec.ts
+  command: pnpm --dir frontend/apps/web_app exec playwright test tests/components/workflow-ask-ai-test-preview.spec.ts
+  execution_environment: isolated_github_ci
+  target: app.dev.openmates.org
+  assertions:
+  - Cumulative Markdown and embeds use the OpenMates assistant renderer.
+  covers:
+  - AC-3
+  red_phase:
+    required: false
+    expected: not_run
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      command: pnpm --dir frontend/apps/web_app exec playwright test tests/components/workflow-ask-ai-test-preview.spec.ts
+      run_id: '36765286706'
+      subject_commit: c5925f95d9489e4434367e599350946278d80cd3
+      execution_environment: isolated_github_ci
+      harness_commit: 0b8108f0d521f1583d421645e57129420200692a
+      profile: component
+      artifacts:
+      - https://github.com/glowingkitty/OpenMates/actions/runs/36765286706/artifacts/11120870436
+      timestamp: '2026-09-30T19:28:27.979388+00:00'
+- id: T-IF-UI
+  type: playwright
+  file: frontend/apps/web_app/tests/components/workflow-check-editor.spec.ts
+  command: pnpm --dir frontend/apps/web_app exec playwright test tests/components/workflow-check-editor.spec.ts
+  execution_environment: isolated_github_ci
+  target: app.dev.openmates.org
+  assertions:
+  - If header and backlink
+  - compatible exact rule choices
+  - AI question tokens and errors.
+  covers:
+  - AC-4
+  red_phase:
+    required: false
+    expected: not_run
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      command: pnpm --dir frontend/apps/web_app exec playwright test tests/components/workflow-check-editor.spec.ts
+      run_id: '36765291993'
+      subject_commit: c5925f95d9489e4434367e599350946278d80cd3
+      execution_environment: isolated_github_ci
+      harness_commit: 0b8108f0d521f1583d421645e57129420200692a
+      profile: component
+      artifacts:
+      - https://github.com/glowingkitty/OpenMates/actions/runs/36765291993/artifacts/11119833066
+      timestamp: '2026-09-30T19:28:27.979607+00:00'
+- id: T-AI-BILLING
+  type: pytest
+  file: backend/tests/test_workflow_ai_check_and_ask.py
+  command: pytest backend/tests/test_workflow_ai_check_and_ask.py
+  assertions:
+  - Save validation and Test/run charges
+  - insufficient-credit preflight
+  - no fallback
+  - Unsure and retry idempotency.
+  covers:
+  - AC-5
+  - AC-6
+  red_phase:
+    required: false
+    expected: not_run
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      command: pytest backend/tests/test_workflow_ai_check_and_ask.py
+      run_id: '36765275948'
+      subject_commit: c5925f95d9489e4434367e599350946278d80cd3
+      execution_environment: isolated_github_ci
+      harness_commit: 0b8108f0d521f1583d421645e57129420200692a
+      profile: pytest
+      artifacts:
+      - https://github.com/glowingkitty/OpenMates/actions/runs/36765275948/artifacts/11120297510
+      timestamp: '2026-09-30T19:28:27.979788+00:00'
+implementation_state:
+  subject_commit: c5925f95d9489e4434367e599350946278d80cd3
+approvals:
+  specification:
+    status: approved
+    approved_at: '2026-09-30'
+    approved_fingerprints: &id001
+    - b5acb213104860182e5963dfbf3d96bd58ad8c3b921e6e0bbe183faeabe6dd38
+    - 3f3d31f275f7b400cced4229540cc658d50447efe1c253c7e6ef863317231678
+    previous_approved_fingerprints:
+    - e7943626c05747956344e01893440865a55cf0741ad0d8b582c12eb315595a30
+    - c2eac515ed972768255fd89fa8f8c9932b10e679ff14bf8b037342c6dbd53a28
+    reason: The user explicitly approved the corrected UI review PDF and fingerprint, retaining the approved core billing
+      contract, before final CI and dev deployment.
+    reconciliation:
+      kind: mechanical_merge_of_approved_scope
+      base: cc4e80265
+      preserved_task_fingerprints: *id001
+      reason: Existing approvals authorize the task behavior. Merge retains all disjoint newer dev assertions and examples;
+        no new task behavior or design decision is introduced.
+  plan:
+    status: approved
+    approved_at: '2026-09-30'
+    reason: The user explicitly approved the Ask AI scope and this additional If editor and AI billing scope and directed
+      work to proceed.
+decisions:
+- id: D-1
+  status: active
+  decision: Place the model selector below the Ask AI input at bottom left.
+  reason: The user's latest explicit correction supersedes the earlier inside-bottom-right placement.
+  decided_at: '2026-09-30'
+- id: D-2
+  status: active
+  decision: Reuse the chat assistant renderer for Test content without creating a chat.
+  reason: The response must converge progressively with real Markdown and embeds under OpenMates identity.
+  decided_at: '2026-09-30'
+- id: D-3
+  status: active
+  decision: Use local free authoring hints and one charged Jev operation per new or changed Save validation or AI If Test/run
+    decision.
+  reason: The user explicitly ruled out typing-time provider calls, duplicate retries and a second decision fallback.
+  decided_at: '2026-09-30'
+tasks:
+- id: TASK-1
+  title: Implement approved Workflow Ask AI and If redesign
+  status: done
+  phase: complete
+  covers:
+    scenarios:
+    - S-1
+    - S-2
+    - S-3
+    - S-4
+    acceptance_criteria:
+    - AC-1
+    - AC-2
+    - AC-3
+    - AC-4
+    - AC-5
+    - AC-6
+  expected_files:
+  - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+  verification_ids:
+  - T-EDITOR
+  - T-MODEL
+  - T-STREAM
+  - T-IF-UI
+  - T-AI-BILLING
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+    shared_files: []
+attempts:
+- id: ATTEMPT-1
+  task_id: TASK-1
+  approach: Record the user-approved behavior in the existing Workflow UI contract and implement it in the active session.
+  outcome: succeeded
+  recorded_at: '2026-09-30'
+- id: ATTEMPT-2
+  task_id: TASK-1
+  approach: Extend the existing Workflow contracts with the newly approved If editor and one-call AI billing behavior before
+    CI.
+  outcome: succeeded
+  recorded_at: '2026-09-30'
+- id: ATTEMPT-3
+  task_id: TASK-1
+  approach: 'Verify the authenticated authoring flow on source 402582f985dac930541d79e328f5852d703a1749 in isolated GitHub
+    CI: https://github.com/glowingkitty/OpenMates/actions/runs/36755183078'
+  outcome: succeeded
+  recorded_at: '2026-09-30'
+- id: ATTEMPT-4
+  task_id: TASK-1
+  approach: Preserve newer shared dev files and verify source f516c83906c67465127b867313a38d874cef50e7 on current dev, including
+    authenticated CI https://github.com/glowingkitty/OpenMates/actions/runs/36760982427
+  outcome: succeeded
+  recorded_at: '2026-09-30'
+handoff:
+  current_task_id: TASK-1
+  next_action: Deploy the exact reviewed candidate to dev; regenerate derived Specification indexes from current dev and refresh
+    the scoped API and workflow AI workers.
+  command: 'python3 scripts/sessions.py deploy --session 71c4 --title "feat: redesign workflow AI authoring and checks"'
+  expected_outcome: The approved Workflow UI and runtime contracts have passing source-bound CI evidence and the change is
+    deployed to dev.
+  blocker: null
+  last_verified_commit: c5925f95d9489e4434367e599350946278d80cd3
+approved_by_user: true

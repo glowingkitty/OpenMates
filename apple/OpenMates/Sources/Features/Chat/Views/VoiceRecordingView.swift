@@ -17,7 +17,8 @@ import AVFoundation
 final class AudioRecordingFileWriter: @unchecked Sendable {
     static let maximumPendingBuffers = 24
 
-    private let file: AVAudioFile
+    // Access and close only on the serialized writer queue.
+    private var file: AVAudioFile?
     private let queue = DispatchQueue(label: "org.openmates.audio-recording-writer", qos: .userInitiated)
     private let stateLock = NSLock()
     private var pendingBufferCount = 0
@@ -29,27 +30,32 @@ final class AudioRecordingFileWriter: @unchecked Sendable {
     }
 
     func enqueue(_ source: AVAudioPCMBuffer) -> Bool {
+        guard let copy = Self.copyBuffer(source) else {
+            stateLock.lock()
+            writeFailed = true
+            stateLock.unlock()
+            return false
+        }
         stateLock.lock()
-        guard acceptingBuffers, pendingBufferCount < Self.maximumPendingBuffers else {
+        guard acceptingBuffers else { stateLock.unlock(); return false }
+        guard pendingBufferCount < Self.maximumPendingBuffers else {
             writeFailed = true
             stateLock.unlock()
             return false
         }
         pendingBufferCount += 1
-        stateLock.unlock()
-
-        guard let copy = Self.copyBuffer(source) else {
-            completeBuffer(failed: true)
-            return false
-        }
+        // Schedule before releasing the finish fence: every accepted buffer
+        // must precede the queue's close operation, including the final tap.
         queue.async { [self] in
             do {
+                guard let file else { completeBuffer(failed: true); return }
                 try file.write(from: copy)
                 completeBuffer(failed: false)
             } catch {
                 completeBuffer(failed: true)
             }
         }
+        stateLock.unlock()
         return true
     }
 
@@ -57,7 +63,9 @@ final class AudioRecordingFileWriter: @unchecked Sendable {
         stateLock.lock()
         acceptingBuffers = false
         stateLock.unlock()
-        queue.sync {}
+        // AVAudioFile writes the AAC container trailer on close. Finish must
+        // publish a playable file even while the writer/tap remains retained.
+        queue.sync { file = nil }
         stateLock.lock()
         let succeeded = !writeFailed && pendingBufferCount == 0
         stateLock.unlock()
@@ -451,6 +459,9 @@ final class VoiceRecorder: ObservableObject {
             error = AppStrings.uploadProgressError
             return nil
         }
+        // Ownership passes to the composer. Cancelling a later recording must
+        // never remove a completed file that is uploading or awaiting retry.
+        self.recordingURL = nil
         return recordingURL
     }
 
@@ -614,7 +625,7 @@ final class VoiceRecorder: ObservableObject {
         ProcessInfo.processInfo.arguments.contains("--ui-test-welcome-recording-output-failure")
     }
 
-    private static func writeUITestRecording(to url: URL) -> Bool {
+    static func writeUITestRecording(to url: URL) -> Bool {
         try? FileManager.default.removeItem(at: url)
         guard let format = AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 1),
               let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 4_410),

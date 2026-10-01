@@ -7,7 +7,8 @@
 // Specification: specifications/features/tasks/specification.yml
 
 import { webcrypto } from 'node:crypto';
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { userProfile } from '../../stores/userProfile';
 
 const masterKey = vi.hoisted(() => ({ value: null as CryptoKey | null }));
 const cryptoMocks = vi.hoisted(() => ({
@@ -31,11 +32,18 @@ import {
   canSubmitUserTaskActivity,
   createUserTaskActivity,
   createUserTask,
+  createTaskMoveSequencer,
+  deleteUserTask,
   deleteUserTaskActivity,
   externalChatLookupHash,
   getTaskAssignmentEligibility,
+  getUserTask,
   listUserTaskActivity,
   listUserTasks,
+  listTaskBoardItems,
+  peekUserTasks,
+  prependTaskBoardItem,
+  reorderUserTasks,
   startUserTaskWithAI,
   updateUserTask,
   type EncryptedUserTaskRecord,
@@ -80,6 +88,128 @@ describe('userTaskService external chat privacy', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.spyOn(crypto, 'randomUUID').mockReturnValue('00000000-0000-4000-8000-000000000001');
+  });
+
+  afterEach(() => userProfile.update((profile) => ({ ...profile, user_id: null })));
+
+  // contract-test: supporting surface=gui.web assertions=tasks.lifecycle.visible
+  it('waits for a block reorder before starting an immediate unblock of the same Task', async () => {
+    const runMove = createTaskMoveSequencer();
+    const actions: string[] = [];
+    let finishBlockReorder!: () => void;
+    const blockReorder = new Promise<void>((resolve) => { finishBlockReorder = resolve; });
+
+    const block = runMove('task-a', async () => {
+      actions.push('block response');
+      await blockReorder;
+      actions.push('block reorder');
+    });
+    const unblock = runMove('task-a', async () => { actions.push('unblock request'); });
+    const otherTask = runMove('task-b', async () => { actions.push('other task request'); });
+
+    await otherTask;
+    expect(actions).toEqual(['block response', 'other task request']);
+    finishBlockReorder();
+    await Promise.all([block, unblock]);
+    expect(actions).toEqual(['block response', 'other task request', 'block reorder', 'unblock request']);
+  });
+
+  // contract-test: direct surface=gui.web assertions=tasks.surface.semantic-parity,tasks.content.client-encrypted
+  it('reuses an exact chat query and its selected entity without decrypting it again', async () => {
+    userProfile.update((profile) => ({ ...profile, user_id: 'cache-test-user' }));
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify({ tasks: [taskResponse({ primary_chat_id: 'chat-a' })], eligible_external_ai: [] }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ tasks: [], eligible_external_ai: [] }), { status: 200 }));
+    expect((await listUserTasks({ chatId: 'chat-a' })).map((task) => task.task_id)).toEqual(['task-server-id']);
+    await listUserTasks({ chatId: 'chat-a' });
+    expect((await getUserTask('task-server-id')).title).toBe('Private task title');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(cryptoMocks.decryptChatKeyWithMasterKey).toHaveBeenCalledTimes(1);
+    expect(await listUserTasks({ chatId: 'chat-b' })).toEqual([]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  // contract-test: direct surface=gui.web assertions=tasks.surface.semantic-parity
+  it('does not resurrect a deleted task from an older in-flight list response', async () => {
+    userProfile.update((profile) => ({ ...profile, user_id: 'cache-race-user' }));
+    let releaseList: ((response: Response) => void) | undefined;
+    const listResponse = new Promise<Response>((resolve) => { releaseList = resolve; });
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      if (init?.method === 'DELETE') return new Response(JSON.stringify({ deleted: true }), { status: 200 });
+      if (String(input).includes('chat_id=chat-a')) return listResponse;
+      throw new Error(`Unexpected request ${String(input)}`);
+    });
+    const pending = listUserTasks({ chatId: 'chat-a' });
+    await deleteUserTask(taskViewModel());
+    releaseList?.(new Response(JSON.stringify({ tasks: [taskResponse({ primary_chat_id: 'chat-a' })], eligible_external_ai: [] }), { status: 200 }));
+    await expect(pending).rejects.toThrow('superseded');
+    expect(peekUserTasks({ chatId: 'chat-a' })).toBeUndefined();
+  });
+
+  // contract-test: direct surface=gui.web assertions=tasks.surface.semantic-parity
+  it('uses a newer board record when an older selected entity is cached', async () => {
+    userProfile.update((profile) => ({ ...profile, user_id: 'cache-version-user' }));
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify({ task: taskResponse({ version: 1, updated_at: 1 }), eligible_external_ai: [] }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ tasks: [taskResponse({ version: 2, updated_at: 2, encrypted_title: 'sealed:TmV3ZXI=' })], eligible_external_ai: [] }), { status: 200 }));
+    expect((await getUserTask('task-server-id')).version).toBe(1);
+    await listUserTasks();
+    const newest = await getUserTask('task-server-id');
+    expect(newest.version).toBe(2);
+    expect(newest.title).toBe('Newer');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  // contract-test: direct surface=gui.web assertions=tasks.surface.semantic-parity
+  it('gets eligibility from metadata-only API when a created task is warm without board provenance', async () => {
+    userProfile.update((profile) => ({ ...profile, user_id: 'warm-task-user' }));
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify({ task: taskResponse() }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ eligible_external_ai: ['codex'] }), { status: 200 }));
+    await createUserTask({ title: 'Private task title' });
+    expect((await getUserTask('task-server-id')).task_id).toBe('task-server-id');
+    expect(await getTaskAssignmentEligibility()).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(String(fetchMock.mock.calls[1]?.[0])).toBe('https://api.test/v1/user-tasks/assignment-eligibility');
+  });
+
+  // contract-test: direct surface=gui.web assertions=tasks.lifecycle.visible,tasks.surface.semantic-parity
+  it('refreshes a conflicted board from the server before retrying a move', async () => {
+    userProfile.update((profile) => ({ ...profile, user_id: 'conflict-refresh-user' }));
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify({ tasks: [taskResponse({ version: 1 })], eligible_external_ai: [] }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ tasks: [taskResponse({ version: 2, updated_at: 2 })], eligible_external_ai: [] }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ tasks: [taskResponse({ version: 3, updated_at: 3, status: 'in_progress' })] }), { status: 200 }));
+    expect((await listTaskBoardItems())[0]?.version).toBe(1);
+    expect((await listTaskBoardItems())[0]?.version).toBe(1);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [latest] = await listTaskBoardItems({}, { force: true });
+    if (!latest || !('encrypted' in latest)) throw new Error('Expected encrypted user task');
+    expect(latest.version).toBe(2);
+    await reorderUserTasks([{ task: latest, status: 'in_progress' }]);
+    expect(JSON.parse(String(fetchMock.mock.calls[2]?.[1]?.body)).moves[0].version).toBe(2);
+  });
+
+  // contract-test: direct surface=gui.web assertions=tasks.lifecycle.visible
+  it('keeps one keyed card when cache publication precedes the local create result', () => {
+    const cached = taskViewModel();
+    const created = { ...cached, title: 'New title' };
+    const rows = prependTaskBoardItem([cached], created);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].title).toBe('New title');
+  });
+
+  // contract-test: direct surface=gui.web assertions=tasks.surface.semantic-parity,tasks.content.client-encrypted
+  it('loads one selected task by ID and receives owner assignment provenance without a list request', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response(JSON.stringify({
+      task: taskResponse(), eligible_external_ai: ['codex'],
+    }), { status: 200 }));
+    const task = await getUserTask('task-server-id');
+    expect(task.task_id).toBe('task-server-id');
+    expect(task.title).toBe('Private task title');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(String(fetchMock.mock.calls[0]?.[0])).toBe('https://api.test/v1/user-tasks/task-server-id');
+    expect(cryptoMocks.decryptChatKeyWithMasterKey).toHaveBeenCalledTimes(1);
   });
 
   // contract-test: direct surface=gui.web assertions=tasks.content.client-encrypted,tasks.external-chat.encrypted-context

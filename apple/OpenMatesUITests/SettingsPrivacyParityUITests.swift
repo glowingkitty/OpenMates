@@ -12,12 +12,20 @@ final class SettingsPrivacyParityUITests: XCTestCase {
         continueAfterFailure = false
     }
 
+    // contract-test: supporting surface=gui.apple assertions=settings-ui.navigation.parent-return,settings-ui.composition.canonical-and-accessible,settings-ui.parity.web-apple-shell
     func testPrivacyHubAndNestedFlowsAreVisibleAndClickable() {
         let app = launchPrivacyFixture()
 
         assertHittable("settings-privacy-policy-link", in: app)
         assertHittable("settings-privacy-connected-accounts-row", in: app)
         assertHittable("settings-privacy-location-toggle", in: app)
+
+        let hideToggle = app.switches["settings-hide-personal-data-row-toggle"]
+        XCTAssertTrue(hideToggle.waitForExistence(timeout: 5), "Hide personal data must expose its real toggle")
+        XCTAssertTrue(hideToggle.isHittable)
+        hideToggle.tap()
+        assertHittable("settings-hide-personal-data-toggle", in: app)
+        returnToPrivacyHub(in: app)
 
         element("settings-privacy-connected-accounts-row", in: app).tap()
         XCTAssertTrue(element("privacy-connected-account-row", in: app).waitForExistence(timeout: 5))
@@ -42,11 +50,109 @@ final class SettingsPrivacyParityUITests: XCTestCase {
         assertHittable("privacy-debug-session-start", in: app)
     }
 
+    // contract-test: direct surface=gui.apple assertions=settings-ui.navigation.contextual-availability,settings-ui.parity.web-apple-shell
+    func testGuestPrivacyAccountActionsOpenAuthentication() {
+        for identifier in [
+            "settings-hide-personal-data-row",
+            "settings-hide-personal-data-row-toggle",
+            "settings-privacy-connected-accounts-row",
+            "settings-privacy-auto-delete-chats-row",
+            "settings-privacy-share-debug-logs-row",
+            "settings-privacy-location-toggle",
+            "settings-privacy-stability-toggle",
+            "settings-privacy-debug-toggle",
+        ] {
+            let app = launchGuestPrivacy()
+            scrollTo(identifier, in: app)
+            let target = app.switches[identifier].firstMatch.exists
+                ? app.switches[identifier].firstMatch : element(identifier, in: app)
+            XCTAssertTrue(target.isHittable, identifier)
+            target.tap()
+            let signupTab = app.buttons["auth-signup-tab"]
+            XCTAssertTrue(signupTab.waitForExistence(timeout: 8), "Guest account action \(identifier) must open authentication")
+            XCTAssertTrue(signupTab.isHittable)
+            XCTAssertFalse(app.descendants(matching: .any)["privacy-connected-account-row"].exists)
+            XCTAssertFalse(app.descendants(matching: .any)["privacy-debug-session-start"].exists)
+            app.terminate()
+        }
+    }
+
+    // contract-test: direct surface=gui.apple assertions=settings-ui.shell.lifecycle-and-routing,settings-ui.navigation.contextual-availability
+    func testGuestPrivatePrivacyLinksOpenAuthenticationBeforeDestination() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-disable-auth-cache", "--ui-test-app-link-fixture"]
+        for path in ["privacy/connected-accounts", "privacy/hide-personal-data",
+                     "privacy/auto-deletion/chats", "privacy/share-debug-logs"] {
+            app.launchEnvironment["UI_TEST_SETTINGS_LINK_PATH"] = path
+            app.launch()
+            let link = app.descendants(matching: .any)["ui-test-settings-link"]
+            XCTAssertTrue(link.waitForExistence(timeout: 15))
+            XCTAssertTrue(link.isHittable)
+            link.tap()
+            let signup = app.buttons["auth-signup-tab"]
+            XCTAssertTrue(signup.waitForExistence(timeout: 8), path)
+            XCTAssertTrue(signup.isHittable)
+            XCTAssertFalse(app.descendants(matching: .any)["settings-privacy-subpage-back"].exists)
+            XCTAssertFalse(app.descendants(matching: .any)["privacy-connected-account-row"].exists)
+            app.terminate()
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=settings-ui.navigation.contextual-availability,settings-ui.navigation.parent-return
+    func testGuestPrivacyPolicyRemainsPublicAndReturnsToOverview() {
+        let app = launchGuestPrivacy()
+        attachScreenshot("Privacy guest hub subtitle order", app: app)
+        let policy = app.buttons["settings-privacy-policy-link"]
+        XCTAssertTrue(policy.waitForExistence(timeout: 5))
+        XCTAssertTrue(policy.isHittable)
+        XCTAssertEqual(policy.images.count, 0, "The public policy entry is a text link without an icon")
+        XCTAssertEqual(policy.frame.height, 40, accuracy: 1, "The text link uses web10pt vertical padding")
+        let hideToggle = app.switches["settings-hide-personal-data-row-toggle"]
+        XCTAssertTrue(hideToggle.waitForExistence(timeout: 5))
+        XCTAssertTrue(hideToggle.isHittable)
+        XCTAssertTrue(app.switches["settings-privacy-location-toggle"].isHittable)
+        let connected = app.buttons["settings-privacy-connected-accounts-row"]
+        XCTAssertEqual(connected.frame.height, 44, accuracy: 1, "Compact rows retain the web44pt icon slot")
+        policy.tap()
+        let back = app.buttons["settings-privacy-subpage-back"]
+        XCTAssertTrue(back.waitForExistence(timeout: 5))
+        XCTAssertTrue(back.isHittable)
+        XCTAssertFalse(app.buttons["auth-signup-tab"].exists)
+        attachScreenshot("Privacy public policy", app: app)
+        back.tap()
+        XCTAssertTrue(app.buttons["settings-privacy-connected-accounts-row"].waitForExistence(timeout: 5))
+    }
+
+    private func attachScreenshot(_ name: String, app: XCUIApplication) {
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
+    private func launchGuestPrivacy() -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-disable-auth-cache"]
+        app.launch()
+        let settings = app.buttons["settings-button"]
+        XCTAssertTrue(settings.waitForExistence(timeout: 15))
+        XCTAssertTrue(settings.isHittable)
+        settings.tap()
+        let privacy = app.buttons["settings-privacy-row"]
+        XCTAssertTrue(privacy.waitForExistence(timeout: 8))
+        XCTAssertTrue(privacy.isHittable)
+        privacy.tap()
+        XCTAssertTrue(element("settings-privacy-hub", in: app).waitForExistence(timeout: 8))
+        XCTAssertTrue(app.scrollViews["settings-privacy-page"].waitForExistence(timeout: 5))
+        return app
+    }
+
     private func launchPrivacyFixture() -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = [
             "--ui-test-disable-auth-cache",
             "--ui-test-account-settings-fixture",
+            "--ui-test-authenticated-chat-navigation",
             "--ui-test-privacy-settings-fixture",
         ]
         app.launch()
@@ -56,6 +162,8 @@ final class SettingsPrivacyParityUITests: XCTestCase {
         XCTAssertTrue(privacyRow.waitForExistence(timeout: 8))
         privacyRow.tap()
         XCTAssertTrue(element("settings-privacy-page", in: app).waitForExistence(timeout: 8))
+        XCTAssertTrue(app.scrollViews["settings-privacy-page"].exists, "The page identity must belong to the actual scrolling Privacy surface")
+        XCTAssertTrue(element("settings-privacy-hub", in: app).exists)
         return app
     }
 

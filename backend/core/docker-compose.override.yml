@@ -2,6 +2,41 @@
 # Overrides for development/local access via SSH port forwarding
 
 services:
+  # Workers build the same skill registry as the API. Keep development feature
+  # gates consistent, including services inherited from task-worker.
+  task-worker:
+    environment: &development-worker-environment
+      BACKEND_CONFIG_FILE: "/app/backend/config/backend_config.dev.yml"
+
+  core-worker:
+    environment: *development-worker-environment
+  user-init-worker:
+    environment: *development-worker-environment
+  user-tasks-worker:
+    environment: *development-worker-environment
+  reminder-worker:
+    environment: *development-worker-environment
+  workflow-worker:
+    environment: *development-worker-environment
+  task-scheduler:
+    environment: *development-worker-environment
+  app-ai-worker:
+    environment: *development-worker-environment
+  app-images-worker:
+    environment: *development-worker-environment
+  app-music-worker:
+    environment: *development-worker-environment
+  app-videos-worker:
+    environment: *development-worker-environment
+  app-pdf-worker:
+    environment: *development-worker-environment
+  app-docs-worker:
+    environment: *development-worker-environment
+  app-code-worker:
+    environment: *development-worker-environment
+  app-social-media-worker:
+    environment: *development-worker-environment
+
   api:
     environment:
       # Enable pre-release platform gates only on the local development stack.

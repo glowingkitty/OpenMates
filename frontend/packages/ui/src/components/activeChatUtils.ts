@@ -99,6 +99,12 @@ export function getAppGradientColors(appId: string | null | undefined): Gradient
     };
 }
 
+/** Use the same complete gradient token as app cards and embed previews. */
+export function getAppGradientBackground(appId: string | null | undefined): string {
+    if (!appId || !/^[a-z0-9_-]+$/.test(appId)) return 'var(--color-app-ai)';
+    return `var(--color-app-${appId}, var(--color-app-ai))`;
+}
+
 export function getContinueGradientColors(
     category: string | null | undefined,
     appId?: string | null,

@@ -31,6 +31,7 @@ class FakeVaultCipher:
         return f"vault:{delivery_id}"
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.chat-delivery.pending-private
 def test_pending_delivery_encrypts_private_content_without_a_regular_chat_key() -> None:
     cipher = FakeVaultCipher()
     service = WorkflowChatDeliveryService(cipher=cipher, clock=lambda: 100)
@@ -51,6 +52,7 @@ def test_pending_delivery_encrypts_private_content_without_a_regular_chat_key() 
     assert not hasattr(service, "chat_key")
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.chat-delivery.claim-fenced
 def test_claim_is_fenced_and_expired_claim_can_be_reclaimed() -> None:
     now = [100]
     service = WorkflowChatDeliveryService(cipher=FakeVaultCipher(), clock=lambda: now[0], claim_ttl_seconds=10)
@@ -70,6 +72,7 @@ def test_claim_is_fenced_and_expired_claim_can_be_reclaimed() -> None:
     assert second_claim.token != first_claim.token
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.chat-delivery.claim-fenced,workflows.chat-delivery.client-encrypted
 def test_stale_claim_cannot_persist_or_acknowledge_after_reclaim() -> None:
     now = [100]
     service = WorkflowChatDeliveryService(cipher=FakeVaultCipher(), clock=lambda: now[0], claim_ttl_seconds=10)
@@ -106,6 +109,27 @@ def test_stale_claim_cannot_persist_or_acknowledge_after_reclaim() -> None:
     assert service.acknowledge_delivery(delivery_id=delivery.delivery_id, owner_id="alice", claim=winning_claim).status == "acknowledged"
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.chat-delivery.claim-fenced,workflows.chat-delivery.client-encrypted
+def test_permanent_validation_failure_is_terminal_only_for_current_unpersisted_claim() -> None:
+    now = [100]
+    service = WorkflowChatDeliveryService(cipher=FakeVaultCipher(), clock=lambda: now[0], claim_ttl_seconds=10)
+    delivery = service.create_delivery(owner_id="alice", title="Title", message="Message", expires_at=200,
+                                       workflow_id="workflow-1", run_id="run-1", node_id="send")
+    stale = service.claim_new_chat_delivery(delivery_id=delivery.delivery_id, owner_id="alice", device_id="phone")
+    now[0] = 111
+    current = service.claim_new_chat_delivery(delivery_id=delivery.delivery_id, owner_id="alice", device_id="laptop")
+    with pytest.raises(WorkflowChatDeliveryStaleClaimError):
+        service.fail_rejected_client_ciphertext(delivery_id=delivery.delivery_id, owner_id="alice", claim=stale, device_id="phone")
+    with pytest.raises(WorkflowChatDeliveryStaleClaimError):
+        service.fail_rejected_client_ciphertext(delivery_id=delivery.delivery_id, owner_id="alice", claim=current, device_id="phone")
+    assert service.get_delivery(delivery_id=delivery.delivery_id, owner_id="alice").status == "claimed"
+    failed = service.fail_rejected_client_ciphertext(delivery_id=delivery.delivery_id, owner_id="alice", claim=current, device_id="laptop")
+    assert failed.status == "failed"
+    assert failed.encrypted_payload == ""
+    assert service.list_pending_for_owner(owner_id="alice") == []
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.chat-delivery.pending-private,workflows.chat-delivery.claim-fenced
 def test_reconnect_advertises_only_unclaimed_pending_deliveries() -> None:
     service = WorkflowChatDeliveryService(cipher=FakeVaultCipher(), clock=lambda: 100)
     pending = service.create_delivery(owner_id="alice", title="Pending", message="Message", expires_at=200)
@@ -140,6 +164,7 @@ def test_reconnect_advertises_only_unclaimed_pending_deliveries() -> None:
     assert claimed_claim.token
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.chat-delivery.claim-fenced
 def test_claim_token_is_bound_to_the_claiming_device_when_supplied() -> None:
     service = WorkflowChatDeliveryService(cipher=FakeVaultCipher(), clock=lambda: 100)
     delivery = service.create_delivery(owner_id="alice", title="Title", message="Message", expires_at=200)
@@ -167,6 +192,7 @@ def test_claim_token_is_bound_to_the_claiming_device_when_supplied() -> None:
         service.acknowledge_delivery(delivery_id=delivery.delivery_id, owner_id="alice", claim=claim, device_id="laptop")
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.chat-delivery.pending-private,workflows.chat-delivery.claim-fenced
 def test_directus_record_stores_claim_token_hash_without_raw_claim_token() -> None:
     service = WorkflowChatDeliveryService(cipher=FakeVaultCipher(), clock=lambda: 100)
     delivery = service.create_delivery(owner_id="alice", title="Title", message="Message", expires_at=200)
@@ -183,6 +209,7 @@ def test_directus_record_stores_claim_token_hash_without_raw_claim_token() -> No
     assert restored.claim_token_hash == record["claim_token_hash"]
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.chat-delivery.claim-fenced,workflows.chat-delivery.pending-private
 def test_owner_checks_and_terminal_cancellation_or_expiry_block_delivery() -> None:
     now = [100]
     service = WorkflowChatDeliveryService(cipher=FakeVaultCipher(), clock=lambda: now[0])

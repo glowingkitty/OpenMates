@@ -81,7 +81,7 @@ This publishes a candidate through a temporary index. It does not integrate or d
 
 ## Queue, cost and retained space
 
-One flocked reconciler dispatches at most four active jobs by default, reserving one slot for lightweight component/unit jobs. Within explicit priority, admission balances active jobs across owners before FIFO. `OPENMATES_CI_MAX_ACTIVE` and `OPENMATES_CI_LIGHTWEIGHT_RESERVE` configure these bounds. Intent is durable before the request; ambiguous dispatches retain their slot and are reconciled rather than resent. Routine status polling is shared at 30 seconds. GitHub request reserve and backoff also apply to artifact retrieval. The coordinator exposes attention states instead of silently rerunning uncertain jobs.
+One flocked reconciler dispatches at most ten active jobs by default, reserving one slot for lightweight component/unit jobs. Within explicit priority, admission balances active jobs across owners before FIFO. `OPENMATES_CI_MAX_ACTIVE` and `OPENMATES_CI_LIGHTWEIGHT_RESERVE` configure these bounds. Intent is durable before the request; ambiguous dispatches retain their slot and are reconciled rather than resent. Routine status polling is shared at 30 seconds. GitHub request reserve and backoff also apply to artifact retrieval. The coordinator exposes attention states instead of silently rerunning uncertain jobs.
 
 ### Prepare once, run independently
 

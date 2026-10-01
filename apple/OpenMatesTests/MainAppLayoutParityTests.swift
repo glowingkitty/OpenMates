@@ -8,9 +8,20 @@
 //             frontend/packages/ui/src/components/ActiveChat.svelte
 
 import XCTest
+import CoreGraphics
 @testable import OpenMates
 
 final class MainAppLayoutParityTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=settings-ui.parity.web-apple-shell
+    func testSettingsOverlayFadesChatToWebOpacityAndRestoresOnDismissOrResize() {
+        for width: CGFloat in [390, 768, 1100] {
+            XCTAssertEqual(WorkspaceSettingsBackdropPolicy.contentOpacity(windowWidth: width, isOpen: true, parentVisible: true), 0.3)
+            XCTAssertEqual(WorkspaceSettingsBackdropPolicy.contentOpacity(windowWidth: width, isOpen: false, parentVisible: true), 1)
+            XCTAssertEqual(WorkspaceSettingsBackdropPolicy.contentOpacity(windowWidth: width, isOpen: true, parentVisible: false), 1)
+        }
+        XCTAssertEqual(WorkspaceSettingsBackdropPolicy.contentOpacity(windowWidth: 1101, isOpen: true, parentVisible: true), 1)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chats.layout.responsive-history
     func testRegularSidebarDragResizesActiveChatContinuously() {
         XCTAssertEqual(WorkspaceSidebarLayoutPolicy.leadingInset(width: 1024, isOpen: false, dragOffset: 0), 10)

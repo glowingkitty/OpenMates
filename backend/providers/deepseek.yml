@@ -40,6 +40,7 @@ models:
       - id: "together"
         name: "Together AI"
         model_id: "deepseek-ai/DeepSeek-V4-Pro-0813"
+        health_check_preferred: true # Known serverless probe; the cheapest configured model requires a dedicated endpoint.
         region: "US" # Server region for UI display
       - id: "openrouter"
         name: "OpenRouter API"

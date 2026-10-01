@@ -7,16 +7,12 @@ import {
   messageDestinationConfig,
   workflowGraphReady,
   outputsBefore,
-  workflowIcon,
   normalizeSchema,
   schemaDefault,
   type Capability,
 } from "../workflowBuilder";
-import {
-  dailyWeatherNewsGraph,
-  weeklyEventsGraph,
-  hourlyApartmentsGraph,
-} from "../workflowExamples";
+import { presentedItems } from '../workflowValuePresentation';
+import { workflowTemplates, workflowTemplateGraph } from "../workflowTemplates";
 import type {
   WorkflowGraph,
   WorkflowNode,
@@ -162,6 +158,14 @@ test("declared result fields are available as list-preserving variables", () => 
     type: "array",
     items: { type: "string", title: "Name" },
   });
+  // Existing templates keep their declared projections, while every new picker
+  // stops at the result list itself, including its Show all view.
+  const shown = presentedItems(outputs);
+  assert.deepEqual([...shown.basic, ...shown.advanced].map(item => item.reference), [
+    '$nodes.news.output.events',
+  ]);
+  assert.equal(outputs[0].listProjection, undefined);
+  assert.ok(outputs.slice(1).every(item => item.listProjection));
 });
 // contract-test: supporting surface=gui.web assertions=workflows.control.check,workflows-ui.mvp.authoring
 test("inserting a true-branch action preserves the else and continuation paths", () => {
@@ -209,43 +213,19 @@ test("adding a trigger after configuring an action keeps the action intact", () 
   assert.deepEqual(updated.edges, [{ from: "trigger", to: "news" }]);
   assert.equal(updated.nodes[1], action);
 });
-// contract-test: supporting surface=gui.web assertions=workflows.schedule.recurrence,workflows.control.filter,workflows-ui.message-and-budget,workflows-ui.identity.automatic-category-icon
-test("video starters use relative weekly dates and delivered-only lists without Filters", () => {
-  const daily = dailyWeatherNewsGraph(),
-    weekly = weeklyEventsGraph(),
-    hourly = hourlyApartmentsGraph();
-  assert.equal(
-    (daily.nodes[0].config?.schedule as { time: string }).time,
-    "09:00",
-  );
-  const weather = daily.nodes[1].config?.input as Record<string, unknown>;
-  assert.deepEqual(weather.start_date, { $date: "today", format: "date" });
-  assert.deepEqual(weather.end_date, { $date: "today", format: "date" });
-  assert.equal(weather.days, undefined);
-  const events = (
-    weekly.nodes[1].config?.input as { requests: Record<string, unknown>[] }
-  ).requests[0];
-  assert.deepEqual(events.start_date, {
-    $date: "next_week_start",
-    format: "datetime",
-  });
-  const apartments = (
-    hourly.nodes[1].config?.input as { requests: Record<string, unknown>[] }
-  ).requests[0];
-  assert.equal(apartments.max_price_eur, 1200);
-  assert.equal(apartments.min_rooms, undefined);
-  assert.equal(
-    (hourly.nodes[2].config?.blocks as { only_new_results: boolean }[])[0]
-      .only_new_results,
-    true,
-  );
-  assert.equal(workflowIcon("Apartment search", "help-circle"), "house");
-  assert(
-    [...daily.nodes, ...weekly.nodes, ...hourly.nodes].every(
-      (node) =>
-        !["send_email_notification", "filter", "ai_action"].includes(node.type),
-    ),
-  );
+// contract-test: supporting surface=gui.web assertions=workflows-ui.workspace.owned-library-and-templates,workflows.schedule.recurrence
+test("browse templates provide independent, ready V2 graphs", () => {
+  assert.equal(workflowTemplates.length, 2);
+  for (const template of workflowTemplates) {
+    const first = workflowTemplateGraph(template.id)!;
+    const second = workflowTemplateGraph(template.id)!;
+    assert.equal(first.version, 2);
+    assert.equal(first.nodes[0].type, "schedule_trigger");
+    assert.equal(first.nodes[1].type, "send_chat_message");
+    assert.equal(workflowGraphReady(first, { requireSchedule: true }), true);
+    first.nodes[1].title = "Changed only here";
+    assert.notEqual(second.nodes[1].title, first.nodes[1].title);
+  }
 });
 
 // contract-test: supporting surface=gui.web assertions=workflows.control.typed-data,workflows-ui.mvp.authoring

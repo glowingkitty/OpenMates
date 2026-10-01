@@ -3,18 +3,29 @@ import type { Output } from './workflowBuilder';
 
 export const WORKFLOW_OUTPUT_NODE = 'workflowOutput';
 const friendly = (value: string): string => value.replace(/[._]/g, ' ').replace(/\b\w/g, letter => letter.toUpperCase());
+type TokenOutput = Pick<Output, 'reference' | 'label' | 'appId'> & { skillId?: string };
+
+/** A readable address for a declared output; the node reference remains its identity. */
+export function outputCanonicalName(output: TokenOutput): string | null {
+  const match = output.reference.match(/^\$nodes\.[^.]+\.output\.(.+)$/);
+  const appId = output.appId;
+  const skillId = output.skillId;
+  if (!match || !appId || !skillId || !/^[a-z0-9_-]+$/.test(appId) || !/^[a-z0-9_-]+$/.test(skillId)) return null;
+  return `${appId}.${skillId.replace(/_/g, '-')}.${match[1]}`;
+}
 
 export function outputTemplateSyntax(reference: string): string {
   return `{{${reference.replace(/^\$nodes\./, 'steps.').replace('.output.', '.')}}}`;
 }
 
-export function outputToken(output: Pick<Output, 'reference' | 'label' | 'appId'>): JSONContent {
+export function outputToken(output: TokenOutput): JSONContent {
   const appId = /^[a-z0-9_-]+$/.test(output.appId ?? '') ? output.appId : '';
-  return { type: WORKFLOW_OUTPUT_NODE, attrs: { mentionType: 'workflow_output', displayName: output.label, mentionSyntax: outputTemplateSyntax(output.reference), mentionId: output.reference,
+  return { type: WORKFLOW_OUTPUT_NODE, attrs: { mentionType: 'workflow_output', displayName: outputCanonicalName(output) ?? output.label, sourceLabel: output.label, mentionSyntax: outputTemplateSyntax(output.reference), mentionId: output.reference,
+    ...(appId ? { appId } : {}),
     ...(appId ? { colorStart: `var(--color-app-${appId}-start, var(--color-primary-start))`, colorEnd: `var(--color-app-${appId}-end, var(--color-primary-end))` } : {}) } };
 }
 
-function parsedToken(expression: string, outputs: Pick<Output, 'reference' | 'label' | 'appId'>[]): JSONContent {
+function parsedToken(expression: string, outputs: TokenOutput[]): JSONContent {
   const path = expression.trim();
   const reference = path.startsWith('steps.') ? path.replace(/^steps\.([^.]+)\./, '$nodes.$1.output.') : path;
   const known = outputs.find(output => output.reference === reference);
@@ -25,7 +36,7 @@ function parsedToken(expression: string, outputs: Pick<Output, 'reference' | 'la
 }
 
 /** Templates are storage syntax only; editors receive plain text and atomic labels. */
-export function templateToDocument(template: string, outputs: Pick<Output, 'reference' | 'label' | 'appId'>[] = []): JSONContent {
+export function templateToDocument(template: string, outputs: TokenOutput[] = []): JSONContent {
   return { type: 'doc', content: template.split('\n').map(line => {
     const content: JSONContent[] = [];
     let offset = 0;

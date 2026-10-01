@@ -617,6 +617,142 @@ final class StreamingClientFanoutTests: XCTestCase {
         XCTAssertEqual(transport.sentPayloads.last?["embed_id"] as? String, "retry-embed")
     }
 
+    // contract-test: direct surface=gui.apple assertions=chats.persistence.client-encrypted,chats.rendering.assistant-document-convergence
+    func testFinanceOwnerPIIRetriesTransientFinalPayloadAndNeverEntersCanonicalEmbed() async throws {
+        let chatId = "chat-finance-owner-pii"
+        let ownerId = "owner-finance"
+        let original = "Private Merchant Example"
+        let chatStore = ChatStore()
+        chatStore.upsertChat(Chat(
+            id: chatId, title: "Synthetic finance chat", lastMessageAt: nil,
+            createdAt: "2026-01-01T00:00:00Z", updatedAt: nil,
+            isArchived: false, isPinned: false, appId: "ai",
+            encryptedTitle: nil, encryptedChatKey: nil
+        ))
+        let transport = ChatEmbedRecordingTransport()
+        let master = SymmetricKey(size: .bits256)
+        let chatKey = SymmetricKey(size: .bits256)
+        var masterAvailable = false
+        var sidecarCiphertext: String?
+        let coordinator = ChatEmbedStreamCoordinator(
+            transport: transport, chatStore: chatStore,
+            authenticatedOwnerId: { ownerId },
+            masterKey: { _ in masterAvailable ? master : nil },
+            chatKey: { _ in chatKey },
+            persistEmbedKeys: { _ in },
+            persistOwnerPII: { mappings, storedChatId, embedId, storedOwnerId, key in
+                XCTAssertEqual(storedChatId, chatId)
+                XCTAssertEqual(embedId, "finance-embed")
+                XCTAssertEqual(storedOwnerId, ownerId)
+                XCTAssertEqual(mappings, [PIIMapping(
+                    placeholder: "[COUNTERPARTY_1]", original: original, type: "COUNTERPARTY"
+                )])
+                let data = try JSONEncoder().encode(mappings)
+                sidecarCiphertext = try await CryptoManager.shared.encryptWithMasterKey(
+                    String(decoding: data, as: UTF8.self), masterKey: key
+                )
+            },
+            retryDelay: { _ in .seconds(3_600) }
+        )
+        let fields: [String: Any] = [
+            "embed_id": "finance-embed", "type": "app_skill_use", "status": "finished",
+            "chat_id": chatId, "message_id": "assistant-finance", "user_id": ownerId,
+            "app_id": "finance", "skill_id": "check_accounts",
+            "content": "type: app_skill_use\napp_id: finance\nskill_id: check_accounts\ncounterparty: [COUNTERPARTY_1]",
+            "owner_pii_mappings": [[
+                "placeholder": "[COUNTERPARTY_1]", "original": original, "type": "COUNTERPARTY",
+            ]],
+        ]
+
+        await coordinator.handleEmbedData(fields)
+        XCTAssertTrue(chatStore.embeds(for: chatId).isEmpty)
+        XCTAssertNil(sidecarCiphertext)
+        XCTAssertFalse(transport.sentTypes.contains("store_embed"))
+
+        masterAvailable = true
+        await coordinator.retryPendingOwnerPersistence()
+        let ciphertext = try XCTUnwrap(sidecarCiphertext)
+        XCTAssertFalse(ciphertext.contains(original))
+        XCTAssertEqual(chatStore.embeds(for: chatId).count, 1)
+        XCTAssertEqual(Array(transport.sentTypes.suffix(2)), ["store_embed_keys", "store_embed"])
+        let storedPayload = try XCTUnwrap(transport.payload(for: "store_embed"))
+        XCTAssertNil(storedPayload["owner_pii_mappings"])
+        XCTAssertFalse(String(describing: storedPayload).contains(original))
+        XCTAssertFalse(String(describing: chatStore.embeds(for: chatId)).contains(original))
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.persistence.client-encrypted
+    func testFinanceOwnerPIIRejectsMalformedOrWrongOwnerPayload() async {
+        let chatId = "chat-finance-rejected"
+        let chatStore = ChatStore()
+        chatStore.upsertChat(Chat(
+            id: chatId, title: "Synthetic finance chat", lastMessageAt: nil,
+            createdAt: "2026-01-01T00:00:00Z", updatedAt: nil,
+            isArchived: false, isPinned: false, appId: "ai",
+            encryptedTitle: nil, encryptedChatKey: nil
+        ))
+        let transport = ChatEmbedRecordingTransport()
+        var persisted = false
+        let coordinator = ChatEmbedStreamCoordinator(
+            transport: transport, chatStore: chatStore,
+            authenticatedOwnerId: { "actual-owner" },
+            masterKey: { _ in SymmetricKey(size: .bits256) },
+            chatKey: { _ in SymmetricKey(size: .bits256) },
+            persistEmbedKeys: { _ in },
+            persistOwnerPII: { _, _, _, _, _ in persisted = true },
+            retryDelay: { _ in .seconds(3_600) }
+        )
+        var fields: [String: Any] = [
+            "embed_id": "finance-rejected", "type": "app_skill_use", "status": "finished",
+            "chat_id": chatId, "message_id": "assistant-finance", "user_id": "other-owner",
+            "app_id": "finance", "skill_id": "check_accounts",
+            "content": "type: app_skill_use\napp_id: finance\nskill_id: check_accounts\ncounterparty: [COUNTERPARTY_1]",
+            "owner_pii_mappings": [["placeholder": "[COUNTERPARTY_1]", "original": "Private Merchant"]],
+        ]
+        await coordinator.handleEmbedData(fields)
+        XCTAssertFalse(persisted)
+        XCTAssertTrue(chatStore.embeds(for: chatId).isEmpty)
+        XCTAssertFalse(transport.sentTypes.contains("store_embed"))
+
+        fields["user_id"] = "actual-owner"
+        fields["content"] = "counterparty: Private Merchant"
+        await coordinator.handleEmbedData(fields)
+        XCTAssertFalse(persisted, "Unsanitized canonical content must be rejected before owner-sidecar write")
+        XCTAssertTrue(chatStore.embeds(for: chatId).isEmpty)
+        XCTAssertFalse(transport.sentTypes.contains("store_embed"))
+        coordinator.reset()
+    }
+
+    // contract-test: direct surface=gui.apple assertions=pii.embed.owner-local-reveal-sync,pii.surface.semantic-parity
+    func testFinanceOwnerPIIRowIsCiphertextScopedToOwnerAndRemovedOnChatDelete() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("OwnerEmbedPII-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let apiURL = URL(string: "https://fixture.invalid")!
+        let ownerStore = try OfflineStore(directory: directory, userId: "owner-a", apiBaseURL: apiURL)
+        let key = SymmetricKey(size: .bits256)
+        let secret = "Private Merchant Example"
+        let mapping = PIIMapping(placeholder: "[COUNTERPARTY_1]", original: secret, type: "COUNTERPARTY")
+        let encoded = String(decoding: try JSONEncoder().encode([mapping]), as: UTF8.self)
+        let ciphertext = try await CryptoManager.shared.encryptWithMasterKey(encoded, masterKey: key)
+        try ownerStore.persistOwnerEmbedPII(PersistedOwnerEmbedPII(
+            embedId: "finance-embed", chatId: "finance-chat", ownerUserId: "owner-a",
+            encryptedMappings: ciphertext, createdAt: 1_770_000_000
+        ))
+        let ownerRow = try XCTUnwrap(ownerStore.loadOwnerEmbedPII(chatId: "finance-chat", embedId: "finance-embed"))
+        XCTAssertFalse(ownerRow.encryptedMappings.contains(secret))
+        let decrypted = try await CryptoManager.shared.decryptContent(
+            base64String: ownerRow.encryptedMappings, key: key
+        )
+        let decoded = try JSONDecoder().decode([PIIMapping].self, from: Data(decrypted.utf8))
+        XCTAssertEqual(decoded, [mapping])
+
+        let otherStore = try OfflineStore(directory: directory, userId: "owner-b", apiBaseURL: apiURL)
+        XCTAssertNil(try otherStore.loadOwnerEmbedPII(chatId: "finance-chat", embedId: "finance-embed"))
+        ownerStore.deleteChat("finance-chat")
+        XCTAssertNil(try ownerStore.loadOwnerEmbedPII(chatId: "finance-chat", embedId: "finance-embed"))
+    }
+
     // contract-test: direct surface=gui.apple assertions=chats.persistence.client-encrypted
     func testLiveEmbedLogoutDuringEncryptionDropsAllLatePersistence() async throws {
         let chatId = "chat-live-embed-logout"

@@ -87,6 +87,117 @@ final class SkillApplicationParityTests: XCTestCase {
         XCTAssertEqual(docs.rawData?["library"]?.value as? String, "svelte")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=code-run.surface-parity
+    func testSavedCodeRunOutputPreviewUsesLastLinesAndSkipsEmptyOutput() {
+        let output = (1...12).map { "line \($0)" }.joined(separator: "\n") + "\n\n"
+        XCTAssertEqual(CodeRunPreviewText.lastLines(output, limit: 8), (5...12).map { "line \($0)" }.joined(separator: "\n"))
+        XCTAssertEqual(CodeRunPreviewText.lastLines(output, limit: 18), (1...12).map { "line \($0)" }.joined(separator: "\n"))
+        XCTAssertNil(CodeRunPreviewText.lastLines(" \n\n", limit: 8))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=code-run.surface-parity
+    func testCodeAndSheetPIIContentFollowsRevealState() {
+        let mapping = PIIMapping(placeholder: "[EMAIL_1]", original: "ada@example.com", type: "email")
+        let raw = "Send to ada@example.com and [EMAIL_1]"
+        XCTAssertEqual(
+            EmbedPIIText.render(raw, mappings: [mapping], revealed: false),
+            "Send to [EMAIL_1] and [EMAIL_1]"
+        )
+        XCTAssertEqual(
+            EmbedPIIText.render(raw, mappings: [mapping], revealed: true),
+            "Send to ada@example.com and ada@example.com"
+        )
+
+        let sheet = ParsedSheetTable(data: [
+            "table": AnyCodable("| Contact |\n| --- |\n| ada@example.com |")
+        ])
+        XCTAssertEqual(sheet.applyingPII(mappings: [mapping], revealed: false).rows, [["[EMAIL_1]"]])
+        XCTAssertEqual(sheet.applyingPII(mappings: [mapping], revealed: true).rows, [["ada@example.com"]])
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.rendering.assistant-document-convergence
+    func testSheetPreviewColumnsFitContentWidthsWithinCard() {
+        let columns = SheetPreviewColumns(
+            headers: ["Name", "Long destination", "Cost", "Notes"],
+            rows: [["Ada", "San Francisco", "10", "a"]]
+        )
+        XCTAssertEqual(columns.widths, [60, 128, 60, 60])
+        // Deployed web uses a 260-point budget: 60 + 128 + 60 fits;
+        // adding the fourth column would exceed it.
+        XCTAssertEqual(columns.visibleCount, 3)
+        XCTAssertLessThanOrEqual(columns.widths.prefix(3).reduce(0, +), 260)
+        XCTAssertGreaterThan(columns.widths.reduce(0, +), 260)
+        XCTAssertEqual(SheetPreviewColumns(headers: ["Name", "Long destination", "Cost", "Notes"],
+                                          rows: [["Ada", "San Francisco", "10", "a"]], budget: 240).visibleCount, 2)
+        XCTAssertEqual(SheetPreviewColumns(headers: ["A", "B", "C"], rows: []).visibleCount, 3)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.rendering.assistant-document-convergence
+    func testSheetPreviewUsesRealCellsAndDeclaredDimensionsAtBothSizes() throws {
+        let directory = ParsedSheetTable(data: DevEmbedPreviewFixtures.isolatedEmbedSkill(variant: "sheet").primaryEmbed.rawData)
+        XCTAssertEqual(directory.title, "Team Directory")
+        XCTAssertEqual(directory.headers, ["Name", "Role", "Department", "Start Date"])
+        XCTAssertEqual(directory.rows.first, ["Alice Johnson", "Senior Engineer", "Engineering", "2023-01-15"])
+        XCTAssertEqual(SheetPreviewColumns(headers: directory.headers, rows: Array(directory.rows.prefix(4))).visibleCount, 2)
+        XCTAssertEqual(SheetPreviewColumns(headers: directory.headers, rows: Array(directory.rows.prefix(8)), budget: 870).visibleCount, 4)
+
+        let wide = ParsedSheetTable(data: DevEmbedPreviewFixtures.isolatedEmbedSkill(variant: "sheet-wide").primaryEmbed.rawData)
+        XCTAssertEqual(wide.rowCount, 8, "Only actual parsed cells participate in overflow and exports")
+        XCTAssertEqual(wide.displayRowCount, 150, "The footer preserves the hydrated row_count metadata")
+        XCTAssertEqual(wide.dimensionsText, "150 rows × 8 columns")
+        XCTAssertEqual(SheetPreviewColumns(headers: wide.headers, rows: Array(wide.rows.prefix(4))).visibleCount, 4)
+        let masked = wide.applyingPII(mappings: [PIIMapping(placeholder: "[NAME_1]", original: "North", type: "name")], revealed: false)
+        XCTAssertEqual(masked.displayRowCount, 150)
+        XCTAssertEqual(masked.rows[0][0], "[NAME_1]")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.rendering.assistant-document-convergence
+    func testSheetBackendToonPayloadHydratesCellsAndTitle() {
+        let content = #"""
+        type: sheet
+        app_id: sheets
+        skill_id: sheet
+        title: Team Directory
+        table: "| Name | Role |\n| --- | --- |\n| Alice | Engineer |"
+        row_count: 1
+        col_count: 2
+        """#
+        let embed = EmbedRecord(id: "persisted-sheet", type: "sheet", status: .finished, data: nil,
+                                parentEmbedId: nil, appId: "sheets", skillId: "sheet", embedIds: nil, createdAt: nil)
+            .decryptedCopy(content: content, type: "sheet")
+        let table = ParsedSheetTable(data: embed.rawData)
+        XCTAssertEqual(EmbedType.normalized(rawValue: embed.type), .sheetsSheet)
+        XCTAssertEqual(table.title, "Team Directory")
+        XCTAssertEqual(table.headers, ["Name", "Role"])
+        XCTAssertEqual(table.rows, [["Alice", "Engineer"]])
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testSheetAndSkillGroupsUseHorizontalWebCards() throws {
+        let sheet = DevEmbedPreviewFixtures.isolatedEmbedSkill(variant: "sheet").primaryEmbed
+        XCTAssertTrue(try XCTUnwrap(EmbedGrouper.group([sheet]).first).isHorizontal)
+        let searches = DevEmbedPreviewFixtures.isolatedSearchGroup
+        let group = try XCTUnwrap(EmbedGrouper.groupForInlineDisplay(searches).first)
+        XCTAssertTrue(group.isAppSkillUse)
+        XCTAssertTrue(group.isHorizontal)
+        XCTAssertEqual(group.embeds.map(\.id), searches.map(\.id), "The view owns newest-first display without mutating persisted order")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.rendering.assistant-document-convergence
+    func testSheetDownloadBuildsXLSXWorkbookWithEscapedCells() throws {
+        let table = ParsedSheetTable(data: [
+            "title": AnyCodable("Team & Plans"),
+            "table": AnyCodable("| Name | Note |\n| --- | --- |\n| Ada | A < B & C |\n| Bob | Hidden |")
+        ])
+        let workbook = try SheetXLSXExporter.makeData(table: table, rows: [table.rows[0]])
+        XCTAssertEqual(Array(workbook.prefix(4)), [0x50, 0x4B, 0x03, 0x04])
+        XCTAssertNotNil(workbook.range(of: Data("xl/worksheets/sheet1.xml".utf8)))
+        XCTAssertNotNil(workbook.range(of: Data("A &lt; B &amp; C".utf8)))
+        XCTAssertNotNil(workbook.range(of: Data("Team &amp; Plans".utf8)))
+        XCTAssertNil(workbook.range(of: Data("Hidden".utf8)))
+        XCTAssertEqual(table.tsv(rows: [table.rows[0]]), "Name\tNote\nAda\tA < B & C")
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testCompositeSkillFixturesPreserveChildEmbedRelationships() throws {
         let webSearch = try XCTUnwrap(
@@ -96,7 +207,7 @@ final class SkillApplicationParityTests: XCTestCase {
         XCTAssertTrue(webSearch.primaryEmbed.isAppSkillUse)
         XCTAssertEqual(webSearch.primaryEmbed.type, EmbedType.webSearch.rawValue)
         XCTAssertEqual(webSearch.primaryEmbed.childEmbedIds, webSearch.childEmbeds.map(\.id))
-        XCTAssertEqual(webSearch.childEmbeds.count, 4)
+        XCTAssertEqual(webSearch.childEmbeds.count, 3)
 
         for child in webSearch.childEmbeds {
             XCTAssertEqual(child.type, EmbedType.webWebsite.rawValue)
@@ -741,7 +852,13 @@ final class SkillApplicationParityTests: XCTestCase {
         XCTAssertEqual(EmbedType.diagramsMermaid.displayName, "Diagram")
         XCTAssertEqual(mermaid.appId, "diagrams")
         XCTAssertEqual(mermaid.skillId, "mermaid")
-        XCTAssertEqual(mermaid.rawData?["title"]?.value as? String, "Signup Flow")
+        XCTAssertEqual(mermaid.rawData?["title"]?.value as? String, "Email Signup Sequence")
+        XCTAssertEqual(EmbedPreviewCard.mermaidStatusTitle(in: mermaid.rawData ?? [:]), "Email Signup Sequence")
+        XCTAssertEqual(
+            EmbedPreviewCard.mermaidStatusTitle(in: ["title": AnyCodable(" \nEmail\u{0007} Signup Sequence\t ")]),
+            "Email Signup Sequence"
+        )
+        XCTAssertEqual(EmbedPreviewCard.mermaidStatusTitle(in: [:]), "Mermaid Diagram")
         XCTAssertEqual(mermaid.rawData?["diagram_kind"]?.value as? String, "sequenceDiagram")
         XCTAssertTrue((mermaid.rawData?["diagram_code"]?.value as? String ?? "").contains("User->>App"))
     }
@@ -846,6 +963,91 @@ final class SkillApplicationParityTests: XCTestCase {
         XCTAssertEqual(event.title, "Community workshop")
         XCTAssertEqual(event.shortLocation, "Berlin, Germany")
         XCTAssertEqual(String(EventValue.markdown("Meet **local builders**").characters), "Meet local builders")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testEmbedGalleryParsesIndependentSurfacesVariantsAndDirection() throws {
+        for surface in DevEmbedPreviewSurface.allCases {
+            let request = try XCTUnwrap(DevEmbedPreviewRequest.parse(arguments: [
+                "--embed-registry-key", "code-code", "--embed-surface", surface.rawValue,
+                "--embed-variant", "python", "--embed-direction", "rtl"
+            ]))
+            XCTAssertEqual(request.surface, surface)
+            XCTAssertEqual(request.variant, "python")
+            XCTAssertEqual(request.direction, .rtl)
+        }
+        let legacy = try XCTUnwrap(DevEmbedPreviewRequest.parse(arguments: [
+            "--embed-registry-key", "code-code", "--embed-surface", "preview"
+        ]))
+        XCTAssertEqual(legacy.variant, "default")
+        XCTAssertEqual(legacy.direction, .ltr)
+        for invalid in [
+            ["--embed-registry-key", "code-code", "--embed-surface", "unknown"],
+            ["--embed-registry-key", "code-code", "--embed-surface", "preview", "--embed-variant"],
+            ["--embed-registry-key", "code-code", "--embed-surface", "preview", "--embed-direction", "unknown"],
+            ["--embed-registry-key", "code-code", "--embed-surface", "preview", "--embed-surface", "quote"]
+        ] {
+            XCTAssertNil(DevEmbedPreviewRequest.parse(arguments: invalid))
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testEmbedGalleryDataGroupsUseNamedVariantsAndExcludeStatusTemplates() throws {
+        let code = try XCTUnwrap(DevEmbedPreviewFixtures.skill(forRegistryKey: "code-code"))
+        let data = DevEmbedPreviewFixtures.dataVariants(for: code)
+        XCTAssertEqual(data.map(\.name), ["default", "bash", "python", "svelte", "html", "javascript", "css"])
+        let python = try XCTUnwrap(data.first { $0.name == "python" }?.skill.primaryEmbed)
+        XCTAssertEqual(python.rawData?["filename"]?.value as? String, "embed_service.py")
+        XCTAssertTrue((python.rawData?["code"]?.value as? String)?.contains("async def resolve_embed") == true)
+        XCTAssertTrue(DevEmbedPreviewFixtures.supportsLargeGroup(code))
+        let search = try XCTUnwrap(DevEmbedPreviewFixtures.skill(forRegistryKey: "app:web:search"))
+        XCTAssertFalse(DevEmbedPreviewFixtures.supportsLargeGroup(search))
+        XCTAssertEqual(DevEmbedPreviewFixtures.dataVariants(for: search).map(\.name), ["default", "cancelled"])
+        let sheet = try XCTUnwrap(DevEmbedPreviewFixtures.skill(forRegistryKey: "sheets-sheet"))
+        XCTAssertTrue(DevEmbedPreviewFixtures.dataVariants(for: sheet).map(\.name).contains("mobileWide"),
+                      "The web excludes the exact mobile template, not every variant whose name contains mobile.")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testEmbedGalleryEmptyStatusVariantsDoNotRetainFinishedSearchChildren() throws {
+        let search = try XCTUnwrap(DevEmbedPreviewFixtures.skill(forRegistryKey: "app:web:search"))
+        XCTAssertFalse(search.childEmbeds.isEmpty)
+        let variants = DevEmbedPreviewFixtures.variants(for: search)
+        for status in [EmbedStatus.processing, .error, .cancelled] {
+            let variant = try XCTUnwrap(variants.first { $0.name == status.rawValue }?.skill)
+            XCTAssertEqual(variant.primaryEmbed.status, status)
+            XCTAssertTrue(variant.childEmbeds.isEmpty)
+            XCTAssertTrue(variant.primaryEmbed.childEmbedIds.isEmpty)
+            XCTAssertEqual(variant.allRecords.count, 1)
+            XCTAssertTrue(variant.primaryEmbed.isAppSkillUse)
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testEmbedGalleryFullscreenVariantsRemainIndependentAndUnknownStatesFail() throws {
+        let request = DevEmbedPreviewRequest(registryKey: "code-code", surface: .fullscreen, variant: "longCode", direction: .ltr)
+        let fullscreen = try XCTUnwrap(DevEmbedPreviewFixtures.fixture(for: request))
+        XCTAssertEqual(fullscreen.primaryEmbed.rawData?["filename"]?.value as? String, "long_file.py")
+        let code = try XCTUnwrap(fullscreen.primaryEmbed.rawData?["code"]?.value as? String)
+        XCTAssertEqual(code.components(separatedBy: "\n").count, 100)
+        XCTAssertNil(DevEmbedPreviewFixtures.fixture(for: .init(registryKey: "code-code", surface: .preview,
+                                                              variant: "longCode", direction: .ltr)))
+        XCTAssertNil(DevEmbedPreviewFixtures.fixture(for: .init(registryKey: "app:web:search", surface: .groupLarge,
+                                                              variant: "default", direction: .ltr)))
+        XCTAssertNil(DevEmbedPreviewFixtures.fixture(for: .init(registryKey: "code-code", surface: .preview,
+                                                              variant: "missing", direction: .ltr)))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testEmbedGalleryUsesDeployedShowcaseQuoteAndInlineLabels() throws {
+        let search = try XCTUnwrap(DevEmbedPreviewFixtures.skill(forRegistryKey: "app:web:search"))
+        XCTAssertEqual(DevEmbedPreviewFixtures.inlineText(for: search), "Best restaurants in Berlin")
+        XCTAssertEqual(DevEmbedPreviewFixtures.quoteText(for: search),
+                       "Discover the best dining experiences in Berlin, from traditional German cuisine to international flavors.")
+        let appointment = try XCTUnwrap(DevEmbedPreviewFixtures.skill(forRegistryKey: "health-appointment"))
+        let jameda = try XCTUnwrap(DevEmbedPreviewFixtures.variants(for: appointment).first { $0.name == "jameda" })
+        XCTAssertEqual(jameda.skill.primaryEmbed.rawData?["provider_platform"]?.value as? String, "Jameda")
+        XCTAssertEqual(jameda.skill.primaryEmbed.rawData?["name"]?.value as? String, "Dr. Markus Reinholz")
     }
 
     private func decodeRecord(_ json: String) throws -> EmbedRecord {

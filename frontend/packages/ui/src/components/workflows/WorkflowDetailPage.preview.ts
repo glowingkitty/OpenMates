@@ -16,12 +16,21 @@ const defaultProps = {
   onDeleteWorkflow: () => {},
   onOpenHome: () => {},
   onOpenShare: () => {},
+  onExport: () => window.dispatchEvent(new CustomEvent('workflow-preview-export')),
   onOpenRuns: () => {},
   runsHref: '#runs',
   onUpdateIdentity: async (_title: string, _description: string) => {},
+  onDraftIdentity: (_title: string, _description: string) => {},
 };
 
 export default defaultProps;
 export const variants = {
   runs: { ...defaultProps, activeTab: 'runs' as const },
+  blank: { ...defaultProps, canRun: false, enabled: false },
+  provisional: {
+    ...defaultProps,
+    title: 'Processing…', description: '', enabled: false, canEnable: false, canRun: false,
+    saving: true, provisional: true,
+    onOpenHome: () => window.dispatchEvent(new CustomEvent('workflow-preview-close')),
+  },
 };

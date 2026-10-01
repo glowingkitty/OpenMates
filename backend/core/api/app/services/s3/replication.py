@@ -8,7 +8,7 @@ and failback fencing without performing network or database operations.
 from __future__ import annotations
 
 from copy import deepcopy
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import hashlib
 from typing import Any, Callable
 
@@ -26,6 +26,15 @@ DEFAULT_STORAGE_SWEEP_LIMIT = 100
 _DUE_STATES = ("pending", "retry_scheduled")
 DEFAULT_REGION_FAILURE_THRESHOLD = 3
 DEFAULT_REGION_COOLDOWN = timedelta(minutes=5)
+
+
+def _parse_region_health_timestamp(value: datetime | str | None) -> datetime | None:
+    """Directus datetime fields without an offset represent UTC."""
+    if isinstance(value, str):
+        value = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    if isinstance(value, datetime) and value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value
 
 
 def _job_identity(logical_bucket: str, object_key: str, generation: int) -> str:
@@ -80,6 +89,7 @@ async def persist_replication_job(*, directus_service: Any, job: dict[str, Any])
         "storage_replication_jobs",
         payload,
         admin_required=True,
+        expected_unique_conflict_field="idempotency_key",
     )
     if success and created:
         return dict(created)
@@ -127,9 +137,7 @@ async def record_persisted_region_error(
     )
     state = circuit._state(region)
     state["failures"] = int(existing.get("failure_count", 0))
-    open_until = existing.get("open_until")
-    if isinstance(open_until, str):
-        open_until = datetime.fromisoformat(open_until.replace("Z", "+00:00"))
+    open_until = _parse_region_health_timestamp(existing.get("open_until"))
     state["open_until"] = open_until
     state["probe_succeeded"] = bool(existing.get("probe_succeeded", False))
     state["reconciled"] = bool(existing.get("reconciled", False))
@@ -179,9 +187,7 @@ async def record_persisted_region_probe_success(
         raise_on_error=True,
     )
     existing = dict(rows[0]) if rows else {}
-    open_until = existing.get("open_until")
-    if isinstance(open_until, str):
-        open_until = datetime.fromisoformat(open_until.replace("Z", "+00:00"))
+    open_until = _parse_region_health_timestamp(existing.get("open_until"))
     if isinstance(open_until, datetime) and now < open_until:
         return False
     payload = {

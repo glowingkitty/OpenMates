@@ -61,8 +61,9 @@ function assertPublicWorkflowSlug(workflow: Record<string, unknown>, slug: strin
 async function withServer(
   handler: (request: IncomingMessage, body: unknown) => unknown,
   run: (apiUrl: string, seen: SeenRequest[]) => Promise<void>,
-  expectedAuthorization = "Bearer x",
+  expectedApiKey = "x",
 ): Promise<void> {
+  const [bearer, decryptionSecret] = expectedApiKey.split(".");
   const seen: SeenRequest[] = [];
   const server = createServer((request: IncomingMessage, response: ServerResponse) => {
     let raw = "";
@@ -74,7 +75,11 @@ async function withServer(
         if (request.url?.startsWith("/v1/workflows/template-projections/")) {
           assert.equal(request.headers.authorization, undefined);
         } else {
-          assert.equal(request.headers.authorization, expectedAuthorization);
+          assert.equal(request.headers.authorization, `Bearer ${bearer}`);
+        }
+        if (decryptionSecret) {
+          assert.equal(JSON.stringify(request.headers).includes(decryptionSecret), false, "API-key decryption secret must stay out of request headers");
+          assert.equal(raw.includes(decryptionSecret), false, "API-key decryption secret must stay out of request bodies");
         }
         assert.equal(request.headers["x-openmates-sdk"], "npm");
       response.writeHead(200, { "content-type": "application/json" });
@@ -281,7 +286,7 @@ describe("OpenMates SDK workflows", () => {
         assert.deepEqual(blankCreateBody.graph, blankGraph());
         assert.equal(blankCreateBody.enabled, false);
       },
-      `Bearer ${material.apiKey}`,
+      material.apiKey,
     );
   });
 
@@ -423,7 +428,7 @@ describe("OpenMates SDK workflows", () => {
         assert.ok(endpoints.includes("POST /v1/workflows/wf-1/template-projection/revoke"));
         assert.ok(endpoints.includes("POST /v1/workflows/wf-1/template-projection/unrevoke"));
       },
-      `Bearer ${material.apiKey}`,
+      material.apiKey,
     );
   });
 
@@ -439,8 +444,11 @@ describe("OpenMates SDK workflows", () => {
           return { workflows: [{ id: "wf-1", title: "Morning", status: "disabled", enabled: false, current_version_id: "v1", created_at: 1, updated_at: 1 }] };
         }
         if (request.url === "/v1/workflows/input" && request.method === "POST") {
-          assert.deepEqual(body, { text: "alert me if it rains", input_type: "text", selected_workflow_id: "wf-1" });
-          return { session: { session_id: "session-1", status: "executed", event_cursor: 4, undo_available: true } };
+          assert.deepEqual(body, { text: "alert me if it rains", input_type: "text", selected_workflow_id: "wf-1", idempotency_key: "7e6a620a-f09f-4aa9-b87a-79ad9b03d32d" });
+          return { session: { session_id: "session-1", status: "executed", event_cursor: 4, undo_available: true,
+            workflows: [{ id: "wf-1" }, { id: "wf-2" }],
+            changes: [{ workflow_id: "wf-1", operation: "update", added_node_ids: [], changed_node_ids: ["message"], removed_node_ids: [] }],
+          } };
         }
         if (request.url === "/v1/workflows/input/session-1" && request.method === "GET") {
           return { session: { session_id: "session-1", status: "executed", event_cursor: 4, undo_available: true, events: [] } };
@@ -462,7 +470,10 @@ describe("OpenMates SDK workflows", () => {
       },
       async (apiUrl, seen) => {
         const client = new OpenMates({ apiKey: material.apiKey, apiUrl });
-        assert.equal((await client.workflows.startInput({ text: "alert me if it rains", selectedWorkflowId: "wf-1" })).session_id, "session-1");
+        const authored = await client.workflows.startInput({ text: "alert me if it rains", selectedWorkflowId: "wf-1", idempotencyKey: "7e6a620a-f09f-4aa9-b87a-79ad9b03d32d" });
+        assert.equal(authored.session_id, "session-1");
+        assert.deepEqual(authored.workflows?.map(workflow => workflow.id), ["wf-1", "wf-2"]);
+        assert.deepEqual(authored.changes?.[0]?.changed_node_ids, ["message"]);
         assert.equal((await client.workflows.inputSession("session-1")).status, "executed");
         assert.equal((await client.workflows.inputEvents("session-1", 2))[0]?.type, "validation_passed");
         assert.equal((await client.workflows.followUpInput("session-1", "weekdays only")).event_cursor, 7);
@@ -483,7 +494,7 @@ describe("OpenMates SDK workflows", () => {
           assert.ok(endpoints.includes(endpoint), `missing endpoint ${endpoint}`);
         }
       },
-      `Bearer ${material.apiKey}`,
+      material.apiKey,
     );
   });
 });

@@ -1,0 +1,8 @@
+# Public domain search uses Gandi's shop endpoints without a Gandi API key.
+provider_id: "gandi"
+name: "Gandi"
+description: "Domain availability search and indicative registration and renewal prices."
+logo_svg: "icons/server.svg"
+region: "EU"
+privacy_policy: "https://www.gandi.net/en/contracts/privacy-policy" # verified 2026-10-01
+no_api_key: true

@@ -18,8 +18,17 @@ export type Schema = {
   examples?: unknown[];
   minimum?: number;
   maximum?: number;
+  minLength?: number;
+  maxLength?: number;
+  minItems?: number;
+  maxItems?: number;
+  pattern?: string;
   format?: string;
   anyOf?: Schema[];
+  oneOf?: Schema[];
+  $ref?: string;
+  $defs?: Record<string, Schema>;
+  definitions?: Record<string, Schema>;
 };
 export type Capability = {
   id: string;
@@ -45,6 +54,9 @@ export type Output = {
   label: string;
   schema: Schema;
   appId?: string;
+  skillId?: string;
+  /** Existing list projections remain valid references but are absent from pickers. */
+  listProjection?: boolean;
 };
 export type Insertion = { after: string | null; branch?: string };
 
@@ -71,6 +83,7 @@ function declaredOutputs(
             ...(schema["x-ui"] ? { "x-ui": schema["x-ui"] } : {}),
           }
         : schema,
+      ...(projectAsList ? { listProjection: true } : {}),
     };
     const objectProperties = schema.properties;
     const itemProperties =
@@ -225,7 +238,11 @@ export function outputsBefore(
         node.id,
         node.title || label(String(node.config?.app_id ?? node.type)),
         properties,
-      ).map(output => ({ ...output, appId: String(node.config?.app_id ?? (node.type === 'app_skill_action' ? '' : 'ai')) }));
+      ).map(output => ({
+        ...output,
+        appId: String(node.config?.app_id ?? (node.type === 'app_skill_action' ? '' : 'ai')),
+        skillId: String(node.config?.skill_id ?? ''),
+      }));
     });
 }
 

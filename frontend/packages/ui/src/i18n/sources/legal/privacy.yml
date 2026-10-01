@@ -7561,32 +7561,27 @@ providers.web_and_search.heading:
   verified_by_human: []
 providers.web_and_search.description:
   context: Description of Group F
-  en: >-
-    These providers are only used when you invoke a web, videos, news, web-read,
-    or design icon search skill. They see the content of what you search for,
-    the URLs you ask to read, or the public icon identifiers you ask to preview,
-    but no user identifier — they do not know which OpenMates user made each
-    request.
-  de: Diese Anbieter werden nur verwendet, wenn du einen Web-, Video-, News- oder Web-Read-Skill aufrufst. Sie sehen den Inhalt deiner Suche oder die URLs, die du lesen möchtest, aber keine Benutzerkennung – sie wissen nicht, welcher OpenMates-Nutzer die jeweilige Anfrage gestellt hat.
-  zh: 这些提供商仅在您调用网页、视频、新闻或网页阅读技能时使用。他们会看到您搜索的内容或请求阅读的 URL，但不会看到用户标识符——他们不知道是哪个 OpenMates 用户发起了请求。
-  es: Estos proveedores solo se utilizan cuando invocas una habilidad de web, vídeos, noticias o lectura web. Ven el contenido de lo que buscas o las URL que pides leer, pero ningún identificador de usuario; no saben qué usuario de OpenMates realizó cada solicitud.
-  pt: Estes fornecedores só são utilizados quando invocas uma skill de web, vídeos, notícias ou leitura web. Eles veem o conteúdo do que pesquisas ou os URLs que pedes para ler, mas nenhum identificador de utilizador — não sabem qual utilizador do OpenMates fez cada pedido.
-  ja: これらのプロバイダーは、ウェブ、動画、ニュース、またはウェブ閲覧（web-read）スキルを呼び出した場合にのみ使用される。検索内容や閲覧を依頼したURLの内容は参照するが、ユーザー識別子は参照しないため、どのOpenMatesユーザーがリクエストを行ったかを知ることはない。
-  ko: 이 제공업체들은 웹, 동영상, 뉴스 또는 웹 읽기 스킬을 호출할 때만 사용됩니다. 이들은 검색 내용이나 읽기를 요청한 URL을 확인하지만, 사용자 식별자는 확인하지 않으므로 어떤 OpenMates 사용자가 요청했는지 알 수 없습니다.
-  it: Questi fornitori vengono utilizzati solo quando invochi una skill web, video, news o web-read. Vedono il contenuto di ciò che cerchi o gli URL che chiedi di leggere, ma nessun identificativo utente — non sanno quale utente di OpenMates abbia effettuato ogni richiesta.
-  tr: "Bu sağlayıcılar yalnızca web, video, haber veya web okuma yeteneğini çağırdığında kullanılır. Aradığın şeyin içeriğini veya okunmasını istediğin URL'leri görürler ancak kullanıcı tanımlayıcısı görmezler; hangi OpenMates kullanıcısının hangi isteği yaptığını bilmezler."
-  vi: Các nhà cung cấp này chỉ được sử dụng khi bạn gọi một kỹ năng web, video, tin tức hoặc đọc web. Họ thấy nội dung bạn tìm kiếm hoặc các URL bạn yêu cầu đọc, nhưng không có mã định danh người dùng — họ không biết người dùng OpenMates nào đã thực hiện mỗi yêu cầu.
-  id: Penyedia ini hanya digunakan saat kamu memanggil keahlian web, video, berita, atau baca-web. Mereka melihat konten dari apa yang kamu cari atau URL yang kamu minta untuk dibaca, tetapi tanpa pengenal pengguna — mereka tidak tahu pengguna OpenMates mana yang membuat setiap permintaan.
-  pl: Dostawcy ci są używani tylko po wywołaniu umiejętności internetowych, wideo, wiadomości lub czytania stron. Widzą oni treść wyszukiwania lub adresy URL, o których przeczytanie prosisz, ale bez identyfikatora użytkownika — nie wiedzą, który użytkownik OpenMates wysłał dane zapytanie.
-  nl: "Deze providers worden alleen gebruikt wanneer je een skill voor web, video's, nieuws of web-lezen aanroept. Ze zien de inhoud van wat je zoekt of de URL's die je wilt laten lezen, maar geen gebruikers-ID — ze weten niet welke OpenMates-gebruiker welk verzoek heeft gedaan."
-  hi: इन प्रोवाइडर्स का उपयोग केवल तब किया जाता है जब आप वेब, वीडियो, न्यूज़ या वेब-रीड स्किल का उपयोग करते हैं। वे आपके द्वारा खोजी गई चीज़ों या आपके द्वारा पढ़ने के लिए दिए गए URL को देखते हैं, लेकिन कोई यूज़र आइडेंटिफ़ायर नहीं — उन्हें यह नहीं पता होता कि किस OpenMates उपयोगकर्ता ने अनुरोध किया है।
-  th: ผู้ให้บริการเหล่านี้จะถูกใช้เมื่อคุณเรียกใช้ทักษะเว็บ วิดีโอ ข่าวสาร หรือการอ่านเว็บเท่านั้น พวกเขาจะเห็นเนื้อหาที่คุณค้นหาหรือ URL ที่คุณขอให้อ่าน แต่ไม่มีตัวระบุผู้ใช้ — พวกเขาจะไม่ทราบว่าผู้ใช้ OpenMates รายใดเป็นผู้ส่งคำขอแต่ละรายการ
-  sv: Dessa leverantörer används endast när du anropar en färdighet för webb, video, nyheter eller webbläsning. De ser innehållet i det du söker efter eller de webbadresser du vill läsa, men ingen användaridentifierare — de vet inte vilken OpenMates-användare som gjorde förfrågan.
-  fr: "Ces fournisseurs ne sont utilisés que lorsque tu invoques une compétence web, vidéos, actualités ou web-read. Ils voient le contenu de ce que tu recherches ou les URL que tu demandes de lire, mais aucun identifiant d'utilisateur — ils ne savent pas quel utilisateur d'OpenMates a effectué chaque requête."
-  ar: يتم استخدام هؤلاء المزودين فقط عندما تستخدم مهارة الويب أو الفيديوهات أو الأخبار أو قراءة الويب. يرون محتوى ما تبحث عنه أو عناوين URL التي تطلب قراءتها، ولكن دون أي معرف للمستخدم — فهم لا يعرفون أي مستخدم في OpenMates قام بكل طلب.
-  cs: Tito poskytovatelé se používají pouze tehdy, když vyvoláš dovednost pro web, videa, zprávy nebo čtení webu. Vidí obsah toho, co vyhledáváš, nebo URL adresy, které chceš přečíst, ale žádný identifikátor uživatele – nevědí, který uživatel OpenMates daný požadavek odeslal.
-  ru: Эти провайдеры используются только тогда, когда ты вызываешь навыки web, videos, news или web-read. Они видят содержание твоих поисковых запросов или URL-адреса, которые ты просишь прочитать, но не видят идентификатор пользователя — они не знают, какой именно пользователь OpenMates сделал запрос.
-  he: ספקים אלו נמצאים בשימוש רק כשמפעילים מיומנות אינטרנט, סרטונים, חדשות או קריאת דפי אינטרנט. הם רואים את תוכן החיפוש שלך או את כתובות ה-URL שביקשת לקרוא, אך ללא מזהה משתמש — הם אינם יודעים איזה משתמש OpenMates ביצע כל בקשה.
+  en: "These providers are used only when you use web, media, icon, or domain search and reading skills. They may receive your query, requested URL, or domain name, but no OpenMates user identifier."
+  de: "Diese Anbieter werden nur bei Web-, Medien-, Icon- oder Domain-Suchen und Lese-Skills verwendet. Sie können deine Suchanfrage, angeforderte URL oder deinen Domainnamen erhalten, aber keine OpenMates-Benutzerkennung."
+  zh: "这些提供商仅在使用网页、媒体、图标或域名搜索及阅读技能时使用。他们可能收到搜索内容、请求的 URL 或域名，但不会收到 OpenMates 用户标识。"
+  es: "Estos proveedores solo se usan con las funciones de búsqueda y lectura de web, medios, iconos o dominios. Pueden recibir tu consulta, URL o nombre de dominio, pero ningún identificador de usuario de OpenMates."
+  fr: "Ces fournisseurs ne sont utilisés que pour les recherches et lectures web, médias, icônes ou domaines. Ils peuvent recevoir votre requête, URL ou nom de domaine, mais aucun identifiant utilisateur OpenMates."
+  pt: "Estes fornecedores só são usados para pesquisas e leituras na web, de média, ícones ou domínios. Podem receber a pesquisa, URL ou nome de domínio, mas nenhum identificador de utilizador OpenMates."
+  ru: "Эти провайдеры используются только для поиска и чтения веб-страниц, медиа, значков или доменов. Они могут получить запрос, URL или доменное имя, но не идентификатор пользователя OpenMates."
+  ja: "これらの提供元は、ウェブ、メディア、アイコン、ドメインの検索・閲覧機能を使う場合にのみ利用されます。検索語、URL、ドメイン名を受け取ることがありますが、OpenMates のユーザー識別子は受け取りません。"
+  ko: "이 제공업체들은 웹, 미디어, 아이콘 또는 도메인 검색 및 읽기 기능을 사용할 때만 이용됩니다. 검색어, 요청한 URL 또는 도메인 이름을 받을 수 있지만 OpenMates 사용자 식별자는 받지 않습니다."
+  it: "Questi fornitori vengono usati solo per ricerca e lettura di web, media, icone o domini. Possono ricevere la query, l'URL richiesto o il nome di dominio, ma non l'identificativo utente OpenMates."
+  tr: "Bu sağlayıcılar yalnızca web, medya, simge veya alan adı arama ve okuma becerilerini kullandığınızda devreye girer. Sorgunuzu, istediğiniz URL'yi veya alan adını alabilirler; OpenMates kullanıcı kimliğinizi almazlar."
+  vi: "Các nhà cung cấp này chỉ được dùng khi bạn tìm kiếm hoặc đọc web, nội dung đa phương tiện, biểu tượng hay tên miền. Họ có thể nhận truy vấn, URL hoặc tên miền, nhưng không nhận mã định danh người dùng OpenMates."
+  id: "Penyedia ini hanya digunakan untuk pencarian dan pembacaan web, media, ikon, atau domain. Mereka dapat menerima kueri, URL, atau nama domain, tetapi tidak menerima pengenal pengguna OpenMates."
+  pl: "Ci dostawcy są używani tylko do wyszukiwania i odczytu stron, mediów, ikon lub domen. Mogą otrzymać zapytanie, URL lub nazwę domeny, ale nie identyfikator użytkownika OpenMates."
+  nl: "Deze providers worden alleen gebruikt bij zoeken en lezen van webpagina's, media, pictogrammen of domeinen. Ze kunnen je zoekopdracht, URL of domeinnaam ontvangen, maar geen OpenMates-gebruikers-ID."
+  ar: "يُستخدم هؤلاء المزودون فقط عند البحث أو القراءة على الويب أو في الوسائط أو الأيقونات أو النطاقات. قد يتلقون الاستعلام أو عنوان URL أو اسم النطاق، لكنهم لا يتلقون معرّف مستخدم OpenMates."
+  hi: "इन प्रदाताओं का उपयोग केवल वेब, मीडिया, आइकन या डोमेन खोज और पढ़ने की सुविधाओं के साथ होता है। वे आपकी खोज, URL या डोमेन नाम प्राप्त कर सकते हैं, लेकिन OpenMates उपयोगकर्ता पहचानकर्ता नहीं।"
+  th: "ผู้ให้บริการเหล่านี้ใช้เฉพาะเมื่อค้นหาหรืออ่านเว็บ สื่อ ไอคอน หรือโดเมน พวกเขาอาจได้รับคำค้นหา URL หรือชื่อโดเมน แต่ไม่ได้รับรหัสผู้ใช้ OpenMates"
+  cs: "Tito poskytovatelé se používají jen při hledání a čtení webu, médií, ikon nebo domén. Mohou obdržet dotaz, URL či název domény, ale ne identifikátor uživatele OpenMates."
+  sv: "Dessa leverantörer används bara för sökning och läsning av webb, medier, ikoner eller domäner. De kan få din sökfråga, URL eller ditt domännamn, men inget OpenMates-användar-ID."
+  he: "ספקים אלה משמשים רק לחיפוש ולקריאה באינטרנט, במדיה, בסמלים או בדומיינים. הם עשויים לקבל את השאילתה, הכתובת או שם הדומיין, אך לא מזהה משתמש של OpenMates."
   verified_by_human: []
 providers.web_and_search.brave.heading:
   context: Heading for Brave Search provider entry
@@ -7741,6 +7736,79 @@ providers.web_and_search.iconify.description:
   sv: Iconify driver färdigheten design.search_icons. Iconify ser sökfrågor för ikoner och den ikonsamling/det namn som behövs för att hämta SVG-förhandsvisningar, men ingen OpenMates-användaridentifierare. OpenMates hämtar Iconify-data på serversidan och klienter anropar inte Iconify direkt.
   es: Iconify hace funcionar la habilidad design.search_icons. Iconify ve las consultas de búsqueda de iconos y la colección/nombre del icono necesario para obtener las vistas previas SVG, pero ningún identificador de usuario de OpenMates. OpenMates obtiene los datos de Iconify en el servidor y los clientes no llaman a Iconify directamente.
   he: Iconify מפעיל את מיומנות design.search_icons. ‏Iconify רואה שאילתות לחיפוש סמלים ואת אוסף/שם הסמל הדרושים לאחזור תצוגות מקדימות של SVG, אך לא את מזהה המשתמש ב-OpenMates. ‏OpenMates מאחזר נתוני Iconify בצד השרת והלקוחות אינם פונים ל-Iconify ישירות.
+  verified_by_human: []
+providers.web_and_search.webshare.domain_fallback:
+  context: Webshare fallback disclosure for HTTPS Gandi domain search
+  en: "For domain searches, Webshare is a fallback when the direct Gandi request fails. It sees the Gandi host and connection metadata, but cannot read the HTTPS-encrypted domain query or an OpenMates user identifier."
+  de: "Bei Domain-Suchen wird Webshare nur verwendet, wenn die direkte Gandi-Anfrage fehlschlägt. Webshare sieht den Gandi-Host und Verbindungsdaten, aber weder die HTTPS-verschlüsselte Domain-Anfrage noch eine OpenMates-Benutzerkennung."
+  zh: "域名搜索仅在直接请求 Gandi 失败时使用 Webshare。Webshare 可见 Gandi 主机和连接元数据，但无法读取 HTTPS 加密的域名查询或 OpenMates 用户标识。"
+  es: "En la búsqueda de dominios, Webshare se usa solo si falla la solicitud directa a Gandi. Ve el servidor Gandi y los metadatos de conexión, pero no puede leer la consulta de dominio cifrada con HTTPS ni un identificador de usuario de OpenMates."
+  fr: "Pour la recherche de domaines, Webshare n'est utilisé qu'en cas d'échec de la requête directe à Gandi. Il voit l'hôte Gandi et les métadonnées de connexion, mais ne peut pas lire la requête de domaine chiffrée par HTTPS ni un identifiant utilisateur OpenMates."
+  pt: "Nas pesquisas de domínios, a Webshare só é usada se o pedido direto à Gandi falhar. Vê o servidor Gandi e os metadados da ligação, mas não consegue ler a consulta de domínio encriptada por HTTPS nem um identificador de utilizador OpenMates."
+  ru: "Для поиска доменов Webshare используется только при сбое прямого запроса к Gandi. Он видит сервер Gandi и данные соединения, но не может прочитать зашифрованный HTTPS запрос домена или идентификатор пользователя OpenMates."
+  ja: "ドメイン検索では、Gandi への直接リクエストが失敗した場合にのみ Webshare を使います。Webshare は Gandi のホストと接続情報を確認できますが、HTTPS で暗号化されたドメインの検索内容や OpenMates のユーザー識別子は読み取れません。"
+  ko: "도메인 검색에서 Webshare는 Gandi 직접 요청에 실패한 경우에만 사용됩니다. Webshare는 Gandi 호스트와 연결 메타데이터를 볼 수 있지만 HTTPS로 암호화된 도메인 검색어나 OpenMates 사용자 식별자는 읽을 수 없습니다."
+  it: "Per la ricerca di domini, Webshare viene usato solo se la richiesta diretta a Gandi non riesce. Vede l'host Gandi e i metadati di connessione, ma non può leggere la query di dominio cifrata con HTTPS né un identificativo utente OpenMates."
+  tr: "Alan adı aramalarında Webshare yalnızca doğrudan Gandi isteği başarısız olursa kullanılır. Gandi sunucusunu ve bağlantı verilerini görür, ancak HTTPS ile şifrelenmiş alan adı sorgusunu veya OpenMates kullanıcı kimliğini okuyamaz."
+  vi: "Đối với tìm kiếm tên miền, Webshare chỉ được dùng nếu yêu cầu trực tiếp đến Gandi thất bại. Webshare thấy máy chủ Gandi và siêu dữ liệu kết nối, nhưng không thể đọc truy vấn tên miền được mã hóa HTTPS hoặc mã định danh người dùng OpenMates."
+  id: "Untuk pencarian domain, Webshare hanya digunakan jika permintaan langsung ke Gandi gagal. Webshare melihat host Gandi dan metadata koneksi, tetapi tidak dapat membaca kueri domain terenkripsi HTTPS atau pengenal pengguna OpenMates."
+  pl: "Podczas wyszukiwania domen Webshare jest używany tylko wtedy, gdy bezpośrednie żądanie do Gandi się nie powiedzie. Widzi host Gandi i dane połączenia, ale nie odczyta zaszyfrowanego przez HTTPS zapytania ani identyfikatora użytkownika OpenMates."
+  nl: "Bij domeinzoekopdrachten wordt Webshare alleen gebruikt als het directe verzoek aan Gandi mislukt. Het ziet de Gandi-host en verbindingsgegevens, maar kan de met HTTPS versleutelde domeinzoekopdracht of een OpenMates-gebruikers-ID niet lezen."
+  ar: "يُستخدم Webshare في البحث عن النطاقات فقط إذا فشل الطلب المباشر إلى Gandi. ويمكنه رؤية مضيف Gandi وبيانات الاتصال، لكنه لا يستطيع قراءة استعلام النطاق المشفّر عبر HTTPS أو معرّف مستخدم OpenMates."
+  hi: "डोमेन खोज में Webshare का उपयोग तभी होता है जब Gandi को सीधा अनुरोध विफल हो। यह Gandi होस्ट और कनेक्शन जानकारी देखता है, लेकिन HTTPS से एन्क्रिप्ट की गई डोमेन खोज या OpenMates उपयोगकर्ता पहचानकर्ता नहीं पढ़ सकता।"
+  th: "สำหรับการค้นหาโดเมน จะใช้ Webshare ก็ต่อเมื่อการส่งคำขอไปยัง Gandi โดยตรงล้มเหลว โดยจะเห็นโฮสต์ Gandi และข้อมูลการเชื่อมต่อ แต่ไม่สามารถอ่านคำค้นหาโดเมนที่เข้ารหัสด้วย HTTPS หรือรหัสผู้ใช้ OpenMates ได้"
+  cs: "Při hledání domén se Webshare použije jen při selhání přímého požadavku na Gandi. Vidí hostitele Gandi a údaje o spojení, ale nemůže číst doménový dotaz šifrovaný přes HTTPS ani identifikátor uživatele OpenMates."
+  sv: "Vid domänsökningar används Webshare bara om den direkta förfrågan till Gandi misslyckas. Den ser Gandi-värden och anslutningsdata, men kan inte läsa den HTTPS-krypterade domänfrågan eller ett OpenMates-användar-ID."
+  he: "בחיפוש דומיינים, Webshare משמשת רק אם הבקשה הישירה ל-Gandi נכשלת. היא רואה את שרת Gandi ואת נתוני החיבור, אך אינה יכולה לקרוא את שאילתת הדומיין המוצפנת ב-HTTPS או מזהה משתמש של OpenMates."
+  verified_by_human: []
+providers.web_and_search.gandi.heading:
+  context: "Heading for Gandi domain search provider entry"
+  en: "Gandi (domain search)"
+  de: "Gandi (domain search)"
+  zh: "Gandi (domain search)"
+  es: "Gandi (domain search)"
+  fr: "Gandi (domain search)"
+  pt: "Gandi (domain search)"
+  ru: "Gandi (domain search)"
+  ja: "Gandi (domain search)"
+  ko: "Gandi (domain search)"
+  it: "Gandi (domain search)"
+  tr: "Gandi (domain search)"
+  vi: "Gandi (domain search)"
+  id: "Gandi (domain search)"
+  pl: "Gandi (domain search)"
+  nl: "Gandi (domain search)"
+  ar: "Gandi (domain search)"
+  hi: "Gandi (domain search)"
+  th: "Gandi (domain search)"
+  cs: "Gandi (domain search)"
+  sv: "Gandi (domain search)"
+  he: "Gandi (domain search)"
+  verified_by_human: []
+
+providers.web_and_search.gandi.description:
+  context: "Privacy disclosure for Gandi domain search"
+  en: "Gandi receives domain names or search keywords, country and currency when you use Hosting's domain search. OpenMates sends requests from its server over HTTPS without your OpenMates user identifier or Gandi credentials. Prices are indicative; no registration is performed."
+  de: "Gandi erhält Domainnamen oder Suchbegriffe, Land und Währung, wenn du die Domain-Suche von Hosting nutzt. OpenMates sendet Anfragen vom Server über HTTPS ohne deine OpenMates-Benutzerkennung oder Gandi-Zugangsdaten. Preise sind Richtwerte; es wird keine Registrierung durchgeführt."
+  zh: "使用 Hosting 域名搜索时，Gandi 会收到域名或搜索关键词、国家和货币。OpenMates 从服务器通过 HTTPS 发送请求，不包含你的 OpenMates 用户标识或 Gandi 凭据。价格仅供参考，不会进行注册。"
+  es: "Gandi recibe nombres de dominio o términos de búsqueda, país y moneda cuando usas la búsqueda de dominios de Hosting. OpenMates envía las solicitudes desde su servidor mediante HTTPS sin tu identificador de usuario de OpenMates ni credenciales de Gandi. Los precios son orientativos; no se registra ningún dominio."
+  fr: "Gandi reçoit les noms de domaine ou mots-clés recherchés, le pays et la devise lorsque vous utilisez la recherche de domaines d'Hosting. OpenMates envoie les requêtes depuis son serveur via HTTPS, sans identifiant utilisateur OpenMates ni identifiants Gandi. Les prix sont indicatifs ; aucun domaine n'est enregistré."
+  pt: "A Gandi recebe nomes de domínio ou termos de pesquisa, país e moeda quando utilizas a pesquisa de domínios do Hosting. A OpenMates envia os pedidos a partir do servidor por HTTPS, sem o teu identificador de utilizador OpenMates ou credenciais Gandi. Os preços são indicativos; não é efetuado qualquer registo."
+  ru: "Gandi получает доменные имена или поисковые слова, страну и валюту, когда вы используете поиск доменов Hosting. OpenMates отправляет запросы со своего сервера по HTTPS без вашего идентификатора OpenMates или учётных данных Gandi. Цены ориентировочные; регистрация не выполняется."
+  ja: "Hosting のドメイン検索を利用すると、Gandi はドメイン名または検索キーワード、国、通貨を受け取ります。OpenMates は OpenMates のユーザー識別子や Gandi の認証情報を含めず、サーバーから HTTPS で送信します。料金は参考値であり、登録は行いません。"
+  ko: "Hosting의 도메인 검색을 사용하면 Gandi에 도메인 이름 또는 검색어, 국가 및 통화가 전달됩니다. OpenMates는 사용자 식별자나 Gandi 인증 정보 없이 서버에서 HTTPS로 요청을 보냅니다. 가격은 참고용이며 도메인 등록은 이루어지지 않습니다."
+  it: "Gandi riceve nomi di dominio o parole chiave, Paese e valuta quando usi la ricerca domini di Hosting. OpenMates invia le richieste dal proprio server tramite HTTPS, senza il tuo identificativo utente OpenMates né credenziali Gandi. I prezzi sono indicativi; non viene effettuata alcuna registrazione."
+  tr: "Hosting alan adı aramasını kullandığınızda Gandi alan adlarını veya arama sözcüklerini, ülkeyi ve para birimini alır. OpenMates istekleri sunucusundan HTTPS üzerinden, OpenMates kullanıcı kimliğiniz veya Gandi kimlik bilgileriniz olmadan gönderir. Fiyatlar tahminidir; kayıt yapılmaz."
+  vi: "Gandi nhận tên miền hoặc từ khóa tìm kiếm, quốc gia và đơn vị tiền tệ khi bạn dùng tính năng tìm tên miền của Hosting. OpenMates gửi yêu cầu từ máy chủ qua HTTPS mà không kèm mã định danh người dùng OpenMates hoặc thông tin đăng nhập Gandi. Giá chỉ mang tính tham khảo; không có đăng ký nào được thực hiện."
+  id: "Gandi menerima nama domain atau kata kunci pencarian, negara, dan mata uang saat kamu menggunakan pencarian domain Hosting. OpenMates mengirim permintaan dari server melalui HTTPS tanpa pengenal pengguna OpenMates atau kredensial Gandi. Harga hanya perkiraan; tidak ada pendaftaran domain."
+  pl: "Gandi otrzymuje nazwy domen lub słowa kluczowe, kraj i walutę, gdy korzystasz z wyszukiwania domen w Hosting. OpenMates wysyła żądania ze swojego serwera przez HTTPS bez identyfikatora użytkownika OpenMates ani danych logowania Gandi. Ceny są orientacyjne; domeny nie są rejestrowane."
+  nl: "Gandi ontvangt domeinnamen of zoekwoorden, land en valuta wanneer je domeinen zoekt met Hosting. OpenMates verstuurt verzoeken vanaf zijn server via HTTPS zonder je OpenMates-gebruikers-ID of Gandi-inloggegevens. Prijzen zijn indicatief; er vindt geen registratie plaats."
+  ar: "تتلقى Gandi أسماء النطاقات أو كلمات البحث والبلد والعملة عند استخدام بحث النطاقات في Hosting. ترسل OpenMates الطلبات من خادمها عبر HTTPS دون معرّف مستخدم OpenMates أو بيانات اعتماد Gandi. الأسعار إرشادية؛ ولا يُسجَّل أي نطاق."
+  hi: "Hosting की डोमेन खोज का उपयोग करने पर Gandi को डोमेन नाम या खोज शब्द, देश और मुद्रा मिलते हैं। OpenMates अपने सर्वर से HTTPS पर अनुरोध भेजता है, बिना आपके OpenMates उपयोगकर्ता पहचानकर्ता या Gandi क्रेडेंशियल के। कीमतें अनुमानित हैं; कोई पंजीकरण नहीं होता।"
+  th: "Gandi ได้รับชื่อโดเมนหรือคำค้นหา ประเทศ และสกุลเงินเมื่อคุณใช้การค้นหาโดเมนของ Hosting โดย OpenMates ส่งคำขอจากเซิร์ฟเวอร์ผ่าน HTTPS โดยไม่มีรหัสผู้ใช้ OpenMates หรือข้อมูลเข้าสู่ระบบ Gandi ราคาเป็นเพียงการประมาณและไม่มีการจดทะเบียนโดเมน"
+  cs: "Gandi obdrží názvy domén nebo hledaná slova, zemi a měnu, když použijete vyhledávání domén v Hosting. OpenMates odesílá požadavky ze svého serveru přes HTTPS bez identifikátoru uživatele OpenMates nebo přihlašovacích údajů Gandi. Ceny jsou orientační; registrace se neprovádí."
+  sv: "Gandi får domännamn eller sökord, land och valuta när du använder domänsökning i Hosting. OpenMates skickar förfrågningar från sin server via HTTPS utan ditt OpenMates-användar-ID eller Gandi-inloggningsuppgifter. Priserna är ungefärliga; ingen registrering görs."
+  he: "Gandi מקבלת שמות דומיין או מילות חיפוש, מדינה ומטבע כשמשתמשים בחיפוש הדומיינים של Hosting. OpenMates שולחת בקשות מהשרת שלה ב-HTTPS ללא מזהה המשתמש שלך ב-OpenMates או פרטי גישה ל-Gandi. המחירים משוערים; לא מתבצע רישום דומיין."
   verified_by_human: []
 providers.web_and_search.webshare.heading:
   context: Heading for Webshare provider entry

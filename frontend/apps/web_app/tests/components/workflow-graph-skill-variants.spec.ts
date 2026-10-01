@@ -2,7 +2,9 @@
 /* eslint-disable @typescript-eslint/no-require-imports -- Existing Playwright helpers expose CommonJS exports. */
 export {};
 
-import type { Page } from '@playwright/test';
+import type { Page, Route } from '@playwright/test';
+
+import { waitForComponentPreview } from '../helpers/component-preview';
 
 const { expect, test } = require('../helpers/cookie-audit');
 
@@ -90,6 +92,32 @@ const VARIABLE_SOURCE_CAPABILITY = {
 };
 
 test.describe('WorkflowGraphRenderer real skill variants', () => {
+	// contract-test: direct surface=gui.web assertions=workflows-ui.responsive-accessible-reachable,workflows-ui.mvp.authoring
+	test('app skill tests show exactly one Processing indicator in the output container', async ({ page }: { page: Page }) => {
+		let release = () => {};
+		const held = new Promise<void>(resolve => { release = resolve; });
+		await page.route('**/v1/workflows/preview-workflow/steps/events/test', async (route: Route) => {
+			const headers = { 'Access-Control-Allow-Origin': new URL(page.url()).origin, 'Access-Control-Allow-Credentials': 'true', 'Access-Control-Allow-Methods': 'POST,OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' };
+			if (route.request().method() === 'OPTIONS') { await route.fulfill({ status: 204, headers }); return; }
+			await held;
+			await route.fulfill({ headers, json: { run: { id: 'events-test', status: 'completed', node_runs: [{ node_id: 'events', output_summary: { results: [{ title: 'Test art class', url: 'https://example.com/art' }] } }] } } });
+		});
+		try {
+			await page.goto(EVENTS_PREVIEW + '&props=' + encodeURIComponent(JSON.stringify({ workflowId: 'preview-workflow' })), { waitUntil: 'domcontentloaded' });
+			await waitForComponentPreview(page);
+			const node = page.locator('[data-node-id="events"]');
+			await node.getByTestId('workflow-node-summary').click();
+			await node.getByTestId('workflow-test-action').click();
+			await expect(node.getByTestId('workflow-test-output-loading')).toHaveText('Processing…');
+			await expect(node.getByText('Processing…', { exact: true })).toHaveCount(1);
+			await expect(node.locator('.test-control')).not.toContainText('Processing...');
+			await expect(node.getByTestId('workflow-test-action')).toBeDisabled();
+			await node.screenshot({ path: test.info().outputPath('app-skill-single-processing.png') });
+			release();
+			await expect(node.getByTestId('workflow-test-output-loading')).toHaveCount(0);
+			await expect(node.getByTestId('workflow-output-fields')).toContainText('Test art class');
+		} finally { release(); }
+	});
 	// contract-test: direct surface=gui.web assertions=workflows-ui.mvp.authoring
 	test('opens and inspects the Events Search capability schema', async ({
 		page
@@ -162,14 +190,17 @@ test.describe('WorkflowGraphRenderer real skill variants', () => {
 		const messageNode = page.locator('[data-node-id="message"]');
 		await messageNode.getByTestId('workflow-node-summary').click();
 		const messageEditor = messageNode.getByTestId('workflow-node-expanded');
-		const variables = messageEditor.getByTestId('workflow-message-variable-chips');
-		await expect(variables).toBeVisible();
-		const basicCount = await variables.locator('.chip').count();
+		const sources = messageEditor.getByTestId('workflow-variable-sources');
+		await expect(sources).toBeVisible();
+		const sourceScroll = messageEditor.getByTestId('workflow-variable-source-scroll');
+		await expect(sourceScroll).toHaveCSS('flex-wrap', 'nowrap');
+		await expect(sourceScroll).toHaveCSS('overflow-x', 'auto');
+		await sources.locator('[data-source-node-id="events"]').click();
+		const variables = messageEditor.getByTestId('workflow-ai-suggestions');
+		const basicCount = await variables.locator('[data-variable-reference]').count();
 		expect(basicCount).toBeGreaterThan(0);
-		await expect(variables).toHaveCSS('flex-wrap', 'nowrap');
-		await expect(variables).toHaveCSS('overflow-x', 'auto');
-		await messageEditor.getByRole('button', { name: 'Show all variables' }).click();
-		expect(await variables.locator('.chip').count()).toBeGreaterThan(basicCount);
+		await variables.getByRole('button', { name: 'Show all', exact: true }).click();
+		expect(await variables.locator('[data-variable-reference]').count()).toBeGreaterThan(basicCount);
 	});
 
 	// contract-test: direct surface=gui.web assertions=workflows-ui.mvp.authoring
@@ -192,7 +223,9 @@ test.describe('WorkflowGraphRenderer real skill variants', () => {
 		const query = editor.getByTestId('workflow-input-template-events-request-0-query');
 		const chips = editor.getByTestId('workflow-input-variable-chips-events-request-0-query');
 		await expect(query).toHaveAttribute('aria-multiline', 'false');
-		await expect(query.locator('.generic-mention')).toHaveText('@Example place lookup · Title');
+		await expect(query.locator('.generic-mention')).toHaveText('@fixture.places.title');
+		await expect(query.locator('.generic-mention')).toHaveAttribute('title', 'Example place lookup · Title');
+		await expect(query.locator('.workflow-mention-icon')).toBeVisible();
 		await expect(query).not.toContainText('$nodes');
 		await expect(query).not.toContainText('{{steps');
 		await expect(chips).toBeVisible();
@@ -203,8 +236,8 @@ test.describe('WorkflowGraphRenderer real skill variants', () => {
 		await query.press('Home');
 		await chips.getByRole('button', { name: '+ Example place lookup · Provider', exact: true }).click();
 		await expect(query.locator('.generic-mention')).toHaveCount(2);
-		await expect(query.locator('.generic-mention').first()).toHaveText('@Example place lookup · Provider');
-		await expect(query.locator('.generic-mention').last()).toHaveText('@Example place lookup · Title');
+		await expect(query.locator('.generic-mention').first()).toHaveText('@fixture.places.provider');
+		await expect(query.locator('.generic-mention').last()).toHaveText('@fixture.places.title');
 
 		const basicCount = await chips.getByRole('button').count();
 		const variableToggle = chips.locator('..').locator('.variable-toggle');

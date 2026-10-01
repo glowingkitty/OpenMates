@@ -34,13 +34,16 @@ private struct TravelConnectionPreviewDetails: View {
     let connection: TravelConnectionSummary
 
     var body: some View {
-        VStack(alignment: .leading, spacing: .spacing2) {
-            HStack(alignment: .firstTextBaseline, spacing: .spacing3) {
+        VStack(alignment: .leading, spacing: .spacing1) {
+            HStack(alignment: .firstTextBaseline, spacing: .spacing2) {
                 if let price = connection.priceText {
                     Text(price)
                         .font(.omP)
                         .fontWeight(.bold)
-                        .foregroundStyle(Color(hex: 0x10B981))
+                        // TravelConnectionEmbedPreview.svelte falls back to #00a313;
+                        // the theme has no --color-success declaration.
+                        .foregroundStyle(Color(hex: 0x00A313))
+                        .accessibilityIdentifier("connection-price")
                 }
                 Text("|")
                     .font(.omP)
@@ -56,20 +59,30 @@ private struct TravelConnectionPreviewDetails: View {
 
             if let route = connection.routeFull {
                 Text(route)
-                    .font(.omXs)
+                    .font(.omSmall)
                     .fontWeight(.semibold)
                     .foregroundStyle(Color.fontPrimary)
+                    .lineLimit(2)
+                    .accessibilityIdentifier("connection-route")
+            }
+
+            if let timeLine = connection.previewTimeLine {
+                Text(timeLine)
+                    .font(.omSmall)
+                    .fontWeight(.bold)
+                    .foregroundStyle(Color.fontPrimary)
                     .lineLimit(1)
+                    .accessibilityIdentifier("connection-time")
             }
 
             Text(connection.metaLine)
                 .font(.omXs)
-                .fontWeight(.semibold)
                 .foregroundStyle(Color.grey60)
                 .lineLimit(1)
+                .accessibilityIdentifier("connection-meta")
         }
-        .padding(.spacing6)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        .padding(.vertical, .spacing1)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }
 
@@ -378,6 +391,7 @@ struct TravelConnectionSummary: Identifiable {
     let originCountryCode: String?
     let destinationCountryCode: String?
     let departure: String?
+    let arrival: String?
     let duration: String?
     let stops: Int
     let carrierCodes: [String]
@@ -396,6 +410,7 @@ struct TravelConnectionSummary: Identifiable {
         self.originCountryCode = TravelValue.string(data, ["origin_country_code"])
         self.destinationCountryCode = TravelValue.string(data, ["destination_country_code"])
         self.departure = TravelValue.string(data, ["departure"])
+        self.arrival = TravelValue.string(data, ["arrival"])
         self.duration = TravelValue.string(data, ["duration"])
         self.stops = TravelValue.int(data, ["stops", "transfers"]) ?? 0
         self.carrierCodes = TravelValue.stringArray(data, "carrier_codes")
@@ -452,6 +467,13 @@ struct TravelConnectionSummary: Identifiable {
     var departureDateText: String? {
         guard let departure else { return nil }
         return TravelValue.formatDate(departure)
+    }
+
+    var previewTimeLine: String? {
+        let departureText = departure.flatMap(TravelValue.formatPreviewTime)
+        let arrivalText = arrival.flatMap(TravelValue.formatPreviewTime)
+        if let departureText, let arrivalText { return "\(departureText) → \(arrivalText)" }
+        return departureText ?? arrivalText
     }
 
     var stopsLabel: String {
@@ -790,6 +812,28 @@ enum TravelValue {
             return out.string(from: date)
         }
         return value
+    }
+
+    static func formatPreviewTime(_ value: String) -> String? {
+        // Browser `new Date` treats an ISO timestamp without a zone as local
+        // time. Keep that behavior for the compact card's departure/arrival row.
+        let hasExplicitZone = value.hasSuffix("Z")
+            || value.range(of: #"[+-]\d{2}:\d{2}$"#, options: .regularExpression) != nil
+        let date: Date?
+        if hasExplicitZone {
+            date = parseDate(value)
+        } else {
+            let local = DateFormatter()
+            local.locale = Locale(identifier: "en_US_POSIX")
+            local.timeZone = .current
+            local.dateFormat = value.contains("T") ? "yyyy-MM-dd'T'HH:mm:ss" : "yyyy-MM-dd HH:mm"
+            date = local.date(from: value) ?? parseDate(value)
+        }
+        guard let date else { return nil }
+        let out = DateFormatter()
+        out.locale = .current
+        out.timeStyle = .short
+        return out.string(from: date)
     }
 
     private static func parseDate(_ value: String) -> Date? {

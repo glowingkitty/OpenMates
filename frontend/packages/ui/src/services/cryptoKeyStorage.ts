@@ -25,6 +25,8 @@
  *   key loss (stayLoggedIn=false) and unexpected storage eviction (stayLoggedIn=true).
  */
 
+import { invalidateWorkspaceCaches } from './workspaceCacheLifecycle';
+
 const DB_NAME = 'openmates_crypto';
 const DB_VERSION = 1;
 const STORE_NAME = 'keys';
@@ -75,6 +77,7 @@ async function openDB(): Promise<IDBDatabase> {
  * @param stayLoggedIn - If false, key stored in memory only; if true, persisted to IndexedDB
  */
 export async function saveMasterKey(key: CryptoKey, stayLoggedIn: boolean): Promise<void> {
+  invalidateWorkspaceCaches();
   if (stayLoggedIn) {
     // Persist to IndexedDB for long-term storage
     await saveMasterKeyToIndexedDB(key);
@@ -217,6 +220,7 @@ export async function getMasterKeyFromIndexedDB(): Promise<CryptoKey | null> {
  * This is the comprehensive cleanup function used during logout
  */
 export async function clearMasterKey(): Promise<void> {
+  invalidateWorkspaceCaches();
   // Clear memory storage
   memoryMasterKey = null;
   memoryKeyStayLoggedIn = null;
@@ -276,6 +280,7 @@ export async function isDeviceTrusted(): Promise<boolean> {
  * Used during logout to completely remove all crypto keys
  */
 export async function deleteCryptoDatabase(): Promise<void> {
+  invalidateWorkspaceCaches();
   // Clear the stayLoggedIn flag when deleting the database
   if (typeof window !== 'undefined') {
     localStorage.removeItem(STAY_LOGGED_IN_FLAG);

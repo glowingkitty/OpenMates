@@ -120,6 +120,30 @@ final class ChatShellResponsiveParityUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["chat-history-panel"].firstMatch.exists)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=settings-ui.parity.web-apple-shell
+    func testSettingsOverlayDimsRetainedChatAndBackdropDismissesIt() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-disable-auth-cache", "--ui-test-shell-metrics", "-AppleLanguages", "(en)"]
+        app.launchEnvironment["UI_TEST_SHELL_METRICS"] = "1"
+        app.launch()
+        let window = app.windows.firstMatch
+        XCTAssertTrue(window.waitForExistence(timeout: 12))
+        guard window.frame.width <= 1100 else { throw XCTSkip("Settings backdrop belongs to overlay-width windows") }
+        let settings = app.buttons["settings-button"]
+        XCTAssertTrue(settings.waitForExistence(timeout: 5)); settings.tap()
+        let backdrop = app.buttons["settings-backdrop-dismiss"]
+        XCTAssertTrue(backdrop.waitForExistence(timeout: 5))
+        let panel = app.descendants(matching: .any)["workspace-settings"].firstMatch
+        XCTAssertTrue(panel.exists)
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = "Settings overlay with retained active chat at web 30 percent opacity"; attachment.lifetime = .keepAlways; add(attachment)
+        // Tap the visible gutter left of the panel, away from the header.
+        let point = backdrop.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0.5)).withOffset(CGVector(dx: 10, dy: 0))
+        point.tap()
+        XCTAssertTrue(backdrop.waitForNonExistence(timeout: 3))
+        XCTAssertTrue(settings.isHittable)
+    }
+
     private func waitForMetric(_ key: String, equals expected: Bool, in element: XCUIElement) throws -> String {
         let deadline = Date().addingTimeInterval(5)
         while Date() < deadline {

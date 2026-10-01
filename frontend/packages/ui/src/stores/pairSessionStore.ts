@@ -272,7 +272,8 @@ export async function rehydratePairSession(): Promise<void> {
 /**
  * Written by the onPair deep link handler in +page.svelte immediately before
  * navigating to account/security/sessions/confirm-pair.
- * Read once by SettingsSessionsConfirmPair on mount.
+ * Consumed by SettingsSessionsConfirmPair on mount and for replacement links
+ * while that destination remains mounted.
  */
 export const pendingPairToken = writable<string | null>(null);
 

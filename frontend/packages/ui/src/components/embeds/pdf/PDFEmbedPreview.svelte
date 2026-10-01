@@ -430,13 +430,21 @@
   }
 
   .pdf-icon-center .icon_rounded {
+    /* The shared footer icon is absolutely positioned at the card's corner.
+       This fallback icon belongs in the centered preview content instead. */
+    position: relative;
+    inset: auto;
     width: 52px;
     height: 52px;
     border-radius: var(--radius-6);
-    background-size: 26px 26px;
+    background-size: 100% 100%;
     background-repeat: no-repeat;
     background-position: center;
     flex-shrink: 0;
+  }
+
+  .pdf-icon-center .icon_rounded::after {
+    background-size: 26px 26px;
   }
 
   /* Dark mode */

@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.workspace-shell
-version: 2
+version: 3
 status: draft
 title: Workspace Shell
 summary: >
@@ -10,9 +10,10 @@ summary: >
 
 scope:
   includes:
-    - Header release-gated workspace tab visibility for Chats, Projects, Workflows, and Tasks.
-    - Chats-relative start-screen shell affordances for released Projects, Workflows, and Tasks.
+    - Header release-gated workspace tab visibility for Chats, Apps, Projects, Workflows, and Tasks.
+    - Chats-relative start-screen shell affordances for released Apps, Projects, Workflows, and Tasks.
     - Surface-specific Daily Inspiration placement, background identity icon, and bottom composer mount points.
+    - Shared available-space sizing for Chats, Projects, and Workflows continuation cards and browse controls.
     - Figma-referenced Tasks board-control placement on desktop and narrow viewports.
     - Tasks Kanban board containment, including vertical shell scrolling under a fixed bottom composer and horizontal board scrolling on narrow viewports.
     - Plan previews and detail navigation within the Tasks workspace and Project Tasks tab.
@@ -26,7 +27,7 @@ models:
     workspaces:
       type: ordered_set
       required: true
-      constraints: {values: [chats, projects, workflows, tasks], excludes_unreleased: true}
+      constraints: {values: [chats, apps, projects, workflows, tasks], excludes_unreleased: true}
     desktop_tabs:
       type: navigation_links
       required: true
@@ -40,7 +41,7 @@ models:
     surface:
       type: enum
       required: true
-      values: [chats, projects, workflows, tasks]
+      values: [chats, apps, projects, workflows, tasks]
     chats_visual_baseline:
       type: relative_visual_specification
       required: true
@@ -100,12 +101,16 @@ assertions:
     depends_on: [models.ReleasedWorkspaceNav, examples.released_navigation]
   - id: workspace-shell.start.shared-affordances
     type: behavior
-    must: Projects, Workflows, and Tasks start shells render a surface-specific Daily Inspiration area, decorative background identity icon, and bottom-mounted surface-specific composer without importing chat message persistence or post-send chat processing ownership.
+    must: Apps, Projects, Workflows, and Tasks start shells render a surface-specific Daily Inspiration area, decorative background identity icon, and bottom-mounted surface-specific composer without importing chat message persistence or post-send chat processing ownership.
     depends_on: [models.WorkspaceStartShell, examples.start_shells]
   - id: workspace-shell.start.chat-visual-parity
     type: behavior
-    must: Projects, Workflows, and Tasks match the rendered Chats start screen for workspace container surface treatment and viewport positioning, Daily Inspiration geometry, Report Issue control size, and bottom composer geometry on desktop and mobile while preserving surface-specific content.
+    must: Apps, Projects, Workflows, and Tasks match the rendered Chats start screen for workspace container surface treatment and viewport positioning, Daily Inspiration geometry, Report Issue control size, and bottom composer geometry on desktop and mobile while preserving surface-specific content.
     depends_on: [models.WorkspaceStartShell, examples.visual_parity]
+  - id: workspace-shell.start.available-space-cards
+    type: behavior
+    must: Chats, Projects, and Workflows use the same available-space rule for continuation previews. Large cards appear only when the actual content area beneath Daily Inspiration can fit the greeting, cards, browse controls, and bottom composer; otherwise previews use compact single-line cards. Container resizing, inspiration height changes, and narrow or short viewports update the decision. Browse controls remain visible above the composer, and continuation content does not overlap inspiration or cause page overflow.
+    depends_on: [models.WorkspaceStartShell, examples.available_space_cards]
   - id: workspace-shell.kanban.figma-controls
     type: behavior
     must: The Tasks desktop board places a compact Search link and tags at the upper inline end beside the circular filter control, omits the dashboard-style board summary, and hides Search and tags on narrow viewports while preserving the filter control and horizontal Kanban.
@@ -145,4 +150,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [released_navigation, start_shells, visual_parity, figma_board_controls, kanban_scroll]
+  required_groups: [released_navigation, start_shells, visual_parity, available_space_cards, figma_board_controls, kanban_scroll]

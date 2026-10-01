@@ -1,0 +1,48 @@
+# Goal-only profile: the current validator treats any schema_version as a strict
+# execution ledger. User guidance requires the lightweight record and keeps
+# execution status/dependencies in OpenMates Tasks.
+id: apple-workspace-feature-parity
+title: Apple workflow, task, and project workspace parity
+status: implementing
+goal: >-
+  Also start sub agents to implement the workflow, tasks and projects workspaces
+  as well - for full parity of those features as well.
+authorization: >-
+  The user explicitly requested implementation through separate subagents in
+  this session. Existing Apple recovery, embed, map/calendar, and sub-chat work
+  continues. Full parity includes the same icons, colors, layouts, and working
+  user interactions as the rendered web app.
+scope:
+  - Workflow workspace, editor, templates, versions, run history, and run details.
+  - Tasks workspace, board, task detail, activity, review, and linked Plan context.
+  - Projects workspace, browser, detail, README, sources, and approval/review surfaces.
+  - Native shell routing, sidebar behavior, encrypted client state, permissions, and account lifecycle.
+  - Reported workspace loading, input focus, full tab hit regions, and internal app-link regressions.
+  - Search and Sheet previews, embed grouping, source-quote highlighting, health appointment details and location maps.
+  - Chat summary hydration, typed chat/embed suggestions, reconnection lifecycle, push registration and completion visibility.
+  - Watch content-bearing encrypted drafts, cross-device send/completion storage, saved embed hydration, and semantic message rendering.
+references:
+  - https://app.dev.openmates.org/dev/preview
+  - specifications/features/projects/specification.yml
+  - specifications/features/tasks/specification.yml
+  - specifications/features/workflows/specification.yml
+  - specifications/features/workflows-ui/specification.yml
+  - specifications/architecture/sync/specification.yml
+decisions:
+  - Rendered deployed web behavior is the parity target. Localhost is a fallback for a concrete deployed fixture gap.
+  - Draft Specification revisions provide context; they do not authorize inventing behavior beyond the user's requested web parity.
+  - Reuse the existing isolated session. Keep ownership separate by feature; the coordinator owns shared shell integration.
+  - Preserve client encryption, role and focus checks, explicit approval choices, and account/socket generation fences.
+verification:
+  required:
+    - Focused native unit coverage for models, encrypted persistence, lifecycle fences, and action contracts.
+    - Native UI coverage for production navigation and the changed workspace interactions.
+    - Simulator screenshots reviewed against rendered deployed previews at matching phone and wide dimensions.
+    - iOS and macOS compilation of the combined source.
+    - Watch Simulator draft lifecycle and rendered message/embed coverage, plus synthetic encrypted storage and account-scope checks.
+    - Relevant product E2E checks through the existing isolated GitHub CI coordinator.
+  limitations:
+    - The existing dev-host route for publishing private CI candidates is currently unavailable from this Mac.
+    - OpenMates Tasks tracking is unavailable while personal CLI authentication recovery lacks its existing dev account configuration.
+    - Physical-device delivery remains TestFlight; no local Debug app replaces an installed app.
+    - Report 8WFMM and physical iPad APNs delivery need server evidence; the device server profile remains unconfirmed.

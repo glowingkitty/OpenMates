@@ -77,6 +77,11 @@ enum DevPreviewComponent: String, CaseIterable, Hashable {
     case welcome
     case login
     case signup
+    case tasks
+    case projects
+    case workflows
+    case notification
+    case sharedRecipient = "shared-recipient"
 
     var descriptor: DevPreviewComponentDescriptor { DevPreviewComponentRegistry.descriptor(for: self) }
 }
@@ -104,17 +109,17 @@ enum DevPreviewComponentRegistry {
     static func descriptor(for component: DevPreviewComponent) -> DevPreviewComponentDescriptor {
         switch component {
         case .composer:
-            return .init(component: component, webComponentPath: "enter_message/MessageInput", nativeRendererNames: ["MessageComposerView", "NativeComposerSession"], variants: ["model", "default", "focused", "filled", "attachment", "disabled"], hostSupport: .componentHost)
+            return .init(component: component, webComponentPath: "enter_message/MessageInput", nativeRendererNames: ["MessageComposerView", "NativeComposerSession"], variants: ["model", "focus", "mentions", "recording-error", "default", "focused", "filled", "attachment", "disabled", "search-suggestions", "assistant-speech", "assistant-speech-public", "chat-settings", "chat-settings-usage", "chat-settings-plans", "chat-settings-shared", "chat-settings-public", "chat-settings-export-control"], hostSupport: .componentHost)
         case .chatHeader:
             return .init(component: component, webComponentPath: "ChatHeader", nativeRendererNames: ["ChatBannerView"], variants: ["default", "loading", "incognito", "draft", "long-title"], hostSupport: .componentHost)
         case .followUpSuggestions:
             return .init(component: component, webComponentPath: "FollowUpSuggestions", nativeRendererNames: ["FollowUpSuggestions"], variants: ["default", "legacy-markup", "long"], hostSupport: .componentHost)
         case .message:
-            return .init(component: component, webComponentPath: "ChatMessage", nativeRendererNames: ["MessageBubble"], variants: ["default", "user", "assistant", "thinking", "markdown", "citations", "streaming", "streaming-long", "streaming-reduced-motion"], hostSupport: .componentHost)
+            return .init(component: component, webComponentPath: "ChatMessage", nativeRendererNames: ["MessageBubble", "RichMarkdownView", "SubChatBatchView"], variants: ["default", "user", "mentions", "assistant", "thinking", "markdown", "citations", "quote-open", "quote-scroll", "results-map", "results-visual", "results-berlin-map", "results-date-only", "results-invalid", "sub-chat-batch", "streaming", "streaming-long", "streaming-reduced-motion"], hostSupport: .componentHost)
         case .embedPreview:
-            return .init(component: component, webComponentPath: "embeds/web/WebSearchEmbedPreview", nativeRendererNames: ["EmbedPreviewCard"], variants: ["default", "processing", "error", "cancelled"], hostSupport: .componentHost)
+            return .init(component: component, webComponentPath: "embeds/web/WebSearchEmbedPreview", nativeRendererNames: ["EmbedPreviewCard"], variants: ["default", "processing", "error", "cancelled", "sheet", "sheet-wide", "sheet-large", "search-long", "search-thumbnail", "search-group", "search-overflow", "images-search-overflow", "news-search"], hostSupport: .componentHost)
         case .embedFullscreen:
-            return .init(component: component, webComponentPath: "embeds/web/WebSearchEmbedFullscreen", nativeRendererNames: ["EmbedFullscreenContainer"], variants: ["default", "processing", "error", "withNavigation", "actions-code"], hostSupport: .componentHost)
+            return .init(component: component, webComponentPath: "embeds/web/WebSearchEmbedFullscreen", nativeRendererNames: ["EmbedFullscreenContainer"], variants: ["default", "processing", "error", "withNavigation", "actions-code", "event-image"], hostSupport: .componentHost)
         case .sidebar:
             return .init(component: component, webComponentPath: "chats/Chats", nativeRendererNames: ["ChatSidebarContent", "ChatListRow", "ChatSearchView"], variants: ["default", "guest", "account", "empty", "dated"], hostSupport: .componentHost)
         case .history:
@@ -125,6 +130,16 @@ enum DevPreviewComponentRegistry {
             return .init(component: component, webComponentPath: "Login", nativeRendererNames: ["AuthLoginHeading", "EmailLookupForm", "PasswordLoginForm"], variants: ["default", "email", "password", "otp", "error", "lookup-error", "password-error"], hostSupport: .componentHost)
         case .signup:
             return .init(component: component, webComponentPath: "signup/Signup", nativeRendererNames: ["NativeSignupForm", "SignupBasicsFormView", "SignupConfirmEmailStep", "SignupPasswordStep"], variants: ["default", "basics", "error", "loading", "unavailable", "confirm-email", "secure-account", "password", "creation-uncertain", "passkey", "passkey-prf-error", "passkey-cancel", "passkey-uncertain"], hostSupport: .componentHost)
+        case .tasks:
+            return .init(component: component, webComponentPath: "tasks/TasksPage", nativeRendererNames: ["TasksWorkspaceView", "TaskDetailView", "PlanDetailView", "TasksSidebarView"], variants: ["default", "plans", "supplementary-load-failure"], hostSupport: .componentHost)
+        case .projects:
+            return .init(component: component, webComponentPath: "projects/ProjectsPage", nativeRendererNames: ["ProjectsWorkspaceView", "ProjectsSidebarView"], variants: ["default", "landing", "folders", "readme", "tasks", "connectedSource", "localFolderSource", "multipleSources", "largeConnectedSource", "legacyConnectedSource", "sidebar"], hostSupport: .componentHost)
+        case .notification:
+            return .init(component: component, webComponentPath: "Notification", nativeRendererNames: ["InAppNotificationCard"], variants: ["default", "connection", "progress", "stack"], hostSupport: .componentHost)
+        case .sharedRecipient:
+            return .init(component: component, webComponentPath: "chats/SharedChatRecipientPreviewHarness", nativeRendererNames: ["SharedChatRecipientView"], variants: ["default", "loading", "password", "invalidPassword", "error", "ready", "target", "embed", "imageSiblings"], hostSupport: .componentHost)
+        case .workflows:
+            return .init(component: component, webComponentPath: "workflows/WorkflowTemplateShare", nativeRendererNames: ["WorkflowShortTemplatePreviewHost", "WorkflowTemplateImportPanel", "WorkflowHomeView"], variants: ["short-template", "home"], hostSupport: .componentHost)
         }
     }
 

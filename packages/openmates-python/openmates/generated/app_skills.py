@@ -128,23 +128,40 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                            'Eleven '
                                                                                            'v3 is '
                                                                                            'the '
-                                                                                           'highest-quality '
                                                                                            'default; '
+                                                                                           'v4 '
+                                                                                           'offers '
+                                                                                           'the '
+                                                                                           'highest '
+                                                                                           'quality, '
+                                                                                           'v4 '
+                                                                                           'Turbo '
+                                                                                           'offers '
+                                                                                           'expressive '
+                                                                                           'low-latency '
+                                                                                           'speech, '
                                                                                            'Multilingual '
                                                                                            'v2 '
                                                                                            'provides '
                                                                                            'stable '
-                                                                                           'long-form '
-                                                                                           'speech '
+                                                                                           'speech, '
                                                                                            'and '
                                                                                            'Flash '
                                                                                            'v2.5 '
                                                                                            'is the '
                                                                                            'lower-cost '
-                                                                                           'option.',
+                                                                                           'option. '
+                                                                                           'v4 '
+                                                                                           'models '
+                                                                                           'do not '
+                                                                                           'support '
+                                                                                           'custom '
+                                                                                           'speed.',
                                                                             'enum': ['eleven_v3',
                                                                                      'eleven_multilingual_v2',
-                                                                                     'eleven_flash_v2_5'],
+                                                                                     'eleven_flash_v2_5',
+                                                                                     'eleven_v4',
+                                                                                     'eleven_v4_turbo'],
                                                                             'type': 'string'},
                                                                   'output_format': {'default': 'mp3_44100_128',
                                                                                     'enum': ['mp3_22050_32',
@@ -171,6 +188,22 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                'enum': ['elevenlabs'],
                                                                                'type': 'string'},
                                                                   'speed': {'default': 1.0,
+                                                                            'description': 'Speech '
+                                                                                           'speed. '
+                                                                                           'Eleven '
+                                                                                           'v4 and '
+                                                                                           'v4 '
+                                                                                           'Turbo '
+                                                                                           'require '
+                                                                                           '1.0; '
+                                                                                           'custom '
+                                                                                           'speed '
+                                                                                           'is '
+                                                                                           'supported '
+                                                                                           'by the '
+                                                                                           'older '
+                                                                                           'models '
+                                                                                           'only.',
                                                                             'maximum': 1.2,
                                                                             'minimum': 0.7,
                                                                             'type': 'number'},
@@ -7427,7 +7460,200 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
              'type': 'object'},
   'skill_id': 'search',
   'skill_method_py': 'search',
-  'skill_method_ts': 'search'}]
+  'skill_method_ts': 'search'},
+ {'app_id': 'hosting',
+  'app_namespace_py': 'hosting',
+  'app_namespace_ts': 'hosting',
+  'description': 'Check an exact domain name or discover available domain names through Gandi. Use '
+                 'one grouped request per independent name or idea. A fully qualified domain is '
+                 'checked exactly. Put explicitly requested suffixes in tlds and explicit tax '
+                 'country and currency in country and currency; defaults are DE and EUR. Use '
+                 'availability=prefer_available by default: show confirmed available names first '
+                 'and checked in-use names only to fill remaining result slots. Use available_only '
+                 'only when the user wants no in',
+  'description_key': 'app_skills.hosting.search_domains.description',
+  'schema': {'properties': {'requests': {'description': 'One to five independent domain checks or '
+                                                        'name searches.',
+                                         'items': {'properties': {'availability': {'default': 'prefer_available',
+                                                                                   'description': 'prefer_available '
+                                                                                                  'selects '
+                                                                                                  'confirmed '
+                                                                                                  'available '
+                                                                                                  'first, '
+                                                                                                  'then '
+                                                                                                  'checked '
+                                                                                                  'unavailable '
+                                                                                                  'names '
+                                                                                                  'only '
+                                                                                                  'to '
+                                                                                                  'fill '
+                                                                                                  'a '
+                                                                                                  'shortfall. '
+                                                                                                  'available_only '
+                                                                                                  'never '
+                                                                                                  'fills '
+                                                                                                  'with '
+                                                                                                  'unavailable. '
+                                                                                                  'all '
+                                                                                                  'preserves '
+                                                                                                  'ranked '
+                                                                                                  'checked '
+                                                                                                  'available '
+                                                                                                  'and '
+                                                                                                  'unavailable '
+                                                                                                  'order. '
+                                                                                                  'Unknown '
+                                                                                                  'checks '
+                                                                                                  'remain '
+                                                                                                  'diagnostic '
+                                                                                                  'only.\n',
+                                                                                   'enum': ['prefer_available',
+                                                                                            'available_only',
+                                                                                            'all'],
+                                                                                   'type': 'string'},
+                                                                  'country': {'default': 'DE',
+                                                                              'description': 'Two-letter '
+                                                                                             'tax '
+                                                                                             'country '
+                                                                                             'code; '
+                                                                                             'returned '
+                                                                                             'explicitly '
+                                                                                             'with '
+                                                                                             'prices.',
+                                                                              'type': 'string'},
+                                                                  'currency': {'default': 'EUR',
+                                                                               'description': 'Supported '
+                                                                                              'quote '
+                                                                                              'currency. '
+                                                                                              'Unsupported '
+                                                                                              'currencies '
+                                                                                              'are '
+                                                                                              'rejected.',
+                                                                               'enum': ['EUR',
+                                                                                        'USD'],
+                                                                               'type': 'string'},
+                                                                  'id': {'description': 'Optional '
+                                                                                        'caller ID '
+                                                                                        'echoed in '
+                                                                                        'this '
+                                                                                        "group's "
+                                                                                        'result.',
+                                                                         'anyOf': [{'type': 'string'},
+                                                                                   {'type': 'integer'}]},
+                                                                  'max_results': {'default': 10,
+                                                                                  'description': 'Maximum '
+                                                                                                 'selected '
+                                                                                                 'results '
+                                                                                                 'per '
+                                                                                                 'group. '
+                                                                                                 'Checked '
+                                                                                                 'pool '
+                                                                                                 'remains '
+                                                                                                 'at '
+                                                                                                 'most '
+                                                                                                 '40.',
+                                                                                  'maximum': 20,
+                                                                                  'minimum': 1,
+                                                                                  'type': 'integer'},
+                                                                  'query': {'description': 'An '
+                                                                                           'exact '
+                                                                                           'fully '
+                                                                                           'qualified '
+                                                                                           'domain '
+                                                                                           '(up to '
+                                                                                           '253 '
+                                                                                           'characters), '
+                                                                                           'a '
+                                                                                           'short '
+                                                                                           'name, '
+                                                                                           'or a '
+                                                                                           'keyword '
+                                                                                           'idea '
+                                                                                           '(up to '
+                                                                                           '100 '
+                                                                                           'characters).',
+                                                                            'maxLength': 253,
+                                                                            'minLength': 1,
+                                                                            'type': 'string'},
+                                                                  'relevance_criteria': {'description': 'Optional '
+                                                                                                        'natural-language '
+                                                                                                        'goal '
+                                                                                                        'for '
+                                                                                                        'ranking '
+                                                                                                        'checked '
+                                                                                                        'candidates. '
+                                                                                                        'Set '
+                                                                                                        'when '
+                                                                                                        'the '
+                                                                                                        'user '
+                                                                                                        'states '
+                                                                                                        'a '
+                                                                                                        'material '
+                                                                                                        'brand, '
+                                                                                                        'name-fit, '
+                                                                                                        'renewal-price, '
+                                                                                                        'term, '
+                                                                                                        'premium, '
+                                                                                                        'or '
+                                                                                                        'restriction '
+                                                                                                        'preference '
+                                                                                                        'that '
+                                                                                                        'should '
+                                                                                                        'change '
+                                                                                                        'order. '
+                                                                                                        'Copy '
+                                                                                                        'the '
+                                                                                                        'goal '
+                                                                                                        'faithfully; '
+                                                                                                        'omit '
+                                                                                                        'for '
+                                                                                                        'neutral '
+                                                                                                        'lookup '
+                                                                                                        'or '
+                                                                                                        'discovery. '
+                                                                                                        'Ranking '
+                                                                                                        'uses '
+                                                                                                        'only '
+                                                                                                        'evidenced '
+                                                                                                        'provider '
+                                                                                                        'facts '
+                                                                                                        'and '
+                                                                                                        'drops '
+                                                                                                        'scores '
+                                                                                                        'below '
+                                                                                                        '1.\n',
+                                                                                         'maxLength': 1000,
+                                                                                         'type': 'string'},
+                                                                  'tlds': {'description': 'Optional '
+                                                                                          'suffixes '
+                                                                                          'such as '
+                                                                                          '.com or '
+                                                                                          '.net. '
+                                                                                          'For a '
+                                                                                          'short '
+                                                                                          'single-label '
+                                                                                          'name, '
+                                                                                          'check '
+                                                                                          'each '
+                                                                                          'exact '
+                                                                                          'name '
+                                                                                          'plus '
+                                                                                          'suffix '
+                                                                                          'before '
+                                                                                          'suggestions.\n',
+                                                                           'items': {'type': 'string'},
+                                                                           'maxItems': 5,
+                                                                           'type': 'array'}},
+                                                   'required': ['query'],
+                                                   'type': 'object'},
+                                         'maxItems': 5,
+                                         'minItems': 1,
+                                         'type': 'array'}},
+             'required': ['requests'],
+             'type': 'object'},
+  'skill_id': 'search_domains',
+  'skill_method_py': 'search_domains',
+  'skill_method_ts': 'searchDomains'}]
 
 SkillRunner = Callable[..., dict[str, Any]]
 
@@ -8047,6 +8273,18 @@ class WorkflowsAppSkills:
         """
         return self._run_skill("workflows", "search", input_data, prompt_injection_protection=prompt_injection_protection)
 
+class HostingAppSkills:
+    def __init__(self, run_skill: SkillRunner):
+        self._run_skill = run_skill
+
+    def search_domains(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
+        """Check an exact domain name or discover available domain names through Gandi. Use one grouped request per independent name or idea. A fully qualified domain is checked exactly. Put explicitly requested suffixes in tlds and explicit tax country and currency in country and currency; defaults are DE and EUR. Use availability=prefer_available by default: show confirmed available names first and checked in-use names only to fill remaining result slots. Use available_only only when the user wants no in
+
+        Description key: app_skills.hosting.search_domains.description
+        Skill: hosting/search_domains
+        """
+        return self._run_skill("hosting", "search_domains", input_data, prompt_injection_protection=prompt_injection_protection)
+
 class GeneratedAppSkills:
     def __init__(self, run_skill: SkillRunner):
         self.ai = AiAppSkills(run_skill)
@@ -8060,6 +8298,7 @@ class GeneratedAppSkills:
         self.fitness = FitnessAppSkills(run_skill)
         self.health = HealthAppSkills(run_skill)
         self.home = HomeAppSkills(run_skill)
+        self.hosting = HostingAppSkills(run_skill)
         self.images = ImagesAppSkills(run_skill)
         self.mail = MailAppSkills(run_skill)
         self.maps = MapsAppSkills(run_skill)

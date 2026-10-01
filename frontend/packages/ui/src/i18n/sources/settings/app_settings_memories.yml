@@ -1,3 +1,79 @@
+validation_key_length:
+  context: Memory entry key length validation
+  en: Key must be {limit} characters or fewer
+  de: Der Schlüssel darf höchstens {limit} Zeichen enthalten
+  verified_by_human: []
+validation_value_length:
+  context: Memory entry value length validation
+  en: Value must be {limit} characters or fewer
+  de: Der Wert darf höchstens {limit} Zeichen enthalten
+  verified_by_human: []
+validation_required:
+  context: Required memory schema field validation
+  en: "{field} is required"
+  de: "{field} ist erforderlich"
+  verified_by_human: []
+validation_length:
+  context: Memory schema text length validation
+  en: "{field} must be {limit} characters or fewer"
+  de: "{field} darf höchstens {limit} Zeichen enthalten"
+  verified_by_human: []
+validation_integer:
+  context: Memory schema integer validation
+  en: "{field} must be an integer"
+  de: "{field} muss eine ganze Zahl sein"
+  verified_by_human: []
+validation_number:
+  context: Memory schema number validation
+  en: "{field} must be a number"
+  de: "{field} muss eine Zahl sein"
+  verified_by_human: []
+validation_boolean:
+  context: Memory schema boolean validation
+  en: "{field} must be true or false"
+  de: "{field} muss wahr oder falsch sein"
+  verified_by_human: []
+validation_json:
+  context: Memory schema JSON validation
+  en: "{field} must contain valid JSON"
+  de: "{field} muss gültiges JSON enthalten"
+  verified_by_human: []
+validation_json_array:
+  context: Memory schema array validation
+  en: "{field} must contain a JSON array"
+  de: "{field} muss ein JSON-Array enthalten"
+  verified_by_human: []
+validation_json_object:
+  context: Memory schema object validation
+  en: "{field} must contain a JSON object"
+  de: "{field} muss ein JSON-Objekt enthalten"
+  verified_by_human: []
+validation_unsupported_type:
+  context: Unsupported memory schema field type
+  en: "Unsupported field type: {type}"
+  de: "Nicht unterstützter Feldtyp: {type}"
+  verified_by_human: []
+validation_allowed_value:
+  context: Memory schema allowed values validation
+  en: "{field} must be one of the allowed values"
+  de: "{field} muss einem der zulässigen Werte entsprechen"
+  verified_by_human: []
+validation_minimum:
+  context: Memory schema minimum value validation
+  en: "{field} must be at least {limit}"
+  de: "{field} muss mindestens {limit} sein"
+  verified_by_human: []
+validation_maximum:
+  context: Memory schema maximum value validation
+  en: "{field} must be at most {limit}"
+  de: "{field} darf höchstens {limit} sein"
+  verified_by_human: []
+validation_invalid_type:
+  context: Memory schema nested value validation
+  en: "{field} contains an invalid value"
+  de: "{field} enthält einen ungültigen Wert"
+  verified_by_human: []
+
 app_settings_memories:
   context: Memories section title
   en: Memories

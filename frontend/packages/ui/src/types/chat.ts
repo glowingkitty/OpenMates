@@ -649,6 +649,10 @@ export interface CancelAITaskPayload {
 
 export interface StoreEmbedPayload {
   embed_id: string;
+  app_id?: string; // Public catalog projection for saved-embed discovery
+  skill_id?: string;
+  chat_id?: string; // Transient authorization context; stripped by the server
+  team_id?: string | null; // Transient Team context; stripped by the server
   encrypted_type: string; // CLIENT-ENCRYPTED type (server cannot decrypt)
   encrypted_content: string; // CLIENT-ENCRYPTED TOON string (server cannot decrypt)
   encrypted_text_preview?: string; // CLIENT-ENCRYPTED text preview (server cannot decrypt)
@@ -1033,6 +1037,7 @@ export interface SyncEmbed {
   // Additional optional properties for full embed sync support
   embed_ids?: string[]; // For composite embeds (app_skill_use)
   parent_embed_id?: string; // For versioned embeds
+  root_embed_id?: string; // Indexed graph root; a different ID means this row is linked, not a root
   version_number?: number; // For versioned embeds
   encrypted_diff?: string; // CLIENT-ENCRYPTED diff for versioned embeds
   file_path?: string; // For code/file embeds
@@ -1166,6 +1171,14 @@ export interface ServerBatchMessageFormat {
 }
 
 export interface ChatContentBatchResponsePayload {
+  apps_legacy_embeds_only?: boolean;
+  request_id?: string;
+  chat_id?: string;
+  team_id?: string | null;
+  context_epoch?: number;
+  embed_offset?: number;
+  next_embed_offset?: number | null;
+  error?: string;
   messages_by_chat_id: Record<string, (ServerBatchMessageFormat | string)[]>; // Messages may be JSON strings (from sync cache) or objects
   versions_by_chat_id?: Record<
     string,
@@ -1268,6 +1281,7 @@ export interface Phase3FullSyncPayload {
  * (no messages) and stored in memory only (not IndexedDB).
  */
 export interface LoadMoreChatsResponsePayload {
+  request_id?: string;
   team_id?: string | null;
   context_epoch?: number;
   chats: Array<{

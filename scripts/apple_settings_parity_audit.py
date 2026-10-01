@@ -106,7 +106,12 @@ def audit_route_contract(web_source: str, apple_source: str) -> list[str]:
     """Compare web routes only with native routes declared reachable."""
     web_routes = extract_web_base_routes(web_source)
     native_routes = extract_swift_string_set(apple_source, "nativeRoutes")
+    excluded_routes = extract_swift_string_set(apple_source, "intentionallyExcludedWebRoutes")
     errors: list[str] = []
+    for route in sorted(excluded_routes - {"apps", "apps/all"}):
+        errors.append(f"unapproved Apple route exclusion: {route}")
+    for route in sorted(excluded_routes & native_routes):
+        errors.append(f"excluded Apple route still declared reachable: {route}")
 
     if not web_routes:
         errors.append("could not extract web baseSettingsViews routes")
@@ -117,7 +122,7 @@ def audit_route_contract(web_source: str, apple_source: str) -> list[str]:
 
     for route in sorted(native_routes - web_routes):
         errors.append(f"stale Apple route not present in web settings: {route}")
-    for route in sorted(web_routes - native_routes):
+    for route in sorted(web_routes - native_routes - (excluded_routes & {"apps", "apps/all"})):
         errors.append(f"missing reachable Apple route: {route}")
     return errors
 

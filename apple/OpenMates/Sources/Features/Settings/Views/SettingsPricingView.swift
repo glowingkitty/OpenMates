@@ -1,6 +1,6 @@
 // Pricing overview — shows App Store prices from StoreKit for non-authenticated users.
 // Falls back to hardcoded tiers from pricing.yml if StoreKit products aren't available.
-// Links to Apps and AI models for browsing before signup.
+// Links to AI models for browsing before signup.
 
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/settings/SettingsPricing.svelte
@@ -15,7 +15,6 @@ import StoreKit
 
 struct SettingsPricingView: View {
     @StateObject private var storeManager = StoreManager.shared
-    var onOpenApps: () -> Void = {}
     var onOpenAI: () -> Void = {}
 
     var body: some View {
@@ -41,12 +40,6 @@ struct SettingsPricingView: View {
                         action: onOpenAI
                     )
 
-                    OMSettingsRow(
-                        title: LocalizationManager.shared.text("settings.pricing.browse_app_store"),
-                        subtitle: LocalizationManager.shared.text("settings.pricing.browse_app_store_subtitle"),
-                        icon: "app_store",
-                        action: onOpenApps
-                    )
                 }
                 .padding(.vertical, .spacing4)
             }

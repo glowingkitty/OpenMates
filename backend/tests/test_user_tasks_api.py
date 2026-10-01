@@ -281,6 +281,52 @@ async def test_update_task_rejects_incomplete_or_native_external_chat_context() 
     directus.update_item_if_version.assert_not_awaited()
 
 
+# contract-test: direct surface=rest_api assertions=tasks.lifecycle.visible,tasks.external-chat.encrypted-context,tasks.assignment.identity-separated
+@pytest.mark.asyncio
+@pytest.mark.parametrize("legacy_fields", [
+    {"external_chat_provider": "opencode", "external_chat_lookup_hash": "c" * 64, "encrypted_external_chat_id": "cipher-old-session", "encrypted_external_chat_title": "cipher-old-title"},
+    {"assignee_type": "external_ai", "assignee_identity": "opencode", "assignee_hash": None},
+    {"assignee_type": "openmates", "assignee_identity": None, "assignee_hash": None},
+])
+async def test_lifecycle_updates_preserve_unchanged_legacy_context_and_assignment(legacy_fields) -> None:
+    existing = {"id": "task-row", **task_payload(primary_chat_id=None), **legacy_fields}
+    directus = SimpleNamespace()
+    directus.get_items = AsyncMock(return_value=[existing])
+    directus.update_item_if_version = AsyncMock(side_effect=lambda _collection, _id, patch, _version, **_scope: {**existing, **patch})
+    methods = UserTaskMethods(with_lock_cache(directus))
+
+    updated = await methods.update_task_if_version("task-1", "user-1", {
+        "version": 1, "status": "done", "position": -1, "queue_state": "none", "completed_at": 200,
+    }, 1)
+
+    assert updated["status"] == "done"
+    assert updated["position"] == -1
+    assert updated["version"] == 2
+    for field, value in legacy_fields.items():
+        assert updated[field] == value
+        assert field not in directus.update_item_if_version.await_args.args[2]
+    assert updated["encrypted_title"] == existing["encrypted_title"]
+    assert directus.update_item_if_version.await_args.kwargs["owner_hash"] == hash_id("user-1")
+
+
+# contract-test: direct surface=rest_api assertions=tasks.external-chat.encrypted-context,tasks.assignment.identity-separated
+@pytest.mark.asyncio
+@pytest.mark.parametrize("patch,error", [
+    ({"external_chat_provider": "opencode"}, "provider is not allowed"),
+    ({"assignee_type": "external_ai", "assignee_identity": "opencode"}, "requires identity"),
+])
+async def test_explicit_legacy_context_and_assignment_mutations_still_rejected(patch, error) -> None:
+    existing = {"id": "task-row", **task_payload(primary_chat_id=None)}
+    directus = SimpleNamespace()
+    directus.get_items = AsyncMock(return_value=[existing])
+    directus.update_item_if_version = AsyncMock()
+    methods = UserTaskMethods(with_lock_cache(directus))
+
+    with pytest.raises(ValueError, match=error):
+        await methods.update_task_if_version("task-1", "user-1", {"version": 1, **patch}, 1)
+    directus.update_item_if_version.assert_not_awaited()
+
+
 # contract-test: direct surface=rest_api assertions=tasks.blocking.encrypted-reason
 @pytest.mark.asyncio
 async def test_directus_task_updates_preserve_legacy_and_runtime_blocked_reason_codes() -> None:
@@ -1349,15 +1395,36 @@ async def test_exact_task_read_keeps_team_viewer_access_and_scoped_lookup(monkey
     monkeypatch.setattr(user_tasks, "_current_session_user", AsyncMock(return_value=SimpleNamespace(id="user-1")))
     team = SimpleNamespace(require_team_role=AsyncMock())
     request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(directus_service=SimpleNamespace(team=team))))
-    methods = SimpleNamespace(get_task=AsyncMock(return_value={"task_id": "task-1", "encrypted_title": "cipher"}))
+    methods = SimpleNamespace(
+        get_task=AsyncMock(return_value={"task_id": "task-1", "encrypted_title": "cipher"}),
+        eligible_external_ai=AsyncMock(return_value=["codex"]),
+    )
     result = await user_tasks.get_user_task(request, None, "task-1", "team-1", SimpleNamespace(task_methods=methods))
     methods.get_task.assert_awaited_once_with("task-1", "user-1", "team-1")
     assert "viewer" in team.require_team_role.await_args.args[2]
     assert result["task"]["encrypted_title"] == "cipher"
+    assert result["eligible_external_ai"] == ["codex"]
+    methods.eligible_external_ai.assert_awaited_once_with("user-1")
+    methods.eligible_external_ai.side_effect = RuntimeError("eligibility unavailable")
+    degraded = await user_tasks.get_user_task(request, None, "task-1", "team-1", SimpleNamespace(task_methods=methods))
+    assert degraded == {"task": {"task_id": "task-1", "encrypted_title": "cipher"}}
     methods.get_task.return_value = None
     with pytest.raises(HTTPException) as error:
         await user_tasks.get_user_task(request, None, "missing", "team-1", SimpleNamespace(task_methods=methods))
     assert error.value.status_code == 404
+    assert methods.eligible_external_ai.await_count == 2
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=tasks.surface.semantic-parity
+async def test_assignment_eligibility_read_does_not_list_tasks(monkeypatch):
+    monkeypatch.setattr(user_tasks, "_current_session_user", AsyncMock(return_value=SimpleNamespace(id="user-1")))
+    methods = SimpleNamespace(eligible_external_ai=AsyncMock(return_value=["codex"]), list_tasks=AsyncMock())
+    request = SimpleNamespace()
+    result = await user_tasks.get_task_assignment_eligibility(request, None, SimpleNamespace(task_methods=methods))
+    assert result == {"eligible_external_ai": ["codex"]}
+    methods.eligible_external_ai.assert_awaited_once_with("user-1")
+    methods.list_tasks.assert_not_awaited()
 
 
 @pytest.mark.asyncio

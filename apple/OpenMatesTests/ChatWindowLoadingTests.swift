@@ -5,10 +5,151 @@
 // full large-chat histories before first render.
 
 import XCTest
+import Combine
 @testable import OpenMates
 
 @MainActor
 final class ChatWindowLoadingTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testCanonicalSheetReferenceHydratesFullTableAndSurvivesReparse() async throws {
+        let reference = Message(id: "sheet-message", chatId: "sheet-chat", role: .assistant,
+            content: "```json\n{\"type\":\"sheet\",\"embed_id\":\"sheet-ref\",\"row_count\":2}\n```",
+            encryptedContent: nil, createdAt: "2026-01-01T00:00:00Z", updatedAt: nil,
+            appId: "sheets", isStreaming: false, embedRefs: nil)
+        let parsed = PublicChatContent.attachEmbeds(to: [reference])
+        let shell = try XCTUnwrap(parsed.records["sheet-ref"])
+        XCTAssertNil(shell.rawData?["title"], "A reference cannot manufacture a table title")
+        XCTAssertNil(shell.rawData?["rows"])
+        XCTAssertEqual(shell.rawData?["row_count"]?.value as? Int, 2)
+        XCTAssertTrue(ChatViewModel.embedRecordRequiresHydration(shell))
+        let record = fullSheetRecord(chatId: reference.chatId)
+        var requests = 0
+        let model = ChatViewModel(contentBatchFetcher: { chatId in
+            requests += 1
+            return self.sheetBatch(chatId: chatId, record: record)
+        })
+        model.seedIsolatedHistory(chat: makeChat(id: reference.chatId, title: "Sheet", updatedAt: reference.createdAt, messagesV: 1),
+                                  messages: parsed.messages, embeds: [shell])
+        await model.retryVisibleEmbedHydration()
+        let hydrated = try XCTUnwrap(model.embedRecords[record.id])
+        let table = ParsedSheetTable(data: hydrated.rawData)
+        XCTAssertEqual(table.headers, ["Item", "Count"])
+        XCTAssertEqual(table.rows, [["First", "1"], ["Second", "2"]])
+        XCTAssertNil(table.title, "A title is optional in a complete saved sheet")
+        XCTAssertFalse(ChatViewModel.embedRecordRequiresHydration(hydrated))
+        let reparsed = PublicChatContent.mergingHydratedRecords(existing: model.embedRecords, inline: parsed.records)
+        XCTAssertEqual(ParsedSheetTable(data: reparsed[record.id]?.rawData).rows, table.rows)
+        let legacy = EmbedRecord(id: record.id, type: "sheets-sheet", status: .finished,
+            data: .raw(["title": AnyCodable("Table"), "rows": AnyCodable([String]())]),
+            parentEmbedId: nil, appId: "sheets", skillId: "sheet", embedIds: nil, createdAt: nil)
+        XCTAssertTrue(ChatViewModel.embedRecordRequiresHydration(legacy))
+        XCTAssertEqual(PublicChatContent.mergingHydratedRecords(existing: reparsed, inline: [legacy.id: legacy])[record.id]?.rawData,
+                       hydrated.rawData)
+        await model.retryVisibleEmbedHydration()
+        XCTAssertEqual(requests, 1, "A full table is not fetched again")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.local-state.precedence,chat-navigation.open.local-first-coherent
+    func testSheetHydrationCoalescesAndRejectsStaleChatGenerationOrAccount() async throws {
+        for invalidation in ["none", "chat", "generation", "account"] {
+            let gate = SheetHydrationGate()
+            var scope = UUID()
+            let record = fullSheetRecord(chatId: "sheet-chat")
+            let model = ChatViewModel(messageDecryptor: { rows, _ in rows }, accountScopeGeneration: { scope },
+                contentBatchFetcher: { _ in try await gate.fetch() })
+            let message = Message(id: "sheet-message", chatId: "sheet-chat", role: .assistant,
+                content: "[[embed:sheet-ref]]", encryptedContent: nil, createdAt: "2026-01-01T00:00:00Z",
+                updatedAt: nil, appId: "sheets", isStreaming: false,
+                embedRefs: [EmbedRef(id: record.id, type: "sheet", status: "finished", data: nil)])
+            let chat = makeChat(id: message.chatId, title: "Sheet", updatedAt: message.createdAt, messagesV: 1)
+            model.seedIsolatedHistory(chat: chat, messages: [message], embeds: [])
+            let first = Task { await model.loadEmbeds(for: [message.id]) }
+            await gate.waitUntilStarted()
+            let second = Task { await model.loadEmbeds(for: [message.id]) }
+            await Task.yield()
+            if invalidation == "account" { scope = UUID() }
+            if invalidation == "chat" || invalidation == "generation" {
+                let next = makeChat(id: invalidation == "chat" ? "other-chat" : chat.id,
+                    title: "Replacement", updatedAt: message.createdAt, messagesV: 0)
+                await model.loadChat(id: next.id, initialChat: next, initialMessages: [])
+            }
+            gate.release(sheetBatch(chatId: chat.id, record: record))
+            await first.value
+            await second.value
+            XCTAssertEqual(gate.calls, 1, "Concurrent taps share one scoped request")
+            if invalidation == "none" {
+                XCTAssertEqual(ParsedSheetTable(data: model.embedRecords[record.id]?.rawData).rows.count, 2)
+            } else {
+                XCTAssertNil(model.embedRecords[record.id], "A superseded completion must not publish")
+            }
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.persistence.client-encrypted,chats.local-state.precedence
+    func testQueuedSheetHydrationDoesNotDispatchAfterAccountAuthorityChanges() async {
+        let initialScope = UUID()
+        let replacementScope = UUID()
+        var armed = false
+        var scopeReads = 0
+        var requests = 0
+        let model = ChatViewModel(accountScopeGeneration: {
+            guard armed else { return initialScope }
+            scopeReads += 1
+            // The entry check captures the old authority. The queued fetch task
+            // starts after that authority has been replaced.
+            return scopeReads == 1 ? initialScope : replacementScope
+        }, contentBatchFetcher: { _ in
+            requests += 1
+            throw URLError(.notConnectedToInternet)
+        })
+        let message = Message(id: "sheet-message", chatId: "sheet-chat", role: .assistant,
+            content: "[[embed:sheet-ref]]", encryptedContent: nil, createdAt: "2026-01-01T00:00:00Z",
+            updatedAt: nil, appId: "sheets", isStreaming: false,
+            embedRefs: [EmbedRef(id: "sheet-ref", type: "sheet", status: "finished", data: nil)])
+        model.seedIsolatedHistory(chat: makeChat(id: message.chatId, title: "Sheet", updatedAt: message.createdAt, messagesV: 1),
+                                  messages: [message], embeds: [])
+        armed = true
+        await model.loadEmbeds(for: [message.id])
+        XCTAssertGreaterThanOrEqual(scopeReads, 2)
+        XCTAssertEqual(requests, 0, "A revoked queued request must never dispatch old chat IDs")
+        XCTAssertNil(model.embedRecords["sheet-ref"])
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testVisibleSheetReferenceRetriesAfterTransportRecovery() async throws {
+        var attempts = 0
+        let record = fullSheetRecord(chatId: "sheet-chat")
+        let model = ChatViewModel(contentBatchFetcher: { chatId in
+            attempts += 1
+            if attempts == 1 { throw URLError(.notConnectedToInternet) }
+            return self.sheetBatch(chatId: chatId, record: record)
+        })
+        let message = Message(id: "sheet-message", chatId: "sheet-chat", role: .assistant,
+            content: "[[embed:sheet-ref]]", encryptedContent: nil, createdAt: "2026-01-01T00:00:00Z",
+            updatedAt: nil, appId: "sheets", isStreaming: false,
+            embedRefs: [EmbedRef(id: record.id, type: "sheet", status: "finished", data: nil)])
+        model.seedIsolatedHistory(chat: makeChat(id: message.chatId, title: "Sheet", updatedAt: message.createdAt, messagesV: 1),
+                                  messages: [message], embeds: [])
+        await model.retryVisibleEmbedHydration()
+        XCTAssertNil(model.embedRecords[record.id])
+        await model.retryVisibleEmbedHydration()
+        XCTAssertEqual(attempts, 2)
+        XCTAssertEqual(ParsedSheetTable(data: model.embedRecords[record.id]?.rawData).rows.count, 2)
+    }
+
+    private func fullSheetRecord(chatId: String) -> EmbedRecord {
+        EmbedRecord(id: "sheet-ref", type: "sheet", status: .finished,
+            data: .raw(["table": AnyCodable("| Item | Count |\n|---|---|\n| First | 1 |\n| Second | 2 |"),
+                        "row_count": AnyCodable(2), "col_count": AnyCodable(2)]),
+            parentEmbedId: nil, appId: "sheets", skillId: "sheet", embedIds: nil,
+            hashedChatId: ChatKeyWrapperRecord.hashedChatId(for: chatId), createdAt: nil)
+    }
+
+    private func sheetBatch(chatId: String, record: EmbedRecord) -> ChatContentBatchPayload {
+        ChatContentBatchPayload(messagesByChatId: [chatId: []], versionsByChatId: [:], embeds: [record],
+                                embedKeys: [], chatKeyWrappers: [], codeRunOutputs: nil)
+    }
+
     // contract-test: direct surface=gui.apple assertions=chat-navigation.open.local-first-coherent
     func testDelayedOlderPageCannotChangeAnotherChatsRowsEmbedsOrLoadingState() async throws {
         for usesStore in [false, true] {
@@ -335,6 +476,132 @@ final class ChatWindowLoadingTests: XCTestCase {
         XCTAssertEqual(store.chats.count, 3)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testCanonicalHistoryKeepsArrayStorageAndEqualTimestampOrder() {
+        var rows = makeMessages(count: 600)
+        rows[1] = makeHistoryMessage(id: rows[1].id, createdAt: rows[0].createdAt, content: "Equal timestamp")
+        let ordered = ChatHistoryWindowPolicy.orderedUnique(rows)
+        XCTAssertEqual(ordered.map(\.id), rows.map(\.id))
+        XCTAssertEqual(ordered.map(\.content), rows.map(\.content))
+        assertSameMessageStorage(rows, ordered)
+        XCTAssertTrue(ChatHistoryWindowPolicy.orderedUnique([]).isEmpty)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testDuplicateHistoryKeepsLastValueAndFirstPositionForTimestampTies() {
+        let date = "2026-01-01T00:01:00Z"
+        let rows = [
+            makeHistoryMessage(id: "duplicate", createdAt: date, content: "Old"),
+            makeHistoryMessage(id: "peer", createdAt: date, content: "Peer"),
+            makeHistoryMessage(id: "duplicate", createdAt: date, content: "Accepted replacement")
+        ]
+        let ordered = ChatHistoryWindowPolicy.orderedUnique(rows)
+        XCTAssertEqual(ordered.map(\.id), ["duplicate", "peer"])
+        XCTAssertEqual(ordered.map(\.content), ["Accepted replacement", "Peer"])
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testUnorderedHistorySortsReplacementTimestampAndPreservesTiePositions() {
+        let early = "2026-01-01T00:01:00Z"
+        let late = "2026-01-01T00:02:00Z"
+        let rows = [
+            makeHistoryMessage(id: "later", createdAt: late, content: "Later"),
+            makeHistoryMessage(id: "first-tie", createdAt: early, content: "First"),
+            makeHistoryMessage(id: "second-tie", createdAt: early, content: "Second"),
+            makeHistoryMessage(id: "later", createdAt: early, content: "Earlier replacement")
+        ]
+        let ordered = ChatHistoryWindowPolicy.orderedUnique(rows)
+        XCTAssertEqual(ordered.map(\.id), ["later", "first-tie", "second-tie"])
+        XCTAssertEqual(ordered.first?.content, "Earlier replacement")
+        let withoutDuplicate = ChatHistoryWindowPolicy.orderedUnique(Array(rows.prefix(3)))
+        XCTAssertEqual(withoutDuplicate.map(\.id), ["first-tie", "second-tie", "later"])
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chat-navigation.open.local-first-coherent,chats.local-state.precedence
+    func testLargeChatBatchPublishesOneFinalSnapshotAndMergesRepeatedIDs() {
+        let store = ChatStore()
+        let date = "2026-01-01T00:00:00Z"
+        store.performWithoutPersistence {
+            store.upsertChats([makeChat(id: "batch-0", title: "Accepted title", updatedAt: date,
+                messagesV: 4, encryptedChatKey: "wrapped-key-fixture")])
+        }
+        var snapshots: [[String]] = []
+        let subscription = store.$chats.dropFirst().sink { snapshots.append($0.map(\.id)) }
+        defer { subscription.cancel() }
+        var incoming = (0..<600).map { index in
+            makeChat(id: "batch-\(index)", title: "Incoming \(index)", updatedAt: date, messagesV: 1)
+        }
+        incoming.append(makeChat(id: "batch-1", title: "Newer duplicate", updatedAt: date, messagesV: 2))
+        let serverOrder = (0..<600).reversed().map { "batch-\($0)" }
+        store.performWithoutPersistence {
+            store.upsertChats(incoming, serverSortOrder: serverOrder, serverSortOffset: 50)
+        }
+        XCTAssertEqual(snapshots.count, 1, "A batch must publish only its final merged and sorted list")
+        XCTAssertEqual(snapshots.first, serverOrder)
+        XCTAssertEqual(store.chats.map(\.id), serverOrder)
+        XCTAssertEqual(store.chat(for: "batch-0")?.title, "Accepted title")
+        XCTAssertEqual(store.chat(for: "batch-0")?.messagesV, 4)
+        XCTAssertEqual(store.chat(for: "batch-0")?.encryptedChatKey, "wrapped-key-fixture")
+        XCTAssertEqual(store.chat(for: "batch-1")?.title, "Newer duplicate")
+        XCTAssertEqual(store.chat(for: "batch-1")?.messagesV, 2)
+        let state = store.makeSyncClientState(clientSuggestionsCount: 0)
+        XCTAssertEqual(state.clientChatIds, serverOrder)
+        XCTAssertEqual(state.clientChatVersions["batch-0"]?["messages_v"], 4)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testModernEmbedsWithoutLegacyHashesKeepHistoryStorage() {
+        let rows = makeMessages(count: 600)
+        let embed = EmbedRecord(id: "modern-embed", type: "web-website", status: .finished,
+            data: .raw([:]), parentEmbedId: nil, appId: "web", skillId: nil,
+            embedIds: nil, createdAt: nil)
+        let result = ChatLegacyEmbedLinkPolicy.applying(to: rows, embeds: [embed])
+        XCTAssertEqual(result.map(\.id), rows.map(\.id))
+        XCTAssertEqual(result.map(\.content), rows.map(\.content))
+        assertSameMessageStorage(rows, result)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testLegacyHashStillLinksOnlyMatchingUserAndPreservesRawEmptyContent() throws {
+        let linked = makeHistoryMessage(id: "legacy-audio-message", createdAt: "2026-01-01T00:01:00Z", content: "")
+        let unmatched = makeHistoryMessage(id: "unmatched", createdAt: linked.createdAt, content: "")
+        let embed = EmbedRecord(id: "legacy-audio", type: "audio-recording", status: .finished,
+            data: .raw([:]), parentEmbedId: nil, appId: "audio", skillId: nil,
+            embedIds: nil,
+            hashedMessageId: "b01c731376d38838b752117a8df680216c9fedf304994c2968eef09e4d6dc7f9",
+            createdAt: nil)
+        let assistant = Message(id: linked.id, chatId: linked.chatId, role: .assistant, content: "",
+            encryptedContent: nil, createdAt: linked.createdAt, updatedAt: nil,
+            appId: nil, isStreaming: false, embedRefs: nil)
+        let result = ChatLegacyEmbedLinkPolicy.applying(to: [linked, unmatched, assistant], embeds: [embed])
+        XCTAssertEqual(result[0].embedRefs?.map(\.id), [embed.id])
+        XCTAssertTrue(result[0].content?.contains(embed.id) == true)
+        XCTAssertNil(result[1].embedRefs)
+        XCTAssertEqual(result[1].content, "")
+        XCTAssertNil(result[2].embedRefs, "Legacy links apply only to user messages")
+        XCTAssertEqual(result[2].content, "")
+        let raw = try XCTUnwrap(ChatLegacyEmbedLinkPolicy.applying(
+            to: [linked], embeds: [embed], synthesizeMissingContent: false).first)
+        XCTAssertEqual(raw.content, "")
+        XCTAssertEqual(raw.embedRefs?.map(\.id), [embed.id])
+    }
+
+    private func assertSameMessageStorage(_ original: [Message], _ result: [Message],
+                                         file: StaticString = #filePath, line: UInt = #line) {
+        original.withUnsafeBufferPointer { originalBuffer in
+            result.withUnsafeBufferPointer { resultBuffer in
+                XCTAssertEqual(originalBuffer.baseAddress, resultBuffer.baseAddress,
+                    "Canonical history should reuse its existing array", file: file, line: line)
+            }
+        }
+    }
+
+    private func makeHistoryMessage(id: String, createdAt: String, content: String) -> Message {
+        Message(id: id, chatId: "unit-large-chat", role: .user, content: content,
+            encryptedContent: nil, createdAt: createdAt, updatedAt: nil,
+            appId: nil, isStreaming: false, embedRefs: nil)
+    }
+
     private func assertSupersededOlderPageIsDiscarded(usesStore: Bool, reloadsSameChat: Bool) async throws {
         let gate = OlderMessageDecryptionGate()
         let model = ChatViewModel(messageDecryptor: { await gate.decrypt($0, chatId: $1) })
@@ -419,7 +686,7 @@ final class ChatWindowLoadingTests: XCTestCase {
     }
 
     private func makeChat(id: String, title: String, updatedAt: String, messagesV: Int,
-                          lastVisibleMessageId: String? = nil) -> Chat {
+                          lastVisibleMessageId: String? = nil, encryptedChatKey: String? = nil) -> Chat {
         Chat(
             id: id,
             title: title,
@@ -430,7 +697,7 @@ final class ChatWindowLoadingTests: XCTestCase {
             isPinned: false,
             appId: "ai",
             encryptedTitle: nil,
-            encryptedChatKey: nil,
+            encryptedChatKey: encryptedChatKey,
             messagesV: messagesV,
             titleV: messagesV,
             lastVisibleMessageId: lastVisibleMessageId
@@ -501,5 +768,28 @@ private final class SuspendedHistoryLoad {
         }
         pending = nil
         continuation.resume(returning: messages)
+    }
+}
+
+@MainActor
+private final class SheetHydrationGate {
+    private var pending: CheckedContinuation<ChatContentBatchPayload, Error>?
+    private var started: CheckedContinuation<Void, Never>?
+    private(set) var calls = 0
+    func fetch() async throws -> ChatContentBatchPayload {
+        calls += 1
+        return try await withCheckedThrowingContinuation { continuation in
+            pending = continuation
+            started?.resume()
+            started = nil
+        }
+    }
+    func waitUntilStarted() async {
+        if pending != nil { return }
+        await withCheckedContinuation { started = $0 }
+    }
+    func release(_ batch: ChatContentBatchPayload) {
+        pending?.resume(returning: batch)
+        pending = nil
     }
 }

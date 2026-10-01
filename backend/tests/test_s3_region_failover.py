@@ -112,6 +112,38 @@ def test_failback_waits_for_probe_and_reconciliation_after_cooldown() -> None:
 
 
 # contract-test: direct surface=rest_api assertions=storage.failover.health-reconciled
+@pytest.mark.anyio
+@pytest.mark.parametrize("open_until", [
+    "2026-10-01T12:00:00", "2026-10-01T12:00:00Z", "2026-10-01T14:00:00+02:00",
+    datetime(2026, 10, 1, 12),
+])
+async def test_persisted_recovery_probe_normalizes_directus_datetime_before_cooldown_comparison(open_until) -> None:
+    updates = []
+
+    class Directus:
+        async def get_items(self, *args, **kwargs):
+            return [{"id": "region-1", "open_until": open_until, "updated_at": "2026-10-01T11:55:00"}]
+
+        async def update_item_if_version(self, collection, item_id, payload, version, **kwargs):
+            assert collection == "storage_region_health" and item_id == "region-1"
+            assert version == "2026-10-01T11:55:00"
+            updates.append(payload)
+            return True
+
+    module = _replication_module()
+    before = await module.record_persisted_region_probe_success(
+        directus_service=Directus(), region="nbg1", now=datetime(2026, 10, 1, 11, 59, tzinfo=timezone.utc),
+    )
+    assert before is False and updates == []
+    after = await module.record_persisted_region_probe_success(
+        directus_service=Directus(), region="nbg1", now=datetime(2026, 10, 1, 12, tzinfo=timezone.utc),
+    )
+    assert after is True
+    assert updates[0]["open_until"] is None
+    assert updates[0]["probe_succeeded"] is True
+
+
+# contract-test: direct surface=rest_api assertions=storage.failover.health-reconciled
 def test_region_health_schema_persists_circuit_and_failback_fences() -> None:
     schema = yaml.safe_load(
         (REPO_ROOT / "backend/core/directus/schemas/storage_region_health.yml").read_text()
@@ -354,6 +386,42 @@ async def test_retryable_active_write_failure_uses_secondary_and_journals_primar
     assert directus.replication_payload is not None
     assert directus.replication_payload["active_region"] == "fsn1"
     assert directus.replication_payload["region_states"] == {"nbg1": "pending", "fsn1": "verified"}
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("error_code", ["SignatureDoesNotMatch", "AccessDenied", "InvalidAccessKeyId", "NoSuchBucket"])
+# contract-test: direct surface=rest_api assertions=storage.failover.health-reconciled,storage.replication.active-write-durable-outbox
+async def test_permanent_upload_error_is_not_retried_or_failed_over(monkeypatch, error_code):
+    from unittest.mock import AsyncMock
+
+    service_module = _service_module()
+    sleep = AsyncMock()
+    monkeypatch.setattr(service_module.asyncio, "sleep", sleep)
+
+    class Client:
+        calls = 0
+
+        def put_object(self, **_kwargs):
+            self.calls += 1
+            raise service_module.ClientError(
+                {"Error": {"Code": error_code}, "ResponseMetadata": {"HTTPStatusCode": 403}},
+                "PutObject",
+            )
+
+    primary, secondary = Client(), Client()
+    service = service_module.S3UploadService(secrets_manager=None)
+    service.environment = "development"
+    service.region_name = "nbg1"
+    service.region_clients = {"nbg1": primary, "fsn1": secondary}
+    service.upload_region_clients = service.region_clients
+
+    with pytest.raises(service_module.HetznerObjectStorageError) as error:
+        await service.upload_file("cold_archives", "test/archive/1.json.gz", b"ciphertext", "application/gzip")
+
+    assert error.value.retryable is False
+    assert primary.calls == 1
+    assert secondary.calls == 0
+    sleep.assert_not_awaited()
 
 
 # contract-test: direct surface=rest_api assertions=storage.failover.health-reconciled,storage.replication.active-write-durable-outbox

@@ -293,7 +293,7 @@ class S3UploadService:
         self.configured = True
 
         # The legacy region secret remains the active write region during rollout.
-        region_secret = await self.secrets_manager.get_secret(secret_path="kv/data/providers/hetzner", secret_key="s3_region_name")
+        region_secret = await self.secrets_manager.get_secret(secret_path="kv/data/providers/hetzner", secret_key="s3_region_name", log_missing=False)
         self.region_name = region_secret if region_secret else 'nbg1'
         configured_regions = parse_storage_regions(os.getenv("S3_REGIONS"))
         if os.getenv("S3_ENDPOINT_URL") and len(configured_regions) != 1:
@@ -330,10 +330,12 @@ class S3UploadService:
         }
         self.client = self.region_clients[self.region_name]
         
-        # Separate client for uploads with older signature method
+        # Hetzner supports SigV4. Sign the payload without AWS streaming checksum
+        # trailers so S3-compatible endpoints receive a conventional PUT body.
         upload_config = Config(
-            signature_version='s3',  # Use older signature version which is more lenient
-            s3={'addressing_style': 'path'},
+            signature_version='s3v4',
+            s3={'addressing_style': 'path', 'payload_signing_enabled': True},
+            request_checksum_calculation='when_required',
             connect_timeout=15,
             read_timeout=15,
             retries={'max_attempts': 3}
@@ -845,6 +847,11 @@ class S3UploadService:
                             break
                         raise RuntimeError("Immutable storage key already exists with different content") from e
                     logger.warning(f"Upload attempt {attempt + 1} failed with ClientError: {error_code}")
+
+                    # Permanent auth/configuration errors cannot recover by
+                    # replaying the same request or switching storage regions.
+                    if not is_retryable_storage_error(error_code, http_status):
+                        raise
                     
                     # If we've reached the maximum number of retries, re-raise the exception
                     if attempt == max_retries - 1:
@@ -883,8 +890,9 @@ class S3UploadService:
                     current_read_timeout = min(current_read_timeout * 2, max_read_timeout)
                     logger.info(f"Creating retry client with read_timeout={current_read_timeout}s")
                     retry_config = Config(
-                        signature_version='s3',
-                        s3={'addressing_style': 'path'},
+                        signature_version='s3v4',
+                        s3={'addressing_style': 'path', 'payload_signing_enabled': True},
+                        request_checksum_calculation='when_required',
                         connect_timeout=15,
                         read_timeout=current_read_timeout,
                         retries={'max_attempts': 0}  # We handle retries ourselves

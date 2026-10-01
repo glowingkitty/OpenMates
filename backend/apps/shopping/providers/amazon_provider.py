@@ -6,12 +6,13 @@ marketplaces and normalizes them into the shopping embed's product result shape.
 
 Architecture: provider-only HTTP layer for shopping.search_products.
 See docs/apps/shopping.md for app-level shopping architecture.
-Tests: N/A (covered by skill-level and end-to-end app tests).
+Tests: backend/tests/test_shopping_amazon_provider.py.
 """
 
 from __future__ import annotations
 
 import logging
+import math
 from dataclasses import asdict, dataclass
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
@@ -294,10 +295,22 @@ async def search_products(
     products: List[AmazonProduct] = []
     for raw in raw_results:
         extracted_price = raw.get("extracted_price")
-        if min_price is not None and extracted_price is not None and float(extracted_price) < float(min_price):
-            continue
-        if max_price is not None and extracted_price is not None and float(extracted_price) > float(max_price):
-            continue
+        if min_price is not None or max_price is not None:
+            # A price bound cannot be verified for an item without a usable price.
+            if isinstance(extracted_price, bool):
+                continue
+            try:
+                price_amount = float(extracted_price)
+            except (TypeError, ValueError, OverflowError):
+                continue
+            if not math.isfinite(price_amount):
+                continue
+            if min_price is not None and price_amount < float(min_price):
+                continue
+            if max_price is not None and price_amount > float(max_price):
+                continue
+        else:
+            price_amount = float(extracted_price) if extracted_price is not None else None
 
         price_text = raw.get("price")
         old_price_text = raw.get("old_price")
@@ -309,7 +322,7 @@ async def search_products(
                 purchase_url=raw.get("link_clean") or raw.get("link"),
                 image_url=raw.get("thumbnail"),
                 price=price_text,
-                price_amount=float(extracted_price) if extracted_price is not None else None,
+                price_amount=price_amount,
                 old_price=old_price_text,
                 old_price_amount=(
                     float(raw.get("extracted_old_price"))

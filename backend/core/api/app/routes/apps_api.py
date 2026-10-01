@@ -79,6 +79,12 @@ INTERNAL_API_BASE_URL = os.getenv("INTERNAL_API_BASE_URL", "http://api:8000")
 INTERNAL_API_SHARED_TOKEN = os.getenv("INTERNAL_API_SHARED_TOKEN")
 APPLE_DEVICE_CLIENTS = {"ios", "macos", "apple"}
 VARIABLE_RESULT_BILLING_SKILLS = {("code", "image_to_html"), ("audio", "generate"), ("audio", "speak")}
+TEAM_ASYNC_SKILL_BILLING = {
+    ("images", "generate"), ("images", "generate_draft"),
+    ("videos", "generate"), ("videos", "create"),
+    ("music", "generate"), ("audio", "generate"), ("audio", "speak"),
+    ("code", "image_to_html"),
+}
 APP_SKILL_BILLING_IDEMPOTENCY_PREFIX = "app-skill"
 MAX_BILLING_IDEMPOTENCY_KEY_LENGTH = 255
 
@@ -88,6 +94,10 @@ def _json_schema_field_kwargs(schema: Dict[str, Any]) -> Dict[str, Any]:
     field_kwargs: Dict[str, Any] = {
         "description": schema.get("description", ""),
     }
+    # Dynamic request models use primitive Python types. Preserve their
+    # app.yml choices in OpenAPI; skill request models still validate inputs.
+    if "enum" in schema:
+        field_kwargs["json_schema_extra"] = {"enum": schema["enum"]}
     schema_type = schema.get("type")
 
     if schema_type == "string":
@@ -324,6 +334,47 @@ async def get_session_or_api_key_info(
 
 
 SessionOrApiKeyAuth = Depends(get_session_or_api_key_info)
+
+
+async def _resolve_app_skill_team_context(
+    request: Request | None,
+    user_info: Dict[str, Any],
+    directus_service: DirectusService,
+) -> Dict[str, Any]:
+    """Authorize an explicit first-party Team selection before a skill can spend credits.
+
+    The generic REST API remains Personal by default. Team selection is a query
+    parameter so typed skill bodies continue to match their app.yml schemas.
+    """
+    if request is None or "team_id" not in request.query_params:
+        return user_info
+    team_id = request.query_params["team_id"].strip()
+    if not team_id:
+        raise HTTPException(status_code=400, detail="team_id must not be empty")
+    if user_info.get("api_key_hash"):
+        raise HTTPException(status_code=403, detail="Team skill execution requires a first-party session")
+    from backend.core.api.app.services.directus.team_methods import TeamPermissionError
+    from backend.core.api.app.services.team_billing_service import TEAM_CREDIT_USER_ROLES, TeamBillingService
+    try:
+        await directus_service.team.require_team_role(
+            team_id, user_info["user_id"], TEAM_CREDIT_USER_ROLES
+        )
+        account = await TeamBillingService(directus_service).get_billing_summary(
+            team_id, user_info["user_id"]
+        )
+    except TeamPermissionError as exc:
+        raise HTTPException(status_code=403, detail="Team permission denied") from exc
+    if int(account.get("balance_credits") or 0) < 1:
+        raise HTTPException(status_code=402, detail="INSUFFICIENT_TEAM_CREDITS")
+    return {**user_info, "team_id": team_id}
+
+
+def _team_skill_worker_bills(user_info: Dict[str, Any], app_id: str, skill_id: str) -> bool:
+    return bool(user_info.get("team_id") and (app_id, skill_id) in TEAM_ASYNC_SKILL_BILLING)
+
+
+def _team_billing_kwargs(user_info: Dict[str, Any]) -> Dict[str, str]:
+    return {"team_id": user_info["team_id"]} if user_info.get("team_id") else {}
 
 
 def _custom_route_user_info(request: Request | None, user: Any) -> Dict[str, Any]:
@@ -930,6 +981,8 @@ async def call_app_skill(
     request_payload = skill_input_data.copy() if isinstance(skill_input_data, dict) else {}
     if not isinstance(request_payload, dict):
         request_payload = {}
+    for context_key in ('team_id', '_team_id', 'team_id_hash', 'team_workspace_type'):
+        request_payload.pop(context_key, None)
     if app_id == "ai" and skill_id == "ask":
         from backend.shared.python_utils.rest_test_replay import prepare_rest_replay_messages
 
@@ -946,6 +999,13 @@ async def call_app_skill(
     request_payload['_api_key_hash'] = user_info.get('api_key_hash')
     request_payload['_device_hash'] = user_info.get('device_hash')
     request_payload['_external_request'] = True
+    if user_info.get('team_id'):
+        # Server-authorized context wins over any skill-body value.
+        request_payload['team_id'] = user_info['team_id']
+        request_payload['_team_id'] = user_info['team_id']
+        if app_id == 'ai' and skill_id == 'ask':
+            request_payload['team_id_hash'] = hashlib.sha256(user_info['team_id'].encode()).hexdigest()
+            request_payload['team_workspace_type'] = 'apps'
     if user_info.get('vault_key_id'):
         request_payload['_user_vault_key_id'] = user_info['vault_key_id']
     if secrets_manager is not None:
@@ -1480,6 +1540,7 @@ async def charge_credits_via_internal_api(
     device_hash: Optional[str] = None,  # SHA-256 hash of device for tracking
     idempotency_key: Optional[str] = None,
     raise_on_error: bool = False,
+    team_id: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
     """
     Charge credits via the internal billing API.
@@ -1518,6 +1579,19 @@ async def charge_credits_via_internal_api(
         "api_key_hash": api_key_hash,  # API key hash for tracking
         "device_hash": device_hash,  # Device hash for tracking
     }
+    if team_id:
+        # Team billing has its own ledger and role checks. Never fall back to
+        # charging the acting member's Personal account.
+        charge_payload = {
+            "team_id": team_id,
+            "actor_user_id": user_id,
+            "credits": credits,
+            "skill_id": skill_id,
+            "app_id": app_id,
+            "idempotency_key": charge_payload["idempotency_key"],
+            "usage_details": {**(usage_details or {}), "workspace_type": "apps"},
+        }
+        raise_on_error = True
     
     headers = {"Content-Type": "application/json"}
     if INTERNAL_API_SHARED_TOKEN:
@@ -1525,7 +1599,7 @@ async def charge_credits_via_internal_api(
     
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            url = f"{INTERNAL_API_BASE_URL}/internal/billing/charge"
+            url = f"{INTERNAL_API_BASE_URL}/internal/billing/{'team/charge' if team_id else 'charge'}"
             logger.info(f"Charging {credits} credits for skill '{app_id}.{skill_id}' via internal API")
             response = await client.post(url, json=charge_payload, headers=headers)
             response.raise_for_status()
@@ -1534,11 +1608,17 @@ async def charge_credits_via_internal_api(
             return response_data if isinstance(response_data, dict) else None
     except httpx.HTTPStatusError as e:
         logger.error(f"HTTP error charging credits for skill '{app_id}.{skill_id}': {e.response.status_code} - {e.response.text}", exc_info=True)
+        if team_id and e.response.status_code == 402:
+            raise HTTPException(status_code=402, detail="INSUFFICIENT_TEAM_CREDITS") from e
+        if team_id:
+            raise HTTPException(status_code=502, detail="Team billing failed") from e
         if raise_on_error:
             raise
         # Default REST behavior keeps returning successful provider output when billing is unavailable.
     except Exception as e:
         logger.error(f"Error charging credits for skill '{app_id}.{skill_id}': {e}", exc_info=True)
+        if team_id:
+            raise HTTPException(status_code=502, detail="Team billing failed") from e
         if raise_on_error:
             raise
         # Default REST behavior keeps returning successful provider output when billing is unavailable.
@@ -3069,6 +3149,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                         For news search, this means providing a 'requests' array with search queries.
                         """
                         try:
+                            user_info = await _resolve_app_skill_team_context(request, user_info, directus_service)
                             logger.info(f"External API: User {user_info['user_id']} executing {captured_app_id}/{captured_skill.id}")
                             
                             # Convert Pydantic model to dict for skill execution
@@ -3109,7 +3190,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                             else:
                                 # Calculate credits to charge based on pricing
                                 # This uses the same logic as main_processor.py: checks skill pricing, then provider pricing
-                                credits_charged = await calculate_skill_credits(
+                                credits_charged = 0 if _team_skill_worker_bills(user_info, captured_app_id, captured_skill.id) else await calculate_skill_credits(
                                     app_metadata=captured_app_metadata,
                                     skill_id=captured_skill.id,
                                     input_data=request_dict,  # Use request_dict for credit calculation (contains 'requests' array)
@@ -3179,6 +3260,8 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                             result,
                                             i,
                                         ))
+                                        if user_info.get('team_id'):
+                                            usage_details['request_index'] = i
                                         
                                         await charge_credits_via_internal_api(
                                             user_id=user_info['user_id'],
@@ -3189,6 +3272,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                             usage_details=usage_details,
                                             api_key_hash=user_info.get('api_key_hash'),  # API key hash for tracking
                                             device_hash=user_info.get('device_hash'),  # Device hash for tracking
+                                            **_team_billing_kwargs(user_info),
                                         )
                             
                             # Parse result into the skill's response model for proper typing
@@ -3205,7 +3289,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                             return WrappedSkillResponse(
                                 success=True,
                                 data=skill_response,
-                                credits_charged=credits_charged
+                                credits_charged=None if _team_skill_worker_bills(user_info, captured_app_id, captured_skill.id) else credits_charged
                             )
                             
                         except HTTPException:
@@ -3247,6 +3331,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                             """
                             _require_api_key_app_skill_scope(user_info, captured_app_id, captured_skill.id)
                             try:
+                                user_info = await _resolve_app_skill_team_context(request, user_info, directus_service)
                                 # Convert Pydantic model to dict
                                 request_dict = request_body.model_dump() if hasattr(request_body, 'model_dump') else dict(request_body)
                                 is_streaming = request_dict.get('stream', False)
@@ -3260,11 +3345,17 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
 
                                 # Add context metadata
                                 request_payload = sanitized_input.copy() if isinstance(sanitized_input, dict) else {}
+                                for context_key in ('team_id', '_team_id', 'team_id_hash', 'team_workspace_type'):
+                                    request_payload.pop(context_key, None)
                                 request_payload['_user_id'] = user_info['user_id']
                                 request_payload['_api_key_name'] = user_info.get('api_key_encrypted_name', '')
                                 request_payload['_api_key_hash'] = user_info.get('api_key_hash')
                                 request_payload['_device_hash'] = user_info.get('device_hash')
                                 request_payload['_external_request'] = True
+                                if user_info.get('team_id'):
+                                    request_payload['team_id'] = user_info['team_id']
+                                    request_payload['team_id_hash'] = hashlib.sha256(user_info['team_id'].encode()).hexdigest()
+                                    request_payload['team_workspace_type'] = 'apps'
 
                                 # OPE-342: dispatch in-process via the SkillRegistry. AskSkill.execute()
                                 # returns either an OpenAI-compatible dict (non-streaming) or a
@@ -3322,6 +3413,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                         The request body should match the skill's Pydantic model structure directly.
                         """
                         try:
+                            user_info = await _resolve_app_skill_team_context(request, user_info, directus_service)
                             logger.info(f"External API: User {user_info['user_id']} executing {captured_app_id}/{captured_skill.id} (direct model)")
                             
                             # Convert Pydantic model to dict for skill execution
@@ -3348,7 +3440,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                 credits_charged = 0
                             else:
                                 # Calculate credits to charge based on pricing
-                                credits_charged = await calculate_skill_credits(
+                                credits_charged = 0 if _team_skill_worker_bills(user_info, captured_app_id, captured_skill.id) else await calculate_skill_credits(
                                     app_metadata=captured_app_metadata,
                                     skill_id=captured_skill.id,
                                     input_data=request_dict,
@@ -3386,6 +3478,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                         usage_details=usage_details,
                                         api_key_hash=user_info.get('api_key_hash'),
                                         device_hash=user_info.get('device_hash'),
+                                        **_team_billing_kwargs(user_info),
                                     )
                             
                             # Parse result into response model if possible
@@ -3400,7 +3493,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                             return WrappedSkillResponse(
                                 success=True,
                                 data=skill_response,
-                                credits_charged=credits_charged
+                                credits_charged=None if _team_skill_worker_bills(user_info, captured_app_id, captured_skill.id) else credits_charged
                             )
                             
                         except HTTPException:
@@ -3432,6 +3525,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                     ) -> SkillResponse:
                         """Execute a skill from a specific app. Fallback handler when models can't be imported."""
                         try:
+                            user_info = await _resolve_app_skill_team_context(request, user_info, directus_service)
                             logger.info(f"External API: User {user_info['user_id']} executing {captured_app_id}/{captured_skill.id}")
 
                             preflight_reserved_credits = get_variable_preflight_reserved_credits(
@@ -3467,7 +3561,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                             else:
                                 # Calculate credits to charge based on pricing
                                 # This uses the same logic as main_processor.py: checks skill pricing, then provider pricing
-                                credits_charged = await calculate_skill_credits(
+                                credits_charged = 0 if _team_skill_worker_bills(user_info, captured_app_id, captured_skill.id) else await calculate_skill_credits(
                                     app_metadata=captured_app_metadata,
                                     skill_id=captured_skill.id,
                                     input_data=request_body,  # Contains 'requests' array
@@ -3517,6 +3611,8 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                             result,
                                             request_index,
                                         ))
+                                        if user_info.get('team_id'):
+                                            usage_details['request_index'] = request_index
                                         await charge_credits_via_internal_api(
                                             user_id=user_info['user_id'],
                                             user_id_hash=user_id_hash,
@@ -3526,12 +3622,13 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                             usage_details=usage_details,
                                             api_key_hash=user_info.get('api_key_hash'),  # API key hash for tracking
                                             device_hash=user_info.get('device_hash'),  # Device hash for tracking
+                                            **_team_billing_kwargs(user_info),
                                         )
                             
                             return SkillResponse(
                                 success=True,
                                 data=result,
-                                credits_charged=credits_charged
+                                credits_charged=None if _team_skill_worker_bills(user_info, captured_app_id, captured_skill.id) else credits_charged
                             )
                         except HTTPException:
                             raise
@@ -3557,6 +3654,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                         Rate limited to 30 requests per minute per API key.
                         """
                         try:
+                            user_info = await _resolve_app_skill_team_context(request, user_info, directus_service)
                             logger.info(f"External API: User {user_info['user_id']} executing {captured_app_id}/{captured_skill.id}")
                             
                             # Execute the skill
@@ -3581,7 +3679,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                             else:
                                 # Calculate credits to charge based on pricing
                                 # This uses the same logic as main_processor.py: checks skill pricing, then provider pricing
-                                credits_charged = await calculate_skill_credits(
+                                credits_charged = 0 if _team_skill_worker_bills(user_info, captured_app_id, captured_skill.id) else await calculate_skill_credits(
                                     app_metadata=captured_app_metadata,
                                     skill_id=captured_skill.id,
                                     input_data=request_data.input_data,  # Contains 'requests' array
@@ -3634,6 +3732,8 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                             "server_provider": provider_info["server_provider"],
                                             "server_region": provider_info["server_region"],
                                         }
+                                        if user_info.get('team_id'):
+                                            usage_details['request_index'] = i
                                         
                                         await charge_credits_via_internal_api(
                                             user_id=user_info['user_id'],
@@ -3644,12 +3744,13 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                             usage_details=usage_details,
                                             api_key_hash=user_info.get('api_key_hash'),  # API key hash for tracking
                                             device_hash=user_info.get('device_hash'),  # Device hash for tracking
+                                            **_team_billing_kwargs(user_info),
                                         )
                             
                             return SkillResponse(
                                 success=True,
                                 data=result,
-                                credits_charged=credits_charged
+                                credits_charged=None if _team_skill_worker_bills(user_info, captured_app_id, captured_skill.id) else credits_charged
                             )
                             
                         except HTTPException:

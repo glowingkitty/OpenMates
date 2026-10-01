@@ -15,5 +15,5 @@ def test_live_verifier_resolves_assistant_identity_and_surfaces_rejections() -> 
     ).read_text(encoding="utf-8")
 
     assert 'message?.role === "assistant"' in source
-    assert "messageId: assistantMessage.id" in source
+    assert "messageId: assistantMessage.clientMessageId" in source
     assert "Assistant speech request was rejected" in source

@@ -143,6 +143,12 @@ from backend.apps.ai.processing.focus_mode_routing import (
     resolve_deep_research_tool_choice,
     should_expose_subchat_tool,
     should_force_deep_research_delegation,
+    workflow_clarification_skill_scope,
+)
+from backend.apps.workflows.skills.chat_authoring_context import (
+    WORKFLOW_AUTHORING_TOOL_INSTRUCTION,
+    is_natural_language_authoring_call,
+    with_trusted_timezone,
 )
 from backend.apps.ai.sub_chat_orchestration import (
     MAX_AUTO_SUB_CHATS_PER_TURN,
@@ -3112,6 +3118,19 @@ async def handle_main_processing(
             )
             preselected_skills = expanded_preselected_skills
 
+    clarification_skills = workflow_clarification_skill_scope(
+        active_focus_id=request_data.active_focus_id,
+        relevant_focus_modes=getattr(preprocessing_results, "relevant_focus_modes", []) or [],
+        explicit_focus_mention=getattr(preprocessing_results, "user_requested_focus_only", False),
+    )
+    if clarification_skills is not None:
+        preselected_skills = clarification_skills
+        # The search verb describes the future workflow, not a request to use
+        # an Events/News search tool in the clarification chat now.
+        user_requested_skills_only = False
+    if preselected_skills and "workflows-create-or-modify" in preselected_skills:
+        prompt_parts.append(WORKFLOW_AUTHORING_TOOL_INSTRUCTION)
+
     task_tool_context = None
     task_context_prompt = ""
     task_tools_enabled = "task_update_jobs" in (getattr(request_data, "client_capabilities", None) or [])
@@ -5621,6 +5640,14 @@ async def handle_main_processing(
                     f"system tool(s) only: {[tc.function_name for tc in tool_calls_for_this_turn]}"
                 )
 
+        # One chat request must produce one atomic Workflow authoring instruction.
+        # All tool calls are known here, before any skill in this turn dispatches.
+        workflow_authoring_calls = [
+            tc for tc in tool_calls_for_this_turn
+            if tool_resolver_map.get(tc.function_name) == ("workflows", "create-or-modify")
+        ]
+        block_split_workflow_authoring = len(workflow_authoring_calls) > 1
+
         # Preflight the only audited read-only skill batch before dispatching it.
         # Reservations remain sequential; provider work starts only after every
         # descriptor is fixed from this turn's immutable tool-call snapshot.
@@ -5855,6 +5882,40 @@ async def handle_main_processing(
             tool_call_id = tool_call.tool_call_id
             tool_result_content_str: str
             omitted_news_requests_for_call: List[Any] = []
+
+            if block_split_workflow_authoring and tool_resolver_map.get(tool_name) == ("workflows", "create-or-modify"):
+                placeholder = inline_placeholder_embeds.get(tool_call_id)
+                if isinstance(placeholder, dict) and cache_service and user_vault_key_id and directus_service:
+                    try:
+                        from backend.core.api.app.services.embed_service import EmbedService
+
+                        embed_service = EmbedService(
+                            cache_service=cache_service,
+                            directus_service=directus_service,
+                            encryption_service=encryption_service,
+                        )
+                        placeholders = placeholder.get("placeholders") if placeholder.get("multiple") else [placeholder]
+                        for item in placeholders or []:
+                            embed_id = item.get("embed_id") if isinstance(item, dict) else None
+                            if embed_id:
+                                await embed_service.update_embed_status_to_cancelled(
+                                    embed_id=embed_id, app_id="workflows", skill_id="create-or-modify",
+                                    chat_id=request_data.chat_id, message_id=request_data.message_id,
+                                    user_id=request_data.user_id, user_id_hash=request_data.user_id_hash,
+                                    user_vault_key_id=user_vault_key_id, task_id=task_id, log_prefix=log_prefix,
+                                )
+                    except Exception:
+                        logger.warning("%s Could not cancel split Workflow authoring placeholder", log_prefix, exc_info=True)
+                current_message_history.append({
+                    "tool_call_id": tool_call_id,
+                    "role": "tool",
+                    "name": tool_name,
+                    "content": json.dumps({
+                        "status": "needs_clarification",
+                        "reason": "Submit every requested workflow in one complete instruction so all changes save together. No workflow was saved.",
+                    }),
+                })
+                continue
 
             try:
                 # Parse function arguments
@@ -7164,6 +7225,11 @@ async def handle_main_processing(
                         current_message_history,
                         log_prefix,
                     )
+                    natural_workflow_authoring = is_natural_language_authoring_call(
+                        app_id, skill_id, skill_arguments,
+                    )
+                    if natural_workflow_authoring:
+                        skill_arguments = with_trusted_timezone(skill_arguments, user_timezone)
 
                     # For async skills (e.g., images.generate), thread placeholder embed_ids
                     # so the Celery task can update the existing placeholder instead of creating new embeds.
@@ -7355,7 +7421,7 @@ async def handle_main_processing(
                                     app_id=app_id,
                                     skill_id=skill_id,
                                     arguments=skill_arguments,
-                                    timeout=DEFAULT_SKILL_TIMEOUT,  # 20s timeout with retry logic
+                                    timeout=90.0 if natural_workflow_authoring else DEFAULT_SKILL_TIMEOUT,
                                     chat_id=request_data.chat_id,
                                     message_id=request_data.message_id,
                                     user_id=request_data.user_id,
@@ -7363,7 +7429,7 @@ async def handle_main_processing(
                                     cache_service=cache_service,
                                     encryption_service=encryption_service,
                                     secrets_manager=secrets_manager,
-                                    max_retries=0 if getattr(request_data, "is_anonymous", False) else 1,
+                                    max_retries=0 if natural_workflow_authoring or getattr(request_data, "is_anonymous", False) else 1,
                                     is_anonymous=bool(getattr(request_data, "is_anonymous", False)),
                                 )
                         results, ascii_sanitization_stats = sanitize_text_payload_for_ascii_smuggling(
@@ -8268,7 +8334,7 @@ async def handle_main_processing(
                                     f"request_id={request_id} (type={type(request_id).__name__}), "
                                     f"request_id_key={request_id_key}, "
                                     f"lookup result has query: {'query' in request_metadata}, "
-                                    f"query value: {request_metadata.get('query', 'NOT_FOUND')}"
+                                    f"query value: {'<redacted>' if app_id == 'hosting' else request_metadata.get('query', 'NOT_FOUND')}"
                                 )
                                 
                                 # Include provider info from first_response if available
@@ -8294,14 +8360,17 @@ async def handle_main_processing(
                                             fallback_value = grouped_result.get(fallback_key)
                                             if isinstance(fallback_value, str) and fallback_value.strip():
                                                 request_metadata_with_provider["query"] = fallback_value
-                                                logger.info(f"{log_prefix} [QUERY_DEBUG] Found query via fallback key '{fallback_key}': {fallback_value}")
+                                                logger.info(
+                                                    f"{log_prefix} [QUERY_DEBUG] Found query via fallback key '{fallback_key}': "
+                                                    f"{'<redacted>' if app_id == 'hosting' else fallback_value}"
+                                                )
                                                 break
                                         else:
                                             logger.warning(f"{log_prefix} [QUERY_DEBUG] No query found in grouped_result via any fallback key!")
                                     else:
                                         logger.info(
                                             f"{log_prefix} [QUERY_DEBUG] query found in request_metadata_with_provider: "
-                                            f"{request_metadata_with_provider.get('query')}"
+                                            f"{'<redacted>' if app_id == 'hosting' else request_metadata_with_provider.get('query')}"
                                         )
                                 
                                 # Distinguish a real failure from a successful zero-hit query.

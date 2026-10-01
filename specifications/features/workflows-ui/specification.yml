@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.workflows-ui
-version: 5
+version: 7
 status: draft
 title: Workflows Web UI
 summary: >
@@ -12,15 +12,17 @@ summary: >
 
 scope:
   includes:
-    - The authenticated /workflows start workspace, title-first draft entry, recent Workflow cards, starter examples, Show all, and visible Search affordance.
+    - The authenticated /workflows start workspace, title-first draft entry, prioritized recent Workflow cards, separate template browsing, Show my workflows, and visible Search affordance.
     - The complete visual composition of the Workflow detail header, Template and Runs tab switch, graph canvas, node cards, dirty state, version timeline, run timeline, and execution detail.
     - Persisted disabled title drafts, in-place node editing, per-node Save and discard, unsaved-node navigation protection, read-only historical inspection, restore-as-new, and contextual run cancellation.
     - Automatic Workflow category and icon metadata, category-derived header and card identity, desktop and mobile layout, current OpenMates design tokens and icons, keyboard and touch operation, dark mode, and reduced-motion behavior.
+    - Exporting a saved Workflow from Show more and importing Workflow files from Project uploads or the Workflows start composer.
+    - Natural-language and voice Workflow authoring in the workspace, including validated node previews, Stop, partial-result feedback and undo.
   excludes:
     - Global app chrome, chat-sidebar content, profile imagery, recommendation copy, and example Workflow data that do not alter the contracted Workflows layout.
     - Workflow execution, encryption, retention, API, CLI, SDK, and chat-delivery semantics owned by feature.workflows.
     - Shared top-level workspace navigation and base start-shell behavior owned by feature.workspace-shell.
-    - Public Workflow marketplace behavior, natural-language Workflow planning, voice authoring, and Apple-native Workflow UI.
+    - Public Workflow marketplace behavior and Apple-native Workflow UI.
     - Workflow sharing management in the web UI. A future implementation belongs in the regular settings Share menu; existing runtime and CLI sharing APIs are unchanged.
 
 models:
@@ -76,20 +78,31 @@ models:
       type: progressive_disclosure
       required: true
       constraints: {default: exact_rule, choices: [exact_rule, use_ai_judgment], separate_top_level_ai_check_step: false}
+    identity:
+      type: shared_if_step_header
+      required: true
+      constraints: {blue_header: true, large_title: If, backlink: translated_next_step, narrow_backlink_label: hidden, delete_action: farther_left, source: supplied_figma_if_frames}
     exact_rule:
       type: typed_comparison_builder
       required: true
-      constraints: {plain_language_preview: true, model_call: forbidden}
+      constraints: {plain_language_preview: true, model_call: forbidden, order: [app_node, scalar_variable, compatible_operator, typed_literal_or_other_node_variable], array_entry_projection: forbidden}
+    source_controls:
+      type: shared_rich_settings_dropdown
+      required: true
+      constraints: {sources: [earlier_app_nodes, ai_confirms], gradient_app_identity: true, operator_icons: true, incompatible_variables_hidden: true, exact_rule_inferred_from_app_source: true}
     ai_judgment:
       type: bounded_boolean_question_builder
       required: true
       constraints:
-        visible_fields: [decision_question_with_inserted_earlier_values]
+        visible_fields: [authored_true_false_question_with_inserted_earlier_values]
         selected_value_preview: required
         advanced_provider_or_prompt_controls: forbidden
         outcomes: [if_true, if_false, unsure]
         unsure_branch: user_configurable_with_supported_steps_or_empty
         test_before_save: optional
+        source_picker: shared_step_and_field_picker
+        partial_mention: blue_query_filter_replaced_by_colored_token
+        invalid_question: error_on_save_and_test
     guidance:
       type: contextual_authoring_help
       required: true
@@ -100,24 +113,44 @@ models:
       type: multiline_text_with_insertable_earlier_value_references
       required: true
       constraints: {single_text_answer: true, app_skill_execution_controls: forbidden, whole_run_context: forbidden}
+    source_picker:
+      type: step_first_upstream_reference_picker
+      required: true
+      constraints: {source_chips_above_instruction: true, source_and_field_chips: left_aligned, sources: actual_earlier_nodes, app_node_row: one_horizontal_scroller, app_node_pills: single_line_content_width, fixed_add_action: outside_scroller, scroll_edge_fades: [left, right], stacked_source_chips: forbidden, multiline_source_labels: forbidden, fields_scoped_to_selected_source: true, show_all_scoped_to_selected_source: true}
+    model_selection:
+      type: chat_model_selector_below_instruction
+      required: true
+      constraints: {position: below_input_bottom_left, choices: [auto, eligible_exact_model], persisted_per_step: true, applied_to_unsaved_test_and_saved_run: true}
+    test_response:
+      type: progressive_assistant_response
+      required: true
+      constraints: {processing_below_test_action: true, cumulative_content: true, sender: OpenMates, renderer: shared_chat_markdown_and_embeds, chat_creation: forbidden}
     suggested_references:
-      type: non_interrupting_ranked_chips
+      type: free_local_reference_hints
       required: true
-      constraints: {position: above_instruction, auto_insert: false, reorder_full_reference_list: false, stale_results_ignored: true, idle_delay_ms: 1000}
+      constraints: {position: above_instruction, auto_insert: false, reorder_full_reference_list: false, provider_call_during_typing_or_selection: forbidden}
     app_skill_request_warning:
-      type: inline_validation
+      type: save_validation_feedback
       required: true
-      constraints: {position: below_instruction, reliable_illicit_request_blocks_save: true, uncertain_or_unavailable_verdict_allows_save_with_neutral_reminder: true}
+      constraints: {position: below_instruction, authoritative_on_save: true, reliable_illicit_request_blocks_save: true, provider_call_during_typing_or_selection: forbidden}
 
   WorkflowVariableComposer:
     insertion:
       type: shared_inline_editor_behavior
       required: true
-      constraints: {click_adds_visible_token_at_cursor: true, source_app_gradient_on_picker_and_token: true, applies_to: [send_message, ask_ai, ai_judgment, variable_enabled_app_text_inputs]}
+      constraints: {click_adds_visible_token_at_cursor: true, source_and_field_chips_left_aligned: true, inline_reference_pills_left_aligned: true, canonical_path_text: true, source_app_icon_on_token: true, source_app_gradient_on_picker_and_token: true, applies_to: [send_message, ask_ai, ai_judgment, variable_enabled_app_text_inputs]}
     result_lists:
       type: inline_typed_reference
       required: true
       constraints: {separate_result_section: forbidden, only_new_toggle: forbidden, message_preview_uses_result_cards: true}
+    reference_fields:
+      type: source_scoped_schema_fields
+      required: true
+      constraints: {source: actual_upstream_nodes, nested_objects: expanded, arrays: selectable_whole_without_descending, existing_array_references: preserved}
+    mention_search:
+      type: partial_inline_reference_query
+      required: true
+      constraints: {trigger: '@', partial_query_highlight: blue, choices_filtered_by_partial_query: true, selection_replaces_full_query_with_colored_token: true}
 
   WorkflowValuePresentation:
     readable_values:
@@ -169,8 +202,8 @@ models:
         vertical_regions: [recommendation_banner, workflow_identity_space, workflow_card_carousel, browse_controls, bottom_composer]
         recommendation_banner: {full_content_width: true, vivid_gradient_surface: true, rounded: true}
         workflow_identity_space: {large_faint_workflow_icon: true, centered: true}
-        workflow_card_carousel: {horizontal: true, recent_before_starters: true, cards_partially_peek_at_edge: allowed}
-        browse_controls: {centered: true, controls: [show_all, search], show_all_label: 'Show all', show_all_count_suffix: forbidden}
+        workflow_card_carousel: {horizontal: true, owned_workflows_only: true, prioritized_by_recent_edits_and_upcoming_schedule: true, cards_partially_peek_at_edge: allowed}
+        browse_controls: {centered: true, controls: [show_my_workflows, show_templates, search], show_all_label: 'Show my workflows', show_all_count_suffix: forbidden, visible_without_composer_overlap: true}
         bottom_composer: {floating: true, centered: true, pill: true}
     mobile_layout:
       type: mobile_workspace_start_composition
@@ -215,7 +248,8 @@ models:
         back: circular_icon
         secondary_actions: circular_light_buttons
         share: {web_v1_behavior: coming_soon_notification_only, opens_management: false, mutates_sharing: false, future_management_surface: regular_settings_share_menu}
-        contextual_show_more_actions: [run_now, delete]
+        contextual_show_more_actions: [run_now, export, delete]
+        export: {placement: shared_show_more_menu, saved_definition_only: true, enabled_and_disabled_workflows: true, incomplete_saved_drafts: true}
         run_now: {placement: shared_show_more_menu, centered_header_button: forbidden, visible_when: saved_workflow_is_valid_and_executable, executes: saved_definition, unsaved_node_edits_ignored: true}
         standalone_header_history_play_delete_icons: forbidden
         standalone_corner_ready_badge: forbidden
@@ -423,6 +457,10 @@ models:
       constraints: {keyboard_tabs_and_nodes: true, visible_focus: true, non_color_status_labels: true, reduced_motion: true, dark_mode_preserves_surface_hierarchy: true}
 
 assertions:
+  - id: workflows-ui.website-change.composition
+    type: behavior
+    must: >
+      After Website read, the existing Check editor offers Has changed since last successful read for exact comparison and Changes since last successful read for AI questions. Contextual guidance explains silent initialization, later change checks and preservation after blocked reads. Setup requires no separate change skill or new top-level Check mode.
   - id: workflows-ui.visual-language.coherent
     type: behavior
     must: Every Workflows state uses dark-mode-aware color-grey token layers, the resolved Workflow category gradient, rounded surfaces, soft elevation, compact pill controls, shallow typography, and functional motion so the start, Template, version, and Runs views read as one visual product family without raw grey values or ad hoc gradients. Body text defaults to 16px and all visible text is at least 14px, including compact preview titles, subtitles, badges, forms and placeholder text. Controls use the canonical supplied-design assets rather than unrelated Lucide or invented replacements. Every user-facing workflow screen renders scalar and nested values as labeled readable content and result collections as shared cards or readable lists; raw JSON, object dumps and debug schemas are forbidden, including expandable detail panels. Empty, error and unavailable states use plain language.
@@ -433,8 +471,16 @@ assertions:
     depends_on: [models.WorkflowIdentityMetadata, examples.workflow_identity]
   - id: workflows-ui.workspace.recommendation-led-composition
     type: behavior
-    must: The /workflows start view vertically composes a prominent recommendation banner, centered faint Workflow identity, horizontal recent-then-starter cards, centered plain 'Show all' without a count and Search controls, and a floating bottom composer. Start content begins below the recommendation banner without overlap. Whenever the available Workflow container width or height cannot fit a large card, compact cards show only the bare assigned icon, one ellipsized title line, and chevron; they omit enabled or paused badges and schedule, next-run, and retention detail. Large cards retain useful schedule or status detail and the Workflow category gradient. Mobile keeps the same hierarchy with the composer above the safe area.
-    depends_on: [models.WorkflowWorkspaceStart, examples.workspace_start]
+    must: The /workflows start view vertically composes a prominent recommendation banner, centered faint Workflow identity, horizontal owned Workflow cards, centered plain 'Show my workflows' without a count, 'Show templates' and Search controls, and a floating bottom composer. Start content begins below the recommendation banner without overlap. Whenever the available Workflow container width or height cannot fit a large card, compact cards show only the bare assigned icon, one ellipsized title line, and chevron; they omit enabled or paused badges and schedule, next-run, and retention detail. Large cards retain useful schedule or status detail and the Workflow category gradient. Mobile keeps the same hierarchy with the composer above the safe area.
+    depends_on: [models.WorkflowWorkspaceStart, examples.workspace_start_layout]
+  - id: workflows-ui.workspace.continue-priority
+    type: behavior
+    must: Continue where you left off shows only owned Workflows, ordered by the first matching priority group — created or updated in the last 30 minutes; enabled Workflows scheduled in the next 30 minutes; created or updated in the last 24 hours; enabled Workflows scheduled in the next 24 hours; all others. Recent groups and the remaining group use the later of creation and update time descending; scheduled groups use their next future run ascending. Paused Workflows and elapsed schedule timestamps do not qualify for scheduled groups. The ordering refreshes with time while the workspace is visible.
+    depends_on: [models.WorkflowWorkspaceStart, examples.workflow_continue_priority]
+  - id: workflows-ui.workspace.owned-library-and-templates
+    type: behavior
+    must: Show my workflows opens the shared responsive grid containing all owned Workflows, sorted by the later of creation and update time descending. A dropdown at the upper inline end offers Last updated and Running next first; the latter places enabled Workflows with future scheduled runs first in next-run order, then all remaining Workflows in recency order. Show templates opens a separate grid through the same browsing and return controls. Templates never appear among owned continuation cards; selecting one creates a new disabled owned Workflow and opens its Template for review, without enabling or executing it. Built-in templates use validated executable graphs.
+    depends_on: [models.WorkflowWorkspaceStart, examples.workflow_library_templates]
   - id: workflows-ui.workspace.title-first-draft
     type: behavior
     must: Submitting a valid short title from the Workflow composer persists and opens a disabled draft in Template, while empty input creates nothing, each node Save immediately persists its graph edit, and unavailable AI or voice authoring never implies success. The centered composer placeholder is exactly 'Enter a name for a new workflow'; no extra top-right blank-workflow button is added.
@@ -447,6 +493,36 @@ assertions:
     type: behavior
     must: A compact white two-position icon-tab pill overlaps the centered boundary below the Workflow header, uses a sliding blue active pill, switches in place between accessible Template and Runs hash states through the existing tab system, and does not remount or lose the selected Workflow. Its icons are the existing workflow.svg for Template and projectmanagement.svg for Runs, matching the supplied design.
     depends_on: [models.WorkflowViewTabs, examples.detail_tabs]
+  - id: workflows-ui.files.more-export
+    type: behavior
+    must: >
+      Export appears in the existing Show more menu for every saved Workflow, including disabled or
+      incomplete drafts. It downloads the current saved definition in the portable file format owned by
+      feature.workflows and makes saved-definition-only behavior clear when node edits are unsubmitted.
+      Export is available from Template and Runs without saving, discarding or executing an editor draft.
+    depends_on: [models.WorkflowDetailHeader, examples.workflow_file_export]
+  - id: workflows-ui.files.project-upload-import
+    type: behavior
+    must: >
+      The existing Project upload picker recognizes portable Workflow documents and imports them as fresh
+      disabled Workflows linked in the selected authorized Project and folder, rather than uploading them
+      as generic file embeds. Recognition uses the Workflow format marker and dedicated filename suffix;
+      unrelated uploaded files retain their existing behavior. A recognized malformed or unsupported
+      Workflow file shows an import error without falling back to generic upload. The UI reports import
+      and attachment outcomes accurately and provides access to the imported Workflow and its required
+      recipient review without changing ownership or bypassing Project permissions.
+    depends_on: [examples.workflow_project_import]
+  - id: workflows-ui.files.composer-drop-import
+    type: behavior
+    must: >
+      Dropping a portable Workflow file onto the Workflows start composer imports and opens a fresh
+      disabled Workflow in Template, using the same validation and recipient review as Project upload
+      and CLI import. A file drag exposes a clear drop affordance. Import never submits the typed new-Workflow
+      title, creates an extra title draft, starts inference or executes the Workflow; existing typed text
+      remains intact if the import fails. Invalid or unsupported files show a readable error without
+      creation. Normal title submission retains its existing behavior, and imported account-specific
+      bindings and schedule review remain visible until resolved before automatic enablement.
+    depends_on: [examples.workflow_composer_import]
   - id: workflows-ui.detail.fullscreen-route-motion
     type: behavior
     must: Opening a Workflow moves it upward from the bottom with a fade, and closing reverses that motion, using the same 320ms cubic-bezier(0.32, 0, 0.2, 1) timing as fullscreen embeds. Reduced-motion preferences disable the nonessential movement. Temporary animation transforms and compositor hints are released when the movement finishes, so a settled or closed Workflow does not retain a permanent animated graphics surface.
@@ -481,11 +557,24 @@ assertions:
     must: The supplied new-workflow PDF/Figma is the visual source of truth. Title entry opens an empty progressive builder with optional time/date trigger and Use app skill, Ask AI, Check and Send message choices. Shared app/skill cards expose typed inputs, examples and upstream references; frequently used and required fields appear first, advanced fields stay behind Show all fields, and enum, boolean, schedule and reference choices reuse SettingsDropdown. Weather uses the shared date-range calendar with Today as both default inclusive endpoints and disables dates outside Today through Today plus 13; its hidden legacy days field is never shown. Weather, Events and Home reuse the shared map picker, mapping the selected place and coordinates to supported skill inputs; Home requires a resolved municipality and makes its city-wide search scope visible. Test uses unsaved inputs and shows progress/results as structured labeled values and shared result cards without saving or exposing raw JSON/debug schemas. Check defaults to Exact rule and progressively offers Use AI judgment inside the same node rather than adding another AI Check step. Exact numeric or text conditions are recommended back to Exact rule; AI judgment asks one plain-language boolean question, requires explicit earlier-value selection and previews exactly what will be evaluated. Both Check methods show If true and If false; AI judgment additionally shows an Unsure branch that the author can populate with supported steps or leave empty. Run detail distinguishes an uncertain judgment from an evaluator failure. Provider names, prompt syntax and confidence thresholds stay out of the basic editor. Removing a Check either preserves an equivalent earlier boolean dependency or reports the dependent steps and leaves the graph unchanged. General filters, AI-authored Workflow construction, webhooks and app-use triggers are deferred.
     depends_on:
     - models.WorkflowCheckAuthoring
+  - id: workflows-ui.authoring.composer-and-preview
+    type: behavior
+    must: The Workflow start view accepts a natural-language or voice request through the fixed bottom composer using the shared audio recording control. Complete Gemini-authored nodes appear one at a time only after deterministic backend validation, with readable progress and error feedback; the information panel sits above the graph. Stop retains the valid generated prefix disabled with no automatic execution. If one correction attempt for an invalid node also fails, authoring stops, saves that valid prefix and tells the user what failed, inviting a concrete follow-up request or manual edit. A model error does not open clarification chat; only a request Jev finds unclear or confusing does. A fully successful single creation opens its Template; multiple completed creations return to the landing view with their new cards.
+    depends_on: [examples.authoring_composer_preview]
+  - id: workflows-ui.authoring.edit-control-and-undo
+    type: behavior
+    must: Natural-language authoring can create, edit and control existing Workflows in one request. The review shows which Workflows will change and their enabled states; a new Workflow starts disabled, and a fully successful edit keeps its current state unless the owner requests a change. Validation or atomic-save failure of a completed request leaves all affected Workflows unchanged. A stopped or twice-invalid partial edit saves validated changes to the original Workflow ID, retains untouched later nodes, disables it, and never creates a copy; the UI identifies the result as partial. Undo restores the complete prior state including enabled state when the AI revision is still current, and identifies a newer manual revision as a conflict without overwriting it.
+    depends_on: [examples.authoring_edit_control_undo]
   - id: workflows-ui.mvp.ask-ai
     type: behavior
     must: >
-      Ask AI is a top-level step distinct from Use app, Check and Send message; AI Ask does not appear in the Use app picker. Its expanded card offers a multiline instruction editor like Send message, insertable chips for accessible earlier outputs including app-result lists, a preview of bounded selected values, an optional unsaved Test, and one answer containing its complete validated text and visual references for later steps. After one second without an instruction change, web authoring automatically requests Jev-powered suggestion and app-skill-intent hints; these authoring hints do not select runtime presentation instructions for a known earlier app action. Suggested variable chips appear above the field without moving the cursor, inserting text or reordering the full reference picker. A reliable request to invoke an app skill shows the warning "You can't ask for using app skills here. Instead add an 'Use app' action to trigger an app skill" below the field and blocks Save; processing an existing app output remains allowed. An unavailable or uncertain hint shows a neutral reminder and allows Save, while server-side save validation still uses Jev and Gemini 3.8 Flash fallback. Stale hint responses cannot change the current instruction's warning or suggestions. Provider controls stay out of the basic editor, and CLI/SDK authoring does not run this typing-time hint flow.
-    depends_on: [models.WorkflowAskAiAuthoring, examples.ask_ai_authoring]
+      Ask AI is a top-level step distinct from Use app, Check and Send message; AI Ask does not appear in the Use app picker. Its expanded card offers a multiline instruction editor like Send message, one left-aligned horizontally scrolling row of actual earlier app-node pills above the field, and a left-aligned source-scoped row of fields with Show all limited to that source. Source pills are single-line and sized to their text, with a fixed Add action outside the scroller and transparent fades at both scroll edges; they never stack or wrap labels. The card also offers a preview of bounded selected values, an optional unsaved Test, and one answer containing its complete validated text and visual references for later steps. The same chat Auto/exact-model selector sits below the instruction at bottom left, persists per Ask AI step, and governs both Test and saved runs. Test shows animated Processing below its action and progressively renders cumulative Markdown and embeds as an OpenMates assistant message. Typing and selecting source fields use free local hints only; no provider call occurs until Save or Test. Suggested variable chips appear above the field without moving the cursor, inserting text or reordering the full reference picker. Authoritative Save validation reports an app-skill invocation request below the field and blocks Save with guidance to add Use app; processing an existing app output remains allowed. A provider error is shown as a validation failure rather than as a successful verdict. CLI/SDK authoring uses the same server-side Save validation.
+    depends_on: [models.WorkflowAskAiAuthoring]
+  - id: workflows-ui.if-editor.authored-conditions
+    type: behavior
+    must: >
+      The expanded If editor uses the supplied blue header, a large If title and a translated Next step backlink whose text hides in a narrow container; the delete action sits farther left. Its controls reuse the rich SettingsDropdown with source app gradients and operator icons. The first source choice is an earlier app node or the AI confirms option: choosing an app opens Exact rule directly, without a separate Exact rule choice, then a compatible scalar field, compatible operator, and typed Number, Text or Boolean literal or compatible field from another earlier app node; list entry projections are not offered. AI confirms opens the authored AI judgment with the shared left-aligned source and field picker plus the same blue @partial highlighting, filtering and full colored-token replacement as Ask AI. The author writes a true/false question; invalid questions show actionable errors on Save and Test. If true, If false and Unsure remain visible outcomes, and no provider call occurs while typing or choosing values.
+    depends_on: [models.WorkflowCheckAuthoring]
   - id: workflows-ui.schedule.preview
     type: behavior
     must: Date/time controls offer once, hourly, daily and weekly with time, timezone and readable schedule summary. Automatic activation requires a valid schedule; a complete graph offers Run now while disabled or unscheduled. Advanced recurrence and new budget UI are deferred.
@@ -498,8 +587,8 @@ assertions:
     - examples.message_budget
   - id: workflows-ui.editor.inline-action-variables
     type: behavior
-    must: Every variable-enabled Workflow text editor, including Send message, Ask AI, AI judgment and app action text inputs, inserts a visible variable token at the cursor when its chip is clicked or selected with a keyboard. Each picker chip and inserted token uses the source action app's existing gradient, remains readable in light and dark themes, and can be removed and reinserted without changing nearby text. Save explains the missing earlier-action reference in the affected message field; no variable is required when no earlier action exists.
-    depends_on: [models.WorkflowVariableComposer, examples.inline_action_variables]
+    must: Every variable-enabled Workflow text editor, including Send message, Ask AI, AI judgment and app action text inputs, inserts a visible variable token at the cursor when its chip is clicked or selected with a keyboard. Source chips, field chips and inline reference pills align left. Inserted pills show the directly addressable canonical reference path, for example @events.search.results or @travel.search-connections.results, with the source app icon. The picker uses actual earlier nodes, expands nested object fields, and stops at arrays so whole-list references remain selectable and saved references remain valid. Typing @ plus a partial variable name highlights the query blue and filters choices; selection replaces the entire query with the colored token. Each picker chip and inserted token uses the source action app's existing gradient, remains readable in light and dark themes, and can be removed and reinserted without changing nearby text. Save explains the missing earlier-action reference in the affected message field; no variable is required when no earlier action exists.
+    depends_on: [models.WorkflowVariableComposer]
   - id: workflows-ui.run-deletion-forgetting
     type: behavior
     must: Run detail exposes its remembered delivered-result count and destination without leaking private data
@@ -536,7 +625,7 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [visual_language, route_motion_contract, workflow_identity, workspace_start, detail_header, detail_header_contract, detail_tabs, template_editing, template_step_selector, node_card_contract, unsaved_navigation, version_history, version_selector_contract, run_history, responsive_accessibility, mvp_authoring, ask_ai_authoring, schedule_preview, message_budget, run_deletion]
+  required_groups: [visual_language, route_motion_contract, workflow_identity, workspace_start, workspace_start_layout, workflow_continue_priority, workflow_library_templates, detail_header, detail_header_contract, detail_tabs, template_editing, template_step_selector, node_card_contract, unsaved_navigation, version_history, version_selector_contract, run_history, responsive_accessibility, mvp_authoring, ask_ai_authoring, schedule_preview, message_budget, run_deletion, workflow_file_export, workflow_project_import, workflow_composer_import]
 
 approval:
   source: User-approved Figma/PDF workflow v1 plan, Codex task 01a09f95-3e12-71d1-9243-6a3668c57d4b

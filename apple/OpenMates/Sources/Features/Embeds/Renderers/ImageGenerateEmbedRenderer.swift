@@ -8,14 +8,22 @@
 // ────────────────────────────────────────────────────────────────────
 
 import SwiftUI
+#if os(iOS)
+import UIKit
+#elseif os(macOS)
+import AppKit
+#endif
 
 struct ImageGenerateEmbedRenderer: View {
     let data: [String: AnyCodable]?
     let mode: EmbedDisplayMode
+    #if DEBUG && os(iOS)
+    @State private var previewCopiedPrompt: String?
+    #endif
 
     private var prompt: String? { data?["prompt"]?.value as? String }
     private var model: String? { data?["model"]?.value as? String }
-    private var modelDisplayName: String? { model.map(Self.displayName) }
+    private var modelDisplayName: String? { model }
     private var s3BaseUrl: String? { data?["s3_base_url"]?.value as? String }
     private var aesKey: String? { data?["aes_key"]?.value as? String }
     private var aesNonce: String? { data?["aes_nonce"]?.value as? String }
@@ -35,8 +43,6 @@ struct ImageGenerateEmbedRenderer: View {
                     if let prompt {
                         if let modelDisplayName {
                             HStack(alignment: .center, spacing: .spacing3) {
-                                Icon("ai", size: 16)
-                                    .foregroundStyle(Color.grey50)
                                 Text("\(AppStrings.imageGenerateGeneratingVia) \(modelDisplayName):")
                                     .font(.omXxs)
                                     .fontWeight(.semibold)
@@ -74,8 +80,6 @@ struct ImageGenerateEmbedRenderer: View {
                     VStack(alignment: .leading, spacing: .spacing6) {
                         if let modelDisplayName {
                             HStack(alignment: .center, spacing: .spacing3) {
-                                Icon("ai", size: 19)
-                                    .foregroundStyle(Color.grey60)
                                 Text("\(AppStrings.imageGenerateGeneratedBy) \(modelDisplayName)")
                                     .font(.omSmall)
                                     .fontWeight(.medium)
@@ -107,24 +111,44 @@ struct ImageGenerateEmbedRenderer: View {
                                     .rotationEffect(.degrees(180))
                                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
                                     .padding(12)
+
+                                Button { copyPrompt(prompt) } label: {
+                                    Icon("copy", size: 20)
+                                        .foregroundStyle(Color.grey40)
+                                        .frame(width: 28, height: 28)
+                                }
+                                .buttonStyle(.plain)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                                .padding(8)
+                                .accessibilityLabel(AppStrings.copy)
+                                .accessibilityIdentifier("image-generate-copy-prompt")
+                                #if DEBUG && os(iOS)
+                                .accessibilityValue(previewCopiedPrompt ?? "")
+                                #endif
                             }
                         }
                     }
                     .frame(maxWidth: 380, alignment: .leading)
                     .padding(.leading, s3BaseUrl == nil ? 0 : .spacing8)
-                    .padding(.vertical, .spacing12)
+                    .padding(.vertical, 24)
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            .padding(.horizontal, 16)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
     }
 
-    private static func displayName(for model: String) -> String {
-        switch model {
-        case "flux-schnell":
-            return "FLUX Schnell"
-        default:
-            return model
+    private func copyPrompt(_ prompt: String) {
+        #if os(iOS)
+        UIPasteboard.general.string = prompt
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--dev-preview") {
+            previewCopiedPrompt = UIPasteboard.general.string
         }
+        #endif
+        #elseif os(macOS)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(prompt, forType: .string)
+        #endif
     }
 }

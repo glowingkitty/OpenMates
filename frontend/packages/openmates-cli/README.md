@@ -123,12 +123,19 @@ openmates apps list
 openmates apps skill-info web search
 openmates tasks create --title "Draft launch checklist"
 openmates workflows list
+openmates workflows export <workflow-id> --output morning.workflow.yml
+openmates workflows import --file morning.workflow.yml --project <project-id>
 openmates apps code run --language python --code 'print("Hello from CLI")'
 ```
 
 Typed app commands use your logged-in session by default. For non-interactive scripts,
 create an API key in **Settings > Developers > API Keys**, then pass
 `--api-key <key>` or set `OPENMATES_API_KEY`.
+
+Workflow export writes a portable `.workflow.yml` with the saved authoring graph
+and binding requirements. It excludes run history and account-specific bindings.
+Import creates a disabled workflow so you can review its bindings before enabling
+it. The optional `--project` and `--folder` flags add an encrypted Project link.
 
 ### Account settings and data
 
@@ -342,12 +349,12 @@ intentionally want the chat saved to the OpenMates account.
 
 ## Versioning
 
-OpenMates shows the short product line, for example `v0.22`, in the web app.
+OpenMates shows the short product line, for example `v0.23`, in the web app.
 The npm package uses exact artifact versions:
 
-- `0.22.0-alpha.N` is a prerelease from the `dev` branch published under the
+- `0.23.0-alpha.N` is a prerelease from the `dev` branch published under the
   `alpha` npm tag.
-- `0.22.0` is a stable release from `main` published under the `latest` npm tag.
+- `0.23.0` is a stable release from `main` published under the `latest` npm tag.
 
 Install stable releases with `npm install -g openmates`. Install prereleases with
 `npm install -g openmates@alpha`.

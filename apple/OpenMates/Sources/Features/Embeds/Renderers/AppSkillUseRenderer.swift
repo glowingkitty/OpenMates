@@ -6,6 +6,18 @@
 //          frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
 //          frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/finance/FinanceCheckAccountsEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/finance/FinanceCheckAccountsEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/music/MusicGenerateEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/videos/VideoGenerateEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/math/MathCalculateEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/math/MathCalculateEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/travel/TravelFlightDetailsEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/travel/TravelFlightDetailsEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/reminder/ReminderEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/reminder/ReminderEmbedFullscreen.svelte
 //          frontend/packages/ui/src/components/embeds/calendar/CalendarActionEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/calendar/CalendarActionEmbedFullscreen.svelte
 //          frontend/packages/ui/src/components/embeds/fitness/FitnessSearchEmbedPreview.svelte
@@ -44,11 +56,37 @@
 
 import Combine
 import SwiftUI
+#if canImport(MapKit)
+import MapKit
+#endif
 
 struct AppSkillUseRenderer: View {
+    enum SpecializedKind: Equatable {
+        case weatherForecast, financeCheckAccounts, musicGenerate, videoGenerate
+        case mathCalculate, travelFlight, reminder
+    }
+
+    static func specializedKind(appId: String, skillId: String) -> SpecializedKind? {
+        switch (appId, skillId) {
+        case ("weather", "forecast"): return .weatherForecast
+        case ("finance", "check_accounts"): return .financeCheckAccounts
+        case ("music", "generate"): return .musicGenerate
+        case ("videos", "generate"): return .videoGenerate
+        case ("math", "calculate"): return .mathCalculate
+        case ("travel", "get_flight"): return .travelFlight
+        case ("reminder", "set-reminder"), ("reminder", "list-reminders"),
+             ("reminder", "cancel-reminder"): return .reminder
+        default: return nil
+        }
+    }
+
     let embed: EmbedRecord
     let allEmbedRecords: [String: EmbedRecord]
     let mode: EmbedDisplayMode
+    var hasPIIMappings = false
+    var piiMappings: [PIIMapping] = []
+    var isPIIRevealed = false
+    var onTogglePII: () -> Void = {}
     var onOpenEmbed: (EmbedRecord) -> Void = { _ in }
 
     private var data: [String: AnyCodable] {
@@ -142,6 +180,17 @@ struct AppSkillUseRenderer: View {
             .sorted { ($0.createdAt ?? $0.id) < ($1.createdAt ?? $1.id) })
     }
 
+    private var linkedChildEmbeds: [EmbedRecord] {
+        Self.linkedChildren(parent: embed, allRecords: allEmbedRecords)
+    }
+
+    static func linkedChildren(parent: EmbedRecord, allRecords: [String: EmbedRecord]) -> [EmbedRecord] {
+        let explicit = parent.childEmbedIds.compactMap { allRecords[$0] }
+        let parented = allRecords.values.filter { $0.parentEmbedId == parent.id }
+        var seen = Set<String>()
+        return (explicit + parented).filter { seen.insert($0.id).inserted }
+    }
+
     /// Finished authenticated app-skill embeds persist their full result in a
     /// child record and keep only lightweight preview metadata on the parent.
     /// Prefer that child for transcript rendering while retaining inline data
@@ -224,8 +273,13 @@ struct AppSkillUseRenderer: View {
 
     private var preview: AnyView {
         let model = SearchSkillPreviewModel(embed: embed, allEmbedRecords: allEmbedRecords)
+        if let specialized = Self.specializedKind(appId: appId, skillId: skillId) {
+            return specializedPreview(specialized)
+        }
         if appId == "web", skillId == "search" {
             return AnyView(WebSearchEmbedRenderer(model: model, mode: .preview, onOpenEmbed: onOpenEmbed))
+        } else if appId == "news", skillId == "search" {
+            return AnyView(NewsSearchEmbedRenderer(model: model, mode: .preview, onOpenEmbed: onOpenEmbed))
         } else if appId == "code", skillId == "search_repos" {
             return AnyView(CodeRepoSearchEmbedRenderer(
                 model: CodeRepoSearchModel(embed: embed, allEmbedRecords: allEmbedRecords),
@@ -238,6 +292,8 @@ struct AppSkillUseRenderer: View {
             return AnyView(WebReadEmbedRenderer(data: data, mode: .preview))
         } else if appId == "images", skillId == "search" {
             return AnyView(ImagesSearchEmbedRenderer(model: model, mode: .preview, onOpenEmbed: onOpenEmbed))
+        } else if appId == "videos", skillId == "search" {
+            return AnyView(VideosSearchEmbedRenderer(model: model, mode: .preview, onOpenEmbed: onOpenEmbed))
         } else if appId == "images", skillId == "generate" || skillId == "generate_draft" {
             return AnyView(ImageGenerateEmbedRenderer(data: data, mode: .preview))
         } else if appId == "images", skillId == "view" {
@@ -255,10 +311,18 @@ struct AppSkillUseRenderer: View {
             return AnyView(CodeGetDocsEmbedRenderer(data: data, mode: .preview))
         } else if appId == "events", skillId == "search" {
             return AnyView(EventsSearchEmbedRenderer(embed: embed, data: data, mode: .preview, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed))
+        } else if appId == "health", skillId == "search_appointments" {
+            return AnyView(SearchDomainParentRenderer(embed: embed, kind: .health, mode: .preview, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed))
+        } else if appId == "home", skillId == "search" {
+            return AnyView(SearchDomainParentRenderer(embed: embed, kind: .home, mode: .preview, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed))
+        } else if appId == "nutrition", skillId == "search_recipes" {
+            return AnyView(SearchDomainParentRenderer(embed: embed, kind: .nutrition, mode: .preview, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed))
+        } else if appId == "shopping", skillId == "search_products" {
+            return AnyView(SearchDomainParentRenderer(embed: embed, kind: .shopping, mode: .preview, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed))
         } else if isCalendarActionSkill {
             return AnyView(CalendarActionEmbedRenderer(embed: embed, data: data, skillId: skillId, mode: .preview))
         } else if isFitnessSearchSkill {
-            return AnyView(FitnessSearchEmbedRenderer(embed: embed, data: data, mode: .preview))
+            return AnyView(FitnessSearchEmbedRenderer(embed: embed, data: data, mode: .preview, childEmbeds: childEmbeds, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed))
         } else if appId == "weather", skillId == "rain_radar" {
             return AnyView(WeatherRainRadarEmbedRenderer(embed: embed, data: data, mode: .preview))
         } else if appId == "travel", skillId == "search_connections" {
@@ -281,6 +345,53 @@ struct AppSkillUseRenderer: View {
             return AnyView(imagesSearchPreview)
         } else {
             return AnyView(textSearchPreview)
+        }
+    }
+
+    private func specializedPreview(_ kind: SpecializedKind) -> AnyView {
+        switch kind {
+        case .weatherForecast:
+            return AnyView(WeatherForecastSkillCard(data: data, childEmbeds: linkedChildEmbeds, status: embed.status, mode: .preview, onOpenEmbed: onOpenEmbed))
+        case .financeCheckAccounts:
+            return AnyView(FinanceCheckAccountsSkillCard(
+                data: data, status: embed.status, mode: .preview,
+                piiMappings: piiMappings, hasPIIMappings: hasPIIMappings,
+                isPIIRevealed: isPIIRevealed, onTogglePII: onTogglePII
+            ))
+        case .musicGenerate:
+            return AnyView(MusicGenerateEmbedRenderer(data: data, mode: .preview))
+        case .videoGenerate:
+            return AnyView(VideoGenerateEmbedRenderer(data: data, mode: .preview))
+        case .mathCalculate:
+            return AnyView(MathCalculateSkillCard(data: data, status: embed.status, mode: .preview))
+        case .travelFlight:
+            return AnyView(TravelFlightSkillCard(data: data, mode: .preview))
+        case .reminder:
+            return AnyView(ReminderSkillCard(data: data, status: embed.status, mode: .preview))
+        }
+    }
+
+    @ViewBuilder
+    private func specializedFullscreen(_ kind: SpecializedKind) -> some View {
+        switch kind {
+        case .weatherForecast:
+            WeatherForecastSkillCard(data: data, childEmbeds: linkedChildEmbeds, status: embed.status, mode: .fullscreen, onOpenEmbed: onOpenEmbed)
+        case .financeCheckAccounts:
+            FinanceCheckAccountsSkillCard(
+                data: data, status: embed.status, mode: .fullscreen,
+                piiMappings: piiMappings, hasPIIMappings: hasPIIMappings,
+                isPIIRevealed: isPIIRevealed, onTogglePII: onTogglePII
+            )
+        case .musicGenerate:
+            MusicGenerateEmbedRenderer(data: data, mode: .fullscreen)
+        case .videoGenerate:
+            VideoGenerateEmbedRenderer(data: data, mode: .fullscreen)
+        case .mathCalculate:
+            MathCalculateSkillCard(data: data, status: embed.status, mode: .fullscreen)
+        case .travelFlight:
+            TravelFlightSkillCard(data: data, mode: .fullscreen)
+        case .reminder:
+            ReminderSkillCard(data: data, status: embed.status, mode: .fullscreen)
         }
     }
 
@@ -348,8 +459,12 @@ struct AppSkillUseRenderer: View {
     @ViewBuilder
     private var fullscreen: some View {
         let model = SearchSkillPreviewModel(embed: embed, allEmbedRecords: allEmbedRecords)
-        if appId == "web", skillId == "search" {
+        if let specialized = Self.specializedKind(appId: appId, skillId: skillId) {
+            specializedFullscreen(specialized)
+        } else if appId == "web", skillId == "search" {
             WebSearchEmbedRenderer(model: model, mode: .fullscreen, onOpenEmbed: onOpenEmbed)
+        } else if appId == "news", skillId == "search" {
+            NewsSearchEmbedRenderer(model: model, mode: .fullscreen, onOpenEmbed: onOpenEmbed)
         } else if appId == "code", skillId == "search_repos" {
             CodeRepoSearchEmbedRenderer(
                 model: CodeRepoSearchModel(embed: embed, allEmbedRecords: allEmbedRecords),
@@ -362,6 +477,8 @@ struct AppSkillUseRenderer: View {
             WebReadEmbedRenderer(data: data, mode: .fullscreen)
         } else if appId == "images", skillId == "search" {
             ImagesSearchEmbedRenderer(model: model, mode: .fullscreen, onOpenEmbed: onOpenEmbed)
+        } else if appId == "videos", skillId == "search" {
+            VideosSearchEmbedRenderer(model: model, mode: .fullscreen, onOpenEmbed: onOpenEmbed)
         } else if appId == "images", skillId == "generate" || skillId == "generate_draft" {
             ImageGenerateEmbedRenderer(data: data, mode: .fullscreen)
         } else if appId == "images", skillId == "view" {
@@ -379,10 +496,18 @@ struct AppSkillUseRenderer: View {
             CodeGetDocsEmbedRenderer(data: data, mode: .fullscreen)
         } else if appId == "events", skillId == "search" {
             EventsSearchEmbedRenderer(embed: embed, data: data, mode: .fullscreen, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
+        } else if appId == "health", skillId == "search_appointments" {
+            SearchDomainParentRenderer(embed: embed, kind: .health, mode: .fullscreen, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
+        } else if appId == "home", skillId == "search" {
+            SearchDomainParentRenderer(embed: embed, kind: .home, mode: .fullscreen, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
+        } else if appId == "nutrition", skillId == "search_recipes" {
+            SearchDomainParentRenderer(embed: embed, kind: .nutrition, mode: .fullscreen, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
+        } else if appId == "shopping", skillId == "search_products" {
+            SearchDomainParentRenderer(embed: embed, kind: .shopping, mode: .fullscreen, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
         } else if isCalendarActionSkill {
             CalendarActionEmbedRenderer(embed: embed, data: data, skillId: skillId, mode: .fullscreen)
         } else if isFitnessSearchSkill {
-            FitnessSearchEmbedRenderer(embed: embed, data: data, mode: .fullscreen)
+            FitnessSearchEmbedRenderer(embed: embed, data: data, mode: .fullscreen, childEmbeds: childEmbeds, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
         } else if appId == "weather", skillId == "rain_radar" {
             WeatherRainRadarEmbedRenderer(embed: embed, data: data, mode: .fullscreen)
         } else if appId == "travel", skillId == "search_connections" {
@@ -1037,6 +1162,8 @@ struct Models3DSearchParentRenderer: View {
 }
 
 struct Models3DResultEmbedRenderer: View {
+    @Environment(\.openURL) private var openURL
+
     let embed: EmbedRecord
     let mode: EmbedDisplayMode
     var onTap: () -> Void = {}
@@ -1142,18 +1269,31 @@ struct Models3DResultEmbedRenderer: View {
             if let creator { Text(creator).font(.omP).foregroundStyle(Color.fontSecondary) }
             if let license { Text(license).font(.omP).foregroundStyle(Color.fontSecondary) }
             if let filesCount { Text(AppStrings.models3dFilesCount(filesCount)).font(.omP).foregroundStyle(Color.fontSecondary) }
-            if let sourceURL, let host = EmbedFieldReader.host(from: sourceURL) {
-                Text(AppStrings.models3dOpenOnProvider(provider ?? host))
-                    .font(.omSmall)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(Color.fontButton)
-                    .padding(.horizontal, 13)
-                    .padding(.vertical, 9)
-                    .background(Color.buttonPrimary)
-                    .clipShape(RoundedRectangle(cornerRadius: .radius8))
+            if let sourceURL, let url = Self.providerURL(sourceURL), let host = url.host {
+                Button {
+                    openURL(url)
+                } label: {
+                    Text(AppStrings.models3dOpenOnProvider(provider ?? host))
+                        .font(.omSmall)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(Color.fontButton)
+                        .padding(.horizontal, 13)
+                        .padding(.vertical, 9)
+                        .background(Color.buttonPrimary)
+                        .clipShape(RoundedRectangle(cornerRadius: .radius8))
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("models3d-open-provider-cta-inline")
             }
         }
         .foregroundStyle(Color.fontPrimary)
+    }
+
+    static func providerURL(_ source: String) -> URL? {
+        guard let url = URL(string: source),
+              ["https", "http"].contains(url.scheme?.lowercased() ?? ""),
+              url.host != nil else { return nil }
+        return url
     }
 
     private var metaLine: some View {
@@ -1193,6 +1333,26 @@ struct Models3DGenerateEmbedRenderer: View {
     private var prompt: String { EmbedFieldReader.string(raw, keys: ["prompt", "title"]) ?? AppStrings.models3d }
     private var providerModel: String? { EmbedFieldReader.string(raw, keys: ["provider_model", "providerModel", "provider"]) }
     private var posterURL: String? { modelImageURL(for: raw, maxWidth: mode == .preview ? 520 : 960) }
+    private var encryptedPoster: EncryptedPoster? { Self.encryptedPoster(from: raw) }
+
+    struct EncryptedPoster {
+        let baseURL: String
+        let s3Key: String
+        let aesKey: String
+        let nonce: String
+    }
+
+    static func encryptedPoster(from raw: [String: AnyCodable]) -> EncryptedPoster? {
+        guard let files = raw["files"]?.value as? [String: Any],
+              let poster = files["poster"] as? [String: Any],
+              let s3Key = poster["s3_key"] as? String, !s3Key.isEmpty,
+              let nonce = poster["aes_nonce"] as? String, !nonce.isEmpty,
+              let aesKey = raw["aes_key"]?.value as? String, !aesKey.isEmpty,
+              let baseURL = raw["s3_base_url"]?.value as? String, !baseURL.isEmpty else {
+            return nil
+        }
+        return EncryptedPoster(baseURL: baseURL, s3Key: s3Key, aesKey: aesKey, nonce: nonce)
+    }
 
     var body: some View {
         switch mode {
@@ -1209,6 +1369,15 @@ struct Models3DGenerateEmbedRenderer: View {
                 CachedRemoteImage(url: url) { image in
                     image.resizable().aspectRatio(contentMode: .fit)
                 } placeholder: { modelFallbackText }
+            } else if let encryptedPoster {
+                EncryptedImageView(
+                    s3Url: encryptedPoster.baseURL,
+                    s3Key: encryptedPoster.s3Key,
+                    aesKey: encryptedPoster.aesKey,
+                    aesNonce: encryptedPoster.nonce,
+                    encryption: nil,
+                    contentMode: .fit
+                )
             } else {
                 modelFallbackText
             }
@@ -1224,6 +1393,17 @@ struct Models3DGenerateEmbedRenderer: View {
                 CachedRemoteImage(url: url) { image in
                     image.resizable().aspectRatio(contentMode: .fit)
                 } placeholder: { modelFallbackText }
+                .frame(maxWidth: .infinity, maxHeight: 560)
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+            } else if let encryptedPoster {
+                EncryptedImageView(
+                    s3Url: encryptedPoster.baseURL,
+                    s3Key: encryptedPoster.s3Key,
+                    aesKey: encryptedPoster.aesKey,
+                    aesNonce: encryptedPoster.nonce,
+                    encryption: nil,
+                    contentMode: .fit
+                )
                 .frame(maxWidth: .infinity, maxHeight: 560)
                 .clipShape(RoundedRectangle(cornerRadius: 16))
             } else {
@@ -1834,16 +2014,16 @@ private struct CalendarActionPreview: View {
         return isProcessing ? AppStrings.loading : nil
     }
 
+    private var title: String {
+        isProcessing ? (model.explicitTitle ?? "Search") : model.title
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: .spacing3) {
-            HStack(spacing: .spacing3) {
-                Icon("calendar", size: .iconSizeSm)
-                    .foregroundStyle(LinearGradient.appCalendar)
-                Text(model.title)
-                    .font(.omP.weight(.bold))
-                    .foregroundStyle(Color.fontPrimary)
-                    .lineLimit(2)
-            }
+            Text(title)
+                .font(.omP.weight(.bold))
+                .foregroundStyle(Color.fontPrimary)
+                .lineLimit(2)
 
             if let detail {
                 Text(detail)
@@ -1904,13 +2084,15 @@ private struct CalendarActionFullscreen: View {
 @MainActor
 private struct CalendarActionValue {
     let title: String
+    let explicitTitle: String?
     let summary: String?
     let error: String?
     let items: [CalendarActionItem]
 
     init(data: [String: AnyCodable], skillId: String) {
         let fallbackTitle = AppStrings.calendarSkillTitle(skillId)
-        title = EmbedFieldReader.string(data, keys: ["title"]) ?? fallbackTitle
+        explicitTitle = EmbedFieldReader.string(data, keys: ["title"])
+        title = explicitTitle ?? fallbackTitle
         summary = EmbedFieldReader.string(data, keys: ["summary", "message"])
         error = EmbedFieldReader.string(data, keys: ["error"])
         let values = EmbedFieldReader.dictionaryArray(data, key: "events").isEmpty
@@ -2296,6 +2478,9 @@ private struct FitnessSearchEmbedRenderer: View {
     let embed: EmbedRecord
     let data: [String: AnyCodable]?
     let mode: EmbedDisplayMode
+    let childEmbeds: [EmbedRecord]
+    let allEmbedRecords: [String: EmbedRecord]
+    let onOpenEmbed: (EmbedRecord) -> Void
 
     private var raw: [String: AnyCodable] { data ?? [:] }
     private var group: FitnessSearchGroup { FitnessSearchGroup(data: raw) }
@@ -2312,9 +2497,9 @@ private struct FitnessSearchEmbedRenderer: View {
     var body: some View {
         switch mode {
         case .preview:
-            FitnessSearchPreview(skillId: skillId, group: group)
+            FitnessSearchPreview(skillId: skillId, group: group, status: embed.status)
         case .fullscreen:
-            FitnessSearchFullscreen(skillId: skillId, group: group)
+            FitnessSearchFullscreen(group: group, childEmbeds: childEmbeds, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
         }
     }
 }
@@ -2322,6 +2507,7 @@ private struct FitnessSearchEmbedRenderer: View {
 private struct FitnessSearchPreview: View {
     let skillId: String
     let group: FitnessSearchGroup
+    let status: EmbedStatus
 
     private var title: String {
         skillId == "search_locations" ? AppStrings.fitnessSearchLocations : AppStrings.fitnessSearchClasses
@@ -2332,11 +2518,10 @@ private struct FitnessSearchPreview: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: .spacing2) {
+        VStack(alignment: .leading, spacing: 5.6) {
             Text(group.provider)
                 .font(.omXs)
-                .fontWeight(.medium)
-                .foregroundStyle(Color.grey70)
+                .foregroundStyle(Color.fontSecondary)
                 .lineLimit(1)
 
             Text(title)
@@ -2345,43 +2530,33 @@ private struct FitnessSearchPreview: View {
                 .foregroundStyle(Color.fontPrimary)
                 .lineLimit(2)
 
-            Text(locationLabel)
-                .font(.omXs)
-                .foregroundStyle(Color.fontSecondary)
-                .lineLimit(1)
+            Text(locationLabel).font(.omXs).foregroundStyle(Color.fontSecondary).lineLimit(1)
 
-            if let summary = group.summary {
-                Text(summary)
-                    .font(.omXs)
-                    .foregroundStyle(Color.fontSecondary)
-                    .lineLimit(1)
-            } else if group.resultCount > 0 {
-                Text(AppStrings.moreResults(group.resultCount))
-                    .font(.omXs)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(Color.grey70)
-                    .lineLimit(1)
-            }
-
-            ForEach(group.results.prefix(2)) { result in
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(result.name)
-                        .font(.omXs)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(Color.fontPrimary)
-                        .lineLimit(1)
-                    if let subtitle = result.previewSubtitle {
-                        Text(subtitle)
-                            .font(.omTiny)
-                            .foregroundStyle(Color.fontSecondary)
-                            .lineLimit(1)
+            if status == .finished {
+                Text("\(group.resultCount) \(skillId == "search_classes" ? "classes" : "locations")")
+                    .font(.omP.weight(.semibold))
+                    .foregroundStyle(Color.fontPrimary)
+                    .accessibilityIdentifier("fitness-search-result-count")
+                if let summary = group.summary {
+                    Text(summary).font(.omXs).foregroundStyle(Color.fontSecondary).lineLimit(1)
+                }
+                ForEach(group.results.prefix(2)) { result in
+                    VStack(alignment: .leading, spacing: .spacing1) {
+                        Text(result.name).font(.omSmall.weight(.semibold)).foregroundStyle(Color.fontPrimary).lineLimit(1)
+                        if let venue = result.venueName {
+                            Text(venue).font(.omXs).foregroundStyle(Color.fontSecondary).lineLimit(1)
+                        }
                     }
                 }
+            } else {
+                Text(status == .error ? "Search failed." : status == .cancelled ? "Search cancelled." : "Searching Urban Sports Club...")
+                    .font(.omXs)
+                    .foregroundStyle(Color.fontSecondary)
             }
 
             if !group.chips.isEmpty {
                 FitnessChipRow(chips: group.chips)
-                    .padding(.top, .spacing1)
+                    .frame(maxHeight: .infinity, alignment: .bottom)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -2389,42 +2564,19 @@ private struct FitnessSearchPreview: View {
 }
 
 private struct FitnessSearchFullscreen: View {
-    let skillId: String
     let group: FitnessSearchGroup
+    let childEmbeds: [EmbedRecord]
+    let allEmbedRecords: [String: EmbedRecord]
+    let onOpenEmbed: (EmbedRecord) -> Void
 
-    private let columns = [GridItem(.adaptive(minimum: 240, maximum: 320), spacing: .spacing5)]
-
-    private var title: String {
-        skillId == "search_locations" ? AppStrings.fitnessSearchLocations : AppStrings.fitnessSearchClasses
+    private let columns = [GridItem(.adaptive(minimum: 300), spacing: .spacing5)]
+    private var resultEmbeds: [EmbedRecord] {
+        childEmbeds.isEmpty ? group.results.map(\.embedRecord) : childEmbeds
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: .spacing6) {
-            VStack(alignment: .leading, spacing: .spacing2) {
-                Text(group.provider)
-                    .font(.omSmall)
-                    .fontWeight(.medium)
-                    .foregroundStyle(Color.fontSecondary)
-
-                Text(title)
-                    .font(.omH2)
-                    .fontWeight(.bold)
-                    .foregroundStyle(Color.fontPrimary)
-                    .lineLimit(2)
-
-                if let summary = group.summary {
-                    Text(summary)
-                        .font(.omSmall)
-                        .foregroundStyle(Color.fontSecondary)
-                        .lineLimit(3)
-                }
-            }
-
-            if !group.chips.isEmpty {
-                FitnessChipRow(chips: group.chips)
-            }
-
-            if group.results.isEmpty {
+        Group {
+            if resultEmbeds.isEmpty {
                 Text(group.error ?? AppStrings.searchNoResults)
                     .font(.omP)
                     .fontWeight(.medium)
@@ -2433,16 +2585,15 @@ private struct FitnessSearchFullscreen: View {
                     .frame(maxWidth: .infinity, minHeight: 200)
             } else {
                 LazyVGrid(columns: columns, alignment: .leading, spacing: .spacing5) {
-                    ForEach(group.results) { result in
-                        FitnessResultCard(result: result, provider: group.provider)
+                    ForEach(resultEmbeds, id: \.id) { child in
+                        EmbedPreviewCard(embed: child, allEmbedRecords: allEmbedRecords) {
+                            onOpenEmbed(child)
+                        }
                     }
                 }
-                .frame(maxWidth: 1000, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-        .padding(.horizontal, .spacing5)
-        .padding(.vertical, .spacing8)
-        .padding(.bottom, 120)
         .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 }
@@ -2459,20 +2610,12 @@ struct FitnessResultEmbedRenderer: View {
         FitnessResultSummary(index: 0, data: raw)
     }
 
-    private var provider: String? {
-        raw.string("provider")
-    }
-
     var body: some View {
         switch mode {
         case .preview:
             FitnessResultPreview(result: result)
         case .fullscreen:
-            FitnessResultCard(result: result, provider: provider)
-                .padding(.horizontal, .spacing5)
-                .padding(.vertical, .spacing8)
-                .frame(maxWidth: 1000, alignment: .topLeading)
-                .frame(maxWidth: .infinity, alignment: .top)
+            FitnessResultDetail(result: result)
         }
     }
 }
@@ -2482,12 +2625,6 @@ private struct FitnessResultPreview: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: .spacing2) {
-            Text(result.name)
-                .font(.omSmall)
-                .fontWeight(.bold)
-                .foregroundStyle(Color.fontPrimary)
-                .lineLimit(1)
-
             if let subtitle = result.previewSubtitle {
                 Text(subtitle)
                     .font(.omXs)
@@ -2495,80 +2632,59 @@ private struct FitnessResultPreview: View {
                     .lineLimit(1)
             }
 
-            ForEach(result.previewMeta, id: \.self) { item in
-                Text(item)
+            if !result.previewMeta.isEmpty {
+                Text(result.previewMeta.joined(separator: " "))
                     .font(.omXs)
                     .foregroundStyle(Color.fontSecondary)
-                    .lineLimit(1)
-            }
-
-            if !result.tags.isEmpty {
-                FitnessChipRow(chips: result.tags)
+                    .lineLimit(2)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
 }
 
-private struct FitnessResultCard: View {
+private struct FitnessResultDetail: View {
     let result: FitnessResultSummary
-    let provider: String?
-
-    @Environment(\.openURL) private var openURL
 
     var body: some View {
-        VStack(alignment: .leading, spacing: .spacing3) {
+        VStack(alignment: .leading, spacing: .spacing5) {
             Text(result.name)
-                .font(.omP)
-                .fontWeight(.semibold)
+                .font(.omH3)
+                .fontWeight(.bold)
                 .foregroundStyle(Color.fontPrimary)
-                .lineLimit(3)
 
-            if let subtitle = result.fullSubtitle {
+            if let subtitle = result.detailSubtitle {
                 Text(subtitle)
-                    .font(.omSmall)
+                    .font(.omP)
                     .foregroundStyle(Color.fontSecondary)
-                    .lineLimit(3)
             }
 
-            if !result.meta.isEmpty {
-                VStack(alignment: .leading, spacing: .spacing1) {
-                    ForEach(result.meta, id: \.self) { item in
-                        Text(item)
-                            .font(.omXs)
-                            .foregroundStyle(Color.fontSecondary)
-                            .lineLimit(1)
-                    }
-                }
+            VStack(alignment: .leading, spacing: .spacing3) {
+                FitnessDetailField(label: "Address", value: result.address)
+                FitnessDetailField(label: "Distance", value: result.distanceText)
+                FitnessDetailField(label: "Spots", value: result.spotsDisplay)
+                FitnessDetailField(label: "Mode", value: result.attendanceMode)
             }
 
             if !result.tags.isEmpty {
                 FitnessChipRow(chips: result.tags)
             }
+        }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+    }
+}
 
-            if let provider, let url = result.url.flatMap(URL.init(string:)) {
-                Button {
-                    openURL(url)
-                } label: {
-                    Text(AppStrings.openOnProvider(provider))
-                        .font(.omSmall)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(Color.buttonPrimary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .buttonStyle(.plain)
-                .padding(.top, .spacing2)
+private struct FitnessDetailField: View {
+    let label: String
+    let value: String?
+
+    var body: some View {
+        if let value, !value.isEmpty {
+            VStack(alignment: .leading, spacing: .spacing1) {
+                Text(label).font(.omP.weight(.bold)).foregroundStyle(Color.fontPrimary)
+                Text(value).font(.omP).foregroundStyle(Color.fontSecondary)
             }
         }
-        .padding(.spacing5)
-        .frame(maxWidth: .infinity, minHeight: 160, alignment: .topLeading)
-        .background(Color.grey0)
-        .overlay(
-            RoundedRectangle(cornerRadius: .radius5)
-                .stroke(Color.grey20, lineWidth: 1)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: .radius5))
-        .shadow(color: .black.opacity(0.08), radius: 16, x: 0, y: 4)
     }
 }
 
@@ -2641,7 +2757,7 @@ private struct FitnessSearchGroup {
     var chips: [String] {
         [
             filters.chip("radius_km", suffix: " km"),
-            filters.chip("plan"),
+            filters.chip("plan").map { "Plan: \($0)" },
             filters.chip("attendance_mode")
         ].compactMap { $0 }
     }
@@ -2649,6 +2765,7 @@ private struct FitnessSearchGroup {
 
 private struct FitnessResultSummary: Identifiable {
     let id: String
+    let rawData: [String: Any]
     let name: String
     let venueName: String?
     let address: String?
@@ -2656,14 +2773,16 @@ private struct FitnessResultSummary: Identifiable {
     let timeRange: String?
     let distanceKm: String?
     let spotsDisplay: String?
+    let attendanceMode: String?
     let plansRequired: [String]?
     let disciplines: [String]?
     let url: String?
     let skillId: String?
 
     init(index: Int, data: [String: Any]) {
+        rawData = data
         id = data.string("id") ?? "fitness-result-\(index)"
-        name = data.string("name") ?? data.string("venue_name") ?? id
+        name = data.string("name") ?? data.string("venue_name") ?? "Urban Sports result"
         venueName = data.string("venue_name")
         address = data.string("address")
             ?? data.string("venue_address")
@@ -2675,6 +2794,7 @@ private struct FitnessResultSummary: Identifiable {
         timeRange = data.string("time_range")
         distanceKm = data.distance("distance_km")
         spotsDisplay = data.string("spots_display")
+        attendanceMode = data.string("attendance_mode")
         plansRequired = data.stringArray("plans_required")
         disciplines = data.stringArray("disciplines")
         url = data.string("detail_url") ?? data.string("url") ?? data.string("venue_url")
@@ -2682,14 +2802,17 @@ private struct FitnessResultSummary: Identifiable {
     }
 
     var previewSubtitle: String? {
-        if skillId == "search_classes" {
+        if skillId == "search_classes" || date != nil {
             return [dateTimeText, venueName].compactMap { $0 }.joined(separator: " · ").nilIfEmpty
         }
         return address ?? venueName
     }
 
-    var fullSubtitle: String? {
-        [venueName, address].compactMap { $0 }.joined(separator: "\n").nilIfEmpty
+    var detailSubtitle: String? {
+        if skillId == "search_classes" || date != nil {
+            return [date, timeRange, venueName].compactMap { $0 }.joined(separator: " · ").nilIfEmpty
+        }
+        return address
     }
 
     var meta: [String] {
@@ -2701,22 +2824,36 @@ private struct FitnessResultSummary: Identifiable {
     }
 
     var previewMeta: [String] {
-        [distanceText, spotsDisplay].compactMap { $0 }
+        [distanceText, spotsDisplay, disciplines?.prefix(2).joined(separator: ", "), plansRequired?.joined(separator: ", ")]
+            .compactMap { $0 }
+            .filter { !$0.isEmpty }
     }
 
     var tags: [String] {
         (disciplines ?? []) + (plansRequired ?? [])
     }
 
+    var embedRecord: EmbedRecord {
+        EmbedRecord(
+            id: id,
+            type: date == nil ? EmbedType.fitnessLocation.rawValue : EmbedType.fitnessClass.rawValue,
+            status: .finished,
+            data: .raw(rawData.mapValues(AnyCodable.init)),
+            parentEmbedId: nil,
+            appId: "fitness",
+            skillId: skillId,
+            embedIds: nil,
+            createdAt: nil
+        )
+    }
+
     private var dateTimeText: String? {
         [date, timeRange].compactMap { $0 }.joined(separator: " ").nilIfEmpty
     }
 
-    private var distanceText: String? {
+    var distanceText: String? {
         guard let distanceKm, let value = Double(distanceKm) else { return distanceKm }
-        return Measurement(value: value, unit: UnitLength.kilometers).formatted(
-            .measurement(width: .abbreviated, usage: .road)
-        )
+        return value.formatted(.number.precision(.fractionLength(2))) + " km"
     }
 }
 
@@ -2813,4 +2950,1366 @@ private extension AppStrings {
 
 private extension String {
     var nilIfEmpty: String? { isEmpty ? nil : self }
+}
+
+struct TravelFlightSkillCard: View {
+    let data: [String: AnyCodable]
+    let mode: EmbedDisplayMode
+
+    var flightNumber: String? { EmbedFieldReader.string(data, keys: ["flight_number"]) }
+    private var departureDate: String? { EmbedFieldReader.string(data, keys: ["departure_date"]) }
+    var origin: String? { EmbedFieldReader.string(data, keys: ["origin_iata", "departure_iata"]) }
+    var destination: String? { EmbedFieldReader.string(data, keys: ["destination_iata", "arrival_iata", "actual_destination_iata"]) }
+    var takeoff: String? { EmbedFieldReader.string(data, keys: ["actual_takeoff"]) }
+    var landing: String? { EmbedFieldReader.string(data, keys: ["actual_landing"]) }
+    var trackCount: Int { (data["tracks"]?.value as? [Any])?.count ?? 0 }
+    var diverted: Bool { data["diverted"]?.value as? Bool == true }
+    private var actualDestination: String? { EmbedFieldReader.string(data, keys: ["actual_destination_iata"]) }
+    private var runwayTakeoff: String? { EmbedFieldReader.string(data, keys: ["runway_takeoff"]) }
+    private var runwayLanding: String? { EmbedFieldReader.string(data, keys: ["runway_landing"]) }
+    private var fr24Id: String? { EmbedFieldReader.string(data, keys: ["fr24_id"]) }
+    private var distance: Int? { EmbedFieldReader.int(data, keys: ["actual_distance_km"]) }
+    private var flightMinutes: Int? { EmbedFieldReader.int(data, keys: ["flight_time_minutes"]) }
+    #if canImport(MapKit)
+    private var trackCoordinates: [CLLocationCoordinate2D] {
+        (data["tracks"]?.value as? [[String: Any]] ?? []).compactMap { point in
+            guard let latitude = (point["lat"] as? NSNumber)?.doubleValue,
+                  let longitude = (point["lon"] as? NSNumber)?.doubleValue,
+                  (-90...90).contains(latitude), (-180...180).contains(longitude) else { return nil }
+            return CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+        }
+    }
+    #endif
+
+    var body: some View {
+        Group {
+            if mode == .preview { preview } else { fullscreen }
+        }
+    }
+
+    private var preview: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: .spacing4) {
+                Text(flightNumber ?? "—")
+                    .font(.omP)
+                    .fontWeight(.bold)
+                    .foregroundStyle(Color.fontPrimary)
+                if diverted {
+                    Text(AppStrings.travelFlightDiverted)
+                        .font(.omXxs.weight(.semibold))
+                        .foregroundStyle(Color.warning)
+                        .padding(.horizontal, .spacing3)
+                        .padding(.vertical, .spacing1)
+                        .background(Color.warning.opacity(0.12))
+                        .clipShape(RoundedRectangle(cornerRadius: .radius1))
+                }
+            }
+            .padding(.bottom, 3)
+            if let route {
+                Text(route)
+                    .font(.omSmall.weight(.medium))
+                    .foregroundStyle(Color.fontPrimary)
+                    .padding(.bottom, 1)
+            }
+            if let date = takeoff ?? departureDate {
+                Text(formatDate(date))
+                    .font(.omXs)
+                    .foregroundStyle(Color.fontSecondary)
+                    .padding(.bottom, .spacing2)
+            }
+            if takeoff != nil || landing != nil {
+                HStack(spacing: .spacing3) {
+                    if let takeoff {
+                        Text(formatTime(takeoff))
+                            .font(.omSmall.weight(.semibold))
+                            .foregroundStyle(Color.fontPrimary)
+                        Text("→")
+                            .font(.omXs)
+                            .foregroundStyle(Color.fontSecondary)
+                    }
+                    if let landing {
+                        Text(formatTime(landing))
+                            .font(.omSmall.weight(.semibold))
+                            .foregroundStyle(Color.fontPrimary)
+                    }
+                }
+                .padding(.bottom, .spacing3)
+            }
+            Text(trackCount > 0 ? "\(AppStrings.travelFlightTrackAvailable) · \(trackCount) pts" : "No track data")
+                .font(.omXxs.weight(.medium))
+                .foregroundStyle(Color.fontSecondary)
+                .padding(.horizontal, .spacing3)
+                .padding(.vertical, .spacing1)
+                .background(Color.grey20)
+                .clipShape(RoundedRectangle(cornerRadius: .radius1))
+        }
+        .padding(.top, 2)
+        .padding(.bottom, .spacing1)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .accessibilityIdentifier("travel-flight-details-preview")
+    }
+
+    private var fullscreen: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if let date = takeoff ?? departureDate {
+                Text(formatDate(date))
+                    .font(.omSmall)
+                    .foregroundStyle(Color.fontSecondary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.bottom, .spacing6)
+            }
+            if diverted {
+                Text("⚠  Flight diverted\(actualDestination.map { " to \($0)" } ?? "")")
+                    .font(.omSmall.weight(.semibold))
+                    .foregroundStyle(Color.warning)
+                    .padding(.horizontal, .spacing6)
+                    .padding(.vertical, .spacing5)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.warning.opacity(0.12))
+                    .clipShape(RoundedRectangle(cornerRadius: .radius4))
+                    .overlay(RoundedRectangle(cornerRadius: .radius4).stroke(Color.warning.opacity(0.3)))
+                    .padding(.bottom, .spacing8)
+            }
+            #if canImport(MapKit)
+            if trackCoordinates.count >= 2 {
+                FlightTrackMap(coordinates: trackCoordinates, origin: origin, destination: actualDestination ?? destination)
+                    .frame(height: 280)
+                    .clipShape(RoundedRectangle(cornerRadius: .radius5))
+                    .padding(.bottom, .spacing3)
+                HStack(spacing: .spacing1) {
+                    Link("© OpenStreetMap", destination: URL(string: "https://www.openstreetmap.org/copyright")!)
+                    Text("| Track:")
+                    Link("Flightradar24", destination: URL(string: "https://www.flightradar24.com")!)
+                }
+                .font(.omXxs)
+                .foregroundStyle(Color.fontSecondary)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .padding(.bottom, .spacing10)
+            } else {
+                noTrackPlaceholder
+            }
+            #else
+            noTrackPlaceholder
+            #endif
+            VStack(spacing: 0) {
+                detailRow("Takeoff", value: formatDateTime(takeoff))
+                detailRow("Landing", value: formatDateTime(landing))
+                if let flightMinutes {
+                    detailRow("Duration", value: "\(flightMinutes / 60)h \(flightMinutes % 60)m")
+                }
+                if let runwayTakeoff { detailRow("Runway (dep.)", value: runwayTakeoff) }
+                if let runwayLanding { detailRow("Runway (arr.)", value: runwayLanding) }
+                if let distance { detailRow("Distance", value: "\(distance.formatted()) km") }
+                if let fr24Id { detailRow("FR24 ID", value: fr24Id, last: true) }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: .radius5))
+            .overlay(RoundedRectangle(cornerRadius: .radius5).stroke(Color.grey20))
+        }
+        .frame(maxWidth: 600)
+        .padding(.horizontal, .spacing10)
+        .padding(.top, 60)
+        .padding(.bottom, 120)
+        .frame(maxWidth: .infinity)
+        .accessibilityIdentifier("travel-flight-details-fullscreen")
+    }
+
+    private var noTrackPlaceholder: some View {
+                VStack(spacing: .spacing4) {
+                    Text("✈").font(.omXxl).opacity(0.4)
+                    Text("No track data available")
+                        .font(.omSmall)
+                        .foregroundStyle(Color.fontSecondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, .spacing20)
+                .background(Color.grey10)
+                .clipShape(RoundedRectangle(cornerRadius: .radius5))
+                .padding(.bottom, .spacing10)
+    }
+
+    private func detailRow(_ label: String, value: String, last: Bool = false) -> some View {
+        HStack {
+            Text(label).font(.omSmall.weight(.medium)).foregroundStyle(Color.fontSecondary)
+            Spacer()
+            Text(value).font(.omSmall.weight(.semibold)).foregroundStyle(Color.fontPrimary)
+        }
+        .padding(.horizontal, .spacing8)
+        .padding(.vertical, .spacing6)
+        .overlay(alignment: .bottom) { if !last { Color.grey10.frame(height: 1) } }
+    }
+
+    private var route: String? {
+        guard let origin else { return nil }
+        return destination.map { "\(origin) → \($0)" } ?? origin
+    }
+
+    private func formatDate(_ source: String) -> String {
+        guard let date = ISO8601DateFormatter().date(from: source) else { return source }
+        return date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())
+    }
+
+    private func formatTime(_ source: String) -> String {
+        guard let date = ISO8601DateFormatter().date(from: source) else { return source }
+        return date.formatted(.dateTime.hour().minute())
+    }
+
+    private func formatDateTime(_ source: String?) -> String {
+        guard let source, let date = ISO8601DateFormatter().date(from: source) else { return "—" }
+        return date.formatted(.dateTime.month(.abbreviated).day().hour().minute())
+    }
+}
+
+#if canImport(MapKit)
+private struct FlightTrackMap: View {
+    let coordinates: [CLLocationCoordinate2D]
+    let origin: String?
+    let destination: String?
+
+    var body: some View {
+        #if os(iOS)
+        FlightOSMMap(coordinates: coordinates, origin: origin, destination: destination)
+        #else
+        Map(initialPosition: .rect(MKPolyline(coordinates: coordinates, count: coordinates.count).boundingMapRect)) {
+            MapPolyline(coordinates: coordinates)
+                .stroke(Color.buttonPrimary, lineWidth: 2.5)
+        }
+        #endif
+    }
+}
+
+#if os(iOS)
+private final class FlightOSMTiles: MKTileOverlay {
+    override func url(forTilePath path: MKTileOverlayPath) -> URL {
+        let host = ["a", "b", "c"][(path.x + path.y) % 3]
+        return URL(string: "https://\(host).tile.openstreetmap.org/\(path.z)/\(path.x)/\(path.y).png")!
+    }
+}
+
+private struct FlightOSMMap: UIViewRepresentable {
+    let coordinates: [CLLocationCoordinate2D]
+    let origin: String?
+    let destination: String?
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    func makeUIView(context: Context) -> MKMapView {
+        let map = MKMapView()
+        map.delegate = context.coordinator
+        map.isRotateEnabled = false
+        map.isPitchEnabled = false
+        map.isScrollEnabled = true
+        map.isZoomEnabled = true
+        map.showsCompass = false
+        map.pointOfInterestFilter = .excludingAll
+
+        let tiles = FlightOSMTiles(urlTemplate: nil)
+        tiles.canReplaceMapContent = true
+        map.addOverlay(tiles, level: .aboveRoads)
+
+        let line = MKPolyline(coordinates: coordinates, count: coordinates.count)
+        map.addOverlay(line, level: .aboveLabels)
+        if let first = coordinates.first {
+            let marker = MKPointAnnotation()
+            marker.coordinate = first
+            marker.title = origin ?? "Departure"
+            map.addAnnotation(marker)
+        }
+        if let last = coordinates.last {
+            let marker = MKPointAnnotation()
+            marker.coordinate = last
+            marker.title = destination ?? "Arrival"
+            map.addAnnotation(marker)
+        }
+        map.setVisibleMapRect(
+            line.boundingMapRect,
+            edgePadding: UIEdgeInsets(top: 40, left: 40, bottom: 40, right: 40),
+            animated: false
+        )
+        return map
+    }
+
+    func updateUIView(_ map: MKMapView, context: Context) {}
+
+    final class Coordinator: NSObject, MKMapViewDelegate {
+        func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
+            if let tiles = overlay as? MKTileOverlay {
+                return MKTileOverlayRenderer(tileOverlay: tiles)
+            }
+            if let line = overlay as? MKPolyline {
+                let renderer = MKPolylineRenderer(polyline: line)
+                renderer.strokeColor = UIColor(Color.buttonPrimary)
+                renderer.lineWidth = 2.5
+                renderer.alpha = 0.85
+                return renderer
+            }
+            return MKOverlayRenderer(overlay: overlay)
+        }
+
+        func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
+            let view = mapView.dequeueReusableAnnotationView(withIdentifier: "flight-route-dot")
+                ?? MKAnnotationView(annotation: annotation, reuseIdentifier: "flight-route-dot")
+            view.annotation = annotation
+            view.frame = CGRect(x: 0, y: 0, width: 16, height: 16)
+            view.backgroundColor = UIColor(Color.buttonPrimary)
+            view.layer.cornerRadius = 8
+            view.layer.borderWidth = 3
+            view.layer.borderColor = UIColor(Color.grey0).cgColor
+            view.canShowCallout = true
+            return view
+        }
+    }
+}
+#endif
+#endif
+
+private struct MathCalculateSkillCard: View {
+    let data: [String: AnyCodable]
+    let status: EmbedStatus
+    let mode: EmbedDisplayMode
+
+    private var results: [[String: Any]] { EmbedFieldReader.dictionaryArray(data, key: "results") }
+    private var first: [String: Any] { results.first ?? [:] }
+    private var title: String? {
+        EmbedFieldReader.string(data, keys: ["title"]) ?? first["title"] as? String
+    }
+    private var expression: String? {
+        EmbedFieldReader.string(data, keys: ["query", "expression"]) ?? first["expression"] as? String
+    }
+    private var result: String? { first["result"] as? String ?? EmbedFieldReader.string(data, keys: ["result"]) }
+
+    var body: some View {
+        Group {
+            if mode == .preview { preview } else { fullscreen }
+        }
+    }
+
+    private var preview: some View {
+        VStack(alignment: .leading, spacing: .spacing3) {
+            if let title, !title.isEmpty {
+                previewRow("Title") {
+                    Text(title)
+                        .font(.omSmall.weight(.bold))
+                        .foregroundStyle(Color.grey100)
+                        .lineLimit(2)
+                }
+            }
+            if let expression, !expression.isEmpty {
+                previewRow("Expression") {
+                    Text(expression)
+                        .font(.custom("CourierNewPSMT", size: 14))
+                        .foregroundStyle(Color.grey70)
+                        .lineLimit(2)
+                }
+            }
+            if status == .error {
+                Text(AppStrings.genericProcessingError)
+                    .font(.omXs)
+                    .foregroundStyle(Color.error)
+                    .padding(.top, .spacing2)
+            } else if status == .finished, let result, !result.isEmpty {
+                previewRow("Result") {
+                    Text("= \(result)")
+                        .font(.custom("CourierNewPS-BoldMT", size: 22))
+                        .foregroundStyle(Color.grey100)
+                        .lineLimit(2)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .accessibilityIdentifier("math-calculate-preview")
+    }
+
+    private func previewRow<Content: View>(_ label: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: .spacing1) {
+            Text(label.uppercased())
+                .font(.omXxs.weight(.bold))
+                .foregroundStyle(Color.grey60)
+            content()
+        }
+    }
+
+    private var fullscreen: some View {
+        VStack(alignment: .leading, spacing: .spacing8) {
+            if results.isEmpty {
+                Text(status == .processing ? AppStrings.loading : "No results.")
+                    .font(.omP)
+                    .foregroundStyle(Color.fontSecondary)
+                    .frame(maxWidth: .infinity, minHeight: 200)
+            } else {
+                ForEach(Array(results.enumerated()), id: \.offset) { _, item in
+                    resultCard(item)
+                }
+            }
+        }
+        .frame(maxWidth: 800)
+        .padding(.horizontal, .spacing8)
+        .padding(.top, .spacing12)
+        .padding(.bottom, 120)
+        .frame(maxWidth: .infinity)
+        .accessibilityIdentifier("math-calculate-fullscreen")
+    }
+
+    private func resultCard(_ item: [String: Any]) -> some View {
+        let itemExpression = expression ?? item["expression"] as? String
+        let itemResult = item["result"] as? String
+        let itemError = item["error"] as? String
+        let steps = (item["steps"] as? [Any] ?? []).compactMap { step -> String? in
+            if let text = step as? String { return text }
+            guard let fields = step as? [String: Any] else { return nil }
+            if let expression = fields["expression"] as? String, let result = fields["result"] as? String {
+                return "\(expression) = \(result)"
+            }
+            return fields["description"] as? String ?? fields["latex"] as? String
+        }
+        return VStack(alignment: .leading, spacing: .spacing6) {
+            if let itemExpression, !itemExpression.isEmpty {
+                resultSection("Expression") {
+                    Text(itemExpression).font(.custom("CourierNewPSMT", size: 14)).foregroundStyle(Color.grey70)
+                }
+            }
+            if let itemError, !itemError.isEmpty {
+                Text(itemError).font(.omSmall.weight(.medium)).foregroundStyle(Color.error)
+            } else if let itemResult, !itemResult.isEmpty {
+                resultSection("Result") {
+                    Text(itemResult).font(.custom("CourierNewPS-BoldMT", size: 28)).foregroundStyle(Color.grey100)
+                }
+                if let type = item["result_type"] as? String {
+                    Text("Type: \(type)").font(.omXs).foregroundStyle(Color.grey70)
+                }
+                if let mode = item["mode"] as? String {
+                    Text("Mode: \(modeLabel(mode))").font(.omXs).foregroundStyle(Color.grey70)
+                }
+            }
+            if !steps.isEmpty {
+                resultSection("Calculation") {
+                    VStack(alignment: .leading, spacing: .spacing2) {
+                        ForEach(Array(steps.enumerated()), id: \.offset) { index, step in
+                            Text("\(index + 1). \(step)")
+                                .font(.custom("CourierNewPSMT", size: 13)).foregroundStyle(Color.grey70)
+                        }
+                    }
+                }
+                .padding(.top, .spacing4)
+            } else if let itemExpression, let itemResult, !itemExpression.isEmpty, !itemResult.isEmpty {
+                resultSection("Calculation") {
+                    Text("\(itemExpression) = \(itemResult)")
+                        .font(.custom("CourierNewPSMT", size: 14)).foregroundStyle(Color.grey100)
+                }
+                .padding(.top, .spacing4)
+            }
+        }
+        .padding(.spacing10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.grey10)
+        .clipShape(RoundedRectangle(cornerRadius: .radius5))
+    }
+
+    private func resultSection<Content: View>(_ label: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: .spacing2) {
+            Text(label.uppercased())
+                .font(.omXs.weight(.bold))
+                .foregroundStyle(Color.grey70)
+            content()
+        }
+    }
+
+    private func modeLabel(_ mode: String) -> String {
+        [
+            "numeric": "Numeric", "symbolic": "Symbolic", "solve": "Solve",
+            "simplify": "Simplify", "diff": "Differentiate", "integrate": "Integrate",
+            "convert": "Convert"
+        ][mode] ?? mode
+    }
+}
+
+private struct ReminderSkillCard: View {
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
+    let data: [String: AnyCodable]
+    let status: EmbedStatus
+    let mode: EmbedDisplayMode
+
+    private var prompt: String? { EmbedFieldReader.string(data, keys: ["prompt", "message"]) }
+    private var trigger: String? { EmbedFieldReader.string(data, keys: ["trigger_at_formatted", "datetime"]) }
+    private var target: String? { EmbedFieldReader.string(data, keys: ["target_type"]) }
+    private var warning: String? { EmbedFieldReader.string(data, keys: ["email_notification_warning"]) }
+    private var error: String? { EmbedFieldReader.string(data, keys: ["error"]) }
+    private var reminderId: String? { EmbedFieldReader.string(data, keys: ["reminder_id"]) }
+    private var isRepeating: Bool { data["is_repeating"]?.value as? Bool == true }
+    private var isActive: Bool {
+        let timestamp = (data["trigger_at"]?.value as? NSNumber)?.doubleValue ?? 0
+        return timestamp > Date().timeIntervalSince1970
+    }
+
+    var body: some View {
+        Group {
+            if mode == .preview { preview } else { fullscreen }
+        }
+    }
+
+    private var preview: some View {
+        VStack(alignment: .leading, spacing: .spacing5) {
+            if status == .processing {
+                HStack(spacing: .spacing6) {
+                    Circle().fill(Color.grey20).frame(width: 32, height: 32)
+                    VStack(alignment: .leading, spacing: .spacing4) {
+                        RoundedRectangle(cornerRadius: .radius1).fill(Color.grey20).frame(maxWidth: .infinity).frame(height: 14)
+                        RoundedRectangle(cornerRadius: .radius1).fill(Color.grey20).frame(width: 110, height: 14)
+                    }
+                }
+            } else if status == .error || error != nil {
+                HStack(spacing: .spacing4) {
+                    Text("❌")
+                    Text(error ?? AppStrings.genericProcessingError)
+                        .font(.omXs)
+                        .foregroundStyle(Color.error)
+                }
+                .padding(.spacing5)
+                .background(Color.error.opacity(0.05))
+                .clipShape(RoundedRectangle(cornerRadius: .radius2))
+            } else {
+                if let prompt, !prompt.isEmpty {
+                    Text(promptPreview(prompt))
+                        .font(.omXs)
+                        .foregroundStyle(Color.grey80)
+                        .lineLimit(3)
+                        .padding(.horizontal, .spacing5)
+                        .padding(.vertical, .spacing4)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color.grey10)
+                        .clipShape(RoundedRectangle(cornerRadius: .radius2))
+                        .overlay(alignment: .leading) { Color.warning.frame(width: 3) }
+                }
+                if let trigger {
+                    HStack(spacing: .spacing4) {
+                        Text("🕑").font(.omH3)
+                        Text(trigger).font(.omSmall.weight(.medium)).foregroundStyle(Color.grey80)
+                    }
+                }
+                HStack(spacing: .spacing3) {
+                    if let target {
+                        targetBadge(target)
+                    }
+                    if isRepeating {
+                        Text(LocalizationManager.shared.text("embeds.reminder.repeating"))
+                            .font(.omTiny.weight(.medium))
+                            .foregroundStyle(Color.warning)
+                            .padding(.horizontal, .spacing4)
+                            .padding(.vertical, 3)
+                            .background(Color.warning.opacity(0.1))
+                            .clipShape(RoundedRectangle(cornerRadius: .radius5))
+                    }
+                }
+                if let warning {
+                    HStack(alignment: .top, spacing: .spacing3) {
+                        Text("⚠")
+                        Text(warning).font(.omXxs).foregroundStyle(Color.warning)
+                    }
+                    .padding(.spacing4)
+                    .background(Color.warning.opacity(0.05))
+                    .clipShape(RoundedRectangle(cornerRadius: .radius2))
+                }
+            }
+        }
+        .padding(.spacing6)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .accessibilityIdentifier("reminder-embed-preview")
+    }
+
+    private var fullscreen: some View {
+        VStack(alignment: .leading, spacing: .spacing10) {
+            if let error {
+                Text(error).font(.omP).foregroundStyle(Color.error)
+                    .frame(maxWidth: .infinity, minHeight: 200)
+            } else {
+                VStack(alignment: .leading, spacing: .spacing8) {
+                    if let trigger {
+                        HStack(spacing: .spacing6) {
+                            Text("🕑").font(.omH3)
+                            VStack(alignment: .leading, spacing: .spacing2) {
+                                Text(LocalizationManager.shared.text("embeds.reminder.scheduled_for"))
+                                    .font(.omXs).foregroundStyle(Color.fontSecondary)
+                                Text(trigger).font(.omH4.weight(.semibold)).foregroundStyle(Color.fontPrimary)
+                            }
+                        }
+                    }
+                    if let target {
+                        HStack {
+                            Text(LocalizationManager.shared.text("embeds.reminder.target_type"))
+                                .foregroundStyle(Color.fontSecondary)
+                            Spacer()
+                            targetBadge(target)
+                        }
+                    }
+                    HStack {
+                        Text(LocalizationManager.shared.text("embeds.reminder.repeating"))
+                            .foregroundStyle(Color.fontSecondary)
+                        Spacer()
+                        Text(isRepeating ? LocalizationManager.shared.text("embeds.reminder.yes") : LocalizationManager.shared.text("embeds.reminder.no"))
+                            .foregroundStyle(Color.fontPrimary)
+                    }
+                    if let reminderId {
+                        HStack {
+                            Text(LocalizationManager.shared.text("embeds.reminder.id"))
+                                .foregroundStyle(Color.fontSecondary)
+                            Spacer()
+                            Text(String(reminderId.prefix(8)) + "…")
+                                .monospaced()
+                                .foregroundStyle(Color.fontPrimary)
+                        }
+                    }
+                    if let warning {
+                        HStack(alignment: .top, spacing: .spacing3) {
+                            Text("⚠")
+                            Text(warning).font(.omXs).foregroundStyle(Color.warning)
+                        }
+                        .padding(.spacing4)
+                        .background(Color.warning.opacity(0.05))
+                        .clipShape(RoundedRectangle(cornerRadius: .radius2))
+                    }
+                }
+                .font(.omSmall)
+                .padding(horizontalSizeClass == .compact ? .spacing8 : .spacing10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.grey10)
+                .clipShape(RoundedRectangle(cornerRadius: .radius5))
+                .overlay(RoundedRectangle(cornerRadius: .radius5).stroke(Color.grey20))
+                if !isActive {
+                    Text("⌛  \(LocalizationManager.shared.text("embeds.reminder.already_fired"))")
+                        .font(.omXs)
+                        .foregroundStyle(Color.fontSecondary)
+                        .padding(.spacing4)
+                        .background(Color.grey10)
+                        .clipShape(RoundedRectangle(cornerRadius: .radius2))
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.top, .spacing4)
+                }
+            }
+        }
+        .padding(horizontalSizeClass == .compact ? .spacing8 : .spacing12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityIdentifier("reminder-embed-fullscreen")
+    }
+
+    private func targetBadge(_ target: String) -> some View {
+        let isNew = target == "new_chat"
+        return Text(LocalizationManager.shared.text(isNew ? "common.new_chat" : "embeds.reminder.existing_chat"))
+            .font(.omTiny.weight(.medium))
+            .foregroundStyle(isNew ? Color.buttonPrimary : Color.chatRainbowGreen)
+            .padding(.horizontal, .spacing4)
+            .padding(.vertical, 3)
+            .background((isNew ? Color.buttonPrimary : Color.chatRainbowGreen).opacity(0.1))
+            .clipShape(RoundedRectangle(cornerRadius: .radius5))
+    }
+
+    private func promptPreview(_ value: String) -> String {
+        let lines = value.components(separatedBy: "\n")
+        let first = lines.prefix(3).joined(separator: "\n")
+        return lines.count > 3 || first.count > 150
+            ? String(first.prefix(150)) + "..."
+            : first
+    }
+}
+
+struct WeatherForecastSkillCard: View {
+    let data: [String: AnyCodable]
+    let childEmbeds: [EmbedRecord]
+    let status: EmbedStatus
+    let mode: EmbedDisplayMode
+    let onOpenEmbed: (EmbedRecord) -> Void
+
+    private var days: [[String: Any]] {
+        if mode == .fullscreen && !childEmbeds.isEmpty {
+            let hydrated = childEmbeds.compactMap { $0.rawData?.mapValues(\.value) }
+            if !hydrated.isEmpty { return hydrated }
+        }
+        let inline = EmbedFieldReader.dictionaryArray(data, key: "results")
+        let preview = inline.isEmpty ? EmbedFieldReader.dictionaryArray(data, key: "preview_results") : inline
+        if mode == .preview {
+            let previewResults = EmbedFieldReader.dictionaryArray(data, key: "preview_results")
+            if !previewResults.isEmpty { return previewResults }
+        }
+        if !preview.isEmpty { return preview }
+        return childEmbeds.compactMap { child in
+            child.rawData?.mapValues(\.value)
+        }
+    }
+
+    var body: some View {
+        Group {
+            if status == .finished && !days.isEmpty {
+                if mode == .preview {
+                    dayStrip(count: 4)
+                } else {
+                    fullscreenGrid
+                }
+            } else {
+                Text(status == .error ? AppStrings.genericProcessingError : AppStrings.loading)
+                    .font(.omXs)
+                    .foregroundStyle(status == .error ? Color.error : Color.grey70)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: mode == .preview ? .infinity : nil, alignment: .leading)
+        .accessibilityIdentifier("weather-forecast-preview")
+    }
+
+    private func dayStrip(count: Int) -> some View {
+        HStack(spacing: 7) {
+            ForEach(0..<min(count, days.count), id: \.self) { index in
+                dayPill(days[index])
+                    .frame(maxWidth: .infinity)
+            }
+        }
+        .accessibilityIdentifier("weather-forecast-day-strip")
+    }
+
+    private func dayPill(_ day: [String: Any]) -> some View {
+        let date = day["date"] as? String ?? ""
+        let icon = day["icon"] as? String
+        let condition = day["condition"] as? String
+        let minimum = number(day["temperature_min_c"])
+        let maximum = number(day["temperature_max_c"])
+        let rain = number(day["precipitation_probability_max_pct"])
+        return VStack(spacing: 4) {
+            Text(Self.weekday(date))
+                .font(.omXxs).foregroundStyle(Color.grey70)
+            Image("weather-condition-\(Self.meteoconSlug(icon: icon, condition: condition))")
+                .renderingMode(.original)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 34, height: 34)
+                .shadow(color: Color.grey100.opacity(0.14), radius: 8, x: 0, y: 4)
+                .accessibilityHidden(true)
+            Text(temperature(minimum, maximum))
+                .font(.omXs.weight(.semibold)).foregroundStyle(Color.grey100)
+                .lineLimit(1).minimumScaleFactor(0.75)
+            Text("\(Int((rain ?? 0).rounded()))% \(AppStrings.weatherForecastRain)")
+                .font(.omXxs).foregroundStyle(Color.grey70)
+        }
+        .padding(.horizontal, 4)
+        .padding(.top, 8)
+        .padding(.bottom, 9)
+        .frame(maxWidth: .infinity)
+        .background {
+            Color.grey0.opacity(0.86)
+                .overlay {
+                    LinearGradient.appWeather
+                        .opacity(0.20)
+                        .mask {
+                            RadialGradient(
+                                colors: [.black, .clear],
+                                center: UnitPoint(x: 0.5, y: 0.18),
+                                startRadius: 0,
+                                endRadius: 48
+                            )
+                        }
+                }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: .radius6))
+        .overlay(RoundedRectangle(cornerRadius: .radius6).stroke(Color.grey20, lineWidth: 1))
+        .shadow(color: Color.grey100.opacity(0.07), radius: 9, x: 0, y: 7)
+        .accessibilityIdentifier("weather-forecast-day-pill")
+    }
+
+    private var fullscreenGrid: some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 240), spacing: .spacing6)], spacing: .spacing6) {
+            ForEach(Array(days.enumerated()), id: \.offset) { index, day in
+                let child = childEmbeds.indices.contains(index) ? childEmbeds[index] : weatherDayRecord(day, index: index)
+                EmbedPreviewCard(embed: child, allEmbedRecords: [child.id: child]) {
+                    onOpenEmbed(child)
+                }
+                .frame(width: 300, height: 200)
+            }
+        }
+        .frame(maxWidth: 680)
+        .padding(.horizontal, .spacing5)
+        .padding(.vertical, .spacing8)
+        .frame(maxWidth: .infinity)
+        .accessibilityIdentifier("weather-forecast-fullscreen-grid")
+    }
+
+    private func weatherDayRecord(_ day: [String: Any], index: Int) -> EmbedRecord {
+        let fields = day.mapValues { AnyCodable($0) }
+        return EmbedRecord(
+            id: day["embed_id"] as? String ?? "forecast-day-\(index)",
+            type: EmbedType.weatherDay.rawValue,
+            status: .finished,
+            data: .raw(fields),
+            parentEmbedId: nil,
+            appId: "weather",
+            skillId: nil,
+            embedIds: nil,
+            createdAt: nil
+        )
+    }
+
+    private func number(_ value: Any?) -> Double? {
+        if let number = value as? NSNumber { return number.doubleValue }
+        if let string = value as? String { return Double(string) }
+        return nil
+    }
+
+    private func temperature(_ minimum: Double?, _ maximum: Double?) -> String {
+        switch (minimum, maximum) {
+        case let (min?, max?): return "\(Int(min.rounded()))° / \(Int(max.rounded()))°"
+        case let (min?, nil): return "\(Int(min.rounded()))°"
+        case let (nil, max?): return "\(Int(max.rounded()))°"
+        default: return "—"
+        }
+    }
+
+    static func weekday(_ date: String) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        guard let value = formatter.date(from: date) else { return String(date.dropFirst(5)) }
+        return value.formatted(.dateTime.weekday(.abbreviated))
+    }
+
+    static func meteoconSlug(icon: String?, condition: String?) -> String {
+        let normalized = "\(icon ?? "") \(condition ?? "")"
+            .lowercased()
+            .replacingOccurrences(of: "_", with: "-")
+        if let wmoStart = normalized.range(of: "wmo-")?.upperBound {
+            let digits = normalized[wmoStart...].prefix(while: { $0.isNumber })
+            if let code = Int(digits) {
+                if [95, 96, 99].contains(code) { return "thunderstorms-day-rain" }
+                if [71, 73, 75, 77, 85, 86].contains(code) { return "snow" }
+                if [51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82].contains(code) { return "rain" }
+                if [45, 48].contains(code) { return "fog-day" }
+                if code == 3 { return "overcast" }
+                if [1, 2].contains(code) { return "partly-cloudy-day" }
+            }
+        }
+        if ["thunder", "storm", "lightning"].contains(where: normalized.contains) { return "thunderstorms-day-rain" }
+        if ["snow", "sleet", "hail"].contains(where: normalized.contains) { return "snow" }
+        if ["rain", "drizzle", "shower"].contains(where: normalized.contains) { return "rain" }
+        if ["fog", "mist", "haze"].contains(where: normalized.contains) { return "fog-day" }
+        if normalized.contains("wind") { return "wind" }
+        if normalized.contains("overcast") { return "overcast" }
+        if normalized.contains("cloud") {
+            if normalized.contains("partly") {
+                return normalized.contains("night") || normalized.contains("moon")
+                    ? "partly-cloudy-night" : "partly-cloudy-day"
+            }
+            return "cloudy"
+        }
+        if normalized.contains("night") || normalized.contains("moon") { return "clear-night" }
+        return "clear-day"
+    }
+}
+
+struct FinanceCheckAccountsSkillCard: View {
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
+    // The web chart and positive totals use --color-app-finance-end.
+    private static let incomeColor = Color(hex: 0x2CB81E)
+
+    let data: [String: AnyCodable]
+    let status: EmbedStatus
+    let mode: EmbedDisplayMode
+    let piiMappings: [PIIMapping]
+    let hasPIIMappings: Bool
+    let isPIIRevealed: Bool
+    let onTogglePII: () -> Void
+
+    @State private var selectedAccount = ""
+    @State private var selectedSource = ""
+    @State private var selectedCategory = ""
+    @State private var selectedDirection = ""
+    @State private var selectedState = ""
+    @State private var selectedPlaceholder = ""
+    @State private var startDate = ""
+    @State private var endDate = ""
+
+    private var overview: [String: Any] {
+        if let overview = data["overview"]?.value as? [String: Any] { return overview }
+        let source = EmbedFieldReader.dictionaryArray(data, key: "results").first
+            ?? data.mapValues(\.value)
+        if let overview = source["overview"] as? [String: Any] { return overview }
+        guard source.keys.contains(where: { $0.hasPrefix("overview_") }) else { return [:] }
+        let summaries = source.reduce(into: [String: Any]()) { result, item in
+            if item.key.hasPrefix("overview_summaries_") {
+                result[String(item.key.dropFirst("overview_summaries_".count))] = item.value
+            }
+        }
+        return [
+            "accounts": source["overview_accounts"] ?? [],
+            "transactions": source["overview_transactions"] ?? [],
+            "summaries": summaries
+        ]
+    }
+
+    private var summaries: [String: Any] { overview["summaries"] as? [String: Any] ?? [:] }
+    private var accounts: [[String: Any]] { overview["accounts"] as? [[String: Any]] ?? [] }
+    private var transactions: [[String: Any]] { overview["transactions"] as? [[String: Any]] ?? [] }
+    private var currency: String {
+        (accounts + transactions).compactMap { $0["currency"] as? String }.first ?? "EUR"
+    }
+    private var income: Double {
+        number(summaries["income_total"]) ?? transactions.filter { $0["direction"] as? String == "income" }
+            .reduce(0) { $0 + (number($1["amount"]) ?? 0) }
+    }
+    private var expenses: Double {
+        number(summaries["expense_total"]) ?? transactions.filter { $0["direction"] as? String == "expense" }
+            .reduce(0) { $0 + abs(number($1["amount"]) ?? 0) }
+    }
+    private var net: Double { number(summaries["net_total"]) ?? income - expenses }
+    private var balance: Double? {
+        let balances = accounts.compactMap { number($0["balance"]) }
+        return balances.isEmpty ? nil : balances.reduce(0, +)
+    }
+    private var summary: String? { data["summary"]?.value as? String }
+    private var provider: String? { data["provider"]?.value as? String }
+    private var accountCount: Int { EmbedFieldReader.int(data, keys: ["account_count"]) ?? accounts.count }
+    private var transactionCount: Int { EmbedFieldReader.int(data, keys: ["transaction_count"]) ?? transactions.count }
+    private var filteredTransactions: [[String: Any]] {
+        transactions.filter { item in
+            let posted = String((item["posted_at"] as? String ?? "").prefix(10))
+            return (selectedAccount.isEmpty || item["account_ref"] as? String == selectedAccount)
+                && (selectedSource.isEmpty || item["source_ref"] as? String == selectedSource)
+                && (selectedCategory.isEmpty || item["category"] as? String == selectedCategory)
+                && (selectedDirection.isEmpty || item["direction"] as? String == selectedDirection)
+                && (selectedState.isEmpty || item["state"] as? String == selectedState)
+                && (selectedPlaceholder.isEmpty || item["counterparty_placeholder"] as? String == selectedPlaceholder)
+                && (startDate.isEmpty || posted >= startDate)
+                && (endDate.isEmpty || posted <= endDate)
+        }
+    }
+    private var filteredAccounts: [[String: Any]] {
+        let includedRefs = Set(filteredTransactions.compactMap { $0["account_ref"] as? String })
+        return accounts.filter { account in
+            let ref = account["account_ref"] as? String ?? ""
+            return selectedAccount.isEmpty || ref == selectedAccount || includedRefs.contains(ref)
+        }
+    }
+    private var filteredBalance: Double? {
+        let balances = filteredAccounts.compactMap { number($0["balance"]) }
+        return balances.isEmpty ? nil : balances.reduce(0, +)
+    }
+    private var trend: [[String: Any]] {
+        Array((summaries["time_series"] as? [[String: Any]] ?? [])
+            .sorted { ($0["bucket"] as? String ?? "") < ($1["bucket"] as? String ?? "") }
+            .suffix(6))
+    }
+
+    var body: some View {
+        Group {
+            if mode == .preview { previewBody } else { fullscreenBody }
+        }
+    }
+
+    private var previewBody: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(AppStrings.financeNetCashFlow.uppercased())
+                    .font(.omXxs.weight(.bold))
+                    .foregroundStyle(Color.fontSecondary)
+                Text(overview.isEmpty ? "No balance" : money(net))
+                    .font(.omLg.weight(.bold))
+                    .foregroundStyle(Color.fontPrimary)
+                    .lineLimit(1)
+                    .accessibilityIdentifier("finance-net-cash-flow")
+            }
+            VStack(alignment: .leading, spacing: .spacing2) {
+                HStack(spacing: 6) {
+                    HStack(spacing: 5) {
+                        Icon("revolut_business", size: 13)
+                            .foregroundStyle(Color.fontSecondary)
+                        Text(provider ?? "Revolut Business")
+                            .font(.omXs)
+                    }
+                    .accessibilityIdentifier("finance-provider-pill")
+                    Text((data["period"]?.value as? String ?? "monthly").replacingOccurrences(of: "_", with: " ").capitalized)
+                        .font(.omXs)
+                }
+                Text("\(AppStrings.financeCashBalance) \(balance.map(money) ?? "No balance")")
+                    .font(.omXs)
+            }
+            .foregroundStyle(Color.fontSecondary)
+            .lineLimit(1)
+            if !trend.isEmpty {
+                trendChart(height: 34)
+                HStack(spacing: 6) {
+                    HStack(spacing: 4) {
+                        Circle().fill(Self.incomeColor).frame(width: 7, height: 7)
+                        Text("\(AppStrings.financeIncome) \(money(income))")
+                    }
+                    HStack(spacing: 4) {
+                        Circle().fill(Color.warning).frame(width: 7, height: 7)
+                        Text("\(AppStrings.financeExpenses) \(money(expenses))")
+                    }
+                }
+                .font(.omXs)
+                .foregroundStyle(Color.fontSecondary)
+            } else {
+                Text(summary ?? "\(accountCount) \(AppStrings.financeAccounts) · \(transactionCount) \(AppStrings.financeTransactions)")
+                    .font(.omXs)
+                    .foregroundStyle(Color.fontSecondary)
+                    .lineLimit(3)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: mode == .preview ? .infinity : nil, alignment: .leading)
+        .accessibilityIdentifier("finance-check-accounts-preview")
+    }
+
+    private var fullscreenBody: some View {
+        Group {
+        if overview.isEmpty {
+            Text(summary ?? "No account data available.")
+                .font(.omP)
+                .foregroundStyle(Color.fontSecondary)
+                .frame(maxWidth: .infinity, minHeight: 240)
+                .accessibilityIdentifier("finance-empty-state")
+        } else {
+        VStack(alignment: .leading, spacing: 18) {
+            if hasPIIMappings {
+                Button(action: onTogglePII) {
+                    HStack(spacing: .spacing3) {
+                        Icon(isPIIRevealed ? "hidden" : "visible", size: 16)
+                        Text(isPIIRevealed ? AppStrings.piiHide : AppStrings.piiShow)
+                    }
+                    .font(.omSmall.weight(.semibold))
+                    .foregroundStyle(Color.buttonPrimary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("finance-toggle-pii")
+            }
+            Group {
+            if horizontalSizeClass == .compact {
+                VStack(spacing: .spacing6) {
+                    summaryTile(AppStrings.financeNetCashFlow, money(filteredNet), isNet: true)
+                    summaryTile(AppStrings.financeIncome, money(filteredIncome), highlight: Self.incomeColor)
+                    summaryTile(AppStrings.financeExpenses, money(filteredExpenses), highlight: .warning)
+                    summaryTile(AppStrings.financeCashBalance, filteredBalance.map(money) ?? "No balance")
+                }
+            } else {
+                HStack(spacing: .spacing6) {
+                    summaryTile(AppStrings.financeNetCashFlow, money(filteredNet), isNet: true)
+                    summaryTile(AppStrings.financeIncome, money(filteredIncome), highlight: Self.incomeColor)
+                    summaryTile(AppStrings.financeExpenses, money(filteredExpenses), highlight: .warning)
+                    summaryTile(AppStrings.financeCashBalance, filteredBalance.map(money) ?? "No balance")
+                }
+            }
+            }
+            .accessibilityIdentifier("finance-summary-grid")
+            VStack(alignment: .leading, spacing: .spacing8) {
+                VStack(alignment: .leading, spacing: .spacing2) {
+                    Text("Income and expenses over time").font(.omLg.weight(.semibold)).foregroundStyle(Color.fontPrimary)
+                    Text("\((data["period"]?.value as? String ?? "monthly").replacingOccurrences(of: "_", with: " ")) buckets from \(provider ?? "Revolut Business").")
+                        .font(.omXs).foregroundStyle(Color.fontSecondary)
+                }
+                if !trend.isEmpty { trendChart(height: 118, showsLabels: true) }
+                else { Text(AppStrings.financeNoMatches).font(.omXs).foregroundStyle(Color.fontSecondary) }
+            }
+            .padding(.spacing10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.grey0)
+            .clipShape(RoundedRectangle(cornerRadius: .radius8))
+            .overlay(RoundedRectangle(cornerRadius: .radius8).stroke(Color.grey20))
+            .accessibilityIdentifier("finance-fullscreen-chart")
+            VStack(alignment: .leading, spacing: .spacing8) {
+                VStack(alignment: .leading, spacing: .spacing2) {
+                    Text(AppStrings.financeFilters).font(.omLg.weight(.semibold)).foregroundStyle(Color.fontPrimary)
+                    Text("Filter saved data by account, source, date, category, direction, state, or placeholder.")
+                        .font(.omXs).foregroundStyle(Color.fontSecondary)
+                }
+                LazyVGrid(columns: [GridItem(.flexible())], spacing: .spacing6) { filterControls }
+            }
+            .padding(.spacing10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.grey0)
+            .clipShape(RoundedRectangle(cornerRadius: .radius8))
+            .overlay(RoundedRectangle(cornerRadius: .radius8).stroke(Color.grey20))
+            .accessibilityIdentifier("finance-filters")
+            VStack(alignment: .leading, spacing: .spacing8) {
+                VStack(alignment: .leading, spacing: .spacing2) {
+                    Text(AppStrings.financeAccounts).font(.omLg.weight(.semibold)).foregroundStyle(Color.fontPrimary)
+                    Text("\(filteredAccounts.count) account\(filteredAccounts.count == 1 ? "" : "s") in view.")
+                        .font(.omXs).foregroundStyle(Color.fontSecondary)
+                }
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 220), spacing: .spacing6)], spacing: .spacing6) {
+                    ForEach(Array(filteredAccounts.enumerated()), id: \.offset) { _, account in
+                        VStack(alignment: .leading, spacing: .spacing3) {
+                            Text(account["display_label"] as? String ?? account["account_ref"] as? String ?? "—")
+                                .font(.omXs).foregroundStyle(Color.fontPrimary).lineLimit(1)
+                            Text(number(account["balance"]).map(money) ?? "No balance")
+                                .font(.omP.weight(.bold)).foregroundStyle(Color.fontPrimary).lineLimit(1)
+                            Text(account["source_ref"] as? String ?? "")
+                                .font(.omXs).foregroundStyle(Color.fontSecondary).lineLimit(1)
+                        }
+                        .padding(.spacing6)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color.grey10.opacity(0.68))
+                        .clipShape(RoundedRectangle(cornerRadius: .radius8))
+                    }
+                }
+            }
+            .padding(.spacing10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.grey0)
+            .clipShape(RoundedRectangle(cornerRadius: .radius8))
+            .overlay(RoundedRectangle(cornerRadius: .radius8).stroke(Color.grey20))
+            .accessibilityIdentifier("finance-account-list")
+            VStack(alignment: .leading, spacing: .spacing8) {
+                VStack(alignment: .leading, spacing: .spacing2) {
+                    Text(AppStrings.financeTransactions).font(.omLg.weight(.semibold)).foregroundStyle(Color.fontPrimary)
+                    Text("\(filteredTransactions.count) redacted transaction\(filteredTransactions.count == 1 ? "" : "s") match.")
+                        .font(.omXs).foregroundStyle(Color.fontSecondary)
+                }
+                if filteredTransactions.isEmpty {
+                    Text(AppStrings.financeNoMatches).font(.omSmall).foregroundStyle(Color.fontSecondary)
+                } else {
+                    ScrollView(.horizontal) {
+                        VStack(spacing: 0) {
+                            HStack(spacing: .spacing6) {
+                                ForEach(["Date", "Counterparty", "Category", "Account", "Amount", "State"], id: \.self) { label in
+                                    Text(label.uppercased()).font(.omXxs.weight(.bold)).frame(maxWidth: .infinity, alignment: .leading)
+                                }
+                            }
+                            .foregroundStyle(Color.fontSecondary)
+                            .padding(.spacing6)
+                            .background(LinearGradient.appFinance.opacity(0.09))
+                            ForEach(Array(filteredTransactions.enumerated()), id: \.offset) { _, transaction in
+                                transactionRow(transaction)
+                            }
+                        }
+                        .frame(minWidth: 760)
+                        .clipShape(RoundedRectangle(cornerRadius: .radius8))
+                        .overlay(RoundedRectangle(cornerRadius: .radius8).stroke(Color.grey20))
+                    }
+                }
+            }
+            .padding(.spacing10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.grey0)
+            .clipShape(RoundedRectangle(cornerRadius: .radius8))
+            .overlay(RoundedRectangle(cornerRadius: .radius8).stroke(Color.grey20))
+            .accessibilityIdentifier("finance-transaction-list")
+        }
+        .frame(maxWidth: 1100, alignment: .leading)
+        .padding(.horizontal, horizontalSizeClass == .compact ? .spacing5 : .spacing8)
+        .padding(.top, horizontalSizeClass == .compact ? .spacing10 : .spacing16)
+        .padding(.bottom, 120)
+        .frame(maxWidth: .infinity)
+        }
+        }
+    }
+
+    @ViewBuilder
+    private var filterControls: some View {
+        financeFilter(AppStrings.financeAccount, key: "account_ref", selection: $selectedAccount, id: "finance-filter-account")
+        financeFilter(AppStrings.financeSource, key: "source_ref", selection: $selectedSource, id: "finance-filter-source")
+        dateFilter(AppStrings.financeFrom, selection: $startDate, id: "finance-filter-start-date")
+        dateFilter(AppStrings.financeTo, selection: $endDate, id: "finance-filter-end-date")
+        financeFilter(AppStrings.financeCategory, key: "category", selection: $selectedCategory, id: "finance-filter-category")
+        financeFilter(AppStrings.financeDirection, key: "direction", selection: $selectedDirection, id: "finance-filter-direction")
+        financeFilter(AppStrings.financeState, key: "state", selection: $selectedState, id: "finance-filter-state")
+        financeFilter(AppStrings.financePlaceholder, key: "counterparty_placeholder", selection: $selectedPlaceholder, id: "finance-filter-placeholder")
+    }
+
+    private func financeFilter(_ title: String, key: String, selection: Binding<String>, id: String) -> some View {
+        let values = Array(Set(transactions.compactMap { $0[key] as? String }.filter { !$0.isEmpty })).sorted()
+        return FinanceCompactFilter(
+            title: title,
+            options: [OMDropdownOption("", label: AppStrings.financeAll)] + values.map { OMDropdownOption($0, label: $0) },
+            selection: selection,
+            identifier: id
+        )
+    }
+
+    private func dateFilter(_ title: String, selection: Binding<String>, id: String) -> some View {
+        VStack(alignment: .leading, spacing: .spacing3) {
+            Text(title).font(.omXs.weight(.semibold)).foregroundStyle(Color.fontSecondary)
+            TextField("", text: selection)
+                .font(.omXs)
+                .foregroundStyle(Color.fontPrimary)
+                .textFieldStyle(.plain)
+                .padding(.horizontal, .spacing6)
+                .frame(height: 40)
+                .background(Color.grey0)
+                .clipShape(RoundedRectangle(cornerRadius: .radius6))
+                .overlay(RoundedRectangle(cornerRadius: .radius6).stroke(Color.grey30))
+                .accessibilityIdentifier(id)
+        }
+    }
+
+    private func summaryTile(_ label: String, _ value: String, isNet: Bool = false, highlight: Color? = nil) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Text(label).font(.omXxs).foregroundStyle(Color.fontSecondary)
+            Text(value)
+                .font((isNet ? Font.omXxl : .omXl).weight(.bold))
+                .foregroundStyle(highlight ?? Color.fontPrimary)
+                .lineLimit(1)
+            if isNet {
+                Text("Income - expenses for the selected period and accounts.")
+                    .font(.omXs)
+                    .foregroundStyle(Color.fontSecondary)
+            }
+        }
+        .padding(.spacing8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.grey0)
+        .clipShape(RoundedRectangle(cornerRadius: .radius8))
+        .overlay(RoundedRectangle(cornerRadius: .radius8).stroke(Color.grey20))
+    }
+
+    private func transactionRow(_ transaction: [String: Any]) -> some View {
+        HStack(spacing: .spacing6) {
+            Text(transaction["posted_at"] as? String ?? "—")
+            Text(Self.counterpartyLabel(
+                in: transaction,
+                mappings: piiMappings,
+                revealed: hasPIIMappings && isPIIRevealed
+            ))
+            Text(transaction["category"] as? String ?? "—")
+            Text(accountLabel(for: transaction["account_ref"] as? String))
+            Text(money(number(transaction["amount"]) ?? 0))
+                .foregroundStyle(transaction["direction"] as? String == "expense" ? Color.warning : Self.incomeColor)
+            Text(transaction["state"] as? String ?? "unknown")
+        }
+        .frame(minWidth: 760)
+        .padding(.spacing6)
+        .font(.omXs)
+        .foregroundStyle(Color.fontPrimary)
+        .overlay(alignment: .bottom) { Color.grey20.frame(height: 1) }
+        .accessibilityIdentifier("finance-transaction-row")
+    }
+
+    private func accountLabel(for reference: String?) -> String {
+        guard let reference else { return "—" }
+        return accounts.first(where: { $0["account_ref"] as? String == reference })?["display_label"] as? String ?? reference
+    }
+
+    /// Finance counterparties live in nested transactions, outside ChatView's
+    /// top-level embed restoration. Reveal only through the shared chat mapping.
+    static func counterpartyLabel(
+        in transaction: [String: Any],
+        mappings: [PIIMapping],
+        revealed: Bool
+    ) -> String {
+        let placeholder = transaction["counterparty_placeholder"] as? String ?? "—"
+        guard revealed else { return placeholder }
+        return PIIDetector.restorePII(in: placeholder, mappings: mappings)
+    }
+
+    private var filteredIncome: Double {
+        filteredTransactions.filter { $0["direction"] as? String == "income" }
+            .reduce(0) { $0 + (number($1["amount"]) ?? 0) }
+    }
+    private var filteredExpenses: Double {
+        filteredTransactions.filter { $0["direction"] as? String == "expense" }
+            .reduce(0) { $0 + abs(number($1["amount"]) ?? 0) }
+    }
+    private var filteredNet: Double { filteredIncome - filteredExpenses }
+
+    private func number(_ value: Any?) -> Double? {
+        if let number = value as? NSNumber { return number.doubleValue }
+        if let string = value as? String { return Double(string) }
+        return nil
+    }
+
+    private func money(_ amount: Double) -> String {
+        amount.formatted(.currency(code: currency).precision(.fractionLength(abs(amount) >= 1000 ? 0 : 2)))
+    }
+
+    private func trendChart(height: CGFloat, showsLabels: Bool = false) -> some View {
+        VStack(spacing: showsLabels ? .spacing5 : 0) {
+        GeometryReader { geometry in
+            let maximum = max(1, trend.reduce(0) {
+                max($0, max(number($1["income"]) ?? 0, number($1["expense"]) ?? 0))
+            })
+            Path { path in
+                for (index, bucket) in trend.enumerated() {
+                    let point = CGPoint(
+                        x: geometry.size.width * CGFloat(index) / CGFloat(max(1, trend.count - 1)),
+                        y: geometry.size.height * (1 - CGFloat(max(0, number(bucket["income"]) ?? 0) / maximum))
+                    )
+                    if index == 0 { path.move(to: point) } else { path.addLine(to: point) }
+                }
+            }
+            .stroke(Self.incomeColor, style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
+            Path { path in
+                for (index, bucket) in trend.enumerated() {
+                    let point = CGPoint(
+                        x: geometry.size.width * CGFloat(index) / CGFloat(max(1, trend.count - 1)),
+                        y: geometry.size.height * (1 - CGFloat(max(0, number(bucket["expense"]) ?? 0) / maximum))
+                    )
+                    if index == 0 { path.move(to: point) } else { path.addLine(to: point) }
+                }
+            }
+            .stroke(Color.warning, style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
+        }
+        .frame(height: height)
+        if showsLabels {
+            HStack {
+                ForEach(Array(trend.enumerated()), id: \.offset) { _, bucket in
+                    Text(bucket["bucket"] as? String ?? "")
+                        .font(.omXxs)
+                        .foregroundStyle(Color.fontSecondary)
+                    Spacer(minLength: 0)
+                }
+            }
+        }
+        }
+        .padding(.horizontal, showsLabels ? .spacing8 : .spacing5)
+        .padding(.top, showsLabels ? .spacing8 : .spacing3)
+        .padding(.bottom, showsLabels ? .spacing6 : .spacing8)
+        .background(showsLabels ? Color.grey10.opacity(0.62) : Color.grey0.opacity(0.84))
+        .clipShape(RoundedRectangle(cornerRadius: showsLabels ? .radius6 : .radiusFull))
+        .overlay(RoundedRectangle(cornerRadius: showsLabels ? .radius6 : .radiusFull).stroke(Color.grey20, lineWidth: showsLabels ? 0 : 1))
+        .accessibilityIdentifier("finance-income-expense-chart")
+    }
+}
+
+private struct FinanceCompactFilter: View {
+    let title: String
+    let options: [OMDropdownOption]
+    @Binding var selection: String
+    let identifier: String
+    @State private var isExpanded = false
+
+    private var selectedLabel: String {
+        options.first(where: { $0.id == selection })?.label ?? AppStrings.financeAll
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: .spacing3) {
+            Text(title).font(.omXs.weight(.semibold)).foregroundStyle(Color.fontSecondary)
+            Button { isExpanded.toggle() } label: {
+                HStack {
+                    Text(selectedLabel).font(.omXs).foregroundStyle(Color.fontPrimary)
+                    Spacer()
+                    Icon("chevron-down", size: 14).foregroundStyle(Color.fontSecondary)
+                }
+                .padding(.horizontal, .spacing6)
+                .frame(height: 40)
+                .background(Color.grey0)
+                .clipShape(RoundedRectangle(cornerRadius: .radius6))
+                .overlay(RoundedRectangle(cornerRadius: .radius6).stroke(Color.grey30))
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier(identifier)
+            if isExpanded {
+                VStack(spacing: 0) {
+                    ForEach(options) { option in
+                        Button {
+                            selection = option.id
+                            isExpanded = false
+                        } label: {
+                            Text(option.label)
+                                .font(.omXs)
+                                .foregroundStyle(Color.fontPrimary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.spacing4)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .background(Color.grey0)
+                .clipShape(RoundedRectangle(cornerRadius: .radius6))
+                .overlay(RoundedRectangle(cornerRadius: .radius6).stroke(Color.grey30))
+            }
+        }
+    }
 }

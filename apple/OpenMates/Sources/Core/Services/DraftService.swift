@@ -6,7 +6,7 @@
 // Specification: specifications/features/message-input/specification.yml
 // Assertions: message-input.drafts.preview-persistence, message-input.recording.lifecycle
 // Specification: specifications/architecture/drafts/specification.yml
-// Assertions: drafts.persistence.local-first-encrypted
+// Assertions: drafts.persistence.local-first-encrypted, drafts.draft-only.lifecycle
 
 import Combine
 import CryptoKit
@@ -62,6 +62,7 @@ final class DraftService: ObservableObject {
     private let masterKeyProvider: @Sendable () async throws -> SymmetricKey?
     private let crypto: CryptoManager
     private var syncCoordinator: DraftSyncCoordinator?
+    private weak var syncChatStore: ChatStore?
     private var draftLifecycleGeneration = UUID()
     private var draftGenerationByChatId: [String: UUID] = [:]
     private var draftReadGenerationByChatId: [String: UUID] = [:]
@@ -106,6 +107,7 @@ final class DraftService: ObservableObject {
     ) {
         let lifecycle = draftLifecycleGeneration
         let scope = OfflineStore.shared.scopeGeneration
+        syncChatStore = chatStore
         syncCoordinator = DraftSyncCoordinator(
             repository: repository,
             chatStore: chatStore,
@@ -424,15 +426,24 @@ final class DraftService: ObservableObject {
     }
 
     func clearDraft(chatId: String) async throws {
+        let lifecycle = draftLifecycleGeneration
+        let scope = OfflineStore.shared.scopeGeneration
+        func requireCurrentDeletion() throws {
+            guard !Task.isCancelled, lifecycle == draftLifecycleGeneration,
+                  scope == OfflineStore.shared.scopeGeneration else { throw CancellationError() }
+        }
+        try requireCurrentDeletion()
         let resolvedChatId = syncCoordinator?.resolveChatId(chatId, hasNonEmptyDraft: false) ?? chatId
         // Invalidate pending encryption before the first deletion await.
         draftGenerationByChatId[resolvedChatId] = UUID()
         await legacyStore.removeDraft(chatId: resolvedChatId)
+        try requireCurrentDeletion()
         if let syncCoordinator, resolvedChatId != DraftSyncCoordinator.syntheticNewChatId {
             try await syncCoordinator.submitLocalDelete(chatId: resolvedChatId)
         } else {
             try await repository.remove(chatId: resolvedChatId)
         }
+        try requireCurrentDeletion()
         if chatId == DraftSyncCoordinator.syntheticNewChatId {
             syncCoordinator?.resetNewChatDraftId()
             persistNewChatDraftId(nil)
@@ -513,7 +524,9 @@ final class DraftService: ObservableObject {
         NotificationCenter.default.post(
             name: .composerDraftDidChange,
             object: nil,
-            userInfo: ["chatId": chatId, "reloadComposer": reloadComposer]
+            userInfo: ["chatId": chatId, "reloadComposer": reloadComposer,
+                       "scopeGeneration": OfflineStore.shared.scopeGeneration,
+                       "chatRemoved": syncChatStore != nil && syncChatStore?.chat(for: chatId) == nil]
         )
     }
 

@@ -53,6 +53,7 @@ def test_signup_mail_capture_stays_on_disposable_internal_network():
     normal = compose_profile("a" * 40)
     assert "mailpit" not in normal["services"]
     assert "OPENMATES_CI_MAIL_CAPTURE" not in normal["services"]["api"]["environment"]
+    assert "OPENMATES_TEST_ACCOUNT_API_KEY" not in normal["services"]["api"]["environment"]
 
     profile = compose_profile("a" * 40, mail_capture=True)
     assert profile["networks"]["default"]["internal"] is True
@@ -65,6 +66,8 @@ def test_signup_mail_capture_stays_on_disposable_internal_network():
         service = profile["services"][name]
         assert service["environment"]["OPENMATES_CI_MAIL_CAPTURE"] == "1"
         assert service["environment"]["OPENMATES_CI_ISOLATED"] == "1"
+        assert len(service["environment"]["OPENMATES_TEST_ACCOUNT_API_KEY"]) == 48
+        assert service["environment"]["SELF_HOST_SIGNUP_MODE"] == "invite_and_domain"
         assert service["depends_on"]["mailpit"]["condition"] == "service_started"
         assert "BREVO_API_KEY" not in service["environment"]
 

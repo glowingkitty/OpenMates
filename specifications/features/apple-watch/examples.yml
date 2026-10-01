@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.apple-watch@1
+specification: feature.apple-watch@2
 
 pairing:
   - id: iphone-offer-and-short-url
@@ -20,11 +20,15 @@ lists:
   - id: private-read-only-rows
     given: The account has encrypted Tasks and Workflow runs.
     when: The Watch loads the Task and Workflow sections.
-    then: The owner sees readable rows and no native edit or detail screen for either item type.
+    then: The owner sees readable Tasks in the iPhone kanban section order and readable Workflow rows, with no native mutation controls.
+  - id: kanban-crown-and-task-read-view
+    given: The Watch has Tasks in Backlog, To do, In progress, Blocked, and Done, and To do contains more Tasks than fit on screen.
+    when: The user swipes to To do, turns the Digital Crown to scroll down, and taps a Task.
+    then: Only the current column scrolls vertically, and the selected Task opens its private readable details with an explicit Open on iPhone action.
 handoff:
   - id: exact-task-on-matching-phone
     given: A Watch and iPhone use the same self-hosted OpenMates server and a Task with an opaque id is visible.
-    when: The user taps the Task.
+    when: The user opens the Task read view and chooses Open on iPhone.
     then: A generic iPhone notification opens that exact Task on the server's HTTPS website; the Watch message contains no title, private text, or URL.
 chats:
   - id: find-older-chat-offline

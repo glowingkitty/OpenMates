@@ -419,7 +419,7 @@ struct SettingsPasswordView: View {
             Button(emailChallenge == nil && usesEmail
                    ? L("settings.security.send_verification_code")
                    : L("settings.password.update")) { updatePassword() }
-                .buttonStyle(OMPrimaryButtonStyle())
+                .buttonStyle(OMSettingsButtonStyle())
                 .disabled(!isValid || isSaving || ((emailChallenge != nil || (hasTOTP && !usesEmail)) && factorCode.count != 6))
                 .accessibleButton(emailChallenge == nil && usesEmail
                                   ? L("settings.security.send_verification_code")
@@ -431,7 +431,7 @@ struct SettingsPasswordView: View {
                     useEmailFallback = true
                     factorCode = ""
                 }
-                    .buttonStyle(OMSecondaryButtonStyle())
+                    .buttonStyle(OMSettingsButtonStyle(secondary: true))
                     .disabled(isSaving)
                     .accessibilityIdentifier("settings-password-email-fallback")
             }
@@ -612,7 +612,7 @@ struct Settings2FAView: View {
                             Button(L("settings.two_factor_auth.verify")) {
                                 verify2FA()
                             }
-                            .buttonStyle(OMPrimaryButtonStyle())
+                            .buttonStyle(OMSettingsButtonStyle())
                             .disabled(verificationCode.count != 6)
                             .accessibleButton(L("settings.two_factor_auth.verify"), hint: L("settings.verify_2fa_code_hint"))
                         }
@@ -644,7 +644,7 @@ struct Settings2FAView: View {
                             isOn: $codesStored
                         )
                         Button(AppStrings.confirm) { confirmCodesStored() }
-                            .buttonStyle(OMPrimaryButtonStyle())
+                            .buttonStyle(OMSettingsButtonStyle())
                             .disabled(!codesStored)
                             .accessibilityIdentifier("settings-2fa-confirm-codes")
                     }
@@ -774,7 +774,7 @@ struct SettingsRecoveryKeyView: View {
                             .padding(.vertical, .spacing4)
                             .accessibleInput(AppStrings.enterPassword, hint: L("auth.enter_account_password"))
                         Button(L("settings.recovery_key.verify")) { verifyAndShow() }
-                            .buttonStyle(OMPrimaryButtonStyle())
+                            .buttonStyle(OMSettingsButtonStyle())
                             .disabled(verificationCode.isEmpty || isLoading)
                             .padding(.horizontal, .spacing6)
                             .padding(.bottom, .spacing4)
@@ -803,7 +803,7 @@ struct SettingsRecoveryKeyView: View {
                             ToastManager.shared.show(AppStrings.copied, type: .success)
                             AccessibilityAnnouncement.announce(AppStrings.copied)
                         }
-                        .buttonStyle(OMPrimaryButtonStyle())
+                        .buttonStyle(OMSettingsButtonStyle())
                         .accessibleButton(AppStrings.copy, hint: L("auth.copy_recovery_key_hint"))
 
                         Text(L("settings.recovery_key.store_securely"))
@@ -823,7 +823,7 @@ struct SettingsRecoveryKeyView: View {
                             .padding(.vertical, .spacing4)
                             .accessibleInput(AppStrings.enterPassword, hint: L("auth.enter_account_password"))
                         Button(AppStrings.confirm) { regenerateKey() }
-                            .buttonStyle(OMPrimaryButtonStyle())
+                            .buttonStyle(OMSettingsButtonStyle())
                             .disabled(regeneratePassword.isEmpty)
                             .padding(.horizontal, .spacing6)
                             .padding(.bottom, .spacing4)
@@ -1260,6 +1260,11 @@ struct SettingsNotificationsView: View {
     @State private var emailNotifications = true
     @State private var isLoaded = false
     @State private var errorMessage: String?
+
+    init(deepLinkPath: String? = nil) {
+        _destination = State(initialValue: deepLinkPath == "chat" ? .chat
+            : deepLinkPath == "backup" ? .backup : nil)
+    }
 
     var body: some View {
         if let destination {

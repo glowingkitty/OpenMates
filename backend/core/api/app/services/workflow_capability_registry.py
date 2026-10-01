@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from pathlib import Path
+from threading import RLock
 from typing import TYPE_CHECKING, Any
 
 import yaml
@@ -64,6 +65,17 @@ _UNAVAILABLE_REASONS = {
     WORKFLOW_RUNTIME_UNSUPPORTED,
 }
 WORKFLOW_CLASSIFICATION_FILE = Path(__file__).resolve().parent / "workflow_capabilities.yml"
+_metadata_cache_lock = RLock()
+_classification_cache: tuple[Path, tuple[int, int] | None, dict[str, Any]] | None = None
+_filesystem_cache: dict[Path, tuple[tuple[tuple[str, int, int], ...], dict[str, dict[str, Any]]]] = {}
+
+
+def _file_version(path: Path) -> tuple[int, int] | None:
+    try:
+        stat = path.stat()
+    except FileNotFoundError:
+        return None
+    return stat.st_mtime_ns, stat.st_size
 
 
 class WorkflowCapabilityRegistry:
@@ -143,6 +155,7 @@ class WorkflowCapabilityRegistry:
             "app_id": app_id,
             "skill_id": skill_id,
             "input_schema": input_schema,
+            "description": str(_value(skill, "preprocessor_hint") or ""),
             "cost": _dump_value(_value(skill, "pricing")),
         }
         if _value(skill, "internal", default=False):
@@ -315,27 +328,40 @@ def _dump_value(value: Any) -> Any:
 
 
 def _load_workflow_classifications() -> dict[str, Any]:
-    if not WORKFLOW_CLASSIFICATION_FILE.exists():
-        return {}
-    with WORKFLOW_CLASSIFICATION_FILE.open("r", encoding="utf-8") as handle:
-        payload = yaml.safe_load(handle) or {}
-    if not isinstance(payload, Mapping):
-        return {}
-    capabilities = payload.get("capabilities") or {}
-    return dict(capabilities) if isinstance(capabilities, Mapping) else {}
+    global _classification_cache
+    with _metadata_cache_lock:
+        version = _file_version(WORKFLOW_CLASSIFICATION_FILE)
+        if _classification_cache is not None and _classification_cache[:2] == (WORKFLOW_CLASSIFICATION_FILE, version):
+            return _classification_cache[2]
+        if version is None:
+            classifications: dict[str, Any] = {}
+        else:
+            with WORKFLOW_CLASSIFICATION_FILE.open("r", encoding="utf-8") as handle:
+                payload = yaml.safe_load(handle) or {}
+            capabilities = payload.get("capabilities") if isinstance(payload, Mapping) else None
+            classifications = dict(capabilities) if isinstance(capabilities, Mapping) else {}
+        _classification_cache = (WORKFLOW_CLASSIFICATION_FILE, version, classifications)
+        return classifications
 
 
 class _FilesystemWorkflowMetadataRegistry:
     """Lightweight app.yml reader for unit environments without Celery installed."""
 
-    def __init__(self) -> None:
-        apps_root = Path(__file__).resolve().parents[4] / "apps"
-        self._metadata: dict[str, dict[str, Any]] = {}
-        for app_file in apps_root.glob("*/app.yml"):
-            with app_file.open("r", encoding="utf-8") as handle:
-                metadata = yaml.safe_load(handle) or {}
-            if isinstance(metadata, dict):
-                self._metadata[str(metadata.get("id") or app_file.parent.name)] = metadata
+    def __init__(self, apps_root: Path | None = None) -> None:
+        apps_root = apps_root or Path(__file__).resolve().parents[4] / "apps"
+        with _metadata_cache_lock:
+            app_files = sorted(apps_root.glob("*/app.yml"))
+            version = tuple((str(path), *(_file_version(path) or (0, 0))) for path in app_files)
+            cached = _filesystem_cache.get(apps_root)
+            if cached is None or cached[0] != version:
+                metadata_by_id: dict[str, dict[str, Any]] = {}
+                for app_file in app_files:
+                    with app_file.open("r", encoding="utf-8") as handle:
+                        metadata = yaml.safe_load(handle) or {}
+                    if isinstance(metadata, dict):
+                        metadata_by_id[str(metadata.get("id") or app_file.parent.name)] = metadata
+                _filesystem_cache[apps_root] = (version, metadata_by_id)
+            self._metadata = _filesystem_cache[apps_root][1]
 
     def all_metadata(self) -> dict[str, dict[str, Any]]:
         return self._metadata

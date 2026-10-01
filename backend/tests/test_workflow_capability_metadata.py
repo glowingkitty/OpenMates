@@ -8,6 +8,9 @@
 # Spec: docs/specs/workflows-cli-runtime/spec.yml
 
 from types import SimpleNamespace
+import os
+
+from backend.core.api.app.services import workflow_capability_registry as capability_module
 
 from backend.core.api.app.services.workflow_capability_registry import (
     WORKFLOW_CLASSIFICATION_REQUIRED,
@@ -16,6 +19,7 @@ from backend.core.api.app.services.workflow_capability_registry import (
     WORKFLOW_RUNTIME_UNSUPPORTED,
     WORKFLOW_TEST_EXAMPLE_REQUIRED,
     WorkflowCapabilityRegistry,
+    _FilesystemWorkflowMetadataRegistry,
 )
 from scripts.audit_workflow_capabilities import audit_workflow_capabilities
 
@@ -207,3 +211,31 @@ def test_repository_expanded_capabilities_and_deferred_reasons_are_discoverable(
     assert by_id["calendar.get-events"].reason == WORKFLOW_CONNECTED_ACCOUNT_REQUIRED
     assert by_id["code.run"].enabled is False
     assert by_id["code.run"].reason == WORKFLOW_RUNTIME_UNSUPPORTED
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract
+def test_filesystem_metadata_cache_reuses_snapshot_and_invalidates_on_source_change(tmp_path) -> None:
+    app_file = tmp_path / "example" / "app.yml"
+    app_file.parent.mkdir()
+    app_file.write_text("id: example\nskills: []\n", encoding="utf-8")
+    first = _FilesystemWorkflowMetadataRegistry(tmp_path)
+    second = _FilesystemWorkflowMetadataRegistry(tmp_path)
+    assert first.all_metadata() is second.all_metadata()
+
+    app_file.write_text("id: example\nskills:\n  - id: new\n    class_path: example.New\n", encoding="utf-8")
+    os.utime(app_file, None)
+    updated = _FilesystemWorkflowMetadataRegistry(tmp_path)
+    assert updated.all_metadata() is not first.all_metadata()
+    assert updated.is_skill_available("example", "new")
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract
+def test_classification_cache_invalidates_on_source_change(tmp_path, monkeypatch) -> None:
+    source = tmp_path / "workflow_capabilities.yml"
+    monkeypatch.setattr(capability_module, "WORKFLOW_CLASSIFICATION_FILE", source)
+    source.write_text("capabilities:\n  example.one:\n    available: false\n", encoding="utf-8")
+    first = capability_module._load_workflow_classifications()
+    assert capability_module._load_workflow_classifications() is first
+    source.write_text("capabilities:\n  example.two:\n    available: false\n", encoding="utf-8")
+    os.utime(source, None)
+    assert "example.two" in capability_module._load_workflow_classifications()

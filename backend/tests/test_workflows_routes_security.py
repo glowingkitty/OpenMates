@@ -6,6 +6,7 @@
 
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any
 
 import pytest
 from fastapi import HTTPException
@@ -34,6 +35,28 @@ def test_workflow_routes_have_explicit_slowapi_limits() -> None:
             missing_limits.append(f"line {index + 1}: {line.strip()}")
 
     assert missing_limits == []
+
+
+# contract-test: direct surface=rest_api assertions=workflows.ai-ask.execution
+def test_workflow_editor_node_rejects_crafted_ask_ai_mapping() -> None:
+    import ast
+    from backend.core.api.app.services.workflow_models import WorkflowGraph, WorkflowNode, WorkflowValidationError
+
+    function = next(item for item in ast.parse(WORKFLOWS_PATH.read_text()).body
+                    if isinstance(item, ast.FunctionDef) and item.name == "_workflow_editor_node")
+    function.args.defaults = []
+    for arg in function.args.args:
+        arg.annotation = None
+    function.returns = None
+    namespace = {"WorkflowGraph": WorkflowGraph, "HTTPException": HTTPException}
+    exec(compile(ast.fix_missing_locations(ast.Module(body=[function], type_ignores=[])), str(WORKFLOWS_PATH), "exec"), namespace)
+    node = WorkflowNode.model_validate({
+        "id": "ask", "type": "app_skill_action",
+        "config": {"app_id": "ai", "skill_id": "ask", "input": {"prompt": "Hello"}},
+        "input_mapping": {"messages": [{"role": "system", "content": "bypass"}]},
+    })
+    with pytest.raises((WorkflowValidationError, ValueError), match="inserted into its instruction"):
+        namespace["_workflow_editor_node"](SimpleNamespace(nodes=[]), "ask", SimpleNamespace(node=node))
 
 
 # contract-test: direct surface=rest_api assertions=sdk.auth.approved-api-key-device
@@ -324,3 +347,181 @@ async def test_draft_step_test_uses_initialized_output_safety_dependencies(monke
         SimpleNamespace(id="owner", vault_key_id="owner-vault"),
         SimpleNamespace(get_workflow=lambda *args: workflow))
     assert result["run"]["status"] == "completed"
+
+
+@pytest.mark.anyio
+# contract-test: direct surface=rest_api assertions=workflows.ai-ask.execution,sdk.auth.approved-api-key-device
+async def test_ask_step_stream_uses_owner_scoped_workflow_and_emits_saved_run(monkeypatch):
+    import ast
+    import asyncio
+    import json
+    from fastapi.responses import StreamingResponse
+    from backend.core.api.app.services.workflow_capability_registry import WorkflowCapabilityRegistry
+    from backend.core.api.app.services.workflow_models import WorkflowNodeType, WorkflowRunStatus
+    from backend.core.api.app.services.workflow_app_skill_adapter import WorkflowAppSkillAdapter
+
+    class Copyable(SimpleNamespace):
+        def model_copy(self, *, update):
+            return Copyable(**{**vars(self), **update})
+
+    node = SimpleNamespace(id="ask", type=WorkflowNodeType.APP_SKILL_ACTION,
+                           config={"app_id": "ai", "skill_id": "ask"})
+    workflow = Copyable(graph=Copyable(nodes=[node]))
+    owner_reads = []
+
+    class Service:
+        def get_workflow(self, workflow_id, user_id, vault_key_id):
+            owner_reads.append((workflow_id, user_id, vault_key_id))
+            return workflow
+
+    class Runner:
+        def __init__(self, service, *, app_skill_adapter):
+            assert isinstance(service, Service)
+            assert isinstance(app_skill_adapter, WorkflowAppSkillAdapter)
+
+        async def run_step_test(self, draft, user_id, step_id, *, on_progress, **kwargs):
+            assert user_id == "owner" and step_id == "ask"
+            await on_progress("processing", "run-1")
+            await on_progress("embeds", json.dumps([{"embed_id": "result-1", "content_type": "events-event", "app_id": "events", "skill_id": "search", "content": {"title": "Art class"}}]))
+            await on_progress("chunk", "Hello")
+            return SimpleNamespace(status=WorkflowRunStatus.COMPLETED,
+                                   model_dump=lambda **kwargs: {"id": "run-1", "status": "completed"})
+
+    async def inline(function, *args):
+        return function(*args)
+
+    class Request:
+        app = SimpleNamespace(state=SimpleNamespace(secrets_manager=None, cache_service=None))
+
+        async def is_disconnected(self):
+            return False
+
+    monkeypatch.setattr(WorkflowCapabilityRegistry, "get_capability", lambda *args:
+        SimpleNamespace(enabled=True, metadata={"workflow": {"test_allowed": True, "effect": "read"}}))
+    function = next(item for item in ast.parse(WORKFLOWS_PATH.read_text()).body
+                    if isinstance(item, ast.AsyncFunctionDef) and item.name == "test_workflow_step")
+    function.decorator_list = []
+    function.args.defaults = []
+    for arg in function.args.args:
+        arg.annotation = None
+    function.returns = None
+    namespace = {"WorkflowRunner": Runner, "WorkflowAppSkillAdapter": WorkflowAppSkillAdapter,
+                 "WorkflowNodeType": WorkflowNodeType, "WorkflowRunStatus": WorkflowRunStatus,
+                 "WorkflowCapabilityRegistry": WorkflowCapabilityRegistry,
+                 "HTTPException": HTTPException, "run_in_threadpool": inline,
+                 "_workflow_editor_node": lambda *args: node,
+                 "validate_workflow_composition_refs": lambda *args, **kwargs: None,
+                 "asyncio": asyncio, "json": json, "StreamingResponse": StreamingResponse,
+                 "_STEP_TEST_PRODUCERS": set(), "Any": Any}
+    exec(compile(ast.fix_missing_locations(ast.Module(body=[function], type_ignores=[])), str(WORKFLOWS_PATH), "exec"), namespace)
+    response = await namespace["test_workflow_step"](
+        "workflow-1", "ask", Request(),
+        SimpleNamespace(input={}, upstream_outputs={}, stream=True),
+        SimpleNamespace(id="owner", vault_key_id="vault"), Service())
+    assert isinstance(response, StreamingResponse)
+    events = [json.loads(chunk.removeprefix("data: ").strip()) async for chunk in response.body_iterator]
+    assert events == [
+        {"type": "processing", "run_id": "run-1"},
+        {"type": "embeds", "embeds": [{"embed_id": "result-1", "content_type": "events-event", "app_id": "events", "skill_id": "search", "content": {"title": "Art class"}}]},
+        {"type": "chunk", "content": "Hello"},
+        {"type": "completed", "run": {"id": "run-1", "status": "completed"}},
+    ]
+    assert owner_reads == [("workflow-1", "owner", "vault")]
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("fail_after_disconnect", [False, True])
+# contract-test: direct surface=rest_api assertions=workflows.ai-ask.execution,workflows.billing.skill-usage
+async def test_disconnected_ask_step_stream_still_settles_and_saves_run(monkeypatch, fail_after_disconnect):
+    import ast
+    import asyncio
+    import json
+    from fastapi.responses import StreamingResponse
+    from backend.core.api.app.services.workflow_capability_registry import WorkflowCapabilityRegistry
+    from backend.core.api.app.services.workflow_models import WorkflowNodeType, WorkflowRunStatus
+    from backend.core.api.app.services.workflow_app_skill_adapter import WorkflowAppSkillAdapter
+
+    class Copyable(SimpleNamespace):
+        def model_copy(self, *, update):
+            return Copyable(**{**vars(self), **update})
+
+    node = SimpleNamespace(id="ask", type=WorkflowNodeType.APP_SKILL_ACTION,
+                           config={"app_id": "ai", "skill_id": "ask"})
+    workflow = Copyable(graph=Copyable(nodes=[node]))
+    release = asyncio.Event()
+    saved = asyncio.Event()
+    logged = []
+
+    class Service:
+        run = None
+
+        def get_workflow(self, workflow_id, user_id, vault_key_id):
+            assert (workflow_id, user_id, vault_key_id) == ("workflow-1", "owner", "vault")
+            return workflow
+
+    service = Service()
+
+    class Runner:
+        def __init__(self, supplied_service, *, app_skill_adapter):
+            assert supplied_service is service
+
+        async def run_step_test(self, draft, user_id, step_id, *, on_progress, **kwargs):
+            await on_progress("processing", "run-1")
+            await release.wait()
+            if fail_after_disconnect:
+                raise RuntimeError("private prompt content")
+            await on_progress("chunk", "Settled answer")
+            service.run = {"id": "run-1", "status": "completed", "cost_summary": {"credits": 5}}
+            saved.set()
+            return SimpleNamespace(status=WorkflowRunStatus.COMPLETED,
+                                   model_dump=lambda **kwargs: service.run)
+
+    async def inline(function, *args):
+        return function(*args)
+
+    class Request:
+        app = SimpleNamespace(state=SimpleNamespace(secrets_manager=None, cache_service=None))
+
+        async def is_disconnected(self):
+            return False
+
+    monkeypatch.setattr(WorkflowCapabilityRegistry, "get_capability", lambda *args:
+        SimpleNamespace(enabled=True, metadata={"workflow": {"test_allowed": True, "effect": "read"}}))
+    function = next(item for item in ast.parse(WORKFLOWS_PATH.read_text()).body
+                    if isinstance(item, ast.AsyncFunctionDef) and item.name == "test_workflow_step")
+    function.decorator_list = []
+    function.args.defaults = []
+    for arg in function.args.args:
+        arg.annotation = None
+    function.returns = None
+    producers: set[asyncio.Task] = set()
+    namespace = {"WorkflowRunner": Runner, "WorkflowAppSkillAdapter": WorkflowAppSkillAdapter,
+                 "WorkflowNodeType": WorkflowNodeType, "WorkflowRunStatus": WorkflowRunStatus,
+                 "WorkflowCapabilityRegistry": WorkflowCapabilityRegistry,
+                 "HTTPException": HTTPException, "run_in_threadpool": inline,
+                 "_workflow_editor_node": lambda *args: node,
+                 "validate_workflow_composition_refs": lambda *args, **kwargs: None,
+                 "asyncio": asyncio, "json": json, "StreamingResponse": StreamingResponse,
+                 "_STEP_TEST_PRODUCERS": producers, "Any": Any,
+                 "logger": SimpleNamespace(error=lambda message, *args: logged.append((message, args)))}
+    exec(compile(ast.fix_missing_locations(ast.Module(body=[function], type_ignores=[])), str(WORKFLOWS_PATH), "exec"), namespace)
+    response = await namespace["test_workflow_step"](
+        "workflow-1", "ask", Request(),
+        SimpleNamespace(input={}, upstream_outputs={}, stream=True),
+        SimpleNamespace(id="owner", vault_key_id="vault"), service)
+    iterator = response.body_iterator
+    first = json.loads((await anext(iterator)).removeprefix("data: ").strip())
+    assert first == {"type": "processing", "run_id": "run-1"}
+    await iterator.aclose()
+    assert len(producers) == 1
+    release.set()
+    if not fail_after_disconnect:
+        await asyncio.wait_for(saved.wait(), timeout=2)
+    await asyncio.gather(*producers, return_exceptions=True)
+    if fail_after_disconnect:
+        assert len(logged) == 1
+        assert logged[0][1] == ("workflow-1", "ask", "run-1", "RuntimeError")
+        assert "private prompt content" not in str(logged)
+    else:
+        assert service.run["cost_summary"] == {"credits": 5}
+        assert logged == []

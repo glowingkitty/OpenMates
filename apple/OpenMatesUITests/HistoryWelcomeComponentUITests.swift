@@ -307,12 +307,10 @@ final class HistoryWelcomeComponentUITests: XCTestCase {
         app.buttons["Toggle sidebar"].tap()
         XCTAssertTrue(title.waitForExistence(timeout: 3), "Sidebar must preserve the selected result route")
         app.buttons["Toggle settings"].tap()
-        // The row label and actual custom toggle share the inherited wrapper ID.
-        // Select the real Switch, preserving the production interaction.
-        let learning = app.switches["learning-mode-toggle-wrapper"].firstMatch
-        XCTAssertTrue(learning.waitForExistence(timeout: 3))
-        learning.tap()
-        let learningPage = app.scrollViews["settings-learning-mode-page"]
+        // The owned guest preview opens the existing Learning setup route directly.
+        // The public guest menu does not expose a Learning toggle.
+        XCTAssertFalse(app.switches["learning-mode-toggle-wrapper"].firstMatch.exists)
+        let learningPage = app.scrollViews["learning-mode-settings-page"]
         XCTAssertTrue(learningPage.waitForExistence(timeout: 3))
         app.buttons["learning-mode-enable-button"].tap()
         XCTAssertTrue(app.buttons["learning-mode-disable-button"].waitForExistence(timeout: 3),

@@ -1,6 +1,18 @@
 // Wikipedia/wiki embed renderers — inline wiki links and fullscreen article view.
 // Mirrors the web app's embeds/wiki/WikiInlineLink.svelte + WikipediaFullscreen.svelte.
 
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte: frontend/packages/ui/src/components/embeds/wiki/WikipediaFullscreen.svelte
+//         frontend/packages/ui/src/components/embeds/wiki/WikiInlineLink.svelte
+//         frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+// CSS: WikipediaFullscreen.svelte .wiki-description, .wiki-extract
+// Tokens: ColorTokens.generated.swift, SpacingTokens.generated.swift,
+//         TypographyTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
+// Specification: specifications/features/chats/specification.yml
+//                specifications/features/chat-share-settings/specification.yml
+// Assertions: chat-share-settings.shared-link-open, chats.surface.semantic-parity
+
 import SwiftUI
 #if os(iOS)
 import UIKit
@@ -42,6 +54,7 @@ struct WikiInlineLinkView: View {
 }
 
 struct WikiRenderer: View {
+    @Environment(\.recipientMediaContext) private var recipientMediaContext
     let data: [String: AnyCodable]?
     let mode: EmbedDisplayMode
     @State private var article: WikipediaArticleSummary?
@@ -157,7 +170,7 @@ struct WikiRenderer: View {
                     .foregroundStyle(Color.fontPrimary)
 
                 if let description = resolvedDescription, !description.isEmpty {
-                    Text(description)
+                    SourceQuoteHighlightedText(text: description, locationID: "wiki-description")
                         .font(.omP)
                         .fontWeight(.semibold)
                         .italic()
@@ -165,7 +178,7 @@ struct WikiRenderer: View {
                 }
 
                 if let extract = resolvedExtract, !extract.isEmpty {
-                    Text(extract)
+                    SourceQuoteTextDocument(text: extract, locationPrefix: "wiki-extract-paragraph")
                         .font(.omP)
                         .foregroundStyle(Color.fontPrimary)
                         .textSelection(.enabled)
@@ -211,11 +224,17 @@ struct WikiRenderer: View {
         isLoading = true
         loadError = nil
         do {
-            let encoded = summaryFetchTitle.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? summaryFetchTitle
-            let response: WikipediaSummaryResponse = try await APIClient.shared.request(
-                .get,
-                path: "/v1/wikipedia/summary?title=\(encoded)&language=en"
-            )
+            let response: WikipediaSummaryResponse
+            if let recipientMediaContext {
+                var url = URLComponents(url: recipientMediaContext.apiBaseURL.appendingPathComponent("v1/wikipedia/summary"), resolvingAgainstBaseURL: false)!
+                url.queryItems = [.init(name: "title", value: summaryFetchTitle), .init(name: "language", value: "en")]
+                let data = try await recipientMediaContext.download(url.url!)
+                response = try JSONDecoder().decode(WikipediaSummaryResponse.self, from: data)
+                try recipientMediaContext.checkCurrent()
+            } else {
+                let encoded = summaryFetchTitle.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? summaryFetchTitle
+                response = try await APIClient.shared.request(.get, path: "/v1/wikipedia/summary?title=\(encoded)&language=en")
+            }
             article = WikipediaArticleSummary(response: response)
         } catch {
             loadError = error.localizedDescription

@@ -1,5 +1,41 @@
 schema_version: 1
-specification: feature.workflows@6
+specification: feature.workflows@8
+portable_definition:
+- id: cli-web-definition-roundtrip
+  given: Alice has saved a Berlin weather Workflow whose Check reads the earlier weather result and whose Send message uses an input mapping and typed result references.
+  when: She exports it from the CLI and imports the file in the web app, then exports the saved copy from the web app and imports it in the CLI.
+  then: Each copy keeps the authored title, description, retention, inputs, branches, variables and layout. Every step reference still points to the corresponding imported step.
+- id: manual-and-incomplete-draft-files
+  given: Bob has a saved manual Workflow with no schedule, and a second Workflow with only a title and an incomplete graph.
+  when: He exports and imports each saved Workflow while an unsubmitted node edit is open.
+  then: Both saved definitions can be transferred. The unsubmitted edit is absent from the file, and the incomplete copy remains a disabled draft.
+portable_privacy:
+- id: destination-requires-recipient-selection
+  given: Alice's scheduled Workflow sends Berlin event results to an existing private chat and has completed runs.
+  when: She exports its file and Bob imports it into his account.
+  then: The file keeps the authored event query and message template but contains no private chat ID, source ownership, keys, credentials, run results or delivery state. Bob must select his own destination and review the schedule before enabling the copy.
+- id: imported-definition-retains-encryption
+  given: Bob imports a Workflow containing an authored apartment-search query and message text.
+  when: The imported definition is retained and clients receive its normal encrypted data.
+  then: The existing Automation Vault and authenticated owner boundaries protect the saved content; plaintext file contents and encryption material do not appear in logs or a public export endpoint.
+portable_import:
+- id: import-creates-disabled-independent-copy
+  given: Alice has an enabled hourly Workflow and already owns another Workflow with the same title.
+  when: She imports an exported copy.
+  then: A new disabled Workflow appears with an independent identity and no history or deliveries. Neither existing Workflow changes, and no schedule runs until Alice reviews the required bindings and explicitly enables the copy.
+- id: invalid-import-creates-nothing
+  given: Bob has a malformed Workflow YAML file, a file declaring an unsupported format version, and a file with a broken graph reference.
+  when: He attempts to import each file through the CLI or web app.
+  then: Each attempt explains the error and creates no Workflow, Project item, run or delivery.
+portable_cli:
+- id: export-and-import-command-help
+  given: Alice owns a saved Berlin events Workflow.
+  when: She runs openmates workflows export <workflow-id> --output berlin-events.workflow.yml, then openmates workflows import --file berlin-events.workflow.yml.
+  then: Export reports the written path. Import reports a new disabled Workflow and any review requirements; help explains the shared YAML format, and --json returns structured command results.
+- id: cli-import-project-attachment
+  given: Bob selects an authorized Personal Project and folder for a Workflow file import.
+  when: He imports the file with the Project and folder options; on another attempt his Project write access has been revoked.
+  then: The authorized attempt links the new disabled Workflow in that folder using the encrypted Project item flow. The denied attempt does not claim attachment and reports any created disabled Workflow so Bob can still open it.
 activation_readiness:
 - id: activation_readiness-1
   given: A blank draft has no steps or schedule.
@@ -57,7 +93,7 @@ surface_parity:
   given: Alice creates an Events search followed by Ask AI in the Python SDK, then opens it on the web.
   when: The Workflow runs and she inspects it using the CLI and npm SDK.
   then: All surfaces use the same saved instruction, selected Events output, one text Answer, and server-side
-    app-skill-request validation; only web authoring runs typing-time hints.
+    app-skill-request validation; only web authoring offers free local typing hints, with no provider request while typing.
 mvp_steps:
 - id: mvp_steps-1
   given: Alice opens a new Workflow.
@@ -132,11 +168,22 @@ ai_check:
 - id: ai_check-1
   given: A weather step exposes rain probability, wind, temperature and a short forecast summary, and Alice selects those four values for a Check.
   when: She chooses Use AI judgment, inserts the four visible Weather variables into her question about an outdoor lunch, previews those values, and tests the Check.
-  then: One bounded decision returns If true or If false from only those selected values. Text inside the forecast is treated as untrusted data, and the run shows the outcome, confidence band and whether the primary or fallback decided without exposing a raw provider response.
+  then: One bounded Jev call validates and evaluates the question from only those selected values, returning If true, If false or Unsure. Text inside the forecast is treated as untrusted data, and the run shows the outcome without exposing a raw provider response.
 - id: ai_check-2
   given: Bob's AI Check asks whether a newly found apartment is a strong fit for his stated preferences, and he has put Send message in its Unsure branch.
-  when: Jev is unavailable and the independent fallback also fails to return a reliable true or false, or the Workflow retries the accepted node execution.
-  then: The Unsure branch sends Bob's configured message without running either true or false branch. The run identifies evaluator failure as the reason, and a completed prior outcome is reused without another inference or charge.
+  when: Jev returns an uncertain decision or cannot deliver a reliable result, or the Workflow retries the accepted node execution.
+  then: The Unsure branch sends Bob's configured message without running either true or false branch or calling a fallback. The run identifies uncertainty or evaluator failure, and a completed prior outcome is reused without another inference or charge.
+ai_check_billing:
+- id: ai-check-save-validation-charge
+  assertion_ids: [workflows.ai-check.single-call-billing]
+  given: Alice authors a new true/false AI judgment question, then changes it to an invalid question after an initial Save.
+  when: She saves each new wording, retries the rejected Save and finally saves again without changing the question.
+  then: Each distinct dispatched Jev validation costs one credit, including the rejection or provider failure after dispatch; the owner-scoped retry and unchanged Save add no charge, and the invalid question is not persisted. Missing credentials or structural errors before dispatch add no charge, and transient unavailability is not treated as a 24-hour accepted verdict.
+- id: ai-check-test-one-decision-charge
+  assertion_ids: [workflows.ai-check.single-call-billing]
+  given: Bob has a valid AI judgment question and enough credits for its Test and later run.
+  when: He Tests, then runs the saved Workflow and retries an accepted decision; Jev returns Unsure on one execution.
+  then: Each new dispatched Test or run Jev call both validates and decides for one credit, including Unsure or provider failure after dispatch; no fallback or typing-time call occurs, and a distributed lock prevents the owner-scoped retry from being charged twice. With insufficient credits, provider work never starts or charges.
 ask_ai_execution:
 - id: ask-ai-summarizes-existing-events
   given: Alice has added an Events search whose typed output contains event results.
@@ -153,11 +200,21 @@ ask_ai_validation:
   when: She saves from the web or creates or updates the Workflow through REST, CLI, npm SDK or Python SDK.
   then: Server validation treats the reference as existing data, not a request to invoke an app skill, and accepts
     the instruction; CLI and SDK need no typing-time requests.
-- id: ask-ai-rejects-new-app-call-or-reminds-when-unverified
+- id: ask-ai-rejects-new-app-call-or-errors-when-unverified
   given: Bob enters "Find new events for me using the Events app" in Ask AI without a preceding Events step.
-  when: Jev or the Gemini 3.8 Flash fallback reliably recognizes a request to invoke an app skill during create or update.
-  then: Every authoring surface rejects the save with guidance to add Use app instead. If both evaluators are
-    unavailable or uncertain, saving is allowed with a neutral reminder, and Ask AI still has no runtime tools.
+  when: Jev recognizes the request during create or update, or Jev cannot return a valid verdict.
+  then: Every authoring surface rejects the app-skill request with guidance to add Use app instead. A provider error is a validation failure without persistence or Gemini fallback, and Ask AI still has no runtime tools.
+ask_ai_billing:
+- id: ask-ai-save-validation-credit-including-rejection
+  assertion_ids: [workflows.ai-ask.validation-billing]
+  given: Alice edits an Ask AI instruction from "Summarize these events" to "Find events using the Events app".
+  when: She saves the new wording, retries the rejected request and then saves again without an edit.
+  then: Dispatched Jev validation costs one credit even though Save rejects the instruction or Jev fails after dispatch; the owner-scoped retry and unchanged instruction add no charge. Typing and field selection make no provider call; missing credentials or preparation failure before dispatch add no charge, and transient provider unavailability is not cached as a 24-hour accepted verdict.
+- id: ask-ai-test-uses-normal-skill-charge
+  assertion_ids: [workflows.ai-ask.validation-billing]
+  given: Bob has a valid Ask AI instruction and enough credits.
+  when: He Tests it and later runs the saved Workflow, then retries an accepted request.
+  then: Test uses normal AI Ask Skill billing and the run uses normal inference billing without an extra Save-validation charge; accepted retries are not debited twice. With insufficient credits, provider work does not start, and Billing and Usage omits his private instruction text.
 typed_data:
 - id: typed_data-1
   given: Alice has added an Events search but never run it.
@@ -177,6 +234,33 @@ earlier_action_reference:
   given: Bob has no earlier action before Ask AI, AI judgment or Send message.
   when: He saves a meaningful static instruction, question or message.
   then: No earlier-action variable is required. Once an earlier action is added, each affected field must visibly use at least one accessible earlier action output.
+authoring_compact_plan:
+- id: authoring-plan-weather-notification
+  given: Alice asks to make a daily rain alert from Weather and a chat message.
+  when: OpenMates plans the request.
+  then: Jev selects the registered Weather forecast skill and supported control choices, either directly or by selecting the Weather app first and then its skill. Gemini receives that scoped context and proposes a compact draft with a title, schedule, Weather inputs, rain condition and notification text, without inventing a new Weather skill or per-skill recipe.
+- id: authoring-plan-supported-edit
+  given: Bob has an existing apartment Workflow and asks to change its search city; a separate request just says "Make it better."
+  when: OpenMates plans the edit.
+  then: The clear edit identifies the existing Workflow and supported Home search input while preserving its other steps and metadata. Jev routes the confusing second request to clarification chat before Gemini starts generating; a later model error in a clear request does not trigger clarification.
+authoring_provisional_validation:
+- id: authoring-stream-complete-step
+  given: Alice asks for a Weather rain alert and watches the draft appear.
+  when: Gemini completes a Weather node before the Check and message are ready, and Alice then selects Stop.
+  then: The backend validates Weather's inputs and graph placement before showing it. Stop saves that valid prefix disabled with no automatic execution; Alice can continue editing it manually. Manual run availability still follows normal graph readiness.
+- id: authoring-invalid-node-retry-and-save-prefix
+  given: A validated Weather node is already visible, and Gemini next proposes a message with a reference to a future node.
+  when: The backend rejects that message, asks Gemini once to correct it, and the corrected node still has an invalid reference.
+  then: The invalid message is never shown as accepted. Generation stops, the valid Weather prefix is saved disabled with no automatic execution, and Alice sees the concrete error with options to request a specific update or edit the draft herself; no clarification chat opens.
+authoring_atomic_update:
+- id: authoring-single-create-disabled-edit-retained
+  given: Alice asks for a new rain alert and an edit to her enabled apartment Workflow.
+  when: Both changes validate and she accepts them.
+  then: The rain alert is created disabled and the apartment Workflow remains enabled unless Alice asked to change that state.
+- id: authoring-mixed-failure-and-guarded-undo
+  given: Bob requests two Workflow edits, one with an invalid dependency after generation completes; he later asks AI to edit his enabled Weather Workflow and stops after one validated node.
+  when: The full invalid batch is submitted, then the partial Weather edit is saved and Bob selects Undo before changing it again.
+  then: The full invalid batch changes neither existing Workflow. The partial Weather edit is saved under the same Workflow ID with untouched later nodes retained, the Workflow disabled, and no copy created. Undo restores the entire prior Weather state including enabled state; a newer manual revision would instead cause a conflict.
 standard_message:
 - id: standard_message-1
   given: Alice schedules an AI-news search each weekday and chooses a new chat titled AI news.
@@ -288,3 +372,25 @@ skill_billing:
   given: Alice has insufficient credits for a paid Workflow skill.
   when: A full run or node Test attempts that skill.
   then: Paid work is rejected, the failure is visible and downstream steps do not execute; deterministic Preview alone remains uncharged.
+
+website_changes:
+- id: website-changes-1
+  assertion_ids: [workflows.website-change.baseline]
+  given: "Alice watches events.ccc.de for Congress announcements."
+  when: "The first read succeeds, the next is unchanged, and the third returns a browser challenge."
+  then: "The first read initializes silently, the second makes no AI decision, and the blocked read reports its failure while keeping the usable baseline."
+- id: website-changes-2
+  assertion_ids: [workflows.website-change.diff-inputs]
+  given: "A saved page gains a Congress article with a link while a large unrelated article is unchanged."
+  when: "A Check asks whether the Changes output announces Congress news."
+  then: "Jev receives the diff with the new article link, without the unchanged article or a full snapshot. A diff exceeding the limit reports a clear failure."
+- id: website-changes-3
+  assertion_ids: [workflows.website-change.retry]
+  given: "A Congress update matches, but its summary delivery awaits an offline owner device."
+  when: "The website remains unchanged on the next run, then the device reconnects and acknowledges the message."
+  then: "The pending change survives without another decision or summary call; one message is persisted and later runs send nothing for that occurrence."
+- id: website-changes-4
+  assertion_ids: [workflows.website-change.lifecycle]
+  given: "Alice and Bob watch the same URL in separate Workflows, and Alice has a pending update."
+  when: "Alice tests a step, changes the watched URL, or deletes the run that owns its comparison state."
+  then: "Bob is unaffected. The step test changes no baseline; a changed URL initializes silently; deletion forgets the owned state and prevents a late pending write."

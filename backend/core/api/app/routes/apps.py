@@ -26,6 +26,14 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import (
     get_encryption_service,
 )
 from backend.shared.python_utils.provider_health import map_provider_name_to_id, is_provider_healthy
+from backend.shared.python_utils.anonymous_skill_policy import is_anonymous_inline_skill
+from backend.core.api.app.services.apps_workspace_metadata import (
+    execution_status,
+    primary_fields,
+    request_schema,
+    schema_defaults,
+)
+from backend.core.api.app.services.workflow_capability_registry import WorkflowCapabilityRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -491,6 +499,29 @@ class SkillMetadataItem(BaseModel):
     how_to_use: List[str] = Field(default_factory=list)
 
 
+class SkillDetailsResponse(BaseModel):
+    """Public Apps form contract. Contains no implementation or account data."""
+
+    app_id: str
+    skill_id: str
+    slug: str
+    name: str
+    name_translation_key: str
+    description: str
+    description_translation_key: str
+    icon_image: Optional[str] = None
+    input_schema: Dict[str, Any] = Field(default_factory=dict)
+    primary_fields: List[str] = Field(default_factory=list)
+    defaults: Dict[str, Any] = Field(default_factory=dict)
+    pricing: Optional[Dict[str, Any]] = None
+    providers: List[ProviderMetadataItem] = Field(default_factory=list)
+    models: List[ModelMetadataItem] = Field(default_factory=list)
+    anonymous_allowed: bool = False
+    execution_available: bool = False
+    unavailable_reason: Optional[str] = None
+    execution_mode: Optional[str] = None
+
+
 class FocusModeMetadataItem(BaseModel):
     """Focus mode metadata for API response.
     
@@ -926,6 +957,102 @@ async def get_apps_metadata(
     
     logger.info(f"Returning metadata for {len(apps_metadata)} apps")
     return AppMetadataResponse(apps=apps_metadata)
+
+
+@router.get("/{app_id}/skills/{skill_id}/details", response_model=SkillDetailsResponse)
+@limiter.limit("30/minute")
+async def get_skill_details(
+    request: Request,
+    app_id: str,
+    skill_id: str,
+    current_user: Optional[User] = Depends(get_current_user_optional),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+) -> SkillDetailsResponse:
+    """Public, rate-limited catalog metadata; execution uses existing auth/billing routes.
+
+    No owner data, request results, decrypted content, implementation paths or
+    provider credentials are read or returned by this endpoint.
+    """
+    app_metadata = (getattr(request.app.state, "discovered_apps_metadata", None) or {}).get(app_id)
+    if app_metadata is None or app_metadata.internal:
+        raise HTTPException(status_code=404, detail="Skill not found")
+    skill = next((item for item in app_metadata.skills if item.id == skill_id and not item.internal), None)
+    if skill is None:
+        raise HTTPException(status_code=404, detail="Skill not found")
+
+    cache_service = getattr(request.app.state, "cache_service", None)
+    secrets_manager = SecretsManager(cache_service=cache_service)
+    await secrets_manager.initialize()
+    if app_id == "mail" and skill_id == "search" and not await _is_protonmail_user_allowed(
+        current_user=current_user,
+        encryption_service=encryption_service,
+        secrets_manager=secrets_manager,
+    ):
+        raise HTTPException(status_code=404, detail="Skill not found")
+
+    config_manager = getattr(request.app.state, "config_manager", None)
+    provider_configs = config_manager.get_provider_configs() if isinstance(config_manager, ConfigManager) else {}
+    provider_ready = await is_skill_available(skill, app_id, secrets_manager, cache_service)
+    models = _skill_models(app_id=app_id, skill_id=skill_id, provider_configs=provider_configs)
+    if models:
+        skill_key = f"{app_id}.{skill_id}"
+        model_provider_configs = {
+            provider_id: config for provider_id, config in provider_configs.items()
+            if any(
+                isinstance(model, dict) and model.get("for_app_skill") == skill_key
+                for model in config.get("models", [])
+            )
+        }
+        available_provider_ids = await _available_provider_ids(
+            provider_configs=model_provider_configs, secrets_manager=secrets_manager,
+        )
+        if not _skill_models(
+            app_id=app_id, skill_id=skill_id, provider_configs=provider_configs,
+            available_provider_ids=available_provider_ids,
+        ):
+            provider_ready = False
+
+    registry = getattr(request.app.state, "skill_registry", None)
+    capability = WorkflowCapabilityRegistry(skill_registry=registry).get_capability(f"{app_id}.{skill_id}") if registry else None
+    executable, reason, mode = execution_status(
+        app_id=app_id, skill=skill, registry=registry, capability=capability,
+    )
+    if executable and not provider_ready:
+        executable, reason = False, "PROVIDER_UNAVAILABLE"
+    schema = request_schema(skill)
+    if executable and not schema:
+        executable, reason = False, "REQUEST_SCHEMA_UNAVAILABLE"
+
+    translation_service = getattr(request.app.state, "translation_service", None)
+    return SkillDetailsResponse(
+        app_id=app_id,
+        skill_id=skill_id,
+        slug=skill_id.replace("_", "-"),
+        name=resolve_translation(
+            translation_service, skill.name_translation_key, namespace="app_skills", fallback=skill_id,
+        ),
+        name_translation_key=skill.name_translation_key,
+        description=resolve_translation(
+            translation_service, skill.description_translation_key, namespace="app_skills", fallback="",
+        ),
+        description_translation_key=skill.description_translation_key,
+        icon_image=skill.icon_image,
+        input_schema=schema,
+        primary_fields=primary_fields(schema),
+        defaults=schema_defaults(schema),
+        pricing=_skill_pricing(skill=skill, app_id=app_id, provider_configs=provider_configs),
+        providers=[
+            _provider_metadata(
+                provider_name=provider.name, display_name=provider.display_name,
+                app_id=app_id, provider_configs=provider_configs,
+            ) for provider in (skill.providers or [])
+        ],
+        models=models,
+        anonymous_allowed=is_anonymous_inline_skill(app_id, skill),
+        execution_available=executable,
+        unavailable_reason=reason,
+        execution_mode=mode,
+    )
 
 
 @router.get("/{app_id}/metadata")

@@ -1,18 +1,23 @@
 // Debug-only, account-independent hosts for production Apple UI components.
-// Fixtures and all editable state live in this view tree; no chat store, auth
-// session, draft repository, upload service, or send pipeline is constructed.
+// Fixtures and all editable state live in this view tree; no auth session,
+// draft repository, upload service, or send pipeline is constructed. The
+// sub-chat fixture uses an isolated ChatStore without a persistence bridge.
 // Recreating the configuration identity resets local interactions predictably.
 // The bare canvas exposes its last local action through accessibility for tests.
 //
 // Web sources: frontend/packages/ui/src/components/enter_message/MessageInput.svelte
 //              frontend/packages/ui/src/components/ChatHeader.svelte
 //              frontend/packages/ui/src/components/ChatMessage.svelte
+//              frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
 //              frontend/packages/ui/src/components/embeds/web/WebSearchEmbedPreview.svelte
 //              frontend/packages/ui/src/components/embeds/web/WebSearchEmbedFullscreen.svelte
 // Exact bare comparison URLs are in DevPreviewComponentRegistry.
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.surface.semantic-parity
 
 #if DEBUG
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct DevComponentPreviewView: View {
     let configuration: DevPreviewLaunchConfiguration
@@ -41,7 +46,13 @@ struct DevComponentPreviewView: View {
         guard let component = configuration.component else { return "Select a component preview." }
         let allowedKeys: Set<String>
         switch component {
-        case .login, .signup, .history, .sidebar, .welcome, .followUpSuggestions: allowedKeys = []
+        case .login, .signup, .history, .sidebar, .welcome, .followUpSuggestions, .tasks, .projects: allowedKeys = []
+        case .notification, .sharedRecipient: allowedKeys = []
+        case .workflows:
+            allowedKeys = []
+            guard ["short-template", "home"].contains(configuration.variant) else {
+                return "The isolated Workflow host supports the short-template and home variants."
+            }
         case .composer: allowedKeys = ["text", "placeholder"]
         case .chatHeader: allowedKeys = ["title", "summary", "appId"]
         case .message: allowedKeys = configuration.variant.hasPrefix("streaming") ? [] : ["content", "thinkingContent"]
@@ -66,17 +77,29 @@ struct DevComponentPreviewView: View {
 private struct DevComponentPreviewCanvas: View {
     let configuration: DevPreviewLaunchConfiguration
     @State private var lastAction = "ready"
+    @StateObject private var notificationFixtureManager = ToastManager()
+    @State private var notificationDismissed = false
+    @Environment(\.accessibilityReduceMotion) private var notificationReduceMotion
     @State private var embedRoute: [EmbedRecord] = []
+    @State private var sourceQuoteTarget: SourceQuoteTarget?
     @State private var headerIndex = 0
     @State private var standaloneFullscreenMinimized = false
     @State private var standaloneParent: EmbedRecord?
     @State private var insertedFixtureResult = false
     @State private var removedSecondFixtureResult = false
+    @StateObject private var subChatFixtureStore = ChatStore()
+    @StateObject private var tasksFixtureStore = TasksWorkspaceStore()
+    @StateObject private var projectsFixtureStore = ProjectsWorkspaceStore()
+    @StateObject private var projectTasksFixtureStore = TasksWorkspaceStore()
+    @StateObject private var workflowFixtureStore = WorkflowStore()
+    @EnvironmentObject private var authManager: AuthManager
 
     private var skill: DevEmbedPreviewSkill {
         // This curated fixture is complete in memory. Other gallery families can
         // contain service-backed media/actions and require separate isolation.
-        DevEmbedPreviewFixtures.skills(for: configuration.variant == "actions-code" ? .code : .web)[0]
+        configuration.variant == "actions-code"
+            ? DevEmbedPreviewFixtures.skills(for: .code)[0]
+            : DevEmbedPreviewFixtures.isolatedEmbedSkill(variant: configuration.variant)
     }
 
     private var primaryEmbed: EmbedRecord {
@@ -121,7 +144,148 @@ private struct DevComponentPreviewCanvas: View {
     }
 
     private var fixtureRecords: [String: EmbedRecord] {
-        Dictionary((parentNavigationEmbeds + fixtureChildren).map { ($0.id, $0) }, uniquingKeysWith: { _, new in new })
+        if configuration.component == .message, configuration.variant.hasPrefix("quote-") {
+            return [quoteFixture.id: quoteFixture]
+        }
+        if configuration.component == .message, configuration.variant.hasPrefix("results-") {
+            return Dictionary(resultViewRecords.map { ($0.id, $0) }, uniquingKeysWith: { _, new in new })
+        }
+        return Dictionary((parentNavigationEmbeds + fixtureChildren).map { ($0.id, $0) }, uniquingKeysWith: { _, new in new })
+    }
+
+    private static let quoteExcerpt = "Svelte writes code that updates the DOM when state changes"
+    private var quoteFixture: EmbedRecord {
+        Self.makeQuoteFixture(longContext: configuration.variant == "quote-scroll")
+    }
+    private static func makeQuoteFixture(longContext: Bool) -> EmbedRecord {
+        EmbedRecord(
+        id: "preview-source-quote-website", type: "web-website", status: .finished,
+        data: .raw([
+            "url": AnyCodable("https://github.com/sveltejs/svelte"),
+            "title": AnyCodable("sveltejs/svelte: Cybernetically enhanced web apps"),
+            "description": AnyCodable("Svelte is a radical new approach to building user interfaces. Write less code, use no virtual DOM, and create truly reactive apps."),
+            "extra_snippets": AnyCodable(
+                (longContext
+                    ? (0..<12).map { "Synthetic source context paragraph \($0). This deliberately places the cited excerpt below the initial fullscreen viewport." }
+                    : ["Svelte shifts work from the browser to a compile step that happens when you build your app."])
+                + ["Instead of using techniques like virtual DOM diffing, \(quoteExcerpt)."]
+                + (longContext ? (0..<8).map { "Synthetic trailing source paragraph \($0). The excerpt above has enough following source content for a centered scroll target." } : [])
+            )
+        ]), parentEmbedId: nil, appId: "web", skillId: "website", embedIds: nil, createdAt: nil
+        )
+    }
+
+    private func berlinMapEvent(id: String, title: String, venue: String, latitude: Double,
+                                longitude: Double, time: String, price: Int, provider: String) -> EmbedRecord {
+        EmbedRecord(id: id, type: "event", status: .finished,
+                    data: .raw(["title": AnyCodable(title), "venue_name": AnyCodable(venue),
+                                "venue_address": AnyCodable("Berlin, Germany"),
+                                "venue_latitude": AnyCodable(latitude), "venue_longitude": AnyCodable(longitude),
+                                "date_start": AnyCodable("2026-09-30T\(time):00"),
+                                "event_type": AnyCodable("in_person"), "price": AnyCodable(price),
+                                "provider": AnyCodable(provider), "url": AnyCodable("https://example.com/events/\(id)")]),
+                    parentEmbedId: nil, appId: "events", skillId: "search", embedIds: nil, createdAt: nil)
+    }
+
+    private var resultViewRecords: [EmbedRecord] {
+        if configuration.variant == "results-berlin-map" {
+            // Public city landmarks, synthetic titles and dates; never geocode
+            // or request user location in this account-independent preview.
+            return [
+                berlinMapEvent(id: "preview-berlin-event-1", title: "Berlin AI Builders", venue: "Alexanderplatz",
+                               latitude: 52.5219, longitude: 13.4132, time: "18:00", price: 0, provider: "Community"),
+                berlinMapEvent(id: "preview-berlin-event-2", title: "Software Demo Evening", venue: "Brandenburg Gate",
+                               latitude: 52.5163, longitude: 13.3777, time: "19:00", price: 15, provider: "Community"),
+                berlinMapEvent(id: "preview-berlin-event-3", title: "AI Research Meetup", venue: "Museum Island",
+                               latitude: 52.5207, longitude: 13.4010, time: "20:00", price: 30, provider: "Research"),
+            ]
+        }
+        // Mirrors the five local connection children and source relationship in
+        // EmbedsMapView.preview.ts, using only fields the production renderers read.
+        let sourceId = "preview-results-flight-source"
+        let childIds = [
+            "c0328462-5112-4ef2-ac54-3e359f1b625e",
+            "3159a788-4f2e-4951-b165-dd9ef253cf8f",
+            "a79e18e2-a4a3-4331-aa8e-3792fda0d053",
+            "fde6eba7-280f-4672-aafb-834051fb14d8",
+            "220ff6a9-7ead-415a-9055-a84436b907d9",
+        ]
+        func connection(_ id: String, carrier: String, code: String, price: String,
+                        departure: String, arrival: String, duration: String,
+                        via: String, viaLatitude: Double, viaLongitude: Double,
+                        firstArrival: String, secondDeparture: String, layoverMinutes: Int) -> EmbedRecord {
+            let berlinLatitude = 52.362877, berlinLongitude = 13.503722
+            let bangkokLatitude = 13.6811, bangkokLongitude = 100.7472
+            let segments: [[String: Any]] = [
+                ["carrier": carrier, "carrier_code": code, "number": "\(code) 1",
+                 "departure_station": "BER", "departure_time": departure,
+                 "departure_latitude": berlinLatitude, "departure_longitude": berlinLongitude,
+                 "arrival_station": via, "arrival_time": firstArrival,
+                 "arrival_latitude": viaLatitude, "arrival_longitude": viaLongitude],
+                ["carrier": carrier, "carrier_code": code, "number": "\(code) 2",
+                 "departure_station": via, "departure_time": secondDeparture,
+                 "departure_latitude": viaLatitude, "departure_longitude": viaLongitude,
+                 "arrival_station": "BKK", "arrival_time": arrival,
+                 "arrival_latitude": bangkokLatitude, "arrival_longitude": bangkokLongitude],
+            ]
+            let layovers: [[String: Any]] = [["airport_code": via, "duration_minutes": layoverMinutes]]
+            let leg: [String: Any] = ["origin": "Berlin (BER)", "destination": "Bangkok (BKK)",
+                                      "departure": departure, "arrival": arrival,
+                                      "duration": duration, "stops": 1,
+                                      "segments": segments, "layovers": layovers]
+            let raw: [String: AnyCodable] = [
+                "type": AnyCodable("connection"), "transport_method": AnyCodable("airplane"),
+                "trip_type": AnyCodable("one_way"), "total_price": AnyCodable(price),
+                "currency": AnyCodable("EUR"), "legs": AnyCodable([leg]),
+                "origin": AnyCodable("Berlin (BER)"), "destination": AnyCodable("Bangkok (BKK)"),
+                "departure": AnyCodable(departure), "arrival": AnyCodable(arrival),
+                "duration": AnyCodable(duration), "stops": AnyCodable(1),
+                "carriers": AnyCodable(carrier), "carrier_codes": AnyCodable(code),
+            ]
+            // The web static embed type is `connection`; Apple routes the same
+            // child through its normalized `travel-connection` renderer key.
+            return EmbedRecord(id: id, type: "travel-connection", status: .finished,
+                               data: .raw(raw), parentEmbedId: sourceId, appId: "travel",
+                               skillId: "search_connections", embedIds: nil, createdAt: nil)
+        }
+        let source = EmbedRecord(
+            id: sourceId, type: "app_skill_use", status: .finished,
+            data: .raw(["type": AnyCodable("app_skill_use"), "app_id": AnyCodable("travel"),
+                        "skill_id": AnyCodable("search_connections"),
+                        "result_count": AnyCodable(5), "embed_ids": AnyCodable(childIds.joined(separator: "|"))]),
+            parentEmbedId: nil, appId: "travel", skillId: "search_connections",
+            embedIds: childIds.joined(separator: "|"), createdAt: nil
+        )
+        return [
+            source,
+            connection(childIds[0], carrier: "Qatar Airways", code: "QR", price: "636",
+                       departure: "2026-04-14 10:00", arrival: "2026-04-15 06:20", duration: "15h 20m",
+                       via: "DOH", viaLatitude: 25.272524, viaLongitude: 51.608604,
+                       firstArrival: "2026-04-14 17:05", secondDeparture: "2026-04-14 19:35", layoverMinutes: 150),
+            connection(childIds[1], carrier: "Qatar Airways", code: "QR", price: "636",
+                       departure: "2026-04-14 16:45", arrival: "2026-04-15 12:20", duration: "14h 35m",
+                       via: "DOH", viaLatitude: 25.272524, viaLongitude: 51.608604,
+                       firstArrival: "2026-04-14 23:40", secondDeparture: "2026-04-15 01:35", layoverMinutes: 115),
+            connection(childIds[2], carrier: "Air France", code: "AF", price: "715",
+                       departure: "2026-04-14 12:50", arrival: "2026-04-15 09:15", duration: "15h 25m",
+                       via: "CDG", viaLatitude: 49.012516, viaLongitude: 2.555752,
+                       firstArrival: "2026-04-14 14:40", secondDeparture: "2026-04-14 16:45", layoverMinutes: 125),
+            connection(childIds[3], carrier: "KLM", code: "KL", price: "725",
+                       departure: "2026-04-14 14:15", arrival: "2026-04-15 09:30", duration: "14h 15m",
+                       via: "AMS", viaLatitude: 52.308609, viaLongitude: 4.763889,
+                       firstArrival: "2026-04-14 15:35", secondDeparture: "2026-04-14 17:15", layoverMinutes: 100),
+            connection(childIds[4], carrier: "Turkish Airlines", code: "TK", price: "741",
+                       departure: "2026-04-14 10:40", arrival: "2026-04-15 05:05", duration: "13h 25m",
+                       via: "IST", viaLatitude: 41.270149, viaLongitude: 28.733362,
+                       firstArrival: "2026-04-14 14:40", secondDeparture: "2026-04-14 15:50", layoverMinutes: 70),
+            EmbedRecord(id: "preview-results-date-only", type: "event", status: .finished,
+                        data: .raw(["title": AnyCodable("Date-only event"), "date": AnyCodable("2026-09-20")]),
+                        parentEmbedId: nil, appId: "events", skillId: nil, embedIds: nil, createdAt: nil),
+            EmbedRecord(id: "preview-results-invalid", type: "event", status: .finished,
+                        data: .raw(["title": AnyCodable("Invalid entry"), "date": AnyCodable("2026-02-30"),
+                                    "lat": AnyCodable(100), "lon": AnyCodable(200)]),
+                        parentEmbedId: nil, appId: "events", skillId: nil, embedIds: nil, createdAt: nil),
+        ]
     }
 
     var body: some View {
@@ -159,8 +323,8 @@ private struct DevComponentPreviewCanvas: View {
                     .accessibilityElement()
                     .accessibilityLabel(lastAction)
                     .accessibilityIdentifier("dev-preview-local-action")
-                    .allowsHitTesting(false)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                    .allowsHitTesting(false)
             }
             .environment(\.openURL, OpenURLAction { _ in
                 lastAction = "external-link-intercepted"
@@ -175,6 +339,8 @@ private struct DevComponentPreviewCanvas: View {
     @ViewBuilder
     private func component(viewport: CGSize) -> some View {
         switch configuration.component {
+        case .sharedRecipient:
+            SharedChatRecipientView.preview(state: configuration.variant)
         case .sidebar:
             DevSidebarComponentFixture(variant: configuration.variant)
         case .history:
@@ -183,8 +349,26 @@ private struct DevComponentPreviewCanvas: View {
             DevWelcomeComponentFixture(empty: configuration.variant == "empty", onAction: { lastAction = $0 })
         case .login, .signup:
             DevAuthFormFixture(configuration: configuration)
+        case .composer where configuration.variant == "assistant-speech":
+            DevAssistantSpeechPreview()
+        case .composer where configuration.variant == "assistant-speech-public":
+            DevAssistantSpeechPreview(variant: "publicExample")
+        case .composer where configuration.variant == "chat-settings":
+            ChatSettingsView.preview()
+        case .composer where configuration.variant == "chat-settings-usage":
+            ChatSettingsView.preview(populatedUsage: true)
+        case .composer where configuration.variant == "chat-settings-plans":
+            ChatSettingsView.preview(allPlans: true)
+        case .composer where configuration.variant == "chat-settings-shared":
+            ChatSettingsView.preview(shared: true)
+        case .composer where configuration.variant == "chat-settings-public":
+            ChatSettingsView.preview(example: true)
+        case .composer where configuration.variant == "chat-settings-export-control":
+            DevNativeJSONExportControl()
         case .composer where configuration.variant == "model":
             DevComposerModelFixture()
+        case .composer where configuration.variant == "search-suggestions":
+            DevComposerSearchPreview()
         case .composer:
             DevComposerComponentFixture(configuration: configuration, onAction: { lastAction = $0 })
                 .padding(.horizontal, viewport.width > 730 ? 32 : 16)
@@ -201,9 +385,117 @@ private struct DevComponentPreviewCanvas: View {
             ) { suggestion in
                 lastAction = "quick-sent-\(suggestion)"
             }
+        case .tasks:
+            TasksWorkspaceView(store: tasksFixtureStore,
+                               showPlansOnly: configuration.variant == "plans",
+                               inspiration: DailyInspirationData(
+                                   inspirationId: configuration.variant == "plans" ? "hardcoded-plan-timeline" : "hardcoded-task-priorities",
+                                   text: configuration.variant == "plans"
+                                       ? AppStrings.plansInspirationTimeline : AppStrings.tasksInspirationPriorities,
+                                   title: configuration.variant == "plans"
+                                       ? AppStrings.plansInspirationTimelineTitle : AppStrings.tasksInspirationPrioritiesTitle,
+                                   category: "productivity"),
+                               onStartInspiration: { _ in lastAction = "tasks-inspiration-started" },
+                               onOpenProject: { lastAction = "opened-project-\($0)" },
+                               onOpenChat: { lastAction = "opened-chat-\($0)" })
+                .onAppear {
+                    tasksFixtureStore.installPreview()
+                    if configuration.variant == "supplementary-load-failure" {
+                        let failure = NSError(domain: "SyntheticTasksPreview", code: 1,
+                            userInfo: [NSLocalizedDescriptionKey: "Synthetic supplementary data is unavailable."])
+                        let generation = tasksFixtureStore.debugLoadGeneration
+                        tasksFixtureStore.debugApplyLoadFailure(failure, stage: "plans", generation: generation)
+                        tasksFixtureStore.debugApplyLoadFailure(failure, stage: "project_names", generation: generation)
+                    }
+                }
+        case .projects:
+            if configuration.variant == "sidebar" {
+                ProjectsSidebarView(store: projectsFixtureStore,
+                    onClose: { lastAction = "projects-sidebar-closed" },
+                    onOpenProject: { lastAction = "opened-project-\($0)" })
+                    .onAppear { projectsFixtureStore.installPreview(variant: "sidebar") }
+            } else {
+                ProjectsWorkspaceView(store: projectsFixtureStore,
+                    tasksStore: projectTasksFixtureStore,
+                    previewInitialTab: ["folders", "connectedSource", "localFolderSource",
+                        "multipleSources", "largeConnectedSource", "legacyConnectedSource"]
+                        .contains(configuration.variant) ? .files
+                        : configuration.variant == "tasks" ? .tasks : .overview,
+                    onOpenChat: { lastAction = "opened-chat-\($0)" },
+                    onOpenWorkflow: { lastAction = "opened-workflow-\($0)" },
+                    onOpenPlan: { lastAction = "opened-plan-\($0)" },
+                    onOpenTasks: { lastAction = "opened-tasks-\($0)" },
+                    onOpenEmbed: { lastAction = "opened-embed-\($0.id)" },
+                    onOpenSettings: { lastAction = "opened-settings-\($0)" },
+                    onReportIssue: { lastAction = "reported-project-\($0)" })
+                    .onAppear {
+                        projectsFixtureStore.installPreview(variant: configuration.variant)
+                        projectTasksFixtureStore.installPreview(projectID: "preview-project")
+                    }
+            }
+        case .notification:
+            if configuration.variant == "stack" {
+                ToastOverlay(manager: notificationFixtureManager)
+                    .task {
+                        notificationFixtureManager.show("First retained notice", duration: 0, title: "First notice")
+                        notificationFixtureManager.show("Reconnecting...", type: .connection, duration: 0,
+                            title: "Reconnecting...", isProcessing: true)
+                        notificationFixtureManager.show("Your settings have been updated successfully.",
+                            type: .success, duration: 0, title: "Changes saved")
+                    }
+            } else if !notificationDismissed {
+                InAppNotificationCard(
+                    title: configuration.variant == "connection" ? "Reconnecting..." : "Changes saved",
+                    message: configuration.variant == "connection" ? "Reconnecting..." : "Your settings have been updated successfully.",
+                    type: configuration.variant == "connection" ? .connection : .success,
+                    duration: configuration.variant == "progress" ? 10 : 0,
+                    isProcessing: configuration.variant == "connection", compact: viewport.width <= 450,
+                    onDismiss: { withAnimation { notificationDismissed = true } })
+                    .frame(width: min(430, max(0, viewport.width - (viewport.width <= 450 ? 20 : 40))))
+                    .transition(NotificationMotion.transition(reduceMotion: notificationReduceMotion))
+            }
+        case .workflows:
+            if configuration.variant == "home" {
+                WorkflowHomeView(store: workflowFixtureStore, authManager: authManager,
+                    authoring: workflowFixtureStore.authoring,
+                    onReportIssue: { lastAction = "workflow-report-issue" })
+                    .onAppear { workflowFixtureStore.showFixture("home") }
+            } else {
+                WorkflowShortTemplatePreviewHost()
+            }
         case .message:
             if configuration.variant.hasPrefix("streaming") {
                 DevProgressiveMessageFixture(variant: configuration.variant)
+            } else if configuration.variant == "sub-chat-batch" {
+                ScrollView {
+                    MessageBubble(message: message, chatId: message.chatId, appId: "finance",
+                                  embeds: [], allEmbedRecords: [:], streamingContent: nil,
+                                  thinkingContent: nil, isThinkingStreaming: false,
+                                  piiMappings: [], isPIIRevealed: false, containerWidth: viewport.width,
+                                  isSearchTarget: false, searchHighlightQuery: nil,
+                                  onEmbedTap: { _ in }, onOpenPublicChat: nil,
+                                  subChatStore: subChatFixtureStore,
+                                  onOpenSubChat: { lastAction = "opened-sub-chat-\($0)" },
+                                  onInteractiveQuestionSubmit: nil, onShowActions: nil)
+                        .padding(.spacing5)
+                }
+                .onAppear {
+                    subChatFixtureStore.performWithoutPersistence {
+                        subChatFixtureStore.upsertChats(Self.subChatFixtureChildren)
+                    }
+                }
+            } else if ["results-visual", "results-berlin-map"].contains(configuration.variant) {
+                // Match EmbedsMapView.preview.ts: show the virtual results node
+                // at the 390-point phone viewport without message-bubble chrome.
+                ScrollView {
+                    RichMarkdownView(content: message.content ?? "", isUserMessage: false,
+                                     allEmbedRecords: fixtureRecords,
+                                     onEmbedTap: { open($0) })
+                        .frame(width: min(652, max(0, (configuration.variant == "results-visual" ? min(viewport.width, 390) : viewport.width) - 64)))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.leading, 32)
+                        .padding(.top, 70)
+                }
             } else {
             ScrollView {
                 MessageBubble(message: message, chatId: message.chatId, appId: "code",
@@ -217,10 +509,21 @@ private struct DevComponentPreviewCanvas: View {
                               onInteractiveQuestionSubmit: { _ in lastAction = "question-submitted-locally" },
                               onShowActions: { lastAction = "message-actions-requested" })
                     .padding(.spacing5)
+                    .environment(\.sourceQuoteOpenAction, { embed, quote in
+                        open(embed)
+                        sourceQuoteTarget = SourceQuoteTarget(embedID: embed.id, text: quote)
+                    })
             }
             }
         case .embedPreview:
-            EmbedPreviewCard(embed: primaryEmbed, allEmbedRecords: fixtureRecords) { open(primaryEmbed) }
+            if configuration.variant == "search-group" {
+                ForEach(EmbedGrouper.groupForInlineDisplay(DevEmbedPreviewFixtures.isolatedSearchGroup)) { group in
+                    GroupedEmbedView(group: group) { open($0) }
+                }
+            } else {
+                EmbedPreviewCard(embed: primaryEmbed, allEmbedRecords: fixtureRecords,
+                                 variant: configuration.variant == "sheet-large" ? .large : .compact) { open(primaryEmbed) }
+            }
         case .embedFullscreen:
             if standaloneFullscreenMinimized {
                 EmbedPreviewCard(embed: primaryEmbed, allEmbedRecords: fixtureRecords) { open(primaryEmbed) }
@@ -277,15 +580,54 @@ private struct DevComponentPreviewCanvas: View {
 
     private var message: Message {
         let variant = configuration.variant
-        let role: MessageRole = variant == "default" || variant == "user" ? .user : .assistant
+        let role: MessageRole = variant == "default" || variant == "user" || variant == "mentions" ? .user : .assistant
         let defaultContent: String
         switch variant {
+        case "mentions":
+            defaultContent = "Use @focus:workflows:clarify_workflows with @skill:web:search and @mate:software_development. Route to @best-model:best or @ai-model:claude-sonnet-4-5:anthropic."
         case "default", "user":
             defaultContent = "Can you help me understand how Svelte 5 runes work? I want to migrate my app from Svelte 4."
         case "thinking":
             defaultContent = "Based on my analysis, the best approach would be to start by converting your reactive declarations first."
+        case "quote-open", "quote-scroll":
+            defaultContent = "> [\(Self.quoteExcerpt)](embed:\(quoteFixture.id))\n\n[Open source without quote](embed:\(quoteFixture.id))"
         case "citations":
             defaultContent = "Here are some places to start: [Berlin restaurants](embed:\(skill.childEmbeds[0].id)).\n\n[[embed:\(primaryEmbed.id)]]"
+        case "results-berlin-map":
+            defaultContent = """
+                ```embeds_results_view
+                title: Berlin AI Meetups
+                embeds: preview-berlin-event-1, preview-berlin-event-2, preview-berlin-event-3
+                ```
+                """
+        case "results-map", "results-visual":
+            defaultContent = """
+                ```embeds_results_view
+                title: Berlin to Bangkok flight options
+                sources: preview-results-flight-source
+                highlight: c0328462-5112-4ef2-ac54-3e359f1b625e
+                ```
+                """
+        case "sub-chat-batch":
+            defaultContent = """
+                ```json
+                {"type":"sub_chat_batch","batch_id":"preview-egg-batch","chat_id":"preview-chat","status":"finished","sub_chat_ids":["preview-egg-supply","preview-egg-costs","preview-egg-market"]}
+                ```
+                """
+        case "results-date-only":
+            defaultContent = """
+                ```embeds_results_view
+                title: Date only
+                embeds: preview-results-date-only
+                ```
+                """
+        case "results-invalid":
+            defaultContent = """
+                ```embeds_results_view
+                title: Unavailable results
+                embeds: missing-ref, preview-results-invalid
+                ```
+                """
         default:
             defaultContent = "Svelte 5 runes are a new reactivity system that replaces the old `$:` reactive declarations.\n\n- **$state()** — Declares reactive state variables\n- **$derived()** — Creates computed values that update automatically\n- **$effect()** — Runs side effects when dependencies change\n- **$props()** — Declares component props\n\nThe migration is incremental — your existing Svelte 4 code will continue to work in compatibility mode."
         }
@@ -300,6 +642,25 @@ private struct DevComponentPreviewCanvas: View {
                        thinkingContent: thinking)
     }
 
+    private static let subChatFixtureChildren: [Chat] = {
+        let created = "2026-07-09T12:00:15Z"
+        func child(_ id: String, title: String, summary: String) -> Chat {
+            Chat(id: id, title: title, lastMessageAt: created, createdAt: created,
+                 updatedAt: created, isArchived: false, isPinned: false, appId: "finance",
+                 category: "finance", icon: "dollar-sign", chatSummary: summary,
+                 encryptedTitle: nil, encryptedChatKey: nil,
+                 parentId: "preview-chat", isSubChat: true)
+        }
+        return [
+            child("preview-egg-supply", title: "Research US egg supply recover",
+                  summary: "Reviews avian-flu flock losses, slow repopulation timelines, and cage-free mandates as confirmed supply and regulatory cost drivers behind higher egg prices."),
+            child("preview-egg-costs", title: "Research alternative economic",
+                  summary: "Compares counterarguments around feed, labor, transport, and broad inflation, separating confirmed input-cost pressure from inferred explanations for sticky retail prices."),
+            child("preview-egg-market", title: "Research market concentration",
+                  summary: "Examines producer concentration, Cal-Maine margins, price-fixing allegations, and retailer markups to weigh confirmed profit data against inferred market-power claims."),
+        ]
+    }()
+
     private func fullscreen(_ active: EmbedRecord) -> some View {
         let resolvedActive = fixtureRecords[active.id] ?? active
         let siblings = EmbedGrouper.fullscreenNavigationEmbeds(
@@ -311,13 +672,15 @@ private struct DevComponentPreviewCanvas: View {
         return EmbedFullscreenContainer(embeds: siblings, initialEmbedId: active.id,
                                         allEmbedRecords: fixtureRecords, chatId: nil,
                                         onOpenEmbed: { child, parent in openChild(child, from: parent) },
-                                        onClose: closeEmbed)
+                                        onClose: closeEmbed,
+                                        highlightQuoteText: sourceQuoteTarget?.embedID == active.id ? sourceQuoteTarget?.text : nil)
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("dev-preview-embed-fullscreen")
             .accessibilityValue(active.id)
     }
 
     private func open(_ embed: EmbedRecord) {
+        sourceQuoteTarget = nil
         embedRoute.append(embed)
         lastAction = "opened-\(embed.id)"
     }
@@ -334,6 +697,7 @@ private struct DevComponentPreviewCanvas: View {
     }
 
     private func closeEmbed() {
+        sourceQuoteTarget = nil
         if !embedRoute.isEmpty {
             embedRoute.removeLast()
         } else {
@@ -349,6 +713,7 @@ private struct DevComposerComponentFixture: View {
     @StateObject private var session: NativeComposerSession
     @State private var focused: Bool
     @State private var fixtureError: String?
+    @StateObject private var focusModeManager = FocusModeManager()
     @State private var attachmentInstalled = false
     @State private var drawingOpen = false
     @State private var drawingFullscreen = false
@@ -393,6 +758,13 @@ private struct DevComposerComponentFixture: View {
                     submit: { MessageComposerSendButton(title: AppStrings.sendAction,
                         disabled: session.canonicalMarkdown.isEmpty, action: submit) })
             }
+            .overlay(alignment: .top) {
+                FocusModePill(focusModeManager: focusModeManager,
+                    onDeactivate: { _ in onAction("focus-deactivated") },
+                    onOpen: { _ in onAction("focus-settings-opened") })
+                    .offset(y: -30)
+            }
+            .padding(.top, configuration.variant == "focus" ? 15 : 0)
 
             if let fixtureError {
                 Text(fixtureError).accessibilityIdentifier("dev-preview-action-error")
@@ -400,6 +772,33 @@ private struct DevComposerComponentFixture: View {
         }
         .onAppear {
             if configuration.variant == "attachment" && !attachmentInstalled { addAttachment() }
+            if configuration.variant == "focus", let focus = FocusModeManager.FocusModeInfo.resolve("workflows-clarify_workflows") {
+                focusModeManager.activate(focus)
+            }
+            if configuration.variant == "recording-error" && !attachmentInstalled {
+                attachmentInstalled = true
+                let url = FileManager.default.temporaryDirectory.appendingPathComponent("audio-retry-preview-\(UUID().uuidString).m4a")
+                defer { try? FileManager.default.removeItem(at: url) }
+                do {
+                    guard VoiceRecorder.writeUITestRecording(to: url) else { throw CocoaError(.fileWriteUnknown) }
+                    let data = try Data(contentsOf: url)
+                    try session.insertPendingEmbed(nodeID: "preview-failed-recording", embedType: "recording",
+                        title: AppStrings.audioRecording, localPreviewData: data)
+                    try session.updateEmbed(nodeID: "preview-failed-recording", status: AppleComposerEmbedLifecycleState.error.rawValue)
+                    try session.configureEmbedActions(nodeID: "preview-failed-recording", onOpen: { _ in },
+                        onRetry: { _ in
+                            try? session.updateEmbed(nodeID: "preview-failed-recording", status: AppleComposerEmbedLifecycleState.finished.rawValue)
+                            onAction("audio-retry-finished")
+                        }, onRemove: { _ in onAction("audio-removed") })
+                } catch { fixtureError = String(describing: error) }
+            }
+            if configuration.variant == "mentions" && !attachmentInstalled {
+                attachmentInstalled = true
+                do {
+                    try session.controller.insertMention(.mention(id: "preview-focus-mention", mentionKind: "focus", targetId: "clarify_workflows", canonicalSyntax: "@focus:workflows:clarify_workflows", displayLabel: "Workflows-Clarify-Workflows"))
+                    session.publishControllerState()
+                } catch { fixtureError = String(describing: error) }
+            }
         }
     }
 
@@ -440,5 +839,41 @@ private struct DevComposerComponentFixture: View {
         focused = false
         onAction("submitted-locally")
     }
+}
+// A small system capability control isolates Simulator Files-provider failures
+// from the public MP3 download/export path. Uses no account or network data.
+private struct DevNativeJSONExportControl: View {
+    @State private var document: DevNativeJSONExportDocument?
+    @State private var presented = false
+    @State private var phase = "idle"
+    var body: some View {
+        Button(AppStrings.chatSettingsDownloadFiles) {
+            document = .init(data: Data("{\"fixture\":\"parity-export-control\"}".utf8))
+            phase = "presenting"; presented = true
+        }.buttonStyle(OMPrimaryButtonStyle()).accessibilityIdentifier("native-export-control-open")
+            .fileExporter(isPresented: $presented, document: document, contentType: .json, defaultFilename: "parity-export-control.json") { result in
+                switch result {
+                case .success(let url):
+                    let scoped = url.startAccessingSecurityScopedResource()
+                    defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+                    let attributes = try? FileManager.default.attributesOfItem(atPath: url.path)
+                    let bytes = (attributes?[.size] as? NSNumber)?.stringValue ?? "unavailable"
+                    phase = "saved=\(url.lastPathComponent);bytes=\(bytes)"
+                case .failure: phase = "finished"
+                }
+                document = nil
+            }
+            .accessibilityValue(phase)
+    }
+}
+private struct DevNativeJSONExportDocument: FileDocument {
+    static var readableContentTypes: [UTType] { [.json] }
+    let data: Data
+    init(data: Data) { self.data = data }
+    init(configuration: ReadConfiguration) throws {
+        guard let data = configuration.file.regularFileContents else { throw CocoaError(.fileReadCorruptFile) }
+        self.data = data
+    }
+    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper { FileWrapper(regularFileWithContents: data) }
 }
 #endif

@@ -1,4 +1,9 @@
 <!--
+  Native Swift counterparts:
+  - apple/OpenMates/Sources/Features/Chat/Input/ComposerSearchSuggestions.swift
+  - apple/OpenMates/Sources/App/MainAppView.swift
+  - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+
   ChatSearchSuggestions.svelte — Horizontal search result cards for open chats.
 
   When the user types in the message input while an existing chat is open,
@@ -14,11 +19,15 @@
   for icon/category resolution (authenticated only), and categoryUtils for gradient colors.
 -->
 <script lang="ts">
-  import { search as performSearch } from '../services/searchService';
+  import { search as performSearch, type EmbedSearchResult } from '../services/searchService';
+  import { searchSavedEmbedMemories, type SavedEmbedSuggestion } from '../services/embedSuggestionSearch';
   import { chatDB } from '../services/db';
   import { chatMetadataCache } from '../services/chatMetadataCache';
   import { getLucideIcon, getValidIconName, getFallbackIconForCategory, getCategoryGradientColors } from '../utils/categoryUtils';
+  import { getAppGradientBackground } from './activeChatUtils';
   import { authStore } from '../stores/authStore';
+  import { activeTeamId } from '../stores/teamStore';
+  import { appSettingsMemoriesStore } from '../stores/appSettingsMemoriesStore';
   import { text } from '@repo/ui';
   import { get } from 'svelte/store';
   import {
@@ -36,11 +45,13 @@
     messageInputContent = '',
     onChatNavigate,
     onFileSelect,
+    onEmbedSelect,
     currentChatId = undefined,
   }: {
     messageInputContent?: string;
     onChatNavigate: (chatId: string) => void;
     onFileSelect: (file: UploadedFileSearchResult) => void;
+    onEmbedSelect: (embedId: string, settingsPath?: string) => void;
     currentChatId?: string | undefined;
   } = $props();
 
@@ -55,6 +66,8 @@
 
   let chatSearchResults = $state<ChatResultCard[]>([]);
   let fileSearchResults = $state<UploadedFileSearchResult[]>([]);
+  let savedEmbedResults = $state<SavedEmbedSuggestion[]>([]);
+  let recentEmbedResults = $state<EmbedSearchResult[]>([]);
   let searchGeneration = 0;
   let activeSearchController: AbortController | null = null;
 
@@ -117,9 +130,17 @@
    */
   $effect(() => {
     const query = filterQuery;
+    savedEmbedResults = query && $authStore.isAuthenticated
+      ? searchSavedEmbedMemories($appSettingsMemoriesStore, query)
+      : [];
+  });
+
+  $effect(() => {
+    const query = filterQuery;
     if (!query) {
       chatSearchResults = [];
       fileSearchResults = [];
+      recentEmbedResults = [];
       return;
     }
 
@@ -129,6 +150,7 @@
     const { signal } = controller;
     const textFn = get(text);
     const isAuthenticated = $authStore.isAuthenticated;
+    const contextTeamId = $activeTeamId;
 
     (async () => {
       try {
@@ -140,13 +162,17 @@
           await chatDB.init();
           signal.throwIfAborted();
           const dbChats = await chatDB.getAllChats();
-          chatsToSearch = uniqueChatsById([...publicChats, ...dbChats]);
+          const visibleChats = dbChats.filter((chat) =>
+            !chat.is_hidden && !chat.is_hidden_candidate &&
+            (chat.team_id ?? null) === contextTeamId,
+          );
+          chatsToSearch = uniqueChatsById([...publicChats, ...visibleChats]);
         } else {
           chatsToSearch = publicChats;
         }
 
         const [results, fileResults] = await Promise.all([
-          performSearch(query, chatsToSearch, textFn, [], isAuthenticated, false, signal),
+          performSearch(query, chatsToSearch, textFn, [], isAuthenticated, false, signal, true),
           embedStore.searchUploadedFiles(query, undefined, signal),
         ]);
         // Stale guard — a newer search was triggered while this one ran
@@ -189,12 +215,15 @@
         if (signal.aborted || gen !== searchGeneration) return;
         chatSearchResults = processed;
         fileSearchResults = fileResults;
+        const savedIds = new Set(savedEmbedResults.map((entry) => entry.embedId));
+        recentEmbedResults = results.embeds.filter((entry) => !savedIds.has(entry.embedId));
       } catch (error) {
         if (signal.aborted || (error instanceof DOMException && error.name === 'AbortError')) return;
         console.error('[ChatSearchSuggestions] Chat search error:', error);
         if (gen === searchGeneration) {
           chatSearchResults = [];
           fileSearchResults = [];
+          recentEmbedResults = [];
         }
       }
     })();
@@ -202,12 +231,36 @@
   });
 </script>
 
-{#if chatSearchResults.length > 0 || fileSearchResults.length > 0}
+{#if chatSearchResults.length > 0 || fileSearchResults.length > 0 || savedEmbedResults.length > 0 || recentEmbedResults.length > 0}
   <div class="chat-search-wrapper" data-testid="chat-search-suggestions">
     <div class="chat-search-header">
-      {$text('chat.suggestions.related_chats')}
+      {$text('chats.search.results_label')}
     </div>
     <div class="chat-search-scroll">
+      {#each savedEmbedResults as embed (embed.embedId)}
+        <div class="chat-result-wrapper">
+          <button class="suggestion-card embed-result-card" data-testid="saved-embed-search-result" data-app-id={embed.appId} style:background={getAppGradientBackground(embed.appId)} onclick={() => onEmbedSelect(embed.embedId, embed.settingsPath)}>
+            <span class="card-icon"><Icon name={embed.appId} type="app" size="24px" noAnimation noMargin /></span>
+            <span class="card-text">{embed.title}</span>
+          </button>
+          <span class="card-date">{embed.subtitle || embed.appId}</span>
+        </div>
+      {/each}
+
+      {#each recentEmbedResults as embed (embed.embedId)}
+        <div class="chat-result-wrapper">
+          <button class="suggestion-card embed-result-card" data-testid="recent-embed-search-result" data-app-id={embed.appId || ''} style:background={getAppGradientBackground(embed.appId)} onclick={() => onEmbedSelect(embed.embedId)}>
+            <span class="card-icon"><Icon name={embed.appId || 'search'} type={embed.appId ? 'app' : 'skill'} size="24px" noAnimation noMargin /></span>
+            <span class="card-text">{embed.title}</span>
+          </button>
+          <span class="card-date">{embed.subtitle}</span>
+        </div>
+      {/each}
+
+      {#if (savedEmbedResults.length > 0 || recentEmbedResults.length > 0) && (fileSearchResults.length > 0 || chatSearchResults.length > 0)}
+        <div class="chat-results-divider"></div>
+      {/if}
+
       {#each fileSearchResults as fileResult (fileResult.embedId)}
         <div class="chat-result-wrapper">
           <button

@@ -1,6 +1,6 @@
 ---
 name: ios
-description: Start an iOS/macOS Apple app development or web-parity audit session — loads design rules, maps web sources to native code, supports Linux static audits, and verifies with Xcode when available
+description: Develop and verify iOS, macOS and Watch apps, audit web parity, or publish Apple changes to TestFlight.
 user-invocable: true
 argument-hint: "<task description>"
 ---
@@ -8,6 +8,11 @@ argument-hint: "<task description>"
 ## Instructions
 
 This skill sets up context for working on the Apple app (`apple/OpenMates/`). Use it for native Swift implementation, Apple/web parity audits, testability work, and Linux-side planning before Mac/Xcode verification is available.
+
+For release-only requests, reuse the assigned workspace and existing verification,
+then go directly to [TestFlight release](#testflight-release). The development
+and parity loops below apply when implementation or further verification is
+needed; they do not require restarting completed work before publishing it.
 
 For new shared features, app skills, focus modes, embeds, memory types, and
 provider-backed behavior, Apple parity is the last phase. Before changing Apple
@@ -116,6 +121,12 @@ local fixture actions. Compare to the user-confirmed rendered web preview at its
 exact `chrome=0` URL and matching viewport; registry metadata is not visual
 approval. Run the focused parser/UI tests and then verify the change in its real
 parent flow. Keep TestFlight delivery for testing outside Simulator.
+
+Register new fixture variants in the launch configuration before native tests.
+Use the rendered accessibility role when querying controls, wait for the expected
+state rather than existence alone, and measure the component canvas separately
+from the Simulator window. Clipping must also bound interaction and accessibility
+to the visible viewport; inspect screenshots alongside accessibility bounds.
 
 Streaming parity includes paragraph-by-paragraph updates, live embed references,
 the rendered web animation timing, and reduced motion. Exercise partial citation
@@ -247,22 +258,27 @@ When XcodeBuildMCP is unavailable but SSH to a trusted Mac is available:
 
 ### TestFlight release
 
-For a local release Mac, run `python3 scripts/apple_testflight_release.py` from
-the repository root. This is the deterministic entrypoint for the iOS archive
-with its embedded Watch companion and the separate universal macOS archive. It
-uses one marketing version and build number, validates source-bound resumable
-receipts, reuses an existing ExportOptions plist, uploads both platforms, and
-waits until App Store Connect reports both builds valid. Use `--dry-run
---build-number N` to inspect the bounded commands without writing or uploading.
+Read [the Apple release procedure](../../../docs/architecture/apple/testflight-release.md)
+for publication, signing preflight, constrained-Mac execution, retries and cleanup.
+Use `scripts/apple_testflight_release.py` for a local release Mac; use
+`scripts/apple_remote.py deploy-latest-testflight --branch dev` only for a
+configured remote release Mac. One owner runs native builds and uploads while
+other authorized work proceeds without competing Xcode or Simulator processes.
 
-Never accept an archive receipt whose source fingerprint differs from current
-source. Pass `--rebuild-stale-archives` to preserve stale archives under the
-release directory and rebuild them; the command does not delete archives,
-DerivedData, simulators, or installed apps. If App Store Connect API credentials
-are unavailable, pass an explicit build number. A signed-in Xcode account may
-upload, but `uploaded_processing_unverified` is not completion; run the exact
-`--verify-only` command printed by the script after configuring credentials.
-The Apple release path has no Vercel token dependency.
+Before expensive archives, reconcile the latest dev inputs and run the focused
+lint, test-annotation and signing-input checks described in the release guide.
+Use existing installed tools so a lint command does not unexpectedly install
+packages or run generators while release inputs are frozen.
 
-Use `scripts/apple_remote.py deploy-latest-testflight --branch dev` only when the
-release must run through the configured remote Mac.
+Reuse source-bound receipts and the existing ExportOptions plist. Keep the source
+frozen during archive/upload; preserve and rebuild stale archives only when the
+fingerprint changed. Upload acceptance and TestFlight availability are distinct:
+verify the intended version/build for both iOS and macOS through App Store Connect
+or the TestFlight UI, and validate the embedded Watch companion in the signed
+iOS archive. If API credentials are unavailable, a successful UI availability
+check suffices; report processing as unverified until there is that evidence.
+
+The Apple upload has no Vercel token dependency. Publish accompanying web changes
+through the normal scoped deploy helper on the user's approved dev-host route
+when the Mac lacks deployment credentials; do not request a new token before
+checking that existing route. Preserve deployment and signed-entitlement gates.

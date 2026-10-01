@@ -6,6 +6,9 @@
 // in encrypted fields. Spec: docs/specs/teams-v1/spec.yml
 
 import { getApiEndpoint } from "../config/api";
+import { WorkspaceQueryCache, getWorkspaceCacheIdentity } from "./workspaceQueryCache";
+import { getWorkspaceCacheEpoch, registerWorkspaceCacheClear } from "./workspaceCacheLifecycle";
+import { TEAMS_UPDATED_EVENT } from "../stores/teamStore";
 import {
   decryptChatKeyWithMasterKey,
   decryptWithEmbedKey,
@@ -65,6 +68,30 @@ export function isTeamAIInvocation(content: string): boolean {
 }
 
 const teamKeyCache = new Map<string, Uint8Array>();
+let teamKeyScope: string | null = null;
+const teamListCache = new WorkspaceQueryCache<TeamViewModel[]>({ ttlMs: 60_000, maxEntries: 1 });
+registerWorkspaceCacheClear(() => { teamKeyCache.clear(); teamKeyScope = null; });
+if (typeof window !== "undefined") {
+  window.addEventListener(TEAMS_UPDATED_EVENT, () => teamListCache.invalidate("teams"));
+}
+
+type TeamKeyScope = { identity: string | null; epoch: number };
+
+function ensureTeamKeyScope(): TeamKeyScope {
+  const identity = getWorkspaceCacheIdentity();
+  const epoch = getWorkspaceCacheEpoch();
+  if (identity !== teamKeyScope) {
+    teamKeyCache.clear();
+    teamKeyScope = identity;
+  }
+  return { identity, epoch };
+}
+
+function assertTeamKeyScope(scope: TeamKeyScope): void {
+  if (scope.epoch !== getWorkspaceCacheEpoch() || scope.identity !== getWorkspaceCacheIdentity()) {
+    throw new Error("Team request was cancelled because the account or key changed.");
+  }
+}
 
 function nowSeconds(): number {
   return Math.floor(Date.now() / 1000);
@@ -101,21 +128,25 @@ async function decryptOptional(value: string | null | undefined, key: Uint8Array
   return (await decryptWithEmbedKey(value, key)) ?? "";
 }
 
-async function teamKeyForRecord(record: TeamRecord): Promise<Uint8Array | null> {
+async function teamKeyForRecord(record: TeamRecord, scope: TeamKeyScope): Promise<Uint8Array | null> {
+  ensureTeamKeyScope();
+  assertTeamKeyScope(scope);
   const teamId = record.team_id;
   if (!teamId) return null;
   const cached = teamKeyCache.get(teamId);
   if (cached) return cached;
   if (!record.encrypted_team_key) return null;
   const teamKey = await decryptChatKeyWithMasterKey(record.encrypted_team_key);
+  assertTeamKeyScope(scope);
   if (!teamKey) return null;
-  teamKeyCache.set(teamId, teamKey);
+  if (scope.identity) teamKeyCache.set(teamId, teamKey);
   return teamKey;
 }
 
-async function decryptTeam(record: TeamRecord): Promise<TeamViewModel | null> {
+async function decryptTeam(record: TeamRecord, scope: TeamKeyScope): Promise<TeamViewModel | null> {
+  assertTeamKeyScope(scope);
   const teamId = record.team_id;
-  const teamKey = await teamKeyForRecord(record);
+  const teamKey = await teamKeyForRecord(record, scope);
   if (!teamId || !teamKey) return null;
   const profileText = await decryptOptional(record.encrypted_profile_image_metadata, teamKey);
   let profileImageMetadata = defaultProfileImageMetadata();
@@ -131,10 +162,13 @@ async function decryptTeam(record: TeamRecord): Promise<TeamViewModel | null> {
   }
   const zeroBalanceText = await decryptOptional(record.encrypted_zero_balance, teamKey);
   const zeroBalance = Number.parseInt(zeroBalanceText || "0", 10);
+  const name = await decryptOptional(record.encrypted_name, teamKey);
+  const description = await decryptOptional(record.encrypted_description, teamKey);
+  assertTeamKeyScope(scope);
   return {
     team_id: teamId,
-    name: await decryptOptional(record.encrypted_name, teamKey) || "Untitled team",
-    description: await decryptOptional(record.encrypted_description, teamKey),
+    name: name || "Untitled team",
+    description,
     role: record.role ?? "viewer",
     status: record.status ?? "active",
     profileImageMetadata,
@@ -146,23 +180,41 @@ async function decryptTeam(record: TeamRecord): Promise<TeamViewModel | null> {
 }
 
 export async function listTeams(): Promise<TeamViewModel[]> {
-  const data = await requestJson<{ teams: TeamRecord[] }>("/v1/teams");
-  const decrypted = await Promise.all((data.teams ?? []).map(decryptTeam));
-  return decrypted.filter((team): team is TeamViewModel => team !== null);
+  return teamListCache.load("teams", async () => {
+    const scope = ensureTeamKeyScope();
+    const data = await requestJson<{ teams: TeamRecord[] }>("/v1/teams");
+    assertTeamKeyScope(scope);
+    const decrypted = await Promise.all((data.teams ?? []).map(record => decryptTeam(record, scope)));
+    return decrypted.filter((team): team is TeamViewModel => team !== null);
+  });
+}
+
+export function subscribeTeamListRefresh(listener: () => void): () => void {
+  return teamListCache.subscribe(() => {
+    if (teamListCache.isFresh("teams")) listener();
+  });
 }
 
 export async function getTeam(teamId: string): Promise<TeamViewModel> {
+  const scope = ensureTeamKeyScope();
   const data = await requestJson<{ team: TeamRecord }>(`/v1/teams/${encodeURIComponent(teamId)}`);
-  const decrypted = await decryptTeam(data.team);
+  assertTeamKeyScope(scope);
+  const decrypted = await decryptTeam(data.team, scope);
+  assertTeamKeyScope(scope);
   if (!decrypted) throw new Error("Team could not be decrypted");
   return decrypted;
 }
 
 export async function getTeamKey(teamId: string): Promise<Uint8Array> {
+  const scope = ensureTeamKeyScope();
   const cached = teamKeyCache.get(teamId);
   if (cached) return cached;
-  await getTeam(teamId);
-  const teamKey = teamKeyCache.get(teamId);
+  const team = await getTeam(teamId);
+  assertTeamKeyScope(scope);
+  const teamKey = teamKeyCache.get(teamId) ?? (team.encrypted.encrypted_team_key
+    ? await decryptChatKeyWithMasterKey(team.encrypted.encrypted_team_key)
+    : null);
+  assertTeamKeyScope(scope);
   if (!teamKey) throw new Error(`Team key is unavailable for team ${teamId}`);
   return teamKey;
 }
@@ -192,6 +244,7 @@ export async function wrapTeamChatKey(
 }
 
 export async function createTeam(input: { name: string; description?: string | null }): Promise<TeamViewModel> {
+  const scope = ensureTeamKeyScope();
   const name = input.name.trim();
   if (!name) throw new Error("Team name is required");
   const teamKey = generateEmbedKey();
@@ -214,8 +267,9 @@ export async function createTeam(input: { name: string; description?: string | n
     body: JSON.stringify(payload),
   });
   const returnedTeam = data.team ?? {};
+  assertTeamKeyScope(scope);
   const createdTeamId = returnedTeam.team_id ?? teamId;
-  teamKeyCache.set(createdTeamId, teamKey);
+  if (scope.identity) teamKeyCache.set(createdTeamId, teamKey);
   const createdRecord: TeamRecord = {
     ...returnedTeam,
     team_id: createdTeamId,
@@ -228,8 +282,10 @@ export async function createTeam(input: { name: string; description?: string | n
     created_at: returnedTeam.created_at ?? payload.created_at,
     updated_at: returnedTeam.updated_at ?? payload.updated_at,
   };
-  const decrypted = await decryptTeam(createdRecord);
+  const decrypted = await decryptTeam(createdRecord, scope);
+  assertTeamKeyScope(scope);
   if (!decrypted) throw new Error("Created team could not be decrypted");
+  teamListCache.invalidate("teams");
   return decrypted;
 }
 

@@ -15,18 +15,39 @@
 //          frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/sheets/SheetEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/sheets/SheetEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/file/FileEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
 //          TypographyTokens.generated.swift, GradientTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
 // Specification: specifications/features/app-skills/code-run/specification.yml
 // Assertions: code-run.surface-parity
 
+// Specification: specifications/features/chat-share-settings/specification.yml
+// Assertions: chat-share-settings.shared-link-open
+import Combine
 import SwiftUI
 import WebKit
 import AVFoundation
+import ZIPFoundation
 #if os(iOS)
 import UIKit
+#elseif os(macOS)
+import AppKit
 #endif
+
+private struct EmbedSheetViewportHeightKey: EnvironmentKey {
+    static let defaultValue: CGFloat? = nil
+}
+
+extension EnvironmentValues {
+    /// Available fullscreen content height below the measured Sheet header.
+    /// Nil permits natural sizing for standalone content.
+    var embedSheetViewportHeight: CGFloat? {
+        get { self[EmbedSheetViewportHeightKey.self] }
+        set { self[EmbedSheetViewportHeightKey.self] = newValue }
+    }
+}
 
 struct AppleCodeEmbedContent: Equatable {
     let code: String
@@ -158,18 +179,150 @@ struct AppleCodeEmbedContent: Equatable {
     }
 }
 
-struct CodeEmbedRenderer: View {
+/// Generated application card and workspace shell. The preview uses the
+/// application manifest's file and entrypoint counts, matching the web card.
+struct ApplicationEmbedRenderer: View {
     let data: [String: AnyCodable]?
+    let mode: EmbedDisplayMode
+
+    private var fileRefs: [[String: Any]] { data?["file_refs"]?.value as? [[String: Any]] ?? [] }
+    private var entrypoints: [Any] { data?["entrypoints"]?.value as? [Any] ?? [] }
+    private var fileCount: Int { fileRefs.count }
+
+    var body: some View {
+        switch mode {
+        case .preview:
+            VStack(alignment: .leading, spacing: .spacing2) {
+                placeholder
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color.grey10, in: RoundedRectangle(cornerRadius: .radius3))
+                    .overlay(RoundedRectangle(cornerRadius: .radius3).stroke(Color.grey20))
+                HStack(spacing: .spacing2) {
+                    Text("\(fileCount) \(fileCount == 1 ? "file" : "files")")
+                    if !entrypoints.isEmpty {
+                        Text("\(entrypoints.count) \(entrypoints.count == 1 ? "entrypoint" : "entrypoints")")
+                    }
+                }
+                .font(.omXs)
+                .foregroundStyle(Color.fontSecondary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .accessibilityIdentifier("application-preview-details")
+
+        case .fullscreen:
+            VStack(alignment: .leading, spacing: .spacing4) {
+                VStack(spacing: .spacing3) {
+                    RoundedRectangle(cornerRadius: .radius3)
+                        .fill(Color.grey10)
+                        .frame(width: 180, height: 110)
+                    Text("Preview not started")
+                        .font(.omH4).fontWeight(.semibold)
+                        .foregroundStyle(Color.fontPrimary)
+                    Text("Start the preview to run this generated app in an isolated sandbox.")
+                        .font(.omSmall)
+                        .foregroundStyle(Color.fontSecondary)
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, .spacing8)
+
+                VStack(alignment: .leading, spacing: .spacing4) {
+                    VStack(alignment: .leading, spacing: .spacing1) {
+                        Text("Preview not started").font(.omSmall).fontWeight(.semibold)
+                        Text("IDLE").font(.omXs).foregroundStyle(Color.fontSecondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.spacing3)
+                    .background(Color.grey10, in: RoundedRectangle(cornerRadius: .radius3))
+
+                    Text("Logs").font(.omH4).fontWeight(.semibold)
+                    Text("Start the preview to run this generated app in an isolated sandbox.")
+                        .font(.omXs).foregroundStyle(Color.fontSecondary)
+                    Text("Files").font(.omH4).fontWeight(.semibold)
+                    ForEach(Array(fileRefs.enumerated()), id: \.offset) { _, file in
+                        VStack(alignment: .leading, spacing: .spacing1) {
+                            Text(file["path"] as? String ?? "File")
+                                .font(.omSmall).foregroundStyle(Color.fontPrimary)
+                            Text(file["role"] as? String ?? "source")
+                                .font(.omXs).foregroundStyle(Color.fontSecondary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.spacing2)
+                        .background(Color.grey10, in: RoundedRectangle(cornerRadius: .radius3))
+                    }
+                }
+                .padding(.spacing2)
+            }
+            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .accessibilityIdentifier("application-fullscreen-workspace")
+        }
+    }
+
+    private var placeholder: some View {
+        ZStack {
+            VStack(alignment: .leading, spacing: .spacing2) {
+                Capsule().fill(Color.grey30).frame(width: 34, height: 8)
+                Capsule().fill(Color.grey30).frame(maxWidth: .infinity).frame(height: 10)
+                Capsule().fill(Color.grey30).frame(width: 132, height: 10)
+                RoundedRectangle(cornerRadius: .radius3)
+                    .fill(Color.grey30.opacity(0.7))
+                    .frame(height: 54)
+            }
+            .padding(.spacing3)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+
+            Icon("play", size: 14)
+                .foregroundStyle(.white)
+                .frame(width: 42, height: 42)
+                .background(LinearGradient.appCode, in: Circle())
+                .shadow(color: .black.opacity(0.2), radius: 7, y: 4)
+        }
+        .clipped()
+        .accessibilityIdentifier("application-preview-screenshot")
+    }
+}
+
+/// Lazily subscribes to owner outputs only when the renderer has owner context.
+@MainActor
+private final class CodeEmbedOwnerOutputs: ObservableObject {
+    private var store: CodeRunOutputStore?
+    private var observation: AnyCancellable?
+
+    func hydrate(chatId: String, embedId: String, embed: EmbedRecord?) async {
+        if store == nil {
+            let ownerStore = CodeRunOutputStore.shared
+            store = ownerStore
+            observation = ownerStore.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
+            objectWillChange.send()
+        }
+        await store?.hydrate(chatId: chatId, embedId: embedId, embed: embed)
+    }
+
+    func output(chatId: String, embedId: String) -> CodeRunOutput? {
+        store?.output(chatId: chatId, embedId: embedId)
+    }
+}
+
+struct CodeEmbedRenderer: View {
+    @Environment(\.recipientMediaContext) private var recipientMediaContext
+    let data: [String: AnyCodable]?
+    let embed: EmbedRecord?
     let embedId: String
     let chatId: String?
     let mode: EmbedDisplayMode
+    var hasPIIMappings = false
+    var piiMappings: [PIIMapping] = []
+    var isPIIRevealed = false
+    var onTogglePII: () -> Void = {}
     var previewActive = false
     var codeRunViewModel: CodeRunViewModel?
     var isLargePreview = false
+    @StateObject private var savedOutputs = CodeEmbedOwnerOutputs()
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     private var content: AppleCodeEmbedContent { AppleCodeEmbedContent(data: data) }
     private var code: String { content.code }
+    private var displayCode: String { EmbedPIIText.render(code, mappings: piiMappings, revealed: isPIIRevealed) }
     private var language: String { content.language }
     private var filename: String? { content.filename }
     private var lineCount: Int { content.lineCount }
@@ -178,7 +331,17 @@ struct CodeEmbedRenderer: View {
         switch mode {
         case .preview:
             VStack(alignment: .leading, spacing: 0) {
-                if code.isEmpty {
+                if let savedOutputPreview {
+                    Text(savedOutputPreview)
+                        .font(.omTiny.monospaced())
+                        .foregroundStyle(Color.grey10)
+                        .lineLimit(isLargePreview ? 18 : 8)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                        .padding(.spacing4)
+                        .background(Color.grey100)
+                        .clipShape(RoundedRectangle(cornerRadius: .radius3))
+                        .accessibilityIdentifier("code-run-output-preview")
+                } else if code.isEmpty {
                     VStack(spacing: .spacing4) {
                         Circle()
                             .fill(LinearGradient.primary)
@@ -202,10 +365,20 @@ struct CodeEmbedRenderer: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .accessibilityIdentifier(code.isEmpty ? "code-embed-processing" : "code-embed-source-preview")
+            .accessibilityIdentifier(savedOutputPreview != nil ? "code-run-output-preview" : (code.isEmpty ? "code-embed-processing" : "code-embed-source-preview"))
+            .task(id: embedId) {
+                guard recipientMediaContext == nil, let chatId, !chatId.isEmpty else { return }
+                #if DEBUG
+                if chatId == "dev-embed-preview-chat" { return }
+                #endif
+                await savedOutputs.hydrate(chatId: chatId, embedId: embedId, embed: embed)
+            }
 
         case .fullscreen:
             VStack(spacing: 0) {
+                if hasPIIMappings {
+                    EmbedPIIToggle(isRevealed: isPIIRevealed, action: onTogglePII)
+                }
                 if previewActive {
                     GeometryReader { proxy in
                         HStack(spacing: 1) {
@@ -225,21 +398,29 @@ struct CodeEmbedRenderer: View {
                     ZStack(alignment: .top) {
                         codeSourcePanel(isSplit: false)
 
-                        if let codeRunViewModel, codeRunViewModel.isPanelOpen {
-                            CodeRunTerminalView(
+                        if let codeRunViewModel {
+                            CodeRunPanelOverlay(
                                 viewModel: codeRunViewModel,
-                                chatId: chatId,
-                                embedId: embedId,
-                                file: runClientFile,
-                                onViewCode: { codeRunViewModel.closePanel() }
+                                content: CodeRunTerminalView(
+                                    viewModel: codeRunViewModel,
+                                    savedOutput: savedRunOutput,
+                                    chatId: chatId,
+                                    embedId: embedId,
+                                    file: runClientFile,
+                                    onViewCode: { codeRunViewModel.closePanel() }
+                                )
+                                .padding(.top, .spacing8)
+                                .padding(.horizontal, horizontalSizeClass == .compact ? .spacing4 : .spacing10)
                             )
-                            .padding(.top, .spacing8)
-                            .padding(.horizontal, horizontalSizeClass == .compact ? .spacing4 : .spacing10)
                         }
                     }
                 }
             }
             .background(Color.grey10)
+            .task(id: embedId) {
+                guard recipientMediaContext == nil, let chatId, !chatId.isEmpty else { return }
+                await savedOutputs.hydrate(chatId: chatId, embedId: embedId, embed: embed)
+            }
         }
     }
 
@@ -251,7 +432,7 @@ struct CodeEmbedRenderer: View {
     private func codeSourcePanel(isSplit: Bool) -> some View {
         ScrollView([.horizontal, .vertical], showsIndicators: true) {
             CodeLinesView(
-                code: code,
+                code: displayCode,
                 language: language,
                 showsLineNumbers: true,
                 fontSize: isSplit ? 13 : 15,
@@ -269,11 +450,13 @@ struct CodeEmbedRenderer: View {
     @ViewBuilder
     private var outputPanel: some View {
         if previewActive, isPreviewable {
-            CodePreviewPane(code: code, language: language, filename: filename)
+            CodePreviewPane(code: displayCode, language: language, filename: filename)
                 .frame(minHeight: 420)
                 .clipShape(RoundedRectangle(cornerRadius: .radius4))
         } else if let codeRunViewModel {
-            CodeRunTerminalView(viewModel: codeRunViewModel, chatId: chatId, embedId: embedId, file: runClientFile, onViewCode: { codeRunViewModel.closePanel() })
+            CodeRunTerminalView(viewModel: codeRunViewModel, savedOutput: savedRunOutput,
+                                chatId: chatId, embedId: embedId, file: runClientFile,
+                                onViewCode: { codeRunViewModel.closePanel() })
                 .frame(minHeight: 420)
         } else {
             EmptyView()
@@ -281,7 +464,7 @@ struct CodeEmbedRenderer: View {
     }
 
     private var runClientFile: CodeRunClientFile {
-        CodeRunClientFile(embedId: embedId, code: code, language: language, filename: filename, isTarget: true)
+        CodeRunClientFile(embedId: embedId, code: displayCode, language: language, filename: filename, isTarget: true)
     }
 
     private var isPreviewable: Bool {
@@ -295,7 +478,18 @@ struct CodeEmbedRenderer: View {
     }
 
     private var previewCode: String {
-        code.components(separatedBy: "\n").prefix(isLargePreview ? 21 : 8).joined(separator: "\n")
+        displayCode.components(separatedBy: "\n").prefix(isLargePreview ? 21 : 8).joined(separator: "\n")
+    }
+
+    private var savedOutputPreview: String? {
+        guard recipientMediaContext == nil, let chatId,
+              let output = savedOutputs.output(chatId: chatId, embedId: embedId)?.output else { return nil }
+        return CodeRunPreviewText.lastLines(output, limit: isLargePreview ? 18 : 8)
+    }
+
+    private var savedRunOutput: CodeRunOutput? {
+        guard recipientMediaContext == nil, let chatId else { return nil }
+        return savedOutputs.output(chatId: chatId, embedId: embedId)
     }
 
     private var codeInfoText: String {
@@ -317,9 +511,69 @@ struct CodeEmbedRenderer: View {
     }
 }
 
+private struct CodeRunPanelOverlay<Content: View>: View {
+    @ObservedObject var viewModel: CodeRunViewModel
+    let content: Content
+
+    var body: some View {
+        if viewModel.isPanelOpen {
+            content
+        }
+    }
+}
+
+enum CodeRunPreviewText {
+    static func lastLines(_ output: String, limit: Int) -> String? {
+        var lines = output.components(separatedBy: "\n")
+        while lines.last == "" { lines.removeLast() }
+        let result = lines.suffix(max(limit, 0)).joined(separator: "\n")
+        return result.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : result
+    }
+}
+
+enum EmbedPIIText {
+    static func render(_ text: String, mappings: [PIIMapping], revealed: Bool) -> String {
+        guard !mappings.isEmpty else { return text }
+        if revealed { return PIIDetector.restorePII(in: text, mappings: mappings) }
+        var hidden = text
+        for mapping in mappings.sorted(by: { $0.original.count > $1.original.count }) where !mapping.original.isEmpty {
+            hidden = hidden.replacingOccurrences(of: mapping.original, with: mapping.placeholder)
+        }
+        return hidden
+    }
+}
+
+private struct EmbedPIIToggle: View {
+    let isRevealed: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: .spacing3) {
+                Icon(isRevealed ? "hidden" : "visible", size: 16)
+                Text(isRevealed ? AppStrings.piiHide : AppStrings.piiShow)
+                    .font(.omXs.weight(.semibold))
+            }
+            .foregroundStyle(Color.fontPrimary)
+            .padding(.horizontal, .spacing5)
+            .padding(.vertical, .spacing3)
+            .background(Color.grey10)
+            .clipShape(RoundedRectangle(cornerRadius: .radius3))
+        }
+        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.spacing4)
+        .background(Color.grey0)
+        .accessibilityLabel(isRevealed ? AppStrings.piiHide : AppStrings.piiShow)
+        .accessibilityValue(isRevealed ? "true" : "false")
+        .accessibilityIdentifier("embed-pii-toggle")
+    }
+}
+
 // MARK: - Generated audio
 
 struct GeneratedAudioEmbedRenderer: View {
+    @Environment(\.recipientMediaContext) private var recipientMediaContext
     let data: [String: AnyCodable]?
     let status: EmbedStatus
     let skillId: String
@@ -473,6 +727,7 @@ struct GeneratedAudioEmbedRenderer: View {
     }
 
     private func togglePlayback() {
+        do { try recipientMediaContext?.checkCurrent() } catch { return }
         if let player {
             if player.isPlaying { player.pause() } else { player.play() }
             isPlaying = player.isPlaying
@@ -483,12 +738,14 @@ struct GeneratedAudioEmbedRenderer: View {
         loadFailed = false
         Task {
             do {
-                let bytes = try await payload.loadAudio()
+                let bytes = try await payload.loadAudio(recipientMediaContext: recipientMediaContext)
                 #if os(iOS)
                 try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
                 try AVAudioSession.sharedInstance().setActive(true)
                 #endif
+                try recipientMediaContext?.checkCurrent()
                 let audioPlayer = try AVAudioPlayer(data: bytes)
+                try recipientMediaContext?.track(audioPlayer)
                 audioPlayer.prepareToPlay()
                 audioPlayer.play()
                 player = audioPlayer
@@ -545,18 +802,20 @@ private struct GeneratedAudioEmbedPayload {
     }
     var hasPlayableMedia: Bool { directURL != nil || (s3Key != nil && aesKey != nil) }
 
-    func loadAudio() async throws -> Data {
+    @MainActor func loadAudio(recipientMediaContext: RecipientMediaContext? = nil) async throws -> Data {
         if let directURL {
             if directURL.hasPrefix("data:"), let comma = directURL.firstIndex(of: ",") {
                 let encoded = String(directURL[directURL.index(after: comma)...])
                 guard let data = Data(base64Encoded: encoded) else { throw URLError(.cannotDecodeContentData) }
+                try recipientMediaContext?.checkCurrent()
+                if recipientMediaContext != nil, data.count > RecipientMediaTransport.maximumMediaBytes { throw URLError(.dataLengthExceedsMaximum) }
                 return data
             }
             guard let url = URL(string: directURL) else { throw URLError(.badURL) }
-            return try await URLSession.shared.data(from: url).0
+            return try await RecipientMediaContext.download(context: recipientMediaContext, url: url)
         }
         guard let s3Key, let aesKey else { throw URLError(.badURL) }
-        return try await S3MediaClient.shared.fetchAndDecrypt(
+        return try await RecipientMediaContext.fetchAndDecrypt(context: recipientMediaContext,
             s3Url: s3BaseURL ?? "",
             aesKeyHex: aesKey,
             aesNonceHex: aesNonce,
@@ -626,7 +885,15 @@ struct NotebookEmbedRenderer: View {
             .accessibilityIdentifier("notebook-preview")
 
         case .fullscreen:
-            LazyVStack(alignment: .leading, spacing: .spacing6) {
+            if payload.cells.isEmpty {
+                Text(AppStrings.localized("embeds.notebook_empty"))
+                    .font(.omP)
+                    .foregroundStyle(Color.fontSecondary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.top, .spacing8)
+                    .accessibilityIdentifier("notebook-fullscreen")
+            } else {
+                LazyVStack(alignment: .leading, spacing: .spacing6) {
                 HStack(spacing: .spacing3) {
                     Icon("coding", size: 24)
                         .foregroundStyle(LinearGradient.appCode)
@@ -641,20 +908,15 @@ struct NotebookEmbedRenderer: View {
                     }
                 }
 
-                if payload.cells.isEmpty {
-                    Text(AppStrings.localized("embeds.notebook_empty"))
-                        .font(.omP)
-                        .foregroundStyle(Color.fontSecondary)
-                } else {
                     ForEach(payload.cells) { cell in
                         notebookCell(cell, compact: false)
                     }
                 }
+                .padding(.spacing8)
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("notebook-fullscreen")
             }
-            .padding(.spacing8)
-            .frame(maxWidth: .infinity, alignment: .topLeading)
-            .accessibilityElement(children: .contain)
-            .accessibilityIdentifier("notebook-fullscreen")
         }
     }
 
@@ -809,50 +1071,69 @@ private struct NotebookEmbedPayload {
 struct FileEmbedRenderer: View {
     let data: [String: AnyCodable]?
     let mode: EmbedDisplayMode
-    @Environment(\.openURL) private var openURL
-
+    let status: EmbedStatus
     private var payload: FileEmbedPayload { FileEmbedPayload(data) }
 
     var body: some View {
         switch mode {
         case .preview:
-            VStack(spacing: .spacing4) {
-                Icon("files", size: 46)
-                    .foregroundStyle(LinearGradient.primary)
-                Text(payload.filename)
-                    .font(.omP)
-                    .fontWeight(.bold)
-                    .foregroundStyle(Color.fontPrimary)
-                    .lineLimit(1)
-                if !payload.metadata.isEmpty {
-                    Text(payload.metadata)
-                        .font(.omXs)
-                        .foregroundStyle(Color.fontSecondary)
-                        .lineLimit(1)
+            Group {
+                if status == .processing {
+                    Text(AppStrings.localized("apps.file"))
+                        .font(.omP.weight(.semibold))
+                        .foregroundStyle(Color.fontPrimary)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    VStack(spacing: .spacing4) {
+                        Icon("files", size: 46)
+                            .foregroundStyle(LinearGradient.appFiles)
+                        Text(payload.filename)
+                            .font(.omP)
+                            .fontWeight(.bold)
+                            .foregroundStyle(Color.fontPrimary)
+                            .lineLimit(1)
+                        if !payload.metadata.isEmpty {
+                            Text(payload.metadata)
+                                .font(.omXs)
+                                .foregroundStyle(Color.fontSecondary)
+                                .lineLimit(1)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("file-embed-preview")
 
         case .fullscreen:
-            ViewThatFits(in: .horizontal) {
-                HStack(alignment: .center, spacing: .spacing12) { fileIcon; fileDetails }
-                VStack(alignment: .leading, spacing: .spacing8) { fileIcon; fileDetails }
+            // The rendered web card remains a row on phones: its source
+            // container query currently has no named ancestor to activate it.
+            HStack(alignment: .center, spacing: .spacing12) {
+                fileIcon
+                fileDetails
             }
-            .padding(.spacing12)
-            .frame(maxWidth: 704, alignment: .leading)
+            .padding(.spacing16)
+            .frame(maxWidth: 748, alignment: .leading)
             .background(Color.grey10)
             .clipShape(RoundedRectangle(cornerRadius: .radius8))
             .overlay { RoundedRectangle(cornerRadius: .radius8).stroke(Color.grey25, lineWidth: 1) }
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("file-embed-fullscreen")
+            .padding(.horizontal, .spacing8)
+            .padding(.vertical, .spacing16)
+            .frame(maxWidth: .infinity)
         }
     }
 
     private var fileIcon: some View {
-        Icon("files", size: mode == .preview ? 46 : 64)
-            .foregroundStyle(LinearGradient.primary)
+        // FileEmbedFullscreen's raw .icon.files span currently has no mask.
+        // Reproduce its rendered grey fallback block rather than an SVG glyph.
+        RoundedRectangle(cornerRadius: .radius6)
+            .fill(LinearGradient(stops: [
+                .init(color: Color.grey20, location: 0.0904),
+                .init(color: Color.grey30, location: 0.9006)
+            ], startPoint: .topLeading, endPoint: .bottomTrailing))
+            .frame(width: 68, height: 68)
             .accessibilityHidden(true)
     }
 
@@ -866,15 +1147,7 @@ struct FileEmbedRenderer: View {
             Text(payload.metadata)
                 .font(.omSmall)
                 .foregroundStyle(Color.fontSecondary)
-            if let downloadURL = payload.availableDownloadURL {
-                Button {
-                    openURL(downloadURL)
-                } label: {
-                    Label(AppStrings.download, systemImage: "arrow.down.circle.fill")
-                }
-                .buttonStyle(OMSecondaryButtonStyle())
-                .accessibilityIdentifier("file-download-button")
-            } else {
+            if payload.availableDownloadURL == nil {
                 Text(AppStrings.localized("app_skills.code.run.download_unavailable"))
                     .font(.omSmall)
                     .foregroundStyle(Color.warning)
@@ -885,7 +1158,7 @@ struct FileEmbedRenderer: View {
     }
 }
 
-private struct FileEmbedPayload {
+struct FileEmbedPayload {
     let path: String
     let filename: String
     let mimeType: String
@@ -910,9 +1183,13 @@ private struct FileEmbedPayload {
     }
 
     var availableDownloadURL: URL? {
+        availableDownloadURL(at: Date().timeIntervalSince1970)
+    }
+
+    func availableDownloadURL(at now: TimeInterval) -> URL? {
         guard let downloadURL else { return nil }
-        guard let downloadExpiresAt else { return downloadURL }
-        return downloadExpiresAt > Date().timeIntervalSince1970 ? downloadURL : nil
+        guard let downloadExpiresAt, downloadExpiresAt != 0 else { return downloadURL }
+        return downloadExpiresAt > now ? downloadURL : nil
     }
 
     private static func string(_ data: [String: AnyCodable]?, keys: [String]) -> String? {
@@ -931,12 +1208,15 @@ private struct FileEmbedPayload {
     }
 
     private static func formatBytes(_ count: Int64) -> String {
-        ByteCountFormatter.string(fromByteCount: count, countStyle: .file)
+        if count < 1024 { return "\(count) B" }
+        if count < 1_048_576 { return String(format: "%.1f KB", locale: Locale(identifier: "en_US_POSIX"), Double(count) / 1024) }
+        return String(format: "%.1f MB", locale: Locale(identifier: "en_US_POSIX"), Double(count) / 1_048_576)
     }
 }
 
 private struct CodeRunTerminalView: View {
     @ObservedObject var viewModel: CodeRunViewModel
+    let savedOutput: CodeRunOutput?
     let chatId: String?
     let embedId: String
     let file: CodeRunClientFile
@@ -947,12 +1227,14 @@ private struct CodeRunTerminalView: View {
             viewCodeButton
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    ForEach(viewModel.events) { event in
+                    ForEach(displayEvents) { event in
                         Text(event.text)
                             .font(.system(size: 15, weight: .bold, design: .monospaced))
                             .foregroundStyle(color(for: event.kind))
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .textSelection(.enabled)
+                            .accessibilityIdentifier("code-run-output-text")
+                            .accessibilityLabel(event.text)
                     }
                 }
                 .padding(.vertical, .spacing4)
@@ -970,7 +1252,12 @@ private struct CodeRunTerminalView: View {
         .background(Color(hex: 0x242424))
         .clipShape(RoundedRectangle(cornerRadius: 32))
         .shadow(color: .black.opacity(0.28), radius: 24, x: 0, y: 14)
-        .accessibilityIdentifier("code-run-terminal")
+        .overlay(alignment: .topLeading) {
+            Color.clear.frame(width: 1, height: 1)
+                .accessibilityElement()
+                .accessibilityIdentifier("code-run-terminal")
+                .allowsHitTesting(false)
+        }
     }
 
     private var viewCodeButton: some View {
@@ -994,6 +1281,29 @@ private struct CodeRunTerminalView: View {
         return viewModel.files.isEmpty ? viewModel.status.rawValue : "\(viewModel.status.rawValue) · \(fileText)"
     }
 
+    private var displayEvents: [CodeRunEvent] {
+        if viewModel.status != .idle || !viewModel.events.isEmpty { return viewModel.events }
+        if let savedOutput, !savedOutput.events.isEmpty { return savedOutput.events }
+        guard let output = savedOutput?.output, !output.isEmpty else { return [] }
+        return [CodeRunEvent(kind: .stdout, text: output, timestamp: savedOutput?.savedAt ?? 0)]
+    }
+
+    private var copyableOutput: String {
+        if viewModel.status != .idle || !viewModel.events.isEmpty { return viewModel.programOutputText }
+        return savedOutput?.output ?? ""
+    }
+
+    private func copyOutput() {
+        guard !copyableOutput.isEmpty else { return }
+        #if os(iOS)
+        UIPasteboard.general.string = copyableOutput
+        #elseif os(macOS)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(copyableOutput, forType: .string)
+        #endif
+        ToastManager.shared.show(AppStrings.codeRunOutputCopied, type: .success)
+    }
+
     private var terminalActions: some View {
         VStack(alignment: .leading, spacing: .spacing2) {
             if viewModel.isActive {
@@ -1002,17 +1312,18 @@ private struct CodeRunTerminalView: View {
                 }
             }
             terminalAction(AppStrings.codeRunAskFollowup, disabled: true) {}
-            terminalAction(AppStrings.codeRunCopyOutput, disabled: viewModel.programOutputText.isEmpty) {
-                viewModel.copyOutput()
+            terminalAction(AppStrings.codeRunCopyOutput, disabled: copyableOutput.isEmpty,
+                           identifier: "code-run-copy-output") {
+                copyOutput()
             }
             terminalAction(AppStrings.codeRunAgain, disabled: viewModel.isActive) {
                 Task { await viewModel.start(chatId: chatId, embedId: embedId, file: file) }
             }
         }
-        .accessibilityIdentifier("code-run-terminal-actions")
     }
 
-    private func terminalAction(_ title: String, disabled: Bool, action: @escaping () -> Void) -> some View {
+    private func terminalAction(_ title: String, disabled: Bool,
+                                identifier: String? = nil, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text("> \(title)")
                 .font(.system(size: 15, weight: .bold, design: .monospaced))
@@ -1022,6 +1333,7 @@ private struct CodeRunTerminalView: View {
         .disabled(disabled)
         .help(Text(title))
         .accessibilityLabel(title)
+        .accessibilityIdentifier(identifier ?? title)
     }
 
     private func color(for kind: CodeRunEvent.Kind) -> Color {
@@ -1392,18 +1704,31 @@ struct CodeGetDocsEmbedRenderer: View {
     let data: [String: AnyCodable]?
     let mode: EmbedDisplayMode
 
-    private var title: String? {
-        firstString(["title", "library_id", "library"])
-            ?? firstResultString(["library_id", "id", "library_title", "title"])
+    static func libraryID(from data: [String: AnyCodable]?) -> String? {
+        guard let data else { return nil }
+        let results = (data["results"]?.value as? [[String: Any]])
+            ?? (data["results"]?.value as? [[String: AnyCodable]])?.map { $0.mapValues(\.value) }
+            ?? []
+        let first = results.first ?? [:]
+        if let value = first["library_id"] as? String, !value.isEmpty { return value }
+        if let library = first["library"] as? [String: Any],
+           let value = library["id"] as? String, !value.isEmpty { return value }
+        if let library = first["library"] as? [String: AnyCodable],
+           let value = library["id"]?.value as? String, !value.isEmpty { return value }
+        return data["library"]?.value as? String
     }
-    private var html: String? { data?["html"]?.value as? String }
-    private var content: String? {
-        firstString(["content", "documentation", "html"])
-            ?? firstResultString(["content", "documentation", "text"])
+
+    private var title: String? { Self.libraryID(from: data) }
+    private var documentation: String? {
+        firstResultString(["documentation", "content", "text"])
+            ?? firstString(["documentation", "content"])
     }
     private var question: String? { firstString(["question", "query"]) }
-    private var wordCount: Int? {
+    private var previewWordCount: Int? {
         firstInt(["word_count", "wordCount"]) ?? firstResultInt(["word_count", "wordCount"])
+    }
+    private var fullWordCount: Int {
+        documentation?.split(whereSeparator: \.isWhitespace).count ?? 0
     }
 
     var body: some View {
@@ -1427,7 +1752,7 @@ struct CodeGetDocsEmbedRenderer: View {
                 Text("via Context7")
                     .font(.omSmall)
                     .foregroundStyle(Color.grey70)
-                if let wordCount {
+                if let wordCount = previewWordCount {
                     Text("\(wordCount.formatted()) words")
                         .font(.omSmall)
                         .fontWeight(.medium)
@@ -1437,29 +1762,31 @@ struct CodeGetDocsEmbedRenderer: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
 
         case .fullscreen:
-            VStack(alignment: .leading, spacing: .spacing4) {
-                if let title {
-                    Text(title)
-                        .font(.omH3)
-                        .fontWeight(.bold)
-                        .foregroundStyle(Color.grey100)
-                        .monospaced()
-                }
-                if let question {
-                    Text(question)
-                        .font(.omP)
-                        .foregroundStyle(Color.fontSecondary)
-                }
-                if let wordCount {
-                    Text("\(wordCount.formatted()) words")
+            VStack(spacing: .spacing8) {
+                if fullWordCount > 0 {
+                    Text("via Context7: \(fullWordCount.formatted()) words")
                         .font(.omSmall)
-                        .foregroundStyle(Color.fontTertiary)
+                        .fontWeight(.bold)
+                        .foregroundStyle(Color.grey70)
+                        .frame(maxWidth: .infinity)
                 }
-                Text(content ?? html ?? "")
-                    .font(.omP)
-                    .foregroundStyle(Color.fontPrimary)
-                    .textSelection(.enabled)
+                if let documentation, !documentation.isEmpty {
+                    RichMarkdownView(content: documentation, isUserMessage: false)
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
+                        .padding(.spacing12)
+                        .background(Color.grey0, in: RoundedRectangle(cornerRadius: 30))
+                        .shadow(color: .black.opacity(0.1), radius: 8, y: -4)
+                } else {
+                    Text("No documentation available")
+                        .font(.omP)
+                        .foregroundStyle(Color.grey70)
+                        .frame(maxWidth: .infinity, minHeight: 200)
+                }
             }
+            .padding(.horizontal, .spacing5)
+            .padding(.top, .spacing12)
+            .padding(.bottom, 120)
+            .accessibilityIdentifier("code-get-docs-fullscreen")
         }
     }
 
@@ -1534,160 +1861,166 @@ struct DocsRenderer: View {
     let data: [String: AnyCodable]?
     let mode: EmbedDisplayMode
 
-    private var title: String? { data?["title"]?.value as? String }
-    private var html: String? { data?["html"]?.value as? String }
-    private var content: String? { data?["content"]?.value as? String }
-    private var wordCount: Int? {
-        if let value = data?["word_count"]?.value as? Int { return value }
-        if let value = data?["word_count"]?.value as? String { return Int(value) }
-        return nil
-    }
-
     var body: some View {
-        switch mode {
-        case .preview:
-            VStack(alignment: .leading, spacing: .spacing3) {
-                if let title {
-                    Text(title)
-                        .font(.omSmall)
-                        .fontWeight(.medium)
-                        .foregroundStyle(Color.fontPrimary)
-                        .lineLimit(2)
-                }
-                if let wordCount {
-                    Text("\(wordCount.formatted()) words")
-                        .font(.omXs)
-                        .foregroundStyle(Color.fontTertiary)
-                }
-                if let content {
-                    Text(content)
-                        .font(.omXs)
-                        .foregroundStyle(Color.fontSecondary)
-                        .lineLimit(4)
-                }
-            }
-            .padding(.spacing4)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-
-        case .fullscreen:
-            VStack(alignment: .leading, spacing: .spacing4) {
-                if let wordCount {
-                    Text("\(wordCount.formatted()) words")
-                        .font(.omSmall)
-                        .foregroundStyle(Color.fontTertiary)
-                }
-                Text(content ?? html ?? "")
-                    .font(.omP)
-                    .foregroundStyle(Color.fontPrimary)
-                    .textSelection(.enabled)
-            }
-        }
+        DocumentCanvasView(source: DocumentCanvasSource(data: data), mode: mode)
     }
 }
 
 struct SheetRenderer: View {
     let data: [String: AnyCodable]?
     let mode: EmbedDisplayMode
+    var hasPIIMappings = false
+    var piiMappings: [PIIMapping] = []
+    var isPIIRevealed = false
+    var onTogglePII: () -> Void = {}
+    var onDisplayedRowsChange: (([[String]]) -> Void)? = nil
+    var isLargePreview = false
 
-    private var table: ParsedSheetTable { ParsedSheetTable(data: data) }
+    private var table: ParsedSheetTable {
+        ParsedSheetTable(data: data).applyingPII(mappings: piiMappings, revealed: isPIIRevealed)
+    }
 
     var body: some View {
         switch mode {
         case .preview:
-            SheetPreviewTable(table: table)
+            SheetPreviewTable(table: table, isLargePreview: isLargePreview)
 
         case .fullscreen:
-            SheetFullscreenTable(table: table)
+            SheetFullscreenTable(table: table, hasPIIMappings: hasPIIMappings,
+                                 isPIIRevealed: isPIIRevealed, onTogglePII: onTogglePII,
+                                 onDisplayedRowsChange: onDisplayedRowsChange)
         }
     }
 }
 
 private struct SheetPreviewTable: View {
     let table: ParsedSheetTable
+    let isLargePreview: Bool
 
-    private let maxRows = 4
-    private var visibleHeaders: [String] { Array(table.headers.prefix(4)) }
-    private var visibleRows: [[String]] { Array(table.rows.prefix(maxRows)).map { Array($0.prefix(4)) } }
-    private var hiddenColumnCount: Int { max(table.headers.count - visibleHeaders.count, 0) }
+    // This table explicitly uses the browser's Apple system font stack,
+    // overriding the surrounding Lexend UI. Rendered reference: 11px/1.3
+    // compact, 13px/1.3 large; header overflow counter is 9px.
+    private var cellFontSize: CGFloat { isLargePreview ? 13 : 11 }
+
+    private var maxRows: Int { isLargePreview ? 8 : 4 }
     private var remainingRowCount: Int { max(table.rows.count - maxRows, 0) }
 
     var body: some View {
-        VStack(spacing: 0) {
-            if table.headers.isEmpty {
-                VStack(spacing: .spacing3) {
-                    Icon("table", size: 38)
-                        .foregroundStyle(Color.grey70)
-                    Text(LocalizationManager.shared.text("embeds.table"))
-                        .font(.omSmall)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(Color.fontSecondary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                Grid(horizontalSpacing: 0, verticalSpacing: 0) {
-                    GridRow {
-                        ForEach(visibleHeaders.indices, id: \.self) { index in
-                            sheetCell(visibleHeaders[index], isHeader: true)
-                        }
-                        if hiddenColumnCount > 0 {
-                            sheetCell("+\(hiddenColumnCount)", isHeader: true, isMuted: true)
-                        }
+        GeometryReader { geometry in
+            let columns = SheetPreviewColumns(headers: table.headers, rows: Array(table.rows.prefix(maxRows)),
+                                              budget: isLargePreview ? max(geometry.size.width - 20, 0) : 260)
+            let visibleHeaders = Array(table.headers.prefix(columns.visibleCount))
+            let visibleRows = Array(table.rows.prefix(maxRows))
+            let hiddenColumnCount = max(table.headers.count - visibleHeaders.count, 0)
+            // HTML table auto layout stretches large tables across their container.
+            let naturalWidth = columns.widths.prefix(columns.visibleCount).reduce(0, +) + (hiddenColumnCount > 0 ? 45 : 0)
+            let extraWidth = max(geometry.size.width - naturalWidth, 0) / CGFloat(max(visibleHeaders.count, 1))
+            VStack(spacing: 0) {
+                if table.headers.isEmpty {
+                    VStack(spacing: .spacing3) {
+                        Icon("table", size: 38)
+                            .foregroundStyle(Color.grey70)
+                        Text(LocalizationManager.shared.text("embeds.table"))
+                            .font(.omSmall)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(Color.fontSecondary)
                     }
-                    ForEach(visibleRows.indices, id: \.self) { rowIndex in
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    Grid(horizontalSpacing: 0, verticalSpacing: 0) {
                         GridRow {
-                            ForEach(visibleHeaders.indices, id: \.self) { colIndex in
-                                sheetCell(visibleRows[rowIndex].indices.contains(colIndex) ? visibleRows[rowIndex][colIndex] : "", isHeader: false, alternate: rowIndex.isMultiple(of: 2) == false)
+                            ForEach(visibleHeaders.indices, id: \.self) { index in
+                                sheetCell(visibleHeaders[index], isHeader: true, width: columns.widths[index] + extraWidth)
                             }
                             if hiddenColumnCount > 0 {
-                                sheetCell("", isHeader: false, isMuted: true, alternate: rowIndex.isMultiple(of: 2) == false)
+                                sheetCell("+\(hiddenColumnCount)", isHeader: true, isMuted: true, width: 45)
+                            }
+                        }
+                        ForEach(visibleRows.indices, id: \.self) { rowIndex in
+                            GridRow {
+                                ForEach(visibleHeaders.indices, id: \.self) { colIndex in
+                                    sheetCell(visibleRows[rowIndex].indices.contains(colIndex) ? visibleRows[rowIndex][colIndex] : "", isHeader: false, alternate: rowIndex.isMultiple(of: 2) == false, width: columns.widths[colIndex] + extraWidth)
+                                }
+                                if hiddenColumnCount > 0 {
+                                    sheetCell("", isHeader: false, isMuted: true, alternate: rowIndex.isMultiple(of: 2) == false, width: 45)
+                                }
+                            }
+                        }
+                        if remainingRowCount > 0 {
+                            GridRow {
+                                Text("+\(remainingRowCount) more rows")
+                                    .font(.system(size: cellFontSize))
+                                    .italic()
+                                    .foregroundStyle(Color.grey50)
+                                    .padding(.vertical, 3)
+                                    .frame(maxWidth: .infinity)
+                                    .gridCellColumns(visibleHeaders.count + (hiddenColumnCount > 0 ? 1 : 0))
+                                    .background(Color.grey25)
+                                    .accessibilityIdentifier("sheet-preview-more-rows")
                             }
                         }
                     }
-                    if remainingRowCount > 0 {
-                        GridRow {
-                            Text("+\(remainingRowCount) more rows")
-                                .font(.omMicro)
-                                .italic()
-                                .foregroundStyle(Color.grey50)
-                                .padding(.vertical, 3)
-                                .frame(maxWidth: .infinity)
-                                .gridCellColumns(visibleHeaders.count + (hiddenColumnCount > 0 ? 1 : 0))
-                                .background(Color.grey25)
-                        }
-                    }
+                    .fixedSize(horizontal: true, vertical: true)
+                    .padding(.top, 15)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 }
-                .padding(.top, .spacing5)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .clipped()
+            .accessibilityIdentifier("sheet-preview-table")
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .clipped()
-        .accessibilityIdentifier("sheet-preview-table")
     }
 
-    private func sheetCell(_ text: String, isHeader: Bool, isMuted: Bool = false, alternate: Bool = false) -> some View {
+    private func sheetCell(_ text: String, isHeader: Bool, isMuted: Bool = false, alternate: Bool = false, width: CGFloat) -> some View {
         Text(text)
-            .font(isHeader ? .omMicro : .omMicro)
-            .fontWeight(isHeader ? .bold : .semibold)
-            .foregroundStyle(isMuted ? Color.grey50 : (isHeader ? Color.grey80 : Color.grey80))
+            .font(.system(size: isMuted && isHeader ? 9 : cellFontSize))
+            .fontWeight(isHeader ? .semibold : .regular)
+            .foregroundStyle(isMuted ? Color.fontTertiary : (isHeader ? Color.fontPrimary : Color.fontSecondary))
             .lineLimit(1)
-            .padding(.horizontal, .spacing3)
-            .padding(.vertical, .spacing2)
-            .frame(minWidth: 60, maxWidth: 140, alignment: .leading)
-            .background(isHeader ? Color.grey25 : (alternate ? Color.grey20 : Color.grey10))
+            .padding(.horizontal, .spacing4)
+            .frame(height: cellFontSize * 1.3 + .spacing4 + 1)
+            .frame(width: width, alignment: .leading)
+            .background(isHeader || alternate || isMuted ? Color.grey10 : Color.clear)
             .overlay(
                 Rectangle()
-                    .stroke(Color.grey30, lineWidth: 0.7)
+                    .stroke(Color.grey25, lineWidth: 1)
             )
+    }
+}
+
+// SheetEmbedPreview.svelte measures each column from visible text (8px per
+// character, clamped to 60...200) and shows the columns that fit a 260px card.
+struct SheetPreviewColumns {
+    let widths: [CGFloat]
+    let visibleCount: Int
+
+    init(headers: [String], rows: [[String]], budget: CGFloat = 260) {
+        widths = headers.indices.map { index in
+            let length = max(headers[index].count, rows.map { $0.indices.contains(index) ? $0[index].count : 0 }.max() ?? 0)
+            return min(max(CGFloat(length * 8), 60), 200)
+        }
+        var used: CGFloat = 0
+        var count = 0
+        for width in widths {
+            if count > 0 && used + width > budget { break }
+            used += width
+            count += 1
+        }
+        visibleCount = count
     }
 }
 
 private struct SheetFullscreenTable: View {
     let table: ParsedSheetTable
+    var hasPIIMappings = false
+    var isPIIRevealed = false
+    var onTogglePII: () -> Void = {}
+    var onDisplayedRowsChange: (([[String]]) -> Void)? = nil
     @State private var sortColumnIndex: Int?
     @State private var sortAscending = true
     @State private var showFilters = false
     @State private var filters: [String] = []
+    @Environment(\.embedSheetViewportHeight) private var viewportHeight
 
     private var displayRows: [[String]] {
         var rows = table.rows
@@ -1711,11 +2044,15 @@ private struct SheetFullscreenTable: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            if hasPIIMappings {
+                EmbedPIIToggle(isRevealed: isPIIRevealed, action: onTogglePII)
+            }
             if showFilters {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: .spacing3) {
                         ForEach(table.headers.indices, id: \.self) { index in
                             TextField(table.headers[index], text: bindingForFilter(index))
+                                .accessibilityIdentifier("sheet-filter-input-\(index)")
                                 .textFieldStyle(.plain)
                                 .font(.omXs)
                                 .foregroundStyle(Color.fontPrimary)
@@ -1734,9 +2071,14 @@ private struct SheetFullscreenTable: View {
 
             sheetTableBody
         }
+        .frame(maxWidth: .infinity)
+        .frame(height: viewportHeight)
         .onAppear {
             filters = Array(repeating: "", count: table.headers.count)
+            onDisplayedRowsChange?(displayRows)
         }
+        .onChange(of: displayRows) { _, rows in onDisplayedRowsChange?(rows) }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("sheet-fullscreen-table")
     }
 
@@ -1893,7 +2235,7 @@ private struct SheetFullscreenTable: View {
 
     private func columnWidth(_ index: Int) -> CGFloat {
         let headerLen = table.headers.indices.contains(index) ? table.headers[index].count : 0
-        let maxRowLen = table.rows.map { $0.indices.contains(index) ? $0[index].count : 0 }.max() ?? 0
+        let maxRowLen = displayRows.map { $0.indices.contains(index) ? $0[index].count : 0 }.max() ?? 0
         return min(max(CGFloat(max(headerLen, maxRowLen) * 8), 80), 320)
     }
 
@@ -1910,6 +2252,76 @@ private struct SheetFullscreenTable: View {
 }
 
 #if os(iOS)
+// SheetEmbedFullscreen.svelte overrides its normal Lexend typography with the
+// system font and switches spacing at the browser viewport's 768px breakpoint.
+struct SheetFullscreenTableMetrics {
+    let viewportWidth: CGFloat
+    var isMobile: Bool { viewportWidth <= 768 }
+    // CSS widths/min-widths use content-box; the collapsed grid contributes one pixel.
+    var gutterWidth: CGFloat { (isMobile ? 32 : 40) + horizontalPadding * 2 + 1 }
+    var horizontalPadding: CGFloat { isMobile ? .spacing4 : .spacing6 }
+    var verticalPadding: CGFloat { isMobile ? 5 : .spacing3 }
+    var letterVerticalPadding: CGFloat { isMobile ? 5 : .spacing1 }
+    var font: UIFont { .systemFont(ofSize: isMobile ? 12 : 13, weight: .medium) }
+    var headerFont: UIFont { .systemFont(ofSize: font.pointSize, weight: .semibold) }
+    var letterFont: UIFont { .systemFont(ofSize: 11, weight: .medium) }
+    var lineHeight: CGFloat { floor(font.pointSize * 1.4 * 64) / 64 }
+    var letterRowHeight: CGFloat { 22 + letterVerticalPadding * 2 + 1 }
+    var headerRowHeight: CGFloat { lineHeight + verticalPadding * 2 + 1.5 }
+
+    func contentWidth(for columnWidth: CGFloat) -> CGFloat {
+        max(1, columnWidth - horizontalPadding * 2 - 1)
+    }
+
+    /// CSS auto table layout shrinks preferred <col> widths toward each header
+    /// minimum when the wrapper is narrow, then overflows rather than squeezing
+    /// the 80px content-box minimum or the nowrap header and sort control.
+    func resolvedColumnWidths(headers: [String], preferredWidths: [CGFloat], availableWidth: CGFloat) -> [CGFloat] {
+        let minimums = headers.map { header in
+            let textWidth = (header as NSString).size(withAttributes: [.font: headerFont]).width
+            return max(80, textWidth + .spacing2 + 10) + horizontalPadding * 2 + 1
+        }
+        let preferred = minimums.enumerated().map { index, minimum in
+            max(minimum, preferredWidths.indices.contains(index) ? preferredWidths[index] : minimum)
+        }
+        let minimumTotal = minimums.reduce(gutterWidth + 1, +)
+        let preferredTotal = preferred.reduce(gutterWidth + 1, +)
+        guard preferredTotal > minimumTotal else { return minimums }
+        let fraction = min(1, max(0, (availableWidth - minimumTotal) / (preferredTotal - minimumTotal)))
+        return zip(minimums, preferred).map { minimum, desired in minimum + (desired - minimum) * fraction }
+    }
+
+    func attributedValue(_ text: String) -> NSAttributedString {
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.minimumLineHeight = lineHeight
+        paragraph.maximumLineHeight = lineHeight
+        paragraph.lineBreakMode = .byWordWrapping
+        return NSAttributedString(string: text, attributes: [
+            .font: font, .foregroundColor: UIColor(Color.fontPrimary), .paragraphStyle: paragraph
+        ])
+    }
+
+    func rowHeight(values: [String], columnWidths: [CGFloat]) -> CGFloat {
+        var textHeight = lineHeight
+        for (index, value) in values.enumerated() where columnWidths.indices.contains(index) {
+            // Use the same TextKit engine as the selectable UITextView cells,
+            // including break-word fallback when a word exceeds the column.
+            let storage = NSTextStorage(attributedString: attributedValue(value))
+            let manager = NSLayoutManager()
+            let container = NSTextContainer(size: CGSize(
+                width: contentWidth(for: columnWidths[index]),
+                height: .greatestFiniteMagnitude))
+            container.lineFragmentPadding = 0
+            container.lineBreakMode = .byWordWrapping
+            manager.addTextContainer(container)
+            storage.addLayoutManager(manager)
+            manager.ensureLayout(for: container)
+            textHeight = max(textHeight, manager.usedRect(for: container).height)
+        }
+        return textHeight + verticalPadding * 2 + 1
+    }
+}
+
 private struct SheetFullscreenCollectionTable: UIViewRepresentable {
     let headers: [String]
     let rows: [[String]]
@@ -1926,7 +2338,12 @@ private struct SheetFullscreenCollectionTable: UIViewRepresentable {
 
     func makeUIView(context: Context) -> UICollectionView {
         let layout = SheetFullscreenCollectionLayout()
+        layout.configure(headers: headers, rows: rows, widths: columnWidths,
+                         viewportWidth: 0)
         let collectionView = UICollectionView(frame: .zero, collectionViewLayout: layout)
+        // The representable owns the table's AX node; SwiftUI may flatten its
+        // enclosing VStack while preserving these native cells and controls.
+        collectionView.accessibilityIdentifier = "sheet-fullscreen-table"
         collectionView.backgroundColor = UIColor(Color.grey20)
         collectionView.alwaysBounceVertical = true
         collectionView.alwaysBounceHorizontal = true
@@ -1939,11 +2356,26 @@ private struct SheetFullscreenCollectionTable: UIViewRepresentable {
         return collectionView
     }
 
+    func sizeThatFits(_ proposal: ProposedViewSize, uiView: UICollectionView, context: Context) -> CGSize? {
+        guard let layout = uiView.collectionViewLayout as? SheetFullscreenCollectionLayout else { return nil }
+        layout.configure(headers: headers, rows: rows, widths: columnWidths,
+                         viewportWidth: uiView.window?.bounds.width ?? proposal.width ?? columnWidths.reduce(40, +),
+                         availableWidth: proposal.width)
+        // Fullscreen content sits inside a vertical SwiftUI ScrollView, whose
+        // height proposal is nil. UICollectionView has no intrinsic height;
+        // provide the table's extent so its visible cells do not collapse.
+        return CGSize(
+            width: proposal.width ?? layout.columnWidths.reduce(0, +),
+            height: proposal.height ?? (layout.totalContentHeight + uiView.contentInset.vertical)
+        )
+    }
+
     func updateUIView(_ collectionView: UICollectionView, context: Context) {
         context.coordinator.parent = self
         if let layout = collectionView.collectionViewLayout as? SheetFullscreenCollectionLayout {
-            layout.columnWidths = [40] + columnWidths
-            layout.rowCount = rows.count + 2
+            layout.configure(headers: headers, rows: rows, widths: columnWidths,
+                             viewportWidth: collectionView.window?.bounds.width ?? collectionView.bounds.width,
+                             availableWidth: collectionView.bounds.width > 0 ? collectionView.bounds.width : nil)
             layout.invalidateLayout()
         }
         collectionView.reloadData()
@@ -1965,7 +2397,13 @@ private struct SheetFullscreenCollectionTable: UIViewRepresentable {
                 withReuseIdentifier: SheetFullscreenCollectionCell.reuseIdentifier,
                 for: indexPath
             ) as! SheetFullscreenCollectionCell
-            cell.configure(with: cellModel(for: indexPath.item))
+            let metrics = (collectionView.collectionViewLayout as? SheetFullscreenCollectionLayout)?.metrics
+                ?? SheetFullscreenTableMetrics(viewportWidth: collectionView.bounds.width)
+            cell.configure(with: cellModel(for: indexPath.item), metrics: metrics)
+            cell.onActivate = { [weak self, weak collectionView] in
+                guard let self, let collectionView else { return }
+                self.collectionView(collectionView, didSelectItemAt: indexPath)
+            }
             return cell
         }
 
@@ -1994,8 +2432,8 @@ private struct SheetFullscreenCollectionTable: UIViewRepresentable {
                 let columnIndex = position.column - 1
                 let header = parent.headers.indices.contains(columnIndex) ? parent.headers[columnIndex] : ""
                 let isActive = parent.sortColumnIndex == columnIndex
-                let sortIndicator = isActive ? (parent.sortAscending ? " ↑" : " ↓") : " ↕"
-                return .init(text: header + sortIndicator, kind: .header(isActive: isActive))
+                return .init(text: header, kind: .header(columnIndex: columnIndex,
+                                                       ascending: isActive ? parent.sortAscending : nil))
             }
 
             let rowIndex = position.row - 2
@@ -2026,13 +2464,41 @@ private struct SheetFullscreenCollectionTable: UIViewRepresentable {
     }
 }
 
-private final class SheetFullscreenCollectionLayout: UICollectionViewLayout {
+final class SheetFullscreenCollectionLayout: UICollectionViewLayout {
     var columnWidths: [CGFloat] = []
-    var rowCount = 0
-    private let rowHeights: [CGFloat] = [24, 44]
-    private let dataRowHeight: CGFloat = 44
+    private(set) var metrics = SheetFullscreenTableMetrics(viewportWidth: 0)
+    private var rowHeights: [CGFloat] = []
+    private var rowOffsets: [CGFloat] = []
+    private var measuredRows: [[String]] = []
+    private var measuredHeaders: [String] = []
+    private var measuredWidths: [CGFloat] = []
     private var columnOffsets: [CGFloat] = []
     private var contentSize = CGSize.zero
+    private var rowCount: Int { rowHeights.count }
+
+    func configure(headers: [String], rows: [[String]], widths: [CGFloat], viewportWidth: CGFloat,
+                   availableWidth: CGFloat? = nil) {
+        let newMetrics = SheetFullscreenTableMetrics(viewportWidth: viewportWidth)
+        let resolvedWidths = newMetrics.resolvedColumnWidths(headers: headers, preferredWidths: widths,
+                                                            availableWidth: availableWidth ?? viewportWidth)
+        let needsMeasurement = rowHeights.isEmpty || rows != measuredRows || headers != measuredHeaders || resolvedWidths != measuredWidths
+            || newMetrics.isMobile != metrics.isMobile
+        metrics = newMetrics
+        columnWidths = [metrics.gutterWidth] + resolvedWidths
+        if needsMeasurement {
+            measuredRows = rows
+            measuredHeaders = headers
+            measuredWidths = resolvedWidths
+            rowHeights = [metrics.letterRowHeight, metrics.headerRowHeight]
+                + rows.enumerated().map { index, values in
+                    metrics.rowHeight(values: values, columnWidths: resolvedWidths) + (index == 0 ? 0.5 : 0)
+                }
+            rowOffsets = []
+            var y: CGFloat = 0
+            for height in rowHeights { rowOffsets.append(y); y += height }
+        }
+        invalidateLayout()
+    }
 
     override func prepare() {
         super.prepare()
@@ -2046,7 +2512,7 @@ private final class SheetFullscreenCollectionLayout: UICollectionViewLayout {
         }
 
         contentSize = CGSize(
-            width: max(x, collectionView.bounds.width + 1),
+            width: max(x + 1, collectionView.bounds.width + 1),
             height: max(totalContentHeight, collectionView.bounds.height - collectionView.adjustedContentInset.vertical + 1)
         )
     }
@@ -2058,8 +2524,12 @@ private final class SheetFullscreenCollectionLayout: UICollectionViewLayout {
     override func layoutAttributesForElements(in rect: CGRect) -> [UICollectionViewLayoutAttributes]? {
         guard !columnWidths.isEmpty, rowCount > 0 else { return [] }
 
-        let rowRange = visibleRowRange(intersecting: rect)
-        let columnRange = visibleColumnRange(intersecting: rect)
+        // Sticky headers and gutter must remain in the attribute set even when
+        // their original frames are outside the current visible rect.
+        let visibleRows = intersectingRange(offsets: rowOffsets, lengths: rowHeights, min: rect.minY, max: rect.maxY)
+        let visibleColumns = intersectingRange(offsets: columnOffsets, lengths: columnWidths, min: rect.minX, max: rect.maxX)
+        let rowRange = Set(visibleRows).union([0, 1]).sorted()
+        let columnRange = Set(visibleColumns).union([0]).sorted()
         var visibleAttributes: [UICollectionViewLayoutAttributes] = []
 
         for row in rowRange {
@@ -2082,10 +2552,21 @@ private final class SheetFullscreenCollectionLayout: UICollectionViewLayout {
         let itemAttributes = UICollectionViewLayoutAttributes(forCellWith: indexPath)
         itemAttributes.frame = CGRect(
             x: columnOffsets[column],
-            y: yOffset(for: row),
+            y: rowOffsets[row],
             width: columnWidths[column],
-            height: height(for: row)
+            height: rowHeights[row]
         )
+        if let collectionView {
+            if row < 2 {
+                let stickyTop = collectionView.bounds.minY + collectionView.adjustedContentInset.top
+                itemAttributes.frame.origin.y = max(rowOffsets[row], stickyTop + rowOffsets[row])
+                itemAttributes.zIndex = 3
+            }
+            if column == 0 {
+                itemAttributes.frame.origin.x = max(0, collectionView.bounds.minX + collectionView.adjustedContentInset.left)
+                itemAttributes.zIndex = row < 2 ? 4 : 2
+            }
+        }
         return itemAttributes
     }
 
@@ -2093,56 +2574,23 @@ private final class SheetFullscreenCollectionLayout: UICollectionViewLayout {
         true
     }
 
-    private var totalContentHeight: CGFloat {
-        guard rowCount > 0 else { return 0 }
-        return (0..<rowCount).reduce(CGFloat(0)) { total, row in
-            total + height(for: row)
-        }
+    var totalContentHeight: CGFloat {
+        (rowOffsets.last ?? 0) + (rowHeights.last ?? 0)
     }
 
-    private func height(for row: Int) -> CGFloat {
-        rowHeights.indices.contains(row) ? rowHeights[row] : dataRowHeight
-    }
-
-    private func yOffset(for row: Int) -> CGFloat {
-        guard row > 0 else { return 0 }
-        return (0..<row).reduce(CGFloat(0)) { total, item in
-            total + height(for: item)
+    private func intersectingRange(offsets: [CGFloat], lengths: [CGFloat], min: CGFloat, max: CGFloat) -> Range<Int> {
+        guard !offsets.isEmpty else { return 0..<0 }
+        func lowerBound(_ predicate: (Int) -> Bool) -> Int {
+            var low = 0, high = offsets.count
+            while low < high {
+                let middle = (low + high) / 2
+                if predicate(middle) { high = middle } else { low = middle + 1 }
+            }
+            return low
         }
-    }
-
-    private func visibleRowRange(intersecting rect: CGRect) -> Range<Int> {
-        guard rowCount > 0 else { return 0..<0 }
-        let headerHeight = rowHeights.reduce(0, +)
-        let first: Int
-        if rect.minY < rowHeights[0] {
-            first = 0
-        } else if rect.minY < headerHeight {
-            first = 1
-        } else {
-            first = min(max(Int((rect.minY - headerHeight) / dataRowHeight) + rowHeights.count, 0), rowCount)
-        }
-
-        let lastExclusive: Int
-        if rect.maxY <= rowHeights[0] {
-            lastExclusive = 1
-        } else if rect.maxY <= headerHeight {
-            lastExclusive = min(2, rowCount)
-        } else {
-            lastExclusive = min(Int(ceil((rect.maxY - headerHeight) / dataRowHeight)) + rowHeights.count, rowCount)
-        }
-
-        return min(first, lastExclusive)..<max(first, lastExclusive)
-    }
-
-    private func visibleColumnRange(intersecting rect: CGRect) -> Range<Int> {
-        guard !columnWidths.isEmpty else { return 0..<0 }
-        let first = columnOffsets.firstIndex { offset in
-            let column = columnOffsets.firstIndex(of: offset) ?? 0
-            return offset + columnWidths[column] >= rect.minX
-        } ?? 0
-        let last = columnOffsets.lastIndex { offset in offset <= rect.maxX } ?? (columnWidths.count - 1)
-        return first..<min(last + 2, columnWidths.count)
+        let first = lowerBound { offsets[$0] + lengths[$0] >= min }
+        let end = lowerBound { offsets[$0] > max }
+        return first..<Swift.max(first, end)
     }
 }
 
@@ -2152,7 +2600,7 @@ private final class SheetFullscreenCollectionCell: UICollectionViewCell {
     enum Kind {
         case filter(isActive: Bool)
         case columnLetter
-        case header(isActive: Bool)
+        case header(columnIndex: Int, ascending: Bool?)
         case rowHeader
         case value(isAlternate: Bool)
     }
@@ -2164,79 +2612,239 @@ private final class SheetFullscreenCollectionCell: UICollectionViewCell {
 
     private let label = UILabel()
     private let valueTextView = UITextView()
+    private let headerLabel = UILabel()
+    private let filterGlyph = SheetFullscreenControlGlyphView()
+    private let filterBackground = UIView()
+    private let sortGlyph = SheetFullscreenControlGlyphView()
+    private let headerStack = UIStackView()
+    private let gridBorder = CAShapeLayer()
+    private let emphasizedBorder = CAShapeLayer()
+    private let gutterBorder = CAShapeLayer()
+    private var metrics = SheetFullscreenTableMetrics(viewportWidth: 0)
+    private var kind: Kind = .columnLetter
+    var onActivate: (() -> Void)?
 
     override init(frame: CGRect) {
         super.init(frame: frame)
         contentView.addSubview(label)
         contentView.addSubview(valueTextView)
-        label.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(filterBackground)
+        contentView.addSubview(filterGlyph)
+        filterBackground.layer.cornerRadius = 3
+        filterBackground.isUserInteractionEnabled = false
+        contentView.addSubview(headerStack)
+        headerStack.axis = .horizontal
+        headerStack.alignment = .center
+        headerStack.spacing = .spacing2
+        headerStack.addArrangedSubview(headerLabel)
+        headerStack.addArrangedSubview(sortGlyph)
+        headerLabel.numberOfLines = 1
+        headerLabel.lineBreakMode = .byTruncatingTail
+        headerLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        sortGlyph.translatesAutoresizingMaskIntoConstraints = false
+        filterGlyph.accessibilityIdentifier = "sheet-filter-glyph"
+        sortGlyph.accessibilityIdentifier = "sheet-sort-glyph"
         label.numberOfLines = 1
         label.lineBreakMode = .byTruncatingTail
-        valueTextView.translatesAutoresizingMaskIntoConstraints = false
         valueTextView.backgroundColor = .clear
         valueTextView.isEditable = false
+        valueTextView.isSelectable = true
         valueTextView.isScrollEnabled = false
-        valueTextView.textContainer.lineBreakMode = .byTruncatingTail
-        valueTextView.textContainer.maximumNumberOfLines = 1
-        valueTextView.textContainerInset = UIEdgeInsets(top: 3, left: 0, bottom: 3, right: 0)
+        valueTextView.textContainer.lineBreakMode = .byWordWrapping
+        valueTextView.textContainer.maximumNumberOfLines = 0
         valueTextView.textContainer.lineFragmentPadding = 0
         NSLayoutConstraint.activate([
-            label.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 8),
-            label.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -8),
-            label.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 3),
-            label.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -3),
-            valueTextView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 8),
-            valueTextView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -8),
-            valueTextView.topAnchor.constraint(equalTo: contentView.topAnchor),
-            valueTextView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
+            sortGlyph.widthAnchor.constraint(equalToConstant: 10),
+            sortGlyph.heightAnchor.constraint(equalToConstant: 10),
         ])
+        contentView.clipsToBounds = true
+        gridBorder.fillColor = nil
+        gridBorder.lineWidth = 1
+        emphasizedBorder.fillColor = nil
+        emphasizedBorder.lineWidth = 2
+        gutterBorder.fillColor = nil
+        gutterBorder.lineWidth = 2
+        contentView.layer.addSublayer(gridBorder)
+        contentView.layer.addSublayer(emphasizedBorder)
+        contentView.layer.addSublayer(gutterBorder)
     }
 
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
-    func configure(with model: Model) {
+    func configure(with model: Model, metrics: SheetFullscreenTableMetrics) {
+        self.metrics = metrics
+        kind = model.kind
         label.isHidden = false
         valueTextView.isHidden = true
+        filterGlyph.isHidden = true
+        filterBackground.isHidden = true
+        headerStack.isHidden = true
+        isAccessibilityElement = false
+        accessibilityIdentifier = nil
+        accessibilityLabel = nil
+        accessibilityTraits = []
         label.text = model.text
         label.textAlignment = .left
-        label.font = UIFont(name: FontRegistration.fontFamily, size: 13) ?? .systemFont(ofSize: 13, weight: .semibold)
+        label.font = metrics.font
         label.textColor = UIColor(Color.fontPrimary)
-        contentView.layer.borderWidth = 0.7
-        contentView.layer.borderColor = UIColor(Color.grey30).cgColor
+        gridBorder.strokeColor = UIColor(Color.grey25).cgColor
+        emphasizedBorder.strokeColor = UIColor(Color.grey30).cgColor
+        gutterBorder.strokeColor = UIColor(Color.grey30).cgColor
 
         switch model.kind {
         case .filter(let isActive):
-            label.text = LocalizationManager.shared.text("activity.filter")
-            label.font = UIFont(name: FontRegistration.fontFamily, size: 11) ?? .systemFont(ofSize: 11, weight: .medium)
-            label.textAlignment = .center
-            label.textColor = UIColor(isActive ? Color.buttonPrimary : Color.fontTertiary)
+            label.isHidden = true
+            filterGlyph.isHidden = false
+            filterBackground.isHidden = false
+            filterBackground.backgroundColor = isActive
+                ? UIColor(AppGradientPalette.colors(for: "primary").start).withAlphaComponent(0.12) : .clear
+            filterGlyph.glyph = .filter
+            filterGlyph.tintColor = UIColor(isActive ? AppGradientPalette.colors(for: "primary").start : Color.fontTertiary)
+            isAccessibilityElement = true
+            accessibilityIdentifier = "sheet-filter-toggle"
+            accessibilityLabel = LocalizationManager.shared.text("activity.filter")
+            accessibilityTraits = isActive ? [.button, .selected] : .button
             contentView.backgroundColor = UIColor(Color.grey10)
         case .columnLetter:
-            label.font = UIFont(name: FontRegistration.fontFamily, size: 11) ?? .systemFont(ofSize: 11, weight: .medium)
+            label.font = metrics.letterFont
             label.textAlignment = .center
             label.textColor = UIColor(Color.fontTertiary)
             contentView.backgroundColor = UIColor(Color.grey10)
-        case .header(let isActive):
-            label.font = UIFont(name: FontRegistration.fontFamily, size: 13) ?? .systemFont(ofSize: 13, weight: .bold)
-            label.textColor = UIColor(isActive ? Color.buttonPrimary : Color.fontPrimary)
+        case .header(let columnIndex, let ascending):
+            label.isHidden = true
+            headerStack.isHidden = false
+            headerLabel.text = model.text
+            headerLabel.font = metrics.headerFont
+            headerLabel.textColor = UIColor(Color.fontPrimary)
+            sortGlyph.glyph = .sort(ascending: ascending)
+            sortGlyph.alpha = ascending == nil ? 0.35 : 1
+            sortGlyph.tintColor = UIColor(ascending == nil ? Color.fontSecondary : AppGradientPalette.colors(for: "primary").start)
+            isAccessibilityElement = true
+            accessibilityIdentifier = "sheet-sort-column-\(columnIndex)"
+            accessibilityLabel = model.text
+            accessibilityTraits = ascending == nil ? .button : [.button, .selected]
             contentView.backgroundColor = UIColor(Color.grey10)
         case .rowHeader:
-            label.font = UIFont(name: FontRegistration.fontFamily, size: 11) ?? .systemFont(ofSize: 11, weight: .medium)
+            label.font = .systemFont(ofSize: 11, weight: .medium)
             label.textAlignment = .center
             label.textColor = UIColor(Color.fontTertiary)
             contentView.backgroundColor = UIColor(Color.grey10)
         case .value(let isAlternate):
             label.isHidden = true
             valueTextView.isHidden = false
-            valueTextView.text = model.text
-            valueTextView.font = UIFont(name: FontRegistration.fontFamily, size: 13) ?? .systemFont(ofSize: 13, weight: .semibold)
-            valueTextView.textColor = UIColor(Color.fontPrimary)
-            label.font = UIFont(name: FontRegistration.fontFamily, size: 13) ?? .systemFont(ofSize: 13, weight: .semibold)
-            label.textColor = UIColor(Color.fontPrimary)
-            contentView.backgroundColor = UIColor(isAlternate ? Color.grey20 : Color.grey10)
+            valueTextView.attributedText = metrics.attributedValue(model.text)
+            valueTextView.textContainerInset = UIEdgeInsets(top: metrics.verticalPadding, left: 0,
+                                                          bottom: metrics.verticalPadding, right: 0)
+            contentView.backgroundColor = UIColor(isAlternate ? Color.grey10 : Color.grey20)
         }
+        setNeedsLayout()
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        let availableWidth = metrics.contentWidth(for: contentView.bounds.width)
+        label.frame = CGRect(x: metrics.horizontalPadding + 0.5, y: metrics.verticalPadding,
+                             width: availableWidth, height: label.font.pointSize * 1.4)
+        valueTextView.frame = CGRect(x: metrics.horizontalPadding + 0.5, y: 0,
+                                     width: availableWidth, height: contentView.bounds.height)
+        headerStack.frame = CGRect(x: metrics.horizontalPadding + 0.5, y: metrics.verticalPadding,
+                                   width: min(availableWidth, headerLabel.intrinsicContentSize.width + .spacing2 + 10),
+                                   height: metrics.lineHeight)
+        filterGlyph.frame = CGRect(x: (contentView.bounds.width - 12) / 2,
+                                   y: metrics.letterVerticalPadding + 5, width: 12, height: 12)
+        filterBackground.frame = CGRect(x: (contentView.bounds.width - 22) / 2,
+                                        y: metrics.letterVerticalPadding, width: 22, height: 22)
+        gridBorder.path = UIBezierPath(rect: contentView.bounds).cgPath
+        let border = UIBezierPath()
+        emphasizedBorder.lineWidth = 2
+        switch kind {
+        case .filter, .columnLetter:
+            emphasizedBorder.lineWidth = 1
+            label.frame.origin.y = metrics.letterVerticalPadding
+            border.move(to: CGPoint(x: 0, y: contentView.bounds.height - 0.5))
+            border.addLine(to: CGPoint(x: contentView.bounds.width, y: contentView.bounds.height - 0.5))
+        case .header:
+            border.move(to: CGPoint(x: 0, y: contentView.bounds.height - 1))
+            border.addLine(to: CGPoint(x: contentView.bounds.width, y: contentView.bounds.height - 1))
+        case .rowHeader:
+            if label.text?.isEmpty == true {
+                border.move(to: CGPoint(x: 0, y: contentView.bounds.height - 1))
+                border.addLine(to: CGPoint(x: contentView.bounds.width, y: contentView.bounds.height - 1))
+            }
+        case .value: break
+        }
+        let gutter = UIBezierPath()
+        switch kind {
+        case .filter, .rowHeader:
+            gutter.move(to: CGPoint(x: contentView.bounds.width - 1, y: 0))
+            gutter.addLine(to: CGPoint(x: contentView.bounds.width - 1, y: contentView.bounds.height))
+        default: break
+        }
+        emphasizedBorder.path = border.cgPath
+        gutterBorder.path = gutter.cgPath
+    }
+
+    override func accessibilityActivate() -> Bool {
+        guard accessibilityTraits.contains(.button), let onActivate else { return false }
+        onActivate()
+        return true
+    }
+}
+
+// Exact inline SVG paths from SheetEmbedFullscreen.svelte. The bundled generic
+// filter/sort assets have different silhouettes from these spreadsheet controls.
+private final class SheetFullscreenControlGlyphView: UIView {
+    enum Glyph {
+        case filter
+        case sort(ascending: Bool?)
+    }
+
+    var glyph: Glyph = .filter { didSet { setNeedsDisplay() } }
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        backgroundColor = .clear
+        isOpaque = false
+        isAccessibilityElement = false
+        contentMode = .redraw
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    override func tintColorDidChange() {
+        super.tintColorDidChange()
+        setNeedsDisplay()
+    }
+
+    override func draw(_ rect: CGRect) {
+        guard let context = UIGraphicsGetCurrentContext() else { return }
+        context.scaleBy(x: bounds.width / 24, y: bounds.height / 24)
+        tintColor.setStroke()
+        let path = UIBezierPath()
+        func polyline(_ points: [CGPoint]) {
+            guard let first = points.first else { return }
+            path.move(to: first)
+            for point in points.dropFirst() { path.addLine(to: point) }
+        }
+        switch glyph {
+        case .filter:
+            polyline([CGPoint(x: 22, y: 3), CGPoint(x: 2, y: 3), CGPoint(x: 10, y: 12.46),
+                      CGPoint(x: 10, y: 19), CGPoint(x: 14, y: 21), CGPoint(x: 14, y: 12.46)])
+            path.close()
+            path.lineWidth = 2.5
+        case .sort(let ascending):
+            path.lineWidth = ascending == nil ? 1.5 : 3
+            if let ascending {
+                polyline(ascending ? [CGPoint(x: 18, y: 15), CGPoint(x: 12, y: 9), CGPoint(x: 6, y: 15)]
+                                   : [CGPoint(x: 6, y: 9), CGPoint(x: 12, y: 15), CGPoint(x: 18, y: 9)])
+            } else {
+                polyline([CGPoint(x: 8, y: 10), CGPoint(x: 12, y: 6), CGPoint(x: 16, y: 10)])
+                polyline([CGPoint(x: 8, y: 14), CGPoint(x: 12, y: 18), CGPoint(x: 16, y: 14)])
+            }
+        }
+        path.stroke()
     }
 }
 
@@ -2250,6 +2858,8 @@ struct ParsedSheetTable {
     let headers: [String]
     let rows: [[String]]
     let markdown: String
+    let displayRowCount: Int
+    let displayColCount: Int
 
     init(data: [String: AnyCodable]?) {
         var markdown = ParsedSheetTable.firstString(data, ["table", "code", "content", "markdown"]) ?? ""
@@ -2269,9 +2879,14 @@ struct ParsedSheetTable {
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty && $0.contains("|") }
 
+        let declaredRows = EmbedFieldReader.int(data ?? [:], keys: ["row_count", "rows"])
+        let declaredColumns = EmbedFieldReader.int(data ?? [:], keys: ["col_count", "cols"])
+
         guard lines.count >= 2 else {
             headers = []
             rows = []
+            displayRowCount = max(declaredRows ?? 0, 0)
+            displayColCount = max(declaredColumns ?? 0, 0)
             return
         }
 
@@ -2281,15 +2896,29 @@ struct ParsedSheetTable {
             let cells = ParsedSheetTable.parseRow(line)
             return parsedHeaders.indices.map { cells.indices.contains($0) ? cells[$0] : "" }
         }
+        displayRowCount = declaredRows.flatMap { $0 > 0 ? $0 : nil } ?? rows.count
+        displayColCount = declaredColumns.flatMap { $0 > 0 ? $0 : nil } ?? headers.count
     }
 
     var rowCount: Int { rows.count }
+
+    func applyingPII(mappings: [PIIMapping], revealed: Bool) -> ParsedSheetTable {
+        guard !mappings.isEmpty else { return self }
+        return ParsedSheetTable(data: [
+            "table": AnyCodable(EmbedPIIText.render(markdown, mappings: mappings, revealed: revealed)),
+            "title": AnyCodable(EmbedPIIText.render(title ?? "", mappings: mappings, revealed: revealed)),
+            "row_count": AnyCodable(displayRowCount), "col_count": AnyCodable(displayColCount)
+        ])
+    }
     var colCount: Int { headers.count }
     var dimensionsText: String {
-        "\(rowCount) \(rowCount == 1 ? "row" : "rows") × \(colCount) \(colCount == 1 ? "column" : "columns")"
+        "\(displayRowCount) \(displayRowCount == 1 ? "row" : "rows") × \(displayColCount) \(displayColCount == 1 ? "column" : "columns")"
     }
     var tsv: String {
-        ([headers] + rows)
+        tsv(rows: rows)
+    }
+    func tsv(rows selectedRows: [[String]]) -> String {
+        ([headers] + selectedRows)
             .map { $0.map { $0.replacingOccurrences(of: "\t", with: " ") }.joined(separator: "\t") }
             .joined(separator: "\n")
     }
@@ -2319,6 +2948,96 @@ struct ParsedSheetTable {
             }
         }
         return nil
+    }
+}
+
+// SheetEmbedFullscreen.svelte exports an Office Open XML workbook. Build the
+// same format in memory so the share/save flow never exposes a temporary table
+// directory or leaves its source rows on disk.
+struct SheetXLSXExporter {
+    enum ExportError: Error { case emptyTable, archiveUnavailable }
+
+    static func makeData(table: ParsedSheetTable, rows: [[String]]? = nil) throws -> Data {
+        guard !table.headers.isEmpty else { throw ExportError.emptyTable }
+        let archive = try Archive(data: Data(), accessMode: .create)
+        let sheetName = validSheetName(table.title ?? "Table")
+        let files: [(String, String)] = [
+            ("[Content_Types].xml", """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>
+            """),
+            ("_rels/.rels", """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>
+            """),
+            ("xl/workbook.xml", """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="\(escapeXML(sheetName))" sheetId="1" r:id="rId1"/></sheets></workbook>
+            """),
+            ("xl/_rels/workbook.xml.rels", """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>
+            """),
+            ("xl/styles.xml", """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs></styleSheet>
+            """),
+            ("xl/worksheets/sheet1.xml", worksheetXML(table, rows: rows ?? table.rows))
+        ]
+        for (path, xml) in files {
+            let data = Data(xml.utf8)
+            try archive.addEntry(with: path, type: .file, uncompressedSize: Int64(data.count)) { position, size in
+                data.subdata(in: Int(position)..<min(Int(position) + size, data.count))
+            }
+        }
+        guard let result = archive.data else { throw ExportError.archiveUnavailable }
+        return result
+    }
+
+    private static func worksheetXML(_ table: ParsedSheetTable, rows selectedRows: [[String]]) -> String {
+        let rows = [table.headers] + selectedRows
+        let lastColumn = columnName(table.headers.count - 1)
+        var xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><dimension ref=\"A1:\(lastColumn)\(rows.count)\"/><sheetData>"
+        for (rowIndex, row) in rows.enumerated() {
+            let number = rowIndex + 1
+            xml += "<row r=\"\(number)\">"
+            for columnIndex in table.headers.indices {
+                let text = row.indices.contains(columnIndex) ? row[columnIndex] : ""
+                let style = rowIndex == 0 ? " s=\"1\"" : ""
+                xml += "<c r=\"\(columnName(columnIndex))\(number)\" t=\"inlineStr\"\(style)><is><t xml:space=\"preserve\">\(escapeXML(text))</t></is></c>"
+            }
+            xml += "</row>"
+        }
+        return xml + "</sheetData></worksheet>"
+    }
+
+    private static func columnName(_ index: Int) -> String {
+        var value = index + 1
+        var name = ""
+        while value > 0 {
+            value -= 1
+            name = String(UnicodeScalar(65 + value % 26)!) + name
+            value /= 26
+        }
+        return name
+    }
+
+    private static func validSheetName(_ proposed: String) -> String {
+        let invalid = CharacterSet(charactersIn: "[]:*?/\\")
+        let cleaned = String(String.UnicodeScalarView(proposed.unicodeScalars.filter { !invalid.contains($0) }))
+        let bounded = String(cleaned.prefix(31)).trimmingCharacters(in: .whitespacesAndNewlines)
+        return bounded.isEmpty ? "Table" : bounded
+    }
+
+    private static func escapeXML(_ value: String) -> String {
+        let valid = String(String.UnicodeScalarView(value.unicodeScalars.filter {
+            $0.value == 9 || $0.value == 10 || $0.value == 13 || $0.value >= 32
+        }))
+        return valid.replacingOccurrences(of: "&", with: "&amp;")
+            .replacingOccurrences(of: "<", with: "&lt;")
+            .replacingOccurrences(of: ">", with: "&gt;")
+            .replacingOccurrences(of: "\"", with: "&quot;")
+            .replacingOccurrences(of: "'", with: "&apos;")
     }
 }
 
@@ -2387,7 +3106,7 @@ private struct CodeRepoPreview: View {
                     .lineLimit(1)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .accessibilityIdentifier("code-repo-preview-details")
     }
 }
@@ -2542,7 +3261,7 @@ private struct ElectronicsComponentPreview: View {
             .font(.omXxs)
             .foregroundStyle(Color.grey70)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .accessibilityIdentifier("electronics-component-preview")
     }
 
@@ -2608,13 +3327,14 @@ private struct ElectronicsComponentFullscreen: View {
 struct PcbSchematicEmbedRenderer: View {
     let data: [String: AnyCodable]?
     let mode: EmbedDisplayMode
+    let status: EmbedStatus
 
     private var schematic: PcbSchematicSummary { PcbSchematicSummary(data: data ?? [:]) }
 
     var body: some View {
         switch mode {
         case .preview:
-            PcbSchematicPreview(schematic: schematic)
+            PcbSchematicPreview(schematic: schematic, status: status)
         case .fullscreen:
             PcbSchematicFullscreen(schematic: schematic)
         }
@@ -2623,9 +3343,15 @@ struct PcbSchematicEmbedRenderer: View {
 
 private struct PcbSchematicPreview: View {
     let schematic: PcbSchematicSummary
+    let status: EmbedStatus
 
     var body: some View {
-        if schematic.code.isEmpty {
+        if status == .processing {
+            Text(AppStrings.localized("embeds.processing"))
+                .font(.omXs)
+                .foregroundStyle(Color.fontSecondary)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if schematic.code.isEmpty {
             VStack(spacing: .spacing4) {
                 Icon("pcbdesign", size: .spacing16)
                     .foregroundStyle(LinearGradient.appElectronics)
@@ -2657,7 +3383,11 @@ private struct PcbSchematicFullscreen: View {
         Group {
             if horizontalSizeClass == .compact {
                 VStack(spacing: .spacing6) {
-                    sourcePanel
+                    if schematic.code.isEmpty {
+                        Color.clear.frame(height: 170)
+                    } else {
+                        sourcePanel
+                    }
                     compilePanel
                 }
             } else {

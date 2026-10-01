@@ -14,6 +14,7 @@ import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
 import { Writable } from "node:stream";
 import qrcode from "qrcode-terminal";
+import { decode as toonDecode } from "@toon-format/toon";
 
 import {
   decryptWithAesGcmCombined,
@@ -118,6 +119,7 @@ import {
   type SpeechMessageResult,
 } from "./assistantSpeech.js";
 import { taskOwnerConflict } from "./codexConnection.js";
+import type { WorkflowFileDocument } from "../../workflowFile.js";
 import { containsCredentialLikeField, type ProtonLocalConnectorRegistration } from "./protonBridgeConnector.js";
 import {
   buildCreateUserTaskInput,
@@ -734,6 +736,8 @@ export interface WorkflowSummary {
 export interface WorkflowDetail extends WorkflowSummary {
   graph: WorkflowGraph;
   authoring_warnings?: WorkflowAuthoringWarning[];
+  binding_requirements?: WorkflowFileDocument["binding_requirements"];
+  completed_binding_requirements?: WorkflowFileDocument["binding_requirements"];
 }
 
 export interface WorkflowNodeRun {
@@ -1237,6 +1241,8 @@ export interface WorkflowInputStartParams {
   selectedWorkflowId?: string | null;
   selectedProjectId?: string | null;
   timezone?: string | null;
+  optimisticSave?: boolean;
+  idempotencyKey?: string;
 }
 
 export interface WorkflowInputEvent {
@@ -1257,6 +1263,12 @@ export interface WorkflowInputSessionResult {
   message?: string | null;
   error?: string | null;
   workflow?: WorkflowDetail | null;
+  preview_workflow?: WorkflowDetail | null;
+  workflows?: WorkflowDetail[];
+  preview_workflows?: WorkflowDetail[];
+  changes?: Array<{ workflow_id: string; operation: "create" | "update"; added_node_ids: string[]; changed_node_ids: string[]; removed_node_ids: string[] }>;
+  mutations?: Array<Record<string, unknown>>;
+  assumptions?: string[];
   project_item?: Record<string, unknown> | null;
   undo_available: boolean;
   authoring_metrics?: Record<string, unknown> | null;
@@ -1328,7 +1340,7 @@ export interface WorkflowTemplateImportPayload {
 }
 
 export interface ImportedWorkflowTemplate extends WorkflowDetail {
-  binding_requirements: Array<Record<string, unknown>>;
+  binding_requirements: WorkflowFileDocument["binding_requirements"];
 }
 
 export interface WorkflowTemplateShortUrlParams {
@@ -2925,10 +2937,18 @@ function buildUnifiedDiffForEmbedRestore(
   ].join("\n");
 }
 
-function parseEmbedContentObject(rawContent: string): Record<string, unknown> {
+export function parseEmbedContentObject(rawContent: string): Record<string, unknown> {
   try {
     return JSON.parse(rawContent) as Record<string, unknown>;
   } catch {
+    try {
+      const decoded = toonDecode(rawContent, { strict: true });
+      if (decoded && typeof decoded === "object" && !Array.isArray(decoded)) {
+        return decoded as Record<string, unknown>;
+      }
+    } catch {
+      // Older embeds can contain informal key:value text rather than TOON.
+    }
     return parseYamlLikeContent(rawContent);
   }
 }
@@ -6332,15 +6352,7 @@ export class OpenMatesClient {
     const textPreview = await decryptField("encrypted_text_preview");
     let content: Record<string, unknown> | null = null;
     const rawContent = await decryptField("encrypted_content");
-    if (rawContent) {
-      try {
-        content = JSON.parse(rawContent) as Record<string, unknown>;
-      } catch {
-        // Content stored as YAML-like key:value lines (common for skill embeds).
-        // Parse into an object so per-type renderers can use standard field names.
-        content = parseYamlLikeContent(rawContent);
-      }
-    }
+    if (rawContent) content = parseEmbedContentObject(rawContent);
     content = await this.refreshRemotionVideoCreateContent(embedId, content);
 
     // Derive type/appId/skillId from content if not on the embed record itself
@@ -9102,6 +9114,19 @@ export class OpenMatesClient {
     );
   }
 
+  async importWorkflowFile(document: WorkflowFileDocument): Promise<WorkflowDetail> {
+    this.requireSession();
+    const response = await this.http.post<{ workflow?: WorkflowDetail }>(
+      "/v1/workflows/file-import",
+      document,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.workflow) {
+      throw new Error(`Workflow file import failed with HTTP ${response.status}`);
+    }
+    return this.decryptWorkflowSlug(response.data.workflow, { personal: true });
+  }
+
   async askWorkflow(input: {
     instruction: string;
     create?: Record<string, unknown>;
@@ -9623,6 +9648,8 @@ export class OpenMatesClient {
         ...(params.selectedWorkflowId !== undefined ? { selected_workflow_id: selectedWorkflowId } : {}),
         ...(params.selectedProjectId !== undefined ? { selected_project_id: selectedProjectId } : {}),
         ...(params.timezone !== undefined ? { timezone: params.timezone } : {}),
+        ...(params.optimisticSave !== undefined ? { optimistic_save: params.optimisticSave } : {}),
+        ...(params.idempotencyKey !== undefined ? { idempotency_key: params.idempotencyKey } : {}),
       },
       this.getCliRequestHeaders(),
     );

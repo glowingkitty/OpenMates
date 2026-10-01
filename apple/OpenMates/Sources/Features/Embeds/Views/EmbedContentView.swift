@@ -7,6 +7,9 @@
 //          frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
+// Specification: specifications/features/chats/specification.yml
+//                specifications/features/app-skills/code-run/specification.yml
+// Assertions: chats.rendering.assistant-document-convergence, code-run.surface-parity
 
 import SwiftUI
 
@@ -22,8 +25,13 @@ struct EmbedContentView: View {
     let codePreviewActive: Bool
     let codeRunViewModel: CodeRunViewModel?
     let chatId: String?
+    let hasPIIMappings: Bool
+    let piiMappings: [PIIMapping]
+    let isPIIRevealed: Bool
+    let onTogglePII: () -> Void
     let previewVariant: EmbedPreviewCardVariant
     let onOpenEmbed: (EmbedRecord) -> Void
+    let onSheetDisplayedRowsChange: (([[String]]) -> Void)?
 
     init(
         embed: EmbedRecord,
@@ -32,8 +40,13 @@ struct EmbedContentView: View {
         codePreviewActive: Bool = false,
         codeRunViewModel: CodeRunViewModel? = nil,
         chatId: String? = nil,
+        hasPIIMappings: Bool = false,
+        piiMappings: [PIIMapping] = [],
+        isPIIRevealed: Bool = false,
+        onTogglePII: @escaping () -> Void = {},
         previewVariant: EmbedPreviewCardVariant = .compact,
-        onOpenEmbed: @escaping (EmbedRecord) -> Void = { _ in }
+        onOpenEmbed: @escaping (EmbedRecord) -> Void = { _ in },
+        onSheetDisplayedRowsChange: (([[String]]) -> Void)? = nil
     ) {
         self.embed = embed
         self.mode = mode
@@ -41,8 +54,13 @@ struct EmbedContentView: View {
         self.codePreviewActive = codePreviewActive
         self.codeRunViewModel = codeRunViewModel
         self.chatId = chatId
+        self.hasPIIMappings = hasPIIMappings
+        self.piiMappings = piiMappings
+        self.isPIIRevealed = isPIIRevealed
+        self.onTogglePII = onTogglePII
         self.previewVariant = previewVariant
         self.onOpenEmbed = onOpenEmbed
+        self.onSheetDisplayedRowsChange = onSheetDisplayedRowsChange
     }
 
     private var embedType: EmbedType? {
@@ -61,7 +79,16 @@ struct EmbedContentView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: .spacing3) {
             if shouldUseCompositeRenderer {
-                AppSkillUseRenderer(embed: embed, allEmbedRecords: allEmbedRecords, mode: mode, onOpenEmbed: onOpenEmbed)
+                AppSkillUseRenderer(
+                    embed: embed,
+                    allEmbedRecords: allEmbedRecords,
+                    mode: mode,
+                    hasPIIMappings: hasPIIMappings,
+                    piiMappings: piiMappings,
+                    isPIIRevealed: isPIIRevealed,
+                    onTogglePII: onTogglePII,
+                    onOpenEmbed: onOpenEmbed
+                )
             } else {
             switch embedType {
             // Web
@@ -72,9 +99,17 @@ struct EmbedContentView: View {
                     onOpenEmbed: onOpenEmbed
                 )
             case .newsSearch:
-                SearchResultsRenderer(data: rawData, mode: mode, resultLabel: "results")
+                NewsSearchEmbedRenderer(
+                    model: SearchSkillPreviewModel(embed: embed, allEmbedRecords: allEmbedRecords),
+                    mode: mode,
+                    onOpenEmbed: onOpenEmbed
+                )
             case .webWebsite:
-                WebsiteEmbedRenderer(data: rawData, mode: mode)
+                if embed.appId == "news" || rawData?["app_id"]?.value as? String == "news" {
+                    NewsEmbedRenderer(data: rawData, mode: mode)
+                } else {
+                    WebsiteEmbedRenderer(data: rawData, mode: mode)
+                }
             case .webRead:
                 WebReadEmbedRenderer(data: rawData, mode: mode)
             case .businessCompanyFinancialResult:
@@ -88,13 +123,18 @@ struct EmbedContentView: View {
             case .codeRepo:
                 CodeRepoEmbedRenderer(data: rawData, mode: mode)
             case .codeApplication:
-                ProductSummaryEmbedRenderer(data: rawData, mode: mode, type: embedType, appId: "code")
+                ApplicationEmbedRenderer(data: rawData, mode: mode)
             case .codeCode:
                 CodeEmbedRenderer(
                     data: rawData,
+                    embed: embed,
                     embedId: embed.id,
                     chatId: chatId,
                     mode: mode,
+                    hasPIIMappings: hasPIIMappings,
+                    piiMappings: piiMappings,
+                    isPIIRevealed: isPIIRevealed,
+                    onTogglePII: onTogglePII,
                     previewActive: codePreviewActive,
                     codeRunViewModel: codeRunViewModel,
                     isLargePreview: previewVariant == .large
@@ -108,13 +148,17 @@ struct EmbedContentView: View {
             case .designSearchIcons:
                 SearchResultsRenderer(data: rawData, mode: mode, resultLabel: "icons")
             case .designIconResult:
-                ProductSummaryEmbedRenderer(data: rawData, mode: mode, type: embedType, appId: "design")
+                DesignIconResultEmbedRenderer(data: rawData, mode: mode)
 
             // Documents
             case .docsDoc:
                 DocsRenderer(data: rawData, mode: mode)
             case .sheetsSheet:
-                SheetRenderer(data: rawData, mode: mode)
+                SheetRenderer(data: rawData, mode: mode,
+                              hasPIIMappings: hasPIIMappings, piiMappings: piiMappings,
+                              isPIIRevealed: isPIIRevealed,
+                              onTogglePII: onTogglePII, onDisplayedRowsChange: onSheetDisplayedRowsChange,
+                              isLargePreview: previewVariant == .large)
 
             // Diagrams
             case .diagramsMermaid:
@@ -134,9 +178,14 @@ struct EmbedContentView: View {
 
             // Electronics
             case .electronicsSearch:
-                SearchResultsRenderer(data: rawData, mode: mode, resultLabel: "components")
+                ElectronicsSearchParentRenderer(
+                    embed: embed,
+                    allEmbedRecords: allEmbedRecords,
+                    mode: mode,
+                    onOpenEmbed: onOpenEmbed
+                )
             case .electronicsPcbSchematic:
-                PcbSchematicEmbedRenderer(data: rawData, mode: mode)
+                PcbSchematicEmbedRenderer(data: rawData, mode: mode, status: embed.status)
             case .electronicsComponent:
                 ElectronicsComponentEmbedRenderer(data: rawData, mode: mode)
 
@@ -208,27 +257,31 @@ struct EmbedContentView: View {
 
             // Health
             case .healthSearch:
-                SearchResultsRenderer(data: rawData, mode: mode, resultLabel: "appointments")
+                SearchDomainParentRenderer(embed: embed, kind: .health, mode: mode,
+                                           allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
             case .healthAppointment:
-                AppointmentRenderer(data: rawData, mode: mode)
+                SearchDomainResultRenderer(data: rawData, kind: .health, mode: mode)
 
             // Home
             case .homeSearch:
-                SearchResultsRenderer(data: rawData, mode: mode, resultLabel: "listings")
+                SearchDomainParentRenderer(embed: embed, kind: .home, mode: mode,
+                                           allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
             case .homeListing:
-                HomeListingRenderer(data: rawData, mode: mode)
+                SearchDomainResultRenderer(data: rawData, kind: .home, mode: mode)
 
             // Nutrition
             case .nutritionSearch:
-                SearchResultsRenderer(data: rawData, mode: mode, resultLabel: "recipes")
+                SearchDomainParentRenderer(embed: embed, kind: .nutrition, mode: mode,
+                                           allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
             case .nutritionRecipe:
-                RecipeRenderer(data: rawData, mode: mode)
+                SearchDomainResultRenderer(data: rawData, kind: .nutrition, mode: mode)
 
             // Shopping
             case .shoppingSearch:
-                SearchResultsRenderer(data: rawData, mode: mode, resultLabel: "products")
+                SearchDomainParentRenderer(embed: embed, kind: .shopping, mode: mode,
+                                           allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
             case .shoppingProduct:
-                ShoppingProductRenderer(data: rawData, mode: mode)
+                SearchDomainResultRenderer(data: rawData, kind: .shopping, mode: mode)
 
             // Mail
             case .mailEmail:
@@ -296,7 +349,7 @@ struct EmbedContentView: View {
             case .pdf:
                 PDFRenderer(data: rawData, mode: mode)
             case .fileFile:
-                FileEmbedRenderer(data: rawData, mode: mode)
+                FileEmbedRenderer(data: rawData, mode: mode, status: embed.status)
 
             // Misc
             case .focusModeActivation:

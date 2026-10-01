@@ -85,7 +85,7 @@ def test_component_submission_is_one_spec_per_github_job(tmp_path):
 
 def test_four_slots_and_completion_release(tmp_path, monkeypatch):
     monkeypatch.setattr("scripts.ci_coordinator.time.sleep", lambda _: None)
-    q = Queue(tmp_path / "queue.db", lightweight_reserve=0)
+    q = Queue(tmp_path / "queue.db", max_active=4, lightweight_reserve=0)
     remote = Remote()
     for n in range(6):
         q.enqueue(str(n), "a" * 40, ["x.spec.ts"])
@@ -101,7 +101,7 @@ def test_four_slots_and_completion_release(tmp_path, monkeypatch):
             html_url="https://example.test/7",
         )
     ]
-    Queue(q.path, lightweight_reserve=0).tick(remote, 140)
+    Queue(q.path, max_active=4, lightweight_reserve=0).tick(remote, 140)
     assert len(remote.sent) == 5
     assert q.status(job["id"])[0]["state"] == "success"
 
@@ -185,7 +185,7 @@ def test_proof_profiles_have_distinct_idempotent_requests(tmp_path):
 
 def test_owned_prerequisite_runs_first_without_exceeding_four_slots(tmp_path):
     import pytest
-    queue = Queue(tmp_path / "queue.db", lightweight_reserve=0)
+    queue = Queue(tmp_path / "queue.db", max_active=4, lightweight_reserve=0)
     jobs = [queue.enqueue("owner", "a" * 40, [f"{n}.spec.ts"]) for n in range(6)]
     with pytest.raises(ValueError, match="owned queued"):
         queue.prioritize(jobs[-1]["id"], "other", "repair")
@@ -333,9 +333,9 @@ def test_prepared_canary_rejects_component_mode(tmp_path):
         )
 
 
-def test_default_capacity_reserves_fast_feedback_and_shares_owners(tmp_path, monkeypatch):
+def test_four_slot_capacity_reserves_fast_feedback_and_shares_owners(tmp_path, monkeypatch):
     monkeypatch.setattr("scripts.ci_coordinator.time.sleep", lambda _: None)
-    queue = Queue(tmp_path / "queue.db")
+    queue = Queue(tmp_path / "queue.db", max_active=4)
     for n in range(6):
         queue.enqueue("bulk", "a" * 40, [f"{n}.spec.ts"])
     other = queue.enqueue("other", "a" * 40, ["other.spec.ts"])
@@ -346,6 +346,74 @@ def test_default_capacity_reserves_fast_feedback_and_shares_owners(tmp_path, mon
     fast = queue.enqueue("quick", "b" * 40, ["components/x.spec.ts"], "component")
     queue.tick(remote, 140)
     assert len(remote.sent) == 4
+    assert remote.sent[-1]["id"] == fast["id"]
+
+
+def test_default_ten_slots_keep_one_available_for_lightweight_work(tmp_path, monkeypatch):
+    import json
+
+    monkeypatch.delenv("OPENMATES_CI_MAX_ACTIVE", raising=False)
+    monkeypatch.delenv("OPENMATES_CI_LIGHTWEIGHT_RESERVE", raising=False)
+    monkeypatch.setattr("scripts.ci_coordinator.time.sleep", lambda _: None)
+    queue = Queue(tmp_path / "queue.db")
+    assert (queue.max_active, queue.lightweight_reserve) == (10, 1)
+    for n in range(12):
+        queue.enqueue("bulk", "a" * 40, [f"bulk-{n}.spec.ts"])
+    remote = Remote()
+    queue.tick(remote, 100)
+    assert len(remote.sent) == 9
+    assert all(job["mode"] == "e2e" for job in remote.sent)
+
+    fast = queue.enqueue("quick", "b" * 40, ["components/fast.spec.ts"], "component")
+    queue.tick(remote, 140)
+    assert len(remote.sent) == 10
+    assert remote.sent[-1]["id"] == fast["id"]
+    assert len([job for job in queue.status() if job["state"] == "queued"]) == 3
+    with queue.connect() as db:
+        assert json.loads(queue.metadata(db, "capacity")) == {
+            "total": 10, "lightweight_reserved": 1, "active": 10,
+        }
+
+
+def test_environment_capacity_override_preserves_reservation(tmp_path, monkeypatch):
+    monkeypatch.setenv("OPENMATES_CI_MAX_ACTIVE", "6")
+    monkeypatch.setenv("OPENMATES_CI_LIGHTWEIGHT_RESERVE", "2")
+    monkeypatch.setattr("scripts.ci_coordinator.time.sleep", lambda _: None)
+    queue = Queue(tmp_path / "queue.db")
+    assert (queue.max_active, queue.lightweight_reserve) == (6, 2)
+    for n in range(8):
+        queue.enqueue("bulk", "a" * 40, [f"bulk-{n}.spec.ts"])
+    remote = Remote()
+    queue.tick(remote, 100)
+    assert len(remote.sent) == 4
+    for n in range(2):
+        queue.enqueue("quick", "b" * 40, [f"components/fast-{n}.spec.ts"], "component")
+    queue.tick(remote, 140)
+    assert len(remote.sent) == 6
+    assert all(job["mode"] == "component" for job in remote.sent[-2:])
+
+
+def test_reopened_queue_adopts_higher_cap_without_resending_active_jobs(tmp_path, monkeypatch):
+    monkeypatch.delenv("OPENMATES_CI_MAX_ACTIVE", raising=False)
+    monkeypatch.delenv("OPENMATES_CI_LIGHTWEIGHT_RESERVE", raising=False)
+    monkeypatch.setattr("scripts.ci_coordinator.time.sleep", lambda _: None)
+    path = tmp_path / "queue.db"
+    queue = Queue(path, max_active=4)
+    for n in range(12):
+        queue.enqueue("bulk", "a" * 40, [f"bulk-{n}.spec.ts"])
+    remote = Remote()
+    queue.tick(remote, 100)
+    assert len(remote.sent) == 3
+    before = {job["id"] for job in remote.sent}
+
+    resumed = Queue(path)
+    resumed.tick(remote, 140)
+    assert len(remote.sent) == 9
+    assert before.issubset({job["id"] for job in remote.sent})
+    assert len({job["id"] for job in remote.sent}) == 9
+    fast = resumed.enqueue("quick", "b" * 40, ["components/fast.spec.ts"], "component")
+    resumed.tick(remote, 180)
+    assert len(remote.sent) == 10
     assert remote.sent[-1]["id"] == fast["id"]
 
 
@@ -437,7 +505,7 @@ def test_refreshing_candidate_url_retains_logical_request(tmp_path):
 
 def test_uncertain_remote_reserves_capacity_but_not_lightweight_slot(tmp_path, monkeypatch):
     monkeypatch.setattr("scripts.ci_coordinator.time.sleep", lambda _: None)
-    queue = Queue(tmp_path / "queue.db")
+    queue = Queue(tmp_path / "queue.db", max_active=4)
     remote = Remote()
     uncertain = queue.enqueue("owner", "a" * 40, ["x.spec.ts"])
     with queue.connect() as db:

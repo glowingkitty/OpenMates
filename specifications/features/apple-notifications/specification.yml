@@ -11,6 +11,8 @@ summary: >
 scope:
   includes:
     - iPhone, iPad, and macOS APNs permission, registration, rotation, revocation, and environment handling.
+    - Independently authenticated watchOS installations register a separate APNs target, retain a generic privacy-safe completion alert, and open the exact authorized chat when tapped.
+    - Paired iPhone and Watch targets remain registered together; operating-system forwarding and presentation rules determine the visible destination.
     - Generic APNs alert text and optional device-encrypted preview ciphertext.
     - Foreground, background, and terminated-state chat notification actions.
     - Inline reply persistence through the normal client-encrypted chat path.

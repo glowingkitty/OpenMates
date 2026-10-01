@@ -16,7 +16,7 @@ options:
 settings:
   base:
     SWIFT_VERSION: "6.0"
-    MARKETING_VERSION: "0.22.0"
+    MARKETING_VERSION: "0.23.0"
     CURRENT_PROJECT_VERSION: 12
     DEVELOPMENT_TEAM: Z9B2YFKN2X
     CODE_SIGN_STYLE: Automatic
@@ -54,10 +54,14 @@ targets:
         excludes:
           - "**/*.generated.swift"
       - path: OpenMatesShared
+      - path: OpenMatesWatch/Sources/WatchHubDataService.swift
       # Import generated design tokens from the frontend token pipeline
       - path: ../frontend/packages/ui/src/tokens/generated/swift
         name: DesignTokens
         type: group
+        excludes:
+          - Assets.xcassets
+          - Icons.xcassets
       - path: ../frontend/packages/ui/static/images/mates
         buildPhase: resources
         name: Mates
@@ -78,11 +82,23 @@ targets:
         buildPhase: resources
         name: Fonts
         type: folder
-    resources:
+      - path: OpenMates/Resources/MermaidRuntime
+        buildPhase: resources
+        name: MermaidRuntime
+        type: folder
       # Xcode asset catalogs with theme-aware colors and custom icons
       - path: OpenMates/Resources/BrandAssets.xcassets
+        buildPhase: resources
+      - path: OpenMates/Resources/SpeechIcons.xcassets
+        buildPhase: resources
+      - path: ../frontend/apps/web_app/static/audio/assistant-speech-pending.wav
+        buildPhase: resources
+      - path: OpenMates/Resources/modelsMetadata.json
+        buildPhase: resources
       - path: ../frontend/packages/ui/src/tokens/generated/swift/Assets.xcassets
+        buildPhase: resources
       - path: ../frontend/packages/ui/src/tokens/generated/swift/Icons.xcassets
+        buildPhase: resources
     settings:
       base:
         LIBRARY_SEARCH_PATHS: "$(inherited) $(DERIVED_FILE_DIR)/PairOpaque"
@@ -119,6 +135,9 @@ targets:
           - webcredentials:openmates.org
           - $(OPENMATES_DEV_WEBCREDENTIALS)
           - webcredentials:app.openmates.org
+          - applinks:app.openmates.org
+          - applinks:openmates.org
+          - applinks:app.dev.openmates.org
     info:
       path: OpenMates/Resources/Info.plist
       properties:
@@ -213,9 +232,13 @@ targets:
       - path: OpenMates/Sources/Core/Networking/APIClient.swift
       - path: OpenMates/Sources/Core/Networking/ServerConfiguration.swift
       - path: OpenMates/Sources/Core/Watch/WatchChatRuntime.swift
+      - path: OpenMates/Sources/Core/Watch/WatchPushLifecycle.swift
+      - path: OpenMates/Sources/Core/Watch/WatchCanonicalStorage.swift
+      - path: OpenMates/Sources/Core/Diagnostics/NativeDiagnostics.swift
       - path: OpenMates/Sources/Core/Watch/WatchItemOpenModel.swift
       - path: OpenMates/Sources/Core/Watch/WatchPhoneOpenPayload.swift
       - path: OpenMates/Sources/Core/Watch/WatchEmbedPreviewModel.swift
+      - path: OpenMates/Sources/Shared/Components/Icon.swift
       - path: OpenMates/Sources/Features/Auth/ViewModels/PairLoginRuntime.swift
       - path: OpenMates/Sources/Features/Auth/ViewModels/PairOpaque.swift
       - path: OpenMates/Sources/Features/Auth/ViewModels/PairV2Runtime.swift
@@ -231,9 +254,14 @@ targets:
         name: SpacingTokens.generated.swift
       - path: ../frontend/packages/ui/src/tokens/generated/swift/TypographyTokens.generated.swift
         name: TypographyTokens.generated.swift
-    resources:
       - path: OpenMatesWatch/Assets.xcassets
+        buildPhase: resources
+      - path: ../frontend/packages/ui/src/tokens/generated/swift/Icons.xcassets
+        buildPhase: resources
+      - path: OpenMates/Resources/modelsMetadata.json
+        buildPhase: resources
       - path: ../frontend/packages/ui/src/tokens/generated/swift/Assets.xcassets
+        buildPhase: resources
       - path: OpenMates/Resources/Fonts
         buildPhase: resources
         name: Fonts
@@ -262,10 +290,14 @@ targets:
       configs:
         Debug:
           SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG
+          APS_ENVIRONMENT: development
         Release:
+          APS_ENVIRONMENT: production
           SWIFT_OPTIMIZATION_LEVEL: -Owholemodule
     entitlements:
       path: OpenMatesWatch/OpenMatesWatch.entitlements
+      properties:
+        aps-environment: $(APS_ENVIRONMENT)
     info:
       path: OpenMatesWatch/Info.plist
       properties:
@@ -401,6 +433,7 @@ targets:
     platform: macOS
     sources:
       - path: OpenMatesMacUITests
+      - path: OpenMatesUITests/ChatHistoryMacParityUITests.swift
       - path: OpenMatesUITests/MacMenuBarQuickCaptureUITests.swift
       - path: OpenMatesUITests/TooltipHelpParityUITests.swift
     dependencies:

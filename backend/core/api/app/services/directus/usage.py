@@ -355,7 +355,9 @@ class UsageMethods:
                 encrypted_model_used = encrypted_model_used_tuple[0] if encrypted_model_used_tuple else None
 
             # Save token fields for skills whose billing directly depends on provider token usage.
-            should_save_tokens = (app_id, skill_id) in {("ai", "ask"), ("code", "image_to_html")}
+            should_save_tokens = (app_id, skill_id) in {
+                ("ai", "ask"), ("code", "image_to_html"), ("workflows", "create-or-modify"),
+            }
             
             if actual_input_tokens is not None or actual_output_tokens is not None:
                 if not should_save_tokens:

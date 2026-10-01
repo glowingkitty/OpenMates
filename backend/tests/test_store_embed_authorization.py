@@ -62,11 +62,15 @@ class FakeEmbedMethods:
 
 
 class FakeDirectusService:
-    def __init__(self, existing_embed=None, *, project_linked=False):
+    def __init__(self, existing_embed=None, *, project_linked=False, chats=None):
         self.embed = FakeEmbedMethods(existing_embed)
         self.project_linked = project_linked
+        self.chats = chats or {}
 
     async def get_items(self, collection, params, **kwargs):
+        if collection == "chats":
+            chat = self.chats.get(params["filter[id][_eq]"])
+            return [chat] if chat else []
         assert collection == "project_items"
         return [{"id": "project-item-1"}] if self.project_linked else []
 
@@ -152,6 +156,37 @@ async def test_store_embed_rejects_new_embed_create_with_forged_owner_hash():
     assert directus.embed.created == []
     assert manager.broadcasts == []
     assert manager.personal_messages[0][0]["payload"]["message"] == "Not authorized to store embed"
+
+
+# contract-test: direct surface=rest_api assertions=apps.library.embeds-account-paginated
+@pytest.mark.asyncio
+async def test_personal_chat_projection_ignores_forged_team_and_root_fields():
+    manager = FakeConnectionManager()
+    chat_id = "personal-chat"
+    directus = FakeDirectusService(chats={chat_id: {"id": chat_id, "hashed_user_id": OWNER_HASH, "hashed_team_id": None}})
+    await get_handle_store_embed()(
+        websocket=None,
+        manager=manager,
+        cache_service=FakeCacheService(),
+        directus_service=directus,
+        user_id=OWNER_ID,
+        device_fingerprint_hash="device-1",
+        payload=store_payload(
+            chat_id=chat_id,
+            hashed_chat_id=hashlib.sha256(chat_id.encode()).hexdigest(),
+            app_id="events", skill_id="search",
+            hashed_team_id=hashlib.sha256(b"another-team").hexdigest(),
+            workspace_origin="web_apps", root_embed_id="forged-root",
+            apps_workspace_root_id="forged-root",
+        ),
+    )
+    assert not manager.personal_messages
+    assert len(directus.embed.created) == 1
+    created = directus.embed.created[0]
+    assert created["workspace_origin"] == "chat"
+    assert created["root_embed_id"] == created["embed_id"]
+    assert "hashed_team_id" not in created
+    assert "apps_workspace_root_id" not in created
 
 
 # contract-test: supporting surface=rest_api assertions=projects.files.hosted-ciphertext-commit

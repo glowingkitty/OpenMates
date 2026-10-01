@@ -29,7 +29,7 @@
     import ChatPreviewCard from './ChatPreviewCard.svelte';
     import { activeChatStore } from '../../stores/activeChatStore';
     import { isMobileView } from '../../stores/uiStateStore';
-    import { getExampleChatsForFocusMode } from '../../demo_chats';
+    import { getExampleChatsForFocusMode, getExampleChatMessages } from '../../demo_chats';
     import type { Chat } from '../../types/chat';
     import { get } from 'svelte/store';
     
@@ -39,9 +39,10 @@
     interface Props {
         appId: string;
         focusModeId: string;
+        onOpenExample?: (example: string) => void;
     }
     
-    let { appId, focusModeId }: Props = $props();
+    let { appId, focusModeId, onOpenExample }: Props = $props();
     
     // Get store state reactively (Svelte 5)
     let storeState = $state(appSkillsStore.getState());
@@ -217,11 +218,17 @@
      * MessageInput.svelte watches this store and renders it as a styled mention chip.
      */
     function insertFocusMention() {
+        if (onOpenExample) { onOpenExample(`@focus:${appId}:${focusModeId}`); return; }
         pendingMentionStore.set(`@focus:${appId}:${focusModeId}`);
         panelState.closeSettings();
     }
 
     function openExampleChat(chat: Chat) {
+        if (onOpenExample) {
+            const prompt = getExampleChatMessages(chat.chat_id).find(message => message.role === 'user' && typeof message.content === 'string' && message.content.trim())?.content;
+            if (typeof prompt === 'string') onOpenExample(prompt);
+            return;
+        }
         const shouldCloseSettings = get(isMobileView);
         activeChatStore.setActiveChat(chat.chat_id);
         dispatch('chatSelected', { chat });

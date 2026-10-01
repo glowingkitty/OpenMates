@@ -1,3 +1,137 @@
+sidebar.loading:
+  context: Workflows sidebar loading state
+  en: Loading workflows...
+  de: Workflows werden geladen...
+  verified_by_human: []
+
+sidebar.empty:
+  context: Workflows sidebar empty state
+  en: No workflows yet.
+  de: Noch keine Workflows.
+  verified_by_human: []
+
+sidebar.manual:
+  context: Workflows sidebar manual trigger fallback
+  en: Manual
+  de: Manuell
+  verified_by_human: []
+
+home.greeting:
+  context: Workflow workspace home greeting, with the owner's visible first name
+  en: 'Hey {name}!'
+  de: 'Hallo {name}!'
+  verified_by_human: []
+home.fallback_name:
+  context: Familiar name when the Workflow owner has no visible username
+  en: there
+  de: du
+  verified_by_human: []
+home.subtitle:
+  context: Workflow workspace home subtitle
+  en: What do you want to automate next?
+  de: Was möchtest du als Nächstes automatisieren?
+  verified_by_human: []
+home.show_all:
+  context: Show every workflow from workspace home
+  en: Show all
+  de: Alle anzeigen
+  verified_by_human: []
+home.back_to_recent:
+  context: Return to recent Workflow cards
+  en: Back to recent
+  de: Zurück zu den letzten Workflows
+  verified_by_human: []
+home.search:
+  context: Search button on all Workflows view
+  en: Search
+  de: Suchen
+  verified_by_human: []
+home.search_unavailable:
+  context: Temporary search notice in all Workflows view
+  en: Workflow search is coming soon.
+  de: Die Workflow-Suche kommt bald.
+  verified_by_human: []
+home.retention_none:
+  context: Workflow home card without durable run content
+  en: No durable run content
+  de: Keine dauerhaft gespeicherten Ausführungsinhalte
+  verified_by_human: []
+home.retention_last5:
+  context: Workflow home card retaining five encrypted runs
+  en: Keep latest 5 encrypted runs
+  de: Die letzten 5 verschlüsselten Ausführungen behalten
+  verified_by_human: []
+home.badge_new:
+  context: Newly created Workflow card badge
+  en: New
+  de: Neu
+  verified_by_human: []
+home.badge_enabled:
+  context: Enabled Workflow card badge
+  en: Enabled
+  de: Aktiviert
+  verified_by_human: []
+home.badge_paused:
+  context: Paused Workflow card badge
+  en: Paused
+  de: Pausiert
+  verified_by_human: []
+home.starter_badge:
+  context: Workflow example starter card badge
+  en: Starter
+  de: Vorlage
+  verified_by_human: []
+home.starter_rain_title:
+  context: Daily weather and news Workflow starter title
+  en: Daily weather and news
+  de: Tägliches Wetter und Nachrichten
+  verified_by_human: []
+home.starter_rain_summary:
+  context: Daily weather and news Workflow starter summary
+  en: Rain timing and the latest articles in a new chat
+  de: Regenzeiten und aktuelle Artikel in einem neuen Chat
+  verified_by_human: []
+home.starter_news_title:
+  context: Weekly AI events Workflow starter title
+  en: Weekly AI events
+  de: Wöchentliche KI-Veranstaltungen
+  verified_by_human: []
+home.starter_news_summary:
+  context: Weekly AI events Workflow starter summary
+  en: Discover AI events for the upcoming week
+  de: KI-Veranstaltungen für die kommende Woche entdecken
+  verified_by_human: []
+home.starter_apartments_title:
+  context: Hourly apartment Workflow starter title
+  en: Find new apartments every hour
+  de: Stündlich neue Wohnungen finden
+  verified_by_human: []
+home.starter_apartments_summary:
+  context: Hourly apartment Workflow starter summary
+  en: Only previously undelivered listings
+  de: Nur bisher nicht zugestellte Angebote
+  verified_by_human: []
+home.inspiration_phrase:
+  context: Workflow home daily inspiration phrase
+  en: A useful workflow starts with one trigger, one decision, and one visible result.
+  de: Ein nützlicher Workflow beginnt mit einem Auslöser, einer Entscheidung und einem sichtbaren Ergebnis.
+  verified_by_human: []
+home.inspiration_title:
+  context: Workflow home daily inspiration title
+  en: Design a Workflow Trigger
+  de: Einen Workflow-Auslöser entwerfen
+  verified_by_human: []
+home.inspiration_feature_title:
+  context: Workflow home inspiration feature title
+  en: Workflow planning tip
+  de: Tipp zur Workflow-Planung
+  verified_by_human: []
+home.inspiration_feature_description:
+  context: Workflow home inspiration feature description
+  en: Start automation with a clear trigger.
+  de: Starte die Automatisierung mit einem klaren Auslöser.
+  verified_by_human: []
+
 template_share.title:
   context: Heading for the Workflow template sharing panel
   en: Share as template
@@ -600,7 +734,223 @@ version_history.restore_failed:
 
 builder.new_workflow_placeholder:
   context: Workflow progressive builder control
-  en: "Enter a name for a new workflow"
+  en: "Describe new workflow."
+  verified_by_human: []
+
+builder.ai_new:
+  context: Pill above a newly AI-created workflow card
+  en: New
+  de: Neu
+  verified_by_human: []
+
+builder.ai_edit_placeholder:
+  context: Prompt placeholder for changing an open workflow with AI
+  en: Describe workflow change.
+  de: Workflow-Änderung beschreiben.
+  verified_by_human: []
+
+builder.ai_edit_submit:
+  context: Button to submit an AI edit to an open workflow
+  en: Update workflow
+  de: Workflow aktualisieren
+  verified_by_human: []
+
+builder.ai_edit_submitting:
+  context: Button while an AI workflow edit is processing
+  en: Updating...
+  de: Wird aktualisiert...
+  verified_by_human: []
+
+builder.ai_changes_saved:
+  context: Heading confirming an AI workflow edit was durably saved
+  en: AI changes saved
+  de: KI-Änderungen gespeichert
+  verified_by_human: []
+
+builder.ai_created_disabled:
+  context: Info above a newly AI-created workflow's nodes reminding the user to activate it
+  en: Saved as disabled. Activate this workflow when you're ready.
+  de: Als deaktiviert gespeichert. Aktiviere diesen Workflow, wenn du bereit bist.
+  verified_by_human: []
+
+builder.ai_removed:
+  context: Label before the titles of nodes removed by AI
+  en: 'Removed:'
+  de: 'Entfernt:'
+  verified_by_human: []
+
+builder.ai_added_nodes:
+  context: Summary of nodes added by AI; count is shown separately
+  en: added nodes highlighted below.
+  de: hinzugefügte Knoten unten hervorgehoben.
+  verified_by_human: []
+
+builder.ai_edited_nodes:
+  context: Summary of nodes edited by AI; count is shown separately
+  en: edited nodes highlighted below.
+  de: bearbeitete Knoten unten hervorgehoben.
+  verified_by_human: []
+
+builder.ai_undo:
+  context: Button to undo a saved AI workflow edit
+  en: Undo AI changes
+  de: KI-Änderungen rückgängig machen
+  verified_by_human: []
+
+builder.ai_node_added:
+  context: Visual label on a node added by AI
+  en: AI added
+  de: KI hinzugefügt
+  verified_by_human: []
+
+builder.ai_node_edited:
+  context: Visual label on a node edited by AI
+  en: AI edited
+  de: KI bearbeitet
+  verified_by_human: []
+
+builder.voice_connecting:
+  context: Workflow voice input connecting status
+  en: Connecting microphone...
+  de: Mikrofon wird verbunden...
+  verified_by_human: []
+
+builder.voice_listening:
+  context: Workflow voice input recording status
+  en: Listening...
+  de: Hört zu...
+  verified_by_human: []
+
+builder.voice_correcting:
+  context: Workflow voice input correction status
+  en: Correcting transcript...
+  de: Transkript wird korrigiert...
+  verified_by_human: []
+
+builder.voice_preview:
+  context: Placeholder while waiting for workflow voice transcription
+  en: Your words will appear here as you speak.
+  de: Deine Worte erscheinen hier während du sprichst.
+  verified_by_human: []
+
+builder.voice_cancel:
+  context: Cancel a workflow voice recording
+  en: Cancel
+  de: Abbrechen
+  verified_by_human: []
+
+builder.voice_finish:
+  context: Finish a workflow voice recording
+  en: Finish
+  de: Fertig
+  verified_by_human: []
+
+builder.voice_dialog:
+  context: Accessible name for workflow voice recording controls
+  en: Record workflow instruction
+  de: Workflow-Anweisung aufnehmen
+  verified_by_human: []
+
+builder.voice_microphone_unavailable:
+  context: Error when workflow voice input cannot access the microphone
+  en: Microphone unavailable.
+  de: Mikrofon nicht verfügbar.
+  verified_by_human: []
+
+builder.voice_no_speech:
+  context: Error when workflow voice input contains no speech
+  en: No speech was detected.
+  de: Es wurde keine Sprache erkannt.
+  verified_by_human: []
+
+builder.voice_transcription_failed:
+  context: Error when workflow voice input transcription fails
+  en: Could not transcribe this recording. Please record again or type your workflow request.
+  de: Diese Aufnahme konnte nicht transkribiert werden. Bitte nimm erneut auf oder tippe deine Workflow-Anfrage.
+  verified_by_human: []
+
+builder.ai_draft_unsaved:
+  context: Error when a workflow input draft lacks a persisted workflow
+  en: The draft has not been saved. Please try again.
+  de: Der Entwurf wurde nicht gespeichert. Bitte versuche es erneut.
+  verified_by_human: []
+
+builder.ai_failed:
+  context: Generic workflow authoring failure
+  en: The workflow could not be created. Please try again.
+  de: Der Workflow konnte nicht erstellt werden. Bitte versuche es erneut.
+  verified_by_human: []
+
+builder.ai_missing_result:
+  context: Error when workflow authoring reports success without saved workflow data
+  en: The workflow request finished without a saved workflow.
+  de: Die Workflow-Anfrage wurde ohne gespeicherten Workflow abgeschlossen.
+  verified_by_human: []
+
+builder.ai_undo_failed:
+  context: Generic failure when undoing an AI workflow change
+  en: AI changes could not be undone.
+  de: KI-Änderungen konnten nicht rückgängig gemacht werden.
+  verified_by_human: []
+
+builder.ai_undo_conflict:
+  context: Failure to undo because a newer manual workflow version exists
+  en: AI changes could not be undone. Open version history to review the workflow.
+  de: KI-Änderungen konnten nicht rückgängig gemacht werden. Öffne den Versionsverlauf, um den Workflow zu prüfen.
+  verified_by_human: []
+
+builder.ai_saving:
+  context: Pending confirmation while an AI workflow is being saved
+  en: Workflow prepared. Saving now.
+  de: Workflow vorbereitet. Wird jetzt gespeichert.
+  verified_by_human: []
+
+builder.ai_preview_label:
+  context: Label for a validated workflow preview while background saving continues
+  en: Workflow preview
+  de: Workflow-Vorschau
+  verified_by_human: []
+
+builder.ai_preview_saving:
+  context: Status pill on a workflow preview awaiting durable save
+  en: Saving...
+  de: Wird gespeichert...
+  verified_by_human: []
+
+builder.ai_preview_pending:
+  context: Clarifies that a visible workflow preview has not been saved yet
+  en: This preview is waiting for its save to finish.
+  de: Diese Vorschau wartet noch auf den Abschluss des Speicherns.
+  verified_by_human: []
+
+builder.ai_preview_steps:
+  context: Heading for proposed workflow steps in a pending preview
+  en: Proposed steps
+  de: Vorgeschlagene Schritte
+  verified_by_human: []
+
+builder.ai_validated_step:
+  context: Count label above a live workflow graph with one server-validated step
+  en: "{count} step validated"
+  de: "{count} Schritt validiert"
+  verified_by_human: []
+
+builder.ai_validated_steps:
+  context: Count label above a live workflow graph with multiple server-validated steps
+  en: "{count} steps validated"
+  de: "{count} Schritte validiert"
+  verified_by_human: []
+
+builder.ai_stopping:
+  context: Status after stopping a streamed workflow authoring request
+  en: Stopping…
+  de: Wird gestoppt…
+  verified_by_human: []
+
+builder.ai_check_status:
+  context: Retry checking a pending AI workflow save after a connection error
+  en: Check save status
+  de: Speicherstatus prüfen
   verified_by_human: []
 
 builder.list:
@@ -915,7 +1265,37 @@ builder.ask_ai_question:
 
 builder.ask_ai_placeholder:
   context: Workflow Ask AI instruction editor placeholder
-  en: "For example: Summarize the events and explain what makes each one useful. Type @ to add a variable from an earlier step."
+  en: "What should AI do with the information from earlier steps? Type @ to add a variable. To use an app skill, add an App action step."
+  verified_by_human: []
+
+builder.variable_add:
+  context: Label before earlier action chips in the Workflow variable picker
+  en: "Add:"
+  verified_by_human: []
+
+builder.select_variable_source:
+  context: Accessible label for earlier Workflow actions that expose variables
+  en: "Choose an earlier step"
+  verified_by_human: []
+
+builder.variable_show_all:
+  context: Reveal all selectable variables from the selected Workflow step
+  en: "Show all"
+  verified_by_human: []
+
+builder.variable_show_less:
+  context: Return to suggested variables from the selected Workflow step
+  en: "Show less"
+  verified_by_human: []
+
+builder.no_matching_variables:
+  context: Empty filtered Workflow variable picker
+  en: "No matching variables"
+  verified_by_human: []
+
+builder.next_step:
+  context: Back label from Workflow Ask AI editor to the action choices
+  en: "Next step"
   verified_by_human: []
 
 builder.suggested_values:
@@ -1125,7 +1505,52 @@ builder.ai_check_values:
 
 builder.ai_check_guidance:
   context: Workflow AI Check guidance
-  en: "Use an exact rule for fixed thresholds. Use Ask AI when context or several factors matter. If AI cannot decide reliably, the Unsure branch runs."
+  en: "Ask a True or False question about earlier results. If AI lacks enough evidence, the Unsure branch runs."
+  verified_by_human: []
+
+builder.ai_confirms:
+  context: AI condition source in the Workflow If editor
+  en: "AI confirms"
+  verified_by_human: []
+
+builder.select_check_source:
+  context: First Workflow If dropdown choosing an earlier app action or AI confirms
+  en: "Select action or AI confirms"
+  verified_by_human: []
+
+builder.compare_source:
+  context: Workflow If right-hand side literal type or earlier app action selector
+  en: "Compare with"
+  verified_by_human: []
+
+builder.compare_variable:
+  context: Workflow If right-hand side app output variable selector
+  en: "Comparison variable"
+  verified_by_human: []
+
+builder.ai_check_not_boolean:
+  context: Error when paid Jev validation rejects a Workflow AI confirms question
+  en: "Enter a question that can be answered True or False."
+  verified_by_human: []
+
+builder.ai_validation_unavailable:
+  context: Error when paid Workflow AI validation cannot complete
+  en: "AI validation could not finish. Please try again."
+  verified_by_human: []
+
+builder.insufficient_credits:
+  context: Workflow AI validation or test has insufficient user credits
+  en: "You do not have enough credits for this request."
+  verified_by_human: []
+
+builder.save_validation_cost:
+  context: Cost reminder for changed Ask AI or AI confirms question Save validation
+  en: "Save validation · 1 credit"
+  verified_by_human: []
+
+builder.unsure:
+  context: Workflow AI condition test result when evidence is insufficient
+  en: "Unsure"
   verified_by_human: []
 
 builder.ai_check_required:
@@ -1185,7 +1610,7 @@ builder.chat_title:
 
 builder.message_placeholder:
   context: Workflow progressive builder control
-  en: "Enter the message here. Type @ to add a variable from an earlier step, or select one below."
+  en: "Enter the message here. Type @ to add a variable from an earlier step."
   verified_by_human: []
 
 builder.only_new_results:
@@ -1673,6 +2098,136 @@ builder.sharing_soon:
   en: "Workflow sharing is coming soon."
   verified_by_human: []
 
+builder.file_import_button:
+  context: Button for selecting a portable Workflow YAML file
+  en: "Import .workflow.yml"
+  verified_by_human: []
+
+builder.file_import_group:
+  context: Accessible label for the Workflow home composer and file drop target
+  en: "Create or import a workflow"
+  verified_by_human: []
+
+builder.file_import_drop_hint:
+  context: Hint shown while dragging a file over the Workflow composer
+  en: "Drop .workflow.yml to import"
+  verified_by_human: []
+
+builder.file_import_choose:
+  context: Error when a dropped or selected file is not a portable Workflow
+  en: "Choose an OpenMates .workflow.yml file."
+  verified_by_human: []
+
+builder.file_import_failed:
+  context: Generic Workflow file import failure
+  en: "Could not import workflow file."
+  verified_by_human: []
+
+builder.file_import_personal_only:
+  context: Workflow file uploads cannot create Team-owned workflows
+  en: "Switch to Personal to import a Workflow. Team workflow import is not supported."
+  verified_by_human: []
+
+builder.file_import_success:
+  context: Workflow file import success and next step
+  en: "Workflow imported. Review its bindings before enabling it."
+  verified_by_human: []
+
+builder.file_project_import_success:
+  context: Project upload imported and linked a portable Workflow
+  en: "Workflow imported into this project. Review its bindings before enabling it."
+  verified_by_human: []
+
+builder.file_project_link_failed:
+  context: Project upload imported a Workflow but failed to link it to the Project
+  en: "Workflow imported, but could not be linked to this project. Open Workflows to find it."
+  verified_by_human: []
+
+builder.file_export_saved:
+  context: More-menu action that exports only the saved Workflow definition
+  en: "Export saved .workflow.yml"
+  verified_by_human: []
+
+builder.file_export_aria:
+  context: Accessible name of the Workflow file export action
+  en: "Export saved workflow"
+  verified_by_human: []
+
+builder.file_export_failed:
+  context: Generic Workflow file export failure
+  en: "Could not export workflow file."
+  verified_by_human: []
+
+builder.file_open_workflow:
+  context: Action to open a Workflow imported from a Project
+  en: "Open workflow"
+  verified_by_human: []
+
+builder.file_binding_title:
+  context: Heading for recipient binding review after importing a Workflow
+  en: "Review imported workflow settings"
+  verified_by_human: []
+
+builder.file_binding_description:
+  context: Instruction for confirming each imported Workflow binding
+  en: "Check each destination and account setting. Save the edited step, then confirm it before enabling this workflow."
+  verified_by_human: []
+
+builder.file_binding_schedule:
+  context: Imported schedule binding label
+  en: "Schedule and time zone"
+  verified_by_human: []
+
+builder.file_binding_app:
+  context: Imported app skill binding label
+  en: "App and skill access"
+  verified_by_human: []
+
+builder.file_binding_notification:
+  context: Imported notification preferences binding label
+  en: "Notification preferences"
+  verified_by_human: []
+
+builder.file_binding_chat:
+  context: Imported chat destination binding label
+  en: "Chat destination"
+  verified_by_human: []
+
+builder.file_binding_chat_hint:
+  context: Instruction for an imported Workflow chat destination
+  en: "Choose an existing chat or explicitly name a new chat in this step."
+  verified_by_human: []
+
+builder.file_binding_chat_missing:
+  context: Error when confirming an imported chat destination without a saved choice
+  en: "Choose an existing chat or name a new chat in this step, then save it."
+  verified_by_human: []
+
+builder.file_binding_edit:
+  context: Action to edit an imported Workflow binding step
+  en: "Edit step"
+  verified_by_human: []
+
+builder.file_binding_confirm:
+  context: Action to validate and confirm an imported Workflow binding
+  en: "Confirm"
+  verified_by_human: []
+
+builder.file_binding_confirmed:
+  context: State of a confirmed imported Workflow binding
+  en: "Confirmed"
+  verified_by_human: []
+
+builder.file_binding_save_first:
+  context: Status when Workflow binding confirmation waits for node Save
+  en: "Save your changes before confirming bindings."
+  verified_by_human: []
+
+builder.file_binding_failed:
+  context: Generic imported Workflow binding confirmation error
+  en: "Could not confirm this binding."
+  verified_by_human: []
+
 run_embed.title:
   context: Preview and fullscreen title for a workflow execution linked from its delivered chat message
   en: "Workflow run"
@@ -1697,3 +2252,215 @@ run_embed.unavailable:
   context: Workflow run fullscreen message when owner data has expired or been deleted
   en: "This workflow run is no longer available."
   verified_by_human: []
+
+builder.ai_create_submit:
+  context: 'Button to create a Workflow from an instruction'
+  en: 'Create workflow'
+  de: 'Workflow erstellen'
+  verified_by_human: []
+
+builder.ai_create_submitting:
+  context: 'Button while an AI Workflow is being created'
+  en: 'Creating...'
+  de: 'Wird erstellt...'
+  verified_by_human: []
+
+template_share.owner_description:
+  context: 'Explanation of the portable Workflow template'
+  en: 'Recipients import a disabled copy and reconnect their own accounts, schedules, permissions, and notification preferences.'
+  de: 'Empfänger importieren eine deaktivierte Kopie und verbinden ihre eigenen Konten, Zeitpläne, Berechtigungen und Benachrichtigungseinstellungen erneut.'
+  verified_by_human: []
+
+template_share.preparing:
+  context: 'Preparing a Workflow template link'
+  en: 'Preparing...'
+  de: 'Wird vorbereitet...'
+  verified_by_human: []
+
+template_share.copy_short:
+  context: 'Copy a short Workflow template link'
+  en: 'Copy short link'
+  de: 'Kurzlink kopieren'
+  verified_by_human: []
+
+template_share.copy_offline:
+  context: 'Copy an offline Workflow template link'
+  en: 'Copy offline link'
+  de: 'Offline-Link kopieren'
+  verified_by_human: []
+
+template_share.revoke:
+  context: 'Revoke Workflow template access'
+  en: 'Revoke template access'
+  de: 'Vorlagenzugriff widerrufen'
+  verified_by_human: []
+
+template_share.restore:
+  context: 'Restore Workflow template access'
+  en: 'Restore template access'
+  de: 'Vorlagenzugriff wiederherstellen'
+  verified_by_human: []
+
+template_share.link_created:
+  context: 'Workflow template share confirmation'
+  en: 'Short template link created.'
+  de: 'Kurzlink für Vorlage erstellt.'
+  verified_by_human: []
+
+template_share.link_copied:
+  context: 'Workflow template copy confirmation'
+  en: 'Link copied.'
+  de: 'Link kopiert.'
+  verified_by_human: []
+
+template_share.access_restored:
+  context: 'Workflow template restoration confirmation'
+  en: 'Template access restored. Create a new short link to share it again.'
+  de: 'Vorlagenzugriff wiederhergestellt. Erstelle einen neuen Kurzlink, um die Vorlage erneut zu teilen.'
+  verified_by_human: []
+
+template_share.preview_label:
+  context: 'Workflow template preview heading'
+  en: 'Workflow template'
+  de: 'Workflow-Vorlage'
+  verified_by_human: []
+
+template_share.import_disabled:
+  context: 'Explains imported Workflows begin disabled'
+  en: 'Imported workflows start disabled.'
+  de: 'Importierte Workflows sind zunächst deaktiviert.'
+  verified_by_human: []
+
+template_share.preview_step_summary:
+  context: 'Recipient Workflow template step count and disabled state'
+  en: '{count} steps. Imported workflows start disabled.'
+  de: '{count} Schritte. Importierte Workflows sind zunächst deaktiviert.'
+  verified_by_human: []
+
+template_share.importing:
+  context: 'Workflow template import in progress'
+  en: 'Importing...'
+  de: 'Wird importiert...'
+  verified_by_human: []
+
+template_share.complete_before_enable:
+  context: 'Workflow template binding heading'
+  en: 'Complete before enabling'
+  de: 'Vor der Aktivierung abschließen'
+  verified_by_human: []
+
+template_share.binding_explanation:
+  context: 'Workflow template binding explanation'
+  en: 'This imported workflow remains disabled until these recipient-owned bindings are confirmed.'
+  de: 'Dieser importierte Workflow bleibt deaktiviert, bis diese eigenen Verbindungen bestätigt sind.'
+  verified_by_human: []
+
+template_share.binding_schedule:
+  context: 'Workflow template schedule binding'
+  en: 'Choose your schedule and timezone'
+  de: 'Zeitplan und Zeitzone auswählen'
+  verified_by_human: []
+
+template_share.binding_app_skill:
+  context: 'Workflow template app skill binding prefix'
+  en: 'Connect'
+  de: 'Verbinden:'
+  verified_by_human: []
+
+template_share.binding_notifications:
+  context: 'Workflow template notification binding'
+  en: 'Choose notification preferences'
+  de: 'Benachrichtigungseinstellungen auswählen'
+  verified_by_human: []
+
+template_share.binding_other:
+  context: 'Other Workflow template binding'
+  en: 'Complete requirement'
+  de: 'Anforderung abschließen'
+  verified_by_human: []
+
+template_share.mark_complete:
+  context: 'Confirm a Workflow template binding'
+  en: 'Mark complete'
+  de: 'Als abgeschlossen markieren'
+  verified_by_human: []
+
+template_share.completed:
+  context: 'Workflow template binding completion status'
+  en: 'Completed'
+  de: 'Abgeschlossen'
+  verified_by_human: []
+
+template_share.enabling:
+  context: 'Workflow template activation in progress'
+  en: 'Enabling...'
+  de: 'Wird aktiviert...'
+  verified_by_human: []
+
+template_share.enable:
+  context: 'Enable imported Workflow template'
+  en: 'Enable workflow'
+  de: 'Workflow aktivieren'
+  verified_by_human: []
+
+template_share.import_done:
+  context: 'Workflow template import confirmation'
+  en: 'Workflow imported disabled. Complete its binding requirements before enabling it.'
+  de: 'Workflow deaktiviert importiert. Schließe die Verbindungsanforderungen vor der Aktivierung ab.'
+  verified_by_human: []
+
+template_share.binding_done:
+  context: 'Workflow template binding confirmation'
+  en: 'Binding requirement completed.'
+  de: 'Verbindungsanforderung abgeschlossen.'
+  verified_by_human: []
+
+builder.website_text:
+  context: Website change workflow output and setup explanation
+  en: Page text
+  de: Seitentext
+
+builder.website_has_changed:
+  context: Website change workflow output and setup explanation
+  en: Has changed since last successful read
+  de: Seit dem letzten erfolgreichen Lesen geändert
+
+builder.website_changes:
+  context: Website change workflow output and setup explanation
+  en: Changes since last successful read
+  de: Änderungen seit dem letzten erfolgreichen Lesen
+
+builder.website_source_url:
+  context: Website change workflow output and setup explanation
+  en: Website link
+  de: Website-Link
+
+builder.website_change_guidance:
+  context: Website change workflow output and setup explanation
+  en: The first successful read saves a starting point without sending a message. Later runs check only changes. Failed or blocked reads keep the last successful version.
+  de: Das erste erfolgreiche Lesen speichert den Ausgangspunkt, ohne eine Nachricht zu senden. Spätere Ausführungen prüfen nur Änderungen. Fehlgeschlagene oder blockierte Leseversuche behalten die letzte erfolgreiche Version.
+
+builder.website_read_blocked:
+  context: Website monitoring read failure; the saved baseline is preserved
+  en: This website blocked the read. The last successful version was kept.
+  de: Diese Website hat das Lesen blockiert. Die letzte erfolgreiche Version wurde beibehalten.
+
+builder.website_read_unusable:
+  context: Website monitoring returned failed, empty or incomplete extraction
+  en: This website did not return usable, complete text. The last successful version was kept.
+  de: Diese Website hat keinen brauchbaren, vollständigen Text geliefert. Die letzte erfolgreiche Version wurde beibehalten.
+
+builder.website_change_too_large:
+  context: Website text or its diff exceeds safe monitoring limits
+  en: The page or its changes are too large to check completely. The last successful version was kept.
+  de: Die Seite oder ihre Änderungen sind zu groß für eine vollständige Prüfung. Die letzte erfolgreiche Version wurde beibehalten.
+
+builder.website_change_one_page:
+  context: Monitoring supports one URL per Read website and one source per Check
+  en: Use one website URL per read and one website change source per condition.
+  de: Verwende eine Website-URL pro Lesevorgang und eine Website-Änderungsquelle pro Bedingung.
+
+builder.website_change_pending_limit:
+  context: Website monitoring queue cannot accept more pending changes
+  en: Too many changes are waiting for evaluation or delivery. The last successful version was kept.
+  de: Zu viele Änderungen warten auf Auswertung oder Zustellung. Die letzte erfolgreiche Version wurde beibehalten.

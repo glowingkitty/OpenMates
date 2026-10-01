@@ -1,5 +1,7 @@
 // App icon component — renders a gradient circle with the app's icon.
 // Maps app IDs to their gradient and icon from the design token system.
+// Web source: frontend/packages/ui/src/styles/icons.css
+// Web source: frontend/packages/ui/src/components/embeds/BasicInfosBar.svelte
 // Specification: specifications/features/message-input/specification.yml
 // Assertion: message-input.layout.responsive-parity (audio recording preview icon)
 
@@ -39,6 +41,16 @@ struct AppIconView: View {
         case "fitness": return .appFitness
         case "legal": return .appLegal
         case "weather": return .appWeather
+        case "business": return .appBusiness
+        case "reminder": return .appReminder
+        case "electronics": return .appElectronics
+        case "file", "files": return .appFiles
+        case "home": return .appHome
+        case "pdf": return .appPdf
+        case "social_media": return .appSocial_media
+        case "images": return .appImages
+        case "design": return .appDesign
+        case "mindmaps": return .appMindmaps
         case "travel": return .appTravel
         case "news": return .appNews
         case "jobs": return .appJobs
@@ -51,11 +63,11 @@ struct AppIconView: View {
         case "calendar": return .appCalendar
         case "notes": return .appNotes
         case "events": return .appEvents
-        case "photos", "images": return .appPhotos
+        case "photos": return .appPhotos
         case "videos": return .appVideos
-        case "design": return .appDesign
         case "docs": return .appDocs
-        case "mindmaps": return .appDiagrams
+        case "sheets": return .appSheets
+        case "diagrams": return .appDiagrams
         case "models3d": return .app3dmodels
         case "tasks": return .primary
         case "workflows": return .primary
@@ -86,6 +98,7 @@ struct AppIconView: View {
         case "images": return "image"
         case "social_media": return "socialmedia"
         case "electronics": return "pcbdesign"
+        case "file": return "files"
         case "models3d": return "3dmodels"
         case "tasks": return "task"
         case "workflows": return "workflow"

@@ -1,4 +1,6 @@
 <!--
+  Native Swift counterparts:
+  - apple/OpenMates/Sources/Features/Projects/ProjectsWorkspaceView.swift
   ProjectBrowserItem.svelte
   Renders a project browser entry in tile or list mode.
   Embed items resolve through the shared embed preview registry so Projects use
@@ -162,7 +164,12 @@
   }
 </script>
 
-{#if viewMode === 'tile' && item.item_type === 'embed'}
+{#if item.item_type === 'workflow'}
+  <a class="browser-item workflow-link" href={`/#workflow-id=${encodeURIComponent(item.target_id)}&workflow-tab=details`} data-testid="project-workflow-item" aria-label={`Open workflow ${displayName || item.target_id}`}>
+    <span class="item-list-icon" data-app="files" aria-hidden="true"></span>
+    <span class="browser-item-meta"><strong>{displayName || item.target_id}</strong><small>Workflow</small></span>
+  </a>
+{:else if viewMode === 'tile' && item.item_type === 'embed'}
   <!-- The shared preview is the complete project tile. It already owns the
        details body, identity footer, focus treatment, and fullscreen click. -->
   <article class="browser-item tile" data-testid="project-item-card" data-item-type={item.item_type}>
@@ -201,6 +208,9 @@
   .browser-item {
     color: var(--color-font-primary);
   }
+  .workflow-link{display:flex;align-items:center;gap:var(--spacing-8);min-height:4rem;padding:var(--spacing-8);border-radius:var(--radius-5);background:var(--color-grey-0);text-decoration:none;box-shadow:var(--shadow-sm)}
+  .workflow-link:hover{background:var(--color-grey-10)}
+  .workflow-link:focus-visible{outline:2px solid var(--color-button-primary);outline-offset:2px}
 
   .browser-item.tile {
     display: flex;

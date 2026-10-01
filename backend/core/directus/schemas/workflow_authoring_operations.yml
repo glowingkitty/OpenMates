@@ -1,0 +1,29 @@
+# Idempotent receipt for one atomic workflow authoring batch. Private contents
+# remain only in encrypted workflow_input_mutations blobs.
+workflow_authoring_operations:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      note: "Primary key."
+    operation_id:
+      type: string
+      note: "[Indexed, Unique with owner] Stable authoring operation id."
+    hashed_user_id:
+      type: string
+      note: "[Indexed] SHA256(user_id) of the owner."
+    request_hash:
+      type: string
+      note: "SHA256 of normalized operation and session metadata."
+    session_id:
+      type: string
+      note: "Nullable workflow input session id."
+    undo_of_operation_id:
+      type: string
+      note: "Nullable original operation id for an atomic inverse batch."
+    outcomes_json:
+      type: json
+      note: "Opaque workflow ids, versions, and encrypted after-snapshot refs only."
+    created_at:
+      type: integer
+      note: "Unix timestamp."

@@ -27,7 +27,7 @@ from backend.core.api.app.services.workflow_models import (
     WorkflowLifecycle,
     WorkflowNodeType,
 )
-from backend.core.api.app.services.workflow_service import WorkflowService
+from backend.core.api.app.services.workflow_service import WorkflowNotFoundError, WorkflowService
 
 
 WORKFLOW_ASSISTANT_PROPOSAL_TTL_SECONDS = 15 * 60
@@ -271,11 +271,53 @@ class WorkflowAssistantService:
         query: str,
         include_temporary: bool = False,
         vault_key_id: str | None = None,
+        workflow_id: str | None = None,
     ) -> list[dict[str, Any]]:
-        del include_temporary
+        if workflow_id:
+            try:
+                detail = self.workflow_service.get_workflow(workflow_id, user_id, vault_key_id)
+            except WorkflowNotFoundError:
+                return []
+            if detail.lifecycle == WorkflowLifecycle.TEMPORARY and not include_temporary:
+                return []
+
+            # Keep the selected graph useful for edits without sending credentials
+            # or connection identifiers from node configuration to the model.
+            sensitive_keys = {
+                "token", "refreshtoken", "accesstoken", "authtoken", "bearertoken",
+                "secret", "credential", "credentials", "accountid", "connectionid",
+                "connectedaccountid", "provideruserid", "webhooksecret", "apikey",
+                "password", "vault", "runid",
+            }
+
+            def safe_graph(value: Any) -> Any:
+                if isinstance(value, dict):
+                    return {
+                        key: safe_graph(child)
+                        for key, child in value.items()
+                        if "".join(char for char in key.lower() if char.isalnum()) not in sensitive_keys
+                    }
+                if isinstance(value, list):
+                    return [safe_graph(child) for child in value]
+                return value
+
+            graph = safe_graph(detail.graph.model_dump(mode="json", by_alias=True))
+            return [{
+                "workflow_id": detail.id,
+                "title": detail.title,
+                "description": detail.description,
+                "status": detail.status.value,
+                "enabled": detail.enabled,
+                "graph": graph,
+                "required_input_summary": _required_input_summary(graph),
+            }]
+
         normalized = query.strip().lower()
         results: list[dict[str, Any]] = []
-        for workflow in self.workflow_service.list_workflows(user_id, vault_key_id):
+        workflows = self.workflow_service.list_workflows(user_id, vault_key_id)
+        if include_temporary:
+            workflows += self.workflow_service.list_temporary_workflows(user_id, vault_key_id)
+        for workflow in workflows:
             if normalized and normalized not in workflow.title.lower():
                 continue
             detail = self.workflow_service.get_workflow(workflow.id, user_id, vault_key_id)
@@ -617,7 +659,7 @@ class WorkflowAssistantService:
                 user_id,
                 str(payload["title"]),
                 payload["graph"],
-                enabled=True,
+                enabled=False,
                 lifecycle=WorkflowLifecycle(payload["lifecycle"]),
                 source="chat",
                 source_chat_id=payload.get("source_chat_id"),

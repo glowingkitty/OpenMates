@@ -6,6 +6,7 @@
 # Spec: docs/specs/tasks-v1/spec.yml
 # test-file: backend/tests/test_user_task_activity_api.py
 
+import logging
 import time
 from typing import Any, Literal
 
@@ -40,6 +41,7 @@ from backend.shared.python_utils.encrypted_slug_metadata import DuplicateObjectS
 
 
 router = APIRouter(prefix="/v1/user-tasks", tags=["User Tasks"], dependencies=[Depends(ensure_tasks_enabled)])
+logger = logging.getLogger(__name__)
 
 TaskStatus = Literal["backlog", "todo", "in_progress", "blocked", "done"]
 AssigneeType = Literal["user", "openmates", "external_ai", "unassigned"]
@@ -603,6 +605,20 @@ async def list_user_tasks(
     return {"tasks": tasks + [projection.model_dump(mode="json") for projection in projections], "eligible_external_ai": eligible}
 
 
+@router.get("/assignment-eligibility")
+@limiter.limit("60/minute")
+async def get_task_assignment_eligibility(
+    request: Request,
+    response: Response,
+    service: UserTaskService = Depends(get_user_task_service),
+) -> dict[str, Any]:
+    current_user = await _current_session_user(request, response)
+    try:
+        return {"eligible_external_ai": await service.task_methods.eligible_external_ai(current_user.id)}
+    except Exception as exc:
+        _handle_task_error(exc)
+
+
 @router.post("")
 @limiter.limit("30/minute")
 async def create_user_task(
@@ -980,7 +996,14 @@ async def get_user_task(
         task = await service.task_methods.get_task(task_id, current_user.id, team_id)
         if not task:
             raise HTTPException(status_code=404, detail="TASK_NOT_FOUND")
-        return {"task": task}
+        # Owner-scoped assignment provenance belongs to the authorized task
+        # response, so detail clients never need an unrelated list record.
+        try:
+            eligible = await service.task_methods.eligible_external_ai(current_user.id)
+        except Exception:
+            logger.exception("Task assignment eligibility unavailable during detail read")
+            return {"task": task}
+        return {"task": task, "eligible_external_ai": eligible}
     except Exception as exc:
         _handle_task_error(exc)
 

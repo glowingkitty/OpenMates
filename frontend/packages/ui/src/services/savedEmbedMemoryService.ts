@@ -8,11 +8,12 @@
 // Used by event, travel, home, and health fullscreen embeds.
 
 import { get } from 'svelte/store';
-import { getApiUrl } from '../config/api';
+import { getApiEndpoint, getApiUrl } from '../config/api';
 import { notificationStore } from '../stores/notificationStore';
 import { appSettingsMemoriesStore } from '../stores/appSettingsMemoriesStore';
 import { userProfile } from '../stores/userProfile';
 import { authStore } from '../stores/authStore';
+import { activeTeamId } from '../stores/teamStore';
 
 export type SavedEmbedKind =
   | 'event'
@@ -417,11 +418,26 @@ export async function forgetEmbedMemory(config: SavedEmbedConfig): Promise<void>
 }
 
 export async function saveEmbedMemory(config: SavedEmbedConfig): Promise<void> {
+  const submittedTeamId = get(activeTeamId);
+  const submittedUserId = get(userProfile).user_id;
   await appSettingsMemoriesStore.createEntry(config.appId, {
     item_key: config.itemKey,
     item_value: config.itemValue,
     settings_group: config.itemType,
   });
+
+  const embedId = getSavedEmbedId(config);
+  if (embedId && submittedUserId && get(userProfile).user_id === submittedUserId && get(activeTeamId) === submittedTeamId) {
+    try {
+      const response = await fetch(getApiEndpoint('/v1/apps/workspace/results/index'), {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ embed_id: embedId, app_id: config.appId, team_id: submittedTeamId || null }),
+      });
+      if (!response.ok) console.warn('[savedEmbedMemoryService] Saved embed catalog indexing is pending');
+    } catch {
+      console.warn('[savedEmbedMemoryService] Saved embed catalog indexing is pending');
+    }
+  }
 
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('savedEmbedMemorySaved', {

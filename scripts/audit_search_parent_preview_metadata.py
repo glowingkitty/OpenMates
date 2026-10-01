@@ -46,6 +46,8 @@ PARENT_PREVIEW_METADATA_COVERAGE: set[str] = {
     "videos:search",
     "weather:forecast",
     "web:search",
+    "workflows:create-or-modify",
+    "workflows:search",
 }
 
 # Composite parents that are intentionally not search/result-list previews. New

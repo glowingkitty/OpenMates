@@ -10,6 +10,9 @@
 //          frontend/packages/ui/src/components/embeds/SourceQuoteBlock.svelte
 //          frontend/packages/ui/src/components/embeds/ExampleChatsGroup.svelte
 //          frontend/packages/ui/src/components/embeds/ChatEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+//          frontend/packages/ui/src/components/embeds/EmbedLeafletMap.svelte
+//          frontend/packages/ui/src/components/sub_chats/SubChatBatchPreview.svelte
 //          frontend/packages/ui/src/components/interactive_questions/InteractiveQuestionContainer.svelte
 // TypeScript: frontend/packages/ui/src/components/enter_message/utils/markdownParser.ts
 //             frontend/packages/ui/src/components/enter_message/extensions/MarkdownExtensions.ts
@@ -33,6 +36,9 @@
 
 import Foundation
 import SwiftUI
+#if canImport(MapKit)
+import MapKit
+#endif
 #if os(iOS)
 import UIKit
 #elseif os(macOS)
@@ -92,7 +98,7 @@ private extension LinearGradient {
     }
 }
 
-private enum SearchTextHighlighter {
+enum SearchTextHighlighter {
     static func highlighted(_ text: String, query: String?) -> AttributedString {
         var attributed = AttributedString(text)
         highlightMatches(in: &attributed, query: query)
@@ -144,6 +150,182 @@ private enum SearchTextHighlighter {
     }
 }
 
+/// Source excerpts are temporary fullscreen presentation state. They never enter
+/// persisted EmbedRecord data, sync payloads, or diagnostics.
+struct SourceQuoteTarget: Equatable {
+    let embedID: String
+    let text: String
+}
+
+private struct SourceQuoteOpenActionKey: EnvironmentKey {
+    static var defaultValue: (@MainActor @Sendable (EmbedRecord, String) -> Void)? { nil }
+}
+private struct EmbedSourceQuoteTextKey: EnvironmentKey {
+    static let defaultValue: String? = nil
+}
+extension EnvironmentValues {
+    var sourceQuoteOpenAction: (@MainActor @Sendable (EmbedRecord, String) -> Void)? {
+        get { self[SourceQuoteOpenActionKey.self] }
+        set { self[SourceQuoteOpenActionKey.self] = newValue }
+    }
+    var embedSourceQuoteText: String? {
+        get { self[EmbedSourceQuoteTextKey.self] }
+        set { self[EmbedSourceQuoteTextKey.self] = newValue }
+    }
+}
+
+struct SourceQuoteHighlightAnchor: Equatable {
+    let id: String
+    let frame: CGRect
+}
+
+struct SourceQuoteHighlightAnchorKey: PreferenceKey {
+    static let defaultValue: [SourceQuoteHighlightAnchor] = []
+    static func reduce(value: inout [SourceQuoteHighlightAnchor], nextValue: () -> [SourceQuoteHighlightAnchor]) {
+        value.append(contentsOf: nextValue())
+    }
+}
+
+/// One direct scroll-content ID avoids ScrollViewReader's nested ForEach frame
+/// resolution. Aligning the same fractional point in content and viewport gives
+/// offset = fraction * (contentHeight - viewportHeight).
+enum SourceQuoteScrollPosition {
+    static func unitAnchorY(sourceMidY: CGFloat, contentHeight: CGFloat, viewportHeight: CGFloat) -> CGFloat {
+        let scrollableHeight = contentHeight - viewportHeight
+        guard scrollableHeight > 0 else { return 0 }
+        let centeredOffset = sourceMidY - viewportHeight / 2
+        return min(1, max(0, centeredOffset / scrollableHeight))
+    }
+}
+
+/// Mirrors UnifiedEmbedFullscreen's offset-preserving typographic normalization
+/// and WebsiteEmbedFullscreen's verified six-word prefix/suffix fallback.
+enum SourceQuoteMatcher {
+    static func range(in text: String, quote: String?) -> NSRange? {
+        guard let quote, !quote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        let source = normalize(text)
+        let target = normalize(quote).text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !target.isEmpty else { return nil }
+        func resolve(_ query: String) -> NSRange? {
+            let found = (source.text as NSString).range(of: query)
+            guard found.location != NSNotFound, found.length > 0 else { return nil }
+            let start = source.starts[found.location]
+            let end = source.ends[NSMaxRange(found) - 1]
+            return NSRange(location: start, length: end - start)
+        }
+        if let match = resolve(target) { return match }
+        let words = target.split(separator: " ").map(String.init)
+        if words.count > 6 {
+            for count in stride(from: words.count - 1, through: 6, by: -1) {
+                if let prefix = resolve(words.prefix(count).joined(separator: " ")) { return prefix }
+                if let suffix = resolve(words.suffix(count).joined(separator: " ")) { return suffix }
+            }
+        }
+        return nil
+    }
+
+    private static func normalize(_ text: String) -> (text: String, starts: [Int], ends: [Int]) {
+        var units: [(value: UInt16, start: Int, end: Int)] = []
+        var offset = 0
+        for scalar in text.unicodeScalars {
+            let original = String(scalar)
+            let length = original.utf16.count
+            let replacement: String
+            switch scalar {
+            case "…": replacement = "..."
+            case "‘", "’", "‚", "‛": replacement = "'"
+            case "“", "”", "„", "‟": replacement = "\""
+            case "–", "—", "―": replacement = "-"
+            default: replacement = CharacterSet.whitespacesAndNewlines.contains(scalar) ? " " : original.lowercased()
+            }
+            units.append(contentsOf: replacement.utf16.map { ($0, offset, offset + length) })
+            offset += length
+        }
+        var normalized: [UInt16] = []
+        var starts: [Int] = []
+        var ends: [Int] = []
+        var index = 0
+        while index < units.count {
+            let unit = units[index]
+            if unit.value == 32, normalized.last == 32 { index += 1; continue }
+            var end = unit.end
+            if unit.value == 45, index + 1 < units.count, units[index + 1].value == 45 {
+                index += 1
+                end = units[index].end
+            }
+            normalized.append(unit.value)
+            starts.append(unit.start)
+            ends.append(end)
+            index += 1
+        }
+        return (String(decoding: normalized, as: UTF16.self), starts, ends)
+    }
+
+    static func attributed(_ text: String, range: NSRange?) -> AttributedString {
+        var result = AttributedString(text)
+        guard let range, let source = Range(range, in: text),
+              let start = AttributedString.Index(source.lowerBound, within: result),
+              let end = AttributedString.Index(source.upperBound, within: result) else { return result }
+        result[start..<end].backgroundColor = Color.highlightYellowSolid.opacity(0.4)
+        result[start..<end].foregroundColor = Color.fontPrimary
+        return result
+    }
+}
+
+/// The identity belongs to the paragraph/snippet containing the highlighted
+/// region, so ScrollViewReader centers content rather than the entire article.
+struct SourceQuoteHighlightedText: View {
+    let text: String
+    let locationID: String
+    var matchedRange: NSRange? = nil
+    var matchLocally = true
+    @Environment(\.embedSourceQuoteText) private var quote
+
+    var body: some View {
+        let match = matchedRange ?? (matchLocally ? SourceQuoteMatcher.range(in: text, quote: quote) : nil)
+        Text(SourceQuoteMatcher.attributed(text, range: match))
+            .id(locationID)
+            .accessibilityIdentifier(match == nil ? locationID : "embed-source-text-highlight")
+            .background {
+                if match != nil {
+                    GeometryReader { geometry in
+                        Color.clear.preference(key: SourceQuoteHighlightAnchorKey.self, value: [
+                            SourceQuoteHighlightAnchor(id: locationID,
+                                frame: geometry.frame(in: .named("embed-fullscreen-source-content")))
+                        ])
+                    }
+                }
+            }
+    }
+}
+
+/// Plain text readers retain their paragraph boundaries and match against the
+/// entire document, including quotes crossing line breaks. Only the intersecting
+/// source ranges get color; each paragraph supplies its own scroll anchor.
+struct SourceQuoteTextDocument: View {
+    let text: String
+    let locationPrefix: String
+    @Environment(\.embedSourceQuoteText) private var quote
+
+    var body: some View {
+        if let match = SourceQuoteMatcher.range(in: text, quote: quote) {
+            let paragraphs = text.components(separatedBy: "\n\n")
+            VStack(alignment: .leading, spacing: .spacing4) {
+                ForEach(Array(paragraphs.enumerated()), id: \.offset) { index, paragraph in
+                    let offset = paragraphs.prefix(index).reduce(0) { $0 + $1.utf16.count + 2 }
+                    let overlap = NSIntersectionRange(match, NSRange(location: offset, length: paragraph.utf16.count))
+                    let localRange = overlap.length > 0 ? NSRange(location: overlap.location - offset, length: overlap.length) : nil
+                    SourceQuoteHighlightedText(text: paragraph, locationID: "\(locationPrefix)-\(index)",
+                                               matchedRange: localRange, matchLocally: false)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+        } else {
+            Text(text)
+        }
+    }
+}
+
 // MARK: - Block parser
 
 /// Parses raw markdown text into a sequence of typed blocks for rendering.
@@ -161,10 +343,46 @@ enum MarkdownBlock: Equatable {
     case table(headers: [String], rows: [[String]])
     case demoGroup(DemoGroupKind)
     case embedGroup([MarkdownEmbedReference])
+    case resultsView(AppleResultsViewDescriptor)
+    case subChatBatch(SubChatBatchDescriptor)
     case interactiveQuestion(AppleInteractiveQuestionPayload)
     case interactiveQuestionFallback
     case hiddenProtocol
 
+}
+
+/// The virtual results view is a message node, not a persisted embed group.
+/// Keep its source and highlight lists separate so hydration can resolve source
+/// children and the UI can retain the same identity across streaming updates.
+struct AppleResultsViewDescriptor: Codable, Equatable, Sendable {
+    let title: String
+    let embedRefs: [String]
+    let sourceRefs: [String]
+    let highlightRefs: [String]
+
+    var hasReferences: Bool { !embedRefs.isEmpty || !sourceRefs.isEmpty }
+
+    static func parse(_ code: String) -> AppleResultsViewDescriptor {
+        var fields: [String: String] = [:]
+        for rawLine in code.components(separatedBy: "\n") {
+            let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !line.isEmpty, !line.hasPrefix("#"), let separator = line.firstIndex(of: ":") else { continue }
+            let key = line[..<separator].trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            guard ["title", "embeds", "sources", "highlight"].contains(key) else { continue }
+            let value = line[line.index(after: separator)...].trimmingCharacters(in: .whitespacesAndNewlines)
+            if !value.isEmpty { fields[key] = value }
+        }
+        func refs(_ key: String) -> [String] {
+            var seen = Set<String>()
+            return (fields[key] ?? "").split(separator: ",")
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty && seen.insert($0).inserted }
+        }
+        return AppleResultsViewDescriptor(
+            title: fields["title"] ?? "Results view",
+            embedRefs: refs("embeds"), sourceRefs: refs("sources"), highlightRefs: refs("highlight")
+        )
+    }
 }
 
 struct AppleInteractiveQuestionPayload: Decodable, Equatable {
@@ -482,8 +700,14 @@ enum MarkdownParser {
                         blocks.append(.interactiveQuestionFallback)
                     }
                 } else if isResultsViewLanguage(language) {
-                    let references = parseResultsViewReferences(code)
-                    blocks.append(references.isEmpty ? .hiddenProtocol : .embedGroup(references))
+                    let descriptor = AppleResultsViewDescriptor.parse(code)
+                    blocks.append(descriptor.hasReferences ? .resultsView(descriptor) : .hiddenProtocol)
+                } else if SubChatBatchDescriptor.isProtocolMarker(code, language: language) {
+                    if let descriptor = SubChatBatchDescriptor.parse(code) {
+                        blocks.append(.subChatBatch(descriptor))
+                    } else {
+                        blocks.append(.hiddenProtocol)
+                    }
                 } else if let embed = parseFencedEmbedReference(language: language, code: code) {
                     blocks.append(.embedGroup([embed]))
                 } else {
@@ -644,28 +868,6 @@ enum MarkdownParser {
         return normalized == "embeds_map_view" || normalized == "embeds_results_view"
     }
 
-    private static func parseResultsViewReferences(_ code: String) -> [MarkdownEmbedReference] {
-        var references: [MarkdownEmbedReference] = []
-        var seen = Set<String>()
-
-        for rawLine in code.components(separatedBy: "\n") {
-            let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !line.isEmpty, !line.hasPrefix("#"), let separator = line.firstIndex(of: ":") else {
-                continue
-            }
-            let key = line[..<separator].trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-            guard key == "embeds" || key == "sources" else { continue }
-            let values = line[line.index(after: separator)...].split(separator: ",")
-            for rawValue in values {
-                let value = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
-                guard !value.isEmpty, seen.insert(value).inserted else { continue }
-                references.append(MarkdownEmbedReference(value: value, isRef: false, isLargePreview: false))
-            }
-        }
-
-        return references
-    }
-
     private static func parseFencedEmbedReference(language: String?, code: String) -> MarkdownEmbedReference? {
         let trimmed = code.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
@@ -698,6 +900,13 @@ struct RichMarkdownView: View {
     let progressiveRequest: ProgressiveMarkdownRequest?
     let isUserMessage: Bool
     let onOpenPublicChat: ((String) -> Void)?
+    let parentChatID: String?
+    let messageCreatedAt: String?
+    let viewportWidth: CGFloat?
+    let subChatStore: ChatStore?
+    let onOpenSubChat: ((String) -> Void)?
+    let subChatProgress: SubChatProgress?
+    let completedSubChatIDs: Set<String>
     let embedLookup: [String: EmbedRecord]
     let allEmbedRecords: [String: EmbedRecord]
     let hiddenEmbedIds: Set<String>
@@ -712,6 +921,13 @@ struct RichMarkdownView: View {
         progressiveRequest: ProgressiveMarkdownRequest? = nil,
         isUserMessage: Bool,
         onOpenPublicChat: ((String) -> Void)? = nil,
+        parentChatID: String? = nil,
+        messageCreatedAt: String? = nil,
+        viewportWidth: CGFloat? = nil,
+        subChatStore: ChatStore? = nil,
+        onOpenSubChat: ((String) -> Void)? = nil,
+        subChatProgress: SubChatProgress? = nil,
+        completedSubChatIDs: Set<String> = [],
         embedLookup: [String: EmbedRecord] = [:],
         allEmbedRecords: [String: EmbedRecord] = [:],
         hiddenEmbedIds: Set<String> = [],
@@ -724,6 +940,13 @@ struct RichMarkdownView: View {
         self.progressiveRequest = progressiveRequest
         self.isUserMessage = isUserMessage
         self.onOpenPublicChat = onOpenPublicChat
+        self.parentChatID = parentChatID
+        self.messageCreatedAt = messageCreatedAt
+        self.viewportWidth = viewportWidth
+        self.subChatStore = subChatStore
+        self.onOpenSubChat = onOpenSubChat
+        self.subChatProgress = subChatProgress
+        self.completedSubChatIDs = completedSubChatIDs
         self.embedLookup = embedLookup
         self.allEmbedRecords = allEmbedRecords
         self.hiddenEmbedIds = hiddenEmbedIds
@@ -808,6 +1031,18 @@ struct RichMarkdownView: View {
             TableBlockView(headers: block.tableHeaders, rows: block.tableRows, isUserMessage: isUserMessage, searchHighlightQuery: searchHighlightQuery)
         case .embedGroup:
             resolvedEmbedGroup(block.embedReferences.compactMap(resolveEmbed), isLargePreview: block.embedReferences.first?.isLargePreview == true)
+        case .resultsView:
+            if let descriptor = block.resultsView {
+                resultsView(descriptor)
+            }
+        case .subChatBatch:
+            if let descriptor = block.subChatBatch {
+                SubChatBatchView(descriptor: descriptor, parentChatID: parentChatID ?? progressiveRequest?.identity.chatID ?? "",
+                    messageCreatedAt: messageCreatedAt,
+                    viewportWidth: viewportWidth,
+                    store: subChatStore, progress: subChatProgress, completedSubChatIDs: completedSubChatIDs,
+                    onOpenChat: onOpenSubChat)
+            }
         case .interactiveQuestionFallback:
             interactiveQuestionFallback
         case .interactiveQuestion, .demoGroup, .hiddenProtocol:
@@ -929,6 +1164,16 @@ struct RichMarkdownView: View {
                 }
             }
 
+        case .resultsView(let descriptor):
+            resultsView(descriptor)
+
+        case .subChatBatch(let descriptor):
+            SubChatBatchView(descriptor: descriptor, parentChatID: parentChatID ?? progressiveRequest?.identity.chatID ?? "",
+                messageCreatedAt: messageCreatedAt,
+                viewportWidth: viewportWidth,
+                store: subChatStore, progress: subChatProgress, completedSubChatIDs: completedSubChatIDs,
+                onOpenChat: onOpenSubChat)
+
         case .interactiveQuestion(let payload):
             AppleInteractiveQuestionCard(payload: payload, onSubmit: onInteractiveQuestionSubmit)
 
@@ -947,12 +1192,1186 @@ struct RichMarkdownView: View {
         return embedLookup[reference.value] ?? allEmbedRecords[reference.value]
     }
 
+    private func resultsView(_ descriptor: AppleResultsViewDescriptor) -> some View {
+        AppleResultsView(
+            descriptor: descriptor,
+            embedLookup: embedLookup,
+            allEmbedRecords: allEmbedRecords,
+            hiddenEmbedIds: hiddenEmbedIds,
+            onEmbedTap: onEmbedTap
+        )
+    }
+
     private func resolveEmbed(_ reference: ChatHistoryEmbedReference) -> EmbedRecord? {
         if reference.isReference {
             return MarkdownEmbedResolver.resolve(reference.id, in: allEmbedRecords)
         }
         return embedLookup[reference.id] ?? allEmbedRecords[reference.id]
     }
+}
+
+/// Native in-message counterpart to EmbedsMapView.svelte. The virtual block
+/// references existing encrypted embeds; it never writes another embed.
+struct AppleResultsView: View {
+    @Environment(\.colorScheme) private var colorScheme
+    let descriptor: AppleResultsViewDescriptor
+    let embedLookup: [String: EmbedRecord]
+    let allEmbedRecords: [String: EmbedRecord]
+    let hiddenEmbedIds: Set<String>
+    let onEmbedTap: ((EmbedRecord) -> Void)?
+
+    @State private var selectedTab: Tab = .map
+    @State private var selectedCategory: String?
+    @State private var filtersOpen = false
+    @State private var rangeFilters: [String: ClosedRange<Double>] = [:]
+    @State private var optionFilters: [String: Set<String>] = [:]
+    @State private var weekIndex = 0
+    #if canImport(MapKit)
+    @State private var mapPosition: MapCameraPosition = .automatic
+    @State private var mapVisibleRegion: MKCoordinateRegion?
+    #endif
+    @State private var mapSelectionIDs: Set<String> = []
+
+    private enum Tab { case map, calendar }
+
+    private static let utcMonthDayStyle: Date.FormatStyle = {
+        var style = Date.FormatStyle().month(.abbreviated).day()
+        style.timeZone = TimeZone(secondsFromGMT: 0)!
+        return style
+    }()
+    private static let utcWeekdayStyle: Date.FormatStyle = {
+        var style = Date.FormatStyle().weekday(.abbreviated).day()
+        style.timeZone = TimeZone(secondsFromGMT: 0)!
+        return style
+    }()
+
+    private var entries: [AppleResultsViewEntry] {
+        AppleResultsViewEntry.resolve(descriptor, lookup: embedLookup, records: allEmbedRecords)
+            .filter { !hiddenEmbedIds.contains($0.record.id) }
+    }
+
+    private var visibleEntries: [AppleResultsViewEntry] {
+        let filtered = entries.filter {
+            $0.matches(category: selectedCategory, ranges: rangeFilters, options: optionFilters)
+        }
+        let highlighted = Set(descriptor.highlightRefs)
+        return filtered.sorted {
+            let first = highlighted.contains($0.reference) || highlighted.contains($0.record.id)
+            let second = highlighted.contains($1.reference) || highlighted.contains($1.record.id)
+            return first && !second
+        }
+    }
+
+    private func isHighlighted(_ entry: AppleResultsViewEntry) -> Bool {
+        descriptor.highlightRefs.contains(entry.reference) || descriptor.highlightRefs.contains(entry.record.id)
+    }
+
+    private var mapEntries: [AppleResultsViewEntry] { visibleEntries.filter { $0.coordinate != nil || $0.route.count > 1 } }
+    private var carouselEntries: [AppleResultsViewEntry] {
+        mapSelectionIDs.isEmpty ? mapEntries : mapEntries.filter { mapSelectionIDs.contains($0.id) }
+    }
+    private var calendarEntries: [AppleResultsViewEntry] { visibleEntries.filter { $0.date != nil } }
+    private var activeTab: Tab {
+        selectedTab == .map && !mapEntries.isEmpty ? .map : .calendar
+    }
+
+    var body: some View {
+        if !entries.isEmpty {
+            VStack(spacing: 0) {
+                Color.clear.frame(height: 23)
+
+                if activeTab == .map, !mapEntries.isEmpty {
+                    VStack(alignment: .trailing, spacing: 0) {
+                        ScrollView(.horizontal) {
+                            HStack(spacing: .spacing6) {
+                                ForEach(carouselEntries) { entry in
+                                    EmbedPreviewCard(embed: entry.record, allEmbedRecords: allEmbedRecords) {
+                                        onEmbedTap?(entry.record)
+                                    }
+                                    .frame(width: 300, height: 200)
+                                    .overlay {
+                                        if mapSelectionIDs.contains(entry.id) {
+                                            RoundedRectangle(cornerRadius: .radius8)
+                                                .stroke(LinearGradient.primary, lineWidth: 3)
+                                                .allowsHitTesting(false)
+                                        }
+                                    }
+                                    .accessibilityIdentifier("embeds-map-view-card")
+                                }
+                            }
+                            .padding(.horizontal, 14)
+                            .padding(.top, 8)
+                            .frame(height: 215, alignment: .top)
+                        }
+                        .frame(height: 215, alignment: .top)
+                        .accessibilityIdentifier("embeds-map-view-carousel")
+
+                        if !mapSelectionIDs.isEmpty {
+                            Button {
+                                mapSelectionIDs.removeAll()
+                            } label: {
+                                Text(AppStrings.mapShowAllResults)
+                                    .font(.omXxs).fontWeight(.semibold)
+                                    .foregroundStyle(Color.fontPrimary)
+                                    .padding(.horizontal, 12).padding(.vertical, 8)
+                                    .background(Color.grey0, in: Capsule())
+                                    .overlay(Capsule().stroke(Color.grey30, lineWidth: 1))
+                                    .contentShape(Capsule())
+                            }
+                            .buttonStyle(.plain)
+                            .padding(.trailing, 16)
+                            .frame(height: 42, alignment: .top)
+                            .accessibilityIdentifier("embeds-map-view-show-all")
+                        } else {
+                            Color.clear.frame(height: 42)
+                        }
+                    }
+                    .frame(height: 257)
+                    #if canImport(MapKit)
+                    ZStack {
+                        mapPane
+                            .accessibilityElement(children: .contain)
+                            .accessibilityIdentifier("embeds-map-view-map")
+                    }
+                    .accessibilityElement(children: .contain)
+                    .accessibilityLabel(AppStrings.resultsViewMap)
+                    .accessibilityIdentifier("embeds-results-view-panel-map")
+                    .frame(height: 278)
+                    .clipped()
+                    #endif
+                } else if !calendarEntries.isEmpty {
+                    ZStack { calendarPane.accessibilityIdentifier("embeds-results-view-calendar") }
+                    .accessibilityElement(children: .contain)
+                    .accessibilityLabel(AppStrings.resultsViewCalendar)
+                    .accessibilityIdentifier("embeds-results-view-panel-calendar")
+                    .frame(height: 535)
+                }
+            }
+            .frame(maxWidth: 652)
+            .background(Color.grey20)
+            .clipShape(RoundedRectangle(cornerRadius: 23))
+            .overlay(RoundedRectangle(cornerRadius: 23).stroke(Color.grey25, lineWidth: 1))
+            .shadow(color: .black.opacity(0.05), radius: 4, y: 2)
+            .overlay(alignment: .topTrailing) {
+                if Set(entries.map(\.category)).count > 1 || !rangeControls.isEmpty || !optionControls.isEmpty {
+                    categoryControl
+                        .frame(height: 42)
+                        .padding(.trailing, 10)
+                        .offset(y: -20)
+                }
+            }
+            .overlay(alignment: .top) {
+                if !mapEntries.isEmpty && !calendarEntries.isEmpty {
+                    tabControl.offset(y: -20)
+                }
+            }
+            .overlay(alignment: .topTrailing) {
+                if filtersOpen { filterPanel.offset(y: 23) }
+            }
+            .padding(.top, .spacing10)
+            .overlay(alignment: .topLeading) {
+                Color.clear
+                    .frame(width: 1, height: 1)
+                    .accessibilityElement()
+                    .accessibilityLabel(descriptor.title ?? AppStrings.resultsViewMap)
+                    .accessibilityIdentifier("embeds-map-view")
+                    .allowsHitTesting(false)
+            }
+        }
+    }
+
+    private var tabControl: some View {
+        HStack(spacing: 0) {
+            tabButton(.map, label: AppStrings.resultsViewMap, icon: "maps")
+            tabButton(.calendar, label: AppStrings.resultsViewCalendar, icon: "calendar")
+        }
+        .frame(width: 170, height: 37)
+        .background(Color.grey0)
+        .clipShape(Capsule())
+        .shadow(color: .black.opacity(0.16), radius: 5, x: 0, y: 4)
+        .overlay(alignment: .topLeading) {
+            Color.clear
+                .frame(width: 1, height: 1)
+                .accessibilityElement()
+                .accessibilityLabel(AppStrings.resultsViewMap + ", " + AppStrings.resultsViewCalendar)
+                .accessibilityIdentifier("embeds-results-view-tabs")
+                .allowsHitTesting(false)
+        }
+    }
+
+    private func tabButton(_ tab: Tab, label: String, icon: String) -> some View {
+        Button {
+            selectedTab = tab
+        } label: {
+            Icon(icon, size: 20)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .foregroundStyle(activeTab == tab ? Color.fontButton : Color.fontSecondary)
+                .background(activeTab == tab ? LinearGradient.primary : LinearGradient(colors: [.clear], startPoint: .leading, endPoint: .trailing))
+                .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+        .accessibilityAddTraits(activeTab == tab ? .isSelected : [])
+        .accessibilityIdentifier("embeds-results-view-tab-\(tab == .map ? "map" : "calendar")")
+    }
+
+    private var categoryControl: some View {
+        Button {
+            filtersOpen.toggle()
+        } label: {
+            Icon(filtersOpen ? "close" : "filter", size: 22)
+                .foregroundStyle(LinearGradient.primary)
+                .frame(width: 42, height: 42)
+                .background(Color.grey0, in: Circle())
+                .shadow(color: .black.opacity(0.08), radius: 5, y: 3)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(AppStrings.resultsViewFilter)
+        .accessibilityIdentifier("embeds-map-view-filter-button")
+    }
+
+    private var rangeControls: [(key: String, label: String, values: [Double])] {
+        let definitions = [
+            ("departureMinutes", AppStrings.resultsViewDepartureTime),
+            ("arrivalMinutes", AppStrings.resultsViewArrivalTime),
+            ("durationMinutes", AppStrings.resultsViewDuration),
+            ("transferMinutes", AppStrings.resultsViewTransferTime),
+            ("price", AppStrings.resultsViewPrice),
+        ]
+        return definitions.compactMap { key, label in
+            let values = entries.compactMap { $0.numericFacets[key] }
+            guard let minimum = values.min(), let maximum = values.max(), minimum < maximum else { return nil }
+            return (key: key, label: label, values: values)
+        }
+    }
+
+    private var optionControls: [(key: String, label: String, values: [String])] {
+        [("carriers", AppStrings.resultsViewCarrier), ("providers", AppStrings.resultsViewProvider)]
+            .compactMap { key, label in
+                let values = Array(Set(entries.flatMap { $0.optionFacets[key] ?? [] })).sorted()
+                return values.count > 1 ? (key: key, label: label, values: values) : nil
+            }
+    }
+
+    private var filterPanel: some View {
+        VStack(spacing: 20) {
+            VStack(spacing: 7) {
+                Text(AppStrings.resultsViewRemaining(visible: visibleEntries.count, total: entries.count))
+                    .font(.omSmall)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.fontSecondary)
+                    .accessibilityIdentifier("embeds-map-view-filter-summary")
+                Button {
+                    selectedCategory = nil
+                    rangeFilters.removeAll()
+                    optionFilters.removeAll()
+                } label: {
+                    HStack(spacing: 7) {
+                        ResultsLucideIcon(.trash).frame(width: 17, height: 17)
+                        Text(AppStrings.resultsViewClearFilters).font(.omXs)
+                    }
+                    .foregroundStyle(Color(hex: 0x4867CD))
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("embeds-map-view-clear-filters")
+            }
+            .frame(maxWidth: .infinity)
+
+            ScrollView(.vertical) {
+                VStack(alignment: .leading, spacing: 25) {
+                    if Set(entries.map(\.category)).count > 1 {
+                        filterSectionTitle(AppStrings.resultsViewType, icon: "filter")
+                        ForEach(Array(Set(entries.map(\.category))).sorted(), id: \.self) { category in
+                            filterOption(label: category.capitalized, selected: selectedCategory == category) {
+                                selectedCategory = category
+                            }
+                        }
+                    }
+                    ForEach(rangeControls, id: \.key) { control in
+                        VStack(alignment: .leading, spacing: 0) {
+                            filterSectionTitle(control.label, icon: "clock")
+                                .accessibilityIdentifier("embeds-map-view-filter-\(control.key)")
+                            rangeControl(key: control.key, label: control.label, values: control.values)
+                                .padding(.top, 12)
+                        }
+                    }
+                    ForEach(optionControls, id: \.key) { control in
+                        VStack(alignment: .leading, spacing: 12) {
+                            filterSectionTitle(control.label, icon: "filter")
+                                .accessibilityIdentifier("embeds-map-view-filter-\(control.key)")
+                            ForEach(control.values, id: \.self) { value in
+                                filterOption(label: value, selected: optionFilters[control.key]?.contains(value) ?? true) {
+                                    var selected = optionFilters[control.key] ?? Set(control.values)
+                                    if selected.contains(value) { selected.remove(value) } else { selected.insert(value) }
+                                    optionFilters[control.key] = selected
+                                }
+                            }
+                        }
+                    }
+                }
+                .padding(.trailing, 14)
+                .padding(.bottom, 20)
+            }
+            .accessibilityIdentifier("embeds-map-view-filter-scroll")
+        }
+        .padding(.top, 25)
+        .padding(.horizontal, 16)
+        .padding(.bottom, 16)
+        .frame(maxWidth: .infinity)
+        .frame(height: 535)
+        .background(Color.grey10)
+        .clipShape(RoundedRectangle(cornerRadius: 23))
+        .overlay(alignment: .topLeading) {
+            Color.clear.frame(width: 1, height: 1)
+                .accessibilityElement()
+                .accessibilityLabel(AppStrings.resultsViewFilter)
+                .accessibilityIdentifier("embeds-map-view-filter-menu")
+                .allowsHitTesting(false)
+        }
+    }
+
+    private func filterSectionTitle(_ label: String, icon: String) -> some View {
+        HStack(spacing: 20) {
+            if icon == "clock" {
+                ResultsLucideIcon(.clock).frame(width: 23, height: 23)
+            } else {
+                Icon(icon, size: 23).foregroundStyle(Color(hex: 0x4867CD))
+            }
+            Text(label).font(.omP).fontWeight(.semibold).foregroundStyle(Color.fontPrimary)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 8)
+        .padding(.bottom, 7)
+        .overlay(alignment: .bottom) { Color(hex: 0x4867CD).frame(height: 3) }
+    }
+
+    private func filterOption(label: String, selected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: .spacing2) {
+                Text(label).font(.omXs)
+                if selected { Icon("check", size: 14) }
+            }
+            .foregroundStyle(Color.fontPrimary)
+            .padding(.spacing2)
+            .background(selected ? Color.grey30 : Color.grey20)
+            .clipShape(RoundedRectangle(cornerRadius: .radius4))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func rangeControl(key: String, label: String, values: [Double]) -> some View {
+        let minimum = values.min() ?? 0
+        let maximum = values.max() ?? 0
+        return AppleResultsRangeControl(
+            key: key, label: label, values: values,
+            selection: Binding(
+                get: { rangeFilters[key] ?? minimum...maximum },
+                set: { rangeFilters[key] = $0 }
+            )
+        )
+    }
+
+    #if canImport(MapKit)
+    // Apple owns the base map tiles; OpenMates retains the web result controls,
+    // app-colored SVG pins, route styling, and explicit result selection.
+    private struct ResultsMapMarker: Identifiable {
+        let coordinate: CLLocationCoordinate2D
+        var entries: [AppleResultsViewEntry]
+        var endpoint: Bool
+        var id: String {
+            String(format: "%.6f:%.6f", coordinate.latitude, coordinate.longitude)
+        }
+    }
+
+    private var mapMarkers: [ResultsMapMarker] {
+        var markers: [ResultsMapMarker] = []
+        var indices: [String: Int] = [:]
+        for entry in mapEntries {
+            let points = entry.route.isEmpty ? [entry.coordinate].compactMap { $0 } : entry.route
+            for (index, coordinate) in points.enumerated() {
+                let key = String(format: "%.6f:%.6f", coordinate.latitude, coordinate.longitude)
+                let endpoint = index == 0 || index == points.count - 1
+                if let existing = indices[key] {
+                    markers[existing].entries.append(entry)
+                    markers[existing].endpoint = markers[existing].endpoint || endpoint
+                } else {
+                    indices[key] = markers.count
+                    markers.append(ResultsMapMarker(coordinate: coordinate, entries: [entry], endpoint: endpoint))
+                }
+            }
+        }
+        return markers
+    }
+
+    private var mapCoordinates: [CLLocationCoordinate2D] {
+        mapEntries.flatMap { $0.route.isEmpty ? [$0.coordinate].compactMap { $0 } : $0.route }
+    }
+
+    private var mapGeometrySignature: String {
+        mapCoordinates.map { String(format: "%.6f:%.6f", $0.latitude, $0.longitude) }.joined(separator: "|")
+    }
+
+    private func fitMapToResults() {
+        guard let rect = AppleResultsMapCamera.fittedRect(coordinates: mapCoordinates) else { return }
+        mapPosition = .rect(rect)
+        // Keep only selection IDs that still survive the active filters.
+        mapSelectionIDs.formIntersection(Set(mapEntries.map(\.id)))
+    }
+
+    private func zoomMap(by factor: Double) {
+        guard let region = mapVisibleRegion else { return }
+        mapPosition = .region(AppleResultsMapCamera.zoomed(region, factor: factor))
+    }
+
+    private var mapPane: some View {
+        Map(position: $mapPosition, interactionModes: [.pan, .zoom]) {
+            ForEach(mapEntries) { entry in
+                if entry.route.count > 1 {
+                    MapPolyline(coordinates: entry.route)
+                        .stroke(mapSelectionIDs.isEmpty
+                                ? AppGradientPalette.colors(for: "travel").start.opacity(0.8)
+                                : mapSelectionIDs.contains(entry.id)
+                                    ? AppGradientPalette.colors(for: "travel").end.opacity(0.8)
+                                    : Color.grey50.opacity(0.5),
+                                style: StrokeStyle(lineWidth: 5, lineCap: .round, dash: [10, 10]))
+                }
+            }
+            ForEach(mapMarkers) { marker in
+                Annotation(marker.entries.first?.title ?? AppStrings.resultsViewMap,
+                           coordinate: marker.coordinate, anchor: .bottom) {
+                    Button {
+                        mapSelectionIDs = Set(marker.entries.map(\.id))
+                    } label: {
+                        Icon("maps", size: 40)
+                            .foregroundStyle(AppGradientPalette.colors(for: marker.entries.first?.record.appId ?? "maps").start)
+                            .frame(width: 40, height: 40)
+                            .opacity(mapSelectionIDs.isEmpty || marker.entries.contains(where: { mapSelectionIDs.contains($0.id) }) ? 1 : 0.5)
+                            .shadow(color: !mapSelectionIDs.isEmpty && marker.entries.contains(where: { mapSelectionIDs.contains($0.id) })
+                                    ? Color.buttonPrimary.opacity(0.6) : .clear, radius: 3)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(marker.entries.first?.title ?? AppStrings.resultsViewMap)
+                    .accessibilityIdentifier(marker.endpoint
+                        ? "embeds-map-view-endpoint-marker" : "embeds-map-view-stop-marker")
+                }
+                .annotationTitles(.hidden)
+            }
+        }
+        .mapStyle(.standard(elevation: .flat, pointsOfInterest: .excludingAll, showsTraffic: false))
+        .mapControls { }
+        .onMapCameraChange(frequency: .onEnd) { context in
+            mapVisibleRegion = context.region
+        }
+        .onAppear { fitMapToResults() }
+        .onChange(of: mapGeometrySignature) { _, _ in fitMapToResults() }
+        .onChange(of: mapEntries.map(\.id)) { _, ids in
+            mapSelectionIDs.formIntersection(Set(ids))
+        }
+        .overlay(alignment: .leading) {
+            VStack(spacing: 0) {
+                Button { zoomMap(by: 0.5) } label: {
+                    Text("+").font(.system(size: 28, weight: .semibold)).frame(width: 57, height: 50)
+                }
+                .accessibilityLabel(AppStrings.zoomIn)
+                .accessibilityIdentifier("embeds-map-view-zoom-in")
+                Color.grey25.frame(width: 57, height: 1)
+                Button { zoomMap(by: 2) } label: {
+                    Text("−").font(.system(size: 28, weight: .semibold)).frame(width: 57, height: 50)
+                }
+                .accessibilityLabel(AppStrings.zoomOut)
+                .accessibilityIdentifier("embeds-map-view-zoom-out")
+            }
+            .frame(width: 57)
+            .foregroundStyle(LinearGradient.primary)
+            .buttonStyle(.plain)
+            .background(Color.grey0, in: Capsule())
+            .clipShape(Capsule())
+            .shadow(color: .black.opacity(0.15), radius: 6, y: 4)
+            .padding(.leading, 14)
+        }
+    }
+    #endif
+
+    private struct CalendarLane: Identifiable {
+        let entry: AppleResultsViewEntry
+        let start: Double
+        let end: Double
+        var column: Int
+        var columnCount: Int
+        var id: String { entry.id }
+    }
+
+    // Match the web calendar's interval partitioning: overlapping results
+    // share their day's width while retaining their actual start time.
+    private func calendarLanes(_ segments: [(entry: AppleResultsViewEntry, start: Double, end: Double)]) -> [CalendarLane] {
+        let sorted = segments.sorted { $0.start < $1.start }
+        var lanes: [CalendarLane] = []
+        var laneEnds: [Double] = []
+        var groupStart = 0
+        var groupEnd = -1.0
+        func finishGroup() {
+            for index in groupStart..<lanes.count { lanes[index].columnCount = max(1, laneEnds.count) }
+        }
+        for segment in sorted {
+            if segment.start >= groupEnd {
+                finishGroup()
+                groupStart = lanes.count
+                laneEnds.removeAll()
+            }
+            let column = laneEnds.firstIndex(where: { $0 <= segment.start }) ?? laneEnds.count
+            if column == laneEnds.count { laneEnds.append(segment.end) }
+            else { laneEnds[column] = segment.end }
+            lanes.append(CalendarLane(entry: segment.entry, start: segment.start,
+                                      end: segment.end, column: column, columnCount: 1))
+            groupEnd = max(groupEnd, segment.end)
+        }
+        finishGroup()
+        return lanes
+    }
+
+    private var calendarPane: some View {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.firstWeekday = 2
+        calendar.minimumDaysInFirstWeek = 4
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let weeks = Array(Set(calendarEntries.flatMap { entry -> [Date] in
+            let first = entry.date.flatMap { calendar.dateInterval(of: .weekOfYear, for: $0)?.start }
+            let last = entry.endDate.flatMap { calendar.dateInterval(of: .weekOfYear, for: $0)?.start }
+            guard let first else { return [] }
+            guard let last, last > first else { return [first] }
+            return stride(from: first.timeIntervalSince1970, through: last.timeIntervalSince1970, by: 7 * 86400)
+                .map { Date(timeIntervalSince1970: $0) }
+        })).sorted()
+        let index = min(weekIndex, max(0, weeks.count - 1))
+        let weekStart = weeks.isEmpty ? Date() : weeks[index]
+        let weekDays = (0..<7).compactMap { calendar.date(byAdding: .day, value: $0, to: weekStart) }
+        let timed = weekDays.flatMap { day in
+            calendarEntries.compactMap { $0.calendarSegment(on: day, calendar: calendar) }
+        }
+        let timelineStart = Int((timed.map(\.start).min() ?? 0) / 60) * 60
+        let timelineHours = min(24 - timelineStart / 60, max(8,
+            Int(ceil(((timed.map(\.end).max() ?? 0) - Double(timelineStart)) / 60))))
+        let timelineHeight = CGFloat(timelineHours) * 46
+        return ScrollView([.horizontal, .vertical]) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 20) {
+                    weekButton(icon: "back", label: AppStrings.resultsViewPreviousWeek, enabled: index > 0) {
+                        weekIndex -= 1
+                    }
+                    Text(AppStrings.resultsViewWeekNumber(
+                        week: calendar.component(.weekOfYear, from: weekStart),
+                        year: calendar.component(.yearForWeekOfYear, from: weekStart)
+                    ))
+                        .font(.omSmall)
+                        .foregroundStyle(Color.fontTertiary)
+                        .frame(maxWidth: .infinity)
+                        .accessibilityIdentifier("embeds-results-view-calendar-week-label")
+                    weekButton(icon: "back", label: AppStrings.resultsViewNextWeek,
+                               enabled: index < weeks.count - 1, flipped: true) {
+                        weekIndex += 1
+                    }
+                }
+                .frame(width: 260, height: 36)
+                .frame(width: 658)
+
+                HStack(alignment: .top, spacing: 0) {
+                    if !timed.isEmpty {
+                        VStack(spacing: 0) {
+                            Color.clear.frame(height: 42)
+                            ForEach(0...timelineHours, id: \.self) { hour in
+                                Text(String(format: "%02d:00", timelineStart / 60 + hour))
+                                    .font(.omXxs)
+                                    .foregroundStyle(Color.fontPrimary)
+                                    .frame(width: 38, height: 46, alignment: .topTrailing)
+                                    .padding(.trailing, 6)
+                                    .id("calendar-hour-\(timelineStart + hour * 60)")
+                            }
+                        }
+                        .frame(width: 44)
+                    }
+                    ForEach(weekDays, id: \.self) { day in
+                        let dayEntries = calendarEntries.filter { $0.date.map { calendar.isDate($0, inSameDayAs: day) } == true }
+                        let lanes = calendarLanes(calendarEntries.compactMap { $0.calendarSegment(on: day, calendar: calendar) })
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text(day.formatted(Self.utcWeekdayStyle))
+                                .font(.omSmall)
+                                .foregroundStyle(Color.fontPrimary)
+                                .frame(width: 88, height: 42)
+                                .accessibilityIdentifier("embeds-results-view-calendar-day")
+                            ForEach(dayEntries.filter { $0.time == nil }) { entry in
+                                Button { onEmbedTap?(entry.record) } label: {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(entry.title).font(.omXs).fontWeight(.semibold)
+                                        Text(day.formatted(Self.utcMonthDayStyle)).font(.omXxs)
+                                    }
+                                    .foregroundStyle(Color.fontPrimary)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(6)
+                                    .background(Color.grey30)
+                                    .clipShape(RoundedRectangle(cornerRadius: .radius4))
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityIdentifier("embeds-results-view-calendar-date-only")
+                            }
+                            if !timed.isEmpty {
+                                ZStack(alignment: .topLeading) {
+                                    ForEach(lanes) { lane in
+                                        Button { onEmbedTap?(lane.entry.record) } label: {
+                                            ZStack(alignment: .topLeading) {
+                                                Color.error.opacity(0.16)
+                                                if 88 / CGFloat(lane.columnCount) >= 30 {
+                                                    Text(lane.entry.title)
+                                                        .font(.omSmall)
+                                                        .foregroundStyle(Color.fontPrimary)
+                                                        .padding(4)
+                                                }
+                                            }
+                                            .overlay(alignment: .leading) {
+                                                (isHighlighted(lane.entry) ? Color.fontPrimary : Color.error)
+                                                    .frame(width: 3)
+                                            }
+                                            .clipShape(RoundedRectangle(cornerRadius: .radius2))
+                                            .clipped()
+                                        }
+                                        .buttonStyle(.plain)
+                                        .frame(width: 88 / CGFloat(lane.columnCount) - 6,
+                                               height: max(1, CGFloat(lane.end - lane.start) / 60 * 46))
+                                        .offset(x: CGFloat(lane.column) * 88 / CGFloat(lane.columnCount) + 3,
+                                                y: CGFloat(lane.start - Double(timelineStart)) / 60 * 46)
+                                        .accessibilityLabel("\(lane.entry.title), \(lane.entry.time ?? "")")
+                                        .accessibilityValue(isHighlighted(lane.entry) ? "highlighted" : "normal")
+                                        .accessibilityIdentifier("embeds-results-view-calendar-item")
+                                    }
+                                }
+                                .frame(width: 88, height: timelineHeight, alignment: .topLeading)
+                            }
+                        }
+                        .frame(width: 88, alignment: .topLeading)
+                    }
+                }
+                .frame(width: 658, alignment: .leading)
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("embeds-results-view-calendar-week")
+            }
+            .padding(.horizontal, 14)
+            .padding(.top, 14)
+            .padding(.bottom, 24)
+        }
+        .defaultScrollAnchor(.topLeading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func weekButton(icon: String, label: String, enabled: Bool, flipped: Bool = false, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Icon(icon, size: 17)
+                .scaleEffect(x: flipped ? -1 : 1)
+                .frame(width: 28, height: 28)
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
+        .accessibilityLabel(label)
+    }
+}
+
+/// The filter header and clear action use the same outlined Lucide geometry
+/// as EmbedsMapView.svelte; the app's filled time asset has a different shape.
+private struct ResultsLucideIcon: View {
+    enum Kind { case clock, trash }
+    let kind: Kind
+
+    init(_ kind: Kind) { self.kind = kind }
+
+    var body: some View {
+        GeometryReader { geometry in
+            Path { path in
+                switch kind {
+                case .clock:
+                    path.addEllipse(in: CGRect(x: 2, y: 2, width: 20, height: 20))
+                    path.move(to: CGPoint(x: 12, y: 6))
+                    path.addLine(to: CGPoint(x: 12, y: 12))
+                    path.addLine(to: CGPoint(x: 16, y: 12))
+                case .trash:
+                    path.move(to: CGPoint(x: 3, y: 6))
+                    path.addLine(to: CGPoint(x: 21, y: 6))
+                    path.move(to: CGPoint(x: 8, y: 6))
+                    path.addLine(to: CGPoint(x: 8, y: 4))
+                    path.addLine(to: CGPoint(x: 16, y: 4))
+                    path.addLine(to: CGPoint(x: 16, y: 6))
+                    path.move(to: CGPoint(x: 5, y: 6))
+                    path.addLine(to: CGPoint(x: 6, y: 20))
+                    path.addLine(to: CGPoint(x: 18, y: 20))
+                    path.addLine(to: CGPoint(x: 19, y: 6))
+                    path.move(to: CGPoint(x: 10, y: 11))
+                    path.addLine(to: CGPoint(x: 10, y: 17))
+                    path.move(to: CGPoint(x: 14, y: 11))
+                    path.addLine(to: CGPoint(x: 14, y: 17))
+                }
+            }
+            .applying(CGAffineTransform(scaleX: geometry.size.width / 24,
+                                        y: geometry.size.height / 24))
+            .stroke(Color(hex: 0x4867CD), style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+/// One distribution rail with two independently draggable and VoiceOver-
+/// adjustable bounds, matching ResultsRangeFilter.svelte.
+private struct AppleResultsRangeControl: View {
+    let key: String
+    let label: String
+    let values: [Double]
+    @Binding var selection: ClosedRange<Double>
+
+    private let binCount = 36
+    private let thumbSize: CGFloat = 28
+    private let railColor = Color(hex: 0x059DB3) // app-travel-start token
+
+    private var minimum: Double { values.min() ?? 0 }
+    private var maximum: Double { values.max() ?? 0 }
+    private var step: Double { key == "departureMinutes" || key == "arrivalMinutes" ? 5 : 1 }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: .spacing2) {
+            histogram
+            GeometryReader { geometry in
+                let usableWidth = max(1, geometry.size.width - thumbSize)
+                let lowerX = thumbSize / 2 + CGFloat(fraction(selection.lowerBound)) * usableWidth
+                let upperX = thumbSize / 2 + CGFloat(fraction(selection.upperBound)) * usableWidth
+                ZStack(alignment: .topLeading) {
+                    Capsule()
+                        .fill(Color.grey40)
+                        .frame(width: usableWidth, height: 6)
+                        .offset(x: thumbSize / 2, y: 15)
+                        .accessibilityElement()
+                        .accessibilityLabel(label)
+                        .accessibilityIdentifier("embeds-map-view-filter-\(key)-rail")
+                    thumb(.lower, position: lowerX, usableWidth: usableWidth)
+                    thumb(.upper, position: upperX, usableWidth: usableWidth)
+                }
+                .frame(height: 36)
+                .coordinateSpace(name: "results-range-\(key)")
+            }
+            .frame(height: 36)
+            HStack {
+                Text(facetLabel(selection.lowerBound)).font(.omSmall).fontWeight(.bold)
+                Spacer()
+                Text(facetLabel(selection.upperBound)).font(.omSmall).fontWeight(.bold)
+            }
+            .frame(height: 42, alignment: .top)
+        }
+        .padding(.top, 12)
+        .padding(.bottom, 8)
+    }
+
+    private var histogram: some View {
+        let counts = (0..<binCount).map { index in
+            values.filter { value in
+                min(binCount - 1, Int(fraction(value) * Double(binCount))) == index
+            }.count
+        }
+        let largest = max(1, counts.max() ?? 0)
+        return ZStack(alignment: .bottom) {
+            HStack(spacing: 3) {
+                ForEach(0..<binCount, id: \.self) { _ in
+                    Circle().fill(Color.grey50).frame(maxWidth: .infinity).frame(height: 4)
+                }
+            }
+            HStack(alignment: .bottom, spacing: 3) {
+                ForEach(0..<binCount, id: \.self) { index in
+                    let binStart = minimum + (maximum - minimum) * Double(index) / Double(binCount)
+                    let binEnd = minimum + (maximum - minimum) * Double(index + 1) / Double(binCount)
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(binEnd >= selection.lowerBound && binStart <= selection.upperBound ? railColor : Color.grey50)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: counts[index] > 0 ? max(4, CGFloat(counts[index]) / CGFloat(largest) * 56) : 0)
+                }
+            }
+        }
+        .frame(height: 56, alignment: .bottom)
+        .padding(.horizontal, thumbSize / 2)
+        .accessibilityHidden(true)
+    }
+
+    private enum Side { case lower, upper }
+
+    private func thumb(_ side: Side, position: CGFloat, usableWidth: CGFloat) -> some View {
+        Circle()
+            .fill(railColor)
+            .frame(width: thumbSize, height: thumbSize)
+            .contentShape(Circle())
+            .gesture(DragGesture(minimumDistance: 0, coordinateSpace: .named("results-range-\(key)"))
+                .onChanged { gesture in update(side, to: value(at: gesture.location.x, usableWidth: usableWidth)) })
+            .accessibilityElement()
+            .accessibilityLabel(label + ", " + (side == .lower ? AppStrings.resultsViewMinimum : AppStrings.resultsViewMaximum))
+            .accessibilityValue(facetLabel(side == .lower ? selection.lowerBound : selection.upperBound))
+            .accessibilityAdjustableAction { direction in
+                switch direction {
+                case .increment: update(side, to: (side == .lower ? selection.lowerBound : selection.upperBound) + step)
+                case .decrement: update(side, to: (side == .lower ? selection.lowerBound : selection.upperBound) - step)
+                @unknown default: break
+                }
+            }
+            .accessibilityIdentifier("embeds-map-view-filter-\(key)-\(side == .lower ? "lower" : "upper")")
+            .position(x: position, y: thumbSize / 2 + 4)
+    }
+
+    private func fraction(_ value: Double) -> Double {
+        guard maximum > minimum else { return 0 }
+        return min(1, max(0, (value - minimum) / (maximum - minimum)))
+    }
+
+    private func value(at x: CGFloat, usableWidth: CGFloat) -> Double {
+        let raw = minimum + Double(min(1, max(0, (x - thumbSize / 2) / usableWidth))) * (maximum - minimum)
+        return min(maximum, max(minimum, minimum + ((raw - minimum) / step).rounded() * step))
+    }
+
+    private func update(_ side: Side, to proposed: Double) {
+        let value = min(maximum, max(minimum, proposed))
+        if side == .lower { selection = min(value, selection.upperBound)...selection.upperBound }
+        else { selection = selection.lowerBound...max(value, selection.lowerBound) }
+    }
+
+    private func facetLabel(_ value: Double) -> String {
+        if key == "departureMinutes" || key == "arrivalMinutes" {
+            return String(format: "%02d:%02d", Int(value) / 60, Int(value) % 60)
+        }
+        return String(Int(value.rounded()))
+    }
+}
+
+#if canImport(MapKit)
+/// Fits the actual result geometry, including routes crossing the date line.
+/// A single location receives a neighborhood view instead of a zero-sized rect.
+enum AppleResultsMapCamera {
+    static func fittedRect(coordinates: [CLLocationCoordinate2D]) -> MKMapRect? {
+        let points = coordinates.filter(CLLocationCoordinate2DIsValid).map(MKMapPoint.init)
+        guard !points.isEmpty else { return nil }
+        let worldWidth = MKMapRect.world.size.width
+        let sortedX = points.map(\.x).sorted()
+        var largestGap = -Double.infinity
+        var startX = sortedX[0]
+        for index in sortedX.indices {
+            let next = index + 1 < sortedX.count ? sortedX[index + 1] : sortedX[0] + worldWidth
+            if next - sortedX[index] > largestGap {
+                largestGap = next - sortedX[index]
+                startX = sortedX[(index + 1) % sortedX.count]
+            }
+        }
+        let unwrappedX = points.map { $0.x < startX ? $0.x + worldWidth : $0.x }
+        let minX = unwrappedX.min()!, maxX = unwrappedX.max()!
+        let minY = points.map(\.y).min()!, maxY = points.map(\.y).max()!
+        let center = MKMapPoint(x: (minX + maxX) / 2, y: (minY + maxY) / 2)
+        let minimumSpan = 1_200 * MKMapPointsPerMeterAtLatitude(center.coordinate.latitude)
+        // Leave room for the 40-point pins and the 57-point overlay controls
+        // at phone width; extreme venues must remain visible and tappable.
+        let width = min(worldWidth, max(minimumSpan, (maxX - minX) * 2.4))
+        let height = min(worldWidth, max(minimumSpan, (maxY - minY) * 1.6))
+        return MKMapRect(x: center.x - width / 2, y: center.y - height / 2,
+                         width: width, height: height)
+    }
+
+    static func zoomed(_ region: MKCoordinateRegion, factor: Double) -> MKCoordinateRegion {
+        MKCoordinateRegion(center: region.center,
+                           span: MKCoordinateSpan(latitudeDelta: min(170, max(0.0002, region.span.latitudeDelta * factor)),
+                                                  longitudeDelta: min(359, max(0.0002, region.span.longitudeDelta * factor))))
+    }
+}
+#endif
+
+struct AppleResultsViewEntry: Identifiable {
+    let reference: String
+    let record: EmbedRecord
+    let title: String
+    let category: String
+    let date: Date?
+    let time: String?
+    let endDate: Date?
+    let endTime: String?
+    let numericFacets: [String: Double]
+    let optionFacets: [String: [String]]
+    #if canImport(MapKit)
+    let coordinate: CLLocationCoordinate2D?
+    let route: [CLLocationCoordinate2D]
+    #endif
+
+    var id: String { record.id }
+
+    func matches(category: String?, ranges: [String: ClosedRange<Double>],
+                 options: [String: Set<String>]) -> Bool {
+        guard category == nil || self.category == category else { return false }
+        for (key, range) in ranges {
+            guard let value = numericFacets[key], range.contains(value) else { return false }
+        }
+        for (key, allowed) in options {
+            guard let values = optionFacets[key], values.contains(where: allowed.contains) else { return false }
+        }
+        return true
+    }
+
+    static func resolve(_ descriptor: AppleResultsViewDescriptor,
+                        lookup: [String: EmbedRecord], records: [String: EmbedRecord]) -> [AppleResultsViewEntry] {
+        var references = descriptor.embedRefs
+        for sourceRef in descriptor.sourceRefs {
+            let normalized = sourceRef.hasPrefix("embed:") ? String(sourceRef.dropFirst(6)) : sourceRef
+            guard let source = lookup[normalized] ?? MarkdownEmbedResolver.resolve(normalized, in: records) else { continue }
+            references.append(contentsOf: source.childEmbedIds)
+            let raw = source.rawData ?? [:]
+            references.append(contentsOf: refList(raw["embed_ids"]?.value))
+            references.append(contentsOf: refList(raw["child_embed_ids"]?.value))
+        }
+        var seenReferences = Set<String>()
+        let uniqueReferences = references.compactMap { reference -> String? in
+            let normalized = reference.hasPrefix("embed:") ? String(reference.dropFirst(6)) : reference
+            return !normalized.isEmpty && seenReferences.insert(normalized).inserted ? normalized : nil
+        }
+        var seenRecords = Set<String>()
+        return uniqueReferences.prefix(40).compactMap { normalized -> AppleResultsViewEntry? in
+            guard let record = lookup[normalized] ?? MarkdownEmbedResolver.resolve(normalized, in: records),
+                  seenRecords.insert(record.id).inserted else { return nil }
+            let raw = record.rawData ?? [:]
+            let origin = EventValue.string(raw, ["origin", "origin_name", "from"])
+            let destination = EventValue.string(raw, ["destination", "destination_name", "to"])
+            let title = origin.flatMap { start in destination.map { "\(start) -> \($0)" } }
+                ?? EventValue.string(raw, ["title", "name", "displayName", "display_name", "summary"])
+                ?? (raw["venue"]?.value as? [String: Any]).flatMap { $0["name"] as? String }
+                ?? record.type
+            let dateText = EventValue.string(raw, ["date", "datetime", "start_date", "scheduled_departure", "slot_datetime", "date_start", "departure", "start_time", "check_in_date", "check_in"])
+            let date = dateText.flatMap(validDate)
+            let time = dateText.flatMap { value -> String? in
+                guard value.count >= 16 else { return nil }
+                let separator = value.index(value.startIndex, offsetBy: 10)
+                guard value[separator] == "T" || value[separator] == " " else { return nil }
+                let start = value.index(after: separator)
+                let end = value.index(start, offsetBy: 5)
+                let candidate = String(value[start..<end])
+                return candidate.range(of: #"^\d{2}:\d{2}$"#, options: .regularExpression) != nil ? candidate : nil
+            }
+            let arrivalText = EventValue.string(raw, ["arrival", "scheduled_arrival", "end_time", "date_end"])
+            let endDate = arrivalText.flatMap(validDate)
+            let endTime = arrivalText.flatMap { value -> String? in
+                let pieces = value.split(whereSeparator: { $0 == "T" || $0 == " " })
+                guard let last = pieces.last, last.contains(":") else { return nil }
+                return String(last.prefix(5))
+            }
+            #if canImport(MapKit)
+            let route = route(raw)
+            let coordinate = coordinate(raw) ?? (route.count > 1 ? route.first : nil)
+            guard coordinate != nil || date != nil else { return nil }
+            #else
+            guard date != nil else { return nil }
+            #endif
+            let type = "\(record.appId ?? ""):\(record.skillId ?? ""):\(record.type)".lowercased()
+            let category = type.contains("event") ? "event" : type.contains("travel") || type.contains("connection") ? "route" : type.contains("stay") ? "stay" : "place"
+            var numericFacets: [String: Double] = [:]
+            if let departure = EventValue.string(raw, ["departure", "scheduled_departure", "slot_datetime", "start_time", "date_start"]),
+               let minutes = timeMinutes(departure) { numericFacets["departureMinutes"] = minutes }
+            if let arrival = EventValue.string(raw, ["arrival", "scheduled_arrival", "end_time", "date_end"]),
+               let minutes = timeMinutes(arrival) { numericFacets["arrivalMinutes"] = minutes }
+            if let duration = EventValue.double(raw, ["duration_minutes"]) ?? durationMinutes(EventValue.string(raw, ["duration"])) {
+                numericFacets["durationMinutes"] = duration
+            }
+            if let price = EventValue.double(raw, ["price", "total_price", "min_price", "max_price"]) {
+                numericFacets["price"] = price
+            }
+            let legs = raw["legs"]?.value as? [[String: Any]] ?? []
+            let layovers = (raw["layovers"]?.value as? [[String: Any]] ?? [])
+                + legs.flatMap { $0["layovers"] as? [[String: Any]] ?? [] }
+            if let transfer = layovers.compactMap({ number($0["duration_minutes"]) }).min() {
+                numericFacets["transferMinutes"] = transfer
+            }
+            var optionFacets: [String: [String]] = [:]
+            for (key, fields) in [("carriers", ["carriers", "carrier"]),
+                                  ("providers", ["provider", "booking_provider", "source_provider"])] {
+                if let value = EventValue.string(raw, fields) {
+                    optionFacets[key] = value.split(whereSeparator: { $0 == "|" || $0 == "," })
+                        .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                        .filter { !$0.isEmpty }
+                }
+            }
+            return AppleResultsViewEntry(reference: normalized, record: record, title: title,
+                                         category: category, date: date, time: time,
+                                         endDate: endDate, endTime: endTime,
+                                         numericFacets: numericFacets, optionFacets: optionFacets,
+                                         coordinate: coordinate, route: route)
+        }
+    }
+
+    private static func validDate(_ value: String) -> Date? {
+        guard value.count >= 10 else { return nil }
+        let prefix = String(value.prefix(10))
+        guard prefix.range(of: #"^\d{4}-\d{2}-\d{2}$"#, options: .regularExpression) != nil else { return nil }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let parts = prefix.split(separator: "-").compactMap { Int($0) }
+        guard parts.count == 3,
+              let date = calendar.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2])),
+              calendar.component(.year, from: date) == parts[0],
+              calendar.component(.month, from: date) == parts[1],
+              calendar.component(.day, from: date) == parts[2] else { return nil }
+        return date
+    }
+
+    func calendarSegment(on day: Date, calendar: Calendar) -> (entry: AppleResultsViewEntry, start: Double, end: Double)? {
+        guard let date, let time, let startMinutes = Self.timeMinutes(time) else { return nil }
+        let dayOffset = calendar.dateComponents([.day], from: date, to: day).day ?? 0
+        let start = startMinutes - Double(dayOffset * 1440)
+        let duration = numericFacets["durationMinutes"] ?? 60
+        let end: Double
+        if let endDate, let endTime, let endMinutes = Self.timeMinutes(endTime) {
+            let endDayOffset = calendar.dateComponents([.day], from: date, to: endDate).day ?? 0
+            end = Double(endDayOffset * 1440) + endMinutes - Double(dayOffset * 1440)
+        } else {
+            end = start + max(1, duration)
+        }
+        let clippedStart = max(0, start)
+        let clippedEnd = min(1440, end)
+        guard clippedEnd > clippedStart else { return nil }
+        return (entry: self, start: clippedStart, end: clippedEnd)
+    }
+
+    private static func timeMinutes(_ value: String) -> Double? {
+        let parts = value.split(whereSeparator: { $0 == "T" || $0 == " " })
+        guard let time = parts.last, time.count >= 5 else { return nil }
+        let pieces = String(time.prefix(5)).split(separator: ":")
+        guard pieces.count == 2, let hour = Int(pieces[0]), let minute = Int(pieces[1]),
+              (0...23).contains(hour), (0...59).contains(minute) else { return nil }
+        return Double(hour * 60 + minute)
+    }
+
+    private static func durationMinutes(_ value: String?) -> Double? {
+        guard let value else { return nil }
+        let hours = value.range(of: #"\d+(?:\.\d+)?\s*h"#, options: .regularExpression)
+            .flatMap { Double(value[$0].replacingOccurrences(of: "h", with: "").trimmingCharacters(in: .whitespaces)) }
+        let minutes = value.range(of: #"\d+(?:\.\d+)?\s*m"#, options: .regularExpression)
+            .flatMap { Double(value[$0].replacingOccurrences(of: "m", with: "").trimmingCharacters(in: .whitespaces)) }
+        if hours != nil || minutes != nil { return (hours ?? 0) * 60 + (minutes ?? 0) }
+        return Double(value)
+    }
+
+    private static func refList(_ value: Any?) -> [String] {
+        if let values = value as? [String] { return values }
+        if let values = value as? [Any] { return values.compactMap { $0 as? String } }
+        if let value = value as? String {
+            return value.split(whereSeparator: { $0 == "|" || $0 == "," })
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+        }
+        return []
+    }
+
+    #if canImport(MapKit)
+    static func coordinate(_ raw: [String: AnyCodable]) -> CLLocationCoordinate2D? {
+        let data = raw.mapValues(\.value)
+        let venue = dictionary(data["venue"]) ?? [:]
+        let location = dictionary(data["location"]) ?? [:]
+        let coordinates = dictionary(data["coordinates"]) ?? [:]
+        let gps = dictionary(data["gps_coordinates"]) ?? [:]
+        let eventType = (data["event_type"] as? String ?? data["eventType"] as? String ?? "").lowercased()
+        let venueName = (data["venue_name"] as? String ?? venue["name"] as? String ?? "").lowercased()
+        guard eventType != "online", venueName != "online event" else { return nil }
+
+        let candidates: [([String: Any], [(String, String)])] = [
+            (data, [("venue_lat", "venue_lon"), ("venue_lat", "venue_lng"),
+                    ("venue_latitude", "venue_longitude")]),
+            (venue, [("lat", "lon"), ("lat", "lng"), ("latitude", "longitude")]),
+            (data, [("location_lat", "location_lon"), ("location_lat", "location_lng"),
+                    ("location_latitude", "location_longitude")]),
+            (location, [("lat", "lon"), ("lat", "lng"), ("latitude", "longitude")]),
+            (data, [("gps_coordinates_latitude", "gps_coordinates_longitude"),
+                    ("gps_coordinates_latitude", "gps_coordinates_lon"),
+                    ("gps_coordinates_latitude", "gps_coordinates_lng")]),
+            (gps, [("latitude", "longitude"), ("lat", "lon"), ("lat", "lng")]),
+            (coordinates, [("latitude", "longitude"), ("lat", "lon"), ("lat", "lng")]),
+            (data, [("latitude", "longitude"), ("lat", "lon"), ("lat", "lng")]),
+        ]
+        for (source, pairs) in candidates {
+            if let point = point(source, pairs: pairs) { return point }
+        }
+        return nil
+    }
+
+    private static func route(_ raw: [String: AnyCodable]) -> [CLLocationCoordinate2D] {
+        let data = raw.mapValues(\.value)
+        for key in ["route_points", "route", "path", "polyline_points"] {
+            if let rows = data[key] as? [[String: Any]] {
+                return rows.compactMap { point($0, pairs: [("lat", "lon"), ("lat", "lng"),
+                                                        ("latitude", "longitude")]) }
+            }
+        }
+
+        let segmentRows = data["segments"] as? [[String: Any]] ?? []
+        let legs = data["legs"] as? [[String: Any]] ?? []
+        let nestedRows = legs.flatMap { $0["segments"] as? [[String: Any]] ?? [] }
+        var flatRows: [[String: Any]] = []
+        for legIndex in 0..<8 {
+            for segmentIndex in 0..<32 {
+                let prefix = "legs_\(legIndex)_segments_\(segmentIndex)_"
+                let keys = ["departure_latitude", "departure_longitude", "arrival_latitude", "arrival_longitude"]
+                let row = Dictionary(uniqueKeysWithValues: keys.compactMap { key -> (String, Any)? in
+                    data[prefix + key].map { (key, $0) }
+                })
+                if row.isEmpty {
+                    if segmentIndex == 0 { break }
+                    continue
+                }
+                flatRows.append(row)
+            }
+        }
+        var points: [CLLocationCoordinate2D] = []
+        for segment in segmentRows + nestedRows + flatRows {
+            for prefix in ["departure", "arrival"] {
+                if let candidate = point(segment, pairs: [("\(prefix)_latitude", "\(prefix)_longitude"),
+                                                          ("\(prefix)_lat", "\(prefix)_lng"),
+                                                          ("\(prefix)_lat", "\(prefix)_lon")]) {
+                    if let last = points.last,
+                       last.latitude == candidate.latitude && last.longitude == candidate.longitude { continue }
+                    points.append(candidate)
+                }
+            }
+        }
+        if points.count > 1 { return points }
+
+        let flightTrack = dictionary(data["flight_track"]) ?? [:]
+        if let tracks = flightTrack["tracks"] as? [[String: Any]] {
+            let points = tracks.compactMap { point($0, pairs: [("lat", "lon"), ("lat", "lng"),
+                                                               ("latitude", "longitude")]) }
+            if points.count > 1 { return points }
+        }
+        let origin = dictionary(data["origin"]) ?? [:]
+        let destination = dictionary(data["destination"]) ?? [:]
+        let originPoint = point(data, pairs: [("origin_lat", "origin_lon"), ("origin_lat", "origin_lng"),
+                                              ("origin_latitude", "origin_longitude")])
+            ?? point(origin, pairs: [("lat", "lon"), ("lat", "lng"), ("latitude", "longitude")])
+        let destinationPoint = point(data, pairs: [("destination_lat", "destination_lon"),
+                                                   ("destination_lat", "destination_lng"),
+                                                   ("destination_latitude", "destination_longitude")])
+            ?? point(destination, pairs: [("lat", "lon"), ("lat", "lng"), ("latitude", "longitude")])
+        if let originPoint, let destinationPoint { return [originPoint, destinationPoint] }
+        return []
+    }
+
+    private static func dictionary(_ value: Any?) -> [String: Any]? {
+        if let value = value as? [String: Any] { return value }
+        if let value = value as? [String: AnyCodable] { return value.mapValues(\.value) }
+        return nil
+    }
+
+    private static func point(_ data: [String: Any], pairs: [(String, String)]) -> CLLocationCoordinate2D? {
+        for (latitudeKey, longitudeKey) in pairs {
+            guard let latitude = number(data[latitudeKey]), let longitude = number(data[longitudeKey]) else { continue }
+            let candidate = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+            if CLLocationCoordinate2DIsValid(candidate) { return candidate }
+        }
+        return nil
+    }
+
+    private static func number(_ value: Any?) -> Double? {
+        if let number = value as? NSNumber { return number.doubleValue }
+        if let value = value as? String { return Double(value) }
+        return nil
+    }
+    #endif
 }
 
 private struct AppleInteractiveQuestionCard: View {
@@ -1547,7 +2966,7 @@ struct InlineMarkdownText: View {
         // The mounted preparation cache prevents reparsing on unrelated updates;
         // the existing flow keeps its bounded cache of measured width proposals.
         let customLayout = content.contains("(wiki:") || content.contains("(embed:") || content.contains("](")
-            || MarkdownMathParser.containsFormula(in: content)
+            || MarkdownMathParser.containsFormula(in: content) || content.contains("@")
         let attributed = customLayout ? AttributedString() :
             ((try? AttributedString(markdown: content, options: .init(
                 interpretedSyntax: .inlineOnlyPreservingWhitespace
@@ -1621,6 +3040,8 @@ struct InlineMarkdownText: View {
                         .stroke(Color.grey30, lineWidth: 1)
                 }
                 .fixedSize()
+        case .mention(let mention):
+            NativeMentionLabel(mention: mention, highlightRanges: highlightRanges)
         case .math(let latex, let display):
             MarkdownFormulaText(latex: latex, display: display, isUserMessage: isUserMessage)
                 .fixedSize(horizontal: false, vertical: true)
@@ -1897,6 +3318,7 @@ enum MarkdownMathParser {
 }
 
 enum InlineMarkdownToken: Equatable {
+    case mention(NativeMentionPresentation)
     case text(String, isBold: Bool)
     case inlineCode(String)
     case math(String, display: Bool)
@@ -1904,8 +3326,10 @@ enum InlineMarkdownToken: Equatable {
     case embed(displayText: String, embedRef: String, isBold: Bool)
     case link(displayText: String, url: String, isInternal: Bool, isBold: Bool)
 
-    var searchText: String {
+    @MainActor var searchText: String {
         switch self {
+        case .mention(let mention):
+            return mention.label
         case .text(let text, _), .inlineCode(let text):
             return text
         case .math(let latex, _):
@@ -1945,6 +3369,14 @@ enum InlineMarkdownTokenizer {
                 continue
             }
 
+            if source[index] == "@",
+               (index == source.startIndex || source[source.index(before: index)].isWhitespace),
+               let mention = parseMention(in: source, from: index) {
+                tokens.append(.mention(mention.value))
+                index = mention.endIndex
+                continue
+            }
+
             if source[index] == "[", let link = parseSpecialLink(in: source, from: index) {
                 switch link.kind {
                 case .wiki:
@@ -1980,6 +3412,16 @@ enum InlineMarkdownTokenizer {
         }
 
         return tokens
+    }
+
+    private static func parseMention(in source: String, from start: String.Index) -> (value: NativeMentionPresentation, endIndex: String.Index)? {
+        var end = start
+        while end < source.endIndex, !source[end].isWhitespace, !",!?;()[]".contains(source[end]) {
+            end = source.index(after: end)
+        }
+        while end > start, source[source.index(before: end)] == "." { end = source.index(before: end) }
+        guard let mention = NativeMentionPresentation.parse(String(source[start..<end])) else { return nil }
+        return (mention, end)
     }
 
     private enum SpecialLinkKind {
@@ -2079,7 +3521,7 @@ enum InlineMarkdownTokenizer {
     private static func nextSpecialIndex(in source: String, from start: String.Index) -> String.Index? {
         var index = start
         while index < source.endIndex {
-            if source[index...].hasPrefix("**") || source[index] == "[" || source[index] == "`" || source[index] == "$" {
+            if source[index...].hasPrefix("**") || source[index] == "[" || source[index] == "`" || source[index] == "$" || source[index] == "@" {
                 return index
             }
             index = source.index(after: index)
@@ -2716,10 +4158,12 @@ private struct SourceQuoteView: View {
     let embed: EmbedRecord
     let onEmbedTap: ((EmbedRecord) -> Void)?
     let searchHighlightQuery: String?
+    @Environment(\.sourceQuoteOpenAction) private var openSourceQuote
 
     var body: some View {
         Button {
-            onEmbedTap?(embed)
+            if let openSourceQuote { openSourceQuote(embed, quote) }
+            else { onEmbedTap?(embed) }
         } label: {
             VStack(alignment: .leading, spacing: .spacing4) {
                 Text(SearchTextHighlighter.attributed(

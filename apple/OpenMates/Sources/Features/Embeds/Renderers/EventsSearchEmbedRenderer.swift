@@ -32,7 +32,7 @@ struct EventsSearchEmbedRenderer: View {
     var body: some View {
         switch mode {
         case .preview:
-            EventsSearchPreview(data: data, events: events)
+            EventsSearchPreview(data: data, events: events, status: embed.status)
         case .fullscreen:
             EventsSearchFullscreen(
                 events: events,
@@ -69,21 +69,26 @@ enum EventsSearchEmbedModel {
 private struct EventsSearchPreview: View {
     let data: [String: AnyCodable]?
     let events: [EventResultSummary]
+    let status: EmbedStatus
 
     private var query: String {
         EventsSearchEmbedModel.query(from: data, events: events)
     }
 
-    private var providerText: String? {
-        if let providers = data?["providers"]?.value as? [String], !providers.isEmpty {
-            let labels = providers.map(providerLabel)
-            if labels.count <= 2 { return "via \(labels.joined(separator: ", "))" }
-            return "via \(labels[0]), \(labels[1]) +\(labels.count - 2)"
-        }
-        guard let provider = EventValue.string(data ?? [:], ["provider"]),
-              !["auto", "none"].contains(provider)
-        else { return nil }
-        return "via \(providerLabel(provider))"
+    private var providers: [String] {
+        let raw = data?["providers"]?.value
+        let supplied: [String]
+        if let values = raw as? [String] { supplied = values }
+        else if let value = raw as? String { supplied = value.split(separator: "|").map(String.init) }
+        else { supplied = [] }
+        let candidates = supplied.isEmpty ? [EventValue.string(data ?? [:], ["provider"]) ?? ""] : supplied
+        var seen = Set<String>()
+        return candidates.map { $0.lowercased().replacingOccurrences(of: "-", with: "_") }
+            .filter { !$0.isEmpty && $0 != "auto" && $0 != "none" && seen.insert($0).inserted }
+    }
+
+    private var eventCount: Int {
+        EventValue.int(data ?? [:], ["result_count"]) ?? events.count
     }
 
     var body: some View {
@@ -94,39 +99,30 @@ private struct EventsSearchPreview: View {
                 .foregroundStyle(Color.grey100)
                 .lineLimit(2)
 
-            if let providerText {
-                Text(providerText)
-                    .font(.omXs)
-                    .fontWeight(.medium)
+            HStack(spacing: .spacing2) {
+                Text(LocalizationManager.shared.text("embeds.via"))
+                    .font(.omXs.weight(.medium))
                     .foregroundStyle(Color.grey70)
-                    .lineLimit(1)
+                ForEach(providers, id: \.self) { provider in
+                    if ["meetup", "luma", "resident_advisor"].contains(provider) {
+                        Icon(provider, size: 13)
+                            .foregroundStyle(Color.grey70)
+                            .frame(width: 19, height: 19)
+                            .background(Color.grey0)
+                            .clipShape(Circle())
+                    }
+                }
             }
 
-            if !events.isEmpty {
-                HStack(spacing: .spacing3) {
-                    Text("+ \(events.count) \(events.count == 1 ? "event" : "events")")
-                        .font(.omXs)
-                        .fontWeight(.bold)
-                        .foregroundStyle(Color.grey70)
-                }
+            if status == .finished && eventCount > 0 {
+                Text(LocalizationManager.shared.text("embeds.more_results")
+                    .replacingOccurrences(of: "{count}", with: String(eventCount)))
+                    .font(.omSmall.weight(.medium))
+                    .foregroundStyle(Color.grey70)
                 .padding(.top, .spacing1)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-    }
-
-    private func providerLabel(_ provider: String) -> String {
-        switch provider.lowercased() {
-        case "meetup": return "Meetup"
-        case "luma": return "Luma"
-        case "google_events": return "Google"
-        case "resident_advisor": return "Resident Advisor"
-        case "siegessaeule": return "Siegessäule"
-        case "classictic": return "Classictic"
-        case "berlin_philharmonic": return "Berlin Philharmonic"
-        case "bachtrack": return "Bachtrack"
-        default: return provider
-        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
 }
 

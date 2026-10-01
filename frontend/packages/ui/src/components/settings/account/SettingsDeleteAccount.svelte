@@ -435,10 +435,11 @@ Uses SecurityAuth component for passkey/2FA verification.
 {#if showAuthModal}
     <SecurityAuth
         {hasPasskey}
-        hasPassword={false}
+        hasPassword={hasPassword}
         has2FA={has2FA}
         hasEmailOtp={hasPassword && !hasPasskey && !has2FA}
         verificationAction="delete_account"
+        sensitiveActionPurpose="delete_account"
         title={$text('settings.account.delete_account_auth_title')}
         description={$text('settings.account.delete_account_auth_description')}
         autoStart={true}

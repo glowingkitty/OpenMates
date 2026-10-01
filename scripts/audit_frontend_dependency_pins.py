@@ -25,7 +25,7 @@ PINNED_PACKAGE_VERSIONS = {
     "prosemirror-view": "1.41.8",
 }
 PINNED_PACKAGE_PREFIXES = {
-    "@tiptap/": "3.30.4",
+    "@tiptap/": "3.30.5",
 }
 
 

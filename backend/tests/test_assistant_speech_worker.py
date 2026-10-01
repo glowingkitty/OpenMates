@@ -13,6 +13,7 @@ from backend.apps.audio.assistant_speech.worker import generate_speech_segment
 from backend.apps.audio.pricing import (
     ASSISTANT_RESPONSE_SPEECH_MODEL,
     DEFAULT_SPEECH_MODEL,
+    ELEVEN_V3_CONVERSATIONAL_SPEECH_MODEL,
     calculate_assistant_response_speech_credits,
 )
 from backend.apps.audio.assistant_speech.persistence import (
@@ -126,13 +127,91 @@ async def test_generates_one_encrypted_asset_and_records_exact_submitted_charact
 
 # contract-test: direct surface=rest_api assertions=assistant-speech.billing.segment-success-once
 def test_assistant_response_speech_uses_one_message_level_character_rounding_step() -> None:
+    assert calculate_assistant_response_speech_credits(submitted_characters=0) == 0
     assert calculate_assistant_response_speech_credits(submitted_characters=1) == 1
-    assert calculate_assistant_response_speech_credits(submitted_characters=14) == 1
-    assert calculate_assistant_response_speech_credits(submitted_characters=15) == 2
-    assert calculate_assistant_response_speech_credits(submitted_characters=1_000) == 72
-    assert calculate_assistant_response_speech_credits(submitted_characters=8 + 8) == 2
-    assert ASSISTANT_RESPONSE_SPEECH_MODEL == "eleven_v3_conversational"
+    assert calculate_assistant_response_speech_credits(submitted_characters=25) == 1
+    assert calculate_assistant_response_speech_credits(submitted_characters=26) == 2
+    assert calculate_assistant_response_speech_credits(submitted_characters=1_000) == 40
+    assert calculate_assistant_response_speech_credits(submitted_characters=1_001) == 41
+    assert calculate_assistant_response_speech_credits(submitted_characters=8 + 8) == 1
+    assert ASSISTANT_RESPONSE_SPEECH_MODEL == "eleven_v4_turbo"
     assert DEFAULT_SPEECH_MODEL == "eleven_v3"
+
+
+# contract-test: direct surface=rest_api assertions=assistant-speech.billing.segment-success-once
+@pytest.mark.parametrize("model", [ASSISTANT_RESPONSE_SPEECH_MODEL, ELEVEN_V3_CONVERSATIONAL_SPEECH_MODEL, "eleven_v4"])
+def test_billing_worker_settles_at_cost_with_model_attribution_and_no_duplicate_charge(
+    monkeypatch: pytest.MonkeyPatch, model: str,
+) -> None:
+    pytest.importorskip("celery", reason="Celery task wiring requires the worker dependency")
+    from backend.apps.audio.assistant_speech import billing_task
+
+    manifest = {
+        "id": "manifest-row", "manifest_id": "manifest-1", "user_id": "user-1", "chat_id": "chat-1",
+        "assistant_message_id": "message-1", "model": model, "execution_version": 0,
+        "billing_status": "pending", "billing_settled_segment_ids": [],
+        "billing_settled_characters": 0, "billing_claim_segment_id": None,
+    }
+    segments = [
+        {"id": f"row-{index}", "segment_id": f"segment-{index}", "sequence": index, "status": "ready",
+         "billable_character_count": characters, "duration_seconds": 1.0}
+        for index, characters in enumerate([8, 8, 984])
+    ]
+
+    class Directus:
+        async def get_items(self, collection, *, params, no_cache):
+            return [manifest.copy()] if collection == "assistant_speech_manifests" else [row.copy() for row in segments]
+
+        async def update_item_if_version(self, collection, row_id, data, expected_version, **kwargs):
+            if manifest["execution_version"] != expected_version:
+                return None
+            for key, value in kwargs.get("extra_filters", {}).items():
+                if manifest.get(key) != value:
+                    return None
+            manifest.update(data)
+            return manifest.copy()
+
+        async def update_item(self, collection, row_id, data):
+            next(row for row in segments if row["id"] == row_id).update(data)
+
+    charges: list[dict[str, object]] = []
+    cleanup_calls: list[bool] = []
+
+    async def initialize():
+        return None
+
+    async def cleanup():
+        cleanup_calls.append(True)
+
+    async def charge(**kwargs):
+        charges.append(kwargs)
+        return {"usage_id": f"usage-{len(charges)}"}
+
+    task = billing_task.assistant_speech_billing_task
+    monkeypatch.setattr(task, "initialize_core_services", initialize)
+    monkeypatch.setattr(task, "cleanup_services", cleanup)
+    monkeypatch.setattr(task, "_directus_service", Directus())
+    monkeypatch.setattr(billing_task, "charge_audio_generation_credits", charge)
+
+    if model == "eleven_v4":
+        with pytest.raises(RuntimeError, match="unsupported billing model"):
+            task.run({"manifest_id": "manifest-1"})
+        assert charges == []
+        assert manifest["billing_settled_characters"] == 0
+        assert cleanup_calls == [True]
+        return
+
+    assert task.run({"manifest_id": "manifest-1"}) == {"status": "settled", "segments": 3, "credits": 40}
+    assert [call["credits"] for call in charges] == [1, 39]
+    assert [call["request_id"] for call in charges] == ["segment-0", "segment-2"]
+    assert all(call["model_ref"] == f"elevenlabs/{model}" for call in charges)
+    assert all(call["chat_id"] == "chat-1" and call["message_id"] == "message-1" for call in charges)
+    assert manifest["billing_settled_characters"] == 1_000
+    assert manifest["billing_settled_segment_ids"] == ["segment-0", "segment-1", "segment-2"]
+    assert segments[1]["billing_usage_id"] == "settled-no-credit"
+    assert task.run({"manifest_id": "manifest-1"}) == {"status": "pending", "segments": 0, "credits": 0}
+    assert len(charges) == 2
+    assert cleanup_calls == [True, True]
 
 
 # contract-test: direct surface=rest_api assertions=assistant-speech.billing.segment-success-once
@@ -178,7 +257,7 @@ async def test_incremental_billing_claims_each_ready_segment_once_with_cumulativ
     second = await prepare_next_segment_billing(directus, "manifest-1")
     assert second and second["settled_characters"] == 8
     delta = calculate_assistant_response_speech_credits(submitted_characters=16) - calculate_assistant_response_speech_credits(submitted_characters=8)
-    assert delta == 1
+    assert delta == 0
     assert await complete_segment_billing(directus, second, usage_id="usage-2") is True
     assert manifest["billing_settled_characters"] == 16
     assert manifest["billing_settled_segment_ids"] == ["segment-1", "segment-2"]
@@ -344,7 +423,7 @@ async def test_real_segment_task_reuses_ready_redelivery_and_links_the_decryptab
     class Profile:
         key = "voice"
         version = 1
-        model = "eleven_v3_conversational"
+        model = "eleven_v4_turbo"
         provider = "provider"
 
         def elevenlabs_request(self):
@@ -702,7 +781,7 @@ async def test_manifest_billing_sums_ready_segments_once_without_per_segment_rou
     assert billing is not None
     assert billing["submitted_characters"] == 16
     assert billing["duration_seconds"] == 3.0
-    assert calculate_assistant_response_speech_credits(submitted_characters=int(billing["submitted_characters"])) == 2
+    assert calculate_assistant_response_speech_credits(submitted_characters=int(billing["submitted_characters"])) == 1
 
 
 # contract-test: direct surface=rest_api assertions=assistant-speech.billing.segment-success-once
@@ -884,7 +963,7 @@ async def test_final_ready_requires_claim_lease_and_version_and_compensates_when
     class Profile:
         key = "voice"
         version = 1
-        model = "eleven_v3_conversational"
+        model = "eleven_v4_turbo"
         provider = "provider"
 
         def elevenlabs_request(self):

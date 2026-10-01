@@ -260,7 +260,7 @@ async def _invoke_openai_direct_api(
             raise ValueError(error_msg)
         return UnifiedOpenAIResponse(task_id=task_id, model_id=model_id, success=False, error_message=error_msg)
 
-    if _normalize_openai_model_id(catalog_model_id or model_id) == "gpt-6-astra":
+    if _normalize_openai_model_id(catalog_model_id or model_id) in {"gpt-6-astra", "gpt-6.1-sol"}:
         from .openai_responses import invoke_responses
         return await invoke_responses(
             client=_openai_direct_client, task_id=task_id,

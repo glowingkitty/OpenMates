@@ -23,6 +23,7 @@ ELEVENLABS_SECRET_PATH = "kv/data/providers/elevenlabs"
 ELEVENLABS_ENV_KEY = "SECRET__ELEVENLABS__API_KEY"
 DEFAULT_SOUND_EFFECT_MODEL = "eleven_text_to_sound_v2"
 DEFAULT_TTS_MODEL = "eleven_v3"
+TTS_MODELS_WITHOUT_SPEED = frozenset({"eleven_v4", "eleven_v4_turbo"})
 DEFAULT_OUTPUT_FORMAT = "mp3_44100_128"
 DEFAULT_TIMEOUT_SECONDS = 60.0
 BITS_PER_BYTE = 8
@@ -180,8 +181,13 @@ class ElevenLabsClient:
         payload = {
             "text": text,
             "model_id": model,
-            "voice_settings": {"speed": speed},
         }
+        # The v4 family supports stability/similarity, but no speed setting.
+        if model in TTS_MODELS_WITHOUT_SPEED:
+            if speed != 1.0:
+                raise ValueError("Eleven v4 and v4 Turbo do not support custom speed; use speed 1.0.")
+        else:
+            payload["voice_settings"] = {"speed": speed}
         audio_bytes, mime_type = await self._post_audio(
             path=f"/text-to-speech/{voice_id}",
             payload=payload,

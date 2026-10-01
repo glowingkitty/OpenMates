@@ -10,7 +10,8 @@
 from __future__ import annotations
 
 import hashlib
-from typing import Any
+import json
+from typing import Any, Awaitable, Callable
 from datetime import datetime, timedelta
 import uuid
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
@@ -68,9 +69,10 @@ WORKFLOW_PASSTHROUGH_FIELDS = {
 class WorkflowSkillBillingError(RuntimeError):
     """Typed, privacy-safe failure surfaced in workflow node history."""
 
-    def __init__(self, code: str, message: str) -> None:
+    def __init__(self, code: str, message: str, *, credit_cost: int = 0) -> None:
         super().__init__(message)
         self.code = code
+        self.credit_cost = credit_cost if isinstance(credit_cost, int) and not isinstance(credit_cost, bool) and credit_cost >= 0 else 0
 
 
 class WorkflowAppSkillAdapter:
@@ -99,6 +101,20 @@ class WorkflowAppSkillAdapter:
         if approved is not True:
             raise PermissionError("Workflow provider binding is no longer authorized")
 
+    def result_embed_type(self, app_id: str, skill_id: str) -> str | None:
+        """Use registered app metadata for the same result cards as chat."""
+        registry = self.registry
+        if registry is None:
+            from backend.core.api.app.services.skill_registry import get_global_registry
+            registry = get_global_registry()
+        metadata = registry.get_metadata(app_id)
+        definitions = metadata.get("embed_types", []) if isinstance(metadata, dict) else getattr(metadata, "embed_types", [])
+        for definition in definitions:
+            entry = definition if isinstance(definition, dict) else definition.model_dump()
+            if entry.get("skill_id") == skill_id and entry.get("has_children"):
+                return entry.get("child_frontend_type")
+        return None
+
     async def execute(
         self,
         app_id: str,
@@ -107,6 +123,7 @@ class WorkflowAppSkillAdapter:
         *,
         user_id: str | None = None,
         billing_context: dict[str, Any] | None = None,
+        website_projection: Callable[[dict[str, Any]], Awaitable[dict[str, Any]]] | None = None,
     ) -> dict[str, Any]:
         registry = self.registry
         if registry is None:
@@ -114,6 +131,8 @@ class WorkflowAppSkillAdapter:
 
             registry = get_global_registry()
         request_without_security = strip_request_security_controls(request)
+        if (app_id, skill_id) == (AI_APP_ID, AI_ASK_SKILL_ID):
+            await self._validate_ask_model(request_without_security.get("model"))
         skill_request = _prepare_workflow_skill_request(
             app_id,
             skill_id,
@@ -142,6 +161,23 @@ class WorkflowAppSkillAdapter:
             raw_output = raw_output.model_dump(mode="json")
         if not isinstance(raw_output, dict):
             raw_output = {"result": raw_output}
+        workflow_credit_cost = 0
+        if website_projection is not None:
+            if (app_id, skill_id) != ("web", "read"):
+                raise ValueError("Website projection requires web.read")
+            if billing_context:
+                workflow_credit_cost = await _charge_workflow_skill_result(
+                    app_id=app_id, skill_id=skill_id, request=skill_request,
+                    result=raw_output, user_id=user_id, metadata=metadata,
+                    billing_context=billing_context,
+                )
+            try:
+                raw_output = await website_projection(raw_output)
+            except ValueError as exc:
+                code = str(exc)
+                if not code.startswith("WORKFLOW_WEBSITE_"):
+                    code = "WORKFLOW_WEBSITE_STATE_UNAVAILABLE"
+                raise WorkflowSkillBillingError(code, code, credit_cost=workflow_credit_cost) from exc
         raw_output = await sanitize_app_skill_output(
             raw_output,
             AppSkillOutputSafetyContext(
@@ -157,13 +193,12 @@ class WorkflowAppSkillAdapter:
         )
         # ai.ask settles actual token usage in its existing worker pipeline;
         # report that already-settled cost without charging it again here.
-        workflow_credit_cost = 0
         if billing_context and (app_id, skill_id) == (AI_APP_ID, AI_ASK_SKILL_ID):
             usage = raw_output.get("usage") if isinstance(raw_output.get("usage"), dict) else {}
             reported_cost = usage.get("total_credits", raw_output.get("total_credits"))
             if isinstance(reported_cost, int) and not isinstance(reported_cost, bool) and reported_cost >= 0:
                 workflow_credit_cost = reported_cost
-        if billing_context and (app_id, skill_id) != (AI_APP_ID, AI_ASK_SKILL_ID):
+        if billing_context and website_projection is None and (app_id, skill_id) != (AI_APP_ID, AI_ASK_SKILL_ID):
             workflow_credit_cost = await _charge_workflow_skill_result(
                 app_id=app_id,
                 skill_id=skill_id,
@@ -173,9 +208,113 @@ class WorkflowAppSkillAdapter:
                 metadata=metadata,
                 billing_context=billing_context,
             )
+        # Scan every pending diff before moving consumer decisions/caches out of
+        # the public Read payload. They belong only to the runner's private context.
+        website_events = raw_output.pop("_website_events", {}) if website_projection is not None else None
         output = _normalize_skill_output(app_id, skill_id, skill_request, raw_output)
+        if website_events is not None:
+            output["_website_events"] = website_events
         if billing_context:
             output["_workflow_credit_cost"] = workflow_credit_cost
+        return output
+
+    async def _validate_ask_model(self, model: Any) -> None:
+        if model is None or model == "auto":
+            return
+        if not isinstance(model, str) or "/" not in model:
+            raise WorkflowSkillBillingError("WORKFLOW_AI_MODEL_UNAVAILABLE", "Ask AI model is unavailable")
+        from backend.core.api.app.utils.config_manager import ConfigManager
+        provider_id, model_id = model.split("/", 1)
+        model_config = ConfigManager().get_model_pricing(provider_id, model_id)
+        if (not isinstance(model_config, dict) or model_config.get("id") != model_id
+                or model_config.get("for_app_skill") != "ai.ask"
+                or "text" not in (model_config.get("output_types") or [])):
+            raise WorkflowSkillBillingError("WORKFLOW_AI_MODEL_UNAVAILABLE", "Ask AI model is unavailable")
+
+    async def stream_ask(
+        self,
+        request: dict[str, Any],
+        *,
+        user_id: str,
+        billing_context: dict[str, Any],
+        on_snapshot: Callable[[str], Awaitable[None]],
+    ) -> dict[str, Any]:
+        """Consume the real ai.ask stream, then return one sanitized billed result."""
+        from fastapi.responses import StreamingResponse
+
+        registry = self.registry
+        if registry is None:
+            from backend.core.api.app.services.skill_registry import get_global_registry
+            registry = get_global_registry()
+        await self._validate_ask_model(request.get("model"))
+        skill_request = _prepare_workflow_skill_request("ai", "ask", request, user_id)
+        skill_request["stream"] = True
+        with central_app_skill_dispatch():
+            response = await registry.dispatch_skill("ai", "ask", skill_request)
+        if not isinstance(response, StreamingResponse):
+            raise WorkflowSkillBillingError("WORKFLOW_AI_STREAM_UNAVAILABLE", "Ask AI streaming is unavailable")
+
+        metadata = registry.get_metadata("ai") if hasattr(registry, "get_metadata") else None
+        safety_context = AppSkillOutputSafetyContext(
+            app_id="ai", skill_id="ask", surface=APP_SKILL_SURFACE_WORKFLOW,
+            request_body=request, external_data=is_external_data_skill(metadata, "ai", "ask"),
+            secrets_manager=self.secrets_manager, cache_service=self.cache_service,
+            log_prefix="[WorkflowAppSkill ai.ask stream] ",
+        )
+        pending = ""
+        final: dict[str, Any] | None = None
+        latest_snapshot = ""
+        try:
+            async for raw_chunk in response.body_iterator:
+                pending += raw_chunk.decode("utf-8") if isinstance(raw_chunk, bytes) else str(raw_chunk)
+                while "\n\n" in pending:
+                    frame, pending = pending.split("\n\n", 1)
+                    data = "\n".join(line[6:] for line in frame.splitlines() if line.startswith("data: "))
+                    if not data or data == "[DONE]":
+                        continue
+                    try:
+                        payload = json.loads(data)
+                    except (TypeError, ValueError):
+                        continue
+                    choices = payload.get("choices") or []
+                    choice = choices[0] if choices else {}
+                    if not isinstance(choice, dict):
+                        continue
+                    if choice.get("finish_reason") == "error":
+                        usage = payload.get("usage") or {}
+                        settled_cost = usage.get("total_credits") if isinstance(usage, dict) else None
+                        raise WorkflowSkillBillingError(
+                            "WORKFLOW_AI_STREAM_FAILED", "Ask AI could not complete this step",
+                            credit_cost=settled_cost if isinstance(settled_cost, int) else 0,
+                        )
+                    authoritative = payload.get("full_content")
+                    if isinstance(authoritative, str):
+                        latest_snapshot = authoritative
+                        final = payload
+                    else:
+                        delta = choice.get("delta") or {}
+                        if isinstance(delta, dict) and isinstance(delta.get("content"), str):
+                            latest_snapshot += delta["content"]
+                    if latest_snapshot:
+                        sanitized = await sanitize_app_skill_output({"answer": latest_snapshot}, safety_context)
+                        answer = sanitized.get("answer") if isinstance(sanitized, dict) else None
+                        if isinstance(answer, str):
+                            await on_snapshot(answer)
+        finally:
+            close = getattr(response.body_iterator, "aclose", None)
+            if callable(close):
+                await close()
+        if final is None:
+            raise WorkflowSkillBillingError("WORKFLOW_AI_STREAM_INCOMPLETE", "Ask AI stream ended early")
+        raw_output = {"answer": latest_snapshot, "usage": final.get("usage") or {}, "model": final.get("model")}
+        raw_output = await sanitize_app_skill_output(raw_output, safety_context)
+        usage = raw_output.get("usage") or {}
+        cost = usage.get("total_credits") if isinstance(usage, dict) else None
+        settled_cost = cost if isinstance(cost, int) and not isinstance(cost, bool) and cost >= 0 else 0
+        output = _normalize_skill_output("ai", "ask", skill_request, raw_output)
+        if output.get("error"):
+            raise WorkflowSkillBillingError("WORKFLOW_AI_STREAM_FAILED", "Ask AI returned no answer", credit_cost=settled_cost)
+        output["_workflow_credit_cost"] = settled_cost
         return output
 
 
@@ -202,6 +341,9 @@ def _prepare_workflow_skill_request(
     skill_request["apps_enabled"] = False
     skill_request["allowed_apps"] = []
     skill_request["workflow_ai"] = True
+    model = request.get("model")
+    if isinstance(model, str) and model and model != "auto":
+        skill_request["model"] = model
     skill_request["workflow_presentation_sources"] = request.get("workflow_presentation_sources", [])
     if user_id:
         skill_request["_user_id"] = user_id
@@ -443,6 +585,20 @@ def _normalize_skill_output(
             "partial": bool(raw_output.get("warnings")),
         })
         return output
+
+    if (app_id, skill_id) == ("web", "read"):
+        from backend.shared.python_utils.website_text import website_read_status
+        pages = _search_results(raw_output)
+        page = pages[0] if len(pages) == 1 else {}
+        output.update({
+            "text": page.get("markdown") or "",
+            "source_url": page.get("source_url") or page.get("url") or "",
+            "read_status": website_read_status(page) if page else "failed",
+            "has_changed": False, "changes": "", "change_status": "not_tracking",
+        })
+        for field in ("text", "source_url", "read_status", "has_changed", "changes", "change_status"):
+            if field in raw_output:
+                output[field] = raw_output[field]
 
     results = raw_output.get("results")
     normalized_results = (

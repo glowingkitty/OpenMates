@@ -21,7 +21,7 @@ import ObjectiveC
 
 final class ComposerAttachmentViewProvider: NSTextAttachmentViewProvider {
     private static let embedHeight: CGFloat = 200
-    private static let mentionHeight: CGFloat = 28
+    private static let mentionHeight: CGFloat = 20
 
     override init(
         textAttachment: NSTextAttachment,
@@ -76,9 +76,24 @@ final class ComposerAttachmentViewProvider: NSTextAttachmentViewProvider {
         CGRect(
             x: 0,
             y: 0,
-            width: proposedLineFragment.width,
+            width: attachmentWidth(proposedLineFragment.width),
             height: attachmentHeight
         )
+    }
+
+    private func attachmentWidth(_ available: CGFloat) -> CGFloat {
+        guard let node = (textAttachment as? ComposerTextAttachment)?.nodeSnapshot,
+              node.kind == "mention" else { return available }
+        let syntax = node.canonicalSyntax ?? ""
+        let label = MainActor.assumeIsolated { NativeMentionPresentation.parse(syntax)?.label ?? node.displayLabel ?? syntax }
+        #if canImport(UIKit)
+        let font = UIFont(name: syntax.hasPrefix("@best-model:") ? "LexendDeca-SemiBold" : FontRegistration.mediumPostScriptName, size: 16)
+            ?? UIFont.systemFont(ofSize: 16, weight: .medium)
+        #else
+        let font = NSFont(name: syntax.hasPrefix("@best-model:") ? "LexendDeca-SemiBold" : FontRegistration.mediumPostScriptName, size: 16)
+            ?? NSFont.systemFont(ofSize: 16, weight: .medium)
+        #endif
+        return min(available, ceil((label as NSString).size(withAttributes: [.font: font]).width) + 2)
     }
 
     private var attachmentHeight: CGFloat {
@@ -93,7 +108,7 @@ import SwiftUI
 
 final class ComposerAttachmentViewProvider: NSTextAttachmentViewProvider {
     private static let embedHeight: CGFloat = 200
-    private static let mentionHeight: CGFloat = 28
+    private static let mentionHeight: CGFloat = 20
 
     override init(
         textAttachment: NSTextAttachment,
@@ -141,9 +156,24 @@ final class ComposerAttachmentViewProvider: NSTextAttachmentViewProvider {
         CGRect(
             x: 0,
             y: 0,
-            width: proposedLineFragment.width,
+            width: attachmentWidth(proposedLineFragment.width),
             height: attachmentHeight
         )
+    }
+
+    private func attachmentWidth(_ available: CGFloat) -> CGFloat {
+        guard let node = (textAttachment as? ComposerTextAttachment)?.nodeSnapshot,
+              node.kind == "mention" else { return available }
+        let syntax = node.canonicalSyntax ?? ""
+        let label = MainActor.assumeIsolated { NativeMentionPresentation.parse(syntax)?.label ?? node.displayLabel ?? syntax }
+        #if canImport(UIKit)
+        let font = UIFont(name: syntax.hasPrefix("@best-model:") ? "LexendDeca-SemiBold" : FontRegistration.mediumPostScriptName, size: 16)
+            ?? UIFont.systemFont(ofSize: 16, weight: .medium)
+        #else
+        let font = NSFont(name: syntax.hasPrefix("@best-model:") ? "LexendDeca-SemiBold" : FontRegistration.mediumPostScriptName, size: 16)
+            ?? NSFont.systemFont(ofSize: 16, weight: .medium)
+        #endif
+        return min(available, ceil((label as NSString).size(withAttributes: [.font: font]).width) + 2)
     }
 
     private var attachmentHeight: CGFloat {
@@ -167,13 +197,11 @@ private struct ComposerAttachmentContent: View {
     var body: some View {
         Group {
             if let node = attachment.nodeSnapshot, node.kind == "mention" {
-                Text(node.displayLabel ?? node.canonicalSyntax ?? "")
-                    .font(.omSmall)
-                    .foregroundStyle(Color.fontPrimary)
-                    .padding(.horizontal, .spacing4)
-                    .padding(.vertical, .spacing2)
-                    .background(Color.grey10)
-                    .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
+                if let mention = NativeMentionPresentation.parse(node.canonicalSyntax ?? "") {
+                    NativeMentionLabel(mention: mention)
+                } else {
+                    Text(node.displayLabel ?? node.canonicalSyntax ?? "").font(.omP)
+                }
             } else if let node = attachment.nodeSnapshot,
                       let embedType = node.embedType,
                       let descriptor = AppleComposerRendererRegistry.shared.descriptor(for: embedType),

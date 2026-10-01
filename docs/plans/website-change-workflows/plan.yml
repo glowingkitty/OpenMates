@@ -1,0 +1,325 @@
+schema_version: 1
+id: website-change-workflows
+title: Website changes that match the user's requirements
+status: implementing
+goal: Add support for workflows that inform when a website has changed and match the
+  user requirements, by processing the text diff of the website and then only processing
+  the diff via Jev.
+scope:
+  in:
+  - Implementation and verification of the user-approved Read website plus Check design.
+  - Public website text, successful-read validation, normalized text diffs, and Jev
+    relevance checks.
+  - Existing Read website plus exact/AI Check composition, scheduled execution, and
+    summary/chat delivery.
+  - Encrypted comparison state, pending changes, concurrency, retention, and non-sending
+    tests.
+  out:
+  - RSS monitoring, article-list extraction, crawling an entire site, and general
+    Filter/loop nodes.
+  - Authenticated/paywalled websites, CAPTCHA bypass, provider-owned monitoring, and
+    new delivery channels.
+  - Additional public skills or top-level Check modes.
+  - Mixed result-list embeds in a website-change notification; v1 messages contain
+    text and links.
+task_reference: 0e51f9f1-3e85-4d9c-91d6-971f07122f3c
+investigation: docs/plans/website-change-workflows/investigation.md
+source_commit: 607cd834fa7d1563a05d3ee6e39840a0de144231
+proposal:
+  authoring:
+  - Keep the website URL and extraction settings in the existing Read website action.
+  - Offer Has changed since last successful read and Changes since last successful
+    read as typed outputs for Check consumers.
+  - An exact Check selects Has changed and compares that boolean without relevance
+    inference.
+  - The existing AI confirms Check selects Changes and evaluates the user's question
+    against that diff.
+  - Clearly distinguish current page text from changes in the variable picker.
+  - Normal setup requires no separate skill, comparison node, storage node, or Track
+    changes toggle.
+  - Reuse the existing schedule and Send message destination controls.
+  - Show a read test and extracted-text preview before enablement, including unsupported
+    or blocked reads.
+  - Explain that the first successful scheduled run establishes a baseline and only
+    later changes notify.
+  - Show the diff and change status through existing typed run outputs; keep existing
+    decision and delivery views.
+  execution:
+  - The executor recognizes change-output consumers and enables a trusted comparison
+    path for their Read website action.
+  - That internal path reuses web.read extraction, rate limits, and billing; durable
+    comparison state belongs to Workflow runtime.
+  - Keep full-page text private to deterministic comparison; do not send it to semantic
+    scanning or Jev.
+  - Validate upstream page status and useful text; invalid/uncertain reads preserve
+    the successful baseline.
+  - Normalize text deterministically while preserving links, numbers, negation, and
+    meaningful order.
+  - The first usable read initializes encrypted state without Jev or a change notification.
+  - An unchanged normalized page performs no semantic scanning, relevance inference,
+    or summary inference.
+  - Atomically save each new baseline and its pending diff event using revision and
+    configuration generation fences.
+  - Safety-scan changed hunks with limited diff context; preserve the normal standalone
+    web.read safety path.
+  - An AI Check evaluates only its selected bounded safe diff using existing Jev machinery;
+    an exact change Check needs no relevance call.
+  - A false decision consumes the event without a message; unsure retains it for retry
+    on subsequent runs.
+  - A true decision feeds only the diff to existing Ask AI and Send message, with
+    source links preserved.
+  - Keep matching events pending until existing owner-client delivery acknowledgement;
+    unchanged runs retry pending work.
+  - Extend acknowledged delivery membership for text-only change events; do not pass
+    them through result-embed accounting unchanged.
+  - Oversized diffs become visibly unsupported or unsure; never silently truncate
+    and claim a reliable decision.
+  identity:
+  - Scope source comparison state to workflow, stable Read website node, source URL,
+    extraction settings, and source generation.
+  - Scope pending requirement decisions to the consuming Check and its requirement
+    generation, independently of other consumers.
+  - Use an occurrence revision for changes, so A to B to A produces two distinct events.
+  - Use event identities for delivery; do not deduplicate all changes by the monitored
+    website URL.
+  - Source/extraction edits visibly initialize a new source generation; requirement
+    edits invalidate only that Check's old decision generation.
+  - Requirement edits apply to future changes by default; harmless graph edits preserve
+    state and other Checks' pending events.
+  lifecycle:
+  - Test read and Test condition previews do not update production baselines, reserve
+    deliveries, or send messages.
+  - A full Run now uses the production monitor state and delivery path, as existing
+    Workflow runs do.
+  - Tie snapshots and pending diffs to visible owning runs and bounded encrypted storage.
+  - Deleting the owning run or Workflow clears its state; source edits initialize
+    a new baseline.
+  - Retain one encrypted baseline and at most 100 bounded pending events per source
+    separately from run-log retention. Explicit owning-run or Workflow deletion removes
+    state; the next successful read initializes silently.
+decisions:
+- id: D-1
+  status: active
+  decision: 'Follow the user''s clarification: website text diff first, then requirement
+    evaluation.'
+  reason: New-article/RSS monitoring was an example and is outside the clarified implementation
+    proposal.
+  decided_at: '2026-09-30'
+- id: D-2
+  status: superseded
+  decision: Propose a combined Website has changed Check rather than a user-managed
+    snapshot graph.
+  reason: Existing web.read scans full-page text before returning; a trusted comparison
+    path is needed for diff-only inference.
+  decided_at: '2026-09-30'
+- id: D-3
+  status: active
+  decision: Compose existing Read website and exact/AI Check nodes through explicit
+    change outputs.
+  reason: Reading owns the URL and Check owns the condition. Internal comparison-before-safety-scanning
+    requires no separate visible skill or Check-owned website fetch.
+  decided_at: '2026-09-30'
+implementation_sequence:
+- Extend the owning Workflow and UI Specifications with concrete examples after the
+  design is selected.
+- Add typed read-quality metadata and the trusted comparison-before-semantic-scan
+  path without changing normal reads.
+- Add encrypted baseline/pending-diff storage and atomic revision/generation updates
+  to the existing runtime transaction.
+- Extend read output declarations, change-input references, runner coordination, authoring,
+  and YAML/CLI/SDK contracts while retaining exact/AI Check modes.
+- Reuse diff-only Jev decision, Ask AI, acknowledged chat delivery, and event-specific
+  retry identities.
+- Add the simple Check editor, previews, run explanations, i18n, and focused coverage.
+scenarios:
+- id: S-1
+  title: Only qualifying changes notify
+  given:
+  - A readable website baseline and a requirement about Congress announcements.
+  when:
+  - The website adds new text.
+  then:
+  - Only the diff is evaluated
+  - and matching text produces a summary with its source link.
+- id: S-2
+  title: Baseline and unusable reads are safe
+  given:
+  - A new monitor or a previously successful monitor.
+  when:
+  - The first usable read occurs or a later read is blocked or empty.
+  then:
+  - The first read initializes silently; unusable reads preserve the last successful
+    baseline.
+- id: S-3
+  title: Pending changes survive retries and concurrent runs
+  given:
+  - A detected change with uncertain inference or unacknowledged delivery.
+  when:
+  - A retry
+  - overlapping run
+  - crash
+  - or source configuration edit occurs.
+  then:
+  - The event remains recoverable without duplicate acknowledged delivery or stale-state
+    overwrite.
+- id: S-4
+  title: Setup and testing explain behavior
+  given:
+  - An owner configures a website-change Workflow.
+  when:
+  - They test the read/condition
+  - enable the Workflow
+  - or inspect a failed check.
+  then:
+  - Previews do not mutate production state
+  - and initialization/change/blocked/unsure/delivery states are distinct.
+acceptance_criteria:
+- id: AC-1
+  scenario: S-1
+  text: Matching changes notify with links; unchanged pages run no AI; false decisions
+    send nothing.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: related_backend
+  verification_ids:
+  - T-DIFF
+  - T-INFERENCE
+  - T-DELIVERY
+- id: AC-2
+  scenario: S-2
+  text: First success initializes silently; blocked, empty, failed, or incomplete
+    reads never overwrite the baseline.
+  required: true
+  status: satisfied
+  coverage_status: covered
+  verification_scope: related_backend
+  verification_ids:
+  - T-DIFF
+- id: AC-3
+  scenario: S-3
+  text: Pending diffs, acknowledgements, revision transitions, concurrency fences,
+    and deletion/reset are recoverable and owner-scoped.
+  required: true
+  status: satisfied
+  coverage_status: covered
+  verification_scope: related_backend
+  verification_ids:
+  - T-DELIVERY
+- id: AC-4
+  scenario: S-4
+  text: Simple setup, honest read/decision/delivery states, and isolated previews
+    are covered across affected authoring surfaces.
+  required: true
+  status: satisfied
+  coverage_status: covered
+  verification_scope: playwright
+  verification_ids:
+  - T-AUTHORING
+tests:
+- id: T-DIFF
+  type: manual
+  covers:
+  - AC-1
+  - AC-2
+  assertions:
+  - Baseline initialization, normalization, short useful pages, explicit blocked/empty/failed/partial/oversized
+    read handling, link-preserving complete diffs, and A to B to A identity.
+  green_phase:
+    required: true
+    expected: passed
+    evidence:
+      status: passed
+      path: backend/tests/test_workflow_website_changes.py
+  red_phase:
+    required: false
+    expected: not_applicable
+    evidence:
+      status: not_applicable
+- id: T-INFERENCE
+  type: manual
+  covers:
+  - AC-1
+  assertions:
+  - Capture adapter and Jev/Ask inputs; preserve complete diffs beyond the former
+    2000-character clipping limit and reject oversized inputs explicitly.
+  - Real website extraction and Jev/Ask inference run on dev with disposable state
+    after deployment.
+  green_phase:
+    required: true
+    expected: passed
+    evidence:
+      status: blocked_dev_account
+      local_checks: 84 focused Python checks passed
+  red_phase:
+    required: false
+    expected: not_applicable
+    evidence:
+      status: not_applicable
+- id: T-DELIVERY
+  type: manual
+  covers:
+  - AC-1
+  - AC-3
+  assertions:
+  - Atomic source/event commit, ownership/version/deletion fences, older-fetch rejection,
+    single evaluator lease and expiry recovery.
+  - Text-only messages remain pending offline and consume membership after owner acknowledgement;
+    old-version unpersisted deliveries are fenced.
+  green_phase:
+    required: true
+    expected: passed
+    evidence:
+      status: passed
+      local_checks: 29 native transaction checks passed; Python runner and delivery
+        checks passed
+  red_phase:
+    required: false
+    expected: not_applicable
+    evidence:
+      status: not_applicable
+- id: T-AUTHORING
+  type: manual
+  covers:
+  - AC-4
+  assertions:
+  - Exact and AI Check variable pickers and baseline guidance; browser persistence/reload
+    and exact Check previews without read/send execution.
+  green_phase:
+    required: true
+    expected: passed
+    evidence:
+      status: passed
+      component_run: https://github.com/glowingkitty/OpenMates/actions/runs/36800809600
+      component_status: 'passed: five cases; exact/AI fields and blocked-read explanation'
+      product_run: https://github.com/glowingkitty/OpenMates/actions/runs/36802169467
+      product_status: 'passed: persistence/reload and non-sending zero-cost Check
+        previews; no skips'
+  red_phase:
+    required: false
+    expected: not_applicable
+    evidence:
+      status: not_applicable
+approval_context:
+  product_implementation: 'Explicit user approval: Sounds good. Implement and test.'
+  recommended_defaults: Future changes only; no alert on initialization; false or
+    unsure sends no update.
+  state_lifetime: Dedicated encrypted monitoring state; explicit owning-run/workflow
+    deletion, source generations, and the 100-event bound determine its lifetime.
+    Run-log payload expiry alone does not reset monitoring.
+verification:
+  yaml_parse: passed
+  repository_validator:
+    status: passed
+  focused_python_checks: 84
+  native_transaction_checks: 29
+  component_ci: https://github.com/glowingkitty/OpenMates/actions/runs/36800809600
+  product_e2e: https://github.com/glowingkitty/OpenMates/actions/runs/36802169467
+  dev_real_inference: 'blocked: configured numbered test accounts fail authentication;
+    test API key returns 401; user asked to refresh credentials or waive live check'
+  limitation: Whole-app svelte-check has 1428 pre-existing errors; the edited component
+    compiles and isolated component CI passes.
+  scoped_lint: passed
+  unrelated_legacy_test: test_workflow_ai_and_chat_actions.py::test_ask_for_user_input_pauses_run_as_waiting_with_prompt_metadata
+    fails the pre-existing reachable-effect readiness guard before execution; source
+    guard unchanged from base

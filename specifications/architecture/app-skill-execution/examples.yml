@@ -112,7 +112,7 @@ search_relevance:
   - id: skill-specific-candidate-profiles
     given: Each supported search uses its default final limit of ten and includes relevance criteria.
     when: Candidate retrieval starts.
-    then: GitHub repositories and Printables models request up to forty candidates in one provider call before filtering, videos inspect up to forty from one Brave request, and fitness inspects up to forty from provider pages already required by the search; maps, shopping products, and travel stays inspect at most twenty because a larger pool would require another billable or rate-limited page; no extra provider request or billable provider page is fetched only for ranking; and at most ten ranked results are returned.
+    then: GitHub repositories and Printables models request up to forty candidates in one provider call before filtering, videos inspect up to forty from one Brave request, fitness inspects up to forty from provider pages already required by the search, and Hosting inspects up to forty checked domains within its bounded provider operations; maps, shopping products, and travel stays inspect at most twenty because a larger pool would require another billable or rate-limited page; no extra provider request or billable provider page is fetched only for ranking; and at most ten ranked results are returned.
     assertion_ids: [app-skills.search-relevance.bounded-and-conditional]
   - id: criteria-omitted
     given: A supported search omits or supplies blank relevance criteria.

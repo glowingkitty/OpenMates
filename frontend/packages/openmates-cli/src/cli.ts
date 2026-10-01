@@ -72,12 +72,13 @@ import { stdin, stdout } from "node:process";
 import { readActivityHistory } from "./taskActivityHistory.js";
 import { TaskDeliveryPending } from "./taskDelivery.js";
 import { activityDeliveryStore } from "./taskActivityDelivery.js";
-import { existsSync, readFileSync, realpathSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { basename, dirname, join } from "node:path";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { arch, platform } from "node:os";
-import { parse as parseYaml } from "yaml";
+import { parse as parseYaml, parseDocument as parseYamlDocument, stringify as stringifyYaml } from "yaml";
+import { buildWorkflowFile, validateWorkflowFile, workflowFileName, WORKFLOW_FILE_MAX_BYTES } from "../../workflowFile.js";
 import WebSocket from "ws";
 import {
   resolveStateDir,
@@ -6927,6 +6928,78 @@ async function handleWorkflows(
     return;
   }
 
+  if (subcommand === "export") {
+    const target = rest[0];
+    if (!target) throw new Error("Missing workflow ID. Example: openmates workflows export <id> --output morning.workflow.yml");
+    const workflowId = await requiredResolvedWorkflowId(client, target, flags, "export");
+    const workflow = await client.getWorkflow(workflowId, teamContextFromFlags(flags));
+    if (workflow.lifecycle === "temporary") throw new Error("Save the workflow before exporting it.");
+    const output = typeof flags.output === "string" ? flags.output : workflowFileName(workflow.title);
+    assertWorkflowFilePath(output);
+    const document = buildWorkflowFile({
+      title: workflow.title,
+      description: workflow.description,
+      run_content_retention: workflow.run_content_retention,
+      graph: { ...workflow.graph, edges: workflow.graph.edges ?? [] },
+      binding_requirements: workflow.binding_requirements,
+    });
+    const source = stringifyYaml(document, { lineWidth: 0 });
+    if (Buffer.byteLength(source, "utf8") > WORKFLOW_FILE_MAX_BYTES) throw new Error("Workflow export exceeds the file size limit.");
+    writeFileSync(output, source, { encoding: "utf8", flag: "wx" });
+    if (flags.json === true) printJson({ workflow_id: workflow.id, file: output, binding_requirements: document.binding_requirements });
+    else console.log(`Workflow exported: ${output}`);
+    return;
+  }
+
+  if (subcommand === "import") {
+    if (flags.team !== undefined || flags["team-id"] !== undefined || (client.getActiveTeamId() && flags.personal !== true)) {
+      throw new CliContractError("unsupported_ownership_context", "Workflow file import creates a Personal Workflow. Use --personal or switch to Personal context before importing.");
+    }
+    const file = requiredStringFlag(flags.file, "--file <path.workflow.yml>");
+    assertWorkflowFilePath(file);
+    if (statSync(file).size > WORKFLOW_FILE_MAX_BYTES) throw new Error("Workflow file exceeds the size limit.");
+    const source = readFileSync(file, "utf8");
+    if (Buffer.byteLength(source, "utf8") > WORKFLOW_FILE_MAX_BYTES) throw new Error("Workflow file exceeds the size limit.");
+    const yaml = parseYamlDocument(source, { uniqueKeys: true, strict: true });
+    if (yaml.errors.length > 0) throw new Error(`Invalid workflow YAML: ${yaml.errors[0].message}`);
+    const document = validateWorkflowFile(yaml.toJS({ maxAliasCount: 20 }));
+    if (flags.folder && !flags.project) throw new Error("--folder requires --project.");
+    const project = typeof flags.project === "string"
+      ? await requiredResolvedProject(client, client.getMasterKeyBytes(), flags.project, flags)
+      : null;
+    const folderId = typeof flags.folder === "string" ? flags.folder : null;
+    if (project && folderId) {
+      const { folders } = await client.listProjectItems(project.projectId);
+      if (!folders.some((folder) => folder.id === folderId || folder.folder_id === folderId)) {
+        throw new Error(`Project folder '${folderId}' not found.`);
+      }
+    }
+    const workflow = await client.importWorkflowFile(document);
+    if (project) {
+      try {
+        await createEncryptedProjectItem(client, project, {
+          itemType: "workflow",
+          targetId: workflow.id,
+          displayName: workflow.title,
+          folderId,
+          metadata: { storage: "save_only_in_openmates", source: "cli_file_import" },
+        });
+      } catch (error) {
+        throw new Error(`Workflow imported as ${workflow.id}, but linking it to Project ${project.projectId} failed: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+    if (flags.json === true) printJson({ workflow, project_id: project?.projectId ?? null });
+    else {
+      console.log(`Workflow imported: ${workflow.title} (${workflow.id})`);
+      console.log("Disabled until you review bindings and enable it.");
+      for (const requirement of workflow.binding_requirements ?? []) {
+        console.log(`Review ${requirement.type} for ${requirement.node_id}.`);
+      }
+      if (project) console.log(`Added to Project: ${project.projectId}`);
+    }
+    return;
+  }
+
   if (subcommand === "validate") {
     const file = typeof flags.file === "string" ? flags.file : "";
     if (!file) throw new Error("Missing --file. Example: openmates workflows validate --file workflow.yml");
@@ -7055,6 +7128,8 @@ async function handleWorkflows(
       selectedWorkflowId: typeof flags["workflow-id"] === "string" ? flags["workflow-id"] : undefined,
       selectedProjectId: typeof flags["project-id"] === "string" ? flags["project-id"] : undefined,
       timezone: typeof flags.timezone === "string" ? flags.timezone : Intl.DateTimeFormat().resolvedOptions().timeZone,
+      optimisticSave: flags.optimistic === true,
+      idempotencyKey: typeof flags["idempotency-key"] === "string" ? flags["idempotency-key"] : undefined,
     });
     if (flags.json === true) {
       printJson(session);
@@ -7325,6 +7400,7 @@ function printWorkflowInputSession(session: WorkflowInputSessionResult): void {
   if (session.message) kv("Message", session.message);
   if (session.error) kv("Error", session.error);
   if (session.workflow) kv("Workflow", `${session.workflow.title} (${session.workflow.id})`);
+  if (session.preview_workflow) kv("Preview (saving)", `${session.preview_workflow.title} (${session.preview_workflow.id})`);
   const metrics = session.authoring_metrics;
   if (metrics && typeof metrics.total_seconds === "number") kv("AI planning", `${metrics.total_seconds.toFixed(2)}s`);
   if (metrics && typeof metrics.estimated_cost_usd === "number") kv("Est. AI cost", `$${metrics.estimated_cost_usd.toFixed(5)}`);
@@ -7345,6 +7421,10 @@ function parseWorkflowRunContentRetention(value: string | boolean | undefined): 
   if (value === undefined || value === false) return undefined;
   if (value === "last_5" || value === "none") return value;
   throw new Error("Invalid --run-content-retention. Expected last_5 or none.");
+}
+
+function assertWorkflowFilePath(path: string): void {
+  if (!path.endsWith(".workflow.yml")) throw new Error("Workflow files must use the .workflow.yml extension.");
 }
 
 function printWorkflowRuns(runs: WorkflowRunDetail[]): void {
@@ -14867,6 +14947,8 @@ Examples:
 function printWorkflowsHelp(): void {
   console.log(`Workflows commands:
   openmates workflows list [--json]
+  openmates workflows export <workflow-id> [--output <path.workflow.yml>] [--json]
+  openmates workflows import --file <path.workflow.yml> [--project <id>] [--folder <id>] [--json]
   openmates workflows capabilities [--json]
   openmates workflows validate --file workflow.yml [--json]
   openmates workflows create --file workflow.yml [--json]
@@ -14876,7 +14958,7 @@ function printWorkflowsHelp(): void {
   openmates workflows history <workflow-id> [--limit <n>] [--json]
   openmates workflows restore <workflow-id> --entry <history-entry-id> [--state before|after] [--json]
   openmates workflows create --title <title> --graph '<json>' [--enabled] [--run-content-retention last_5|none] [--json]
-  openmates workflows input <text> [--workflow-id <id>] [--project-id <id>] [--timezone <IANA-zone>] [--json]
+  openmates workflows input <text> [--workflow-id <id>] [--project-id <id>] [--timezone <IANA-zone>] [--idempotency-key <UUID>] [--optimistic] [--json]
   openmates workflows input-show <session-id> [--json]
   openmates workflows input-events <session-id> [--after <event-id>] [--json]
   openmates workflows input-follow-up <session-id> <text> [--json]
@@ -14899,6 +14981,11 @@ function printWorkflowsHelp(): void {
 Workflows run on the OpenMates server, not in this terminal process. The CLI
 uses your paired session and shows the same workflow/run records as web, SDKs,
 and Apple clients.
+Export writes a saved workflow's portable authoring graph to .workflow.yml.
+Run history and account bindings are excluded. Import creates a disabled workflow;
+review and complete its bindings before enabling it.
+Import creates a Personal Workflow. In an active Team context, pass --personal
+or switch to Personal context first.
 --wait waits up to three minutes for this run and its selected chat deliveries to
 be acknowledged. No new results completes without creating a chat. On timeout,
 inspect run-show or retry the same --idempotency-key; skills are not rerun.

@@ -1,5 +1,9 @@
+import { readAppsWorkspaceRoute } from '@repo/ui/utils/appsWorkspaceRoute';
+import { getSettingsPathFromHash } from '@repo/ui/utils/settingsHashUtils';
+
 export type WorkspaceHashRoute =
 	| { workspace: 'chats'; itemId: null }
+	| { workspace: 'apps'; itemId: null }
 	| { workspace: 'plan-detail'; itemId: string }
 	| { workspace: 'projects'; itemId: string | null }
 	| { workspace: 'tasks'; itemId: string | null }
@@ -25,6 +29,13 @@ function hashParams(fragment: string): URLSearchParams {
 	return new URLSearchParams(parameterFragment);
 }
 
+/** Legacy Apps Settings links must survive chat-store reset until they forward. */
+export function isLegacyAppsWorkspaceHash(hash: string): boolean {
+	if (/^#\/?chat[-_]?id=/.test(hash)) return false;
+	const settingsPath = getSettingsPathFromHash(hash);
+	return settingsPath === 'apps' || settingsPath?.startsWith('apps/') === true || settingsPath === 'settings_memories';
+}
+
 /**
  * Resolve the root app's hash to the workspace that owns it.
  *
@@ -36,6 +47,10 @@ export function readWorkspaceHashRoute(hash: string): WorkspaceHashRoute {
 	const fragment = normalizedFragment(hash);
 	const marker = fragment.split('&', 1)[0];
 	const params = hashParams(fragment);
+
+	if (readAppsWorkspaceRoute(hash)) {
+		return { workspace: 'apps', itemId: null };
+	}
 
 	const workflowId = params.get('workflow-id')?.trim();
 	if (workflowId || marker === 'workflows') {

@@ -67,6 +67,27 @@ from backend.core.api.app.services.directus.api_key_device_methods import (
 
 logger = logging.getLogger(__name__)
 
+
+def _conditional_update_field_matches(field: str, expected: Any, persisted: Any) -> bool:
+    if persisted == expected:
+        return True
+    if not field.endswith(("_at", "_until")):
+        return False
+    if not isinstance(expected, (str, datetime)) or not isinstance(persisted, (str, datetime)):
+        return False
+    try:
+        expected_at = expected if isinstance(expected, datetime) else datetime.fromisoformat(expected.replace("Z", "+00:00"))
+        persisted_at = persisted if isinstance(persisted, datetime) else datetime.fromisoformat(persisted.replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    # Directus stores datetime fields as UTC with second precision. A fallback
+    # read can acknowledge that representation while version/state fields must
+    # still match exactly, preserving the conditional update's concurrency guard.
+    expected_at = expected_at.replace(tzinfo=timezone.utc) if expected_at.tzinfo is None else expected_at.astimezone(timezone.utc)
+    persisted_at = persisted_at.replace(tzinfo=timezone.utc) if persisted_at.tzinfo is None else persisted_at.astimezone(timezone.utc)
+    return expected_at.replace(microsecond=0) == persisted_at.replace(microsecond=0)
+
+
 class DirectusService:
     """
     Service for interacting with Directus CMS API
@@ -1276,7 +1297,7 @@ class DirectusService:
         data_value = response_json.get("data") if isinstance(response_json, dict) else None
         if isinstance(data_value, list) and data_value:
             return data_value[0]
-        if isinstance(data_value, dict):
+        if isinstance(data_value, dict) and data_value:
             return data_value
         rows = await self.get_items(
             collection,
@@ -1291,9 +1312,15 @@ class DirectusService:
                 ),
             },
             no_cache=True,
+            admin_required=admin_required,
         )
         candidate = rows[0] if isinstance(rows, list) and rows else None
-        if candidate and all(candidate.get(field) == value for field, value in data.items()):
+        if candidate and all(
+            candidate.get(field) == value
+            if field == version_field
+            else _conditional_update_field_matches(field, value, candidate.get(field))
+            for field, value in data.items()
+        ):
             return candidate
         self.last_update_error = {"error": "conditional update response omitted the updated row"}
         return None

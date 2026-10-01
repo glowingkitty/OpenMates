@@ -6,7 +6,9 @@
 
 from __future__ import annotations
 
+import importlib.util
 import sys
+from pathlib import Path
 from types import ModuleType
 from types import SimpleNamespace
 from typing import Any
@@ -35,11 +37,49 @@ class FakeRateLimitScheduledException(Exception):
 celery_module.Celery = FakeCelery
 kombu_module.Queue = FakeQueue
 rate_limiting_module.RateLimitScheduledException = FakeRateLimitScheduledException
-sys.modules.setdefault("celery", celery_module)
-sys.modules.setdefault("kombu", kombu_module)
-sys.modules.setdefault("backend.apps.ai.processing.rate_limiting", rate_limiting_module)
 
-from backend.apps.base_app import BaseApp  # noqa: E402
+
+def _load_isolated_base_app() -> type:
+    """Load the dispatch code without leaving import stubs in other tests."""
+
+    module_name = "_base_app_dispatch_context_subject"
+    module_path = Path(__file__).resolve().parents[1] / "apps" / "base_app.py"
+    spec = importlib.util.spec_from_file_location(module_name, module_path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Cannot load BaseApp from {module_path}")
+    subject = importlib.util.module_from_spec(spec)
+    missing = object()
+    processing = sys.modules.get("backend.apps.ai.processing")
+    previous_rate_limiting = (
+        processing.__dict__.get("rate_limiting", missing) if processing is not None else missing
+    )
+    stubs = {
+        "celery": sys.modules.get("celery", celery_module),
+        "kombu": sys.modules.get("kombu", kombu_module),
+        "backend.apps.ai.processing.rate_limiting": sys.modules.get(
+            "backend.apps.ai.processing.rate_limiting", rate_limiting_module
+        ),
+    }
+    previous_modules = {name: sys.modules.get(name, missing) for name in stubs}
+    try:
+        sys.modules.update(stubs)
+        spec.loader.exec_module(subject)
+    finally:
+        for name, previous in previous_modules.items():
+            if previous is missing:
+                sys.modules.pop(name, None)
+            else:
+                sys.modules[name] = previous
+        processing = sys.modules.get("backend.apps.ai.processing")
+        if processing is not None and processing.__dict__.get("rate_limiting") is rate_limiting_module:
+            if previous_rate_limiting is missing:
+                processing.__dict__.pop("rate_limiting", None)
+            else:
+                processing.rate_limiting = previous_rate_limiting
+    return subject.BaseApp
+
+
+BaseApp = _load_isolated_base_app()
 
 
 class BatchRequestSkill:

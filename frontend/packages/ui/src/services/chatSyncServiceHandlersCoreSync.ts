@@ -758,6 +758,7 @@ export async function handlePhase1bChatContentImpl(
     if (payload.embeds && payload.embeds.length > 0) {
       try {
         const { embedStore } = await import("./embedStore");
+        const syncUserId = (await userDB.getUserProfile())?.user_id ?? null;
         const validEmbeds = payload.embeds.filter(
           (embed) =>
             embed.embed_id &&
@@ -794,6 +795,8 @@ export async function handlePhase1bChatContentImpl(
                 : embed.embed_type || "app-skill-use") as EmbedType,
             })),
           );
+          const { notifyAppsHistoricalEmbedsSynced } = await import("./appsWorkspaceResultsService");
+          notifyAppsHistoricalEmbedsSynced(syncUserId);
         }
       } catch (e) {
         console.error("[ChatSyncService:CoreSync] Phase 1b embeds error:", e);
@@ -968,6 +971,11 @@ export async function handleChatContentBatchResponseImpl(
   serviceInstance: ChatSynchronizationService,
   payload: ChatContentBatchResponsePayload,
 ): Promise<void> {
+  if (payload.apps_legacy_embeds_only) {
+    if (!isActiveTeamContext(payload.team_id ?? null, payload.context_epoch)) return;
+    serviceInstance.dispatchEvent(new CustomEvent("apps_legacy_embed_page_ready", { detail: payload }));
+    return;
+  }
   console.info(
     "[ChatSyncService:CoreSync] Received 'chat_content_batch_response':",
     payload,
@@ -1172,6 +1180,8 @@ export async function handleChatContentBatchResponseImpl(
   if (payload.embeds && payload.embeds.length > 0) {
     try {
       const { embedStore } = await import("./embedStore");
+      const syncUserId = (await userDB.getUserProfile())?.user_id ?? null;
+      let storedEmbeds = 0;
       for (const embed of payload.embeds) {
         if (!embed.embed_id || embed.status === "error" || embed.status === "cancelled") continue;
         const contentRef = `embed:${embed.embed_id}`;
@@ -1202,6 +1212,11 @@ export async function handleChatContentBatchResponseImpl(
           undefined,
           { skipMetadataExtraction: true },
         );
+        storedEmbeds++;
+      }
+      if (storedEmbeds > 0) {
+        const { notifyAppsHistoricalEmbedsSynced } = await import("./appsWorkspaceResultsService");
+        notifyAppsHistoricalEmbedsSynced(syncUserId);
       }
     } catch (e) {
       console.error("[ChatSyncService:CoreSync] Batch embeds error:", e);

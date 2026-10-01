@@ -83,7 +83,7 @@ class WorkflowSchedulerService:
         )
         if not started.get("started"):
             status = started.get("status")
-            if status not in {"cancellation_requested", "cancelled"}:
+            if status not in {"cancellation_requested", "cancelled", "failed", "completed"}:
                 return {"accepted": False, "run_id": run_id}
             await self._runtime_service.execute(
                 "advance_claimed_trigger",

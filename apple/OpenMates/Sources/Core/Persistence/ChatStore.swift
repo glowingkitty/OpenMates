@@ -69,27 +69,31 @@ final class ChatStore: ObservableObject {
             }
         }
 
+        // Merge and sort off the published property so one sync batch causes
+        // one coherent chat-list invalidation, including repeated incoming IDs.
+        var nextChats = chats
         var indexByChatId: [String: Int] = [:]
-        for (index, chat) in chats.enumerated() {
+        for (index, chat) in nextChats.enumerated() {
             indexByChatId[chat.id] = index
         }
         var persisted: [Chat] = []
         persisted.reserveCapacity(newChats.count)
         for chat in newChats {
             if let index = indexByChatId[chat.id] {
-                logMetadataMerge(existing: chats[index], incoming: chat)
-                chats[index] = chats[index].merged(with: chat)
-                persisted.append(chats[index])
+                logMetadataMerge(existing: nextChats[index], incoming: chat)
+                nextChats[index] = nextChats[index].merged(with: chat)
+                persisted.append(nextChats[index])
             } else {
-                indexByChatId[chat.id] = chats.count
-                chats.append(chat)
+                indexByChatId[chat.id] = nextChats.count
+                nextChats.append(chat)
                 persisted.append(chat)
                 if NativeSyncPerfLog.verboseCrypto {
                     print("[ChatStore] insert chat id=\(chat.id.prefix(8)) title=\(chat.title != nil) category=\(chat.category != nil) icon=\(chat.icon != nil) summary=\(chat.chatSummary != nil) encryptedTitle=\(chat.encryptedTitle != nil)")
                 }
             }
         }
-        sortChats()
+        nextChats.sort(by: chatSortPrecedes)
+        chats = nextChats
         persistIfAllowed { $0.onChatsReceived(persisted) }
     }
 
@@ -222,7 +226,7 @@ final class ChatStore: ObservableObject {
         let localById = (messagesByChat[chatId] ?? []).reduce(into: [String: Message]()) {
             $0[$1.id] = $1
         }
-        let sorted = messages.map { preserveLocalEmbedRefs($0, local: localById[$0.id]) }
+        let sorted = messages.map { preserveLocalEmbedRefs($0, local: $0.localBodySource(canonical: localById[$0.id], alias: $0.serverMessageId.flatMap { localById[$0] })) }
             .sorted { a, b in a.createdAt < b.createdAt }
         messagesByChat[chatId] = sorted
         persistIfAllowed { $0.onMessagesReceived(sorted, chatId: chatId) }
@@ -230,7 +234,14 @@ final class ChatStore: ObservableObject {
 
     func appendMessage(_ message: Message, to chatId: String) {
         var msgs = messagesByChat[chatId] ?? []
-        var accepted = message
+        let local = message.localBodySource(
+            canonical: msgs.first { $0.id == message.id },
+            alias: message.serverMessageId.flatMap { alias in msgs.first { $0.id == alias } }
+        )
+        var accepted = preserveLocalEmbedRefs(message, local: local)
+        if let alias = message.serverMessageId, alias != message.id {
+            msgs.removeAll { $0.id == alias && $0.chatId == chatId && $0.role == message.role }
+        }
         if let index = msgs.firstIndex(where: { $0.id == message.id }) {
             let existing = msgs[index]
             if message.role == .assistant, message.chatId == chatId,
@@ -259,12 +270,13 @@ final class ChatStore: ObservableObject {
                     thinkingContent: message.thinkingContent ?? existing.thinkingContent,
                     encryptedThinkingContent: message.encryptedThinkingContent ?? (message.thinkingContent == nil || message.thinkingContent == existing.thinkingContent ? existing.encryptedThinkingContent : nil),
                     encryptedThinkingSignature: message.encryptedThinkingSignature ?? (message.thinkingContent == nil || message.thinkingContent == existing.thinkingContent ? existing.encryptedThinkingSignature : nil),
-                    thinkingTokenCount: message.thinkingTokenCount ?? existing.thinkingTokenCount
+                    thinkingTokenCount: message.thinkingTokenCount ?? existing.thinkingTokenCount,
+                    serverMessageId: message.serverMessageId ?? existing.serverMessageId
                 )
             }
             msgs[index] = accepted
         } else {
-            msgs.append(message)
+            msgs.append(accepted)
         }
         messagesByChat[chatId] = msgs
         persistIfAllowed { $0.onMessagesReceived([accepted], chatId: chatId) }
@@ -293,14 +305,16 @@ final class ChatStore: ObservableObject {
                 $0[$1.id] = $1
             }
             let pendingIds = pendingAssistantRecoveryLookup(chatId)
+            let pendingUserIds = bridge?.pendingUserMessageIds(in: chatId) ?? []
             let pendingReplies = (messagesByChat[chatId] ?? []).filter {
-                $0.chatId == chatId && $0.role == .assistant &&
-                    pendingIds.contains($0.id) && !incomingIds.contains($0.id)
+                $0.chatId == chatId && !incomingIds.contains($0.id) &&
+                    (($0.role == .assistant && pendingIds.contains($0.id))
+                     || ($0.role == .user && pendingUserIds.contains($0.id)))
             }
-            // Server rows win once available. Only explicitly pending assistant
-            // replies survive an absent row; this never resurrects deleted history
+            // Server rows win once available. Only explicitly pending recovery
+            // replies or queued offline sends survive an absent row; this never resurrects deleted history
             // or changes the authoritative messages_v advertised to the server.
-            let resolved = messages.map { preserveLocalEmbedRefs($0, local: localById[$0.id]) }
+            let resolved = messages.map { preserveLocalEmbedRefs($0, local: $0.localBodySource(canonical: localById[$0.id], alias: $0.serverMessageId.flatMap { localById[$0] })) }
             nextMessages[chatId] = (resolved + pendingReplies).sorted { $0.createdAt < $1.createdAt }
         }
         if !incomingMessages.isEmpty {
@@ -334,14 +348,16 @@ final class ChatStore: ObservableObject {
     }
 
     private func preserveLocalEmbedRefs(_ incoming: Message, local: Message?) -> Message {
-        guard incoming.embedRefs == nil, let local,
-              local.role == incoming.role,
-              let refs = local.embedRefs, !refs.isEmpty else { return incoming }
-        // Saved encrypted rows omit embed_refs. Preserve the references from
-        // the same durable local message while accepting the server ciphertext.
+        guard let local, local.chatId == incoming.chatId, local.role == incoming.role else { return incoming }
+        let refs = incoming.embedRefs ?? local.embedRefs
+        let sameCiphertext = incoming.encryptedContent != nil && incoming.encryptedContent == local.encryptedContent
+        let content = incoming.content ?? (sameCiphertext ? local.content : nil)
+        guard refs != incoming.embedRefs || content != incoming.content else { return incoming }
+        // A metadata/ciphertext replay of the same row must not blank an already
+        // decoded response while reconnect/key hydration is still in progress.
         return Message(
             id: incoming.id, chatId: incoming.chatId, role: incoming.role,
-            content: incoming.content, encryptedContent: incoming.encryptedContent,
+            content: content, encryptedContent: incoming.encryptedContent,
             createdAt: incoming.createdAt, updatedAt: incoming.updatedAt,
             appId: incoming.appId, isStreaming: incoming.isStreaming,
             embedRefs: refs, modelName: incoming.modelName,
@@ -355,7 +371,8 @@ final class ChatStore: ObservableObject {
             encryptedThinkingContent: incoming.encryptedThinkingContent,
             encryptedThinkingSignature: incoming.encryptedThinkingSignature,
             thinkingTokenCount: incoming.thinkingTokenCount,
-            renderDocument: incoming.renderDocument
+            renderDocument: content == incoming.content ? incoming.renderDocument : nil,
+            serverMessageId: incoming.serverMessageId ?? local.serverMessageId
         )
     }
 
@@ -625,7 +642,9 @@ private extension Chat {
         let acceptsIncomingMetadata = (incoming.metadataV ?? 0) >= (metadataV ?? 0)
         let acceptsIncomingSummary = (incoming.metadataV ?? 0) > (metadataV ?? 0)
             || ((incoming.metadataV ?? 0) == (metadataV ?? 0)
-                && chatSummary == nil && encryptedChatSummary == nil)
+                && chatSummary == nil
+                && (encryptedChatSummary == nil
+                    || (incoming.chatSummary != nil && encryptedChatSummary == incoming.encryptedChatSummary)))
         let incomingTitleVersion = incoming.titleV ?? 0
         let currentTitleVersion = titleV ?? 0
         let acceptsNewerTitleRevision = incomingTitleVersion > currentTitleVersion

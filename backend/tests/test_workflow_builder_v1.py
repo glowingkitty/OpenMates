@@ -189,3 +189,85 @@ def test_ask_and_ai_check_require_visible_source_in_their_authored_text():
         validate_workflow_composition_refs(WorkflowGraph.model_validate(data))
     data["nodes"][1]["config"]["input"]["prompt"] = "Summarize {{ $nodes.search.output.results }}"
     validate_workflow_composition_refs(WorkflowGraph.model_validate(data))
+
+
+# contract-test: direct surface=rest_api assertions=workflows.composition.earlier-action-reference,workflows.control.ai-check
+def test_selected_inputs_and_result_blocks_are_real_composition_dependencies():
+    data = graph_data()
+    data["nodes"][1]["config"] = {"mode": "ai", "question": "Is this relevant?", "selected_inputs": ["$nodes.search.output.results"]}
+    data["nodes"][2]["config"]["message"] = "Here are the results"
+    with pytest.raises(WorkflowValidationError, match="Step check"):
+        validate_workflow_composition_refs(WorkflowGraph.model_validate(data))
+    validate_workflow_composition_refs(WorkflowGraph.model_validate(data), allow_data_dependencies=True)
+
+    data["nodes"][1]["config"]["selected_inputs"] = ["$nodes.search.output.results.missing"]
+    with pytest.raises(WorkflowValidationError, match="not declared"):
+        validate_workflow_readiness(WorkflowGraph.model_validate(data))
+    data["nodes"][1]["config"]["selected_inputs"] = ["$nodes.search.output.results"]
+    data["nodes"][2]["config"]["blocks"][0]["source"] = "$nodes.search.output.results.missing"
+    with pytest.raises(WorkflowValidationError, match="not declared"):
+        validate_workflow_readiness(WorkflowGraph.model_validate(data))
+
+
+# contract-test: direct surface=rest_api assertions=workflows.composition.earlier-action-reference
+def test_opted_in_result_block_satisfies_composition_without_inline_variable():
+    data = graph_data()
+    data["nodes"] = [data["nodes"][0], data["nodes"][2]]
+    data["edges"] = [{"from": "search", "to": "send"}]
+    data["nodes"][1]["config"]["message"] = "Results"
+    data["nodes"][1]["config"]["blocks"][0].pop("include_if")
+    graph = WorkflowGraph.model_validate(data)
+    with pytest.raises(WorkflowValidationError, match="insert a variable"):
+        validate_workflow_composition_refs(graph)
+    validate_workflow_composition_refs(graph, allow_data_dependencies=True)
+
+    data["nodes"][1]["config"]["blocks"][0]["source"] = "$nodes.search.output"
+    with pytest.raises(WorkflowValidationError, match="result blocks"):
+        validate_workflow_composition_refs(WorkflowGraph.model_validate(data), allow_data_dependencies=True)
+
+
+# contract-test: direct surface=rest_api assertions=workflows.composition.earlier-action-reference
+def test_fixed_message_after_data_condition_has_composition_dependency():
+    data = graph_data()
+    data["nodes"][2]["config"] = {"title": "News", "message": "New results found"}
+    with pytest.raises(WorkflowValidationError, match="insert a variable"):
+        validate_workflow_composition_refs(WorkflowGraph.model_validate(data))
+    validate_workflow_composition_refs(WorkflowGraph.model_validate(data), allow_data_dependencies=True)
+
+    data["nodes"][1]["config"]["predicate"] = {"left": 3, "op": "gt", "right": 0}
+    with pytest.raises(WorkflowValidationError, match="insert a variable"):
+        validate_workflow_composition_refs(WorkflowGraph.model_validate(data), allow_data_dependencies=True)
+
+
+# contract-test: direct surface=rest_api assertions=workflows.composition.earlier-action-reference,workflows.control.check
+def test_v2_save_accepts_literal_branches_guarded_by_weather_data():
+    from backend.core.api.app.routes.workflows import _prevalidate_paid_workflow_save
+    from backend.tests.workflow_test_utils import workflow_service
+
+    data = {"version": 2, "nodes": [
+        {"id": "weather", "type": "app_skill_action", "config": {"app_id": "weather", "skill_id": "forecast", "input": {"location": "Berlin", "days": 1}}},
+        {"id": "check", "type": "check", "config": {"predicate": {"left": "$nodes.weather.output.rain_expected", "op": "eq", "right": True}}},
+        {"id": "umbrella", "type": "send_chat_message", "config": {"title": "Rain", "message": "Bring an umbrella"}},
+        {"id": "dry", "type": "send_chat_message", "config": {"title": "Dry", "message": "Stay dry"}},
+    ], "edges": [
+        {"from": "weather", "to": "check"},
+        {"from": "check", "to": "umbrella", "branch": "yes"},
+        {"from": "check", "to": "dry", "branch": "no"},
+    ]}
+    graph = WorkflowGraph.model_validate(data)
+    _prevalidate_paid_workflow_save(graph)
+    service = workflow_service()
+    saved = service.create_workflow("alice", "Rain decision", graph)
+    data["nodes"][2]["config"]["message"] = "Take an umbrella"
+    edited = WorkflowGraph.model_validate(data)
+    _prevalidate_paid_workflow_save(edited, prior_graph=saved.graph)
+    updated = service.update_workflow(saved.id, "alice", graph=edited)
+    assert updated.graph.nodes[2].config["message"] == "Take an umbrella"
+    assert updated.graph.nodes[1].config["predicate"]["left"] == "$nodes.weather.output.rain_expected"
+
+    data["nodes"][1]["config"]["predicate"]["left"] = 3
+    data["nodes"][2]["config"]["message"] = "Another literal message"
+    with pytest.raises(WorkflowValidationError, match="insert a variable"):
+        _prevalidate_paid_workflow_save(WorkflowGraph.model_validate(data), prior_graph=updated.graph)
+    with pytest.raises(WorkflowValidationError, match="insert a variable"):
+        service.update_workflow(saved.id, "alice", graph=data)

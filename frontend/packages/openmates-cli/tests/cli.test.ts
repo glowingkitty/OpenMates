@@ -19,6 +19,8 @@ import { join } from "node:path";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { promisify } from "node:util";
 import { WebSocketServer } from "ws";
+import { parse as parseYaml } from "yaml";
+import { encryptBytesWithAesGcm } from "../src/crypto.ts";
 
 // Import from compiled dist — the .js extension imports in src/ require the build step
 import {
@@ -50,6 +52,7 @@ const execFileAsync = promisify(execFile);
 const PACKAGE_ROOT = fileURLToPath(new URL("..", import.meta.url));
 const REPO_ROOT = fileURLToPath(new URL("../../../..", import.meta.url));
 const CLI_PACKAGE_VERSION = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf-8")).version as string;
+const GOAL_CHAT_PROJECT_ID = "55555555-5555-4555-8555-555555555555";
 
 function runCli(args: string[], env: Record<string, string> = {}): string {
   return execFileSync("node", ["dist/cli.js", ...args], {
@@ -404,6 +407,7 @@ async function withGoalChatMock<T>(
   const requestPaths: string[] = [];
   const chatMessages: string[] = [];
   const planRequests: Record<string, unknown>[] = [];
+  const encryptedProjectKey = await encryptBytesWithAesGcm(Buffer.alloc(32, 9), Buffer.alloc(32));
   let latestChatId = "11111111-2222-4333-8444-555555555555";
   let latestEncryptedChatKey = "";
   mkdirSync(stateDir, { recursive: true });
@@ -426,6 +430,10 @@ async function withGoalChatMock<T>(
       const body = await readJsonBody(request);
       planRequests.push(body);
       writeJson(response, { plan: body });
+      return;
+    }
+    if (request.method === "GET" && request.url === "/v1/projects?include_archived=true") {
+      writeJson(response, { projects: [{ project_id: GOAL_CHAT_PROJECT_ID, encrypted_project_key: encryptedProjectKey }] });
       return;
     }
     response.writeHead(404);
@@ -1445,6 +1453,8 @@ describe("workflows command", () => {
     assert.match(runCli(["help"]), /openmates workflows \[--help\]/);
     const output = runCli(["workflows", "--help"]);
     assert.match(output, /openmates workflows list \[--json\]/);
+    assert.match(output, /openmates workflows export <workflow-id>/);
+    assert.match(output, /openmates workflows import --file <path.workflow.yml>/);
     assert.match(output, /openmates workflows <workflow-id> add-to-project <project-id>/);
     assert.match(output, /openmates workflows <workflow-id> remove-from-project <project-id>/);
     assert.match(output, /openmates workflows input <text>/);
@@ -1466,6 +1476,97 @@ describe("workflows command", () => {
     assert.notEqual(result.status, 0);
     assert.doesNotMatch(result.stderr, /Missing --idempotency-key/);
     assert.match(result.stderr, /Not logged in|login/i);
+  });
+
+  // contract-test: direct surface=cli assertions=workflows.portability.definition-roundtrip,workflows.portability.private-content-boundary,workflows.portability.disabled-validated-import,workflows.portability.cli-commands
+  it("exports a portable YAML graph and imports it as a disabled workflow", async () => {
+    const tempHome = mkdtempSync(join(tmpdir(), "openmates-workflow-file-"));
+    const stateDir = join(tempHome, ".openmates");
+    mkdirSync(stateDir, { recursive: true });
+    const requests: Array<{ method: string; url: string; body?: Record<string, unknown> }> = [];
+    const graph = {
+      version: 1,
+      trigger_node_id: "start",
+      nodes: [
+        { id: "start", type: "manual_trigger", config: {} },
+        { id: "notify", type: "send_notification", config: { text: "Done" }, input_mapping: { text: "start.output" }, ui: { x: 120, y: 40 } },
+      ],
+      edges: [{ from: "start", to: "notify" }],
+      variables: { label: "daily" },
+      limits: { max_steps: 8 },
+      ui_layout: { zoom: 1 },
+    };
+    const workflow = { id: "wf-portable", title: "Morning / Brief", description: "Daily update", status: "disabled", enabled: false, current_version_id: "version-1", created_at: 1, updated_at: 1, run_content_retention: "none", graph };
+    const server = createServer(async (request, response) => {
+      const url = request.url ?? "";
+      let body: Record<string, unknown> | undefined;
+      if (request.method === "POST") body = await readJsonBody(request);
+      requests.push({ method: request.method ?? "", url, body });
+      if (url === "/v1/workflows" && request.method === "GET") writeJson(response, { workflows: [workflow] });
+      else if (url === "/v1/workflows/wf-portable" && request.method === "GET") writeJson(response, { workflow });
+      else if (url === "/v1/workflows/file-import" && request.method === "POST") writeJson(response, { workflow: { ...workflow, id: "wf-imported", binding_requirements: body?.binding_requirements, completed_binding_requirements: [] } });
+      else writeJsonStatus(response, 404, { error: "Unexpected request" });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    const apiUrl = `http://127.0.0.1:${address.port}`;
+    writeFileSync(join(stateDir, "session.json"), JSON.stringify({
+      apiUrl,
+      sessionId: "session-1",
+      wsToken: "ws-token",
+      cookies: { auth_refresh_token: "refresh-token" },
+      masterKeyExportedB64: Buffer.alloc(32).toString("base64"),
+      hashedEmail: "hashed-email",
+      userEmailSalt: "salt",
+      createdAt: Date.now(),
+      authorizerDeviceName: "test-device",
+      autoLogoutMinutes: null,
+    }));
+    try {
+      const file = join(tempHome, "morning.workflow.yml");
+      const env = { HOME: tempHome, USERPROFILE: tempHome };
+      await runCliAsync(["workflows", "export", "wf-portable", "--output", file, "--api-url", apiUrl], env);
+      const exported = parseYaml(readFileSync(file, "utf8")) as Record<string, unknown>;
+      assert.equal(exported.format, "openmates-workflow");
+      assert.equal(exported.format_version, 1);
+      assert.equal((exported.workflow as Record<string, unknown>).title, workflow.title);
+      assert.equal((exported.workflow as Record<string, unknown>).run_content_retention, "none");
+      assert.deepEqual(((exported.workflow as Record<string, unknown>).graph as Record<string, unknown>).edges, [{ from: "step_1", to: "step_2" }]);
+      assert.equal(JSON.stringify(exported).includes("wf-portable"), false);
+      const imported = JSON.parse(await runCliAsync(["workflows", "import", "--file", file, "--json", "--api-url", apiUrl], env)) as { workflow: { id: string; enabled: boolean } };
+      assert.equal(imported.workflow.id, "wf-imported");
+      assert.equal(imported.workflow.enabled, false);
+      assert.deepEqual(requests.find((item) => item.url === "/v1/workflows/file-import")?.body, exported);
+
+      const malformed = join(tempHome, "invalid.workflow.yml");
+      writeFileSync(malformed, "format: openmates-workflow\nformat: openmates-workflow\n");
+      await assert.rejects(runCliAsync(["workflows", "import", "--file", malformed, "--api-url", apiUrl], env), /Invalid workflow YAML/);
+      writeFileSync(malformed, "format: openmates-workflow\nformat_version: 2\nworkflow: {}\nbinding_requirements: []\n");
+      await assert.rejects(runCliAsync(["workflows", "import", "--file", malformed, "--api-url", apiUrl], env), /version|Version/);
+      assert.equal(requests.filter((item) => item.url === "/v1/workflows/file-import").length, 1);
+
+      for (const teamFlag of ["--team", "--team-id"]) {
+        await assert.rejects(
+          runCliAsync(["workflows", "import", "--file", file, teamFlag, "team-1", "--api-url", apiUrl], env),
+          /Workflow file import creates a Personal Workflow/,
+        );
+      }
+      const sessionPath = join(stateDir, "session.json");
+      const session = JSON.parse(readFileSync(sessionPath, "utf8")) as Record<string, unknown>;
+      writeFileSync(sessionPath, JSON.stringify({ ...session, activeTeamId: "team-1" }));
+      await assert.rejects(
+        runCliAsync(["workflows", "import", "--file", file, "--api-url", apiUrl], env),
+        /Workflow file import creates a Personal Workflow/,
+      );
+      assert.equal(requests.filter((item) => item.url === "/v1/workflows/file-import").length, 1);
+      await runCliAsync(["workflows", "import", "--file", file, "--personal", "--api-url", apiUrl], env);
+      assert.equal(requests.filter((item) => item.url === "/v1/workflows/file-import").length, 2);
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+      rmSync(tempHome, { recursive: true, force: true });
+    }
   });
 });
 
@@ -2042,7 +2143,7 @@ async function withCodeRunStreamingMockApi<T>(
   const server = createServer(async (request, response) => {
     try {
       if (request.method === "POST" && request.url === "/v1/auth/session") {
-        writeJson(response, { success: true, ws_token: "bad-ws-token" });
+        writeJson(response, { success: true, ws_token: "fresh-ws-token" });
         return;
       }
       if (request.method === "POST" && request.url === "/v1/apps/code/skills/run") {
@@ -2077,7 +2178,9 @@ async function withCodeRunStreamingMockApi<T>(
   server.on("upgrade", (request, socket, head) => {
     const url = new URL(request.url ?? "/", "http://127.0.0.1");
     const token = url.searchParams.get("token");
-    if (rejectStreams || token !== refreshToken) {
+    assert.equal(url.searchParams.get("sessionId"), "session-1");
+    assert.equal(url.toString().includes(refreshToken), false, "Refresh tokens must stay out of stream URLs");
+    if (rejectStreams || !["old-ws-token", "fresh-ws-token"].includes(token ?? "")) {
       stats.rejected += 1;
       socket.write("HTTP/1.1 403 Forbidden\r\n\r\n");
       socket.destroy();
@@ -2108,8 +2211,11 @@ async function withCodeRunStreamingMockApi<T>(
 }
 
 async function withSkillFormattingMockApi<T>(
-  run: (params: { apiUrl: string; requests: Array<{ url: string; body: Record<string, unknown> }> }) => T | Promise<T>,
+  run: (params: { apiUrl: string; requests: Array<{ url: string; body: Record<string, unknown> }>; env: Record<string, string>; runCli: typeof runCliAsync }) => T | Promise<T>,
 ): Promise<T> {
+  const tempHome = mkdtempSync(join(tmpdir(), "openmates-cli-skill-formatting-"));
+  const stateDir = join(tempHome, ".openmates");
+  mkdirSync(stateDir, { mode: 0o700 });
   const requests: Array<{ url: string; body: Record<string, unknown> }> = [];
   const server = createServer(async (request, response) => {
     try {
@@ -2156,6 +2262,30 @@ async function withSkillFormattingMockApi<T>(
             provider: "auto",
           },
           credits_charged: 30,
+        });
+        return;
+      }
+      if (request.method === "POST" && request.url === "/v1/apps/code/skills/search_repos") {
+        const body = await readJsonBody(request);
+        requests.push({ url: request.url, body });
+        writeJson(response, {
+          success: true,
+          data: {
+            provider: "GitHub",
+            results: [{
+              id: 1,
+              query: "typescript authentication library",
+              results: [{
+                type: "repository_result",
+                full_name: "example/auth-library",
+                name: "auth-library",
+                primary_language: "TypeScript",
+                license_spdx_id: "MIT",
+                html_url: "https://github.com/example/auth-library",
+              }],
+            }],
+          },
+          credits_charged: 5,
         });
         return;
       }
@@ -2487,11 +2617,36 @@ async function withSkillFormattingMockApi<T>(
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const address = server.address();
   assert.ok(address && typeof address === "object");
+  const apiUrl = `http://127.0.0.1:${address.port}`;
+  writeFileSync(join(stateDir, "session.json"), JSON.stringify({
+    apiUrl,
+    sessionId: "skill-formatting-session",
+    wsToken: "skill-formatting-ws-token",
+    cookies: { auth_refresh_token: "skill-formatting-refresh-token" },
+    masterKeyExportedB64: Buffer.alloc(32).toString("base64"),
+    masterKeyStorage: "plaintext",
+    hashedEmail: "skill-formatting-account",
+    userEmailSalt: "skill-formatting-salt",
+    createdAt: Date.now(),
+  }), { mode: 0o600 });
+  const env = {
+    HOME: tempHome,
+    USERPROFILE: tempHome,
+    OPENMATES_STATE_DIR: stateDir,
+    OPENMATES_PROFILE: "",
+    OPENMATES_API_KEY: "",
+  };
   try {
-    return await run({ apiUrl: `http://127.0.0.1:${address.port}`, requests });
+    return await run({
+      apiUrl,
+      requests,
+      env,
+      runCli: (args, overrides = {}) => runCliAsync(args, { ...overrides, ...env }),
+    });
   } finally {
     server.closeAllConnections();
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+    rmSync(tempHome, { recursive: true, force: true });
   }
 }
 
@@ -2639,7 +2794,7 @@ describe("CLI goal chat", () => {
       const result = await new Promise<{ status: number | null; stdout: string; stderr: string }>((resolve) => {
         execFile(
           "node",
-          ["dist/cli.js", "chat", "--goal", "Ship the docs update", "--title", "Docs launch", "--json"],
+          ["dist/cli.js", "chat", "--goal", "Ship the docs update", "--title", "Docs launch", "--project", GOAL_CHAT_PROJECT_ID, "--json"],
           {
             cwd: PACKAGE_ROOT,
             encoding: "utf-8",
@@ -2675,6 +2830,7 @@ describe("CLI goal chat", () => {
       assert.equal(frameTypes.includes("chat_message_added"), true);
       assert.equal(planRequests.length, 1);
       assert.equal(planRequests[0].primary_chat_id, parsed.chat_id);
+      assert.deepEqual(planRequests[0].linked_project_ids, [GOAL_CHAT_PROJECT_ID]);
       assert.equal(planRequests[0].status, "draft");
       assert.equal(typeof planRequests[0].encrypted_goal, "string");
       assert.equal(JSON.stringify(planRequests[0]).includes("Ship the docs update"), false);
@@ -3309,20 +3465,21 @@ describe("apps code run command variants", () => {
       const output = await runCliAsync(["apps", "code", "run", "--api-url", apiUrl,
         "--language", "python", "--code", "print('hello')", "--json"], {HOME: tempHome});
       assert.equal(JSON.parse(output).final.status, "finished");
-      assert.deepEqual(getStats(), {rejected: 2, accepted: 0});
+      assert.deepEqual(getStats(), {rejected: 1, accepted: 0});
     }, true);
   });
 
-  it("retries Code Run streaming with the refresh token when ws_token auth is rejected", async () => {
+  it("streams Code Run with a WebSocket token while keeping the refresh token out of the URL", async () => {
     await withCodeRunStreamingMockApi(async ({ apiUrl, tempHome, getStats }) => {
-      await runCliAsync([
+      const output = await runCliAsync([
         "apps", "code", "run",
         "--api-url", apiUrl,
         "--language", "python",
         "--source-filename", "hello.py",
         "--code", "print('hello')\n",
       ], { HOME: tempHome });
-      assert.deepEqual(getStats(), { rejected: 1, accepted: 1 });
+      assert.match(output, /STREAM_FALLBACK_OK/);
+      assert.deepEqual(getStats(), { rejected: 0, accepted: 1 });
     });
   });
 });
@@ -3412,7 +3569,7 @@ describe("embed version commands", () => {
 
 describe("apps metadata commands", () => {
   it("runs generated app-skill commands with explicit schema-backed input", async () => {
-    await withSkillFormattingMockApi(async ({ apiUrl, requests }) => {
+    await withSkillFormattingMockApi(async ({ apiUrl, requests, env }) => {
       const { stdout, stderr } = await execFileAsync("node", [
         "dist/cli.js",
         "--api-url", apiUrl,
@@ -3421,7 +3578,7 @@ describe("apps metadata commands", () => {
       ], {
         cwd: PACKAGE_ROOT,
         encoding: "utf-8",
-        env: { ...process.env, TERM: "dumb" },
+        env: { ...process.env, TERM: "dumb", ...env },
         timeout: 15_000,
       });
 
@@ -3436,7 +3593,7 @@ describe("apps metadata commands", () => {
 
   // contract-test: direct surface=cli assertions=app-skills.surface.semantic-parity,app-skills.search-relevance.optional-and-inferred
   it("forwards relevance criteria through generated typed app-skill flags", async () => {
-    await withSkillFormattingMockApi(async ({ apiUrl, requests }) => {
+    await withSkillFormattingMockApi(async ({ apiUrl, requests, runCli: runCliAsync }) => {
       await runCliAsync([
         "--api-url", apiUrl,
         "apps", "fitness", "search_locations",
@@ -3463,7 +3620,7 @@ describe("apps metadata commands", () => {
 
   // contract-test: direct surface=cli assertions=app-skills.surface.semantic-parity,app-skills.search-relevance.optional-and-inferred
   it("forwards repository relevance criteria through generated typed input", async () => {
-    await withSkillFormattingMockApi(async ({ apiUrl, requests }) => {
+    await withSkillFormattingMockApi(async ({ apiUrl, requests, runCli: runCliAsync }) => {
       await runCliAsync([
         "--api-url", apiUrl,
         "apps", "code", "search_repos",
@@ -3559,7 +3716,7 @@ describe("apps metadata commands", () => {
   });
 
   it("runs the explicit models3d search command", async () => {
-    await withSkillFormattingMockApi(async ({ apiUrl, requests }) => {
+    await withSkillFormattingMockApi(async ({ apiUrl, requests, runCli: runCliAsync }) => {
       const output = await runCliAsync([
         "--api-url", apiUrl,
         "apps", "models3d", "search",
@@ -3597,7 +3754,7 @@ describe("apps metadata commands", () => {
 
   // contract-test: direct surface=cli assertions=app-skills.surface.semantic-parity,app-skills.search-relevance.optional-and-inferred
   it("forwards models3d relevance criteria through generated JSON input", async () => {
-    await withSkillFormattingMockApi(async ({ apiUrl, requests }) => {
+    await withSkillFormattingMockApi(async ({ apiUrl, requests, runCli: runCliAsync }) => {
       const input = {
         requests: [{
           query: "phone stand",
@@ -3620,7 +3777,7 @@ describe("apps metadata commands", () => {
   });
 
   it("runs code image_to_html from a local image file and resolves the task", async () => {
-    await withSkillFormattingMockApi(async ({ apiUrl, requests }) => {
+    await withSkillFormattingMockApi(async ({ apiUrl, requests, runCli: runCliAsync }) => {
       const tempDir = mkdtempSync(join(tmpdir(), "openmates-cli-image-to-html-"));
       const file = join(tempDir, "mockup.png");
       writeFileSync(file, Buffer.from("iVBORw0KGgo=", "base64"));
@@ -3652,7 +3809,7 @@ describe("apps metadata commands", () => {
   });
 
   it("runs the explicit design search-icons command", async () => {
-    await withSkillFormattingMockApi(async ({ apiUrl, requests }) => {
+    await withSkillFormattingMockApi(async ({ apiUrl, requests, runCli: runCliAsync }) => {
       const output = await runCliAsync([
         "--api-url", apiUrl,
         "apps", "design", "search_icons",
@@ -3681,7 +3838,7 @@ describe("apps metadata commands", () => {
   });
 
   it("exports a design icon as a recolored SVG", async () => {
-    await withSkillFormattingMockApi(async ({ apiUrl, requests }) => {
+    await withSkillFormattingMockApi(async ({ apiUrl, requests, runCli: runCliAsync }) => {
       const tempDir = mkdtempSync(join(tmpdir(), "openmates-cli-icon-export-"));
       const outputPath = join(tempDir, "home.svg");
       const output = await runCliAsync([
@@ -3707,21 +3864,15 @@ describe("apps metadata commands", () => {
   });
 
   it("routes nested app-skill errors through explicit command result formatting", async () => {
-    await withSkillFormattingMockApi(async ({ apiUrl, requests }) => {
+    await withSkillFormattingMockApi(async ({ apiUrl, requests, runCli: runCliAsync }) => {
       let stdout = "";
       let stderr = "";
       try {
-        await execFileAsync("node", [
-          "dist/cli.js",
+        await runCliAsync([
           "--api-url", apiUrl,
           "apps", "workflows", "search",
           "--input", JSON.stringify({ query: "vault-blocked" }),
-        ], {
-          cwd: PACKAGE_ROOT,
-          encoding: "utf-8",
-          env: { ...process.env, TERM: "dumb" },
-          timeout: 15_000,
-        });
+        ]);
         assert.fail("expected workflows search to fail when Vault key material is missing");
       } catch (error) {
         stdout = (error as { stdout?: string }).stdout ?? "";

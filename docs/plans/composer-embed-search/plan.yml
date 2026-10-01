@@ -1,0 +1,128 @@
+schema_version: 2
+id: composer-embed-search
+title: Bounded embed search from the message input
+status: verified
+goal: Let people find and open saved-memory and recent chat embeds from the message input with bounded client-side work.
+scope:
+  in: [All decrypted saved-memory embeds, Recent full-chat embeds and child results, Draft-safe opening from existing and new chats, Read-only personal dev performance measurement]
+  out: [Fetching older metadata-only chats while typing, Server-side plaintext index]
+scenarios:
+  - id: S-1
+    title: Find a saved or recent embed from another chat
+    given: [The account has a saved event and a recent event search, The current chat has an unsent draft]
+    when: [The user types a matching event name and opens a result]
+    then: [Matching saved and recent embeds appear, The selected event opens and the draft remains]
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Every decrypted saved-memory entry with an embed ID can match its title and short metadata regardless of reminder timing; if its referenced embed cannot decrypt, the saved memory detail opens instead.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_frontend
+    verification_ids: [T-SEARCH-UNIT, T-SEARCH-E2E]
+  - id: AC-2
+    scenario: S-1
+    text: Recent indexed embeds and child results match their short metadata, use their app gradients, and open the exact result from an existing or new chat.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-SEARCH-UNIT, T-SEARCH-OPEN-COMPONENT, T-SEARCH-NEW-COMPONENT, T-SEARCH-E2E]
+  - id: AC-3
+    scenario: S-1
+    text: Search retains debounce, cancellation, visibility and RAM bounds, with personal-account latency and memory measured read-only.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_frontend
+    verification_ids: [T-SEARCH-UNIT, T-SEARCH-E2E]
+tests:
+  - id: T-SEARCH-UNIT
+    type: vitest
+    file: frontend/packages/ui/src/services/__tests__/embedSuggestionSearch.test.ts
+    command: pnpm vitest run src/services/__tests__/embedSuggestionSearch.test.ts
+    assertions: [Saved entries and recent child entries can match, Search remains bounded]
+    covers: [AC-1, AC-2, AC-3]
+    red_phase: {required: false, expected: not_run, evidence: {}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, result: 3 focused embed search tests passed, command: pnpm vitest run src/services/__tests__/embedSuggestionSearch.test.ts, run_id: local-vitest-composer-embed-20260929, subject_commit: 6507f24685b083655c3b35ae10e2b0e406759fe0, timestamp: '2026-09-29T21:37:00Z'}}
+  - id: T-SEARCH-E2E
+    type: playwright
+    file: frontend/apps/web_app/tests/composer-embed-open.spec.ts
+    command: python3 scripts/ci_coordinator.py submit --session a741 --source SOURCE --spec composer-embed-open.spec.ts --mode e2e
+    target: localhost
+    execution_environment: isolated_github_ci
+    assertions: [An embed opens from either composer without losing the draft, An unreadable saved embed opens its memory detail]
+    covers: [AC-1, AC-2, AC-3]
+    red_phase: {required: false, expected: not_run, evidence: {}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, result: 3 focused end-to-end cases passed, command: python3 scripts/ci_coordinator.py submit --session a741 --source 6507f24685b083655c3b35ae10e2b0e406759fe0 --spec composer-embed-open.spec.ts --mode e2e, run_id: '36636905432', subject_commit: 6507f24685b083655c3b35ae10e2b0e406759fe0, target: github-isolated://localhost:5173/, deployment_reference: 'github-actions:36636905432', timestamp: '2026-09-29T22:00:00Z'}}
+  - id: T-SEARCH-OPEN-COMPONENT
+    type: playwright
+    file: frontend/apps/web_app/tests/components/composer-embed-suggestions.spec.ts
+    command: python3 scripts/ci_coordinator.py submit --session a741 --source SOURCE --spec components/composer-embed-suggestions.spec.ts --mode component --no-prepared-builds
+    target: localhost
+    execution_environment: isolated_github_ci
+    assertions: [Existing-chat embed cards use app gradients and select the exact embed]
+    covers: [AC-2]
+    red_phase: {required: false, expected: not_run, evidence: {}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, result: Focused existing-chat component cases passed, command: python3 scripts/ci_coordinator.py submit --session a741 --source 6507f24685b083655c3b35ae10e2b0e406759fe0 --spec components/composer-embed-suggestions.spec.ts --mode component --no-prepared-builds, run_id: '36636560650', subject_commit: 6507f24685b083655c3b35ae10e2b0e406759fe0, target: github-isolated://localhost:5173/, deployment_reference: 'github-actions:36636560650', timestamp: '2026-09-29T21:00:00Z'}}
+  - id: T-SEARCH-NEW-COMPONENT
+    type: playwright
+    file: frontend/apps/web_app/tests/components/new-chat-embed-suggestions.spec.ts
+    command: python3 scripts/ci_coordinator.py submit --session a741 --source SOURCE --spec components/new-chat-embed-suggestions.spec.ts --mode component --no-prepared-builds
+    target: localhost
+    execution_environment: isolated_github_ci
+    assertions: [New-chat embed cards use app gradients and select the exact embed]
+    covers: [AC-2]
+    red_phase: {required: false, expected: not_run, evidence: {}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, result: Focused new-chat component cases passed, command: python3 scripts/ci_coordinator.py submit --session a741 --source 6507f24685b083655c3b35ae10e2b0e406759fe0 --spec components/new-chat-embed-suggestions.spec.ts --mode component --no-prepared-builds, run_id: '36636565138', subject_commit: 6507f24685b083655c3b35ae10e2b0e406759fe0, target: github-isolated://localhost:5173/, deployment_reference: 'github-actions:36636565138', timestamp: '2026-09-29T21:00:00Z'}}
+implementation_state:
+  subject_commit: 6507f24685b083655c3b35ae10e2b0e406759fe0
+approvals:
+  specification:
+    status: not_required
+    reason: Approved message-input.suggestions.contextual covers focused composer search; the user supplied the embed scope.
+  plan:
+    status: approved
+    approved_at: '2026-09-29T00:00:00Z'
+    reason: The user explicitly asked to plan and implement efficient search for saved memories and recent embeds.
+decisions:
+  - id: D-1
+    status: active
+    decision: Search saved memories from decrypted memory state and recent embeds from the existing RAM message index.
+    reason: This covers saved entries across chat age without per-keystroke server requests or whole-embed scans.
+    decided_at: '2026-09-29T00:00:00Z'
+  - id: D-2
+    status: active
+    decision: Include all decrypted saved-memory embeds and recent fully cached chat embeds without fetching older metadata-only chats during typing.
+    reason: Read-only personal-account measurement covered 101 chats, 113 embeds and 24 memories; first-result samples changed from 4002/1347/1338 ms before to 3046/831/831 ms after the first deployed search build, with heap samples 133 MB and 117 MB respectively. The comparison is observational; the bound avoids a plaintext server index or unbounded chat reads.
+    decided_at: '2026-09-29T22:07:00Z'
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    outcome: succeeded
+    approach: Add compact embed result metadata to the existing search pass and reuse composer suggestions.
+    recorded_at: '2026-09-29T00:00:00Z'
+tasks:
+  - id: TASK-1
+    title: Implement and verify composer embed search
+    status: done
+    phase: complete
+    covers:
+      scenarios: [S-1]
+      acceptance_criteria: [AC-1, AC-2, AC-3]
+    expected_files: [frontend/packages/ui/src/services/searchService.ts, frontend/packages/ui/src/components/ChatSearchSuggestions.svelte, frontend/packages/ui/src/components/NewChatSuggestions.svelte, frontend/packages/ui/src/components/ActiveChat.svelte]
+    verification_ids: [T-SEARCH-UNIT, T-SEARCH-OPEN-COMPONENT, T-SEARCH-NEW-COMPONENT, T-SEARCH-E2E]
+    dependencies: []
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files: [frontend/packages/ui/src/services/searchService.ts, frontend/packages/ui/src/components/ChatSearchSuggestions.svelte, frontend/packages/ui/src/components/NewChatSuggestions.svelte, frontend/packages/ui/src/components/ActiveChat.svelte]
+      shared_files: []
+handoff:
+  current_task_id: TASK-1
+  next_action: Deploy the verified saved-memory fallback and confirm it on the personal dev account.
+  command: python3 scripts/plan_validate.py docs/plans/composer-embed-search/plan.yml
+  expected_outcome: The fallback opens saved memory detail for unreadable historical embed content without changing the draft.
+  last_verified_commit: 6507f24685b083655c3b35ae10e2b0e406759fe0
+  blocker: null

@@ -1,4 +1,6 @@
 <!--
+  Native Swift counterparts:
+  - apple/OpenMates/Sources/Features/Chat/Views/ChatSettingsShareSection.swift
   ChatSettingsShareSection.svelte
 
   Chat-only share UI for the Settings / Chats page. It keeps the existing
@@ -41,11 +43,13 @@
     messages = [],
     title,
     summary = '',
+    previewMode = false,
   }: {
     chat: Chat;
     messages?: Message[];
     title: string;
     summary?: string;
+    previewMode?: boolean;
   } = $props();
 
   let shareWithCommunity = $state(false);
@@ -84,7 +88,7 @@
 
   $effect(() => {
     const chatId = chat?.chat_id;
-    if (!chatId || !isSharedViewer) return;
+    if (previewMode || !chatId || !isSharedViewer) return;
     void loadStoredSharedUrl(chatId);
   });
 
@@ -239,6 +243,7 @@
   }
 
   async function generateLink(): Promise<void> {
+    if (previewMode) return;
     if (isGenerating) return;
     isGenerating = true;
     shortLinkError = '';
@@ -319,6 +324,7 @@
   }
 
   async function stopSharing(): Promise<void> {
+    if (previewMode) return;
     const existing = await chatDB.getChat(chat.chat_id);
     if (!existing) return;
     await chatDB.updateChat({
@@ -338,10 +344,12 @@
   }
 
   async function downloadChat(): Promise<void> {
+    if (previewMode) return;
     await downloadChatAsYaml(chat, messages);
   }
 
   async function downloadChatZip(): Promise<void> {
+    if (previewMode) return;
     await downloadChatAsZip(chat, messages);
   }
 </script>

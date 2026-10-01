@@ -231,6 +231,16 @@ final class OfflineSyncBridge: ObservableObject {
         offlineStore.persistChats(chats)
     }
 
+    func pendingUserMessageIds(in chatId: String) -> Set<String> {
+        guard isCurrentSession else { return [] }
+        return Set(offlineStore.loadPendingActions().compactMap { action in
+            guard action.actionType == "send_message", let data = action.payloadJSON,
+                  let payload = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  payload["chat_id"] as? String == chatId else { return nil }
+            return payload["message_id"] as? String
+        })
+    }
+
     func onMessagesReceived(_ messages: [Message], chatId: String) {
         guard isCurrentSession else { return }
         offlineStore.persistMessages(messages, chatId: chatId)

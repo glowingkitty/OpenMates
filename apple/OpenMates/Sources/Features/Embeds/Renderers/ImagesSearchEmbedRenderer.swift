@@ -29,6 +29,7 @@ struct ImagesSearchEmbedRenderer: View {
 
 struct ImagesSearchEmbedPreviewDetails: View {
     let model: SearchSkillPreviewModel
+    @State private var loadedThumbnailURLs = Set<String>()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -40,26 +41,37 @@ struct ImagesSearchEmbedPreviewDetails: View {
             }
             Spacer(minLength: 61)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     private var imageStrip: some View {
-        HStack(spacing: .spacing1) {
-            ForEach(model.imageResults.prefix(10)) { result in
-                if let urlString = result.thumbnailURL, let url = URL(string: urlString) {
-                    CachedRemoteImage(url: url) { image in
-                        image.resizable().aspectRatio(contentMode: .fill)
-                    } placeholder: {
-                        Color.grey20
+        GeometryReader { viewport in
+            HStack(spacing: .spacing1) {
+                ForEach(model.imageResults.prefix(10)) { result in
+                    if let urlString = result.thumbnailURL, let url = URL(string: urlString) {
+                        CachedRemoteImage(url: url, onSuccess: { _ = loadedThumbnailURLs.insert(urlString) }) { image in
+                            image.resizable().aspectRatio(contentMode: .fill)
+                        } placeholder: {
+                            Color.grey20
+                        }
+                        .frame(width: 40, height: 30)
+                        .clipped()
+                        .contentShape(Rectangle())
+                        .accessibilityIdentifier("images-search-thumbnail")
                     }
-                    .frame(width: 44, height: 30)
-                    .clipped()
                 }
             }
+            .frame(width: viewport.size.width, height: 30, alignment: .leading)
+            .clipped()
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
         .frame(height: 30)
-        .clipped()
+        // Keep the accessible/hit region within the same painted viewport.
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("images-search-thumbnail-strip")
+        .accessibilityValue(model.imageResults.contains {
+            $0.thumbnailURL.map(loadedThumbnailURLs.contains) ?? false
+        } ? "loaded" : "loading")
     }
 
     private var footer: some View {
@@ -69,17 +81,21 @@ struct ImagesSearchEmbedPreviewDetails: View {
                 .fontWeight(.semibold)
                 .foregroundStyle(Color.grey90)
                 .lineLimit(2)
+                .accessibilityIdentifier("images-search-query")
 
             Text(viaProvider)
                 .font(.omXxs)
                 .foregroundStyle(Color.grey70)
                 .lineLimit(1)
+                .accessibilityIdentifier("images-search-provider")
 
-            SearchResultSourceSummary(
-                favicons: model.imageResults.compactMap(\.faviconURL),
-                totalCount: model.previewResultCount
-            )
-            .padding(.top, .spacing1)
+            if !model.imageResults.compactMap(\.faviconURL).isEmpty {
+                SearchResultSourceSummary(
+                    favicons: model.imageResults.compactMap(\.faviconURL),
+                    totalCount: model.previewResultCount
+                )
+                .padding(.top, .spacing1)
+            }
         }
         .padding(.top, .spacing5)
         .padding(.horizontal, .spacing10)

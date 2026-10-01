@@ -4,12 +4,14 @@
 #
 # Spec: docs/specs/workflows-v1/spec.yml
 
+import asyncio
 import json
 
 import pytest
 
 from backend.core.api.app.services.workflow_models import WorkflowRunContentStorage
 from backend.core.api.app.services.workflow_runner import WorkflowRunner, _resolve_value
+from backend.core.api.app.services import workflow_runner
 from backend.core.api.app.services.workflow_service import InMemoryWorkflowRepository
 from backend.tests.workflow_test_utils import workflow_service
 
@@ -160,6 +162,43 @@ def news_graph() -> dict:
             {"from": "notify", "to": "email"},
         ],
     }
+
+
+# contract-test: direct surface=rest_api assertions=workflows.execution.lifecycle-visible
+@pytest.mark.asyncio
+async def test_hung_node_finishes_with_typed_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
+    service = workflow_service()
+    workflow = service.create_workflow("alice", "Timed action", rain_graph(), enabled=True)
+    runner = WorkflowRunner(service, app_skill_adapter=FakeAppSkillAdapter(), action_adapter=FakeActionAdapter())
+
+    async def hang(_node, _context, _user_id):
+        await asyncio.Event().wait()
+
+    monkeypatch.setattr(runner, "_execute_node", hang)
+    monkeypatch.setattr(workflow_runner, "WORKFLOW_NODE_TIMEOUT_SECONDS", 0.01)
+    run = await runner.run_workflow(workflow, "alice", trigger_type="schedule")
+
+    assert run.status == "failed"
+    assert run.node_runs[0].status == "failed"
+    assert run.node_runs[0].error_code == "WORKFLOW_NODE_TIMEOUT"
+    assert service.get_run(workflow.id, run.id, "alice").status == "failed"
+
+
+# contract-test: direct surface=rest_api assertions=workflows.execution.lifecycle-visible
+def test_reconciled_run_does_not_expose_a_permanently_running_node() -> None:
+    service = workflow_service()
+    record = {"id": "run-1", "workflow_id": "workflow-1", "version_id": "version-1",
+              "trigger_type": "manual", "status": "failed", "finished_at": 123,
+              "error_summary": "Workflow execution timed out", "node_statuses": [{
+                  "id": "node-run-1", "run_id": "run-1", "workflow_id": "workflow-1",
+                  "node_id": "weather", "node_type": "app_skill_action", "status": "running",
+              }]}
+
+    run = service._run_detail_from_record(record, vault_key_id=None)
+
+    assert run.node_runs[0].status == "failed"
+    assert run.node_runs[0].finished_at == 123
+    assert run.node_runs[0].error_code == "WORKFLOW_RUN_TIMEOUT"
 
 
 # contract-test: direct surface=rest_api assertions=workflows.execution.lifecycle-visible

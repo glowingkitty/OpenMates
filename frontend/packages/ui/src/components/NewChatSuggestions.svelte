@@ -1,4 +1,9 @@
 <!--
+  Native Swift counterparts:
+  - apple/OpenMates/Sources/Features/Chat/Input/ComposerSearchSuggestions.swift
+  - apple/OpenMates/Sources/App/MainAppView.swift
+  - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+
   NewChatSuggestions.svelte — Horizontal suggestion cards for the new chat screen.
 
   Each card shows the app's color gradient background, a skill or app icon (white),
@@ -27,9 +32,13 @@
   import { locale } from 'svelte-i18n';
   import NewChatSuggestionContextMenu from './NewChatSuggestionContextMenu.svelte';
   import Icon from './Icon.svelte';
-  import { search as performSearch } from '../services/searchService';
+  import { search as performSearch, type EmbedSearchResult } from '../services/searchService';
+  import { searchSavedEmbedMemories, type SavedEmbedSuggestion } from '../services/embedSuggestionSearch';
+  import { appSettingsMemoriesStore } from '../stores/appSettingsMemoriesStore';
+  import { activeTeamId } from '../stores/teamStore';
   import { chatMetadataCache } from '../services/chatMetadataCache';
   import { getLucideIcon, getValidIconName, getFallbackIconForCategory, getCategoryGradientColors } from '../utils/categoryUtils';
+  import { getAppGradientBackground } from './activeChatUtils';
   import { INTRO_CHATS, LEGAL_CHATS, getAllExampleChats, translateDemoChats, convertDemoChatToChat } from '../demo_chats';
   import { embedStore, type UploadedFileSearchResult } from '../services/embedStore';
 
@@ -65,12 +74,14 @@
     onSuggestionClick,
     onChatNavigate,
     onFileSelect,
+    onEmbedSelect,
     messageInputContent = '',
     selectedInterestTagIds = []
   }: {
     onSuggestionClick: (suggestion: string) => void;
     onChatNavigate: (chatId: string) => void;
     onFileSelect: (file: UploadedFileSearchResult) => void;
+    onEmbedSelect: (embedId: string, settingsPath?: string) => void;
     messageInputContent?: string;
     selectedInterestTagIds?: InterestTagId[];
   } = $props();
@@ -173,6 +184,8 @@
   }
   let chatSearchResults = $state<ChatResultCard[]>([]);
   let fileSearchResults = $state<UploadedFileSearchResult[]>([]);
+  let savedEmbedResults = $state<SavedEmbedSuggestion[]>([]);
+  let recentEmbedResults = $state<EmbedSearchResult[]>([]);
 
   function getPublicSearchChats(): Chat[] {
     const translatedPublicChats = translateDemoChats([...INTRO_CHATS, ...LEGAL_CHATS]).map(convertDemoChatToChat);
@@ -215,9 +228,17 @@
    */
   $effect(() => {
     const query = filterQuery;
+    savedEmbedResults = query && $authStore.isAuthenticated
+      ? searchSavedEmbedMemories($appSettingsMemoriesStore, query)
+      : [];
+  });
+
+  $effect(() => {
+    const query = filterQuery;
     if (!query) {
       chatSearchResults = [];
       fileSearchResults = [];
+      recentEmbedResults = [];
       return;
     }
 
@@ -226,18 +247,24 @@
     activeSearchController = controller;
     const { signal } = controller;
     const textFn = get(text);
+    const isAuthenticated = $authStore.isAuthenticated;
+    const contextTeamId = $activeTeamId;
 
     (async () => {
       try {
         const publicChats = getPublicSearchChats();
         let allChats = publicChats;
-        if ($authStore.isAuthenticated) {
+        if (isAuthenticated) {
           await chatDB.init();
           signal.throwIfAborted();
-          allChats = uniqueChatsById([...publicChats, ...(await chatDB.getAllChats())]);
+          const visibleChats = (await chatDB.getAllChats()).filter((chat) =>
+            !chat.is_hidden && !chat.is_hidden_candidate &&
+            (chat.team_id ?? null) === contextTeamId,
+          );
+          allChats = uniqueChatsById([...publicChats, ...visibleChats]);
         }
         const [results, fileResults] = await Promise.all([
-          performSearch(query, allChats, textFn, [], $authStore.isAuthenticated, false, signal),
+          performSearch(query, allChats, textFn, [], isAuthenticated, false, signal, true),
           embedStore.searchUploadedFiles(query, undefined, signal),
         ]);
         // Stale guard — a newer search was triggered while this one ran
@@ -249,7 +276,7 @@
         const processed = await Promise.all(
           userChatResults.slice(0, MAX_CHAT_RESULTS).map(async (result) => {
             const isPublicResult = publicChats.some((chat) => chat.chat_id === result.chat.chat_id);
-            const metadata = $authStore.isAuthenticated && !isPublicResult
+            const metadata = isAuthenticated && !isPublicResult
               ? await chatMetadataCache.getDecryptedMetadata(result.chat)
               : null;
             const category = metadata?.category || result.chat.category || 'general_knowledge';
@@ -273,12 +300,15 @@
         if (signal.aborted || gen !== searchGeneration) return;
         chatSearchResults = processed;
         fileSearchResults = fileResults;
+        const savedIds = new Set(savedEmbedResults.map((entry) => entry.embedId));
+        recentEmbedResults = results.embeds.filter((entry) => !savedIds.has(entry.embedId));
       } catch (error) {
         if (signal.aborted || (error instanceof DOMException && error.name === 'AbortError')) return;
         console.error('[NewChatSuggestions] Chat search error:', error);
         if (gen === searchGeneration) {
           chatSearchResults = [];
           fileSearchResults = [];
+          recentEmbedResults = [];
         }
       }
     })();
@@ -492,7 +522,8 @@
 
     // Graceful fallback: if filter matches nothing AND no search results found, show all (not empty).
     // When chat results exist, an empty suggestion filter is fine — the chat cards fill the gap.
-    const pool = (filterQuery && filtered.length === 0 && chatSearchResults.length === 0 && fileSearchResults.length === 0) ? parsed : filtered;
+    const pool = (filterQuery && filtered.length === 0 && chatSearchResults.length === 0 &&
+      fileSearchResults.length === 0 && savedEmbedResults.length === 0 && recentEmbedResults.length === 0) ? parsed : filtered;
 
     return pool.slice(0, VISIBLE_COUNT);
   });
@@ -503,6 +534,8 @@
     !loading &&
     chatSearchResults.length === 0 &&
     fileSearchResults.length === 0 &&
+    savedEmbedResults.length === 0 &&
+    recentEmbedResults.length === 0 &&
     fullSuggestionsWithEncrypted
       .filter(s => !hiddenSuggestionTexts.has(s.text))
       .every(s => {
@@ -669,7 +702,7 @@
   }
 </script>
 
-{#if !loading && (visibleSuggestions.length > 0 || chatSearchResults.length > 0 || fileSearchResults.length > 0)}
+{#if !loading && (visibleSuggestions.length > 0 || chatSearchResults.length > 0 || fileSearchResults.length > 0 || savedEmbedResults.length > 0 || recentEmbedResults.length > 0)}
   <div class="suggestions-wrapper" data-testid="suggestions-wrapper" class:fade-out={fadeState === 'fading-out'} class:fade-in={fadeState === 'fading-in'}>
     <div class="suggestions-header">
       {#key currentLocale}
@@ -681,6 +714,27 @@
       {/key}
     </div>
     <div class="suggestions-scroll">
+      {#each savedEmbedResults as embed (embed.embedId)}
+        <div class="chat-result-wrapper">
+          <button class="suggestion-card embed-result-card" data-testid="saved-embed-search-result" data-app-id={embed.appId} style:background={getAppGradientBackground(embed.appId)} onclick={() => onEmbedSelect(embed.embedId, embed.settingsPath)}>
+            <span class="card-icon"><Icon name={embed.appId} type="app" size="24px" noAnimation noMargin /></span>
+            <span class="card-text">{embed.title}</span>
+          </button>
+          <span class="card-date">{embed.subtitle || embed.appId}</span>
+        </div>
+      {/each}
+      {#each recentEmbedResults as embed (embed.embedId)}
+        <div class="chat-result-wrapper">
+          <button class="suggestion-card embed-result-card" data-testid="recent-embed-search-result" data-app-id={embed.appId || ''} style:background={getAppGradientBackground(embed.appId)} onclick={() => onEmbedSelect(embed.embedId)}>
+            <span class="card-icon"><Icon name={embed.appId || 'search'} type={embed.appId ? 'app' : 'skill'} size="24px" noAnimation noMargin /></span>
+            <span class="card-text">{embed.title}</span>
+          </button>
+          <span class="card-date">{embed.subtitle}</span>
+        </div>
+      {/each}
+      {#if (savedEmbedResults.length > 0 || recentEmbedResults.length > 0) && (chatSearchResults.length > 0 || visibleSuggestions.length > 0 || fileSearchResults.length > 0)}
+        <div class="chat-results-divider"></div>
+      {/if}
       <!-- Existing chat search results (shown when user types a search query) -->
       {#if chatSearchResults.length > 0}
         {#each chatSearchResults as chatResult (chatResult.chatId)}

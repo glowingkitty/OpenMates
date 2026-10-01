@@ -18,7 +18,7 @@
     introBannerVisible,
   } from "../stores/uiStateStore"; // Import mobile view state and login interface visibility
   import { authStore } from "../stores/authStore"; // Import auth store to check login status
-  import { signupFreeTestingCreditsPromotion } from "../stores/serverStatusStore";
+  import { initializeServerStatus, serverStatusStore, signupFreeTestingCreditsPromotion } from "../stores/serverStatusStore";
   import {
     featureAvailabilityStore,
     initializeFeatureAvailability,
@@ -63,8 +63,7 @@
     onPrimaryCta?: () => void;
   } = $props();
 
-  // Server edition state - will be fetched on mount
-  let serverEdition = $state<string | null>(null);
+  let serverEdition = $derived($serverStatusStore.status?.server_edition ?? null);
   let serverEditionLabel = $derived(
     publicationLabel ??
       (serverEdition === "self_hosted"
@@ -108,7 +107,7 @@
     workspaceHash = typeof window === "undefined" ? pageHash : window.location.hash;
   });
   let workspaceHashParams = $derived(
-    new URLSearchParams(workspaceHash.replace(/^#\/?(?:workflows|projects|plans|tasks)&?/, "")),
+    new URLSearchParams(workspaceHash.replace(/^#\/?/, "").replace(/^(?:workflows|projects|plans|tasks)(?:&|$)/, "")),
   );
   let workspaceHashMarker = $derived(
     workspaceHash.replace(/^#\/?/, "").split("&", 1)[0],
@@ -131,11 +130,17 @@
       workspaceHashParams.has("task-id") ||
       workspaceHashParams.has("plan-id"),
   );
+  let isAppsRoute = $derived(
+    page.url.pathname.startsWith("/apps") ||
+      workspaceHashMarker === "apps" ||
+      workspaceHashMarker.startsWith("apps/"),
+  );
   let isChatsRoute = $derived(
     page.url.pathname === "/" &&
       !isProjectsRoute &&
       !isWorkflowsRoute &&
-      !isTasksRoute,
+      !isTasksRoute &&
+      !isAppsRoute,
   );
   let disabledFeatures = $derived($featureAvailabilityStore.disabledById);
   let chatsEnabled = $derived(
@@ -165,7 +170,16 @@
           },
         ]
       : []),
-    ...(projectsEnabled
+    {
+      id: "/#apps",
+      href: "/#apps",
+      testId: "apps-nav-link",
+      label: $text("common.apps"),
+      iconClass: "app-icon" as const,
+      active: isAppsRoute,
+      disabled: false,
+    },
+    ...(isLoggedIn && projectsEnabled
       ? [
           {
             id: "/#projects",
@@ -178,20 +192,7 @@
           },
         ]
       : []),
-    ...(workflowsEnabled
-      ? [
-          {
-            id: "/#workflows",
-            href: "/#workflows",
-            testId: "workflows-nav-link",
-            label: $text("navigation.workflows"),
-            iconClass: "workflow-icon" as const,
-            active: isWorkflowsRoute,
-            disabled: false,
-          },
-        ]
-      : []),
-    ...(tasksEnabled
+    ...(isLoggedIn && tasksEnabled
       ? [
           {
             id: "/#tasks",
@@ -200,6 +201,19 @@
             label: $text("navigation.tasks"),
             iconClass: "task-icon" as const,
             active: isTasksRoute,
+            disabled: false,
+          },
+        ]
+      : []),
+    ...(isLoggedIn && workflowsEnabled
+      ? [
+          {
+            id: "/#workflows",
+            href: "/#workflows",
+            testId: "workflows-nav-link",
+            label: $text("navigation.workflows"),
+            iconClass: "workflow-icon" as const,
+            active: isWorkflowsRoute,
             disabled: false,
           },
         ]
@@ -380,24 +394,7 @@
     window.addEventListener("resize", checkMobile);
 
     if (!publicationLabel) {
-      // Fetch server status to display server edition (async, fire and forget)
-      (async () => {
-        try {
-          const { getApiEndpoint } = await import("../config/api");
-          const response = await fetch(
-            getApiEndpoint("/v1/settings/server-status"),
-          );
-          if (response.ok) {
-            const status = await response.json();
-            // Use server_edition from request-based validation (includes "development" for dev subdomains)
-            // server_edition can be: "production" | "development" | "self_hosted"
-            serverEdition = status.server_edition || null;
-            // server_edition detection logged for debugging: production | development | self_hosted
-          }
-        } catch (error) {
-          console.error("[Header] Error fetching server status:", error);
-        }
-      })();
+      void initializeServerStatus();
 
       initializeFeatureAvailability().catch((error) => {
         console.warn(
@@ -491,6 +488,7 @@
 
 <header
   bind:this={headerDiv}
+  data-testid="global-header"
   class:webapp={context === "webapp"}
   class:publication={!!publicationLabel}
 >
@@ -639,7 +637,7 @@
             <a href="/docs" class="docs-tab active">{$text("common.docs")}</a>
             <a href="/" class="docs-tab">{$text("common.chat")}</a>
           </div>
-        {:else if WORKSPACE_SWITCHER_ENABLED && context === "webapp" && isLoggedIn && webappWorkspaceTabs.length >= 2}
+        {:else if WORKSPACE_SWITCHER_ENABLED && context === "webapp" && webappWorkspaceTabs.length >= 2}
           <div class="webapp-center-tabs">
             <IconTabBar
               items={webappWorkspaceTabs}
@@ -677,6 +675,7 @@
             class="right-section"
             class:hidden={!publicationLabel &&
               (context !== "webapp" ||
+                isLoggedIn ||
                 $authStore.isAuthenticated ||
                 $loginInterfaceOpen)}
             class:signup-cta-hidden={!publicationLabel && $introBannerVisible}
@@ -745,6 +744,7 @@
   /* Update webapp header styles */
   header.webapp {
     position: relative;
+    padding-block: var(--spacing-4);
   }
 
   .container {
@@ -764,6 +764,7 @@
   /* Remove max-width constraint for webapp navigation */
   nav.webapp {
     max-width: none;
+    min-height: 2.75rem;
   }
 
   .left-section {
@@ -1222,6 +1223,11 @@
     mask-image: url("@openmates/ui/static/icons/projectmanagement.svg");
   }
 
+  .app-icon {
+    -webkit-mask-image: url("@openmates/ui/static/icons/app.svg");
+    mask-image: url("@openmates/ui/static/icons/app.svg");
+  }
+
   .workspace-select-shell {
     display: none;
     align-items: center;
@@ -1282,7 +1288,7 @@
 
   @media (max-width: 894px) {
     nav.webapp {
-      min-height: 36px;
+      min-height: 2.75rem;
     }
 
     header.webapp .logo-link :global(strong) {
@@ -1315,7 +1321,7 @@
 
   @container main-content (max-width: 894px) {
     nav.webapp {
-      min-height: 36px;
+      min-height: 2.75rem;
     }
 
     header.webapp .logo-link :global(strong) {

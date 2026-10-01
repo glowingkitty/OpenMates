@@ -1,1 +1,17 @@
-{"webcredentials":{"apps":["Z9B2YFKN2X.org.openmates.app"]}}
+{
+  "webcredentials": {
+    "apps": ["Z9B2YFKN2X.org.openmates.app"]
+  },
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["Z9B2YFKN2X.org.openmates.app"],
+        "components": [
+          { "/": "/s" },
+          { "/": "/s/*" },
+          { "/": "/share/workflow-template/*" }
+        ]
+      }
+    ]
+  }
+}

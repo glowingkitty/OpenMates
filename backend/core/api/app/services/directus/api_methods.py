@@ -164,7 +164,8 @@ async def _make_api_request(self, method, url, headers=None, **kwargs):
     raise HTTPException(status_code=500, detail="Maximum retry attempts reached")
 
 
-async def create_item(self, collection: str, payload: dict, admin_required: bool = False):
+async def create_item(self, collection: str, payload: dict, admin_required: bool = False,
+                      *, expected_unique_conflict_field: str | None = None):
     """
     Creates a new item in a specified Directus collection.
 
@@ -174,6 +175,8 @@ async def create_item(self, collection: str, payload: dict, admin_required: bool
         payload: A dictionary containing the item data to be created.
         admin_required: Whether to use admin authentication for this request.
             Use True for internal/analytics collections that require admin privileges.
+        expected_unique_conflict_field: A unique field whose duplicate insert is
+            handled by the caller's idempotent lookup. Other failures stay errors.
 
     Returns:
         A tuple (bool, dict): (True, created_item_data) on success,
@@ -209,6 +212,16 @@ async def create_item(self, collection: str, payload: dict, admin_required: bool
         else:
             # Log error if creation failed
             error_details = {"status_code": response.status_code, "text": response.text}
+            if response.status_code == 400 and expected_unique_conflict_field:
+                errors = response.json().get("errors", [])
+                if errors and all(
+                    error.get("extensions", {}).get("code") == "RECORD_NOT_UNIQUE"
+                    and error.get("extensions", {}).get("field") == expected_unique_conflict_field
+                    and error.get("extensions", {}).get("collection") == collection
+                    for error in errors
+                ):
+                    logger.info("Idempotent insert conflict in '%s'; caller will verify the existing row", collection)
+                    return False, error_details
             logger.error(f"Failed to create item in '{collection}'. Status: {response.status_code}, Response: {response.text}")
             return False, error_details
 

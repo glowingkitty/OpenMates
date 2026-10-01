@@ -10,7 +10,10 @@ from __future__ import annotations
 
 from enum import Enum
 import re
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
+
+if TYPE_CHECKING:
+    from backend.core.api.app.services.workflow_capability_registry import WorkflowCapabilityRegistry
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -250,6 +253,8 @@ class WorkflowSummary(BaseModel):
 
 class WorkflowDetail(WorkflowSummary):
     graph: WorkflowGraph
+    binding_requirements: list[dict[str, Any]] = Field(default_factory=list)
+    completed_binding_requirements: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class WorkflowVersionSummary(BaseModel):
@@ -293,6 +298,7 @@ class WorkflowRunSummary(BaseModel):
     status: WorkflowRunStatus
     started_at: int | None = None
     finished_at: int | None = None
+    wait_expires_at: int | None = None
     error_summary: str | None = None
     cost_summary: dict[str, Any] = Field(default_factory=dict)
     content_retention_mode: WorkflowRunContentRetention = WorkflowRunContentRetention.LAST_5
@@ -436,7 +442,10 @@ def _validate_builder_graph(graph: WorkflowGraph, nodes_by_id: dict[str, Workflo
                 raise WorkflowValidationError(f"Step {node.id} references an unavailable upstream step: {source}")
 
 
-def validate_workflow_composition_refs(graph: WorkflowGraph, prior_graph: WorkflowGraph | None = None) -> None:
+def validate_workflow_composition_refs(
+    graph: WorkflowGraph, prior_graph: WorkflowGraph | None = None, *,
+    allow_data_dependencies: bool = False,
+) -> None:
     """Validate authored text on save while allowing unchanged legacy block definitions to remain readable."""
     if graph.version < 2:
         return
@@ -446,7 +455,7 @@ def validate_workflow_composition_refs(graph: WorkflowGraph, prior_graph: Workfl
     for edge in graph.edges:
         incoming[edge.to_node].add(edge.from_node)
 
-    def action_ancestors(node_id: str) -> set[str]:
+    def all_ancestors(node_id: str) -> set[str]:
         visited: set[str] = set()
         pending = list(incoming[node_id])
         while pending:
@@ -455,7 +464,30 @@ def validate_workflow_composition_refs(graph: WorkflowGraph, prior_graph: Workfl
                 continue
             visited.add(candidate)
             pending.extend(incoming[candidate])
-        return {candidate for candidate in visited if nodes[candidate].type == WorkflowNodeType.APP_SKILL_ACTION}
+        return visited
+
+    def action_ancestors(node_id: str) -> set[str]:
+        return {candidate for candidate in all_ancestors(node_id)
+                if nodes[candidate].type == WorkflowNodeType.APP_SKILL_ACTION}
+
+    def output_source(value: Any, node_id: str) -> str | None:
+        if not isinstance(value, str):
+            return None
+        match = re.fullmatch(r"\$nodes\.([A-Za-z0-9_-]+)\.output\.[A-Za-z0-9_.-]+", value)
+        if not match:
+            return None
+        source = match.group(1)
+        return source if source in action_ancestors(node_id) else None
+
+    def predicate_sources(value: Any, node_id: str) -> set[str]:
+        if isinstance(value, str):
+            source = output_source(value, node_id)
+            return {source} if source else set()
+        if isinstance(value, dict):
+            return set().union(*(predicate_sources(item, node_id) for item in value.values()))
+        if isinstance(value, list):
+            return set().union(*(predicate_sources(item, node_id) for item in value))
+        return set()
 
     for node in graph.nodes:
         earlier_actions = action_ancestors(node.id)
@@ -475,6 +507,23 @@ def validate_workflow_composition_refs(graph: WorkflowGraph, prior_graph: Workfl
                 text,
             )
         }
+        if allow_data_dependencies and node.type == WorkflowNodeType.CHECK:
+            selected = node.config.get("selected_inputs") or []
+            if any(output_source(reference, node.id) is None for reference in selected):
+                raise WorkflowValidationError(f"Step {node.id}: selected inputs must reference an earlier action output")
+            visible_sources.update(output_source(reference, node.id) for reference in selected)
+        if allow_data_dependencies and node.type == WorkflowNodeType.SEND_CHAT_MESSAGE:
+            blocks = node.config.get("blocks") or []
+            if any(output_source(block.get("source"), node.id) is None for block in blocks):
+                raise WorkflowValidationError(f"Step {node.id}: result blocks must reference an earlier action output")
+            visible_sources.update(output_source(block.get("source"), node.id) for block in blocks)
+            # A fixed message can be the notification chosen by an upstream check.
+            check_ancestors = {candidate for candidate in nodes if nodes[candidate].type == WorkflowNodeType.CHECK
+                               and candidate in all_ancestors(node.id)}
+            for check_id in check_ancestors:
+                check = nodes[check_id]
+                condition = check.config.get("selected_inputs") if check.config.get("mode") == "ai" else check.config.get("predicate")
+                visible_sources.update(predicate_sources(condition, check_id))
         if visible_sources.intersection(earlier_actions):
             continue
         prior_node = prior_nodes.get(node.id)
@@ -486,7 +535,10 @@ def validate_workflow_composition_refs(graph: WorkflowGraph, prior_graph: Workfl
         raise WorkflowValidationError(f"Step {node.id}: insert a variable from an earlier action into the text")
 
 
-def validate_workflow_readiness(graph: WorkflowGraph, *, require_schedule: bool = False) -> None:
+def validate_workflow_readiness(
+    graph: WorkflowGraph, *, require_schedule: bool = False,
+    capability_registry: WorkflowCapabilityRegistry | None = None,
+) -> None:
     """Require a runnable path; only scheduled activation requires a trigger."""
     if require_schedule and not any(
         node.id == graph.trigger_node_id and node.type == WorkflowNodeType.SCHEDULE_TRIGGER
@@ -501,7 +553,7 @@ def validate_workflow_readiness(graph: WorkflowGraph, *, require_schedule: bool 
                 "Edit this workflow to use time/date, app skills, Check and Send message before running it."
             )
     if graph.version >= 2:
-        _validate_builder_execution_inputs(graph)
+        _validate_builder_execution_inputs(graph, capability_registry=capability_registry)
     incoming = {edge.to_node for edge in graph.edges}
     roots = [node.id for node in graph.nodes if node.id not in incoming]
     start = graph.trigger_node_id or (roots[0] if len(roots) == 1 else None)
@@ -527,7 +579,9 @@ def validate_workflow_readiness(graph: WorkflowGraph, *, require_schedule: bool 
 
 
 
-def _validate_builder_execution_inputs(graph: WorkflowGraph) -> None:
+def _validate_builder_execution_inputs(
+    graph: WorkflowGraph, *, capability_registry: WorkflowCapabilityRegistry | None = None,
+) -> None:
     """Preflight the bounded authoring contract before any charged skill dispatch.
 
     Draft storage and historical inspection deliberately do not call this. Schema
@@ -536,7 +590,7 @@ def _validate_builder_execution_inputs(graph: WorkflowGraph) -> None:
     from backend.core.api.app.services.workflow_capability_registry import WorkflowCapabilityRegistry, _matches_schema
     from backend.core.api.app.services.workflow_runtime_values import resolve_workflow_runtime_values
 
-    registry = WorkflowCapabilityRegistry()
+    registry = capability_registry or WorkflowCapabilityRegistry()
     outputs: dict[str, dict[str, Any]] = {}
     inputs: dict[str, dict[str, Any]] = {}
     modern_types = {WorkflowNodeType.SCHEDULE_TRIGGER, WorkflowNodeType.MANUAL_TRIGGER,
@@ -919,13 +973,26 @@ def _validate_node_config(node: WorkflowNode) -> None:
         if not app_id or not skill_id:
             raise WorkflowValidationError("App skill action nodes require app_id and skill_id")
         if (app_id, skill_id) == ("ai", "ask"):
+            if node.input_mapping:
+                raise WorkflowValidationError("Ask AI inputs must be inserted into its instruction")
             authored = node.config.get("input")
             prompt = authored.get("prompt") if isinstance(authored, dict) else None
             if not isinstance(prompt, str) or not prompt.strip() or len(prompt) > 4_000:
                 raise WorkflowValidationError("Ask AI requires one bounded text instruction")
-            unsupported = set(authored) - {"prompt"}
+            model = authored.get("model", "auto")
+            if not isinstance(model, str) or not model.strip() or len(model) > 200:
+                raise WorkflowValidationError("Ask AI model must be Auto or an available chat model")
+            if model != "auto":
+                if "/" not in model:
+                    raise WorkflowValidationError("Ask AI model must be provider-qualified")
+                from backend.core.api.app.utils.config_manager import ConfigManager
+                provider_id, model_id = model.split("/", 1)
+                model_config = ConfigManager().get_model_pricing(provider_id, model_id)
+                if not model_config or model_config.get("id") != model_id or model_config.get("for_app_skill") != "ai.ask" or "text" not in (model_config.get("output_types") or []):
+                    raise WorkflowValidationError("Ask AI model is unavailable")
+            unsupported = set(authored) - {"prompt", "model"}
             if unsupported:
-                raise WorkflowValidationError("Ask AI accepts only its instruction; tools, conversation and provider controls are unavailable")
+                raise WorkflowValidationError("Ask AI accepts only its instruction and model; tools and conversation are unavailable")
     elif node.type in {WorkflowNodeType.DECISION, WorkflowNodeType.CHECK}:
         mode = node.config.get("mode", "exact") if node.type == WorkflowNodeType.CHECK else "exact"
         if mode not in {"exact", "ai"}:

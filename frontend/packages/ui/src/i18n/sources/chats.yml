@@ -495,6 +495,38 @@ chat.sub_chats.tap_to_open:
   sv: Tryck för att öppna underchatten
   he: הקש כדי לפתוח את תת-הצ'אט
 
+chat.sub_chats.batch_loading:
+  context: Loading label in an inline sub-chat batch while child records sync.
+  en: Loading sub-chats...
+
+chat.sub_chats.autonomous_task:
+  context: Fallback title for a sub-chat preview card without a decrypted title.
+  en: Autonomous Task
+
+chat.sub_chats.status_completed:
+  context: Status pill on a completed sub-chat preview card.
+  en: Completed
+
+chat.sub_chats.status_needs_attention:
+  context: Status pill on a failed sub-chat preview card.
+  en: Needs attention
+
+chat.sub_chats.status_stopped:
+  context: Status pill on a stopped sub-chat preview card.
+  en: Stopped
+
+chat.sub_chats.status_thinking:
+  context: Status pill on an active sub-chat preview card; name is the mate or task title.
+  en: '{name} is thinking...'
+
+chat.sub_chats.status_waiting:
+  context: Status pill on a sequential sub-chat preview card waiting its turn.
+  en: Waiting its turn
+
+chat.sub_chats.status_queued:
+  context: Status pill on a queued sub-chat preview card.
+  en: Queued
+
 chat.sub_chats.start_first:
   context: Button to approve only the first few proposed sub-chats. {count} is the number to approve.
   en: Start first {count}

@@ -428,7 +428,9 @@ private struct ComposerAudioPreview: View {
             appId: "audio",
             title: content.title ?? AppStrings.audioRecording,
             subtitle: subtitle,
-            trailingAction: player.isAvailable && lifecycle == .finished
+            // A completed local recording remains playable after its upload fails.
+            // Retry/removal govern the upload; playback uses the retained bytes.
+            trailingAction: player.isAvailable && (lifecycle == .finished || lifecycle == .error)
                 ? AnyView(audioPlayButton)
                 : nil
         ) {

@@ -337,6 +337,9 @@ export function buildPrivacyPolicyContent(
   renderProvider("legal.privacy.providers.web_and_search.firecrawl", privacyPolicyLinks.firecrawl);
   renderProvider("legal.privacy.providers.web_and_search.iconify", privacyPolicyLinks.iconify);
   renderProvider("legal.privacy.providers.web_and_search.webshare", privacyPolicyLinks.webshare);
+  lines.push(t("legal.privacy.providers.web_and_search.webshare.domain_fallback"));
+  lines.push("");
+  renderProvider("legal.privacy.providers.web_and_search.gandi", privacyPolicyLinks.gandi);
   renderProvider("legal.privacy.providers.web_and_search.google_maps", privacyPolicyLinks.googleMaps);
   renderProvider("legal.privacy.providers.web_and_search.geoapify", privacyPolicyLinks.geoapify);
   renderProvider("legal.privacy.providers.web_and_search.wikimedia", privacyPolicyLinks.wikimedia);

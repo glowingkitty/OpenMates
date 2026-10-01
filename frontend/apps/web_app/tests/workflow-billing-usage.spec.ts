@@ -39,7 +39,7 @@ test.describe('Billing usage landing page', () => {
 					days: [
 						{
 							date: today,
-							total_credits: 38,
+							total_credits: 52,
 							items: [
 								{
 									type: 'incognito',
@@ -62,6 +62,16 @@ test.describe('Billing usage landing page', () => {
 									total_credits: 8,
 									entry_count: 1,
 									updated_at: 1_757_851_207
+								},
+								{
+									type: 'app',
+									chat_id: null,
+									api_key_hash: null,
+									app_id: 'workflows',
+									skill_id: 'create-or-modify',
+									total_credits: 14,
+									entry_count: 2,
+									updated_at: 1_757_851_206
 								},
 								{
 									type: 'api_key',
@@ -144,11 +154,12 @@ test.describe('Billing usage landing page', () => {
 				body: JSON.stringify({
 					summaries: [
 						{ app_id: 'weather', year_month: month, total_credits: 7 },
-						{ app_id: 'web', year_month: month, total_credits: 5 }
+						{ app_id: 'web', year_month: month, total_credits: 5 },
+						{ app_id: 'workflows', year_month: month, total_credits: 14 }
 					],
 					type: 'apps',
 					months: 3,
-					count: 2
+					count: 3
 				})
 			});
 		});
@@ -177,7 +188,13 @@ test.describe('Billing usage landing page', () => {
 		await expect(workflowRows.nth(1)).toContainText(/search/i);
 		await expect(workflowRows.nth(0)).toContainText(/1 request/i);
 
-		const appRow = settingsMenu.getByTestId('usage-overview-app-row');
+		const allAppRows = settingsMenu.getByTestId('usage-overview-app-row');
+		await expect(allAppRows).toHaveCount(2);
+		const appRow = allAppRows.filter({ hasText: /audio/i });
+		const authoringRow = allAppRows.filter({ hasText: /workflows/i });
+		await expect(authoringRow).toContainText(/create or modify workflow/i);
+		await expect(authoringRow).toContainText(/14\s*credits/i);
+		await expect(authoringRow).toContainText(/2 requests/i);
 		await expect(appRow).toContainText(/audio/i);
 		await expect(appRow).toContainText(/transcript/i);
 		await expect(appRow).toContainText(/interrupted recording/i);
@@ -195,13 +212,14 @@ test.describe('Billing usage landing page', () => {
 		await expect(otherRows.nth(1)).toContainText(/original context unavailable/i);
 		await expect(settingsMenu.getByTestId('usage-overview-chat-row')).toContainText(/incognito/i);
 		await expect(settingsMenu.getByTestId('usage-overview-day-heading')).toContainText(
-			/38\s*credits/i
+			/52\s*credits/i
 		);
 
 		await settingsMenu.getByTestId('settings-tab-apps').click();
 		const appRows = settingsMenu.getByTestId('usage-app-summary-row');
-		await expect(appRows).toHaveCount(2);
-		await expect(appRows.nth(0)).toContainText(/weather/i);
-		await expect(appRows.nth(1)).toContainText(/web/i);
+		await expect(appRows).toHaveCount(3);
+		await expect(appRows.filter({ hasText: /weather/i })).toContainText(/weather/i);
+		await expect(appRows.filter({ hasText: /web/i })).toContainText(/web/i);
+		await expect(appRows.filter({ hasText: /workflows/i })).toContainText(/workflows/i);
 	});
 });

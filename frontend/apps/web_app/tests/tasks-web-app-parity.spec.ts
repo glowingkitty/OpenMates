@@ -10,6 +10,7 @@
 const { expect, test } = require('./helpers/cookie-audit');
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { skipIfFeaturesDisabled } = require('./helpers/env-guard');
+const { seedLegacyTaskLink } = require('./helpers/legacy-user-task-fixture');
 const { createSignupLogger, createStepScreenshotter, getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
 
 const TASK_STATUSES = ['backlog', 'todo', 'in_progress', 'blocked', 'done'];
@@ -19,6 +20,126 @@ function taskCardIn(column: any, title: string): any {
 }
 
 test.describe('Tasks web app parity', () => {
+	// contract-test: direct surface=gui.web assertions=tasks.lifecycle.visible,tasks.external-chat.encrypted-context,tasks.surface.semantic-parity
+	test('persists a drag to Done for a historical external-chat task without changing its encrypted link', async ({ page }) => {
+		test.setTimeout(150_000);
+		test.skip(!getTestAccount().email, 'Test account credentials required.');
+		await skipIfFeaturesDisabled(test, page, ['platform:tasks']);
+		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		await loginToTestAccount(page, () => {}, async () => {});
+		await page.goto(getE2EDebugUrl('/tasks'), { waitUntil: 'domcontentloaded' });
+		const title = `Historical task drag ${Date.now()}`;
+		await page.getByTestId('task-workspace-input').fill(title);
+		const [created] = await Promise.all([
+			page.waitForResponse((response) => response.request().method() === 'POST' && response.url().endsWith('/v1/user-tasks')),
+			page.getByTestId('task-workspace-submit').click(),
+		]);
+		expect(created.ok()).toBe(true);
+		const { task: newTask } = await created.json();
+		const tasksUrl = new URL('/v1/user-tasks', created.url()).toString();
+		const taskUrl = `${tasksUrl}/${newTask.task_id}`;
+		const readTask = async () => {
+			const response = await page.request.get(taskUrl);
+			expect(response.ok()).toBe(true);
+			return (await response.json()).task;
+		};
+		try {
+			seedLegacyTaskLink(newTask.task_id);
+			const legacyTask = await readTask();
+			const legacyLink = {
+				external_chat_provider: 'opencode',
+				external_chat_lookup_hash: 'c'.repeat(64),
+				encrypted_external_chat_id: newTask.encrypted_title,
+				encrypted_external_chat_title: newTask.encrypted_title,
+			};
+			expect(legacyTask).toMatchObject(legacyLink);
+			// Verify the reported failing REST action before exercising browser drag.
+			const completed = await page.request.post(`${taskUrl}/complete`, { data: { version: legacyTask.version } });
+			expect(completed.ok()).toBe(true);
+			const completedTask = await readTask();
+			expect(completedTask).toMatchObject({ ...legacyLink, status: 'done' });
+			const reset = await page.request.post(`${tasksUrl}/reorder`, {
+				data: { moves: [{ task_id: newTask.task_id, version: completedTask.version, status: 'todo', position: 0 }] },
+			});
+			expect(reset.ok()).toBe(true);
+			await page.reload({ waitUntil: 'domcontentloaded' });
+			const card = taskCardIn(page.getByTestId('task-column-todo'), title);
+			await expect(card).toBeVisible({ timeout: 30_000 });
+			const [completeResponse, reorderResponse] = await Promise.all([
+				page.waitForResponse((response) => response.request().method() === 'POST' && response.url() === `${taskUrl}/complete`),
+				page.waitForResponse((response) => response.request().method() === 'POST' && response.url() === `${tasksUrl}/reorder`),
+				card.getByTestId('task-card-open').dragTo(page.getByTestId('task-column-done'), { targetPosition: { x: 80, y: 20 } }),
+			]);
+			expect(completeResponse.ok()).toBe(true);
+			expect(reorderResponse.ok()).toBe(true);
+			await expect(taskCardIn(page.getByTestId('task-column-done'), title)).toBeVisible();
+			await expect(page.getByText('Failed to update task', { exact: true })).toHaveCount(0);
+			expect(await readTask()).toMatchObject({ ...legacyLink, status: 'done', encrypted_title: newTask.encrypted_title });
+			await page.reload({ waitUntil: 'domcontentloaded' });
+			await expect(taskCardIn(page.getByTestId('task-column-done'), title)).toBeVisible({ timeout: 30_000 });
+		} finally {
+			const task = await readTask();
+			expect((await page.request.delete(`${taskUrl}?version=${task.version}`)).ok()).toBe(true);
+		}
+	});
+
+	// contract-test: supporting surface=gui.web assertions=tasks.content.client-encrypted,tasks.surface.semantic-parity,workspace-shell.start.chat-visual-parity
+	test('preserves a multiline workspace draft through collapse, expansion and encrypted submission', async ({ page }) => {
+		test.setTimeout(120_000);
+		test.skip(!getTestAccount().email, 'Test account credentials required.');
+		await skipIfFeaturesDisabled(test, page, ['platform:tasks']);
+		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		await loginToTestAccount(page, () => {}, async () => {});
+		await page.setViewportSize({ width: 390, height: 844 });
+		await page.goto(getE2EDebugUrl('/tasks'), { waitUntil: 'domcontentloaded' });
+		const composer = page.getByTestId('task-workspace-composer');
+		const input = page.getByTestId('task-workspace-input');
+		await expect(composer).toBeVisible({ timeout: 30_000 });
+		const restingHeight = (await composer.boundingBox())!.height;
+		const headline = `Multiline workspace draft ${Date.now()}`;
+		const draft = `${headline}\nInclude the weekly notes and follow up with the team.\nKeep these instructions together.`;
+		let taskId: string | null = null;
+		let tasksUrl = '';
+		try {
+			await input.fill(draft);
+			await input.press('Escape');
+			await expect(page.getByTestId('task-workspace-input-preview')).toHaveText(`${headline}…`);
+			await expect(input).toHaveValue(draft);
+			await expect.poll(async () => (await composer.boundingBox())!.height).toBe(restingHeight);
+			await input.click();
+			await page.getByTestId('task-workspace-input-expand').click();
+			await expect(page.getByTestId('task-workspace-input-expand')).toHaveAttribute('aria-expanded', 'true');
+			await expect(input).toHaveValue(draft);
+			await input.press('Escape');
+			const [response] = await Promise.all([
+				page.waitForResponse((candidate) => candidate.request().method() === 'POST' && candidate.url().endsWith('/v1/user-tasks')),
+				page.getByTestId('task-workspace-submit').click(),
+			]);
+			expect(response.ok()).toBe(true);
+			tasksUrl = new URL('/v1/user-tasks', response.url()).toString();
+			const payload = response.request().postDataJSON();
+			expect(payload.encrypted_title).toEqual(expect.any(String));
+			expect(JSON.stringify(payload)).not.toContain(headline);
+			const card = taskCardIn(page.getByTestId('task-column-todo'), headline);
+			await expect(card).toBeVisible({ timeout: 30_000 });
+			taskId = await card.getAttribute('data-task-id');
+			expect(taskId).toBeTruthy();
+			await expect(input).toHaveValue('');
+			await page.reload({ waitUntil: 'domcontentloaded' });
+			await expect(card).toBeVisible({ timeout: 30_000 });
+			await card.getByTestId('task-card-open').click();
+			await expect(page.getByTestId('task-detail-title')).toHaveText(draft);
+			await expect(page.getByTestId('workspace-detail-description')).toHaveText(draft);
+		} finally {
+			if (taskId) {
+				const current = await page.request.get(`${tasksUrl}/${taskId}`);
+				expect(current.ok()).toBe(true);
+				const { task } = await current.json();
+				expect((await page.request.delete(`${tasksUrl}/${taskId}?version=${task.version}`)).ok()).toBe(true);
+			}
+		}
+	});
+
 	// contract-test: supporting surface=gui.web assertions=tasks.content.client-encrypted,tasks.project-links.encrypted,tasks.surface.semantic-parity
 	test('creates project-scoped tasks from the compact Figma composer', async ({ page }) => {
 		test.setTimeout(150_000);
@@ -122,12 +243,17 @@ test.describe('Tasks web app parity', () => {
 		await expect(page.getByTestId('task-detail-fullscreen')).toBeVisible({ timeout: 15_000 });
 		await expect(page.getByTestId('task-detail-panel')).toBeVisible();
 		await expect(page.getByTestId('task-board')).toBeVisible();
-		const [boardBounds, detailBounds] = await Promise.all([
-			page.getByTestId('task-board').boundingBox(),
+		const [workspaceBounds, detailBounds, composerBounds] = await Promise.all([
+			page.getByTestId('tasks-figma-workspace').boundingBox(),
 			page.getByTestId('task-detail-panel').boundingBox(),
+			page.getByTestId('task-workspace-composer').boundingBox(),
 		]);
-		expect(boardBounds && detailBounds).toBeTruthy();
-		expect(boardBounds!.x + boardBounds!.width).toBeLessThanOrEqual(detailBounds!.x + 2);
+		expect(workspaceBounds && detailBounds && composerBounds).toBeTruthy();
+		expect(workspaceBounds!.x + workspaceBounds!.width).toBeLessThanOrEqual(detailBounds!.x + 2);
+		expect(Math.abs(workspaceBounds!.y - detailBounds!.y)).toBeLessThanOrEqual(2);
+		expect(detailBounds!.height).toBeGreaterThanOrEqual(workspaceBounds!.height - 2);
+		expect(composerBounds!.x).toBeGreaterThanOrEqual(workspaceBounds!.x - 1);
+		expect(composerBounds!.x + composerBounds!.width).toBeLessThanOrEqual(workspaceBounds!.x + workspaceBounds!.width + 1);
 		await expect(page.getByTestId('embed-header-title')).toContainText(taskTitle);
 		await page.getByTestId('task-detail-minimize').click();
 		await expect(page.getByTestId('task-detail-fullscreen')).toHaveCount(0, { timeout: 2_000 });
@@ -159,25 +285,28 @@ test.describe('Tasks web app parity', () => {
 				const body = JSON.parse(response.request().postData() ?? '{}');
 				return Array.isArray(body.moves) && body.moves.some((move) => move.task_id === createdTaskId && move.status === 'in_progress');
 			}),
-			todoCard.dragTo(page.getByTestId('task-column-in_progress')),
+			todoCard.getByTestId('task-card-open').dragTo(page.getByTestId('task-column-in_progress'), {
+				targetPosition: { x: 80, y: 20 },
+			}),
 		]);
 		await expect(page.getByTestId('task-detail-fullscreen')).toHaveCount(0);
 		const inProgressCard = taskCardIn(page.getByTestId('task-column-in_progress'), taskTitle);
 		await expect(inProgressCard).toBeVisible({ timeout: 30_000 });
 		await expect(page.getByTestId('task-column-in_progress').getByTestId('task-card').first()).toHaveAttribute('data-task-id', createdTaskId!);
-		await inProgressCard.getByTestId('task-actions-more').click();
-
 		await Promise.all([
 			page.waitForResponse((response) => response.request().method() === 'POST' && response.url().includes('/block') && response.ok()),
-			inProgressCard.getByTestId('task-block-button').click(),
+			inProgressCard.getByTestId('task-card-open').dragTo(page.getByTestId('task-column-blocked'), {
+				targetPosition: { x: 80, y: 20 },
+			}),
 		]);
 		const blockedCard = taskCardIn(page.getByTestId('task-column-blocked'), taskTitle);
 		await expect(blockedCard).toBeVisible({ timeout: 30_000 });
-		await blockedCard.getByTestId('task-actions-more').click();
 
 		await Promise.all([
 			page.waitForResponse((response) => response.request().method() === 'POST' && response.url().includes('/unblock') && response.ok()),
-			blockedCard.getByTestId('task-unblock-button').click(),
+			blockedCard.getByTestId('task-card-open').dragTo(page.getByTestId('task-column-todo'), {
+				targetPosition: { x: 80, y: 20 },
+			}),
 		]);
 		await expect(taskCardIn(page.getByTestId('task-column-todo'), taskTitle)).toBeVisible({ timeout: 30_000 });
 
@@ -196,10 +325,72 @@ test.describe('Tasks web app parity', () => {
 		await expect(persistedDoneCard).toBeVisible({ timeout: 30_000 });
 		const taskId = await persistedDoneCard.getAttribute('data-task-id');
 		expect(taskId, 'created task id should be available for direct-route verification').toBeTruthy();
-		await page.goto(getE2EDebugUrl(`/#task-id=${encodeURIComponent(taskId!)}`), { waitUntil: 'domcontentloaded' });
+		const secondTaskTitle = `Web parity route B ${suffix}`;
+		const secondCreated = page.waitForResponse((response) =>
+			response.request().method() === 'POST' && response.url().endsWith('/v1/user-tasks') && response.ok()
+		);
+		await page.getByTestId('task-workspace-input').fill(secondTaskTitle);
+		await page.getByTestId('task-workspace-submit').click();
+		const secondTaskId = (await (await secondCreated).json()).task.task_id as string;
+		await expect(taskCardIn(page.getByTestId('task-column-todo'), secondTaskTitle)).toBeVisible({ timeout: 30_000 });
+		await page.goto(getE2EDebugUrl('/#tasks'), { waitUntil: 'domcontentloaded' });
+		await expect(page.getByTestId('tasks-page')).toBeVisible({ timeout: 30_000 });
+		const boardToDetailListReads: string[] = [];
+		const recordBoardToDetailListRead = (request: { method: () => string; url: () => string }) => {
+			if (request.method() !== 'GET') return;
+			const path = new URL(request.url()).pathname;
+			if (path === '/v1/user-tasks' || path === '/v1/user-plans' || path === '/v1/projects') boardToDetailListReads.push(path);
+		};
+		page.on('request', recordBoardToDetailListRead);
+		await page.evaluate((selectedTaskId: string) => {
+			(window as typeof window & { taskDetailDocumentMarker?: string }).taskDetailDocumentMarker = 'board-to-task';
+			window.location.hash = `task-id=${encodeURIComponent(selectedTaskId)}`;
+		}, taskId!);
+		await expect(page.getByTestId('task-detail-page')).toBeVisible({ timeout: 30_000 });
+		await expect(page.getByTestId('task-detail-title')).toContainText(taskTitle);
+		expect(await page.evaluate(() =>
+			(window as typeof window & { taskDetailDocumentMarker?: string }).taskDetailDocumentMarker
+		), 'the board must open Task A without reloading the document').toBe('board-to-task');
+		page.off('request', recordBoardToDetailListRead);
+		expect(boardToDetailListReads, 'board-to-detail navigation does not load full workspace lists').toEqual([]);
+		await page.evaluate(() => { window.location.hash = 'tasks'; });
+		await expect(page.getByTestId('tasks-page')).toBeVisible({ timeout: 30_000 });
+		await page.goto(getE2EDebugUrl('/tasks'), { waitUntil: 'domcontentloaded' });
+		await expect(page.getByTestId('tasks-page')).toBeVisible({ timeout: 30_000 });
+		const coldDetailReads: string[] = [];
+		const recordColdDetailRead = (request: { method: () => string; url: () => string }) => {
+			if (request.method() !== 'GET') return;
+			const path = new URL(request.url()).pathname;
+			if (path === '/v1/user-tasks' || path === '/v1/user-tasks/assignment-eligibility' ||
+				path === `/v1/user-tasks/${taskId}` || path === `/v1/user-tasks/${secondTaskId}` ||
+				path === '/v1/user-plans' || path === '/v1/projects') coldDetailReads.push(path);
+		};
+		page.on('request', recordColdDetailRead);
+		await page.evaluate(() => {
+			(window as typeof window & { taskDetailDocumentMarker?: string }).taskDetailDocumentMarker = 'before-cold-detail';
+		});
+		await page.goto(getE2EDebugUrl(`/?e2e-task-detail-cold=1#task-id=${encodeURIComponent(taskId!)}`), { waitUntil: 'domcontentloaded' });
 		await expect(page.getByTestId('task-detail-page')).toBeVisible({ timeout: 30_000 });
 		await expect(page.getByTestId('task-detail-content')).toBeVisible({ timeout: 15_000 });
 		await expect(page.getByTestId('task-detail-title')).toContainText(taskTitle);
+		expect(await page.evaluate(() =>
+			(window as typeof window & { taskDetailDocumentMarker?: string }).taskDetailDocumentMarker
+		), 'cold Task A must load in a new document').toBeUndefined();
+		await page.evaluate((nextTaskId: string) => {
+			(window as typeof window & { taskDetailDocumentMarker?: string }).taskDetailDocumentMarker = 'same-document';
+			window.location.hash = `task-id=${encodeURIComponent(nextTaskId)}`;
+		}, secondTaskId);
+		await expect(page).toHaveURL((url) => url.pathname === '/' &&
+			new URLSearchParams(url.hash.slice(1)).get('task-id') === secondTaskId);
+		await expect(page.getByTestId('task-detail-title')).toContainText(secondTaskTitle, { timeout: 30_000 });
+		await expect(page.getByTestId('task-detail-title')).not.toContainText(taskTitle);
+		expect(await page.evaluate(() =>
+			(window as typeof window & { taskDetailDocumentMarker?: string }).taskDetailDocumentMarker
+		), 'Task B must open by client navigation without reloading the document').toBe('same-document');
+		page.off('request', recordColdDetailRead);
+		expect(coldDetailReads.filter((path) => path === `/v1/user-tasks/${taskId}`), 'cold Task A reads its selected record once').toHaveLength(1);
+		expect(coldDetailReads.filter((path) => path === `/v1/user-tasks/${secondTaskId}`), 'Task B reads its selected record once after the hash switch').toHaveLength(1);
+		expect(coldDetailReads.filter((path) => path !== `/v1/user-tasks/${taskId}` && path !== `/v1/user-tasks/${secondTaskId}`), 'detail navigation does not load full task, Plan or Project lists').toEqual([]);
 		await page.goto(getE2EDebugUrl('/tasks'), { waitUntil: 'domcontentloaded' });
 		await expect(page.getByTestId('tasks-page')).toBeVisible({ timeout: 30_000 });
 		const cardToDelete = taskCardIn(page.getByTestId('task-column-done'), taskTitle);
@@ -211,6 +402,19 @@ test.describe('Tasks web app parity', () => {
 			cardToDelete.getByTestId('task-delete-button').click(),
 		]);
 		await expect(page.getByTestId('task-board')).not.toContainText(taskTitle, { timeout: 30_000 });
+		await page.getByTestId('chats-nav-link').click();
+		await page.getByTestId('tasks-nav-link').click();
+		await expect(page.getByTestId('task-board')).toBeVisible({ timeout: 15_000 });
+		await expect(page.getByTestId('task-board')).not.toContainText(taskTitle);
+		const secondCardToDelete = taskCardIn(page.getByTestId('task-column-todo'), secondTaskTitle);
+		await expect(secondCardToDelete).toBeVisible();
+		await secondCardToDelete.getByTestId('task-actions-more').click();
+		await Promise.all([
+			page.waitForResponse((response) => response.request().method() === 'DELETE' &&
+				new URL(response.url()).pathname === `/v1/user-tasks/${secondTaskId}` && response.ok()),
+			secondCardToDelete.getByTestId('task-delete-button').click(),
+		]);
+		await expect(page.getByTestId('task-board')).not.toContainText(secondTaskTitle);
 	});
 
 	// contract-test: supporting surface=gui.web assertions=tasks.lifecycle.visible,tasks.detail.embed-responsive,tasks.surface.semantic-parity

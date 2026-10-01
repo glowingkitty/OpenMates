@@ -317,6 +317,7 @@ class ImageToHtmlSkill(BaseSkill):
                 "chat_id": self._current_chat_id or kwargs.get("chat_id"),
                 "message_id": self._current_message_id or kwargs.get("message_id"),
                 "external_request": kwargs.get("external_request", False),
+                **({"team_id": kwargs["team_id"]} if kwargs.get("team_id") else {}),
                 "api_key_hash": kwargs.get("api_key_hash"),
                 "device_hash": kwargs.get("device_hash"),
                 "app_id": self.app_id,

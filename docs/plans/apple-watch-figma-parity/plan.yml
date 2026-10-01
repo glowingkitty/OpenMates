@@ -5,7 +5,7 @@ status: implementing
 specification_refs:
 - id: feature.apple-watch
   role: primary
-  fingerprint: 6c3ba61cd6f4cd4865e50c36382f204f43cf4d95ee3bd79f763d7de6b0e2b08d
+  fingerprint: e22c526f21c275b2504cbb7f134e9f1d14337e71cbe346565ac59b2768400bab
 goal: 'Make the Apple Watch app look and work like the Figma Watch concept: login through the iPhone-first pairing flow with
   a short-URL fallback; browse Tasks and Workflows; browse, search, start, open, and reply in Chats; and send audio recordings
   through the normal encrypted server processing so they appear as audio embeds on every client.
@@ -16,8 +16,9 @@ scope:
   - Match the Figma Watch layout, color, navigation, and recording controls on a small Watch display.
   - Offer iPhone pair approval first, then reveal the short URL automatically when approval has not started within a few seconds;
     keep self-hosting and prominent manual pair-code entry without a QR button.
-  - Show read-only Task categories and Workflow lists; tapping an item sends an ID-only iPhone notification that opens its
-    exact web page.
+  - Show read-only Tasks in horizontally paged iPhone-order kanban columns with independent vertical Digital Crown scrolling;
+    tapping a Task opens a native read view, whose explicit Open on iPhone action sends the existing ID-only handoff.
+  - Workflow lists preserve their direct ID-only iPhone handoff.
   - Show the Chats list, functional search and new chat, existing thread opening, text replies, and a single-action audio
     Send flow.
   - Use the same encrypted chat message, inference, audio upload/transcription, and audio embed contracts as iPhone/web; do
@@ -45,6 +46,11 @@ context_discovery:
   - apple/OpenMatesWatchUITests/WatchChatLayoutUITests.swift
   - apple/OpenMatesWatchUITests/WatchFlowUITests.swift
 decisions:
+- id: watch-task-kanban-read-view
+  status: active
+  decision: Use five horizontal kanban sections in iPhone order, normal vertical Crown scrolling, and local read-only Task details.
+  reason: Explicit user implementation request on 2026-10-01 supersedes the earlier Task-detail exclusion.
+  decided_at: '2026-10-01'
 - id: figma-login-fallback
   status: active
   decision: Start with iPhone approval and reveal the short URL after a few seconds unless approval has started; an explicit
@@ -217,7 +223,7 @@ implementation_state:
 approvals:
   specification:
     status: approved
-    fingerprint: 6c3ba61cd6f4cd4865e50c36382f204f43cf4d95ee3bd79f763d7de6b0e2b08d
+    fingerprint: e22c526f21c275b2504cbb7f134e9f1d14337e71cbe346565ac59b2768400bab
     approved_at: '2026-09-24T22:24:21Z'
     reason: The user explicitly approved the revised exact fingerprint after removing the QR fallback.
   plan:

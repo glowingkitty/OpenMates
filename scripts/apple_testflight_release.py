@@ -35,6 +35,7 @@ TEAM_ID_PATTERN = re.compile(r"(?m)^\s*DEVELOPMENT_TEAM:\s*[\"']?([^\s\"']+)")
 VERSION_PATTERN = re.compile(r"(?m)^\s*MARKETING_VERSION:\s*[\"']?([^\s\"']+)")
 BUILD_PATTERN = re.compile(r"(?m)^\s*CURRENT_PROJECT_VERSION:\s*(\d+)")
 SOURCE_INPUTS = (
+    "scripts/apple_testflight_release.py",
     "package.json",
     "pnpm-lock.yaml",
     "apple/project.yml",
@@ -458,6 +459,8 @@ def archive_command(platform: str, release_dir: Path, build_number: int, team_id
         "-derivedDataPath", str(release_dir / ("ios-derived" if platform == "ios" else "mac-derived")),
         "-allowProvisioningUpdates",
         f"DEVELOPMENT_TEAM={team_id}", f"CURRENT_PROJECT_VERSION={build_number}",
+        # Cargo needs the bridge sources and its configured toolchain/cache paths.
+        "ENABLE_USER_SCRIPT_SANDBOXING=NO",
     ]
     if credentials:
         command[command.index(f"DEVELOPMENT_TEAM={team_id}"):command.index(f"DEVELOPMENT_TEAM={team_id}")] = credentials.xcode_arguments()
@@ -630,9 +633,14 @@ def validate_release_entitlements(path: Path, platform: str) -> None:
         groups = entitlements.get("com.apple.security.application-groups") or []
         if "webcredentials:openmates.org" not in associated or "group.org.openmates.app.shared" not in groups:
             raise ReleaseError("iOS archive is missing passkey or app-group entitlements")
+        validate_shared_link_domains(associated)
         return
     extension = app / "Contents" / "PlugIns" / "OpenMatesShareExtension_macOS.appex"
     extension_entitlements = signed_entitlements(extension)
+    associated = entitlements.get("com.apple.developer.associated-domains") or []
+    if "webcredentials:app.dev.openmates.org" not in associated:
+        raise ReleaseError("macOS app archive is missing the dev passkey associated domain")
+    validate_shared_link_domains(associated)
     if entitlements.get("com.apple.security.app-sandbox") is not True:
         raise ReleaseError("macOS app archive is missing the App Sandbox entitlement")
     if entitlements.get("com.apple.developer.aps-environment") != "production":
@@ -641,18 +649,33 @@ def validate_release_entitlements(path: Path, platform: str) -> None:
         raise ReleaseError("macOS share extension archive is missing the App Sandbox entitlement")
 
 
+def validate_shared_link_domains(associated: object) -> None:
+    required = {"applinks:openmates.org", "applinks:app.openmates.org", "applinks:app.dev.openmates.org"}
+    if not isinstance(associated, list) or not required.issubset(associated):
+        raise ReleaseError("App archive is missing shared-link associated domains")
+
+
+def validate_resumed_archive(
+    path: Path, platform: str, version: str, build_number: int, receipt: dict[str, object],
+) -> dict[str, object]:
+    identity = validate_archive(path, platform, version, build_number)
+    if identity != receipt.get("archive_identity"):
+        raise ReleaseError(f"{platform} archive changed after its receipt was written")
+    validate_release_entitlements(path, platform)
+    return identity
+
+
 def resolved_macos_entitlements(source: Path, team_id: str, bundle_id: str) -> dict[str, object]:
     """Expand Xcode build variables before ad hoc signing an unsigned archive."""
     variables = {
         "$(APS_ENVIRONMENT)": "production",
         "$(AppIdentifierPrefix)": f"{team_id}.",
         "$(CFBundleIdentifier)": bundle_id,
+        "$(OPENMATES_DEV_WEBCREDENTIALS)": "webcredentials:app.dev.openmates.org",
     }
 
     def resolve(value: object) -> object:
         if isinstance(value, str):
-            if value == "$(OPENMATES_DEV_WEBCREDENTIALS)":
-                return None
             for name, replacement in variables.items():
                 value = value.replace(name, replacement)
             if "$(" in value:
@@ -826,9 +849,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             path = archive_paths(release_dir)[platform]
             receipt = read_receipt(release_dir, stage, fingerprint)
             if receipt:
-                identity = validate_archive(path, platform, version, build_number)
-                if identity != receipt.get("archive_identity"):
-                    raise ReleaseError(f"{platform} archive changed after its receipt was written")
+                identity = validate_resumed_archive(path, platform, version, build_number, receipt)
                 identities[platform] = identity
                 print(f"stage={stage} status=resumed")
                 continue

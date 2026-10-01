@@ -122,6 +122,8 @@ async def _charge_remotion_render_credits(
     message_id: str | None,
     source_version: int,
     log_prefix: str,
+    team_id: str | None = None,
+    event_id: str | None = None,
 ) -> None:
     if credits <= 0:
         return
@@ -146,11 +148,15 @@ async def _charge_remotion_render_credits(
                 "source_version": source_version,
             },
         }
+        from backend.shared.python_utils.team_skill_billing import skill_billing_request
+        billing_path, payload = skill_billing_request(payload, team_id, event_id=event_id or "")
         async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.post(f"{INTERNAL_API_BASE_URL}/internal/billing/charge", json=payload, headers=headers)
+            response = await client.post(f"{INTERNAL_API_BASE_URL}{billing_path}", json=payload, headers=headers)
             response.raise_for_status()
     except Exception as exc:
         logger.error("%s Failed to charge Remotion render credits: %s", log_prefix, exc, exc_info=True)
+        if team_id:
+            raise
 
 
 @app.task(bind=True, name="apps.videos.tasks.render_remotion", base=BaseServiceTask, queue="app_videos", soft_time_limit=1200, time_limit=1260)
@@ -220,6 +226,8 @@ async def _async_render_remotion(task: BaseServiceTask, arguments: dict[str, Any
             message_id=message_id,
             source_version=source_version,
             log_prefix=log_prefix,
+            team_id=arguments.get("team_id"),
+            event_id=str(arguments.get("render_id") or task.request.id),
         )
 
         encrypted_variants = encrypt_media_variants(
@@ -303,7 +311,11 @@ async def _async_render_remotion(task: BaseServiceTask, arguments: dict[str, Any
             thumbnail=files_metadata["thumbnail"],
             log_prefix=log_prefix,
         )
-        return {"status": "finished", "embed_id": embed_id, "runtime_seconds": runtime_seconds, "charged_credits": credits}
+        return {
+            "status": "finished", "embed_id": embed_id, "runtime_seconds": runtime_seconds,
+            "charged_credits": credits,
+            **({"team_id": arguments["team_id"]} if arguments.get("team_id") else {}),
+        }
     except Exception as exc:
         logger.error("%s Remotion render failed: %s", log_prefix, exc, exc_info=True)
         try:

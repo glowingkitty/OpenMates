@@ -93,6 +93,8 @@
     skillId?: string;
     /** Close handler */
     onClose: () => void;
+    /** Chat embeds close on chat selection; independent workspace details do not. */
+    closeOnChatSelection?: boolean;
     /** Optional copy handler (for copy button) - copies text version of embed */
     onCopy?: () => void;
     /** Optional download handler (for download button) - downloads the embed */
@@ -145,6 +147,13 @@
      * Shown smaller and at 0.85 opacity (e.g. "via Brave Search", "Data from 2025/03/27").
      */
     embedHeaderSubtitle?: string;
+    /** Opt-in taller Apps workspace hero; regular embeds keep their existing banner. */
+    embedHeaderPresentation?: 'embed' | 'apps';
+    /** Keep regular embed icon navigation; Apps heroes can render the icon as decoration. */
+    embedHeaderIconInteractive?: boolean;
+    embedHeaderEyebrow?: string;
+    embedHeaderFooter?: string;
+    embedHeaderProviders?: string[];
 
     /** Optional provenance row displayed above the header subtitle. */
     embedHeaderProvenance?: string;
@@ -340,6 +349,7 @@
     appId,
     skillId,
     onClose,
+    closeOnChatSelection = true,
     onCopy,
     onDownload,
     onImport,
@@ -355,6 +365,11 @@
     // Embed header props
     embedHeaderTitle = '',
     embedHeaderSubtitle = '',
+    embedHeaderPresentation = 'embed',
+    embedHeaderIconInteractive = true,
+    embedHeaderEyebrow = '',
+    embedHeaderFooter = '',
+    embedHeaderProviders = [],
     embedHeaderProvenance = '',
     embedHeaderFaviconUrl,
     embedHeaderFaviconIsCircular = false,
@@ -938,6 +953,7 @@
   
   // Close fullscreen when user switches to a different chat
   function handleChatSelected() {
+    if (!closeOnChatSelection || isDestroyed) return;
     console.debug('[UnifiedEmbedFullscreen] Chat selected, closing fullscreen');
     onClose(); // Close immediately without animation for smoother UX
   }
@@ -1407,11 +1423,15 @@
              and the embed content must provide enough top spacing to clear it. -->
         <EmbedHeader
         staticPresentation={(!!currentEmbedId && workspace?.presentedEmbedId === currentEmbedId)}
+          presentation={embedHeaderPresentation}
+          eyebrow={embedHeaderEyebrow}
+          footer={embedHeaderFooter}
+          providers={embedHeaderProviders}
           {appId}
           {skillIconName}
           {appIconName}
           {showSkillIcon}
-          onHeaderIconClick={handleEmbedHeaderIconClick}
+          onHeaderIconClick={embedHeaderIconInteractive ? handleEmbedHeaderIconClick : undefined}
           title={embedHeaderTitle}
           provenance={embedHeaderProvenance}
           subtitle={embedHeaderSubtitle}

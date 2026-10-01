@@ -5,7 +5,8 @@
   Shows the full-size proxied image, title, source domain, and a link to the source page.
 
   Used as a drill-down overlay from ImagesSearchEmbedFullscreen.
-  External images are proxied by the caller (ImagesSearchEmbedFullscreen).
+  External images are proxied here so standalone and gallery entry points use
+  the same privacy-preserving transport.
 
   Architecture: See docs/architecture/embeds.md
 -->
@@ -15,6 +16,7 @@
   import { text } from '@repo/ui';
   import { handleImageError } from '../../../utils/offlineImageHandler';
   import { resolveImageSourceDomain } from '../../../utils/embedSourceDomain';
+  import { proxyImage, MAX_WIDTH_HEADER_IMAGE, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../../../utils/imageProxy';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
 
   interface Props {
@@ -46,10 +48,13 @@
   let sourcePageUrl = $derived(typeof dc.source_page_url === 'string' ? dc.source_page_url : undefined);
   let imageUrl = $derived(typeof dc.image_url === 'string' ? dc.image_url : undefined);
   let thumbnailUrl = $derived(typeof dc.thumbnail_url === 'string' ? dc.thumbnail_url : undefined);
+  let displayImageUrl = $derived(proxyImage(imageUrl, MAX_WIDTH_HEADER_IMAGE));
+  let displayThumbnailUrl = $derived(proxyImage(thumbnailUrl, MAX_WIDTH_PREVIEW_THUMBNAIL));
   let _faviconUrl = $derived(typeof dc.favicon_url === 'string' ? dc.favicon_url : undefined);
 
   let imageLoaded = $state(false);
   let imageFailed = $state(false);
+  let thumbnailFailed = $state(false);
   let showThumbnail = $state(true); // show thumbnail as placeholder until full image loads
   let isVerticalImage = $state(false);
 
@@ -94,36 +99,39 @@
     <div class="result-fullscreen" class:vertical-image={isVerticalImage}>
       <!-- Image display section -->
       <div class="image-section">
-        {#if imageUrl && !imageFailed}
+        {#if displayImageUrl && !imageFailed}
           <!-- Progressive: thumbnail first, then full-size -->
-          {#if showThumbnail && thumbnailUrl}
+          {#if showThumbnail && displayThumbnailUrl && !thumbnailFailed}
             <img
-              src={thumbnailUrl}
+              src={displayThumbnailUrl}
               alt={title || ''}
               class="display-image blurred"
               onload={handleThumbnailLoad}
+              onerror={() => { thumbnailFailed = true; }}
               use:handleImageError
             />
           {/if}
           <img
-            src={imageUrl}
+            src={displayImageUrl}
             alt={title || ''}
             class="display-image"
+            data-testid="image-result-fullscreen-image"
             class:hidden={!imageLoaded}
             onload={handleImageLoad}
             onerror={handleImageFail}
             use:handleImageError
           />
-        {:else if thumbnailUrl && !imageFailed}
+        {:else if displayThumbnailUrl && !thumbnailFailed}
           <img
-            src={thumbnailUrl}
+            src={displayThumbnailUrl}
             alt={title || ''}
             class="display-image"
             onload={handleThumbnailLoad}
+            onerror={() => { thumbnailFailed = true; }}
             use:handleImageError
           />
         {:else}
-          <div class="image-placeholder">
+          <div class="image-placeholder" data-testid="image-result-fullscreen-placeholder">
             <span class="placeholder-icon clickable-icon icon_image"></span>
           </div>
         {/if}
@@ -186,6 +194,7 @@
   .image-section {
     flex: none;
     display: flex;
+    box-sizing: border-box;
     align-items: center;
     justify-content: center;
     position: relative;
@@ -233,7 +242,7 @@
     justify-content: center;
     width: 200px;
     height: 200px;
-    background: var(--color-grey-15, #ebebeb);
+    background: color-mix(in srgb, var(--color-grey-20) 27.272727%, var(--color-grey-25));
     border-radius: var(--radius-7);
   }
 
@@ -299,33 +308,29 @@
   }
 
   /* Dark mode */
-  :global(.dark) .image-section {
-    background: var(--color-grey-95, #111);
+  :global([data-theme="dark"]) .image-section {
+    background: var(--color-grey-0);
   }
 
-  :global(.dark) .display-image {
+  :global([data-theme="dark"]) .display-image {
     box-shadow: 0px 4px 16px rgba(0, 0, 0, 0.4);
   }
 
-  :global(.dark) .image-placeholder {
-    background: var(--color-grey-85, #222);
+  :global([data-theme="dark"]) .image-placeholder {
+    background: var(--color-grey-20);
   }
 
-  :global(.dark) .placeholder-icon {
+  :global([data-theme="dark"]) .placeholder-icon {
     background: var(--color-grey-70, #555) !important;
   }
 
-  :global(.dark) .result-title {
-    color: var(--color-grey-10, #f5f5f5);
-  }
-
-  :global(.dark) .source-link,
-  :global(.dark) .open-image-link {
+  :global([data-theme="dark"]) .source-link,
+  :global([data-theme="dark"]) .open-image-link {
     color: var(--color-primary-40, #7a9ed0);
   }
 
-  :global(.dark) .link-icon,
-  :global(.dark) .open-icon {
+  :global([data-theme="dark"]) .link-icon,
+  :global([data-theme="dark"]) .open-icon {
     background: var(--color-primary-40, #7a9ed0) !important;
   }
 

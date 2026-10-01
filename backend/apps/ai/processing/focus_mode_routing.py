@@ -8,6 +8,24 @@ from typing import Any
 
 
 DEEP_RESEARCH_FOCUS_ID = "web-research"
+WORKFLOW_CLARIFY_FOCUS_ID = "workflows-clarify_workflows"
+WORKFLOW_CLARIFY_SKILLS = frozenset({"workflows-search", "workflows-create-or-modify"})
+
+
+def workflow_clarification_skill_scope(
+    *, active_focus_id: str | None, relevant_focus_modes: list[str], explicit_focus_mention: bool,
+) -> set[str] | None:
+    """Keep clarification on Workflows even when the request names a search topic.
+
+    Focus metadata allowlists are not enforced yet. This narrow runtime gate
+    prevents natural-search preprocessing from turning a workflow edit into an
+    immediate events/news search in the clarification chat.
+    """
+    if active_focus_id == WORKFLOW_CLARIFY_FOCUS_ID or (
+        explicit_focus_mention and WORKFLOW_CLARIFY_FOCUS_ID in relevant_focus_modes
+    ):
+        return set(WORKFLOW_CLARIFY_SKILLS)
+    return None
 
 
 def should_enable_subchats_for_active_focus(active_focus_id: str | None) -> bool:

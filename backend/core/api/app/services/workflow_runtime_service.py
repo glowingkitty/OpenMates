@@ -27,6 +27,7 @@ WORKFLOW_RUNTIME_OPERATIONS = frozenset(
         "start_claimed_run",
         "advance_claimed_trigger",
         "accept_event_trigger",
+        "reconcile_stale_workflow_state",
     }
 )
 

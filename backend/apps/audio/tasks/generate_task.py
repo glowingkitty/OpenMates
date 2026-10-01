@@ -118,6 +118,8 @@ async def _async_generate_audio(
             estimated_credits=estimated_credits,
             operation_name="sound effect generation",
             log_prefix=log_prefix,
+            team_id=arguments.get("team_id"),
+            directus_service=task._directus_service,
         )
 
         client = ElevenLabsClient(secrets_manager=task._secrets_manager)
@@ -169,7 +171,10 @@ async def _async_generate_audio(
             device_hash=arguments.get("device_hash"),
             api_key_name=arguments.get("api_key_name"),
             log_prefix=log_prefix,
+            team_id=arguments.get("team_id"),
         )
+        if arguments.get("team_id"):
+            result_payload["team_id"] = arguments["team_id"]
         await dispatch_async_skill_continuation(
             cache_service=task._cache_service,
             async_task_id=task_id,

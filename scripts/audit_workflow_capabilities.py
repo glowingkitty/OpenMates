@@ -177,6 +177,18 @@ def _load_workflow_classifications() -> dict[str, Any]:
 
 
 def _valid_example(value: Any, schema: Any) -> bool:
+    if str(REPO_ROOT) not in sys.path:
+        sys.path.insert(0, str(REPO_ROOT))
+    from backend.core.api.app.services.workflow_runtime_values import resolve_workflow_runtime_values
+
+    try:
+        value = resolve_workflow_runtime_values(value, now=0)
+    except (TypeError, ValueError):
+        return False
+    return _valid_resolved_example(value, schema)
+
+
+def _valid_resolved_example(value: Any, schema: Any) -> bool:
     if not isinstance(value, Mapping) or not isinstance(schema, Mapping) or schema.get("type") != "object":
         return False
     properties = schema.get("properties")
@@ -206,7 +218,7 @@ def _matches_schema(value: Any, schema: Any) -> bool:
         items = schema.get("items")
         return isinstance(value, list) and all(_matches_schema(item, items) for item in value)
     if schema_type == "object":
-        return _valid_example(value, schema)
+        return _valid_resolved_example(value, schema)
     return False
 
 

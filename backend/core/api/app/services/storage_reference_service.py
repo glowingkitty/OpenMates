@@ -464,18 +464,23 @@ async def delete_account_storage_reference_rows(
     user_id_hash: str,
 ) -> dict[str, int]:
     """Delete account-owned storage reference rows in bounded required batches."""
+    archive_ids = await _account_archive_ids(directus_service, user_id_hash)
     specifications = (
         ("account_export_parts", {"hashed_user_id": {"_eq": user_id_hash}}),
         ("account_export_jobs", {"hashed_user_id": {"_eq": user_id_hash}}),
         ("upload_files", {"user_id": {"_eq": user_id}}),
         ("user_task_archives", {"hashed_user_id": {"_eq": user_id_hash}}),
         ("workspace_change_archives", {"hashed_user_id": {"_eq": user_id_hash}}),
-        ("cold_archive_parts", {"archive_id": {"_in": await _account_archive_ids(directus_service, user_id_hash)}}),
+        ("cold_archive_parts", {"archive_id": {"_in": archive_ids}}),
         ("cold_archive_manifests", {"hashed_user_id": {"_eq": user_id_hash}}),
     )
     deleted: dict[str, int] = {}
     for collection, item_filter in specifications:
         deleted[collection] = 0
+        if collection == "cold_archive_parts" and not archive_ids:
+            # Directus rejects empty _in filters. No owned manifests means
+            # there are no account-owned parts to query or delete.
+            continue
         async for page in _iter_item_pages(
             directus_service=directus_service,
             collection=collection,

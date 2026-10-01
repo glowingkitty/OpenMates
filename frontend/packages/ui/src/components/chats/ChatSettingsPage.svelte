@@ -1,4 +1,6 @@
 <!--
+  Native Swift counterparts:
+  - apple/OpenMates/Sources/Features/Chat/Views/ChatSettingsView.swift
   ChatSettingsPage.svelte
 
   Deep-linked Settings-shell page for a single chat. The chat identity banner is
@@ -6,7 +8,7 @@
   tabs, and local-first Plan/Tasks/Files/Usage/Share sections.
 -->
 <script lang="ts">
-  import { chatSettingsStore, normalizeChatSettingsTab, type ChatSettingsTab } from '../../stores/chatSettingsStore';
+  import { chatSettingsStore, normalizeChatSettingsTab, type ChatSettingsTab, type ChatSettingsContext } from '../../stores/chatSettingsStore';
   import { SettingsTabs, SettingsCard, SettingsButton, SettingsInfoBox, SettingsProgressBar, SettingsBadge, SettingsInput, SettingsTextarea } from '../settings/elements';
   import SettingsItem from '../SettingsItem.svelte';
   import ChatSettingsShareSection from './ChatSettingsShareSection.svelte';
@@ -21,7 +23,13 @@
 
   const USAGE_REFRESH_INTERVAL_MS = 5000;
 
-  let { activeSettingsView = '' }: { activeSettingsView?: string } = $props();
+  let { activeSettingsView = '', previewContext = null, previewTasks = [], previewPlans = [], previewFiles = [] }: {
+    activeSettingsView?: string;
+    previewContext?: ChatSettingsContext | null;
+    previewTasks?: UserTaskViewModel[];
+    previewPlans?: UserPlanViewModel[];
+    previewFiles?: ChatFileRow[];
+  } = $props();
 
   const tabs = [
     { id: 'tasks', icon: 'projectmanagement' },
@@ -48,7 +56,7 @@
   let lastUsageTotalKey = $state('');
   let lastUsageRowsKey = $state('');
 
-  let context = $derived($chatSettingsStore);
+  let context = $derived(previewContext ?? $chatSettingsStore);
   let chat = $derived(context?.chat ?? null);
   let messages = $derived(context?.messages ?? []);
   let display = $derived(context?.display ?? null);
@@ -95,7 +103,7 @@
     const nextTab = normalizeVisibleChatSettingsTab(context?.activeTab);
     activeTab = nextTab;
     if (isExampleChatSettings && context?.activeTab !== nextTab) {
-      chatSettingsStore.setTab(nextTab);
+      if (!previewContext) chatSettingsStore.setTab(nextTab);
     }
   });
 
@@ -104,13 +112,13 @@
     if (!requestedTab) return;
     const nextTab = normalizeVisibleChatSettingsTab(requestedTab);
     if (nextTab !== context?.activeTab) {
-      chatSettingsStore.setTab(nextTab);
+      if (!previewContext) chatSettingsStore.setTab(nextTab);
     }
     activeTab = nextTab;
   });
 
   $effect(() => {
-    if (!chat?.chat_id || isSharedViewer || isExampleChatSettings) {
+    if (previewContext || !chat?.chat_id || isSharedViewer || isExampleChatSettings) {
       usageTotalCredits = null;
       return;
     }
@@ -121,7 +129,7 @@
 
   $effect(() => {
     const chatId = chat?.chat_id;
-    if (!chatId || isSharedViewer || isExampleChatSettings) return;
+    if (previewContext || !chatId || isSharedViewer || isExampleChatSettings) return;
     const interval = window.setInterval(() => void refreshUsageTotal(chatId), USAGE_REFRESH_INTERVAL_MS);
     return () => window.clearInterval(interval);
   });
@@ -129,7 +137,7 @@
   $effect(() => {
     if (normalizeChatSettingsTab(context?.activeTab) !== 'usage') return;
     const chatId = chat?.chat_id;
-    if (!chatId || isSharedViewer || isExampleChatSettings) {
+    if (previewContext || !chatId || isSharedViewer || isExampleChatSettings) {
       usageError = null;
       usageRows = localUsageRows;
       isLoadingUsage = false;
@@ -143,17 +151,26 @@
   $effect(() => {
     if (normalizeChatSettingsTab(context?.activeTab) !== 'usage') return;
     const chatId = chat?.chat_id;
-    if (!chatId || isSharedViewer || isExampleChatSettings) return;
+    if (previewContext || !chatId || isSharedViewer || isExampleChatSettings) return;
     const interval = window.setInterval(() => void refreshUsageRows(chatId), USAGE_REFRESH_INTERVAL_MS);
     return () => window.clearInterval(interval);
   });
 
   $effect(() => {
+    if (previewContext) {
+      files = [...previewFiles];
+      return;
+    }
     if (normalizeChatSettingsTab(context?.activeTab) !== 'files') return;
     void refreshFiles();
   });
 
   $effect(() => {
+    if (previewContext) {
+      tasks = [...previewTasks];
+      plans = [...previewPlans];
+      return;
+    }
     const tab = normalizeChatSettingsTab(context?.activeTab);
     if (!chat?.chat_id || isExampleChatSettings || (tab !== 'plan' && tab !== 'tasks')) return;
     void refreshPlanningData(chat.chat_id, isSharedViewer);
@@ -162,7 +179,7 @@
   function setTab(tabId: string): void {
     const nextTab = normalizeVisibleChatSettingsTab(tabId);
     activeTab = nextTab;
-    chatSettingsStore.setTab(nextTab);
+    if (!previewContext) chatSettingsStore.setTab(nextTab);
   }
 
   async function refreshFiles(): Promise<void> {
@@ -217,7 +234,7 @@
   }
 
   async function createChatTask(): Promise<void> {
-    if (!chat?.chat_id || isSharedViewer) return;
+    if (previewContext || !chat?.chat_id || isSharedViewer) return;
     const trimmedTitle = taskTitle.trim();
     if (!trimmedTitle || isCreatingTask) return;
     isCreatingTask = true;
@@ -241,7 +258,7 @@
   }
 
   async function toggleTaskDone(task: UserTaskViewModel): Promise<void> {
-    if (!chat?.chat_id || isSharedViewer || taskActionId) return;
+    if (previewContext || !chat?.chat_id || isSharedViewer || taskActionId) return;
     const nextStatus = task.status === 'done' ? 'todo' : 'done';
     const previous = tasks;
     taskActionId = task.task_id;
@@ -548,7 +565,7 @@
       </div>
     {:else if activeTab === 'share'}
       <div class="tabpanel" data-testid="chat-settings-tabpanel-share" role="tabpanel" aria-labelledby="chat-settings-tab-share">
-        <ChatSettingsShareSection {chat} {messages} {title} {summary} />
+        <ChatSettingsShareSection previewMode={!!previewContext} {chat} {messages} {title} {summary} />
       </div>
     {/if}
   </section>

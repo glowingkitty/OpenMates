@@ -26,7 +26,7 @@ workflow_chat_deliveries:
       note: "[Vault encrypted] Pending title and message payload."
     status:
       type: string
-      note: "delivery_pending, claimed, acknowledged, cancelled, or expired."
+      note: "delivery_pending, claimed, acknowledged, cancelled, expired, or failed."
     claim_generation:
       type: integer
       note: "Fencing generation for client claims."

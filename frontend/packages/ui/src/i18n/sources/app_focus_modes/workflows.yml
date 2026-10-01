@@ -1,0 +1,8 @@
+clarify_workflows:
+  context: Focus mode name
+  en: Clarify workflows
+  verified_by_human: []
+clarify_workflows.description:
+  context: Focus mode description
+  en: Resolve missing details for one or more workflows before creating or changing them.
+  verified_by_human: []

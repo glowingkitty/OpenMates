@@ -109,7 +109,7 @@ test.describe('App: Web / Skill: search', () => {
 			'tool continuation should return a final assistant answer'
 		).toBeGreaterThan(20);
 		expect(assistant).not.toMatch(
-			/unexpected `tool_use_id`|all providers failed|something went wrong/i
+			/unexpected `tool_use_id`|all providers failed|something went wrong|empty_post_tool_response|main processing failed/i
 		);
 		console.log(`[P3] CLI chat response length: ${result.stdout.length}`);
 

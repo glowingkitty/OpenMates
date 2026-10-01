@@ -2,19 +2,19 @@
  * Preview mock data for ImageResultEmbedFullscreen.
  *
  * Single image result fullscreen (drill-down from ImagesSearchEmbedFullscreen).
- * Uses Unsplash/Wikimedia which load without needing the image proxy.
- * Note: ImageResultEmbedFullscreen renders imageUrl directly (no re-proxying).
+ * The fullscreen component proxies external image bytes while retaining the
+ * original image and source links for explicit user navigation.
  * Access at: /dev/preview/embeds/images/ImageResultEmbedFullscreen
  */
 
 /** Default props — single image result fullscreen */
 const defaultProps = {
   title: "Golden Gate Bridge at dusk",
-  sourceDomain: "unsplash.com",
-  sourcePageUrl: "https://unsplash.com/photos/Cs99I6PYLlk",
-  imageUrl: "https://images.unsplash.com/photo-1501594907352-04cda38ebc29",
-  thumbnailUrl:
-    "https://images.unsplash.com/photo-1501594907352-04cda38ebc29?w=400",
+  source_domain: "unsplash.com",
+  source_page_url: "https://unsplash.com/photos/Cs99I6PYLlk",
+  image_url: "https://images.unsplash.com/photo-1501594907352-04cda38ebc29",
+  thumbnail_url:
+    "https://images.unsplash.com/photo-1501594907352-04cda38ebc29?w=200",
   onClose: () => {},
   hasPreviousEmbed: false,
   hasNextEmbed: false,
@@ -31,5 +31,10 @@ export const variants = {
     hasNextEmbed: true,
     onNavigatePrevious: () => {},
     onNavigateNext: () => {},
+  },
+  failedImage: {
+    ...defaultProps,
+    image_url: 'data:image/png;base64,invalid-image',
+    thumbnail_url: 'data:image/png;base64,invalid-thumbnail',
   },
 };

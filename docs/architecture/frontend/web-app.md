@@ -102,6 +102,16 @@ On signup completion, demo chats are kept and the user receives a message explai
 
 `websocketService.ts` dispatches an `authError` event when the server rejects the WebSocket with an authentication or policy-violation signal. The app shell handles that event in `+page.svelte` by running the local logout cleanup directly instead of re-checking `/auth/session`, because the session check intentionally treats non-OK responses as offline-first recoverable failures. Pair-login deep links are explicitly excluded so stale WebSocket failures from an old session do not invalidate a fresh passkey pairing flow.
 
+### Recent Workspace Navigation
+
+Task, Plan, and Project services retain bounded query and entity results across page mounts through `workspaceQueryCache.ts`. Keys include the account, API environment, team, and key epoch. Loaded empty results count as cached data. Identical requests share one pending read; warm results render immediately while stale results refresh in the background. Local mutations update the shared results, and generations prevent earlier reads from replacing newer changes or repopulating a cleared identity. Logout and key/team changes clear these decrypted memory caches. Visible views also refresh on focus, reconnect, and their existing polling schedule.
+
+Task detail uses the selected `/v1/user-tasks/{id}` record and its owner assignment metadata. Linked context resolves cached entities or explicit related IDs independently of the main content. Opening one Task does not fetch the full Task, Plan, or Project list. Task board moves serialize each Task's action and reorder, and late action results cannot restore a previous account's board.
+
+`recentChatWindowCache.ts` retains up to eight settled persisted message windows within a 16 MiB payload budget. A matching authenticated selection can seed `ActiveChat` on its first render or publish an in-place selection before the route metadata and canonical IndexedDB reads finish. The composer waits for canonical ownership and draft context; cached history remains visible during that wait. Message mutations invalidate the snapshot and let a pending read retry; account, team, or key revocation clears the early plaintext and rejects its old completion. Public, anonymous, incognito, draft-only, and streaming content do not enter this recent-window path. Existing encrypted IndexedDB chat storage remains canonical; these additional decrypted projections stay in memory.
+
+Workflows use the existing workspace store. Detail publication proceeds independently of run history, and background refresh preserves dirty editor state. A clean editor adopts refreshed graphs, including after a pending node draft closes. An unknown deep link verifies the list before treating the Workflow as missing, even when the cached list is empty. Native hash events and SvelteKit URL updates both keep the root workspace selection current. See the [navigation cache Plan](../../plans/web-workspace-navigation-cache/plan.yml) for scope and verification evidence.
+
 ### Onboarding
 
 See [Onboarding Guide](../../user-guide/onboarding.md) for the implemented user onboarding flow.

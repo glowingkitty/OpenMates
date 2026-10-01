@@ -598,6 +598,12 @@ export function getAuthenticatedFallbackInspirations(locale: string): DailyInspi
 
 function getWorkspaceInspirations(surface: Exclude<DailyInspirationSurface, "chats">): DailyInspiration[] {
   const now = Math.floor(Date.now() / 1000);
+  if (surface === "apps") {
+    return [
+      { inspiration_id: "hardcoded-apps-search", phrase: "Find information directly with an app skill, and keep the results for later.", title: "Use a Skill Directly", category: "general_knowledge", content_type: "feature", video: null, generated_at: now, surface, feature: { feature_id: "apps-direct-search", icon: "search", title: "Search the web", description: "Search without starting a chat.", settings_path: "apps/web/search" } },
+      { inspiration_id: "hardcoded-apps-weather", phrase: "Check the forecast before making plans. Your saved results stay together in Apps.", title: "Plan Around the Weather", category: "travel", content_type: "feature", video: null, generated_at: now, surface, feature: { feature_id: "apps-weather", icon: "cloud-sun", title: "Weather forecast", description: "Choose a location and dates.", settings_path: "apps/weather/forecast" } },
+    ];
+  }
   if (surface === "projects") {
     return [
       {

@@ -172,6 +172,86 @@ async def test_complete_graph_verifies_every_region_before_hot_child_deletion() 
     assert created_manifest["state"] == "preparing"
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize("timeout_first_upload", [False, True])
+# contract-test: direct surface=rest_api assertions=storage.cold.atomic-eligible-graphs,storage.replication.active-write-durable-outbox
+async def test_complete_archive_through_signed_s3_requests_verifies_before_removing_hot_graph(monkeypatch, timeout_first_upload):
+    """Exercise the archive pipeline through the real SDK, with offline S3 HTTP responses."""
+    from botocore.awsrequest import AWSResponse
+    from backend.tests.s3_service_test_support import load_s3_service_module
+    from backend.tests.test_s3_multi_region_service import FakeSecretsManager
+
+    module = load_s3_service_module()
+    monkeypatch.setenv("S3_REGIONS", "nbg1,fsn1,hel1")
+    monkeypatch.delenv("S3_ENDPOINT_URL", raising=False)
+    directus = FakeDirectus()
+    directus.collections["storage_replication_jobs"] = []
+    s3 = module.S3UploadService(FakeSecretsManager(), directus_service=directus)
+    await s3.initialize(configure_buckets=False)
+    objects = {}
+    uploads = []
+
+    class EmptyResponse:
+        def stream(self, *_args, **_kwargs):
+            yield b""
+
+    def respond(request, **_kwargs):
+        headers = {name.lower(): value.decode() if isinstance(value, bytes) else value
+                   for name, value in request.headers.items()}
+        assert headers["authorization"].startswith("AWS4-HMAC-SHA256 ")
+        if request.method == "PUT":
+            body = request.body.read()
+            # These assertions reject SigV2 and aws-chunked trailer bodies.
+            assert headers["x-amz-content-sha256"] == hashlib.sha256(body).hexdigest()
+            assert "aws-chunked" not in headers.get("content-encoding", "")
+            assert headers["content-type"] == "application/gzip"
+            objects[request.url] = (body, headers)
+            uploads.append(request.url)
+            return AWSResponse(request.url, 200, {}, EmptyResponse())
+        body, stored_headers = objects[request.url]
+        return AWSResponse(request.url, 200, {
+            "content-length": str(len(body)),
+            "x-amz-meta-openmates-sha256": stored_headers["x-amz-meta-openmates-sha256"],
+        }, EmptyResponse())
+
+    for client in (*s3.upload_region_clients.values(), *s3.region_clients.values()):
+        client.meta.events.register("before-send.s3", respond)
+
+    retry_configs = []
+    if timeout_first_upload:
+        from unittest.mock import AsyncMock
+
+        class TimeoutClient:
+            def put_object(self, **_kwargs):
+                raise module.ReadTimeoutError(endpoint_url="https://storage.example.test")
+
+        s3.upload_region_clients["fsn1"] = TimeoutClient()
+        original_client = module.boto3.client
+
+        def retry_client(*args, **kwargs):
+            retry_configs.append(kwargs["config"])
+            client = original_client(*args, **kwargs)
+            client.meta.events.register("before-send.s3", respond)
+            return client
+
+        monkeypatch.setattr(module.boto3, "client", retry_client)
+        monkeypatch.setattr(module.asyncio, "sleep", AsyncMock())
+
+    manifest = await ColdArchiveService(directus_service=directus, s3_service=s3).archive_chat(
+        "chat-1", now_timestamp=40 * 86_400,
+    )
+
+    assert manifest["state"] == "cold"
+    assert manifest["verified_regions"] == ["fsn1", "hel1", "nbg1"]
+    assert len(uploads) == 3
+    assert len(directus.collections["storage_replication_jobs"]) == 3
+    if timeout_first_upload:
+        assert [config.read_timeout for config in retry_configs] == [30]
+    assert directus.collections["messages"] == []
+    assert directus.collections["embeds"] == []
+    assert directus.events.index(("create", "storage_replication_jobs")) < directus.events.index(("delete", "messages"))
+
+
 # contract-test: direct surface=rest_api assertions=storage.cold.atomic-eligible-graphs
 @pytest.mark.asyncio
 async def test_degraded_region_leaves_complete_hot_graph_intact() -> None:

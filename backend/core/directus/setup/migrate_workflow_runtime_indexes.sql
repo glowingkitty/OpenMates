@@ -70,6 +70,15 @@ CREATE INDEX IF NOT EXISTS workflow_input_sessions_owner_updated_idx
   ON workflow_input_sessions (hashed_user_id, updated_at DESC);
 CREATE INDEX IF NOT EXISTS workflow_input_mutations_session_created_idx
   ON workflow_input_mutations (session_id, created_at);
+ALTER TABLE IF EXISTS workflow_input_mutations
+  ADD COLUMN IF NOT EXISTS operation_id varchar(255);
+CREATE UNIQUE INDEX IF NOT EXISTS workflow_authoring_operations_operation_id_uq
+  ON workflow_authoring_operations (operation_id);
+CREATE INDEX IF NOT EXISTS workflow_input_mutations_operation_idx
+  ON workflow_input_mutations (operation_id, hashed_user_id);
+CREATE INDEX IF NOT EXISTS workflow_input_mutations_authoring_expiry_idx
+  ON workflow_input_mutations (created_at)
+  WHERE operation_id IS NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS workflow_assistant_proposals_proposal_id_uq
   ON workflow_assistant_proposals (proposal_id);
 CREATE INDEX IF NOT EXISTS workflow_assistant_proposals_pending_expiry_idx
@@ -84,5 +93,12 @@ CREATE INDEX IF NOT EXISTS workflow_delivery_history_delivery_idx
   ON workflow_delivery_history (delivery_id, status);
 CREATE INDEX IF NOT EXISTS workflow_deliveries_run_idx
   ON workflow_chat_deliveries (workflow_id, run_id);
+
+CREATE INDEX IF NOT EXISTS workflow_website_state_source_idx
+  ON workflow_website_state (workflow_id, hashed_user_id, source_id, kind);
+CREATE INDEX IF NOT EXISTS workflow_website_state_origin_idx
+  ON workflow_website_state (workflow_id, origin_run_id);
+CREATE INDEX IF NOT EXISTS workflow_delivery_history_change_idx
+  ON workflow_delivery_history (workflow_id, change_id, status);
 
 COMMIT;

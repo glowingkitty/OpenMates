@@ -50,11 +50,14 @@ struct SearchSkillPreviewModel {
         let inferredAppId = typeParts.count >= 2 && typeParts[0] == "app" ? String(typeParts[1]) : nil
         let inferredSkillId = typeParts.count >= 3 && typeParts[0] == "app" ? String(typeParts[2]) : nil
         self.embed = embed
-        appId = embed.appId ?? EmbedFieldReader.string(raw, keys: ["app_id"]) ?? inferredAppId ?? "web"
+        let resolvedAppId = embed.appId ?? EmbedFieldReader.string(raw, keys: ["app_id"]) ?? inferredAppId ?? "web"
+        appId = resolvedAppId
         skillId = embed.skillId ?? EmbedFieldReader.string(raw, keys: ["skill_id"]) ?? inferredSkillId ?? "search"
         query = EmbedFieldReader.string(raw, keys: ["query", "title"]) ?? EmbedType(rawValue: embed.type)?.displayName ?? skillId
-        let fallbackProvider = appId == "images" ? "Brave" : "Brave Search"
-        provider = EmbedFieldReader.string(raw, keys: ["provider"]).map(Self.displayProvider) ?? fallbackProvider
+        let fallbackProvider = resolvedAppId == "images" ? "Brave" : "Brave Search"
+        provider = EmbedFieldReader.string(raw, keys: ["provider"]).map {
+            resolvedAppId == "images" ? $0 : Self.displayProvider($0)
+        } ?? fallbackProvider
         status = embed.status
         childEmbeds = Self.resolveChildren(
             for: embed,
@@ -330,9 +333,58 @@ struct WebsiteResultModel: Identifiable {
     let url: String
     let sourceDomain: String
     let faviconURL: String?
+    let previewFaviconURL: String?
+    let sourceImageURL: String?
     let previewImageURL: String?
+    let thumbnailStripURL: String?
     let snippet: String?
     let pageAge: String?
+
+    // WebSearchEmbedFullscreen passes the original search image to its website
+    // card, which proxies external hosts but loads local example paths directly.
+    // Persisted children often call this preview_image_url; normalize that key
+    // without losing the original local/external distinction.
+    var cardEmbed: EmbedRecord {
+        guard let sourceImageURL else { return embed }
+        var raw = embed.rawData ?? [:]
+        raw["thumbnail_original"] = AnyCodable(sourceImageURL)
+        return EmbedRecord(
+            id: embed.id, type: embed.type, status: embed.status,
+            data: .raw(raw), encryptedContent: embed.encryptedContent,
+            encryptedType: embed.encryptedType, encryptedTextPreview: embed.encryptedTextPreview,
+            parentEmbedId: embed.parentEmbedId, appId: embed.appId, skillId: embed.skillId,
+            embedIds: embed.embedIds, hashedChatId: embed.hashedChatId,
+            hashedMessageId: embed.hashedMessageId, hashedUserId: embed.hashedUserId,
+            versionNumber: embed.versionNumber, contentHash: embed.contentHash,
+            versionHistory: embed.versionHistory, versionHistoryReadonly: embed.versionHistoryReadonly,
+            createdAt: embed.createdAt
+        )
+    }
+
+    // WebSearchEmbedFullscreen.svelte presents canonical YouTube results with
+    // the video card and drill-down, even when persisted as website children.
+    var videoEmbed: EmbedRecord? {
+        guard let videoID = YouTubeVideoURL.videoID(from: url) else { return nil }
+        var raw = embed.rawData ?? [:]
+        raw["video_id"] = AnyCodable(videoID)
+        let thumbnail = EmbedFieldReader.string(raw, keys: [
+            "thumbnail_url", "preview_image_url", "image_url", "thumbnail_original", "thumbnail.original"
+        ]) ?? "https://img.youtube.com/vi/\(videoID)/hqdefault.jpg"
+        raw["thumbnail_url"] = raw["thumbnail_url"] ?? AnyCodable(thumbnail)
+        raw["channel"] = raw["channel"] ?? raw["channel_name"]
+        raw["duration"] = raw["duration"] ?? raw["duration_formatted"]
+        return EmbedRecord(
+            id: embed.id, type: EmbedType.videosVideo.rawValue, status: embed.status,
+            data: .raw(raw), encryptedContent: embed.encryptedContent,
+            encryptedType: embed.encryptedType, encryptedTextPreview: embed.encryptedTextPreview,
+            parentEmbedId: embed.parentEmbedId, appId: "videos", skillId: embed.skillId,
+            embedIds: embed.embedIds, hashedChatId: embed.hashedChatId,
+            hashedMessageId: embed.hashedMessageId, hashedUserId: embed.hashedUserId,
+            versionNumber: embed.versionNumber, contentHash: embed.contentHash,
+            versionHistory: embed.versionHistory, versionHistoryReadonly: embed.versionHistoryReadonly,
+            createdAt: embed.createdAt
+        )
+    }
 
     init?(embed: EmbedRecord) {
         let raw = embed.rawData ?? [:]
@@ -343,18 +395,20 @@ struct WebsiteResultModel: Identifiable {
         url = resolvedURL
         sourceDomain = EmbedFieldReader.host(from: resolvedURL) ?? resolvedURL
         title = EmbedFieldReader.string(raw, keys: ["title", "site_name", "profile_name"]) ?? sourceDomain
+        let rawFavicon = EmbedFieldReader.string(raw, keys: ["favicon", "favicon_url", "meta_url_favicon", "meta_url.favicon"])
+        previewFaviconURL = EmbedFieldReader.proxiedImageURL(rawFavicon, maxWidth: 38)
         faviconURL = EmbedFieldReader.proxiedFaviconImageURL(
-            directURL: EmbedFieldReader.string(raw, keys: ["meta_url_favicon", "favicon_url", "favicon", "meta_url.favicon"]),
+            directURL: rawFavicon,
             pageURL: resolvedURL
         )
-        previewImageURL = EmbedFieldReader.proxiedImageURL(
-            EmbedFieldReader.string(raw, keys: [
-                "thumbnail_original", "thumbnail_src", "thumbnail_url",
-                "thumbnail.original", "thumbnail.src", "preview_image_url",
-                "image", "image_url", "meta_image", "og_image"
-            ]),
-            maxWidth: 1024
-        )
+        let rawPreviewImage = EmbedFieldReader.string(raw, keys: [
+            "thumbnail_url", "preview_image_url", "image_url",
+            "thumbnail_original", "thumbnail.original", "thumbnail_src",
+            "thumbnail.src", "image", "meta_image", "og_image"
+        ])
+        sourceImageURL = rawPreviewImage
+        previewImageURL = EmbedFieldReader.proxiedImageURL(rawPreviewImage, maxWidth: 1024)
+        thumbnailStripURL = EmbedFieldReader.proxiedImageURL(rawPreviewImage, maxWidth: 520)
         snippet = EmbedFieldReader.strippedHTML(
             EmbedFieldReader.string(raw, keys: ["snippet", "description", "meta_description", "summary"])
         )
@@ -389,7 +443,7 @@ struct ImageSearchResultModel: Identifiable {
         faviconURL = EmbedFieldReader.proxiedImageURL(
             EmbedFieldReader.string(raw, keys: ["favicon_url", "favicon", "meta_url_favicon", "meta_url.favicon"]),
             maxWidth: 64
-        ) ?? EmbedFieldReader.proxiedFaviconURL(pageURL: sourcePageURL)
+        )
     }
 }
 
@@ -697,7 +751,7 @@ enum EmbedFieldReader {
         }
         if let existing = URLComponents(string: rawURL),
            existing.scheme == "https", existing.host == "preview.openmates.org",
-           existing.path == "/api/v1/image" {
+           (existing.path == "/api/v1/image" || existing.path == "/api/v1/favicon") {
             return rawURL
         }
         var components = URLComponents(string: "https://preview.openmates.org/api/v1/image")
@@ -710,10 +764,13 @@ enum EmbedFieldReader {
 
     static func proxiedFaviconImageURL(directURL: String?, pageURL: String?) -> String? {
         let direct = directURL?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let source = direct?.isEmpty == false ? direct : proxiedFaviconURL(pageURL: pageURL)
-        // Match the rendered web's extraction → raster image proxy path. This
-        // performs one bounded wrap; an existing image-proxy URL stays unchanged.
-        return proxiedImageURL(source, maxWidth: 38)
+        // WebsiteEmbedPreview.svelte proxies supplied favicon bitmaps through
+        // /image, but uses /favicon directly when extracting from the page URL.
+        // Wrapping /favicon in /image breaks sites that the browser renders.
+        if let direct, !direct.isEmpty {
+            return proxiedImageURL(direct, maxWidth: 38)
+        }
+        return proxiedFaviconURL(pageURL: pageURL)
     }
 
     static func proxiedFaviconURL(pageURL: String?) -> String? {

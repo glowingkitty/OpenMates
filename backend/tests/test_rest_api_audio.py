@@ -194,6 +194,8 @@ def test_audio_app_metadata_exposes_generate_and_speak_contracts():
     assert provider_models["eleven_flash_v2_5"]["pricing"] == {"per_second": 2}
     assert provider_models["eleven_multilingual_v2"]["pricing"] == {"per_second": 4}
     assert provider_models["eleven_v3"]["pricing"] == {"per_second": 4}
+    assert provider_models["eleven_v4"]["pricing"] == {"per_second": 4}
+    assert provider_models["eleven_v4_turbo"]["pricing"] == {"per_second": 2}
     for skill_id in ("generate", "speak"):
         skill = skills[skill_id]
         assert skill["api_config"] == {"expose_get": True, "expose_post": True}
@@ -205,6 +207,8 @@ def test_audio_app_metadata_exposes_generate_and_speak_contracts():
                 "eleven_v3",
                 "eleven_multilingual_v2",
                 "eleven_flash_v2_5",
+                "eleven_v4",
+                "eleven_v4_turbo",
             ]
             assert request_item["properties"]["model"]["default"] == "eleven_v3"
         assert "audio_base64" in skill["exclude_fields_for_llm"]
@@ -238,6 +242,41 @@ def test_audio_speak_request_rejects_unsupported_provider_and_raw_voice_id():
 
     with pytest.raises(ValidationError):
         AudioSpeakRequest(requests=[{"text": "Hello", "provider": "elevenlabs", "model": "unsupported_tts_model"}])
+
+
+# contract-test: direct surface=rest_api assertions=audio-speak.request.validated,audio-speak.provider.explicit-selection
+@pytest.mark.parametrize("model", ["eleven_v4", "eleven_v4_turbo"])
+def test_audio_speak_v4_models_accept_default_speed_and_reject_custom_speed(model):
+    from backend.apps.audio.skills.speak_skill import AudioSpeakRequest
+
+    request = AudioSpeakRequest(requests=[{"text": "Hello", "model": model}])
+    assert request.requests[0].model == model
+    assert request.requests[0].speed == 1.0
+    with pytest.raises(ValidationError, match="do not support custom speed"):
+        AudioSpeakRequest(requests=[{"text": "Hello", "model": model, "speed": 1.1}])
+    assert AudioSpeakRequest(requests=[{"text": "Hello", "model": "eleven_v3", "speed": 1.1}]).requests[0].speed == 1.1
+
+
+# contract-test: direct surface=rest_api assertions=audio-speak.provider.explicit-selection,audio-speak.surface-parity
+@pytest.mark.asyncio
+@pytest.mark.parametrize("model", ["eleven_v4", "eleven_v4_turbo"])
+async def test_audio_speak_dispatch_preserves_selected_v4_model(monkeypatch, model):
+    import backend.apps.audio.skills.speak_skill as speak_module
+
+    captured = {}
+
+    async def fake_execute_skill_via_celery(**kwargs):
+        captured.update(kwargs["arguments"])
+        return "task-speech-v4"
+
+    monkeypatch.setattr(speak_module, "execute_skill_via_celery", fake_execute_skill_via_celery)
+    result = await _load_audio_app().dispatch_skill(
+        "speak", {"requests": [{"text": "Hello", "provider": "elevenlabs", "model": model}]},
+    )
+    assert result["results"][0]["status"] == "processing"
+    assert result["results"][0]["model"] == model
+    assert captured["model"] == model
+    assert captured["full_model_reference"] == f"elevenlabs/{model}"
 
 
 class _FakeStorage:
@@ -486,7 +525,8 @@ async def test_audio_speak_calls_provider_only_after_safeguard_approval(monkeypa
 
 # contract-test: direct surface=rest_api assertions=audio-speak.request.validated,audio-speak.output.playable-audio,audio-speak.billing.success-only
 @pytest.mark.asyncio
-async def test_audio_speak_accepts_flash_model_and_charges_model_rate(monkeypatch):
+@pytest.mark.parametrize("model,preflight,charge", [("eleven_flash_v2_5", 21, 5), ("eleven_v4", 42, 10), ("eleven_v4_turbo", 21, 5)])
+async def test_audio_speak_accepts_selected_model_and_charges_model_rate(monkeypatch, model, preflight, charge):
     import backend.apps.audio.tasks.speak_task as speak_task_module
     import backend.apps.audio.skills.speak_skill as speak_skill_module
     from backend.shared.providers.elevenlabs.models import ElevenLabsAudioResult
@@ -503,11 +543,11 @@ async def test_audio_speak_accepts_flash_model_and_charges_model_rate(monkeypatc
 
         async def text_to_speech(self, **kwargs):
             calls.append(("tts", kwargs["model"]))
-            assert kwargs["model"] == "eleven_flash_v2_5"
+            assert kwargs["model"] == model
             return ElevenLabsAudioResult(
                 audio_bytes=b"premium-voice-mp3",
                 mime_type="audio/mpeg",
-                model="eleven_flash_v2_5",
+                model=model,
                 duration_seconds=2.4,
             )
 
@@ -551,22 +591,54 @@ async def test_audio_speak_accepts_flash_model_and_charges_model_rate(monkeypatc
             "voice": "warm_neutral",
             "accent": "en_us",
             "style": "natural",
-            "model": "eleven_flash_v2_5",
-            "full_model_reference": "elevenlabs/eleven_flash_v2_5",
+            "model": model,
+            "full_model_reference": f"elevenlabs/{model}",
         },
     )
 
     assert calls == [
         ("safeguard", text.strip()),
-        ("preflight", 21),
-        ("tts", "eleven_flash_v2_5"),
-        ("store", "eleven_flash_v2_5"),
-        ("charge", 5, "elevenlabs/eleven_flash_v2_5"),
+        ("preflight", preflight),
+        ("tts", model),
+        ("store", model),
+        ("charge", charge, f"elevenlabs/{model}"),
     ]
     assert result["status"] == "finished"
-    assert result["model"] == "eleven_flash_v2_5"
-    assert result["credits_charged"] == 5
+    assert result["model"] == model
+    assert result["credits_charged"] == charge
     assert "audio_base64" not in result
+
+
+# contract-test: supporting surface=rest_api assertions=audio-speak.provider.explicit-selection,audio-speak.output.playable-audio,assistant-speech.voice.fixed-versioned-mate-profile
+@pytest.mark.asyncio
+@pytest.mark.parametrize("model", ["eleven_v4", "eleven_v4_turbo", "eleven_v3"])
+async def test_elevenlabs_tts_sends_model_appropriate_voice_settings(monkeypatch, model):
+    import json
+    import httpx
+    import backend.shared.providers.elevenlabs.client as client_module
+
+    real_client = httpx.AsyncClient
+    requests = []
+
+    def handle(request):
+        requests.append(request)
+        return httpx.Response(200, content=b"x" * 16000, headers={"content-type": "audio/mpeg"})
+
+    monkeypatch.setattr(client_module.httpx, "AsyncClient", lambda **kwargs: real_client(transport=httpx.MockTransport(handle), **kwargs))
+    client = client_module.ElevenLabsClient(api_key="test-key")
+    result = await client.text_to_speech(text="Hello", voice_id="test-voice", model=model)
+    assert result.model == model
+    assert result.duration_seconds == 1.0
+    assert requests[0].url.path == "/v1/text-to-speech/test-voice"
+    assert requests[0].url.params["output_format"] == "mp3_44100_128"
+    expected = {"text": "Hello", "model_id": model}
+    if model == "eleven_v3":
+        expected["voice_settings"] = {"speed": 1.0}
+    else:
+        with pytest.raises(ValueError, match="do not support custom speed"):
+            await client.text_to_speech(text="Hello", voice_id="test-voice", model=model, speed=1.1)
+        assert len(requests) == 1
+    assert json.loads(requests[0].content) == expected
 
 
 # contract-test: direct surface=rest_api assertions=audio-speak.billing.success-only
@@ -588,32 +660,32 @@ async def test_audio_speak_output_safety_skips_declared_binary_fields(monkeypatc
     )
 
     calls = []
+    collected = []
 
     async def fake_semantic_sanitizer(**kwargs):
         calls.append(kwargs)
+        _collect_string_fields_with_overrides(
+            kwargs["payload"], "", min_chars=kwargs["min_chars"], collected=collected,
+            always_sanitize_field_names=kwargs["always_sanitize_field_names"],
+            skip_field_names=kwargs.get("skip_field_names"),
+        )
         return kwargs["payload"]
 
+    preview = "OpenMates audio playback is working. " * 5
     payload = {
         "results": [
             {
                 "status": "finished",
-                "text_preview": "OpenMates audio playback is working.",
+                "text_preview": preview,
                 "audio_base64": "A" * 180,
+                "aes_key": "B" * 180,
+                "aes_nonce": "C" * 180,
+                "vault_wrapped_aes_key": "D" * 180,
                 "mime_type": "audio/mpeg",
             }
         ],
         "ignore_fields_for_inference": ["audio_base64", "aes_key", "aes_nonce", "vault_wrapped_aes_key"],
     }
-    collected = []
-    _collect_string_fields_with_overrides(
-        payload,
-        "",
-        min_chars=120,
-        collected=collected,
-        always_sanitize_field_names={"text_preview", "audio_base64"},
-        skip_field_names={"audio_base64"},
-    )
-
     monkeypatch.setattr(app_skill_output_safety, "sanitize_long_text_fields_in_payload", fake_semantic_sanitizer)
     result = await sanitize_app_skill_output(
         payload,
@@ -626,6 +698,8 @@ async def test_audio_speak_output_safety_skips_declared_binary_fields(monkeypatc
         ),
     )
 
-    assert collected == [("results[0].text_preview", "OpenMates audio playback is working.")]
-    assert calls[0]["skip_field_names"] >= {"audio_base64", "aes_key", "aes_nonce", "vault_wrapped_aes_key"}
-    assert result["results"][0]["audio_base64"] == "A" * 180
+    assert collected == [("results[0].text_preview", preview)]
+    assert calls[0]["app_id"] == "audio"
+    assert calls[0]["skill_id"] == "speak"
+    for field in ("audio_base64", "aes_key", "aes_nonce", "vault_wrapped_aes_key"):
+        assert result["results"][0][field] == payload["results"][0][field]

@@ -949,6 +949,7 @@ test.describe('Cross-client encrypted draft sync', () => {
 	test.describe.configure({ mode: 'serial' });
 	test.setTimeout(CROSS_CLIENT_DRAFT_SYNC_TIMEOUT_MS);
 
+	// contract-test: direct surface=gui.web assertions=drafts.sync.version-authoritative,drafts.access.first-party-encrypted,drafts.draft-only.lifecycle,drafts.navigation.includes-draft-only
 	test('CLI and web reconcile draft lifecycle and missed chat deletion', async ({ page }: { page: any }) => {
 		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 		const log = createSignupLogger('CROSS_CLIENT_DRAFT_SYNC');
@@ -986,6 +987,10 @@ test.describe('Cross-client encrypted draft sync', () => {
 			await expect(page.getByTestId('chat-header-title')).toContainText(initialText);
 			const firstSavedAt = await page.getByTestId('draft-chat-last-saved').getAttribute('data-saved-at');
 			expect(firstSavedAt).toMatch(/^\d+$/);
+			const refreshedDraft = await runCliJson(apiUrl, ['drafts', 'get', draftChatId, '--refresh']);
+			expect(Number.isInteger(refreshedDraft.draft?.draftV)).toBe(true);
+			expect(refreshedDraft.draft.draftV).toBeGreaterThan(0);
+			expect(refreshedDraft.draft.markdown).toBe(initialText);
 			log('CLI-created draft opened in web client.');
 
 			const draftUpdateFrameStart = wsFrames.length;
@@ -1106,6 +1111,7 @@ test.describe('Cross-client encrypted draft sync', () => {
 		}
 	});
 
+	// contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative,drafts.access.first-party-encrypted,drafts.draft-only.lifecycle
 	test('IdeaBucket drafts and processed chats keep encrypted provenance across web cold boot', async ({ page }: { page: any }) => {
 		test.setTimeout(600_000);
 		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);

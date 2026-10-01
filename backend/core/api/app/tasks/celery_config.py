@@ -1190,6 +1190,7 @@ task_routes = {
     "workflows.run": {'queue': 'workflow'},
     "workflows.run_scheduled_trigger": {'queue': 'workflow'},
     "workflows.scan_due_triggers": {'queue': 'workflow'},
+    "workflows.reconcile_stale_state": {'queue': 'workflow'},
     # Workflow tasks use custom names like "workflows.run" instead of module paths.
     "workflows.*": {'queue': 'persistence'},
     # Add other explicitly named tasks here as needed
@@ -1328,6 +1329,7 @@ _EXPLICIT_TASK_ROUTES = {
       "workflows.run": "workflow",
       "workflows.run_scheduled_trigger": "workflow",
       "workflows.scan_due_triggers": "workflow",
+      "workflows.reconcile_stale_state": "workflow",
   }
 
 def get_expected_queue_for_task(task_name: str) -> Optional[str]:
@@ -1604,6 +1606,16 @@ app.conf.beat_schedule = {
     },
     'scan-due-workflow-triggers': {
         'task': 'workflows.scan_due_triggers',
+        'schedule': timedelta(seconds=60),
+        'options': {'queue': 'workflow'},
+    },
+    'reconcile-stale-workflow-state': {
+        'task': 'workflows.reconcile_stale_state',
+        'schedule': timedelta(seconds=60),
+        'options': {'queue': 'workflow'},
+    },
+    'replay-queued-workflow-inputs': {
+        'task': 'workflows.replay_queued_inputs',
         'schedule': timedelta(seconds=60),
         'options': {'queue': 'workflow'},
     },

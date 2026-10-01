@@ -1,4 +1,4 @@
-# Stateless OpenAI Responses transport for reasoning-enabled Astra requests.
+# Stateless OpenAI Responses transport for models requiring Responses tool calls.
 # Adapts provider events to the existing OpenMates text/tool/usage boundary.
 # Opaque reasoning is replayed only with the current tool continuation history.
 # Provider storage is always disabled; no previous_response_id is used.

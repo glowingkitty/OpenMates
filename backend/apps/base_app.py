@@ -409,6 +409,7 @@ class BaseApp:
             api_key_hash = request_body.get("_api_key_hash")
             device_hash = request_body.get("_device_hash")
             external_request = request_body.get("_external_request", False)
+            team_id = request_body.get("_team_id")
             # Placeholder embed IDs from main_processor - allows async skills (e.g., images.generate)
             # to update existing placeholder embeds instead of creating new ones
             placeholder_embed_ids = request_body.get("_placeholder_embed_ids")
@@ -475,6 +476,7 @@ class BaseApp:
                 "api_key_hash": api_key_hash,
                 "device_hash": device_hash,
                 "external_request": external_request,
+                "team_id": team_id,
                 "chat_id": chat_id,
                 "message_id": message_id,
                 "placeholder_embed_ids": placeholder_embed_ids,

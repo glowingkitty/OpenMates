@@ -3,12 +3,97 @@
 // and routes taps to the appropriate chat.
 // Specification: specifications/features/apple-watch/specification.yml
 // Assertions: apple-watch.handoff.exact-private
+// Specification: specifications/features/apple-notifications/specification.yml
+// Assertions: apple-notifications.registration.lifecycle
 
 import Foundation
 import CryptoKit
 import Combine
 import UserNotifications
 import SwiftUI
+
+struct PushRegistrationContext: Equatable {
+    let accountID: String
+    let profile: ServerProfile
+    let scope: UUID
+}
+
+/// One installation token, fenced by the verified account and server. Transient
+/// failures retry within a bounded burst; the next online transition can resume.
+@MainActor
+final class PushDeviceRegistration {
+    private let context: () -> PushRegistrationContext?
+    private let register: @MainActor (String, PushRegistrationContext) async throws -> Void
+    private let sleep: @MainActor (Duration) async throws -> Void
+    private let acknowledge: (Bool) -> Void
+    private let retryDelays: [Duration]
+    private var task: Task<Void, Never>?
+    private var generation = UUID()
+    private var activeContext: PushRegistrationContext?
+    private var activeToken: String?
+    private var acknowledged = false
+
+    init(context: @escaping () -> PushRegistrationContext?,
+         register: @escaping @MainActor (String, PushRegistrationContext) async throws -> Void,
+         sleep: (@MainActor (Duration) async throws -> Void)?,
+         retryDelays: [Duration],
+         acknowledge: @escaping (Bool) -> Void) {
+        self.context = context
+        self.register = register
+        self.sleep = sleep ?? { delay in try await Task.sleep(for: delay) }
+        self.retryDelays = retryDelays
+        self.acknowledge = acknowledge
+    }
+
+    func invalidate() {
+        generation = UUID()
+        task?.cancel()
+        task = nil
+        activeContext = nil
+        activeToken = nil
+        acknowledged = false
+        acknowledge(false)
+    }
+
+    func refresh(token: String) {
+        guard !token.isEmpty, let captured = context() else {
+            invalidate()
+            return
+        }
+        if captured == activeContext, token == activeToken {
+            guard task == nil, !acknowledged else { return }
+        } else {
+            invalidate()
+            activeContext = captured
+            activeToken = token
+        }
+        let capturedGeneration = generation
+        task = Task { [weak self] in
+            guard let self else { return }
+            defer { if self.generation == capturedGeneration { self.task = nil } }
+            for attempt in 0...self.retryDelays.count {
+                guard !Task.isCancelled, self.generation == capturedGeneration,
+                      self.context() == captured else { return }
+                do {
+                    try await self.register(token, captured)
+                    guard !Task.isCancelled, self.generation == capturedGeneration,
+                          self.context() == captured else { return }
+                    self.acknowledged = true
+                    self.acknowledge(true)
+                    return
+                } catch {
+                    guard !Task.isCancelled, self.generation == capturedGeneration,
+                          self.context() == captured else { return }
+                    self.acknowledge(false)
+                    NativeDiagnostics.warning("APNs device registration acknowledgement failed: \(type(of: error))",
+                                              category: "push_notifications")
+                }
+                guard attempt < self.retryDelays.count else { return }
+                do { try await self.sleep(self.retryDelays[attempt]) } catch { return }
+            }
+        }
+    }
+}
 
 // The OS may suspend the app after its response completion handler returns.
 // Store replies and exact prepared turns in Keychain before acknowledging them.
@@ -107,6 +192,66 @@ final class PushNotificationManager: NSObject, ObservableObject {
     private var completedReplyIds = Set<String>()
     private var isSendingReplies = false
     private var connectionObserver: AnyCancellable?
+    private var registrationAuthObserver: AnyCancellable?
+    private weak var registrationAuthSession: AuthManager?
+    private var permissionAuthorized = false
+    private var installationToken: String?
+    private lazy var deviceRegistration = makeDeviceRegistration()
+
+    private func makeDeviceRegistration() -> PushDeviceRegistration {
+        PushDeviceRegistration(
+        context: { [weak self] in self?.registrationContext() },
+        register: { token, context in
+            let publicKey = NotificationPreviewCrypto.loadOrCreatePublicKey()
+            var body: [String: Any] = [
+                "token": token, "platform": "apns", "environment": Self.apnsEnvironment,
+                "encryption_version": NotificationPreviewCrypto.encryptionVersion,
+                "device_id": Self.installationID
+            ]
+            if let publicKey { body["notification_public_key"] = publicKey }
+            else { NativeDiagnostics.warning("Notification preview key is unavailable", category: "push_notifications") }
+            let _: Data = try await APIClient.shared.request(.post,
+                path: "/v1/notifications/register-device", serverProfile: context.profile, body: body,
+                expectedAccountID: context.accountID, expectedScope: context.scope)
+        }, sleep: nil, retryDelays: [.seconds(1), .seconds(4), .seconds(16)],
+        acknowledge: { [weak self] registered in self?.isRegistered = registered })
+    }
+
+    private func registrationContext() -> PushRegistrationContext? {
+        let auth = AuthManager.notificationSession
+        guard permissionAuthorized, auth.state == .authenticated,
+              auth.sessionValidationState == .onlineAuthenticated,
+              let account = auth.currentUser?.id,
+              AppSessionCoordinator.shared.webSocketManager.connectionState == .connected else { return nil }
+        return PushRegistrationContext(accountID: account, profile: ServerProfile.current(),
+                                       scope: OfflineStore.shared.scopeGeneration)
+    }
+
+    func invalidateRegistration() { deviceRegistration.invalidate() }
+
+    func refreshRegistration() {
+        observeRegistrationAuthentication()
+        let stored = try? KeychainHelper.load(key: Self.deviceTokenKey)
+        guard let token = installationToken ?? stored.flatMap({ String(data: $0, encoding: .utf8) }) else { return }
+        deviceRegistration.refresh(token: token)
+    }
+
+    private func observeRegistrationAuthentication() {
+        let auth = AuthManager.notificationSession
+        guard registrationAuthSession !== auth else { return }
+        registrationAuthSession = auth
+        let accountIDs = auth.$currentUser.map { user -> String? in user?.id }
+        let contexts = Publishers.CombineLatest3(auth.$state, auth.$sessionValidationState, accountIDs)
+        registrationAuthObserver = contexts
+            .removeDuplicates { previous, current in
+                previous.0 == current.0 && previous.1 == current.1 && previous.2 == current.2
+            }
+            .sink { [weak self] _ in
+                // Published values are emitted before assignment. Read the
+                // complete verified context on the following actor turn.
+                Task { @MainActor in self?.refreshRegistration() }
+            }
+    }
 
     private func replyLedger() throws -> NotificationReplyLedger {
         guard let data = try KeychainHelper.load(key: Self.replyLedgerKey) else { return NotificationReplyLedger() }
@@ -302,9 +447,20 @@ final class PushNotificationManager: NSObject, ObservableObject {
             connectionObserver = AppSessionCoordinator.shared.webSocketManager.$connectionState
                 .removeDuplicates()
                 .sink { [weak self] state in
-                    guard state == .connected else { return }
-                    Task { @MainActor in await self?.flushQueuedReplies() }
+                    Task { @MainActor in
+                        guard let self else { return }
+                        if state == .connected {
+                            self.refreshRegistration()
+                            await self.flushQueuedReplies()
+                        } else { self.invalidateRegistration() }
+                    }
                 }
+        }
+        observeRegistrationAuthentication()
+        Task { @MainActor in
+            let settings = await center.notificationSettings()
+            permissionAuthorized = settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional
+            refreshRegistration()
         }
     }
 
@@ -315,10 +471,11 @@ final class PushNotificationManager: NSObject, ObservableObject {
 
         do {
             let granted = try await center.requestAuthorization(options: [.alert, .badge, .sound])
+            permissionAuthorized = granted
             if granted {
+                refreshRegistration()
                 await registerForRemoteNotifications()
-            }
-            isRegistered = false
+            } else { invalidateRegistration() }
             return granted
         } catch {
             NativeDiagnostics.warning("Notification permission request failed: \(type(of: error))", category: "push_notifications")
@@ -340,42 +497,22 @@ final class PushNotificationManager: NSObject, ObservableObject {
         let tokenString = token.map { String(format: "%02x", $0) }.joined()
         NativeDiagnostics.info("APNs device token received", category: "push_notifications")
 
-        Task {
-            let publicKey = NotificationPreviewCrypto.loadOrCreatePublicKey()
-            var body: [String: Any] = [
-                "token": tokenString,
-                "platform": "apns",
-                "environment": Self.apnsEnvironment,
-                "encryption_version": NotificationPreviewCrypto.encryptionVersion,
-                "device_id": Self.installationID
-            ]
-            if let publicKey {
-                body["notification_public_key"] = publicKey
-            } else {
-                NativeDiagnostics.warning("Notification preview key is unavailable", category: "push_notifications")
-            }
-            do {
-                let _: Data = try await APIClient.shared.request(
-                    .post,
-                    path: "/v1/notifications/register-device",
-                    body: body
-                )
-                try KeychainHelper.save(key: Self.deviceTokenKey, data: Data(tokenString.utf8))
-                isRegistered = true
-            } catch {
-                isRegistered = false
-                NativeDiagnostics.warning(
-                    "APNs device registration acknowledgement failed: \(type(of: error))",
-                    category: "push_notifications"
-                )
-            }
-        }
+        installationToken = tokenString
+        do { try KeychainHelper.save(key: Self.deviceTokenKey, data: Data(tokenString.utf8)) }
+        catch { NativeDiagnostics.warning("APNs installation token persistence failed: \(type(of: error))", category: "push_notifications") }
+        refreshRegistration()
     }
 
     func unregisterCurrentDevice() async {
+        invalidateRegistration()
+        permissionAuthorized = false
+        let auth = AuthManager.notificationSession
+        let accountID = auth.currentUser?.id
+        let profile = ServerProfile.current()
+        let scope = OfflineStore.shared.scopeGeneration
         guard let stored = try? KeychainHelper.load(key: Self.deviceTokenKey),
               let token = String(data: stored, encoding: .utf8),
-              !token.isEmpty else {
+              !token.isEmpty, let accountID, auth.state == .authenticated else {
             isRegistered = false
             return
         }
@@ -383,9 +520,14 @@ final class PushNotificationManager: NSObject, ObservableObject {
             let _: Data = try await APIClient.shared.request(
                 .delete,
                 path: "/v1/notifications/unregister-device",
-                body: ["token": token, "device_id": Self.installationID]
+                serverProfile: profile,
+                body: ["token": token, "device_id": Self.installationID],
+                expectedAccountID: accountID, expectedScope: scope
             )
+            guard auth.currentUser?.id == accountID, ServerProfile.current() == profile,
+                  OfflineStore.shared.scopeGeneration == scope, installationToken == nil || installationToken == token else { return }
             try KeychainHelper.delete(key: Self.deviceTokenKey)
+            installationToken = nil
             isRegistered = false
             #if os(iOS)
             UIApplication.shared.unregisterForRemoteNotifications()

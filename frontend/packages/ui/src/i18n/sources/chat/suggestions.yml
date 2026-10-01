@@ -70,6 +70,30 @@ related_chats:
   sv: "Relaterade chattar"
   he: "צ'אטים קשורים"
   verified_by_human: []
+embed_unavailable:
+  context: Error shown when a searched embed cannot be opened from the message input
+  en: This embed is not available yet.
+  de: Dieses Embed ist noch nicht verfügbar.
+  zh: 此嵌入内容尚不可用。
+  es: Este elemento insertado aún no está disponible.
+  fr: Cet élément intégré n'est pas encore disponible.
+  pt: Este conteúdo incorporado ainda não está disponível.
+  ru: Этот встроенный элемент пока недоступен.
+  ja: この埋め込みはまだ利用できません。
+  ko: 이 임베드는 아직 사용할 수 없습니다.
+  it: Questo contenuto incorporato non è ancora disponibile.
+  tr: Bu yerleştirme henüz kullanılamıyor.
+  vi: Nội dung nhúng này chưa có sẵn.
+  id: Sematan ini belum tersedia.
+  pl: Ten element osadzony nie jest jeszcze dostępny.
+  nl: Deze insluiting is nog niet beschikbaar.
+  ar: هذا المحتوى المضمّن غير متاح بعد.
+  hi: यह एम्बेड अभी उपलब्ध नहीं है।
+  th: เนื้อหาที่ฝังนี้ยังไม่พร้อมใช้งาน
+  cs: Tento vložený obsah zatím není dostupný.
+  sv: Den här inbäddningen är inte tillgänglig än.
+  he: ההטמעה הזו עדיין אינה זמינה.
+  verified_by_human: []
 header_click:
   context: Header text above the new chat suggestion cards on the welcome screen
   en: "OpenMates can help you with:"
@@ -117,4 +141,54 @@ header_tap:
   cs: "OpenMates vám může pomoci s:"
   sv: "OpenMates kan hjälpa dig med:"
   he: "OpenMates יכול לעזור לך עם:"
+  verified_by_human: []
+
+embed_result:
+  context: Subtitle below a matching composer search card for locally synced embeds
+  en: "Embed"
+  de: "Embed"
+  zh: "嵌入内容"
+  es: "Contenido integrado"
+  fr: "Contenu intégré"
+  pt: "Conteúdo incorporado"
+  ru: "Встроенный элемент"
+  ja: "埋め込み"
+  ko: "임베드"
+  it: "Contenuto incorporato"
+  tr: "Gömülü içerik"
+  vi: "Nội dung nhúng"
+  id: "Sematan"
+  pl: "Osadzenie"
+  nl: "Ingesloten inhoud"
+  ar: "محتوى مضمن"
+  hi: "एम्बेड"
+  th: "เนื้อหาแบบฝัง"
+  cs: "Vložený obsah"
+  sv: "Inbäddning"
+  he: "תוכן מוטמע"
+  verified_by_human: []
+
+skill_result:
+  context: Subtitle below a matching composer search card for locally synced skill outputs
+  en: "Skill result"
+  de: "Skill-Ergebnis"
+  zh: "技能结果"
+  es: "Resultado de habilidad"
+  fr: "Résultat de compétence"
+  pt: "Resultado da habilidade"
+  ru: "Результат навыка"
+  ja: "スキルの結果"
+  ko: "스킬 결과"
+  it: "Risultato della funzione"
+  tr: "Beceri sonucu"
+  vi: "Kết quả kỹ năng"
+  id: "Hasil keterampilan"
+  pl: "Wynik umiejętności"
+  nl: "Vaardigheidsresultaat"
+  ar: "نتيجة المهارة"
+  hi: "कौशल परिणाम"
+  th: "ผลลัพธ์ทักษะ"
+  cs: "Výsledek dovednosti"
+  sv: "Färdighetsresultat"
+  he: "תוצאת מיומנות"
   verified_by_human: []

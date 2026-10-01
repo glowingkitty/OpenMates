@@ -1,3 +1,5 @@
+// Specification: specifications/features/chat-share-settings/specification.yml
+// Assertions: chat-share-settings.shared-link-open
 // Chat sharing entry point backed by the shared custom Apple share panel.
 // Generates web-compatible encrypted links locally and syncs only permitted
 // share metadata through the established share routes.
@@ -64,30 +66,28 @@ struct ChatShareView: View {
         loadError = true
     }
 
-    private func persistShare(_ url: URL, _ usedLongFallback: Bool, _ duration: ShareDuration) async {
-        guard let chatKey else { return }
-        do {
-            let encryptedURL = try await CryptoManager.shared.encryptContent(url.absoluteString, key: chatKey)
-            UserDefaults.standard.set(encryptedURL, forKey: storedShareURLKey)
-            let body: [String: Any] = [
-                "chat_id": chatId,
-                "title": chat?.title ?? NSNull(),
-                "summary": chat?.chatSummary ?? NSNull(),
-                "category": chat?.category ?? NSNull(),
-                "icon": chat?.icon ?? NSNull(),
-                "is_shared": true,
-                "share_pii": false,
-                "share_highlights": false,
-                "encrypted_shared_short_url": encryptedURL
-            ]
-            let _: Data = try await APIClient.shared.request(.post, path: "/v1/share/chat/metadata", body: body)
-            NativeDiagnostics.info(
-                "Chat share metadata synced kind=\(usedLongFallback ? "long" : "short") duration=\(duration.rawValue)",
-                category: "sharing"
-            )
-        } catch {
-            NativeDiagnostics.warning("Chat share metadata sync failed", category: "sharing")
-        }
+    private func persistShare(_ url: URL, _ usedLongFallback: Bool, _ duration: ShareDuration) async throws {
+        guard let chatKey, let accountID = await AuthManager.currentUserId() else { throw UserTasksError.accountChanged }
+        let fence = UserTasksAccountFence(accountID: accountID)
+        try await fence.check()
+        let encryptedURL: Any = usedLongFallback ? NSNull() : try await CryptoManager.shared.encryptContent(url.absoluteString, key: chatKey)
+        let body: [String: Any] = [
+            "chat_id": chatId,
+            "title": chat?.title ?? NSNull(),
+            "summary": chat?.chatSummary ?? NSNull(),
+            "category": chat?.category ?? NSNull(),
+            "icon": chat?.icon ?? NSNull(),
+            "is_shared": true,
+            "share_pii": false,
+            "share_highlights": false,
+            "encrypted_shared_short_url": encryptedURL
+        ]
+        let _: Data = try await APIClient.shared.request(.post, path: "/v1/share/chat/metadata", serverProfile: fence.serverProfile,
+            body: JSONRawBody(data: JSONSerialization.data(withJSONObject: body)), expectedAccountID: fence.accountID, expectedScope: fence.scope)
+        try await fence.check()
+        if let encryptedURL = encryptedURL as? String { UserDefaults.standard.set(encryptedURL, forKey: storedShareURLKey) }
+        else { UserDefaults.standard.removeObject(forKey: storedShareURLKey) }
+        NativeDiagnostics.info("Chat share metadata synced kind=\(usedLongFallback ? "long" : "short") duration=\(duration.rawValue)", category: "sharing")
     }
 
     private func stopSharing() async {

@@ -12,6 +12,45 @@ final class SettingsFullParityUITests: XCTestCase {
         continueAfterFailure = false
     }
 
+    // contract-test: supporting surface=gui.apple assertions=settings-ui.shell.lifecycle-and-routing,settings-ui.navigation.parent-return
+    func testInternalSettingsLinkOpensLanguageChildAndReturns() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-disable-auth-cache", "--ui-test-app-link-fixture"]
+        app.launch()
+        let link = app.descendants(matching: .any)["ui-test-settings-link"]
+        XCTAssertTrue(link.waitForExistence(timeout: 15))
+        XCTAssertTrue(link.isHittable)
+        link.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["settings-language-page"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.webViews.firstMatch.exists, "An app settings link must remain native")
+        attachScreenshot(name: "Native app link opened Language settings child")
+        app.buttons["settings-language-back"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["settings-interface-language-row"].waitForExistence(timeout: 5))
+        app.buttons["settings-destination-back"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["settings-menu"].waitForExistence(timeout: 5))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.drafts.preview-persistence,settings-ui.shell.lifecycle-and-routing
+    func testInternalMessageLinkPrefillsDraftWithoutSubmitting() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-disable-auth-cache", "--ui-test-app-link-fixture"]
+        app.launch()
+        let link = app.descendants(matching: .any)["ui-test-message-link"]
+        XCTAssertTrue(link.waitForExistence(timeout: 15))
+        XCTAssertTrue(link.isHittable)
+        link.tap()
+        let editor = app.descendants(matching: .any)["message-editor"]
+        XCTAssertTrue(editor.waitForExistence(timeout: 10))
+        let filled = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "value CONTAINS %@", "Synthetic linked draft"), object: editor)
+        XCTAssertEqual(XCTWaiter.wait(for: [filled], timeout: 10), .completed)
+        XCTAssertTrue(app.buttons["send-button"].exists, "The linked text must remain editable before Send")
+        XCTAssertFalse(app.descendants(matching: .any)["chat-history"].exists,
+                       "Following a prefill link must leave the draft in the welcome composer")
+        XCTAssertFalse(app.webViews.firstMatch.exists)
+        attachScreenshot(name: "Internal app link populated an unsent native draft")
+    }
+
     // contract-test: direct surface=gui.apple assertions=settings-ui.navigation.contextual-availability,settings-ui.navigation.parent-return,settings-ui.parity.web-apple-shell
     func testGuestPublicSettingsSubmenusOpenAndReturn() throws {
         let app = XCUIApplication()
@@ -21,6 +60,10 @@ final class SettingsFullParityUITests: XCTestCase {
         XCTAssertTrue(app.buttons["settings-button"].waitForExistence(timeout: 15))
         app.buttons["settings-button"].tap()
         XCTAssertTrue(waitForElement("settings-menu", in: app, timeout: 10))
+
+        XCTAssertFalse(app.descendants(matching: .any)["settings-apps-row"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["settings-teams-row"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["learning-mode-toggle-wrapper"].exists)
 
         for destination in guestDestinations {
             openDestination(destination, in: app)
@@ -58,6 +101,35 @@ final class SettingsFullParityUITests: XCTestCase {
         }
     }
 
+    // contract-test: direct surface=gui.apple assertions=settings-ui.navigation.parent-return,settings-ui.parity.web-apple-shell
+    func testAuthenticatedProfileHeaderControlsOpenExistingDestinations() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-disable-auth-cache", "--ui-test-account-settings-fixture"]
+        app.launch()
+        let settingsButton = app.buttons["settings-button"]
+        XCTAssertTrue(settingsButton.waitForExistence(timeout: 15))
+        XCTAssertTrue(settingsButton.isHittable)
+        settingsButton.tap()
+        XCTAssertTrue(waitForElement("settings-menu", in: app, timeout: 10))
+
+        for destination in [
+            (control: "settings-profile-avatar", page: "settings-account-profile-picture-page"),
+            (control: "settings-profile-username", page: "settings-account-username-page"),
+            (control: "settings-profile-credits", page: "settings-billing-page"),
+        ] {
+            let control = app.buttons[destination.control]
+            XCTAssertTrue(control.waitForExistence(timeout: 5))
+            XCTAssertTrue(control.isHittable)
+            control.tap()
+            XCTAssertTrue(waitForElement(destination.page, in: app, timeout: 8))
+            let back = app.buttons["settings-destination-back"]
+            XCTAssertTrue(back.waitForExistence(timeout: 5))
+            XCTAssertTrue(back.isHittable)
+            back.tap()
+            XCTAssertTrue(waitForElement("settings-menu", in: app, timeout: 5))
+        }
+    }
+
     // contract-test: supporting surface=gui.apple assertions=settings-ui.shell.lifecycle-and-routing,settings-ui.navigation.parent-return,settings-ui.parity.web-apple-shell
     func testChatShareSettingsOpenAsNestedSettingsDestination() throws {
         let app = XCUIApplication()
@@ -69,10 +141,22 @@ final class SettingsFullParityUITests: XCTestCase {
         app.launch()
 
         XCTAssertTrue(
-            app.descendants(matching: .any)["settings-shared-share-settings"].waitForExistence(timeout: 15),
-            "Sharing a chat must open the nested Shared settings destination, not an app overlay."
+            app.descendants(matching: .any)["chat-settings-header"].waitForExistence(timeout: 15),
+            "Sharing a chat must open its native Chat Settings page."
         )
-        XCTAssertTrue(app.descendants(matching: .any)["settings-destination-back"].exists)
+        let header = app.descendants(matching: .any)["chat-settings-header"].firstMatch
+        // Exclude the status safe area included in the header AX frame.
+        let contentHeight = header.frame.maxY - app.buttons["banner-back-button"].frame.minY
+        XCTAssertEqual(contentHeight, app.frame.width > 730 ? 250 : 220, accuracy: 3,
+                       "The nested pane header must use the window breakpoint on its initial layout")
+        XCTAssertTrue(app.buttons["chat-settings-tab-share"].isSelected)
+        XCTAssertTrue(app.buttons["share-generate-link"].exists)
+        let back = app.buttons["banner-back-button"]
+        XCTAssertTrue(back.isHittable)
+        back.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["settings-menu"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["settings-main-header"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["chat-settings-header"].exists)
         XCTAssertFalse(app.tables.firstMatch.exists, "Share settings must not render default List/table chrome")
     }
 
@@ -165,7 +249,8 @@ final class SettingsFullParityUITests: XCTestCase {
         [
             ("settings-pricing-row", "settings-pricing-page"),
             ("settings-ai-row", "settings-ai-page"),
-            ("settings-apps-row", "settings-apps-page"),
+            ("settings-memories-row", "settings-memories-page"),
+            ("settings-privacy-row", "settings-privacy-page"),
             ("settings-interface-row", "settings-interface-page"),
             ("settings-server-connection-row", "settings-server-connection-page"),
             ("settings-newsletter-row", "settings-newsletter-page"),
@@ -189,7 +274,9 @@ final class SettingsFullParityUITests: XCTestCase {
 
     private func openDestination(_ destination: (row: String, page: String), in app: XCUIApplication) {
         XCTAssertTrue(waitForElement(destination.row, in: app, timeout: 5), "Expected row \(destination.row)")
-        app.descendants(matching: .any)[destination.row].tap()
+        let row = app.descendants(matching: .any)[destination.row].firstMatch
+        XCTAssertTrue(scrollToHittable(row, in: app), "Expected tappable row \(destination.row)")
+        row.tap()
         XCTAssertTrue(waitForElement(destination.page, in: app, timeout: 8), "Expected page \(destination.page)")
         XCTAssertTrue(waitForElement("settings-destination-back", in: app, timeout: 3))
     }
@@ -206,6 +293,20 @@ final class SettingsFullParityUITests: XCTestCase {
         for _ in 0..<6 where scrollView.exists {
             scrollView.swipeDown()
             if element.waitForExistence(timeout: 1) { return true }
+        }
+        return false
+    }
+
+    private func scrollToHittable(_ element: XCUIElement, in app: XCUIApplication) -> Bool {
+        if element.exists && element.isHittable { return true }
+        let scrollView = app.scrollViews["settings-menu"].firstMatch
+        for _ in 0..<6 where scrollView.exists {
+            scrollView.swipeUp()
+            if element.exists && element.isHittable { return true }
+        }
+        for _ in 0..<6 where scrollView.exists {
+            scrollView.swipeDown()
+            if element.exists && element.isHittable { return true }
         }
         return false
     }

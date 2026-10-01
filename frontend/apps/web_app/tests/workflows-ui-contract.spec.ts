@@ -7,6 +7,7 @@
  * cancellable run detail at the required laptop and phone proof viewports.
  * Every created Workflow is deleted during cleanup.
  */
+import type { Page } from '@playwright/test';
 export {};
 
 const { expect, test } = require('./helpers/cookie-audit');
@@ -161,11 +162,13 @@ function waitingGraph() {
 				title: 'Confirm the next step',
 				config: { prompt: 'Continue this Workflow?', timeout_seconds: 600 }
 			},
+			{ id: 'notify', type: 'send_notification', title: 'Show result', config: { title: 'Ready', body: 'Ready' } },
 			{ id: 'end', type: 'end', title: 'Done', config: {} }
 		],
 		edges: [
 			{ from: 'manual', to: 'approval' },
-			{ from: 'approval', to: 'end' }
+			{ from: 'approval', to: 'notify' },
+			{ from: 'notify', to: 'end' }
 		]
 	};
 }
@@ -195,6 +198,163 @@ async function expectNoPageOverflow(page: any): Promise<void> {
 }
 
 test.describe('Workflows web UI contract', () => {
+	// contract-test: supporting surface=gui.web assertions=workflows-ui.workspace.recommendation-led-composition,workflows-ui.detail.shared-template-runs-tabs
+	test('opens an externally created workflow from a fresh cached empty list', async ({ page }: { page: any }, testInfo: any) => {
+		test.skip(!getTestAccount().email, 'Test account credentials required.');
+		await skipIfFeaturesDisabled(test, page, ['platform:workflows']);
+		const apiUrl = deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');
+		const title = `${WORKFLOW_TITLE_PREFIX} external ${Date.now()}-${testInfo.workerIndex}`;
+		let workflowId: string | null = null;
+		let listReads = 0;
+
+		await page.route('**/v1/workflows', (route: any) => {
+			if (route.request().method() !== 'GET') return route.continue();
+			listReads += 1;
+			return listReads === 1
+				? route.fulfill({ json: { workflows: [] } })
+				: route.continue();
+		});
+		const initialList = page.waitForResponse((response: any) =>
+			response.url().endsWith('/v1/workflows') && response.request().method() === 'GET'
+		);
+		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		await loginToTestAccount(page);
+
+		try {
+			await page.goto(getE2EDebugUrl('/#workflows'), { waitUntil: 'domcontentloaded' });
+			expect((await initialList).ok()).toBe(true);
+			await expect(page.getByTestId('workflows-start-screen')).toBeVisible();
+			expect(listReads).toBe(1);
+
+			const workflow = await createWorkflow(page, apiUrl, {
+				title,
+				graph: rainGraph('Berlin'),
+				enabled: false,
+				run_content_retention: 'last_5'
+			});
+			workflowId = workflow.id;
+			await page.evaluate((id: string) => {
+				window.location.hash = `#workflow-id=${id}&workflow-tab=details`;
+			}, workflow.id);
+			await expect(page).toHaveURL(workflowDetailsHashUrlPattern(workflow.id));
+			await expect(page.getByTestId('workflow-template-panel')).toBeVisible();
+			await expect(page.getByTestId('workspace-detail-title')).toHaveText(title);
+			expect(listReads).toBeGreaterThanOrEqual(2);
+		} finally {
+			if (workflowId) await page.request.delete(`${apiUrl}/v1/workflows/${encodeURIComponent(workflowId)}`).catch(() => null);
+		}
+	});
+
+	// contract-test: supporting surface=gui.web assertions=workflows-ui.detail.shared-template-runs-tabs,workflows-ui.template.explicit-guarded-save,workflows-ui.runs.timeline-execution-detail
+	test('opens Template before slow Runs and keeps an unsaved draft through refresh', async ({ page }: { page: any }, testInfo: any) => {
+		test.setTimeout(120_000);
+		test.skip(!getTestAccount().email, 'Test account credentials required.');
+		await skipIfFeaturesDisabled(test, page, ['platform:workflows']);
+		const apiUrl = deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');
+		const title = `${WORKFLOW_TITLE_PREFIX} refresh ${Date.now()}-${testInfo.workerIndex}`;
+		let workflowId: string | null = null;
+		let releaseRuns!: () => void;
+		let releaseDraftDetail!: () => void;
+		let releaseDetail!: () => void;
+		const runsGate = new Promise<void>(resolve => { releaseRuns = resolve; });
+		const draftDetailGate = new Promise<void>(resolve => { releaseDraftDetail = resolve; });
+		const detailGate = new Promise<void>(resolve => { releaseDetail = resolve; });
+
+		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		await loginToTestAccount(page);
+		try {
+			const workflow = await createWorkflow(page, apiUrl, {
+				title,
+				graph: rainGraph('Berlin'),
+				enabled: false,
+				run_content_retention: 'last_5'
+			});
+			workflowId = workflow.id;
+			const runsPath = `/v1/workflows/${encodeURIComponent(workflow.id)}/runs`;
+			const detailPath = `/v1/workflows/${encodeURIComponent(workflow.id)}`;
+			await page.route(`**${runsPath}`, async (route: any) => {
+				await runsGate;
+				await route.continue();
+			});
+
+			await page.goto(getE2EDebugUrl('/workflows'), { waitUntil: 'domcontentloaded' });
+			const runsRequest = page.waitForRequest((request: any) => request.url().endsWith(runsPath));
+			await page.getByTestId('workflow-landing-card').filter({ hasText: title }).first().click();
+			await runsRequest;
+			await expect(page.getByTestId('workflow-template-panel')).toBeVisible();
+			await expect(page.getByTestId('workflow-graph-renderer')).toBeVisible();
+			releaseRuns();
+			const externalUpdate = await page.request.patch(`${apiUrl}${detailPath}`, {
+				data: { graph: rainGraph('Hamburg') }
+			});
+			expect(externalUpdate.ok(), await externalUpdate.text()).toBe(true);
+			const cleanRefresh = page.waitForResponse((response: any) =>
+				response.url().endsWith(detailPath) && response.request().method() === 'GET'
+			);
+			await page.evaluate(() => {
+				const originalNow = Date.now.bind(Date);
+				Date.now = () => originalNow() + 61_000;
+				window.dispatchEvent(new Event('focus'));
+			});
+			expect((await cleanRefresh).ok()).toBe(true);
+			await expect(page.getByTestId('workflow-node-input-summary')).toHaveText('Hamburg');
+			await expect(page.getByTestId('workflow-version-selector')).toContainText('Version 2');
+
+			await page.route(`**${detailPath}`, async (route: any) => {
+				await draftDetailGate;
+				await route.continue();
+			});
+			const draftRefreshRequest = page.waitForRequest((request: any) => request.url().endsWith(detailPath));
+			await page.evaluate(() => {
+				const originalNow = Date.now.bind(Date);
+				Date.now = () => originalNow() + 61_000;
+				window.dispatchEvent(new Event('focus'));
+			});
+			await draftRefreshRequest;
+			await page.getByTestId('workflow-node-summary').filter({ hasText: 'Hamburg' }).click();
+			const nodeDraft = page.getByTestId('workflow-node-expanded');
+			await expect(nodeDraft).toBeVisible();
+			const secondExternalUpdate = await page.request.patch(`${apiUrl}${detailPath}`, {
+				data: { graph: rainGraph('Paris') }
+			});
+			expect(secondExternalUpdate.ok(), await secondExternalUpdate.text()).toBe(true);
+			const draftRefreshResponse = page.waitForResponse((response: any) =>
+				response.url().endsWith(detailPath) && response.request().method() === 'GET'
+			);
+			releaseDraftDetail();
+			expect((await draftRefreshResponse).ok()).toBe(true);
+			await expect(nodeDraft).toBeVisible();
+			await nodeDraft.locator('button.close-button').click();
+			await expect(page.getByTestId('workflow-node-input-summary')).toHaveText('Paris');
+			await expect(page.getByTestId('workflow-version-selector')).toContainText('Version 3');
+
+			await page.route(`**${detailPath}`, async (route: any) => {
+				await detailGate;
+				await route.continue();
+			});
+			const refreshRequest = page.waitForRequest((request: any) => request.url().endsWith(detailPath));
+			await page.evaluate(() => {
+				const originalNow = Date.now.bind(Date);
+				Date.now = () => originalNow() + 61_000;
+				window.dispatchEvent(new Event('focus'));
+			});
+			await refreshRequest;
+			await page.getByTestId('workspace-detail-title').click();
+			const draftTitle = `${title} unsaved`;
+			const titleInput = page.locator('.workflow-detail-header form input').first();
+			await titleInput.fill(draftTitle);
+			releaseDetail();
+			await expect(titleInput).toHaveValue(draftTitle);
+			await page.getByTestId('workflow-detail-back').click();
+			await expect(page.getByTestId('workflow-unsaved-guard')).toBeVisible();
+		} finally {
+			releaseRuns();
+			releaseDraftDetail();
+			releaseDetail();
+			if (workflowId) await page.request.delete(`${apiUrl}/v1/workflows/${encodeURIComponent(workflowId)}`).catch(() => null);
+		}
+	});
+
 	// contract-test: direct surface=gui.web assertions=workflows-ui.workspace.recommendation-led-composition,workflows-ui.workspace.title-first-draft,workflows-ui.detail.stable-visual-header,workflows-ui.detail.shared-template-runs-tabs,workflows-ui.template.centered-in-place-editor,workflows-ui.template.explicit-guarded-save,workflows-ui.versions.timeline-readonly-restore-new,workflows-ui.runs.timeline-execution-detail,workflows-ui.responsive-accessible-reachable
 	test('preserves identity while editing versions and inspecting a cancellable run', async ({
 		page
@@ -243,7 +403,7 @@ test.describe('Workflows web UI contract', () => {
 				title: runnerTitle,
 				description: 'A manual approval Workflow.',
 				graph: waitingGraph(),
-				enabled: true,
+				enabled: false,
 				run_content_retention: 'last_5',
 				category: 'general_knowledge',
 				icon: 'help-circle'
@@ -263,8 +423,16 @@ test.describe('Workflows web UI contract', () => {
 			await page.goto(getE2EDebugUrl('/workflows'), { waitUntil: 'domcontentloaded' });
 			await expect(page.getByTestId('workflows-start-screen')).toBeVisible({ timeout: 30_000 });
 			await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible();
+			const workflowInspiration = page.getByTestId('daily-inspiration-banner');
+			await expect(workflowInspiration.getByTestId('daily-inspiration-cta-text')).toHaveCount(0);
+			await expect(workflowInspiration).not.toHaveAttribute('role', 'button');
+			await expect(workflowInspiration).not.toHaveAttribute('tabindex', '0');
+			await workflowInspiration.click();
+			await workflowInspiration.dispatchEvent('keydown', { key: 'Enter', bubbles: true });
+			await expect(page.getByTestId('workflow-input-textarea')).toHaveValue('');
 			await expect(page.getByTestId('workflows-workspace-background-icon')).toBeVisible();
-			await expect(page.getByTestId('workflows-show-all')).toHaveText('Show all');
+			await expect(page.getByTestId('workflows-show-all')).toHaveText('Show my workflows');
+			await expect(page.getByTestId('workflows-show-templates')).toHaveText('Show templates');
 			await expect(page.getByTestId('workflows-search')).toBeVisible();
 			await expect(page.getByTestId('workflow-input-composer')).toBeVisible();
 			const editorCard = page
@@ -276,7 +444,13 @@ test.describe('Workflows web UI contract', () => {
 			await expect(editorCard).toHaveAttribute('data-icon', 'cloud-rain');
 			const startScreenBox = await page.getByTestId('workflows-start-screen').boundingBox();
 			if (!startScreenBox) throw new Error('Workflow start screen must be measurable.');
-			const shouldUseCompactCards = startScreenBox.width < 550 || (page.viewportSize()?.height ?? 0) < 800;
+			const [bannerBox, composerBox] = await Promise.all([
+				page.getByTestId('workflows-daily-inspiration-area').boundingBox(),
+				page.getByTestId('workflow-input-composer').boundingBox()
+			]);
+			if (!bannerBox || !composerBox) throw new Error('Workflow banner and composer must be measurable.');
+			const availableCardHeight = composerBox.y - (bannerBox.y + bannerBox.height);
+			const shouldUseCompactCards = startScreenBox.width < 550 || availableCardHeight < 420;
 			if (shouldUseCompactCards) {
 				await expect(editorCard).toHaveClass(/resume-chat-card/);
 				await expect(editorCard.locator('.resume-chat-kind-badge')).toHaveCount(0);
@@ -353,21 +527,51 @@ test.describe('Workflows web UI contract', () => {
 				await expect(primaryNodeIcons.nth(index)).toHaveCSS('width', '33px');
 				await expect(primaryNodeIcons.nth(index)).toHaveCSS('height', '33px');
 			}
-			await page.route('**/v1/geocode/search?**', (route) =>
-				route.fulfill({
-					json: [{
-						lat: '48.8566', lon: '2.3522', name: 'Paris', display_name: 'Paris, France',
-						class: 'place', type: 'city', namedetails: { name: 'Paris' },
-						address: { city: 'Paris', country: 'France' }
-					}]
-				})
-			);
+			await page.route('**/v1/geocode/search?**', (route) => {
+				const query = new URL(route.request().url()).searchParams.get('q');
+				const location = query === 'Hamburg'
+					? {
+						lat: '53.5511', lon: '9.9937', name: 'Hamburg', display_name: 'Hamburg, Germany',
+						class: 'place', type: 'city', namedetails: { name: 'Hamburg' },
+						address: { city: 'Hamburg', country: 'Germany' }
+					}
+					: query === 'Paris'
+						? {
+							lat: '48.8566', lon: '2.3522', name: 'Paris', display_name: 'Paris, France',
+							class: 'place', type: 'city', namedetails: { name: 'Paris' },
+							address: { city: 'Paris', country: 'France' }
+						}
+						: null;
+				return route.fulfill({ status: location ? 200 : 400, json: location ? [location] : [] });
+			});
 			await weatherNode.getByTestId('workflow-node-summary').click();
-			await expect(page.getByTestId('workflow-editor-primary-icon')).toHaveCSS('width', '33px');
-			await expect(page.getByTestId('workflow-editor-primary-icon')).toHaveCSS('height', '33px');
+			await expect(page.getByTestId('workflow-editor-primary-icon')).toHaveCSS('width', '40px');
+			await expect(page.getByTestId('workflow-editor-primary-icon')).toHaveCSS('height', '40px');
+			const initialSearch = page.waitForResponse(
+				(response: any) => response.url().includes('/v1/geocode/search?') &&
+					new URL(response.url()).searchParams.get('q') === 'Hamburg',
+				{ timeout: 10_000 }
+			);
 			await weatherNode.getByTestId('workflow-node-location-picker').click();
-			await weatherNode.getByTestId('map-location-search-input').fill('Paris');
-			await weatherNode.getByTestId('map-location-search-result').click();
+			const initialResponse = await initialSearch;
+			expect(initialResponse.ok()).toBe(true);
+			await initialResponse.finished();
+			const locationMap = weatherNode.getByTestId('workflow-location-map');
+			const locationInput = locationMap.getByTestId('map-location-search-input');
+			await expect(locationMap.getByTestId('map-location-select')).toBeVisible();
+			await expect(locationInput).toHaveValue('');
+			const parisSearch = page.waitForResponse(
+				(response: any) => response.url().includes('/v1/geocode/search?') &&
+					new URL(response.url()).searchParams.get('q') === 'Paris',
+				{ timeout: 10_000 }
+			);
+			await locationInput.fill('Paris');
+			const parisResponse = await parisSearch;
+			expect(parisResponse.ok()).toBe(true);
+			await parisResponse.finished();
+			const parisResult = locationMap.getByTestId('map-location-search-result');
+			await expect(parisResult).toContainText('Paris');
+			await parisResult.click();
 			await weatherNode.getByTestId('map-location-select').click();
 			await expect(page.getByTestId('workflow-dirty-panel')).toHaveCount(0);
 			await expect(page.getByTestId('workflow-node-save')).toBeVisible();
@@ -379,6 +583,7 @@ test.describe('Workflows web UI contract', () => {
 				await proof.checkpoint('guard-visible');
 			}
 			await page.getByTestId('workflow-node-save').click();
+			await expect(weatherNode.getByTestId('workflow-node-expanded')).toHaveCount(0);
 			await expect(
 				page.getByTestId('workflow-graph-renderer').getByTestId('workflow-node-stack')
 			).toContainText('Paris');
@@ -433,7 +638,7 @@ test.describe('Workflows web UI contract', () => {
 				.click();
 			await expect(page).toHaveURL(workflowDetailsHashUrlPattern(runnerWorkflow.id));
 			await expect(page.getByTestId('workflow-detail-actions').getByRole('toolbar')).toBeVisible();
-			await page.getByTestId('workflow-detail-actions').getByRole('button', { name: 'More actions' }).click();
+			await page.getByTestId('workflow-detail-actions').getByRole('button', { name: 'More', exact: true }).click();
 			await expect(page.getByTestId('run-workflow')).toBeVisible();
 			await page.getByTestId('workflow-tab-runs').click();
 			await expect(page).toHaveURL(
@@ -462,8 +667,9 @@ test.describe('Workflows web UI contract', () => {
 				'data-read-only',
 				'true'
 			);
-			await expect(page.getByTestId('workflow-run-node-status').first()).toContainText(
-				/queued|running|completed|skipped|failed/i
+			await expect(page.getByTestId('workflow-run-node-status').first()).toHaveAttribute(
+				'aria-label',
+				/^(queued|running|completed|waiting|skipped|failed)$/i
 			);
 			await expect(page.getByTestId('workflow-run-cancel')).toBeVisible();
 			if (proof) {
@@ -504,7 +710,7 @@ test.describe('Workflows web UI contract', () => {
 
 			// Sharing stays in the header but only shows the v1 coming-soon notice.
 			if (!(await page.getByTestId('workflow-share').isVisible())) {
-				await page.getByTestId('workflow-detail-actions').getByRole('button', { name: 'More actions' }).click();
+				await page.getByTestId('workflow-detail-actions').getByRole('button', { name: 'More', exact: true }).click();
 			}
 			const sharingOriginUrl = page.url();
 			await page.getByTestId('workflow-share').click();
@@ -521,4 +727,166 @@ test.describe('Workflows web UI contract', () => {
 			}
 		}
 	});
+});
+
+test.describe('Workflow templates', () => {
+	// contract-test: supporting surface=gui.web assertions=workflows-ui.workspace.owned-library-and-templates,workflows-ui.mvp.authoring
+	test('browses templates and creates a disabled owned copy in the editor', async ({ page }: { page: Page }) => {
+		test.skip(!getTestAccount().email, 'Test account credentials required.');
+		await skipIfFeaturesDisabled(test, page, ['platform:workflows']);
+		const apiUrl = deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');
+		let createdId: string | null = null;
+		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		await loginToTestAccount(page);
+		try {
+			await page.goto(getE2EDebugUrl('/workflows'), { waitUntil: 'domcontentloaded' });
+			await expect(page.getByTestId('workflows-start-screen')).toBeVisible();
+			await expect(page.getByTestId('workflow-mixed-row').getByTestId('workflow-landing-card').filter({ hasText: 'Daily planning reminder' })).toHaveCount(0);
+			await page.getByTestId('workflows-show-templates').click();
+			await expect(page.getByTestId('all-workflows-view')).toBeVisible();
+			await expect(page.getByRole('heading', { name: 'Templates' })).toBeVisible();
+			await expect(page.getByTestId('workflows-sort')).toHaveCount(0);
+			const templateCard = page.getByTestId('all-workflows-grid').getByTestId('workflow-landing-card').filter({ hasText: 'Daily planning reminder' });
+			await expect(templateCard).toBeVisible();
+			const createdResponse = page.waitForResponse((response) => response.url().endsWith('/v1/workflows') && response.request().method() === 'POST');
+			await templateCard.click();
+			const response = await createdResponse;
+			expect(response.ok(), await response.text()).toBe(true);
+			const created = (await response.json()).workflow;
+			const workflowId = String(created.id);
+			createdId = workflowId;
+			expect(created.enabled).toBe(false);
+			expect(created.graph.version).toBe(2);
+			expect(created.graph.nodes.map((node: { type: string }) => node.type)).toEqual(['schedule_trigger', 'send_chat_message']);
+			expect(created.graph.nodes[0].config.schedule.timezone).toBe(await page.evaluate(() => Intl.DateTimeFormat().resolvedOptions().timeZone));
+			await expect(page.getByTestId('workspace-detail-title')).toHaveText('Daily planning reminder');
+			await expect(page.getByTestId('workflow-template-panel')).toBeVisible();
+			const runResponse = await page.request.post(`${apiUrl}/v1/workflows/${encodeURIComponent(workflowId)}/run`, {
+				data: { mode: 'test', input: {} },
+				headers: { 'Idempotency-Key': `template-browse-${workflowId}` }
+			});
+			expect(runResponse.ok(), await runResponse.text()).toBe(true);
+			const run = (await runResponse.json()).run;
+			await expect.poll(async () => {
+				const result = await page.request.get(`${apiUrl}/v1/workflows/${encodeURIComponent(workflowId)}/runs/${encodeURIComponent(run.id)}`);
+				if (!result.ok()) return `HTTP ${result.status()}`;
+				return (await result.json()).run.status;
+			}, { timeout: 45_000 }).toBe('completed');
+			await page.getByTestId('workflow-detail-back').click();
+			await page.getByTestId('workflows-show-all').click();
+			await expect(page.getByTestId('all-workflows-grid').getByTestId('workflow-landing-card').filter({ hasText: 'Daily planning reminder' })).toBeVisible();
+		} finally {
+			if (createdId) await page.request.delete(`${apiUrl}/v1/workflows/${encodeURIComponent(createdId)}`).catch(() => null);
+		}
+	});
+
+});
+
+function apiUrl(): string {
+  const url = new URL(process.env.PLAYWRIGHT_TEST_BASE_URL || 'https://app.dev.openmates.org');
+  return url.hostname === 'localhost' ? 'http://localhost:8000' : `${url.protocol}//${url.hostname.replace(/^app\./, 'api.')}`;
+}
+
+test.describe('Workflow Send message delivery', () => {
+  // contract-test: direct surface=gui.web assertions=workflows-ui.runs.timeline-execution-detail,workflows.chat-delivery.sync-projection,workflows.chat-delivery.client-encrypted
+  test('stays pending until encrypted chat persistence, then notifies and opens the delivered chat', async ({ page }: { page: import('@playwright/test').Page }) => {
+    test.setTimeout(150_000);
+    test.skip(!getTestAccount().email, 'Test account credentials required.');
+    await skipIfFeaturesDisabled(test, page, ['platform:workflows']);
+    await page.addInitScript(() => {
+      const nativeSend = WebSocket.prototype.send;
+      const held: Array<{ socket: WebSocket; data: string | ArrayBufferLike | Blob | ArrayBufferView }> = [];
+      WebSocket.prototype.send = function (data) {
+        if (typeof data === 'string') {
+          try {
+            if (JSON.parse(data).type === 'workflow_chat_delivery_claim') {
+              held.push({ socket: this, data });
+              return;
+            }
+          } catch { /* Non-JSON frames use normal transport. */ }
+        }
+        nativeSend.call(this, data);
+      };
+      (window as typeof window & { __releaseWorkflowClaims?: () => void; __heldWorkflowClaims?: () => number }).__releaseWorkflowClaims = () => {
+        for (const claim of held.splice(0)) nativeSend.call(claim.socket, claim.data);
+      };
+      (window as typeof window & { __heldWorkflowClaims?: () => number }).__heldWorkflowClaims = () => held.length;
+    });
+
+    await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+    await loginToTestAccount(page);
+    const title = `Workflow delivery ${Date.now()}`;
+    const chatTitle = `Workflow message ${Date.now()}`;
+    const created = await page.request.post(`${apiUrl()}/v1/workflows`, { data: {
+      title, enabled: false,
+      graph: {
+        version: 2, trigger_node_id: 'trigger',
+        nodes: [
+          { id: 'trigger', type: 'manual_trigger', title: 'Start', config: {} },
+          { id: 'send', type: 'send_chat_message', title: 'Send message', config: { title: chatTitle, message: 'Delivery is ready' } },
+        ],
+        edges: [{ from: 'trigger', to: 'send' }],
+      },
+    } });
+    expect(created.ok(), await created.text()).toBe(true);
+    const workflowId = (await created.json()).workflow.id;
+    try {
+      await page.goto(getE2EDebugUrl('/workflows'), { waitUntil: 'domcontentloaded' });
+      await page.getByTestId('workflow-landing-card').filter({ hasText: title }).first().click();
+      const accepted = await page.request.post(`${apiUrl()}/v1/workflows/${workflowId}/run`, {
+        data: { mode: 'test', input: {} },
+        headers: { 'Idempotency-Key': `workflow-delivery-${workflowId}` },
+      });
+      expect(accepted.ok(), await accepted.text()).toBe(true);
+      const runId = (await accepted.json()).run.id;
+      const runUrl = `${apiUrl()}/v1/workflows/${workflowId}/runs/${runId}`;
+      await expect.poll(async () => {
+        const response = await page.request.get(runUrl);
+        if (!response.ok()) return `HTTP ${response.status()}`;
+        return (await response.json()).run.output_summary?.deliveries?.send?.status;
+      }, { timeout: 45_000 }).toBe('delivery_pending');
+      await expect.poll(() => page.evaluate(() => (window as typeof window & { __heldWorkflowClaims?: () => number }).__heldWorkflowClaims?.() ?? 0)).toBeGreaterThan(0);
+
+      let browserDetailRequests = 0;
+      await page.route(`**/v1/workflows/${workflowId}/runs/${runId}`, async route => {
+        browserDetailRequests += 1;
+        if (browserDetailRequests === 1) {
+          await route.fulfill({ status: 503, contentType: 'application/json', body: '{"detail":"Temporary failure"}' });
+        } else {
+          await route.continue();
+        }
+      });
+      await page.getByTestId('workflow-tab-runs').click();
+      await expect.poll(() => browserDetailRequests, { timeout: 15_000 }).toBeGreaterThan(1);
+      const marker = page.locator(`[data-testid="workflow-run-marker"][data-run-id="${runId}"]`);
+      await expect(marker).toHaveAttribute('data-run-status', 'delivery_pending');
+      const sendNode = page.locator('[data-testid="workflow-run-graph"] [data-node-id="send"]');
+      await expect(sendNode.getByTestId('workflow-run-node-status')).toHaveAttribute('data-node-status', 'delivery_pending');
+      await expect(sendNode.getByTestId('workflow-run-node-status')).toHaveAttribute('aria-label', /waiting/i);
+      await expect(sendNode.getByTestId('workflow-run-open-chat')).toHaveCount(0);
+      await expect(page.getByTestId('chat-notification').filter({ hasText: chatTitle })).toHaveCount(0);
+
+      await page.evaluate(() => (window as typeof window & { __releaseWorkflowClaims?: () => void }).__releaseWorkflowClaims?.());
+      const notification = page.getByTestId('chat-notification').filter({ hasText: chatTitle });
+      await expect(notification).toBeVisible({ timeout: 45_000 });
+      await notification.hover();
+      await expect.poll(async () => {
+        const response = await page.request.get(runUrl);
+        if (!response.ok()) return null;
+        return (await response.json()).run.output_summary?.deliveries?.send?.status;
+      }, { timeout: 45_000 }).toBe('acknowledged');
+      await expect(sendNode.getByTestId('workflow-run-node-status')).toHaveAttribute('data-node-status', 'acknowledged', { timeout: 45_000 });
+      await expect(marker).toHaveAttribute('data-run-status', 'completed');
+      const openChat = sendNode.getByTestId('workflow-run-open-chat');
+      await expect(openChat).toBeVisible();
+      const chatId = await notification.getAttribute('data-chat-id');
+      expect(chatId).toBeTruthy();
+      await expect(openChat).toHaveAttribute('href', new RegExp(`chat-id=${chatId}$`));
+      await notification.click();
+      await expect(page).toHaveURL(new RegExp(`chat-id=${chatId}`));
+      await expect(page.getByText('Delivery is ready', { exact: false }).first()).toBeVisible();
+    } finally {
+      await page.request.delete(`${apiUrl()}/v1/workflows/${workflowId}`).catch(() => null);
+    }
+  });
 });

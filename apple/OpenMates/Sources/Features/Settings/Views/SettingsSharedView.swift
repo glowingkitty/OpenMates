@@ -19,9 +19,10 @@ struct SettingsSharedView: View {
     @State private var errorMessage: String?
     @State private var showsTip = false
 
-    init(initialChatId: String? = nil) {
+    init(initialChatId: String? = nil, initiallyShowsTip: Bool = false) {
         self.initialChatId = initialChatId
         _selectedChatId = State(initialValue: initialChatId)
+        _showsTip = State(initialValue: initiallyShowsTip)
     }
 
     private var sharedChats: [Chat] {

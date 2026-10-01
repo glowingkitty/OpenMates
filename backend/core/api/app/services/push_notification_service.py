@@ -19,7 +19,7 @@ import logging
 import os
 import time
 import base64
-from typing import Optional
+from typing import Callable, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +36,18 @@ APNS_CHAT_MESSAGE_TITLE = "OpenMates"
 APNS_CHAT_MESSAGE_BODY = "New message received"
 APNS_ENCRYPTION_VERSION = "x25519-aesgcm-v1"
 APNS_ENCRYPTION_INFO = b"openmates-apns-notification-v1"
+
+
+def apns_topic_for_platform(platform: str) -> str:
+    """Select the APNs topic on the server; client topic hints are never trusted."""
+    if platform == "watchos":
+        return "org.openmates.app.watch"
+    if platform not in {"apns", "ios", "macos"}:
+        raise ValueError("Unsupported native push platform")
+    topic = os.getenv("APNS_BUNDLE_ID", "org.openmates.app")
+    if topic != "org.openmates.app":
+        raise ValueError("Unsupported APNs application topic")
+    return topic
 
 
 class PushNotificationService:
@@ -134,6 +146,15 @@ class PushNotificationService:
         """True if VAPID keys are loaded and push can be sent."""
         return self._initialized and bool(self._vapid_private_key) and bool(self._vapid_public_key)
 
+    def is_apns_ready(self) -> bool:
+        """APNs delivery uses process credentials and does not require VAPID."""
+        key_path = os.getenv("APNS_PRIVATE_KEY_PATH")
+        return bool(
+            os.getenv("APNS_TEAM_ID")
+            and os.getenv("APNS_KEY_ID")
+            and (os.getenv("APNS_PRIVATE_KEY") or (key_path and os.path.isfile(key_path)))
+        )
+
     def send_push_notification(
         self,
         subscription_json: str,
@@ -145,6 +166,7 @@ class PushNotificationService:
         category: str = APNS_CHAT_CATEGORY,
         icon: str = "/icons/icon-192x192.png",
         badge: str = "/icons/badge-72x72.png",
+        on_expired_web_target: Optional[Callable[[], None]] = None,
     ) -> bool:
         """
         Send a Web Push notification to a stored subscription.
@@ -182,6 +204,7 @@ class PushNotificationService:
                 category=category,
                 icon=icon,
                 badge=badge,
+                on_expired_web_target=on_expired_web_target,
             )
         if subscription_type == "apns":
             return self._send_apns_notification(
@@ -224,25 +247,22 @@ class PushNotificationService:
                     "sub": f"mailto:{VAPID_CONTACT_EMAIL}",
                 },
             )
-            logger.info(
-                f"[PushNotificationService] Push sent to endpoint "
-                f"{subscription_info.get('endpoint', '')[:60]}..."
-            )
+            logger.info("[PushNotificationService] Web Push accepted")
             return True
 
         except Exception as exc:  # WebPushException and others
             # 410 Gone means the subscription is expired/unregistered
             status_code = getattr(getattr(exc, "response", None), "status_code", None)
             if status_code == 410:
-                logger.info(
-                    f"[PushNotificationService] Subscription expired (410) — "
-                    f"endpoint: {subscription_info.get('endpoint', '')[:60]}"
-                )
+                if on_expired_web_target is not None:
+                    on_expired_web_target()
+                logger.info("[PushNotificationService] Web Push subscription expired (410)")
             else:
                 logger.error(
-                    f"[PushNotificationService] Push delivery failed "
-                    f"(status={status_code}): {exc}",
-                    exc_info=True,
+                    "[PushNotificationService] Web Push delivery failed "
+                    "(status=%s, exception=%s)",
+                    status_code,
+                    type(exc).__name__,
                 )
             return False
 
@@ -257,6 +277,7 @@ class PushNotificationService:
         category: str,
         icon: str,
         badge: str,
+        on_expired_web_target: Optional[Callable[[], None]],
     ) -> bool:
         """Fan out one notification to all stored browser/APNs targets."""
         targets = subscription_info.get("targets")
@@ -279,6 +300,7 @@ class PushNotificationService:
                     category=category,
                     icon=icon,
                     badge=badge,
+                    on_expired_web_target=on_expired_web_target,
                 )
                 any_success = any_success or target_success
             except Exception as exc:
@@ -312,7 +334,12 @@ class PushNotificationService:
 
         team_id = os.getenv("APNS_TEAM_ID")
         key_id = os.getenv("APNS_KEY_ID")
-        bundle_id = os.getenv("APNS_BUNDLE_ID", "org.openmates.app")
+        platform = str(subscription_info.get("platform") or "apns").strip().lower()
+        try:
+            bundle_id = apns_topic_for_platform(platform)
+        except ValueError:
+            logger.error("[PushNotificationService] Unsupported APNs target topic")
+            return False
         private_key = os.getenv("APNS_PRIVATE_KEY")
         private_key_path = os.getenv("APNS_PRIVATE_KEY_PATH")
 
@@ -348,7 +375,8 @@ class PushNotificationService:
             "chat_id": chat_id,
             "category": category,
         }
-        encrypted_payload = self._build_encrypted_apns_payload(subscription_info, body)
+        # Watch has no notification service extension; always retain generic text.
+        encrypted_payload = None if platform == "watchos" else self._build_encrypted_apns_payload(subscription_info, body)
         if category == APNS_CHAT_CATEGORY and encrypted_payload:
             payload["aps"]["mutable-content"] = 1
             payload["encrypted_notification"] = encrypted_payload

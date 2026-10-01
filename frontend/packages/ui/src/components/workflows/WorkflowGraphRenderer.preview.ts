@@ -1,5 +1,5 @@
-import { dailyWeatherNewsGraph, weeklyEventsGraph } from "./workflowExamples";
-import type { WorkflowGraph } from "../../stores/workflowWorkspaceStore";
+import { dailyWeatherNewsGraph, weeklyEventsGraph } from "./workflowPreviewFixtures";
+import { workflowApiRequest, type WorkflowGraph } from "../../stores/workflowWorkspaceStore";
 import type { Chat } from "../../types/chat";
 import type { Capability } from "./workflowBuilder";
 
@@ -49,6 +49,15 @@ const defaultProps = {
     ),
   ],
   capabilityFixtures: [
+    { id: "web.read", type: "app_skill", enabled: true, title: "Read website", metadata: {
+      app_id: "web", skill_id: "read", input_schema: { type: "object", properties: { url: { type: "string" } } },
+      output_schema: { type: "object", properties: {
+        text: { type: "string", title: "Page text", "x-ui": { basic: true } },
+        has_changed: { type: "boolean", title: "Has changed since last successful read", "x-ui": { basic: true } },
+        changes: { type: "string", title: "Changes since last successful read", "x-ui": { basic: true } },
+        source_url: { type: "string", title: "Website link", "x-ui": { basic: true } },
+      } }, workflow: { test_allowed: true },
+    } },
     {
       id: "weather.forecast",
       type: "app_skill",
@@ -355,7 +364,7 @@ const eventsSearchCapability: Capability = {
 };
 
 function skillVariant(graph: WorkflowGraph, capability: Capability) {
-  return { ...defaultProps, graph, capabilityFixtures: [capability] };
+  return { ...defaultProps, graph, capabilityFixtures: [capability, defaultCapability("ai.ask")] };
 }
 
 function defaultCapability(id: string): Capability {
@@ -424,15 +433,107 @@ const typedControlsCapabilities: Capability[] = [
   },
 ];
 
+async function saveTestGraph(graph: WorkflowGraph): Promise<void> {
+  await workflowApiRequest('/v1/workflows/preview-workflow', { method:'PATCH', body:JSON.stringify({ graph }) });
+}
+
+function comparisonCheckGraph(): WorkflowGraph {
+  const graph = structuredClone(dailyWeatherNewsGraph());
+  const weather = graph.nodes.find(node => node.id === 'weather')!;
+  graph.nodes.splice(2, 0, { ...structuredClone(weather), id:'second_forecast', config:{ ...weather.config, input:{ location:'Paris' } } });
+  graph.edges = graph.edges.filter(edge => !(edge.from === 'weather' && edge.to === 'rain'));
+  graph.edges.push({ from:'weather', to:'second_forecast' }, { from:'second_forecast', to:'rain' });
+  return graph;
+}
+
 export default defaultProps;
+function websiteChangeGraph(ai = false): WorkflowGraph {
+  return { version: 1, trigger_node_id: "trigger", nodes: [
+    { id: "trigger", type: "manual_trigger", config: {} },
+    { id: "read", type: "app_skill_action", title: "Read website", config: { app_id: "web", skill_id: "read", input: { url: "https://events.ccc.de" } } },
+    { id: "rain", type: "check", config: ai ? { mode: "ai", question: "Do these changes announce a new Chaos Communication Congress article? {{steps.read.changes}}", selected_inputs: ["$nodes.read.output.changes"] } : { mode: "exact", predicate: { op: "eq", left: "$nodes.read.output.has_changed", right: true } } },
+    { id: "message", type: "send_chat_message", config: { title: "Congress updates", message: "{{steps.read.changes}}\n{{steps.read.source_url}}" } },
+  ], edges: [{ from: "trigger", to: "read" }, { from: "read", to: "rain" }, { from: "rain", to: "message", branch: ai ? "true" : "yes" }] };
+}
+
+function deliveryPreviewGraph(): WorkflowGraph {
+  return { version: 2, trigger_node_id: 'trigger', nodes: [
+    { id: 'trigger', type: 'manual_trigger', title: 'Start', config: {} },
+    { id: 'send', type: 'send_chat_message', title: 'Send message', config: { title: 'Daily result', message: 'Today is ready' } },
+  ], edges: [{ from: 'trigger', to: 'send' }] };
+}
+
+function deliveryPreview(status?: string) {
+  return { ...defaultProps, graph: deliveryPreviewGraph(), readOnly: true, onSave: null,
+    nodeRuns: [{ id: 'preview-send', run_id: 'preview-run', workflow_id: 'preview-workflow',
+      node_id: 'send', node_type: 'send_chat_message', status: 'completed',
+      output_summary: { delivery_id: 'preview-delivery', chat_id: 'preview-delivered-chat',
+        ...(status ? { status } : {}) } }],
+  };
+}
+
 export const variants = {
+  deliveryMissingStatus: deliveryPreview(),
+  deliveryPending: deliveryPreview('delivery_pending'),
+  deliveryClaimed: deliveryPreview('claimed'),
+  deliveryAcknowledged: deliveryPreview('acknowledged'),
+  deliveryExpired: deliveryPreview('expired'),
+  deliveryNoEvidence: {
+    ...deliveryPreview(),
+    nodeRuns: [{ ...deliveryPreview().nodeRuns[0], output_summary: {} }],
+  },
+  deliveryTerminalStale: {
+    ...deliveryPreview('delivery_pending'),
+    executionStatus: 'failed',
+    nodeRuns: [
+      { ...deliveryPreview().nodeRuns[0], node_id: 'trigger', node_type: 'manual_trigger', status: 'running', output_summary: {} },
+      ...deliveryPreview('delivery_pending').nodeRuns,
+    ],
+  },
+  askAiTestable: {
+    ...defaultProps,
+    workflowId: 'preview-workflow',
+    onSave:saveTestGraph,
+    graph: {
+      version: 2, trigger_node_id: 'trigger',
+      nodes: [
+        { id: 'trigger', type: 'manual_trigger', config: {} },
+        { id: 'weather', type: 'app_skill_action', title: 'Forecast', config: { app_id: 'weather', skill_id: 'forecast', input: { location: 'Berlin' } } },
+        { id: 'events', type: 'app_skill_action', title: 'Search', config: { app_id: 'events', skill_id: 'search', input: { requests: [{ query: 'Community events', location: 'Berlin' }] } } },
+        { id: 'ask', type: 'app_skill_action', title: 'Ask AI', config: { app_id: 'ai', skill_id: 'ask', input: { prompt: 'Summarize {{steps.events.results}}', model: 'auto' } } },
+      ],
+      edges: [{ from: 'trigger', to: 'weather' }, { from: 'weather', to: 'events' }, { from: 'events', to: 'ask' }],
+    } as WorkflowGraph,
+    capabilityFixtures: [...defaultProps.capabilityFixtures, {
+      ...eventsSearchCapability,
+      metadata: {
+        ...eventsSearchCapability.metadata,
+        output_schema: { type: 'object', properties: {
+          results: { type: 'array', title: 'Results', 'x-ui': { basic: true }, example: [{ title: 'Community meetup', url: 'https://example.com/event', date_start: '2026-10-01', location: 'Berlin' }], items: { type: 'object', properties: {
+            title: { type: 'string', title: 'Title', 'x-ui': { basic: true } },
+            url: { type: 'string', title: 'URL' }, location: { type: 'string', title: 'Location' },
+          } } },
+          result_count: { type: 'integer', title: 'Result count', example: 1 },
+          provider: { type: 'string', title: 'Provider', example: 'Example provider' },
+        } },
+      },
+    }],
+  },
   empty: {
     ...defaultProps,
     graph: { version: 2, trigger_node_id: null, nodes: [], edges: [] },
   },
   aiCheck: { ...defaultProps, graph: aiCheckGraph() },
   exactCheckTestable: { ...defaultProps, workflowId: "preview-workflow" },
-  aiCheckTestable: { ...defaultProps, workflowId: "preview-workflow", graph: aiCheckGraph() },
+  aiCheckTestable: { ...defaultProps, workflowId: "preview-workflow", graph: aiCheckGraph(), onSave:saveTestGraph },
+  websiteChange: { ...defaultProps, workflowId: "preview-workflow", graph: websiteChangeGraph(), onSave: saveTestGraph },
+  websiteAiChange: { ...defaultProps, workflowId: "preview-workflow", graph: websiteChangeGraph(true), onSave: saveTestGraph },
+  websiteBlocked: { ...defaultProps, readOnly: true, onSave: null, graph: websiteChangeGraph(), nodeRuns: [{
+    id: "blocked-read", run_id: "preview-run", workflow_id: "preview-workflow", node_id: "read",
+    node_type: "app_skill_action", status: "failed", error_code: "WORKFLOW_WEBSITE_READ_BLOCKED",
+    error_summary: "WORKFLOW_WEBSITE_READ_BLOCKED", input_summary: { url: "https://events.ccc.de" }, output_summary: {},
+  }] },
+  comparisonCheck: { ...defaultProps, workflowId:"preview-workflow", graph:comparisonCheckGraph(), onSave:saveTestGraph },
   weatherForecast: skillVariant(
     singleSkillGraph("weather"),
     defaultCapability("weather.forecast"),

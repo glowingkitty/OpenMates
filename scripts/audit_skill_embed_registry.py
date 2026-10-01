@@ -23,6 +23,7 @@ APPS_DIR = REPO_ROOT / "backend/apps"
 # These skills are intentionally internal orchestration or memory operations and
 # do not create user-visible app_skill_use embeds. New entries require a reason.
 SKILL_EMBED_EXCEPTIONS: dict[str, str] = {
+    "hosting:search_domains": "Approved phased delivery: programmatic verification precedes web embed registration; remove this exception when the Hosting embeds are registered.",
     "ai:ask": "Core chat entrypoint invoked implicitly for every request, not a tool-call embed.",
     "code:image_to_html": "Long-running generator returns a direct code embed and screenshot metadata rather than an app-skill-use result embed.",
     "plans:create": "Client-encrypted plan write request; a capable client applies the durable change rather than rendering an app-skill embed.",

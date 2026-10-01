@@ -29,6 +29,9 @@
         "cli-created-account-login.spec.ts",
         "cli-memories.spec.ts",
         "cli-pair-login.spec.ts",
+        "cli-workflow-data-branches.spec.ts",
+        "cli-workflow-files.spec.ts",
+        "cli-workflows-natural-language-guards.spec.ts",
         "code-notebook-flow.spec.ts",
         "connected-account-calendar-settings.spec.ts",
         "content-embed-settings.spec.ts",
@@ -37,6 +40,7 @@
         "export-account-flow.spec.ts",
         "focus-mode-mention.spec.ts",
         "focus-mode-settings.spec.ts",
+        "gpt61-sol-model-picker.spec.ts",
         "import-account-dedupe.spec.ts",
         "import-account-limits.spec.ts",
         "import-account-v1.spec.ts",
@@ -57,6 +61,7 @@
         "project-task-sync.spec.ts",
         "projects-flow.spec.ts",
         "projects-remote-sources.spec.ts",
+        "workflow-files.spec.ts",
         "proton-local-connector-settings.spec.ts",
         "recent-chats-dedup.spec.ts",
         "recovery-key-login-flow.spec.ts",
@@ -79,11 +84,16 @@
         "web-lifecycle-notification-suppression.spec.ts",
         "workflows-definition-history.spec.ts",
         "workflows-ai-authoring.spec.ts",
+        "workflows-authoring-transaction.spec.ts",
         "workflows-editor.spec.ts",
+        "workflows-website-changes.spec.ts",
         "workflows-input.spec.ts",
+        "workflows-input-stream.spec.ts",
         "workflows-reorder-inputs.spec.ts",
         "workspace-hash-routing.spec.ts",
-        "workspace-sidebar.spec.ts"
+        "workspace-sidebar.spec.ts",
+        "components/chat-settings-preview.spec.ts",
+        "components/sheet-fullscreen.spec.ts"
       ]
     },
     "external_integration": {
@@ -192,6 +202,9 @@
       "enabling_work": "Run existing public browser/component/source assertions on the built candidate; report product failures rather than holding execution.",
       "specs": [
         "api-key-scopes-settings.spec.ts",
+        "apps-workspace.spec.ts",
+        "components/apps-workspace-preview.spec.ts",
+        "components/apps-skill-form.spec.ts",
         "app-load-no-error-logs.spec.ts",
         "apple-chat-history-contracts.spec.ts",
         "apple-embed-rendering-contracts.spec.ts",
@@ -210,6 +223,8 @@
         "components/projects-workspace-figma.spec.ts",
         "components/record-audio-live-transcript.spec.ts",
         "components/task-board-figma.spec.ts",
+        "components/task-board-drag-drop.spec.ts",
+        "components/tasks-workspace-split.spec.ts",
         "chat-replay-demo-mode.spec.ts",
         "chat-response-processing-ui.spec.ts",
         "chat-streaming-render-performance.spec.ts",
@@ -220,8 +235,17 @@
         "components/chat-inline-ratio-math.spec.ts",
         "components/specification-fullscreen.spec.ts",
         "components/workflow-graph-ai-authoring.spec.ts",
+        "components/workflow-message-editor-metadata.spec.ts",
+        "components/workflow-ask-ai-editor.spec.ts",
+        "components/workflow-ask-ai-test-preview.spec.ts",
+        "components/workflow-check-editor.spec.ts",
+        "components/settings-dropdown-rich.spec.ts",
+        "components/workflow-ai-pending-preview.spec.ts",
+        "components/workflow-prompt-composer.spec.ts",
         "components/workflow-run-provenance.spec.ts",
         "components/workflow-detail-tabs.spec.ts",
+        "components/workflow-sidebar.spec.ts",
+        "components/workflow-binding-review.spec.ts",
         "components/workflow-graph-skill-variants.spec.ts",
         "components/workflow-graph-reorder-inputs.spec.ts",
         "components/workflow-value-view.spec.ts",
@@ -233,6 +257,9 @@
         "components/report-issue-confirmation.spec.ts",
         "components/settings-usage-overview.spec.ts",
         "components/embed-workspace.spec.ts",
+        "components/composer-embed-suggestions.spec.ts",
+        "components/new-chat-embed-suggestions.spec.ts",
+        "composer-embed-open.spec.ts",
         "components/panel-responsiveness.spec.ts",
         "composer-model-routing.spec.ts",
         "design-search-icons.spec.ts",
@@ -283,7 +310,12 @@
         "task-workflow-example-chats.spec.ts",
         "unauthenticated-app-load.spec.ts",
         "unauthenticated-chat-navigation.spec.ts",
-        "workflow-template-sharing.spec.ts"
+        "workflow-template-sharing.spec.ts",
+        "components/settings-teams-icons.spec.ts",
+        "components/image-result-fullscreen-proxy.spec.ts",
+        "components/music-fullscreen-responsive.spec.ts",
+        "components/workflow-send-delivery-status.spec.ts",
+        "components/workspace-home-responsive.spec.ts"
       ]
     },
     "synthetic_artifact": {
@@ -419,12 +451,20 @@
     },
     "workflow_weather": {
       "execution": "e2e",
-      "enabling_work": "Run original real Workflow CLI/UI/scheduling assertions with dedicated workflow queue and only canonical workflow-trigger scanner. Original Bright Sky/DWD and Open-Meteo calls need no credentials; no paid AI/provider keys, no generic periodic jobs. Keep this capability in its own batch.",
+      "enabling_work": "Run real Workflow CLI/UI/scheduling assertions with dedicated workflow queue and only canonical workflow-trigger scanner. Bright Sky/DWD, Open-Meteo and bounded anonymous Gandi shop HTTPS calls need no credentials; no paid AI/provider keys, no generic periodic jobs. Keep this capability in its own batch.",
       "specs": [
         "cli-workflows-rain-real.spec.ts",
         "cli-workflows-schedule-real.spec.ts",
         "workflows-ready-run-tasks.spec.ts",
-        "workflows-ui-contract.spec.ts"
+        "workflows-ui-contract.spec.ts",
+        "skill-hosting-search-workflow.spec.ts"
+      ]
+    },
+    "credential_free_domains": {
+      "execution": "e2e",
+      "enabling_work": "Fresh runner-local core accounts and normal REST/CLI/SDK device approval; bounded real HTTPS calls only to the anonymous Gandi shop endpoint. No AI worker, inference, provider credentials or shared dev endpoint. Direct transport is exercised here; existing Webshare fallback has separate dev probe and focused unit evidence.",
+      "specs": [
+        "skill-hosting-search-api.spec.ts"
       ]
     },
     "ai_cached_public_provider": {
@@ -440,6 +480,13 @@
       "specs": [
         "signup-flow-passkey.spec.ts",
         "signup-skip-2fa-flow.spec.ts"
+      ]
+    },
+    "operational_health": {
+      "execution": "e2e",
+      "enabling_work": "Core API and Celery health checks only; no signup, external provider, billing operation or real AI inference.",
+      "specs": [
+        "development-service-health.spec.ts"
       ]
     }
   },

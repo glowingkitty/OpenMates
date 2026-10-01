@@ -7,6 +7,7 @@ opaque ciphertext; no server-side test or implementation decrypts them.
 
 import hashlib
 import importlib
+import importlib.machinery
 import re
 import sys
 import types
@@ -39,7 +40,12 @@ if "aiohttp" not in sys.modules:
 sys.modules.setdefault("regex", re)
 ensure_s3_dependencies()
 
-if "backend.core.api.app.tasks.celery_config" not in sys.modules:
+# Keep the dependency-light shim from replacing the real task registry when
+# draft and worker tests are collected in the same process.
+if (
+    importlib.machinery.PathFinder.find_spec("celery") is None
+    and "backend.core.api.app.tasks.celery_config" not in sys.modules
+):
     tasks_package = types.ModuleType("backend.core.api.app.tasks")
     tasks_package.__path__ = [str(Path(__file__).resolve().parents[1] / "core" / "api" / "app" / "tasks")]
 
@@ -57,7 +63,7 @@ if "backend.core.api.app.tasks.celery_config" not in sys.modules:
     celery_config_module.app = _CeleryAppStub()
     celery_config_module.get_worker_cache_service = _missing_worker_cache_service
     sys.modules.setdefault("backend.core.api.app.tasks", tasks_package)
-    sys.modules["backend.core.api.app.tasks.celery_config"] = celery_config_module
+    sys.modules.setdefault("backend.core.api.app.tasks.celery_config", celery_config_module)
     setattr(tasks_package, "celery_config", celery_config_module)
     setattr(importlib.import_module("backend.core.api.app"), "tasks", tasks_package)
 
@@ -766,6 +772,39 @@ async def test_empty_cached_draft_does_not_hide_persisted_ciphertext() -> None:
 
     assert draft == ("persisted-cipher", 2, None)
     assert warmed[0][0][2:] == ("persisted-cipher", 2)
+
+
+# contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative,drafts.access.first-party-encrypted
+@pytest.mark.anyio
+async def test_corrupt_cached_version_recovers_persisted_draft_without_logging_ciphertext(caplog) -> None:
+    from backend.core.api.app.services.cache_chat_mixin import ChatCacheMixin
+
+    warmed = []
+
+    class Redis:
+        async def hgetall(self, key):
+            return {b"encrypted_draft_md": b"cached-cipher", b"draft_v": b"private-cipher-in-version"}
+
+    class Cache(ChatCacheMixin):
+        @property
+        async def client(self):
+            return Redis()
+
+        async def update_user_draft_in_cache(self, *args, **kwargs):
+            warmed.append(args)
+            return True
+
+    class Directus:
+        async def get_items(self, collection, params, **kwargs):
+            assert collection == "drafts"
+            assert params["filter[chat_id][_eq]"] == "chat-1"
+            return [{"encrypted_content": "persisted-cipher", "version": 2}]
+
+    draft = await get_authoritative_user_draft(Cache(), Directus(), "user-1", "chat-1")
+    assert draft == ("persisted-cipher", 2, None)
+    assert warmed[0][2:] == ("persisted-cipher", 2)
+    assert "private-cipher-in-version" not in caplog.text
+    assert not any(record.levelname == "ERROR" for record in caplog.records)
 
 
 # contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative,drafts.access.first-party-encrypted

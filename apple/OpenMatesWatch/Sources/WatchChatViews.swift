@@ -14,6 +14,8 @@
 // ────────────────────────────────────────────────────────────────────
 // Specification: specifications/features/apple-watch/specification.yml
 // Assertions: apple-watch.chats.browse-search-open, apple-watch.chats.compact-layout
+// Specification: specifications/features/apple-notifications/specification.yml
+// Assertions: apple-notifications.action.routing-coherent
 
 import AVFoundation
 import SwiftUI
@@ -132,13 +134,21 @@ struct WatchChatShellView: View {
     @StateObject private var runtime: WatchChatRuntime
     @StateObject private var phoneBridge = WatchPhoneLoginBridge.shared
     private let startsNetworkTasks: Bool
+    private let seedsRemoteDraftFixture: Bool
     private let onOpenHub: (() -> Void)?
     private let onOpenSettings: (() -> Void)?
     private let initialSearchText: String?
     private let showsRecordingFixture: Bool
     private let currentUsername: String?
+    private let notificationRoute: WatchNotificationRoute?
+    private let isVisible: Bool
+    private let fixtureNotificationChatID: String?
+    @State private var networkReady = false
+    @State private var resolvingRouteID: UUID?
 
-    init(currentUserId: String?, currentUsername: String? = nil, webSocketToken: String?, onOpenHub: (() -> Void)? = nil, onOpenSettings: (() -> Void)? = nil) {
+    init(currentUserId: String?, currentUsername: String? = nil, webSocketToken: String?,
+         notificationRoute: WatchNotificationRoute? = nil, isVisible: Bool = true,
+         onOpenHub: (() -> Void)? = nil, onOpenSettings: (() -> Void)? = nil) {
         _runtime = StateObject(wrappedValue: WatchChatRuntime(
             currentUserId: currentUserId,
             syncSession: WatchSyncSession(
@@ -147,25 +157,33 @@ struct WatchChatShellView: View {
             )
         ))
         startsNetworkTasks = true
+        seedsRemoteDraftFixture = false
         self.onOpenHub = onOpenHub
         self.onOpenSettings = onOpenSettings
         initialSearchText = nil
         showsRecordingFixture = false
         self.currentUsername = currentUsername
+        self.notificationRoute = notificationRoute
+        self.isVisible = isVisible
+        self.fixtureNotificationChatID = nil
     }
 
 #if DEBUG
-    init(uiTestSnapshot: WatchChatSnapshot, selectedChatId: String?, initialSearchText: String? = nil, showsRecordingFixture: Bool = false, currentUsername: String? = nil, onOpenHub: (() -> Void)? = nil, onOpenSettings: (() -> Void)? = nil) {
+    init(uiTestSnapshot: WatchChatSnapshot, selectedChatId: String?, initialDraft: String? = nil, remoteDraftFixture: Bool = false, initialSearchText: String? = nil, showsRecordingFixture: Bool = false, currentUsername: String? = nil, onOpenHub: (() -> Void)? = nil, onOpenSettings: (() -> Void)? = nil, fixtureNotificationChatID: String? = nil) {
         _runtime = StateObject(wrappedValue: WatchChatRuntime(
             uiTestSnapshot: uiTestSnapshot,
-            selectedChatId: selectedChatId
+            selectedChatId: selectedChatId, initialDraft: initialDraft
         ))
         startsNetworkTasks = false
+        seedsRemoteDraftFixture = remoteDraftFixture
         self.onOpenHub = onOpenHub
         self.onOpenSettings = onOpenSettings
         self.initialSearchText = initialSearchText
         self.showsRecordingFixture = showsRecordingFixture
         self.currentUsername = currentUsername
+        self.notificationRoute = nil
+        self.isVisible = true
+        self.fixtureNotificationChatID = fixtureNotificationChatID
     }
 #endif
 
@@ -183,12 +201,51 @@ struct WatchChatShellView: View {
         .background(WatchChatPalette.background)
         .ignoresSafeArea(edges: .bottom)
         .task {
+#if DEBUG
+            if seedsRemoteDraftFixture { await runtime.seedRemoteDraftPreview() }
+            if let fixtureNotificationChatID {
+                _ = await runtime.openNotificationChat(chatID: fixtureNotificationChatID)
+            }
+#endif
             guard startsNetworkTasks else { return }
             phoneBridge.start(onApproval: { _ in }, onAcknowledgment: { _ in })
             await runtime.loadCachedSnapshot()
             await runtime.startRealtimeSync()
             await runtime.refresh()
+            networkReady = true
         }
+        .task(id: networkReady ? notificationRoute?.id : nil) {
+            await resolveNotificationRoute()
+        }
+        .onChange(of: runtime.isSyncing) { _, syncing in
+            if !syncing { Task { await resolveNotificationRoute() } }
+        }
+        .onChange(of: runtime.selectedChatId) { _, chatID in
+            if startsNetworkTasks { WatchPushNotificationManager.shared.viewedChatID = isVisible ? chatID : nil }
+        }
+        .onChange(of: isVisible) { _, visible in
+            if startsNetworkTasks { WatchPushNotificationManager.shared.viewedChatID = visible ? runtime.selectedChatId : nil }
+        }
+        .onDisappear {
+            if startsNetworkTasks {
+                WatchPushNotificationManager.shared.viewedChatID = nil
+                Task { await runtime.flushDraftAndStop() }
+            }
+        }
+    }
+
+    @MainActor
+    private func resolveNotificationRoute() async {
+        guard networkReady, let notificationRoute, resolvingRouteID != notificationRoute.id,
+              WatchPushNotificationManager.shared.permitsOpen(notificationRoute) else { return }
+        resolvingRouteID = notificationRoute.id
+        defer { if resolvingRouteID == notificationRoute.id { resolvingRouteID = nil } }
+        let result = await runtime.openNotificationChat(chatID: notificationRoute.chatID)
+        guard WatchPushNotificationManager.shared.permitsOpen(notificationRoute) else { return }
+        if result == .opened || result == .unavailable {
+            WatchPushNotificationManager.shared.consume(notificationRoute)
+        }
+        WatchPushNotificationManager.shared.viewedChatID = isVisible ? runtime.selectedChatId : nil
     }
 }
 
@@ -369,6 +426,7 @@ private struct WatchChatThreadView: View {
         self.runtime = runtime
         self.currentUsername = currentUsername
         _recordingPreviewActive = State(initialValue: showsRecordingFixture)
+        _draft = State(initialValue: runtime.selectedChatId.flatMap { runtime.composerDrafts[$0] } ?? "")
     }
 
     var body: some View {
@@ -382,6 +440,14 @@ private struct WatchChatThreadView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(WatchChatPalette.background)
         .ignoresSafeArea(edges: .top)
+        .onChange(of: draft) { _, text in
+            if let chatId = runtime.selectedChatId, runtime.composerDrafts[chatId] != text { runtime.updateComposerDraft(text, chatId: chatId) }
+        }
+        .onChange(of: runtime.composerDrafts) { _, drafts in
+            if let chatId = runtime.selectedChatId, let restored = drafts[chatId], restored != draft {
+                draft = restored
+            }
+        }
     }
 
     private var threadView: some View {
@@ -394,7 +460,7 @@ private struct WatchChatThreadView: View {
                         emptyChatWelcome
                     }
                     ForEach(runtime.selectedMessages) { message in
-                        WatchMessageBubble(message: message) { model in
+                        WatchMessageBubble(message: runtime.messageWithHydratedEmbeds(message)) { model in
                             sendEmbedOpenNotification(model)
                         }
                     }
@@ -411,9 +477,14 @@ private struct WatchChatThreadView: View {
                     .accessibilityHidden(true)
                 TextField(WatchStrings.messagePlaceholder, text: $draft)
                     .textFieldStyle(.plain)
+                    .controlSize(.small)
                     .font(.omXs)
                     .foregroundStyle(WatchChatPalette.foreground)
                     .tint(WatchChatPalette.blue)
+                    .frame(height: 38)
+                    .clipped()
+                    .contentShape(Rectangle())
+                    .disabled(isSending)
                     .accessibilityIdentifier("watch-message-input")
 
                 if draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -431,8 +502,10 @@ private struct WatchChatThreadView: View {
                     Button {
                         let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
                         guard !text.isEmpty else { return }
+                        isSending = true
                         Task {
-                            if await runtime.sendText(text) { draft = "" }
+                            defer { isSending = false }
+                            if await runtime.sendText(text), draft.trimmingCharacters(in: .whitespacesAndNewlines) == text { draft = "" }
                         }
                     } label: {
                         Text(WatchStrings.send)
@@ -450,6 +523,7 @@ private struct WatchChatThreadView: View {
             .padding(.horizontal, .spacing4)
             .frame(height: 38)
             .background(WatchChatPalette.surface, in: Capsule())
+            .clipShape(Capsule())
             .padding(.horizontal, .spacing4)
 
             if let errorMessage = audioRecorder.errorMessage ?? runtime.errorMessage, !errorMessage.isEmpty {
@@ -478,7 +552,7 @@ private struct WatchChatThreadView: View {
     private var navigationHeader: some View {
         HStack(spacing: 2) {
             Button {
-                runtime.selectedChatId = nil
+                Task { await runtime.leaveChat() }
             } label: {
                 HStack(spacing: 2) {
                     Image(systemName: "chevron.left")
@@ -536,7 +610,7 @@ private struct WatchChatThreadView: View {
                 Button {
                     recordingPreviewActive = false
                     audioRecorder.cancelRecording()
-                    runtime.selectedChatId = nil
+                    Task { await runtime.leaveChat() }
                 } label: {
                     HStack(spacing: 2) {
                         Image(systemName: "chevron.left")
@@ -757,29 +831,24 @@ private struct WatchMessageBubble: View {
     let onOpenEmbed: (WatchEmbedPreviewModel) -> Void
 
     private var isUser: Bool { message.role == .user }
-    private var embedRecords: [EmbedRecord] { message.watchEmbedRecords }
-    private var embedLookup: [String: EmbedRecord] {
-        EmbedRecord.dictionaryById(embedRecords, context: "watchMessageBubble") { _ in }
-    }
-    private var embedPreviews: [WatchEmbedPreviewModel] {
-        embedRecords.map {
-            WatchEmbedPreviewMapper.makeModel(
-                for: $0,
-                chatId: message.chatId,
-                allEmbedRecords: embedLookup
-            )
-        }
+    private let embedPreviews: [WatchEmbedPreviewModel]
+    private let markdownBlocks: [WatchRenderedMarkdownBlock]
+
+    init(message: WatchChatMessage, onOpenEmbed: @escaping (WatchEmbedPreviewModel) -> Void) {
+        self.message = message
+        self.onOpenEmbed = onOpenEmbed
+        let records = message.watchEmbedRecords
+        let lookup = EmbedRecord.dictionaryById(records, context: "watchMessageBubble") { _ in }
+        embedPreviews = records.map { WatchEmbedPreviewMapper.makeModel(for: $0, chatId: message.chatId, allEmbedRecords: lookup) }
+        markdownBlocks = WatchMarkdownParser.blocks(message.watchDisplayContent ?? "").map(WatchRenderedMarkdownBlock.init)
     }
 
     var body: some View {
         HStack {
             if isUser { Spacer(minLength: .spacing5) }
             VStack(alignment: .leading, spacing: .spacing2) {
-                if let displayContent = message.watchDisplayContent {
-                    Text(displayContent)
-                        .font(.omXs)
-                        .foregroundStyle(WatchChatPalette.foreground)
-                        .fixedSize(horizontal: false, vertical: true)
+                if !markdownBlocks.isEmpty {
+                    WatchMarkdownContent(blocks: markdownBlocks)
                 } else if embedPreviews.isEmpty {
                     Text(WatchStrings.clientEncrypted)
                         .font(.omXs)
@@ -819,5 +888,54 @@ private struct WatchStatusPill: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(WatchChatPalette.surface, in: Capsule())
             .overlay(Capsule().stroke(WatchChatPalette.blue.opacity(0.55), lineWidth: 1))
+    }
+}
+
+private struct WatchRenderedMarkdownBlock: Identifiable {
+    let block: WatchMarkdownBlock
+    let inlineText: AttributedString
+    var id: Int { block.id }
+    init(_ block: WatchMarkdownBlock) {
+        self.block = block
+        if case .code = block.kind { inlineText = AttributedString(block.text) }
+        else { inlineText = (try? AttributedString(markdown: block.text,
+            options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))) ?? AttributedString(block.text) }
+    }
+}
+
+private struct WatchMarkdownContent: View {
+    let blocks: [WatchRenderedMarkdownBlock]
+    var body: some View {
+        VStack(alignment: .leading, spacing: .spacing2) {
+            ForEach(blocks) { rendered in
+                switch rendered.block.kind {
+                case .divider:
+                    Rectangle().fill(WatchChatPalette.muted.opacity(0.4)).frame(height: 1)
+                case .heading(let level):
+                    Text(rendered.inlineText).font(.system(size: level <= 2 ? 15 : 13, weight: .bold))
+                        .accessibilityIdentifier("watch-markdown-heading-\(rendered.id)")
+                case .list(let marker):
+                    HStack(alignment: .top, spacing: 4) {
+                        Text(marker)
+                        Text(rendered.inlineText).frame(maxWidth: .infinity, alignment: .leading)
+                    }.font(.omXs).accessibilityIdentifier("watch-markdown-list-\(rendered.id)")
+                case .quote:
+                    HStack(alignment: .top, spacing: 5) {
+                        Rectangle().fill(WatchChatPalette.blue).frame(width: 2)
+                        Text(rendered.inlineText).italic()
+                    }.font(.omXs)
+                case .code:
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        Text(rendered.block.text).font(.system(size: 11, design: .monospaced))
+                    }.padding(5).background(WatchChatPalette.surface, in: RoundedRectangle(cornerRadius: 4))
+                        .accessibilityIdentifier("watch-markdown-code-\(rendered.id)")
+                case .paragraph:
+                    Text(rendered.inlineText).font(.omXs)
+                }
+            }
+        }
+        .foregroundStyle(WatchChatPalette.foreground)
+        .tint(WatchChatPalette.blue)
+        .fixedSize(horizontal: false, vertical: true)
     }
 }

@@ -662,9 +662,9 @@ provider_groups:
   web_and_search:
     description: >
       These providers are only used when you invoke a web, videos, news,
-      web-read, or design icon search skill. They see the content of what you
-      search for, the URLs you ask to read, or the public icon identifiers you
-      ask to preview, but no user identifier.
+      web-read, design icon search, or hosting domain search skill. Depending
+      on the provider, they may receive the search query, requested URL, domain
+      name, or public icon identifier, but no OpenMates user identifier.
     providers:
       brave:
         privacy_policy: https://brave.com/privacy/
@@ -702,9 +702,20 @@ provider_groups:
           - rotating proxy for requests that would otherwise be blocked by the upstream service
           - used by the videos get-transcript skill (proxied to YouTube)
           - used by the health search-appointments skill (proxied to Doctolib and Jameda — see Group H)
+          - fallback proxy for the hosting search-domains skill (proxied to Gandi when direct access fails)
         data_shared:
-          - Request URLs routed to external services
-          - Note: Webshare sees the URLs but not user identifiers
+          - Destination host and connection metadata for HTTPS CONNECT requests
+          - Request URLs for other requests routed to external services
+          - Note: For Gandi HTTPS CONNECT fallback, Webshare cannot read the encrypted domain query; no OpenMates user identifier is sent
+      gandi:
+        privacy_policy: https://www.gandi.net/en/contracts/privacy-policy # verified 2026-10-01
+        location: France
+        used_for:
+          - hosting search-domains skill (domain availability and indicative registration and renewal prices)
+        data_shared:
+          - Domain names or search keywords requested
+          - Country and currency preferences for localized prices
+          - Note: Sent server-side over HTTPS without an OpenMates user identifier or Gandi credentials
       google_maps:
         privacy_policy: https://privacy.google.com/
         location: US

@@ -170,6 +170,7 @@ export const CHAT_MODELS: ModelInfo[] = [
   { id: "claude-sonnet-5", name: "Claude Sonnet 5" },
   { id: "claude-haiku-4-5-20251001", name: "Claude Haiku 4.5" },
   { id: "gpt-6-astra", name: "GPT-6 Astra" },
+  { id: "gpt-6.1-sol", name: "GPT-6.1 Sol" },
   { id: "gpt-6-luna", name: "GPT-6 Luna" },
   { id: "gpt-6-sol", name: "GPT-6 Sol" },
   { id: "gpt-5.4", name: "GPT-5.4" },

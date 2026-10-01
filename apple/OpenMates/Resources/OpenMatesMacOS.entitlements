@@ -22,6 +22,9 @@
 		<string>webcredentials:openmates.org</string>
 		<string>$(OPENMATES_DEV_WEBCREDENTIALS)</string>
 		<string>webcredentials:app.openmates.org</string>
+		<string>applinks:app.openmates.org</string>
+		<string>applinks:openmates.org</string>
+		<string>applinks:app.dev.openmates.org</string>
 	</array>
 </dict>
 </plist>

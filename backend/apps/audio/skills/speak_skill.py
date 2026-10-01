@@ -12,11 +12,13 @@ import uuid
 from dataclasses import dataclass
 from typing import Any, List, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from backend.apps.base_skill import BaseSkill
 from backend.apps.audio.pricing import (
     DEFAULT_SPEECH_MODEL,
+    ELEVEN_V4_SPEECH_MODEL,
+    ELEVEN_V4_TURBO_SPEECH_MODEL,
     PREMIUM_SPEECH_MODEL,
 )
 from backend.shared.providers.groq.safeguard import get_safeguard_client
@@ -52,7 +54,7 @@ class AudioSpeakRequestItem(BaseModel):
     voice: Literal["warm_neutral", "bright_neutral", "calm_narrator"] = "warm_neutral"
     accent: Literal["en_us", "en_gb", "de_de", "es_es", "fr_fr"] = "en_us"
     style: Literal["natural", "calm", "friendly", "energetic"] = "natural"
-    speed: float = Field(default=1.0, ge=0.7, le=1.2)
+    speed: float = Field(default=1.0, ge=0.7, le=1.2, description="Speech speed; v4 and v4 Turbo require 1.0.")
     output_format: Literal[
         "mp3_22050_32",
         "mp3_24000_48",
@@ -62,7 +64,13 @@ class AudioSpeakRequestItem(BaseModel):
         "mp3_44100_128",
         "mp3_44100_192",
     ] = DEFAULT_OUTPUT_FORMAT
-    model: Literal["eleven_v3", "eleven_multilingual_v2", "eleven_flash_v2_5"] = DEFAULT_MODEL
+    model: Literal["eleven_v3", "eleven_multilingual_v2", "eleven_flash_v2_5", "eleven_v4", "eleven_v4_turbo"] = DEFAULT_MODEL
+
+    @model_validator(mode="after")
+    def _validate_model_speed(self) -> "AudioSpeakRequestItem":
+        if self.model in (ELEVEN_V4_SPEECH_MODEL, ELEVEN_V4_TURBO_SPEECH_MODEL) and self.speed != 1.0:
+            raise ValueError("Eleven v4 and v4 Turbo do not support custom speed; use speed 1.0.")
+        return self
 
     @field_validator("text")
     @classmethod
@@ -225,6 +233,7 @@ class SpeakSkill(BaseSkill):
                 "chat_id": kwargs.get("chat_id") or self._current_chat_id,
                 "message_id": kwargs.get("message_id") or self._current_message_id,
                 "external_request": kwargs.get("external_request", False),
+                **({"team_id": kwargs["team_id"]} if kwargs.get("team_id") else {}),
                 "api_key_hash": kwargs.get("api_key_hash"),
                 "device_hash": kwargs.get("device_hash"),
                 "api_key_name": kwargs.get("api_key_name"),

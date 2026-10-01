@@ -44,6 +44,44 @@ instructions:
       - One-time chat-created automations use schedule-once and remain temporary for seven days unless kept.
       - Recurring automations use schedule-recurring and create persisted workflows.
       - Running an existing workflow creates a pending countdown or approval state before execution.
+focuses:
+  - id: clarify_workflows
+    name_translation_key: workflows.clarify_workflows
+    description_translation_key: workflows.clarify_workflows.description
+    process_translation_key: focus_modes.workflows_clarify_workflows.process
+    systemprompt_translation_key: focus_modes.workflows_clarify_workflows.systemprompt
+    preprocessor_hint: >-
+      Select when a workflow request needs discussion because its target, schedule,
+      action, condition, location, or delivery cannot be represented reliably.
+      Clear workflow creation requests should use the workflow authoring path directly.
+    systemprompt: >-
+      Help the user turn their original request into one or more executable workflows.
+      Preserve the requested actions, schedule, conditions, location, and delivery
+      channel. Never silently substitute a different action or channel. Ask only for
+      details needed to create a valid workflow; use Monday at 09:00 in the user's
+      browser timezone when a weekly request omits its day and time, unless the user
+      specifies another timezone. State any default you use.
+
+      Use the Workflows capability information and user-owned workflow search when
+      needed. Do not invent graph node types, skill parameters, or existing workflows.
+      For an existing workflow, verify the target before editing it. When the
+      editor supplies a selected workflow ID, look it up once with workflows.search
+      using workflow_id and use its graph and schedule to identify the change.
+      If that ID is missing or inaccessible, ask the user to select the workflow
+      again; do not broaden the search. Without a selected ID, search by title
+      once and ask which match the user means if needed. Preserve the existing
+      schedule, actions, conditions, location, delivery, and enabled state unless
+      the user asks to change them. Ask one necessary question at a time. Do not
+      search for future events or run a workflow to clarify an edit. For several
+      create or edit operations, gather enough detail for every operation, then
+      pass the complete request to create-or-modify in one instruction so the
+      changes commit together. Never send an assistant-written graph.
+
+      When the validated save path is available, save new workflows disabled and
+      preserve the enabled state of edited workflows. Tell the user that a new
+      workflow must be activated by them. Summarize the workflows actually saved and
+      distinguish saved changes from proposals. Do not claim a workflow was created
+      or edited until the tool confirms it.
 skills:
   - id: create-or-modify
     anonymous_access: authenticated
@@ -51,8 +89,9 @@ skills:
     description_translation_key: workflows.skills.create_or_modify.description
     icon_image: workflow.svg
     preprocessor_hint: >
-      Create or modify exactly one workflow from chat. Do not batch multiple
-      workflows into one skill call.
+      Save workflows from a complete natural-language instruction. Include all
+      requested creations and edits in one call so they can be validated and
+      committed together. Never invent a WorkflowGraph in chat.
     providers:
       - name: OpenMates
         no_api_key: true
@@ -60,17 +99,18 @@ skills:
     tool_schema:
       type: object
       properties:
+        instruction:
+          type: string
+          maxLength: 16000
+          description: >-
+            Complete natural-language workflow request, including all settled
+            schedule, action, condition, location, delivery and edit details.
+            Include every workflow in a multi-workflow request. Do not send a graph.
         workflow_id:
           type: string
-          description: Existing workflow ID when modifying a workflow.
-        title:
-          type: string
-          description: Short user-facing workflow title.
-        graph:
-          type: object
-          description: Valid WorkflowGraph definition.
+          description: Owner-scoped selected workflow ID when the user explicitly chose one.
       required:
-        - title
+        - instruction
 
   - id: search
     anonymous_access: authenticated
@@ -78,8 +118,9 @@ skills:
     description_translation_key: workflows.skills.search.description
     icon_image: search.svg
     preprocessor_hint: >
-      Search the user's existing persisted workflows before proposing a new automation.
-      Include temporary workflows only when the user explicitly asks about recent chat-created workflows.
+      Look up a selected workflow by its exact ID before editing it. Otherwise
+      search the user's persisted workflows by title. Include temporary workflows
+      only when the user explicitly asks about recent chat-created workflows.
     providers:
       - name: OpenMates
         no_api_key: true
@@ -90,6 +131,9 @@ skills:
         query:
           type: string
           description: Workflow title or intent text to search for.
+        workflow_id:
+          type: string
+          description: Exact owner-scoped workflow ID from the editor or a prior search result.
         include_temporary:
           type: boolean
           description: Include temporary chat-created workflows in the search results.

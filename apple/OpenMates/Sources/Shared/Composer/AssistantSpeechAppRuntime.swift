@@ -1,3 +1,5 @@
+// Specification: specifications/features/assistant-response-speech/specification.yml
+// Assertions: assistant-speech.surface.semantic-parity
 import Foundation
 import Combine
 
@@ -12,13 +14,20 @@ final class AssistantSpeechAppRuntime {
     private var sessionGeneration = UUID()
     private var activationGeneration = UUID()
     private var promotionTasks: [String: Task<Void, Never>] = [:]
+    private let systemMedia = AssistantSpeechSystemMedia()
+    private var mediaSubscription: AnyCancellable?
     private let player = AssistantSpeechAudioPlayer()
     private var controllers: [String: NativeAssistantSpeech] = [:]
     private var outgoing: [String: String] = [:]
     private var pendingCommitUserIDs: [String: String] = [:]
     private var committedChats = Set<String>()
+    private var publicScope: AssistantSpeechScope?
+    private var pendingPublicChatID: String?
+    private let controllerFactory: (@MainActor (String) -> NativeAssistantSpeech)?
+    private let stopController: @MainActor (NativeAssistantSpeech) async -> Void
     private var activeChatID: String?
     private var activeOwnerID: UUID?
+    private var sourceSubscription: AnyCancellable?
     private var metadataSubscription: AnyCancellable?
     private var knownCiphertexts: [String: String] = [:]
     private var earlyEvents: [String: AssistantSpeechEarlyEvents] = [:]
@@ -49,11 +58,31 @@ final class AssistantSpeechAppRuntime {
             store?.upsertChat(row.withSpeechPreference(ciphertext, metadataVersion: version))
         }
     ))
+    init(controllerFactory: (@MainActor (String) -> NativeAssistantSpeech)? = nil,
+         stopController: @escaping @MainActor (NativeAssistantSpeech) async -> Void = { await $0.stop() }) {
+        self.controllerFactory = controllerFactory
+        self.stopController = stopController
+        player.onApproachingEnd = { [weak self] in
+            guard let self, let id = activeChatID else { return }
+            controllers[id]?.prefetchNextChapter()
+        }
+        player.onInterrupted = { [weak self] in
+            guard let self, let id = activeChatID else { return }
+            controllers[id]?.pause()
+        }
+    }
     func configure(store: ChatStore, socket: WebSocketManager) {
         if self.store === store, self.socket === socket,
            scopeGeneration == OfflineStore.shared.scopeGeneration { return }
         reset()
         self.store = store; self.socket = socket; scopeGeneration = OfflineStore.shared.scopeGeneration
+        sourceSubscription = store.objectWillChange.sink { [weak self] _ in
+            Task { @MainActor [weak self] in
+                await Task.yield()
+                guard let self, let id = activeChatID, let store = self.store else { return }
+                controllers[id]?.updateSource(from: store.messages(for: id))
+            }
+        }
         metadataSubscription = store.$chats.sink { [weak self] chats in
             guard let self else { return }
             for chat in chats {
@@ -74,9 +103,54 @@ final class AssistantSpeechAppRuntime {
               scopeGeneration == OfflineStore.shared.scopeGeneration else { return nil }
         return .init(accountID: identity, serverID: identity, chatID: chatID, sessionID: sessionGeneration)
     }
-    private func current(_ scope: AssistantSpeechScope) -> Bool { self.scope(for: scope.chatID) == scope }
+    private func current(_ scope: AssistantSpeechScope) -> Bool {
+        if scope == publicScope { return scope.serverID == ServerProfile.current().webBaseURL.absoluteString }
+        return self.scope(for: scope.chatID) == scope
+    }
+    func playPublicExample(chatID: String, messageID: String, fixtures: [PublicAssistantSpeechSegment]) async {
+        guard !fixtures.isEmpty else { return }
+        let activation = UUID(); activationGeneration = activation
+        let expectedSession = sessionGeneration
+        let expectedServer = ServerProfile.current().webBaseURL.absoluteString
+        pendingPublicChatID = chatID
+        defer { if activationGeneration == activation { pendingPublicChatID = nil } }
+        let control = controller(for: chatID)
+        if let previous = activeChatID, previous != chatID, let previousController = controllers[previous] {
+            await stopController(previousController)
+        }
+        guard activationGeneration == activation, sessionGeneration == expectedSession,
+              ServerProfile.current().webBaseURL.absoluteString == expectedServer, !Task.isCancelled else { return }
+        if publicScope.map({ $0.chatID == chatID && current($0) }) != true {
+            let scope = AssistantSpeechScope(accountID: "public", serverID: expectedServer,
+                chatID: chatID, sessionID: expectedSession)
+            publicScope = scope; activeChatID = chatID; activeOwnerID = UUID()
+            control.activatePublic(scope)
+            systemMedia.activate(control)
+            mediaSubscription = control.objectWillChange.sink { [weak self, weak control] _ in
+                Task { @MainActor [weak self, weak control] in
+                    await Task.yield()
+                    guard let self, let control else { return }
+                    self.systemMedia.refresh(control)
+                }
+            }
+        }
+        await control.playPublicExample(messageID: messageID, fixtures: fixtures)
+    }
+    func stopPublic(chatID: String) {
+        // A disappearing public view may leave while cancellation of the prior
+        // provider response is suspended, before publicScope has been installed.
+        if pendingPublicChatID == chatID {
+            activationGeneration = UUID(); pendingPublicChatID = nil
+        }
+        guard publicScope?.chatID == chatID, activeChatID == chatID else { return }
+        controllers[chatID]?.reset(); publicScope = nil
+        activeChatID = nil; activeOwnerID = nil; systemMedia.reset(); mediaSubscription = nil
+    }
     func controller(for chatID: String) -> NativeAssistantSpeech {
         if let value = controllers[chatID] { return value }
+        if let controllerFactory {
+            let value = controllerFactory(chatID); controllers[chatID] = value; return value
+        }
         let value = NativeAssistantSpeech(dependencies: .init(
             readPreference: { [weak self] scope in
                 guard let self else { throw CancellationError() }; return try await preference.read(scope)
@@ -97,16 +171,43 @@ final class AssistantSpeechAppRuntime {
                 guard let self, current(scope), let socket else { return }
                 try await socket.send(.init(type: "assistant_speech", payload: ["action": "cancel",
                     "chat_id": scope.chatID, "assistant_message_id": id]))
+            }, resolveAcknowledgement: { [weak self] scope, path in
+                guard let self, current(scope), path.hasPrefix("/audio/assistant-acknowledgements/"),
+                      !path.contains(".."), let url = URL(string: path, relativeTo: ServerProfile.current().webBaseURL)?.absoluteURL else { throw CancellationError() }
+                let (bytes, response) = try await URLSession.shared.data(from: url)
+                guard current(scope), let http = response as? HTTPURLResponse, http.statusCode == 200 else { throw CocoaError(.fileReadNoSuchFile) }
+                return bytes
+            }, startPendingCue: { [weak self] in if self?.activeChatID == chatID { self?.player.startPendingCue() } },
+            stopPendingCue: { [weak self] in if self?.activeChatID == chatID { self?.player.stopPendingCue() } },
+            pausePlayback: { [weak self] in if self?.activeChatID == chatID { self?.player.pause() } },
+            resumePlayback: { [weak self] in if self?.activeChatID == chatID { self?.player.resume() } },
+            requestSpeech: { [weak self] scope, id, action, segments in
+                guard let self, scope.accountID != "public", current(scope), activeChatID == scope.chatID, let socket else { throw CancellationError() }
+                var fields: [String: Any] = ["action": action, "chat_id": scope.chatID, "assistant_message_id": id, "segments": segments]
+                if action == "request" { fields["defer_after_first"] = true }
+                try await socket.send(.init(type: "assistant_speech", payload: fields))
             }, canPlay: { [weak self] scope in self?.current(scope) == true && self?.activeChatID == scope.chatID }))
         controllers[chatID] = value; return value
     }
     func activate(chatID: String, supported: Bool, ownerID: UUID) async -> NativeAssistantSpeech {
         let activation = UUID(); activationGeneration = activation
+        pendingPublicChatID = nil
         let expectedSession = sessionGeneration
         let control = controller(for: chatID)
-        if let previous = activeChatID, previous != chatID { await controllers[previous]?.stop() }
+        if let previous = activeChatID, previous != chatID, let previousController = controllers[previous] {
+            await stopController(previousController)
+        }
         guard activationGeneration == activation, sessionGeneration == expectedSession, !Task.isCancelled else { return control }
+        publicScope = nil
         activeChatID = chatID; activeOwnerID = ownerID
+        systemMedia.activate(control)
+        mediaSubscription = control.objectWillChange.sink { [weak self, weak control] _ in
+            Task { @MainActor [weak self, weak control] in
+                await Task.yield()
+                guard let self, let control else { return }
+                systemMedia.refresh(control)
+            }
+        }
         await control.activate(supported ? scope(for: chatID) : nil)
         if activationGeneration == activation, sessionGeneration == expectedSession, !Task.isCancelled {
             control.resumePlaybackIfReady()
@@ -116,6 +217,7 @@ final class AssistantSpeechAppRuntime {
     func deactivate(chatID: String, ownerID: UUID, controller: NativeAssistantSpeech?) {
         guard activeChatID == chatID, activeOwnerID == ownerID, let controller, controllers[chatID] === controller else { return }
         controller.detach()
+        systemMedia.reset(); mediaSubscription = nil
         activeChatID = nil; activeOwnerID = nil
     }
     func transferDraft(from source: AssistantSpeechScope?, to chatID: String) async throws {
@@ -170,6 +272,17 @@ final class AssistantSpeechAppRuntime {
             let control = controller(for: chatID)
             if outgoing.removeValue(forKey: chatID) != nil { control.expectResponse(messageID, in: scope) }
             for event in earlyEvents.removeValue(forKey: chatID)?.events ?? [] { control.receive(event, in: scope) }
+        } else if type == "assistant_speech_acknowledgement",
+                  let id = fields["message_id"] as? String, let clip = fields["clip_id"] as? String,
+                  let path = fields["audio_url"] as? String, path.hasPrefix("/audio/assistant-acknowledgements/") {
+            let segment = AssistantSpeechSegment(segment_id: "acknowledgement:" + clip,
+                sequence: -1, status: "ready", generated_asset_id: nil, kind: "acknowledgement", audio_url: path)
+            let event = AssistantSpeechStatus(chat_id: chatID, message_id: id, status: "ready",
+                segment_id: nil, sequence: nil, generated_asset_id: nil, segments: [segment])
+            if outgoing[chatID] != nil {
+                var values = earlyEvents[chatID] ?? AssistantSpeechEarlyEvents()
+                values.append(event); earlyEvents[chatID] = values
+            } else { controllers[chatID]?.receive(event, in: scope) }
         } else if type == "assistant_speech_status" {
             guard let data = try? JSONSerialization.data(withJSONObject: fields),
                   let event = try? JSONDecoder().decode(AssistantSpeechStatus.self, from: data) else { return }
@@ -202,8 +315,9 @@ final class AssistantSpeechAppRuntime {
         return assistantID
     }
     func reset() {
-        sessionGeneration = UUID(); activationGeneration = UUID()
-        metadataSubscription = nil; knownCiphertexts.removeAll()
+        systemMedia.reset(); mediaSubscription = nil; publicScope = nil
+        sessionGeneration = UUID(); activationGeneration = UUID(); pendingPublicChatID = nil
+        sourceSubscription = nil; metadataSubscription = nil; knownCiphertexts.removeAll()
         promotionTasks.values.forEach { $0.cancel() }; promotionTasks.removeAll()
         controllers.values.forEach { $0.reset() }; controllers.removeAll()
         preference.clear(); outgoing.removeAll(); earlyEvents.removeAll(); player.stop()
@@ -306,15 +420,15 @@ struct AssistantSpeechEarlyEvents {
     var events: [AssistantSpeechStatus] { order.compactMap { values[$0] } + (overflow.map { [$0] } ?? []) }
     mutating func append(_ event: AssistantSpeechStatus) {
         guard let message = event.message_id else { return }
-        if let children = event.segments {
+        if let children = event.segments, children.count > 1 {
             for child in children {
                 append(.init(chat_id: event.chat_id, message_id: message, status: child.status,
                     segment_id: child.segment_id, sequence: child.sequence,
-                    generated_asset_id: child.generated_asset_id, segments: nil))
+                    generated_asset_id: child.generated_asset_id, segments: [child]))
             }
             return
         }
-        let key = message + ":" + (event.segment_id ?? "control")
+        let key = message + ":" + (event.segment_id ?? event.segments?.first?.segment_id ?? "control")
         if values[key]?.status == "ready", ["queued", "generating"].contains(event.status ?? "") { return }
         if values[key] == nil {
             guard order.count < 64 else {

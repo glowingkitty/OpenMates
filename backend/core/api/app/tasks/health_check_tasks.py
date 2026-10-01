@@ -187,7 +187,7 @@ SIGHTENGINE_HEALTH_CHECK_INTERVAL_SECONDS = 7200  # 2 hours
 SIGHTENGINE_USAGE_LIMIT_ERROR = "usage_limit"
 CEREBRAS_HEALTH_CHECK_DEFAULT_MODEL_ID = "gpt-oss-120b"
 CELERY_WORKER_INSPECT_TIMEOUT_SECONDS = 5.0
-STRIPE_WEBHOOK_HEALTH_URL = "http://api:8000/v1/payments/webhook"
+STRIPE_PAYMENT_ROUTES_HEALTH_URL = "http://api:8000/internal/health/payments"
 STRIPE_SETTLEMENT_STALE_AFTER = timedelta(minutes=15)
 GOOGLE_PROVIDER_HEALTH_ID = "google"
 GOOGLE_AI_STUDIO_SERVER_ID = "google_ai_studio"
@@ -507,6 +507,7 @@ def _get_cheapest_model_for_server(server_id: str) -> Optional[str]:
         
         # Find all models that use this server
         candidate_models = []  # List of (provider_id, model_id, model_config, cost)
+        preferred_models = []
         
         for provider_id, provider_config in all_provider_configs.items():
             models = provider_config.get("models", [])
@@ -517,9 +518,11 @@ def _get_cheapest_model_for_server(server_id: str) -> Optional[str]:
                 # Check if this model has the server in its servers list
                 servers = model.get("servers", [])
                 has_server = False
+                health_check_preferred = False
                 for server in servers:
                     if isinstance(server, dict) and server.get("id") == server_id:
                         has_server = True
+                        health_check_preferred = server.get("health_check_preferred") is True
                         break
                 
                 if has_server:
@@ -528,11 +531,19 @@ def _get_cheapest_model_for_server(server_id: str) -> Optional[str]:
                         # Get input cost per million tokens
                         costs = model.get("costs", {})
                         input_cost = costs.get("input_per_million_token", {}).get("price")
-                        candidate_models.append((provider_id, model_id, model, input_cost))
+                        candidate = (provider_id, model_id, model, input_cost)
+                        candidate_models.append(candidate)
+                        if health_check_preferred:
+                            preferred_models.append(candidate)
         
         if not candidate_models:
             logger.warning(f"No models found that use server '{server_id}'")
             return None
+
+        # A provider's cheapest catalog entry may require a dedicated endpoint.
+        # Prefer a configured model verified to work for the health probe.
+        if preferred_models:
+            candidate_models = preferred_models
         
         # For Anthropic, prefer Haiku models for health checks
         if server_id == "anthropic":
@@ -559,28 +570,6 @@ def _get_cheapest_model_for_server(server_id: str) -> Optional[str]:
                     provider_id, model_id, _, _ = haiku_models[0]
                     logger.debug(f"Using first Haiku model '{provider_id}/{model_id}' for Anthropic health check")
                     return f"{provider_id}/{model_id}"
-        
-        # For Groq, use llama-3.1-8b-instant for health checks (faster, non-reasoning model)
-        if server_id == "groq":
-            # Use llama-3.1-8b-instant directly - this is a Groq-native model, not in provider configs
-            # Format: "groq/llama-3.1-8b-instant" but we need to find which provider uses groq
-            # Since Groq is used by OpenAI provider, we'll use "openai/llama-3.1-8b-instant"
-            # But actually, for Groq API, we can use the model ID directly without provider prefix
-            # The health check will resolve it correctly via the server
-            logger.debug("Using 'llama-3.1-8b-instant' for Groq health check (testing model)")
-            # Find a provider that uses groq server to construct the model ID
-            groq_provider = None
-            for provider_id, _, _, _ in candidate_models:
-                groq_provider = provider_id
-                break
-            if groq_provider:
-                # Return model ID in format that will work with Groq server
-                # The model ID will be resolved by the health check function
-                return f"{groq_provider}/llama-3.1-8b-instant"
-            else:
-                # Fallback: use openai provider since Groq is typically used with OpenAI models
-                logger.debug("Using 'openai/llama-3.1-8b-instant' for Groq health check (fallback)")
-                return "openai/llama-3.1-8b-instant"
         
         # For OpenRouter, use Mistral Small 3.2 — avoids upstream rate limits from models
         # that OpenRouter routes through other providers (e.g., OSS safeguard → Groq)
@@ -715,10 +704,23 @@ async def _check_provider_via_test_request(provider_id: str, model_id: str, secr
           4. Is the health check actually validating OpenRouter's availability correctly?
     """
     try:
-        # Special case: For Groq health checks, use llama-3.1-8b-instant directly
-        # This model is not in provider configs, so we bypass the normal resolution
-        if provider_id == "groq" and "llama-3.1-8b-instant" in model_id:
-            logger.debug("Using direct Groq API call for health check with model 'llama-3.1-8b-instant'")
+        # Probe Groq itself using the selected configured model, even when that
+        # model normally routes to another server for product requests.
+        if provider_id == "groq":
+            owner, configured_id = model_id.split("/", 1)
+            model_config = next((
+                model for model in config_manager.get_provider_configs().get(owner, {}).get("models", [])
+                if isinstance(model, dict) and model.get("id") == configured_id
+            ), {})
+            groq_server = next((
+                server for server in model_config.get("servers", [])
+                if isinstance(server, dict) and server.get("id") == "groq"
+            ), None)
+            if groq_server is None:
+                return False, "Groq health check model is not configured", None
+            # Groq's native IDs may include a vendor prefix (openai/...).
+            model_suffix = groq_server.get("model_id") or configured_id
+            logger.debug("Using direct Groq API call for health check with model '%s'", model_suffix)
             # Get Groq client directly
             provider_client = _get_provider_client("groq")
             if not provider_client:
@@ -736,7 +738,7 @@ async def _check_provider_via_test_request(provider_id: str, model_id: str, secr
                 response = await asyncio.wait_for(
                     provider_client(
                         task_id="health_check",
-                        model_id="llama-3.1-8b-instant",  # Direct Groq model ID
+                        model_id=model_suffix,
                         messages=test_messages,
                         secrets_manager=secrets_manager,
                         tools=None,
@@ -1097,6 +1099,7 @@ async def _check_provider_health(provider_id: str, health_endpoint: Optional[str
             "status": status,
             "last_check": current_timestamp,
             "last_error": last_error,
+            "consecutive_failures": consecutive_failures,
             "response_times_ms": response_times_ms
         }
         
@@ -1360,11 +1363,18 @@ def _get_app_worker_queue_names(app_id: str) -> set[str]:
     return queues or {f"app_{app_id}"}
 
 
-def _inspect_active_worker_queues() -> Optional[Dict[str, Any]]:
+def _inspect_active_worker_queues() -> Dict[str, Any]:
+    from celery.app.control import Control, flatten_reply
     from backend.core.api.app.tasks.celery_config import app as celery_app
 
-    inspect = celery_app.control.inspect(timeout=CELERY_WORKER_INSPECT_TIMEOUT_SECONDS)
-    return inspect.active_queues()
+    # asyncio.to_thread can use a different thread on each health-check loop.
+    # Kombu caches its reply queue but derives its reply address from the current
+    # thread. A fresh mailbox keeps both addresses together and avoids stale
+    # subscriptions (and overlapping inspections consuming each other's replies).
+    control = Control(app=celery_app)
+    return flatten_reply(control.broadcast(
+        "active_queues", reply=True, timeout=CELERY_WORKER_INSPECT_TIMEOUT_SECONDS,
+    )) or {}
 
 
 def _active_queue_names(active_workers: Optional[Dict[str, Any]]) -> set[str]:
@@ -1651,10 +1661,16 @@ async def _check_app_health(app_id: str, port: int = 8000, active_workers: Optio
 
 
 async def _stripe_payment_route_registered() -> bool:
+    token = os.getenv("INTERNAL_API_SHARED_TOKEN")
+    if not token:
+        return False
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
-            response = await client.get(STRIPE_WEBHOOK_HEALTH_URL)
-        return response.status_code == 405
+            response = await client.get(
+                STRIPE_PAYMENT_ROUTES_HEALTH_URL,
+                headers={"X-Internal-Service-Token": token},
+            )
+        return response.status_code == 200 and response.json().get("routes_registered") is True
     except Exception:
         return False
 

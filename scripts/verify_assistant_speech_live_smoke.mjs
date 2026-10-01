@@ -23,8 +23,9 @@ const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DEFAULT_API_URL = "https://api.dev.openmates.org";
 const DEFAULT_CLI = "/home/superdev/.npm-global/bin/openmates";
 const DEFAULT_OUTPUT_DIR = resolve(REPO_ROOT, "docs/specs/assistant-response-speech/artifacts");
-const PROMPT = "Reply with exactly one short sentence: Speech verification complete.";
-const EXPECTED_ASSISTANT = "Speech verification complete.";
+const PROMPT = "Reply with exactly one short sentence: Speech check complete.";
+const EXPECTED_ASSISTANT = "Speech check complete.";
+const ASSISTANT_CHARACTERS_PER_CREDIT = 25;
 const READY_TIMEOUT_MS = 180_000;
 const OPEN_TIMEOUT_MS = 15_000;
 const SAFE_READY_FIELDS = new Set([
@@ -171,6 +172,39 @@ function deleteChat(cliPath, apiUrl, chatId) {
   return result.status === 0;
 }
 
+async function speechBillingEntries(apiUrl, session, chatId, messageId) {
+  const cookie = Object.entries(session.cookies || {})
+    .filter(([, value]) => typeof value === "string" && value)
+    .map(([key, value]) => `${key}=${value}`)
+    .join("; ");
+  const query = new URLSearchParams({ chat_id: chatId, limit: "100" });
+  const response = await fetch(`${apiUrl.replace(/\/$/, "")}/v1/settings/usage/chat-entries?${query}`, {
+    headers: { Accept: "application/json", Cookie: cookie },
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (!response.ok) throw new Error(`Speech billing lookup failed with HTTP ${response.status}.`);
+  const usage = await response.json();
+  return (usage.entries || []).filter((entry) => entry.app_id === "assistant_response_speech"
+    && entry.skill_id === "segment" && entry.message_id === messageId);
+}
+
+async function waitForSpeechBilling(apiUrl, session, chatId, messageId, text) {
+  const expectedCredits = Math.ceil(Array.from(text).length / ASSISTANT_CHARACTERS_PER_CREDIT);
+  const deadline = performance.now() + 60_000;
+  do {
+    const entries = await speechBillingEntries(apiUrl, session, chatId, messageId);
+    if (entries.length) {
+      const credits = entries.reduce((total, entry) => total + Number(entry.credits), 0);
+      if (credits !== expectedCredits || entries.some((entry) => entry.model_used !== "elevenlabs/eleven_v4_turbo")) {
+        throw new Error("Assistant speech usage has an unexpected charge or provider model.");
+      }
+      return { credits, entries: entries.length };
+    }
+    await new Promise((resolve) => setTimeout(resolve, 3_000));
+  } while (performance.now() < deadline);
+  throw new Error("Assistant speech became ready without a settled billing entry.");
+}
+
 function openWebSocket(apiUrl, session) {
   const wsBase = apiUrl.replace(/^http/, "ws").replace(/\/$/, "");
   const token = session.wsToken || session.cookies.auth_refresh_token;
@@ -282,6 +316,7 @@ async function main() {
   let readyFields = [];
   let acceptedLatencyMs = 0;
   let readyLatencyMs = 0;
+  let billing;
   let ws;
   try {
     ws = await openWebSocket(args.apiUrl, session);
@@ -341,6 +376,19 @@ async function main() {
     }
     readyFields = assertSafeReadyPayload(ready.payload, args.assistantText);
     readyLatencyMs = Math.round(performance.now() - requestStartedAt);
+    billing = await waitForSpeechBilling(args.apiUrl, session, chat.chatId, chat.messageId, args.assistantText);
+
+    send(ws, "assistant_speech", requestPayload);
+    const replay = await waitFor(ws,
+      (message) => message.type === "assistant_speech_status" && message.payload?.status === "accepted",
+      20_000, "assistant speech cached replay");
+    if (replay.payload.segments?.length !== 1 || replay.payload.segments[0].status !== "ready") {
+      throw new Error("Assistant speech replay did not reuse the ready segment.");
+    }
+    const replayEntries = await speechBillingEntries(args.apiUrl, session, chat.chatId, chat.messageId);
+    if (replayEntries.length !== billing.entries || replayEntries.reduce((sum, entry) => sum + Number(entry.credits), 0) !== billing.credits) {
+      throw new Error("Assistant speech replay added a duplicate charge.");
+    }
 
     send(ws, "assistant_speech", {
       action: "delete",
@@ -378,6 +426,11 @@ async function main() {
         accepted_latency_ms: acceptedLatencyMs,
         ready_status: "ready",
         real_elevenlabs_path_ready_latency_ms: readyLatencyMs,
+        speech_credits: billing.credits,
+        speech_billing_entries: billing.entries,
+        speech_model: "elevenlabs/eleven_v4_turbo",
+        cached_replay_reused: true,
+        cached_replay_extra_credits: 0,
         safe_ready_fields: readyFields,
         delete_acknowledged: true,
         chat_deleted: chatDeleted,

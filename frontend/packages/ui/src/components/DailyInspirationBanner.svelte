@@ -100,6 +100,8 @@
     'incognito-mode',
   ]);
   const GUEST_ALLOWED_FEATURE_PATHS = new Set([
+    'apps/web/search',
+    'apps/weather/forecast',
     'apps/all/focus_modes',
     'apps/events/skill/search',
     'apps/all/skills',
@@ -1012,6 +1014,7 @@
    * explainer carousel; regular inspiration banners still start/open chats.
    */
   function handleStartChat(e: MouseEvent) {
+    if (surface === 'workflows') return;
     const sourceCapabilities = (e as MouseEvent & {
       sourceCapabilities?: { firesTouchEvents?: boolean } | null;
     }).sourceCapabilities;
@@ -1056,6 +1059,7 @@
   }
 
   function handleBannerPointerDown(e: PointerEvent) {
+    if (surface === 'workflows') return;
     if (e.pointerType === 'touch') return;
     const target = e.target instanceof Element ? e.target : null;
     if (target?.closest('.carousel-arrow, .banner-embed-wrapper')) return;
@@ -1549,6 +1553,7 @@
         class="daily-inspiration-banner"
       class:guest-intro-variant={isGuestIntroVariant}
       class:guest-signup-slide={isGuestSignupCtaSlide}
+      class:informational={surface === 'workflows'}
       class:landing-intro-overlay-active={landingIntroOverlayActive}
       class:landing-intro-expanded={landingIntroUsesFullHeight}
       class:landing-intro-fading-out={landingIntroPhase === 'fading-out'}
@@ -1565,8 +1570,8 @@
       data-testid="daily-inspiration-banner"
       data-current-inspiration-id={current.inspiration_id}
       style={gradientStyle}
-      onclick={handleStartChat}
-      onpointerdown={handleBannerPointerDown}
+      onclick={surface === 'workflows' ? undefined : handleStartChat}
+      onpointerdown={surface === 'workflows' ? undefined : handleBannerPointerDown}
       ontransitionend={(e) => {
         if (e.target === e.currentTarget && (e.propertyName === 'height' || e.propertyName === 'min-height')) {
           finishLandingIntroCollapse();
@@ -1576,10 +1581,10 @@
       ontouchmove={handleTouchMove}
       ontouchend={handleTouchEnd}
       ontouchcancel={handleTouchEnd}
-      onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleStartChat(e as unknown as MouseEvent); } }}
-      role={isGuestSignupCtaSlide ? undefined : 'button'}
-      tabindex={isGuestSignupCtaSlide ? undefined : 0}
-      aria-label={isGuestSignupCtaSlide ? undefined : current.phrase}
+      onkeydown={surface === 'workflows' ? undefined : (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleStartChat(e as unknown as MouseEvent); } }}
+      role={isGuestSignupCtaSlide || surface === 'workflows' ? undefined : 'button'}
+      tabindex={isGuestSignupCtaSlide || surface === 'workflows' ? undefined : 0}
+      aria-label={isGuestSignupCtaSlide || surface === 'workflows' ? undefined : current.phrase}
     >
       <!-- ── Living gradient orbs — same Creative Code technique as ChatHeader.svelte.
            Three soft radial-gradient blobs morph shape and drift behind all content.
@@ -1775,6 +1780,7 @@
               </div>
 
               <!-- CTA: plain text + icon — pinned to bottom of banner-left. -->
+              {#if surface !== 'workflows'}
               <div class="banner-cta">
                 {#if isFeatureInspiration && surface !== 'tasks'}
                   <LinkIcon class="banner-cta-svg-icon" size={15} color="rgba(255, 255, 255, 0.85)" />
@@ -1786,6 +1792,10 @@
                     ? (prefersTouchCta
                       ? $text('daily_inspiration.tap_to_create_task')
                       : $text('daily_inspiration.click_to_create_task'))
+                    : isFeatureInspiration && surface === 'apps'
+                    ? (prefersTouchCta
+                      ? $text('apps_workspace.inspiration_tap_to_use_skill')
+                      : $text('apps_workspace.inspiration_click_to_use_skill'))
                     : isFeatureInspiration
                     ? (prefersTouchCta
                       ? $text('daily_inspiration.tap_to_open_settings')
@@ -1795,6 +1805,7 @@
                     : $text('daily_inspiration.click_to_start_chat')}
                 </span>
               </div>
+              {/if}
             </div>
           {/if}
 
@@ -2110,6 +2121,10 @@
     cursor: default;
   }
 
+  .daily-inspiration-banner.informational {
+    cursor: default;
+  }
+
   /* Settings and side-by-side layouts use the same container-derived height as
      the surrounding daily-inspiration area. */
   :global(.menu-open) .daily-inspiration-banner,
@@ -2118,11 +2133,11 @@
     min-height: 0;
   }
 
-  .daily-inspiration-banner:not(.guest-signup-slide):hover {
+  .daily-inspiration-banner:not(.guest-signup-slide):not(.informational):hover {
     filter: brightness(1.07);
   }
 
-  .daily-inspiration-banner:not(.guest-signup-slide):active {
+  .daily-inspiration-banner:not(.guest-signup-slide):not(.informational):active {
     transform: scale(0.995);
   }
 
@@ -2973,6 +2988,10 @@
     position: relative;
     /* Vertical padding to give CTA room at the bottom */
     padding-bottom: 28px;
+  }
+
+  .daily-inspiration-banner.informational .banner-left {
+    padding-bottom: 0;
   }
 
   /* ── Phrase row: mate profile (left) + phrase (right), vertically centered ── */

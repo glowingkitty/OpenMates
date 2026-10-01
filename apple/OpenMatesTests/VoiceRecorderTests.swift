@@ -136,13 +136,15 @@ final class VoiceRecorderTests: XCTestCase {
         var output: AudioRecordingFileWriter? = try AudioRecordingFileWriter(url: url, sourceFormat: format)
         XCTAssertTrue(output?.enqueue(buffer) == true)
         XCTAssertTrue(output?.finish() == true)
-        output = nil
-
+        // Retain the writer: finish itself must close/finalize the M4A.
         let fileSize = try XCTUnwrap(url.resourceValues(forKeys: [.fileSizeKey]).fileSize)
         XCTAssertGreaterThan(fileSize, 0)
         let reopened = try AVAudioFile(forReading: url)
         XCTAssertGreaterThan(reopened.length, 0)
         XCTAssertGreaterThan(reopened.fileFormat.sampleRate, 0)
+        XCTAssertFalse(output?.enqueue(buffer) == true, "A finished writer rejects late microphone buffers")
+        XCTAssertTrue(output?.finish() == true, "Finish is idempotent after successful close")
+        output = nil
     }
 
     // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle,message-input.privacy-context

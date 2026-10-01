@@ -115,12 +115,17 @@ async def _async_image_to_html(
 
     await task.initialize_services()
     try:
-        await ensure_credit_headroom(
-            user_id=user_id,
-            estimated_credits=int(arguments.get("reserved_credits") or reserved_credits_for_correction_passes(max_correction_passes)),
-            log_prefix=log_prefix,
-            operation_name="image-to-HTML generation",
-        )
+        estimated_credits = int(arguments.get("reserved_credits") or reserved_credits_for_correction_passes(max_correction_passes))
+        if arguments.get("team_id"):
+            from backend.shared.python_utils.team_skill_billing import ensure_team_skill_credit_headroom
+            await ensure_team_skill_credit_headroom(task._directus_service, arguments["team_id"], user_id, estimated_credits)
+        else:
+            await ensure_credit_headroom(
+                user_id=user_id,
+                estimated_credits=estimated_credits,
+                log_prefix=log_prefix,
+                operation_name="image-to-HTML generation",
+            )
 
         resolved_arguments = await _resolve_image_input_arguments(
             task,
@@ -171,6 +176,8 @@ async def _async_image_to_html(
             api_key_hash=arguments.get("api_key_hash"),
             device_hash=arguments.get("device_hash"),
             log_prefix=log_prefix,
+            team_id=arguments.get("team_id"),
+            event_id=embed_id,
         )
 
         resolved_vault_key_id = user_vault_key_id
@@ -207,6 +214,7 @@ async def _async_image_to_html(
             "status": "finished",
             "embed_id": embed_id,
             "user_id_hash": user_id_hash,
+            **({"team_id": arguments["team_id"]} if arguments.get("team_id") else {}),
             "html": generated.html,
             "latest_screenshot": screenshot_metadata,
             "usage": {**usage, "credits_charged": charged_credits},
@@ -286,6 +294,8 @@ async def charge_image_to_html_credits(
     api_key_hash: str | None,
     device_hash: str | None,
     log_prefix: str,
+    team_id: str | None = None,
+    event_id: str | None = None,
 ) -> int:
     if credits <= 0:
         return 0
@@ -303,12 +313,16 @@ async def charge_image_to_html_credits(
         "device_hash": device_hash,
     }
     try:
+        from backend.shared.python_utils.team_skill_billing import skill_billing_request
+        billing_path, payload = skill_billing_request(payload, team_id, event_id=event_id or "")
         async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.post(f"{INTERNAL_API_BASE_URL}/internal/billing/charge", json=payload, headers=headers)
+            response = await client.post(f"{INTERNAL_API_BASE_URL}{billing_path}", json=payload, headers=headers)
             response.raise_for_status()
         return credits
     except Exception as exc:
         logger.error("%s Failed to charge image-to-HTML credits: %s", log_prefix, exc, exc_info=True)
+        if team_id:
+            raise
         return 0
 
 

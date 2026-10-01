@@ -26,6 +26,8 @@ struct NativeModelCatalog: Decodable {
         let for_app_skill: String?
         let release_date: String?
         let capability_level: String?
+        // Public catalog tier is displayed on exact default-model option rows.
+        var tier: String? = nil
         let show_in_mentions: Bool?
         let servers: [Server]
     }

@@ -1319,6 +1319,7 @@ async function storeEmbedsBatch(
 ): Promise<void> {
   try {
     const { embedStore } = await import("./embedStore");
+    const syncUserId = (await userDB.getUserProfile())?.user_id ?? null;
 
     // Filter out invalid/cancelled embeds before batch write
     const validEmbeds = embeds.filter((embed) => {
@@ -1374,6 +1375,11 @@ async function storeEmbedsBatch(
           : embed.embed_type || "app-skill-use") as EmbedType,
       })),
     );
+
+    // Legacy app metadata is client-encrypted, so an open Apps library must
+    // revisit its bounded local index after a newer bulk sync batch commits.
+    const { notifyAppsHistoricalEmbedsSynced } = await import("./appsWorkspaceResultsService");
+    notifyAppsHistoricalEmbedsSynced(syncUserId);
 
     console.info(
       `[ChatSyncService] ${phaseName} - Batch stored ${validEmbeds.length} embeds (single transaction)`,
@@ -1480,6 +1486,8 @@ export async function handleLoadMoreChatsResponseImpl(
           has_more: payload.has_more,
           total_count: payload.total_count,
           offset: payload.offset,
+          team_id: payload.team_id ?? null,
+          error: payload.error,
         },
       }),
     );

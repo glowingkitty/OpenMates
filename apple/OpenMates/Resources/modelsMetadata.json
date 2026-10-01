@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "sourceDigest": "5bc279d6ca771932dfc8609c3fc6f75d14509a067a9bed44f0094e790b383d19",
+  "sourceDigest": "67be3a81d4a053bdb76dc215d1cd2f294074da5ce9ffb28e60c4c44b1707e6b8",
   "providers": [
     {
       "id": "openai",
@@ -2063,6 +2063,43 @@
         "sol",
         "gpt-6 sol",
         "gpt-6-sol"
+      ]
+    },
+    {
+      "id": "gpt-6.1-sol",
+      "name": "GPT-6.1 Sol",
+      "description": "OpenAI's high-capability model for complex coding, computer use, and professional work.",
+      "provider_id": "openai",
+      "provider_name": "OpenAI",
+      "logo_svg": "icons/openai.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text",
+        "image"
+      ],
+      "output_types": [
+        "text"
+      ],
+      "for_app_skill": "ai.ask",
+      "tier": "premium",
+      "capability_level": "high",
+      "release_date": "2026-09-29",
+      "servers": [
+        {
+          "id": "openai",
+          "name": "OpenAI API",
+          "region": "US"
+        }
+      ],
+      "default_server": "openai",
+      "pricing": {
+        "input_tokens_per_credit": 165,
+        "output_tokens_per_credit": 30
+      },
+      "reasoning": true,
+      "search_aliases": [
+        "gpt-6.1 sol",
+        "gpt-6.1-sol"
       ]
     },
     {

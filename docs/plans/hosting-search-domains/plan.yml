@@ -1,0 +1,569 @@
+schema_version: 2
+id: hosting-search-domains
+title: Implement Hosting domain search through programmatic, workflow and web surfaces
+status: approved
+goal: Implement Gandi-backed Hosting / Search domains, verify REST/CLI/SDK behavior first, then Workflows,
+  then parent and child web embeds.
+user_scope_addition: keep in mind that this also means implementing a new embed type for the search and
+  its children elements - check existing embed preview and fullscreen layouts and give me an asci based
+  wireframe for preview and fullscreen designs so we can clarify what infos to show and in what layout
+  that is coherent
+scope:
+  in:
+  - Bounded live Gandi lookup and SSE probes from dev-server direct egress and the existing Webshare proxy.
+  - Document accepted requests, latency, negative cases, partial errors, pricing tiers and provider limitations.
+  - Draft a Hosting app skill and provider design with server-first bounded proxy fallback.
+  - Inspect existing parent/child search embeds and propose four ASCII preview/fullscreen layouts.
+  - Implement pure Gandi provider and Hosting skill with bounded direct-first/proxy-fallback transport.
+  - Default to available-first results and fill remaining requested slots with matching in-use domains
+    unless available_only is explicit.
+  - Support all availability and optional bounded natural-language requirements ranking like Events.
+  - Verify REST/CLI and SDKs before implementing and testing Workflows; verify Workflows before web embed
+    implementation.
+  - Verify a real CLI chat recommends names for a social hub using actual domain checks, and prove grouped
+    requests execute simultaneously within the shared provider concurrency limit.
+  out:
+  - Domain purchase, registration, transfer, renewal, DNS management or account authentication.
+  - Load testing, unbounded retries, production service changes or publishing user domain searches.
+planning_authority:
+  task: TASK-2722
+  session: b91c
+  note: OpenMates Tasks owns live work status. Plan task records document approved dependencies and acceptance
+    criteria.
+implementation_state:
+  subject_commit: 76b0f34b3565f910b25ee247250e3e37867315f4
+approvals:
+  specification:
+    status: approved
+    approved_at: '2026-10-01'
+    source: User explicitly approved both reviewed Specification fingerprints on 2026-10-01.
+    hosting_fingerprint: 4ff6738c568c1db44349fe3083670139b1fd60a868b772915b6791a339307de9
+    shared_fingerprint: f7e4a682793a7f1613346a46898a63a5eefd2752bbb13edea030e980f53bc3ea
+  plan:
+    status: approved
+    source: 'User: Ok. ... Let’s implement - first for use via rest api / OpenMates cli - and test it
+      out - then continue with workflow support implementation and testing and then web app.'
+    approved_at: '2026-10-01'
+scenarios:
+- id: S-1
+  title: Compare actual server and proxy requests
+  given:
+  - Public synthetic domain inputs and existing server-side Webshare credentials are available.
+  when:
+  - The bounded probe sends paired direct/proxy lookups and suggestions from the dev api container.
+  then:
+  - Evidence distinguishes HTTP acceptance, completed response schema, domain status and partial provider
+    errors.
+- id: S-2
+  title: Review proposed behavior and coherent embed layouts
+  given:
+  - The Hosting app is not registered; existing search embeds and Hosting design tokens are available.
+  when:
+  - The draft describes the skill/provider contract and parent/child previews and fullscreens.
+  then:
+  - The user can review fields, layout and fallback behavior without any feature being enabled.
+- id: S-3
+  title: Programmatic Hosting search
+  given:
+  - Approved Hosting Specification and the previous delivery phase is verified.
+  when:
+  - The scoped implementation executes on the appropriate surface.
+  then:
+  - Availability, requirements, quotes, errors and privacy preserve the accepted contract.
+- id: S-4
+  title: Workflow Hosting search
+  given:
+  - Approved Hosting Specification and the previous delivery phase is verified.
+  when:
+  - The scoped implementation executes on the appropriate surface.
+  then:
+  - Availability, requirements, quotes, errors and privacy preserve the accepted contract.
+- id: S-5
+  title: Web Hosting search
+  given:
+  - Approved Hosting Specification and the previous delivery phase is verified.
+  when:
+  - The scoped implementation executes on the appropriate surface.
+  then:
+  - Availability, requirements, quotes, errors and privacy preserve the accepted contract.
+acceptance_criteria:
+- id: AC-1
+  scenario: S-1
+  text: Paired dev-server evidence includes explicit domains, repeated lookups, IDN, currency/tax, premium,
+    minimum terms, suggestions and negative/filter cases.
+  required: true
+  status: satisfied
+  coverage_status: covered
+  verification_scope: manual
+  verification_ids:
+  - T-GANDI-PROBE
+- id: AC-2
+  scenario: S-1
+  text: Research identifies stream completion, unknown availability, missing pricing, filter limits and
+    differences between direct and proxy suggestions.
+  required: true
+  status: satisfied
+  coverage_status: covered
+  verification_scope: manual
+  verification_ids:
+  - T-GANDI-PROBE
+- id: AC-3
+  scenario: S-2
+  text: Draft includes a normalized skill contract, direct-first bounded fallback, implementation phases
+    and four existing-pattern ASCII embed layouts.
+  required: true
+  status: satisfied
+  coverage_status: covered
+  verification_scope: manual
+  verification_ids:
+  - T-DESIGN-REVIEW
+- id: AC-4
+  scenario: S-3
+  text: REST, CLI and SDKs execute grouped domain searches and availability selections with bounded truthful
+    quotes and safe failures.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: cli
+  verification_ids:
+  - T-HOSTING-API
+  - T-HOSTING-LIVE
+- id: AC-5
+  scenario: S-4
+  text: A read-only Workflow executes Hosting search and exposes typed normalized results.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: playwright
+  verification_ids:
+  - T-HOSTING-WORKFLOW
+- id: AC-6
+  scenario: S-5
+  text: Parent and child web embeds render, filter and navigate already checked results with responsive
+    quote and status details.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: playwright
+  verification_ids:
+  - T-HOSTING-WEB
+tests:
+- id: T-GANDI-PROBE
+  type: manual
+  assertions:
+  - All 36 requests returned HTTP 200 without Gandi cookies or authorization; 17/18 per route completed.
+  - Both deliberately exploratory comma TLD streams timed out; HTTP 200 does not mean complete success.
+  - Unknown/error, missing pricing, renewal rates and minimum terms remain visible in the evidence.
+  covers:
+  - AC-1
+  - AC-2
+  red_phase:
+    required: false
+    expected: not_applicable
+    evidence:
+      reason: External provider characterization
+      not a regression fix.: null
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      fixture: docs/plans/hosting-search-domains/evidence/gandi-search-probe-2026-10-01.json
+      script: scripts/api_tests/test_gandi_search_probe.py
+      result: 34 completed responses and two documented unsupported-encoding timeouts; all paired routes
+        accepted.
+- id: T-DESIGN-REVIEW
+  type: manual
+  assertions:
+  - Search previews reuse query/provider/count hierarchy; child cards expose registration and renewal
+    separately.
+  - Fullscreens reuse the responsive search grid, shared header/CTA and child navigation.
+  - The user accepted the layout direction and added available-only and in-use filtering.
+  covers:
+  - AC-3
+  red_phase:
+    required: false
+    expected: not_applicable
+    evidence:
+      reason: Draft proposal only.
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      wireframes: docs/plans/hosting-search-domains/design.md
+      reference: frontend/packages/ui/src/components/embeds/shopping/ShoppingSearchEmbedFullscreen.svelte
+- id: T-HOSTING-API
+  type: playwright
+  assertions:
+  - REST, CLI and SDKs execute grouped domain searches and availability selections with bounded truthful
+    quotes and safe failures.
+  covers:
+  - AC-4
+  red_phase:
+    required: false
+    expected: not_applicable
+    evidence:
+      reason: New feature, not regression.
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      candidate: 92f889b33aa348ea8838605c11830141d526004d
+      ci_job: 2829704813bd5547a7ed3e159cfb509ee80e756e6860c5ff4f9cf19971a98102
+      run: https://github.com/glowingkitty/OpenMates/actions/runs/36868849326
+      result: Nine real REST, CLI, npm SDK and pip SDK cases passed, with zero skipped, flaky or unexpected cases.
+      deployed_commit: 76b0f34b3565f910b25ee247250e3e37867315f4
+      focused_units: Thirty-two provider and skill cases passed, including five simultaneous groups with at most two upstream operations.
+  file: frontend/apps/web_app/tests/skill-hosting-search-api.spec.ts
+  command: python3 scripts/ci_coordinator.py submit --session b91c --source <candidate> --spec skill-hosting-search-api.spec.ts
+    --mode e2e
+  execution_environment: isolated_github_ci
+  target: candidate
+- id: T-HOSTING-LIVE
+  type: manual
+  assertions:
+  - Real Jev applies the submitted price and name requirements to checked domain facts.
+  - A real CLI chat recommends names for staying in touch with people met in person and meeting new
+    people, and actually executes Hosting domain searches before its recommendations.
+  covers: [AC-4]
+  red_phase:
+    required: false
+    expected: not_applicable
+    evidence: {reason: New feature verification with real inference.}
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      requirements:
+        script: scripts/api_tests/test_hosting_requirements.py
+        deployed_commit: 76b0f34b3565f910b25ee247250e3e37867315f4
+        result: Real Jev applied to 21 checked domains and selected three; bounded quotes and result identities passed.
+      social_chat:
+        status: pending
+        observed: Two real chat turns executed five Hosting search groups each; the initial reply omitted available alternatives and the follow-up failed during AI finalization.
+        cli_decoder: Strict TOON parsing retains nested results; two focused npm client regressions and the CLI build pass.
+  execution_environment: dev_server_real_inference
+- id: T-HOSTING-WORKFLOW
+  type: playwright
+  assertions:
+  - A read-only Workflow executes Hosting search and exposes typed normalized results.
+  covers:
+  - AC-5
+  red_phase:
+    required: false
+    expected: not_applicable
+    evidence:
+      reason: New feature, not regression.
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+  file: frontend/apps/web_app/tests/skill-hosting-search-workflow.spec.ts
+  command: python3 scripts/ci_coordinator.py submit --session b91c --source <candidate> --spec skill-hosting-search-workflow.spec.ts
+    --mode e2e
+  execution_environment: isolated_github_ci
+  target: candidate
+- id: T-HOSTING-WEB
+  type: playwright
+  assertions:
+  - Parent and child web embeds render, filter and navigate already checked results with responsive quote
+    and status details.
+  covers:
+  - AC-6
+  red_phase:
+    required: false
+    expected: not_applicable
+    evidence:
+      reason: New feature, not regression.
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+  file: frontend/apps/web_app/tests/skill-hosting-search.spec.ts
+  command: python3 scripts/ci_coordinator.py submit --session b91c --source <candidate> --spec skill-hosting-search.spec.ts
+    --mode e2e
+  execution_environment: isolated_github_ci
+  target: candidate
+decisions:
+- id: D-1
+  status: active
+  decision: Use Gandi as the proposed provider and direct server requests first, with the existing proxy
+    as fallback.
+  reason: Explicit user direction; both routes accepted the sampled requests.
+  decided_at: '2026-10-01'
+- id: D-2
+  status: superseded
+  decision: Keep the current outcome to live research and a reviewable draft, including parent and child
+    embeds.
+  reason: The user requested planning and layout clarification before implementation.
+  decided_at: '2026-10-01'
+- id: D-3
+  status: active
+  decision: Route explicit FQDNs to lookup and preserve complete price tiers and uncertain states.
+  reason: Suggestions are not exact lookups and vary; registration and renewal prices differ substantially.
+  decided_at: '2026-10-01'
+- id: D-4
+  status: active
+  decision: Use prefer_available, available_only, and all availability modes; the default fills from matching
+    in-use domains only when necessary.
+  reason: Explicit user instruction.
+  decided_at: '2026-10-01'
+- id: D-5
+  status: active
+  decision: Apply one bounded optional Events-style requirements pass before availability selection.
+  reason: Explicit user instruction; structured suffix and availability filters remain authoritative.
+  decided_at: '2026-10-01'
+attempts:
+- id: ATTEMPT-1
+  task_id: TASK-2722
+  outcome: succeeded
+  approach: 36 paced paired public-domain probes with direct and Webshare routes from the api container,
+    then inspect raw fixtures and existing embeds.
+  recorded_at: '2026-10-01'
+- id: ATTEMPT-2
+  task_id: TASK-2722
+  outcome: succeeded
+  approach: Isolated real REST, CLI and npm/pip SDK checks, correcting the initially disabled skill and installing declared pip dependencies on the disposable runner.
+  recorded_at: '2026-10-01'
+tasks:
+- id: TASK-2722
+  title: Implement and verify Hosting domain search through REST, CLI and SDKs
+  status: in_progress
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    - S-2
+    - S-3
+    acceptance_criteria:
+    - AC-1
+    - AC-2
+    - AC-3
+    - AC-4
+  expected_files:
+  - docs/apis/gandi.md
+  - docs/plans/hosting-search-domains/plan.yml
+  - docs/plans/hosting-search-domains/design.md
+  - scripts/api_tests/test_gandi_search_probe.py
+  verification_ids:
+  - T-GANDI-PROBE
+  - T-DESIGN-REVIEW
+  - T-HOSTING-API
+  - T-HOSTING-LIVE
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - docs/apis/gandi.md
+    - docs/plans/hosting-search-domains/
+    - scripts/api_tests/test_gandi_search_probe.py
+    shared_files: []
+- id: TASK-4721
+  title: Implement and verify Hosting domain search in Workflows
+  status: pending
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-4
+    acceptance_criteria:
+    - AC-5
+  expected_files: &id001
+  - backend/core/api/app/services/workflow_app_skill_adapter.py
+  verification_ids:
+  - T-HOSTING-WORKFLOW
+  dependencies:
+  - TASK-2722
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files: *id001
+    shared_files: []
+- id: TASK-7677
+  title: Implement and verify Hosting domain search web embeds
+  status: pending
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-5
+    acceptance_criteria:
+    - AC-6
+  expected_files: &id002
+  - frontend/packages/ui/src/components/embeds/hosting/
+  verification_ids:
+  - T-HOSTING-WEB
+  dependencies:
+  - TASK-4721
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files: *id002
+    shared_files: []
+handoff:
+  current_task_id: TASK-2722
+  next_action: Publish the approved CI candidate and verify
+    REST/CLI/SDK before Workflow and web work.
+  command: python3 scripts/plan_validate.py docs/plans/hosting-search-domains/plan.yml
+  expected_outcome: Verified REST/CLI/SDK search with default available-first top-ups and optional requirements
+    relevance.
+  last_verified_commit: 42669f74e91542faeaafa30a8d3ce39c16ce7ea2
+  blocker: null
+research:
+  date: '2026-10-01'
+  direct:
+    accepted: 18
+    completed: 17
+    median_lookup_seconds: 0.425
+    median_sse_seconds: 1.413
+  proxy:
+    accepted: 18
+    completed: 17
+    median_lookup_seconds: 1.046
+    median_sse_seconds: 6.561
+  limitations:
+  - Small sequential sample; no uptime/load/rate-limit guarantee.
+  - Comma-separated upstream TLD encoding stalled on both routes and is outside the proposed supported
+    interface.
+  - Keyword suggestions vary with route; corporate/registry errors can change per result.
+  report: docs/apis/gandi.md
+  evidence: docs/plans/hosting-search-domains/evidence/gandi-search-probe-2026-10-01.json
+proposed_feature:
+  identity:
+    app_id: hosting
+    skill_id: search_domains
+    class_name: SearchDomainsSkill
+    provider: Gandi
+    no_gandi_api_key: true
+    existing_state: Hosting has server icon and gradient tokens, but no registered app/skill directory
+      or product Specification.
+  input:
+    requests:
+      min_items: 1
+      max_items: 5
+      item_fields:
+        id: Optional caller request ID.
+        query: Required domain, short name or keyword; not an entire project brief.
+        tlds: Optional suffix list, maximum five; enforce each requested suffix using exact lookups or
+          single-TLD upstream searches.
+        country: Optional ISO tax country; use a documented application/default context and return it
+          explicitly.
+        currency: Optional supported ISO currency; default EUR and never silently convert or ignore it.
+        max_results: Optional integer; default 10, maximum 20.
+        availability: prefer_available default; available_only explicit; all includes available and in-use.
+        relevance_criteria: Optional natural-language requirements, trimmed and limited to 1000 characters.
+  example_prompts:
+  - Check whether cedarcomet.net is available and tell me its first-year and renewal prices.
+  - Find .com and .net domains for the name cedarcomet, priced in EUR for Germany.
+  - Find domain ideas around cedarcomet and show me which ones are premium.
+  processing:
+  - Canonicalize/validate IDNA domain labels and preserve a readable Unicode display value.
+  - Explicit FQDN uses lookup; short name plus explicit TLDs prioritizes exact name+suffix lookups.
+  - Name/keyword without explicit TLDs uses bounded suggestion SSE, joining status/pricing by canonical
+    FQDN.
+  - Preserve requested exact unavailable domains; do not treat missing price or provider error as no results.
+  - Fetch at most 40 candidates, apply hard constraints, and optionally rank once with hosting_domains
+    Jev; discard applied scores below 1 and preserve safe fallback ordering on evaluator failure.
+  - Select at most max_results from confirmed available/in-use candidates; retain matching checked_results
+    for local encrypted child filtering and report unknown checks as diagnostics.
+  normalized_output:
+    wrapper: Grouped results keyed by caller request ID, following existing BaseSkill/search patterns.
+    group_fields:
+    - id
+    - query
+    - provider
+    - country
+    - currency
+    - checked_at
+    - partial
+    - warnings
+    - results
+    - error
+    - checked_results
+    - availability
+    - max_results
+    domain_fields:
+    - domain_ascii and domain_unicode
+    - availability enum and original provider status
+    - premium, reserved, corporate, restriction and registration phase when supplied
+    - registration and renewal price tier arrays, each with unit, duration range, tax-exclusive/inclusive
+      amounts, discount and normal prices
+    - tax context, checked_at and fixed-origin Gandi search link
+    errors:
+    - invalid_request for local input failure
+    - provider_unavailable for total transport/provider failure
+    - partial results with unknown availability or price-unavailable for affected children
+    - success with empty results only when a completed valid search has no matching candidates
+  transport:
+    direct_first: true
+    fallback: Existing Webshare rotating residential proxy, lazy Vault-first secret loading.
+    max_attempts: Two transport routes per failed operation; never rotate in a loop.
+    triggers:
+    - network_timeout
+    - http_403
+    - http_5xx
+    - malformed_response
+    - incomplete_stream
+    rate_limit: Honor 429 and Retry-After within the deadline; no immediate repeated proxy rotation.
+    partial_handling: Preserve complete children; exact-retry only affected transient failures within
+      the same budget.
+    exclusions: Do not proxy-retry invalid input, valid unavailable answers, unsupported suffixes or missing
+      price alone.
+    proposed_limits: Two in-flight operations, two suggestion pages or 20 exact candidates per group,
+      40-second group deadline.
+    cache: Request-scoped deduplication only initially; no plaintext cross-request query/result cache.
+  embeds:
+    parent: hosting/search_domains app-skill-use with has_children and domain child mapping.
+    child: hosting-domain with standalone preview/fullscreen and shared encrypted child references.
+    components:
+    - HostingSearchEmbedPreview.svelte using UnifiedEmbedPreview
+    - HostingSearchEmbedFullscreen.svelte using SearchResultsTemplate
+    - HostingDomainEmbedPreview.svelte using UnifiedEmbedPreview
+    - HostingDomainEmbedFullscreen.svelte using UnifiedEmbedFullscreen
+    layout: docs/plans/hosting-search-domains/design.md
+    required_states:
+    - processing
+    - cancelled
+    - error
+    - empty
+    - partial
+    - available
+    - unavailable
+    - unknown
+    - premium
+    - price_unavailable
+    - minimum_term
+  integration_paths:
+  - backend/shared/providers/gandi/client.py and models.py
+  - backend/shared/python_utils shared proxy credential/transport helper, with no imports from apps
+  - backend/apps/hosting/app.yml and skills/search_domains.py
+  - backend/core/api/app/services/embed_service.py child-type mapping
+  - backend/shared/python_utils/app_skill_output_safety.py external-data skill registration
+  - frontend/packages/ui/src/components/embeds/hosting/ parent/child components, preview fixtures, examples
+    and text renderer
+  - App/skill/embed i18n, generated registry, AppSkillUseRenderer and EmbedGroupRenderer as required by
+    current routing patterns
+  - Gandi/provider docs and relevant Gandi/Webshare privacy disclosures
+  delivery_phases:
+  - REST/CLI/SDK provider and grouped skill implementation with focused unit and isolated CI contract
+    checks; real AI requirements checks on dev.
+  - Read-only Workflow capability and normalized output adapter with focused execution coverage.
+  - Web parent and child embed previews/fullscreens, encrypted checked-result pool, local availability
+    filtering, examples and responsive verification.
+  implementation_acceptance:
+  - Exact domains retain truthful status and separate registration/renewal quotes, taxes, discounts and
+    minimum terms.
+  - A failed direct operation can succeed through one proxy attempt without duplicate children; both failures
+    produce a safe error/partial result.
+  - Incomplete/malformed/out-of-order SSE and per-child failures are covered without interpreting HTTP
+    200 as success.
+  - CLI and both SDKs preserve grouped results, errors and embed references; browser parent and child
+    open/navigate/render independently.
+  - Parent/child previews, fullscreens, mobile, dark mode, keyboard, empty/error/partial and premium/minimum-term
+    states have focused E2E coverage.
+  - No Gandi credentials, proxy secrets, user IDs or decrypted chat context are sent/logged unnecessarily.
+  pending_review: []
+local_verification:
+  backend: 32 provider and skill unit cases passed, including five simultaneous request groups with two
+    upstream operations at a time
+  cli: Scoped CLI and declaration build passed
+  i18n: 21-locale translation build and validation passed
+  integration: Specification approval is recorded; REST/CLI/SDK integration execution is next.

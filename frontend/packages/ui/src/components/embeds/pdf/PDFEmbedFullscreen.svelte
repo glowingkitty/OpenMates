@@ -547,13 +547,22 @@
     margin-bottom: var(--spacing-4);
   }
 
-  .icon_rounded.large {
+  .pdf-icon-wrapper .icon_rounded.large {
+    /* The shared preview footer icon is absolutely positioned at bottom-left.
+       This icon belongs inside the centered fullscreen fallback. */
+    position: relative;
+    inset: auto;
     width: 80px;
     height: 80px;
     border-radius: var(--radius-8);
-    background-size: 40px 40px;
+    background-size: 100% 100%;
     background-repeat: no-repeat;
     background-position: center;
+    flex-shrink: 0;
+  }
+
+  .pdf-icon-wrapper .icon_rounded.large::after {
+    background-size: 40px 40px;
   }
 
   .pdf-filename {

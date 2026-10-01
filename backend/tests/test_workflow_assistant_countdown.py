@@ -19,6 +19,7 @@ from backend.tests.test_workflow_assistant_and_events import manual_input_graph,
 from backend.tests.workflow_test_utils import workflow_service
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.activation.reachable-side-effect,workflows.access.boundaries
 def test_assistant_create_draft_is_previewable_saveable_and_undoable() -> None:
     service = workflow_service()
     assistant = WorkflowAssistantService(service)
@@ -33,12 +34,14 @@ def test_assistant_create_draft_is_previewable_saveable_and_undoable() -> None:
     saved = asyncio.run(assistant.save("alice", proposal["proposal_id"]))
     assert saved["status"] == "approved"
     assert service.list_temporary_workflows("alice")[0].title == "Tomorrow weather"
+    assert service.list_temporary_workflows("alice")[0].enabled is False
 
     discarded = assistant.schedule_once("alice", "Discarded weather", one_time_weather_graph())
     assert assistant.cancel_pending("alice", discarded["proposal_id"]) is True
     assert service.list_temporary_workflows("alice")[0].title == "Tomorrow weather"
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.content.encrypted-retained,workflows.access.boundaries
 def test_assistant_update_draft_does_not_persist_until_saved() -> None:
     service = workflow_service()
     workflow = service.create_workflow("alice", "Original weather", one_time_weather_graph())
@@ -54,6 +57,7 @@ def test_assistant_update_draft_does_not_persist_until_saved() -> None:
     assert service.get_workflow(workflow.id, "alice").title == "Updated weather"
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.access.boundaries
 def test_assistant_delete_requires_explicit_confirmation() -> None:
     service = workflow_service()
     workflow = service.create_workflow("alice", "Delete weather", one_time_weather_graph())
@@ -69,6 +73,7 @@ def test_assistant_delete_requires_explicit_confirmation() -> None:
         service.get_workflow(workflow.id, "alice")
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible,workflows.activation.reachable-side-effect
 def test_assistant_run_uses_durable_countdown_before_accepted_run_handoff() -> None:
     service = workflow_service()
     workflow = service.create_workflow("alice", "Manual city workflow", manual_input_graph())

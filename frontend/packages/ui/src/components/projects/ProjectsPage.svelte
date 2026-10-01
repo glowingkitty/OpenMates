@@ -1,4 +1,6 @@
 <!--
+  Native Swift counterparts:
+  - apple/OpenMates/Sources/Features/Projects/ProjectsWorkspaceView.swift
   ProjectsPage.svelte
   Projects V1 workspace UI for manually organizing chats, embeds, and uploads.
   Files uploaded here are converted into embeds first and then linked through
@@ -26,6 +28,9 @@
   import WorkspaceHomeShell from '../workspace/WorkspaceHomeShell.svelte';
   import WorkspacePromptComposer from '../workspace/WorkspacePromptComposer.svelte';
   import { notificationStore } from '../../stores/notificationStore';
+  import { workflowWorkspaceStore } from '../../stores/workflowWorkspaceStore';
+  import { readWorkflowFile } from '../../services/workflowFileService';
+  import { saveWorkflowToProjectTarget } from '../../services/projectCreationNavigation';
   import { authStore } from '../../stores/authStore';
   import { panelState } from '../../stores/panelStateStore';
   import { settingsDeepLink } from '../../stores/settingsDeepLinkStore';
@@ -46,6 +51,9 @@
     ProjectRemoteAccessError,
     readEncryptedProjectFile,
     listProjects,
+    peekProjects,
+    subscribeProjects,
+    getProjectsRefreshError,
     moveProjectItemToFolder,
     requestProjectRemoteAccess,
     transferProjectRemoteEntries,
@@ -152,7 +160,7 @@
 
   let { variant = 'main', onNewChat, onNewPlan, onNewWorkflow, previewState = null, initialTab = 'overview' }: Props = $props();
 
-  let projects = $state<ProjectViewModel[]>([]);
+  let projects = $state<ProjectViewModel[]>(peekProjects() ?? []);
   let selectedProject = $state<ProjectViewModel | null>(null);
   let projectTaskOverlay = $state<{
     task: UserTaskViewModel;
@@ -162,7 +170,7 @@
   let folders = $state<ProjectFolderViewModel[]>([]);
   let items = $state<ProjectItemViewModel[]>([]);
   let sources = $state<ProjectSourceViewModel[]>([]);
-  let isLoading = $state(true);
+  let isLoading = $state(peekProjects() === undefined);
   let isSaving = $state(false);
   let newProjectName = $state('');
   let newProjectWriteMode = $state<ProjectWriteMode | null>(null);
@@ -694,7 +702,7 @@
   }
 
   async function refreshProjects(): Promise<void> {
-    isLoading = true;
+    isLoading = peekProjects() === undefined;
     try {
       hasLoadError = false;
       projects = await listProjects();
@@ -844,7 +852,7 @@
     isSaving = true;
     try {
       const project = await createProject(name, newProjectWriteMode);
-      projects = [project, ...projects];
+      projects = [project, ...projects.filter((candidate) => candidate.project_id !== project.project_id)];
       selectedProject = project;
       currentFolder = null;
       currentFolderTrail = [];
@@ -912,12 +920,46 @@
     if (!file) return;
     isSaving = true;
     try {
+      const workflowDocument = await readWorkflowFile(file);
+      if (workflowDocument) {
+        if (getActiveTeamContextSnapshot().teamId) {
+          throw new Error($text('workflows.builder.file_import_personal_only'));
+        }
+        const imported = await workflowWorkspaceStore.importWorkflowFile(workflowDocument);
+        try {
+          await saveWorkflowToProjectTarget({
+            projectId: selectedProject.project_id,
+            projectName: selectedProject.name,
+            folderId: currentFolder?.folder_id ?? null,
+            folderPath: currentVirtualPath,
+            sourceId: activeRemoteSourceId,
+            teamId: getActiveTeamContextSnapshot().teamId,
+          }, imported.id, imported.title);
+        } catch (linkError) {
+          console.error('[ProjectsPage] Workflow imported but project link failed:', linkError);
+          notificationStore.addNotificationWithOptions('error', {
+            message: $text('workflows.builder.file_project_link_failed'),
+            messageSecondary: imported.title,
+            duration: 0,
+            onAction: () => window.location.assign(`/#workflow-id=${encodeURIComponent(imported.id)}&workflow-tab=details`),
+            actionLabel: $text('workflows.builder.file_open_workflow'),
+          });
+          return;
+        }
+        await refreshSelectedProject();
+        notificationStore.addNotificationWithOptions('success', {
+          message: $text('workflows.builder.file_project_import_success'),
+          onAction: () => window.location.assign(`/#workflow-id=${encodeURIComponent(imported.id)}&workflow-tab=details`),
+          actionLabel: $text('workflows.builder.file_open_workflow'),
+        });
+        return;
+      }
       await uploadFileToProject(selectedProject, file, {}, { folderId: currentFolder?.folder_id ?? null });
       await refreshSelectedProject();
       notificationStore.success('File uploaded to project');
     } catch (error) {
       console.error('[ProjectsPage] Failed to upload file to project:', error);
-      notificationStore.error('Failed to upload file to project');
+      notificationStore.error(error instanceof Error ? error.message : 'Failed to upload file to project');
     } finally {
       isSaving = false;
       input.value = '';
@@ -1861,7 +1903,31 @@
       return () => { pageDisposed = true; cancelProjectSearch(); replaceReadmeState({ status: 'empty' }); };
     }
     syncProjectHashFromLocation();
+    let lastRefreshError: unknown;
+    const unsubscribeProjects = subscribeProjects(() => {
+      if (pageDisposed) return;
+      const cached = peekProjects();
+      if (cached !== undefined) {
+        projects = cached;
+        isLoading = false;
+        const refreshError = getProjectsRefreshError();
+        if (refreshError && refreshError !== lastRefreshError) notificationStore.error('Failed to load projects');
+        lastRefreshError = refreshError;
+        if (selectedProject) {
+          const current = cached.find((project) => project.project_id === selectedProject?.project_id);
+          if (current) selectedProject = current;
+          else clearSelectedProject();
+        }
+      } else {
+        projects = [];
+        clearSelectedProject();
+        isLoading = true;
+      }
+    });
     void refreshProjects();
+    const refreshVisibleProjects = () => {
+      if (document.visibilityState === 'visible') void refreshProjects();
+    };
     const handleProjectSelected = (event: Event) => {
       const project = (event as CustomEvent<ProjectViewModel>).detail;
       if (!project || selectedProject?.project_id === project.project_id) return;
@@ -1881,12 +1947,16 @@
       }
     };
     const sourceStatusTimer = window.setInterval(() => void refreshRemoteSourceStatus(), 15_000);
+    const summaryRefreshTimer = window.setInterval(refreshVisibleProjects, 15_000);
+    window.addEventListener('focus', refreshVisibleProjects);
+    window.addEventListener('online', refreshVisibleProjects);
     window.addEventListener('hashchange', syncProjectHashFromLocation);
     window.addEventListener('popstate', syncProjectHashFromLocation);
     window.addEventListener(PROJECT_SELECTED_EVENT, handleProjectSelected);
     window.addEventListener(PROJECTS_CHANGED_EVENT, handleProjectsChanged);
     return () => {
       pageDisposed = true;
+      unsubscribeProjects();
       cancelProjectSearch();
       replaceReadmeState({ status: 'empty' });
       cancelRemoteDownload();
@@ -1898,6 +1968,9 @@
       window.removeEventListener(PROJECT_SELECTED_EVENT, handleProjectSelected);
       window.removeEventListener(PROJECTS_CHANGED_EVENT, handleProjectsChanged);
       window.clearInterval(sourceStatusTimer);
+      window.clearInterval(summaryRefreshTimer);
+      window.removeEventListener('focus', refreshVisibleProjects);
+      window.removeEventListener('online', refreshVisibleProjects);
     };
   });
 

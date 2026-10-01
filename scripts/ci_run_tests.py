@@ -240,6 +240,22 @@ def provision_shared_archive(account: dict) -> str:
     return url
 
 
+def provision_startup_sync_chats(account: dict) -> None:
+    """Seed disposable encrypted history before a startup browser sync begins."""
+    require_runner()
+    result = subprocess.run(
+        ["node", "--experimental-strip-types", str(Path(__file__).with_name("ci_startup_sync_fixture.mjs")), str(ROOT)],
+        env={**os.environ, "OPENMATES_STATE_DIR": account["OPENMATES_STATE_DIR"],
+             "OPENMATES_CI_FIXTURE_CMS_TOKEN": cms_admin_token(json.loads(COMPOSE_PATH.read_text()))},
+        capture_output=True, text=True, timeout=180,
+    )
+    if result.returncode:
+        raise RuntimeError("Fresh encrypted startup chat provisioning failed; no shared-account fallback")
+    summary = json.loads(result.stdout)
+    if summary.get("chats") != 22 or summary.get("messages") != 32:
+        raise RuntimeError("Encrypted startup chat fixture has the wrong bounded shape")
+
+
 def pace_signup():
     """Respect the real shared-IP limit without disabling product rate limits."""
     global _last_signup_started
@@ -536,18 +552,25 @@ def run_e2e(
                         env["OPENMATES_CI_MAILPIT_URL"] = "http://127.0.0.1:8025"
                         env["OPENMATES_CI_MAIL_TEST_ADDRESS"] = "ci-inbox@example.com"
                         env["SIGNUP_TEST_EMAIL_DOMAINS"] = profile["services"]["api"]["environment"]["SIGNUP_TEST_EMAIL_DOMAINS"]
+                local_signup_assertion = not (component or artifact) and name == "signup-skip-2fa-flow.spec.ts" and "mailpit" in profile["services"]
                 account_free = component or artifact or (
                     "// playwright-account: not_required reason=isolated_component_preview"
                     in source
                 )
                 if not account_free:
                     primary = provision_account(14, identity_index=2 * index)
-                    if "OPENMATES_TEST_ACCOUNT_API_KEY" in source:
+                    if "OPENMATES_TEST_ACCOUNT_API_KEY" in source and not local_signup_assertion:
                         primary["OPENMATES_TEST_ACCOUNT_API_KEY"] = provision_api_key(primary)
                     secondary = provision_account(15, identity_index=2 * index + 1)
                     env.update(primary)
+                    if local_signup_assertion:
+                        # The backend and browser share only this runner-generated
+                        # assertion secret; no live or SDK key is needed here.
+                        env["OPENMATES_TEST_ACCOUNT_API_KEY"] = profile["services"]["api"]["environment"]["OPENMATES_TEST_ACCOUNT_API_KEY"]
                     if name == "shared-chat-open.spec.ts":
                         env["OPENMATES_CI_SHARED_CHAT_URL"] = provision_shared_archive(primary)
+                    if name == "startup-sync-contract.spec.ts":
+                        provision_startup_sync_chats(primary)
                     env["PLAYWRIGHT_WORKER_SLOT"] = "1"
                     env["OPENMATES_TEST_ACCOUNT_SOURCE_SLOT"] = str(reserved_account_slot(name))
                     env.update(

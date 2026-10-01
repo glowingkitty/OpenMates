@@ -7,18 +7,19 @@
 -->
 
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { untrack } from 'svelte';
   import { SettingsSectionHeading } from '../settings/elements';
   import WorkspaceDetailHeader from '../workspace/WorkspaceDetailHeader.svelte';
   import WorkspaceContinueCard from '../workspace/WorkspaceContinueCard.svelte';
   import TaskActivity from './TaskActivity.svelte';
   import { chatDB } from '../../services/db';
-  import { listProjects } from '../../services/projectService';
+  import { getProject } from '../../services/projectService';
   import {
     blockUserTask,
     completeUserTask,
     listUserTaskDependencies,
-    listUserTasks,
+    getUserTask,
+    peekUserTask,
     reorderUserTasks,
     skipUserTask,
     startUserTaskWithAI,
@@ -30,7 +31,7 @@
     type UserTaskStatus,
     type UserTaskViewModel,
   } from '../../services/userTaskService';
-  import { listUserPlans } from '../../services/userPlanService';
+  import { getUserPlan, peekUserPlan } from '../../services/userPlanService';
   import { notificationStore } from '../../stores/notificationStore';
   import { userProfile } from '../../stores/userProfile';
   import { text } from '../../i18n/translations';
@@ -69,6 +70,7 @@
 
   let resolvedRelated = $state<TaskDetailRelatedData>({ projects: [], plan: null, chat: null, dependencies: [] });
   let relationLoadFailed = $state(false);
+  let relatedGeneration = 0;
   let isUpdating = $state(false);
   let creatorName = $derived($userProfile.username.trim() || 'You');
   let codexAssignable = $derived(canAssignCodex || task.assigneeIdentity === 'codex');
@@ -85,44 +87,63 @@
     other: 'tasks.blocked_reason.other',
   };
 
-  onMount(() => {
-    if (related) {
-      resolvedRelated = related;
-      return;
-    }
-    void loadRelatedData();
+  $effect(() => {
+    const taskId = task.task_id;
+    const linkedContext = JSON.stringify([task.planId, task.primaryChatId, task.linkedProjectIds]);
+    const provided = related;
+    void linkedContext;
+    const generation = ++relatedGeneration;
+    relationLoadFailed = false;
+    if (provided) { resolvedRelated = provided; return; }
+    untrack(() => void loadRelatedData(task, taskId, generation));
   });
 
-  async function loadRelatedData(): Promise<void> {
-    try {
-      const dependencies = await listUserTaskDependencies(task.task_id);
-      const [projects, plans, tasks, chat] = await Promise.all([
-        task.linkedProjectIds.length > 0 ? listProjects() : Promise.resolve([]),
-        task.planId || dependencies.some((item) => item.targetKind === 'plan') ? listUserPlans() : Promise.resolve([]),
-        dependencies.some((item) => item.targetKind === 'task') ? listUserTasks() : Promise.resolve([]),
-        task.primaryChatId ? chatDB.getChat(task.primaryChatId) : Promise.resolve(null),
-      ]);
-      resolvedRelated = {
-        projects: task.linkedProjectIds.map((id) => {
-          const project = projects.find((candidate) => candidate.project_id === id);
-          return { id, title: project?.name || 'Connected project', description: project?.description || '' };
-        }),
-        plan: task.planId ? (() => {
-          const plan = plans.find((candidate) => candidate.plan_id === task.planId);
-          return { id: task.planId, title: plan?.title || 'Connected plan', description: plan?.goal || '' };
-        })() : null,
-        chat: task.primaryChatId ? { id: task.primaryChatId, title: chat?.title || 'Connected chat' } : null,
-        dependencies: dependencies.map((dependency) => {
-          const title = dependency.targetKind === 'task'
-            ? tasks.find((candidate) => candidate.task_id === dependency.targetId)?.title
-            : plans.find((candidate) => candidate.plan_id === dependency.targetId)?.title;
-          return { ...dependency, title: title || `${dependency.targetKind === 'task' ? 'Task' : 'Plan'} dependency` };
-        }),
-      };
-    } catch (error) {
+  async function loadRelatedData(selectedTask: UserTaskViewModel, taskId: string, generation: number): Promise<void> {
+    const projectIds = [...new Set(selectedTask.linkedProjectIds)];
+    const planId = selectedTask.planId;
+    const chatId = selectedTask.primaryChatId;
+    resolvedRelated = {
+      projects: projectIds.map((id) => ({ id, title: 'Connected project', description: '' })),
+      plan: planId ? { id: planId, title: peekUserPlan(planId)?.title || 'Connected plan', description: peekUserPlan(planId)?.goal || '' } : null,
+      chat: chatId ? { id: chatId, title: 'Connected chat' } : null,
+      dependencies: [],
+    };
+    const update = (patch: Partial<TaskDetailRelatedData>) => {
+      if (generation === relatedGeneration && task.task_id === taskId) resolvedRelated = { ...resolvedRelated, ...patch };
+    };
+    const report = (error: unknown) => {
+      if (generation !== relatedGeneration || task.task_id !== taskId) return;
       relationLoadFailed = true;
       console.error('[TaskDetailContent] Failed to load linked task context:', error);
-    }
+    };
+    // Every referenced label resolves independently. An inaccessible label does
+    // not suppress the other links or the selected task's detail.
+    void Promise.all(projectIds.map(async (id) => {
+      try {
+        const project = await getProject(id);
+        update({ projects: resolvedRelated.projects.map((item) => item.id === id
+          ? { id, title: project.name || 'Connected project', description: project.description || '' } : item) });
+      } catch (error) { report(error); }
+    }));
+    if (planId) void getUserPlan(planId).then((plan) => update({ plan: { id: planId, title: plan.title || 'Connected plan', description: plan.goal || '' } }), report);
+    if (chatId) void chatDB.getChat(chatId).then((chat) => update({ chat: { id: chatId, title: chat?.title || 'Connected chat' } }), report);
+    try {
+      const dependencies = await listUserTaskDependencies(taskId);
+      update({ dependencies: dependencies.map((dependency) => ({ ...dependency,
+        title: (dependency.targetKind === 'task' ? peekUserTask(dependency.targetId)?.title : peekUserPlan(dependency.targetId)?.title)
+          || `${dependency.targetKind === 'task' ? 'Task' : 'Plan'} dependency`,
+      })) });
+      const refs = new Map(dependencies.map((dependency) => [`${dependency.targetKind}:${dependency.targetId}`, dependency]));
+      await Promise.all([...refs.values()].map(async (dependency) => {
+        try {
+          const label = dependency.targetKind === 'task'
+            ? (await getUserTask(dependency.targetId)).title
+            : (await getUserPlan(dependency.targetId)).title;
+          update({ dependencies: resolvedRelated.dependencies.map((item) => item.targetRef === dependency.targetRef
+            ? { ...item, title: label || item.title } : item) });
+        } catch (error) { report(error); }
+      }));
+    } catch (error) { report(error); }
   }
 
   function statusLabel(status: UserTaskViewModel['status']): string {

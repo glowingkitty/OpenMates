@@ -9,6 +9,8 @@
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
 //          TypographyTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
+// Specification: specifications/features/app-skills/web-search/specification.yml
+// Assertions: web-search.surface-parity
 
 import SwiftUI
 
@@ -40,27 +42,56 @@ struct WebSearchEmbedPreviewDetails: View {
                 .fontWeight(.semibold)
                 .foregroundStyle(Color.grey100)
                 .lineLimit(3)
+                .fixedSize(horizontal: false, vertical: true)
+                .layoutPriority(1)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityIdentifier("web-search-query")
 
             Text(viaProvider)
                 .font(.omSmall)
-                .fontWeight(.medium)
                 .foregroundStyle(Color.grey70)
                 .lineLimit(1)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("web-search-provider")
 
-            if model.status == .finished {
-                SearchResultSourceSummary(
-                    favicons: model.websiteResults.compactMap(\.faviconURL),
-                    totalCount: model.previewResultCount
-                )
-                .padding(.top, .spacing1)
+            if model.status == .error {
+                Text(AppStrings.searchFailed)
+                    .font(.omXs)
+                    .foregroundStyle(Color.error)
+                    .padding(.top, .spacing1)
+            } else if model.status == .finished {
+                if explicitZeroResults {
+                    Text(AppStrings.localized("embeds.search_no_results"))
+                        .font(.omXs)
+                        .fontWeight(.medium)
+                        .italic()
+                        .foregroundStyle(Color.grey60)
+                        .accessibilityIdentifier("search-no-results-message")
+                } else if model.previewResultCount == 0 && model.websiteResults.isEmpty {
+                    Text(AppStrings.localized("embeds.search_preview_open_to_view_results"))
+                        .font(.omXs)
+                        .fontWeight(.medium)
+                        .italic()
+                        .foregroundStyle(Color.grey60)
+                        .accessibilityIdentifier("search-preview-metadata-missing-message")
+                } else {
+                    SearchResultSourceSummary(
+                        favicons: model.websiteResults.compactMap(\.previewFaviconURL),
+                        totalCount: model.previewResultCount
+                    )
+                    .padding(.top, .spacing2)
+                }
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
 
     private var viaProvider: String {
         "\(AppStrings.via) \(model.provider)"
+    }
+
+    private var explicitZeroResults: Bool {
+        EmbedFieldReader.int(model.embed.rawData ?? [:], keys: ["result_count"]) == 0
     }
 }
 
@@ -76,8 +107,9 @@ struct WebSearchEmbedFullscreenContent: View {
             emptyText: emptyText,
             webLayout: true
         ) { result in
-            EmbedPreviewCard(embed: result.embed, variant: .compact) {
-                onOpenEmbed(result.embed)
+            let presentedEmbed = result.videoEmbed ?? result.cardEmbed
+            EmbedPreviewCard(embed: presentedEmbed, variant: .compact) {
+                onOpenEmbed(presentedEmbed)
             }
             .accessibilityIdentifier("embed-preview-\(result.embed.id)")
         }
@@ -92,28 +124,48 @@ struct WebSearchEmbedFullscreenContent: View {
 // Resolves only already-hydrated metadata; never fetches private chat content.
 struct WebSearchThumbnailStrip: View {
     let results: [WebsiteResultModel]
+    @State private var failedURLs = Set<String>()
+    @State private var loadedURLs = Set<String>()
     static func selectedURLs(_ values: [String?]) -> [String] {
         var seen = Set<String>()
         return Array(values.compactMap { $0 }.filter { seen.insert($0).inserted }.prefix(10))
     }
     var body: some View {
-        let urls = Self.selectedURLs(results.map(\.previewImageURL))
+        let urls = Self.selectedURLs(results.map(\.thumbnailStripURL))
         if !urls.isEmpty {
-            HStack(spacing: 2) {
-                ForEach(urls, id: \.self) { value in
-                    if let url = URL(string: value) {
-                        CachedRemoteImage(url: url) { image in
-                            image.resizable().aspectRatio(contentMode: .fill)
-                        } placeholder: { Color.grey20 }
-                        .frame(width: 40, height: 30).clipped()
-                        .accessibilityIdentifier("web-search-thumbnail")
+            // Fixed thumbnail cells must overflow the offered viewport rather
+            // than enlarge the entire preview card's intrinsic width.
+            GeometryReader { viewport in
+                HStack(spacing: .spacing1) {
+                    ForEach(urls, id: \.self) { value in
+                        if failedURLs.contains(value) {
+                            Color.clear.frame(width: 40, height: 30)
+                        } else if let url = URL(string: value) {
+                            CachedRemoteImage(url: url, onFailure: {
+                                _ = loadedURLs.remove(value)
+                                _ = failedURLs.insert(value)
+                            }, onSuccess: { _ = loadedURLs.insert(value) }, svgContentMode: .fill) { image in
+                                image.resizable().aspectRatio(contentMode: .fill)
+                            } placeholder: { Color.clear }
+                            .frame(width: 40, height: 30).clipped()
+                            .contentShape(Rectangle())
+                            .accessibilityIdentifier("web-search-thumbnail")
+                        }
                     }
                 }
+                .frame(width: viewport.size.width, height: 30, alignment: .leading)
+                .clipped()
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .frame(height: 30).clipped()
+            .frame(height: 30)
+            // Clipping paints the viewport; the same shape fences hit/AX bounds.
+            .contentShape(Rectangle())
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("web-search-thumbnail-strip")
+            .accessibilityValue(loadedURLs.isEmpty ? (failedURLs.count == urls.count ? "failed" : "loading") : "loaded")
+            .task(id: urls) {
+                loadedURLs.removeAll()
+                failedURLs.removeAll()
+            }
         }
     }
 }

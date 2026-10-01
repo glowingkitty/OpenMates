@@ -37,6 +37,7 @@ export const baseSettingsViews: Record<string, Component<any>> = {
 """
 
 
+# contract-test: tooling
 def test_extract_web_base_routes_preserves_nested_paths() -> None:
     assert apple_settings_parity_audit.extract_web_base_routes(WEB_ROUTES) == {
         "apps",
@@ -46,6 +47,7 @@ def test_extract_web_base_routes_preserves_nested_paths() -> None:
     }
 
 
+# contract-test: tooling
 def test_planned_and_stale_routes_do_not_satisfy_coverage() -> None:
     apple_source = """
     static let nativeRoutes: Set<String> = ["app_store", "privacy"]
@@ -62,6 +64,7 @@ def test_planned_and_stale_routes_do_not_satisfy_coverage() -> None:
     assert "missing reachable Apple route: learning-mode/setup" in errors
 
 
+# contract-test: tooling
 def test_matching_reachable_routes_pass() -> None:
     apple_source = """
     static let nativeRoutes: Set<String> = [
@@ -72,10 +75,25 @@ def test_matching_reachable_routes_pass() -> None:
     assert apple_settings_parity_audit.audit_route_contract(WEB_ROUTES, apple_source) == []
 
 
+# contract-test: tooling
+def test_approved_apps_exclusion_preserves_other_route_requirements() -> None:
+    apple_source = '\n'.join([
+        'static let nativeRoutes: Set<String> = ["privacy", "learning-mode/setup"]',
+        'static let intentionallyExcludedWebRoutes: Set<String> = ["apps", "apps/all"]',
+    ])
+    assert apple_settings_parity_audit.audit_route_contract(WEB_ROUTES, apple_source) == []
+    invalid = apple_source.replace('["apps", "apps/all"]', '["apps", "apps/all", "privacy"]')
+    errors = apple_settings_parity_audit.audit_route_contract(WEB_ROUTES, invalid)
+    assert "unapproved Apple route exclusion: privacy" in errors
+    assert "excluded Apple route still declared reachable: privacy" in errors
+
+
+# contract-test: supporting surface=gui.apple assertions=settings-ui.parity.web-apple-shell
 def test_repository_route_inventory_matches_current_web_routes() -> None:
     assert apple_settings_parity_audit.audit_repository_routes() == []
 
 
+# contract-test: tooling
 def test_forbidden_settings_controls_and_stale_endpoints_are_rejected() -> None:
     errors = apple_settings_parity_audit.audit_swift_source(
         """
@@ -93,6 +111,7 @@ def test_forbidden_settings_controls_and_stale_endpoints_are_rejected() -> None:
     assert "SettingsMemoriesFull.swift: browser fallback is forbidden" in errors
 
 
+# contract-test: tooling
 def test_openmates_primitives_and_current_endpoints_pass_source_audit() -> None:
     source = """
     ScrollView { LazyVStack { OMSettingsRow(title: AppStrings.settingsApps) {} } }
@@ -103,10 +122,12 @@ def test_openmates_primitives_and_current_endpoints_pass_source_audit() -> None:
     assert apple_settings_parity_audit.audit_swift_source(source, path="SettingsView.swift") == []
 
 
+# contract-test: supporting surface=gui.apple assertions=settings-ui.parity.web-apple-shell
 def test_account_security_task_uses_native_contracts() -> None:
     assert apple_settings_parity_audit.audit_account_security_contract() == []
 
 
+# contract-test: tooling
 def test_account_security_audit_rejects_browser_and_silent_fallbacks(tmp_path, monkeypatch) -> None:
     unsafe = tmp_path / "Unsafe.swift"
     unsafe.write_text(
@@ -125,6 +146,7 @@ def test_account_security_audit_rejects_browser_and_silent_fallbacks(tmp_path, m
 
 
 
+# contract-test: tooling
 def test_privacy_contract_requires_real_routes_payloads_and_retention_rules() -> None:
     source = """
     static let autoDeleteChatsPath = "/v1/settings/auto-delete-chats"
@@ -141,6 +163,7 @@ def test_privacy_contract_requires_real_routes_payloads_and_retention_rules() ->
     assert apple_settings_parity_audit.audit_privacy_contract(source) == []
 
 
+# contract-test: tooling
 def test_privacy_contract_rejects_fake_file_route_and_unsanitized_diagnostics() -> None:
     source = """
     static let autoDeleteFilesPath = "/v1/settings/auto-delete-files"
@@ -155,29 +178,37 @@ def test_privacy_contract_rejects_fake_file_route_and_unsanitized_diagnostics() 
     assert "privacy diagnostics contract must sanitize forwarded content" in errors
 
 
+# contract-test: supporting surface=gui.apple assertions=settings-ui.parity.web-apple-shell
 def test_repository_privacy_contract_matches_backend_and_retention_rules() -> None:
     assert apple_settings_parity_audit.audit_repository_privacy() == []
 
 
 ROOT = Path(__file__).resolve().parents[2]
 MEMORIES_VIEW = ROOT / "apple/OpenMates/Sources/Features/Settings/Views/SettingsMemoriesFull.swift"
+MEMORIES_SERVICE = ROOT / "apple/OpenMates/Sources/Features/Settings/Memories/SettingsMemoryService.swift"
 MATES_VIEW = ROOT / "apple/OpenMates/Sources/Features/Settings/Views/SettingsMatesView.swift"
 MATES_METADATA = ROOT / "frontend/packages/ui/src/data/matesMetadata.ts"
 
 
+# contract-test: supporting surface=gui.apple assertions=app-memories.lifecycle.encrypted-crud,app-memories.sync.versioned-convergence,settings-ui.parity.web-apple-shell
 def test_memories_use_encrypted_sdk_contract_and_custom_product_ui() -> None:
     source = MEMORIES_VIEW.read_text()
+    service_source = MEMORIES_SERVICE.read_text()
 
-    assert "/v1/sdk/memories" in source
-    assert "CryptoManager.shared" in source
-    assert "wsSyncEvent" in source
-    assert "/v1/settings/memories" not in source
-    assert not apple_settings_parity_audit.audit_swift_source(
-        source,
-        path=MEMORIES_VIEW.name,
-    )
+    assert "SettingsMemoryService" in source
+    assert "/v1/sdk/memories" in service_source
+    assert "CryptoManager.shared" in service_source
+    assert "wsSyncEvent" in service_source
+    for path in (MEMORIES_VIEW, *sorted(MEMORIES_SERVICE.parent.glob("*.swift"))):
+        component_source = path.read_text()
+        assert "/v1/settings/memories" not in component_source
+        assert not apple_settings_parity_audit.audit_swift_source(
+            component_source,
+            path=path.name,
+        )
 
 
+# contract-test: supporting surface=gui.apple assertions=settings-ui.parity.web-apple-shell
 def test_mates_use_canonical_metadata_and_native_composer_handoff() -> None:
     source = MATES_VIEW.read_text()
     web_source = MATES_METADATA.read_text()
@@ -193,6 +224,7 @@ def test_mates_use_canonical_metadata_and_native_composer_handoff() -> None:
     assert not apple_settings_parity_audit.audit_swift_source(source, path=MATES_VIEW.name)
 
 
+# contract-test: supporting surface=gui.apple assertions=billing.surface.semantic-parity,settings-ui.parity.web-apple-shell
 def test_billing_uses_current_backend_contracts() -> None:
     source = BILLING_VIEW.read_text(encoding="utf-8")
     subpages_source = SETTINGS_SUBPAGES.read_text(encoding="utf-8")
@@ -232,6 +264,7 @@ def test_billing_uses_current_backend_contracts() -> None:
     assert "NSWorkspace.shared.open(downloadURL)" not in source
 
 
+# contract-test: supporting surface=gui.apple assertions=billing.purchase.provider-routing
 def test_storekit_finishes_only_after_backend_fulfillment_succeeds() -> None:
     source = STORE_MANAGER.read_text(encoding="utf-8")
 
@@ -253,6 +286,7 @@ def test_storekit_finishes_only_after_backend_fulfillment_succeeds() -> None:
         assert fulfillment < finish
 
 
+# contract-test: supporting surface=gui.apple assertions=settings-ui.parity.web-apple-shell
 def test_other_settings_use_current_native_contracts() -> None:
     settings_source = SETTINGS_VIEW.read_text(encoding="utf-8")
     ai_source = AI_VIEW.read_text(encoding="utf-8")
@@ -263,7 +297,18 @@ def test_other_settings_use_current_native_contracts() -> None:
     shared_source = SHARED_VIEW.read_text(encoding="utf-8")
     support_source = SUPPORT_VIEW.read_text(encoding="utf-8")
 
-    assert "projects, mates" in settings_source
+    destination_body = re.search(
+        r"private enum SettingsDestination:[^{]+\{(.*?)\n        var title:",
+        settings_source,
+        flags=re.DOTALL,
+    )
+    assert destination_body is not None
+    destinations = {
+        name.strip()
+        for declaration in re.findall(r"^\s*case ([^\n]+)", destination_body.group(1), flags=re.MULTILINE)
+        for name in declaration.split(",")
+    }
+    assert {"projects", "mates"} <= destinations
     assert "SettingsProjectsView()" in settings_source
     assert '"projects"' in settings_source
     assert '"apps"' in settings_source
@@ -298,12 +343,18 @@ def test_other_settings_use_current_native_contracts() -> None:
     assert 'path: "/v1/share/chat/unshare"' in shared_source
     assert 'path: "/v1/creators/tip"' in shared_source
     assert "/v1/settings/shared" not in shared_source
-    assert 'path: "/v1/payments/create-support-bank-transfer-order"' in support_source
+    assert 'contactEmail = "support@openmates.org"' in support_source
+    assert 'URL(string: "mailto:" + contactEmail)' in support_source
+    assert "settings-support-contact-row" in support_source
+    assert "openURL(url)" in support_source
+    assert "/v1/payments/create-support-bank-transfer-order" not in support_source
+    assert "Stripe" not in support_source
     assert "/v1/settings/support/monthly/status" not in support_source
     assert "UIApplication.shared.open" not in support_source
     assert "NSWorkspace.shared.open" not in support_source
 
 
+# contract-test: supporting surface=gui.apple assertions=settings-ui.parity.web-apple-shell
 def test_admin_settings_use_current_routes_and_custom_product_ui() -> None:
     logs_source = LOGS_VIEW.read_text(encoding="utf-8")
     server_source = SERVER_VIEW.read_text(encoding="utf-8")

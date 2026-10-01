@@ -34,9 +34,14 @@ struct SettingsBillingView: View {
     @State private var route: BillingRoute?
     @State private var handledReferralCodeRequest = 0
 
-    init(referralCodeRequest: Int = 0) {
+    init(referralCodeRequest: Int = 0, deepLinkPath: String? = nil) {
         self.referralCodeRequest = referralCodeRequest
-        _route = State(initialValue: referralCodeRequest > 0 ? .referralCode : nil)
+        let routes: [String: BillingRoute] = ["buy-credits": .buyCredits, "auto-topup": .autoTopUp,
+            "auto-topup/low-balance": .autoTopUp, "auto-topup/monthly": .autoTopUp,
+            "invoices": .invoices, "usage": .usage, "referral-code": .referralCode,
+            "gift-cards": .giftCards, "gift-cards/redeem": .giftCards, "gift-cards/redeemed": .giftCards,
+            "gift-cards/buy": .giftCards, "redeem-giftcard": .giftCards]
+        _route = State(initialValue: routes[deepLinkPath ?? ""] ?? (referralCodeRequest > 0 ? .referralCode : nil))
         _handledReferralCodeRequest = State(initialValue: referralCodeRequest)
     }
 

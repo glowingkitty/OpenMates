@@ -90,6 +90,7 @@ async def charge_audio_generation_credits(
     api_key_name: Optional[str],
     log_prefix: str,
     raise_on_failure: bool = False,
+    team_id: Optional[str] = None,
 ) -> Optional[dict[str, Any]]:
     """Charge generated-audio usage after successful provider output."""
     if credits <= 0:
@@ -121,9 +122,13 @@ async def charge_audio_generation_credits(
             "api_key_hash": api_key_hash,
             "device_hash": device_hash,
         }
+        from backend.shared.python_utils.team_skill_billing import skill_billing_request
+        billing_path, payload = skill_billing_request(
+            payload, team_id, event_id=f"audio:{task_id}:{request_id}"
+        )
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.post(
-                f"{INTERNAL_API_BASE_URL}/internal/billing/charge",
+                f"{INTERNAL_API_BASE_URL}{billing_path}",
                 json=payload,
                 headers=headers,
             )
@@ -133,7 +138,7 @@ async def charge_audio_generation_credits(
         return result if isinstance(result, dict) else None
     except Exception as exc:
         logger.error("%s Failed to charge audio generation credits: %s", log_prefix, exc, exc_info=True)
-        if raise_on_failure:
+        if raise_on_failure or team_id:
             raise
 
 
@@ -143,7 +148,13 @@ async def ensure_audio_credit_headroom(
     estimated_credits: int,
     operation_name: str,
     log_prefix: str,
+    team_id: Optional[str] = None,
+    directus_service: Any = None,
 ) -> None:
+    if team_id:
+        from backend.shared.python_utils.team_skill_billing import ensure_team_skill_credit_headroom
+        await ensure_team_skill_credit_headroom(directus_service, team_id, user_id, estimated_credits)
+        return
     await ensure_credit_headroom(
         user_id=user_id,
         estimated_credits=estimated_credits,

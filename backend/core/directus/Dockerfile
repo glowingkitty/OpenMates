@@ -26,7 +26,10 @@ RUN mkdir -p /directus/extensions/project-task-sync/dist \
         /directus/extensions/anonymous-usage-transaction/dist/ \
     && mkdir -p /directus/extensions/embed-version-transaction/dist \
     && cp /directus/extensions/embed-version-transaction/src/*.js \
-        /directus/extensions/embed-version-transaction/dist/
+        /directus/extensions/embed-version-transaction/dist/ \
+    && mkdir -p /directus/extensions/workflow-authoring-transaction/dist \
+    && cp /directus/extensions/workflow-authoring-transaction/src/*.js \
+        /directus/extensions/workflow-authoring-transaction/dist/
 
 COPY --chmod=755 <<'START_SCRIPT' /usr/local/bin/openmates-directus-start
 #!/bin/sh
@@ -43,6 +46,8 @@ test -r /directus/extensions/anonymous-usage-transaction/package.json
 test -r /directus/extensions/anonymous-usage-transaction/dist/index.js
 test -r /directus/extensions/embed-version-transaction/package.json
 test -r /directus/extensions/embed-version-transaction/dist/index.js
+test -r /directus/extensions/workflow-authoring-transaction/package.json
+test -r /directus/extensions/workflow-authoring-transaction/dist/index.js
 
 node cli.js bootstrap
 pm2-runtime start ecosystem.config.cjs &
@@ -158,6 +163,17 @@ if [ "$endpoint_status" != "401" ]; then
   exit 1
 fi
 
+endpoint_status="$(curl --silent --show-error --output /tmp/workflow-authoring-startup.json \
+  --write-out '%{http_code}' --request POST \
+  --header 'Content-Type: application/json' --data '{}' \
+  http://127.0.0.1:8055/workflow-authoring-transaction/health || true)"
+if [ "$endpoint_status" != "401" ]; then
+  echo "FATAL: workflow-authoring-transaction endpoint failed startup verification (HTTP ${endpoint_status:-none})" >&2
+  kill -TERM "$directus_pid" 2>/dev/null || true
+  wait "$directus_pid" || true
+  exit 1
+fi
+
 wait "$directus_pid"
 START_SCRIPT
 
@@ -194,6 +210,11 @@ curl --fail --silent --show-error --output /tmp/workflow-runtime-health.json \
   --header "X-Internal-Service-Token: ${INTERNAL_API_SHARED_TOKEN}" \
   --data '{"operation":"health_check","data":{"protocol_version":1}}' \
   http://127.0.0.1:8055/workflow-runtime-transaction/
+
+curl --fail --silent --show-error --output /tmp/workflow-authoring-health.json \
+  --request POST --header 'Content-Type: application/json' \
+  --header "X-Internal-Service-Token: ${INTERNAL_API_SHARED_TOKEN}" --data '{}' \
+  http://127.0.0.1:8055/workflow-authoring-transaction/health
 
 curl --fail --silent --show-error --output /tmp/sub-chat-orchestration-health.json \
   --request POST \

@@ -58,7 +58,7 @@ class WebReadRequestItem(BaseModel):
     )
     timeout: Optional[int] = Field(
         default=None,
-        description="Request timeout in seconds.",
+        description="Request timeout in milliseconds.",
     )
 
 
@@ -91,6 +91,10 @@ class ReadResult(BaseModel):
     og_image: Optional[str] = None
     og_sitename: Optional[str] = None
     error: Optional[str] = None
+    http_status: Optional[int] = None
+    source_url: Optional[str] = None
+    warnings: List[str] = Field(default_factory=list)
+    read_status: Optional[str] = None
 
 
 class ReadResponse(BaseModel):
@@ -439,12 +443,18 @@ class ReadSkill(BaseSkill):
                 "url": read_url,
                 "title": title,
                 "markdown": markdown,
+                "http_status": metadata.get("statusCode") if isinstance(metadata, dict) else None,
+                "source_url": metadata.get("sourceURL", read_url) if isinstance(metadata, dict) else read_url,
+                "warnings": data.get("warnings") or ([data["warning"]] if data.get("warning") else []),
                 "language": language,
                 "favicon": favicon,
                 "og_image": og_image,
                 "og_sitename": og_sitename,
                 "hash": self._generate_result_hash(read_url),
             }
+
+            from backend.shared.python_utils.website_text import website_read_status
+            result["read_status"] = website_read_status(result)
 
             logger.info(f"Web read (id: {request_id}) completed: url='{read_url}'")
 

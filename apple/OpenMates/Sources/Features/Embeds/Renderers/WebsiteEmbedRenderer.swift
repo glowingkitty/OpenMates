@@ -8,6 +8,8 @@
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
 //          TypographyTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.surface.semantic-parity
 
 import SwiftUI
 
@@ -16,12 +18,18 @@ struct WebsiteEmbedRenderer: View {
     let mode: EmbedDisplayMode
     @Environment(\.openURL) private var openURL
     @State private var containerWidth: CGFloat = 390
+    @State private var previewImageFailed = false
+    @State private var previewImageLoaded = false
     private var metrics: WebsiteFullscreenMetrics { .init(width: containerWidth) }
 
     private var title: String { firstString(keys: ["title", "site_name"]) ?? hostFrom(url) }
     private var url: String { data?["url"]?.value as? String ?? "" }
     private var description: String? { stripHTML(firstString(keys: ["description", "meta_description", "summary"])) }
     private var imageURL: String? { firstString(keys: ["thumbnail_original", "image", "image_url", "thumbnail_url", "meta_image", "og_image"]) }
+    private var previewImageURL: URL? {
+        guard !previewImageFailed else { return nil }
+        return EmbedFieldReader.proxiedImageURL(imageURL, maxWidth: 520).flatMap(URL.init(string:))
+    }
     private var snippets: [String] { snippetValues.compactMap(stripHTML) }
 
     var body: some View {
@@ -41,30 +49,45 @@ struct WebsiteEmbedRenderer: View {
                                 .padding(.vertical, 1.05)
                                 .lineLimit(6)
                                 .multilineTextAlignment(.leading)
-                                .frame(width: imageURL == nil ? proxy.size.width : proxy.size.width * 0.4, alignment: .topLeading)
+                                .frame(width: WebsitePreviewLayout.descriptionWidth(
+                                    containerWidth: proxy.size.width, hasLoadedImageSlot: previewImageURL != nil
+                                ), alignment: .topLeading)
                                 .padding(.top, .spacing5)
+                                .accessibilityIdentifier("website-preview-description")
 
-                            if let imageURL, let url = URL(string: imageURL) {
-                                CachedRemoteImage(url: url) { image in
+                            if let previewImageURL {
+                                CachedRemoteImage(url: previewImageURL, onFailure: {
+                                    previewImageLoaded = false
+                                    previewImageFailed = true
+                                }, onSuccess: { previewImageLoaded = true }) { image in
                                     image
                                         .resizable()
                                         .aspectRatio(contentMode: .fill)
+                                        .accessibilityIdentifier("website-preview-image-loaded")
                                 } placeholder: { Color.grey20 }
                                 .frame(width: proxy.size.width * 0.6)
                                 .frame(height: 171)
                                 .clipped()
                                 .offset(x: 20)
+                                .accessibilityIdentifier("website-preview-image")
+                                .accessibilityValue(previewImageLoaded ? "loaded" : "loading")
                             }
                         }
                     }
-                } else if let imageURL, let url = URL(string: imageURL) {
-                    CachedRemoteImage(url: url) { image in
+                } else if let previewImageURL {
+                    CachedRemoteImage(url: previewImageURL, onFailure: {
+                        previewImageLoaded = false
+                        previewImageFailed = true
+                    }, onSuccess: { previewImageLoaded = true }) { image in
                         image
                             .resizable()
                             .aspectRatio(contentMode: .fill)
+                            .accessibilityIdentifier("website-preview-image-loaded")
                     } placeholder: { Color.grey20 }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .clipped()
+                    .accessibilityIdentifier("website-preview-image")
+                    .accessibilityValue(previewImageLoaded ? "loaded" : "loading")
                 } else {
                     Text(hostFrom(url))
                         .font(.omSmall)
@@ -73,13 +96,17 @@ struct WebsiteEmbedRenderer: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            .task(id: imageURL) {
+                previewImageLoaded = false
+                previewImageFailed = false
+            }
 
         case .fullscreen:
             VStack(alignment: .center, spacing: 0) {
                 if let fullscreenImageURL {
                     WebsiteRemoteImage(
                         primaryURLString: fullscreenImageURL,
-                        fallbackURLString: imageURL
+                        fallbackURLString: proxyImage(imageURL, maxWidth: 520)
                     )
                     .frame(maxWidth: 511)
                     .frame(minHeight: metrics.imageMinHeight, maxHeight: metrics.imageMaxHeight)
@@ -88,14 +115,14 @@ struct WebsiteEmbedRenderer: View {
                 }
 
                 if let description {
-                    Text(description)
+                    SourceQuoteHighlightedText(text: description, locationID: "website-description")
                         .font(.omP)
                         .fontWeight(.medium)
                         .foregroundStyle(Color.fontPrimary)
                         .lineSpacing(4)
                         .frame(maxWidth: 500, alignment: .leading)
                         .padding(.bottom, 32)
-                        .accessibilityIdentifier("website-description")
+
                 }
 
                 if !snippets.isEmpty {
@@ -113,8 +140,8 @@ struct WebsiteEmbedRenderer: View {
                         }
 
                         VStack(spacing: .spacing6) {
-                            ForEach(Array(snippets.enumerated()), id: \.offset) { _, snippet in
-                                WebsiteSnippetCard(text: snippet, metrics: metrics)
+                            ForEach(Array(snippets.enumerated()), id: \.offset) { index, snippet in
+                                WebsiteSnippetCard(text: snippet, metrics: metrics, locationID: "website-snippet-\(index)")
                             }
                         }
                     }
@@ -234,16 +261,7 @@ struct WebsiteEmbedRenderer: View {
     }
 
     private func proxyImage(_ rawURL: String?, maxWidth: Int) -> String? {
-        guard let rawURL, !rawURL.isEmpty else { return nil }
-        if rawURL.hasPrefix("https://preview.openmates.org/api/v1/image") || rawURL.hasPrefix("data:") || rawURL.hasPrefix("/") {
-            return rawURL
-        }
-        var components = URLComponents(string: "https://preview.openmates.org/api/v1/image")
-        components?.queryItems = [
-            URLQueryItem(name: "url", value: rawURL),
-            URLQueryItem(name: "max_width", value: "\(maxWidth)")
-        ]
-        return components?.url?.absoluteString ?? rawURL
+        EmbedFieldReader.proxiedImageURL(rawURL, maxWidth: maxWidth)
     }
 
     private func proxyFavicon(_ pageURL: String) -> String? {
@@ -286,6 +304,12 @@ struct WebsiteEmbedRenderer: View {
     }
 }
 
+enum WebsitePreviewLayout {
+    static func descriptionWidth(containerWidth: CGFloat, hasLoadedImageSlot: Bool) -> CGFloat {
+        hasLoadedImageSlot ? containerWidth * 0.4 : containerWidth
+    }
+}
+
 private struct WebsiteRemoteImage: View {
     let primaryURLString: String
     let fallbackURLString: String?
@@ -322,6 +346,7 @@ private struct WebsiteRemoteImage: View {
 private struct WebsiteSnippetCard: View {
     let text: String
     let metrics: WebsiteFullscreenMetrics
+    let locationID: String
 
     var body: some View {
         ZStack {
@@ -339,7 +364,7 @@ private struct WebsiteSnippetCard: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
                 .padding(12)
 
-            Text(text)
+            SourceQuoteHighlightedText(text: text, locationID: "\(locationID)-text")
                 .font(.omP)
                 .fontWeight(.medium)
                 .foregroundStyle(Color.grey100)

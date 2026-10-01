@@ -4,7 +4,7 @@
   export type IconTabItem = {
     id: string;
     label: string;
-    iconClass: 'chat-icon' | 'project-icon' | 'plan-icon' | 'task-icon' | 'workflow-icon';
+    iconClass: 'chat-icon' | 'project-icon' | 'plan-icon' | 'task-icon' | 'workflow-icon' | 'app-icon';
     testId?: string;
     href?: string;
     disabled?: boolean;
@@ -178,6 +178,7 @@
   .plan-icon { -webkit-mask-image: var(--icon-url-planning); mask-image: var(--icon-url-planning); }
   .workflow-icon { -webkit-mask-image: url('@openmates/ui/static/icons/workflow.svg'); mask-image: url('@openmates/ui/static/icons/workflow.svg'); }
   .task-icon { -webkit-mask-image: url('@openmates/ui/static/icons/projectmanagement.svg'); mask-image: url('@openmates/ui/static/icons/projectmanagement.svg'); }
+  .app-icon { -webkit-mask-image: url('@openmates/ui/static/icons/app.svg'); mask-image: url('@openmates/ui/static/icons/app.svg'); }
 
   @media (prefers-reduced-motion: reduce) {
     .icon-tab-active-pill,

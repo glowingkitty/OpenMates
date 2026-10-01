@@ -238,6 +238,21 @@ team:
   sv: Team
   he: צוות
   verified_by_human: []
+personal_context:
+  context: Personal account option in the profile team context selector
+  en: Personal
+  de: Persönlich
+  verified_by_human: []
+switch_team_context:
+  context: Accessibility label for the profile team context selector
+  en: Switch team context
+  de: Teamkontext wechseln
+  verified_by_human: []
+team_context_load_error:
+  context: Profile team selector error when the team list or detail cannot load
+  en: Could not load teams
+  de: Teams konnten nicht geladen werden
+  verified_by_human: []
 teams:
   context: Settings menu item for managing joined teams
   en: Teams
