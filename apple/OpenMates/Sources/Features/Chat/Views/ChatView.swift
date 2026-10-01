@@ -2,6 +2,10 @@
 // Supports block-level markdown rendering (code blocks, tables, blockquotes),
 // inline embed previews, and fullscreen embed sheets. Advertises the current
 // chat for Handoff so users can continue on another Apple device.
+// Specification: specifications/architecture/drafts/specification.yml
+// Assertions: drafts.draft-only.lifecycle
+// Specification: specifications/features/chat-navigation/specification.yml
+// Assertions: chat-navigation.open.local-first-coherent, chat-navigation.empty-new-chat.excluded
 // Specification: specifications/features/message-input/specification.yml
 // Assertions: message-input.recording.lifecycle, message-input.embeds.gated-send, message-input.send.ownership, message-input.privacy-context, message-input.suggestions.contextual
 // Specification: specifications/features/chats/specification.yml
@@ -427,6 +431,7 @@ struct ChatView: View {
     private var transcriptIsVisible: Bool { parentPaneVisible && (!showEmbedFullscreen || (chatWorkspaceWidth >= 1024 && !hideSplitChat)) }
     @State private var chatWorkspaceWidth: CGFloat = 0
     @State private var hideSplitChat = false
+    @State private var loadedRouteID: String?
     @State private var selectedEmbed: EmbedRecord?
     @State private var sourceQuoteTarget: SourceQuoteTarget?
     @State private var fullscreenPreviousEmbeds: [EmbedRecord] = []
@@ -626,22 +631,28 @@ struct ChatView: View {
 
                     returnToParentButton
 
-                    FocusModePill(focusModeManager: focusModeManager) { _ in
-                        Task { await viewModel.deactivateActiveFocusMode() }
-                    }
-
                     if isStreamingPresentationActive {
                         streamingBanner
                     }
 
                     // Web: intro/legal chats show a full-width "New chat" CTA instead of the input field
-                    if isDemoOrLegalChat {
-                        newChatCTA
-                    } else if isExampleChat || !viewModel.messages.isEmpty {
-                        exampleChatInputRow
-                    } else {
-                        inputBar
+                    Group {
+                        if isDemoOrLegalChat {
+                            newChatCTA
+                        } else if isExampleChat || !viewModel.messages.isEmpty {
+                            exampleChatInputRow
+                        } else {
+                            inputBar
+                        }
                     }
+                    .overlay(alignment: .top) {
+                        FocusModePill(focusModeManager: focusModeManager) { _ in
+                            Task { await viewModel.deactivateActiveFocusMode() }
+                        }
+                        .padding(.horizontal, 12)
+                        .offset(y: -30)
+                    }
+                    .padding(.top, focusModeManager.activeFocusMode == nil ? 0 : 15)
                 }
                 .background(Color.grey20)
                 } embed: {
@@ -778,9 +789,16 @@ struct ChatView: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .composerDraftDidChange)) { notification in
-            guard notification.userInfo?["reloadComposer"] as? Bool != false,
-                  notification.userInfo?["chatId"] as? String == chatId else { return }
-            Task { await applyInboundDraft() }
+            guard notification.userInfo?["chatId"] as? String == chatId,
+                  notification.userInfo?["scopeGeneration"] as? UUID == OfflineStore.shared.scopeGeneration else { return }
+            if closeRemovedDraftIfNeeded(notification) { return }
+            guard notification.userInfo?["reloadComposer"] as? Bool != false else { return }
+            Task {
+                await applyInboundDraft()
+                // A remote deletion clears the restored document first. Recheck
+                // the live revision/content before leaving the deleted route.
+                _ = closeRemovedDraftIfNeeded(notification)
+            }
         }
         .onChange(of: scenePhase) { _, phase in
             if phase != .active { flushEncryptedDraft() }
@@ -836,6 +854,10 @@ struct ChatView: View {
     }
 
     private func handleInputFocusRequestChange() {
+        if inputFocusRequest == 0 {
+            handledInputFocusRequest = 0
+            isInputFocused = false
+        }
         applyInputFocusRequestIfNeeded()
     }
 
@@ -844,9 +866,19 @@ struct ChatView: View {
     }
 
     private func handleChatTask() async {
-        if let loadedChatID = viewModel.chat?.id, loadedChatID != chatId {
+        if let loadedRouteID, loadedRouteID != chatId {
+            // ChatView retains its identity across selection; overlays belong to
+            // the old chat, while transcript restoration belongs to each record.
+            fullscreenPreviousEmbeds = []
+            sourceQuoteTarget = nil
+            selectedEmbed = nil
+            showEmbedFullscreen = false
+            hideSplitChat = false
+            openedInitialEmbedId = nil
+            if inputFocusRequest == 0 { isInputFocused = false }
             cancelRecordAttempt()
         }
+        loadedRouteID = chatId
         draftSaveTask?.cancel()
         await invalidateDeferredComposerSends()
         resetComposerForChatLoad()
@@ -966,11 +998,11 @@ struct ChatView: View {
             focusModeManager.deactivate()
             return
         }
-        focusModeManager.activate(.init(
-            id: focusId,
-            appId: focusId.components(separatedBy: "-").first ?? "ai",
-            name: focusId
-        ))
+        guard let focus = FocusModeManager.FocusModeInfo.resolve(focusId) else {
+            focusModeManager.deactivate()
+            return
+        }
+        focusModeManager.activate(focus)
     }
 
     private var effectiveBannerState: ChatBannerState? {
@@ -3074,20 +3106,27 @@ struct ChatView: View {
         realtimeResult: AudioRecordingRealtimeResultProvider? = nil,
         realtimeSession: AudioRecordingRealtimeSession? = nil
     ) {
+        let uploadChatID = chatId
+        let uploadScope = AudioRecordingUploadScope.capture()
         let nodeID = "composer:embed:\(UUID().uuidString.lowercased())"
         recordingTemporaryFiles[nodeID] = url
         do {
             try composerSession.insertPendingEmbed(
                 nodeID: nodeID,
                 embedType: "recording",
-                title: url.lastPathComponent
+                title: AppStrings.audioRecording,
+                localPreviewData: try? Data(contentsOf: url)
             )
             let record = composerEmbedLifecycle.register(nodeId: nodeID)
             try composerSession.configureEmbedActions(
                 nodeID: nodeID,
                 onOpen: { _ in },
                 onRetry: { _ in
-                    Task { @MainActor in await retryRecordingUpload(nodeID: nodeID, url: url, duration: duration) }
+                    guard uploadScope.isCurrent, chatId == uploadChatID else { return }
+                    recordingUploadTasks[nodeID] = Task { @MainActor in
+                        await retryRecordingUpload(nodeID: nodeID, url: url, duration: duration, waveform: waveform, realtimeResult: realtimeResult)
+                        recordingUploadTasks[nodeID] = nil
+                    }
                 },
                 onRemove: { durableID in handleComposerEmbedRemoval(nodeID: nodeID, durableID: durableID) }
             )
@@ -3115,7 +3154,8 @@ struct ChatView: View {
             return
         }
         realtimeSession?.observeRawTranscript { transcript in
-            guard transitionComposerEmbed(
+            guard uploadScope.isCurrent, chatId == uploadChatID,
+                  transitionComposerEmbed(
                 nodeID: nodeID,
                 generation: generation,
                 to: .correcting
@@ -3131,7 +3171,7 @@ struct ChatView: View {
                 trackingId: nodeID
             )
             recordingUploadTasks[nodeID] = nil
-            guard !Task.isCancelled else {
+            guard !Task.isCancelled, uploadScope.isCurrent, chatId == uploadChatID else {
                 if let embed { viewModel.removePendingComposerEmbed(id: embed.id) }
                 removeRecordingTemporaryFile(nodeID: nodeID)
                 return
@@ -3142,21 +3182,31 @@ struct ChatView: View {
             }
             try? composerSession.updatePendingEmbedTitle(
                 nodeID: nodeID,
-                title: embed.textPreview.flatMap { $0.isEmpty ? nil : $0 } ?? url.lastPathComponent
+                title: embed.textPreview.flatMap { $0.isEmpty ? nil : $0 } ?? AppStrings.audioRecording
             )
             resolveComposerEmbed(nodeID: nodeID, generation: generation, embed: embed)
             removeRecordingTemporaryFile(nodeID: nodeID)
         }
     }
 
-    private func retryRecordingUpload(nodeID: String, url: URL, duration: TimeInterval) async {
+    private func retryRecordingUpload(nodeID: String, url: URL, duration: TimeInterval,
+                                      waveform: AudioRecordingWaveform? = nil,
+                                      realtimeResult: AudioRecordingRealtimeResultProvider? = nil) async {
+        let uploadChatID = chatId
+        let uploadScope = AudioRecordingUploadScope.capture()
         guard let generation = retryComposerEmbed(nodeID: nodeID, to: .transcribing) else { return }
         guard let embed = await viewModel.uploadRecording(
             url: url,
             duration: duration,
+            waveform: waveform,
+            realtimeResult: realtimeResult,
             trackingId: nodeID
         ) else {
             _ = transitionComposerEmbed(nodeID: nodeID, generation: generation, to: .error)
+            return
+        }
+        guard uploadScope.isCurrent, chatId == uploadChatID, !Task.isCancelled else {
+            viewModel.removePendingComposerEmbed(id: embed.id)
             return
         }
         resolveComposerEmbed(nodeID: nodeID, generation: generation, embed: embed)
@@ -3988,6 +4038,21 @@ struct ChatView: View {
         } catch {
             NativeDiagnostics.warning("Encrypted composer draft restore failed: \(type(of: error))", category: "apple_composer")
         }
+    }
+
+    private func closeRemovedDraftIfNeeded(_ notification: Notification) -> Bool {
+        guard ChatSelectionSyncPolicy.shouldCloseRemovedDraft(
+            selectedChatId: chatId, eventChatId: notification.userInfo?["chatId"] as? String,
+            eventScope: notification.userInfo?["scopeGeneration"] as? UUID,
+            currentScope: OfflineStore.shared.scopeGeneration,
+            chatRemoved: notification.userInfo?["chatRemoved"] as? Bool == true,
+            hasComposerContent: !composerSession.canonicalMarkdown.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                || composerHasEmbed || viewModel.hasPendingComposerEmbeds || recordAttemptActive,
+            hasMessages: !viewModel.messages.isEmpty || viewModel.isStreaming
+                || chatStore?.chat(for: chatId) != nil || !(chatStore?.messages(for: chatId).isEmpty ?? true)
+        ) else { return false }
+        onCloseChat?()
+        return true
     }
 
     private func applyInboundDraft() async {

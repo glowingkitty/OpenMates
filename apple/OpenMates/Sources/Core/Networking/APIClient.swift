@@ -5,6 +5,8 @@
 // Assertions: message-input.embeds.gated-send
 // Specification: specifications/features/apple-notifications/specification.yml
 // Assertions: apple-notifications.registration.lifecycle
+// Specification: specifications/features/auth/specification.yml
+// Assertions: auth.session.lifecycle, auth.session.isolation
 
 import Foundation
 
@@ -199,6 +201,38 @@ actor APIClient {
         return body
     }
 
+    #if os(iOS) || os(macOS)
+    /// Session rotation must publish cookies under the same authority fence as
+    /// the user/token response. URLSession's automatic cookie handling otherwise
+    /// installs a late old account response before AuthManager can reject it.
+    func validateNativeSession(serverProfile: ServerProfile, body: SessionRequest,
+                               expectedAccountID: String?,
+                               isCurrent: @escaping @MainActor () -> Bool) async throws -> SessionResponse {
+        var request = buildRequest(.post, path: "/v1/auth/session", headers: nil,
+            baseURL: serverProfile.apiBaseURL, webAppURL: serverProfile.webBaseURL)
+        request.httpBody = try encoder.encode(body)
+        let prepared = request
+        request = try await MainActor.run {
+            guard isCurrent() else { throw CancellationError() }
+            var pinned = prepared
+            Self.pinAuthorizedCookies(in: &pinned)
+            return pinned
+        }
+        let data = try await execute(request, using: session, authorizeSessionResponse: { response, data in
+            guard isCurrent() else { return (false, false) }
+            guard (200...299).contains(response.statusCode) else {
+                return (true, response.statusCode == 401 || response.statusCode == 403)
+            }
+            let decoder = JSONDecoder()
+            decoder.keyDecodingStrategy = .convertFromSnakeCase
+            guard let result = try? decoder.decode(SessionResponse.self, from: data) else { return (true, false) }
+            let publishCookies = expectedAccountID == nil || result.user == nil || result.user?.id == expectedAccountID
+            return (true, publishCookies)
+        })
+        return try decodeResponse(SessionResponse.self, from: data)
+    }
+    #endif
+
     // MARK: - Encodable body
 
     /// Watch push requests pin the verified account's cookies atomically with
@@ -276,7 +310,7 @@ actor APIClient {
         } else if expectedAccountID != nil || expectedScope != nil || expectedTeamContext != nil {
             throw APIError.invalidResponse
         }
-        return try await execute(urlRequest)
+        return try await execute(urlRequest, expectedRecoveryAccountID: expectedAccountID)
     }
 
     func request<T: Decodable>(
@@ -515,28 +549,64 @@ actor APIClient {
         #endif
     }
 
-    private func execute(_ request: URLRequest) async throws -> Data {
-        try await execute(request, using: session)
+    private func execute(_ request: URLRequest, expectedRecoveryAccountID: String? = nil) async throws -> Data {
+        try await execute(request, using: session, expectedRecoveryAccountID: expectedRecoveryAccountID)
     }
 
-    private func execute(_ request: URLRequest, using transport: URLSession) async throws -> Data {
+    private func execute(_ request: URLRequest, using transport: URLSession,
+                         expectedRecoveryAccountID: String? = nil,
+                         authorizeSessionResponse: (@MainActor (HTTPURLResponse, Data) -> (isCurrent: Bool, publishCookies: Bool))? = nil) async throws -> Data {
         #if DEBUG
         if let stubbedData = Self.uiTestIssueReportResponse(for: request) {
             return stubbedData
         }
         #endif
 
+        #if os(iOS) || os(macOS)
+        // Auth endpoints own their explicit login/session errors. Product requests
+        // capture authority before IO, and only signal recovery; writes are never
+        // automatically replayed by this path.
+        let recoveryContext: AuthSessionRecoveryContext?
+        if let url = request.url, !url.path.hasPrefix("/v1/auth/") {
+            recoveryContext = await MainActor.run {
+                let context = AuthManager.captureSessionRecoveryContext()
+                guard let context,
+                      expectedRecoveryAccountID == nil || context.accountID == expectedRecoveryAccountID,
+                      context.profile.apiBaseURL.host == url.host ||
+                      context.profile.uploadBaseURL.host == url.host else { return nil }
+                return context
+            }
+        } else { recoveryContext = nil }
+        #endif
         let (data, response) = try await transport.data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw APIError.invalidResponse
         }
 
+        if let authorizeSessionResponse {
+            try await MainActor.run {
+                let authorization = authorizeSessionResponse(httpResponse, data)
+                guard authorization.isCurrent, !Task.isCancelled else { throw CancellationError() }
+                if authorization.publishCookies, let url = request.url {
+                    let headers = httpResponse.allHeaderFields.reduce(into: [String: String]()) { values, entry in
+                        if let key = entry.key as? String, let value = entry.value as? String { values[key] = value }
+                    }
+                    let cookies = HTTPCookie.cookies(withResponseHeaderFields: headers, for: url)
+                    OpenMatesSharedEnvironment.cookieStorage.setCookies(cookies, for: url, mainDocumentURL: nil)
+                }
+            }
+        }
         guard (200...299).contains(httpResponse.statusCode) else {
             NativeDiagnostics.warning(
                 "API request failed method=\(request.httpMethod ?? "unknown") status=\(httpResponse.statusCode)",
                 category: "network"
             )
+            #if os(iOS) || os(macOS)
+            if httpResponse.statusCode == 401, let recoveryContext {
+                Task { @MainActor in await AuthManager.recoverRejectedRequest(recoveryContext) }
+            }
+            #endif
             let errorBody = try? decoder.decode(APIErrorResponse.self, from: data)
             throw APIError.httpError(
                 status: httpResponse.statusCode,

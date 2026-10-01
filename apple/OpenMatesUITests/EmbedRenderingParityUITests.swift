@@ -1078,6 +1078,46 @@ final class EmbedRenderingParityUITests: XCTestCase {
         attachScreenshot(name: "3D model fullscreen dismissal remains interactive")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testNewsSearchCentersPreviewAndOpensRegularArticleCardsWithImages() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--dev-preview", "embed-preview", "--dev-preview-variant", "news-search",
+                               "--ui-test-embed-presentation"]
+        app.launch()
+        let query = app.staticTexts["news-search-query"]
+        XCTAssertTrue(query.waitForExistence(timeout: 8))
+        let provider = app.staticTexts["news-search-provider"]
+        let details = app.descendants(matching: .any)["news-search-preview-details"].firstMatch
+        XCTAssertTrue(provider.exists)
+        XCTAssertGreaterThan(query.frame.minY, details.frame.minY + 20,
+                             "The news details stack must be vertically centered below its thumbnail")
+        XCTAssertLessThan(provider.frame.maxY, details.frame.maxY)
+        attachScreenshot(name: "News search centered preview and search icon")
+        let preview = app.buttons["embed-preview"].firstMatch
+        XCTAssertTrue(preview.isHittable)
+        preview.tap()
+        let first = app.descendants(matching: .any)["embed-preview-preview-news-result-1"].firstMatch
+        XCTAssertTrue(first.waitForExistence(timeout: 8))
+        let articleButton = first.buttons["embed-preview"].firstMatch
+        XCTAssertTrue(articleButton.waitForExistence(timeout: 3))
+        XCTAssertEqual(first.frame.height, 200, accuracy: 1)
+        XCTAssertEqual(first.frame.width, 320, accuracy: 1)
+        let image = first.descendants(matching: .any)["news-preview-image"].firstMatch
+        XCTAssertTrue(image.waitForExistence(timeout: 8))
+        let loaded = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", "loaded"), object: image)
+        XCTAssertEqual(XCTWaiter.wait(for: [loaded], timeout: 15), .completed)
+        XCTAssertEqual(image.frame.width, 150, accuracy: 1)
+        XCTAssertEqual(image.frame.height, 171, accuracy: 1)
+        XCTAssertEqual(image.frame.maxX, first.frame.maxX, accuracy: 1)
+        XCTAssertTrue(articleButton.label.contains("AI Advances Continue to Transform Software Development"))
+        XCTAssertTrue(articleButton.isHittable)
+        attachScreenshot(name: "News fullscreen regular image article cards")
+        articleButton.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["website-fullscreen-body"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.staticTexts["embed-header-title"].label.contains("AI Advances Continue to Transform Software Development"))
+        attachScreenshot(name: "News article drill down")
+    }
+
     // contract-test: direct surface=gui.apple assertions=videos.transcript.surface-parity
     func testGroupedVideoTranscriptRendersPreviewAndFullscreenContent() throws {
         for surface in ["preview", "fullscreen"] {

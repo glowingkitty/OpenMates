@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct ServerProfile: Equatable, Codable {
+struct ServerProfile: Equatable, Codable, Sendable {
     let id: String
     let displayDomain: String
     let webBaseURL: URL

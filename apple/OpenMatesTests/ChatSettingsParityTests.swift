@@ -239,6 +239,69 @@ final class ChatSettingsParityTests: XCTestCase {
             XCTAssertEqual(action(tab, shared: true), .none)
         }
     }
+    // contract-test: supporting surface=gui.apple assertions=chat-share-settings.shared-link-open
+    func testShortenerFailurePreservesFullEncryptedLinkPasswordExpiryAndPublication() async throws {
+        let id = "fallback-fixture", bytes = Data(repeating: 7, count: 32)
+        let blob = try await ShareLinkCrypto.encryptedShareBlob(identifier: id, key: SymmetricKey(data: bytes),
+            duration: .tenMinutes, password: "fixturePwd", keyField: "chat_encryption_key")
+        let full = try ShareLinkCrypto.urlWithFragment(ServerProfile.development.webBaseURL.appendingPathComponent("share/chat/\(id)"), fragment: "key=\(blob)")
+        let failures: [Error] = [APIError.httpError(status: 503, message: "Synthetic failure"), URLError(.timedOut), URLError(.notConnectedToInternet)]
+        for failure in failures {
+            var published: URL?
+            let result = try await ShareLinkPublication.create(longURL: full, check: {}, shorten: { throw failure }, publish: { url, fallback in
+                XCTAssertTrue(fallback); published = url
+            })
+            XCTAssertEqual(result.url, full); XCTAssertEqual(published, full); XCTAssertTrue(result.usedLongFallback)
+        }
+        let decoded = try await SharedChatRecipientCrypto.chatKey(id: id, blob: blob, serverTime: Int(Date().timeIntervalSince1970), password: "fixturePwd")
+        XCTAssertEqual(decoded.withUnsafeBytes { Data($0) }, bytes)
+        do {
+            _ = try await SharedChatRecipientCrypto.chatKey(id: id, blob: blob, serverTime: Int(Date().timeIntervalSince1970), password: nil)
+            XCTFail("Fallback must retain the password requirement")
+        } catch { XCTAssertEqual(error as? SharedChatRecipientError, .passwordRequired) }
+        do {
+            _ = try await SharedChatRecipientCrypto.chatKey(id: id, blob: blob, serverTime: Int(Date().timeIntervalSince1970) + 601, password: "fixturePwd")
+            XCTFail("Fallback must retain the ten-minute expiry")
+        } catch { XCTAssertEqual(error as? SharedChatRecipientError, .expired) }
+    }
+    // contract-test: supporting surface=gui.apple assertions=chat-share-settings.shared-link-open
+    func testSuccessfulShortenerReturnsPrimaryURLOnlyAfterPublication() async throws {
+        let full = try XCTUnwrap(URL(string: "https://example.invalid/share/chat/fixture#key=synthetic"))
+        let short = try XCTUnwrap(URL(string: "https://example.invalid/s/fixture#synthetic"))
+        var published = false
+        let result = try await ShareLinkPublication.create(longURL: full, check: {}, shorten: { short }, publish: { url, fallback in
+            XCTAssertEqual(url, short); XCTAssertFalse(fallback); published = true
+        })
+        XCTAssertTrue(published); XCTAssertEqual(result.url, short); XCTAssertFalse(result.usedLongFallback)
+    }
+    // contract-test: supporting surface=gui.apple assertions=chat-share-settings.shared-link-open
+    func testPublicationFailureNeverReturnsASuccessfulShortOrFullLink() async throws {
+        let full = try XCTUnwrap(URL(string: "https://example.invalid/share/chat/fixture#key=synthetic"))
+        for shortenerFails in [false, true] {
+            do {
+                _ = try await ShareLinkPublication.create(longURL: full, check: {}, shorten: {
+                    if shortenerFails { throw URLError(.timedOut) }; return full
+                }, publish: { _, _ in throw APIError.httpError(status: 403, message: "Synthetic owner denial") })
+                XCTFail("Owner publication failure cannot expose a usable link")
+            } catch { guard case APIError.httpError(status: 403, message: _) = error else { return XCTFail("Publication denial must propagate") } }
+        }
+    }
+    // contract-test: supporting surface=gui.apple assertions=chat-share-settings.shared-link-open
+    func testAccountFenceAndCancellationAbortFallbackBeforePublication() async throws {
+        let full = try XCTUnwrap(URL(string: "https://example.invalid/share/chat/fixture#key=synthetic"))
+        var checks = 0, publications = 0
+        do {
+            _ = try await ShareLinkPublication.create(longURL: full, check: {
+                checks += 1; if checks > 1 { throw UserTasksError.accountChanged }
+            }, shorten: { throw URLError(.timedOut) }, publish: { _, _ in publications += 1 })
+            XCTFail("An account change must abort fallback")
+        } catch { guard case UserTasksError.accountChanged = error else { return XCTFail("Account fence must abort sharing") } }
+        do {
+            _ = try await ShareLinkPublication.create(longURL: full, check: {}, shorten: { throw CancellationError() }, publish: { _, _ in publications += 1 })
+            XCTFail("Cancelled shortening must abort sharing")
+        } catch { XCTAssertTrue(error is CancellationError) }
+        XCTAssertEqual(publications, 0)
+    }
     private func fixtureChat() -> Chat {
         Chat(id: "synthetic-chat", title: "Synthetic chat", lastMessageAt: nil, createdAt: "2026-10-01", updatedAt: nil, isArchived: false, isPinned: false, appId: nil, encryptedTitle: nil, encryptedChatKey: nil)
     }

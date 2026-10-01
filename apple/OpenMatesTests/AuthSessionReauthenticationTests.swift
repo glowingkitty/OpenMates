@@ -103,6 +103,100 @@ import XCTest
         XCTAssertEqual(auth.profilePreservingNewerSelection(authoritative, since: auth.lastOpenedSelectionRevision).lastOpened, "server-selection")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=auth.session.lifecycle,auth.session.isolation
+    func testConcurrentHTTPAndSocketRecoveryShareValidationAndRotateCredentials() async throws {
+        var pending: CheckedContinuation<SessionResponse, Error>?
+        var validations = 0
+        let auth = AuthManager(sessionValidator: { _, _ in
+            validations += 1
+            return try await withCheckedThrowingContinuation { pending = $0 }
+        }, profileCacheWriter: { _ in }, sessionMasterKeyAvailable: { _ in true },
+            sessionScopeActivator: { _ in })
+        auth.currentUser = try user("cached-account")
+        auth.state = .authenticated
+        let expected = try XCTUnwrap(auth.sessionRecoveryContext)
+        let first = Task { await AuthManager.recoverRejectedRequest(expected) }
+        while pending == nil { await Task.yield() }
+        let second = Task { await auth.recoverSession(expected: expected) }
+        await Task.yield()
+        XCTAssertEqual(validations, 1)
+        pending?.resume(returning: try sessionResponse(account: "cached-account", token: "rotated-token"))
+        await first.value
+        await second.value
+        XCTAssertEqual(auth.sessionValidationState, .onlineAuthenticated)
+        XCTAssertEqual(auth.webSocketToken, "rotated-token")
+        XCTAssertEqual(auth.currentUser?.id, "cached-account")
+        // An old in-flight request's later 401 cannot invalidate these credentials.
+        await auth.recoverSession(expected: expected)
+        XCTAssertEqual(validations, 1)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=auth.session.authoritative-enforcement
+    func testSessionServiceFailureKeepsOfflineIdentityAndDoesNotOpenLogin() async throws {
+        let auth = AuthManager(sessionValidator: { _, _ in
+            throw APIError.httpError(status: 503, message: "Unavailable")
+        })
+        auth.currentUser = try user("cached-account")
+        auth.state = .authenticated
+        await auth.recoverSession(expected: try XCTUnwrap(auth.sessionRecoveryContext))
+        XCTAssertEqual(auth.currentUser?.id, "cached-account")
+        XCTAssertEqual(auth.sessionValidationState, .offlineAuthenticated)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=auth.session.authoritative-enforcement
+    func testRevokedSessionRequiresLoginWithoutErasingCachedIdentity() async throws {
+        let response = try JSONDecoder().decode(SessionResponse.self,
+            from: Data(#"{"success":false,"reAuthReason":"session_revoked"}"#.utf8))
+        let auth = AuthManager(sessionValidator: { _, _ in response })
+        auth.currentUser = try user("cached-account")
+        auth.state = .authenticated
+        await auth.recoverSession(expected: try XCTUnwrap(auth.sessionRecoveryContext))
+        XCTAssertEqual(auth.currentUser?.id, "cached-account")
+        XCTAssertEqual(auth.state, .authenticated)
+        XCTAssertEqual(auth.sessionValidationState, .requiresReauthentication(reason: "session_revoked"))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=auth.session.isolation
+    func testSuccessfulSessionForAnotherAccountCannotReplaceCachedAccount() async throws {
+        let response = try sessionResponse(account: "another-account", token: "other-token")
+        let auth = AuthManager(sessionValidator: { _, _ in response })
+        auth.currentUser = try user("cached-account")
+        auth.state = .authenticated
+        await auth.recoverSession(expected: try XCTUnwrap(auth.sessionRecoveryContext))
+        XCTAssertEqual(auth.currentUser?.id, "cached-account")
+        XCTAssertNil(auth.webSocketToken)
+        XCTAssertEqual(auth.sessionValidationState, .requiresReauthentication(reason: "session_account_changed"))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=auth.session.isolation
+    func testServerChangeFencesPendingRejection() async throws {
+        let original = ServerConfiguration.current
+        defer { ServerConfiguration.current = original }
+        var pending: CheckedContinuation<SessionResponse, Error>?
+        let auth = AuthManager(sessionValidator: { _, _ in
+            try await withCheckedThrowingContinuation { pending = $0 }
+        })
+        auth.currentUser = try user("cached-account")
+        auth.state = .authenticated
+        let expected = try XCTUnwrap(auth.sessionRecoveryContext)
+        let operation = Task { await auth.recoverSession(expected: expected) }
+        while pending == nil { await Task.yield() }
+        ServerConfiguration.current = ServerEndpointConfiguration(
+            selectedDomain: "session-fence.example", customDomains: ["session-fence.example"])
+        pending?.resume(throwing: APIError.httpError(status: 401, message: "Expired"))
+        await operation.value
+        XCTAssertEqual(auth.currentUser?.id, "cached-account")
+        if case .requiresReauthentication = auth.sessionValidationState {
+            XCTFail("The former server must not challenge the newly selected server")
+        }
+    }
+
+    private func sessionResponse(account: String, token: String) throws -> SessionResponse {
+        try JSONDecoder().decode(SessionResponse.self, from: JSONSerialization.data(withJSONObject: [
+            "success": true, "user": ["id": account, "username": "Fixture"], "wsToken": token
+        ]))
+    }
+
     private func user(_ id: String) throws -> UserProfile {
         try JSONDecoder().decode(UserProfile.self,
             from: JSONSerialization.data(withJSONObject: ["id": id, "username": "Fixture"]))

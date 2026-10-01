@@ -59,6 +59,45 @@ final class ChatSettingsParityUITests: XCTestCase {
         XCTAssertTrue(url.isHittable)
         attach(app, "Chat Settings generated share disclosure")
     }
+    // contract-test: supporting surface=gui.apple assertions=chat-share-settings.shared-link-open
+    func testShortenerFailureShowsFullURLQRAndNativeShareActionAfterPublication() {
+        let app = launch("chat-settings", environment: ["UI_TEST_CHAT_SETTINGS_SHARE_FAILURE": "shortener"])
+        let share = app.buttons["chat-settings-tab-share"]
+        XCTAssertTrue(share.waitForExistence(timeout: 15)); share.tap()
+        let scroll = app.scrollViews["chat-settings-scroll"]
+        let generate = app.buttons["share-generate-link"]
+        reveal(generate, in: scroll); generate.tap()
+        let copy = app.buttons["share-copy-link"]
+        XCTAssertTrue(copy.waitForExistence(timeout: 3)); reveal(copy, in: scroll)
+        XCTAssertTrue(app.staticTexts["share-short-link-error"].exists)
+        let showURL = app.buttons["chat-settings-share-show-url"]
+        reveal(showURL, in: scroll); showURL.tap()
+        XCTAssertTrue(app.staticTexts["https://example.invalid/share/chat/preview-chat-settings#key=preview"].exists)
+        let showQR = app.buttons["chat-settings-share-show-qr"]
+        reveal(showQR, in: scroll); showQR.tap()
+        let qr = app.descendants(matching: .any)["chat-settings-share-qr"].firstMatch
+        XCTAssertTrue(qr.waitForExistence(timeout: 3)); reveal(qr, in: scroll)
+        XCTAssertGreaterThan(qr.frame.width, 100)
+        let systemShare = app.buttons["share-native-sheet-button"]
+        reveal(systemShare, in: scroll); XCTAssertTrue(systemShare.isEnabled)
+        attach(app, "Published full share URL QR and system share action after shortener failure")
+    }
+    // contract-test: supporting surface=gui.apple assertions=chat-share-settings.shared-link-open
+    func testPublicationFailureKeepsOwnerOptionsAndSuppressesSuccessURLQRAndShareAction() {
+        let app = launch("chat-settings", environment: ["UI_TEST_CHAT_SETTINGS_SHARE_FAILURE": "publication"])
+        let share = app.buttons["chat-settings-tab-share"]
+        XCTAssertTrue(share.waitForExistence(timeout: 15)); share.tap()
+        let scroll = app.scrollViews["chat-settings-scroll"]
+        let generate = app.buttons["share-generate-link"]
+        reveal(generate, in: scroll); generate.tap()
+        XCTAssertTrue(app.staticTexts["share-error"].waitForExistence(timeout: 3))
+        XCTAssertTrue(generate.isEnabled)
+        XCTAssertFalse(app.buttons["share-copy-link"].exists)
+        XCTAssertFalse(app.buttons["share-native-sheet-button"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["chat-settings-share-qr"].firstMatch.exists)
+        XCTAssertFalse(app.staticTexts["chat-settings-share-generated"].exists)
+        attach(app, "Share publication failure retains owner configuration without an unusable URL")
+    }
     // contract-test: supporting surface=gui.apple assertions=settings-ui.composition.canonical-and-accessible
     func testSharedChatSuppressesAllOwnerMutationControls() {
         let app = launch("chat-settings-shared")
@@ -217,9 +256,10 @@ final class ChatSettingsParityUITests: XCTestCase {
         XCTAssertTrue(element.isHittable, "Expected the control to be visible after scrolling")
         XCTAssertTrue(scroll.frame.intersects(element.frame))
     }
-    private func launch(_ variant: String) -> XCUIApplication {
+    private func launch(_ variant: String, environment: [String: String] = [:]) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["--dev-preview", "composer", "--dev-preview-variant", variant, "--dev-preview-theme", "light", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        app.launchEnvironment.merge(environment) { _, new in new }
         app.launch(); return app
     }
     private func attach(_ app: XCUIApplication, _ name: String) {

@@ -1,3 +1,5 @@
+// Specification: specifications/features/chat-share-settings/specification.yml
+// Assertions: chat-share-settings.shared-link-open
 // Web source: frontend/packages/ui/src/components/chats/ChatSettingsShareSection.svelte
 // Tokens: ColorTokens.generated.swift, SpacingTokens.generated.swift, TypographyTokens.generated.swift.
 // First-party writes preserve account/server/scope fences. Keys and share URL
@@ -10,6 +12,32 @@ import UIKit
 #elseif os(macOS)
 import AppKit
 #endif
+
+/// Only short-link creation is optional. The full encrypted URL becomes usable
+/// after the owner publication succeeds; account changes/cancellation abort both.
+@MainActor
+enum ShareLinkPublication {
+    static func create(longURL: URL, check: () async throws -> Void,
+                       shorten: () async throws -> URL,
+                       publish: (URL, Bool) async throws -> Void) async throws -> (url: URL, usedLongFallback: Bool) {
+        try Task.checkCancellation()
+        try await check()
+        let result: (url: URL, usedLongFallback: Bool)
+        do { result = (try await shorten(), false) }
+        catch is CancellationError { throw CancellationError() }
+        catch {
+            try Task.checkCancellation()
+            try await check()
+            result = (longURL, true)
+        }
+        try Task.checkCancellation()
+        try await check()
+        try await publish(result.url, result.usedLongFallback)
+        try Task.checkCancellation()
+        try await check()
+        return result
+    }
+}
 
 @MainActor
 final class ChatSettingsShareModel: ObservableObject {
@@ -28,44 +56,66 @@ final class ChatSettingsShareModel: ObservableObject {
         generating = true; error = nil; usedLongFallback = false
         defer { generating = false }
         #if DEBUG
-        if preview { url = URL(string: "https://example.invalid/share/chat/preview-chat-settings#key=preview"); return }
+        if preview {
+            do {
+                let fixtureURL = URL(string: "https://example.invalid/share/chat/preview-chat-settings#key=preview")!
+                let mode = ProcessInfo.processInfo.environment["UI_TEST_CHAT_SETTINGS_SHARE_FAILURE"]
+                let result = try await ShareLinkPublication.create(longURL: fixtureURL, check: {}, shorten: {
+                    if mode != nil { throw APIError.httpError(status: 503, message: "Synthetic shortener failure") }
+                    return fixtureURL
+                }, publish: { _, _ in
+                    if mode == "publication" { throw APIError.httpError(status: 403, message: "Synthetic publication failure") }
+                })
+                usedLongFallback = result.usedLongFallback; url = result.url
+            } catch { self.error = AppStrings.chatSettingsShareFailed }
+            return
+        }
         #endif
+        var phase = "owner_context"
         do {
             guard let accountID, let key = ChatKeyManager.shared.key(for: chat.id) else { throw UserTasksError.taskKeyUnavailable }
             let fence = UserTasksAccountFence(accountID: accountID)
             try await fence.check()
-            guard let duration = ShareDuration(rawValue: expire ? 600 : 0) else { throw UserTasksError.invalidResponse }
+            let protected = passwordEnabled, expires = expire, communityEnabled = community
+            let selectedPassword = protected ? password : nil
+            guard let duration = ShareDuration(rawValue: expires ? 600 : 0) else { throw UserTasksError.invalidResponse }
+            phase = "share_blob"
             let blob = try await ShareLinkCrypto.encryptedShareBlob(identifier: chat.id, key: key, duration: duration,
-                password: passwordEnabled ? password : nil, keyField: "chat_encryption_key")
+                password: selectedPassword, keyField: "chat_encryption_key")
             try await fence.check()
             let webURL = fence.serverProfile.webBaseURL
             let longURL = try ShareLinkCrypto.urlWithFragment(webURL.appendingPathComponent("share/chat").appendingPathComponent(chat.id), fragment: "key=\(blob)")
-            let encrypted = try await ShareLinkCrypto.encryptedShortURL(longURL)
-            try await fence.check()
-            let shortBody: [String: Any] = ["token": encrypted.token, "encrypted_url": encrypted.encryptedURL,
-                "content_type": "chat", "content_id": chat.id, "password_protected": passwordEnabled,
-                "ttl_seconds": expire ? 600 : NSNull()]
-            var generated = longURL
-            do {
-                let _: Data = try await shortLink(body: shortBody, fence: fence)
-                generated = try ShareLinkCrypto.shortURL(webURL: webURL, token: encrypted.token, shortKey: encrypted.shortKey)
-            } catch {
+            phase = "short_link"
+            let result = try await ShareLinkPublication.create(longURL: longURL, check: { try await fence.check() }, shorten: {
+                let encrypted = try await ShareLinkCrypto.encryptedShortURL(longURL)
                 try await fence.check()
-                usedLongFallback = true
-            }
-            try await fence.check()
-            let encryptedURL: Any = usedLongFallback ? NSNull() : try await CryptoManager.shared.encryptContent(generated.absoluteString, key: key)
-            var metadata: [String: Any] = ["chat_id": chat.id, "title": chat.title as Any? ?? NSNull(),
-                "summary": chat.chatSummary as Any? ?? NSNull(), "share_cta_text": (chat.chatSummary ?? chat.title) as Any? ?? NSNull(),
-                "is_shared": true, "encrypted_shared_short_url": encryptedURL,
-                "share_pii": community, "share_highlights": true]
-            if community { metadata["share_with_community"] = true; metadata["share_link"] = generated.absoluteString }
-            let _: Data = try await send("/v1/share/chat/metadata", body: metadata, fence: fence)
-            try await fence.check()
-            if let encryptedURL = encryptedURL as? String { UserDefaults.standard.set(encryptedURL, forKey: "share.url.\(chat.id)") }
-            else { UserDefaults.standard.removeObject(forKey: "share.url.\(chat.id)") }
-            url = generated
-        } catch { self.error = AppStrings.chatSettingsShareFailed }
+                let shortBody: [String: Any] = ["token": encrypted.token, "encrypted_url": encrypted.encryptedURL,
+                    "content_type": "chat", "content_id": chat.id, "password_protected": protected,
+                    "ttl_seconds": expires ? 600 : NSNull()]
+                let _: Data = try await self.shortLink(body: shortBody, fence: fence)
+                return try ShareLinkCrypto.shortURL(webURL: webURL, token: encrypted.token, shortKey: encrypted.shortKey)
+            }, publish: { generated, fallback in
+                phase = "metadata_publication"
+                let encryptedURL: Any = fallback ? NSNull() : try await CryptoManager.shared.encryptContent(generated.absoluteString, key: key)
+                var metadata: [String: Any] = ["chat_id": chat.id, "title": chat.title as Any? ?? NSNull(),
+                    "summary": chat.chatSummary as Any? ?? NSNull(), "share_cta_text": (chat.chatSummary ?? chat.title) as Any? ?? NSNull(),
+                    "is_shared": true, "encrypted_shared_short_url": encryptedURL,
+                    "share_pii": communityEnabled, "share_highlights": true]
+                // Community submission is an explicit owner opt-in in the web contract.
+                if communityEnabled { metadata["share_with_community"] = true; metadata["share_link"] = generated.absoluteString }
+                let _: Data = try await self.send("/v1/share/chat/metadata", body: metadata, fence: fence)
+                try await fence.check()
+                if let encryptedURL = encryptedURL as? String { UserDefaults.standard.set(encryptedURL, forKey: "share.url.\(chat.id)") }
+                else { UserDefaults.standard.removeObject(forKey: "share.url.\(chat.id)") }
+            })
+            usedLongFallback = result.usedLongFallback
+            url = result.url
+        } catch {
+            self.error = AppStrings.chatSettingsShareFailed
+            let status: String
+            if case APIError.httpError(let code, _) = error { status = String(code) } else { status = "unavailable" }
+            NativeDiagnostics.error("Chat sharing failed phase=\(phase) status=\(status)", category: "sharing")
+        }
     }
     func stop(chatID: String, accountID: String?, preview: Bool = false) async {
         guard !generating else { return }
@@ -145,11 +195,13 @@ struct ChatSettingsShareSection: View {
                             .font(.omSmall).foregroundStyle(Color.settingsSuccessAccent).accessibilityIdentifier("chat-settings-share-generated")
                     }
                     OMSettingsRow(title: copied ? AppStrings.shareLinkCopied : AppStrings.shareClickToCopy, icon: "copy", plainIcon: true, showsChevron: false, accessibilityIdentifier: "share-copy-link") { copy(url) }
+                    OMSettingsRow(title: AppStrings.share, icon: "share", plainIcon: true, showsChevron: false, accessibilityIdentifier: "share-native-sheet-button") { shareViaSystem(url) }
                     OMSettingsRow(title: showQR ? AppStrings.chatSettingsHideQr : AppStrings.chatSettingsShowQr, icon: "camera", plainIcon: true, showsChevron: false, accessibilityIdentifier: showQR ? "chat-settings-share-hide-qr" : "chat-settings-share-show-qr") { showQR.toggle() }
                     if showQR, let qrImage {
                         Image(decorative: qrImage, scale: 1).resizable().interpolation(.none).scaledToFit()
                             .frame(maxWidth: 260, maxHeight: 260).padding(.spacing4).background(Color.white)
-                            .frame(maxWidth: .infinity).accessibilityIdentifier("chat-settings-share-qr")
+                            .frame(maxWidth: .infinity).accessibilityElement(children: .ignore)
+                            .accessibilityLabel(AppStrings.shareQRCode).accessibilityIdentifier("chat-settings-share-qr")
                     }
                     OMSettingsRow(title: showURL ? AppStrings.chatSettingsHideUrl : AppStrings.chatSettingsShowUrl, icon: "copy", plainIcon: true, showsChevron: false, accessibilityIdentifier: showURL ? "chat-settings-share-hide-url" : "chat-settings-share-show-url") { showURL.toggle() }
                     if showURL { Text(url.absoluteString).font(.omXs.monospaced()).foregroundStyle(Color.fontPrimary).textSelection(.enabled).accessibilityIdentifier("chat-settings-share-url") }
@@ -181,7 +233,7 @@ struct ChatSettingsShareSection: View {
                             .font(.omP.weight(.bold)).foregroundStyle(Color.fontButton).frame(maxWidth: .infinity).frame(height: 41)
                             .background(LinearGradient.primary).clipShape(Capsule()).shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 4)
                     }.buttonStyle(.plain).disabled(model.generating).accessibilityIdentifier("share-generate-link")
-                }
+                }.disabled(model.generating)
                 if model.generating { Text(AppStrings.sharingChatStatus).font(.omSmall).accessibilityIdentifier("share-generation-status") }
             }
             if let error = model.error { Text(error).font(.omSmall).foregroundStyle(Color.error).accessibilityIdentifier("share-error") }
@@ -211,6 +263,20 @@ struct ChatSettingsShareSection: View {
             let filter = CIFilter.qrCodeGenerator(); filter.message = Data(url.absoluteString.utf8); filter.correctionLevel = "M"
             qrImage = filter.outputImage.flatMap { let image = $0.transformed(by: CGAffineTransform(scaleX: 10, y: 10)); return CIContext().createCGImage(image, from: image.extent) }
         }
+    }
+    private func shareViaSystem(_ url: URL) {
+        #if os(iOS)
+        let activity = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+        guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let presenter = scene.windows.first(where: \.isKeyWindow)?.rootViewController else { return }
+        // iPad requires an anchor for the OS-owned activity popover.
+        activity.popoverPresentationController?.sourceView = presenter.view
+        activity.popoverPresentationController?.sourceRect = CGRect(x: presenter.view.bounds.midX, y: presenter.view.bounds.maxY, width: 1, height: 1)
+        presenter.present(activity, animated: true)
+        #elseif os(macOS)
+        let picker = NSSharingServicePicker(items: [url])
+        picker.show(relativeTo: .zero, of: NSApp.keyWindow?.contentView ?? NSView(), preferredEdge: .minY)
+        #endif
     }
     private func copy(_ url: URL) {
         #if os(iOS)

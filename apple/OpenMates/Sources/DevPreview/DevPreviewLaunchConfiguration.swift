@@ -109,17 +109,17 @@ enum DevPreviewComponentRegistry {
     static func descriptor(for component: DevPreviewComponent) -> DevPreviewComponentDescriptor {
         switch component {
         case .composer:
-            return .init(component: component, webComponentPath: "enter_message/MessageInput", nativeRendererNames: ["MessageComposerView", "NativeComposerSession"], variants: ["model", "default", "focused", "filled", "attachment", "disabled", "search-suggestions", "assistant-speech", "assistant-speech-public", "chat-settings", "chat-settings-usage", "chat-settings-plans", "chat-settings-shared", "chat-settings-public", "chat-settings-export-control"], hostSupport: .componentHost)
+            return .init(component: component, webComponentPath: "enter_message/MessageInput", nativeRendererNames: ["MessageComposerView", "NativeComposerSession"], variants: ["model", "focus", "mentions", "recording-error", "default", "focused", "filled", "attachment", "disabled", "search-suggestions", "assistant-speech", "assistant-speech-public", "chat-settings", "chat-settings-usage", "chat-settings-plans", "chat-settings-shared", "chat-settings-public", "chat-settings-export-control"], hostSupport: .componentHost)
         case .chatHeader:
             return .init(component: component, webComponentPath: "ChatHeader", nativeRendererNames: ["ChatBannerView"], variants: ["default", "loading", "incognito", "draft", "long-title"], hostSupport: .componentHost)
         case .followUpSuggestions:
             return .init(component: component, webComponentPath: "FollowUpSuggestions", nativeRendererNames: ["FollowUpSuggestions"], variants: ["default", "legacy-markup", "long"], hostSupport: .componentHost)
         case .message:
-            return .init(component: component, webComponentPath: "ChatMessage", nativeRendererNames: ["MessageBubble", "RichMarkdownView", "SubChatBatchView"], variants: ["default", "user", "assistant", "thinking", "markdown", "citations", "quote-open", "quote-scroll", "results-map", "results-visual", "results-berlin-map", "results-date-only", "results-invalid", "sub-chat-batch", "streaming", "streaming-long", "streaming-reduced-motion"], hostSupport: .componentHost)
+            return .init(component: component, webComponentPath: "ChatMessage", nativeRendererNames: ["MessageBubble", "RichMarkdownView", "SubChatBatchView"], variants: ["default", "user", "mentions", "assistant", "thinking", "markdown", "citations", "quote-open", "quote-scroll", "results-map", "results-visual", "results-berlin-map", "results-date-only", "results-invalid", "sub-chat-batch", "streaming", "streaming-long", "streaming-reduced-motion"], hostSupport: .componentHost)
         case .embedPreview:
-            return .init(component: component, webComponentPath: "embeds/web/WebSearchEmbedPreview", nativeRendererNames: ["EmbedPreviewCard"], variants: ["default", "processing", "error", "cancelled", "sheet", "sheet-wide", "sheet-large", "search-long", "search-thumbnail", "search-group"], hostSupport: .componentHost)
+            return .init(component: component, webComponentPath: "embeds/web/WebSearchEmbedPreview", nativeRendererNames: ["EmbedPreviewCard"], variants: ["default", "processing", "error", "cancelled", "sheet", "sheet-wide", "sheet-large", "search-long", "search-thumbnail", "search-group", "search-overflow", "images-search-overflow", "news-search"], hostSupport: .componentHost)
         case .embedFullscreen:
-            return .init(component: component, webComponentPath: "embeds/web/WebSearchEmbedFullscreen", nativeRendererNames: ["EmbedFullscreenContainer"], variants: ["default", "processing", "error", "withNavigation", "actions-code"], hostSupport: .componentHost)
+            return .init(component: component, webComponentPath: "embeds/web/WebSearchEmbedFullscreen", nativeRendererNames: ["EmbedFullscreenContainer"], variants: ["default", "processing", "error", "withNavigation", "actions-code", "event-image"], hostSupport: .componentHost)
         case .sidebar:
             return .init(component: component, webComponentPath: "chats/Chats", nativeRendererNames: ["ChatSidebarContent", "ChatListRow", "ChatSearchView"], variants: ["default", "guest", "account", "empty", "dated"], hostSupport: .componentHost)
         case .history:

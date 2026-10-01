@@ -400,6 +400,9 @@ struct PIIMapping: Codable, Equatable, Sendable {
 
 struct Message: Identifiable, Decodable, Sendable {
     let id: String
+    /// Database identity is an alias; the client message ID is canonical across
+    /// optimistic sends, cache hydration and Directus snapshots.
+    let serverMessageId: String?
     let chatId: String
     let role: MessageRole
     var content: String? {         // Decrypted content (set client-side after decryption)
@@ -443,6 +446,21 @@ struct Message: Identifiable, Decodable, Sendable {
     let thinkingTokenCount: Int?
     private(set) var renderDocument: ChatHistoryRenderDocument?
 
+    /// Resolve an explicit database alias without borrowing plaintext from an
+    /// older edit or another chat. A valid canonical body always wins.
+    func localBodySource(canonical: Message?, alias: Message?) -> Message? {
+        guard canonical?.content == nil,
+              let ciphertext = encryptedContent, !ciphertext.isEmpty,
+              let alias, alias.id == serverMessageId, alias.chatId == chatId,
+              alias.role == role, alias.encryptedContent == ciphertext,
+              alias.content != nil else { return canonical ?? alias }
+        if let canonical {
+            guard canonical.id == id, canonical.chatId == chatId,
+                  canonical.role == role, canonical.encryptedContent == ciphertext else { return canonical }
+        }
+        return alias
+    }
+
     init(
         id: String,
         chatId: String,
@@ -466,9 +484,11 @@ struct Message: Identifiable, Decodable, Sendable {
         encryptedThinkingContent: String? = nil,
         encryptedThinkingSignature: String? = nil,
         thinkingTokenCount: Int? = nil,
-        renderDocument: ChatHistoryRenderDocument? = nil
+        renderDocument: ChatHistoryRenderDocument? = nil,
+        serverMessageId: String? = nil
     ) {
         self.id = id
+        self.serverMessageId = serverMessageId == id ? nil : serverMessageId
         self.chatId = chatId
         self.role = role
         self.content = content
@@ -498,8 +518,14 @@ struct Message: Identifiable, Decodable, Sendable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = try container.decodeIfPresent(String.self, forKey: .id)
-            ?? container.decode(String.self, forKey: .messageId)
+        let databaseId = try container.decodeIfPresent(String.self, forKey: .id)
+        id = try container.decodeIfPresent(String.self, forKey: .clientMessageId)
+            ?? container.decodeIfPresent(String.self, forKey: .clientMessageIdSnake)
+            ?? container.decodeIfPresent(String.self, forKey: .canonicalMessageId)
+            ?? container.decodeIfPresent(String.self, forKey: .messageId)
+            ?? container.decode(String.self, forKey: .id)
+        let suppliedAlias = try container.decodeIfPresent(String.self, forKey: .serverMessageId)
+        serverMessageId = suppliedAlias ?? (databaseId != id ? databaseId : nil)
         chatId = try container.decodeIfPresent(String.self, forKey: .chatId)
             ?? container.decode(String.self, forKey: .chatIdSnake)
         role = try container.decode(MessageRole.self, forKey: .role)
@@ -549,6 +575,10 @@ struct Message: Identifiable, Decodable, Sendable {
     enum CodingKeys: String, CodingKey {
         case id
         case messageId = "message_id"
+        case canonicalMessageId = "messageId"
+        case clientMessageId
+        case clientMessageIdSnake = "client_message_id"
+        case serverMessageId
         case chatId
         case chatIdSnake = "chat_id"
         case role

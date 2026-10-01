@@ -278,6 +278,8 @@ struct AppSkillUseRenderer: View {
         }
         if appId == "web", skillId == "search" {
             return AnyView(WebSearchEmbedRenderer(model: model, mode: .preview, onOpenEmbed: onOpenEmbed))
+        } else if appId == "news", skillId == "search" {
+            return AnyView(NewsSearchEmbedRenderer(model: model, mode: .preview, onOpenEmbed: onOpenEmbed))
         } else if appId == "code", skillId == "search_repos" {
             return AnyView(CodeRepoSearchEmbedRenderer(
                 model: CodeRepoSearchModel(embed: embed, allEmbedRecords: allEmbedRecords),
@@ -461,6 +463,8 @@ struct AppSkillUseRenderer: View {
             specializedFullscreen(specialized)
         } else if appId == "web", skillId == "search" {
             WebSearchEmbedRenderer(model: model, mode: .fullscreen, onOpenEmbed: onOpenEmbed)
+        } else if appId == "news", skillId == "search" {
+            NewsSearchEmbedRenderer(model: model, mode: .fullscreen, onOpenEmbed: onOpenEmbed)
         } else if appId == "code", skillId == "search_repos" {
             CodeRepoSearchEmbedRenderer(
                 model: CodeRepoSearchModel(embed: embed, allEmbedRecords: allEmbedRecords),

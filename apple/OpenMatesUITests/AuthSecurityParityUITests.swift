@@ -30,6 +30,30 @@ final class AuthSecurityParityUITests: XCTestCase {
         attachScreenshot(name: "Unauthenticated auth entry identifiers")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=auth.session.authoritative-enforcement,auth.session.lifecycle
+    func testRejectedCachedSessionOpensUsableLoginAndRetainsCachedChatRows() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-authenticated-chat-navigation", "--ui-test-rejected-native-session",
+                               "--ui-test-prefer-password-login", "-AppleLanguages", "(en)"]
+        app.launch()
+        let login = app.buttons["auth-login-tab"]
+        XCTAssertTrue(login.waitForExistence(timeout: 15))
+        XCTAssertTrue(login.isHittable)
+        let email = app.textFields["email-input"]
+        XCTAssertTrue(email.waitForExistence(timeout: 5))
+        XCTAssertTrue(email.isHittable)
+        guard RealAccountUITestSupport.focusForTextEntry(email, in: app, identifier: "email-input") else { return }
+        email.typeText("session-fixture@example.test")
+        XCTAssertEqual(email.value as? String, "session-fixture@example.test")
+        let sidebar = app.buttons["sidebar-toggle"]
+        XCTAssertTrue(sidebar.isHittable)
+        sidebar.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["chat-history-panel"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Current Chat"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Header navigation draft"].waitForExistence(timeout: 5))
+        attachScreenshot(name: "Rejected session retains cached chat rows and offers login")
+    }
+
     private func attachScreenshot(name: String) {
         let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         attachment.name = name

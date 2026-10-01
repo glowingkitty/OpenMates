@@ -61,6 +61,10 @@ enum EmbedPreviewCardVariant {
 /// canonical embed key so result cards do not inherit an unrelated app icon.
 enum EmbedVisualSkillIcon {
     static func name(for embed: EmbedRecord, fullscreen: Bool = false) -> String {
+        if (embed.appId ?? embed.rawData?["app_id"]?.value as? String) == "news",
+           (embed.skillId ?? embed.rawData?["skill_id"]?.value as? String) == "search" {
+            return "search"
+        }
         switch embed.type {
         case "recording": return "microphone"
         case "app:audio:generate", "app:audio:speak": return "audio"
@@ -211,7 +215,7 @@ struct EmbedPreviewCard: View {
                     title: statusTitle
                 )
                 .accessibilityElement(children: embed.status == .finished &&
-                    (embedType == .webSearch || embedType == .sheetsSheet || (embed.isAppSkillUse && appId == "web")) ? .contain : .combine)
+                    (embedType == .webSearch || embedType == .newsSearch || (embedType == .webWebsite && appId == "news") || embedType == .imagesSearch || embedType == .sheetsSheet || (embed.isAppSkillUse && appId == "web")) ? .contain : .combine)
                 .accessibilityValue(statusAccessibilityValue)
             }
         }
@@ -791,7 +795,7 @@ struct EmbedPreviewCard: View {
         let description = firstString(in: raw, keys: ["description", "meta_description", "summary"])?
             .replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        let image = firstString(in: raw, keys: ["thumbnail_original", "image", "image_url", "thumbnail_url", "meta_image", "og_image"])
+        let image = firstString(in: raw, keys: ["thumbnail_original", "thumbnail.original", "image", "image_url", "thumbnail_url", "meta_image", "og_image"])
         return (description?.isEmpty ?? true) && image != nil
     }
 

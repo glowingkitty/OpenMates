@@ -1,3 +1,5 @@
+// Specification: specifications/features/settings-ui/specification.yml
+// Assertions: settings-ui.parity.web-apple-shell
 // Responsive chat, embed, sidebar, and settings pane composition.
 //
 // ─── Web source ─────────────────────────────────────────────────────
@@ -203,6 +205,13 @@ struct WorkspaceSidebarLayout<Sidebar: View, Content: View>: View {
 }
 
 
+enum WorkspaceSettingsBackdropPolicy {
+    // Settings.svelte applies .active-chat-container.dimmed below the overlay breakpoint.
+    static func contentOpacity(windowWidth: CGFloat, isOpen: Bool, parentVisible: Bool) -> Double {
+        parentVisible && windowWidth <= 1100 && isOpen ? 0.3 : 1
+    }
+}
+
 /// Settings keeps its navigation subtree, and the workspace, mounted on resize.
 struct WorkspaceSettingsLayout<Content: View, Settings: View>: View {
     let windowWidth: CGFloat
@@ -232,11 +241,17 @@ struct WorkspaceSettingsLayout<Content: View, Settings: View>: View {
                     .background(Color.grey20)
                     .clipShape(RoundedRectangle(cornerRadius: 17))
                     .shadow(color: .black.opacity(0.25), radius: 12)
+                    .opacity(WorkspaceSettingsBackdropPolicy.contentOpacity(windowWidth: windowWidth, isOpen: isOpen, parentVisible: parentVisible))
                     .allowsHitTesting(parentVisible && (!overlay || !isOpen))
                     .accessibilityHidden(!parentVisible || (overlay && isOpen))
                 if parentVisible && overlay && isOpen {
-                    Color.black.opacity(0.2).contentShape(Rectangle())
-                        .onTapGesture { isOpen = false }.accessibilityHidden(true)
+                    // Fade the retained pane over its normal shell background, as web does.
+                    // A clear dismissal target avoids adding a second darkening layer.
+                    Button { isOpen = false } label: {
+                        Color.clear.contentShape(Rectangle())
+                    }.buttonStyle(.plain)
+                        .accessibilityLabel(AppStrings.close)
+                        .accessibilityIdentifier("settings-backdrop-dismiss")
                 }
                 settings().environment(\.workspacePaneIsVisible, parentVisible && visible)
                     .frame(width: panelWidth, height: height)

@@ -120,6 +120,7 @@ private struct EventPreviewDetails: View {
 
 private struct EventFullscreenDetails: View {
     let event: EventResultSummary
+    @State private var loadedImageURL: String?
 
     var body: some View {
         EmbedMapDetailTemplate(mapConfiguration: event.mapConfiguration) {
@@ -130,14 +131,21 @@ private struct EventFullscreenDetails: View {
     private var eventDetailContent: some View {
         VStack(alignment: .leading, spacing: .spacing8) {
             if let imageURL = event.imageURL, let url = URL(string: imageURL) {
-                CachedRemoteImage(url: url) { image in
-                    image.resizable().aspectRatio(contentMode: .fill)
-                } placeholder: {
-                    Color.grey20
+                GeometryReader { viewport in
+                    CachedRemoteImage(url: url, onSuccess: { loadedImageURL = imageURL }) { image in
+                        image.resizable().aspectRatio(contentMode: .fill)
+                    } placeholder: {
+                        Color.grey20
+                    }
+                    .frame(width: viewport.size.width, height: 190)
+                    .clipShape(RoundedRectangle(cornerRadius: .radius5))
+                    .clipped()
+                    // Match the banner's hit and accessibility bounds to its painted viewport.
+                    .contentShape(Rectangle())
                 }
                 .frame(height: 190)
-                .clipShape(RoundedRectangle(cornerRadius: .radius5))
-                .clipped()
+                .accessibilityIdentifier("event-fullscreen-image")
+                .accessibilityValue(loadedImageURL == imageURL ? "loaded" : "loading")
             }
 
             HStack(spacing: .spacing4) {

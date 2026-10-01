@@ -126,6 +126,7 @@ final class PersistedChat {
 @Model
 final class PersistedMessage {
     @Attribute(.unique) var id: String
+    var serverMessageId: String?
     var chatId: String
     var role: String
     var content: String?
@@ -151,6 +152,7 @@ final class PersistedMessage {
 
     init(from message: Message) {
         self.id = message.id
+        self.serverMessageId = message.serverMessageId
         self.chatId = message.chatId
         self.role = message.role.rawValue
         self.content = message.content
@@ -197,7 +199,7 @@ final class PersistedMessage {
             encryptedThinkingContent: encryptedThinkingContent,
             encryptedThinkingSignature: encryptedThinkingSignature,
             thinkingTokenCount: thinkingTokenCount,
-            renderDocument: renderDocument
+            renderDocument: renderDocument, serverMessageId: serverMessageId
         )
     }
 }
@@ -580,14 +582,32 @@ final class OfflineStore: ObservableObject {
             let existingDescriptor = FetchDescriptor<PersistedMessage>(
                 predicate: #Predicate { $0.chatId == targetChatId }
             )
-            let existingById = Dictionary(
+            var existingById = Dictionary(
                 ((try? context.fetch(existingDescriptor)) ?? []).map { ($0.id, $0) },
                 uniquingKeysWith: { first, _ in first }
             )
 
             for message in messages {
+                // Migrate a known wire alias, never infer identity from text.
+                // This also repairs caches written before client IDs won decode.
+                if let alias = message.serverMessageId, alias != message.id,
+                   let old = existingById[alias], old.chatId == chatId, old.role == message.role.rawValue {
+                    if let canonical = existingById[message.id] {
+                        let bodySource = message.localBodySource(canonical: canonical.toMessage(), alias: old.toMessage())
+                        if canonical.content == nil, bodySource?.id == alias {
+                            canonical.content = bodySource?.content
+                        }
+                        context.delete(old)
+                    } else {
+                        old.id = message.id
+                        existingById[message.id] = old
+                    }
+                    existingById.removeValue(forKey: alias)
+                }
                 if let existing = existingById[message.id] {
-                    existing.content = message.content
+                    existing.serverMessageId = message.serverMessageId ?? existing.serverMessageId
+                    let sameCiphertext = message.encryptedContent != nil && message.encryptedContent == existing.encryptedContent
+                    existing.content = message.content ?? (sameCiphertext ? existing.content : nil)
                     existing.encryptedContent = message.encryptedContent
                     existing.updatedAt = message.updatedAt
                     existing.appId = message.appId
@@ -603,6 +623,7 @@ final class OfflineStore: ObservableObject {
                     let persisted = PersistedMessage(from: message)
                     persisted.chat = persistedChat
                     context.insert(persisted)
+                    existingById[message.id] = persisted
                 }
                 savedMessages += 1
             }

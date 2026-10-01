@@ -122,6 +122,12 @@ exact `chrome=0` URL and matching viewport; registry metadata is not visual
 approval. Run the focused parser/UI tests and then verify the change in its real
 parent flow. Keep TestFlight delivery for testing outside Simulator.
 
+Register new fixture variants in the launch configuration before native tests.
+Use the rendered accessibility role when querying controls, wait for the expected
+state rather than existence alone, and measure the component canvas separately
+from the Simulator window. Clipping must also bound interaction and accessibility
+to the visible viewport; inspect screenshots alongside accessibility bounds.
+
 Streaming parity includes paragraph-by-paragraph updates, live embed references,
 the rendered web animation timing, and reduced motion. Exercise partial citation
 syntax, later embed hydration, opening a citation before the response completes,
@@ -258,6 +264,11 @@ Use `scripts/apple_testflight_release.py` for a local release Mac; use
 `scripts/apple_remote.py deploy-latest-testflight --branch dev` only for a
 configured remote release Mac. One owner runs native builds and uploads while
 other authorized work proceeds without competing Xcode or Simulator processes.
+
+Before expensive archives, reconcile the latest dev inputs and run the focused
+lint, test-annotation and signing-input checks described in the release guide.
+Use existing installed tools so a lint command does not unexpectedly install
+packages or run generators while release inputs are frozen.
 
 Reuse source-bound receipts and the existing ExportOptions plist. Keep the source
 frozen during archive/upload; preserve and rebuild stale archives only when the

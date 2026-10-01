@@ -3,6 +3,25 @@ import XCTest
 
 @MainActor
 final class SearchDomainRenderersTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testNewsArticleKeepsNestedThumbnailIdentityAndNewsChrome() throws {
+        let child = record(id: "article", type: "web-website", data: [
+            "url": AnyCodable("https://example.com/news"),
+            "thumbnail": AnyCodable(["original": "/images/og-image.jpg"]),
+            "description": AnyCodable("Article summary")])
+        let result = try XCTUnwrap(WebsiteResultModel(embed: child))
+        let article = NewsSearchEmbedRenderer.articleRecord(for: result)
+        XCTAssertEqual(article.id, child.id)
+        XCTAssertEqual(article.appId, "news")
+        XCTAssertEqual(article.rawData?["thumbnail_original"]?.value as? String, "/images/og-image.jpg")
+        XCTAssertEqual(NewsPreviewLayout.descriptionWidth(containerWidth: 280, hasImage: true), 130)
+        XCTAssertEqual(NewsPreviewLayout.descriptionWidth(containerWidth: 260, hasImage: false), 260)
+        let generic = EmbedRecord(id: "parent", type: "app-skill-use", status: .finished,
+                                 data: .raw([:]), parentEmbedId: nil, appId: "news", skillId: "search",
+                                 embedIds: nil, createdAt: nil)
+        XCTAssertEqual(EmbedVisualSkillIcon.name(for: generic), "search")
+    }
+
     #if canImport(MapKit)
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testAppointmentLocationMapAcceptsNestedFlatAndProviderAliasCoordinates() {

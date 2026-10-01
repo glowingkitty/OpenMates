@@ -7,6 +7,8 @@
 // Assertions: code-run.output.chat-bound-encrypted
 // Specification: specifications/features/pii-protection/specification.yml
 // Assertions: pii.embed.owner-local-reveal-sync, pii.surface.semantic-parity
+// Specification: specifications/features/auth/specification.yml
+// Assertions: auth.session.lifecycle, auth.session.authoritative-enforcement, auth.session.isolation
 
 import CryptoKit
 import Foundation
@@ -50,6 +52,17 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
     private var authToken: String?
     private var activeSyncState: SyncClientState = .empty
     private var syncStateProvider: (() -> SyncClientState)?
+    enum SessionRecoveryResult {
+        case authenticated(sessionID: String, token: String?)
+        case unavailable
+        case rejected
+    }
+    private var sessionRecovery: (() async -> SessionRecoveryResult)?
+
+    func configureSessionRecovery(_ recovery: @escaping () async -> SessionRecoveryResult) {
+        sessionRecovery = recovery
+    }
+
     private var shouldReconnect = false
     private var maxReconnectAttempts = 10
     private var reconnectDelay: TimeInterval = 1.0
@@ -85,7 +98,10 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             }
         }
 
-        if activeConnectionKey != nextKey {
+        // /session issues a fresh ws_token on recovery. Credential rotation
+        // retains this logical session's failed-handshake budget and backoff.
+        // A new native session, explicit disconnect, or opened socket resets it.
+        if activeConnectionKey?.sessionId != nextKey.sessionId {
             reconnectAttempts = 0
             reconnectDelay = 1.0
         }
@@ -402,18 +418,22 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         )
     }
 
-    func requestChatContentBatch(chatId: String) async throws -> WebSocketResponse {
+    func requestChatContentBatch(
+        chatId: String, beforeSend: (@MainActor () async throws -> Void)? = nil
+    ) async throws -> WebSocketResponse {
         try await sendAndWait(
             WSOutboundMessage(
                 type: "request_chat_content_batch",
                 payload: ["chat_ids": [chatId]]
             ),
-            responseType: "chat_content_batch_response",
-            timeout: .seconds(20)
-        ) { fields in
-            guard let messages = fields["messages_by_chat_id"] as? [String: Any] else { return false }
-            return messages[chatId] != nil
-        }
+            responseTypes: ["chat_content_batch_response"],
+            timeout: .seconds(20),
+            matching: { fields in
+                guard let messages = fields["messages_by_chat_id"] as? [String: Any] else { return false }
+                return messages[chatId] != nil
+            },
+            beforeSend: beforeSend
+        )
     }
 
     private func waitForOpenSocket(
@@ -842,7 +862,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
 
     // MARK: - Reconnect
 
-    private func handleDisconnect() {
+    private func handleDisconnect(authenticationRejected: Bool = false) {
         reconnectTask?.cancel()
         reconnectTask = nil
         connectTask?.cancel()
@@ -876,7 +896,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
 
         connectionState = .reconnecting(attempt: currentAttempt)
 
-        var delay = reconnectDelay
+        var delay = authenticationRejected ? 0 : reconnectDelay
         #if DEBUG
         delay = debugReconnectDelay ?? delay
         #endif
@@ -889,6 +909,22 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
                       isCancelled: Task.isCancelled
                   ), shouldReconnect else { return }
             reconnectDelay = min(reconnectDelay * 2, 30)
+            if let sessionRecovery {
+                let recovered = await sessionRecovery()
+                guard Self.shouldContinueConnectionAttempt(expectedGeneration: reconnectGeneration,
+                    currentGeneration: connectionGeneration, isCancelled: Task.isCancelled), shouldReconnect else { return }
+                switch recovered {
+                case .authenticated(let sessionID, let token):
+                    connect(sessionId: sessionID, token: token, syncState: activeSyncState)
+                case .unavailable:
+                    // A network/5xx failure retains offline identity and retries
+                    // validation later, never the known-rejected credentials.
+                    handleDisconnect()
+                case .rejected:
+                    disconnect()
+                }
+                return
+            }
             if let sessionId {
                 connect(sessionId: sessionId, token: authToken, syncState: activeSyncState)
             }
@@ -896,7 +932,10 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
     }
 
     #if DEBUG
-    func debugFailCurrentConnection() { handleDisconnect() }
+    func debugFailCurrentConnection(authenticationRejected: Bool = false) {
+        handleDisconnect(authenticationRejected: authenticationRejected)
+    }
+    var debugCurrentAuthToken: String? { authToken }
     #endif
 
     static func isCurrentSocket(
@@ -942,7 +981,20 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             ) else { return }
             NativeDiagnostics.event("socket_closed", category: "network", level: .warning,
                                     counts: ["close_code": closeCode.rawValue])
-            self.handleDisconnect()
+            self.handleDisconnect(authenticationRejected: closeCode == .policyViolation)
+        }
+    }
+
+    nonisolated func urlSession(_ session: URLSession, task: URLSessionTask,
+                                didCompleteWithError error: Error?) {
+        Task { @MainActor [weak self] in
+            guard let self, Self.isCurrentSocket(callbackTaskIdentifier: task.taskIdentifier,
+                currentTaskIdentifier: self.webSocketTask?.taskIdentifier) else { return }
+            let status = (task.response as? HTTPURLResponse)?.statusCode
+            guard error != nil || status == 401 || status == 403 else { return }
+            NativeDiagnostics.event("socket_transport_failed", category: "network", level: .warning,
+                                    counts: ["http_status": status ?? 0])
+            self.handleDisconnect(authenticationRejected: status == 401 || status == 403)
         }
     }
 }

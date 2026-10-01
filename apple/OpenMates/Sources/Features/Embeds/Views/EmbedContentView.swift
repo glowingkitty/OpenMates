@@ -99,13 +99,17 @@ struct EmbedContentView: View {
                     onOpenEmbed: onOpenEmbed
                 )
             case .newsSearch:
-                WebSearchEmbedRenderer(
+                NewsSearchEmbedRenderer(
                     model: SearchSkillPreviewModel(embed: embed, allEmbedRecords: allEmbedRecords),
                     mode: mode,
                     onOpenEmbed: onOpenEmbed
                 )
             case .webWebsite:
-                WebsiteEmbedRenderer(data: rawData, mode: mode)
+                if embed.appId == "news" || rawData?["app_id"]?.value as? String == "news" {
+                    NewsEmbedRenderer(data: rawData, mode: mode)
+                } else {
+                    WebsiteEmbedRenderer(data: rawData, mode: mode)
+                }
             case .webRead:
                 WebReadEmbedRenderer(data: rawData, mode: mode)
             case .businessCompanyFinancialResult:

@@ -43,6 +43,135 @@ final class ChatSyncParityTests: XCTestCase {
         XCTAssertEqual(store.chat(for: "chat-1")?.hasNonEmptyDraft, true)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity,chats.persistence.client-encrypted
+    func testMessageWireIdentityPrefersCanonicalClientIDAcrossDecoderStrategies() throws {
+        for convertsKeys in [false, true] {
+            let decoder = JSONDecoder()
+            if convertsKeys { decoder.keyDecodingStrategy = .convertFromSnakeCase }
+            for identity in [
+                ["id": "database-row", "message_id": "client-row", "client_message_id": "client-row"],
+                ["id": "database-row", "message_id": "client-row"],
+                ["message_id": "client-row"],
+                ["id": "database-row", "clientMessageId": "client-row", "messageId": "client-row"]
+            ] {
+                var payload: [String: Any] = identity
+                payload.merge(["chat_id": "chat-1", "role": "user", "created_at": 1770000000,
+                               "content": "An intentional repeated send"]) { _, new in new }
+                let decoded = try decoder.decode(Message.self, from: JSONSerialization.data(withJSONObject: payload))
+                XCTAssertEqual(decoded.id, "client-row")
+                XCTAssertEqual(decoded.serverMessageId, identity["id"])
+            }
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.persistence.client-encrypted,chats.local-state.precedence
+    func testCanonicalSnapshotMigratesPersistedAliasesAndKeepsQueuedOrRepeatedSendsOnColdReload() throws {
+        let schema = Schema([PersistedChat.self, PersistedMessage.self, PendingOfflineAction.self])
+        let configuration = ModelConfiguration("MessageIdentityMigration", schema: schema, isStoredInMemoryOnly: true)
+        let container = try ModelContainer(for: schema, configurations: [configuration])
+        let offline = OfflineStore(modelContainer: container)
+        let store = ChatStore()
+        let bridge = OfflineSyncBridge(chatStore: store, offlineStore: offline)
+        store.setBridge(bridge)
+        let time = "2026-01-01T00:00:00Z"
+        func row(_ id: String, role: MessageRole = .user, content: String = "Same intentionally repeated text",
+                 ciphertext: String? = nil, alias: String? = nil) -> Message {
+            Message(id: id, chatId: "chat-1", role: role, content: content, encryptedContent: ciphertext,
+                    createdAt: time, updatedAt: nil, appId: nil, isStreaming: false, embedRefs: nil,
+                    serverMessageId: alias)
+        }
+        let assistantBody = String(repeating: "Saved response. ", count: 270)
+        let previous = [row("database-user"), row("client-user"), row("repeat-user"),
+                        row("database-assistant", role: .assistant, content: assistantBody, ciphertext: "same-assistant-cipher")]
+        store.setMessages(for: "chat-1", messages: previous)
+        bridge.sendMessageOffline(chatId: "chat-1", messageId: "queued-user", content: "Still waiting offline")
+        let user = row("client-user", alias: "database-user")
+        let savedAssistant = Message(id: "client-assistant", chatId: "chat-1", role: .assistant,
+            content: nil, encryptedContent: "same-assistant-cipher", createdAt: time, updatedAt: nil,
+            appId: nil, isStreaming: false, embedRefs: nil, serverMessageId: "database-assistant")
+        let snapshot = [user, row("repeat-user"), savedAssistant]
+        for _ in 0..<2 {
+            store.applySyncedContent(messagesByChat: ["chat-1": snapshot], embedsByChat: [:])
+        }
+        XCTAssertEqual(Set(store.messages(for: "chat-1").map(\.id)),
+                       ["client-user", "repeat-user", "client-assistant", "queued-user"])
+        XCTAssertEqual(store.messages(for: "chat-1").first { $0.id == "client-assistant" }?.content, assistantBody)
+        let reloaded = OfflineStore(modelContainer: container).loadMessages(chatId: "chat-1")
+        XCTAssertEqual(Set(reloaded.map(\.id)), ["client-user", "repeat-user", "client-assistant", "queued-user"])
+        XCTAssertEqual(reloaded.first { $0.id == "client-assistant" }?.content, assistantBody)
+        XCTAssertEqual(reloaded.first { $0.id == "client-user" }?.serverMessageId, "database-user")
+        XCTAssertEqual(reloaded.filter { $0.content == "Same intentionally repeated text" }.count, 2)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.local-state.precedence,chats.persistence.client-encrypted
+    func testSnapshotReplayKeepsDecodedBodyOnlyForMatchingCiphertextAndExplicitIdentity() {
+        let store = ChatStore()
+        let time = "2026-01-01T00:00:00Z"
+        let complete = Message(id: "reply", chatId: "chat-1", role: .assistant, content: "A finished response",
+            encryptedContent: "cipher-v1", createdAt: time, updatedAt: nil, appId: nil, isStreaming: false, embedRefs: nil)
+        store.appendMessage(complete, to: "chat-1")
+        func snapshot(_ ciphertext: String) -> Message {
+            Message(id: "reply", chatId: "chat-1", role: .assistant, content: nil, encryptedContent: ciphertext,
+                    createdAt: time, updatedAt: nil, appId: nil, isStreaming: false, embedRefs: nil)
+        }
+        store.applySyncedContent(messagesByChat: ["chat-1": [snapshot("cipher-v1")]], embedsByChat: [:])
+        XCTAssertEqual(store.messages(for: "chat-1").first?.content, complete.content)
+        store.applySyncedContent(messagesByChat: ["chat-1": [snapshot("cipher-v2")]], embedsByChat: [:])
+        XCTAssertNil(store.messages(for: "chat-1").first?.content, "An edit's new ciphertext cannot reuse stale text")
+        let canonical = Message(id: "canonical", chatId: "chat-1", role: .assistant,
+            content: nil, encryptedContent: "cipher-v1", createdAt: time, updatedAt: nil,
+            appId: nil, isStreaming: false, embedRefs: nil, serverMessageId: complete.id)
+        let merged = ChatContentBatchPayload.mergedMessages(snapshot: [canonical, canonical], preserving: [complete])
+        XCTAssertEqual(merged.map(\.id), [canonical.id])
+        XCTAssertEqual(merged.first?.content, complete.content)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.persistence.client-encrypted,chats.local-state.precedence
+    func testDualRowAssistantAliasBodySurvivesReplayAppendAndColdReload() throws {
+        let time = "2026-01-01T00:00:00Z"
+        func row(_ id: String, body: String?, cipher: String = "cipher-v1", alias: String? = nil) -> Message {
+            Message(id: id, chatId: "chat-1", role: .assistant, content: body, encryptedContent: cipher,
+                    createdAt: time, updatedAt: nil, appId: nil, isStreaming: false, embedRefs: nil,
+                    serverMessageId: alias)
+        }
+        let canonical = row("canonical", body: nil)
+        let alias = row("database", body: "Saved decoded response")
+        let snapshot = row("canonical", body: nil, alias: alias.id)
+        let previous = [canonical, alias]
+        for route in ["set", "sync", "append"] {
+            let store = ChatStore()
+            store.setMessages(for: "chat-1", messages: previous)
+            if route == "set" { store.setMessages(for: "chat-1", messages: [snapshot]) }
+            if route == "sync" { store.applySyncedContent(messagesByChat: ["chat-1": [snapshot]], embedsByChat: [:]) }
+            if route == "append" { store.appendMessage(snapshot, to: "chat-1") }
+            XCTAssertEqual(store.messages(for: "chat-1").map(\.id), [canonical.id], route)
+            XCTAssertEqual(store.messages(for: "chat-1").first?.content, alias.content, route)
+        }
+        let merged = ChatContentBatchPayload.mergedMessages(snapshot: [snapshot, snapshot], preserving: previous)
+        XCTAssertEqual(merged.map(\.id), [canonical.id])
+        XCTAssertEqual(merged.first?.content, alias.content)
+        let schema = Schema([PersistedChat.self, PersistedMessage.self, PendingOfflineAction.self])
+        let configuration = ModelConfiguration("DualRowAliasBody", schema: schema, isStoredInMemoryOnly: true)
+        let container = try ModelContainer(for: schema, configurations: [configuration])
+        let offline = OfflineStore(modelContainer: container)
+        offline.persistMessages(previous, chatId: "chat-1")
+        offline.persistMessages([snapshot, snapshot], chatId: "chat-1")
+        let coldRows = OfflineStore(modelContainer: container).loadMessages(chatId: "chat-1")
+        XCTAssertEqual(coldRows.map(\.id), [canonical.id])
+        XCTAssertEqual(coldRows.first?.content, alias.content)
+
+        let validCanonical = row("canonical", body: "Canonical decoded response")
+        XCTAssertEqual(snapshot.localBodySource(canonical: validCanonical, alias: alias)?.content, validCanonical.content)
+        let changedCanonical = row("canonical", body: nil, cipher: "cipher-v2")
+        XCTAssertNil(snapshot.localBodySource(canonical: changedCanonical, alias: alias)?.content)
+        let changedAlias = row("database", body: "Stale decoded response", cipher: "cipher-v2")
+        XCTAssertNil(snapshot.localBodySource(canonical: canonical, alias: changedAlias)?.content)
+        let otherChatAlias = Message(id: alias.id, chatId: "other-chat", role: .assistant,
+            content: alias.content, encryptedContent: alias.encryptedContent, createdAt: time,
+            updatedAt: nil, appId: nil, isStreaming: false, embedRefs: nil)
+        XCTAssertNil(snapshot.localBodySource(canonical: canonical, alias: otherChatAlias)?.content)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity
     func testFinalStreamAppendKeepsMatchingPendingCiphertextAndThinkingMetadata() {
         let store = ChatStore()
@@ -756,6 +885,27 @@ final class ChatSyncParityTests: XCTestCase {
             eventType: "chat_deleted",
             eventChatId: "chat-1"
         ))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=drafts.draft-only.lifecycle,chat-navigation.empty-new-chat.excluded
+    func testRemovedDraftClosesOnlyMatchingEmptyComposerInCurrentAccountScope() {
+        let scope = UUID()
+        func closes(id: String? = "draft", event: String? = "draft", eventScope: UUID? = nil,
+                    removed: Bool = true, content: Bool = false, messages: Bool = false) -> Bool {
+            ChatSelectionSyncPolicy.shouldCloseRemovedDraft(
+                selectedChatId: id, eventChatId: event, eventScope: eventScope ?? scope,
+                currentScope: scope, chatRemoved: removed, hasComposerContent: content, hasMessages: messages)
+        }
+        XCTAssertTrue(closes())
+        XCTAssertFalse(closes(id: nil))
+        XCTAssertFalse(closes(event: "other-draft"))
+        XCTAssertFalse(closes(eventScope: UUID()))
+        XCTAssertFalse(closes(removed: false))
+        XCTAssertFalse(closes(content: true), "Newer typing, pending attachments and recording keep their route")
+        XCTAssertFalse(closes(messages: true), "Sent or streaming content must keep its route")
+        XCTAssertFalse(ChatSelectionSyncPolicy.shouldCloseRemovedDraft(
+            selectedChatId: "draft", eventChatId: "draft", eventScope: nil, currentScope: scope,
+            chatRemoved: true, hasComposerContent: false, hasMessages: false))
     }
 
     // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity,chats.persistence.client-encrypted

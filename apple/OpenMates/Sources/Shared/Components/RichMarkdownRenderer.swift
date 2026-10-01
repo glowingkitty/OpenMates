@@ -98,7 +98,7 @@ private extension LinearGradient {
     }
 }
 
-private enum SearchTextHighlighter {
+enum SearchTextHighlighter {
     static func highlighted(_ text: String, query: String?) -> AttributedString {
         var attributed = AttributedString(text)
         highlightMatches(in: &attributed, query: query)
@@ -2966,7 +2966,7 @@ struct InlineMarkdownText: View {
         // The mounted preparation cache prevents reparsing on unrelated updates;
         // the existing flow keeps its bounded cache of measured width proposals.
         let customLayout = content.contains("(wiki:") || content.contains("(embed:") || content.contains("](")
-            || MarkdownMathParser.containsFormula(in: content)
+            || MarkdownMathParser.containsFormula(in: content) || content.contains("@")
         let attributed = customLayout ? AttributedString() :
             ((try? AttributedString(markdown: content, options: .init(
                 interpretedSyntax: .inlineOnlyPreservingWhitespace
@@ -3040,6 +3040,8 @@ struct InlineMarkdownText: View {
                         .stroke(Color.grey30, lineWidth: 1)
                 }
                 .fixedSize()
+        case .mention(let mention):
+            NativeMentionLabel(mention: mention, highlightRanges: highlightRanges)
         case .math(let latex, let display):
             MarkdownFormulaText(latex: latex, display: display, isUserMessage: isUserMessage)
                 .fixedSize(horizontal: false, vertical: true)
@@ -3316,6 +3318,7 @@ enum MarkdownMathParser {
 }
 
 enum InlineMarkdownToken: Equatable {
+    case mention(NativeMentionPresentation)
     case text(String, isBold: Bool)
     case inlineCode(String)
     case math(String, display: Bool)
@@ -3323,8 +3326,10 @@ enum InlineMarkdownToken: Equatable {
     case embed(displayText: String, embedRef: String, isBold: Bool)
     case link(displayText: String, url: String, isInternal: Bool, isBold: Bool)
 
-    var searchText: String {
+    @MainActor var searchText: String {
         switch self {
+        case .mention(let mention):
+            return mention.label
         case .text(let text, _), .inlineCode(let text):
             return text
         case .math(let latex, _):
@@ -3364,6 +3369,14 @@ enum InlineMarkdownTokenizer {
                 continue
             }
 
+            if source[index] == "@",
+               (index == source.startIndex || source[source.index(before: index)].isWhitespace),
+               let mention = parseMention(in: source, from: index) {
+                tokens.append(.mention(mention.value))
+                index = mention.endIndex
+                continue
+            }
+
             if source[index] == "[", let link = parseSpecialLink(in: source, from: index) {
                 switch link.kind {
                 case .wiki:
@@ -3399,6 +3412,16 @@ enum InlineMarkdownTokenizer {
         }
 
         return tokens
+    }
+
+    private static func parseMention(in source: String, from start: String.Index) -> (value: NativeMentionPresentation, endIndex: String.Index)? {
+        var end = start
+        while end < source.endIndex, !source[end].isWhitespace, !",!?;()[]".contains(source[end]) {
+            end = source.index(after: end)
+        }
+        while end > start, source[source.index(before: end)] == "." { end = source.index(before: end) }
+        guard let mention = NativeMentionPresentation.parse(String(source[start..<end])) else { return nil }
+        return (mention, end)
     }
 
     private enum SpecialLinkKind {
@@ -3498,7 +3521,7 @@ enum InlineMarkdownTokenizer {
     private static func nextSpecialIndex(in source: String, from start: String.Index) -> String.Index? {
         var index = start
         while index < source.endIndex {
-            if source[index...].hasPrefix("**") || source[index] == "[" || source[index] == "`" || source[index] == "$" {
+            if source[index...].hasPrefix("**") || source[index] == "[" || source[index] == "`" || source[index] == "$" || source[index] == "@" {
                 return index
             }
             index = source.index(after: index)

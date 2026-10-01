@@ -373,6 +373,7 @@
 		562564034013E83CF39716AD /* NativeSignupRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6302F6D59F1F0B082AD7554 /* NativeSignupRuntime.swift */; };
 		562A326FED39111A051E4E12 /* ChatOpeningScalabilityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4530B60989D4455031AEEBB /* ChatOpeningScalabilityUITests.swift */; };
 		563F43A66FA1E96562430CEE /* AuthFlowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 278DA325890FA2DFF476E51A /* AuthFlowView.swift */; };
+		56A81CD2939B918491410627 /* NewsEmbedRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA289A12DF31DE5271132348 /* NewsEmbedRenderer.swift */; };
 		56B43CA011E5471E26D3D0A6 /* SpeechIcons.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2C669A530EB6253E4BC11A4E /* SpeechIcons.xcassets */; };
 		570B5F0E1531EC9238A2AC20 /* SettingsAccountChatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9EA07F6DD4573380C2EC670 /* SettingsAccountChatsView.swift */; };
 		57305550B29C88BAEF4DA565 /* SettingsMemoryDraft.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE4DD10F1316C97426B85B2B /* SettingsMemoryDraft.swift */; };
@@ -389,6 +390,7 @@
 		5AF3DC85962CFB35059ECAE5 /* Tokens.generated.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5173B9BE383BB724102AA571 /* Tokens.generated.swift */; };
 		5C0284CA34D7C749ED741D6E /* TeamWorkspaceContextTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92715E6C8A4910EF41336E07 /* TeamWorkspaceContextTests.swift */; };
 		5C5E875EA494BEDC7447FD39 /* RecipientMediaContextTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7427AEFC8243635DA8B1195C /* RecipientMediaContextTests.swift */; };
+		5C6DE00E1A154FB0E84E27D2 /* NewsSearchEmbedRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C72AFBA9A59E6F7E39BBE383 /* NewsSearchEmbedRenderer.swift */; };
 		5C7E79C442F0B12CC216756E /* Icons.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FCEE69EF4CB43B2D32AE2C25 /* Icons.xcassets */; };
 		5CB2F7137FB6BA1113D1E0C3 /* ChatResponsiveParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 930676D4E3D5E0DF529FB8D7 /* ChatResponsiveParityUITests.swift */; };
 		5CBE094CF987B01788E3B672 /* SettingsAccountChatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9EA07F6DD4573380C2EC670 /* SettingsAccountChatsView.swift */; };
@@ -678,6 +680,7 @@
 		9FF63FE599E18B8906B46A97 /* PIIDetectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31F57539EE2FDEC183CA879D /* PIIDetectionView.swift */; };
 		A037B65D29F8DEC2B427694C /* ProgressiveMarkdownRenderProjection.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4D8A4D6C0D2F7B5676E93F7 /* ProgressiveMarkdownRenderProjection.swift */; };
 		A03A0EDD2053849A042976CC /* DraftSyncParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C9934D450DA79648E03F87C /* DraftSyncParityTests.swift */; };
+		A0A258E9B74AB06DB24FFA40 /* NewsEmbedRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA289A12DF31DE5271132348 /* NewsEmbedRenderer.swift */; };
 		A0FE0BAC94F2661C1476CD2A /* ShortWorkflowShareTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF24D704CF617E1777A812CE /* ShortWorkflowShareTests.swift */; };
 		A1116AABE53DD79876AC99A8 /* SearchChatsIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADF544C0D4DC1941DE7C57DF /* SearchChatsIntent.swift */; };
 		A127CA2EA72A4841BCB5DB5C /* FollowUpSuggestions.swift in Sources */ = {isa = PBXBuildFile; fileRef = E76E863A52EBF1C2CEE7D70A /* FollowUpSuggestions.swift */; };
@@ -768,6 +771,7 @@
 		BA2CEDCC52997D7A2F55B0A9 /* ChatModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = D75EAD87B703C54666637C80 /* ChatModels.swift */; };
 		BA5480420A61DE202E1B4703 /* WorkflowAIAuthoringController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E84F5C70E726F117A4704E19 /* WorkflowAIAuthoringController.swift */; };
 		BB303EADE6D03CF0B57DBE8A /* WorkspacePromptComposerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36E88ED7FD852F97A28EEC7C /* WorkspacePromptComposerView.swift */; };
+		BB83CAA00F7AC220DCADEFF0 /* NewsSearchEmbedRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C72AFBA9A59E6F7E39BBE383 /* NewsSearchEmbedRenderer.swift */; };
 		BB83F086644D0F4A4705DBC3 /* EmbedContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0227C2E4CCA424320275BF24 /* EmbedContentView.swift */; };
 		BB877ECA3692E73ACBD44B02 /* AnonymousFreeUsageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F6AAC55726DF6A742B7F5AB /* AnonymousFreeUsageService.swift */; };
 		BBCAE0FD1E96CFB49CC2F362 /* ModelPreferenceAppRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = 900FE6216775579743921FA2 /* ModelPreferenceAppRuntime.swift */; };
@@ -1589,6 +1593,7 @@
 		B9E6F51404637FC0EFC12D7D /* ComposerSearchSuggestionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerSearchSuggestionTests.swift; sourceTree = "<group>"; };
 		B9FBFD8D921E0469DA412993 /* ChatKeyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatKeyManager.swift; sourceTree = "<group>"; };
 		BA2529A349283903685194DB /* EmbedWireFormatTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmbedWireFormatTests.swift; sourceTree = "<group>"; };
+		BA289A12DF31DE5271132348 /* NewsEmbedRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewsEmbedRenderer.swift; sourceTree = "<group>"; };
 		BA60BFFD99E798F009CC19B2 /* TeamWorkspaceContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeamWorkspaceContext.swift; sourceTree = "<group>"; };
 		BACFBF07BF2ACDA69DF5C606 /* AttachmentPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentPicker.swift; sourceTree = "<group>"; };
 		BAF7ABCEA32F7C1A1EA73079 /* AnyCodable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnyCodable.swift; sourceTree = "<group>"; };
@@ -1621,6 +1626,7 @@
 		C6A6BBE468B7B2F6AB202D1B /* ChatContextMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatContextMenu.swift; sourceTree = "<group>"; };
 		C6D687493DC6BBDBEF38C3CF /* HistoryWelcomeComponentUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryWelcomeComponentUITests.swift; sourceTree = "<group>"; };
 		C708AC69D73BAEA90973809E /* CrossClientChatSyncUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrossClientChatSyncUITests.swift; sourceTree = "<group>"; };
+		C72AFBA9A59E6F7E39BBE383 /* NewsSearchEmbedRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewsSearchEmbedRenderer.swift; sourceTree = "<group>"; };
 		C75C8ECE57894904D2596562 /* modelsMetadata.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = modelsMetadata.json; sourceTree = "<group>"; };
 		C7B9185652D95F2EB21AFDC0 /* WorkflowAIAuthoringService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkflowAIAuthoringService.swift; sourceTree = "<group>"; };
 		C7DFBC3D2D8AFBC4367D6CB5 /* ChatShareView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatShareView.swift; sourceTree = "<group>"; };
@@ -1839,6 +1845,8 @@
 				2D5D3E1DC3573B54A3F90F73 /* MediaRenderers.swift */,
 				90E14404F376E934176F0957 /* MindMapEmbedRenderer.swift */,
 				5F57B730049713E7560BD28C /* MiscRenderers.swift */,
+				BA289A12DF31DE5271132348 /* NewsEmbedRenderer.swift */,
+				C72AFBA9A59E6F7E39BBE383 /* NewsSearchEmbedRenderer.swift */,
 				C39A911BB9208FA2A0BF4682 /* PlaceRenderers.swift */,
 				1C8D0BD18C09F87C54E50B4F /* RemotionVideoCreateRenderer.swift */,
 				C33806E8A24E5E5D76A8ADE3 /* SearchDomainRenderers.swift */,
@@ -3676,6 +3684,8 @@
 				995B8A30AF0C45D2FC29AB65 /* NativeSignupState.swift in Sources */,
 				CFD963643504D8135F57BA07 /* NetworkStatusView.swift in Sources */,
 				9F77DAC8A8EB2235E199DB6B /* NewChatSuggestionsView.swift in Sources */,
+				56A81CD2939B918491410627 /* NewsEmbedRenderer.swift in Sources */,
+				BB83CAA00F7AC220DCADEFF0 /* NewsSearchEmbedRenderer.swift in Sources */,
 				71502CBB41B88A92782AA6CE /* NewsSearchIntent.swift in Sources */,
 				9C4B70045FD3D53AD800A043 /* NewsletterSettingsView.swift in Sources */,
 				55A5191AF7E81A1B3329FE23 /* NotificationBanners.swift in Sources */,
@@ -4180,6 +4190,8 @@
 				EC84890E5AA27A0B6E5201B5 /* NativeSignupState.swift in Sources */,
 				0F5C4E699E745EC6DAAF2602 /* NetworkStatusView.swift in Sources */,
 				1538C3CE549EE70F246E13BC /* NewChatSuggestionsView.swift in Sources */,
+				A0A258E9B74AB06DB24FFA40 /* NewsEmbedRenderer.swift in Sources */,
+				5C6DE00E1A154FB0E84E27D2 /* NewsSearchEmbedRenderer.swift in Sources */,
 				8F941603B3A31048A0DA3684 /* NewsSearchIntent.swift in Sources */,
 				0F99B1EAD3C2F9DB935B0BB4 /* NewsletterSettingsView.swift in Sources */,
 				12D3A031C619B52AD9889822 /* NotificationBanners.swift in Sources */,

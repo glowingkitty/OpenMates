@@ -580,9 +580,11 @@ private struct DevComponentPreviewCanvas: View {
 
     private var message: Message {
         let variant = configuration.variant
-        let role: MessageRole = variant == "default" || variant == "user" ? .user : .assistant
+        let role: MessageRole = variant == "default" || variant == "user" || variant == "mentions" ? .user : .assistant
         let defaultContent: String
         switch variant {
+        case "mentions":
+            defaultContent = "Use @focus:workflows:clarify_workflows with @skill:web:search and @mate:software_development. Route to @best-model:best or @ai-model:claude-sonnet-4-5:anthropic."
         case "default", "user":
             defaultContent = "Can you help me understand how Svelte 5 runes work? I want to migrate my app from Svelte 4."
         case "thinking":
@@ -711,6 +713,7 @@ private struct DevComposerComponentFixture: View {
     @StateObject private var session: NativeComposerSession
     @State private var focused: Bool
     @State private var fixtureError: String?
+    @StateObject private var focusModeManager = FocusModeManager()
     @State private var attachmentInstalled = false
     @State private var drawingOpen = false
     @State private var drawingFullscreen = false
@@ -755,6 +758,13 @@ private struct DevComposerComponentFixture: View {
                     submit: { MessageComposerSendButton(title: AppStrings.sendAction,
                         disabled: session.canonicalMarkdown.isEmpty, action: submit) })
             }
+            .overlay(alignment: .top) {
+                FocusModePill(focusModeManager: focusModeManager,
+                    onDeactivate: { _ in onAction("focus-deactivated") },
+                    onOpen: { _ in onAction("focus-settings-opened") })
+                    .offset(y: -30)
+            }
+            .padding(.top, configuration.variant == "focus" ? 15 : 0)
 
             if let fixtureError {
                 Text(fixtureError).accessibilityIdentifier("dev-preview-action-error")
@@ -762,6 +772,33 @@ private struct DevComposerComponentFixture: View {
         }
         .onAppear {
             if configuration.variant == "attachment" && !attachmentInstalled { addAttachment() }
+            if configuration.variant == "focus", let focus = FocusModeManager.FocusModeInfo.resolve("workflows-clarify_workflows") {
+                focusModeManager.activate(focus)
+            }
+            if configuration.variant == "recording-error" && !attachmentInstalled {
+                attachmentInstalled = true
+                let url = FileManager.default.temporaryDirectory.appendingPathComponent("audio-retry-preview-\(UUID().uuidString).m4a")
+                defer { try? FileManager.default.removeItem(at: url) }
+                do {
+                    guard VoiceRecorder.writeUITestRecording(to: url) else { throw CocoaError(.fileWriteUnknown) }
+                    let data = try Data(contentsOf: url)
+                    try session.insertPendingEmbed(nodeID: "preview-failed-recording", embedType: "recording",
+                        title: AppStrings.audioRecording, localPreviewData: data)
+                    try session.updateEmbed(nodeID: "preview-failed-recording", status: AppleComposerEmbedLifecycleState.error.rawValue)
+                    try session.configureEmbedActions(nodeID: "preview-failed-recording", onOpen: { _ in },
+                        onRetry: { _ in
+                            try? session.updateEmbed(nodeID: "preview-failed-recording", status: AppleComposerEmbedLifecycleState.finished.rawValue)
+                            onAction("audio-retry-finished")
+                        }, onRemove: { _ in onAction("audio-removed") })
+                } catch { fixtureError = String(describing: error) }
+            }
+            if configuration.variant == "mentions" && !attachmentInstalled {
+                attachmentInstalled = true
+                do {
+                    try session.controller.insertMention(.mention(id: "preview-focus-mention", mentionKind: "focus", targetId: "clarify_workflows", canonicalSyntax: "@focus:workflows:clarify_workflows", displayLabel: "Workflows-Clarify-Workflows"))
+                    session.publishControllerState()
+                } catch { fixtureError = String(describing: error) }
+            }
         }
     }
 

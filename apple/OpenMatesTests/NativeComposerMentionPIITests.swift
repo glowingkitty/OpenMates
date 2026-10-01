@@ -10,6 +10,33 @@ import XCTest
 
 @MainActor
 final class NativeComposerMentionPIITests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testCanonicalMentionRenderingPreservesCodeEmailsAndUnknownSyntax() {
+        let tokens = InlineMarkdownTokenizer.parse("Use @focus:workflows:clarify_workflows, @skill:web:search and @best-model:best. `@mate:software_development` a@mate:software_development @unknown:x")
+        let mentions = tokens.compactMap { token -> NativeMentionPresentation? in
+            if case .mention(let mention) = token { return mention }; return nil
+        }
+        XCTAssertEqual(mentions.map(\.syntax), ["@focus:workflows:clarify_workflows", "@skill:web:search", "@best-model:best"])
+        XCTAssertTrue(tokens.contains(.inlineCode("@mate:software_development")))
+        XCTAssertTrue(tokens.contains { if case .text(let text, _) = $0 { return text.contains("@unknown:x") }; return false })
+        XCTAssertFalse(mentions.contains { $0.kind == "mate" })
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testFocusIndicatorResolvesHumanNameWithoutActivationDelay() {
+        let focus = FocusModeManager.FocusModeInfo.resolve("workflows-clarify_workflows")!
+        XCTAssertEqual(focus.name, AppStrings.localized("app_focus_modes.workflows.clarify_workflows"))
+        XCTAssertEqual(focus.iconName, "workflow")
+        XCTAssertEqual(NativeMentionPresentation.parse("@focus:workflows:clarify_workflows")?.label, "@Workflows-Clarify-Workflows")
+        XCTAssertEqual(NativeMentionPresentation.parse("@mate:software_development")?.label, "@sophia")
+        let manager = FocusModeManager()
+        manager.activate(focus)
+        XCTAssertEqual(manager.activeFocusMode, focus)
+        manager.deactivate()
+        XCTAssertNil(manager.activeFocusMode)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testEveryMentionKindBuildsCanonicalAtom() throws {
         let service = ComposerMentionService()
         let cases: [(ComposerMentionCandidate, String)] = [
@@ -29,6 +56,7 @@ final class NativeComposerMentionPIITests: XCTestCase {
         }
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testMentionCandidatesRejectMissingCanonicalComponents() {
         let candidate = ComposerMentionCandidate(
             kind: .aiModel,
@@ -38,6 +66,7 @@ final class NativeComposerMentionPIITests: XCTestCase {
         XCTAssertThrowsError(try ComposerMentionService().node(candidate: candidate, nodeId: "mention-1"))
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testMentionInsertionPreservesSurroundingOrderAndSelection() throws {
         let document = ComposerDocumentV1(version: 1, nodes: [.text(id: "text-1", source: "Hello world")])
         let controller = try NativeComposerController(
@@ -55,6 +84,7 @@ final class NativeComposerMentionPIITests: XCTestCase {
         XCTAssertEqual(controller.selection, NSRange(location: 7, length: 0))
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testMentionInsertionReplacesOnlyActiveQuery() throws {
         let document = ComposerDocumentV1(
             version: 1,
@@ -75,6 +105,7 @@ final class NativeComposerMentionPIITests: XCTestCase {
         XCTAssertEqual(controller.selection, NSRange(location: 7, length: 0))
     }
 
+    // contract-test: supporting surface=gui.apple assertions=pii.surface.semantic-parity
     func testPIIRedactionChangesVisibleTextOnly() throws {
         let email = "person@composer-fixture.invalid"
         let mention = try ComposerMentionService().node(
@@ -102,6 +133,7 @@ final class NativeComposerMentionPIITests: XCTestCase {
         XCTAssertEqual(snapshot.document.nodes[2].canonicalSource, embed.canonicalSource)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=pii.surface.semantic-parity
     func testDocumentRedactionDoesNotScanEmbedMetadata() {
         let phone = "+49 170 1234567"
         let email = "person@composer-fixture.invalid"
@@ -124,6 +156,7 @@ final class NativeComposerMentionPIITests: XCTestCase {
         XCTAssertEqual(result.document.nodes[1].canonicalSource, embed.canonicalSource)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=pii.surface.semantic-parity
     func testNativePIIDecorationMapsCanonicalRangePastEmbedToVisibleTextOffset() throws {
         let email = "person@composer-fixture.invalid"
         let embed = ComposerNodeV1.embed(

@@ -13,7 +13,7 @@
 // Specification: specifications/features/chat-navigation/specification.yml
 // Assertions: chat-navigation.order.sidebar-header-match, chat-navigation.draft-only.addressable, chat-navigation.empty-new-chat.excluded, chat-navigation.open.local-first-coherent
 // Specification: specifications/architecture/drafts/specification.yml
-// Assertions: drafts.draft-only.presentation, drafts.established-chat.presentation-unchanged
+// Assertions: drafts.draft-only.lifecycle, drafts.draft-only.presentation, drafts.established-chat.presentation-unchanged
 // Specification: specifications/features/app-skills/code-run/specification.yml
 // Assertions: code-run.output.chat-bound-encrypted
 // Specification: specifications/features/workspace-shell/specification.yml
@@ -1030,6 +1030,7 @@ struct MainAppView: View {
                                             _ validation: AuthManager.SessionValidationState) {
         switch validation {
         case .requiresReauthentication:
+            wsManager.disconnect()
             // Keep cached history available while refreshing the server session.
             isReauthenticatingCachedSession = true
             authFlowState.resetForAnotherAccount()
@@ -1040,8 +1041,10 @@ struct MainAppView: View {
                 isReauthenticatingCachedSession = false
                 showAuthSheet = false
                 authFlowState.reset()
-                connectWebSocket()
             }
+            guard didBootstrapAuthenticatedSession else { return }
+            connectWebSocket()
+            Task { await loadSelectedWorkspace(force: true) }
         default: break
         }
     }
@@ -1135,7 +1138,11 @@ struct MainAppView: View {
         case .connected, .connecting, .reconnecting:
             schedulePendingAssistantResponseFlush()
         case .disconnected:
-            connectWebSocket()
+            Task {
+                guard let expected = authManager.sessionRecoveryContext else { return }
+                await authManager.recoverSession(expected: expected)
+                connectWebSocket()
+            }
         }
     }
 
@@ -1195,6 +1202,7 @@ struct MainAppView: View {
         // A focus request from an earlier New Chat window must not replay when
         // the welcome view is mounted again after closing an existing chat.
         newChatFocusRequest = 0
+        chatInputFocusRequest = 0
         openNewChatScreen()
     }
 
@@ -1301,7 +1309,7 @@ struct MainAppView: View {
         sharedChatDestination = nil
     }
 
-    private func loadSelectedWorkspace() async {
+    private func loadSelectedWorkspace(force: Bool = false) async {
         guard isAuthenticated, let accountID = authManager.currentUser?.id else { return }
         #if DEBUG
         if selectedWorkspace == .workflows, let fixture = workflowUITestFixture {
@@ -1315,13 +1323,14 @@ struct MainAppView: View {
         case .projects:
             await projectsStore.load(accountId: accountID, teamId: teamContext.teamID)
         case .tasks:
-            await tasksStore.load(accountID: accountID, teamID: teamContext.teamID)
+            await tasksStore.load(accountID: accountID, teamID: teamContext.teamID, force: force)
         case .chat:
             break
         }
     }
 
     private func openWorkspaceChat(_ id: String) {
+        chatInputFocusRequest = 0
         selectWorkspace(.chat, loadContent: false)
         selectedChatId = id
         showNewChat = false
@@ -2290,6 +2299,7 @@ struct MainAppView: View {
                     return true
                 },
                 onOpenChat: { chatId in
+                    chatInputFocusRequest = 0
                     selectedChatId = chatId
                     showNewChat = false
                 },
@@ -2317,6 +2327,7 @@ struct MainAppView: View {
                 prefillRequest: newChatPrefillRequest,
                 onPrefillConsumed: { newChatPrefillText = nil }
             )
+            .accessibilityIdentifier("chat-workspace-welcome")
         } else if isAuthenticated, let chatId = selectedChatId {
             let isPublic = publicChatGroup(for: chatId) != nil
             let headerActions = MainAppChatHeaderActionPolicy.actions(isPublic: isPublic)
@@ -2349,11 +2360,14 @@ struct MainAppView: View {
                 onOpenChatSettings: headerActions.exposesOwnerSettings ? {
                     openChatSettings(for: chatId)
                 } : nil,
-                onCloseChat: closeChatToWorkspaceLanding,
+                onCloseChat: {
+                    guard selectedChatId == chatId else { return }
+                    closeChatToWorkspaceLanding()
+                },
                 onPreviousChat: previousChatAction(for: chatId),
                 onNextChat: nextChatAction(for: chatId),
                 onOpenPublicChat: openPublicChat,
-                onOpenChat: { selectedChatId = $0; showNewChat = false },
+                onOpenChat: { chatInputFocusRequest = 0; selectedChatId = $0; showNewChat = false },
                 onNewChat: openNewChatScreen,
                 onReportIssue: openReportIssue,
                 onOpenMateSettings: { id in openAssistantMessageSettings(.mate(id)) },
@@ -2385,7 +2399,10 @@ struct MainAppView: View {
                 initialEmbedId: pendingExternalEmbedOpen?.chatId == chatId ? pendingExternalEmbedOpen?.embedId : nil,
                 isSettingsOpen: currentViewportWidth > 1100 && showSettings,
                 onShareChat: { sharePublicChat(chatId) },
-                onCloseChat: closeChatToWorkspaceLanding,
+                onCloseChat: {
+                    guard selectedChatId == chatId else { return }
+                    closeChatToWorkspaceLanding()
+                },
                 onPreviousChat: previousChatAction(for: chatId),
                 onNextChat: nextChatAction(for: chatId),
                 onOpenPublicChat: openPublicChat,
@@ -2414,6 +2431,7 @@ struct MainAppView: View {
         guard let idx = orderedChatIds.firstIndex(of: chatId), idx < orderedChatIds.count - 1 else { return nil }
         let prevId = orderedChatIds[idx + 1]
         return {
+            chatInputFocusRequest = 0
             selectedChatId = prevId
             searchSelection = nil
         }
@@ -2423,6 +2441,7 @@ struct MainAppView: View {
         guard let idx = orderedChatIds.firstIndex(of: chatId), idx > 0 else { return nil }
         let nextId = orderedChatIds[idx - 1]
         return {
+            chatInputFocusRequest = 0
             selectedChatId = nextId
             searchSelection = nil
         }
@@ -2504,6 +2523,7 @@ struct MainAppView: View {
         }
     }
     private func selectSidebarChat(_ chat: Chat) {
+        chatInputFocusRequest = 0
         selectedChatId = chat.id
         searchSelection = nil
         showNewChat = false
@@ -2875,11 +2895,39 @@ struct MainAppView: View {
                 ])
             }
         }
+        if ProcessInfo.processInfo.arguments.contains("--ui-test-sheet-reference-hydration") {
+            chatStore.performWithoutPersistence {
+                chatStore.setMessages(for: "ui-test-current-chat", messages: [Message(
+                    id: "ui-test-sheet-message", chatId: "ui-test-current-chat", role: .assistant,
+                    content: "Saved table\n\n```json\n{\"type\":\"sheet\",\"embed_id\":\"ui-test-sheet-reference\",\"app_id\":\"sheets\",\"skill_id\":\"sheet\"}\n```",
+                    encryptedContent: nil, createdAt: selectedCreatedAt, updatedAt: selectedCreatedAt,
+                    appId: "sheets", isStreaming: false, embedRefs: nil)])
+            }
+        }
+        if ProcessInfo.processInfo.arguments.contains("--ui-test-navigation-embed") {
+            let embedID = "ui-test-navigation-code"
+            let embed = EmbedRecord(id: embedID, type: "code-code", status: .finished,
+                data: .raw(["type": AnyCodable("code"), "language": AnyCodable("python"),
+                    "code": AnyCodable("print(42)"), "filename": AnyCodable("example.py"),
+                    "line_count": AnyCodable(1)]),
+                parentEmbedId: nil, appId: "code", skillId: nil, embedIds: nil, createdAt: selectedCreatedAt)
+            chatStore.performWithoutPersistence {
+                chatStore.upsertEmbeds([embed], for: "ui-test-current-chat")
+                chatStore.setMessages(for: "ui-test-current-chat", messages: [Message(
+                    id: "message-ui-test-current-chat", chatId: "ui-test-current-chat", role: .assistant,
+                    content: "Current Chat\n\n```json\n{\"type\":\"code\",\"embed_id\":\"\(embedID)\",\"language\":\"python\",\"filename\":\"example.py\",\"code\":\"print(42)\"}\n```",
+                    encryptedContent: nil, createdAt: selectedCreatedAt, updatedAt: selectedCreatedAt,
+                    appId: "code", isStreaming: false,
+                    embedRefs: [EmbedRef(id: embedID, type: "code-code", status: "finished", data: nil)]
+                )])
+            }
+        }
         DraftService.shared.seedUITestDraftPreview(chatId: "ui-test-draft-chat", preview: draftPreview)
         totalChatCount = seededChats.filter { !isEmptyShellChat($0) }.count
         selectedChatId = "ui-test-current-chat"
         showNewChat = false
         showAuthSheet = false
+        if ProcessInfo.processInfo.arguments.contains("--ui-test-stale-composer-focus") { chatInputFocusRequest = 1 }
         #endif
     }
 
@@ -2968,6 +3016,12 @@ struct MainAppView: View {
 
         if isChatNavigationUITestEnabled {
             seedChatNavigationUITestState()
+            #if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("--ui-test-rejected-native-session"),
+               let expected = authManager.sessionRecoveryContext {
+                await authManager.recoverSession(expected: expected)
+            }
+            #endif
             return
         }
 
@@ -2983,34 +3037,26 @@ struct MainAppView: View {
             return
         }
 
-        Task { await authManager.validateSessionAfterOfflineBootstrap() }
-        Task { await loadAccountTopicPreferences() }
-        connectWebSocket()
+        Task {
+            if authManager.sessionValidationState != .onlineAuthenticated {
+                await authManager.validateSessionAfterOfflineBootstrap()
+            }
+            guard isAuthenticated, didBootstrapAuthenticatedSession else { return }
+            connectWebSocket()
+            if authManager.sessionValidationState == .onlineAuthenticated {
+                await loadAccountTopicPreferences()
+            }
+        }
         Task { @MainActor in
             await Task.yield()
             guard isAuthenticated, didBootstrapAuthenticatedSession else { return }
             await decryptVisibleChatMetadata(reason: "offlineColdLoad")
         }
         Task { await promoteAnonymousChatsAfterAuthentication() }
-        scheduleTokenBackedWebSocketReconnectIfNeeded()
         scheduleInitialDataFallback()
         pendingPushChatDidChange(nil, pushManager.pendingChatId)
         Task { await syncInspirationToWidget() }
         await flushQueuedNotificationReplies()
-    }
-
-    private func scheduleTokenBackedWebSocketReconnectIfNeeded() {
-        guard authManager.webSocketToken?.isEmpty != false else { return }
-        Task { @MainActor in
-            for _ in 0..<120 {
-                guard isAuthenticated, didBootstrapAuthenticatedSession else { return }
-                if authManager.webSocketToken?.isEmpty == false {
-                    connectWebSocket()
-                    return
-                }
-                try? await Task.sleep(nanoseconds: 250_000_000)
-            }
-        }
     }
 
     private func scheduleInitialDataFallback() {
@@ -3196,12 +3242,14 @@ struct MainAppView: View {
     }
 
     private func deleteChat(_ id: String) {
+        let generation = OfflineStore.shared.scopeGeneration
+        let scope = sidebarAccountScope
         Task {
             do {
                 let _: Data = try await APIClient.shared.request(.delete, path: "/v1/chats/\(id)")
-                chatStore.removeChat(id)
-                SpotlightIndexer.shared.removeChat(id)
-                if selectedChatId == id { selectedChatId = nil }
+                guard sidebarAccountScope == scope, generation == OfflineStore.shared.scopeGeneration,
+                      isAuthenticated else { return }
+                applySyncedChatDeletion(id)
             } catch {
                 print("[MainApp] Failed to delete chat: \(error)")
             }
@@ -3372,6 +3420,25 @@ struct MainAppView: View {
         // The authenticated navigation fixture has no real server identity.
         guard !isChatNavigationUITestEnabled else { return }
         #endif
+        guard isAuthenticated, authManager.sessionValidationState == .onlineAuthenticated,
+              let identity = authManager.sessionRecoveryContext else { return }
+        wsManager.configureSessionRecovery {
+            guard let current = authManager.sessionRecoveryContext,
+                  current.accountID == identity.accountID, current.profile == identity.profile,
+                  current.sessionID == identity.sessionID else { return .rejected }
+            await authManager.recoverSession(expected: current)
+            guard let recovered = authManager.sessionRecoveryContext,
+                  recovered.accountID == identity.accountID, recovered.profile == identity.profile,
+                  recovered.sessionID == identity.sessionID else { return .rejected }
+            switch authManager.sessionValidationState {
+            case .onlineAuthenticated:
+                return .authenticated(sessionID: recovered.sessionID, token: authManager.webSocketToken)
+            case .requiresReauthentication, .unauthenticated:
+                return .rejected
+            default:
+                return .unavailable
+            }
+        }
         wsManager.configureSyncStateProvider {
             chatStore.makeSyncClientState(
                 clientSuggestionsCount: syncedNewChatSuggestions.count
@@ -4279,8 +4346,7 @@ struct MainAppView: View {
         pendingTypingMetadata.remove(chatId: chatId)
         pendingBackgroundSyncContent.remove(chatId: chatId)
         if selectedChatId == chatId {
-            selectedChatId = nil
-            showNewChat = true
+            closeChatToWorkspaceLanding()
         }
     }
 
@@ -4833,6 +4899,14 @@ struct TypingMetadataReplayBuffer {
 }
 
 enum ChatSelectionSyncPolicy {
+    static func shouldCloseRemovedDraft(
+        selectedChatId: String?, eventChatId: String?, eventScope: UUID?, currentScope: UUID,
+        chatRemoved: Bool, hasComposerContent: Bool, hasMessages: Bool
+    ) -> Bool {
+        selectedChatId != nil && selectedChatId == eventChatId && eventScope == currentScope
+            && chatRemoved && !hasComposerContent && !hasMessages
+    }
+
     static func shouldClearSelection(
         selectedChatId: String?,
         eventType: String,
@@ -6041,6 +6115,9 @@ struct NewChatWelcomeView: View {
     @State private var recordingUploadID: UUID?
     @State private var recordingUploadTask: Task<Void, Never>?
     @State private var recordingTemporaryURL: URL?
+    @State private var welcomeRecordingUploadTasks: [String: Task<Void, Never>] = [:]
+    @State private var welcomeRecordingUploadIDs: [String: UUID] = [:]
+    @State private var welcomeRecordingTemporaryFiles: [String: URL] = [:]
     @State private var guestRecordingNodeIDs = Set<String>()
     @State private var activeRecordingRealtimeSession: AudioRecordingRealtimeSession?
     @State private var recordingLiveTranscript = ""
@@ -6990,20 +7067,47 @@ struct NewChatWelcomeView: View {
         Task { await session.cancel() }
     }
 
-    private func enqueueWelcomeRecordingUpload(url: URL, duration: TimeInterval) {
+    private func enqueueWelcomeRecordingUpload(url: URL, duration: TimeInterval,
+                                               retryNodeID: String? = nil,
+                                               retryWaveform: AudioRecordingWaveform? = nil,
+                                               retryRealtimeResult: AudioRecordingRealtimeResultProvider? = nil) {
         guard isAuthenticated, authManager.state == .authenticated else {
+            if retryNodeID != nil {
+                ToastManager.shared.show(AppStrings.localized("settings.app_settings_memories.authentication_required"), type: .error)
+                return
+            }
             cancelWelcomeRealtimeRecording()
             addGuestRecordingPreview(url: url, duration: duration)
             return
         }
-        let context = finishWelcomeRealtimeRecording(duration: duration)
-        let nodeID = "composer:embed:\(UUID().uuidString.lowercased())"
+        let context = retryNodeID == nil ? finishWelcomeRealtimeRecording(duration: duration)
+            : (waveform: retryWaveform, realtimeResult: retryRealtimeResult, realtimeSession: nil)
+        let nodeID = retryNodeID ?? "composer:embed:\(UUID().uuidString.lowercased())"
+        let uploadScope = AudioRecordingUploadScope.capture()
+        let uploadDraftID = modelDraftID
         do {
-            try composerSession.insertPendingEmbed(
-                nodeID: nodeID,
-                embedType: "recording",
-                title: url.lastPathComponent
-            )
+            if retryNodeID != nil {
+                guard composerSession.controller.document.nodes.contains(where: { $0.id == nodeID }) else { return }
+                try composerSession.updateEmbed(nodeID: nodeID, status: AppleComposerEmbedLifecycleState.transcribing.rawValue)
+            } else {
+                try composerSession.insertPendingEmbed(nodeID: nodeID, embedType: "recording",
+                    title: AppStrings.audioRecording, localPreviewData: try? Data(contentsOf: url))
+            }
+            try composerSession.configureEmbedActions(nodeID: nodeID,
+                onOpen: { _ in },
+                onRetry: { _ in
+                    guard uploadScope.isCurrent, modelDraftID == uploadDraftID else { return }
+                    enqueueWelcomeRecordingUpload(url: url, duration: duration, retryNodeID: nodeID,
+                        retryWaveform: context.waveform, retryRealtimeResult: context.realtimeResult)
+                },
+                onRemove: { durableID in
+                    pendingComposerEmbeds.removeAll { $0.id == durableID }
+                    PendingUploadStore.shared.cancelUpload(id: nodeID)
+                    welcomeRecordingUploadIDs.removeValue(forKey: nodeID)
+                    welcomeRecordingUploadTasks.removeValue(forKey: nodeID)?.cancel()
+                    isRecordingUploadPending = !welcomeRecordingUploadTasks.isEmpty
+                    cleanupWelcomeRecordingTemporaryFile(expectedURL: url)
+                })
         } catch {
             try? FileManager.default.removeItem(at: url)
             NativeDiagnostics.error("Welcome recording insertion failed: \(type(of: error))", category: "apple_composer")
@@ -7018,12 +7122,14 @@ struct NewChatWelcomeView: View {
 
         let uploadID = UUID()
         recordingUploadID = uploadID
+        welcomeRecordingUploadIDs[nodeID] = uploadID
+        welcomeRecordingTemporaryFiles[nodeID] = url
         recordingTemporaryURL = url
         isRecordingUploadPending = true
         isComposerActivated = true
         isFocused = false
         context.realtimeSession?.observeRawTranscript { transcript in
-            guard recordingUploadID == uploadID,
+            guard welcomeRecordingUploadIDs[nodeID] == uploadID, uploadScope.isCurrent, modelDraftID == uploadDraftID,
                   composerSession.controller.document.nodes.contains(where: { $0.id == nodeID }) else { return }
             try? composerSession.updateEmbed(
                 nodeID: nodeID,
@@ -7031,33 +7137,40 @@ struct NewChatWelcomeView: View {
             )
             try? composerSession.updatePendingEmbedTitle(nodeID: nodeID, title: transcript)
         }
-        recordingUploadTask = Task { @MainActor in
+        let task = Task { @MainActor in
             let embed = await AudioRecordingUploadService.prepare(
                 url: url,
                 duration: duration,
-                chatId: modelDraftID,
+                chatId: uploadDraftID,
                 waveform: context.waveform,
-                realtimeResult: context.realtimeResult
+                realtimeResult: context.realtimeResult,
+                trackingId: nodeID
             )
-            guard recordingUploadID == uploadID, !Task.isCancelled else {
+            guard welcomeRecordingUploadIDs[nodeID] == uploadID, uploadScope.isCurrent, modelDraftID == uploadDraftID, !Task.isCancelled else {
                 if let embed { pendingComposerEmbeds.removeAll { $0.id == embed.id } }
-                cleanupWelcomeRecordingTemporaryFile()
+                if welcomeRecordingUploadIDs[nodeID] == uploadID {
+                    welcomeRecordingUploadIDs.removeValue(forKey: nodeID)
+                    welcomeRecordingUploadTasks.removeValue(forKey: nodeID)
+                    isRecordingUploadPending = !welcomeRecordingUploadTasks.isEmpty
+                    cleanupWelcomeRecordingTemporaryFile(expectedURL: url)
+                }
                 return
             }
-            recordingUploadID = nil
-            recordingUploadTask = nil
-            isRecordingUploadPending = false
+            welcomeRecordingUploadIDs.removeValue(forKey: nodeID)
+            welcomeRecordingUploadTasks.removeValue(forKey: nodeID)
+            isRecordingUploadPending = !welcomeRecordingUploadTasks.isEmpty
+            if recordingUploadID == uploadID { recordingUploadID = nil; recordingUploadTask = nil }
             guard let embed else {
                 NativeDiagnostics.event("recording_upload_failed", category: "apple_composer", level: .warning)
-                try? composerSession.removeEmbed(nodeID: nodeID)
-                cleanupWelcomeRecordingTemporaryFile()
-                isComposerActivated = !composerSession.canonicalMarkdown.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                showRecordHint(duration: 0)
+                try? composerSession.updateEmbed(nodeID: nodeID, status: AppleComposerEmbedLifecycleState.error.rawValue)
+                // Keep the local playable attachment and its retry/remove actions.
+                // Failure does not dispatch the user's queued send.
+                isComposerActivated = true
                 return
             }
             try? composerSession.updatePendingEmbedTitle(
                 nodeID: nodeID,
-                title: embed.textPreview.flatMap { $0.isEmpty ? nil : $0 } ?? url.lastPathComponent
+                title: embed.textPreview.flatMap { $0.isEmpty ? nil : $0 } ?? AppStrings.audioRecording
             )
             pendingComposerEmbeds.removeAll { $0.id == embed.id }
             pendingComposerEmbeds.append(embed)
@@ -7092,15 +7205,17 @@ struct NewChatWelcomeView: View {
                     markdown: markdown,
                     revision: revision
                 )
-                cleanupWelcomeRecordingTemporaryFile()
+                cleanupWelcomeRecordingTemporaryFile(expectedURL: url)
                 adoptPersistedNewChatDraftIfCurrent(
                     draftID: draftID, revision: revision, markdown: markdown, wasFocused: isFocused
                 )
             } catch {
-                pendingComposerEmbeds.removeAll { $0.id == embed.id }
-                try? composerSession.removeEmbed(nodeID: nodeID)
-                cleanupWelcomeRecordingTemporaryFile()
-                isComposerActivated = !composerSession.canonicalMarkdown.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                if composerSession.controller.document.nodes.first(where: { $0.id == nodeID })?.contentRef == nil {
+                    pendingComposerEmbeds.removeAll { $0.id == embed.id }
+                    try? composerSession.updateEmbed(nodeID: nodeID, status: AppleComposerEmbedLifecycleState.error.rawValue)
+                }
+                // A draft persistence error must retain an already resolved recording.
+                isComposerActivated = true
                 NativeDiagnostics.error(
                     "Welcome recording resolution failed: \(type(of: error))",
                     category: "apple_composer"
@@ -7108,6 +7223,8 @@ struct NewChatWelcomeView: View {
                 showRecordHint(duration: 0)
             }
         }
+        welcomeRecordingUploadTasks[nodeID] = task
+        recordingUploadTask = task
     }
 
     private func addGuestRecordingPreview(url: URL, duration: TimeInterval) {
@@ -7469,10 +7586,22 @@ struct NewChatWelcomeView: View {
         composerOverlay = nil
     }
 
-    private func cleanupWelcomeRecordingTemporaryFile() {
-        guard let url = recordingTemporaryURL else { return }
+    private func cleanupWelcomeRecordingTemporaryFile(expectedURL: URL? = nil) {
+        if let expectedURL {
+            for (id, url) in welcomeRecordingTemporaryFiles where url == expectedURL {
+                welcomeRecordingTemporaryFiles.removeValue(forKey: id)
+            }
+            if recordingTemporaryURL == expectedURL { recordingTemporaryURL = nil }
+            try? FileManager.default.removeItem(at: expectedURL)
+            return
+        }
+        for task in welcomeRecordingUploadTasks.values { task.cancel() }
+        welcomeRecordingUploadTasks.removeAll()
+        welcomeRecordingUploadIDs.removeAll()
+        let files = Set(welcomeRecordingTemporaryFiles.values).union(recordingTemporaryURL.map { [$0] } ?? [])
+        welcomeRecordingTemporaryFiles.removeAll()
         recordingTemporaryURL = nil
-        try? FileManager.default.removeItem(at: url)
+        for url in files { try? FileManager.default.removeItem(at: url) }
     }
 
     private func welcomeComposerOverlayView() -> AnyView? {

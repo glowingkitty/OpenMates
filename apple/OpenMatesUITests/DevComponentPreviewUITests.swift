@@ -649,6 +649,84 @@ final class DevComponentPreviewUITests: XCTestCase {
         XCTAssertTrue(first.waitForNonExistence(timeout: 2), "The selected list should fade out immediately")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=web-search.surface-parity
+    func testWebSearchOverflowKeepsQueryLeadingAndClipsThumbnailViewport() {
+        assertSearchOverflowGeometry(variant: "search-overflow", appID: "web", fullWidthStrip: false)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.rendering.inline-entity-interaction
+    func testImageSearchOverflowKeepsQueryLeadingAndClipsThumbnailViewport() {
+        assertSearchOverflowGeometry(variant: "images-search-overflow", appID: "images", fullWidthStrip: true)
+    }
+
+    private func assertSearchOverflowGeometry(variant: String, appID: String, fullWidthStrip: Bool,
+                                              file: StaticString = #filePath, line: UInt = #line) {
+        for theme in ["light", "dark"] {
+            let app = launch(component: "embed-preview", variant: variant,
+                             extraArguments: ["--dev-preview-width", "390", "--dev-preview-height", "844"], theme: theme)
+            let card = app.buttons["embed-preview"].firstMatch
+            XCTAssertTrue(card.waitForExistence(timeout: 10), file: file, line: line)
+            let query = element(app, "\(appID)-search-query")
+            let provider = element(app, "\(appID)-search-provider")
+            let strip = element(app, "\(appID)-search-thumbnail-strip")
+            XCTAssertTrue(query.waitForExistence(timeout: 5), file: file, line: line)
+            XCTAssertTrue(strip.waitForExistence(timeout: 5), file: file, line: line)
+            let loaded = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", "loaded"), object: strip)
+            XCTAssertEqual(XCTWaiter.wait(for: [loaded], timeout: 20), .completed,
+                           "The overflow fixture must paint real public thumbnail bytes", file: file, line: line)
+            XCTAssertEqual(card.frame.width, 300, accuracy: 2, file: file, line: line)
+            XCTAssertEqual(card.frame.height, 200, accuracy: 2, file: file, line: line)
+            XCTAssertEqual(query.label, "Leading search query with ten thumbnails", file: file, line: line)
+            XCTAssertEqual(query.frame.minX, card.frame.minX + 20, accuracy: 2,
+                           "Wide thumbnail content must not push the query's beginning outside the card", file: file, line: line)
+            XCTAssertEqual(provider.frame.minX, query.frame.minX, accuracy: 2, file: file, line: line)
+            XCTAssertLessThanOrEqual(query.frame.maxX, card.frame.maxX - 20 + 2, file: file, line: line)
+            XCTAssertEqual(strip.frame.minX, card.frame.minX + (fullWidthStrip ? 0 : 20), accuracy: 2, file: file, line: line)
+            XCTAssertEqual(strip.frame.width, fullWidthStrip ? 300 : 260, accuracy: 2,
+                           "The strip clips at the offered viewport instead of requiring all ten cells to fit", file: file, line: line)
+            XCTAssertEqual(strip.frame.height, 30, accuracy: 1, file: file, line: line)
+            let firstImage = element(app, "\(appID)-search-thumbnail")
+            XCTAssertTrue(firstImage.exists, file: file, line: line)
+            XCTAssertEqual(firstImage.frame.minX, strip.frame.minX, accuracy: 2, file: file, line: line)
+            XCTAssertEqual(firstImage.frame.width, 40, accuracy: 1, file: file, line: line)
+            attachScreenshot("\(appID) search leading query and clipped ten-thumbnail viewport \(theme)")
+            app.terminate()
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.rendering.inline-entity-interaction
+    func testEventBannerStaysWithinFullscreenAndCloseRemainsHittable() {
+        for theme in ["light", "dark"] {
+            let app = launch(component: "embed-fullscreen", variant: "event-image",
+                             extraArguments: ["--dev-preview-width", "390", "--dev-preview-height", "844"], theme: theme)
+            // The requested 390pt component canvas is centered inside the 402pt window.
+            // Compare production geometry with its offered canvas, not the outer window.
+            let root = element(app, "dev-component-preview-embed-fullscreen")
+            XCTAssertTrue(root.waitForExistence(timeout: 5))
+            XCTAssertEqual(root.frame.width, 390, accuracy: 1)
+            let header = element(app, "embed-fullscreen-header")
+            let image = element(app, "event-fullscreen-image")
+            XCTAssertTrue(image.waitForExistence(timeout: 10))
+            let loaded = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", "loaded"), object: image)
+            XCTAssertEqual(XCTWaiter.wait(for: [loaded], timeout: 20), .completed)
+            XCTAssertEqual(header.frame.minX, root.frame.minX, accuracy: 2,
+                           "The loaded banner must not shift the fullscreen header to the right")
+            XCTAssertLessThanOrEqual(header.frame.maxX, root.frame.maxX + 2)
+            XCTAssertGreaterThanOrEqual(image.frame.minX, root.frame.minX)
+            XCTAssertLessThanOrEqual(image.frame.maxX, root.frame.maxX + 2)
+            XCTAssertEqual(image.frame.height, 190, accuracy: 2)
+            let close = app.buttons["embed-minimize"].firstMatch
+            XCTAssertTrue(close.isHittable, "Close must stay inside the visible viewport after the banner loads")
+            XCTAssertGreaterThanOrEqual(close.frame.minX, root.frame.minX)
+            XCTAssertLessThanOrEqual(close.frame.maxX, root.frame.maxX + 2)
+            attachScreenshot("Event loaded banner bounded fullscreen and reachable close \(theme)")
+            close.tap()
+            assertAction("embed-minimized", in: app)
+            XCTAssertTrue(app.buttons["embed-preview"].firstMatch.waitForExistence(timeout: 5))
+            app.terminate()
+        }
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testEmbedPreviewOpensChildAndMinimizesBackToCard() {
         let app = launch(component: "embed-preview")
@@ -984,10 +1062,10 @@ final class DevComponentPreviewUITests: XCTestCase {
     #endif
 
     private func launch(component: String, variant: String = "default", props: [String: String] = [:],
-                        extraArguments: [String] = []) -> XCUIApplication {
+                        extraArguments: [String] = [], theme: String = "light") -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["--dev-preview", component, "--dev-preview-variant", variant,
-                               "--dev-preview-theme", "light", "--ui-test-embed-presentation", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"] + extraArguments
+                               "--dev-preview-theme", theme, "--ui-test-embed-presentation", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"] + extraArguments
         if !props.isEmpty,
            let data = try? JSONSerialization.data(withJSONObject: props, options: [.sortedKeys]),
            let json = String(data: data, encoding: .utf8) {
@@ -998,6 +1076,8 @@ final class DevComponentPreviewUITests: XCTestCase {
         XCTAssertTrue(root.waitForExistence(timeout: 10))
         XCTAssertEqual(root.value as? String, "auth=not-started;store=detached;socket=disconnected",
                        "Preview startup must leave the real account runtime inactive")
+        XCTAssertFalse(element(app, "dev-preview-error").exists,
+                       "The registered preview fixture must load before measuring product geometry")
         if component == "embed-fullscreen" { waitForEmbedPresentation(app) }
         return app
     }

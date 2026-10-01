@@ -447,6 +447,7 @@ enum DevEmbedPreviewFixtures {
 
     static func isolatedEmbedSkill(variant: String) -> DevEmbedPreviewSkill {
         switch variant {
+        case "news-search": return newsSearch
         case "sheet", "sheet-large": return sheet
         case "sheet-wide": return sheetWide
         case "search-long":
@@ -455,6 +456,35 @@ enum DevEmbedPreviewFixtures {
             data["query"] = AnyCodable("best restaurants in Berlin with vegetarian options and outdoor seating near Museum Island")
             let parent = record(id: source.primaryEmbed.id, type: source.primaryEmbed.type, appId: "web", skillId: "search", data: data.mapValues(\.value))
             return skill(id: source.id, label: source.label, primary: parent, children: source.childEmbeds)
+        case "search-overflow", "images-search-overflow":
+            let isImages = variant == "images-search-overflow"
+            let appId = isImages ? "images" : "web"
+            let parentID = "preview-\(variant)"
+            let children = (1...10).map { index in
+                let imageURL = "https://app.dev.openmates.org/images/examples/group1.jpg?search-preview=\(index)"
+                return record(id: "\(parentID)-\(index)",
+                              type: isImages ? EmbedType.imagesImageResult.rawValue : EmbedType.webWebsite.rawValue,
+                              appId: appId,
+                              data: ["url": "https://example.org/result-\(index)", "title": "Search result \(index)",
+                                     "description": "Synthetic overflow reference", "preview_image_url": imageURL,
+                                     "thumbnail_url": imageURL, "image_url": imageURL], parentEmbedId: parentID)
+            }
+            let parent = appSkill(id: parentID,
+                                  type: isImages ? EmbedType.imagesSearch.rawValue : EmbedType.webSearch.rawValue,
+                                  appId: appId, skillId: "search",
+                                  data: ["query": "Leading search query with ten thumbnails", "provider": "Brave Search",
+                                         "result_count": children.count], embedIds: children.map(\.id).joined(separator: "|"))
+            return skill(id: variant, label: "Search", primary: parent, children: children)
+        case "event-image":
+            let source = event.primaryEmbed
+            var data = source.rawData ?? [:]
+            data["title"] = AnyCodable("Online Poetry Club")
+            data["event_type"] = AnyCodable("ONLINE")
+            data["image_url"] = AnyCodable("https://app.dev.openmates.org/images/examples/group1.jpg")
+            data.removeValue(forKey: "venue")
+            let parent = record(id: "preview-event-image", type: source.type, appId: "events",
+                                skillId: "search", data: data.mapValues(\.value))
+            return skill(id: variant, label: "Event", primary: parent)
         case "search-thumbnail":
             let parent = appSkill(id: "preview-search-thumbnail", type: EmbedType.webSearch.rawValue, appId: "web", skillId: "search",
                                   data: ["query": "best restaurants in Berlin", "provider": "Brave Search", "result_count": 1], embedIds: "preview-search-thumbnail-child")

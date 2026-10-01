@@ -281,7 +281,7 @@ enum ChatLegacyEmbedLinkPolicy {
                 thinkingContent: message.thinkingContent,
                 encryptedThinkingContent: message.encryptedThinkingContent,
                 encryptedThinkingSignature: message.encryptedThinkingSignature,
-                thinkingTokenCount: message.thinkingTokenCount
+                thinkingTokenCount: message.thinkingTokenCount, serverMessageId: message.serverMessageId
             )
         }
     }
@@ -589,6 +589,9 @@ final class ChatViewModel: ObservableObject {
     private var streamTask: Task<Void, Never>?
     private var streamSubscriptionIdentity = ChatStreamSubscriptionIdentity()
     private var embedHydrationTask: Task<Void, Never>?
+    private var embedContentBatchRequest: (chatId: String, generation: Int, scope: UUID,
+        id: UUID, task: Task<ChatContentBatchPayload, Error>)?
+    private let contentBatchFetcher: (@MainActor (String) async throws -> ChatContentBatchPayload)?
     private var olderMessagesTask: Task<Void, Never>?
     private var loadGeneration = 0
     private let messageDecryptor: @MainActor ([Message], String) async -> [Message]
@@ -605,10 +608,31 @@ final class ChatViewModel: ObservableObject {
         messageDecryptor: @escaping @MainActor ([Message], String) async -> [Message] = {
             await ChatViewModel.decryptMessagesForDisplay($0, chatId: $1)
         },
-        accountScopeGeneration: @escaping @MainActor () -> UUID = { OfflineStore.shared.scopeGeneration }
+        accountScopeGeneration: @escaping @MainActor () -> UUID = { OfflineStore.shared.scopeGeneration },
+        contentBatchFetcher: (@MainActor (String) async throws -> ChatContentBatchPayload)? = nil
     ) {
         self.messageDecryptor = messageDecryptor
         self.accountScopeGeneration = accountScopeGeneration
+        #if DEBUG
+        let args = ProcessInfo.processInfo.arguments
+        if contentBatchFetcher == nil, args.contains("--ui-test-authenticated-chat-navigation"),
+           args.contains("--ui-test-sheet-reference-hydration") {
+            self.contentBatchFetcher = { chatId in
+                guard chatId == "ui-test-current-chat" else { throw ChatContentHydrationError.invalidResponse }
+                let record = EmbedRecord(id: "ui-test-sheet-reference", type: "sheet", status: .finished,
+                    data: .raw(["table": AnyCodable("| Item | Count |\n|---|---|\n| Saved Row A | 1 |\n| Saved Row B | 2 |"),
+                                "row_count": AnyCodable(2), "col_count": AnyCodable(2)]),
+                    parentEmbedId: nil, appId: "sheets", skillId: "sheet", embedIds: nil,
+                    hashedChatId: ChatKeyWrapperRecord.hashedChatId(for: chatId), createdAt: nil)
+                return ChatContentBatchPayload(messagesByChatId: [chatId: []], versionsByChatId: [:],
+                    embeds: [record], embedKeys: [], chatKeyWrappers: [], codeRunOutputs: nil)
+            }
+        } else {
+            self.contentBatchFetcher = contentBatchFetcher
+        }
+        #else
+        self.contentBatchFetcher = contentBatchFetcher
+        #endif
     }
 
     func configure(wsManager: WebSocketManager?, chatStore: ChatStore?) {
@@ -619,6 +643,9 @@ final class ChatViewModel: ObservableObject {
             Task { @MainActor [weak self] in
                 await self?.flushPendingSubChatSpawns()
                 await self?.flushPendingSubChatCompletions()
+                // An offline-opened reference must retry when its content
+                // transport returns, even when its placeholder ID was loaded.
+                await self?.retryVisibleEmbedHydration()
             }
         }
         if subChatKeyObserver == nil {
@@ -643,6 +670,8 @@ final class ChatViewModel: ObservableObject {
         followUpSuggestions = []
         cancelOlderMessagesLoad()
         embedHydrationTask?.cancel()
+        embedContentBatchRequest?.task.cancel()
+        embedContentBatchRequest = nil
         isLoading = true
         error = nil
 
@@ -736,7 +765,7 @@ final class ChatViewModel: ObservableObject {
             return Self.embedRecordNeedsRefresh(existing: existing, incoming: incoming)
         }
         guard !changedEmbeds.isEmpty else { return }
-        let mergedRecords = currentRecords.merging(incomingRecords) { _, new in new }
+        let mergedRecords = PublicChatContent.mergingHydratedRecords(existing: currentRecords, inline: incomingRecords)
         embedRecords = mergedRecords
         scheduleEmbedHydration(
             syncedEmbeds: Array(mergedRecords.values),
@@ -914,12 +943,14 @@ final class ChatViewModel: ObservableObject {
         existingRecords: [String: EmbedRecord],
         source: String
     ) {
+        let scope = accountScopeGeneration()
         embedHydrationTask?.cancel()
         embedHydrationTask = Task { @MainActor [weak self] in
             guard let self else { return }
             await Task.yield()
             try? await Task.sleep(nanoseconds: 120_000_000)
-            guard !Task.isCancelled, self.chat?.id == chatId, generation == self.loadGeneration else { return }
+            guard !Task.isCancelled, self.chat?.id == chatId, generation == self.loadGeneration,
+                  scope == self.accountScopeGeneration() else { return }
             let start = NativeSyncPerfLog.now()
             // Encrypted messages reveal embed references only after first paint.
             // Re-read the scoped store now so its already-synced records are not
@@ -935,10 +966,11 @@ final class ChatViewModel: ObservableObject {
                 chatId: chatId,
                 existingRecords: existingRecords
             )
-            guard !Task.isCancelled, self.chat?.id == chatId, generation == self.loadGeneration else { return }
-            self.embedRecords = decryptedSyncedEmbeds.reduce(into: self.embedRecords) { records, embed in
-                records[embed.id] = embed
-            }
+            guard !Task.isCancelled, self.chat?.id == chatId, generation == self.loadGeneration,
+                  scope == self.accountScopeGeneration() else { return }
+            self.embedRecords = PublicChatContent.mergingHydratedRecords(
+                existing: self.embedRecords,
+                inline: EmbedRecord.dictionaryById(decryptedSyncedEmbeds, context: "chatViewModel.syncedHydration"))
             self.openingMetrics.fullEmbedsDecrypted += decryptedSyncedEmbeds.filter { $0.rawData != nil }.count
             await self.loadEmbeds(for: self.messages.map(\.id))
             NativeSyncPerfLog.info(
@@ -1155,7 +1187,7 @@ final class ChatViewModel: ObservableObject {
             // Metadata sync can republish the same ciphertext while a chat is
             // open. Reuse its decoded payload instead of redoing crypto/parsing.
             if let existing = existingRecords[embed.id], existing.rawData != nil,
-               embed.encryptedContent != nil,
+               !Self.embedRecordRequiresHydration(existing), embed.encryptedContent != nil,
                existing.encryptedContent == embed.encryptedContent,
                existing.encryptedType == embed.encryptedType,
                existing.status == embed.status,
@@ -2402,20 +2434,17 @@ final class ChatViewModel: ObservableObject {
                 guard !Task.isCancelled, chat?.id == chatId, generation == loadGeneration,
                       scopeGeneration == accountScopeGeneration() else { return }
                 for embed in decryptedLocal {
-                    embedRecords[embed.id] = embed
+                    embedRecords = PublicChatContent.mergingHydratedRecords(existing: embedRecords, inline: [embed.id: embed])
                 }
             }
         }
 
         let loadedEmbedIds = Set(embedRecords.keys)
-        let referencedRecords = referencedEmbedIds.compactMap { embedRecords[$0] }
         let referencedChildIds = childIdsReachable(from: referencedEmbedIds)
         let requiredEmbedIds = referencedEmbedIds.union(referencedChildIds)
-        let hasUnresolvedCompositeParent = referencedRecords.contains { record in
-            record.isAppSkillUse &&
-                record.childEmbedIds.isEmpty &&
-                !embedRecords.values.contains { $0.parentEmbedId == record.id }
-        }
+        let hasUnresolvedCompositeParent = !EmbedRecord.unresolvedCompositeParentIds(
+            referencedIds: referencedEmbedIds, from: Array(embedRecords.values),
+            context: "chatViewModel.loadEmbeds").isEmpty
         let hasEncryptedUndecryptedRecord = Self.hasUndecryptedRequiredEmbed(
             ids: requiredEmbedIds,
             records: embedRecords
@@ -2423,8 +2452,11 @@ final class ChatViewModel: ObservableObject {
         NativeSyncPerfLog.info(
             "phase=loadEmbedsStart chat=\(chatId.prefix(8)) requestedMessages=\(requestedMessageIds.count) referenced=\(referencedEmbedIds.count) children=\(referencedChildIds.count) loaded=\(loadedEmbedIds.count) unresolvedComposite=\(hasUnresolvedCompositeParent) encryptedUndecrypted=\(hasEncryptedUndecryptedRecord)"
         )
+        let hasIncompleteReference = requiredEmbedIds.contains { id in
+            embedRecords[id].map(Self.embedRecordRequiresHydration) ?? true
+        }
         if !hasUnresolvedCompositeParent,
-           !hasEncryptedUndecryptedRecord,
+           !hasEncryptedUndecryptedRecord, !hasIncompleteReference,
            !requiredEmbedIds.isEmpty,
            requiredEmbedIds.isSubset(of: loadedEmbedIds) {
             print("[ChatViewModel][embeds] chat=\(chatId.prefix(8)) skip fetch; required already loaded=\(requiredEmbedIds.count)")
@@ -2433,9 +2465,7 @@ final class ChatViewModel: ObservableObject {
         do {
             // Personal encrypted embeds use the same scoped content-batch
             // protocol as messages. There is no per-chat REST embeds endpoint.
-            guard let wsManager else { throw ChatContentHydrationError.websocketUnavailable }
-            let response = try await wsManager.requestChatContentBatch(chatId: chatId)
-            let batch = try ChatContentBatchPayload.decode(response.fields)
+            let batch = try await requestEmbedContentBatch(chatId: chatId, generation: generation, scope: scopeGeneration)
             guard !Task.isCancelled, chat?.id == chatId, generation == loadGeneration,
                   scopeGeneration == accountScopeGeneration() else { return }
             EmbedKeyManager.shared.store(batch.embedKeys, source: "chatEmbedContentBatch")
@@ -2445,9 +2475,8 @@ final class ChatViewModel: ObservableObject {
             let decrypted = await decryptEmbeds(relatedEmbeds, chatId: chatId, existingRecords: embedRecords)
             guard !Task.isCancelled, chat?.id == chatId, generation == loadGeneration,
                   scopeGeneration == accountScopeGeneration() else { return }
-            for embed in decrypted {
-                embedRecords[embed.id] = embed
-            }
+            embedRecords = PublicChatContent.mergingHydratedRecords(
+                existing: embedRecords, inline: EmbedRecord.dictionaryById(decrypted, context: "chatViewModel.fetchedEmbeds"))
             chatStore?.upsertEmbeds(fetchedEmbeds, for: chatId)
             await CodeRunOutputStore.shared.ingestRows(batch.codeRunOutputs ?? [],
                 chatId: chatId, expectedScope: scopeGeneration)
@@ -2460,6 +2489,59 @@ final class ChatViewModel: ObservableObject {
         } catch {
             print("[Chat] Failed to load embeds: \(error)")
         }
+    }
+
+    func retryVisibleEmbedHydration() async {
+        await loadEmbeds(for: messages.map(\.id))
+    }
+
+    private func requestEmbedContentBatch(chatId: String, generation: Int, scope: UUID) async throws -> ChatContentBatchPayload {
+        let request: (chatId: String, generation: Int, scope: UUID, id: UUID, task: Task<ChatContentBatchPayload, Error>)
+        if let existing = embedContentBatchRequest, existing.chatId == chatId,
+           existing.generation == generation, existing.scope == scope {
+            request = existing
+        } else {
+            embedContentBatchRequest?.task.cancel()
+            let fetcher = contentBatchFetcher
+            let socket = wsManager
+            let authorize: @MainActor () async throws -> Void = { [weak self] in
+                try Task.checkCancellation()
+                guard let self, self.chat?.id == chatId, self.loadGeneration == generation,
+                      self.accountScopeGeneration() == scope else { throw CancellationError() }
+            }
+            let task = Task { @MainActor in
+                try await authorize()
+                if let fetcher { return try await fetcher(chatId) }
+                guard let socket else { throw ChatContentHydrationError.websocketUnavailable }
+                let response = try await socket.requestChatContentBatch(chatId: chatId, beforeSend: authorize)
+                return try ChatContentBatchPayload.decode(response.fields)
+            }
+            request = (chatId, generation, scope, UUID(), task)
+            embedContentBatchRequest = request
+        }
+        defer {
+            if embedContentBatchRequest?.id == request.id { embedContentBatchRequest = nil }
+        }
+        return try await request.task.value
+    }
+
+    /// A reference/metadata row is not the content it points to. Finished sheets
+    /// can have dimensions and a title before their actual markdown is available.
+    static func embedRecordRequiresHydration(_ record: EmbedRecord) -> Bool {
+        if case .sheet(let sheet) = record.data {
+            return sheet.markdown?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false
+        }
+        let isSheet = record.type == "sheet" || record.type == "sheets-sheet"
+            || (record.appId == "sheets" && record.skillId == "sheet")
+        if isSheet {
+            let raw = record.rawData ?? [:]
+            return !["table", "code", "content", "markdown"].contains { key in
+                (raw[key]?.value as? String)?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+            }
+        }
+        guard let raw = record.rawData else { return record.data == nil }
+        let referenceKeys: Set<String> = ["type", "embed_id", "app_id", "skill_id", "status", "parent_embed_id", "embed_ids", "child_embed_ids"]
+        return Set(raw.keys).isSubset(of: referenceKeys)
     }
 
     func embeds(for message: Message) -> [EmbedRecord] {
@@ -2753,6 +2835,7 @@ final class ChatViewModel: ObservableObject {
         trackingId: String? = nil
     ) async -> ComposerPendingEmbed? {
         guard let chatId = chat?.id else { return nil }
+        let scope = AudioRecordingUploadScope.capture()
         guard let embed = await AudioRecordingUploadService.prepare(
             url: url,
             duration: duration,
@@ -2761,6 +2844,7 @@ final class ChatViewModel: ObservableObject {
             realtimeResult: realtimeResult,
             trackingId: trackingId
         ) else { return nil }
+        guard scope.isCurrent, chat?.id == chatId, !Task.isCancelled else { return nil }
         return registerPendingComposerEmbed(embed)
     }
 
@@ -2942,8 +3026,18 @@ struct ChatContentBatchPayload: Decodable {
     }
 
     static func mergedMessages(snapshot: [Message], preserving existing: [Message]) -> [Message] {
-        var messagesById = Dictionary(uniqueKeysWithValues: snapshot.map { ($0.id, $0) })
-        for message in existing {
+        var messagesById = existing.reduce(into: [String: Message]()) { $0[$1.id] = $1 }
+        for var message in snapshot {
+            let local = message.localBodySource(canonical: messagesById[message.id],
+                alias: message.serverMessageId.flatMap { messagesById[$0] })
+            if let alias = message.serverMessageId, alias != message.id,
+               messagesById[alias]?.chatId == message.chatId, messagesById[alias]?.role == message.role {
+                messagesById.removeValue(forKey: alias)
+            }
+            if message.content == nil, let local, local.chatId == message.chatId, local.role == message.role,
+               message.encryptedContent != nil, message.encryptedContent == local.encryptedContent {
+                message.content = local.content
+            }
             messagesById[message.id] = message
         }
         return messagesById.values.sorted { $0.createdAt < $1.createdAt }
@@ -3135,6 +3229,19 @@ enum AudioRecordingUploadPipeline {
     }
 }
 
+// A late audio result may belong to a closed account or a different server.
+// This fence protects upload/transcription presentation; it never resends a message.
+struct AudioRecordingUploadScope: Equatable {
+    let accountGeneration: UUID
+    let apiURL: URL
+    let uploadURL: URL
+    @MainActor static func capture() -> Self {
+        let profile = ServerProfile.current()
+        return .init(accountGeneration: OfflineStore.shared.scopeGeneration, apiURL: profile.apiBaseURL, uploadURL: profile.uploadBaseURL)
+    }
+    @MainActor var isCurrent: Bool { self == Self.capture() }
+}
+
 @MainActor
 enum AudioRecordingUploadService {
     static func prepare(
@@ -3143,25 +3250,29 @@ enum AudioRecordingUploadService {
         chatId: String,
         waveform: AudioRecordingWaveform? = nil,
         realtimeResult: AudioRecordingRealtimeResultProvider? = nil,
-        trackingId: String? = nil
+        trackingId: String? = nil,
+        uploadOperation: AudioRecordingUploadPipeline.Upload? = nil
     ) async -> ComposerPendingEmbed? {
         guard !AnonymousFreeUsageService.shared.isAnonymousChat(chatId) else {
             ToastManager.shared.show(AppStrings.uploadSignupRequired, type: .info)
             return nil
         }
-        guard let data = try? Data(contentsOf: url) else { return nil }
+        let scope = AudioRecordingUploadScope.capture()
+        guard let data = try? Data(contentsOf: url), !data.isEmpty, !Task.isCancelled else { return nil }
 
         let uploadId = trackingId ?? UUID().uuidString
         let filename = url.lastPathComponent
         let mimeType = "audio/mp4"
-        PendingUploadStore.shared.startUpload(id: uploadId, chatId: chatId, filename: filename)
+        PendingUploadStore.shared.startUpload(id: uploadId, chatId: chatId, filename: AppStrings.audioRecording)
         PendingUploadStore.shared.updateStatus(id: uploadId, status: .transcribing)
 
         let pipeline = await AudioRecordingUploadPipeline.run(
             waveform: waveform,
             realtimeResult: realtimeResult,
             upload: {
-                await upload(
+                guard scope.isCurrent, !Task.isCancelled else { return nil }
+                if let uploadOperation { return await uploadOperation() }
+                return await upload(
                     data: data,
                     filename: filename,
                     contentType: mimeType,
@@ -3170,7 +3281,8 @@ enum AudioRecordingUploadService {
                 )
             },
             batchTranscription: { upload in
-                await batchTranscription(
+                guard scope.isCurrent, !Task.isCancelled else { return nil }
+                return await batchTranscription(
                     upload: upload,
                     filename: filename,
                     mimeType: mimeType,
@@ -3179,8 +3291,14 @@ enum AudioRecordingUploadService {
             }
         )
 
+        guard scope.isCurrent, !Task.isCancelled else {
+            PendingUploadStore.shared.cancelUpload(id: uploadId)
+            return nil
+        }
         guard let pipeline else {
-            PendingUploadStore.shared.markError(id: uploadId, message: AppStrings.uploadProgressError)
+            if PendingUploadStore.shared.activeUploads[uploadId]?.status.isError != true {
+                PendingUploadStore.shared.markError(id: uploadId, message: AppStrings.uploadProgressError)
+            }
             return nil
         }
         let embed = ComposerPendingEmbed.from(
@@ -3219,8 +3337,17 @@ enum AudioRecordingUploadService {
                 "Composer recording upload failed: \(type(of: error))",
                 category: "apple_composer"
             )
+            let message = failureMessage(error)
+            PendingUploadStore.shared.markError(id: uploadId, message: message)
             return nil
         }
+    }
+
+    static func failureMessage(_ error: Error) -> String {
+        if case APIError.httpError(status: 401, message: _) = error {
+            return AppStrings.localized("settings.app_settings_memories.authentication_required")
+        }
+        return AppStrings.uploadProgressError
     }
 
     private static func batchTranscription(
@@ -3609,13 +3736,14 @@ enum PublicChatContent {
             // A user's canonical JSON reference contains only type/embed_id.
             // Parsing it must not replace an uploaded or decrypted record with
             // an empty shell during chat opening or history paging.
-            let referenceKeys: Set<String> = ["type", "embed_id", "app_id", "skill_id", "status"]
-            let parsedIsReference = parsed.rawData.map {
-                Set($0.keys).isSubset(of: referenceKeys)
-            } ?? true
-            if parsedIsReference,
-               (hydrated.rawData != nil || hydrated.encryptedContent != nil) {
-                return hydrated
+            let parsedIsReference = ChatViewModel.embedRecordRequiresHydration(parsed)
+            if parsedIsReference {
+                let carriesNewCiphertext = parsed.encryptedContent != nil
+                    && parsed.encryptedContent != hydrated.encryptedContent
+                if !carriesNewCiphertext && !ChatViewModel.embedRecordRequiresHydration(hydrated) {
+                    return hydrated
+                }
+                if parsed.encryptedContent == nil && hydrated.encryptedContent != nil { return hydrated }
             }
             return parsed
         }
@@ -3894,7 +4022,7 @@ enum PublicChatContent {
                 thinkingContent: original.thinkingContent,
                 encryptedThinkingContent: original.encryptedThinkingContent,
                 encryptedThinkingSignature: original.encryptedThinkingSignature,
-                thinkingTokenCount: original.thinkingTokenCount
+                thinkingTokenCount: original.thinkingTokenCount, serverMessageId: original.serverMessageId
             )
         }
         return (updatedMessages, records)
@@ -3960,7 +4088,7 @@ enum PublicChatContent {
             appId: message.appId,
             isStreaming: message.isStreaming,
             embedRefs: refs,
-            modelName: message.modelName
+            modelName: message.modelName, serverMessageId: message.serverMessageId
         )
     }
 
@@ -4028,8 +4156,8 @@ enum PublicChatContent {
                     id: embedId,
                     type: "sheets-sheet",
                     appId: "sheets",
-                    skillId: nil,
-                    data: ["title": "Table", "rows": []],
+                    skillId: object["skill_id"] as? String ?? "sheet",
+                    data: object,
                     parentEmbedId: object["parent_embed_id"] as? String,
                     embedIds: nil
                 )
@@ -5496,7 +5624,7 @@ final class ChatSendPipeline {
             thinkingContent: message.thinkingContent,
             encryptedThinkingContent: encryptedThinkingContent,
             encryptedThinkingSignature: message.encryptedThinkingSignature,
-            thinkingTokenCount: message.thinkingTokenCount
+            thinkingTokenCount: message.thinkingTokenCount, serverMessageId: message.serverMessageId
         )
 
         chatStore?.appendMessage(persisted, to: message.chatId)

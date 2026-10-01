@@ -10,12 +10,19 @@ an archive or fixture pass does not establish them.
 
 - Freeze implementation before archive creation. One owner runs Xcode and owns
   the release wait; helpers must finish edits and avoid competing native work.
-- Use the selected Xcode through `DEVELOPER_DIR`, Python 3.10 or newer, and the
+- Reconcile current dev and translation/token inputs before archiving. Run
+  focused changed-file lint/token checks and test-annotation validation first;
+  a missing test marker or invalid Svelte prop capture should fail before an
+  expensive archive. Run the release-helper entitlement tests when signing
+  inputs changed.
+- Use the selected Xcode through `DEVELOPER_DIR`, Python 3.11 or newer, and the
   existing repository dependency runtime. If workspace PyYAML needs `PYTHONPATH`,
   make it absolute so disposable integration checkouts can also resolve it.
 - Reuse an existing ExportOptions plist and signed-in Xcode account. Inspect
   `scripts/apple_testflight_release.py --help` for current options. Choose one
   marketing version and one unused build number for iOS, Watch and macOS.
+  When the user requests internal-only testing, verify
+  `testFlightInternalTestingOnly: true` in the upload plist.
 - Before the expensive archive, check the source iOS/macOS entitlements and
   provisioning capability against the intended relying-party domains and the
   deployed AASA: passkeys need `webcredentials`, app links need `applinks`, and
@@ -51,14 +58,27 @@ the exact `--only` list from the receipt's `changed_paths` and pass
 `--reviewed-candidate <source> --reviewed-base <base>` to the normal deploy helper.
 Do not bypass lint, billing or test gates.
 
+Preserve unrelated upstream changes when refreshing the candidate. Leave purely
+derived Specification registry, assertion-index and coverage files out of the
+owned selection; the integration helper regenerates and stages them from current
+source. Including stale derived files in an exact reviewed candidate can fail
+the final equality guard after regeneration. If upstream changes an owned source
+path, reconcile it and publish a refreshed candidate before retrying.
+
 For Mac-side deployment tooling, use the repository's pinned pnpm version and
 an installed Bash supporting the helper's `mapfile` usage. Reuse these tools and
 existing dependency caches; fix only a demonstrated missing package/tool.
+For focused lint, invoke the existing installed binary directly when a package
+manager would install dependencies or run `prepare`. After unexpected generation,
+compare the native source fingerprint with the archive receipts: unchanged
+bytes preserve existing archive evidence; changed inputs require a rebuild.
 Fixture-only component CI uses `--mode component`. If the coordinator rejects
 component targets in prepared-build mode, its supported `--no-prepared-builds`
 cold mode runs the same assertions. Keep passing evidence and rerun only affected
 checks. Bare preview tests should use the shared `waitForComponentPreview`
 readiness signal before inspecting the mounted component.
+Check new component targets are classified in the coordinator's coverage manifest
+before submission, preserving their correct existing coverage group.
 
 ## Archive and upload
 
@@ -88,6 +108,11 @@ stages resume. If source changed, use `--rebuild-stale-archives` to preserve and
 replace mismatching archives. Do not reuse a differently signed/source archive,
 erase receipts to force acceptance, or re-upload a build already accepted by
 Apple. Reassess repeated failures before starting another expensive attempt.
+
+Apple's generic required-contracts upload error does not identify an agreement.
+Inspect signed-in account status and have the Account Holder handle acceptance.
+After the account state is resolved, resume the same unaccepted build; uploads
+already accepted for either platform must not be repeated.
 
 ## Verify availability and clean up
 

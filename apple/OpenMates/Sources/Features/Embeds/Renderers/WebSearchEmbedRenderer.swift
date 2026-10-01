@@ -133,24 +133,32 @@ struct WebSearchThumbnailStrip: View {
     var body: some View {
         let urls = Self.selectedURLs(results.map(\.thumbnailStripURL))
         if !urls.isEmpty {
-            HStack(spacing: 2) {
-                ForEach(urls, id: \.self) { value in
-                    if failedURLs.contains(value) {
-                        Color.clear.frame(width: 40, height: 30)
-                    } else if let url = URL(string: value) {
-                        CachedRemoteImage(url: url, onFailure: {
-                            _ = loadedURLs.remove(value)
-                            _ = failedURLs.insert(value)
-                        }, onSuccess: { _ = loadedURLs.insert(value) }, svgContentMode: .fill) { image in
-                            image.resizable().aspectRatio(contentMode: .fill)
-                        } placeholder: { Color.clear }
-                        .frame(width: 40, height: 30).clipped()
-                        .accessibilityIdentifier("web-search-thumbnail")
+            // Fixed thumbnail cells must overflow the offered viewport rather
+            // than enlarge the entire preview card's intrinsic width.
+            GeometryReader { viewport in
+                HStack(spacing: .spacing1) {
+                    ForEach(urls, id: \.self) { value in
+                        if failedURLs.contains(value) {
+                            Color.clear.frame(width: 40, height: 30)
+                        } else if let url = URL(string: value) {
+                            CachedRemoteImage(url: url, onFailure: {
+                                _ = loadedURLs.remove(value)
+                                _ = failedURLs.insert(value)
+                            }, onSuccess: { _ = loadedURLs.insert(value) }, svgContentMode: .fill) { image in
+                                image.resizable().aspectRatio(contentMode: .fill)
+                            } placeholder: { Color.clear }
+                            .frame(width: 40, height: 30).clipped()
+                            .contentShape(Rectangle())
+                            .accessibilityIdentifier("web-search-thumbnail")
+                        }
                     }
                 }
+                .frame(width: viewport.size.width, height: 30, alignment: .leading)
+                .clipped()
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .frame(height: 30).clipped()
+            .frame(height: 30)
+            // Clipping paints the viewport; the same shape fences hit/AX bounds.
+            .contentShape(Rectangle())
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("web-search-thumbnail-strip")
             .accessibilityValue(loadedURLs.isEmpty ? (failedURLs.count == urls.count ? "failed" : "loading") : "loaded")

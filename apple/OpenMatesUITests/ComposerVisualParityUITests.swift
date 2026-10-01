@@ -19,6 +19,50 @@ final class ComposerVisualParityUITests: XCTestCase {
         continueAfterFailure = false
     }
 
+    // contract-test: direct surface=gui.apple assertions=chats.surface.semantic-parity
+    func testActiveFocusPillHasHumanLabelAndOperableSettingsAndUndoToggle() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--dev-preview", "composer", "--dev-preview-variant", "focus", "--dev-preview-width", "390"]
+        app.launch()
+        let label = app.staticTexts["focus-pill-label"]
+        XCTAssertTrue(label.waitForExistence(timeout: 12))
+        XCTAssertEqual(label.label, "Clarify workflows")
+        let open = app.buttons["focus-pill-body"]
+        // OMToggle exposes the native Switch role in the accessibility tree.
+        let toggle = app.switches["focus-pill-toggle"]
+        XCTAssertTrue(open.waitForExistence(timeout: 5), "Missing production focus settings button: \(app.debugDescription)")
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5), "Missing production focus toggle: \(app.debugDescription)")
+        XCTAssertTrue(open.isHittable)
+        XCTAssertTrue(toggle.isHittable)
+        attachScreenshot(name: "Active focus indicator parity")
+        open.tap()
+        let action = app.descendants(matching: .any)["dev-preview-local-action"].firstMatch
+        expectation(for: NSPredicate(format: "label == %@", "focus-settings-opened"), evaluatedWith: action)
+        waitForExpectations(timeout: 3)
+        toggle.tap()
+        toggle.tap()
+        let disappears = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: label)
+        disappears.isInverted = true
+        wait(for: [disappears], timeout: 1.2)
+        toggle.tap()
+        expectation(for: NSPredicate(format: "label == %@", "focus-deactivated"), evaluatedWith: action)
+        waitForExpectations(timeout: 4)
+        XCTAssertFalse(label.exists)
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.surface.semantic-parity
+    func testUserCanonicalMentionsRenderHumanLabelsAndPreserveSurroundingText() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--dev-preview", "message", "--dev-preview-variant", "mentions", "--dev-preview-width", "390"]
+        app.launch()
+        XCTAssertTrue(app.staticTexts["@Workflows-Clarify-Workflows"].waitForExistence(timeout: 12))
+        XCTAssertTrue(app.staticTexts["@Web-Search"].exists)
+        XCTAssertTrue(app.staticTexts["@sophia"].exists)
+        XCTAssertTrue(app.staticTexts["@Best"].exists)
+        XCTAssertFalse(app.staticTexts["@focus:workflows:clarify_workflows"].exists)
+        attachScreenshot(name: "User canonical mention gradient labels")
+    }
+
     // contract-test: direct surface=gui.apple assertions=message-input.layout.responsive-parity
     func testChatPreviewComposerUsesSharedIdentifiersAndWidthCap() throws {
         XCUIDevice.shared.orientation = .portrait

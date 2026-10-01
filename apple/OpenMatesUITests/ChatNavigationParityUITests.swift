@@ -68,10 +68,119 @@ final class ChatNavigationParityUITests: XCTestCase {
         XCTAssertEqual(try waitForMetric("selected-chat-id", equals: "ui-test-draft-chat", in: metrics), "ui-test-draft-chat")
     }
 
+    // contract-test: direct surface=gui.apple assertions=drafts.draft-only.lifecycle,chat-navigation.empty-new-chat.excluded
+    func testClearingAdoptedDraftReturnsToUnfocusedWorkspaceLanding() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-window-drafts", "-AppleLanguages", "(en)"]
+        app.launch()
+        let editor = app.textViews["message-editor"].firstMatch
+        XCTAssertTrue(editor.waitForExistence(timeout: 15))
+        editor.tap()
+        let draft = "Draft to clear"
+        editor.typeText(draft)
+        try assertHeaderTitle(draft, in: app)
+        let adopted = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier BEGINSWITH %@", "chat-view-")).firstMatch
+        XCTAssertTrue(adopted.waitForExistence(timeout: 10))
+        let removedID = adopted.identifier
+        editor.tap()
+        editor.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: draft.count))
+        let closed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"),
+                                               object: app.descendants(matching: .any)[removedID])
+        XCTAssertEqual(XCTWaiter.wait(for: [closed], timeout: 12), .completed)
+        XCTAssertTrue(app.descendants(matching: .any)["chat-workspace-welcome"].waitForExistence(timeout: 5))
+        let keyboardClosed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"),
+                                                       object: app.keyboards.firstMatch)
+        XCTAssertEqual(XCTWaiter.wait(for: [keyboardClosed], timeout: 5), .completed,
+                       "Deleting the draft returns to reading the workspace")
+        XCTAssertEqual(app.textViews["message-editor"].firstMatch.value as? String, "")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chat-navigation.open.local-first-coherent
+    func testContinuationOpensPersistedChatWithoutReplayingComposerFocus() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-authenticated-chat-navigation", "--ui-test-stale-composer-focus"]
+        app.launch()
+        try assertHeaderTitle("Current Chat", in: app)
+        app.buttons["chat-close-button"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["chat-workspace-welcome"].waitForExistence(timeout: 5))
+        let card = app.descendants(matching: .any).matching(NSPredicate(format: "identifier IN %@",
+            ["welcome-chat-card-ui-test-current-chat", "welcome-chat-compact-card-ui-test-current-chat"])).firstMatch
+        XCTAssertTrue(card.waitForExistence(timeout: 8))
+        card.tap()
+        try assertHeaderTitle("Current Chat", in: app)
+        XCTAssertFalse(app.keyboards.firstMatch.exists, "A continuation card opens the transcript for reading")
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label == %@", "Current Chat")).firstMatch.exists)
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chat-navigation.open.local-first-coherent
+    func testSelectingSidebarChatClosesPreviousFullscreenEmbedAndPreservesTranscript() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-authenticated-chat-navigation", "--ui-test-navigation-embed"]
+        app.launch()
+        try assertHeaderTitle("Current Chat", in: app)
+        // Code cards combine their children into the production open button.
+        // Scope the action to the persisted assistant's named code artifact.
+        let assistant = app.descendants(matching: .any)["message-assistant"].firstMatch
+        let preview = assistant.buttons.matching(NSPredicate(
+            format: "identifier == %@ AND label CONTAINS %@", "embed-preview", "example.py")).firstMatch
+        XCTAssertTrue(preview.waitForExistence(timeout: 10))
+        preview.tap()
+        let fullscreen = app.descendants(matching: .any)["embed-fullscreen-header"].firstMatch
+        XCTAssertTrue(fullscreen.waitForExistence(timeout: 8))
+        app.buttons["sidebar-toggle"].tap()
+        let next = app.buttons.matching(NSPredicate(format: "label == %@", "Newer Chat")).firstMatch
+        XCTAssertTrue(next.waitForExistence(timeout: 5))
+        next.tap()
+        try assertHeaderTitle("Newer Chat", in: app)
+        let closed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: fullscreen)
+        XCTAssertEqual(XCTWaiter.wait(for: [closed], timeout: 5), .completed)
+        XCTAssertFalse(app.keyboards.firstMatch.exists)
+        app.buttons["sidebar-toggle"].tap()
+        app.buttons.matching(NSPredicate(format: "label == %@", "Current Chat")).firstMatch.tap()
+        try assertHeaderTitle("Current Chat", in: app)
+        XCTAssertTrue(preview.waitForExistence(timeout: 8), "Original persisted embed remains in the transcript")
+        XCTAssertFalse(fullscreen.exists, "Returning to a chat does not restore a dismissed overlay")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chat-navigation.open.local-first-coherent
+    func testSavedSheetReferenceHydratesPreviewFullscreenAndSurvivesChatReparse() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-authenticated-chat-navigation", "--ui-test-sheet-reference-hydration"]
+        app.launch()
+        try assertHeaderTitle("Current Chat", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["sheet-preview-table"].waitForExistence(timeout: 10))
+        app.descendants(matching: .any)["embed-preview-ui-test-sheet-reference"].firstMatch.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["sheet-fullscreen-table"].waitForExistence(timeout: 8))
+        try assertSheetFullscreenValue("Saved Row A", in: app)
+        try assertSheetFullscreenValue("Saved Row B", in: app)
+        app.buttons["sidebar-toggle"].tap()
+        app.buttons.matching(NSPredicate(format: "label == %@", "Newer Chat")).firstMatch.tap()
+        try assertHeaderTitle("Newer Chat", in: app)
+        app.buttons["sidebar-toggle"].tap()
+        app.buttons.matching(NSPredicate(format: "label == %@", "Current Chat")).firstMatch.tap()
+        try assertHeaderTitle("Current Chat", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["sheet-preview-table"].waitForExistence(timeout: 8))
+        app.descendants(matching: .any)["embed-preview-ui-test-sheet-reference"].firstMatch.tap()
+        try assertSheetFullscreenValue("Saved Row B", in: app)
+    }
+
     private func assertHeaderTitle(_ expected: String, in app: XCUIApplication) throws {
         let title = app.staticTexts["chat-header-title"]
-        XCTAssertTrue(title.waitForExistence(timeout: 8), "Missing chat header title for \(expected)")
+        let settled = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == true AND label == %@", expected), object: title)
+        XCTAssertEqual(XCTWaiter.wait(for: [settled], timeout: 12), .completed,
+                       "Expected chat header title \(expected); observed \(title.exists ? title.label : "missing")")
         XCTAssertEqual(title.label, expected)
+    }
+
+    private func assertSheetFullscreenValue(_ expected: String, in app: XCUIApplication) throws {
+        let table = app.descendants(matching: .any)["sheet-fullscreen-table"].firstMatch
+        // Fullscreen cells use selectable UITextViews so long values wrap and
+        // remain copyable. Match the exact value within this table.
+        let cell = table.textViews.matching(NSPredicate(format: "value == %@", expected)).firstMatch
+        XCTAssertTrue(cell.waitForExistence(timeout: 8), "Missing saved table value \(expected)")
+        XCTAssertEqual(cell.value as? String, expected)
     }
 
     // contract-test: supporting surface=gui.apple assertions=chat-navigation.order.sidebar-header-match
