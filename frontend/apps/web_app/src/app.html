@@ -71,7 +71,9 @@
 			}
 
 			.safari-browser-tint-sampler.top {
-				top: 0;
+				/* Keep the 12px border box for Safari's direct-color detection, but
+				   expose only 1px at the top edge so header tabs stay unobscured. */
+				top: -11px;
 			}
 
 			.safari-browser-tint-sampler.bottom {

@@ -3,6 +3,7 @@
 export {};
 
 import type { Page } from '@playwright/test';
+import { waitForComponentPreview } from '../helpers/component-preview';
 
 const { expect, test } = require('../helpers/cookie-audit');
 
@@ -189,13 +190,17 @@ test.describe('Workflow prompt composer', () => {
     await expect(page.getByTestId('workflow-import-button')).toHaveCount(0);
   });
 
-  // contract-test: supporting surface=gui.web assertions=workflows-ui.responsive-accessible-reachable
-  test('Safari edge backgrounds remain opaque and follow light and dark theme changes', async ({ page }: { page: Page }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
+  // contract-test: supporting surface=gui.web assertions=workflows-ui.responsive-accessible-reachable,workspace-shell.nav.released-surfaces-visible
+  test('Safari edge backgrounds follow theme changes without covering header controls', async ({ page }: { page: Page }) => {
     await page.emulateMedia({ colorScheme: 'light' });
     await page.addInitScript(() => localStorage.setItem('theme_mode', 'dark'));
-    for (const theme of ['dark', 'light', 'dark']) {
-      await page.goto(preview(390, undefined, theme), { waitUntil: 'networkidle' });
+    for (const [width, theme] of [[390, 'dark'], [390, 'light'], [1280, 'light'], [1280, 'dark']] as const) {
+      await page.setViewportSize({ width, height: 844 });
+      await page.goto(`/dev/preview/Header?${new URLSearchParams({
+        theme, background: theme === 'dark' ? '#171717' : '#dbeafe',
+        width: String(width), variant: 'signedIn', chrome: '0',
+      })}`, { waitUntil: 'domcontentloaded' });
+      await waitForComponentPreview(page);
       const rgb = theme === 'dark' ? 'rgb(23, 23, 23)' : 'rgb(255, 255, 255)';
       const hex = theme === 'dark' ? '#171717' : '#ffffff';
       await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
@@ -211,11 +216,31 @@ test.describe('Workflow prompt composer', () => {
         const box = await sampler.boundingBox();
         if (!box) throw new Error('Safari edge background must be measurable.');
         expect(box.height).toBeGreaterThan(10);
-        expect(box.width).toBeGreaterThanOrEqual(390);
-        expect(edge === 'top' ? box.y : box.y + box.height).toBe(edge === 'top' ? 0 : 844);
+        expect(box.width).toBeGreaterThanOrEqual(width);
+        if (edge === 'top') {
+          // The full box still qualifies for Safari detection; only 1px is visible.
+          expect(box.y).toBeLessThan(0);
+          expect(box.y + box.height).toBe(1);
+        } else {
+          expect(box.y + box.height).toBe(844);
+        }
       }
+      const controls = width === 390
+        ? page.getByTestId('workspace-mobile-select')
+        : page.locator('.webapp-center-tabs .icon-tab');
+      await expect(controls).toHaveCount(width === 390 ? 1 : 5);
+      for (const control of await controls.all()) {
+        await expect(control).toBeVisible();
+        const box = await control.boundingBox();
+        if (!box) throw new Error('Header controls must be measurable.');
+        expect(box.y, 'The tint strip must stay above the entire header control').toBeGreaterThanOrEqual(1);
+        await control.focus();
+        await expect(control).toBeFocused();
+      }
+      await page.locator('header').screenshot({ path: test.info().outputPath(`safari-header-${width}-${theme}.png`) });
     }
-    await page.reload({ waitUntil: 'networkidle' });
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await waitForComponentPreview(page);
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
     await expect(page.locator('.safari-browser-tint-sampler.top')).toHaveCSS('background-color', 'rgb(23, 23, 23)');
   });
