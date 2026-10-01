@@ -29,8 +29,13 @@ class _Directus:
             "cold_archive_parts": [{"id": "cold-part-1"}],
         }
         self.deleted: list[tuple[str, list[str]]] = []
+        self.queries: list[tuple[str, dict]] = []
 
     async def get_items(self, collection: str, *, params: dict, **_kwargs: object) -> list[dict]:
+        self.queries.append((collection, params))
+        if collection == "cold_archive_parts":
+            archive_ids = params["filter"]["archive_id"]["_in"]
+            assert isinstance(archive_ids, list) and archive_ids
         offset = int(params.get("offset", 0))
         limit = int(params.get("limit", 500))
         return self.rows.get(collection, [])[offset:offset + limit]
@@ -58,3 +63,21 @@ async def test_account_deletion_removes_persisted_export_reference_rows_before_o
     assert ("account_export_parts", ["part-1"]) in directus.deleted
     assert ("account_export_jobs", ["job-1"]) in directus.deleted
     assert ("cold_archive_parts", ["cold-part-1"]) in directus.deleted
+    assert next(params for collection, params in directus.queries if collection == "cold_archive_parts")["filter"] == {
+        "archive_id": {"_in": ["archive-1"]},
+    }
+
+
+# contract-test: direct surface=rest_api assertions=storage.deletion.global-authoritative
+@pytest.mark.anyio
+async def test_account_deletion_without_cold_archives_skips_empty_parts_filter() -> None:
+    directus = _Directus()
+    directus.rows["cold_archive_manifests"] = []
+    directus.rows["cold_archive_parts"] = []
+    deleted = await _module().delete_account_storage_reference_rows(
+        directus_service=directus, user_id="user-1", user_id_hash="hash-1",
+    )
+    assert deleted["cold_archive_parts"] == 0
+    assert not any(collection == "cold_archive_parts" for collection, _ in directus.queries)
+    assert deleted["account_export_parts"] == 1
+    assert deleted["upload_files"] == 1

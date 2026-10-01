@@ -665,7 +665,14 @@ class ChatCacheMixin:
                 logger.warning(f"Draft version missing for user {user_id}, chat {chat_id} in {key}")
                 return None
 
-            version = int(version_str)
+            try:
+                version = int(version_str)
+            except (TypeError, ValueError):
+                # Legacy/corrupt version fields are cache misses. The draft
+                # resolver reads Directus and warms this hash with its version;
+                # never log the field, which may contain encrypted content.
+                logger.info("Ignoring cached draft with an invalid version; using database fallback")
+                return None
 
             if refresh_ttl:
                 await client.expire(key, self.USER_DRAFT_TTL)

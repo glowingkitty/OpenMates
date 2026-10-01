@@ -36,6 +36,7 @@ from importlib import import_module  # noqa: E402
 from backend.core.api.app.routes import account_exports, account_imports, auth, chats, email, settings, storage_routes, websockets, sdk  # noqa: E402
 from backend.core.api.app.routes import anonymous  # noqa: E402 # Anonymous free usage routes
 from backend.core.api.app.routes import internal_api  # noqa: E402 # Import the new internal API router
+from backend.core.api.app.routes import internal_health  # noqa: E402
 from backend.core.api.app.routes import apps_workspace  # noqa: E402 # Import after logging/tracing setup
 from backend.core.api.app.routes import apps  # noqa: E402 # Import apps router
 from backend.core.api.app.routes import share  # noqa: E402 # Import share router
@@ -940,19 +941,16 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Failed to trigger initial health check: {e}. Health checks will run on schedule.", exc_info=True)
 
-        # Trigger initial app health check on startup
-        logger.info("Triggering initial app health check for all apps...")
-        try:
-            # Trigger the app health check task asynchronously (non-blocking)
-            app_task_result = celery_app.send_task(
-                "health_check.check_all_apps",
-                queue="health_check"
-            )
-            logger.info(f"Initial app health check task queued successfully. Task ID: {app_task_result.id}")
-        except Exception as e:
-            logger.error(f"Failed to trigger initial app health check: {e}. App health checks will run on schedule.", exc_info=True)
+    # App readiness must be checked regardless of whether provider checks were queued.
+    logger.info("Triggering initial app health check for all apps...")
+    try:
+        app_task_result = celery_app.send_task(
+            "health_check.check_all_apps",
+            queue="health_check"
+        )
+        logger.info(f"Initial app health check task queued successfully. Task ID: {app_task_result.id}")
     except Exception as e:
-        logger.error(f"Failed to initialize: {str(e)}", exc_info=True)
+        logger.error(f"Failed to trigger initial app health check: {e}. App health checks will run on schedule.", exc_info=True)
 
     from backend.core.api.app.services.project_task_sync_service import ProjectTaskSyncService
     app.state.project_task_sync = ProjectTaskSyncService(app.state.directus_service, app.state.cache_service)
@@ -1372,6 +1370,7 @@ def create_app() -> FastAPI:
     app.include_router(chats.router, include_in_schema=False)  # Encrypted chat reads - session-authenticated first-party clients
     app.include_router(storage_routes.router, include_in_schema=False)  # Encrypted cold archive reads - first-party clients only
     app.include_router(internal_api.router, include_in_schema=False)  # Internal API router - service-to-service communication only
+    app.include_router(internal_health.router, include_in_schema=False)
     app.include_router(apps_workspace.router, include_in_schema=False)  # First-party encrypted Apps result library
     app.include_router(apps.router, include_in_schema=False)  # Apps router - public endpoint, not API key based
     app.include_router(code_execution.router, include_in_schema=False)  # Code Run sandbox execution - web app only
