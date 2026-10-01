@@ -2,13 +2,13 @@
 /* eslint-disable @typescript-eslint/no-require-imports -- Existing Playwright helpers expose CommonJS exports. */
 export {};
 
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 
 const { expect, test } = require('../helpers/cookie-audit');
 
-function preview(variant: string): string {
+function preview(variant: string, theme: 'light' | 'dark' = 'light'): string {
   return `/dev/preview/workflows/WorkflowGraphRenderer?${new URLSearchParams({
-    variant, theme: 'light', background: '#dbeafe', width: '900', chrome: '0',
+    variant, theme, background: theme === 'dark' ? '#171717' : '#dbeafe', width: '900', chrome: '0',
   })}`;
 }
 
@@ -19,7 +19,76 @@ async function openNewAskAi(page: Page, variant: string): Promise<void> {
   await expect(page.getByTestId('workflow-ask-ai-input')).toBeVisible();
 }
 
+async function expectVisibleCaret(editor: Locator): Promise<void> {
+  await editor.focus();
+  await expect(editor).toBeFocused();
+  const state = await editor.evaluate(element => {
+    const style = getComputedStyle(element);
+    let surface: Element | null = element;
+    let background = style.backgroundColor;
+    while (surface && background === 'rgba(0, 0, 0, 0)') {
+      surface = surface.parentElement;
+      if (surface) background = getComputedStyle(surface).backgroundColor;
+    }
+    const selection = window.getSelection();
+    return { caret: style.caretColor, background, collapsed: selection?.isCollapsed,
+      inside: !!selection?.anchorNode && element.contains(selection.anchorNode) };
+  });
+  const channels = (color: string) => color.match(/[\d.]+/g)!.map(Number);
+  const caret = channels(state.caret);
+  expect(caret[3] ?? 1).toBeGreaterThan(0);
+  const luminance = (color: string) => channels(color).slice(0, 3).map(channel => {
+    const value = channel / 255;
+    return value <= .04045 ? value / 12.92 : ((value + .055) / 1.055) ** 2.4;
+  }).reduce((sum, value, index) => sum + value * [.2126, .7152, .0722][index], 0);
+  const [foreground, background] = [luminance(state.caret), luminance(state.background)];
+  expect((Math.max(foreground, background) + .05) / (Math.min(foreground, background) + .05)).toBeGreaterThanOrEqual(3);
+  expect(state.collapsed && state.inside).toBe(true);
+}
+
 test.describe('Workflow Ask AI editor', () => {
+  for (const theme of ['light', 'dark'] as const) {
+    for (const field of ['Ask AI', 'AI confirms', 'Send message', 'App input'] as const) {
+      // contract-test: direct surface=gui.web assertions=workflows-ui.responsive-accessible-reachable
+      test(`shows the focused ${field} cursor in ${theme} mode`, async ({ page }: { page: Page }) => {
+        const editor = page.getByTestId('workflow-message-template');
+        if (field === 'App input') {
+          await page.goto(`/dev/preview/workflows/WorkflowMessageEditor?${new URLSearchParams({
+            theme, background: theme === 'dark' ? '#171717' : '#dbeafe', width: '600', chrome: '0',
+            props: JSON.stringify({ compact: true, value: 'Find events in Berlin' }),
+          })}`, { waitUntil: 'domcontentloaded' });
+          await expect(editor).toHaveAttribute('aria-multiline', 'false');
+        } else {
+          await page.goto(preview(field === 'Ask AI' ? 'eventsSearch' : 'aiCheck', theme), { waitUntil: 'domcontentloaded' });
+          if (field === 'Ask AI') {
+            await page.getByTestId('workflow-add-step').last().click();
+            await page.getByTestId('workflow-step-ask-ai').click();
+          } else {
+            await page.locator(`[data-node-id="${field === 'AI confirms' ? 'rain' : 'message'}"]`).getByTestId('workflow-node-summary').click();
+          }
+        }
+        // Reproduce the chat composer's global inactive-editor rule, even in the bare preview.
+        await page.addStyleTag({ content: '.ProseMirror { caret-color: transparent; }' });
+        if (field === 'Ask AI') {
+          await expectVisibleCaret(editor);
+          await editor.fill('Summarize the events @events');
+          await expect(editor.locator('.workflow-mention-query')).toHaveText('@events');
+        } else if (field === 'App input') {
+          await editor.fill('Find events in London');
+          await editor.press('End');
+          await editor.pressSequentially(' tomorrow');
+          await expect(editor).toHaveText('Find events in London tomorrow');
+        } else {
+          await editor.fill(field === 'AI confirms' ? 'Is the weather suitable for an outdoor lunch?' : 'Here is your morning update.');
+        }
+        await expectVisibleCaret(editor);
+        if (field === 'Ask AI') {
+          await editor.screenshot({ caret: 'initial', animations: 'disabled', path: test.info().outputPath(`ask-ai-caret-${theme}.png`) });
+        }
+      });
+    }
+  }
+
   test.beforeEach(async ({ page }: { page: Page }) => {
     await page.route('**/v1/workflows/ai-authoring/hints', route => route.fulfill({
       status: 200, contentType: 'application/json',

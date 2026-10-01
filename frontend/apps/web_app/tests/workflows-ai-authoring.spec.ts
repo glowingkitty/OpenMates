@@ -41,6 +41,8 @@ test.describe('Workflow AI authoring', () => {
       await page.getByTestId('workflow-step-ask-ai').click();
       const instruction = page.getByTestId('workflow-message-template');
       await instruction.fill('Search for new events @Events');
+      await expect(instruction).toBeFocused();
+      await expect(instruction).not.toHaveCSS('caret-color', 'rgba(0, 0, 0, 0)');
       await expect(instruction.locator('.workflow-mention-query')).toHaveText('@Events');
       await page.getByTestId('workflow-variable-sources').locator('[data-source-node-id="events"]').click();
       await page.getByTestId('workflow-ai-suggestions').getByRole('button', { name:/Results/ }).first().click();
@@ -56,6 +58,8 @@ test.describe('Workflow AI authoring', () => {
       await page.getByRole('option', { name:'AI confirms', exact:true }).click();
       await expect(page.getByRole('heading', { name:'If', exact:true })).toBeVisible();
       await instruction.fill('Summarize the events @Events');
+      await expect(instruction).toBeFocused();
+      await expect(instruction).not.toHaveCSS('caret-color', 'rgba(0, 0, 0, 0)');
       await page.getByTestId('workflow-variable-sources').locator('[data-source-node-id="events"]').click();
       await page.getByTestId('workflow-ai-suggestions').getByRole('button', { name:/Results/ }).first().click();
       await page.getByTestId('workflow-node-save').click();

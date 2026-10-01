@@ -122,6 +122,8 @@
 <div class="workflow-message-editor" class:compact class:disabled bind:this={element}></div>
 
 <style>
+  /* The chat composer hides the native ProseMirror caret globally when unfocused. */
+  .workflow-message-editor :global(.tiptap){caret-color:var(--color-font-primary)}
   .workflow-message-editor :global(.workflow-mention-query){color:var(--color-primary-start);font-weight:500}
   .workflow-message-editor :global(.generic-mention){align-items:center;gap:.25rem;text-align:left}
   .workflow-message-editor :global(.generic-mention-label){min-width:0;overflow-wrap:anywhere;text-align:left}
