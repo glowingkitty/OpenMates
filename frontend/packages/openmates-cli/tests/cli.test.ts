@@ -20,6 +20,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { promisify } from "node:util";
 import { WebSocketServer } from "ws";
 import { parse as parseYaml } from "yaml";
+import { encryptBytesWithAesGcm } from "../src/crypto.ts";
 
 // Import from compiled dist — the .js extension imports in src/ require the build step
 import {
@@ -51,6 +52,7 @@ const execFileAsync = promisify(execFile);
 const PACKAGE_ROOT = fileURLToPath(new URL("..", import.meta.url));
 const REPO_ROOT = fileURLToPath(new URL("../../../..", import.meta.url));
 const CLI_PACKAGE_VERSION = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf-8")).version as string;
+const GOAL_CHAT_PROJECT_ID = "55555555-5555-4555-8555-555555555555";
 
 function runCli(args: string[], env: Record<string, string> = {}): string {
   return execFileSync("node", ["dist/cli.js", ...args], {
@@ -405,6 +407,7 @@ async function withGoalChatMock<T>(
   const requestPaths: string[] = [];
   const chatMessages: string[] = [];
   const planRequests: Record<string, unknown>[] = [];
+  const encryptedProjectKey = await encryptBytesWithAesGcm(Buffer.alloc(32, 9), Buffer.alloc(32));
   let latestChatId = "11111111-2222-4333-8444-555555555555";
   let latestEncryptedChatKey = "";
   mkdirSync(stateDir, { recursive: true });
@@ -427,6 +430,10 @@ async function withGoalChatMock<T>(
       const body = await readJsonBody(request);
       planRequests.push(body);
       writeJson(response, { plan: body });
+      return;
+    }
+    if (request.method === "GET" && request.url === "/v1/projects?include_archived=true") {
+      writeJson(response, { projects: [{ project_id: GOAL_CHAT_PROJECT_ID, encrypted_project_key: encryptedProjectKey }] });
       return;
     }
     response.writeHead(404);
@@ -2136,7 +2143,7 @@ async function withCodeRunStreamingMockApi<T>(
   const server = createServer(async (request, response) => {
     try {
       if (request.method === "POST" && request.url === "/v1/auth/session") {
-        writeJson(response, { success: true, ws_token: "bad-ws-token" });
+        writeJson(response, { success: true, ws_token: "fresh-ws-token" });
         return;
       }
       if (request.method === "POST" && request.url === "/v1/apps/code/skills/run") {
@@ -2171,7 +2178,9 @@ async function withCodeRunStreamingMockApi<T>(
   server.on("upgrade", (request, socket, head) => {
     const url = new URL(request.url ?? "/", "http://127.0.0.1");
     const token = url.searchParams.get("token");
-    if (rejectStreams || token !== refreshToken) {
+    assert.equal(url.searchParams.get("sessionId"), "session-1");
+    assert.equal(url.toString().includes(refreshToken), false, "Refresh tokens must stay out of stream URLs");
+    if (rejectStreams || !["old-ws-token", "fresh-ws-token"].includes(token ?? "")) {
       stats.rejected += 1;
       socket.write("HTTP/1.1 403 Forbidden\r\n\r\n");
       socket.destroy();
@@ -2250,6 +2259,30 @@ async function withSkillFormattingMockApi<T>(
             provider: "auto",
           },
           credits_charged: 30,
+        });
+        return;
+      }
+      if (request.method === "POST" && request.url === "/v1/apps/code/skills/search_repos") {
+        const body = await readJsonBody(request);
+        requests.push({ url: request.url, body });
+        writeJson(response, {
+          success: true,
+          data: {
+            provider: "GitHub",
+            results: [{
+              id: 1,
+              query: "typescript authentication library",
+              results: [{
+                type: "repository_result",
+                full_name: "example/auth-library",
+                name: "auth-library",
+                primary_language: "TypeScript",
+                license_spdx_id: "MIT",
+                html_url: "https://github.com/example/auth-library",
+              }],
+            }],
+          },
+          credits_charged: 5,
         });
         return;
       }
@@ -2733,7 +2766,7 @@ describe("CLI goal chat", () => {
       const result = await new Promise<{ status: number | null; stdout: string; stderr: string }>((resolve) => {
         execFile(
           "node",
-          ["dist/cli.js", "chat", "--goal", "Ship the docs update", "--title", "Docs launch", "--json"],
+          ["dist/cli.js", "chat", "--goal", "Ship the docs update", "--title", "Docs launch", "--project", GOAL_CHAT_PROJECT_ID, "--json"],
           {
             cwd: PACKAGE_ROOT,
             encoding: "utf-8",
@@ -2769,6 +2802,7 @@ describe("CLI goal chat", () => {
       assert.equal(frameTypes.includes("chat_message_added"), true);
       assert.equal(planRequests.length, 1);
       assert.equal(planRequests[0].primary_chat_id, parsed.chat_id);
+      assert.deepEqual(planRequests[0].linked_project_ids, [GOAL_CHAT_PROJECT_ID]);
       assert.equal(planRequests[0].status, "draft");
       assert.equal(typeof planRequests[0].encrypted_goal, "string");
       assert.equal(JSON.stringify(planRequests[0]).includes("Ship the docs update"), false);
@@ -3403,20 +3437,21 @@ describe("apps code run command variants", () => {
       const output = await runCliAsync(["apps", "code", "run", "--api-url", apiUrl,
         "--language", "python", "--code", "print('hello')", "--json"], {HOME: tempHome});
       assert.equal(JSON.parse(output).final.status, "finished");
-      assert.deepEqual(getStats(), {rejected: 2, accepted: 0});
+      assert.deepEqual(getStats(), {rejected: 1, accepted: 0});
     }, true);
   });
 
-  it("retries Code Run streaming with the refresh token when ws_token auth is rejected", async () => {
+  it("streams Code Run with a WebSocket token while keeping the refresh token out of the URL", async () => {
     await withCodeRunStreamingMockApi(async ({ apiUrl, tempHome, getStats }) => {
-      await runCliAsync([
+      const output = await runCliAsync([
         "apps", "code", "run",
         "--api-url", apiUrl,
         "--language", "python",
         "--source-filename", "hello.py",
         "--code", "print('hello')\n",
       ], { HOME: tempHome });
-      assert.deepEqual(getStats(), { rejected: 1, accepted: 1 });
+      assert.match(output, /STREAM_FALLBACK_OK/);
+      assert.deepEqual(getStats(), { rejected: 0, accepted: 1 });
     });
   });
 });

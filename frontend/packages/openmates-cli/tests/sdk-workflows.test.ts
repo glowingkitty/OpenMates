@@ -61,8 +61,9 @@ function assertPublicWorkflowSlug(workflow: Record<string, unknown>, slug: strin
 async function withServer(
   handler: (request: IncomingMessage, body: unknown) => unknown,
   run: (apiUrl: string, seen: SeenRequest[]) => Promise<void>,
-  expectedAuthorization = "Bearer x",
+  expectedApiKey = "x",
 ): Promise<void> {
+  const [bearer, decryptionSecret] = expectedApiKey.split(".");
   const seen: SeenRequest[] = [];
   const server = createServer((request: IncomingMessage, response: ServerResponse) => {
     let raw = "";
@@ -74,7 +75,11 @@ async function withServer(
         if (request.url?.startsWith("/v1/workflows/template-projections/")) {
           assert.equal(request.headers.authorization, undefined);
         } else {
-          assert.equal(request.headers.authorization, expectedAuthorization);
+          assert.equal(request.headers.authorization, `Bearer ${bearer}`);
+        }
+        if (decryptionSecret) {
+          assert.equal(JSON.stringify(request.headers).includes(decryptionSecret), false, "API-key decryption secret must stay out of request headers");
+          assert.equal(raw.includes(decryptionSecret), false, "API-key decryption secret must stay out of request bodies");
         }
         assert.equal(request.headers["x-openmates-sdk"], "npm");
       response.writeHead(200, { "content-type": "application/json" });
@@ -281,7 +286,7 @@ describe("OpenMates SDK workflows", () => {
         assert.deepEqual(blankCreateBody.graph, blankGraph());
         assert.equal(blankCreateBody.enabled, false);
       },
-      `Bearer ${material.apiKey}`,
+      material.apiKey,
     );
   });
 
@@ -423,7 +428,7 @@ describe("OpenMates SDK workflows", () => {
         assert.ok(endpoints.includes("POST /v1/workflows/wf-1/template-projection/revoke"));
         assert.ok(endpoints.includes("POST /v1/workflows/wf-1/template-projection/unrevoke"));
       },
-      `Bearer ${material.apiKey}`,
+      material.apiKey,
     );
   });
 
@@ -489,7 +494,7 @@ describe("OpenMates SDK workflows", () => {
           assert.ok(endpoints.includes(endpoint), `missing endpoint ${endpoint}`);
         }
       },
-      `Bearer ${material.apiKey}`,
+      material.apiKey,
     );
   });
 });

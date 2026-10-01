@@ -1573,17 +1573,17 @@ assertions:
       surface: gui.web
     - &id230
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3532
+      line: 3567
       name: forwards relevance criteria through generated typed app-skill flags
       surface: cli
     - &id231
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3559
+      line: 3594
       name: forwards repository relevance criteria through generated typed input
       surface: cli
     - &id232
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3693
+      line: 3728
       name: forwards models3d relevance criteria through generated JSON input
       surface: cli
     supporting_tests:
@@ -1945,17 +1945,17 @@ assertions:
       surface: cli
     - &id250
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3532
+      line: 3567
       name: forwards relevance criteria through generated typed app-skill flags
       surface: cli
     - &id251
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3559
+      line: 3594
       name: forwards repository relevance criteria through generated typed input
       surface: cli
     - &id252
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3693
+      line: 3728
       name: forwards models3d relevance criteria through generated JSON input
       surface: cli
     supporting_tests:
@@ -13954,7 +13954,7 @@ assertions:
       surface: gui.web
     - &id1648
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3297
+      line: 3331
       name: returns a failing process status when the sandbox execution fails
       surface: cli
     supporting_tests:
@@ -14020,7 +14020,7 @@ assertions:
       surface: rest_api
     - &id1649
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3401
+      line: 3435
       name: retrieves Code Run completion through polling when streaming is unavailable
       surface: cli
     - &id1650
@@ -14319,7 +14319,7 @@ assertions:
       surface: rest_api
     - &id1681
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3275
+      line: 3309
       name: prints direct-run output and artifact download metadata in human mode
       surface: cli
     - &id1682
@@ -14832,12 +14832,12 @@ assertions:
       surface: gui.web
     - &id1750
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3275
+      line: 3309
       name: prints direct-run output and artifact download metadata in human mode
       surface: cli
     - &id1751
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3297
+      line: 3331
       name: returns a failing process status when the sandbox execution fails
       surface: cli
     - &id1755
@@ -16453,7 +16453,7 @@ assertions:
       surface: rest_api
     - &id1903
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3426
+      line: 3461
       name: maps pass-aware train flags into the app-skill request
       surface: cli
     tests:
@@ -16597,7 +16597,7 @@ assertions:
     supporting_tests:
     - &id1912
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3426
+      line: 3461
       name: maps pass-aware train flags into the app-skill request
       surface: cli
     tests:
@@ -43063,7 +43063,7 @@ assertions:
       surface: gui.web
     - &id5227
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 1125
+      line: 1132
       name: rejects Plan creation without a Project before login or API access
       surface: cli
     - &id5228
@@ -45306,12 +45306,12 @@ assertions:
       surface: gui.web
     - &id5474
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 1215
+      line: 1222
       name: requires an explicit write policy for non-interactive Project creation
       surface: cli
     - &id5475
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 1268
+      line: 1275
       name: renders exact Project write proposals without emitting terminal controls
       surface: cli
     tests:
@@ -45634,12 +45634,12 @@ assertions:
       surface: gui.web
     - &id5512
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 1247
+      line: 1254
       name: builds a private default focus for an empty Project
       surface: cli
     - &id5513
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 1256
+      line: 1263
       name: recognizes direct Project mentions without treating case variants as conflicts
       surface: cli
     tests:
@@ -45677,7 +45677,7 @@ assertions:
     supporting_tests:
     - &id5515
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 1227
+      line: 1234
       name: imports root AGENTS.md before CLAUDE.md and supports case variants
       surface: cli
     tests:
@@ -55478,7 +55478,7 @@ assertions:
       surface: cli
     - &id6684
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 1475
+      line: 1482
       name: exports a portable YAML graph and imports it as a disabled workflow
       surface: cli
     supporting_tests:
@@ -55562,7 +55562,7 @@ assertions:
       surface: cli
     - &id6694
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 1475
+      line: 1482
       name: exports a portable YAML graph and imports it as a disabled workflow
       surface: cli
     supporting_tests:
@@ -55663,7 +55663,7 @@ assertions:
       surface: cli
     - &id6710
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 1475
+      line: 1482
       name: exports a portable YAML graph and imports it as a disabled workflow
       surface: cli
     supporting_tests:
@@ -55756,7 +55756,7 @@ assertions:
       surface: cli
     - &id6714
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 1475
+      line: 1482
       name: exports a portable YAML graph and imports it as a disabled workflow
       surface: cli
     supporting_tests:
@@ -55795,7 +55795,7 @@ assertions:
       surface: gui.web
     - &id6748
       path: frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
-      line: 96
+      line: 101
       name: manages workflows through the shared API contract
       surface: sdks.npm
     - &id6749
@@ -56493,7 +56493,7 @@ assertions:
       surface: rest_api
     - &id6828
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 1394
+      line: 1401
       name: waits through a claimed delivery until this run is acknowledged without
         redispatch
       surface: cli
@@ -57214,17 +57214,17 @@ assertions:
       surface: cli
     - &id6949
       path: frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
-      line: 96
+      line: 101
       name: manages workflows through the shared API contract
       surface: sdks.npm
     - &id6951
       path: frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
-      line: 385
+      line: 390
       name: manages workflow template sharing transport through the shared API contract
       surface: sdks.npm
     - &id6952
       path: frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
-      line: 431
+      line: 436
       name: manages durable workflow input sessions
       surface: sdks.npm
     - &id6955
@@ -57528,18 +57528,18 @@ assertions:
       surface: rest_api
     - &id6948
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 1394
+      line: 1401
       name: waits through a claimed delivery until this run is acknowledged without
         redispatch
       surface: cli
     - &id6950
       path: frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
-      line: 289
+      line: 294
       name: exposes workflow app-skill child embeds and server-side search results
       surface: sdks.npm
     - &id6953
       path: frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
-      line: 498
+      line: 503
       name: previews unsaved messages and deletes run-owned history through owner
         workflow routes
       surface: sdks.npm
@@ -60219,7 +60219,7 @@ assertions:
       surface: cli
     - &id7289
       path: frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
-      line: 498
+      line: 503
       name: previews unsaved messages and deletes run-owned history through owner
         workflow routes
       surface: sdks.npm
@@ -60453,7 +60453,7 @@ assertions:
       surface: rest_api
     - &id7308
       path: frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
-      line: 498
+      line: 503
       name: previews unsaved messages and deletes run-owned history through owner
         workflow routes
       surface: sdks.npm
@@ -61121,7 +61121,7 @@ assertions:
       surface: cli
     - &id7390
       path: frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
-      line: 96
+      line: 101
       name: manages workflows through the shared API contract
       surface: sdks.npm
     - &id7391
@@ -63355,7 +63355,7 @@ assertions:
     supporting_tests:
     - &id7634
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 1394
+      line: 1401
       name: waits through a claimed delivery until this run is acknowledged without
         redispatch
       surface: cli
@@ -63624,7 +63624,7 @@ assertions:
     supporting_tests:
     - &id7665
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3401
+      line: 3435
       name: retrieves Code Run completion through polling when streaming is unavailable
       surface: cli
     - &id7666
@@ -63950,7 +63950,7 @@ assertions:
       surface: sdks.npm
     - &id7708
       path: frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
-      line: 96
+      line: 101
       name: manages workflows through the shared API contract
       surface: sdks.npm
     - &id7709
@@ -64218,17 +64218,17 @@ assertions:
       surface: sdks.npm
     - &id7784
       path: frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
-      line: 96
+      line: 101
       name: manages workflows through the shared API contract
       surface: sdks.npm
     - &id7786
       path: frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
-      line: 385
+      line: 390
       name: manages workflow template sharing transport through the shared API contract
       surface: sdks.npm
     - &id7787
       path: frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
-      line: 431
+      line: 436
       name: manages durable workflow input sessions
       surface: sdks.npm
     - &id7789
@@ -64551,12 +64551,12 @@ assertions:
       surface: sdks.npm
     - &id7785
       path: frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
-      line: 289
+      line: 294
       name: exposes workflow app-skill child embeds and server-side search results
       surface: sdks.npm
     - &id7788
       path: frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
-      line: 498
+      line: 503
       name: previews unsaved messages and deletes run-owned history through owner
         workflow routes
       surface: sdks.npm
