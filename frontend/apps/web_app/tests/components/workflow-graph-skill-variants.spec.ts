@@ -2,7 +2,9 @@
 /* eslint-disable @typescript-eslint/no-require-imports -- Existing Playwright helpers expose CommonJS exports. */
 export {};
 
-import type { Page } from '@playwright/test';
+import type { Page, Route } from '@playwright/test';
+
+import { waitForComponentPreview } from '../helpers/component-preview';
 
 const { expect, test } = require('../helpers/cookie-audit');
 
@@ -90,6 +92,32 @@ const VARIABLE_SOURCE_CAPABILITY = {
 };
 
 test.describe('WorkflowGraphRenderer real skill variants', () => {
+	// contract-test: direct surface=gui.web assertions=workflows-ui.responsive-accessible-reachable,workflows-ui.mvp.authoring
+	test('app skill tests show exactly one Processing indicator in the output container', async ({ page }: { page: Page }) => {
+		let release = () => {};
+		const held = new Promise<void>(resolve => { release = resolve; });
+		await page.route('**/v1/workflows/preview-workflow/steps/events/test', async (route: Route) => {
+			const headers = { 'Access-Control-Allow-Origin': new URL(page.url()).origin, 'Access-Control-Allow-Credentials': 'true', 'Access-Control-Allow-Methods': 'POST,OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' };
+			if (route.request().method() === 'OPTIONS') { await route.fulfill({ status: 204, headers }); return; }
+			await held;
+			await route.fulfill({ headers, json: { run: { id: 'events-test', status: 'completed', node_runs: [{ node_id: 'events', output_summary: { results: [{ title: 'Test art class', url: 'https://example.com/art' }] } }] } } });
+		});
+		try {
+			await page.goto(EVENTS_PREVIEW + '&props=' + encodeURIComponent(JSON.stringify({ workflowId: 'preview-workflow' })), { waitUntil: 'domcontentloaded' });
+			await waitForComponentPreview(page);
+			const node = page.locator('[data-node-id="events"]');
+			await node.getByTestId('workflow-node-summary').click();
+			await node.getByTestId('workflow-test-action').click();
+			await expect(node.getByTestId('workflow-test-output-loading')).toHaveText('Processing…');
+			await expect(node.getByText('Processing…', { exact: true })).toHaveCount(1);
+			await expect(node.locator('.test-control')).not.toContainText('Processing...');
+			await expect(node.getByTestId('workflow-test-action')).toBeDisabled();
+			await node.screenshot({ path: test.info().outputPath('app-skill-single-processing.png') });
+			release();
+			await expect(node.getByTestId('workflow-test-output-loading')).toHaveCount(0);
+			await expect(node.getByTestId('workflow-output-fields')).toContainText('Test art class');
+		} finally { release(); }
+	});
 	// contract-test: direct surface=gui.web assertions=workflows-ui.mvp.authoring
 	test('opens and inspects the Events Search capability schema', async ({
 		page

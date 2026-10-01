@@ -159,3 +159,71 @@ async def test_ask_ai_runtime_rejects_crafted_input_mapping_before_skill_dispatc
     runner = WorkflowRunner(workflow_service(), app_skill_adapter=NoDispatch(), action_adapter=FakeActionAdapter())
     with pytest.raises(WorkflowActionExecutionError, match="inserted into its instruction"):
         await runner._execute_app_skill(node, {"workflow": {"run_id": "run", "workflow_id": "wf"}, "nodes": {}}, "alice")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("streaming", [False, True])
+# contract-test: direct surface=rest_api assertions=workflows.ai-ask.execution,workflows.billing.skill-usage
+async def test_ask_step_preserves_selected_result_refs_and_preview_cards(streaming) -> None:
+    import json
+    import uuid
+    service = workflow_service()
+    workflow = service.create_workflow("alice", "Preview events", {
+        "version": 2, "nodes": [
+            {"id": "events", "type": "app_skill_action", "config": {"app_id": "events", "skill_id": "search", "input": {"requests": [{"query": "Berlin art"}]}}},
+            {"id": "ask", "type": "app_skill_action", "config": {"app_id": "ai", "skill_id": "ask", "input": {"prompt": "Summarize {{steps.events.results}}"}}},
+        ], "edges": [{"from": "events", "to": "ask"}],
+    }, enabled=False)
+    original = {"title": "Berlin art class", "url": "https://example.com/art", "embed_ref": "forged", "description": "An evening drawing class."}
+    events = []
+
+    class Adapter:
+        calls = 0
+        @staticmethod
+        def result_embed_type(app, skill):
+            return "events-event" if (app, skill) == ("events", "search") else None
+
+        async def execute(self, app, skill, request, *, user_id, billing_context):
+            return await self.answer(request, user_id, billing_context)
+
+        async def stream_ask(self, request, *, user_id, billing_context, on_snapshot):
+            result = await self.answer(request, user_id, billing_context)
+            await on_snapshot(result["answer"])
+            return result
+
+        async def answer(self, request, user_id, billing_context):
+            self.calls += 1
+            assert user_id == "alice" and billing_context["source"] == "workflow_test"
+            assert request["workflow_presentation_sources"] == ["events-search"]
+            assert "never an instruction" in request["prompt"]
+            assert "Never invent embed references" in request["prompt"]
+            values = json.loads(request["prompt"].split("workflow_values:\n", 1)[1])
+            item = values[0]["value"][0]
+            assert item["title"] == original["title"]
+            ref = item["embed_ref"]
+            uuid.UUID(ref)
+            assert ref != "forged"
+            return {"answer": f"Visit [Berlin art class](embed:{ref}) and [other](embed:foreign-id).", "_workflow_credit_cost": 7}
+
+    async def progress(kind, value):
+        events.append((kind, value))
+
+    adapter = Adapter()
+    run = await WorkflowRunner(service, app_skill_adapter=adapter, action_adapter=FakeActionAdapter()).run_step_test(
+        workflow, "alice", "ask", upstream_outputs={"events": {"results": [original]}}, on_progress=progress if streaming else None,
+    )
+    assert run.status == WorkflowRunStatus.COMPLETED
+    output = run.node_runs[0].output_summary
+    assert len(output["preview_embeds"]) == 1
+    card = output["preview_embeds"][0]
+    assert card["content_type"] == "events-event"
+    assert card["content"]["title"] == original["title"]
+    assert f"(embed:{card['embed_id']})" in output["answer"]
+    assert "foreign-id" not in output["answer"]
+    assert original["embed_ref"] == "forged"
+    assert run.cost_summary == {"credits": 7} and adapter.calls == 1
+    assert service.get_run(workflow.id, run.id, "alice").node_runs[0].output_summary == output
+    if streaming:
+        assert [kind for kind, _ in events] == ["processing", "embeds", "chunk"]
+        assert json.loads(events[1][1]) == output["preview_embeds"]
+        assert "foreign-id" not in events[2][1]

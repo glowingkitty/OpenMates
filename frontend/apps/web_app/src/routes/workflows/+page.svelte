@@ -1360,8 +1360,9 @@
 	<div class="main-content" class:menu-closed={!$panelState.isActivityHistoryOpen}>
 		<Header context="webapp" isLoggedIn={$authStore.isAuthenticated} />
 		<div class="chat-container workflows-container" class:menu-open={$panelState.isSettingsOpen}>
-			<div class="workflow-sidebar-shell" class:drawer-open={$panelState.isActivityHistoryOpen}>
+			<div class="workflow-sidebar-shell" class:drawer-open={$panelState.isActivityHistoryOpen} inert={!$panelState.isActivityHistoryOpen}>
 				<WorkflowSidebar
+					onClose={() => panelState.closeChats()}
 					onSelect={(workflow) => {
 						void continueWorkflowFromCard(workflow);
 						panelState.closeChats();

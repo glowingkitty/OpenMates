@@ -242,6 +242,7 @@
         "components/workflow-prompt-composer.spec.ts",
         "components/workflow-run-provenance.spec.ts",
         "components/workflow-detail-tabs.spec.ts",
+        "components/workflow-sidebar.spec.ts",
         "components/workflow-binding-review.spec.ts",
         "components/workflow-graph-skill-variants.spec.ts",
         "components/workflow-graph-reorder-inputs.spec.ts",

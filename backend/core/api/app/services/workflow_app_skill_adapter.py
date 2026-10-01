@@ -101,6 +101,20 @@ class WorkflowAppSkillAdapter:
         if approved is not True:
             raise PermissionError("Workflow provider binding is no longer authorized")
 
+    def result_embed_type(self, app_id: str, skill_id: str) -> str | None:
+        """Use registered app metadata for the same result cards as chat."""
+        registry = self.registry
+        if registry is None:
+            from backend.core.api.app.services.skill_registry import get_global_registry
+            registry = get_global_registry()
+        metadata = registry.get_metadata(app_id)
+        definitions = metadata.get("embed_types", []) if isinstance(metadata, dict) else getattr(metadata, "embed_types", [])
+        for definition in definitions:
+            entry = definition if isinstance(definition, dict) else definition.model_dump()
+            if entry.get("skill_id") == skill_id and entry.get("has_children"):
+                return entry.get("child_frontend_type")
+        return None
+
     async def execute(
         self,
         app_id: str,

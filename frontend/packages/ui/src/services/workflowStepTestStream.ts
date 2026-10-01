@@ -1,9 +1,18 @@
 import { getApiEndpoint } from '../config/api';
 import type { WorkflowRunDetail } from '../stores/workflowWorkspaceStore';
 
+export interface WorkflowPreviewEmbed {
+  embed_id: string;
+  content_type: string;
+  app_id: string;
+  skill_id: string;
+  content: Record<string, unknown>;
+}
+
 export type WorkflowTestStreamEvent =
   | { type: 'processing'; run_id?: string }
   | { type: 'chunk'; content: string }
+  | { type: 'embeds'; embeds: WorkflowPreviewEmbed[] }
   | { type: 'completed'; run: WorkflowRunDetail }
   | { type: 'error'; message: string; code?: string; run?: WorkflowRunDetail };
 

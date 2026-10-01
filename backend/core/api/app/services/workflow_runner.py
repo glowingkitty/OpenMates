@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 import time
 import uuid
@@ -19,7 +20,7 @@ from starlette.concurrency import run_in_threadpool
 from backend.core.api.app.services.workflow_action_adapter import WorkflowActionAdapter, WorkflowActionExecutionError
 from backend.core.api.app.services.workflow_app_skill_adapter import WorkflowAppSkillAdapter, WorkflowSkillBillingError
 from backend.core.api.app.services.workflow_ai_service import WorkflowAiService, render_bounded_ask_ai_prompt, is_website_diff_reference, _bounded_runtime_inputs
-from backend.core.api.app.services.workflow_result_selection import prepare_ask_destinations, sanitize_workflow_ai_answer, selected_context
+from backend.core.api.app.services.workflow_result_selection import prepare_ask_destinations, prepare_ask_preview, sanitize_workflow_ai_answer, selected_context
 from backend.core.api.app.services.workflow_models import (
     WorkflowDetail,
     WorkflowNode,
@@ -578,6 +579,7 @@ class WorkflowRunner:
                 raise PermissionError("Workflow provider binding revalidation is unavailable")
             await revalidate_binding(binding_ref, user_id, app_id, skill_id)
         authored_input = node.config.get("input") or {}
+        preview_embeds: list[dict[str, Any]] = []
         if app_id == "ai" and skill_id == "ask":
             if node.input_mapping:
                 raise WorkflowActionExecutionError("WORKFLOW_AI_ASK_INVALID", "Ask AI inputs must be inserted into its instruction")
@@ -629,7 +631,11 @@ class WorkflowRunner:
                 return {"app_id": "ai", "skill_id": "ask", "answer": next(iter(answers.values()), ""),
                         "answers_by_destination": answers, "prepared": prepared,
                         "skipped": not answers, "_workflow_credit_cost": total_credit_cost}
-            request = {"prompt": render_bounded_ask_ai_prompt(prompt, context),
+            prompt_context = context
+            if context.get("workflow", {}).get("step_test"):
+                embed_type = getattr(self.app_skill_adapter, "result_embed_type", lambda app, skill: None)
+                prompt_context, preview_embeds = prepare_ask_preview(prompt, context, embed_type)
+            request = {"prompt": render_bounded_ask_ai_prompt(prompt, prompt_context),
                        "model": authored_input.get("model", "auto"),
                        "workflow_presentation_sources": presentation_sources}
         else:
@@ -641,6 +647,11 @@ class WorkflowRunner:
         stream_ask = getattr(self.app_skill_adapter, "stream_ask", None)
         if execution.get("step_test") and execution.get("_progress_callback") and app_id == "ai" and skill_id == "ask" and callable(stream_ask):
             callback = execution["_progress_callback"]
+            allowed_refs = {embed["embed_id"] for embed in preview_embeds}
+            if preview_embeds:
+                await callback("embeds", json.dumps(preview_embeds, ensure_ascii=False))
+            async def preview_snapshot(answer: str) -> None:
+                await callback("chunk", sanitize_workflow_ai_answer(answer, allowed_refs))
             output = await stream_ask(
                 request,
                 user_id=user_id,
@@ -650,7 +661,7 @@ class WorkflowRunner:
                     "node_id": node.id,
                     "source": "workflow_test",
                 },
-                on_snapshot=lambda answer: callback("chunk", answer),
+                on_snapshot=preview_snapshot,
             )
         else:
             website_options = {}
@@ -683,6 +694,9 @@ class WorkflowRunner:
             )
             if website_options:
                 execution.setdefault("website_events", {})[node.id] = output.pop("_website_events", {})
+        if execution.get("step_test") and app_id == "ai" and skill_id == "ask":
+            output["answer"] = sanitize_workflow_ai_answer(str(output.get("answer") or ""), {embed["embed_id"] for embed in preview_embeds})
+            output["preview_embeds"] = preview_embeds
         if output.get("error"):
             raise WorkflowActionExecutionError("WORKFLOW_SKILL_FAILED", "The selected app skill could not complete this step")
         return output

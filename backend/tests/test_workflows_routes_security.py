@@ -382,6 +382,7 @@ async def test_ask_step_stream_uses_owner_scoped_workflow_and_emits_saved_run(mo
         async def run_step_test(self, draft, user_id, step_id, *, on_progress, **kwargs):
             assert user_id == "owner" and step_id == "ask"
             await on_progress("processing", "run-1")
+            await on_progress("embeds", json.dumps([{"embed_id": "result-1", "content_type": "events-event", "app_id": "events", "skill_id": "search", "content": {"title": "Art class"}}]))
             await on_progress("chunk", "Hello")
             return SimpleNamespace(status=WorkflowRunStatus.COMPLETED,
                                    model_dump=lambda **kwargs: {"id": "run-1", "status": "completed"})
@@ -421,6 +422,7 @@ async def test_ask_step_stream_uses_owner_scoped_workflow_and_emits_saved_run(mo
     events = [json.loads(chunk.removeprefix("data: ").strip()) async for chunk in response.body_iterator]
     assert events == [
         {"type": "processing", "run_id": "run-1"},
+        {"type": "embeds", "embeds": [{"embed_id": "result-1", "content_type": "events-event", "app_id": "events", "skill_id": "search", "content": {"title": "Art class"}}]},
         {"type": "chunk", "content": "Hello"},
         {"type": "completed", "run": {"id": "run-1", "status": "completed"}},
     ]

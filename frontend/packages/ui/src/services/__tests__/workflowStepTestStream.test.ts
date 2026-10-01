@@ -21,13 +21,14 @@ test('streamed preview keeps cumulative Unicode text and returns the saved termi
   const events: WorkflowTestStreamEvent[] = [];
   const frames = [
     { type: 'processing', run_id: 'test-run' },
+    { type: 'embeds', embeds: [{ embed_id: 'preview-id', content_type: 'events-event', app_id: 'events', skill_id: 'search', content: { title: 'Café art class' } }] },
     { type: 'chunk', content: '**Café**' },
     { type: 'chunk', content: '**Café** ☀️\n\nA rendered answer.' },
     { type: 'completed', run },
   ].map(event => `data: ${JSON.stringify(event)}\r\n\r\n`).join('');
   assert.deepEqual(await consumeWorkflowTestStream(stream(frames), event => events.push(event)), run);
-  assert.deepEqual(events.map(event => event.type), ['processing', 'chunk', 'chunk', 'completed']);
-  assert.equal(events[2].type === 'chunk' && events[2].content, '**Café** ☀️\n\nA rendered answer.');
+  assert.deepEqual(events.map(event => event.type), ['processing', 'embeds', 'chunk', 'chunk', 'completed']);
+  assert.equal(events[3].type === 'chunk' && events[3].content, '**Café** ☀️\n\nA rendered answer.');
 });
 
 // contract-test: supporting surface=gui.web assertions=workflows-ui.mvp.ask-ai

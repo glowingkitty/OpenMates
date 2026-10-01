@@ -582,3 +582,16 @@ async def test_workflow_strips_prompt_injection_opt_out_and_still_sanitizes_outp
     assert captured_contexts[0].secrets_manager is secrets_manager
     assert captured_contexts[0].cache_service is cache_service
     assert captured_contexts[0].request_body["security"] == {"prompt_injection_protection": "disabled"}
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.ai-ask.execution
+def test_workflow_preview_uses_registered_child_embed_types_without_dispatch() -> None:
+    registry = FakeRegistry(metadata={"embed_types": [
+        {"skill_id": "search", "has_children": True, "child_frontend_type": "events-event"},
+        {"skill_id": "search_connections", "has_children": True, "child_frontend_type": "travel-connection"},
+    ]})
+    adapter = WorkflowAppSkillAdapter(registry=registry)
+    assert adapter.result_embed_type("events", "search") == "events-event"
+    assert adapter.result_embed_type("travel", "search_connections") == "travel-connection"
+    assert adapter.result_embed_type("events", "unknown") is None
+    assert registry.calls == []

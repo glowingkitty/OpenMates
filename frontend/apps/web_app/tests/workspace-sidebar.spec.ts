@@ -67,17 +67,30 @@ test.describe('Workspace sidebar', () => {
       await expect(sidebar).toBeVisible();
       const workflowRow = sidebar.getByTestId('workflow-sidebar-row').filter({ hasText: title });
       await expect(workflowRow).toBeVisible({ timeout: 30000 });
+      await expect(sidebar.getByTestId('workflow-sidebar-close')).toBeVisible();
+      await expect(workflowRow.locator('.workflow-sidebar-icon svg')).toBeVisible();
       await workflowRow.click();
       await expect(page.getByTestId('workflow-graph-renderer')).toBeVisible({ timeout: 30000 });
       await expect(page.getByTestId('workflows-nav-link')).toHaveAttribute('aria-current', 'page');
       await expect(page.getByTestId('workspace-detail-title')).toHaveText(title);
-      await page.getByTestId('workflow-run-history').click();
+      await page.getByTestId('workflow-tab-runs').click();
       await expect(page).toHaveURL(new RegExp(`/#workflow-id=${workflowId}&workflow-tab=runs$`));
       await expect(page.getByTestId('workflow-runs')).toBeVisible();
 
       await page.getByTestId('sidebar-toggle').click();
       await expect(page.getByTestId('workflows-sidebar')).toBeVisible();
-      await expect(page.getByTestId('workflows-sidebar').getByTestId('workflow-sidebar-row').filter({ hasText: title })).toBeVisible();
+      const selectedRow = page.getByTestId('workflows-sidebar').getByTestId('workflow-sidebar-row').filter({ hasText: title });
+      await expect(selectedRow).toBeVisible();
+      await expect(selectedRow).toHaveAttribute('aria-current', 'page');
+      await sidebar.getByTestId('workflow-sidebar-close').click();
+      await expect(page.locator('.workflow-sidebar-shell')).not.toHaveClass(/drawer-open/);
+      await expect(page.locator('.workflow-sidebar-shell')).toHaveAttribute('inert', '');
+
+      await page.setViewportSize({ width: 1280, height: 800 });
+      await page.getByTestId('sidebar-toggle').click();
+      await expect(sidebar.getByTestId('workflow-sidebar-close')).toBeVisible();
+      await sidebar.getByTestId('workflow-sidebar-close').click();
+      await expect(page.locator('.workflow-sidebar-shell')).not.toHaveClass(/drawer-open/);
     } finally {
       if (workflowId) await page.request.delete(`${apiUrl}/v1/workflows/${encodeURIComponent(workflowId)}`).catch(() => null);
     }

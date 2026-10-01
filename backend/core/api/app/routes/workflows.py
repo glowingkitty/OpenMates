@@ -2179,6 +2179,8 @@ async def test_workflow_step(
                         enqueue({"type": "processing", "run_id": value})
                     elif kind == "chunk":
                         enqueue({"type": "chunk", "content": value})
+                    elif kind == "embeds":
+                        enqueue({"type": "embeds", "embeds": json.loads(value)})
 
                 async def produce() -> None:
                     try:

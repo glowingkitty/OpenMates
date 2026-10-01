@@ -15,6 +15,7 @@
   import WorkflowMessageEditor from './WorkflowMessageEditor.svelte';
   import WorkflowVariablePicker, { type VariableSource } from './WorkflowVariablePicker.svelte';
   import WorkflowAskAiTestPreview from './WorkflowAskAiTestPreview.svelte';
+  import type { WorkflowPreviewEmbed } from '../../services/workflowStepTestStream';
   import ComposerModelSelector from '../enter_message/ComposerModelSelector.svelte';
   import { settingsDeepLink } from '../../stores/settingsDeepLinkStore';
   import { panelState } from '../../stores/panelStateStore';
@@ -57,6 +58,7 @@
   let suppressNodeClick = false;
   let nodeError = $state('');
   let testStatus = $state<'idle' | 'processing' | 'completed' | 'cancelled' | 'failed'>('idle');
+  let streamedTestEmbeds = $state<WorkflowPreviewEmbed[]>([]);
   let testingRunId = $state<string | null>(null);
   let testOutputs = $state<Record<string, Record<string, unknown>>>({});
   let testOutputWorkflowId = $state<string | null>(null);
@@ -143,6 +145,7 @@
     testingRunId = null;
     testStatus = 'idle';
     streamedTestAnswer = '';
+    streamedTestEmbeds = [];
     testAbort?.abort();
   });
 
@@ -186,7 +189,7 @@
   }
   function openPicker(kind: typeof picker, slot: Insertion): void { if (busy || testStatus === 'processing') return; draft = null; deleteArmed = false; nodeError = ''; preview = null; insertion = slot; picker = kind; void scrollEditorIntoView(); }
   function closeEditor(immediate = false): void {
-    const close = () => { draft = null; picker = null; deleteArmed = false; nodeError = ''; preview = null; chooseChat = false; showReferences = false; mentionQuery = ''; selectedVariableSource = null; streamedTestAnswer = ''; showOutputFields = false; selectedCheckSource = null; selectedCompareSource = null; };
+    const close = () => { draft = null; picker = null; deleteArmed = false; nodeError = ''; preview = null; chooseChat = false; showReferences = false; mentionQuery = ''; selectedVariableSource = null; streamedTestAnswer = ''; streamedTestEmbeds = []; showOutputFields = false; selectedCheckSource = null; selectedCompareSource = null; };
     if (immediate) close(); else transitionNodeUpdate(close);
   }
   function backFromEditor(): void {
@@ -236,7 +239,7 @@
       }
       editable.config = { ...config, question: migratedQuestion, selected_inputs: templateReferences(migratedQuestion, editableOutputs) };
     }
-    transitionNodeUpdate(() => { draft = editable; selectedVariableSource = null; mentionQuery = ''; streamedTestAnswer = String(testOutputs[node.id]?.answer ?? ''); testStatus = testOutputs[node.id] ? 'completed' : 'idle'; void scrollEditorIntoView(node.id); });
+    transitionNodeUpdate(() => { draft = editable; selectedVariableSource = null; mentionQuery = ''; streamedTestAnswer = String(testOutputs[node.id]?.answer ?? ''); streamedTestEmbeds = (testOutputs[node.id]?.preview_embeds as WorkflowPreviewEmbed[] | undefined) ?? []; testStatus = testOutputs[node.id] ? 'completed' : 'idle'; void scrollEditorIntoView(node.id); });
   }
   function configure(type: WorkflowNode['type'], capability?: Capability): void {
     if (busy || testStatus === 'processing') return;
@@ -468,14 +471,17 @@
   async function testNode(): Promise<void> {
     if (!draft || !workflowId || testStatus === 'processing') return;
     const node = structuredClone($state.snapshot(draft)); recoverAskModel(node); if (isAskAi(node)) draft = node;
-    const revision = ++testRevision; testStatus = 'processing'; nodeError = ''; showOutputFields = true; streamedTestAnswer = '';
+    const revision = ++testRevision; testStatus = 'processing'; nodeError = ''; showOutputFields = true; streamedTestAnswer = ''; streamedTestEmbeds = [];
     const pending = (status: string | undefined) => !status || ['accepted', 'queued', 'running', 'cancellation_requested'].includes(status);
     const finish = (run: WorkflowRunDetail): void => {
       const result = run.node_runs?.find(item => item.node_id === node.id);
       if (run.status === 'completed') {
         testOutputs = { ...testOutputs, [node.id]: result?.output_summary ?? run.output_summary ?? {} };
         testStatus = 'completed';
-        if (isAskAi(node)) streamedTestAnswer = String(testOutputs[node.id].answer ?? '');
+        if (isAskAi(node)) {
+          streamedTestAnswer = String(testOutputs[node.id].answer ?? '');
+          streamedTestEmbeds = (testOutputs[node.id].preview_embeds as WorkflowPreviewEmbed[] | undefined) ?? [];
+        }
       } else {
         testStatus = run.status === 'cancelled' ? 'cancelled' : 'failed';
         console.error('[Workflow test]', result?.error_summary ?? run.error_summary ?? run.status);
@@ -492,6 +498,7 @@
             if (revision !== testRevision) return;
             if (event.type === 'processing' && event.run_id) testingRunId = event.run_id;
             if (event.type === 'chunk') streamedTestAnswer = event.content;
+            if (event.type === 'embeds') streamedTestEmbeds = event.embeds;
             if (event.type === 'error' && event.run) finish(event.run);
           }, controller.signal);
           if (revision === testRevision) finish(run);
@@ -667,13 +674,13 @@
           {#if testStatus === 'processing'}<span class="ask-ai-processing" role="status" data-testid="workflow-ask-ai-processing">{tr('processing')}</span><button type="button" class="quiet" onclick={() => void stopTest()}><Stop size={16}/>{tr('stop')}</button>{/if}
         </div>
         </div>
-        <WorkflowAskAiTestPreview content={testStatus === 'processing' ? streamedTestAnswer : streamedTestAnswer || String(testOutputs[draft.id]?.answer ?? '')} processing={testStatus === 'processing'}/>
+        <WorkflowAskAiTestPreview content={testStatus === 'processing' ? streamedTestAnswer : streamedTestAnswer || String(testOutputs[draft.id]?.answer ?? '')} processing={testStatus === 'processing'} embeds={streamedTestEmbeds.length ? streamedTestEmbeds : (testOutputs[draft.id]?.preview_embeds as WorkflowPreviewEmbed[] | undefined) ?? []}/>
         </div>
       {:else if draft.type === 'app_skill_action'}
         <h4 class="input-heading" data-testid="workflow-input-heading"><span class="section-icon" data-testid="workflow-input-icon"><Download size={18} aria-hidden="true"/></span>{tr('input')}</h4>
         {#if draftCapability?.metadata.input_schema}<WorkflowSchemaFields schema={draftCapability.metadata.input_schema} value={draft.config?.input} {outputs} path={draft.id} appId={String(draft.config?.app_id ?? '')} timezone={workflowTimezone(draft)} onChange={value => patch({ input: value })}/>{:else}<p>{loadError || tr('schema_unavailable')}</p>{/if}
         <div class="test-control">
-          {#if testStatus === 'processing'}<span aria-live="polite">{tr('processing')}</span>{#if testingRunId}<button type="button" class="quiet" onclick={() => void stopTest()}><Stop size={16}/>{tr('stop')}</button>{/if}
+          {#if testStatus === 'processing'}<button type="button" class="quiet test" data-testid="workflow-test-action" disabled><Play size={16}/>{tr('test_action')}</button>{#if testingRunId}<button type="button" class="quiet" onclick={() => void stopTest()}><Stop size={16}/>{tr('stop')}</button>{/if}
           {:else}<button type="button" class="quiet test" data-testid="workflow-test-action" disabled={!workflowId || draftCapability?.metadata.workflow?.test_allowed === false || !draftCapability} onclick={() => void testNode()}><Play size={16}/>{tr(testOutputs[draft.id] ? 'test_again' : 'test_action')}<span class="credits-coin-icon" aria-hidden="true"></span><span>{draftCapability?.metadata.cost?.fixed ?? draftCapability?.metadata.cost?.per_unit?.credits ?? tr('variable_cost')}</span></button>{/if}
         </div>
         {@render outputSection(draftCapability?.metadata.output_schema?.properties ?? {}, testOutputs[draft.id] ?? outputExamples.valuesByNode[draft.id], String(draft.config?.app_id ?? ''), draft.id, !!testOutputs[draft.id])}
