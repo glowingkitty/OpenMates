@@ -115,6 +115,8 @@ before generating or applying the update plan:
 ./scripts/prod-ssh.sh "openmates --version"
 ```
 
+Run core lifecycle commands as the server installer user that owns the private `.openmates` directory. Use sudo for the system-wide CLI upgrade, not for core start/update; the runtime ownership guard intentionally rejects a different user. Root-run verification must preserve the installer ownership of generated private health state. The upload VM may use root when its installation is root-owned.
+
 Recheck the version after upgrading. Keep the runtime template tied to the
 reviewed merge SHA as well: an older CLI can pull new images while silently
 writing its older bundled Compose template. Use the supported immutable template
@@ -123,7 +125,7 @@ merge SHA so a moving channel cannot advance between build verification and
 deployment:
 
 ```bash
-./scripts/prod-ssh.sh "sudo -n env OPENMATES_SELFHOST_COMPOSE_URL=https://raw.githubusercontent.com/glowingkitty/OpenMates/<MERGE_SHA>/frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml /usr/bin/openmates server update --path /home/superdev/openmates --exclude webapp --image-tag sha-<MERGE_SHA> --dry-run"
+./scripts/prod-ssh.sh "env OPENMATES_SELFHOST_COMPOSE_URL=https://raw.githubusercontent.com/glowingkitty/OpenMates/<MERGE_SHA>/frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml /usr/bin/openmates server update --path /home/superdev/openmates --exclude webapp --image-tag sha-<MERGE_SHA> --dry-run"
 ```
 
 Do not treat an image revision or CLI upgrade alone as proof that the effective
@@ -159,8 +161,23 @@ secrets unless the user explicitly asks.
 Run the backend-only update:
 
 ```bash
-./scripts/prod-ssh.sh "sudo -n env OPENMATES_SELFHOST_COMPOSE_URL=https://raw.githubusercontent.com/glowingkitty/OpenMates/<MERGE_SHA>/frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml /usr/bin/openmates server update --path /home/superdev/openmates --exclude webapp --image-tag sha-<MERGE_SHA> --yes"
+./scripts/prod-ssh.sh "env OPENMATES_SELFHOST_COMPOSE_URL=https://raw.githubusercontent.com/glowingkitty/OpenMates/<MERGE_SHA>/frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml /usr/bin/openmates server update --path /home/superdev/openmates --exclude webapp --image-tag sha-<MERGE_SHA> --yes"
 ```
+
+For a scoped core hotfix with unchanged schema/migration code, avoid rerunning setup while replacing the API. First update only `cms-setup` to the exact target SHA through the CLI while the existing API serves traffic, then wait for that container to exit successfully. This stage still creates the normal pre-update backup:
+
+```bash
+./scripts/prod-ssh.sh "env OPENMATES_SELFHOST_COMPOSE_URL=https://raw.githubusercontent.com/glowingkitty/OpenMates/<MERGE_SHA>/frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml /usr/bin/openmates server update --path /home/superdev/openmates --services cms-setup --image-tag sha-<MERGE_SHA> --yes"
+./scripts/prod-ssh.sh "docker wait cms-setup"
+```
+
+Require exit code 0, then use the CLI's guarded reuse path with an explicit list of the affected API/worker/Prometheus services. The flag requires a full immutable SHA, checks that setup completed using that exact image, and checks running healthy infrastructure both before changes and immediately before container replacement:
+
+```bash
+./scripts/prod-ssh.sh "env OPENMATES_SELFHOST_COMPOSE_URL=https://raw.githubusercontent.com/glowingkitty/OpenMates/<MERGE_SHA>/frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml /usr/bin/openmates server update --path /home/superdev/openmates --services <AFFECTED_SERVICES> --image-tag sha-<MERGE_SHA> --reuse-completed-setup --yes"
+```
+
+Do not treat a setup-stage CLI health/reporting failure as proof that setup succeeded. Inspect the failed checks and the setup exit status before continuing. Ordinary updates and releases with migration changes keep their normal setup path; do not bypass migration requirements.
 
 If the update fails during setup or health checks:
 

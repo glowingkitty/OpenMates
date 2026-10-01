@@ -665,6 +665,9 @@ async def aggregate_leaderboards(
     # Step 2: Fetch data from both sources
     lmarena_data = await fetch_lmarena_data(category=category)
     openrouter_data = await fetch_openrouter_data()
+    for source_name, source_data in (("LMArena", lmarena_data), ("OpenRouter", openrouter_data)):
+        if source_data.get("validation", {}).get("valid") is False:
+            raise ValueError(f"{source_name} ranking source failed validation")
 
     # Step 3: Merge and normalize data
     task_area = "general"
@@ -683,6 +686,11 @@ async def aggregate_leaderboards(
 
     # Step 4: Generate output
     output = generate_output(rankings, lmarena_data, openrouter_data, task_area)
+
+    # Provider errors can yield a complete-looking result with every model in
+    # "unranked". Never overwrite the last good file with that result.
+    if not output.get("rankings"):
+        raise ValueError("Leaderboard aggregation produced no ranked models")
 
     # Step 5: Save or print
     if dry_run:

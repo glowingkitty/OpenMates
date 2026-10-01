@@ -508,6 +508,76 @@ function lifecycleServiceSelection(
   return { services: [], requested: false };
 }
 
+type ReusedSetupContainer = { image: string; status: string; exitCode: number; health?: string };
+
+type ReuseCompletedSetupInput = {
+  role: ServerRole;
+  installMode: string;
+  servicesFlag: string | boolean | undefined;
+  excludeFlag: string | boolean | undefined;
+  selectedServices: string[];
+  targetTag: string;
+  registry: string;
+};
+
+function validateReuseCompletedSetupScope(input: ReuseCompletedSetupInput): void {
+  if (input.role !== "core" || input.installMode !== "image" || typeof input.servicesFlag !== "string" || input.excludeFlag !== undefined) {
+    throw new Error("--reuse-completed-setup requires a core image-mode update with explicit --services and no --exclude.");
+  }
+  if (!input.selectedServices.length || input.selectedServices.some((service) => service !== "api" && service !== "prometheus" && !service.endsWith("-worker"))) {
+    throw new Error("--reuse-completed-setup allows only api, worker, and prometheus services; exclude setup and infrastructure services.");
+  }
+  if (!/^sha-[a-f0-9]{40}$/i.test(input.targetTag)) {
+    throw new Error("--reuse-completed-setup requires an immutable --image-tag sha-<40 hex characters>.");
+  }
+}
+
+export function validateReuseCompletedSetup(input: ReuseCompletedSetupInput & {
+  setup: ReusedSetupContainer;
+  dependencies: Record<string, ReusedSetupContainer>;
+}): void {
+  validateReuseCompletedSetupScope(input);
+  const expectedImage = `${input.registry.replace(/\/$/, "")}/openmates-cms-setup:${input.targetTag}`;
+  if (input.setup.image !== expectedImage || input.setup.status !== "exited" || input.setup.exitCode !== 0) {
+    throw new Error(`--reuse-completed-setup requires cms-setup exited successfully with target image ${expectedImage}.`);
+  }
+  for (const service of ["cms", "cms-database", "cache", "vault"]) {
+    const state = input.dependencies[service];
+    if (!state || state.status !== "running" || (state.health !== undefined && state.health !== "healthy")) {
+      throw new Error(`--reuse-completed-setup requires running, healthy ${service}.`);
+    }
+  }
+}
+
+export function imageUpdateUpArgs(baseArgs: string[], selectedServices: string[], filterRequested: boolean, reuseCompletedSetup: boolean): string[] {
+  if (reuseCompletedSetup && (!filterRequested || selectedServices.length === 0)) {
+    throw new Error("--reuse-completed-setup requires explicitly selected services.");
+  }
+  return appendSelectedServices([...baseArgs, "up", "-d", ...(reuseCompletedSetup ? ["--no-deps"] : [])], selectedServices, filterRequested);
+}
+
+function inspectReuseCompletedSetupContainer(installPath: string, withOverrides: boolean, service: string, includeStopped: boolean): ReusedSetupContainer {
+  const compose = composeArgs(installPath, withOverrides, "image", "core", false);
+  const ps = spawnSync("docker", [...compose, "ps", ...(includeStopped ? ["-a"] : []), "-q", service], { cwd: installPath, encoding: "utf8", timeout: 5_000 });
+  const ids = ps.status === 0 ? ps.stdout.trim().split(/\s+/).filter(Boolean) : [];
+  if (ids.length !== 1) throw new Error(`--reuse-completed-setup could not identify one ${service} container.`);
+  const inspect = (format: string): string => {
+    const result = spawnSync("docker", ["inspect", "--format", format, ids[0]], { cwd: installPath, encoding: "utf8", timeout: 5_000 });
+    if (result.status !== 0) throw new Error(`--reuse-completed-setup could not inspect ${service}.`);
+    return result.stdout.trim();
+  };
+  const image = JSON.parse(inspect("{{json .Config.Image}}")) as string;
+  const state = JSON.parse(inspect("{{json .State}}")) as { Status: string; ExitCode: number; Health?: { Status: string } };
+  return { image, status: state.Status, exitCode: state.ExitCode, health: state.Health?.Status };
+}
+
+function verifyReuseCompletedSetup(installPath: string, withOverrides: boolean, input: ReuseCompletedSetupInput): void {
+  validateReuseCompletedSetupScope(input);
+  const setup = inspectReuseCompletedSetupContainer(installPath, withOverrides, "cms-setup", true);
+  const dependencies = Object.fromEntries(["cms", "cms-database", "cache", "vault"].map((service) => [service, inspectReuseCompletedSetupContainer(installPath, withOverrides, service, false)]));
+  validateReuseCompletedSetup({ ...input, setup, dependencies });
+}
+
 function shouldPullImages(): boolean {
   return process.env.OPENMATES_SKIP_IMAGE_PULL !== "1";
 }
@@ -588,10 +658,11 @@ export function composeArgs(
   withOverrides: boolean,
   installMode: NonNullable<ServerConfig["installMode"]> = getInstallMode(installPath),
   role: ServerRole = "core",
+  materializeCloudNoWebapp = true,
 ): string[] {
   const config = loadConfigForInstallPath(installPath);
   const deploymentMode = getInstallDeploymentMode(installPath, config);
-  ensureOfficialCloudNoWebappComposeFile(installPath, deploymentMode, role);
+  if (materializeCloudNoWebapp) ensureOfficialCloudNoWebappComposeFile(installPath, deploymentMode, role);
   const env = readEnvMap(installPath);
   const overlayPath = env.OPENMATES_CLOUD_OVERLAY_PATH || config?.openMatesCloudOverlayPath || undefined;
   const resolvedOverlayPath = overlayPath ?? defaultOpenMatesCloudOverlayPath(installPath);
@@ -2897,15 +2968,35 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
 
   const installPath = resolveServerPath(flags);
   const dryRun = flags["dry-run"] === true;
+  const config = loadConfigForInstallPath(installPath);
+  const role = getServerRole(flags, config);
+  const withOverrides = config?.composeProfile === "full";
+  const installMode = getInstallMode(installPath, config);
+  const reuseCompletedSetup = flags["reuse-completed-setup"] === true;
+  if (flags["reuse-completed-setup"] !== undefined && !reuseCompletedSetup) {
+    throw new Error("--reuse-completed-setup does not take a value.");
+  }
+  let guardedTarget: { tag: string; channel?: "stable" | "dev" | "main" } | undefined;
+  if (reuseCompletedSetup) {
+    const selection = lifecycleServiceSelection(role, flags, config);
+    const requested = resolveTargetImageTag(flags, getImageTagFromEnv(installPath, config), getPackageVersion());
+    guardedTarget = requested.channel === "stable" ? { ...requested, tag: await resolveStableImageTag() } : requested;
+    requireDocker();
+    verifyReuseCompletedSetup(installPath, withOverrides, {
+      role,
+      installMode,
+      servicesFlag: flags.services,
+      excludeFlag: flags.exclude,
+      selectedServices: selection.services,
+      targetTag: guardedTarget.tag,
+      registry: DEFAULT_IMAGE_REGISTRY,
+    });
+  }
   if (!dryRun) {
     ensureGitWorkDirEnv(installPath);
     ensureRuntimeMetricsDirectory(installPath);
   }
 
-  const config = loadConfigForInstallPath(installPath);
-  const role = getServerRole(flags, config);
-  const withOverrides = config?.composeProfile === "full";
-  const installMode = getInstallMode(installPath, config);
   const deploymentMode = getInstallDeploymentMode(installPath, config);
   const caddyPlan = caddyUpdatePlan(installPath, role, config, flags);
   const releaseUpdateLock = dryRun ? () => undefined : acquireServerUpdateLock(installPath);
@@ -2934,9 +3025,9 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
   if (installMode === "image") {
     const currentTag = getImageTagFromEnv(installPath, config);
     const requestedTarget = resolveTargetImageTag(flags, currentTag, getPackageVersion());
-    const target = requestedTarget.channel === "stable"
+    const target = guardedTarget ?? (requestedTarget.channel === "stable"
       ? { ...requestedTarget, tag: await resolveStableImageTag() }
-      : requestedTarget;
+      : requestedTarget);
     const templateRef = templateRefForImageTag(target.tag, getPackageVersion());
     const sourceLinks = targetSourceLinks(target.tag, templateRef);
     const safetyPlan = planServerUpdate({ role, selectedServices, dryRun, skipBackup: flags["skip-backup"] === true, continuous: false, missingRequiredSecrets: missingOrUnverifiedSecrets });
@@ -2957,6 +3048,7 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
       secretPreflight,
       providerKeyReminders: secretPreflight.emptySecretEnvKeys,
       sourceLinks,
+      reuseCompletedSetup,
       blocked: safetyPlan.blocked,
       blockReason: safetyPlan.blockReason,
       dryRun,
@@ -2981,7 +3073,7 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
         if (secretPreflight.emptySecretEnvKeys.length) {
           console.log(`  Provider keys: add ${secretPreflight.emptySecretEnvKeys.join(", ")} to activate those providers`);
         }
-        console.log("  Commands:      refresh compose, docker compose pull, docker compose up -d, health checks");
+        console.log(`  Commands:      refresh compose, docker compose pull, docker compose up -d${reuseCompletedSetup ? " --no-deps" : ""}, health checks`);
       }
       return;
     }
@@ -3026,11 +3118,24 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
       console.error("Skipping image pull because OPENMATES_SKIP_IMAGE_PULL=1.");
     }
 
+    if (reuseCompletedSetup) {
+      verifyReuseCompletedSetup(installPath, withOverrides, {
+        role,
+        installMode,
+        servicesFlag: flags.services,
+        excludeFlag: flags.exclude,
+        selectedServices,
+        targetTag: target.tag,
+        registry: DEFAULT_IMAGE_REGISTRY,
+      });
+    }
+
     writeUpdateStatus(installPath, role, { status: "in_progress", targetImageTag: target.tag, sourceLinks, providerKeyReminders: secretPreflight.emptySecretEnvKeys, step: "up" });
-    const upArgs = appendSelectedServices(
-      [...composeArgs(installPath, withOverrides, installMode, role), "up", "-d"],
+    const upArgs = imageUpdateUpArgs(
+      composeArgs(installPath, withOverrides, installMode, role),
       selectedServices,
       filterRequested,
+      reuseCompletedSetup,
     );
     code = await runInteractive("docker", upArgs, installPath);
     if (code !== 0) throw new Error(`Docker image restart failed with exit code ${code}.`);
@@ -4429,6 +4534,7 @@ Command Options:
     --exclude <csv>     Update all role services except selected services
     --image-tag <tag>   Image mode: update to a specific prebuilt image tag
     --channel <name>    Image mode: update using stable/main or dev channel tags
+    --reuse-completed-setup  Core image mode: reuse verified sha-<40 hex> cms-setup with explicit --services
     --continuous        Run continuously in foreground, or use with install-service
     --interval <min>    Foreground continuous update interval (default: 30)
     install-service --continuous --channel <name> --window <window>
