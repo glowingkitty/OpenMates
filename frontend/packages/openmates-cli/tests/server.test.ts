@@ -10,7 +10,7 @@
 
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, linkSync, mkdirSync, readFileSync, readdirSync, statSync, symlinkSync, writeFileSync, rmSync } from "node:fs";
+import { existsSync, linkSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, statSync, symlinkSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { parse as parseYaml } from "yaml";
@@ -113,7 +113,7 @@ import {
   serverUpdateStatusFile,
   writeServerUpdateStatus,
 } from "../src/serverUpdateState.ts";
-import { loadSelfHostComposeTemplate } from "../src/server.ts";
+import { ensureCorePrometheusRuntimeFiles, loadSelfHostComposeTemplate } from "../src/server.ts";
 
 const ORIGINAL_STATE_DIR = process.env.OPENMATES_STATE_DIR;
 
@@ -152,6 +152,43 @@ describe("runtime metrics bind mount", () => {
     assert.match(install, /if \(cloneCode !== 0\)[\s\S]*?ensureRuntimeMetricsDirectory\(installPath\)/);
     const start = source.slice(source.indexOf("async function serverStart"), source.indexOf("async function serverStop"));
     assert.ok(start.indexOf("ensureRuntimeMetricsDirectory(installPath)") < start.indexOf('"up", "-d"'));
+  });
+});
+
+describe("image-mode Prometheus configuration", () => {
+  it("installs local scrape jobs and rules while preserving operator files", () => {
+    const installPath = mkdtempSync(join(tmpdir(), "openmates-prometheus-"));
+    const runtimeDir = join(installPath, "backend", "core", "monitoring", "prometheus");
+    try {
+      ensureCorePrometheusRuntimeFiles(installPath);
+      const source = parseYaml(readFileSync(new URL("../../../../backend/core/monitoring/prometheus/prometheus.yml", import.meta.url), "utf-8"));
+      const managed = parseYaml(readFileSync(join(runtimeDir, "prometheus.yml"), "utf-8"));
+      assert.deepEqual(managed.scrape_configs, source.scrape_configs);
+      assert.deepEqual(managed.rule_files, source.rule_files);
+      assert.equal(managed.remote_write, undefined);
+      assert.ok(managed.scrape_configs.some((job: { job_name: string }) => job.job_name === "api"));
+      assert.ok(managed.scrape_configs.some((job: { job_name: string }) => job.job_name === "celery-core-worker"));
+      const compose = parseYaml(readFileSync(new URL("../templates/core/docker-compose.selfhost.yml", import.meta.url), "utf-8"));
+      for (const job of managed.scrape_configs as Array<{ static_configs: Array<{ targets: string[] }> }>) {
+        for (const config of job.static_configs) {
+          for (const target of config.targets) {
+            const [service, port] = target.split(":");
+            if (service === "localhost") continue;
+            assert.ok(compose.services[service], `unknown image-mode scrape service ${service}`);
+            if (compose.services[service].environment?.CELERY_METRICS_PORT) {
+              assert.equal(port, compose.services[service].environment.CELERY_METRICS_PORT, target);
+            }
+          }
+        }
+      }
+      assert.equal(readFileSync(join(runtimeDir, "alert_rules.yml"), "utf-8"), readFileSync(new URL("../../../../backend/core/monitoring/prometheus/alert_rules.yml", import.meta.url), "utf-8"));
+
+      writeFileSync(join(runtimeDir, "prometheus.yml"), "operator-managed: true\n");
+      ensureCorePrometheusRuntimeFiles(installPath);
+      assert.equal(readFileSync(join(runtimeDir, "prometheus.yml"), "utf-8"), "operator-managed: true\n");
+    } finally {
+      rmSync(installPath, { recursive: true, force: true });
+    }
   });
 });
 

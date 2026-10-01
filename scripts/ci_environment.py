@@ -398,6 +398,9 @@ def compose_profile(
         services["vault-init"]["environment"].update(CI_STORAGE_ACCESS_KEY=credentials["storage_key"], CI_STORAGE_SECRET_KEY=credentials["storage_secret"])
     if uploads:
         services["vault-init"]["environment"]["CI_UPLOADS"] = "1"
+        # The API image may be reused when only upload code changes. The init
+        # script must import the candidate's token setup and renewal modules.
+        services["vault-init"]["volumes"].append(f"{SOURCE}/backend:/app/backend:ro")
         services["vault-init"]["volumes"].append("upload-vault-token:/app/app-data")
         services["clamav"] = {
             "image": "clamav/clamav-debian@sha256:5037bae34bf7566052d18f30be1e351155bfce845a583f0c08027f9fcaa44b5d",

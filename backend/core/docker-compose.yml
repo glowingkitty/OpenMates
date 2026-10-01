@@ -302,7 +302,7 @@ services:
       service: task-worker
     container_name: core-worker
     environment:
-      CELERY_QUEUES: "persistence,health_check,server_stats,demo,e2e_tests,push"
+      CELERY_QUEUES: "persistence,health_check,server_stats,demo,e2e_tests,push,leaderboard"
       CELERY_AUTOSCALE_MAX: "${CELERY_AUTOSCALE_MAX:-10}"
       CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-3}"
       CELERY_METRICS_PORT: "9109"
@@ -315,7 +315,7 @@ services:
              find /app/backend/apps/ai/testing/api_cache -type f -exec chmod 666 {} + && \
              gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
              --loglevel=info \
-             --queues=persistence,health_check,server_stats,demo,e2e_tests,push \
+             --queues=persistence,health_check,server_stats,demo,e2e_tests,push,leaderboard \
              --concurrency=${CELERY_AUTOSCALE_MAX} \
              --max-tasks-per-child=50 \
              --max-memory-per-child=600000 \

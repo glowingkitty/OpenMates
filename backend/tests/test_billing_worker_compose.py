@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parents[2]
 EMAIL_QUEUE = "email"
 USER_INIT_QUEUE = "user_init"
 REMINDER_QUEUE = "reminder"
-CORE_TASK_QUEUES = "persistence,health_check,server_stats,demo,e2e_tests,push"
+CORE_TASK_QUEUES = "persistence,health_check,server_stats,demo,e2e_tests,push,leaderboard"
 USER_TASK_QUEUE = "user_tasks"
 COMPOSE_FILES = (
     ROOT / "backend/core/docker-compose.yml",

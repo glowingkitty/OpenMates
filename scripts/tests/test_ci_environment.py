@@ -13,6 +13,7 @@ from scripts.ci_environment import (
     POSTGRES_IMAGE,
     SCHEMA_BUNDLE_FORMAT,
     SCHEMA_RESTORE_SEMANTICS,
+    SOURCE,
     apply_prepared_schema,
     compose_profile,
     require_runner,
@@ -374,7 +375,8 @@ def test_upload_profile_requires_real_scanner_and_isolated_api_targets():
     assert "vault-tokens" not in [mount["source"] for mount in upload["volumes"] if isinstance(mount, dict)]
     init = services["vault-init"]
     assert init["environment"]["CI_UPLOADS"] == "1"
-    assert {mount["source"] for mount in init["volumes"]} == {"vault-tokens", "upload-vault-token"}
+    assert {mount["source"] for mount in init["volumes"] if isinstance(mount, dict)} == {"vault-tokens", "upload-vault-token"}
+    assert f"{SOURCE}/backend:/app/backend:ro" in init["volumes"]
     for target in (
         "/app/backend",
         "/app/backend_shared/python_schemas",

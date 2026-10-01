@@ -124,6 +124,7 @@ const ROLE_TEMPLATE_FILES: Record<ServerRole, string> = {
 const CORE_NO_WEBAPP_TEMPLATE_FILE = join("core", "docker-compose.no-webapp.yml");
 const CORE_PROMTAIL_CONFIG_FILE = join("backend", "core", "monitoring", "promtail", "promtail-config.yaml");
 const CORE_ALERTMANAGER_CONFIG_FILE = join("backend", "core", "monitoring", "alertmanager", "alertmanager.yml");
+const CORE_PROMETHEUS_CONFIG_DIR = join("backend", "core", "monitoring", "prometheus");
 const COMPOSE_OVERRIDE = join("backend", "core", "docker-compose.override.yml");
 const DEFAULT_INSTALL_PATH = join(homedir(), "openmates");
 const REPO_URL = "https://github.com/glowingkitty/OpenMates.git";
@@ -782,6 +783,20 @@ function packagedCoreAlertmanagerTemplatePath(): string {
   return join(dirname(new URL(import.meta.url).pathname), "..", "templates", "core", "monitoring", "alertmanager", "alertmanager.yml");
 }
 
+export function ensureCorePrometheusRuntimeFiles(installPath: string): void {
+  const packagedDir = join(dirname(new URL(import.meta.url).pathname), "..", "templates", "core", "monitoring", "prometheus");
+  const runtimeDir = join(installPath, CORE_PROMETHEUS_CONFIG_DIR);
+  for (const fileName of ["prometheus.yml", "alert_rules.yml"]) {
+    const packagedPath = join(packagedDir, fileName);
+    if (!existsSync(packagedPath)) throw new Error(`Packaged Prometheus file not found: ${packagedPath}`);
+  }
+  mkdirSync(runtimeDir, { recursive: true });
+  for (const fileName of ["prometheus.yml", "alert_rules.yml"]) {
+    const runtimePath = join(runtimeDir, fileName);
+    if (!existsSync(runtimePath)) copyFileSync(join(packagedDir, fileName), runtimePath);
+  }
+}
+
 function readOfficialCloudNoWebappComposeTemplate(): string {
   const packaged = packagedNoWebappTemplatePath();
   if (existsSync(packaged)) return readFileSync(packaged, "utf-8");
@@ -850,6 +865,7 @@ async function writeImageModeRuntimeFiles(installPath: string, imageTag: string,
     writeFileSync(join(installPath, OFFICIAL_CLOUD_NO_WEBAPP_COMPOSE_FILE), readOfficialCloudNoWebappComposeTemplate());
   }
   if (role === "core") {
+    ensureCorePrometheusRuntimeFiles(installPath);
     const promtailConfigPath = join(installPath, CORE_PROMTAIL_CONFIG_FILE);
     mkdirSync(dirname(promtailConfigPath), { recursive: true });
     writeFileSync(promtailConfigPath, SELFHOST_PROMTAIL_CONFIG_TEMPLATE);
