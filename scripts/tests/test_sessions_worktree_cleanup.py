@@ -3,8 +3,8 @@
 
 Cleanup may remove only old worktrees with an integration-safe classification.
 Safe reconciliation preserves recent, unique, and uncertain work, while the
-separate seven-day expiry removes only idle, recoverable worktrees. Deletion
-manifests intentionally retain metadata but no source or patch content.
+separate seven-day expiry archives unique changes before removing idle
+worktrees. Deletion manifests retain metadata and archive paths, not source.
 """
 
 # contract-test-file: tooling
@@ -16,6 +16,7 @@ import json
 import os
 import subprocess
 import sys
+import tarfile
 import time
 from pathlib import Path
 
@@ -312,6 +313,7 @@ def test_hard_expiry_deletes_inactive_classifications_but_protects_live_work(mon
     )
     removed: list[Path] = []
     monkeypatch.setattr(sessions, "_remove_expired_worktree", lambda item: removed.append(Path(item["path"])))
+    monkeypatch.setattr(sessions, "_archive_expired_worktree", lambda _item: str(tmp_path / "recovery.tar.gz"))
     deleted_refs: list[str] = []
     monkeypatch.setattr(sessions, "_delete_worktree_checkpoint_ref", lambda sid: deleted_refs.append(sid) or True)
 
@@ -332,6 +334,7 @@ def test_hard_expiry_deletes_inactive_classifications_but_protects_live_work(mon
     assert manifest["reason"] == "hard_max_age_168h"
     assert "patch" not in manifest
     assert "content" not in manifest
+    assert manifest["recovery_archive"] == ""
 
 
 def test_seven_day_expiry_ignores_stale_lifecycle_and_task_bindings(monkeypatch, tmp_path):
@@ -376,19 +379,17 @@ def test_seven_day_expiry_ignores_stale_lifecycle_and_task_bindings(monkeypatch,
     )
     removed = []
     monkeypatch.setattr(sessions, "_remove_expired_worktree", lambda record: removed.append(record["session_id"]))
+    monkeypatch.setattr(sessions, "_archive_expired_worktree", lambda _record: str(tmp_path / "recovery.tar.gz"))
+    monkeypatch.setattr(sessions, "_verify_expired_worktree_archive_snapshot", lambda *_args: None)
     monkeypatch.setattr(sessions, "_delete_worktree_checkpoint_ref", lambda _session_id: True)
     monkeypatch.setattr(sessions, "_run_cmd", lambda *_args, **_kwargs: (0, "", ""))
 
     report = sessions.expire_managed_worktrees(max_age_hours=168, now_timestamp=now)
 
-    assert sorted(removed) == ["merged", "stale-task"]
-    assert report["deleted"] == ["merged", "stale-task"]
+    assert sorted(removed) == ["dirty", "merged", "stale-task"]
+    assert report["deleted"] == ["dirty", "merged", "stale-task"]
     assert report["protected_live"] == ["recent-task"]
-    assert report["protected_unresolved"] == [{
-        "session_id": "dirty",
-        "path": str(managed / "agent-dirty"),
-        "reason": "unique_changes",
-    }]
+    assert report["protected_unresolved"] == []
 
 
 def test_hard_expiry_uses_created_at_instead_of_refreshed_directory_mtime(monkeypatch, tmp_path):
@@ -437,12 +438,118 @@ def test_hard_expiry_disposable_check_protects_unique_and_unmerged_work(monkeypa
     assert sessions._hard_expiry_record_is_safely_disposable(record) == (False, "unique_changes")
 
     monkeypatch.setattr(sessions, "_candidate_changed_files", lambda *_args: [])
+    monkeypatch.setattr(sessions, "_expiry_ignored_roots", lambda _path: [])
     monkeypatch.setattr(sessions, "_run_cmd", lambda *_args, **_kwargs: (0, "ahead\n", ""))
     monkeypatch.setattr(sessions, "_git_is_ancestor", lambda *_args: False)
     assert sessions._hard_expiry_record_is_safely_disposable(record) == (False, "unmerged_head")
 
     monkeypatch.setattr(sessions, "_git_is_ancestor", lambda *_args: True)
     assert sessions._hard_expiry_record_is_safely_disposable(record) == (True, "reachable_clean_head")
+
+
+def test_hard_expiry_detects_ignored_only_user_data(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    path = tmp_path / "agent-old"
+    path.mkdir()
+    record = {"path": str(path), "metadata": {}, "session": {}}
+    monkeypatch.setattr(sessions, "_candidate_changed_files", lambda *_args: [])
+    monkeypatch.setattr(sessions, "_expiry_ignored_roots", lambda _path: ["node_modules", "private.env"])
+
+    assert sessions._hard_expiry_record_is_safely_disposable(record) == (False, "unique_ignored_files")
+
+
+def test_hard_expiry_archives_tracked_untracked_and_head_before_removal(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    managed = tmp_path / "worktrees"
+    path = managed / "agent-old"
+    path.mkdir(parents=True)
+    subprocess.run(["git", "init", "-q"], cwd=path, check=True)
+    subprocess.run(["git", "config", "user.email", "test@example.invalid"], cwd=path, check=True)
+    subprocess.run(["git", "config", "user.name", "Test"], cwd=path, check=True)
+    (path / "tracked.txt").write_text("before\n", encoding="utf-8")
+    subprocess.run(["git", "add", "tracked.txt"], cwd=path, check=True)
+    subprocess.run(["git", "commit", "-qm", "base"], cwd=path, check=True)
+    (path / "tracked.txt").write_text("staged\n", encoding="utf-8")
+    subprocess.run(["git", "add", "tracked.txt"], cwd=path, check=True)
+    (path / "tracked.txt").write_text("after\n", encoding="utf-8")
+    (path / "new.txt").write_text("keep me\n", encoding="utf-8")
+    (path / "link.txt").symlink_to("new.txt")
+    (path / ".gitignore").write_text("node_modules/\nprivate.env\n", encoding="utf-8")
+    (path / "node_modules").mkdir()
+    (path / "node_modules" / "generated.bin").write_bytes(b"reproducible")
+    (path / "private.env").write_text("valuable\n", encoding="utf-8")
+    monkeypatch.setattr(sessions, "AGENT_WORKTREES_DIR", managed)
+    monkeypatch.setattr(sessions, "CONTROL_PLANE_ROOT", path)
+    monkeypatch.setattr(sessions, "WORKTREE_EXPIRY_ARCHIVE_DIR", tmp_path / "recovery")
+    monkeypatch.setattr(sessions, "_git_is_ancestor", lambda *_args: True)
+
+    archive = Path(sessions._archive_expired_worktree({"session_id": "old", "path": str(path)}))
+
+    assert archive.stat().st_mode & 0o777 == 0o600
+    with tarfile.open(archive, "r:gz") as saved:
+        names = set(saved.getnames())
+        assert names == {"manifest.json", "staged.patch", "working.patch", "untracked/.gitignore", "untracked/new.txt", "untracked/link.txt", "untracked/private.env"}
+        manifest = json.load(saved.extractfile("manifest.json"))
+        assert b"staged" in saved.extractfile("staged.patch").read()
+        assert b"after" in saved.extractfile("working.patch").read()
+        assert saved.extractfile("untracked/new.txt").read() == b"keep me\n"
+        assert saved.getmember("untracked/link.txt").linkname == "new.txt"
+        assert saved.extractfile("untracked/private.env").read() == b"valuable\n"
+    assert subprocess.run(["git", "rev-parse", "HEAD"], cwd=path, capture_output=True, text=True, check=True).stdout.strip() == manifest["head"]
+    second_archive = Path(sessions._archive_expired_worktree({"session_id": "old", "path": str(path)}))
+    assert second_archive != archive
+    assert archive.exists()
+
+
+def test_hard_expiry_archive_failure_preserves_worktree(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    managed = tmp_path / "worktrees"
+    path = managed / "agent-old"
+    path.mkdir(parents=True)
+    old = time.time() - 8 * 24 * 3600
+    monkeypatch.setattr(sessions, "AGENT_WORKTREES_DIR", managed)
+    monkeypatch.setattr(sessions, "_linked_git_worktrees", lambda: [])
+    monkeypatch.setattr(sessions, "_hard_expiry_record_is_safely_disposable", lambda _record: (False, "unique_changes"))
+    monkeypatch.setattr(sessions, "_archive_expired_worktree", lambda _record: (_ for _ in ()).throw(RuntimeError("archive failed")))
+    monkeypatch.setattr(sessions, "_remove_expired_worktree", lambda _record: pytest.fail("must not remove"))
+    os.utime(path, (old, old))
+
+    report = sessions.expire_managed_worktrees(max_age_hours=168)
+
+    assert path.exists()
+    assert report["deleted"] == []
+    assert report["failures"][0]["session_id"] == "old"
+
+
+@pytest.mark.parametrize("child_old,child_removal_fails", [(False, False), (True, True)])
+def test_hard_expiry_keeps_parent_when_nested_worktree_survives(
+    monkeypatch, tmp_path, child_old, child_removal_fails
+):
+    sessions = load_sessions_module()
+    parent = tmp_path / "worktrees" / "agent-parent"
+    child = parent / "agent-child"
+    child.mkdir(parents=True)
+    now = time.time()
+    records = [
+        {"session_id": "parent", "path": str(parent), "path_timestamp": now - 9 * 24 * 3600, "session": {}, "metadata": {}},
+        {"session_id": "child", "path": str(child), "path_timestamp": now - (9 * 24 * 3600 if child_old else 3600), "session": {}, "metadata": {}},
+    ]
+    monkeypatch.setattr(sessions, "_managed_worktree_records", lambda: records)
+    monkeypatch.setattr(sessions, "_hard_expiry_record_is_safely_disposable", lambda _record: (True, "reachable_clean_head"))
+    removed = []
+
+    def remove(record):
+        removed.append(record["session_id"])
+        if child_removal_fails:
+            raise RuntimeError("child cleanup failed")
+
+    monkeypatch.setattr(sessions, "_remove_expired_worktree", remove)
+
+    report = sessions.expire_managed_worktrees(max_age_hours=168, now_timestamp=now)
+
+    assert removed == (["child"] if child_old else [])
+    assert report["deleted"] == []
+    assert any(item["session_id"] == "parent" and item["reason"] == "nested_worktree_retained" for item in report["protected_unresolved"])
 
 
 def test_hard_expiry_uses_bounded_container_fallback_for_root_owned_artifacts(monkeypatch, tmp_path):
