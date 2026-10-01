@@ -449,12 +449,13 @@
     },
     "workflow_weather": {
       "execution": "e2e",
-      "enabling_work": "Run original real Workflow CLI/UI/scheduling assertions with dedicated workflow queue and only canonical workflow-trigger scanner. Original Bright Sky/DWD and Open-Meteo calls need no credentials; no paid AI/provider keys, no generic periodic jobs. Keep this capability in its own batch.",
+      "enabling_work": "Run real Workflow CLI/UI/scheduling assertions with dedicated workflow queue and only canonical workflow-trigger scanner. Bright Sky/DWD, Open-Meteo and bounded anonymous Gandi shop HTTPS calls need no credentials; no paid AI/provider keys, no generic periodic jobs. Keep this capability in its own batch.",
       "specs": [
         "cli-workflows-rain-real.spec.ts",
         "cli-workflows-schedule-real.spec.ts",
         "workflows-ready-run-tasks.spec.ts",
-        "workflows-ui-contract.spec.ts"
+        "workflows-ui-contract.spec.ts",
+        "skill-hosting-search-workflow.spec.ts"
       ]
     },
     "credential_free_domains": {
