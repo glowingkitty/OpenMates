@@ -56,6 +56,31 @@ def _patch_apps_api_module(monkeypatch: pytest.MonkeyPatch, apps_api: Any) -> No
 
 
 @pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract
+async def test_non_ai_skill_uses_authenticated_owner_context() -> None:
+    registry = FakeRegistry(response={"results": []})
+    adapter = WorkflowAppSkillAdapter(registry=registry)
+    authored = {
+        "location": "Berlin",
+        "_user_id": "forged-owner",
+        "_external_request": False,
+        "_connected_account_access_tokens": {"forged": "token"},
+        "user_id": "forged-owner",
+        "external_request": False,
+    }
+
+    await adapter.execute("weather", "forecast", authored, user_id="real-owner")
+
+    assert registry.calls[0][2] == {
+        "location": "Berlin",
+        "_user_id": "real-owner",
+        "_external_request": True,
+    }
+    assert authored["_user_id"] == "forged-owner"
+    assert authored["_external_request"] is False
+
+
+@pytest.mark.anyio
 # contract-test: direct surface=rest_api assertions=workflows.billing.skill-usage
 async def test_workflow_skill_uses_actual_pricing_and_stable_charge_identity(
     monkeypatch: pytest.MonkeyPatch,
@@ -396,25 +421,77 @@ async def test_ai_ask_exact_model_is_checked_against_available_chat_catalog(monk
     assert checked == [("openai", "removed")]
 
 
-@pytest.mark.anyio
 # contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
-async def test_generic_output_normalization_exposes_artifact_and_task_ids() -> None:
-    registry = FakeRegistry(
-        response={
-            "status": "processing",
-            "task_ids": ["task-1"],
-            "embed_ids": ["embed-1"],
-            "provider": "ExampleProvider",
-        }
-    )
-    adapter = WorkflowAppSkillAdapter(registry=registry)
+def test_generic_output_normalization_exposes_artifact_and_task_ids() -> None:
+    result = _normalize_skill_output("images", "generate", {"requests": [{"prompt": "blue circle"}]}, {
+        "status": "processing",
+        "task_ids": ["task-1"],
+        "embed_ids": ["embed-1"],
+        "provider": "ExampleProvider",
+    })
 
-    result = await adapter.execute("images", "generate", {"requests": [{"prompt": "blue circle"}]})
-
-    assert result["summary"] == "images:generate completed"
+    assert result["summary"] == "images:generate processing"
+    assert result["pending"] is True
     assert result["provider"] == "ExampleProvider"
     assert result["artifact_ids"] == ["embed-1"]
     assert result["task_ids"] == ["task-1"]
+
+
+@pytest.mark.parametrize(("app_id", "skill_id", "response"), [
+    ("openmates", "get-docs", {"content": None, "error": "Document unavailable"}),
+    ("travel", "get_flight", {"success": False, "data_source": "flightradar24", "error": "Flight unavailable"}),
+])
+# contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract
+def test_failed_document_and_flight_responses_have_no_results(
+    app_id: str, skill_id: str, response: dict[str, Any],
+) -> None:
+    output = _normalize_skill_output(app_id, skill_id, {}, response)
+
+    assert output["results"] == []
+    assert output["result_count"] == 0
+    assert output["error"] == response["error"]
+    assert "completed" not in output["summary"]
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(("app_id", "skill_id"), [
+    ("images", "generate"),
+    ("videos", "create"),
+    ("openmates", "share-usecase"),
+])
+# contract-test: direct surface=rest_api assertions=workflows.actions.skill-contract
+async def test_unsafe_workflow_contract_stops_before_dispatch_and_billing(
+    monkeypatch: pytest.MonkeyPatch, app_id: str, skill_id: str,
+) -> None:
+    registry = FakeRegistry(metadata=None)
+    adapter = WorkflowAppSkillAdapter(registry=registry)
+
+    async def no_precheck(**_kwargs: Any) -> None:
+        raise AssertionError("billing precheck must not run")
+
+    monkeypatch.setattr(workflow_app_skill_adapter, "_precheck_workflow_skill_billing", no_precheck)
+    with pytest.raises(WorkflowSkillBillingError) as exc:
+        await adapter.execute(app_id, skill_id, {}, user_id="owner", billing_context={
+            "workflow_id": "wf", "run_id": "run", "node_id": "step", "source": "workflow",
+        })
+
+    assert exc.value.code == "WORKFLOW_RUNTIME_UNSUPPORTED"
+    assert registry.calls == []
+
+
+@pytest.mark.anyio
+# contract-test: direct surface=rest_api assertions=workflows.actions.skill-contract
+async def test_declared_unsafe_mode_stops_even_without_central_classification() -> None:
+    registry = FakeRegistry(metadata={"skills": [{
+        "id": "queued", "workflow": {"execution_mode": "async_job", "unattended": True, "approval": "never"},
+    }]})
+    adapter = WorkflowAppSkillAdapter(registry=registry)
+
+    with pytest.raises(WorkflowSkillBillingError) as exc:
+        await adapter.execute("example", "queued", {}, user_id="owner")
+
+    assert exc.value.code == "WORKFLOW_RUNTIME_UNSUPPORTED"
+    assert registry.calls == []
 
 
 # contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract

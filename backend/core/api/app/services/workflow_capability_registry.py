@@ -70,6 +70,21 @@ _classification_cache: tuple[Path, tuple[int, int] | None, dict[str, Any]] | Non
 _filesystem_cache: dict[Path, tuple[tuple[tuple[str, int, int], ...], dict[str, dict[str, Any]]]] = {}
 
 
+def workflow_runtime_unavailable_reason(workflow: Mapping[str, Any]) -> str | None:
+    """Keep incomplete execution/approval lifecycles out of workflow dispatch.
+
+    Queued generation/rendering jobs settle billing in their worker and cannot
+    yet resume dependent workflow nodes with a completed result. Per-run skill
+    approval is also not implemented. Declaring an input/output schema alone
+    must not enable either path, including for previously saved workflow graphs.
+    """
+    if workflow.get("execution_mode") in {"async_job", "sandbox"}:
+        return WORKFLOW_RUNTIME_UNSUPPORTED
+    if workflow.get("approval") == "always" or workflow.get("unattended") is False:
+        return WORKFLOW_RUNTIME_UNSUPPORTED
+    return None
+
+
 def _file_version(path: Path) -> tuple[int, int] | None:
     try:
         stat = path.stat()
@@ -195,6 +210,10 @@ class WorkflowCapabilityRegistry:
                 str(workflow.get("unavailable_reason") or WORKFLOW_CLASSIFICATION_REQUIRED),
                 metadata,
             )
+
+        runtime_reason = workflow_runtime_unavailable_reason(workflow)
+        if runtime_reason is not None:
+            return _unavailable_capability(capability_id, capability_id, runtime_reason, metadata)
 
         return WorkflowCapability(
             type="app_skill",

@@ -30,6 +30,7 @@
         "cli-memories.spec.ts",
         "cli-pair-login.spec.ts",
         "cli-workflow-data-branches.spec.ts",
+        "cli-workflow-skill-safety.spec.ts",
         "cli-workflow-files.spec.ts",
         "cli-workflows-natural-language-guards.spec.ts",
         "code-notebook-flow.spec.ts",

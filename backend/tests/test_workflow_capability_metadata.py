@@ -10,6 +10,8 @@
 from types import SimpleNamespace
 import os
 
+import pytest
+
 from backend.core.api.app.services import workflow_capability_registry as capability_module
 
 from backend.core.api.app.services.workflow_capability_registry import (
@@ -109,6 +111,31 @@ def test_unclassified_registered_skills_fail_closed_with_an_explicit_reason() ->
 
     assert capability.enabled is False
     assert capability.reason == WORKFLOW_CLASSIFICATION_REQUIRED
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract
+@pytest.mark.parametrize("unsafe_policy", [
+    {"execution_mode": "async_job"}, {"execution_mode": "sandbox"},
+    {"approval": "always"}, {"unattended": False},
+])
+def test_incomplete_job_or_approval_lifecycle_cannot_enable_a_workflow_skill(unsafe_policy: dict) -> None:
+    policy = {**_workflow(), **unsafe_policy}
+    registry = WorkflowCapabilityRegistry(FakeSkillRegistry({
+        "example": SimpleNamespace(skills=[_skill("unsafe", policy)])
+    }))
+    capability = registry.get_capability("example.unsafe")
+    assert capability.enabled is False
+    assert capability.reason == WORKFLOW_RUNTIME_UNSUPPORTED
+    assert capability.metadata["workflow"] == policy
+
+
+@pytest.mark.parametrize("capability_id", ["social_media.search", "social_media.get-posts"])
+# contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract
+def test_queued_social_media_skills_are_classified_as_jobs_and_unavailable(capability_id: str) -> None:
+    capability = WorkflowCapabilityRegistry(_FilesystemWorkflowMetadataRegistry()).get_capability(capability_id)
+    assert capability.metadata["workflow"]["execution_mode"] == "async_job"
+    assert capability.enabled is False
+    assert capability.reason == WORKFLOW_RUNTIME_UNSUPPORTED
 
 
 # contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract
