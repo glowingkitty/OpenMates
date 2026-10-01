@@ -27,6 +27,9 @@ import { unreadMessagesStore } from "../stores/unreadMessagesStore";
 import { LOCAL_CHAT_LIST_CHANGED_EVENT } from "./drafts/draftConstants";
 import { isChatVisiblyActive } from "./chatNotificationVisibility";
 import { isDraftUpdateBlockedByLocalDeletion } from "./chatSyncMerge";
+import { isDraftOnlyChatSurface, isPersistedDraftOnlyChat } from "../utils/chatDraftState";
+import { get } from "svelte/store";
+import { draftEditorUIState } from "./drafts/draftState";
 import {
   persistAssistantSpeechPreferenceIntent,
 } from "./assistantSpeechPreference";
@@ -548,19 +551,41 @@ export async function handleDraftDeletedImpl(
   // The async decryption work in getChat() causes IndexedDB transactions to auto-commit.
   // Instead, use separate transactions for each operation.
   try {
-    // First, get the chat without passing a transaction (getChat will create its own)
-    const chat = await chatDB.getChat(payload.chat_id);
+    // Draft ciphertext uses the master key; classification needs raw metadata,
+    // without requiring a chat key or decrypted display fields.
+    const chat = await chatDB.getRawChat(payload.chat_id);
 
     if (chat) {
-      if (payload.draft_v === undefined && (chat.draft_v ?? 0) > 0) {
+      const localDraftVersion = Math.max(chat.draft_v ?? 0, chat.cleared_draft_v ?? 0);
+      if (payload.draft_v === undefined && localDraftVersion > 0) {
         console.warn(
           `[ChatSyncService:ChatUpdates] Ignoring versionless draft_deleted for chat ${payload.chat_id} with local draft_v=${chat.draft_v ?? 0}.`,
         );
         return;
       }
-      if (payload.draft_v !== undefined && (chat.draft_v ?? 0) > payload.draft_v) {
+      if (payload.draft_v !== undefined && localDraftVersion > payload.draft_v) {
         console.info(
           `[ChatSyncService:ChatUpdates] Ignoring stale draft_deleted for chat ${payload.chat_id}. Local draft_v=${chat.draft_v ?? 0}, incoming draft_v=${payload.draft_v}.`,
+        );
+        return;
+      }
+      const editorState = get(draftEditorUIState);
+      if (editorState.currentChatId === payload.chat_id && editorState.hasUnsavedChanges) {
+        return;
+      }
+      // Clearing an unsent draft also removes its route and navigation shell.
+      // Established chats retain their history and only lose the draft fields.
+      if (
+        isPersistedDraftOnlyChat(chat) ||
+        ((chat.cleared_draft_v ?? 0) > 0 && isDraftOnlyChatSurface(chat, true))
+      ) {
+        await chatDB.deleteChat(payload.chat_id);
+        chatListCache.removeChat(payload.chat_id);
+        chatMetadataCache.invalidateChat(payload.chat_id);
+        serviceInstance.dispatchEvent(
+          new CustomEvent("chatDeleted", {
+            detail: { chat_id: payload.chat_id },
+          }),
         );
         return;
       }

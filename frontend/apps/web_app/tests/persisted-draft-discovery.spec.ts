@@ -124,6 +124,18 @@ test('CLI and fresh web sync discover persisted draft-only chats after cache evi
 		expect(after.drafts.find((draft: any) => draft.chatId === drafts[1].chatId)?.markdown).toBe(drafts[1].markdown);
 		await expect(chatItem(drafts[0].chatId)).toHaveCount(0, { timeout: 30_000 });
 		await expect(chatItem(drafts[1].chatId)).toContainText(drafts[1].markdown);
+
+		// Close the socket while retaining IndexedDB to miss the deletion broadcast.
+		const appUrl = webPage.url();
+		await webPage.goto('about:blank');
+		await webContext.setOffline(true);
+		await runWorkflowCliJson(apiUrl, cliHome, ['drafts', 'clear', drafts[1].chatId], 'clear draft while web is offline');
+		cleanupIds.delete(drafts[1].chatId);
+		await webContext.setOffline(false);
+		await webPage.goto(appUrl);
+		await waitForChatReady(webPage, console.log);
+		if (await toggle.getAttribute('aria-expanded') !== 'true') await toggle.click();
+		await expect(chatItem(drafts[1].chatId)).toHaveCount(0, { timeout: 30_000 });
 	} catch (error) {
 		if (webContext) {
 			await test.info().attach('fresh-web-state', {
