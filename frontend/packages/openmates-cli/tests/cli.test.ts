@@ -2211,8 +2211,11 @@ async function withCodeRunStreamingMockApi<T>(
 }
 
 async function withSkillFormattingMockApi<T>(
-  run: (params: { apiUrl: string; requests: Array<{ url: string; body: Record<string, unknown> }> }) => T | Promise<T>,
+  run: (params: { apiUrl: string; requests: Array<{ url: string; body: Record<string, unknown> }>; env: Record<string, string>; runCli: typeof runCliAsync }) => T | Promise<T>,
 ): Promise<T> {
+  const tempHome = mkdtempSync(join(tmpdir(), "openmates-cli-skill-formatting-"));
+  const stateDir = join(tempHome, ".openmates");
+  mkdirSync(stateDir, { mode: 0o700 });
   const requests: Array<{ url: string; body: Record<string, unknown> }> = [];
   const server = createServer(async (request, response) => {
     try {
@@ -2614,11 +2617,36 @@ async function withSkillFormattingMockApi<T>(
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const address = server.address();
   assert.ok(address && typeof address === "object");
+  const apiUrl = `http://127.0.0.1:${address.port}`;
+  writeFileSync(join(stateDir, "session.json"), JSON.stringify({
+    apiUrl,
+    sessionId: "skill-formatting-session",
+    wsToken: "skill-formatting-ws-token",
+    cookies: { auth_refresh_token: "skill-formatting-refresh-token" },
+    masterKeyExportedB64: Buffer.alloc(32).toString("base64"),
+    masterKeyStorage: "plaintext",
+    hashedEmail: "skill-formatting-account",
+    userEmailSalt: "skill-formatting-salt",
+    createdAt: Date.now(),
+  }), { mode: 0o600 });
+  const env = {
+    HOME: tempHome,
+    USERPROFILE: tempHome,
+    OPENMATES_STATE_DIR: stateDir,
+    OPENMATES_PROFILE: "",
+    OPENMATES_API_KEY: "",
+  };
   try {
-    return await run({ apiUrl: `http://127.0.0.1:${address.port}`, requests });
+    return await run({
+      apiUrl,
+      requests,
+      env,
+      runCli: (args, overrides = {}) => runCliAsync(args, { ...overrides, ...env }),
+    });
   } finally {
     server.closeAllConnections();
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+    rmSync(tempHome, { recursive: true, force: true });
   }
 }
 
@@ -3541,7 +3569,7 @@ describe("embed version commands", () => {
 
 describe("apps metadata commands", () => {
   it("runs generated app-skill commands with explicit schema-backed input", async () => {
-    await withSkillFormattingMockApi(async ({ apiUrl, requests }) => {
+    await withSkillFormattingMockApi(async ({ apiUrl, requests, env }) => {
       const { stdout, stderr } = await execFileAsync("node", [
         "dist/cli.js",
         "--api-url", apiUrl,
@@ -3550,7 +3578,7 @@ describe("apps metadata commands", () => {
       ], {
         cwd: PACKAGE_ROOT,
         encoding: "utf-8",
-        env: { ...process.env, TERM: "dumb" },
+        env: { ...process.env, TERM: "dumb", ...env },
         timeout: 15_000,
       });
 
@@ -3565,7 +3593,7 @@ describe("apps metadata commands", () => {
 
   // contract-test: direct surface=cli assertions=app-skills.surface.semantic-parity,app-skills.search-relevance.optional-and-inferred
   it("forwards relevance criteria through generated typed app-skill flags", async () => {
-    await withSkillFormattingMockApi(async ({ apiUrl, requests }) => {
+    await withSkillFormattingMockApi(async ({ apiUrl, requests, runCli: runCliAsync }) => {
       await runCliAsync([
         "--api-url", apiUrl,
         "apps", "fitness", "search_locations",
@@ -3592,7 +3620,7 @@ describe("apps metadata commands", () => {
 
   // contract-test: direct surface=cli assertions=app-skills.surface.semantic-parity,app-skills.search-relevance.optional-and-inferred
   it("forwards repository relevance criteria through generated typed input", async () => {
-    await withSkillFormattingMockApi(async ({ apiUrl, requests }) => {
+    await withSkillFormattingMockApi(async ({ apiUrl, requests, runCli: runCliAsync }) => {
       await runCliAsync([
         "--api-url", apiUrl,
         "apps", "code", "search_repos",
@@ -3688,7 +3716,7 @@ describe("apps metadata commands", () => {
   });
 
   it("runs the explicit models3d search command", async () => {
-    await withSkillFormattingMockApi(async ({ apiUrl, requests }) => {
+    await withSkillFormattingMockApi(async ({ apiUrl, requests, runCli: runCliAsync }) => {
       const output = await runCliAsync([
         "--api-url", apiUrl,
         "apps", "models3d", "search",
@@ -3726,7 +3754,7 @@ describe("apps metadata commands", () => {
 
   // contract-test: direct surface=cli assertions=app-skills.surface.semantic-parity,app-skills.search-relevance.optional-and-inferred
   it("forwards models3d relevance criteria through generated JSON input", async () => {
-    await withSkillFormattingMockApi(async ({ apiUrl, requests }) => {
+    await withSkillFormattingMockApi(async ({ apiUrl, requests, runCli: runCliAsync }) => {
       const input = {
         requests: [{
           query: "phone stand",
@@ -3749,7 +3777,7 @@ describe("apps metadata commands", () => {
   });
 
   it("runs code image_to_html from a local image file and resolves the task", async () => {
-    await withSkillFormattingMockApi(async ({ apiUrl, requests }) => {
+    await withSkillFormattingMockApi(async ({ apiUrl, requests, runCli: runCliAsync }) => {
       const tempDir = mkdtempSync(join(tmpdir(), "openmates-cli-image-to-html-"));
       const file = join(tempDir, "mockup.png");
       writeFileSync(file, Buffer.from("iVBORw0KGgo=", "base64"));
@@ -3781,7 +3809,7 @@ describe("apps metadata commands", () => {
   });
 
   it("runs the explicit design search-icons command", async () => {
-    await withSkillFormattingMockApi(async ({ apiUrl, requests }) => {
+    await withSkillFormattingMockApi(async ({ apiUrl, requests, runCli: runCliAsync }) => {
       const output = await runCliAsync([
         "--api-url", apiUrl,
         "apps", "design", "search_icons",
@@ -3810,7 +3838,7 @@ describe("apps metadata commands", () => {
   });
 
   it("exports a design icon as a recolored SVG", async () => {
-    await withSkillFormattingMockApi(async ({ apiUrl, requests }) => {
+    await withSkillFormattingMockApi(async ({ apiUrl, requests, runCli: runCliAsync }) => {
       const tempDir = mkdtempSync(join(tmpdir(), "openmates-cli-icon-export-"));
       const outputPath = join(tempDir, "home.svg");
       const output = await runCliAsync([
@@ -3836,21 +3864,15 @@ describe("apps metadata commands", () => {
   });
 
   it("routes nested app-skill errors through explicit command result formatting", async () => {
-    await withSkillFormattingMockApi(async ({ apiUrl, requests }) => {
+    await withSkillFormattingMockApi(async ({ apiUrl, requests, runCli: runCliAsync }) => {
       let stdout = "";
       let stderr = "";
       try {
-        await execFileAsync("node", [
-          "dist/cli.js",
+        await runCliAsync([
           "--api-url", apiUrl,
           "apps", "workflows", "search",
           "--input", JSON.stringify({ query: "vault-blocked" }),
-        ], {
-          cwd: PACKAGE_ROOT,
-          encoding: "utf-8",
-          env: { ...process.env, TERM: "dumb" },
-          timeout: 15_000,
-        });
+        ]);
         assert.fail("expected workflows search to fail when Vault key material is missing");
       } catch (error) {
         stdout = (error as { stdout?: string }).stdout ?? "";

@@ -1573,17 +1573,17 @@ assertions:
       surface: gui.web
     - &id230
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3567
+      line: 3595
       name: forwards relevance criteria through generated typed app-skill flags
       surface: cli
     - &id231
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3594
+      line: 3622
       name: forwards repository relevance criteria through generated typed input
       surface: cli
     - &id232
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3728
+      line: 3756
       name: forwards models3d relevance criteria through generated JSON input
       surface: cli
     supporting_tests:
@@ -1945,17 +1945,17 @@ assertions:
       surface: cli
     - &id250
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3567
+      line: 3595
       name: forwards relevance criteria through generated typed app-skill flags
       surface: cli
     - &id251
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3594
+      line: 3622
       name: forwards repository relevance criteria through generated typed input
       surface: cli
     - &id252
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3728
+      line: 3756
       name: forwards models3d relevance criteria through generated JSON input
       surface: cli
     supporting_tests:
@@ -13954,7 +13954,7 @@ assertions:
       surface: gui.web
     - &id1648
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3331
+      line: 3359
       name: returns a failing process status when the sandbox execution fails
       surface: cli
     supporting_tests:
@@ -14020,7 +14020,7 @@ assertions:
       surface: rest_api
     - &id1649
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3435
+      line: 3463
       name: retrieves Code Run completion through polling when streaming is unavailable
       surface: cli
     - &id1650
@@ -14319,7 +14319,7 @@ assertions:
       surface: rest_api
     - &id1681
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3309
+      line: 3337
       name: prints direct-run output and artifact download metadata in human mode
       surface: cli
     - &id1682
@@ -14832,12 +14832,12 @@ assertions:
       surface: gui.web
     - &id1750
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3309
+      line: 3337
       name: prints direct-run output and artifact download metadata in human mode
       surface: cli
     - &id1751
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3331
+      line: 3359
       name: returns a failing process status when the sandbox execution fails
       surface: cli
     - &id1755
@@ -16453,7 +16453,7 @@ assertions:
       surface: rest_api
     - &id1903
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3461
+      line: 3489
       name: maps pass-aware train flags into the app-skill request
       surface: cli
     tests:
@@ -16597,7 +16597,7 @@ assertions:
     supporting_tests:
     - &id1912
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3461
+      line: 3489
       name: maps pass-aware train flags into the app-skill request
       surface: cli
     tests:
@@ -63624,7 +63624,7 @@ assertions:
     supporting_tests:
     - &id7665
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3435
+      line: 3463
       name: retrieves Code Run completion through polling when streaming is unavailable
       surface: cli
     - &id7666
