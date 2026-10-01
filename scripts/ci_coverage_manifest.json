@@ -93,7 +93,8 @@
         "workspace-hash-routing.spec.ts",
         "workspace-sidebar.spec.ts",
         "components/chat-settings-preview.spec.ts",
-        "components/sheet-fullscreen.spec.ts"
+        "components/sheet-fullscreen.spec.ts",
+        "notification-email-preferences.spec.ts"
       ]
     },
     "external_integration": {
@@ -479,7 +480,10 @@
       "enabling_work": "Run actual signup email tasks and rendered messages through isolated runner-local Mailpit; real Brevo-to-Gmail delivery is verified separately by the dev-host daily smoke.",
       "specs": [
         "signup-flow-passkey.spec.ts",
-        "signup-skip-2fa-flow.spec.ts"
+        "signup-skip-2fa-flow.spec.ts",
+        "workflow-email-digest.spec.ts",
+        "chat-response-email.spec.ts",
+        "notification-email-migration.spec.ts"
       ]
     },
     "operational_health": {
