@@ -10,7 +10,7 @@
 
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, linkSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, statSync, symlinkSync, writeFileSync, rmSync } from "node:fs";
+import { chmodSync, existsSync, linkSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, statSync, symlinkSync, utimesSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { parse as parseYaml } from "yaml";
@@ -113,7 +113,7 @@ import {
   serverUpdateStatusFile,
   writeServerUpdateStatus,
 } from "../src/serverUpdateState.ts";
-import { ensureCorePrometheusRuntimeFiles, loadSelfHostComposeTemplate } from "../src/server.ts";
+import { ensureCoreAlertmanagerRuntimeFile, ensureCorePrometheusRuntimeFiles, loadSelfHostComposeTemplate, waitForServerHealth } from "../src/server.ts";
 
 const ORIGINAL_STATE_DIR = process.env.OPENMATES_STATE_DIR;
 
@@ -187,6 +187,59 @@ describe("image-mode Prometheus configuration", () => {
       ensureCorePrometheusRuntimeFiles(installPath);
       assert.equal(readFileSync(join(runtimeDir, "prometheus.yml"), "utf-8"), "operator-managed: true\n");
     } finally {
+      rmSync(installPath, { recursive: true, force: true });
+    }
+  });
+});
+
+it("does not rewrite an identical read-only Alertmanager runtime file", () => {
+  const installPath = mkdtempSync(join(tmpdir(), "openmates-alertmanager-"));
+  const runtimePath = join(installPath, "backend", "core", "monitoring", "alertmanager", "alertmanager.yml");
+  try {
+    ensureCoreAlertmanagerRuntimeFile(installPath);
+    const packaged = readFileSync(runtimePath, "utf-8");
+    const oldTime = new Date("2020-01-01T00:00:00Z");
+    utimesSync(runtimePath, oldTime, oldTime);
+    chmodSync(runtimePath, 0o444);
+    ensureCoreAlertmanagerRuntimeFile(installPath);
+    assert.equal(statSync(runtimePath).mtimeMs, oldTime.getTime());
+    assert.equal(readFileSync(runtimePath, "utf-8"), packaged);
+
+    chmodSync(runtimePath, 0o600);
+    writeFileSync(runtimePath, "outdated\n");
+    ensureCoreAlertmanagerRuntimeFile(installPath);
+    assert.equal(readFileSync(runtimePath, "utf-8"), packaged);
+  } finally {
+    rmSync(installPath, { recursive: true, force: true });
+  }
+});
+
+describe("server health loopback", () => {
+  it("probes the IPv4 address bound by each image-mode role", async () => {
+    const originalFetch = globalThis.fetch;
+    const installPath = mkdtempSync(join(tmpdir(), "openmates-health-loopback-"));
+    const calls: string[] = [];
+    globalThis.fetch = async (input) => {
+      calls.push(String(input));
+      return new Response("ok");
+    };
+    try {
+      for (const [role, port, service] of [
+        ["upload", "8000", "app-uploads"],
+        ["preview", "8080", "preview"],
+        ["core", "8000", "api"],
+      ] as const) {
+        const template = role === "upload" ? "../templates/upload/docker-compose.yml"
+          : role === "preview" ? "../templates/preview/docker-compose.preview.yml"
+            : "../templates/core/docker-compose.selfhost.yml";
+        const compose = parseYaml(readFileSync(new URL(template, import.meta.url), "utf-8"));
+        assert.ok(compose.services[service].ports.includes(`127.0.0.1:${port}:${port}`));
+        await waitForServerHealth(installPath, role, { checkWebApp: false });
+        assert.equal(calls.at(-1), `http://127.0.0.1:${port}/health`);
+        assert.deepEqual(planServerRuntime({ role }).healthChecks, [`http://127.0.0.1:${port}/health`]);
+      }
+    } finally {
+      globalThis.fetch = originalFetch;
       rmSync(installPath, { recursive: true, force: true });
     }
   });
@@ -998,7 +1051,7 @@ describe("role-based server planning", () => {
 
     assert.deepEqual(parseYaml(packaged), parseYaml(canonical));
     assert.match(source, /CORE_ALERTMANAGER_CONFIG_FILE = join\("backend", "core", "monitoring", "alertmanager", "alertmanager\.yml"\)/);
-    assert.match(source, /copyFileSync\(alertmanagerTemplatePath, alertmanagerConfigPath\)/);
+    assert.match(source, /ensureCoreAlertmanagerRuntimeFile\(installPath\)/);
     assert.match(source, /version: value\("OPENMATES_IMAGE_TAG"\) \|\| serverConfig\?\.imageTag \|\| "source"/);
   });
 

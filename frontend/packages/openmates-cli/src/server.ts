@@ -754,7 +754,7 @@ function firstCsvValue(value: string): string {
 
 function deriveSelfHostCliUrls(envContent: string): { apiUrl: string; appUrl: string } {
   return {
-    apiUrl: firstCsvValue(getEnvVar(envContent, "VITE_API_URL")) || "http://localhost:8000",
+    apiUrl: firstCsvValue(getEnvVar(envContent, "VITE_API_URL")) || "http://127.0.0.1:8000",
     appUrl: firstCsvValue(getEnvVar(envContent, "PRODUCTION_URL")) || "http://localhost:5173",
   };
 }
@@ -781,6 +781,15 @@ function packagedCaddyTemplatePath(role: ServerRole): string {
 
 function packagedCoreAlertmanagerTemplatePath(): string {
   return join(dirname(new URL(import.meta.url).pathname), "..", "templates", "core", "monitoring", "alertmanager", "alertmanager.yml");
+}
+
+export function ensureCoreAlertmanagerRuntimeFile(installPath: string): void {
+  const templatePath = packagedCoreAlertmanagerTemplatePath();
+  if (!existsSync(templatePath)) throw new Error(`Packaged Alertmanager config not found: ${templatePath}`);
+  const runtimePath = join(installPath, CORE_ALERTMANAGER_CONFIG_FILE);
+  if (fileHash(templatePath) === fileHash(runtimePath)) return;
+  mkdirSync(dirname(runtimePath), { recursive: true });
+  copyFileSync(templatePath, runtimePath);
 }
 
 export function ensureCorePrometheusRuntimeFiles(installPath: string): void {
@@ -869,11 +878,7 @@ async function writeImageModeRuntimeFiles(installPath: string, imageTag: string,
     const promtailConfigPath = join(installPath, CORE_PROMTAIL_CONFIG_FILE);
     mkdirSync(dirname(promtailConfigPath), { recursive: true });
     writeFileSync(promtailConfigPath, SELFHOST_PROMTAIL_CONFIG_TEMPLATE);
-    const alertmanagerTemplatePath = packagedCoreAlertmanagerTemplatePath();
-    if (!existsSync(alertmanagerTemplatePath)) throw new Error(`Packaged Alertmanager config not found: ${alertmanagerTemplatePath}`);
-    const alertmanagerConfigPath = join(installPath, CORE_ALERTMANAGER_CONFIG_FILE);
-    mkdirSync(dirname(alertmanagerConfigPath), { recursive: true });
-    copyFileSync(alertmanagerTemplatePath, alertmanagerConfigPath);
+    ensureCoreAlertmanagerRuntimeFile(installPath);
   }
   writeFileSync(join(vaultConfigDir, "vault.hcl"), VAULT_CONFIG_TEMPLATE);
   ensureImageRuntimeConfig(installPath);
@@ -924,13 +929,13 @@ async function checkUrl(url: string): Promise<boolean> {
   }
 }
 
-async function waitForServerHealth(
+export async function waitForServerHealth(
   installPath: string,
   role: ServerRole = "core",
   options: { checkWebApp?: boolean } = {},
 ): Promise<void> {
   if (role === "upload" || role === "preview") {
-    const healthUrl = role === "upload" ? "http://localhost:8000/health" : "http://localhost:8080/health";
+    const healthUrl = planServerRuntime({ role }).healthChecks[0];
     const deadline = Date.now() + UPDATE_HEALTH_TIMEOUT_MS;
     while (Date.now() < deadline) {
       if (await checkUrl(healthUrl)) return;

@@ -80,6 +80,7 @@ describe("post-update quick server test", () => {
   });
 
   it("only allows an explicit API URL override for standalone tests", () => {
+    assert.equal(selectExpectedServerApiUrl({ allowExplicitOverride: false }), "http://127.0.0.1:8000");
     assert.equal(selectExpectedServerApiUrl({
       configuredApiUrl: "https://updated.example",
       explicitApiUrl: "https://other.example",
