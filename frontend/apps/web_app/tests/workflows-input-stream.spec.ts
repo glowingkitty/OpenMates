@@ -64,8 +64,13 @@ test.describe('streamed workflow authoring', () => {
     await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
     await loginToTestAccount(page, log, async () => {});
     const created: string[] = [];
-    const seed = async (title: string) => {
-      const response = await page.request.post(`${apiUrl()}/v1/workflows`, { data: { title, graph, enabled: false } });
+    const retryGraph = {
+      ...graph,
+      nodes: [...graph.nodes, { id: 'followup', type: 'send_chat_message', title: 'Send follow-up', config: { message: 'Follow up' } }],
+      edges: [...graph.edges, { from: 'message', to: 'followup' }]
+    };
+    const seed = async (title: string, workflowGraph = graph) => {
+      const response = await page.request.post(`${apiUrl()}/v1/workflows`, { data: { title, graph: workflowGraph, enabled: false } });
       expect(response.ok(), await response.text()).toBe(true);
       const workflow = (await response.json()).workflow;
       created.push(workflow.id);
@@ -74,6 +79,7 @@ test.describe('streamed workflow authoring', () => {
     try {
       const one = await seed(`Stream one ${Date.now()}`);
       const two = await seed(`Stream two ${Date.now()}`);
+      const retried = await seed(`Stream retried ${Date.now()}`, retryGraph);
       await page.goto(getE2EDebugUrl('/workflows'), { waitUntil: 'domcontentloaded' });
       await expect(page.getByTestId('workflow-input-textarea')).toBeVisible();
       let provisionalFetches = 0;
@@ -81,11 +87,11 @@ test.describe('streamed workflow authoring', () => {
       const configure = (events: unknown[], holdOpen = false, holdResponse = false) => page.evaluate(({ events, holdOpen, holdResponse }) => {
         (window as typeof window & { __workflowStreamCases: Array<{ events: unknown[]; holdOpen?: boolean; holdResponse?: boolean }> }).__workflowStreamCases.push({ events, holdOpen, holdResponse });
       }, { events, holdOpen, holdResponse });
-      const preview = (workflow: { id: string; title: string }, index: number, accepted = 2) => ({
+      const preview = (workflow: { id: string; title: string }, index: number, accepted = 2, workflowGraph = graph) => ({
         type: 'preview', workflow_index: index, operation: 'create',
-        graph: { ...graph, nodes: graph.nodes.slice(0, accepted), edges: accepted > 1 ? graph.edges : [] },
+        graph: { ...workflowGraph, nodes: workflowGraph.nodes.slice(0, accepted), edges: workflowGraph.edges.filter(edge => workflowGraph.nodes.slice(0, accepted).some(node => node.id === edge.to)) },
         metadata: { title: workflow.title }, accepted_node_count: accepted,
-        node: graph.nodes[accepted - 1], provisional: true, validated: true
+        node: workflowGraph.nodes[accepted - 1], provisional: true, validated: true
       });
       await configure([
         { type: 'started', session_id: 'rejected-stream', status: 'running' }
@@ -150,13 +156,13 @@ test.describe('streamed workflow authoring', () => {
         stream.enqueue(new TextEncoder().encode('data: {"type":"started","session_id":"single-stream","status":"running"}\n\ndata: {"type":"progress","phase":"planning","operation":"create","workflow_count":1}\n\n'));
       });
       await expect.poll(() => page.evaluate(() => JSON.parse(sessionStorage.getItem('workflow-ai-pending') || '{}'))).toEqual({ sessionId: 'single-stream' });
-      const singleHeader = { ...preview(one, 0, 1), accepted_node_count: 0, metadata: { title: one.title, description: 'A draft with validated steps' } };
+      const singleHeader = { ...preview(retried, 0, 1, retryGraph), accepted_node_count: 0, metadata: { title: retried.title, description: 'A draft with validated steps' } };
       await page.evaluate((event) => {
         const stream = (window as typeof window & { __workflowOpenStream?: ReadableStreamDefaultController<Uint8Array> }).__workflowOpenStream;
         if (!stream) throw new Error('Pending workflow stream was not opened');
         stream.enqueue(new TextEncoder().encode(`data: ${JSON.stringify(event)}\n\n`));
       }, singleHeader);
-      await expect(page.getByTestId('workspace-detail-title')).toHaveText(one.title);
+      await expect(page.getByTestId('workspace-detail-title')).toHaveText(retried.title);
       await expect(page.getByTestId('workspace-detail-description')).toHaveText('A draft with validated steps');
       await expect(page.getByTestId('workflow-ai-pending-preview').getByTestId('workflow-node-card')).toHaveCount(1);
       await expect(page.getByTestId('workflow-ai-accepted-nodes')).toHaveCount(0);
@@ -166,14 +172,21 @@ test.describe('streamed workflow authoring', () => {
         if (!stream) throw new Error('Pending workflow stream was not opened');
         stream.enqueue(new TextEncoder().encode('data: {"type":"progress","phase":"retrying_node","workflow_index":0,"node_index":0,"attempt":2}\n\n'));
       });
-      await expect(page.getByTestId('workflow-ai-pending')).toContainText('Correcting this step');
+      await expect(page.getByTestId('workflow-ai-pending-preview')).toHaveAttribute('data-save-status', 'retrying_node');
+      await expect(page.getByTestId('workflow-ai-pending')).toBeVisible();
       await expect(page.getByTestId('workflow-ai-pending-preview').getByTestId('workflow-node-card')).toHaveCount(1);
       await expect(page.getByTestId('workflow-ai-accepted-nodes')).toHaveCount(0);
+      await page.evaluate(() => {
+        const stream = (window as typeof window & { __workflowOpenStream?: ReadableStreamDefaultController<Uint8Array> }).__workflowOpenStream;
+        if (!stream) throw new Error('Pending workflow stream was not opened');
+        stream.enqueue(new TextEncoder().encode('data: {"type":"progress","phase":"validating","workflow_index":0,"node_index":0}\n\n'));
+      });
+      await expect(page.getByTestId('workflow-ai-pending-preview')).toHaveAttribute('data-save-status', 'validating');
       await page.evaluate((event) => {
         const stream = (window as typeof window & { __workflowOpenStream?: ReadableStreamDefaultController<Uint8Array> }).__workflowOpenStream;
         if (!stream) throw new Error('Pending workflow stream was not opened');
         stream.enqueue(new TextEncoder().encode(`data: ${JSON.stringify(event)}\n\n`));
-      }, { ...preview(one, 0, 2), accepted_node_count: 1, metadata: singleHeader.metadata });
+      }, { ...preview(retried, 0, 2, retryGraph), accepted_node_count: 1, metadata: singleHeader.metadata });
       await expect(page.getByTestId('workflow-ai-pending-preview').getByTestId('workflow-node-card')).toHaveCount(2);
       await expect(page.getByTestId('workflow-ai-pending-preview')).toBeVisible();
       await expect(page.getByTestId('workflow-ai-pending-preview')).toHaveAttribute('data-disabled', 'true');
@@ -190,7 +203,8 @@ test.describe('streamed workflow authoring', () => {
         if (!stream) throw new Error('Pending workflow stream was not opened');
         stream.enqueue(new TextEncoder().encode('data: {"type":"progress","phase":"retrying_node","workflow_index":0,"node_index":1,"attempt":3}\n\n'));
       });
-      await expect(page.getByTestId('workflow-ai-pending')).toContainText('Correcting this step');
+      await expect(page.getByTestId('workflow-ai-pending-preview')).toHaveAttribute('data-save-status', 'retrying_node');
+      await expect(page.getByTestId('workflow-ai-pending')).toBeVisible();
       await expect(page.getByTestId('workflow-ai-accepted-nodes')).toHaveText('1 step validated');
       await expect(page.getByTestId('workflow-ai-pending-preview').getByTestId('workflow-node-card')).toHaveCount(2);
       await expect(page.getByTestId('workflow-ai-stop')).toBeVisible();
@@ -198,21 +212,22 @@ test.describe('streamed workflow authoring', () => {
         const stream = (window as typeof window & { __workflowOpenStream?: ReadableStreamDefaultController<Uint8Array> }).__workflowOpenStream;
         if (!stream) throw new Error('Pending workflow stream was not opened');
         stream.enqueue(new TextEncoder().encode(`data: ${JSON.stringify(event)}\n\n`));
-      }, { ...preview(one, 0, 2), metadata: singleHeader.metadata });
+      }, { ...preview(retried, 0, 3, retryGraph), accepted_node_count: 2, metadata: singleHeader.metadata });
       await expect(page.getByTestId('workflow-ai-accepted-nodes')).toHaveText('2 steps validated');
-      await expect(page.getByTestId('workflow-ai-pending-preview').getByTestId('workflow-node-card')).toHaveCount(2);
+      await expect(page.getByTestId('workflow-ai-pending-preview').getByTestId('workflow-node-card')).toHaveCount(3);
       expect(provisionalFetches).toBe(0);
-      await page.evaluate((one) => {
+      await page.evaluate((workflow) => {
         const stream = (window as typeof window & { __workflowOpenStream?: ReadableStreamDefaultController<Uint8Array> }).__workflowOpenStream;
         if (!stream) throw new Error('Pending workflow stream was not opened');
-        stream.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ type: 'progress', phase: 'saving' })}\n\ndata: ${JSON.stringify({ type: 'session', session: { session_id: 'single-stream', status: 'executed', workflows: [one], mutations: [{ type: 'create_workflow', target_id: one.id }] } })}\n\n`));
+        stream.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ type: 'progress', phase: 'saving' })}\n\ndata: ${JSON.stringify({ type: 'session', session: { session_id: 'single-stream', status: 'executed', workflows: [workflow], mutations: [{ type: 'create_workflow', target_id: workflow.id }] } })}\n\n`));
         stream.close();
-      }, one);
+      }, retried);
       await expect(page.getByTestId('workflow-ai-pending-preview')).toHaveCount(0);
       await expect(page.getByTestId('workflow-ai-edit-textarea')).toBeEnabled();
-      await expect(page.getByTestId('workspace-detail-title')).toHaveText(one.title);
+      await expect(page.getByTestId('workspace-detail-title')).toHaveText(retried.title);
+      await expect(page.getByTestId('workflow-template-panel').getByTestId('workflow-node-card')).toHaveCount(3);
       await page.getByTestId('workflow-detail-back').click();
-      await expect(page.getByTestId('workflow-landing-card').filter({ hasText: one.title })).toHaveCount(1);
+      await expect(page.getByTestId('workflow-landing-card').filter({ hasText: retried.title })).toHaveCount(1);
 
       await configure([
         { type: 'started', session_id: 'multi-stream', status: 'running' },

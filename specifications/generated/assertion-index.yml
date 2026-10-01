@@ -61869,7 +61869,7 @@ assertions:
       surface: rest_api
     - &id7497
       path: frontend/apps/web_app/tests/workflows-input-stream.spec.ts
-      line: 274
+      line: 289
       name: stopped streamed edit keeps the original workflow and guards Undo after
         a later version
       surface: gui.web
@@ -64295,7 +64295,7 @@ assertions:
       surface: gui.web
     - &id7763
       path: frontend/apps/web_app/tests/workflows-input-stream.spec.ts
-      line: 274
+      line: 289
       name: stopped streamed edit keeps the original workflow and guards Undo after
         a later version
       surface: gui.web
