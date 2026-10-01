@@ -388,6 +388,42 @@ async def test_retryable_active_write_failure_uses_secondary_and_journals_primar
     assert directus.replication_payload["region_states"] == {"nbg1": "pending", "fsn1": "verified"}
 
 
+@pytest.mark.anyio
+@pytest.mark.parametrize("error_code", ["SignatureDoesNotMatch", "AccessDenied", "InvalidAccessKeyId", "NoSuchBucket"])
+# contract-test: direct surface=rest_api assertions=storage.failover.health-reconciled,storage.replication.active-write-durable-outbox
+async def test_permanent_upload_error_is_not_retried_or_failed_over(monkeypatch, error_code):
+    from unittest.mock import AsyncMock
+
+    service_module = _service_module()
+    sleep = AsyncMock()
+    monkeypatch.setattr(service_module.asyncio, "sleep", sleep)
+
+    class Client:
+        calls = 0
+
+        def put_object(self, **_kwargs):
+            self.calls += 1
+            raise service_module.ClientError(
+                {"Error": {"Code": error_code}, "ResponseMetadata": {"HTTPStatusCode": 403}},
+                "PutObject",
+            )
+
+    primary, secondary = Client(), Client()
+    service = service_module.S3UploadService(secrets_manager=None)
+    service.environment = "development"
+    service.region_name = "nbg1"
+    service.region_clients = {"nbg1": primary, "fsn1": secondary}
+    service.upload_region_clients = service.region_clients
+
+    with pytest.raises(service_module.HetznerObjectStorageError) as error:
+        await service.upload_file("cold_archives", "test/archive/1.json.gz", b"ciphertext", "application/gzip")
+
+    assert error.value.retryable is False
+    assert primary.calls == 1
+    assert secondary.calls == 0
+    sleep.assert_not_awaited()
+
+
 # contract-test: direct surface=rest_api assertions=storage.failover.health-reconciled,storage.replication.active-write-durable-outbox
 @pytest.mark.anyio
 async def test_active_write_transport_error_keeps_primary_when_head_confirms_object(

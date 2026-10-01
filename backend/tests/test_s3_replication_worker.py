@@ -128,6 +128,7 @@ async def test_duplicate_generation_persistence_returns_the_existing_outbox_row(
 
     class DuplicateDirectus:
         async def create_item(self, *_args: object, **_kwargs: object) -> tuple[bool, None]:
+            assert _kwargs["expected_unique_conflict_field"] == "idempotency_key"
             return False, None
 
         async def get_items(self, *_args: object, **_kwargs: object) -> list[dict]:

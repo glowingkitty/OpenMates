@@ -89,6 +89,7 @@ async def persist_replication_job(*, directus_service: Any, job: dict[str, Any])
         "storage_replication_jobs",
         payload,
         admin_required=True,
+        expected_unique_conflict_field="idempotency_key",
     )
     if success and created:
         return dict(created)

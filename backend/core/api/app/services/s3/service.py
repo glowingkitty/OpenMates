@@ -330,10 +330,12 @@ class S3UploadService:
         }
         self.client = self.region_clients[self.region_name]
         
-        # Separate client for uploads with older signature method
+        # Hetzner supports SigV4. Sign the payload without AWS streaming checksum
+        # trailers so S3-compatible endpoints receive a conventional PUT body.
         upload_config = Config(
-            signature_version='s3',  # Use older signature version which is more lenient
-            s3={'addressing_style': 'path'},
+            signature_version='s3v4',
+            s3={'addressing_style': 'path', 'payload_signing_enabled': True},
+            request_checksum_calculation='when_required',
             connect_timeout=15,
             read_timeout=15,
             retries={'max_attempts': 3}
@@ -845,6 +847,11 @@ class S3UploadService:
                             break
                         raise RuntimeError("Immutable storage key already exists with different content") from e
                     logger.warning(f"Upload attempt {attempt + 1} failed with ClientError: {error_code}")
+
+                    # Permanent auth/configuration errors cannot recover by
+                    # replaying the same request or switching storage regions.
+                    if not is_retryable_storage_error(error_code, http_status):
+                        raise
                     
                     # If we've reached the maximum number of retries, re-raise the exception
                     if attempt == max_retries - 1:
@@ -883,8 +890,9 @@ class S3UploadService:
                     current_read_timeout = min(current_read_timeout * 2, max_read_timeout)
                     logger.info(f"Creating retry client with read_timeout={current_read_timeout}s")
                     retry_config = Config(
-                        signature_version='s3',
-                        s3={'addressing_style': 'path'},
+                        signature_version='s3v4',
+                        s3={'addressing_style': 'path', 'payload_signing_enabled': True},
+                        request_checksum_calculation='when_required',
                         connect_timeout=15,
                         read_timeout=current_read_timeout,
                         retries={'max_attempts': 0}  # We handle retries ourselves

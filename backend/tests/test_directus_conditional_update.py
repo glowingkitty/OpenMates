@@ -65,6 +65,34 @@ async def test_fallback_rejects_unchanged_version_or_different_persisted_state(m
     assert service.last_update_error is not None
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("code", "field", "collection", "expected_field", "quiet"), [
+    ("RECORD_NOT_UNIQUE", "idempotency_key", "storage_replication_jobs", "idempotency_key", True),
+    ("RECORD_NOT_UNIQUE", "id", "storage_replication_jobs", "idempotency_key", False),
+    ("RECORD_NOT_UNIQUE", "idempotency_key", "other_collection", "idempotency_key", False),
+    ("FORBIDDEN", "idempotency_key", "storage_replication_jobs", "idempotency_key", False),
+    ("RECORD_NOT_UNIQUE", "idempotency_key", "storage_replication_jobs", None, False),
+])
+# contract-test: supporting surface=rest_api assertions=operational-monitoring.alerts.actionable-low-noise,storage.replication.active-write-durable-outbox
+async def test_only_explicitly_handled_unique_field_conflicts_are_quiet(caplog, code, field, collection, expected_field, quiet):
+    import logging
+
+    response = httpx.Response(400, json={"errors": [{"extensions": {
+        "code": code, "field": field, "collection": collection,
+    }}]})
+    service = _service(response, None)
+    with caplog.at_level(logging.INFO):
+        success, details = await service.create_item(
+            "storage_replication_jobs", {"idempotency_key": "test-key"},
+            admin_required=True, expected_unique_conflict_field=expected_field,
+        )
+
+    assert success is False
+    assert details == {"status_code": 400, "text": response.text}
+    assert any(record.levelno == logging.ERROR for record in caplog.records) is not quiet
+    service.ensure_auth_token.assert_awaited_once_with(admin_required=True)
+
+
 # contract-test: supporting surface=rest_api assertions=storage.replication.active-write-durable-outbox
 @pytest.mark.asyncio
 async def test_failed_patch_does_not_acknowledge_matching_fallback_state():
