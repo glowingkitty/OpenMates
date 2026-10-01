@@ -1529,5 +1529,140 @@ async def test_phase2_synthesizes_persisted_draft_only_metadata_after_cache_miss
     assert warmed[0][0][2:] == ("persisted-cipher", 2)
 
 
+# contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative,drafts.draft-only.lifecycle
+@pytest.mark.anyio
+@pytest.mark.parametrize("metadata_unavailable", [False, True])
+async def test_phase2_discovers_persisted_drafts_when_cache_draft_index_is_empty(metadata_unavailable) -> None:
+    manager = _Manager()
+    directus_lookups = []
+
+    class Cache:
+        async def get_all_user_draft_chat_ids(self, user_id):
+            assert user_id == "user-1"
+            return []
+
+        async def get_user_draft_from_cache(self, user_id, chat_id):
+            return None
+
+        async def is_user_draft_tombstoned(self, user_id, chat_id):
+            return chat_id == "cleared-draft"
+
+        async def get_user_draft_metadata_from_cache(self, user_id, chat_id):
+            return {}
+
+        async def get(self, key):
+            return {"deleted": True} if key == "chat:deleted-chat:metadata" else None
+
+        async def add_chat_to_ids_versions(self, user_id, chat_id, timestamp):
+            return True
+
+        async def get_batch_chat_versions(self, user_id, chat_ids):
+            return {}
+
+    class Chat:
+        async def get_user_chat_count(self, user_id, team_id=None):
+            return 2
+
+        async def get_core_chats_and_user_drafts_for_cache_warming(self, user_id, limit, team_id=None):
+            return [{
+                "chat_details": {"id": "recent-chat", "messages_v": 1, "title_v": 1},
+                "user_encrypted_draft_content": "recent-cipher",
+                "user_draft_version_db": 2,
+            }]
+
+        async def get_all_user_drafts(self, user_id):
+            assert user_id == "user-1"
+            return {
+                "recent-chat": {"chat_id": "recent-chat", "encrypted_content": "recent-cipher", "version": 2},
+                "older-chat": {"chat_id": "older-chat", "encrypted_content": "older-cipher", "version": 3},
+                "draft-only": {"chat_id": "draft-only", "encrypted_content": "draft-only-cipher", "version": 1, "updated_at": 1234},
+                "deleted-chat": {"chat_id": "deleted-chat", "encrypted_content": "deleted-cipher", "version": 4},
+                "cleared-draft": {"chat_id": "cleared-draft", "encrypted_content": "stale-cipher", "version": 1},
+                "team-chat": {"chat_id": "team-chat", "encrypted_content": "team-cipher", "version": 1},
+                "foreign-chat": {"chat_id": "foreign-chat", "encrypted_content": "foreign-cipher", "version": 1},
+            }
+
+    class Directus:
+        chat = Chat()
+
+        async def get_items(self, collection, params, **kwargs):
+            directus_lookups.append((collection, params))
+            assert collection == "chats"
+            assert kwargs == {"admin_required": True, "raise_on_error": True}
+            if metadata_unavailable:
+                raise RuntimeError("metadata database unavailable")
+            owner_hash = hashlib.sha256(b"user-1").hexdigest()
+            return [
+                {"id": "older-chat", "hashed_user_id": owner_hash, "messages_v": 17,
+                 "title_v": 4, "metadata_v": 5, "encrypted_chat_key": "wrapped-existing-key",
+                 "encrypted_title": "existing-title", "last_edited_overall_timestamp": 1200},
+                {"id": "team-chat", "hashed_user_id": owner_hash, "hashed_team_id": "team-owner"},
+                {"id": "foreign-chat", "hashed_user_id": "different-owner"},
+            ]
+
+    await _handle_phase2_sync(
+        manager=manager,
+        cache_service=Cache(),
+        directus_service=Directus(),
+        user_id="user-1",
+        device_fingerprint_hash="device-1",
+        client_chat_versions={},
+        client_chat_ids=[],
+        sent_embed_ids=set(),
+    )
+
+    chats = {row["chat_details"]["id"]: row["chat_details"] for row in manager.sent[0]["payload"]["chats"]}
+    if metadata_unavailable:
+        assert set(chats) == {"recent-chat"}
+        return
+    assert set(chats) == {"recent-chat", "older-chat", "draft-only"}
+    assert chats["older-chat"]["encrypted_draft_md"] == "older-cipher"
+    assert chats["older-chat"]["draft_v"] == 3
+    assert chats["older-chat"]["messages_v"] == 17
+    assert chats["older-chat"]["encrypted_chat_key"] == "wrapped-existing-key"
+    assert chats["older-chat"]["encrypted_title"] == "existing-title"
+    assert chats["older-chat"]["metadata_v"] == 5
+    assert chats["draft-only"]["messages_v"] == 0
+    assert chats["draft-only"]["encrypted_draft_md"] == "draft-only-cipher"
+    assert chats["draft-only"]["last_edited_overall_timestamp"] == 1234
+    assert chats["recent-chat"]["encrypted_draft_md"] == "recent-cipher"
+    assert len(directus_lookups) == 1
+    assert directus_lookups[0][0] == "chats"
+
+
+# contract-test: supporting surface=gui.web assertions=drafts.access.first-party-encrypted,drafts.sync.version-authoritative
+@pytest.mark.anyio
+async def test_phase2_team_refresh_does_not_synthesize_personal_draft_only_chat() -> None:
+    manager = _Manager()
+
+    class Cache:
+        async def get(self, key):
+            return None
+
+        async def get_user_draft_from_cache(self, user_id, chat_id):
+            raise AssertionError("Team refresh must not load missing personal draft shells")
+
+    class Directus:
+        chat = SimpleNamespace(
+            get_user_chat_count=lambda user_id, team_id=None: _async(0),
+            get_core_chats_and_user_drafts_for_cache_warming=lambda user_id, limit, team_id=None: _async([]),
+        )
+
+        async def get_items(self, collection, params, **kwargs):
+            assert collection == "chats"
+            assert kwargs == {"admin_required": True, "raise_on_error": True}
+            return []
+
+    await _handle_phase2_sync(
+        manager=manager, cache_service=Cache(), directus_service=Directus(),
+        user_id="user-1", device_fingerprint_hash="device-1",
+        client_chat_versions={}, client_chat_ids=[], sent_embed_ids=set(),
+        team_id="team-1", refresh_chat_ids=["personal-draft-only"],
+    )
+
+    assert manager.sent[0]["payload"]["chats"] == []
+    assert manager.sent[0]["payload"]["team_id"] == "team-1"
+
+
 async def _async(value):
     return value

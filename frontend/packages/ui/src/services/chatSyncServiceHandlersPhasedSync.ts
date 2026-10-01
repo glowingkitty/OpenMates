@@ -48,12 +48,25 @@ let phase2ProcessedChatIds: Set<string> | null = null;
 function isKeyOptionalSyncedChat(
   chatId: string,
   chat: Partial<Chat>,
+  localChat: Chat | null,
 ): boolean {
+  // Draft-only ciphertext uses the account master key. Store these shells
+  // without creating a chat key, while keeping the guard for real chats.
+  const isEncryptedDraftOnly = !!(
+    chat.encrypted_draft_md &&
+    chat.encrypted_draft_md !== "null" &&
+    (chat.draft_v ?? 0) > 0 &&
+    chat.messages_v === 0 &&
+    !chat.encrypted_title &&
+    (!localChat ||
+      (localChat.messages_v === 0 && !localChat.encrypted_title))
+  );
   return !!(
     chatId.startsWith("demo-") ||
     chatId.startsWith("legal-") ||
     chat.is_anonymous ||
-    chat.anonymous_encrypted_chat_key
+    chat.anonymous_encrypted_chat_key ||
+    isEncryptedDraftOnly
   );
 }
 
@@ -68,7 +81,7 @@ function shouldSkipSyncedChatWithoutKey(
     localChat?.encrypted_chat_key ||
     localChat?.anonymous_encrypted_chat_key ||
     localChat?.is_anonymous ||
-    isKeyOptionalSyncedChat(chatId, serverChat)
+    isKeyOptionalSyncedChat(chatId, serverChat, localChat)
   ) {
     return false;
   }

@@ -54,6 +54,7 @@
         "model-toggle-settings.spec.ts",
         "newsletter-categories.spec.ts",
         "passkey-login-alternatives.spec.ts",
+        "persisted-draft-discovery.spec.ts",
         "plan-acceptance-checks-flow.spec.ts",
         "plan-assumptions-flow.spec.ts",
         "plans-flow.spec.ts",

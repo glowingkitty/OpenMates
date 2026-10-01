@@ -277,6 +277,78 @@ describe("handlePhase2RecentChatsImpl", () => {
     expect(mocks.chatListCache.upsertChat).not.toHaveBeenCalled();
   });
 
+  // contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative,drafts.access.first-party-encrypted,drafts.draft-only.lifecycle
+  it("stores master-key draft-only ciphertext without a chat key", async () => {
+    const service = createService();
+
+    await handlePhase2RecentChatsImpl(
+      service as unknown as ChatSynchronizationService,
+      {
+        chats: [{
+          chat_details: {
+            id: "persisted-draft-only",
+            encrypted_title: null,
+            encrypted_draft_md: "master-key-draft-ciphertext",
+            draft_v: 3,
+            messages_v: 0,
+            title_v: 0,
+          },
+        }],
+        chat_count: 1,
+        total_chat_count: 0,
+        phase: "phase2",
+      },
+    );
+
+    expect(mocks.chatDB.addChat).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chat_id: "persisted-draft-only",
+        encrypted_draft_md: "master-key-draft-ciphertext",
+        draft_v: 3,
+      }),
+      undefined,
+      { isFromSync: true, forceIncomingEncryptedChatKey: false },
+    );
+    expect(mocks.chatDB.addChat.mock.calls[0][0].encrypted_chat_key).toBeFalsy();
+    expect(mocks.chatListCache.upsertChat).toHaveBeenCalledWith(
+      expect.objectContaining({ chat_id: "persisted-draft-only", draft_v: 3 }),
+    );
+    expect(mocks.chatKeyManager.injectKey).not.toHaveBeenCalled();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=drafts.access.first-party-encrypted,chats.persistence.client-encrypted
+  it.each(["server", "local"])("still rejects keyless %s message-bearing chats with drafts", async (messageSource) => {
+    const service = createService();
+    if (messageSource === "local") {
+      mocks.chatDB.getChat.mockResolvedValue({
+        chat_id: "keyless-real-chat",
+        messages_v: 1,
+      });
+    }
+
+    await handlePhase2RecentChatsImpl(
+      service as unknown as ChatSynchronizationService,
+      {
+        chats: [{
+          chat_details: {
+            id: "keyless-real-chat",
+            encrypted_title: null,
+            encrypted_draft_md: "master-key-draft-ciphertext",
+            draft_v: 3,
+            messages_v: messageSource === "server" ? 1 : 0,
+            title_v: 0,
+          },
+        }],
+        chat_count: 1,
+        total_chat_count: 1,
+        phase: "phase2",
+      },
+    );
+
+    expect(mocks.chatDB.addChat).not.toHaveBeenCalled();
+    expect(mocks.chatListCache.upsertChat).not.toHaveBeenCalled();
+  });
+
   // contract-test: direct surface=gui.web assertions=sync.phase2.metadata-only,chats.persistence.client-encrypted
   it("keeps synced metadata when a local encrypted_chat_key already exists", async () => {
     const service = createService();

@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 from fastapi import WebSocket
 
 from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.services.directus.chat_methods import CORE_CHAT_FIELDS_FOR_WARMING
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.connection_manager import ConnectionManager
 from backend.core.api.app.routes.handlers.websocket_handlers.chat_compression_checkpoint_handler import (
@@ -218,17 +219,32 @@ async def _build_draft_only_phase2_wrapper(
     directus_service: DirectusService,
     user_id: str,
     chat_id: str,
+    persisted_draft: Optional[Dict[str, Any]] = None,
+    existing_chat_metadata: Optional[Dict[str, Any]] = None,
 ) -> Optional[Dict[str, Any]]:
     from backend.core.api.app.routes.handlers.websocket_handlers.get_draft_versions_handler import (
         get_authoritative_user_draft,
     )
 
-    draft = await get_authoritative_user_draft(
-        cache_service,
-        directus_service,
-        user_id,
-        chat_id,
-    )
+    if persisted_draft is None:
+        draft = await get_authoritative_user_draft(
+            cache_service,
+            directus_service,
+            user_id,
+            chat_id,
+        )
+    else:
+        encrypted_md = persisted_draft.get("encrypted_content")
+        draft_v = _version_int(persisted_draft.get("version"))
+        draft = (encrypted_md, draft_v, None) if encrypted_md and draft_v > 0 else None
+        is_tombstoned = getattr(cache_service, "is_user_draft_tombstoned", None)
+        if is_tombstoned and await is_tombstoned(user_id, chat_id):
+            return None
+        cached = await cache_service.get_user_draft_from_cache(user_id, chat_id)
+        if cached is not None:
+            cached_md, cached_v, cached_preview = cached
+            if cached_md and cached_md != "null" and _version_int(cached_v) >= draft_v:
+                draft = (cached_md, _version_int(cached_v), cached_preview)
     if not draft:
         return None
     encrypted_md, draft_v, encrypted_preview = draft
@@ -236,7 +252,12 @@ async def _build_draft_only_phase2_wrapper(
         return None
     draft_metadata = await cache_service.get_user_draft_metadata_from_cache(user_id, chat_id)
 
-    timestamp = int(time.time())
+    timestamp = _version_int((persisted_draft or {}).get("updated_at")) or int(time.time())
+    if existing_chat_metadata is not None:
+        chat_details = dict(existing_chat_metadata)
+        _apply_authoritative_draft_metadata(chat_details, draft)
+        chat_details["user_id"] = user_id
+        return {"chat_details": chat_details}
     return {
         "chat_details": {
             "id": chat_id,
@@ -264,8 +285,19 @@ async def _build_phase2_draft_only_wrappers(
     user_id: str,
     chat_ids: List[str],
     wrapper_builder=None,
+    persisted_drafts: Optional[Dict[str, Dict[str, Any]]] = None,
+    existing_chat_metadata: Optional[Dict[str, Dict[str, Any]]] = None,
 ) -> List[Dict[str, Any]]:
-    wrapper_builder = wrapper_builder or _build_draft_only_phase2_wrapper
+    if wrapper_builder is None:
+        async def wrapper_builder(cache, directus, owner_id, chat_id):
+            return await _build_draft_only_phase2_wrapper(
+                cache,
+                directus,
+                owner_id,
+                chat_id,
+                persisted_draft=(persisted_drafts or {}).get(chat_id),
+                existing_chat_metadata=(existing_chat_metadata or {}).get(chat_id),
+            )
     wrappers: List[Dict[str, Any]] = []
     for offset in range(0, len(chat_ids), PHASE2_DRAFT_LOOKUP_CONCURRENCY):
         batch_ids = chat_ids[offset:offset + PHASE2_DRAFT_LOOKUP_CONCURRENCY]
@@ -1412,22 +1444,69 @@ async def _handle_phase2_sync(
 
         draft_only_added = 0
         draft_chat_ids = []
+        cache_draft_chat_ids = []
         try:
             existing_chat_ids = {
                 str(wrapper.get("chat_details", {}).get("id"))
                 for wrapper in all_recent_chats
                 if wrapper.get("chat_details", {}).get("id")
             }
-            draft_chat_ids = [] if team_id else await cache_service.get_all_user_draft_chat_ids(user_id)
+            cache_draft_chat_ids = [] if team_id else await cache_service.get_all_user_draft_chat_ids(user_id)
+            try:
+                persisted_drafts = {} if team_id else await directus_service.chat.get_all_user_drafts(user_id)
+            except Exception as persisted_draft_error:
+                logger.warning(
+                    "Phase 2: Persisted draft discovery unavailable for user %s: %s",
+                    user_id,
+                    persisted_draft_error,
+                    exc_info=True,
+                )
+                persisted_drafts = {}
+            draft_chat_ids = list(dict.fromkeys([*cache_draft_chat_ids, *persisted_drafts]))
             draft_chat_ids = list(dict.fromkeys([*draft_chat_ids, *(refresh_chat_ids or [])]))
             draft_only_chat_ids = [
                 chat_id for chat_id in draft_chat_ids if chat_id not in existing_chat_ids
             ]
+            # Persisted drafts may also belong to chats outside the recent window.
+            # Load their existing encrypted metadata in one batch, preserving keys
+            # and message versions instead of replacing real chats with empty shells.
+            existing_draft_chat_metadata = {}
+            if draft_only_chat_ids:
+                metadata_rows = await directus_service.get_items(
+                    "chats",
+                    params={
+                        "filter[id][_in]": ",".join(draft_only_chat_ids),
+                        "fields": CORE_CHAT_FIELDS_FOR_WARMING + ",hashed_team_id",
+                        "limit": -1,
+                    },
+                    admin_required=True,
+                    raise_on_error=True,
+                )
+                existing_draft_chat_metadata = {
+                    row["id"]: row for row in metadata_rows or []
+                }
+                owner_hash = hashlib.sha256(user_id.encode()).hexdigest()
+                team_hash = hashlib.sha256(team_id.encode()).hexdigest() if team_id else None
+                draft_only_chat_ids = [
+                    chat_id for chat_id in draft_only_chat_ids
+                    if (not team_id and chat_id not in existing_draft_chat_metadata)
+                    or (
+                        chat_id in existing_draft_chat_metadata and (
+                            existing_draft_chat_metadata[chat_id].get("hashed_team_id") == team_hash
+                            if team_id else (
+                                existing_draft_chat_metadata[chat_id].get("hashed_user_id") == owner_hash
+                                and not existing_draft_chat_metadata[chat_id].get("hashed_team_id")
+                            )
+                        )
+                    )
+                ]
             draft_only_wrappers = await _build_phase2_draft_only_wrappers(
                 cache_service,
                 directus_service,
                 user_id,
                 draft_only_chat_ids,
+                persisted_drafts=persisted_drafts,
+                existing_chat_metadata=existing_draft_chat_metadata,
             )
             for draft_wrapper in draft_only_wrappers:
                 draft_chat_id = draft_wrapper["chat_details"]["id"]
