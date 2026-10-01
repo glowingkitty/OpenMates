@@ -208,7 +208,9 @@
       "specs": [
         "api-key-scopes-settings.spec.ts",
         "apps-workspace.spec.ts",
+        "header-mobile-layout.spec.ts",
         "components/apps-workspace-preview.spec.ts",
+        "components/header-mobile-layout-preview.spec.ts",
         "components/apps-skill-form.spec.ts",
         "app-load-no-error-logs.spec.ts",
         "apple-chat-history-contracts.spec.ts",

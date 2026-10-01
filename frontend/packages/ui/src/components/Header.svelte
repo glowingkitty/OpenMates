@@ -490,6 +490,11 @@
   bind:this={headerDiv}
   data-testid="global-header"
   class:webapp={context === "webapp"}
+  class:signed-out={context === "webapp" &&
+    !isLoggedIn &&
+    !$authStore.isAuthenticated &&
+    !docsMode &&
+    !publicationLabel}
   class:publication={!!publicationLabel}
 >
   {#await waitLocale()}
@@ -1340,6 +1345,36 @@
       display: inline-flex;
     }
 
+    /* Keep the guest CTA and settings slot clear on compact headers. */
+    header.signed-out nav.webapp {
+      justify-content: flex-start;
+      padding-inline-end: 50px;
+    }
+
+    header.signed-out .logo-container {
+      display: none;
+    }
+
+    header.signed-out .left-section {
+      gap: 0;
+    }
+
+    header.signed-out .workspace-select-shell {
+      position: relative;
+      left: auto;
+      transform: none;
+      min-width: 0;
+      flex-shrink: 1;
+      margin-inline: var(--spacing-4) auto;
+      padding-inline: var(--spacing-2);
+    }
+
+    header.signed-out .right-section {
+      position: static;
+      transform: none;
+      flex-shrink: 0;
+    }
+
     .docs-tabs {
       position: static;
       transform: none;
@@ -1389,6 +1424,47 @@
 
     .workspace-select-shell {
       display: inline-flex;
+    }
+
+    header.signed-out nav.webapp {
+      justify-content: flex-start;
+      padding-inline-end: 50px;
+    }
+
+    header.signed-out .logo-container {
+      display: none;
+    }
+
+    header.signed-out .left-section {
+      gap: 0;
+    }
+
+    header.signed-out .workspace-select-shell {
+      position: relative;
+      left: auto;
+      transform: none;
+      min-width: 0;
+      flex-shrink: 1;
+      margin-inline: var(--spacing-4) auto;
+      padding-inline: var(--spacing-2);
+    }
+
+    header.signed-out .right-section {
+      position: static;
+      transform: none;
+      flex-shrink: 0;
+    }
+  }
+  @media (max-width: 380px) {
+    .workspace-select-shell {
+      box-sizing: border-box;
+      width: 4.5rem;
+    }
+  }
+  @container main-content (max-width: 380px) {
+    .workspace-select-shell {
+      box-sizing: border-box;
+      width: 4.5rem;
     }
   }
   @media (max-width: 380px) {
