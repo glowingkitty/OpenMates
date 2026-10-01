@@ -797,6 +797,9 @@ def _is_shifted_direct_user_arg(value: Any) -> bool:
 async def list_workflows(
     request: Request,
     team_id: str | None = Query(default=None),
+    app_id: str | None = Query(default=None, min_length=1),
+    offset: int | None = Query(default=None, ge=0),
+    limit: int | None = Query(default=None, ge=1, le=50),
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowService = Depends(get_workflow_service),
     directus_service: Any = Depends(get_directus_service),
@@ -804,6 +807,17 @@ async def list_workflows(
     try:
         del request
         await _require_team_read_role(directus_service, team_id, current_user)
+        if app_id is not None or offset is not None or limit is not None:
+            page_offset = offset if offset is not None else 0
+            page_limit = limit if limit is not None else 20
+            workflows, has_more = await run_in_threadpool(
+                service.list_workflows_page, current_user.id, current_user.vault_key_id,
+                team_id, app_id, page_offset, page_limit,
+            )
+            return {
+                "workflows": [item.model_dump(mode="json") for item in workflows],
+                "has_more": has_more, "offset": page_offset, "limit": page_limit,
+            }
         workflows = await run_in_threadpool(service.list_workflows, current_user.id, current_user.vault_key_id, team_id)
         return {"workflows": [item.model_dump(mode="json") for item in workflows]}
     except Exception as exc:

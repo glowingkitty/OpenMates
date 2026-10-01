@@ -36,6 +36,7 @@ from importlib import import_module  # noqa: E402
 from backend.core.api.app.routes import account_exports, account_imports, auth, chats, email, settings, storage_routes, websockets, sdk  # noqa: E402
 from backend.core.api.app.routes import anonymous  # noqa: E402 # Anonymous free usage routes
 from backend.core.api.app.routes import internal_api  # noqa: E402 # Import the new internal API router
+from backend.core.api.app.routes import apps_workspace  # noqa: E402 # Import after logging/tracing setup
 from backend.core.api.app.routes import apps  # noqa: E402 # Import apps router
 from backend.core.api.app.routes import share  # noqa: E402 # Import share router
 from backend.core.api.app.routes import admin  # noqa: E402 # Import admin router
@@ -1371,6 +1372,7 @@ def create_app() -> FastAPI:
     app.include_router(chats.router, include_in_schema=False)  # Encrypted chat reads - session-authenticated first-party clients
     app.include_router(storage_routes.router, include_in_schema=False)  # Encrypted cold archive reads - first-party clients only
     app.include_router(internal_api.router, include_in_schema=False)  # Internal API router - service-to-service communication only
+    app.include_router(apps_workspace.router, include_in_schema=False)  # First-party encrypted Apps result library
     app.include_router(apps.router, include_in_schema=False)  # Apps router - public endpoint, not API key based
     app.include_router(code_execution.router, include_in_schema=False)  # Code Run sandbox execution - web app only
     app.include_router(audio_realtime.router, include_in_schema=False)  # Realtime voice transcription - web app only

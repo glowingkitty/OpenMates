@@ -18,6 +18,17 @@ describe('workspace settings hash state', () => {
     },
   );
 
+  // contract-test: supporting surface=gui.web assertions=apps.navigation.hash-and-forwarding,settings-ui.shell.lifecycle-and-routing
+  it.each(['#apps', '#apps/all&e2e-debug=trace', '#apps/health&tab=embeds'])(
+    'preserves the Apps route %s while settings opens and closes',
+    (hash) => {
+      const withSettings = setSettingsPathInHash(hash, 'main');
+
+      expect(withSettings).toBe(`${hash}&settings=main`);
+      expect(clearSettingsPathFromHash(withSettings)).toBe(hash);
+    },
+  );
+
   // contract-test: supporting surface=gui.web assertions=workspace-shell.nav.released-surfaces-visible
   it('preserves a workspace marker while chat-only parameters are cleared', () => {
     expect(

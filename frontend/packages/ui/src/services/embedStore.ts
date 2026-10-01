@@ -1248,6 +1248,8 @@ export class EmbedStore {
       skipMetadataExtraction?: boolean;
       skipEmbedRefRegistration?: boolean;
       deferChildEmbedRefRegistration?: boolean;
+      /** Recheck account identity at the actual local write boundary. */
+      writeGuard?: () => void;
     },
   ): Promise<void> {
     const normalizedType = this.normalizeEmbedType(type as unknown as string);
@@ -1460,10 +1462,15 @@ export class EmbedStore {
       vault_key_id: preExtractedMetadata?.vault_key_id,
     };
 
-    // Keep the only copy until the IndexedDB transaction commits.
-    embedCache.setPinned(contentRef, entry);
-    this.updateUploadedFileSearchCandidate(entry);
-    embedAvailabilityVersion.update((version) => version + 1);
+    const pinEntry = () => {
+      embedCache.setPinned(contentRef, entry);
+      this.updateUploadedFileSearchCandidate(entry);
+      embedAvailabilityVersion.update((version) => version + 1);
+    };
+    // Unguarded chat sync keeps its existing early pin guarantee. Guarded Apps
+    // hydration defers even the memory write until after async IDB setup.
+    if (!options?.writeGuard) pinEntry();
+    else options.writeGuard();
 
     try {
       // Store in IndexedDB
@@ -1472,9 +1479,12 @@ export class EmbedStore {
         "readwrite",
       );
       const store = transaction.objectStore(EMBEDS_STORE_NAME);
+      options?.writeGuard?.();
+      if (options?.writeGuard) pinEntry();
       transaction.addEventListener("complete", () => embedCache.markPersisted(contentRef, entry), { once: true });
 
       await new Promise<void>((resolve, reject) => {
+        options?.writeGuard?.();
         const request = store.put(entry);
         request.onsuccess = () => {
           console.debug(
@@ -1487,6 +1497,9 @@ export class EmbedStore {
         request.onerror = () => reject(request.error);
       });
     } catch (error) {
+      // A guard rejection must stop the write; it is not an IDB fallback.
+      options?.writeGuard?.();
+      if (options?.writeGuard) pinEntry();
       console.warn(
         "[EmbedStore] Failed to store encrypted embed in IndexedDB, using memory cache only:",
         error,
@@ -2981,8 +2994,9 @@ export class EmbedStore {
    * Store embed key entries in IndexedDB
    * @param entries - Array of embed key entries to store
    */
-  async storeEmbedKeys(entries: EmbedKeyEntry[]): Promise<void> {
+  async storeEmbedKeys(entries: EmbedKeyEntry[], writeGuard?: () => void): Promise<void> {
     if (entries.length === 0) return;
+    writeGuard?.();
 
     // New keys arrived — clear negative cache so embeds that previously failed
     // key lookup will retry and succeed now that keys are available.
@@ -2999,6 +3013,7 @@ export class EmbedStore {
         // Use composite key for storage
         const storageKey = `${entry.hashed_embed_id}:${entry.key_type}:${entry.hashed_chat_id || "null"}`;
         await new Promise<void>((resolve, reject) => {
+          writeGuard?.();
           const request = store.put({ ...entry, id: storageKey });
           request.onsuccess = () => resolve();
           request.onerror = () => reject(request.error);
@@ -3095,6 +3110,35 @@ export class EmbedStore {
       console.error("[EmbedStore] Error querying embeds by app_id:", error);
       return [];
     }
+  }
+
+  /** Cursor page of one chat's encrypted embeds for legacy Apps indexing. */
+  async getEmbedsByHashedChatIdPage(
+    hashedChatId: string, afterContentRef: string | null, limit = 50,
+  ): Promise<{ items: EmbedStoreEntry[]; nextAfter: string | null }> {
+    const pageSize = Math.min(Math.max(limit, 1), 50);
+    const transaction = await chatDB.getTransaction([EMBEDS_STORE_NAME], "readonly");
+    const index = transaction.objectStore(EMBEDS_STORE_NAME).index("hashed_chat_id");
+    return new Promise((resolve, reject) => {
+      const items: EmbedStoreEntry[] = [];
+      const request = index.openCursor(IDBKeyRange.only(hashedChatId));
+      let sought = false;
+      request.onsuccess = () => {
+        const cursor = request.result;
+        if (!cursor) return resolve({ items, nextAfter: null });
+        const key = String(cursor.primaryKey);
+        if (!sought && afterContentRef) {
+          sought = true;
+          if (key < afterContentRef) { cursor.continuePrimaryKey(hashedChatId, afterContentRef); return; }
+          if (key === afterContentRef) { cursor.continue(); return; }
+        }
+        if (items.length === pageSize) return resolve({ items, nextAfter: items[items.length - 1].contentRef });
+        items.push(cursor.value as EmbedStoreEntry);
+        cursor.continue();
+      };
+      request.onerror = () => reject(request.error);
+      transaction.onabort = () => reject(transaction.error);
+    });
   }
 
   /**

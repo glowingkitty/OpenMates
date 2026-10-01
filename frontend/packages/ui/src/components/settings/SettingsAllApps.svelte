@@ -25,6 +25,8 @@
     import AppStoreCard from './AppStoreCard.svelte';
     import SearchSortBar from './SearchSortBar.svelte';
 
+    let { initialFilter }: { initialFilter?: AllAppsFilterType } = $props();
+
     // Create event dispatcher for navigation
     const dispatch = createEventDispatcher();
 
@@ -41,6 +43,8 @@
 
     // --- Filter state ---
     let activeFilter = $state<AllAppsFilterType>('all');
+
+    $effect(() => { if (initialFilter) activeFilter = initialFilter; });
 
     // --- Search / sort state (owned here, passed as bindable to SearchSortBar) ---
     let searchQuery = $state('');

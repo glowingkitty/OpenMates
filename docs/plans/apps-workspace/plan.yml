@@ -1,0 +1,324 @@
+schema_version: 2
+id: apps-workspace
+title: Apps workspace and metadata-driven direct skill use
+status: verified
+goal: Allowing a user to also use app skills directly without the need for an ai chat (using the same
+  endpoints like the app skill commands via cli do).
+specification_refs:
+- id: feature.apps-workspace
+  version: 1
+- id: feature.workspace-shell
+  version: 3
+scope:
+  in:
+  - Fifth workspace, bottom-slide detail view and legacy route forwarding.
+  - Lazy public metadata, shared schema forms, existing direct endpoints and guest eligibility.
+  - Encrypted chatless results, guest promotion, Personal/Team app libraries with pagination.
+  - Relevant unit and isolated browser coverage; scoped dev publication.
+  out:
+  - Native Apple UI.
+  - New app skills/providers, changes to CLI retention or billing.
+  - Proof videos.
+scenarios:
+- id: S-1
+  title: Public Apps workspace
+  given:
+  - The app catalog is available and the browser is in Personal, Team or guest context.
+  when:
+  - Public Apps workspace
+  then:
+  - Open Apps from the fifth workspace tab or canonical hash routes and browse apps, skills, focus modes
+    and memories.
+- id: S-2
+  title: Direct skill use
+  given:
+  - The app catalog is available and the browser is in Personal, Team or guest context.
+  when:
+  - Direct skill use
+  then:
+  - Render at most two primary schema-driven inputs, reveal advanced settings, execute direct endpoints,
+    and gate guest execution by CLI eligibility and free budget.
+- id: S-3
+  title: Retained app libraries
+  given:
+  - The app catalog is available and the browser is in Personal, Team or guest context.
+  when:
+  - Retained app libraries
+  then:
+  - Retain encrypted parent and children in the submitted account, paginate app-scoped embeds and saved
+    workflows, and adopt local guest results into Personal after signup without rerunning.
+acceptance_criteria:
+- id: AC-1
+  scenario: S-1
+  text: Open Apps from the fifth workspace tab or canonical hash routes and browse apps, skills, focus
+    modes and memories.
+  required: true
+  status: satisfied
+  coverage_status: covered
+  verification_scope: playwright
+  verification_ids:
+  - T-APPS-1
+  - T-APPS-5
+- id: AC-2
+  scenario: S-2
+  text: Render at most two primary schema-driven inputs, reveal advanced settings, execute direct endpoints,
+    and gate guest execution by CLI eligibility and free budget.
+  required: true
+  status: satisfied
+  coverage_status: covered
+  verification_scope: playwright
+  verification_ids:
+  - T-APPS-1
+  - T-APPS-2
+  - T-APPS-3
+  - T-APPS-4
+- id: AC-3
+  scenario: S-3
+  text: Retain encrypted parent and children in the submitted account, paginate app-scoped embeds and
+    saved workflows, and adopt local guest results into Personal after signup without rerunning.
+  required: true
+  status: satisfied
+  coverage_status: covered
+  verification_scope: related_backend
+  verification_ids:
+  - T-APPS-1
+  - T-APPS-3
+  - T-APPS-4
+  - T-APPS-5
+tests:
+- id: T-APPS-1
+  type: playwright
+  file: frontend/apps/web_app/tests/apps-workspace.spec.ts
+  command: Isolated GitHub CI coordinator
+  target: runner-local
+  execution_environment: isolated_github_ci
+  covers:
+  - AC-1
+  - AC-2
+  - AC-3
+  assertions:
+  - Public hash navigation, pre-dispatch guest gate, paginated app libraries, background-sync catch-up
+    for older chat roots, and real encrypted 25-child save/read/reopen after leaving the form without
+    AI dispatch.
+  red_phase:
+    required: false
+    expected: not_captured
+    evidence:
+      status: not_required
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      timestamp: '2026-10-01T03:26:51.544143+00:00'
+      command: Isolated GitHub CI coordinator
+      run_id: '36809492749'
+      subject_commit: 41cc2179a426f0c96da99b68450ebf8b7e6e1cb6
+      execution_environment: isolated_github_ci
+      harness_commit: afc642c99763f2c3b1f495966e491738a3ebf4a8
+      profile: default
+      artifacts:
+      - https://github.com/glowingkitty/OpenMates/actions/runs/36809492749/artifacts/11139002808
+      - https://github.com/glowingkitty/OpenMates/actions/runs/36809495851/artifacts/11139596990
+- id: T-APPS-2
+  type: playwright
+  file: frontend/apps/web_app/tests/components/apps-skill-form.spec.ts
+  command: Isolated GitHub CI coordinator
+  target: runner-local
+  execution_environment: isolated_github_ci
+  covers:
+  - AC-2
+  assertions:
+  - Render at most two primary schema-driven inputs, reveal advanced settings, preserve defaults, show
+    declared provider/model/pricing, execute direct endpoints, and gate guest execution by CLI eligibility
+    and free budget.
+  red_phase:
+    required: false
+    expected: not_captured
+    evidence:
+      status: not_required
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      timestamp: '2026-10-01T03:26:51.544143+00:00'
+      command: Isolated GitHub CI coordinator
+      run_id: '36808703802'
+      subject_commit: 41cc2179a426f0c96da99b68450ebf8b7e6e1cb6
+      execution_environment: isolated_github_ci
+      harness_commit: afc642c99763f2c3b1f495966e491738a3ebf4a8
+      profile: default
+      artifacts:
+      - https://github.com/glowingkitty/OpenMates/actions/runs/36808703802/artifacts/11138671195
+- id: T-APPS-3
+  type: unit
+  file: backend/tests/test_apps_workspace_results.py
+  command: 'Isolated GitHub pytest: original-order 18-file backend group covering Apps metadata, encrypted
+    results, account authorization, anonymous budgets, workflows and BaseApp dispatch isolation.'
+  target: runner-local
+  execution_environment: isolated_github_ci
+  covers:
+  - AC-2
+  - AC-3
+  assertions:
+  - Retain encrypted parent and children in the submitted account, paginate app-scoped embeds and saved
+    workflows, and adopt local guest results into Personal after signup without rerunning.
+  red_phase:
+    required: false
+    expected: not_captured
+    evidence:
+      status: not_required
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      timestamp: '2026-10-01T03:26:51.544143+00:00'
+      command: 'Isolated GitHub pytest: original-order 18-file backend group covering Apps metadata, encrypted
+        results, account authorization, anonymous budgets, workflows and BaseApp dispatch isolation.'
+      run_id: '36808709743'
+      subject_commit: 41cc2179a426f0c96da99b68450ebf8b7e6e1cb6
+      execution_environment: isolated_github_ci
+      harness_commit: afc642c99763f2c3b1f495966e491738a3ebf4a8
+      profile: pytest
+      artifacts:
+      - https://github.com/glowingkitty/OpenMates/actions/runs/36808709743/artifacts/11138910737
+      reason: 236 passed; 10 existing REST integration cases were skipped by the isolated pytest profile.
+        All accepted Apps API assertions ran and passed; the original-order collection also verifies BaseApp
+        fixture isolation.
+- id: T-APPS-4
+  type: unit
+  file: frontend/packages/ui/src/services/__tests__/appsWorkspaceResultsService.test.ts
+  command: Focused Vitest suite
+  target: task-local
+  execution_environment: local
+  covers:
+  - AC-2
+  - AC-3
+  assertions:
+  - Frontend schema validation, account-scoped execution cache, complete encrypted graphs, guest promotion
+    retry, bounded historical discovery/resume, sync catch-up and guarded writes across account switching.
+  red_phase:
+    required: false
+    expected: not_captured
+    evidence:
+      status: not_required
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      timestamp: '2026-10-01T03:26:51.544143+00:00'
+      command: 'Focused Vitest: 83 UI tests across 11 files and 26 web workspace route tests.'
+      run_id: apps-workspace-6295-unit-25
+      subject_commit: 41cc2179a426f0c96da99b68450ebf8b7e6e1cb6
+      execution_environment: local
+      artifacts:
+      - /tmp/apps-workspace-6295-unit-final-25.log
+      - /tmp/apps-workspace-6295-hash-unit-25.log
+- id: T-APPS-5
+  type: playwright
+  file: frontend/apps/web_app/tests/components/apps-workspace-preview.spec.ts
+  command: Isolated GitHub component CI
+  target: runner-local
+  execution_environment: isolated_github_ci
+  covers:
+  - AC-1
+  - AC-3
+  assertions:
+  - Public fifth workspace, responsive Apps home and fullscreen compared with Figma artboards 6019-61646,
+    6021-60395 and 6022-77555, working metadata icons, floating tabs, unavailable renderer close actions,
+    and Team switching with stale response isolation.
+  red_phase:
+    required: false
+    expected: not_captured
+    evidence:
+      status: not_required
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      timestamp: '2026-10-01T03:26:51.544143+00:00'
+      command: Isolated GitHub component CI
+      run_id: '36808696995'
+      subject_commit: 41cc2179a426f0c96da99b68450ebf8b7e6e1cb6
+      execution_environment: isolated_github_ci
+      harness_commit: afc642c99763f2c3b1f495966e491738a3ebf4a8
+      profile: default
+      artifacts:
+      - https://github.com/glowingkitty/OpenMates/actions/runs/36808696995/artifacts/11138810962
+      - docs/plans/apps-workspace/ui-review.md
+tasks:
+- id: TASK-1
+  title: Implement approved Apps workspace
+  status: done
+  phase: complete
+  covers:
+    scenarios:
+    - S-1
+    - S-2
+    - S-3
+    acceptance_criteria:
+    - AC-1
+    - AC-2
+    - AC-3
+  expected_files:
+  - frontend/packages/ui/src/components/apps/AppsWorkspace.svelte
+  - backend/core/api/app/routes/apps_workspace.py
+  verification_ids:
+  - T-APPS-1
+  - T-APPS-2
+  - T-APPS-3
+  - T-APPS-4
+  - T-APPS-5
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - frontend/packages/ui/src/components/apps
+    - backend/core/api/app/routes/apps_workspace.py
+    shared_files: []
+  external_task_ids:
+  - 03df598e-29a9-4d64-856e-bce8488c8f4e
+  - db7e0037-c5ac-4f0d-ba26-906d5e11bd7b
+  - 99c870e8-1b6e-4c40-a5b7-8dd92e2d67b6
+implementation_state:
+  subject_commit: 41cc2179a426f0c96da99b68450ebf8b7e6e1cb6
+approvals:
+  specification:
+    status: approved
+    approved_at: '2026-09-30'
+    fingerprints:
+    - 5ebafbe6ad5ed88c611aef4af130f71859e3ac140127fe23d804b2293a4772a1
+    - 372800f5141db388793e3ad56d892e1d93de53cea5295344e3db1ae576558a49
+  plan:
+    status: not_required
+    reason: User approved the exact specifications and explicitly instructed implementation.
+decisions:
+- id: D-1
+  status: active
+  decision: Use the existing catalog and direct-skill runtime as the authority, and persist web results
+    client-encrypted.
+  reason: Reuse CLI eligibility and skill endpoints while preserving the approved web retention behavior.
+  decided_at: '2026-09-30'
+attempts:
+- id: ATTEMPT-1
+  task_id: TASK-1
+  outcome: planned
+  approach: Build metadata, encryption and UI with disjoint file ownership, then integrate and verify.
+  recorded_at: '2026-09-30'
+task_links:
+  metadata_forms: 03df598e-29a9-4d64-856e-bce8488c8f4e
+  encrypted_results: db7e0037-c5ac-4f0d-ba26-906d5e11bd7b
+  workspace: 99c870e8-1b6e-4c40-a5b7-8dd92e2d67b6
+handoff:
+  current_task_id: TASK-1
+  next_action: Publish the reviewed implementation and evidence to dev, apply the Apps result schema update,
+    and confirm web deployment readiness.
+  command: python3 scripts/plan_validate.py docs/plans/apps-workspace/plan.yml
+  expected_outcome: Approved scope implemented and verified
+  last_verified_commit: 41cc2179a426f0c96da99b68450ebf8b7e6e1cb6
+  blocker: null

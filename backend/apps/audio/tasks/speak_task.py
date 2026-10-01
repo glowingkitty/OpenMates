@@ -128,6 +128,8 @@ async def _async_speak_audio(
             estimated_credits=estimated_credits,
             operation_name="speech generation",
             log_prefix=log_prefix,
+            team_id=arguments.get("team_id"),
+            directus_service=task._directus_service,
         )
 
         try:
@@ -210,7 +212,10 @@ async def _async_speak_audio(
             device_hash=arguments.get("device_hash"),
             api_key_name=arguments.get("api_key_name"),
             log_prefix=log_prefix,
+            team_id=arguments.get("team_id"),
         )
+        if arguments.get("team_id"):
+            result_payload["team_id"] = arguments["team_id"]
         await dispatch_async_skill_continuation(
             cache_service=task._cache_service,
             async_task_id=task_id,

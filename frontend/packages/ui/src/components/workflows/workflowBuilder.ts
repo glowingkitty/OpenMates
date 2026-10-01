@@ -18,8 +18,17 @@ export type Schema = {
   examples?: unknown[];
   minimum?: number;
   maximum?: number;
+  minLength?: number;
+  maxLength?: number;
+  minItems?: number;
+  maxItems?: number;
+  pattern?: string;
   format?: string;
   anyOf?: Schema[];
+  oneOf?: Schema[];
+  $ref?: string;
+  $defs?: Record<string, Schema>;
+  definitions?: Record<string, Schema>;
 };
 export type Capability = {
   id: string;

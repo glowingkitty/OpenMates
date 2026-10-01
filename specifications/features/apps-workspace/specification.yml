@@ -1,0 +1,116 @@
+schema_version: 1
+id: feature.apps-workspace
+version: 1
+status: draft
+title: Apps Workspace
+summary: >
+  The web Apps workspace lets people discover apps and execute supported skills
+  directly, using metadata-driven forms and retained encrypted result embeds.
+  Saved embeds and workflows follow the active Personal or Team account, while
+  guests reuse CLI-equivalent free-use eligibility and local encrypted storage.
+
+scope:
+  includes:
+    - Moving user-facing Apps discovery and app, skill, focus-mode, and memory details out of Settings into a first-party web workspace.
+    - Public browsing, shared responsive workspace and fullscreen presentation, Daily Inspiration, recent use, and hash navigation with forwarding aliases.
+    - Metadata-driven direct skill forms using existing request contracts, execution endpoints, providers, prices, and result renderers.
+    - Default parent-and-child embed retention for requests dispatched from the web Apps workspace, without automatic request-history retention for CLI commands.
+    - App-related saved embeds and saved workflows in the active Personal or Team account.
+    - Existing anonymous skill eligibility, pre-dispatch Signup actions, browser-local encrypted results, and adoption into Personal storage after signup.
+  excludes:
+    - New app skills, providers, or expanded anonymous permission to run background jobs, generate files, or access account-owned resources.
+    - Native Apple implementation and changes to top-level AI model settings.
+    - Changes to shared app-skill validation, provider-output safety, billing caps, Team roles, or focus-mode lifecycle semantics.
+  related_specifications:
+    - feature.workspace-shell
+    - architecture.app-skill-execution
+    - architecture.storage-lifecycle
+    - feature.billing
+    - feature.teams
+    - feature.workflows
+    - feature.focus-modes
+
+models:
+  SkillPresentation:
+    request_schema: {type: authoritative_schema, required: true}
+    presentation: {type: declarative_field_groups_and_controls, required: true}
+    primary_inputs: {type: input_controls, required: true, constraints: {maximum: 2}}
+    defaults: {type: declared_or_existing_user_defaults, required: true}
+    advanced_settings: {type: grouped_optional_controls, required: true}
+  AppsRequestResult:
+    origin: {type: enum, required: true, values: [web_apps, anonymous_web_apps, cli]}
+    context: {type: enum, required: true, values: [personal, team, anonymous_local]}
+    result_graph: {type: parent_and_child_embeds, required: true}
+    retention: {type: origin_dependent, required: true, constraints: {web_apps: retained_encrypted, anonymous_web_apps: browser_local_encrypted, cli: temporary_request_history}}
+
+assertions:
+  - id: apps.discovery.public-catalog
+    type: behavior
+    must: Apps is accessible beside the existing workspaces on desktop and mobile, including before login. The workspace replaces the user-facing Apps section in Settings and exposes app, skill, focus-mode, and settings-and-memory details from the catalog. Internal skills remain hidden, and discovery never presents an unavailable skill as executable.
+    depends_on: [examples.discovery]
+  - id: apps.navigation.hash-and-forwarding
+    type: behavior
+    must: Apps navigation uses shareable hash URLs such as /#apps/health/search-appointments. Equivalent /apps paths and existing Settings app-detail links forward to the corresponding Apps view, including skills, focus modes, and memories. Reload, direct entry, Back, Forward, and fullscreen close preserve the intended workspace and parent view; URL slugs resolve to the correct backend skill identifier.
+    depends_on: [examples.navigation]
+  - id: apps.forms.metadata-driven
+    type: behavior
+    must: Supported skill forms are derived from the authoritative request schema and declarative presentation metadata, with at most two primary input controls. Declared defaults fill other fields; Show settings reveals grouped additional controls. Composite location and date controls can represent several request fields. Required values are never silently fabricated or discarded, and the UI sends the same validated request structure as direct CLI execution.
+    depends_on: [models.SkillPresentation, examples.forms]
+  - id: apps.execution.direct-shared-contract
+    type: invariant
+    must: Direct use executes the selected skill through the existing supported skill execution contract without creating an AI conversation or running chat orchestration. Authentication, active-account authorization, pricing, billing, provider validation, result safety, asynchronous ownership, and safe errors remain equivalent to the existing supported direct endpoints. Invalid or unavailable actions do not dispatch provider work, and an accidental repeat submission does not duplicate the same operation.
+    depends_on: [examples.execution]
+  - id: apps.results.web-retained-graph
+    type: privacy
+    must: Each request actually dispatched from the authenticated web Apps workspace retains one encrypted parent embed and its returned child embeds in the account context that submitted it. Existing generation embeds are reused rather than duplicated. Results can be reopened after leaving the form or reloading, and processing, completion, and failure states stay truthful. Retention does not require a chat or expose plaintext content or keys in permanent server storage.
+    depends_on: [models.AppsRequestResult, examples.web_retention]
+  - id: apps.results.cli-temporary-history
+    type: invariant
+    must: CLI skill commands keep temporary request history by default and do not acquire automatic saved-embed history because the web workspace retains results. Existing explicit file downloads and generated-asset transport, ownership, and expiry behavior remain governed by their existing contracts.
+    depends_on: [models.AppsRequestResult, examples.cli_retention]
+  - id: apps.library.embeds-account-paginated
+    type: security
+    must: The fullscreen Embeds tab, identified by the Files icon, lists saved embeds related to the app across its skills and origins, with bounded pagination instead of loading the complete library. App and skill views use the active Personal or Team account, preserve existing roles and key access, and never mix another account's items. Switching account clears stale rows and cursors before showing the new account's results.
+    depends_on: [examples.embed_library]
+  - id: apps.library.workflows-account-related
+    type: security
+    must: The fullscreen Workflows tab lists saved workflows that use the app, including workflows that have not yet run. Results follow the active Personal or Team account and existing workflow permissions. A workflow using several skills from the app appears once, and unrelated or other-account workflows do not appear.
+    depends_on: [examples.workflow_library]
+  - id: apps.anonymous.cli-equivalent-gate
+    type: security
+    must: Guests can execute only the same quick, account-free, final-in-request skills allowed by anonymous CLI execution, and only when the existing identity and shared free-use limits can cover the request. Background jobs, file generation, and account-dependent skills remain authentication-only. When free use or skill eligibility is unavailable, the UI shows Signup before submission and sends no skill-execution request; the server still enforces eligibility and atomic budget admission when availability changes concurrently.
+    depends_on: [examples.anonymous_gate]
+  - id: apps.anonymous.local-results-and-promotion
+    type: privacy
+    must: Each eligible guest web Apps request creates a browser-local encrypted parent and child embed graph without permanent anonymous content records on the server. On signup, those results are adopted into the new Personal account using the existing anonymous-content key-wrapping and promotion guarantees, without rerunning provider work or losing child relationships. Interrupted or repeated promotion cannot duplicate the result graph or clear the only copy before account persistence succeeds.
+    depends_on: [models.AppsRequestResult, examples.anonymous_retention]
+  - id: apps.presentation.shared-detail-and-recency
+    type: behavior
+    must: Apps reuses the shared Daily Inspiration, cards, tabs, and responsive fullscreen shell that slides in from the bottom. App and skill details show their actual metadata, providers, and pricing; recently used app items are ordered by recent use within the active context. The Use skill action scrolls to and briefly highlights the main input, and chat examples open a new chat tab with the example prefilled without sending it. Focus-mode and memory interactions preserve their existing contracts.
+    depends_on: [examples.presentation]
+
+applies_to:
+  rest_api:
+    required: true
+    role: Metadata, authorization, direct skill dispatch, encrypted result retention, and account-scoped library access.
+  cli: {required: true, role: Preserve temporary request history and anonymous execution eligibility.}
+  sdks:
+    required: false
+    implementations:
+      npm: {required: false}
+      pip: {required: false}
+    role: Existing SDK skill contracts remain unchanged; no new workspace facade is required.
+  gui:
+    required: true
+    implementations:
+      web: {required: true}
+      apple: {required: false}
+    exceptions:
+      - id: apple-apps-workspace-deferred
+        implementation: apple
+        reason: The requested design and initial implementation scope are the web Apps workspace.
+        equivalent_outcome: Future Apple Apps UI must follow the approved direct execution, retention, eligibility, and account-isolation semantics.
+
+examples:
+  file: examples.yml
+  required_groups: [discovery, navigation, forms, execution, web_retention, cli_retention, embed_library, workflow_library, anonymous_gate, anonymous_retention, presentation]

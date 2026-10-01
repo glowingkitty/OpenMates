@@ -15,9 +15,16 @@
   import { loadDefaultInspirations } from '../../demo_chats/loadDefaultInspirations';
   import { dailyInspirationStore, type DailyInspiration } from '../../stores/dailyInspirationStore';
   import { getLucideIcon, getValidIconName } from '../../utils/categoryUtils';
+  import { resolveIconName } from '../../utils/iconNameResolver';
   import { text } from '../../i18n/translations';
 
-  type WorkspaceSurface = 'chats' | 'projects' | 'workflows' | 'tasks' | 'plans' | 'teams';
+  // Vite resolves the same packaged SVGs used by app details into real asset URLs.
+  // Keep the glyph independent of Icon.svelte's scoped pseudo-element CSS.
+  const appIconAssets = import.meta.glob('../../../static/icons/*.svg', {
+    eager: true, query: '?url', import: 'default',
+  }) as Record<string, string>;
+
+  type WorkspaceSurface = 'chats' | 'projects' | 'workflows' | 'tasks' | 'plans' | 'teams' | 'apps';
 
   type ContinueItem = {
     id: string;
@@ -27,6 +34,7 @@
     category?: string | null;
     appId?: string | null;
     icon?: string | null;
+    iconImage?: string | null;
     source?: 'recent' | 'example';
   };
 
@@ -41,6 +49,7 @@
     actionItems?: ContinueItem[];
     actionItemsTestId?: string;
     itemTestId?: string;
+    continueItemTestId?: string;
     continueSectionTestId?: string;
     centerTestId?: string;
     contentSlotVisible?: boolean;
@@ -78,6 +87,7 @@
     actionItems = [],
     actionItemsTestId = `${surface}-workspace-actions`,
     itemTestId = 'resume-chat-card',
+    continueItemTestId,
     continueSectionTestId = `${surface}-workspace-continue`,
     centerTestId = `${surface}-workspace-center`,
     contentSlotVisible = false,
@@ -167,6 +177,15 @@
     return getResumeCardGradientStyle(getContinueGradientColors(item.category ?? 'productivity', surface === 'workflows' ? null : item.appId));
   }
 
+  function appCardIconUrl(item: ContinueItem): string {
+    const source = item.iconImage?.trim() || (item.icon === 'skill' ? 'skill' : item.appId || 'app');
+    const basename = source.split('/').at(-1)?.replace(/\.svg$/i, '') ?? 'app';
+    const iconName = resolveIconName(basename);
+    const safeName = /^[a-z0-9_-]+$/i.test(iconName) ? iconName : 'app';
+    return appIconAssets[`../../../static/icons/${safeName}.svg`]
+      ?? appIconAssets['../../../static/icons/app.svg'];
+  }
+
 </script>
 
 <section class="workspace-home-shell" class:all-items-mode={showAllMode} class:content-slot-mode={contentSlotVisible} data-testid={testId} data-surface={surface} bind:clientWidth={containerWidth}>
@@ -220,6 +239,7 @@
               category={item.category ?? 'productivity'}
               appId={surface === 'workflows' ? null : (item.appId ?? surface)}
               icon={item.icon ?? 'sparkles'}
+              appIconUrl={surface === 'apps' ? appCardIconUrl(item) : null}
               testId={allItemTestId}
               href={null}
               source={item.source ?? null}
@@ -258,6 +278,7 @@
               category={item.category ?? 'productivity'}
               appId={surface === 'workflows' ? null : (item.appId ?? surface)}
               icon={item.icon ?? 'sparkles'}
+              appIconUrl={surface === 'apps' ? appCardIconUrl(item) : null}
               testId={itemTestId}
               href={null}
               source={item.source ?? null}
@@ -270,13 +291,14 @@
               class="resume-chat-card"
               data-testid={itemTestId}
               data-card-source={item.source ?? undefined}
+              data-app-id={surface === 'apps' ? item.appId ?? undefined : undefined}
               data-category={item.category ?? undefined}
               data-icon={iconName}
               style={continueCardStyle(item)}
               onclick={() => handleActionItem(item)}
             >
               <div class="resume-chat-compact-icon">
-                <IconComponent size={18} color="rgba(255, 255, 255, 0.92)" />
+                {#if surface === 'apps' && item.appId}<img class="apps-card-glyph" data-testid="apps-card-glyph" src={appCardIconUrl(item)} alt="" />{:else}<IconComponent size={18} color="rgba(255, 255, 255, 0.92)" />{/if}
               </div>
               <div class="resume-chat-content">
                 {#if surface !== 'workflows' && item.badge}
@@ -326,7 +348,8 @@
               category={item.category ?? 'productivity'}
               appId={surface === 'workflows' ? null : (item.appId ?? surface)}
               icon={item.icon ?? 'sparkles'}
-              testId="resume-chat-large-card"
+              appIconUrl={surface === 'apps' ? appCardIconUrl(item) : null}
+              testId={continueItemTestId ?? 'resume-chat-large-card'}
               href={null}
               source={item.source ?? null}
               fluid={false}
@@ -336,12 +359,13 @@
             <button
               type="button"
               class="resume-chat-card"
-              data-testid="resume-chat-card"
+              data-testid={continueItemTestId ?? 'resume-chat-card'}
+              data-app-id={surface === 'apps' ? item.appId ?? undefined : undefined}
               style={continueCardStyle(item)}
               onclick={() => handleContinueItem(item)}
             >
               <div class="resume-chat-compact-icon">
-                <IconComponent size={18} color="rgba(255, 255, 255, 0.92)" />
+                {#if surface === 'apps' && item.appId}<img class="apps-card-glyph" data-testid="apps-card-glyph" src={appCardIconUrl(item)} alt="" />{:else}<IconComponent size={18} color="rgba(255, 255, 255, 0.92)" />{/if}
               </div>
               <div class="resume-chat-content">
                 {#if surface !== 'workflows' && item.badge}
@@ -372,12 +396,13 @@
           <button
             type="button"
             class="resume-chat-card"
-            data-testid="resume-chat-card"
+            data-testid={continueItemTestId ?? 'resume-chat-card'}
+            data-app-id={surface === 'apps' ? item.appId ?? undefined : undefined}
             style={continueCardStyle(item)}
             onclick={() => handleContinueItem(item)}
           >
             <div class="resume-chat-compact-icon">
-              <IconComponent size={18} color="rgba(255, 255, 255, 0.92)" />
+              {#if surface === 'apps' && item.appId}<img class="apps-card-glyph" data-testid="apps-card-glyph" src={appCardIconUrl(item)} alt="" />{:else}<IconComponent size={18} color="rgba(255, 255, 255, 0.92)" />{/if}
             </div>
             <div class="resume-chat-content">
               {#if surface !== 'workflows' && item.badge}
@@ -654,6 +679,11 @@
     mask: url('@openmates/ui/static/icons/chat.svg') center / contain no-repeat;
   }
 
+  .workspace-surface-background-icon[data-surface='apps'] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/app.svg');
+    mask-image: url('@openmates/ui/static/icons/app.svg');
+  }
+
   .workspace-surface-background-icon[data-surface='projects'] {
     -webkit-mask-image: url('@openmates/ui/static/icons/project.svg');
     mask-image: url('@openmates/ui/static/icons/project.svg');
@@ -885,6 +915,13 @@
     height: 18px;
   }
 
+  .apps-card-glyph {
+    width: 14px;
+    height: 14px;
+    object-fit: contain;
+    filter: brightness(0) invert(1);
+  }
+
   .resume-chat-content {
     flex: 1;
     min-width: 0;
@@ -956,6 +993,47 @@
     padding: 15px;
     box-sizing: border-box;
     justify-items: center;
+  }
+
+  /* Apps has a persistent quick-use chooser. Keep it in the shell's layout so
+     the scrollable app cards never sit behind its hit target. */
+  .workspace-home-shell[data-surface='apps']:not(.content-slot-mode) {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .workspace-home-shell[data-surface='apps']:not(.content-slot-mode) .workspace-scroll-layer {
+    height: auto;
+    flex: 1 1 auto;
+    overflow-y: auto;
+  }
+
+  .workspace-home-shell[data-surface='apps']:not(.content-slot-mode) .workspace-center-content.center-content {
+    position: relative;
+    top: auto;
+    left: auto;
+    transform: none;
+    margin-top: clamp(16px, 3vh, 32px);
+    padding-bottom: var(--spacing-6);
+  }
+
+  @media (min-width: 731px) {
+    .workspace-home-shell[data-surface='apps']:not(.content-slot-mode) .workspace-center-content.center-content {
+      margin-top: 8px;
+    }
+
+    .workspace-home-shell[data-surface='apps']:not(.content-slot-mode) .recent-chats-scroll-container {
+      padding-top: 8px;
+      padding-bottom: 4px;
+    }
+  }
+
+  .workspace-home-shell[data-surface='apps']:not(.content-slot-mode) .workspace-composer-slot {
+    position: relative;
+    left: auto;
+    bottom: auto;
+    transform: none;
+    flex: 0 0 auto;
   }
 
   .workspace-home-shell.content-slot-mode .workspace-composer-slot {

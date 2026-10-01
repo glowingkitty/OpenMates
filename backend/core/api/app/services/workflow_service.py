@@ -1400,13 +1400,39 @@ class WorkflowService:
     def list_workflows(self, user_id: str, vault_key_id: str | None = None, team_id: str | None = None) -> list[WorkflowSummary]:
         self.ensure_enabled()
         vault_key_id = self._vault_key_id_for_user(user_id, vault_key_id)
+        records = self._list_persisted_workflow_records(user_id, team_id)
+        return [self._summary_from_record(record, vault_key_id) for record in records]
+
+    def list_workflows_page(
+        self, user_id: str, vault_key_id: str | None = None, team_id: str | None = None,
+        app_id: str | None = None, offset: int = 0, limit: int = 20,
+    ) -> tuple[list[WorkflowSummary], bool]:
+        """Page account-owned saved workflows, matching app use from their encrypted current graph."""
+        self.ensure_enabled()
+        if offset < 0 or not 1 <= limit <= 50:
+            raise ValueError("Workflow page offset or limit is invalid")
+        vault_key_id = self._vault_key_id_for_user(user_id, vault_key_id)
+        records = self._list_persisted_workflow_records(user_id, team_id)
+        if app_id is not None:
+            records = [record for record in records if self._workflow_uses_app(record, vault_key_id, app_id)]
+        records = sorted(records, key=lambda record: (_workflow_list_sort_key(record), str(record["id"])))
+        page = records[offset:offset + limit + 1]
+        return [self._summary_from_record(record, vault_key_id) for record in page[:limit]], len(page) > limit
+
+    def _list_persisted_workflow_records(self, user_id: str, team_id: str | None) -> list[dict[str, Any]]:
         records = [
             record
             for record in self.repository.list_workflows(user_id, team_id=team_id)
             if record.get("lifecycle", WorkflowLifecycle.PERSISTED.value) == WorkflowLifecycle.PERSISTED.value
         ]
-        records = sorted(self.repository.project_workflow_next_runs(records), key=_workflow_list_sort_key)
-        return [self._summary_from_record(record, vault_key_id) for record in records]
+        return sorted(self.repository.project_workflow_next_runs(records), key=_workflow_list_sort_key)
+
+    def _workflow_uses_app(self, record: dict[str, Any], vault_key_id: str | None, app_id: str) -> bool:
+        graph = WorkflowGraph.model_validate(self._load_encrypted_blob(record["encrypted_graph_ref"], vault_key_id))
+        return any(
+            node.type == WorkflowNodeType.APP_SKILL_ACTION and node.config.get("app_id") == app_id
+            for node in graph.nodes
+        )
 
     def list_temporary_workflows(self, user_id: str, vault_key_id: str | None = None) -> list[WorkflowSummary]:
         self.ensure_enabled()

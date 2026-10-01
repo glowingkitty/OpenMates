@@ -4591,6 +4591,10 @@ export async function handleSendEmbedDataImpl(
       const nowSeconds = Math.floor(Date.now() / 1000);
       const storePayload: import("../types/chat").StoreEmbedPayload = {
         embed_id: embedData.embed_id,
+        ...(preExtractedMetadata?.app_id ? { app_id: preExtractedMetadata.app_id } : {}),
+        ...(preExtractedMetadata?.skill_id ? { skill_id: preExtractedMetadata.skill_id } : {}),
+        chat_id: embedData.chat_id,
+        team_id: (await chatDB.getChat(embedData.chat_id))?.team_id ?? null,
         encrypted_type: encryptedType,
         encrypted_content: encryptedContent,
         encrypted_text_preview: encryptedTextPreview,
@@ -4687,6 +4691,18 @@ export async function handleSendEmbedDataImpl(
           console.debug(
             `[ChatSyncService:AI] Skipping key wrapper sending for child embed ${embedData.embed_id} (uses parent key)`,
           );
+        }
+        if (!isChildEmbed && preExtractedMetadata?.app_id && preExtractedMetadata?.skill_id) {
+          // Also project a legacy root when it is re-synced on a device that
+          // never had its local Apps catalog backfilled. The endpoint verifies
+          // the persisted embed's chat and selected account before indexing.
+          const syncedChat = await chatDB.getChat(embedData.chat_id);
+          void import("./appsWorkspaceResultsService")
+            .then(({ indexSyncedAppsEmbed }) => indexSyncedAppsEmbed(
+              embedData.embed_id, embedData.chat_id,
+              preExtractedMetadata!.app_id!, preExtractedMetadata!.skill_id!,
+              syncedChat?.team_id ?? null,
+            )).catch(() => {});
         }
       } else {
         console.info(

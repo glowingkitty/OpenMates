@@ -35,6 +35,9 @@
     
     interface Props {
         activeSettingsView?: string;
+        onOpenExample?: (example: string) => void;
+        presentation?: 'settings' | 'apps';
+        section?: 'all' | 'skills' | 'focus_modes' | 'settings_memories';
     }
     
     // Define route info types for type safety
@@ -53,7 +56,7 @@
         | { type: 'reminder_create'; appId: string }
         | { type: 'reminder_entry'; appId: string; reminderId: string; startInEditMode: boolean };
     
-    let { activeSettingsView = '' }: Props = $props();
+    let { activeSettingsView = '', onOpenExample, presentation = 'settings', section = 'all' }: Props = $props();
     
     // Parse route to extract appId and sub-route info
     let routeInfo = $derived.by((): RouteInfo => {
@@ -179,7 +182,7 @@
 </script>
 
 {#if routeInfo.type === 'app_details'}
-    <AppDetails appId={routeInfo.appId} on:openSettings={handleOpenSettings} />
+    <AppDetails appId={routeInfo.appId} {presentation} {section} on:openSettings={handleOpenSettings} />
 {:else if aiAskModelRouteInfo}
     {@const route = aiAskModelRouteInfo}
     <!-- @ts-ignore - TypeScript limitation with discriminated unions in Svelte templates -->
@@ -198,6 +201,7 @@
     <ReminderEntryDetail reminderId={routeInfo.reminderId} startInEditMode={routeInfo.startInEditMode} on:openSettings={handleOpenSettings} />
 {:else if routeInfo.type === 'skill_details'}
     <SkillDetails
+        {onOpenExample}
         appId={routeInfo.appId}
         skillId={routeInfo.skillId}
         on:openSettings={handleOpenSettings}
@@ -214,6 +218,7 @@
     />
 {:else if routeInfo.type === 'focus_details'}
     <FocusModeDetails
+        {onOpenExample}
         appId={routeInfo.appId}
         focusModeId={routeInfo.focusModeId}
         on:openSettings={handleOpenSettings}

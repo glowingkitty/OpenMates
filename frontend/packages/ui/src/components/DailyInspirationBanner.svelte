@@ -100,6 +100,8 @@
     'incognito-mode',
   ]);
   const GUEST_ALLOWED_FEATURE_PATHS = new Set([
+    'apps/web/search',
+    'apps/weather/forecast',
     'apps/all/focus_modes',
     'apps/events/skill/search',
     'apps/all/skills',
@@ -1786,6 +1788,10 @@
                     ? (prefersTouchCta
                       ? $text('daily_inspiration.tap_to_create_task')
                       : $text('daily_inspiration.click_to_create_task'))
+                    : isFeatureInspiration && surface === 'apps'
+                    ? (prefersTouchCta
+                      ? $text('apps_workspace.inspiration_tap_to_use_skill')
+                      : $text('apps_workspace.inspiration_click_to_use_skill'))
                     : isFeatureInspiration
                     ? (prefersTouchCta
                       ? $text('daily_inspiration.tap_to_open_settings')

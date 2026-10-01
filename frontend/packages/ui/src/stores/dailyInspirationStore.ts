@@ -95,7 +95,7 @@ export interface DailyInspiration {
   surface?: DailyInspirationSurface;
 }
 
-export type DailyInspirationSurface = "chats" | "projects" | "workflows" | "tasks" | "plans" | "teams";
+export type DailyInspirationSurface = "chats" | "projects" | "workflows" | "tasks" | "plans" | "teams" | "apps";
 export type DailyInspirationSource =
   | "none"
   | "guest-onboarding"

@@ -1918,7 +1918,7 @@ class ChatDatabase {
   async addChat(
     chat: Chat,
     transaction?: IDBTransaction,
-    options?: { isFromSync?: boolean; forceIncomingEncryptedChatKey?: boolean },
+    options?: { isFromSync?: boolean; forceIncomingEncryptedChatKey?: boolean; writeGuard?: () => void },
   ): Promise<void> {
     return chatCrudOps.addChat(this, chat, transaction, options);
   }
@@ -1928,6 +1928,26 @@ class ChatDatabase {
     options?: { limit?: number },
   ): Promise<Chat[]> {
     return chatCrudOps.getAllChats(this, transaction, options);
+  }
+
+  /** Cursor page for background, account-scoped catalog migration. */
+  async getChatsPage(afterChatId: string | null, limit = 50): Promise<{ items: Chat[]; nextAfter: string | null }> {
+    const pageSize = Math.min(Math.max(limit, 1), 50);
+    const transaction = await this.getTransaction([this.CHATS_STORE_NAME], "readonly");
+    const store = transaction.objectStore(this.CHATS_STORE_NAME);
+    return new Promise((resolve, reject) => {
+      const items: Chat[] = [];
+      const request = store.openCursor(afterChatId ? IDBKeyRange.lowerBound(afterChatId, true) : undefined);
+      request.onsuccess = () => {
+        const cursor = request.result;
+        if (!cursor) return resolve({ items, nextAfter: null });
+        if (items.length === pageSize) return resolve({ items, nextAfter: items[items.length - 1].chat_id });
+        items.push(cursor.value as Chat);
+        cursor.continue();
+      };
+      request.onerror = () => reject(request.error);
+      transaction.onabort = () => reject(transaction.error);
+    });
   }
 
   async getChat(

@@ -3337,3 +3337,135 @@ weather.day:
   sv: Väderdag
   he: יום מזג אוויר
   verified_by_human: [en, de]
+skill_form.show_settings:
+  context: Apps skill form button that opens advanced settings
+  en: Show settings
+  de: Einstellungen anzeigen
+skill_form.manual_intro:
+  context: Introduction to running an app skill without an AI chat
+  en: Use this skill directly by entering your request below.
+  de: Nutze diesen Skill direkt, indem du unten deine Anfrage eingibst.
+skill_form.via:
+  context: Provider used by an app skill
+  en: via
+  de: über
+skill_form.providers:
+  context: Providers used by an app skill
+  en: Providers
+  de: Anbieter
+skill_form.model:
+  context: Model available to an app skill
+  en: Model
+  de: Modell
+skill_form.models:
+  context: Models available to an app skill
+  en: Models
+  de: Modelle
+skill_form.request:
+  context: Fallback unit name for an app skill credit rate
+  en: request
+  de: Anfrage
+skill_form.per_request:
+  context: App skill credit rate per request
+  en: per request
+  de: pro Anfrage
+skill_form.per_second:
+  context: App skill credit rate per second
+  en: per second
+  de: pro Sekunde
+skill_form.per_minute:
+  context: App skill credit rate per minute
+  en: per minute
+  de: pro Minute
+skill_form.per_unit:
+  context: App skill credit rate per named unit
+  en: "per {unit}"
+  de: "pro {unit}"
+skill_form.one_credit_per:
+  context: Prefix for input or output token credit rates
+  en: 1 credit per
+  de: 1 Credit pro
+skill_form.input_tokens:
+  context: Input token unit in app skill pricing
+  en: input tokens
+  de: Eingabe-Token
+skill_form.output_tokens:
+  context: Output token unit in app skill pricing
+  en: output tokens
+  de: Ausgabe-Token
+skill_form.hide_settings:
+  context: Apps skill form button that closes advanced settings
+  en: Hide settings
+  de: Einstellungen ausblenden
+skill_form.settings:
+  context: Accessible label for advanced Apps skill settings
+  en: Settings
+  de: Einstellungen
+skill_form.run:
+  context: Submit an app skill directly
+  en: Run skill
+  de: Skill ausführen
+skill_form.running:
+  context: An app skill is processing
+  en: Running…
+  de: Wird ausgeführt…
+skill_form.checking:
+  context: Checking whether an anonymous user can afford one Apps skill request
+  en: Checking availability…
+  de: Verfügbarkeit wird geprüft…
+skill_form.signup:
+  context: Action required before an ineligible guest can run a skill
+  en: Sign up to use this skill
+  de: Registrieren, um diesen Skill zu nutzen
+skill_form.unavailable:
+  context: This app skill cannot currently execute
+  en: This skill is currently unavailable.
+  de: Dieser Skill ist derzeit nicht verfügbar.
+skill_form.check_fields:
+  context: Apps skill form validation summary
+  en: Check these fields before running the skill.
+  de: Prüfe diese Felder, bevor du den Skill ausführst.
+skill_form.execution_failed:
+  context: Generic safe error after app skill execution failed
+  en: The skill could not run. Please try again.
+  de: Der Skill konnte nicht ausgeführt werden. Bitte versuche es erneut.
+skill_form.validation_required:
+  context: Required Apps skill field is missing
+  en: required
+  de: erforderlich
+skill_form.validation_type:
+  context: Apps skill field has wrong value type
+  en: enter a valid value
+  de: Gib einen gültigen Wert ein
+skill_form.validation_minimum:
+  context: Apps skill numeric value is below allowed minimum
+  en: below the allowed minimum
+  de: Unter dem zulässigen Minimum
+skill_form.validation_maximum:
+  context: Apps skill numeric value is above allowed maximum
+  en: above the allowed maximum
+  de: Über dem zulässigen Maximum
+skill_form.validation_minLength:
+  context: Apps skill text is too short
+  en: too short
+  de: Zu kurz
+skill_form.validation_maxLength:
+  context: Apps skill text is too long
+  en: too long
+  de: Zu lang
+skill_form.validation_minItems:
+  context: Apps skill list has too few items
+  en: add more items
+  de: Füge weitere Einträge hinzu
+skill_form.validation_maxItems:
+  context: Apps skill list has too many items
+  en: remove some items
+  de: Entferne einige Einträge
+skill_form.validation_enum:
+  context: Apps skill value is not a listed option
+  en: choose a listed option
+  de: Wähle eine Option aus der Liste
+skill_form.validation_pattern:
+  context: Apps skill text does not match expected format
+  en: enter the expected format
+  de: Gib das erwartete Format ein

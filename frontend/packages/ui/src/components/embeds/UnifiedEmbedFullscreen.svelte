@@ -145,6 +145,11 @@
      * Shown smaller and at 0.85 opacity (e.g. "via Brave Search", "Data from 2025/03/27").
      */
     embedHeaderSubtitle?: string;
+    /** Opt-in taller Apps workspace hero; regular embeds keep their existing banner. */
+    embedHeaderPresentation?: 'embed' | 'apps';
+    embedHeaderEyebrow?: string;
+    embedHeaderFooter?: string;
+    embedHeaderProviders?: string[];
 
     /** Optional provenance row displayed above the header subtitle. */
     embedHeaderProvenance?: string;
@@ -355,6 +360,10 @@
     // Embed header props
     embedHeaderTitle = '',
     embedHeaderSubtitle = '',
+    embedHeaderPresentation = 'embed',
+    embedHeaderEyebrow = '',
+    embedHeaderFooter = '',
+    embedHeaderProviders = [],
     embedHeaderProvenance = '',
     embedHeaderFaviconUrl,
     embedHeaderFaviconIsCircular = false,
@@ -1407,6 +1416,10 @@
              and the embed content must provide enough top spacing to clear it. -->
         <EmbedHeader
         staticPresentation={(!!currentEmbedId && workspace?.presentedEmbedId === currentEmbedId)}
+          presentation={embedHeaderPresentation}
+          eyebrow={embedHeaderEyebrow}
+          footer={embedHeaderFooter}
+          providers={embedHeaderProviders}
           {appId}
           {skillIconName}
           {appIconName}

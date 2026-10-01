@@ -167,6 +167,15 @@ USER_CHAT_PREFERENCE_MIGRATION_PATH = os.getenv(
     'USER_CHAT_PREFERENCE_MIGRATION_PATH',
     '/usr/src/app/migrations/migrate_user_chat_preferences_indexes.sql',
 )
+APPS_WORKSPACE_RESULT_MIGRATION_PATH = os.getenv(
+    'APPS_WORKSPACE_RESULT_MIGRATION_PATH',
+    '/usr/src/app/migrations/migrate_apps_workspace_result_indexes.sql',
+)
+APPS_WORKSPACE_RESULT_INDEXES = (
+    'embeds_apps_personal_catalog_idx',
+    'embeds_apps_team_catalog_idx',
+    'embeds_apps_root_graph_idx',
+)
 AI_MEMORY_REMOVAL_MIGRATION_PATH = os.getenv(
     'AI_MEMORY_REMOVAL_MIGRATION_PATH',
     '/usr/src/app/migrations/migrate_remove_ai_memories.sql',
@@ -1473,6 +1482,26 @@ def apply_and_verify_user_chat_preference_indexes():
     print(f"Verified {len(USER_CHAT_PREFERENCE_INDEXES)} user chat preference indexes")
 
 
+def apply_and_verify_apps_workspace_result_indexes():
+    """Apply account/app catalog and graph lookup indexes after schema sync."""
+    if not os.path.isfile(APPS_WORKSPACE_RESULT_MIGRATION_PATH):
+        raise RuntimeError(f"Required Apps result migration is missing: {APPS_WORKSPACE_RESULT_MIGRATION_PATH}")
+    with open(APPS_WORKSPACE_RESULT_MIGRATION_PATH, 'r', encoding='utf-8') as migration_file:
+        migration_sql = migration_file.read()
+    with connect_database() as connection:
+        connection.autocommit = True
+        with connection.cursor() as cursor:
+            cursor.execute(migration_sql)
+            cursor.execute(
+                "SELECT indexname FROM pg_indexes WHERE schemaname = 'public' AND indexname = ANY(%s)",
+                (list(APPS_WORKSPACE_RESULT_INDEXES),),
+            )
+            installed = {row[0] for row in cursor.fetchall()}
+    missing = set(APPS_WORKSPACE_RESULT_INDEXES) - installed
+    if missing:
+        raise RuntimeError("Apps result index verification failed: " + ", ".join(sorted(missing)))
+
+
 def apply_and_verify_ai_memory_removal():
     """Delete only obsolete AI-owned memory rows and verify none remain."""
     if not os.path.isfile(AI_MEMORY_REMOVAL_MIGRATION_PATH):
@@ -1673,6 +1702,9 @@ def setup_schemas():
 
         print("\n--- Applying user chat preference database indexes ---")
         apply_and_verify_user_chat_preference_indexes()
+
+        print("\n--- Applying Apps workspace result database indexes ---")
+        apply_and_verify_apps_workspace_result_indexes()
 
         print("\n--- Removing obsolete AI-owned memories ---")
         apply_and_verify_ai_memory_removal()

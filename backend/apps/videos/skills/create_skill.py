@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import logging
 import uuid
@@ -44,6 +45,7 @@ class CreateSkill(BaseSkill):
         placeholder_embed_ids: Optional[List[str]] = None,
         user_vault_key_id: Optional[str] = None,
         external_request: bool = False,
+        team_id: Optional[str] = None,
         **_: Any,
     ) -> Dict[str, Any]:
         if not self.celery_producer:
@@ -74,13 +76,24 @@ class CreateSkill(BaseSkill):
             "auto_started": True,
             "render_id": render_id,
             "external_request": external_request,
+            **({"team_id": team_id} if team_id else {}),
         }
 
         try:
+            dispatch_options: Dict[str, Any] = {}
+            if external_request and user_id:
+                from backend.shared.python_utils.task_ownership import record_task_owner
+
+                task_id = str(uuid.uuid4())
+                await asyncio.to_thread(
+                    record_task_owner, task_id, user_id, self.celery_producer.conf.broker_url
+                )
+                dispatch_options["task_id"] = task_id
             task_signature = self.celery_producer.send_task(
                 "apps.videos.tasks.render_remotion",
                 args=[task_args],
                 queue="app_videos",
+                **dispatch_options,
             )
         except Exception as exc:
             logger.error("Failed to dispatch Remotion render task: %s", exc, exc_info=True)

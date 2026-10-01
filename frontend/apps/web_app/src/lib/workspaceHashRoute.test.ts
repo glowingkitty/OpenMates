@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { readWorkspaceHashRoute } from './workspaceHashRoute';
+import { isLegacyAppsWorkspaceHash, readWorkspaceHashRoute } from './workspaceHashRoute';
 
 describe('readWorkspaceHashRoute', () => {
 	// contract-test: supporting surface=gui.web assertions=workspace-shell.nav.released-surfaces-visible
 	it.each([
+		['#apps', { workspace: 'apps', itemId: null }],
+		['#apps/all', { workspace: 'apps', itemId: null }],
+		['#apps/health/search-appointments&tab=embeds&embed-id=embed-1', { workspace: 'apps', itemId: null }],
 		['#workflows', { workspace: 'workflows', itemId: null }],
 		['#/projects', { workspace: 'projects', itemId: null }],
 		['#plans', { workspace: 'tasks', itemId: null }],
@@ -23,5 +26,25 @@ describe('readWorkspaceHashRoute', () => {
 		(hash) => {
 			expect(readWorkspaceHashRoute(hash)).toEqual({ workspace: 'chats', itemId: null });
 		}
+	);
+});
+
+describe('isLegacyAppsWorkspaceHash', () => {
+	// contract-test: supporting surface=gui.web assertions=apps.navigation.hash-and-forwarding
+	it.each([
+		'#settings/apps',
+		'#settings/apps/health/skill/search_appointments',
+		'#settings/apps/health/focus/prepare_doctor_appointment',
+		'#settings/apps/health/memory/medical_history',
+		'#settings=settings_memories',
+		'#settings=apps/health/skill/search_appointments'
+	])('preserves %s through startup before canonical forwarding', (hash) => {
+		expect(isLegacyAppsWorkspaceHash(hash)).toBe(true);
+	});
+
+	// contract-test: supporting surface=gui.web assertions=apps.navigation.hash-and-forwarding
+	it.each(['', '#settings/privacy', '#chat-id=chat-1&settings=apps/health', '#apps/health'])(
+		'leaves %s to its existing startup owner',
+		(hash) => expect(isLegacyAppsWorkspaceHash(hash)).toBe(false)
 	);
 });

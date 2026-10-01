@@ -282,6 +282,15 @@ specifications:
     fingerprint: 6c3ba61cd6f4cd4865e50c36382f204f43cf4d95ee3bd79f763d7de6b0e2b08d
     required_applies_to:
     - gui.apple
+  feature.apps-workspace:
+    version: 1
+    status: draft
+    path: features/apps-workspace
+    fingerprint: 5ebafbe6ad5ed88c611aef4af130f71859e3ac140127fe23d804b2293a4772a1
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
   feature.assistant-response-speech:
     version: 6
     status: draft
@@ -565,10 +574,10 @@ specifications:
     required_applies_to:
     - gui.web
   feature.workspace-shell:
-    version: 2
+    version: 3
     status: draft
     path: features/workspace-shell
-    fingerprint: a18bb6f4dacf31548b1c61dd6e83270f1cf6dc4cccb6fd838869da18a5677938
+    fingerprint: 372800f5141db388793e3ad56d892e1d93de53cea5295344e3db1ae576558a49
     required_applies_to:
     - gui.web
   surface.cli:
@@ -3599,6 +3608,105 @@ assertions:
     fingerprint: 7d7f835c77523f8c989ec5261e077f3501c5183950d8204e64beac40e3e8ce43
     required_applies_to:
     - gui.apple
+  apps.discovery.public-catalog:
+    specification: feature.apps-workspace@1
+    specification_id: feature.apps-workspace
+    type: behavior
+    fingerprint: 3979b69c4b2dc8d1c2d6029980188bb05f1ca507051457b96816f7bdcd81f159
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  apps.navigation.hash-and-forwarding:
+    specification: feature.apps-workspace@1
+    specification_id: feature.apps-workspace
+    type: behavior
+    fingerprint: 3e29ac60ae1fff58017bccd840382234a4b9bc45d19e11960cdb3121b8a9ee39
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  apps.forms.metadata-driven:
+    specification: feature.apps-workspace@1
+    specification_id: feature.apps-workspace
+    type: behavior
+    fingerprint: 19ce79969087c10ca20aaabbd855070658901f5fb0ae2eceff0b2230db6c4c97
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  apps.execution.direct-shared-contract:
+    specification: feature.apps-workspace@1
+    specification_id: feature.apps-workspace
+    type: invariant
+    fingerprint: 8f185f611eaad8525e80c5020529f892782bf7d11ae7d000282b56699af0cf0d
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  apps.results.web-retained-graph:
+    specification: feature.apps-workspace@1
+    specification_id: feature.apps-workspace
+    type: privacy
+    fingerprint: 94f015bde59fb75dbfa2a46429d9604440f287185e06d985de27c5c7878997f1
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  apps.results.cli-temporary-history:
+    specification: feature.apps-workspace@1
+    specification_id: feature.apps-workspace
+    type: invariant
+    fingerprint: 17132d7b544f97e58b75a7468cb250f02546a4f1005dd734e2db217ac53f995c
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  apps.library.embeds-account-paginated:
+    specification: feature.apps-workspace@1
+    specification_id: feature.apps-workspace
+    type: security
+    fingerprint: 6fe8f3ea52ae9dc231c7707d88b12f5b2cccc3374c51e795f45032f26424c3f4
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  apps.library.workflows-account-related:
+    specification: feature.apps-workspace@1
+    specification_id: feature.apps-workspace
+    type: security
+    fingerprint: 824c179b3fde8231d5342c6a364b9775b50f9916cd44ca368662d5b44df7b8db
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  apps.anonymous.cli-equivalent-gate:
+    specification: feature.apps-workspace@1
+    specification_id: feature.apps-workspace
+    type: security
+    fingerprint: c69eefeda084fc61c9095dac6e1d77d6ab17471a57e64b6efc7cd92675887d0d
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  apps.anonymous.local-results-and-promotion:
+    specification: feature.apps-workspace@1
+    specification_id: feature.apps-workspace
+    type: privacy
+    fingerprint: 0e8c16f18fc2f1421212d721863e68f341189cfc7b0448d43064dc669ed7e6fd
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  apps.presentation.shared-detail-and-recency:
+    specification: feature.apps-workspace@1
+    specification_id: feature.apps-workspace
+    type: behavior
+    fingerprint: ac9c0d7c9002784b685d73a3c349c2ef80aa29b630165b26cdf0afe57ecf6f09
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
   assistant-speech.preference.chat-scoped-default-off:
     specification: feature.assistant-response-speech@6
     specification_id: feature.assistant-response-speech
@@ -7635,42 +7743,42 @@ assertions:
     required_applies_to:
     - gui.web
   workspace-shell.nav.released-surfaces-visible:
-    specification: feature.workspace-shell@2
+    specification: feature.workspace-shell@3
     specification_id: feature.workspace-shell
     type: behavior
-    fingerprint: d8825e8bb95367013afd1184735fa70532dc1244a09911fa7da5f0e59f1d4237
+    fingerprint: fbe67b0cdc183a5daa8d1d9ed5ef7eb06e79be5d938383be6195f9a3792f50f4
     required_applies_to:
     - gui.web
   workspace-shell.start.shared-affordances:
-    specification: feature.workspace-shell@2
+    specification: feature.workspace-shell@3
     specification_id: feature.workspace-shell
     type: behavior
-    fingerprint: 341a648574e9b93168a5172841c728fea0f3d2b8e3360d46acce320bb8e1153f
+    fingerprint: fe845d387978dec912596b4f009acbab85e803705867ecf611688ace25ff1512
     required_applies_to:
     - gui.web
   workspace-shell.start.chat-visual-parity:
-    specification: feature.workspace-shell@2
+    specification: feature.workspace-shell@3
     specification_id: feature.workspace-shell
     type: behavior
-    fingerprint: e1277d8af4e5e9d3d23c2d855072f95f095a37ae0374c398d06dafb1fa5d75dd
+    fingerprint: ef8d48f03162461c0fd2ea403919add6191538067b76fd6dda7f06e204f7632d
     required_applies_to:
     - gui.web
   workspace-shell.kanban.figma-controls:
-    specification: feature.workspace-shell@2
+    specification: feature.workspace-shell@3
     specification_id: feature.workspace-shell
     type: behavior
     fingerprint: c51084ef8182611c6ba477a636b185ff84ab9b41939e8cd384a4d6b1d7cceb6d
     required_applies_to:
     - gui.web
   workspace-shell.kanban.scroll-containment:
-    specification: feature.workspace-shell@2
+    specification: feature.workspace-shell@3
     specification_id: feature.workspace-shell
     type: behavior
     fingerprint: 92ff9fa777f36f965d8a14b6a2026294f40c7b25c26f75463532522364abdb6c
     required_applies_to:
     - gui.web
   workspace-shell.tasks.plan-integration:
-    specification: feature.workspace-shell@2
+    specification: feature.workspace-shell@3
     specification_id: feature.workspace-shell
     type: behavior
     fingerprint: 89ada967b78aa559ece89d5d79d50ae76030c2c0d39fe8cfd909e9d362edf9d4

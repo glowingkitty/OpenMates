@@ -89,13 +89,15 @@
 	import { locale, waitLocale, _ as translationStore } from 'svelte-i18n';
 	import { get } from 'svelte/store';
 	import { browser } from '$app/environment';
-	import { afterNavigate, replaceState } from '$app/navigation';
+	import { afterNavigate, goto, replaceState } from '$app/navigation';
 	import { page } from '$app/state';
 	import WorkflowsRoute from './workflows/+page.svelte';
+	import AppsRoute from './apps/AppsRoute.svelte';
+	import { buildAppsWorkspaceHash } from '@repo/ui/utils/appsWorkspaceRoute';
 	import ProjectsRoute from './projects/+page.svelte';
 	import PlanDetailRoute from './plans/+page.svelte';
 	import TasksRoute from './tasks/+page.svelte';
-	import { readWorkspaceHashRoute } from '$lib/workspaceHashRoute';
+	import { isLegacyAppsWorkspaceHash, readWorkspaceHashRoute } from '$lib/workspaceHashRoute';
 
 	// --- State ---
 	let isInitialLoad = $state(true);
@@ -1600,11 +1602,23 @@
 	 * Handles navigation to settings pages based on hash
 	 * @param hash The hash string (e.g., '#settings/billing/invoices/.../refund')
 	 */
-	function processSettingsDeepLink(hash: string) {
+	function processSettingsDeepLink(hash: string, options: { preserveHash?: boolean } = {}) {
+        const path = getSettingsPathFromHash(hash);
+        if (path === 'apps' || path?.startsWith('apps/')) {
+            panelState.closeSettings();
+            void goto(`/${buildAppsWorkspaceHash(path)}`, { replaceState: true, noScroll: true, keepFocus: true });
+            return;
+        }
 		processSettingsDeepLinkUnified(hash, {
 			openSettings: () => panelState.openSettings(),
 			setSettingsDeepLink: (path: string) => settingsDeepLink.set(path)
-		});
+		}, options);
+	}
+
+	function processWorkspaceSettingsPath(hash: string) {
+		if (!getSettingsPathFromHash(hash)) return;
+		// Keep the workspace route while reusing Settings alias and special-link routing.
+		processSettingsDeepLink(hash, { preserveHash: true });
 	}
 
 	/**
@@ -1908,9 +1922,10 @@
 		const originalHash = browser ? window.location.hash : '';
 		console.debug('[+page.svelte] [INIT] Original hash from URL:', originalHash);
 		const originalWorkspaceHashRoute = readWorkspaceHashRoute(originalHash);
-		if (originalWorkspaceHashRoute.workspace !== 'chats') {
-			// Workspace fragments belong to the shared shell. Mark initial deep-link
-			// processing complete so chat recovery cannot select a stale chat behind it.
+		const originalLegacyAppsHash = isLegacyAppsWorkspaceHash(originalHash);
+		if (originalWorkspaceHashRoute.workspace !== 'chats' || originalLegacyAppsHash) {
+			// Workspace fragments and legacy Apps links take precedence over chat
+			// recovery, which could otherwise select a stale chat behind the shell.
 			deepLinkProcessed = true;
 		}
 
@@ -1920,6 +1935,8 @@
 		// store with an old chat ID, which would cause it to auto-open without user intent.
 		const hashChatMatch = originalHash.match(/^#chat-id=(.+)/);
 		if (!hashChatMatch) {
+			// Reset stale chat state while preserving the original deep-link hash.
+			// Workspace routes and legacy Apps links need it during startup.
 			activeChatStore.setWithoutHashUpdate(null);
 			console.debug(
 				'[+page.svelte] [INIT] No chat hash in URL — cleared activeChatStore to prevent stale auto-open'
@@ -2294,14 +2311,14 @@
 			// During forced logout, the handler returns to new chat for empty/null hash.
 			const handlers = createDeepLinkHandlers();
 			const hashToProcess = shouldSuppressForcedLogoutHash ? '' : originalHash || '';
+			// A workspace hash is handled by the shared shell. Processing an empty
+			// chat hash here invokes onNoHash and can restore a draft or welcome chat,
+			// which overwrites the workspace fragment during a reload.
 			if (originalWorkspaceHashRoute.workspace === 'chats') {
 				await processDeepLink(hashToProcess, handlers);
 			}
 			if (originalWorkspaceHashRoute.workspace !== 'chats') {
-				const workspaceSettingsPath = getSettingsPathFromHash(originalHash);
-				if (workspaceSettingsPath) {
-					processSettingsDeepLink(buildSettingsHash(workspaceSettingsPath));
-				}
+				processWorkspaceSettingsPath(originalHash);
 			}
 			const settingsPathFromCombinedHash = originalHashChatId ? getSettingsPathFromHash(hashToProcess) : null;
 			if (settingsPathFromCombinedHash) {
@@ -3271,11 +3288,11 @@
 				history.replaceState(null, '', '/');
 				notFoundPathStore.set(failedPath);
 			},
-			onMessage: async (messageText: string, autoSend: boolean) => {
+			onMessage: async (messageText: string, autoSend: boolean, newChat = false) => {
 				deepLinkProcessed = true;
 				console.debug('[+page.svelte] onMessage deep link:', { autoSend, length: messageText.length });
 				const workflowClarification = sessionStorage.getItem('workflow_clarification_new_chat') === 'true';
-				if (workflowClarification) {
+				if (workflowClarification || newChat) {
 					sessionStorage.removeItem('workflow_clarification_new_chat');
 					sessionStorage.removeItem('workflow_clarification_pending_message');
 					// Reset ActiveChat's current chat, draft context and temporary ID before
@@ -3327,10 +3344,7 @@
 		workspaceHash = newHash;
 		if (readWorkspaceHashRoute(newHash).workspace !== 'chats') {
 			console.debug('[+page.svelte] Workspace hash changed:', newHash);
-			const workspaceSettingsPath = getSettingsPathFromHash(newHash);
-			if (workspaceSettingsPath) {
-				processSettingsDeepLink(buildSettingsHash(workspaceSettingsPath));
-			}
+			processWorkspaceSettingsPath(newHash);
 			return;
 		}
 		const hashChatIdMatch = newHash.match(/^#chat-id=([^&]+)/);
@@ -3620,7 +3634,9 @@
 
 <svelte:window bind:innerWidth={viewportWidth} />
 
-{#if workspaceHashRoute.workspace === 'workflows'}
+{#if workspaceHashRoute.workspace === 'apps'}
+	<AppsRoute />
+{:else if workspaceHashRoute.workspace === 'workflows'}
 	<WorkflowsRoute />
 {:else if workspaceHashRoute.workspace === 'projects'}
 	<ProjectsRoute />

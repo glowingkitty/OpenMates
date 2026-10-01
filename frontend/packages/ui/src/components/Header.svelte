@@ -130,11 +130,17 @@
       workspaceHashParams.has("task-id") ||
       workspaceHashParams.has("plan-id"),
   );
+  let isAppsRoute = $derived(
+    page.url.pathname.startsWith("/apps") ||
+      workspaceHashMarker === "apps" ||
+      workspaceHashMarker.startsWith("apps/"),
+  );
   let isChatsRoute = $derived(
     page.url.pathname === "/" &&
       !isProjectsRoute &&
       !isWorkflowsRoute &&
-      !isTasksRoute,
+      !isTasksRoute &&
+      !isAppsRoute,
   );
   let disabledFeatures = $derived($featureAvailabilityStore.disabledById);
   let chatsEnabled = $derived(
@@ -164,7 +170,7 @@
           },
         ]
       : []),
-    ...(projectsEnabled
+    ...(isLoggedIn && projectsEnabled
       ? [
           {
             id: "/#projects",
@@ -177,7 +183,7 @@
           },
         ]
       : []),
-    ...(workflowsEnabled
+    ...(isLoggedIn && workflowsEnabled
       ? [
           {
             id: "/#workflows",
@@ -190,7 +196,7 @@
           },
         ]
       : []),
-    ...(tasksEnabled
+    ...(isLoggedIn && tasksEnabled
       ? [
           {
             id: "/#tasks",
@@ -203,6 +209,15 @@
           },
         ]
       : []),
+    {
+      id: "/#apps",
+      href: "/#apps",
+      testId: "apps-nav-link",
+      label: $text("common.apps"),
+      iconClass: "app-icon" as const,
+      active: isAppsRoute,
+      disabled: false,
+    },
   ] satisfies WorkspaceTab[]);
   let activeWorkspaceIndex = $derived(
     Math.max(
@@ -621,7 +636,7 @@
             <a href="/docs" class="docs-tab active">{$text("common.docs")}</a>
             <a href="/" class="docs-tab">{$text("common.chat")}</a>
           </div>
-        {:else if WORKSPACE_SWITCHER_ENABLED && context === "webapp" && isLoggedIn && webappWorkspaceTabs.length >= 2}
+        {:else if WORKSPACE_SWITCHER_ENABLED && context === "webapp" && webappWorkspaceTabs.length >= 2}
           <div class="webapp-center-tabs">
             <IconTabBar
               items={webappWorkspaceTabs}
@@ -1202,6 +1217,11 @@
   .task-icon {
     -webkit-mask-image: url("@openmates/ui/static/icons/projectmanagement.svg");
     mask-image: url("@openmates/ui/static/icons/projectmanagement.svg");
+  }
+
+  .app-icon {
+    -webkit-mask-image: url("@openmates/ui/static/icons/app.svg");
+    mask-image: url("@openmates/ui/static/icons/app.svg");
   }
 
   .workspace-select-shell {

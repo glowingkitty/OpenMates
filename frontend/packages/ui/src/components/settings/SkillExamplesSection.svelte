@@ -34,16 +34,17 @@
     import { openSkillStoreExampleFullscreen } from '../../stores/skillStoreExampleFullscreenStore';
     import { activeChatStore } from '../../stores/activeChatStore';
     import { isMobileView } from '../../stores/uiStateStore';
-    import { getExampleChatsForSkill } from '../../demo_chats';
+    import { getExampleChatsForSkill, getExampleChatMessages } from '../../demo_chats';
     import type { Chat } from '../../types/chat';
     import { get } from 'svelte/store';
 
     interface Props {
         appId: string;
         skillId: string;
+        onOpenExample?: (example: string) => void;
     }
 
-    let { appId, skillId }: Props = $props();
+    let { appId, skillId, onOpenExample }: Props = $props();
     const dispatch = createEventDispatcher();
 
     let PreviewComponent = $state<Component | null>(null);
@@ -150,6 +151,11 @@
     }
 
     function openExampleChat(chat: Chat) {
+        if (onOpenExample) {
+            const prompt = getExampleChatMessages(chat.chat_id).find(message => message.role === 'user' && typeof message.content === 'string' && message.content.trim())?.content;
+            if (typeof prompt === 'string') onOpenExample(prompt);
+            return;
+        }
         const shouldCloseSettings = get(isMobileView);
         activeChatStore.setActiveChat(chat.chat_id);
         dispatch('chatSelected', { chat });

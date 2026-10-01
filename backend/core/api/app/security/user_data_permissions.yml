@@ -2,6 +2,7 @@ version: 1
 actors:
   - unauthenticated
   - authenticated_owner
+  - authenticated_team_member
   - shared_link_recipient
   - api_key
   - admin
@@ -11,6 +12,7 @@ access_modes:
   - public_read
   - share_read
   - owner_read
+  - team_read
   - owner_write
   - api_key_read
   - api_key_write
@@ -117,11 +119,25 @@ rest_modules:
         auth_model: preview_gateway_token
         rationale: Legacy preview traffic has no cookie auth and is authorized by session id plus short-lived token.
   - path: backend/core/api/app/routes/apps.py
-    expected_routes: 3
+    expected_routes: 4
     actors: [unauthenticated, authenticated_owner]
     access: [public_read]
     data_domains: [apps]
     rationale: App metadata is public product content.
+  - path: backend/core/api/app/routes/apps_workspace.py
+    expected_routes: 5
+    actors: [authenticated_owner, authenticated_team_member]
+    access: [owner_read, owner_write, team_read]
+    data_domains: [embeds, apps]
+    auth_model: session_required
+    rationale: Encrypted Apps result graphs and saved embed indexes require the Personal owner or an active Team member; Team writes require a spending role.
+  - path: backend/core/api/app/routes/anonymous.py
+    expected_routes: 4
+    actors: [unauthenticated]
+    access: [public_read, public_write]
+    data_domains: [apps, chats]
+    auth_model: anonymous_identity_with_free_usage_admission
+    rationale: Public free-usage status and request quotes perform no provider work; anonymous chat and quick skill execution enforce existing eligibility and atomic shared budget admission.
   - path: backend/core/api/app/routes/apps_api.py
     expected_routes: 1
     actors: [authenticated_owner, api_key]
@@ -447,12 +463,20 @@ rest_modules:
     data_domains: [embeds, files]
     rationale: Embed file/content access must validate owner/API-key access.
   - path: backend/core/api/app/routes/generated_assets_api.py
-    expected_routes: 1
-    actors: [authenticated_owner, shared_link_recipient]
-    access: [token_read]
+    expected_routes: 2
+    actors: [authenticated_owner, authenticated_team_member, shared_link_recipient]
+    access: [owner_read, team_read, token_read]
     data_domains: [generated_assets, embeds]
-    rationale: Generated asset downloads require owner or authorized shared context.
+    rationale: Generated asset downloads require an owner or authorized shared context; URL refresh requires an owner or active Team member session.
     endpoints:
+      - method: GET
+        route: /{asset_id}/files/{variant}/download-url
+        function: refresh_generated_asset_download_url
+        actors: [authenticated_owner, authenticated_team_member]
+        access: [owner_read, team_read]
+        data_domains: [generated_assets, embeds]
+        auth_model: session_required
+        rationale: URL refresh verifies the upload owner or an active membership and matching Team-scoped encrypted embed before minting a short-lived signed URL.
       - method: GET
         route: /{asset_id}/files/{variant}/download
         function: download_generated_asset

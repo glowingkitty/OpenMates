@@ -1,19 +1,19 @@
 schema_version: 1
-specification: feature.workspace-shell@2
+specification: feature.workspace-shell@3
 
 released_navigation:
   - id: released-desktop-tabs-visible
-    given: A signed-in user has Chats, Projects, Workflows, and Tasks available on desktop.
+    given: A signed-in user has Chats, Apps, Projects, Workflows, and Tasks available on desktop.
     when: The user opens the workspace header.
-    then: The header offers those four workspaces and does not offer a separate Plans, Teams, or iOS tab.
+    then: The header offers those five workspaces and does not offer a separate Plans, Teams, or iOS tab.
   - id: mobile-navigation-equivalent
     given: The same user opens OpenMates on a narrow screen.
     when: The user opens the workspace selector.
-    then: Chats, Projects, Workflows, and Tasks are selectable, and Plans remain within Tasks.
+    then: Chats, Apps, Projects, Workflows, and Tasks are selectable, and Plans remain within Tasks.
 
 start_shells:
   - id: projects-and-workflows-start-shells
-    given: A signed-in user opens the Projects or Workflows start screen.
+    given: A signed-in user opens the Apps, Projects, or Workflows start screen.
     when: The screen finishes loading.
     then: It shows its own Daily Inspiration content, identity icon, Report Issue control, and bottom composer within the shared workspace shell.
   - id: tasks-start-shell
@@ -23,11 +23,11 @@ start_shells:
 
 visual_parity:
   - id: desktop-workspaces-match-chats
-    given: A signed-in user views Chats, Projects, Workflows, and Tasks on desktop.
+    given: A signed-in user views Chats, Apps, Projects, Workflows, and Tasks on desktop.
     when: The user switches between their start screens.
     then: Container, inspiration, Report Issue, and composer regions keep the Chats start screen geometry while each workspace shows its own content.
   - id: mobile-workspaces-match-chats
-    given: A signed-in user views the same four workspaces on a narrow screen.
+    given: A signed-in user views the same five workspaces on a narrow screen.
     when: The user switches between their start screens.
     then: The same regions remain aligned to the mobile Chats shell without hiding each workspace's own content.
 

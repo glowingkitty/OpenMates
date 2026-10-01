@@ -49,6 +49,7 @@
     import { pricingTiers } from '../../config/pricing'; // Import pricing tiers to get price for purchased credits
     import { phasedSyncState } from '../../stores/phasedSyncStateStore'; // Import phased sync state to mark sync completed after signup
     import { promoteAnonymousChatsAfterSignup } from '../../services/anonymousChatPromotionService';
+    import { promoteGuestAppsResults } from '../../services/appsWorkspaceResultsService';
     import { getSignupStepSequence } from './signupFlow';
 
     // Dynamic imports for step contents
@@ -1114,8 +1115,19 @@
         phasedSyncState.markSyncCompleted();
         console.debug("[Signup] Marked phased sync as completed after signup (new user has no chats to sync)");
 
+        // Guest Apps results share the anonymous session wrapping key with chats.
+        // Adopt them before chat promotion clears that key.
+        let guestAppsPromotionSucceeded = true;
+        try {
+            await promoteGuestAppsResults();
+        } catch (error) {
+            guestAppsPromotionSucceeded = false;
+            console.error('[Signup] Failed to promote guest Apps results; encrypted local data was preserved for retry:', error);
+        }
+
         let promotedAnonymousChatCount = 0;
         try {
+            if (!guestAppsPromotionSucceeded) throw new Error('Guest Apps result promotion is pending');
             const promotionResult = await promoteAnonymousChatsAfterSignup();
             promotedAnonymousChatCount = promotionResult.promotedCount;
             if (promotionResult.promotedCount > 0) {
@@ -1124,6 +1136,7 @@
         } catch (error) {
             console.error('[Signup] Failed to promote anonymous chats after signup; local anonymous data was preserved for retry:', error);
         }
+
 
         // Open sidebar on desktop so the user sees the chat list.
         // On mobile, the chat will open in the main area via activeChatStore.

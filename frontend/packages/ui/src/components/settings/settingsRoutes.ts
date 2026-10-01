@@ -85,7 +85,6 @@ import SettingsGiftCardsBuyPayment from "./giftcards/SettingsGiftCardsBuyPayment
 import SettingsGiftCardsPurchaseConfirmation from "./giftcards/SettingsGiftCardsPurchaseConfirmation.svelte";
 
 // Apps
-import SettingsAppStore from "./SettingsAppStore.svelte";
 import SettingsAllApps from "./SettingsAllApps.svelte";
 import AppDetailsWrapper from "./AppDetailsWrapper.svelte";
 import SettingsMemoriesHub from "./SettingsMemoriesHub.svelte";
@@ -148,8 +147,7 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   pricing: SettingsPricing,
   // AI (model selection, pricing, providers, memories)
   ai: SettingsAI,
-  // Apps
-  apps: SettingsAppStore,
+  // Legacy Apps detail routes are kept for forwarding into the Apps workspace.
   "apps/all": SettingsAllApps,
   // Memories hub — lists all user-created memories across apps
   settings_memories: SettingsMemoriesHub,

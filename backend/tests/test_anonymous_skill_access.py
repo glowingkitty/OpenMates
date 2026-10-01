@@ -130,7 +130,7 @@ def test_anonymous_chat_offers_inline_search_but_no_file_or_system_tools() -> No
 
 
 @pytest.mark.asyncio
-# contract-test: direct surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering,billing.anonymous.local-only-content
+# contract-test: direct surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering,billing.anonymous.local-only-content,apps.anonymous.cli-equivalent-gate
 async def test_anonymous_direct_skill_uses_shared_cap_without_content_rows(monkeypatch: pytest.MonkeyPatch) -> None:
     from backend.shared.python_utils import app_skill_output_safety
 
@@ -174,6 +174,10 @@ async def test_anonymous_direct_skill_uses_shared_cap_without_content_rows(monke
         "app": SimpleNamespace(state=SimpleNamespace(secrets_manager=None)),
     })
     body = {"requests": [{"query": "test query"}]}
+    before = await anonymous_routes.anonymous_app_skill_availability(request, "web", "search", body, directus, FakeCache())
+    assert before.allowed is True
+    assert not dispatched
+    assert (await service.get_budget_status()).daily_used_credits == 0
     first = await anonymous_app_skill(request, "web", "search", body, directus, FakeCache())
     assert first["credits_charged"] == 6
     assert len(dispatched) == 1
@@ -182,6 +186,11 @@ async def test_anonymous_direct_skill_uses_shared_cap_without_content_rows(monke
     assert {collection for collection, _ in directus.created_payloads} <= {
         "anonymous_free_usage_budget", "anonymous_free_usage_identity_daily", "anonymous_free_usage_reservations",
     }
+    after = await anonymous_routes.anonymous_app_skill_availability(request, "web", "search", body, directus, FakeCache())
+    assert after.allowed is False
+    assert after.reason in {"budget_exhausted", "per_identity_exhausted"}
+    assert len(dispatched) == 1
+    assert (await service.get_budget_status()).daily_used_credits == 6
     with pytest.raises(HTTPException) as exc_info:
         await anonymous_app_skill(request, "web", "search", body, directus, FakeCache())
     assert exc_info.value.status_code == 429

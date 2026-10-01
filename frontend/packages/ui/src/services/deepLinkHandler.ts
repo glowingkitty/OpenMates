@@ -9,17 +9,19 @@
  * - #embed-id={id} / #embed_id={id} - Embed deep links
  */
 
-import { replaceState } from "$app/navigation";
+import { goto, replaceState } from "$app/navigation";
 import { createEntryPrefillStore } from "../stores/createEntryPrefillStore";
 import { updateEntryPrefillStore } from "../stores/updateEntryPrefillStore";
 import { allAppsInitialFilter, type AllAppsFilterType } from "../stores/allAppsFilterStore";
 import { buildSettingsHash, getSettingsPathFromHash, normalizeSettingsPath } from "../utils/settingsHashUtils";
+import { buildAppsWorkspaceHash } from "../utils/appsWorkspaceRoute";
 
 const RETIRED_INTRO_CHAT_IDS = new Set(["demo-for-everyone", "demo-for-developers"]);
 
 export type DeepLinkType =
   | "chat"
   | "settings"
+  | "apps"
   | "signup"
   | "embed"
   | "pair"
@@ -49,7 +51,7 @@ export interface DeepLinkHandlers {
   /** Handler for /#pair=TOKEN deep links — opens the confirm-pair settings page */
   onPair?: (token: string) => void;
   /** Handler for /#message=<text> deep links — pre-fills message input, auto-sends if same-origin */
-  onMessage?: (text: string, autoSend: boolean) => Promise<void>;
+  onMessage?: (text: string, autoSend: boolean, newChat?: boolean) => Promise<void>;
   /** Handler for /#404=<encodedPath> deep links — shows the Not404Screen */
   onNotFound?: (failedPath: string) => void;
   onNoHash?: () => Promise<void>; // Handler for when no hash is present
@@ -104,6 +106,12 @@ export function parseDeepLink(
   }
 
   if (settingsParamPath) {
+    if (settingsParamPath === "settings_memories") {
+      return { type: "apps", data: { hash: "#apps/all&filter=settings_memories" } };
+    }
+    if (settingsParamPath === "apps" || settingsParamPath.startsWith("apps/")) {
+      return { type: "apps", data: { hash: buildAppsWorkspaceHash(settingsParamPath) } };
+    }
     return {
       type: "settings",
       data: { path: settingsParamPath, fullHash: normalizedHash },
@@ -115,6 +123,12 @@ export function parseDeepLink(
     const settingsPath = normalizeSettingsPath(
       normalizedHash.substring("#settings".length),
     );
+    if (settingsPath === "settings_memories") {
+      return { type: "apps", data: { hash: "#apps/all&filter=settings_memories" } };
+    }
+    if (settingsPath === "apps" || settingsPath.startsWith("apps/")) {
+      return { type: "apps", data: { hash: buildAppsWorkspaceHash(settingsPath) } };
+    }
     return {
       type: "settings",
       data: { path: settingsPath, fullHash: normalizedHash },
@@ -148,6 +162,11 @@ export function parseDeepLink(
       type: "pair",
       data: { token: pairMatch[1].toUpperCase() },
     };
+  }
+
+  // Apps examples always open a fresh unsent draft, regardless of docs flags.
+  if (normalizedHash.startsWith("#new-message=")) {
+    return { type: "message", data: { text: decodeURIComponent(normalizedHash.slice("#new-message=".length)), newChat: true } };
   }
 
   // Message deep links: #message={encodedText}
@@ -214,6 +233,15 @@ export async function processDeepLink(
   }
 
   switch (parsed.type) {
+    case "apps":
+      if (typeof window !== "undefined") {
+        await goto(window.location.pathname + window.location.search + parsed.data.hash, {
+          replaceState: true,
+          noScroll: true,
+          keepFocus: true,
+        });
+      }
+      return { type: "apps", processed: true, requiresAuth: false };
     case "chat":
       if (RETIRED_INTRO_CHAT_IDS.has(parsed.data.chatId)) {
         if (typeof window !== "undefined") {
@@ -309,12 +337,12 @@ export async function processDeepLink(
     case "message": {
       if (handlers.onMessage) {
         // Same-origin check: only auto-send if a sessionStorage flag was set by our docs pages
-        const autoSend = typeof sessionStorage !== "undefined" &&
+        const autoSend = !parsed.data.newChat && typeof sessionStorage !== "undefined" &&
           sessionStorage.getItem("docs_auto_send") === "true";
         if (autoSend) {
           sessionStorage.removeItem("docs_auto_send");
         }
-        await handlers.onMessage(parsed.data.text, autoSend);
+        await handlers.onMessage(parsed.data.text, autoSend, parsed.data.newChat === true);
         // Clear hash after processing
         if (typeof window !== "undefined") {
           replaceState(window.location.pathname + window.location.search, {});
@@ -493,6 +521,7 @@ export function processSettingsDeepLink(
     openSettings: () => void;
     setSettingsDeepLink: (path: string) => void;
   },
+  options: { preserveHash?: boolean } = {},
 ): void {
   const normalizedHash = hash.startsWith("#/settings") ? `#${hash.slice(2)}` : hash;
   const isLegacySettingsHash = normalizedHash === "#settings" || normalizedHash.startsWith("#settings/");
@@ -603,14 +632,14 @@ export function processSettingsDeepLink(
 
     // OAuth handoff returns need the settings hash until Settings.svelte has
     // routed away from its default main view; clearing it here races hash sync.
-    if (typeof window !== "undefined" && window.location && !hasOAuthHandoffQueryParam()) {
+    if (!options.preserveHash && typeof window !== "undefined" && window.location && !hasOAuthHandoffQueryParam()) {
       replaceState(window.location.pathname + window.location.search, {});
     }
   } else if (settingsPath === "") {
     handlers.setSettingsDeepLink("main");
 
     // Clear the hash after processing
-    if (typeof window !== "undefined" && window.location) {
+    if (!options.preserveHash && typeof window !== "undefined" && window.location) {
       replaceState(window.location.pathname + window.location.search, {});
     }
   } else {
@@ -618,7 +647,7 @@ export function processSettingsDeepLink(
     handlers.setSettingsDeepLink("main");
 
     // Clear the hash after processing
-    if (typeof window !== "undefined" && window.location) {
+    if (!options.preserveHash && typeof window !== "undefined" && window.location) {
       replaceState(window.location.pathname + window.location.search, {});
     }
   }

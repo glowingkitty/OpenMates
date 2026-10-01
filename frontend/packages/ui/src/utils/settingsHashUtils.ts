@@ -11,6 +11,10 @@ const SETTINGS_HASH_PARAM = 'settings';
 const INTERNAL_WORKSPACE_PARAM = '__openmates_workspace';
 const WORKSPACE_HASH_MARKERS = new Set(['plans', 'projects', 'tasks', 'workflows']);
 
+function isWorkspaceHashMarker(marker: string): boolean {
+  return WORKSPACE_HASH_MARKERS.has(marker) || marker === 'apps' || marker.startsWith('apps/');
+}
+
 const SETTINGS_PATH_ALIASES: Record<string, string> = {
   'privacy/pii': 'privacy/hide-personal-data',
   'privacy/hide_personal_data': 'privacy/hide-personal-data',
@@ -37,7 +41,7 @@ function parseHashParams(hash: string): URLSearchParams {
     return new URLSearchParams();
   }
   const [firstSegment] = fragment.split('&', 1);
-  if (!WORKSPACE_HASH_MARKERS.has(firstSegment)) {
+  if (!isWorkspaceHashMarker(firstSegment)) {
     return new URLSearchParams(fragment);
   }
 
@@ -53,7 +57,7 @@ function serializeHashParams(params: URLSearchParams): string {
     if (key === INTERNAL_WORKSPACE_PARAM) return;
     pairs.push(`${encodeURIComponent(key)}=${encodeHashValue(value)}`);
   });
-  if (workspaceMarker && WORKSPACE_HASH_MARKERS.has(workspaceMarker)) {
+  if (workspaceMarker && isWorkspaceHashMarker(workspaceMarker)) {
     return `#${workspaceMarker}${pairs.length > 0 ? `&${pairs.join('&')}` : ''}`;
   }
   return pairs.length > 0 ? `#${pairs.join('&')}` : '';

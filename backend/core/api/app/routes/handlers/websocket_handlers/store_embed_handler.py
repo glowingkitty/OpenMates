@@ -1,6 +1,7 @@
 import json
 import logging
 import hashlib
+import re
 from typing import Dict, Any
 from fastapi import WebSocket
 
@@ -90,6 +91,53 @@ async def handle_store_embed(
                 logger.error(f"Missing embed_id in store_embed payload from user {user_id}")
                 return
             request_id = payload.pop("request_id", None)
+            # Public app/skill IDs may be projected for paginated discovery. The
+            # chat and Team IDs are authorization inputs only, never Directus embed
+            # fields or plaintext content.
+            chat_id = payload.pop("chat_id", None)
+            team_id = payload.pop("team_id", None)
+            app_id = payload.pop("app_id", None)
+            skill_id = payload.pop("skill_id", None)
+            # Catalog and scope fields are server-derived. In particular, a
+            # Personal chat must never acquire a client-supplied Team hash.
+            for field in ("hashed_team_id", "workspace_origin", "root_embed_id", "apps_workspace_root_id"):
+                payload.pop(field, None)
+            if app_id is not None or skill_id is not None:
+                catalog_id = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
+                if not (isinstance(app_id, str) and catalog_id.fullmatch(app_id)
+                        and isinstance(skill_id, str) and catalog_id.fullmatch(skill_id)
+                        and isinstance(chat_id, str)
+                        and payload.get("hashed_chat_id") == hashlib.sha256(chat_id.encode()).hexdigest()):
+                    await _reject_store_embed_write(manager, user_id, device_fingerprint_hash, embed_id, "invalid app catalog context")
+                    return
+                chats = await directus_service.get_items(
+                    "chats", params={"filter[id][_eq]": chat_id,
+                                      "fields": "id,hashed_user_id,hashed_team_id", "limit": 1},
+                    no_cache=True, admin_required=True, raise_on_error=True,
+                )
+                if not chats:
+                    # Chat metadata may not have synced yet. Persist encrypted
+                    # content without a catalog projection; later writes can add it.
+                    pass
+                else:
+                    chat = chats[0]
+                    chat_team_hash = chat.get("hashed_team_id")
+                    if chat_team_hash:
+                        if not isinstance(team_id, str) or hashlib.sha256(team_id.encode()).hexdigest() != chat_team_hash:
+                            await _reject_store_embed_write(manager, user_id, device_fingerprint_hash, embed_id, "Team chat context mismatch")
+                            return
+                        await directus_service.team.require_team_role(team_id, user_id, {"owner", "admin", "member"})
+                        payload["hashed_team_id"] = chat_team_hash
+                    elif chat.get("hashed_user_id") != _user_hash(user_id) or team_id:
+                        await _reject_store_embed_write(manager, user_id, device_fingerprint_hash, embed_id, "Personal chat context mismatch")
+                        return
+                    payload["app_id"] = app_id
+                    payload["skill_id"] = skill_id
+                    if payload.get("parent_embed_id"):
+                        payload["root_embed_id"] = payload["parent_embed_id"]
+                    else:
+                        payload["root_embed_id"] = embed_id
+                        payload["workspace_origin"] = "chat"
 
             if await requires_atomic_project_embed_write(directus_service, embed_id):
                 await _reject_store_embed_write(
@@ -142,6 +190,17 @@ async def handle_store_embed(
                         embed_id,
                         "existing embed owner mismatch",
                     )
+                    return
+
+                # The WebSocket path must not rewrite a chatless result or
+                # change the catalog/scope of a previously indexed chat row.
+                if (existing_embed.get("workspace_origin") == "web_apps"
+                    or (existing_embed.get("hashed_team_id") is not None
+                        and existing_embed.get("hashed_team_id") != payload.get("hashed_team_id"))
+                    or (payload.get("app_id") is not None and existing_embed.get("app_id") not in (None, payload["app_id"]))
+                    or (payload.get("skill_id") is not None and existing_embed.get("skill_id") not in (None, payload["skill_id"]))
+                    or (existing_embed.get("workspace_origin") == "chat" and payload.get("app_id") is None)):
+                    await _reject_store_embed_write(manager, user_id, device_fingerprint_hash, embed_id, "existing embed catalog context mismatch")
                     return
 
                 payload["hashed_user_id"] = existing_owner_hash

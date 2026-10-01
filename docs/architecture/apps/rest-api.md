@@ -158,6 +158,63 @@ Standard HTTP status codes (200, 400, 401, 403, 404, 429, 500, 503). Error respo
 - Client-side encryption (REST API cannot decrypt chats)
 - No tracking or profiling
 
+## Direct use from the Apps workspace
+
+The public web workspace uses `/#apps/<app>/<skill>` URLs. Compact `/apps/...`
+paths and previous Settings Apps links forward to the corresponding hash URL;
+URL hyphens resolve to the catalog's underscore identifiers.
+App details separate Skills, Focus modes, Memories, Embeds and Workflows;
+skill details retain Overview, Embeds and Workflows.
+
+`GET /v1/apps/{app_id}/skills/{skill_id}/details` lazily supplies the direct
+request schema, declared defaults, primary field paths, pricing, providers,
+models and execution availability. `sdk_tool_schema` takes precedence over the
+assistant schema. The shared schema renderer projects at most two primary
+controls and puts additional fields in Show settings. Required input is
+validated without inserting workflow test examples as defaults.
+Optional `x-ui.apps` hints override presentation on a copied Apps schema only.
+For example, Audio uses a prompt textarea while optional duration and format
+fields appear in Show settings; its original Workflow hints and defaults remain
+unchanged.
+
+Execution continues through the existing `/v1/apps/.../skills/...` endpoints.
+First-party Team execution supplies an authorized `team_id` query parameter;
+the server checks membership and spending role and preserves that billing
+context through asynchronous jobs. CLI requests retain their existing
+temporary-history behavior. Guests use the existing anonymous direct endpoint
+after a request-specific `/availability` quote; execution still performs atomic
+budget admission and rejects background, storage-dependent and account-dependent
+skills.
+
+The browser encrypts Apps results before posting a chatless root and its children
+to `/v1/apps/workspace/results`. `expected_user_id` binds the upload to the
+submitting user; Team key wrappers, app indexes and creator ownership are checked
+before writes. Existing generated asset IDs are reused. The paginated result
+catalog also indexes saved chat and memory embeds using server-verified account
+context. Saved workflows are selected by app references in their current graph,
+including workflows that have not run.
+
+Older chat embeds are classified in the browser. While an authenticated Embeds
+tab is open, resumable discovery pages scoped chat metadata and requests at most
+50 encrypted root embeds from one verified chat at a time, without message
+histories or media bytes. The existing content-batch WebSocket request accepts
+the opt-in `apps_legacy_embeds_only` flag. Classification preserves original key
+wrappers and posts app projections in batches of at most 50. Bulk sync also
+notifies an already-open library to revisit newly received roots. Leaving the
+library or switching account stops discovery and guards pending local writes.
+
+Guest graphs remain encrypted in IndexedDB and are promoted into Personal storage
+after signup without another skill execution. Failed or interrupted promotion
+keeps the local source. Retained task IDs allow processing results to resume
+polling after reload. Generated media obtains a fresh download URL through the
+session-authenticated generated-assets endpoint after owner or Team membership
+verification.
+
+Implementation: `apps_workspace_metadata.py`, `apps_workspace_results_service.py`,
+`AppsWorkspace.svelte`, `AppsSkillForm.svelte`, `appsWorkspaceService.ts` and
+`appsWorkspaceResultsService.ts`. Product intent is recorded in
+`feature.apps-workspace@1` and `feature.workspace-shell@3`.
+
 ## Related Docs
 
 - [Function Calling](./function-calling.md) -- LLM tool integration

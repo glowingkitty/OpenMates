@@ -3,6 +3,7 @@
   import { text } from '../../i18n/translations';
   import SettingsDropdown from '../settings/elements/SettingsDropdown.svelte';
   import SettingsInput from '../settings/elements/SettingsInput.svelte';
+  import SettingsTextarea from '../settings/elements/SettingsTextarea.svelte';
   import WorkflowDateRangeField from './WorkflowDateRangeField.svelte';
   import WorkflowLocationField from './WorkflowLocationField.svelte';
   import WorkflowMessageEditor from './WorkflowMessageEditor.svelte';
@@ -14,8 +15,8 @@
 
   type UiMetadata = { control?: string; start_field?: string; end_field?: string; min_offset_days?: number; max_offset_days?: number; max_span_days?: number; location_mode?: string; latitude_field?: string; longitude_field?: string; city_field?: string; clear_fields?: string[]; hidden?: boolean; basic?: boolean };
   type LocationConfig = { mode: 'weather' | 'events' | 'home' | 'city' | 'place'; text: string; latitude?: string; longitude?: string; cityField?: string; clearFields?: string[] };
-  let { schema, value, onChange, outputs = [], path = 'input', appId = '', timezone }: {
-    schema: Schema; value: unknown; onChange: (value: unknown) => void; outputs?: Output[]; path?: string; appId?: string; timezone: string;
+  let { schema, value, onChange, outputs = [], path = 'input', appId = '', timezone, appsMode = false }: {
+    schema: Schema; value: unknown; onChange: (value: unknown) => void; outputs?: Output[]; path?: string; appId?: string; timezone: string; appsMode?: boolean;
   } = $props();
 
   let expanded = $state<Record<string, boolean>>({});
@@ -23,6 +24,12 @@
   let stringEditors = $state<Record<string, { insertReference: (output: Output) => void } | undefined>>({});
   const tr = (key: string) => $text(`workflows.builder.${key}`);
   const ui = (field: Schema): UiMetadata => record((field as Schema & { 'x-ui'?: UiMetadata })['x-ui']) as UiMetadata;
+  function numericStep(field: Schema): string | undefined {
+    if (!appsMode || !['number', 'integer'].includes(field.type ?? '')) return undefined;
+    // HTML anchors step to min, while schema multipleOf is anchored to zero.
+    // Leave schema constraints to Apps validation rather than reject valid defaults.
+    return field.type === 'integer' && (field.minimum === undefined || Number.isInteger(field.minimum)) ? '1' : 'any';
+  }
   const visibleEntries = (properties: Record<string, Schema>) => Object.entries(properties).filter(([, field]) => !ui(field).hidden);
   function scalarValue(raw: string, field: Schema): unknown { return raw === '' ? undefined : ['number', 'integer'].includes(field.type ?? '') ? Number(raw) : raw; }
   function editableScalarValue(raw: string, field: Schema): unknown {
@@ -243,14 +250,15 @@
       {@render objectFields(spec, current, change, id)}
     </fieldset>
   {:else if spec.type === 'array'}
+    {@const entries = Array.isArray(current) && current.length ? current : appsMode && (spec.items?.type === 'object' || spec.items?.properties) ? [schemaDefault(spec.items ?? { type: 'object' })] : []}
     <fieldset class="object"><legend><span class="field-label">{@render fieldLabel(name, spec.title || label(name), spec, required)}</span></legend>
-      {#each (Array.isArray(current) ? current : []) as entry, index}
+      {#each entries as entry, index}
         <div class="array-entry">
-          {@render fieldControl(`${name} ${index + 1}`, spec.items ?? { type: 'string' }, entry, next => change((current as unknown[]).map((old, i) => i === index ? next : old)), `${id}-${index}`)}
-          <button type="button" class="quiet" aria-label={tr('remove')} onclick={() => change((current as unknown[]).filter((_, i) => i !== index))}>×</button>
+          {@render fieldControl(`${name} ${index + 1}`, spec.items ?? { type: 'string' }, entry, next => change(entries.map((old, i) => i === index ? next : old)), `${id}-${index}`)}
+          <button type="button" class="quiet" aria-label={tr('remove')} onclick={() => change(entries.filter((_, i) => i !== index))}>×</button>
         </div>
       {/each}
-      <button type="button" class="quiet" onclick={() => change([...(Array.isArray(current) ? current : []), schemaDefault(spec.items ?? { type: 'string' })])}>+ {tr('add_item')}</button>
+      <button type="button" class="quiet" onclick={() => change([...entries, schemaDefault(spec.items ?? { type: 'string' })])}>+ {tr('add_item')}</button>
     </fieldset>
   {:else}
     {@const dynamic = typeof record(current).$date === 'string'}
@@ -259,9 +267,19 @@
     {@const visibleVariables = expandedVariables[id] ? [...variableGroups.basic, ...variableGroups.advanced] : variableGroups.basic}
     {@const templateValue = isTemplateValue(current)}
     {@const stringVariableInput = (spec.type === 'string' || !spec.type) && !spec.enum && !['date', 'date-time', 'time', 'uri', 'url', 'email'].includes(spec.format ?? '') && compatible.length > 0}
-    <div class="schema-field field">
+    <div class="schema-field field" class:textarea-field={appsMode && ui(spec).control === 'textarea'}>
       <label class="field-label" for={id}>{@render fieldLabel(name, spec.title || label(name), spec, required)}</label>
-      {#if stringVariableInput}
+      {#if appsMode && ui(spec).control === 'textarea' && (spec.type === 'string' || !spec.type) && !spec.enum}
+        <SettingsTextarea
+          {id}
+          value={String(current ?? '')}
+          ariaLabel={spec.title || label(name)}
+          placeholder={spec.description || spec.title || label(name)}
+          maxlength={spec.maxLength}
+          dataTestid={`apps-skill-textarea-${name}`}
+          onInput={raw => change(scalarValue(raw, spec))}
+        />
+      {:else if stringVariableInput}
         <WorkflowMessageEditor
           bind:this={stringEditors[id]}
           compact
@@ -295,6 +313,7 @@
           value={String(current ?? '')}
           min={spec.minimum === undefined ? undefined : String(spec.minimum)}
           max={spec.maximum === undefined ? undefined : String(spec.maximum)}
+          step={numericStep(spec)}
           ariaLabel={spec.title || label(name)}
           onInput={raw => change(scalarValue(raw, spec))}
         />
@@ -329,7 +348,7 @@
     {@const storedRequests = Array.isArray(currentRecord.requests) ? currentRecord.requests : []}
     {@const requests = storedRequests.length ? storedRequests : [schemaDefault(batchItems)]}
     {@const outerSchema = { ...schema, properties: Object.fromEntries(Object.entries(rootProperties).filter(([name]) => name !== 'requests')), required: (schema.required ?? []).filter(name => name !== 'requests') }}
-    {#if appId === 'events'}
+    {#if appId === 'events' && !appsMode}
       {@const eventsExpandedId = `${path}-events-advanced`}
       {#each requests as request, index}
         <section class="batch-request" aria-label={`${label('request')} ${index + 1}`}>
@@ -355,18 +374,21 @@
   {/if}
 {/snippet}
 
-<div class="schema-fields">
+<div class="schema-fields" class:apps-mode={appsMode}>
   {@render rootFields()}
 </div>
 
 <style>
   .schema-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:var(--spacing-8); font-size:max(16px, 1rem); }
   .schema-field { display:grid; align-content:start; gap:var(--spacing-4); min-width:0; text-align:start; }
+  .textarea-field { grid-column:1/-1; }
+  .apps-mode .textarea-field > .field-label { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
   .field-label { display:flex; align-items:center; gap:var(--spacing-2); min-width:0; font-size:max(16px, 1rem); font-weight:650; line-height:1.35; }
   .field-name { display:inline-flex; align-items:center; gap:var(--spacing-2); min-width:0; }
   .field-name :global(svg) { flex:0 0 auto; color:var(--color-font-secondary); }
   .field-title { min-width:0; overflow-wrap:anywhere; }
   .type-badge { flex:0 0 auto; padding:var(--spacing-2) var(--spacing-4); border-radius:var(--radius-2); background:var(--color-primary); color:var(--color-font-button); font-size:var(--font-size-xxs); font-weight:700; line-height:1; }
+  .apps-mode .type-badge { display:none; }
   .type-badge[data-type="number"] { background:var(--color-error); }
   .schema-field--specialized :global(.location-field > .label),
   .schema-field--specialized :global(.date-range > .label) { display:none; }
@@ -374,6 +396,8 @@
   .schema-field--specialized :global(.location-field),
   .schema-field--specialized :global(.date-range) { grid-column:auto; }
   .field :global(.settings-input-wrapper) { padding:0; }
+  .textarea-field :global(.settings-textarea-wrapper) { padding:0; }
+  .apps-mode .textarea-field :global(.settings-textarea) { background:var(--color-grey-20); }
   .field :global(.settings-dropdown-wrapper) { padding:0; }
   .field :global(.settings-input),
   .field :global(.settings-dropdown) { background:var(--workflow-input-surface, var(--color-grey-10)); }

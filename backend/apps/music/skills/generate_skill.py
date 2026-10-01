@@ -128,6 +128,7 @@ class GenerateSkill(BaseSkill):
                 "chat_id": self._current_chat_id,
                 "message_id": self._current_message_id,
                 "external_request": kwargs.get("external_request", False),
+                **({"team_id": kwargs["team_id"]} if kwargs.get("team_id") else {}),
                 "app_id": self.app_id,
                 "skill_id": self.skill_id,
                 "full_model_reference": f"google/{model}",

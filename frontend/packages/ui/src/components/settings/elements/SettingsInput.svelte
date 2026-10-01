@@ -30,6 +30,7 @@
         inputmode = undefined as InputMode | undefined,
         min = undefined as string | undefined,
         max = undefined as string | undefined,
+        step = undefined as string | undefined,
         hasError = false,
         dataTestid = '',
         onInput = undefined,
@@ -49,6 +50,7 @@
         maxlength?: number | undefined;
         min?: string | undefined;
         max?: string | undefined;
+        step?: string | undefined;
         pattern?: string | undefined;
         inputmode?: InputMode | undefined;
         hasError?: boolean;
@@ -85,6 +87,7 @@
         maxlength={maxlength}
         min={min}
         max={max}
+        step={step}
         pattern={pattern}
         inputmode={inputmode}
         aria-label={ariaLabel || placeholder}

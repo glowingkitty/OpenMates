@@ -200,6 +200,9 @@
       "enabling_work": "Run existing public browser/component/source assertions on the built candidate; report product failures rather than holding execution.",
       "specs": [
         "api-key-scopes-settings.spec.ts",
+        "apps-workspace.spec.ts",
+        "components/apps-workspace-preview.spec.ts",
+        "components/apps-skill-form.spec.ts",
         "app-load-no-error-logs.spec.ts",
         "apple-chat-history-contracts.spec.ts",
         "apple-embed-rendering-contracts.spec.ts",

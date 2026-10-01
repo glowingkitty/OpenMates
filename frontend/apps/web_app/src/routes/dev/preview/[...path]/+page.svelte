@@ -45,6 +45,7 @@
 		default: Record<string, unknown>;
 		variants?: Record<string, Record<string, unknown>>;
 		ready?: Promise<void>;
+		layout?: 'fill';
 	}>('/../../packages/ui/src/components/**/*.preview.ts', { eager: false });
 
 	/**
@@ -117,6 +118,7 @@
 
 	/** Mock props from the preview file */
 	let mockProps = $state<Record<string, unknown>>({});
+	let fillViewport = $state(false);
 	let variants = $state<Record<string, Record<string, unknown>>>({});
 	let activeVariant = $state<string>('default');
 	let hasPreviewFile = $state(false);
@@ -290,6 +292,7 @@
 	 * These were not migrated in OPE-276 and still take flat props directly.
 	 */
 	const NEVER_WRAP_FULLSCREEN_PATHS = new Set([
+		'apps/AppsResultFullscreen',
 		'embeds/news/NewsEmbedFullscreen',
 		'embeds/pdf/PdfReadEmbedFullscreen',
 		'embeds/pdf/PdfSearchEmbedFullscreen'
@@ -423,6 +426,7 @@
 	}
 
 	async function loadComponent(modKey: string, prevKey: string) {
+		fillViewport = false;
 		isLoading = true;
 		loadError = null;
 		loadedComponent = null;
@@ -442,13 +446,13 @@
 			// Load the component module. Deployed preview routes can briefly hold
 			// stale Vite preload metadata immediately after a new build goes live.
 			const mod = await loadWithPreloadRetry(componentPath, componentModules[modKey]);
-			loadedComponent = mod.default;
 
 			// Try to load preview props if a companion .preview.ts exists
 			if (prevKey && previewModules[prevKey]) {
 				try {
 					const preview = await loadWithPreloadRetry(`${componentPath}.preview`, previewModules[prevKey]);
 					if (preview.ready) await preview.ready;
+					fillViewport = preview.layout === 'fill';
 					mockProps = preview.default || {};
 					variants = preview.variants || {};
 					hasPreviewFile = true;
@@ -456,6 +460,9 @@
 					console.warn(`[Preview] Failed to load preview file for ${componentPath}:`, err);
 				}
 			}
+			// Publish the component only once its props and store fixtures are ready.
+			// Otherwise the mount effect can render an empty-props intermediate state.
+			loadedComponent = mod.default;
 		} catch (err) {
 			loadError = `Failed to load component: ${err instanceof Error ? err.message : String(err)}`;
 		} finally {
@@ -813,6 +820,7 @@
 		<!-- Component render area -->
 		<div
 			class="preview-container"
+			class:fill-viewport={fillViewport}
 			data-testid="component-preview-canvas"
 			data-preview-ready={previewReady && !renderError && !loadError && !urlConfigError && !propsError ? 'true' : 'false'}
 			style={backgroundStyle}
@@ -952,6 +960,20 @@
 	.capture-mode.full-page-workspace .preview-viewport,
 	.capture-mode.full-page-workspace .component-mount {
 		display: block;
+	}
+
+	/* Workspace surfaces need a definite containing size, like the app shell. */
+	.fill-viewport .preview-viewport,
+	.fill-viewport .component-mount {
+		width: 100%;
+		height: 100%;
+		min-height: 0;
+	}
+
+	.capture-mode .fill-viewport .preview-viewport,
+	.capture-mode .fill-viewport .component-mount {
+		align-items: stretch;
+		justify-content: stretch;
 	}
 
 	.capture-mode .preview-viewport--constrained::before,

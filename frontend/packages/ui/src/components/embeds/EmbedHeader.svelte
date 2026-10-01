@@ -21,12 +21,19 @@
 
 <script lang="ts">
   import { resolveHeaderSwipeNavigation } from '../headerSwipeNavigation';
+  import { text } from '../../i18n/translations';
+  import ProviderIcon from '../settings/ProviderIcon.svelte';
 
   interface Props {
     /** App identifier — used for the gradient background variable and icon class. */
     appId: string;
     /** Static chrome when the host already presented the fullscreen frame. */
     staticPresentation?: boolean;
+    /** Apps workspace uses a fuller app-store hero; embeds retain their usual size. */
+    presentation?: 'embed' | 'apps';
+    eyebrow?: string;
+    footer?: string;
+    providers?: string[];
     /** Skill icon name (e.g. 'search', 'coding'). Uses app icon when empty. */
     skillIconName?: string;
     /** Optional app icon override when appId has no icon_rounded CSS mapping. */
@@ -63,6 +70,10 @@
   let {
     appId,
     staticPresentation = false,
+    presentation = 'embed',
+    eyebrow = '',
+    footer = '',
+    providers = [],
     skillIconName = '',
     appIconName = '',
     showSkillIcon = true,
@@ -190,6 +201,7 @@
   class="embed-header"
   class:static-presentation={staticPresentation}
   class:has-cta={hasCta}
+  class:apps-presentation={presentation === 'apps'}
   role="presentation"
   ontouchstart={handleHeaderTouchStart}
   ontouchmove={handleHeaderTouchMove}
@@ -212,6 +224,10 @@
       <div class="orb orb-3"></div>
     </div>
 
+    {/if}
+
+    {#if presentation === 'apps' && eyebrow}
+      <div class="apps-header-eyebrow" data-testid="apps-hero-category">{eyebrow}</div>
     {/if}
 
     <!-- Large decorative icons at left/right edges (126×126px, 0.4 opacity) -->
@@ -237,11 +253,12 @@
     </div>
 
     <!-- Center content: small icon + title + subtitle -->
-    <div class="header-center">
+    <div class="header-center" data-testid={presentation === 'apps' ? 'apps-hero-identity' : undefined}>
       {#if onHeaderIconClick}
         <button
           type="button"
           class="header-icon header-icon-button"
+          data-testid={presentation === 'apps' ? 'apps-hero-icon' : undefined}
           onclick={onHeaderIconClick}
           aria-label="Open skill settings"
         >
@@ -254,7 +271,7 @@
           {/if}
         </button>
       {:else}
-        <div class="header-icon">
+        <div class="header-icon" data-testid={presentation === 'apps' ? 'apps-hero-icon' : undefined}>
           {#if useSkillIcon}
             <div class="header-skill-icon" data-skill-icon={skillIconName} style={skillIconStyle}></div>
           {:else if safeAppIconName}
@@ -292,6 +309,17 @@
         <div class="header-subtitle" data-testid="embed-header-subtitle">{subtitle}</div>
       {/if}
     </div>
+
+    {#if presentation === 'apps' && footer}
+      <div class="apps-header-footer" data-testid="apps-hero-stats">{footer}</div>
+    {:else if presentation === 'apps' && providers.length > 0}
+      <div class="apps-header-footer apps-provider-footer" data-testid="apps-hero-providers">
+        <span>{$text('embeds.via')}</span>
+        {#each providers as provider}
+          <span class="apps-provider"><ProviderIcon name={provider} size="22px" /><span>{provider}</span></span>
+        {/each}
+      </div>
+    {/if}
 
     <!-- Navigation arrows (prev/next embed) — inside inner so they clip correctly -->
     {#if hasNextEmbed && onNavigateNext}
@@ -350,6 +378,33 @@
     pointer-events: auto;
     user-select: none;
   }
+
+  .embed-header.apps-presentation { height: 350px; }
+  .apps-presentation .apps-header-eyebrow {
+    position: absolute;
+    top: 26px;
+    left: 50%;
+    z-index: var(--z-index-raised-2);
+    transform: translateX(-50%);
+    color: rgba(255, 255, 255, 0.9);
+    font-size: var(--font-size-small);
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .apps-presentation .header-center { box-sizing: border-box; max-width: min(100%, 640px); padding: 56px 40px 40px; gap: 10px; }
+  .apps-presentation.has-cta .header-center { transform: translateY(-32px); }
+  .apps-presentation .header-icon { width: 70px; height: 70px; border: 1px solid rgba(255,255,255,.5); border-radius: var(--radius-5); background: rgba(0,0,0,.14); box-shadow: 0 5px 14px rgba(0,0,0,.17); }
+  .apps-presentation .header-icon-button { min-width: 0; min-height: 0; margin: 0; padding: 0; box-sizing: border-box; }
+  .apps-presentation .header-app-icon-mask,
+  .apps-presentation .header-skill-icon { width: 52px; height: 52px; -webkit-mask-size: contain; mask-size: contain; }
+  .apps-presentation .header-app-icon { width: 52px; height: 52px; }
+  .apps-presentation .header-app-icon::after { background-size: 42px 42px !important; }
+  .apps-presentation .header-title-text { font-size: var(--font-size-h2-mobile); }
+  .apps-presentation .header-subtitle { max-width: 560px; line-clamp: 3; -webkit-line-clamp: 3; }
+  .apps-presentation .apps-header-footer { position: absolute; left: 20px; right: 20px; bottom: 19px; z-index: var(--z-index-raised-2); color: rgba(255,255,255,.94); font-size: var(--font-size-small); font-weight: 700; text-align: center; }
+  .apps-presentation .apps-provider-footer { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px; }
+  .apps-presentation .apps-provider { display: inline-flex; align-items: center; gap: 5px; }
+  .apps-presentation .header-cta-area { bottom: 64px; transform: none; }
 
   /* Inner banner: carries gradient + clips decorative overflow icons.
      Fills 100% of the outer wrapper. */
@@ -944,6 +999,16 @@
      ========================================================== */
 
   @media (max-width: 730px) {
+    .embed-header.apps-presentation { height: 290px; }
+    .apps-presentation .apps-header-eyebrow { top: 20px; }
+    .apps-presentation .header-center { padding: 66px 26px 42px; }
+    .apps-presentation.has-cta .header-center { transform: translateY(-38px); }
+    .apps-presentation .header-icon { width: 58px; height: 58px; }
+    .apps-presentation .header-app-icon-mask,
+    .apps-presentation .header-skill-icon,
+    .apps-presentation .header-app-icon { width: 42px; height: 42px; }
+    .apps-presentation .header-app-icon::after { background-size: 34px 34px !important; }
+    .apps-presentation .header-cta-area { bottom: 45px; }
     .embed-header {
       height: 190px;
       /* has-cta: height stays 190px — CTA overflows, never grows the banner */

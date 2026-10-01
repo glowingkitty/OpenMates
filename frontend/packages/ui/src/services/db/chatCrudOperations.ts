@@ -534,7 +534,7 @@ export async function addChat(
   dbInstance: ChatDatabaseInstance,
   chat: Chat,
   transaction?: IDBTransaction,
-  options?: { isFromSync?: boolean; forceIncomingEncryptedChatKey?: boolean },
+  options?: { isFromSync?: boolean; forceIncomingEncryptedChatKey?: boolean; writeGuard?: () => void },
 ): Promise<void> {
   console.debug(
     `[ChatDatabase] addChat called for chat ${chat.chat_id} with transaction: ${!!transaction}`,
@@ -677,6 +677,7 @@ export async function addChat(
           };
 
           const store = newTransaction.objectStore(dbInstance.CHATS_STORE_NAME);
+          options?.writeGuard?.();
           const request = store.put(chatToSave);
 
           request.onsuccess = () => {
@@ -771,6 +772,7 @@ export async function addChat(
         const store = currentTransaction.objectStore(
           dbInstance.CHATS_STORE_NAME,
         );
+        options?.writeGuard?.();
         const request = store.put(chatToSave);
 
         console.debug(

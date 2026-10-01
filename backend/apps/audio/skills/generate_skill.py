@@ -183,6 +183,7 @@ class GenerateSkill(BaseSkill):
                 "chat_id": kwargs.get("chat_id") or self._current_chat_id,
                 "message_id": kwargs.get("message_id") or self._current_message_id,
                 "external_request": kwargs.get("external_request", False),
+                **({"team_id": kwargs["team_id"]} if kwargs.get("team_id") else {}),
                 "api_key_hash": kwargs.get("api_key_hash"),
                 "device_hash": kwargs.get("device_hash"),
                 "api_key_name": kwargs.get("api_key_name"),

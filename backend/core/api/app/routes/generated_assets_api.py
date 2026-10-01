@@ -7,18 +7,25 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import logging
+import time
 from typing import Any, Dict, Optional, TYPE_CHECKING
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import Response, StreamingResponse
 
+from backend.core.api.app.models.user import User
+from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.services.s3.config import get_bucket_name
 from backend.core.api.app.services.s3.service import S3UploadService
 from backend.shared.python_utils.generated_assets import (
     CHUNKED_MODEL_ENCRYPTION,
+    TOKEN_TTL_SECONDS,
+    build_download_url,
+    create_download_token,
     decrypt_generated_asset_variant,
     validate_download_token,
 )
@@ -52,6 +59,72 @@ def get_encryption_service(request: Request) -> EncryptionService:
     if not hasattr(request.app.state, "encryption_service"):
         raise HTTPException(status_code=500, detail="Encryption service unavailable")
     return request.app.state.encryption_service
+
+
+@router.get("/{asset_id}/files/{variant}/download-url")
+@limiter.limit("60/minute")
+async def refresh_generated_asset_download_url(
+    asset_id: str,
+    variant: str,
+    request: Request,
+    team_id: Optional[str] = Query(default=None),
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> Dict[str, Any]:
+    """Mint a short-lived URL for an owned or Team-visible saved asset.
+
+    First-party session only. Team access requires an active membership and a
+    Team-scoped encrypted embed whose original creator owns the upload record.
+    The response contains no storage location or encryption key material.
+    """
+    records = await directus_service.get_items(
+        "upload_files",
+        params={
+            "filter[embed_id][_eq]": asset_id,
+            "fields": "user_id,files_metadata",
+            "limit": 1,
+        },
+        no_cache=True,
+        admin_required=True,
+    )
+    if not isinstance(records, list) or not records:
+        raise HTTPException(status_code=404, detail="Generated asset not found")
+    record = records[0]
+    embed = await directus_service.embed.get_embed_by_id(asset_id)
+    owner_id = record.get("user_id")
+    if not isinstance(owner_id, str) or not owner_id:
+        raise HTTPException(status_code=404, detail="Generated asset not found")
+    if team_id is not None:
+        if not team_id.strip():
+            raise HTTPException(status_code=400, detail="team_id must not be empty")
+        from backend.core.api.app.services.directus.team_methods import TeamPermissionError
+
+        team_hash = hashlib.sha256(team_id.encode()).hexdigest()
+        owner_hash = hashlib.sha256(owner_id.encode()).hexdigest()
+        if not embed or embed.get("hashed_team_id") != team_hash or embed.get("hashed_user_id") != owner_hash:
+            raise HTTPException(status_code=404, detail="Generated asset not found")
+        try:
+            await directus_service.team.require_team_role(
+                team_id, current_user.id, {"owner", "admin", "member", "viewer"}
+            )
+        except TeamPermissionError as exc:
+            raise HTTPException(status_code=403, detail="Team permission denied") from exc
+    elif owner_id != current_user.id or (embed and embed.get("hashed_team_id")):
+        raise HTTPException(status_code=404, detail="Generated asset not found")
+
+    files = record.get("files_metadata")
+    if not isinstance(files, dict) or not isinstance(files.get(variant), dict):
+        raise HTTPException(status_code=404, detail="Generated asset variant not found")
+    expires_at = int(time.time()) + TOKEN_TTL_SECONDS
+    token = create_download_token(
+        asset_id=asset_id, user_id=owner_id, variant=variant, expires_at=expires_at
+    )
+    return {
+        "download_url": build_download_url(
+            base_url=str(request.base_url), asset_id=asset_id, variant=variant, token=token
+        ),
+        "download_expires_at": expires_at,
+    }
 
 
 async def _resolve_asset_aes_key(

@@ -215,6 +215,8 @@ skills:
               prompt:
                 x-ui:
                   basic: true
+                  apps:
+                    control: textarea
                 type: string
                 minLength: 1
                 maxLength: 400
@@ -229,6 +231,8 @@ skills:
               duration_seconds:
                 x-ui:
                   basic: true
+                  apps:
+                    basic: false
                 type: number
                 minimum: 0.5
                 maximum: 2.0
@@ -243,11 +247,15 @@ skills:
               loop:
                 x-ui:
                   basic: true
+                  apps:
+                    basic: false
                 type: boolean
                 default: false
               output_format:
                 x-ui:
                   basic: true
+                  apps:
+                    basic: false
                 type: string
                 enum: [mp3_22050_32, mp3_24000_48, mp3_44100_32, mp3_44100_64, mp3_44100_96, mp3_44100_128, mp3_44100_192]
                 default: mp3_44100_128

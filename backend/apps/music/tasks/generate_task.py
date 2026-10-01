@@ -254,6 +254,8 @@ async def _charge_music_generation_credits(
     chat_id: Optional[str],
     message_id: Optional[str],
     log_prefix: str,
+    team_id: Optional[str] = None,
+    event_id: Optional[str] = None,
 ) -> None:
     """Charge one generated song/request unit. Billing failures are logged only."""
     try:
@@ -286,9 +288,11 @@ async def _charge_music_generation_credits(
                 "server_region": "global",
             },
         }
+        from backend.shared.python_utils.team_skill_billing import skill_billing_request
+        billing_path, charge_payload = skill_billing_request(charge_payload, team_id, event_id=event_id or "")
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.post(
-                f"{INTERNAL_API_BASE_URL}/internal/billing/charge",
+                f"{INTERNAL_API_BASE_URL}{billing_path}",
                 json=charge_payload,
                 headers=headers,
             )
@@ -296,6 +300,8 @@ async def _charge_music_generation_credits(
         logger.info("%s Charged %s credits for music generation", log_prefix, credits_charged)
     except Exception as exc:
         logger.error("%s Failed to charge music generation credits: %s", log_prefix, exc, exc_info=True)
+        if team_id:
+            raise
 
 
 @app.task(
@@ -371,12 +377,16 @@ async def _async_generate_music(task: BaseServiceTask, app_id: str, skill_id: st
         enriched_prompt = "\n".join(enriched_prompt_parts)
 
         estimated_credits = await _estimate_music_generation_credits(model_ref, log_prefix)
-        await ensure_credit_headroom(
-            user_id=user_id,
-            estimated_credits=estimated_credits,
-            log_prefix=log_prefix,
-            operation_name="music generation",
-        )
+        if arguments.get("team_id"):
+            from backend.shared.python_utils.team_skill_billing import ensure_team_skill_credit_headroom
+            await ensure_team_skill_credit_headroom(task._directus_service, arguments["team_id"], user_id, estimated_credits)
+        else:
+            await ensure_credit_headroom(
+                user_id=user_id,
+                estimated_credits=estimated_credits,
+                log_prefix=log_prefix,
+                operation_name="music generation",
+            )
 
         generated = await generate_music_google_lyria(
             prompt=enriched_prompt,
@@ -404,7 +414,7 @@ async def _async_generate_music(task: BaseServiceTask, app_id: str, skill_id: st
         )
 
         hashed_user_id = _hash_value(user_id)
-        if not external_request:
+        if not external_request or arguments.get("team_id"):
             await _charge_music_generation_credits(
                 user_id=user_id,
                 user_id_hash=hashed_user_id,
@@ -414,6 +424,8 @@ async def _async_generate_music(task: BaseServiceTask, app_id: str, skill_id: st
                 chat_id=chat_id,
                 message_id=message_id,
                 log_prefix=log_prefix,
+                team_id=arguments.get("team_id"),
+                event_id=str(arguments.get("embed_id") or task.request.id),
             )
 
         success, user_profile, error_msg = await task._directus_service.get_user_profile(user_id)
@@ -575,6 +587,7 @@ async def _async_generate_music(task: BaseServiceTask, app_id: str, skill_id: st
                 "visual_watermark": False,
                 "provider_watermarking": "SynthID",
             },
+            **({"team_id": arguments["team_id"]} if arguments.get("team_id") else {}),
         }
         if not external_request:
             result_payload["aes_key"] = aes_key_b64

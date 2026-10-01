@@ -104,6 +104,8 @@ changes to the documentation (to keep the documentation up to date).
     import { getAiProviderDisplay } from '../utils/aiModelDisplay';
     import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../services/drafts/draftConstants';
     import { clearSettingsPathFromHash, getSettingsPathFromHash, setSettingsPathInHash } from '../utils/settingsHashUtils';
+    import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
+    import { goto } from '$app/navigation';
 
     const CALENDAR_UPDATE_ACCOUNT_KEY = 'openmates_calendar_update_account_id';
 
@@ -1551,6 +1553,16 @@ changes to the documentation (to keep the documentation up to date).
         if (settingsPath === 'apps/ai') {
             settingsPath = 'ai';
             icon = 'ai';
+        }
+
+        if (settingsPath === 'apps' || settingsPath.startsWith('apps/')) {
+            isMenuVisible = false;
+            settingsMenuVisible.set(false);
+            panelState.closeSettings();
+            if (typeof window !== 'undefined') {
+                void goto(`/${buildAppsWorkspaceHash(settingsPath)}`, { noScroll: true, keepFocus: true });
+            }
+            return;
         }
 
         icon = getSettingsRouteIcon(settingsPath, icon);
