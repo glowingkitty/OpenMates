@@ -63,6 +63,14 @@ targets:
       - name: Prepare LocalModelBridge
         script: 'python3 "${PROJECT_DIR}/LocalModelBridge/prepare.py"'
         basedOnDependencyAnalysis: false
+        # The linker validates generated archive inputs before this script runs.
+        outputFiles:
+          - "$(DERIVED_FILE_DIR)/LocalModelBridge/$(PLATFORM_NAME)/executorch.xcframework/$(LOCAL_MODEL_BRIDGE_SLICE)/libexecutorch_$(LOCAL_MODEL_BRIDGE_SUFFIX).a"
+          - "$(DERIVED_FILE_DIR)/LocalModelBridge/$(PLATFORM_NAME)/backend_xnnpack.xcframework/$(LOCAL_MODEL_BRIDGE_SLICE)/libbackend_xnnpack_$(LOCAL_MODEL_BRIDGE_SUFFIX).a"
+          - "$(DERIVED_FILE_DIR)/LocalModelBridge/$(PLATFORM_NAME)/kernels_optimized.xcframework/$(LOCAL_MODEL_BRIDGE_SLICE)/libkernels_optimized_$(LOCAL_MODEL_BRIDGE_SUFFIX).a"
+          - "$(DERIVED_FILE_DIR)/LocalModelBridge/$(PLATFORM_NAME)/kernels_quantized.xcframework/$(LOCAL_MODEL_BRIDGE_SLICE)/libkernels_quantized_$(LOCAL_MODEL_BRIDGE_SUFFIX).a"
+          - "$(DERIVED_FILE_DIR)/LocalModelBridge/$(PLATFORM_NAME)/kernels_torchao.xcframework/$(LOCAL_MODEL_BRIDGE_SLICE)/libkernels_torchao_$(LOCAL_MODEL_BRIDGE_SUFFIX).a"
+          - "$(DERIVED_FILE_DIR)/LocalModelBridge/$(PLATFORM_NAME)/threadpool.xcframework/$(LOCAL_MODEL_BRIDGE_SLICE)/libthreadpool_$(LOCAL_MODEL_BRIDGE_SUFFIX).a"
     sources:
       - path: OpenMates/Sources
         excludes:
@@ -123,6 +131,12 @@ targets:
         LIBRARY_SEARCH_PATHS: "$(inherited) $(DERIVED_FILE_DIR)/PairOpaque"
         OTHER_LDFLAGS: "$(inherited) -lopenmates_pair_opaque"
         # Private arm64 platform directories avoid SwiftPM module-map collisions.
+        "LOCAL_MODEL_BRIDGE_SLICE[sdk=iphoneos*]": ios-arm64
+        "LOCAL_MODEL_BRIDGE_SUFFIX[sdk=iphoneos*]": ios
+        "LOCAL_MODEL_BRIDGE_SLICE[sdk=iphonesimulator*]": ios-arm64-simulator
+        "LOCAL_MODEL_BRIDGE_SUFFIX[sdk=iphonesimulator*]": simulator
+        "LOCAL_MODEL_BRIDGE_SLICE[sdk=macosx*]": macos-arm64
+        "LOCAL_MODEL_BRIDGE_SUFFIX[sdk=macosx*]": macos
         "HEADER_SEARCH_PATHS[sdk=iphoneos*][arch=arm64]": '$(inherited) "$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/executorch.xcframework/ios-arm64/Headers"'
         "SWIFT_INCLUDE_PATHS[sdk=iphoneos*][arch=arm64]": '$(inherited) "$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/Modules" "$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/executorch.xcframework/ios-arm64/Headers"'
         "OTHER_LDFLAGS[sdk=iphoneos*][arch=arm64]": '$(inherited) -Xlinker -force_load -Xlinker "$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/executorch.xcframework/ios-arm64/libexecutorch_ios.a" -Xlinker -force_load -Xlinker "$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/backend_xnnpack.xcframework/ios-arm64/libbackend_xnnpack_ios.a" -Xlinker -force_load -Xlinker "$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/kernels_optimized.xcframework/ios-arm64/libkernels_optimized_ios.a" -Xlinker -force_load -Xlinker "$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/kernels_quantized.xcframework/ios-arm64/libkernels_quantized_ios.a" -Xlinker -force_load -Xlinker "$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/kernels_torchao.xcframework/ios-arm64/libkernels_torchao_ios.a" -Xlinker -force_load -Xlinker "$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/threadpool.xcframework/ios-arm64/libthreadpool_ios.a" -framework Accelerate -framework CoreGraphics -framework CoreImage -framework CoreVideo -framework Foundation -lc++'

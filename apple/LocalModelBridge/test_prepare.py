@@ -5,10 +5,13 @@ import importlib.util
 import json
 from pathlib import Path
 import plistlib
+import shlex
 import tempfile
 import unittest
 from unittest.mock import patch
 import zipfile
+
+import yaml
 
 spec = importlib.util.spec_from_file_location('local_model_bridge_prepare', Path(__file__).with_name('prepare.py'))
 bridge = importlib.util.module_from_spec(spec)
@@ -97,6 +100,31 @@ class BridgePreparationTests(unittest.TestCase):
                     self.assertEqual(json.loads((selected / 'receipt.json').read_text())['swift_interface_sha256'], hashlib.sha256(self.OVERLAY).hexdigest())
             self.assertFalse((output / 'include/module.modulemap').exists(), 'No shared SwiftPM include output')
             self.assertEqual(len(list(output.glob('*/executorch.xcframework/*/Headers/module.modulemap'))), 3)
+
+    def testEveryGeneratedLinkerArchiveHasABuildGraphProducer(self):
+        project = yaml.safe_load(Path(__file__).parents[1].joinpath('project.yml').read_text())
+        target = project['targets']['OpenMates']
+        settings = target['settings']['base']
+        script = next(item for item in target['preBuildScripts'] if item['name'] == 'Prepare LocalModelBridge')
+        for platform in bridge.PLATFORMS:
+            variables = {
+                'DERIVED_FILE_DIR': '/clean-build/DerivedSources',
+                'PLATFORM_NAME': platform,
+                'LOCAL_MODEL_BRIDGE_SLICE': settings[f'LOCAL_MODEL_BRIDGE_SLICE[sdk={platform}*]'],
+                'LOCAL_MODEL_BRIDGE_SUFFIX': settings[f'LOCAL_MODEL_BRIDGE_SUFFIX[sdk={platform}*]'],
+            }
+
+            def resolve(value):
+                for key, replacement in variables.items():
+                    value = value.replace('$(' + key + ')', replacement)
+                return value
+
+            outputs = {resolve(path) for path in script['outputFiles']}
+            flags = settings[f'OTHER_LDFLAGS[sdk={platform}*][arch=arm64]']
+            inputs = {resolve(token) for token in shlex.split(flags) if token.endswith('.a')}
+            self.assertEqual(inputs, outputs, f'{platform}: clean builds need all six generated linker inputs declared')
+            self.assertEqual(len(outputs), 6)
+        self.assertFalse(any('OTHER_LDFLAGS' in key and 'x86_64' in key for key in settings))
 
     def testCanonicalCatalogPinsSixLibrariesAndLicense(self):
         data = bridge.catalog(Path(__file__).with_name('catalog.json'))
