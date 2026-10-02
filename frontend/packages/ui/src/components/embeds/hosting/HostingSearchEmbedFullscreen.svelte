@@ -160,12 +160,13 @@
 {/if}
 
 <style>
-  .search-results { max-width: 1100px; margin: 0 auto; padding: var(--spacing-8); color: var(--color-font-primary); }
+  .search-results { width: 100%; max-width: 1100px; box-sizing: border-box; margin: 0 auto; padding: var(--spacing-8); color: var(--color-font-primary); }
   .domain-filter { border: 0; border-radius: 40px; padding: var(--spacing-4) var(--spacing-6); background: var(--color-grey-10); color: var(--color-font-primary); font: inherit; cursor: pointer; pointer-events: auto; }
   .domain-filter[aria-pressed="true"] { color: var(--color-button-primary); }
   .domain-filter:focus-visible { outline: 2px solid var(--color-button-primary); outline-offset: 2px; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: var(--spacing-8); padding: var(--spacing-8) 0 96px; }
-  .grid :global(.unified-embed-preview) { width: 100% !important; min-width: 0 !important; max-width: 320px !important; margin: 0 auto; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--spacing-8); padding: var(--spacing-8) 0 96px; }
+  .grid :global(.unified-embed-preview) { margin: 0 auto; }
   .loading, .empty { padding: var(--spacing-12); text-align: center; color: var(--color-font-secondary); }
   @container fullscreen (max-width: 500px) { .search-results { padding: var(--spacing-4); } .grid { grid-template-columns: 1fr; gap: var(--spacing-5); } }
+  @container fullscreen (max-width: 340px) { .search-results { padding-inline: 0; } }
 </style>

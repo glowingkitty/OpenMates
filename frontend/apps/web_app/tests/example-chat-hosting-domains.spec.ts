@@ -64,9 +64,14 @@ for (const [viewport, size] of [
 		await more.click();
 		await expect(search.getByTestId('hosting-view-all')).toHaveAttribute('aria-pressed', 'true');
 		await more.click();
+		await expect(search.getByTestId('hosting-view-all')).toHaveCount(0);
 		const domains = search.getByTestId('hosting-domain-grid').getByTestId('embed-preview');
 		// The complete checked pool is retained; each filter respects max_results.
 		await expect(domains).toHaveCount(10, { timeout: 30_000 });
+		await expect.poll(async () => domains.evaluateAll((elements: HTMLElement[]) => elements.map((element) => {
+			const bounds = element.getBoundingClientRect();
+			return [Math.round(bounds.width), Math.round(bounds.height)];
+		}))).toEqual(Array.from({ length: 10 }, () => [300, 200]));
 		await expect(domains.first().getByTestId('embed-status-value')).toHaveCount(0);
 		await testInfo.attach(`hosting-example-${viewport}-checked`, {
 			body: await page.screenshot({ animations: 'disabled' }),

@@ -302,6 +302,25 @@ test('domain preview distinguishes registration, renewal, terms and check status
 	await checkpoint(testInfo, 'hosting-domain-preview-default-laptop-dark', card);
 });
 
+// contract-test: direct surface=gui.web assertions=hosting-domains.embeds.parent-child,hosting-domains.surface-parity
+test('fullscreen keeps standard domain card dimensions while the pane shrinks and grows', async ({ page }, testInfo) => {
+	test.setTimeout(90_000);
+	await openPreview(page, 'HostingSearchEmbedFullscreen', { width: 1280, theme: 'dark' });
+	const grid = page.getByTestId('hosting-domain-grid');
+	const cards = grid.getByTestId('embed-preview');
+	await expect(cards).toHaveCount(2);
+	for (const width of [1280, 1000, 760, 620, 500, 390, 320, 390, 1000]) {
+		await page.setViewportSize({ width, height: 900 });
+		await page.mouse.move(0, 0);
+		await expect.poll(async () => cards.evaluateAll((elements) => elements.map((element) => {
+			const bounds = element.getBoundingClientRect();
+			return [Math.round(bounds.width), Math.round(bounds.height)];
+		}))).toEqual([[300, 200], [300, 200]]);
+		for (let index = 0; index < 2; index++) await expectWithinViewport(page, cards.nth(index));
+		if (width === 390 || width === 620) await checkpoint(testInfo, `hosting-domain-fixed-width-pane-${width}`, page.getByTestId('hosting-search-fullscreen'));
+	}
+});
+
 // contract-test: direct surface=gui.web assertions=hosting-domains.embeds.parent-child,hosting-domains.quotes.truthful,hosting-domains.surface-parity
 test('domain fullscreen keeps quote terms, source and copyable names readable', async ({ page }, testInfo) => {
 	test.setTimeout(90_000);
