@@ -2100,7 +2100,9 @@ async def handle_preprocessing(
     available_focus_modes_list: List[str] = []
     available_focus_mode_ids: List[str] = []
 
-    from backend.core.api.app.services.project_focus_request_service import validated_project_candidates
+    from backend.core.api.app.services.project_focus_request_service import (
+        explicitly_named_project_focus_ids, validated_project_candidates,
+    )
     try:
         request_data.project_focus_candidates = await validated_project_candidates(
             request_data.project_focus_candidates, directus_service=directus_service,
@@ -3267,6 +3269,19 @@ async def handle_preprocessing(
                 logger.debug(f"{log_prefix} Preprocessing selected no relevant focus modes.")
         else:
             logger.debug(f"{log_prefix} No focus mode preselection from preprocessing.")
+
+    # An exact Project name in the current request must remain offerable even
+    # when classification chooses Project search or omits the focus catalogue.
+    # This changes routing only; main processing still requests explicit consent.
+    if (not user_requested_focus_only and not request_data.project_access_declined
+            and "project_file_jobs" in (request_data.client_capabilities or [])):
+        named_project_focus_ids = explicitly_named_project_focus_ids(
+            request_data.current_user_content or _latest_user_text_from_history(request_data.message_history),
+            request_data.project_focus_candidates,
+        )
+        validated_relevant_focus_modes = list(dict.fromkeys(
+            validated_relevant_focus_modes + named_project_focus_ids
+        ))
 
     resolved_enable_subchats = resolve_subchat_enablement(
         enable_subchats_val,

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import re
 import time
 from typing import Any
 from uuid import UUID
@@ -15,6 +16,16 @@ from backend.core.api.app.services.project_write_authorization_service import (
 PROJECT_FOCUS_REQUEST_TTL = 20 * 60
 PROJECT_CANDIDATE_LIMIT = 40
 PROJECT_FOCUS_PREFIX = "project-"
+
+
+def explicitly_named_project_focus_ids(text: str, candidates: list[dict[str, str]]) -> list[str]:
+    """Offer owned, exact-name routing candidates; never activate or grant access."""
+    normalized = " ".join(text.split())
+    return [
+        PROJECT_FOCUS_PREFIX + candidate["project_id"]
+        for candidate in candidates
+        if re.search(r"(?<!\w)" + re.escape(candidate["name"]) + r"(?!\w)", normalized, re.IGNORECASE)
+    ]
 
 
 async def validated_project_candidates(

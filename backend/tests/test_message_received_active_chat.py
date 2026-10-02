@@ -177,6 +177,20 @@ class FakeNoTaskSkillRegistry:
         return {"status": "accepted_without_task"}
 
 
+# contract-test: supporting surface=rest_api assertions=projects.focus.inferred-consent
+@pytest.mark.parametrize("message, expected", [
+    ('Read my Project named "Garden notes".', ["project-project-a"]),
+    ("Update GARDEN   NOTES/readme.md", ["project-project-a"]),
+    ("Read Garden notebook", []),
+    ("Read MyGarden notesArchive", []),
+    ("Please change the second line", []),
+])
+def test_exact_project_name_remains_a_routing_hint_without_access(message, expected):
+    from backend.core.api.app.services.project_focus_request_service import explicitly_named_project_focus_ids
+
+    assert explicitly_named_project_focus_ids(message, [{"project_id": "project-a", "name": "Garden notes"}]) == expected
+
+
 # contract-test: supporting surface=rest_api assertions=chats.fork.non-destructive-boundary,projects.focus.inferred-consent
 @pytest.mark.parametrize("chat_metadata", [
     None,
