@@ -177,7 +177,7 @@ class FakeNoTaskSkillRegistry:
         return {"status": "accepted_without_task"}
 
 
-# contract-test: supporting surface=rest_api assertions=chats.fork.non-destructive-boundary
+# contract-test: supporting surface=rest_api assertions=chats.fork.non-destructive-boundary,projects.focus.inferred-consent
 @pytest.mark.parametrize("chat_metadata", [
     None,
     {"messages_v": 0, "title_v": None},
@@ -219,12 +219,14 @@ def test_message_send_marks_origin_connection_active_before_ai_dispatch(monkeypa
     encryption_service = SimpleNamespace(encrypt_with_user_key=AsyncMock(return_value=("encrypted", 1)))
     payload = {
         "chat_id": "chat-123",
+        "project_focus_candidates": [{"project_id": "11111111-1111-4111-8111-111111111111", "name": "Garden notes"}],
         "message": {
             "message_id": "msg-123",
             "role": "user",
             "content": "What is the capital of France?",
             "created_at": 1_700_000_000,
             "chat_has_title": False,
+            "project_focus_candidates": [{"project_id": "nested-decoy", "name": "Ignore nested routing data"}],
         },
     }
 
@@ -263,6 +265,8 @@ def test_message_send_marks_origin_connection_active_before_ai_dispatch(monkeypa
     assert ("dispatch_skill", "ai", "ask", "chat-123") in manager.calls
     expected_title = bool(chat_metadata and chat_metadata.get("encrypted_title") and chat_metadata.get("title_v") is None)
     assert manager.request_payload["chat_has_title"] is expected_title
+    assert manager.request_payload["project_focus_candidates"] == payload["project_focus_candidates"]
+    assert manager.request_payload["active_project_focus"] is None
     assert websocket.sent[0] == {
         "type": "chat_message_confirmed",
         "payload": {

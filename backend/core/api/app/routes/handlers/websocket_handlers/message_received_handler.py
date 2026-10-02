@@ -2165,6 +2165,9 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             db_parent_id = client_parent_id
             db_is_sub_chat = True
 
+        # Routing names belong to the request envelope, like memories metadata.
+        # They are candidates only; preprocessing validates Project ownership.
+        project_candidates_from_client = payload.get("project_focus_candidates")
         ai_request_payload = AskSkillRequestSchema(
             chat_id=chat_id,
             message_id=message_id,
@@ -2185,8 +2188,8 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             mate_id=None, # Let preprocessor determine the mate unless a specific one is tied to the chat
             active_focus_id=active_focus_id_for_ai,
             current_project=current_project,
-            project_focus_candidates=(message_payload_from_client.get("project_focus_candidates") or [])[:40]
-            if isinstance(message_payload_from_client.get("project_focus_candidates"), list) else [],
+            project_focus_candidates=project_candidates_from_client[:40]
+            if isinstance(project_candidates_from_client, list) else [],
             active_project_focus=active_project_focus,
             user_preferences=user_preferences_dict,
             learning_mode=learning_mode_context,
