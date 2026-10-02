@@ -13,10 +13,10 @@ export const variants = { empty: { embedId: emptyId, appId: 'web', skillId: 'sea
 export const ready = (async () => {
   const key = generateEmbedKey();
   for (const [id, type, content] of [
-    [rootId, 'app_skill_use', { app_id: 'web', skill_id: 'search', query: 'Preview search', embed_ids: childIds, result_count: 2 }],
+    [rootId, 'app_skill_use', { app_id: 'web', skill_id: 'search', input: { requests: [{ query: 'Preview search', count: 2 }] }, embed_ids: childIds, result_count: 2 }],
     [emptyId, 'app_skill_use', { app_id: 'web', skill_id: 'search', embed_ids: [], result_count: 0 }],
-    ...childIds.map((id, index) => [id, 'website', { app_id: 'web', skill_id: 'search', title: `Preview page ${index + 1}`, url: `https://example.test/${index + 1}`, description: 'A normal website result preview.' }]),
-  ] as Array<[string, 'app_skill_use' | 'website', Record<string, unknown>]>) {
+    ...childIds.map((id, index) => [id, 'search_result', { type: 'search_result', app_id: 'web', skill_id: 'search', title: `Preview page ${index + 1}`, url: `https://example.test/${index + 1}`, description: 'A normal website result preview.' }]),
+  ] as Array<[string, 'app_skill_use' | 'search_result', Record<string, unknown>]>) {
     await embedStore.putEncrypted(`embed:${id}`, { embed_id: id, status: 'finished', is_private: true, encrypted_type: await encryptWithEmbedKey(type, key), encrypted_content: await encryptWithEmbedKey(JSON.stringify(content), key), createdAt: Date.now(), updatedAt: Date.now() }, type as EmbedType, undefined, { app_id: 'web', skill_id: 'search' });
     embedStore.setEmbedKeyInCache(id, key);
   }

@@ -133,7 +133,7 @@ describe("Apps result persistence", () => {
     const bodies = successfulUploads();
     const { retainAppsResult } = await import("../appsWorkspaceResultsService");
     const results = Array.from({ length: 25 }, (_, index) => ({ title: `Private event ${index}`, id: index }));
-    await retainAppsResult({ appId: "events", skillId: "search", input: { query: "Private jazz" },
+    await retainAppsResult({ appId: "events", skillId: "search", input: { requests: [{ query: "Private jazz" }] },
       response: { success: true, data: { provider: "events", results: [{ id: "q1", results }] } },
       requestId: "10000000-0000-4000-8000-000000000000" });
     const body = bodies[0] as { embeds: Array<{ encrypted_content: string; embed_id: string }>; root_embed_id: string };
@@ -141,7 +141,7 @@ describe("Apps result persistence", () => {
     expect(body.embeds[0].embed_id).toBe(body.root_embed_id);
     expect(JSON.stringify(body)).not.toContain("Private jazz");
     expect(JSON.stringify(body)).not.toContain("Private event 0");
-    expect(JSON.parse(decrypt(body.embeds[0].encrypted_content))).toMatchObject({ app_id: "events", skill_id: "search", result_count: 25, provider: "events" });
+    expect(JSON.parse(decrypt(body.embeds[0].encrypted_content))).toMatchObject({ app_id: "events", skill_id: "search", query: "Private jazz", input: { requests: [{ query: "Private jazz" }] }, result_count: 25, provider: "events" });
   });
 
   // contract-test: direct surface=gui.web assertions=apps.anonymous.local-results-and-promotion

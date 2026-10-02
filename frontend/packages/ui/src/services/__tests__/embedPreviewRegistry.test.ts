@@ -8,7 +8,8 @@ import { describe, expect, it, vi } from 'vitest';
 // These unit checks verify renderer selection and its props. The real Svelte
 // components are exercised by the bare preview and route E2E specs; importing
 // their authentication/runtime graph here would obscure that small contract.
-const previews = vi.hoisted(() => ({ website: () => {}, connection: () => {}, place: () => {} }));
+const previews = vi.hoisted(() => ({ website: () => {}, connection: () => {}, place: () => {}, search: () => {} }));
+vi.mock('../../components/embeds/web/WebSearchEmbedPreview.svelte', () => ({ default: previews.search }));
 vi.mock('../../components/embeds/web/WebsiteEmbedPreview.svelte', () => ({ default: previews.website }));
 vi.mock('../../components/embeds/travel/TravelConnectionEmbedPreview.svelte', () => ({ default: previews.connection }));
 vi.mock('../../components/embeds/maps/MapLocationEmbedPreview.svelte', () => ({ default: previews.place }));
@@ -29,10 +30,20 @@ function metadataFor(decodedContent: Record<string, unknown>) {
 }
 
 describe('embedPreviewRegistry parent preview metadata', () => {
+  // contract-test: supporting surface=gui.web assertions=apps.results.web-retained-graph,apps.library.embeds-account-paginated
+  it('shows the request query for an older saved parent using the CLI requests envelope', async () => {
+    const resolved = await embedPreviewRegistry.resolve({
+      embedId: 'saved-parent', embedData: { type: 'app_skill_use', status: 'finished' },
+      decodedContent: { app_id: 'web', skill_id: 'search', input: { requests: [{ query: 'Saved native request' }] }, result_count: 10, embed_ids: ['child'] },
+      onFullscreen: () => {},
+    });
+    expect(resolved?.component).toBe(previews.search);
+    expect(resolved?.props).toMatchObject({ query: 'Saved native request', resultCount: 10, childEmbedIds: ['child'] });
+  });
   // contract-test: supporting surface=gui.web assertions=apps.results.web-retained-graph,apps.presentation.shared-detail-and-recency
   it('renders website children with their own metadata instead of the inherited search parent', async () => {
     const onFullscreen = () => {};
-    for (const type of ['website', 'web-website']) {
+    for (const type of ['website', 'web-website', 'search_result']) {
       const resolved = await embedPreviewRegistry.resolve({
         embedId: 'website-child',
         embedData: { type, status: 'finished', app_id: 'web', skill_id: 'search' },

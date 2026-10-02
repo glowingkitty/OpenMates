@@ -1,5 +1,6 @@
 /** Chatless Apps result graphs using the normal encrypted embed store. */
 import { getApiEndpoint } from "../config/api";
+import { appsResultRequestFields } from "../utils/appsResultRequestFields";
 import { EMBED_CHILD_TYPE_MAP } from "../data/embedRegistry.generated";
 import { get } from "svelte/store";
 import { userProfile } from "../stores/userProfile";
@@ -682,7 +683,7 @@ export async function retainAppsResult(args: RetainAppsResultInput): Promise<str
     acceptedTaskIds = Array.from(new Set(acceptedTaskIds));
   }
   const rootContent = {
-    ...(args.input && typeof args.input === "object" && !Array.isArray(args.input) ? args.input : {}),
+    ...appsResultRequestFields(args.input),
     ...responseMetadata,
     app_id: args.appId, skill_id: args.skillId, input: args.input,
     ...(acceptedTaskIds.length ? { task_ids: acceptedTaskIds } : {}),

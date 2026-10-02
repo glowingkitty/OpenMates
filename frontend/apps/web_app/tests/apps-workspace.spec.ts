@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-require-imports -- Playwright helpers expose CommonJS exports. */
 /** Browser contracts for public Apps navigation, schema forms, and guest admission. */
 export {};
+import { assertGuestHeaderControlsSeparated } from './helpers/header-layout';
 const { expect, test } = require('./helpers/cookie-audit');
 const { loginToTestAccount, submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
 const { deriveApiUrl } = require('./helpers/cli-test-helpers');
@@ -12,10 +13,11 @@ type SkillFixture = {
   name: string;
   primary_fields: string[];
   anonymous_allowed: boolean;
+  requestEnvelope?: boolean;
 };
 
 async function fixtureSkillDetails(page: any, fixture: SkillFixture): Promise<void> {
-  const { app_id, skill_id, name, primary_fields, anonymous_allowed } = fixture;
+  const { app_id, skill_id, name, primary_fields, anonymous_allowed, requestEnvelope } = fixture;
   await page.route(`**/v1/apps/${app_id}/skills/${skill_id}/details`, async (route: any) => {
     await route.fulfill({
       status: 200,
@@ -29,7 +31,16 @@ async function fixtureSkillDetails(page: any, fixture: SkillFixture): Promise<vo
         description: `${name} fixture description`,
         description_translation_key: `${app_id}.${skill_id}.description`,
         icon_image: null,
-        input_schema: {
+        input_schema: requestEnvelope ? {
+          type: 'object', required: ['requests'], properties: { requests: {
+            type: 'array', minItems: 1, 'x-ui': { basic: true }, items: {
+              type: 'object', required: ['query'], properties: {
+                query: { type: 'string', title: 'Query', minLength: 1, 'x-ui': { basic: true } },
+                count: { type: 'integer', title: 'Count', default: 10, minimum: 1, maximum: 20, 'x-ui': { basic: true } },
+              },
+            },
+          } },
+        } : {
           type: 'object',
           properties: {
             query: { type: 'string', title: 'Query', minLength: 1 },
@@ -38,8 +49,8 @@ async function fixtureSkillDetails(page: any, fixture: SkillFixture): Promise<vo
           },
           required: ['query'],
         },
-        primary_fields,
-        defaults: { location: 'Berlin', limit: 5 },
+        primary_fields: requestEnvelope ? ['requests[].query', 'requests[].count'] : primary_fields,
+        defaults: requestEnvelope ? { requests: [{ count: 10 }] } : { location: 'Berlin', limit: 5 },
         pricing: null,
         providers: [],
         models: [],
@@ -209,11 +220,8 @@ test.describe('Apps workspace', () => {
       const login = page.getByTestId('header-login-signup-btn');
       await expect(login).toBeVisible();
       await expect(login).toContainText(/Login|Sign\s*up/i);
-      const selectorBounds = await selector.boundingBox();
-      const loginBounds = await login.boundingBox();
-      const profileBounds = await page.getByTestId('profile-container').boundingBox();
-      expect(selectorBounds.x + selectorBounds.width).toBeLessThanOrEqual(loginBounds.x);
-      expect(loginBounds.x + loginBounds.width).toBeLessThanOrEqual(profileBounds.x);
+      await expect(selector).toBeVisible();
+      await assertGuestHeaderControlsSeparated(page, true);
       const appsUrl = page.url();
       await login.click();
       const signupLayer = page.locator('.apps-auth-layer');
@@ -296,7 +304,7 @@ test.describe('Apps workspace', () => {
       skillPosts += 1;
       expect(request.request().postDataJSON().query).toBe('gpt 6 astra');
       return request.fulfill({ json: { success: true, data: { results: [{ id: 'request-1', results: [{
-        title: 'Saved search after login', url: 'https://example.test/apps/login-return',
+        type: 'search_result', title: 'Saved search after login', url: 'https://example.test/apps/login-return',
         description: 'Safe result fixture after authentication.',
       }] }] } } });
     });
@@ -665,12 +673,13 @@ test.describe('Apps workspace', () => {
     await loginToTestAccount(page, () => {}, async () => {});
     await fixtureSkillDetails(page, {
       app_id: 'web', skill_id: 'search', name: 'Search web',
-      primary_fields: ['query'], anonymous_allowed: false,
+      primary_fields: ['query'], anonymous_allowed: false, requestEnvelope: true,
     });
 
     const marker = `apps-retention-${Date.now()}`;
     const query = `Accessible museums ${marker}`;
     const results = Array.from({ length: 25 }, (_, index) => ({
+      type: 'search_result',
       title: `Fixture page ${index + 1} ${marker}`,
       url: `https://example.test/apps/${marker}/${index + 1}`,
       description: `Safe fixture result ${index + 1} for ${marker}`,
@@ -689,11 +698,11 @@ test.describe('Apps workspace', () => {
     const skillGate = new Promise<void>(resolve => { releaseSkill = resolve; });
     await page.route('**/v1/apps/web/skills/search', async (route: any) => {
       expect(route.request().method()).toBe('POST');
-      expect(route.request().postDataJSON().query).toBe(query);
+      expect(route.request().postDataJSON().requests[0].query).toBe(query);
       await skillGate;
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
         success: true, data: {
-          query, provider: 'Fixture Search',
+          provider: 'Fixture Search',
           results: [{ id: 'request-1', results }],
         },
       }) });

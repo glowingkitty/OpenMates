@@ -94,8 +94,7 @@
         !switcher?.offsetWidth ||
         !cta?.offsetWidth ||
         !left ||
-        !right ||
-        getComputedStyle(cta).visibility === "hidden"
+        !right
       ) return;
       const switcherBox = switcher.getBoundingClientRect();
       node.classList.toggle(
@@ -550,7 +549,7 @@
     </div>
   {:then}
     <div class="container">
-      <nav class:webapp={context === "webapp"} use:fitGuestHeader={isSignedOut}>
+      <nav class:webapp={context === "webapp"} use:fitGuestHeader={isSignedOut && !$loginInterfaceOpen && !$introBannerVisible}>
         <div class="left-section">
           <!-- Menu button container - always rendered to maintain header height -->
           <!-- Show menu button for both authenticated and non-authenticated users (to access demo chats) -->

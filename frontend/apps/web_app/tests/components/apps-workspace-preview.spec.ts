@@ -6,6 +6,7 @@ import type { Locator, Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { waitForComponentPreview } from '../helpers/component-preview';
+import { assertGuestHeaderControlsSeparated } from '../helpers/header-layout';
 
 const { expect, test } = require('../helpers/cookie-audit');
 
@@ -79,6 +80,15 @@ async function attachWorkspaceScreenshot(page: Page, name: string): Promise<void
 }
 
 test.describe('Apps bare component previews', () => {
+  // contract-test: supporting surface=gui.web assertions=apps.results.web-retained-graph,apps.presentation.shared-detail-and-recency
+  test('saved native request envelopes supply the regular collection fullscreen query', async ({ page }: { page: Page }) => {
+    await page.goto(preview('apps/AppsResultFullscreen', 390, 'legacyRequest'), { waitUntil: 'domcontentloaded' });
+    await waitForComponentPreview(page);
+    await expect(page.getByTestId('embed-header-title')).toContainText('Saved native request');
+    const closed = page.evaluate(() => new Promise<void>(resolve => window.addEventListener('apps-result-preview-close', () => resolve(), { once: true })));
+    await page.getByTestId('embed-minimize').click();
+    await closed;
+  });
   // contract-test: supporting surface=gui.web assertions=apps.results.web-retained-graph
   test('a saved failed request remains a truthful failure rather than an unavailable empty search', async ({ page }: { page: Page }) => {
     await page.goto(preview('apps/AppsResultFullscreen', 390, 'failedRequest'), { waitUntil: 'domcontentloaded' });
@@ -218,12 +228,29 @@ test.describe('Apps bare component previews', () => {
       await expect(login).toContainText(/Login|Sign\s*up/i);
       await login.focus();
       await expect(login).toBeFocused();
-      const selectorBounds = await selector.boundingBox();
-      const loginBounds = await login.boundingBox();
-      expect(selectorBounds!.x + selectorBounds!.width).toBeLessThanOrEqual(loginBounds!.x);
+      await assertGuestHeaderControlsSeparated(page);
       await expectContainedInPreview(page, login);
       await expectNoHorizontalOverflow(page);
       await attachWorkspaceScreenshot(page, `guest-header-${width}.png`);
+    }
+  });
+
+  // contract-test: supporting surface=gui.web assertions=apps.discovery.public-catalog,workspace-shell.nav.released-surfaces-visible
+  test('restores separated phone header controls when the guest CTA becomes visible again', async ({ page }: { page: Page }) => {
+    for (const width of [390, 320]) {
+      await page.setViewportSize({ width, height: 844 });
+      await page.goto(preview('Header', width, 'guestCtaToggle'), { waitUntil: 'domcontentloaded' });
+      await waitForComponentPreview(page);
+      const login = page.getByTestId('header-login-signup-btn');
+      const toggle = page.getByTestId('sidebar-toggle');
+      await expect(login).toBeVisible();
+      await toggle.click();
+      await expect(login).toBeHidden();
+      await toggle.click();
+      await expect(login).toBeVisible();
+      await assertGuestHeaderControlsSeparated(page);
+      await expectNoHorizontalOverflow(page);
+      await attachWorkspaceScreenshot(page, `restored-guest-header-${width}.png`);
     }
   });
 

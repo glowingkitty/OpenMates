@@ -4,6 +4,7 @@
   import { userProfile } from '../../stores/userProfile';
   import { resolveEmbed, decodeToonContent, type EmbedData } from '../../services/embedResolver';
   import { getAppsResult } from '../../services/appsWorkspaceResultsService';
+  import { appsResultPresentationContent } from '../../utils/appsResultRequestFields';
   import { resolveRegistryKey, hasFullscreenComponent, loadFullscreenComponent } from '../../services/embedFullscreenResolver';
   import UnifiedEmbedFullscreen from '../embeds/UnifiedEmbedFullscreen.svelte';
   import type { SkillStoreExampleFullscreen } from '../../stores/skillStoreExampleFullscreenStore';
@@ -25,7 +26,7 @@
     void (async () => {
       try {
         if (exampleData) {
-          decodedContent = exampleData.decodedContent;
+          decodedContent = appsResultPresentationContent(exampleData.decodedContent);
           data = { embed_id: embedId, type: 'app-skill-use', status: exampleData.decodedContent.status === 'error' ? 'error' : 'finished', content: JSON.stringify(exampleData.decodedContent), createdAt: Date.now(), updatedAt: Date.now() };
           return;
         }
@@ -33,7 +34,7 @@
         const resolved = await resolveEmbed(embedId);
         if (!resolved) throw new Error('RESULT_UNAVAILABLE');
         const decoded = await decodeToonContent(resolved.content);
-        if (!cancelled) { data = resolved; decodedContent = decoded; }
+        if (!cancelled) { data = resolved; decodedContent = decoded ? appsResultPresentationContent(decoded) : null; }
       } catch { if (!cancelled) error = true; }
     })();
     return () => { cancelled = true; };

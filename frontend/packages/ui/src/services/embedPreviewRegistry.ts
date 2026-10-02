@@ -1,5 +1,6 @@
-import { normalizeEmbedType } from '../data/embedRegistry.generated';
+import { EMBED_CHILD_TYPE_MAP, normalizeEmbedType } from '../data/embedRegistry.generated';
 import { searchResultImageUrl } from '../utils/searchPreviewImages';
+import { appsResultPresentationContent } from '../utils/appsResultRequestFields';
 
 /**
  * embedPreviewRegistry.ts
@@ -985,6 +986,14 @@ function deriveKey(ctx: EmbedPreviewContext): string | null {
   // the concrete embed type so child route/place cards don't render as parent searches.
   if (type && type !== "app-skill-use" && resolvers.has(type)) return type;
 
+  // Provider response labels (e.g. Brave's `search_result`) are not embed
+  // renderer types. Use the same catalog child mapping as fullscreen routing,
+  // including for already-saved graphs carrying those provider labels.
+  if (type && type !== "app-skill-use" && appId && skillId) {
+    const childType = normalizeEmbedType(EMBED_CHILD_TYPE_MAP[`${appId}:${skillId}`] ?? "");
+    if (childType && resolvers.has(childType)) return childType;
+  }
+
   // 1. Specific app:skill key
   if (appId && skillId) {
     const appSkillKey = `app:${appId}:${skillId}`;
@@ -1025,6 +1034,7 @@ function deriveKey(ctx: EmbedPreviewContext): string | null {
 async function resolve(
   ctx: EmbedPreviewContext,
 ): Promise<{ component: unknown; props: Record<string, unknown> } | null> {
+  ctx = { ...ctx, decodedContent: appsResultPresentationContent(ctx.decodedContent) };
   const key = deriveKey(ctx);
 
   if (!key) {
