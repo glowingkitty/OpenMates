@@ -9,16 +9,31 @@
  */
 
 import type { ExampleChatConversation, ExampleChatListItem } from "./exampleChats.js";
-import type { WorkflowDetail, WorkflowNode, WorkflowNodeRun, WorkflowRunDetail, WorkflowSummary } from "./client.js";
-import { openMatesAsciiLogo } from "./branding.js";
-import { taskIdentityDisplayName, type DecryptedUserTask } from "./tasksCli.js";
+import { parseEmbedContentObject, type DailyInspiration, type DecryptedEmbed, type ChatListItem, type UserTaskStatus, type WorkflowDetail, type WorkflowGraph, type WorkflowRunDetail, type WorkflowSummary } from "./client.js";
+import { APP_GRADIENTS, PRIMARY_GRADIENT } from "../../appGradientTheme.js";
+import { type DecryptedUserTask } from "./tasksCli.js";
+import type { TuiForm } from "./tuiForms.js";
+import type { TuiProject, TuiProjectFile } from "./tuiProjectsWorkspace.js";
+import { renderProjectList, renderProjectDetail, renderProjectIdentity, renderProjectTabs, filteredProjectFiles } from "./tuiProjectsWorkspace.js";
+import { renderTaskBoard, renderTaskDetails, filterTasks, type TaskContext } from "./tuiTasksWorkspace.js";
+import { renderWorkflowWorkspace, renderWorkflowPreviewCard, renderWorkflowIdentity } from "./tuiWorkflowWorkspace.js";
+import { renderWorkspaceFrame } from "./tuiLayout.js";
+import { cells, wrapCells, truncateCells, type TuiColorMode, type TuiLine } from "./tuiText.js";
+import { homeHeader, renderHomeChatCards } from "./tuiHome.js";
+import { visibleTuiApps, renderTuiAppsHome, renderTuiApp, renderTuiAppIdentity, renderTuiAppTabs, renderTuiAppsSkill, renderTuiAppsSkillIdentity, renderTuiAppsSkillTabs, renderTuiAppsResults, renderTuiAppsResult, renderTuiAppsWorkflows,
+  type TuiApp, type TuiAppsTab, type TuiAppsSkillTab, type TuiAppsSkillDetails, type TuiAppsResultsPage, type TuiAppsSavedResult, type TuiAppsPreparedRun, type TuiAppsWorkflowPage } from "./tuiAppsWorkspace.js";
+import { parseMessageSegments } from "./messageSegments.js";
+import { formatEmbedPreviewLines } from "./embedRenderers.js";
 
-export type TuiScreen = "start" | "help" | "interests" | "examples" | "example" | "chat" | "embed" | "workflows" | "workflow" | "tasks" | "task" | "status";
+export type TuiScreen = "start" | "help" | "interests" | "examples" | "example" | "chats" | "chat" | "embed" | "apps" | "app" | "app-skill" | "app-result" | "projects" | "project" | "workflows" | "workflow" | "tasks" | "task" | "status";
+export type TuiWorkspace = "chats" | "apps" | "projects" | "tasks" | "workflows";
+export type TuiFocus = "composer" | "content" | "inspiration" | "sidebar" | "navigation";
 
 export type TuiMessage = {
   role: "user" | "assistant" | "system";
   content: string;
   title?: string | null;
+  embedIds?: string[];
 };
 
 export type TuiWorkflowEdit = {
@@ -28,6 +43,57 @@ export type TuiWorkflowEdit = {
 };
 
 export type TuiState = {
+  username: string | null;
+  inspirations: DailyInspiration[];
+  inspirationIndices: Partial<Record<TuiWorkspace,number>>;
+  homeLoading: boolean;
+  homeError: string | null;
+  homeLoadVersion: number;
+  homeShowAll: boolean;
+  apps: TuiApp[];
+  activeApp: TuiApp | null;
+  activeAppSkill: TuiAppsSkillDetails | null;
+  appTab: TuiAppsTab;
+  appSkillTab: TuiAppsSkillTab;
+  appResults: TuiAppsResultsPage;
+  appWorkflows: TuiAppsWorkflowPage;
+  activeAppResult: TuiAppsSavedResult | null;
+  appPreparedRun: TuiAppsPreparedRun | null;
+  workspace: TuiWorkspace;
+  sidebarOpen: boolean;
+  sidebarIndex: number;
+  navigationIndex: number;
+  focus: TuiFocus;
+  signedIn: boolean;
+  form: TuiForm | null;
+  paletteOpen: boolean;
+  paletteQuery: string;
+  paletteIndex: number;
+  filter: string;
+  taskStatusFilter: string;
+  taskContext: TaskContext | null;
+  recentChats: ChatListItem[];
+  activeChatId: string | null;
+  activeChat: ChatListItem | null;
+  headerState: "new" | "loading" | "ready" | "error";
+  headerError: string | null;
+  followUpSuggestions: string[];
+  drafts: Record<string, string>;
+  routeVersion: number;
+  inputCursor: number | null;
+  aiTaskId: string | null;
+  detailTitle: string;
+  detailLines: string[];
+  projects: TuiProject[];
+  activeProject: TuiProject | null;
+  projectFiles: TuiProjectFile[];
+  projectTab: "overview" | "files" | "tasks";
+  projectPath: string;
+  projectFolderId: string | null;
+  projectSourceId: string | null;
+  selectedProjectId: string | null;
+  workflowRunGraph: WorkflowGraph | null;
+  workflowInputSessionId: string | null;
   screen: TuiScreen;
   input: string;
   scrollOffset: number;
@@ -51,7 +117,6 @@ export type TuiState = {
   isBusy: boolean;
 };
 
-const MIN_WIDTH = 48;
 const CONTENT_PREVIEW_LINES = 12;
 
 export const TUI_INTERESTS = [
@@ -71,6 +136,17 @@ export const TUI_INTERESTS = [
 
 export function createInitialTuiState(): TuiState {
   return {
+    username:null,inspirations:[],inspirationIndices:{},homeLoading:false,homeError:null,homeLoadVersion:0,homeShowAll:false,
+    apps:[],activeApp:null,activeAppSkill:null,appTab:"skills",appSkillTab:"overview",appResults:{items:[],hasMore:false,offset:0},
+    appWorkflows:{items:[],hasMore:false,offset:0},activeAppResult:null,appPreparedRun:null,
+    workspace: "chats", sidebarOpen: false, sidebarIndex: 0, navigationIndex: 0,
+    focus: "composer", signedIn: false, form: null, paletteOpen: false,
+    paletteQuery: "", paletteIndex: 0, filter: "", taskStatusFilter: "",
+    taskContext: null, recentChats: [], activeChatId: null, activeChat: null,
+    headerState: "new", headerError: null, followUpSuggestions: [], drafts: {}, routeVersion: 0, inputCursor: null, aiTaskId: null,
+    detailTitle: "", detailLines: [], projects: [], activeProject: null,
+    projectFiles: [], projectTab: "overview", projectPath: "", projectFolderId: null, projectSourceId: null, selectedProjectId: null,
+    workflowRunGraph: null,workflowInputSessionId:null,
     screen: "start",
     input: "",
     scrollOffset: 0,
@@ -147,29 +223,28 @@ export function rankExamples(
     .map((entry) => entry.example);
 }
 
-export function renderTuiFrame(state: TuiState, width: number, height: number): string {
-  const safeWidth = Math.max(MIN_WIDTH, width);
-  const safeHeight = Math.max(12, height);
-  const innerWidth = safeWidth - 4;
-  const header = topBorder(safeWidth);
-  const footer = bottomBorder(safeWidth);
-  const contentHeight = safeHeight - 4;
-  const body = renderBody(state, innerWidth);
-  const visible = sliceForScroll(body, contentHeight, state.scrollOffset, state.screen === "chat");
-  const inputLine = state.screen === "interests" || state.screen === "examples" || state.screen === "workflows" || state.screen === "workflow" || state.screen === "tasks" || state.screen === "task"
-    ? renderHintLine(state, innerWidth)
-    : `> ${state.input || inputPlaceholder(state)}`;
-  const lines = [
-    header,
-    ...padLines(visible, contentHeight, innerWidth).map((line) => boxed(line, innerWidth)),
-    separator(safeWidth),
-    boxed(truncateVisible(inputLine, innerWidth), innerWidth),
-    footer,
-  ];
-  return lines.join("\n");
+export function renderTuiFrame(state: TuiState, width: number, height: number, options: { colorMode?: TuiColorMode; ascii?: boolean } = {}): string {
+  const sidebarWidth = state.sidebarOpen && width >= 90 ? 27 : 0;
+  const bodyWidth = Math.max(1, width - 4 - sidebarWidth);
+  const stickyRows=state.screen==="project"&&state.activeProject?renderProjectIdentity(state.activeProject,{width:bodyWidth}).length+renderProjectTabs(state.projectTab,bodyWidth).length:
+    state.screen==="app"&&state.activeApp?renderTuiAppIdentity(state.activeApp,bodyWidth).length+renderTuiAppTabs(state.appTab,bodyWidth).length:
+    state.screen==="app-skill"&&state.activeAppSkill?renderTuiAppsSkillIdentity(state.activeAppSkill,bodyWidth).length+renderTuiAppsSkillTabs(state.appSkillTab,bodyWidth).length:
+    state.screen==="workflow"&&state.activeWorkflow?renderWorkflowIdentity(state.activeWorkflow,{width:bodyWidth,run:state.workflowTab==="runs"?state.workflowRuns[state.selectedWorkflowRunIndex]:undefined}).length+(bodyWidth<36?7:4):0;
+  return renderWorkspaceFrame(state, width, height, renderBody(state, bodyWidth,height), { ...options,stickyRows, headerRows: state.screen === "chat" || state.screen === "example" ? renderChatHeader(state, bodyWidth).length : undefined });
 }
 
-function renderBody(state: TuiState, width: number): string[] {
+function coloredHero(lines:string[],rows:number,gradient=PRIMARY_GRADIENT):TuiLine[]{return lines.map((text,index)=>index<rows?{text,gradient,row:index,rows}:text);}
+const blueHero=(lines:string[],rows:number)=>coloredHero(lines,rows);
+/** Keep each stacked home card centered and independently colored. */
+function homeCards(lines:string[],width:number,gradients:Array<{start:string;end:string}>):TuiLine[] {
+  const groups:string[][]=[[]];
+  for(const line of lines){if(line===""){if(groups.at(-1)!.length)groups.push([]);}else groups.at(-1)!.push(line);}
+  return groups.filter((group)=>group.length).flatMap((group,index)=>{
+    const cardWidth=Math.min(width,Math.max(...group.map(cells))),inset=Math.max(0,Math.floor((width-cardWidth)/2));
+    return [...group.map((text,row)=>({text,gradient:gradients[index]??PRIMARY_GRADIENT,inset,row,rows:group.length})),""];
+  });
+}
+function renderBody(state: TuiState, width: number,height:number): TuiLine[] {
   switch (state.screen) {
     case "help":
       return renderHelp(width);
@@ -181,42 +256,49 @@ function renderBody(state: TuiState, width: number): string[] {
       return renderExampleChat(state, width);
     case "chat":
       return renderChat(state, width);
+    case "chats":
+      return renderHomeChatCards(state,width,height);
+    case "apps": {
+      const apps=visibleTuiApps(state.apps,state.filter),visible=state.homeShowAll||state.filter?apps:apps.slice(0,Math.max(6,state.selectedIndex+1));
+      return [...homeHeader(state,width,height),...homeCards(renderTuiAppsHome(visible,{width:Math.min(width,88),selectedId:state.focus==="content"?apps[state.selectedIndex]?.id:undefined}),width,visible.map((app)=>APP_GRADIENTS[app.id]??PRIMARY_GRADIENT)),"Show all  ·  /search Search apps"];
+    }
+    case "app": {
+      const app=state.activeApp;if(!app)return ["Loading app…"];
+      const header=renderTuiAppIdentity(app,width),gradient=APP_GRADIENTS[app.id]??PRIMARY_GRADIENT;
+      if(state.appTab==="embeds"||state.appTab==="workflows")return [...coloredHero(header,header.length,gradient),...renderTuiAppTabs(state.appTab,width),
+        ...state.appTab==="embeds"?renderTuiAppsResults(state.appResults,{width,selectedId:state.appResults.items[state.selectedIndex]?.embedId}):renderTuiAppsWorkflows(state.appWorkflows,{width,selectedId:state.appWorkflows.items[state.selectedIndex]?.id})];
+      return coloredHero(renderTuiApp(app,{width,tab:state.appTab,selectedId:state.activeApp.skills[state.selectedIndex]?.id}),header.length,gradient);
+    }
+    case "app-skill": {
+      const skill=state.activeAppSkill;if(!skill)return ["Loading skill…"];
+      const header=renderTuiAppsSkillIdentity(skill,width),gradient=APP_GRADIENTS[skill.appId]??PRIMARY_GRADIENT;
+      if(state.appSkillTab==="embeds"||state.appSkillTab==="workflows")return [...coloredHero(header,header.length,gradient),...renderTuiAppsSkillTabs(state.appSkillTab,width),
+        ...state.appSkillTab==="embeds"?renderTuiAppsResults(state.appResults,{width,selectedId:state.appResults.items[state.selectedIndex]?.embedId}):renderTuiAppsWorkflows(state.appWorkflows,{width,selectedId:state.appWorkflows.items[state.selectedIndex]?.id})];
+      return coloredHero(renderTuiAppsSkill(skill,{width,tab:state.appSkillTab}),header.length,gradient);
+    }
+    case "app-result": return state.activeAppResult ? renderTuiAppsResult(state.activeAppResult,width):["Loading saved result…"];
+    case "projects":
+      return [...homeHeader(state,width,height),...homeCards(renderProjectList(state.projects, { width, selectedId: state.projects.filter((p) => `${p.name} ${p.description}`.toLowerCase().includes(state.filter.toLowerCase()))[state.selectedIndex]?.id, query: state.filter }),width,[])];
+    case "project":
+      return state.activeProject ? state.projectTab === "tasks"
+        ? [...blueHero(renderProjectIdentity(state.activeProject,{width}),renderProjectIdentity(state.activeProject,{width}).length),...renderProjectTabs("tasks",width),"",...renderTaskBoard(state.tasks, { width, selectedTaskId: filterTasks(state.tasks, state.filter)[state.selectedIndex]?.taskId, query: state.filter })]
+        : blueHero(renderProjectDetail(state.activeProject, { width, tab: state.projectTab, files: state.projectFiles, selectedFileId: filteredProjectFiles(state.projectFiles,state.filter)[state.selectedIndex]?.id, query: state.filter, folderId:state.projectFolderId??undefined, sourceId:state.projectSourceId??undefined, path:state.projectPath }),renderProjectIdentity(state.activeProject,{width}).length) : ["Projects", "Loading project…"];
     case "status":
       return renderStatus(state, width);
     case "embed":
-      return renderStatus(state, width);
+      return [state.detailTitle || "Embed", "", ...state.detailLines].flatMap((line) => wrap(line, width));
     case "workflows":
-      return renderWorkflows(state, width);
+      return [...homeHeader(state,width,height),...homeCards(state.workflows.filter((w)=>w.title.toLowerCase().includes(state.filter.toLowerCase())).flatMap((w,i)=>[...renderWorkflowPreviewCard(w,{width:Math.min(width,88),selected:state.focus==="content"&&i===state.selectedIndex}),""]),width,[]),"Show my workflows  ·  /search Search"];
     case "workflow":
       return renderWorkflowDetail(state, width);
     case "tasks":
-      return renderTasks(state, width);
+      return [...homeHeader(state,width,height),...renderTasks(state, width)];
     case "task":
       return renderTaskDetail(state, width);
     case "start":
     default:
-      return renderStart(width);
+      return renderHomeChatCards(state,width,height);
   }
-}
-
-function renderStart(width: number): string[] {
-  return [
-    "",
-    ...openMatesAsciiLogo(width),
-    "",
-    "AI team mates.",
-    "For everyday tasks & learning.",
-    "With privacy & safety by design.",
-    "",
-    "Type a message to start chatting.",
-    "Check example chats via /examples",
-    "",
-    "File references:",
-    "Type @./notes.md, @~/Downloads/report.pdf, or @src/app.ts in your message.",
-    "Images, PDFs, audio, and code files are attached as encrypted embeds when you are signed in.",
-    "",
-    "Shortcuts: /help  /login  /signup  /examples  /tasks  /exit",
-  ].flatMap((line) => wrap(line, width));
 }
 
 function renderHelp(width: number): string[] {
@@ -249,46 +331,12 @@ function renderHelp(width: number): string[] {
 }
 
 function renderTasks(state: TuiState, width: number): string[] {
-  const lines = ["Tasks", ""];
-  if (state.tasks.length === 0) {
-    lines.push("No tasks found.", "Create one outside TUI with: openmates tasks create --title <title>");
-    return lines.flatMap((line) => wrap(line, width));
-  }
-  const visibleCount = Math.max(1, CONTENT_PREVIEW_LINES);
-  const start = Math.max(0, Math.min(state.selectedIndex, state.tasks.length - visibleCount));
-  for (let i = 0; i < state.tasks.slice(start, start + visibleCount).length; i += 1) {
-    const absoluteIndex = start + i;
-    const task = state.tasks[absoluteIndex];
-    const cursor = absoluteIndex === state.selectedIndex ? ">" : " ";
-    const assignee = taskIdentityDisplayName(task.assigneeIdentity) ?? (task.assigneeHash ?? task.assigneeType);
-    lines.push(`${cursor} ${task.shortId}  ${task.status}  ${assignee}  ${task.title}`);
-    if (task.queueState !== "none") lines.push(`    queue: ${task.queueState}`);
-    if (task.description) lines.push(`    ${task.description}`);
-    lines.push("");
-  }
-  return lines.flatMap((line) => wrap(line, width));
+  return renderTaskBoard(state.tasks, { width, selectedTaskId: filterTasks(state.tasks, state.filter, (state.taskStatusFilter || undefined) as UserTaskStatus | undefined)[state.selectedIndex]?.taskId, query: state.filter, status: (state.taskStatusFilter || undefined) as UserTaskStatus | undefined });
 }
 
 function renderTaskDetail(state: TuiState, width: number): string[] {
-  const task = state.activeTask;
-  if (!task) return renderTasks(state, width);
-  const assignee = taskIdentityDisplayName(task.assigneeIdentity) ?? (task.assigneeHash ?? task.assigneeType);
-  const lines = [
-    `Task: ${task.shortId}`,
-    `Title: ${task.title}`,
-    `Status: ${task.status}`,
-    `Assignee: ${assignee}`,
-    `Queue: ${task.queueState}`,
-    `ID: ${task.taskId}`,
-    task.description ? `Description: ${task.description}` : null,
-    task.primaryChatId ? `Chat: ${task.primaryChatId}` : null,
-    task.linkedProjectIds.length > 0 ? `Projects: ${task.linkedProjectIds.join(", ")}` : null,
-    task.blockedReasonCode ? `Blocked reason: ${task.blockedReasonCode}` : null,
-    task.aiExecutionState ? `AI state: ${task.aiExecutionState}` : null,
-    "",
-    "Actions: c create, e edit, x delete, r reorder, s start, d done, b block, u unblock, k skip, Esc back",
-  ].filter((line): line is string => line !== null);
-  return lines.flatMap((line) => wrap(line, width));
+  if (!state.activeTask) return renderTasks(state, width);
+  return renderTaskDetails(state.activeTask, { width, activity: state.taskContext?.activity, dependencies: state.taskContext?.dependencies });
 }
 
 function renderWorkflows(state: TuiState, width: number): string[] {
@@ -313,96 +361,17 @@ function renderWorkflows(state: TuiState, width: number): string[] {
   return lines.flatMap((line) => wrap(line, width));
 }
 
-function renderWorkflowDetail(state: TuiState, width: number): string[] {
-  const workflow = state.activeWorkflow;
-  if (!workflow) return renderWorkflows(state, width);
-  const graphNodes = workflow.graph?.nodes ?? [];
-  const selectedRun = state.workflowRuns[state.selectedWorkflowRunIndex] ?? null;
-  const lines = [
-    `Workflow: ${workflow.title}`,
-    `ID: ${workflow.id}`,
-    `Status: ${workflow.enabled ? "enabled" : "disabled"}`,
-    workflow.trigger_summary ? `Trigger: ${workflow.trigger_summary}` : null,
-    workflow.next_run_at ? `Next run: ${formatTimestamp(workflow.next_run_at)}` : null,
-    workflow.last_run_status ? `Last run: ${workflow.last_run_status}` : null,
-    "",
-    state.workflowTab === "graph" ? "[Graph]  Runs" : "Graph  [Runs]",
-    "",
-  ].filter((line): line is string => line !== null);
-  if (state.workflowTab === "runs") {
-    lines.push(...renderRunSelector(state, width), "");
-    if (selectedRun) {
-      lines.push(`Run graph: ${selectedRun.id} (${selectedRun.status})`);
-      lines.push(...renderWorkflowGraph({ nodes: graphNodes, state, width, run: selectedRun }));
-    } else {
-      lines.push("No runs yet.");
-    }
-  } else {
-    lines.push("Graph");
-    lines.push(...renderWorkflowGraph({ nodes: graphNodes, state, width, run: null }));
-    if (state.workflowEdit) lines.push("", `Editing ${state.workflowEdit.field}: ${state.workflowEdit.value}`);
-  }
+function renderWorkflowDetail(state: TuiState, width: number): TuiLine[] {
+  if (!state.activeWorkflow) return renderWorkflows(state, width);
+  const lines = renderWorkflowWorkspace(state.activeWorkflow, {
+    width, tab: state.workflowTab, selectedNodeIndex: state.selectedWorkflowNodeIndex,
+    expandedNodeId: state.workflowTab === "runs" ? state.expandedWorkflowRunNodeId : state.expandedWorkflowNodeId,
+    run: state.workflowRuns[state.selectedWorkflowRunIndex], runs: state.workflowRuns,
+    selectedRunIndex: state.selectedWorkflowRunIndex, runGraph: state.workflowRunGraph ?? (state.workflowRuns[state.selectedWorkflowRunIndex]?.version_id === state.activeWorkflow.current_version_id ? state.activeWorkflow.graph : undefined),
+    edit: state.workflowEdit ?? undefined,
+  });
   if (state.status) lines.push("", state.status);
-  return lines.flatMap((line) => wrap(line, width));
-}
-
-function renderRunSelector(state: TuiState, width: number): string[] {
-  if (state.workflowRuns.length === 0) return ["Runs", "No runs yet."];
-  const lines = ["Runs"];
-  const visibleRuns = state.workflowRuns.slice(0, 5);
-  for (let index = 0; index < visibleRuns.length; index += 1) {
-    const run = visibleRuns[index];
-    const cursor = index === state.selectedWorkflowRunIndex ? ">" : " ";
-    lines.push(`${cursor} ${run.id}  ${run.status}  ${formatTimestamp(run.started_at)}`);
-  }
-  return lines.map((line) => truncateVisible(line, width));
-}
-
-function renderWorkflowGraph(params: {
-  nodes: WorkflowNode[];
-  state: TuiState;
-  width: number;
-  run: WorkflowRunDetail | null;
-}): string[] {
-  const { nodes, state, run } = params;
-  if (nodes.length === 0) return ["No graph nodes available."];
-  const lines: string[] = [];
-  const selectedIndex = state.workflowTab === "runs" ? selectedRunGraphNodeIndex(nodes, state) : state.selectedWorkflowNodeIndex;
-  const expandedId = state.workflowTab === "runs" ? state.expandedWorkflowRunNodeId : state.expandedWorkflowNodeId;
-  const nodeRunsById = new Map((run?.node_runs ?? []).map((nodeRun) => [nodeRun.node_id, nodeRun]));
-  for (let index = 0; index < nodes.length; index += 1) {
-    const node = nodes[index];
-    const nodeRun = nodeRunsById.get(node.id) ?? null;
-    const cursor = index === selectedIndex ? ">" : " ";
-    const status = nodeRun ? ` [${nodeRun.status}]` : "";
-    lines.push(`${cursor} [${nodeTypeLabel(node.type)}] ${node.title ?? cardSummary(node)}${status}`);
-    if (nodeRun?.output_summary) lines.push(`    output: ${summarizeObject(nodeRun.output_summary)}`);
-    if (nodeRun?.error_summary) lines.push(`    error: ${nodeRun.error_summary}`);
-    if (expandedId === node.id) {
-      lines.push(...renderExpandedNode(node, nodeRun));
-    }
-    if (index < nodes.length - 1) lines.push("    |");
-  }
-  return lines;
-}
-
-function selectedRunGraphNodeIndex(nodes: WorkflowNode[], state: TuiState): number {
-  const run = state.workflowRuns[state.selectedWorkflowRunIndex];
-  const nodeRun = run?.node_runs?.find((candidate) => candidate.node_id === state.expandedWorkflowRunNodeId);
-  if (!nodeRun) return Math.min(state.selectedWorkflowNodeIndex, Math.max(0, nodes.length - 1));
-  return Math.max(0, nodes.findIndex((node) => node.id === nodeRun.node_id));
-}
-
-function renderExpandedNode(node: WorkflowNode, nodeRun: WorkflowNodeRun | null): string[] {
-  const lines = [
-    `    id: ${node.id}`,
-    `    type: ${node.type}`,
-  ];
-  if (node.config && Object.keys(node.config).length > 0) lines.push(`    config: ${summarizeObject(node.config)}`);
-  if (node.input_mapping && Object.keys(node.input_mapping).length > 0) lines.push(`    input: ${summarizeObject(node.input_mapping)}`);
-  if (nodeRun?.input_summary) lines.push(`    run input: ${summarizeObject(nodeRun.input_summary)}`);
-  if (nodeRun?.output_summary) lines.push(`    run output: ${summarizeObject(nodeRun.output_summary)}`);
-  return lines;
+  return blueHero(lines,renderWorkflowIdentity(state.activeWorkflow,{width,run:state.workflowTab==="runs"?state.workflowRuns[state.selectedWorkflowRunIndex]:undefined}).length);
 }
 
 function renderInterests(state: TuiState, width: number): string[] {
@@ -443,13 +412,20 @@ function renderExamples(state: TuiState, width: number): string[] {
 function renderExampleChat(state: TuiState, width: number): string[] {
   const convo = state.activeExample;
   if (!convo) return renderExamples(state, width);
+  const embeds = new Map<string, DecryptedEmbed>((convo.embeds ?? []).map((embed) => {
+    const content = parseEmbedContentObject(embed.content);
+    return [embed.embed_id, {id: embed.embed_id, embedId: embed.embed_id, type: embed.type, content, textPreview: null,
+      appId: typeof content.app_id === "string" ? content.app_id : null,
+      skillId: typeof content.skill_id === "string" ? content.skill_id : null, createdAt: null}];
+  }));
   const lines = [
+    ...renderChatHeader(state, width),
     `Example chat: ${convo.chat.title ?? convo.chat.slug}`,
     "",
   ];
   for (const message of convo.messages) {
     lines.push(labelForRole(message.role));
-    lines.push(...renderMessageContent(message.content, width));
+    lines.push(...renderMessageContent(message.content, width, embeds));
     lines.push("");
   }
   if (convo.followUpSuggestions.length > 0) {
@@ -462,15 +438,38 @@ function renderExampleChat(state: TuiState, width: number): string[] {
 }
 
 function renderChat(state: TuiState, width: number): string[] {
-  const lines = ["OpenMates", ""];
+  const lines = renderChatHeader(state, width);
   for (const message of state.messages) {
     lines.push(message.title ?? labelForRole(message.role));
     lines.push(...renderMessageContent(message.content, width));
     lines.push("");
   }
   if (state.isBusy) lines.push("Sophia is typing...");
+  if (state.followUpSuggestions.length) lines.push("", "Suggestions", ...state.followUpSuggestions.slice(0, 3).map((s, i) => `  ${i + 1}. ${s}`));
   if (state.status) lines.push("", state.status);
   return lines.flatMap((line) => wrap(line, width));
+}
+
+export function renderChatHeader(state: TuiState, width: number): string[] {
+  const chat = state.screen === "example" ? state.activeExample?.chat : state.activeChat;
+  const title = state.headerState === "loading" && !chat?.title ? "Creating new chat…"
+    : state.headerState === "error" ? state.headerError || "Could not send message"
+    : chat?.title || (state.messages.length ? "Chat" : "New chat");
+  const category = chat?.category?.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+  const summary = chat?.summary || (state.messages.length ? "" : "What would you like to work on?");
+  const badges = state.screen === "example" ? "Example chat" : state.input && !state.messages.length ? "Draft" : "";
+  const timestamp = chat && "createdAt" in chat ? chat.createdAt : null;
+  const when = timestamp ? `Started ${relativeTime(timestamp)}` : "";
+  const meta = [category, when, badges, state.selectedProjectId && state.activeProject?.name].filter(Boolean).join("  ·  ");
+  return ["", ...wrap(`  ${title}`, width), ...wrap(`  ${summary}`, width).slice(0, 2), meta ? truncateCells(`  ${meta}`, width) : "", ""];
+}
+
+function relativeTime(timestamp: number): string {
+  const seconds = Math.max(0, Math.floor(Date.now() / 1000 - timestamp));
+  if (seconds < 60) return "just now";
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+  return `${Math.floor(seconds / 86400)}d ago`;
 }
 
 function renderStatus(state: TuiState, width: number): string[] {
@@ -478,7 +477,25 @@ function renderStatus(state: TuiState, width: number): string[] {
     .flatMap((line) => wrap(line, width));
 }
 
-export function renderMessageContent(content: string, width: number): string[] {
+export function renderMessageContent(content: string, width: number, embeds: Map<string, DecryptedEmbed> = new Map()): string[] {
+  return parseMessageSegments(content, {preserveCodeFences: true}).flatMap((segment) => {
+    if (segment.type === "text") return renderTextContent(segment.value, width);
+    const meta = segment.meta ?? {};
+    const saved = embeds.get(segment.value);
+    if (saved) {
+      const embed = {...saved, content: {...meta, ...saved.content},
+        appId: saved.appId ?? (typeof meta.app_id === "string" ? meta.app_id : null),
+        skillId: saved.skillId ?? (typeof meta.skill_id === "string" ? meta.skill_id : null)};
+      return formatEmbedPreviewLines(embed, 2).map((line) => line.startsWith("└─") ? `└─ /embed ${embed.embedId}` : line).flatMap((line) => wrap(line, width));
+    }
+    const app = typeof meta.app_id === "string" ? meta.app_id : "Embed";
+    const skill = typeof meta.skill_id === "string" ? `/${meta.skill_id}` : "";
+    const title = [meta.title, meta.name, meta.query].find((value) => typeof value === "string");
+    return [`┌─ ${app}${skill}${title ? ` · ${title}` : ""}`, `└─ /embed ${segment.value}`].flatMap((line) => wrap(line, width));
+  });
+}
+
+function renderTextContent(content: string, width: number): string[] {
   const lines: string[] = [];
   const rawLines = content.replace(/\n{3,}/g, "\n\n").split("\n");
   let inFence = false;
@@ -504,57 +521,6 @@ export function renderMessageContent(content: string, width: number): string[] {
   return lines;
 }
 
-function renderHintLine(state: TuiState, width: number): string {
-  if (state.screen === "interests") return truncateVisible("↑/↓ move   Space select   Enter continue   Esc back", width);
-  if (state.screen === "tasks") return truncateVisible("↑/↓ choose   Enter open   c create   Esc back", width);
-  if (state.screen === "task") return truncateVisible("c create   e edit   x delete   r reorder   s start   d done   b block   u unblock   k skip", width);
-  if (state.screen === "workflows") return truncateVisible("↑/↓ choose   Enter open   Esc back", width);
-  if (state.screen === "workflow" && state.workflowEdit) return truncateVisible("Enter save title   Esc cancel edit", width);
-  if (state.screen === "workflow") return truncateVisible("g graph   r runs   ↑/↓ select   Enter expand   e title   E config   x run   u refresh   c cancel", width);
-  return truncateVisible("↑/↓ choose   Enter open   /search filter   Esc back", width);
-}
-
-function inputPlaceholder(state: TuiState): string {
-  if (state.screen === "example") return "Continue from this example, or ask your own question...";
-  if (state.screen === "chat") return "Ask a follow-up, use @file, or type /help";
-  if (state.screen === "workflow" || state.screen === "workflows" || state.screen === "tasks" || state.screen === "task") return "Use shortcuts below, or type /help";
-  return "Ask anything...";
-}
-
-function nodeTypeLabel(type: string): string {
-  switch (type) {
-    case "manual_trigger": return "manual trigger";
-    case "schedule_trigger": return "schedule";
-    case "app_skill_action": return "app skill";
-    case "send_notification": return "notification";
-    case "ask_user": return "ask user";
-    default: return type.replaceAll("_", " ");
-  }
-}
-
-function cardSummary(node: WorkflowNode): string {
-  const config = node.config ?? {};
-  if (node.type === "app_skill_action") {
-    const app = typeof config.app === "string" ? config.app : "app";
-    const skill = typeof config.skill === "string" ? config.skill : "skill";
-    return `${app}.${skill}`;
-  }
-  if (node.type === "decision") return "If condition";
-  if (node.type === "send_notification") return "Send notification";
-  if (node.type === "ask_user") return "Ask for user input";
-  return node.id;
-}
-
-function formatTimestamp(value?: number | null): string {
-  if (!value) return "-";
-  return new Date(value * 1000).toISOString().replace("T", " ").slice(0, 16);
-}
-
-function summarizeObject(value: Record<string, unknown>): string {
-  const entries = Object.entries(value).slice(0, 3).map(([key, item]) => `${key}=${String(item)}`);
-  return entries.join(", ") || "object";
-}
-
 function interestScore(haystack: string, interest: string): number {
   let score = haystack.includes(interest) ? 10 : 0;
   for (const token of interest.split(/\s+|&/).filter((part) => part.length > 2)) {
@@ -569,49 +535,6 @@ function labelForRole(role: string): string {
   return "Sophia";
 }
 
-function sliceForScroll(lines: string[], height: number, scrollOffset: number, bottomAnchored: boolean): string[] {
-  const maxStart = Math.max(0, lines.length - height);
-  const start = bottomAnchored
-    ? Math.max(0, Math.min(maxStart, maxStart - scrollOffset))
-    : Math.max(0, Math.min(maxStart, scrollOffset));
-  return lines.slice(start, start + height);
-}
-
 function wrap(line: string, width: number): string[] {
-  if (line.length <= width) return [line];
-  const out: string[] = [];
-  let remaining = line;
-  while (remaining.length > width) {
-    const boundary = Math.max(1, remaining.slice(0, width + 1).lastIndexOf(" "));
-    out.push(remaining.slice(0, boundary).trimEnd());
-    remaining = remaining.slice(boundary).trimStart();
-  }
-  out.push(remaining);
-  return out;
-}
-
-function padLines(lines: string[], height: number, width: number): string[] {
-  const padded = [...lines];
-  while (padded.length < height) padded.push("");
-  return padded.slice(0, height).map((line) => truncateVisible(line, width));
-}
-
-function truncateVisible(line: string, width: number): string {
-  return line.length > width ? `${line.slice(0, Math.max(0, width - 1))}…` : line;
-}
-
-function topBorder(width: number): string {
-  return `┌${"─".repeat(width - 2)}┐`;
-}
-
-function separator(width: number): string {
-  return `├${"─".repeat(width - 2)}┤`;
-}
-
-function bottomBorder(width: number): string {
-  return `└${"─".repeat(width - 2)}┘`;
-}
-
-function boxed(line: string, width: number): string {
-  return `│ ${line.padEnd(width)} │`;
+  return wrapCells(line, width);
 }

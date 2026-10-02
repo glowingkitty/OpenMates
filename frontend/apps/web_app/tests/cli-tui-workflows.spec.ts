@@ -12,6 +12,7 @@ const { spawn } = require('child_process');
 const path = require('path');
 
 test.describe('CLI TUI workflows', () => {
+	// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity,workflows.surface.semantic-parity
 	test('keeps the Workflow TUI usable through the built package test harness', async () => {
 		const packageDir = path.resolve(__dirname, '../../../packages/openmates-cli');
 		const result = await runNodeTest(packageDir, [
@@ -19,7 +20,20 @@ test.describe('CLI TUI workflows', () => {
 			'--experimental-strip-types',
 			'--loader',
 			'./tests/loader.mjs',
-			'tests/tuiWorkflowInteraction.test.ts'
+			'tests/tui.test.ts',
+			'tests/tuiExampleContinuation.test.ts',
+			'tests/tuiWorkflowInteraction.test.ts',
+			'tests/tuiWorkspaceInteraction.test.ts',
+			'tests/tuiLayout.test.ts',
+			'tests/tuiTerminal.test.ts',
+			'tests/tuiTasksWorkspace.test.ts',
+			'tests/tuiProjectsWorkspace.test.ts',
+			'tests/tuiWorkflowWorkspace.test.ts',
+			'tests/tuiAttachments.test.ts',
+			'tests/tuiCancellation.test.ts',
+			'tests/tuiWorkflowVersion.test.ts',
+			'tests/tuiAppsWorkspace.test.ts',
+			'tests/tuiHome.test.ts'
 		]);
 
 		expect(

@@ -31,6 +31,8 @@
         "cli-created-account-login.spec.ts",
         "cli-memories.spec.ts",
         "cli-pair-login.spec.ts",
+        "cli-tui-workspace-proof.spec.ts",
+        "cli-tui-workspace-details-proof.spec.ts",
         "cli-workflow-data-branches.spec.ts",
         "cli-workflow-skill-safety.spec.ts",
         "cli-workflow-files.spec.ts",

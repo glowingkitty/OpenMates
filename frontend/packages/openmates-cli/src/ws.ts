@@ -61,6 +61,8 @@ export interface StreamEvent {
   category: string | null;
   /** Human-readable model name. */
   modelName: string | null;
+  /** Server AI task ID, when present in the stream. Used to request cancellation. */
+  taskId?: string;
 }
 
 export type AiResponseTokenUsage = {
@@ -1401,6 +1403,7 @@ export class OpenMatesWsClient {
                 content: latestContent,
                 category,
                 modelName,
+                taskId: taskId ?? undefined,
               });
               scheduleResolve(latestContent);
             } else {
@@ -1409,6 +1412,7 @@ export class OpenMatesWsClient {
                 content: latestContent,
                 category,
                 modelName,
+                taskId: taskId ?? undefined,
               });
             }
             return;
@@ -1435,7 +1439,7 @@ export class OpenMatesWsClient {
               awaitingUnidentifiedAsyncContinuation = true;
               resetTimeout(Math.max(timeoutMs, 20 * 60_000 + 5_000));
             }
-            onStream?.({ kind: "done", content, category, modelName });
+            onStream?.({ kind: "done", content, category, modelName, taskId: taskId ?? undefined });
             scheduleResolve(content);
             return;
           }
@@ -1458,7 +1462,7 @@ export class OpenMatesWsClient {
             if (typeof message.model_name === "string" && message.model_name) {
               modelName = message.model_name;
             }
-            onStream?.({ kind: "done", content, category, modelName });
+            onStream?.({ kind: "done", content, category, modelName, taskId: taskId ?? undefined });
             scheduleResolve(content);
             return;
           }
@@ -1479,6 +1483,7 @@ export class OpenMatesWsClient {
               content: "",
               category,
               modelName,
+              taskId: taskId ?? undefined,
             });
             return;
           }

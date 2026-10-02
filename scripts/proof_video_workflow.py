@@ -455,6 +455,13 @@ def bound_browser_tutorial_plan(
     metadata = spec_demo.video_metadata(source_video)
     profile = spec_demo.resolve_device_profile(device_profile)
     spec_demo.assert_source_device_profile_dimensions(metadata, profile)
+    if device_profile == "cli-terminal":
+        if timeline.get("contract", {}).get("surface") != "cli":
+            raise WorkflowError("CLI proof timeline requires a CLI contract")
+        # The recorder timestamps key checkpoints against the FFmpeg source
+        # clock. It has no Playwright browser frame, so use the generic clean
+        # source-video render with the receipt-bound assertion anchors.
+        return None
     transcript = [c for c in timeline["contract"]["transcript"] if device_profile in c.get("devices", [])]
     first_checkpoint = transcript[0]["checkpoint"]
     checkpoint = next((f for f in timeline.get("checkpoint_frames", []) if f.get("checkpoint") == first_checkpoint), None)
@@ -1794,17 +1801,34 @@ def start_current(spec_name: str, *, run_id: str = "", session_id: str = "") -> 
     codex_task_id = os.environ.get("CODEX_THREAD_ID") or os.environ.get("CODEX_SESSION_ID", "")
     sessions = _load_json(SESSIONS_FILE)
     _session_id, session = resolve_current_session(sessions, codex_task_id=codex_task_id, repository_session_id=session_id)
-    subject_commit = deployed_subject_commit(session)
-    if not subject_commit:
-        require_clean_worktree()
-        subject_commit = _current_git_sha()
     runs = _local_test_runs() + _ci_test_runs(run_id)
     if run_id:
         runs = [
-            run
-            for run in runs
+            run for run in runs
             if run_id in {str(run.get("run_id") or ""), str(run.get("source_run_id") or "")}
         ]
+    subject_commit = deployed_subject_commit(session)
+    if run_id:
+        candidates = [
+            run for run in runs
+            if run.get("source") == "github_isolated" and run.get("isolation_verified") is True
+            and run.get("status") == "passed" and run.get("spec") == Path(spec_name).name
+            and run.get("proof_video_profile") == "cli-terminal"
+            and len(str(run.get("git_sha") or "")) == 40
+        ]
+        source_shas = {str(run["git_sha"]) for run in candidates}
+        if candidates and len(source_shas) != 1:
+            raise WorkflowError("explicit isolated CI proof run has multiple candidate source identities")
+        if candidates and next(iter(source_shas)) != subject_commit:
+            source_sha = next(iter(source_shas))
+            candidate_manifest = _load_json(CONTROL_PLANE_ROOT / "logs/ci-candidates" / source_sha / "manifest.json")
+            if candidate_manifest.get("session") == _session_id and candidate_manifest.get("source") == source_sha:
+                subject_commit = source_sha
+            else:
+                raise WorkflowError("isolated CI proof source is not bound to this repository session")
+    if not subject_commit:
+        require_clean_worktree()
+        subject_commit = _current_git_sha()
     context = resolve_current_context(
         sessions,
         repository_session_id=_session_id,
@@ -1813,6 +1837,54 @@ def start_current(spec_name: str, *, run_id: str = "", session_id: str = "") -> 
         test_runs=runs,
     )
     run_dir = RESULTS_DIR / "proof-videos" / context.session_id / Path(spec_name).stem
+    cli_runs = [
+        run for run in runs
+        if run.get("source") == "github_isolated" and run.get("isolation_verified") is True
+        and run.get("status") == "passed" and run.get("proof_video_profile") == "cli-terminal"
+        and run.get("spec") == Path(spec_name).name and run.get("git_sha") == context.subject_commit
+        and str(run.get("source_run_id") or run.get("run_id") or "") == context.source_run_id
+    ]
+    if len(cli_runs) > 1:
+        raise WorkflowError("CLI proof run has multiple matching isolated source recordings")
+    if len(cli_runs) == 1:
+        proof_run = cli_runs[0]
+        video_path = Path(str(proof_run.get("artifact_path") or ""))
+        if not video_path.is_file() or _file_sha256(video_path) != proof_run.get("artifact_sha256"):
+            raise WorkflowError("CLI proof recording is missing or its isolated source hash changed")
+        timeline_path = Path(str(proof_run.get("proof_timeline_path") or ""))
+        if not timeline_path.is_file() or _file_sha256(timeline_path) != proof_run.get("proof_timeline_sha256"):
+            raise WorkflowError("CLI proof timeline is missing or its isolated source hash changed")
+        timeline = _load_json(timeline_path)
+        if timeline.get("device") != "cli-terminal":
+            raise WorkflowError("CLI proof timeline device differs from the attested profile")
+        claims = spec_timeline_render_claims(timeline, device_profile="cli-terminal")
+        source_contract = timeline["contract"]
+        contract = {
+            "schema_version": 2, "title": str(source_contract.get("title") or "OpenMates terminal workspace"),
+            "devices": ["cli-terminal"],
+            "transcript": [
+                {"text": item["text"], "devices": ["cli-terminal"]}
+                for item in source_contract["transcript"]
+                if isinstance(item, dict) and "cli-terminal" in item.get("devices", [])
+            ],
+            "assertions": [
+                {"id": item["id"], "description": item.get("description") or item.get("visual"), "devices": ["cli-terminal"]}
+                for item in source_contract["assertions"]
+                if isinstance(item, dict) and "cli-terminal" in item.get("devices", [])
+            ],
+        }
+        if approved_render_claims(contract, device_profile="cli-terminal")["assertions"] != claims["assertions"]:
+            raise WorkflowError("CLI proof contract differs from the attested spec assertions")
+        contract_path = run_dir / "contract.json"
+        write_contract(contract_path, contract)
+        record_contract_authorization(session_id=context.session_id, spec_name=spec_name,
+                                      contract_path=contract_path, authorized_by="spec_timeline")
+        return {
+            "status": "contract_approved", "approval_source": "spec_timeline",
+            "context": asdict(context), "contract_path": str(contract_path),
+            "source_video": str(video_path), "device_profile": "cli-terminal",
+            "run_dir": str(run_dir.relative_to(REPO_ROOT)), "resource_limits": resource_limits(),
+        }
     return {
         "status": "ready_for_contract",
         "context": asdict(context),

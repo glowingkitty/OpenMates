@@ -15,7 +15,9 @@ import {
   programmaticQuickstart,
   rankExamples,
   renderTuiFrame,
+  renderMessageContent,
 } from "../src/tuiRenderer.ts";
+import { parseMessageSegments } from "../src/messageSegments.ts";
 
 describe("CLI TUI defaults", () => {
   it("launches TUI only when stdin and stdout are interactive", () => {
@@ -35,23 +37,37 @@ describe("CLI TUI defaults", () => {
 });
 
 describe("CLI TUI renderer", () => {
-  it("renders the start screen with logo copy, examples, file hints, and input footer", () => {
-    const state = createInitialTuiState();
-    const frame = renderTuiFrame(state, 100, 28);
-    assert.match(frame, /AI team mates\./);
-    assert.match(frame, /For everyday tasks & learning\./);
-    assert.match(frame, /With privacy & safety by design\./);
-    assert.match(frame, /Check example chats via \/examples/);
-    assert.match(frame, /@\.\/notes\.md/);
-    assert.match(frame, /> Ask anything/);
+  it("renders embed references as compact cards while preserving ordinary JSON code", () => {
+    const reference = '```json\n{"type":"app_skill_use","embed_id":"embed-one","app_id":"web","skill_id":"search","query":"Cargo planes"}\n```';
+    const code = '```json\n{"a":true}\n```';
+    const content = `Before\n${reference}\nAfter\n${code}`;
+    const lines = renderMessageContent(content, 80).join("\n");
+    assert.match(lines, /web\/search · Cargo planes/);
+    assert.match(lines, /\/embed embed-one/);
+    assert.match(lines, /Before/);
+    assert.match(lines, /After/);
+    assert.match(lines, /\{"a":true\}/);
+    assert.doesNotMatch(lines, /app_skill_use|"embed_id"/);
+    assert.equal(parseMessageSegments(content).find((segment) => segment.type === "embed")?.value, "embed-one");
+    const resolved = renderMessageContent(reference, 80, new Map([["embed-one", {
+      id:"embed-one",embedId:"embed-one",type:"app_skill_use",textPreview:null,content:{query:"Stored query",status:"finished"},appId:null,skillId:null,createdAt:null,
+    }]])).join("\n");
+    assert.match(resolved, /web\/search · Stored query/);
+    assert.doesNotMatch(resolved, /app_skill_use|"embed_id"/);
   });
 
-  it("top-anchors the start screen on short terminals so the logo is visible", () => {
+  it("defaults to the web workspace home with inspiration greeting and chat composer", () => {
     const state = createInitialTuiState();
+    const frame = renderTuiFrame(state, 100, 40);
+    assert.match(frame, /DAILY INSPIRATION/);
+    assert.match(frame, /Hey there!/);
+    assert.match(frame, /What do you need help with\?/);
+    assert.match(frame, /> Ask anything/);
+    assert.ok(frame.indexOf("DAILY INSPIRATION") < frame.indexOf("Hey there!"));
+  });
 
-    const frame = renderTuiFrame(state, 72, 14);
-
-    assert.match(frame, /OPENMATES|AI team mates/);
+  it("top-anchors inspiration on short terminals", () => {
+    assert.match(renderTuiFrame(createInitialTuiState(), 72, 14), /DAILY INSPIRATION/);
   });
 
   it("renders example transcripts with the normal input footer", () => {
@@ -158,7 +174,7 @@ describe("CLI TUI renderer", () => {
 
   it("renders workflow list and workflow run output summaries", () => {
     const state = createInitialTuiState();
-    state.screen = "workflows";
+    state.screen = "workflows"; state.workspace="workflows"; state.focus="content";
     state.workflows = [
       {
         id: "wf-rain",
@@ -177,8 +193,10 @@ describe("CLI TUI renderer", () => {
     const listFrame = renderTuiFrame(state, 96, 24);
 
     assert.match(listFrame, /Workflows/);
-    assert.match(listFrame, /> Daily rain check \(enabled\) last: completed/);
-    assert.match(listFrame, /wf-rain/);
+    assert.match(listFrame, /Daily rain check/);
+    assert.match(listFrame, /Enabled/);
+    assert.match(listFrame, /completed/);
+
     assert.match(listFrame, /Enter open/);
 
     state.screen = "workflow";
@@ -228,29 +246,35 @@ describe("CLI TUI renderer", () => {
       },
     ];
 
-    const detailFrame = renderTuiFrame(state, 100, 28);
+    const detailFrame = renderTuiFrame(state, 100, 40);
 
     assert.match(detailFrame, /Workflow: Daily rain check/);
-    assert.match(detailFrame, /\[Graph\] {2}Runs/);
-    assert.match(detailFrame, /> \[manual trigger\] Manual start/);
-    assert.match(detailFrame, /\[app skill\] Weather forecast/);
-    assert.match(detailFrame, /g graph {3}r runs/);
+    assert.match(detailFrame, /Template · g/);
+    assert.match(detailFrame, /> \[manual trigger\]/);
+    assert.match(detailFrame, /Manual start/);
+    assert.match(detailFrame, /\[app skill\]/);
+    assert.match(detailFrame, /Weather forecast/);
+    assert.match(detailFrame, /g template {3}r runs/);
 
     state.workflowTab = "runs";
     state.selectedWorkflowNodeIndex = 1;
 
-    const runsFrame = renderTuiFrame(state, 100, 32);
+    const runsFrame = renderTuiFrame(state, 100, 46);
 
-    assert.match(runsFrame, /Graph {2}\[Runs\]/);
-    assert.match(runsFrame, /> run-1 {2}completed/);
-    assert.match(runsFrame, /Run graph: run-1 \(completed\)/);
-    assert.match(runsFrame, /> \[app skill\] Weather forecast \[completed\]/);
-    assert.match(runsFrame, /output: provider=DWD, rainy=false/);
+    assert.match(runsFrame, /Runs · r/);
+    assert.match(runsFrame, /> run-1 · completed/);
+    assert.match(runsFrame, /Run run-1 · completed/);
+    assert.match(runsFrame, /> \[app skill\]/);
+    assert.match(runsFrame, /Weather forecast/);
+    assert.match(runsFrame, /completed/);
+    assert.match(runsFrame, /Output/);
+    assert.match(runsFrame, /provider: DWD/);
+    assert.match(runsFrame, /rainy: false/);
   });
 
   it("renders task workspace list and detail actions", () => {
     const state = createInitialTuiState();
-    state.screen = "tasks";
+    state.screen = "tasks"; state.workspace="tasks"; state.focus="content";
     state.tasks = [
       {
         taskId: "task-1",
@@ -258,6 +282,10 @@ describe("CLI TUI renderer", () => {
         title: "Ship CLI tasks",
         description: "Cover terminal commands",
         tags: [],
+        labels: [],
+        priorityLevel: "none",
+        blockedReason: "",
+        readOnly: false,
         latestInstruction: "",
         status: "in_progress",
         assigneeType: "openmates",
@@ -279,14 +307,16 @@ describe("CLI TUI renderer", () => {
 
     const listFrame = renderTuiFrame(state, 96, 24);
     assert.match(listFrame, /Tasks/);
-    assert.match(listFrame, /> OM-6 {2}in_progress {2}OpenMates {2}Ship CLI tasks/);
+    assert.match(listFrame, /› Ship CLI tasks/);
+    assert.match(listFrame, /OM-6/);
     assert.match(listFrame, /Enter open/);
 
     state.screen = "task";
     state.activeTask = state.tasks[0] ?? null;
     const detailFrame = renderTuiFrame(state, 96, 24);
-    assert.match(detailFrame, /Task: OM-6/);
-    assert.match(detailFrame, /Description: Cover terminal commands/);
+    assert.match(detailFrame, /Ship CLI tasks/);
+    assert.match(detailFrame, /OM-6.*In progress/);
+    assert.match(detailFrame, /Cover terminal commands/);
     assert.match(detailFrame, /c create/);
     assert.match(detailFrame, /e edit/);
     assert.match(detailFrame, /x delete/);

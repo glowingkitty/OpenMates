@@ -154,6 +154,7 @@ import {
 import { buildAssistantFeedbackDecision } from "./feedback.js";
 import { handleBenchmark, printBenchmarkHelp } from "./benchmark.js";
 import { defaultModeForStreams, printProgrammaticQuickstart, runTui } from "./tui.js";
+import { parseMessageSegments } from "./messageSegments.js";
 import { SUPPORT_MESSAGE, SUPPORT_URL, renderSupportInfo } from "./support.js";
 import {
   remoteAccessHostingCandidates,
@@ -12406,81 +12407,6 @@ function printIncognitoNoHistoryNotice(json: boolean): void {
 }
 
 const SEP = `\x1b[2m${"─".repeat(60)}\x1b[0m`;
-
-/**
- * Parse the inline embed UUID blocks from AI message content.
- *
- * The AI writes embed references as:
- *   ```json
- *   {"type":"app_skill_use","embed_id":"<uuid>","app_id":"...","skill_id":"...","query":"..."}
- *   ```
- * or the legacy:
- *   ```json_embed
- *   {"embed_id":"<uuid>"}
- *   ```
- *
- * Returns the content split into segments: either plain text segments or embed
- * UUID strings prefixed with "EMBED:" so the renderer can fetch them in-place.
- */
-/** Parsed segment from AI message content.
- * rawLength = number of characters this segment consumed in the original string.
- * For text segments, rawLength === value.length.
- * For embed segments, rawLength includes the full \`\`\`json\n...\n\`\`\` delimiters. */
-type MessageSegment =
-  | { type: "text"; value: string; rawLength: number }
-  | {
-      type: "embed";
-      value: string;
-      meta?: Record<string, unknown>;
-      rawLength: number;
-    };
-
-function parseMessageSegments(content: string): MessageSegment[] {
-  const segments: MessageSegment[] = [];
-  // Match both ```json and ```json_embed blocks
-  const pattern = /```(?:json_embed|json)\n([\s\S]*?)\n```/g;
-  let last = 0;
-  let m: RegExpExecArray | null;
-
-  while ((m = pattern.exec(content)) !== null) {
-    // Text before this block
-    if (m.index > last) {
-      const text = content.slice(last, m.index);
-      segments.push({ type: "text", value: text, rawLength: text.length });
-    }
-
-    // Try to extract an embed_id from the JSON block.
-    // Keep the full parsed JSON as `meta` so we can render a preview
-    // even when the embed isn't in the local sync cache (failed/processing).
-    // rawLength = length of the entire ```json\n...\n``` block in the original string.
-    const blockRawLength = m[0].length;
-    try {
-      const parsed = JSON.parse(m[1].trim()) as Record<string, unknown>;
-      const embedId =
-        typeof parsed.embed_id === "string" ? parsed.embed_id : null;
-      if (embedId) {
-        segments.push({
-          type: "embed",
-          value: embedId,
-          meta: parsed,
-          rawLength: blockRawLength,
-        });
-      }
-    } catch {
-      // Malformed JSON — discard
-    }
-
-    last = m.index + m[0].length;
-  }
-
-  // Remaining text after last block
-  if (last < content.length) {
-    const text = content.slice(last);
-    segments.push({ type: "text", value: text, rawLength: text.length });
-  }
-
-  return segments;
-}
 
 /**
  * Render an embed preview from the inline JSON metadata when the embed

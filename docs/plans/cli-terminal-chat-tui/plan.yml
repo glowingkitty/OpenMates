@@ -1016,3 +1016,65 @@ risks:
 
 open_questions:
   - Should TUI interest selections persist across CLI invocations after v1, or remain terminal-session only long term?
+
+design_proposals:
+  - path: docs/plans/cli-terminal-chat-tui/web-workspace-proposal.md
+    purpose: User-approved web-aligned terminal workspace extension, with sidebar closed by default, exact web category colors, and tested terminal recordings delivered before deployment.
+
+approved_workspace_extension:
+  user_goal: "The sidebar should also exist similar to web app but must be closed by default in the tui. Also, we want to use colors, for example to reproduce the chat header with the color of the chat header from the web app depending on chat. Besides that - sounds good - implement, test and send me video recordings of the terminal UI in action before deploying"
+  proposal: docs/plans/cli-terminal-chat-tui/web-workspace-proposal.md
+  requirements:
+    - Shared Chats, Projects, Tasks, and Workflows terminal workspace; sidebar closed by default at every width.
+    - Header before the first message; actual category-gradient colors sourced from the web theme.
+    - Retain chat identity and drafts across navigation; saved-chat browsing and typed workspace actions.
+    - Responsive Tasks board, Projects Overview/Files/Tasks, and Workflow Template/Runs with branch-aware graph.
+    - Focused local checks and isolated product CI; recordings of the built CLI delivered before deployment.
+  deployment_boundary: Do not deploy before the user has received the terminal recordings.
+
+approved_rendered_web_refinement:
+  user_goal: "Make the rendered web Chat workspace landing the default TUI view, with colored Daily Inspiration, username greeting and vertically stacked continuation chats; reproduce Projects, Workflows, Tasks and the new Apps workspace, including Project tabs and a closer Workflow editor."
+  task: TASK-4869
+  apps_task: TASK-4446
+  reference:
+    - "Actual deployed bare component previews of Projects, Workflows, Tasks, Apps and their detail tabs; captures under test-results/web-reference-8a64."
+    - "Authenticated Chat screenshot docs/images/readme-daily-inspiration.png (refreshed 2026-08-10), checked against current ActiveChat ordering; fresh bare Chat preview has no auth fixture."
+  requirements:
+    - "Default Chats home: colored inspiration, greeting, conditional Continue where you left off, stacked category-colored recent chats, and composer."
+    - "Workspace homes share actual web inspiration fallback data; Projects and Workflows have stacked blue cards, Tasks retains its Kanban with horizontal column navigation on narrow terminals."
+    - "Project identity and Overview/Files/Tasks outlined tabs; Workflow identity, Template/Runs tabs and in-place expanded editable steps with actual graph edges."
+    - "Apps home has the web heading and colored app cards without a persistent composer; app and skill identities, tabs, schema forms, explicit execution and encrypted saved results."
+    - "Apps workspace Personal execution saves web-style encrypted result history; ordinary CLI apps commands retain their existing temporary-history behavior. Guest and Team execution/history remain explicitly unavailable until their execution contracts are supported."
+    - "Two real terminal recordings and source-bound isolated CI evidence delivered before deployment."
+  verification:
+    - "Focused terminal rendering, navigation, race/privacy, schema/crypto and geometry tests; CLI ESM/declaration build."
+    - "Exact immutable candidate in isolated GitHub CI: TUI product keyboard coverage and two real CLI proof recordings."
+  deployment_boundary: "Do not deploy before delivering reviewed recordings to the user."
+  verification_evidence:
+    reviewed_on: "2026-10-02"
+    refinement_conformance: pass
+    criteria:
+      - "Chats home ordering, colored inspiration, greeting, stacked continuation cards and closed-by-default sidebar: focused Home/layout tests and homes proof pass."
+      - "Projects/Workflows/Tasks homes: focused workspace tests and homes proof pass."
+      - "Project outlined tabs and Workflow graph/editor: keyboard CI and detail proof pass."
+      - "Apps catalog, skill schema forms and encrypted saved-result reopening: seven Apps checks and both proof recordings pass."
+      - "Personal execution/privacy guards, account-race handling and bounded geometry: focused tests pass; proof forms are canceled without paid provider execution."
+      - "Both reviewed real terminal recordings published and delivered before deployment; candidate remains undeployed for user review."
+    local:
+      - "74 focused terminal Node checks pass; CLI ESM/declaration build and scoped CLI/proof lint pass."
+      - "15 proof-adapter Python checks pass; diff whitespace check passes."
+    isolated_ci:
+      - run_id: 36994698854
+        source_commit: ba127f8f5130bdf369adb24399595d8605c0868c
+        result: "TUI keyboard/unit wrapper passes with verified cleanup."
+      - run_id: 36998121951
+        source_commit: 4c1d67f3f0f5b44fa8ee1bd85b4b46fab36c6007
+        result: "Workspace homes proof passes, no skipped/flaky cases, verified cleanup."
+      - run_id: 37001321832
+        source_commit: 42c647ba09c080779c22a3cedbff314537b30431
+        result: "Workspace details proof passes, no skipped/flaky cases, verified cleanup."
+    source_continuity: "Product code is identical across these three candidates; only disposable fixture title length and recording key pacing changed."
+    recordings:
+      - "test-results/proof-videos/8a64/rendered-web-homes-4c1d67f3-correction-1: canonical 12-frame review passes; 10.567 seconds at 1280x720."
+      - "test-results/proof-videos/8a64/rendered-web-details-42c647ba: canonical 12-frame review passes; 22.5 seconds at 1280x720."
+    legacy_plan_status: "Plan YAML validates. Whole-plan completion verifier remains partial for historical v1 red/green evidence (self-update, anonymous example continuation and docs) outside this approved refinement; the original Plan is not marked verified or complete."

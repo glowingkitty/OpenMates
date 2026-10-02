@@ -2271,6 +2271,7 @@ export interface ChatListItem {
   title: string | null;
   summary: string | null;
   updatedAt: number | null;
+  createdAt?: number | null;
   category: string | null;
   mateName: string | null;
   source?: "example";
@@ -2611,6 +2612,8 @@ export interface DailyInspiration {
   follow_up_suggestions: string[];
   /** Whether the user has already opened this inspiration into a chat. */
   is_opened?: boolean;
+  surface?: "chats" | "apps" | "projects" | "workflows" | "tasks" | "plans" | "teams";
+  feature?: { feature_id: string; title: string; description: string; settings_path: string | null; icon?: string } | null;
 }
 
 /**
@@ -5148,6 +5151,7 @@ export class OpenMatesClient {
       slug,
       title,
       summary,
+      createdAt: typeof d.created_at === "number" ? d.created_at : null,
       updatedAt:
         typeof d.last_edited_overall_timestamp === "number"
           ? d.last_edited_overall_timestamp
@@ -8639,6 +8643,53 @@ export class OpenMatesClient {
   // Apps
   // -------------------------------------------------------------------------
 
+  /** Web Apps catalog, including category and settings metadata. */
+  async getAppsWorkspaceCatalog(): Promise<unknown> {
+    const response = await this.http.get("/v1/apps/metadata?include_unavailable=true", this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Apps catalog failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  /** The same public form, availability, and pricing contract used by Apps on web. */
+  async getAppsWorkspaceSkillDetails(appId: string, skillId: string): Promise<unknown> {
+    const response = await this.http.get(
+      `/v1/apps/${encodeURIComponent(appId)}/skills/${encodeURIComponent(skillId)}/details`,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw new Error(`App skill details failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async listAppsWorkspaceResults(appId: string, offset = 0, limit = 20): Promise<unknown> {
+    this.requireSession();
+    const query = new URLSearchParams({ app_id: appId, offset: String(offset), limit: String(limit) });
+    const response = await this.http.get(`/v1/apps/workspace/results?${query}`, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Apps results failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async listAppsWorkspaceWorkflows(appId: string, offset = 0, limit = 20): Promise<unknown> {
+    this.requireSession();
+    const query = new URLSearchParams({ app_id: appId, offset: String(offset), limit: String(limit) });
+    const response = await this.http.get(`/v1/workflows?${query}`, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Apps workflows failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async getAppsWorkspaceResult(embedId: string): Promise<unknown> {
+    this.requireSession();
+    const response = await this.http.get(`/v1/apps/workspace/results/${encodeURIComponent(embedId)}`, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Apps result failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async saveAppsWorkspaceResult(payload: Record<string, unknown>): Promise<unknown> {
+    this.requireSession();
+    const response = await this.http.post("/v1/apps/workspace/results", payload, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Apps result save failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
   async listApps(apiKey?: string): Promise<unknown> {
     const headers: Record<string, string> = {
       ...this.getCliRequestHeaders(),
@@ -9282,6 +9333,17 @@ export class OpenMatesClient {
     return this.decryptWorkflowSlug(response.data.workflow, options);
   }
 
+  /** Historical run inspection must use the graph from its recorded version. */
+  async getWorkflowVersion(workflowId: string, versionId: string, options: TeamContextOptions = {}): Promise<{ graph: WorkflowGraph }> {
+    this.requireSession();
+    const response = await this.http.get<{ version?: { graph?: WorkflowGraph } }>(
+      this.appendTeamQuery(`/v1/workflows/${encodeURIComponent(workflowId)}/versions/${encodeURIComponent(versionId)}`, options),
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.version?.graph) throw new Error(`Workflow version failed with HTTP ${response.status}`);
+    return { graph: response.data.version.graph };
+  }
+
   async updateWorkflow(
     workflowId: string,
     params: { title?: string; slug?: string; graph?: WorkflowGraph; enabled?: boolean; runContentRetention?: WorkflowRunContentRetention },
@@ -9918,6 +9980,36 @@ export class OpenMatesClient {
       "/v1/projects/focus/deactivate", { chat_id: chatId }, this.getCliRequestHeaders(),
     );
     if (!response.ok) throw this.projectRequestError("focus deactivation", response);
+  }
+
+  /** Request cancellation of an active AI response and wait for the server receipt. */
+  async cancelAITask(taskId: string, chatId: string): Promise<{ taskId: string; status: "revocation_sent" }> {
+    this.requireSession();
+    const requestedTaskId = taskId.trim();
+    const requestedChatId = chatId.trim();
+    if (!requestedTaskId || !requestedChatId) {
+      throw new Error("AI task ID and chat ID are required for cancellation.");
+    }
+
+    const { ws } = await this.openWsClient({ taskUpdateJobs: false });
+    try {
+      // Register before sending because the receipt can arrive immediately.
+      const receipt = ws.waitForMessage("ai_task_cancel_requested", (value) => {
+        const payload = value && typeof value === "object" ? value as Record<string, unknown> : {};
+        return payload.task_id === requestedTaskId;
+      }, 10_000);
+      // If sending fails, closing the socket rejects this pending wait as well.
+      void receipt.catch(() => {});
+      await ws.sendAsync("cancel_ai_task", { task_id: requestedTaskId, chat_id: requestedChatId });
+      const envelope = await receipt;
+      const payload = envelope.payload as Record<string, unknown>;
+      if (payload.status !== "revocation_sent") {
+        throw new Error("AI task cancellation was not accepted by the server.");
+      }
+      return { taskId: requestedTaskId, status: "revocation_sent" };
+    } finally {
+      ws.close();
+    }
   }
 
   async stopRemoteCommand(input: { execution_id: string; chat_id: string; project_id: string }, options: TeamContextOptions = {}): Promise<Record<string, unknown>> {
@@ -11654,6 +11746,19 @@ export class OpenMatesClient {
         }
       }
 
+      let feature: DailyInspiration["feature"] = null;
+      let followUpSuggestions: string[] = [];
+      for (const [field, kind] of [["encrypted_feature_metadata", "feature"], ["encrypted_follow_up_suggestions", "suggestions"]] as const) {
+        if (typeof r[field] !== "string") continue;
+        const plain = await decryptWithAesGcmCombined(r[field], masterKey);
+        if (!plain) continue;
+        try {
+          const value = JSON.parse(plain);
+          if (kind === "feature" && value && typeof value === "object") feature = value;
+          else if (kind === "suggestions" && Array.isArray(value)) followUpSuggestions = value.filter((item): item is string => typeof item === "string");
+        } catch { /* Keep the inspiration when optional metadata is corrupt. */ }
+      }
+
       results.push({
         id:
           typeof r.daily_inspiration_id === "string"
@@ -11667,8 +11772,10 @@ export class OpenMatesClient {
           typeof r.content_type === "string" ? r.content_type : "video",
         video,
         generated_at: typeof r.generated_at === "number" ? r.generated_at : 0,
-        follow_up_suggestions: [],
+        follow_up_suggestions: followUpSuggestions,
+        feature,
         is_opened: r.is_opened === true,
+        surface: typeof r.surface === "string" ? r.surface as DailyInspiration["surface"] : undefined,
       });
     }
 
@@ -11733,6 +11840,8 @@ export class OpenMatesClient {
             }
           : null,
         generated_at: typeof r.generated_at === "number" ? r.generated_at : 0,
+        surface: typeof r.surface === "string" ? r.surface as DailyInspiration["surface"] : undefined,
+        feature: r.feature && typeof r.feature === "object" ? r.feature as DailyInspiration["feature"] : null,
         follow_up_suggestions: Array.isArray(r.follow_up_suggestions)
           ? (r.follow_up_suggestions as string[])
           : [],

@@ -203,7 +203,7 @@ export function formatEmbedPreviewLines(embed: DecryptedEmbed, maxContentLines =
   const app = embed.appId ?? str(c.app_id) ?? "";
   const skill = embed.skillId ?? str(c.skill_id) ?? "";
   const label = skill ? `${app}/${skill}` : (app || DIRECT_TYPE_LABELS[resolvedType] || resolvedType);
-  const title = str(c.title) ?? str(c.name) ?? embed.textPreview ?? "";
+  const title = str(c.title) ?? str(c.name) ?? str(c.query) ?? embed.textPreview ?? "";
   const status = stripAnsi(statusIcon(str(c.status)) || statusIcon("finished"));
   const lines = [`┌─ ${status} ${label}${title ? ` · ${trunc(title, 56)}` : ""}`];
 

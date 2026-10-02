@@ -13833,7 +13833,7 @@ def main() -> None:
     p_proof_playwright.add_argument("--audio-reused-from", default="")
     p_proof_playwright.add_argument(
         "--device-profile",
-        choices=["web-phone", "web-laptop", "apple-iphone-portrait", "apple-ipad-landscape"],
+        choices=["cli-terminal", "web-phone", "web-laptop", "apple-iphone-portrait", "apple-ipad-landscape"],
         help="Require exact source and output dimensions for this proof-video surface.",
     )
     p_proof_playwright.add_argument(
