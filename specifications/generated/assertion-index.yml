@@ -17190,7 +17190,7 @@ assertions:
     direct_tests:
     - &id2023
       path: frontend/apps/web_app/tests/components/hosting-domain-search.spec.ts
-      line: 145
+      line: 175
       name: search fullscreen filters checked children locally and opens their details
       surface: gui.web
     - &id2024
@@ -17414,18 +17414,18 @@ assertions:
     direct_tests:
     - &id2052
       path: frontend/apps/web_app/tests/components/hosting-domain-search.spec.ts
-      line: 111
+      line: 136
       name: search preview summarizes checked results and exposes honest terminal
         states
       surface: gui.web
     - &id2053
       path: frontend/apps/web_app/tests/components/hosting-domain-search.spec.ts
-      line: 224
+      line: 255
       name: domain preview distinguishes registration, renewal, terms and check status
       surface: gui.web
     - &id2054
       path: frontend/apps/web_app/tests/components/hosting-domain-search.spec.ts
-      line: 274
+      line: 306
       name: domain fullscreen keeps quote terms, source and copyable names readable
       surface: gui.web
     - &id2055
@@ -17561,18 +17561,18 @@ assertions:
     direct_tests:
     - &id2081
       path: frontend/apps/web_app/tests/components/hosting-domain-search.spec.ts
-      line: 111
+      line: 136
       name: search preview summarizes checked results and exposes honest terminal
         states
       surface: gui.web
     - &id2082
       path: frontend/apps/web_app/tests/components/hosting-domain-search.spec.ts
-      line: 145
+      line: 175
       name: search fullscreen filters checked children locally and opens their details
       surface: gui.web
     - &id2083
       path: frontend/apps/web_app/tests/components/hosting-domain-search.spec.ts
-      line: 224
+      line: 255
       name: domain preview distinguishes registration, renewal, terms and check status
       surface: gui.web
     supporting_tests:
@@ -17737,23 +17737,23 @@ assertions:
     direct_tests:
     - &id2090
       path: frontend/apps/web_app/tests/components/hosting-domain-search.spec.ts
-      line: 111
+      line: 136
       name: search preview summarizes checked results and exposes honest terminal
         states
       surface: gui.web
     - &id2091
       path: frontend/apps/web_app/tests/components/hosting-domain-search.spec.ts
-      line: 145
+      line: 175
       name: search fullscreen filters checked children locally and opens their details
       surface: gui.web
     - &id2092
       path: frontend/apps/web_app/tests/components/hosting-domain-search.spec.ts
-      line: 224
+      line: 255
       name: domain preview distinguishes registration, renewal, terms and check status
       surface: gui.web
     - &id2093
       path: frontend/apps/web_app/tests/components/hosting-domain-search.spec.ts
-      line: 274
+      line: 306
       name: domain fullscreen keeps quote terms, source and copyable names readable
       surface: gui.web
     - &id2094
@@ -17924,23 +17924,23 @@ assertions:
     direct_tests:
     - &id2114
       path: frontend/apps/web_app/tests/components/hosting-domain-search.spec.ts
-      line: 111
+      line: 136
       name: search preview summarizes checked results and exposes honest terminal
         states
       surface: gui.web
     - &id2115
       path: frontend/apps/web_app/tests/components/hosting-domain-search.spec.ts
-      line: 145
+      line: 175
       name: search fullscreen filters checked children locally and opens their details
       surface: gui.web
     - &id2116
       path: frontend/apps/web_app/tests/components/hosting-domain-search.spec.ts
-      line: 224
+      line: 255
       name: domain preview distinguishes registration, renewal, terms and check status
       surface: gui.web
     - &id2117
       path: frontend/apps/web_app/tests/components/hosting-domain-search.spec.ts
-      line: 274
+      line: 306
       name: domain fullscreen keeps quote terms, source and copyable names readable
       surface: gui.web
     - &id2118

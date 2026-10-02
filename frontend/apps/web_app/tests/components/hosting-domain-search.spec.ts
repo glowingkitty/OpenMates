@@ -37,7 +37,32 @@ async function expectWithinViewport(page: Page, root: Locator) {
 }
 
 async function checkpoint(testInfo: TestInfo, name: string, root: Locator) {
-	await testInfo.attach(name, { body: await root.screenshot(), contentType: 'image/png' });
+  await testInfo.attach(name, { body: await root.screenshot({ animations: 'disabled' }), contentType: 'image/png' });
+}
+
+async function chooseView(page: Page, view: string, keyboard = false) {
+	const search = page.getByTestId('hosting-search-fullscreen');
+	const more = search.locator('.more-trigger');
+	await more.click();
+	await expect(more).toHaveAttribute('aria-expanded', 'true');
+	const option = search.getByTestId(`hosting-view-${view}`);
+	if (keyboard) {
+		await option.focus();
+		await expect(option).toBeFocused();
+		await page.keyboard.press('Enter');
+	} else await option.click();
+	await expect(more).toHaveAttribute('aria-expanded', 'false');
+	await more.click();
+	await expect(option).toHaveAttribute('aria-pressed', 'true');
+	await more.click();
+	await expect(option).not.toBeVisible();
+}
+
+async function expectHeaderThenChildren(search: Locator) {
+	await expect(search.locator('.search-results > :first-child')).toHaveAttribute('data-testid', 'hosting-domain-grid');
+	await expect(search.locator('.search-results > *')).toHaveCount(1);
+	await expect(search.locator('.search-results .summary, .search-results .filters, .search-results .notice')).toHaveCount(0);
+	await expect(search.getByTestId('hosting-view-all')).not.toBeVisible();
 }
 
 async function expectCanonicalSvgPaths(icon: Locator, asset: 'server' | 'search', property: 'backgroundImage' | 'maskImage', pseudo = false) {
@@ -121,6 +146,7 @@ test('search preview summarizes checked results and exposes honest terminal stat
 	await expect(card).toContainText(/available/i);
 	await expect(card).toContainText(/first year/i);
 	await expect(card).toContainText(/13[.,]09/);
+	await expect(card.getByTestId('embed-status-value')).toHaveCount(0);
 	await expectHostingGlyph(card);
 	await checkpoint(testInfo, 'hosting-search-preview-default-phone-light', card);
 
@@ -128,6 +154,10 @@ test('search preview summarizes checked results and exposes honest terminal stat
 		await openPreview(page, 'HostingSearchEmbedPreview', { variant });
 		await expectWithinViewport(page, card);
 		await expect(card).toContainText('cedarcomet');
+		if (variant === 'processing') {
+			await expect(card.getByTestId('embed-status-value').first()).toBeVisible();
+			await expect(card.getByTestId('embed-status-value').first()).toHaveClass(/processing-shimmer/);
+		} else await expect(card.getByTestId('embed-status-value')).toHaveCount(0);
 		if (variant === 'partial') {
 			await expect(page.getByTestId('hosting-search-partial')).toBeVisible();
 		} else {
@@ -146,27 +176,26 @@ test('search fullscreen filters checked children locally and opens their details
 	test.setTimeout(90_000);
 	await openPreview(page, 'HostingSearchEmbedFullscreen');
 	const grid = page.getByTestId('hosting-domain-grid');
+	const search = page.getByTestId('hosting-search-fullscreen');
 	await expectWithinViewport(page, grid);
 	await expect(grid).toContainText('cedarcomet');
-	await expect(page.getByTestId('hosting-view-available')).toBeVisible();
-	await expect(page.getByTestId('hosting-view-all')).toBeVisible();
-	await expect(page.getByTestId('hosting-view-in-use')).toBeVisible();
+	await expectHeaderThenChildren(search);
 	await expect(grid.getByTestId('hosting-domain-preview')).toHaveCount(2);
 	await expect(grid).toContainText('cedarcomet.com');
 	await expect(grid).toContainText('cedarcomet.net');
 	await expectSearchHeaderGlyph(page.getByTestId('hosting-search-fullscreen'));
-	await checkpoint(testInfo, 'hosting-search-selected-phone-light', grid);
+	await checkpoint(testInfo, 'hosting-search-selected-phone-light', search);
 
 	const outboundRequests: string[] = [];
 	page.on('request', (request) => {
 		if (/\/(?:v1\/apps\/hosting|gandi)\//i.test(request.url()))
 			outboundRequests.push(request.url());
 	});
-	await page.getByTestId('hosting-view-available').click();
+	await chooseView(page, 'available');
 	await expect(grid.getByTestId('hosting-domain-preview')).toHaveCount(2);
 	await expect(grid).toContainText(/available/i);
 	await expect(grid).not.toContainText(/unavailable|could not check/i);
-	await page.getByTestId('hosting-view-in-use').click();
+	await chooseView(page, 'in-use');
 	await expect(grid.getByTestId('hosting-domain-preview')).toHaveCount(2);
 	await expect(grid).toContainText('cedarcomet.org');
 	await expect(grid).toContainText('cedarcomet.co');
@@ -180,17 +209,17 @@ test('search fullscreen filters checked children locally and opens their details
 	await expect(detail).toContainText('cedarcomet.org');
 	await detail.getByRole('button', { name: 'Next embed' }).click();
 	await expect(detail).toContainText('cedarcomet.co');
-	await page.getByTestId('hosting-domain-back').click();
+	await expect(detail.getByTestId('hosting-domain-back')).toHaveCount(0);
+	await expect(detail.getByRole('button', { name: /back to results/i })).toHaveCount(0);
+	await detail.getByTestId('embed-minimize').click();
 	await expect(detail).toHaveCount(0);
 	await expect(grid.getByTestId('hosting-domain-preview')).toHaveCount(2);
 	await expect(grid).toContainText('cedarcomet.org');
-	await page.getByTestId('hosting-view-all').focus();
-	await expect(page.getByTestId('hosting-view-all')).toBeFocused();
-	await page.keyboard.press('Enter');
+	await chooseView(page, 'all', true);
 	await expect(grid.getByTestId('hosting-domain-preview')).toHaveCount(2);
 	await expect(grid).toContainText('cedarcomet.com');
 	await expect(grid).not.toContainText(/could not check/i);
-	await page.getByTestId('hosting-view-unknown').click();
+	await chooseView(page, 'unknown');
 	await expect(grid.getByTestId('hosting-domain-preview')).toHaveCount(1);
 	const unknownStatus = grid.getByTestId('hosting-domain-preview').locator('.topline > span:first-child');
 	await expect(unknownStatus).toHaveText(/could not check/i);
@@ -200,15 +229,16 @@ test('search fullscreen filters checked children locally and opens their details
 	await checkpoint(testInfo, 'hosting-search-unknown-phone-light', grid);
 
 	await openPreview(page, 'HostingSearchEmbedFullscreen', { variant: 'partial' });
-	await expect(page.getByTestId('hosting-search-partial')).toBeVisible();
-	await page.getByTestId('hosting-view-unknown').click();
+	await expectHeaderThenChildren(search);
+	await expect(search.getByTestId('hosting-search-partial')).toHaveCount(0);
+	await chooseView(page, 'unknown');
 	await expect(page.getByTestId('hosting-domain-grid')).toContainText(/could not check/i);
 	await openPreview(page, 'HostingSearchEmbedFullscreen', { variant: 'availableOnly' });
 	await expect(page.getByTestId('hosting-domain-grid')).not.toContainText(/unavailable|in use/i);
 	await openPreview(page, 'HostingSearchEmbedFullscreen', { variant: 'empty' });
 	await expect(page.getByTestId('hosting-search-empty')).toBeVisible();
 	await openPreview(page, 'HostingSearchEmbedFullscreen', { variant: 'error' });
-	await expect(page.getByTestId('hosting-search-error')).toBeVisible();
+	await expectHeaderThenChildren(search);
 	await expect(page.getByTestId('hosting-domain-grid')).toContainText(/could not check/i);
 	for (const variant of ['processing', 'cancelled'] as const) {
 		await openPreview(page, 'HostingSearchEmbedFullscreen', { variant });
@@ -217,7 +247,8 @@ test('search fullscreen filters checked children locally and opens their details
 	}
 	await openPreview(page, 'HostingSearchEmbedFullscreen', { theme: 'dark', width: 1280 });
 	await expectWithinViewport(page, page.getByTestId('hosting-domain-grid'));
-	await checkpoint(testInfo, 'hosting-search-selected-laptop-dark', page.getByTestId('hosting-domain-grid'));
+	await expectHeaderThenChildren(search);
+	await checkpoint(testInfo, 'hosting-search-selected-laptop-dark', search);
 });
 
 // contract-test: direct surface=gui.web assertions=hosting-domains.embeds.parent-child,hosting-domains.quotes.truthful,hosting-domains.results.partial-and-safe,hosting-domains.surface-parity
@@ -228,6 +259,7 @@ test('domain preview distinguishes registration, renewal, terms and check status
 	await expect(page.getByTestId('hosting-domain-preview')).toBeVisible();
 	await expectWithinViewport(page, card);
 	await expect(card).toContainText('cedarcomet');
+	await expect(card.getByTestId('embed-status-value')).toHaveCount(0);
 	await expect(card).toContainText(/renewal/i);
 	await expect(card).toContainText(/first.year offer/i);
 	await expect(page.getByTestId('hosting-domain-registration')).toContainText(/14[.,]27\s*\/\s*year/i);
@@ -276,6 +308,8 @@ test('domain fullscreen keeps quote terms, source and copyable names readable', 
 	await openPreview(page, 'HostingDomainEmbedFullscreen');
 	const detail = page.getByTestId('hosting-domain-fullscreen');
 	await expectWithinViewport(page, detail);
+	await expect(detail.getByTestId('hosting-domain-back')).toHaveCount(0);
+	await expect(detail.getByRole('button', { name: /back to results/i })).toHaveCount(0);
 	await expectSearchHeaderGlyph(detail);
 	await expect(page.getByTestId('hosting-domain-registration')).toBeVisible();
 	await expect(page.getByTestId('hosting-domain-renewal')).toBeVisible();

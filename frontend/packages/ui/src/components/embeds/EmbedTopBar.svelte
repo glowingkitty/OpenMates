@@ -22,6 +22,9 @@
   import { headerOverlayControls } from '../../actions/headerOverlayControls';
 
   interface Props {
+    /** Embed-specific secondary actions; omitted for existing embeds. */
+    headerActions?: import('svelte').Snippet;
+    headerActionCount?: number;
     /** Whether to show the "restore chat" button (ultra-wide side-by-side mode). */
     showChatButton?: boolean;
     /** Whether to show the share button (default true). */
@@ -73,6 +76,8 @@
   }
 
   let {
+    headerActions,
+    headerActionCount = 1,
     showChatButton = false,
     showShare = true,
     showCopy = false,
@@ -127,7 +132,7 @@
     (showPreview && onTogglePreview),
     (showDebug && onToggleDebug),
     (showPIIIncludeOriginal && onIncludeOriginalPII)
-  ].filter(Boolean).length);
+  ].filter(Boolean).length + (headerActions ? Math.max(1, headerActionCount) : 0));
 </script>
 
 <div class="embed-top-bar" use:headerOverlayControls>
@@ -216,6 +221,7 @@
 
     {/snippet}
     {#snippet actions()}
+      {#if headerActions}{@render headerActions()}{/if}
       {#if onImport}
         <div class="button-wrapper">
           <button

@@ -124,6 +124,9 @@
      * Otherwise receives empty context for backwards compatibility
      */
     content?: import('svelte').Snippet<[ChildEmbedContext]>;
+    /** Optional embed-specific actions in the standard header menu. */
+    headerActions?: import('svelte').Snippet;
+    headerActionCount?: number;
 
     /**
      * Optional snippet rendered at the bottom of the gradient header banner.
@@ -362,6 +365,8 @@
     onShare,
     showShare = true,
     content,
+    headerActions,
+    headerActionCount = 1,
     embedHeaderCta,
     // Embed header props
     embedHeaderTitle = '',
@@ -1437,6 +1442,8 @@
          position: absolute so it does not push the content area down.
          The gradient header is visible through the semi-transparent buttons. -->
     <EmbedTopBar
+      {headerActions}
+      {headerActionCount}
       {showChatButton}
       {showShare}
       showCopy={!!onCopy}

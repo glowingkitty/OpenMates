@@ -47,17 +47,27 @@ for (const [viewport, size] of [
 		await parent.scrollIntoViewIfNeeded();
 		await expect(parent.locator('[data-app-icon="hosting"]').first()).toBeVisible();
 		await expect(parent).toContainText('Gandi');
+		await expect(parent.getByTestId('embed-status-value')).toHaveCount(0);
 		await testInfo.attach(`hosting-example-${viewport}-preview`, {
 			body: await parent.screenshot(),
 			contentType: 'image/png'
 		});
 		const search = await openFullscreen(page, parent);
-		await expect(search.locator('.summary')).toContainText('40 checked');
+		await expect(search.locator('.search-results > :first-child')).toHaveAttribute('data-testid', 'hosting-domain-grid');
+		await expect(search.locator('.search-results > *')).toHaveCount(1);
+		await expect(search.locator('.search-results .summary, .search-results .filters, .search-results .notice')).toHaveCount(0);
+		await expect(search.getByTestId('hosting-view-all')).not.toBeVisible();
+		const more = search.locator('.more-trigger');
+		await more.click();
 		await search.getByTestId('hosting-view-all').click();
-		await expect(search.getByTestId('hosting-view-all')).toHaveClass(/active/);
+		await expect(more).toHaveAttribute('aria-expanded', 'false');
+		await more.click();
+		await expect(search.getByTestId('hosting-view-all')).toHaveAttribute('aria-pressed', 'true');
+		await more.click();
 		const domains = search.getByTestId('hosting-domain-grid').getByTestId('embed-preview');
 		// The complete checked pool is retained; each filter respects max_results.
 		await expect(domains).toHaveCount(10, { timeout: 30_000 });
+		await expect(domains.first().getByTestId('embed-status-value')).toHaveCount(0);
 		await testInfo.attach(`hosting-example-${viewport}-checked`, {
 			body: await page.screenshot({ animations: 'disabled' }),
 			contentType: 'image/png'
@@ -65,6 +75,8 @@ for (const [viewport, size] of [
 		await domains.first().click();
 		const detail = page.getByTestId('hosting-domain-fullscreen');
 		await expect(detail).toBeVisible();
+		await expect(detail.getByTestId('hosting-domain-back')).toHaveCount(0);
+		await expect(detail.getByRole('button', { name: /back to results/i })).toHaveCount(0);
 		await expect(detail.getByTestId('hosting-domain-ascii')).toHaveText(/\.[a-z]+$/);
 		await expect(detail.getByRole('link', { name: /Gandi/ })).toHaveAttribute(
 			'href',
@@ -78,10 +90,12 @@ for (const [viewport, size] of [
 			body: await page.screenshot({ animations: 'disabled' }),
 			contentType: 'image/png'
 		});
-		await detail.getByTestId('hosting-domain-back').click();
+		await closeFullscreen(page, detail);
 		await expect(detail).not.toBeVisible();
 		await expect(search).toBeVisible();
-		await expect(search.getByTestId('hosting-view-all')).toHaveClass(/active/);
+		await more.click();
+		await expect(search.getByTestId('hosting-view-all')).toHaveAttribute('aria-pressed', 'true');
+		await more.click();
 		await closeFullscreen(page, search);
 		await page.reload({ waitUntil: 'domcontentloaded' });
 		await expect(async () => expect(await parents.count()).toBeGreaterThan(0)).toPass({
