@@ -9,6 +9,7 @@ const metadata: AppsSkillDetails = {
       requests: { type: 'array', minItems: 1, items: { type: 'object', required: ['query', 'location'], properties: {
         query: { type: 'string', title: 'What', minLength: 1 },
         location: { type: 'string', title: 'Where' },
+        relevance_criteria: { type: 'string', maxLength: 1000, description: 'Optional concise natural-language event-ranking goal, separate from the event query.', 'x-ui': { basic: true } },
         start_date: { type: 'string', format: 'date', title: 'Start date' },
         end_date: { type: 'string', format: 'date', title: 'End date' },
       } } },

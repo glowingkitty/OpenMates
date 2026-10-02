@@ -1,10 +1,12 @@
 <script lang="ts">
   import { text } from '../../i18n/translations';
   import WorkflowSchemaFields from '../workflows/WorkflowSchemaFields.svelte';
+  import SettingsTextarea from '../settings/elements/SettingsTextarea.svelte';
   import type { AppsSkillDetails, AppsSkillGuestEligibility } from '../../types/appsWorkspace';
   import { getAnonymousAppsSkillAvailability } from '../../services/appsWorkspaceService';
   import {
-    expandCompositeSkillPaths, prepareSkillInput, remainingSkillPaths, selectSkillSchema, showAllSkillSchema,
+    expandCompositeSkillPaths, getSkillPath, prepareSkillInput, remainingSkillPaths, schemaForPath,
+    selectSkillSchema, setSkillPath, showAllSkillSchema, skillLeafPaths,
     validateSkillInput, type SkillSchema, type SkillValidationIssue,
   } from './appsSkillFormUtils';
 
@@ -101,7 +103,13 @@
   const primaryPaths = $derived(metadata.primary_fields.slice(0, 2));
   const displayedPrimaryPaths = $derived(expandCompositeSkillPaths(schema, primaryPaths));
   const primarySchema = $derived(selectSkillSchema(schema, displayedPrimaryPaths));
-  const advancedPaths = $derived(remainingSkillPaths(schema, displayedPrimaryPaths));
+  const requirementsPath = $derived(skillLeafPaths(schema).find(path => {
+    if (!path.endsWith('.relevance_criteria') && path !== 'relevance_criteria') return false;
+    const field = schemaForPath(schema, path);
+    return field?.type === 'string' && !field.enum && !displayedPrimaryPaths.includes(path);
+  }));
+  const requirementsField = $derived(requirementsPath ? schemaForPath(schema, requirementsPath) : null);
+  const advancedPaths = $derived(remainingSkillPaths(schema, [...displayedPrimaryPaths, ...(requirementsPath ? [requirementsPath] : [])]));
   const advancedSchema = $derived(selectSkillSchema(schema, advancedPaths));
   const showSignup = $derived(guest && metadata.execution_available && (!metadata.anonymous_allowed || metadata.execution_mode !== 'sync' || quoteEligibility?.allowed === false || (!checkingQuote && !quoteEligibility && !guestEligibility?.allowed)));
   const unavailable = $derived(!metadata.execution_available);
@@ -143,6 +151,21 @@
   {#if primarySchema}
     <div class="primary-fields" data-testid="apps-skill-primary-fields">
       <WorkflowSchemaFields schema={showAllSkillSchema(primarySchema)} value={input} onChange={next => input = next as Record<string, unknown>} path="apps-primary" appId={metadata.app_id} {timezone} appsMode />
+    </div>
+  {/if}
+  {#if requirementsPath}
+    <div class="requirements-field" data-testid="apps-skill-requirements">
+      <label for="apps-skill-relevance-criteria">{tr('requirements')} <span class="optional">{tr('optional')}</span></label>
+      <SettingsTextarea
+        id="apps-skill-relevance-criteria"
+        ariaLabel={`${tr('requirements')} ${tr('optional')}`}
+        value={String(getSkillPath(input, requirementsPath) ?? '')}
+        placeholder={tr('requirements_placeholder')}
+        maxlength={requirementsField?.maxLength}
+        rows={4}
+        dataTestid="apps-skill-relevance-criteria"
+        onInput={value => input = setSkillPath(input, requirementsPath, value || undefined)}
+      />
     </div>
   {/if}
 
@@ -191,6 +214,11 @@
   .apps-skill-form { display:grid; gap:var(--spacing-8); width:100%; max-width:48rem; min-width:0; margin:0 auto; }
   .manual-intro { margin:0; text-align:center; color:var(--color-font-secondary); line-height:1.5; }
   .primary-fields,.settings { min-width:0; }
+  .requirements-field { display:grid; gap:var(--spacing-2); min-width:0; }
+  .requirements-field label { font-size:max(16px, 1rem); font-weight:650; line-height:1.35; }
+  .requirements-field .optional { color:var(--color-font-secondary); font-weight:400; }
+  .requirements-field :global(.settings-textarea-wrapper) { padding:0; }
+  .requirements-field :global(.settings-textarea) { min-height:7rem; background:var(--color-grey-20); }
   .primary-fields :global(.schema-fields),.settings :global(.schema-fields) { gap:var(--spacing-8); }
   .settings { display:grid; gap:var(--spacing-8); padding:var(--spacing-8); border:1px solid var(--color-grey-20); border-radius:var(--radius-8); }
   .action-row { display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); align-items:center; gap:var(--spacing-4); min-width:0; }

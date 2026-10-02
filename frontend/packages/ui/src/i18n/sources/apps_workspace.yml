@@ -142,6 +142,26 @@ request_error:
   context: Apps workspace interface
   en: The request could not finish. You can try again.
   de: Die Anfrage konnte nicht abgeschlossen werden. Du kannst es erneut versuchen.
+saving:
+  context: Result cards are available while their encrypted graph uploads in the background
+  en: Saving results…
+  de: Ergebnisse werden gespeichert…
+saved:
+  context: The encrypted Apps result graph has been acknowledged by the server
+  en: Results saved
+  de: Ergebnisse gespeichert
+save_failed:
+  context: A successful skill result remains available locally after its background save failed
+  en: Results are available. Saving failed.
+  de: Die Ergebnisse sind verfügbar. Das Speichern ist fehlgeschlagen.
+retry_save:
+  context: Retry only the encrypted result upload without running the skill again
+  en: Retry saving
+  de: Erneut speichern
+saving_results:
+  context: Pending parent results shown above the paginated saved Apps library
+  en: Results awaiting save
+  de: Noch zu speichernde Ergebnisse
 viewer_read_only:
   context: Apps workspace interface
   en: Your team role allows viewing results. Ask a team member to run this skill.

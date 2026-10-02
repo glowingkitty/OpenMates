@@ -2,7 +2,7 @@
 import { getApiEndpoint } from "../config/api";
 import { appsResultRequestFields } from "../utils/appsResultRequestFields";
 import { EMBED_CHILD_TYPE_MAP } from "../data/embedRegistry.generated";
-import { get } from "svelte/store";
+import { get, writable } from "svelte/store";
 import { userProfile } from "../stores/userProfile";
 import { authStore } from "../stores/authStore";
 import type { EmbedType } from "../message_parsing/types";
@@ -28,6 +28,10 @@ import type { Chat, ChatContentBatchResponsePayload } from "../types/chat";
 import type { EmbedKeyEntry } from "./embedStore";
 import { decryptChatKeyWithMasterKey } from "./cryptoService";
 import { unwrapTeamChatKey } from "./teamService";
+import {
+  stagePendingAppsResult, getPendingAppsResult, listPendingAppsResults, deletePendingAppsResult,
+  makePendingAppsResultId, type PendingAppsResult,
+} from "./appsWorkspaceResultOutbox";
 
 export type AppsResultStatus = "processing" | "finished" | "error" | "cancelled";
 export interface AppsResultItem {
@@ -52,6 +56,10 @@ export interface RetainAppsResultInput {
   guest?: boolean;
   requestId?: string;
   rootEmbedId?: string;
+  /** Return once locally durable; upload the exact ciphertext in the background. */
+  persistence?: "background";
+  /** The caller generated this root for a new request; no remote lookup is needed. */
+  newRequest?: boolean;
 }
 type CipherRow = {
   embed_id: string;
@@ -90,6 +98,14 @@ const historicalEpochs = new Map<string, number>();
 const historicalScopes = new Map<string, { userId: string; appId: string; teamId: string | null }>();
 const historicalCatchupTimers = new Map<string, ReturnType<typeof setTimeout>>();
 const accountDiscoveries = new Map<string, { controller: AbortController; users: number }>();
+export type AppsResultSaveState = "saving" | "saved" | "error";
+export class AppsResultSavePendingError extends Error {
+  constructor(readonly embedId: string) { super("Apps result is waiting for its encrypted save"); }
+}
+export const appsResultSaveStates = writable<Record<string, AppsResultSaveState>>({});
+const pendingGraphs = new Map<string, PendingAppsResult>();
+const uploads = new Map<string, Promise<void>>();
+const recoveredRoots = new Set<string>();
 let legacyPostQueue: Promise<void> = Promise.resolve();
 let nextLegacyPostAt = 0;
 type LegacyIndexItem = { embed_id: string; chat_id: string; app_id: string; skill_id: string };
@@ -219,15 +235,148 @@ async function stableChildId(rootId: string, index: number): Promise<string> {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
-function uploadGraph(graph: StoredGraph, expectedUserId: string): Promise<{ root_embed_id: string; linked_embed_ids: string[] }> {
+function uploadGraph(graph: StoredGraph, expectedUserId: string, signal?: AbortSignal): Promise<{ root_embed_id: string; linked_embed_ids: string[] }> {
   const { created_at: _createdAt, ...body } = graph;
-  return requestJson("/v1/apps/workspace/results", { method: "POST", body: JSON.stringify({ ...body, expected_user_id: expectedUserId }) });
+  return requestJson("/v1/apps/workspace/results", { method: "POST", body: JSON.stringify({ ...body, expected_user_id: expectedUserId }), signal });
 }
 
 function assertSameAuthenticatedUser(userId: string): void {
   if (!get(authStore).isAuthenticated || get(userProfile).user_id !== userId) {
     throw new Error("Apps result account changed before encrypted upload completed");
   }
+}
+
+export function appsResultSaveKey(userId: string, teamId: string | null | undefined, rootId: string): string {
+  return `${userId}:${teamId || "personal"}:${rootId}`;
+}
+
+function setSaveState(record: PendingAppsResult, state: AppsResultSaveState): void {
+  const key = appsResultSaveKey(record.userId, record.teamId, record.rootEmbedId);
+  appsResultSaveStates.update((values) => ({ ...values, [key]: state }));
+}
+
+function notifyResultUpdated(record: PendingAppsResult): void {
+  if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("appsResultUpdated", {
+    detail: { embedId: record.rootEmbedId, teamId: record.teamId, userId: record.userId,
+      appId: record.graph.app_id, skillId: record.graph.skill_id, status: record.graph.embeds[0]?.status },
+  }));
+}
+
+/** Serialize uploads for a root, including a finished update staged during its processing upload. */
+function uploadPendingResult(record: PendingAppsResult): Promise<void> {
+  const running = uploads.get(record.id);
+  if (running) return running;
+  const upload = (async () => {
+    let next: PendingAppsResult | undefined = pendingGraphs.get(record.id) ?? record;
+    while (next) {
+      const current = next;
+      assertSameAuthenticatedUser(current.userId);
+      // Other accounts' ciphertext remains queued until their context is active again.
+      if ((get(activeTeamId) || null) !== current.teamId) return;
+      setSaveState(current, "saving");
+      const saved = await uploadGraph(current.graph, current.userId, AbortSignal.timeout(30_000));
+      assertSameAuthenticatedUser(current.userId);
+      if ((get(activeTeamId) || null) !== current.teamId) return;
+      const latest = pendingGraphs.get(current.id);
+      if (!latest || latest.revision === current.revision) {
+        // Provider-owned embed IDs cannot be overwritten before the server determines
+        // which assets were already persisted under their original keys.
+        const linked = new Set(saved.linked_embed_ids);
+        const key = activeKeys.get(current.rootEmbedId);
+        const deferred = new Set(current.deferredChildIds);
+        if (key) await hydrateRows(current.graph.embeds.filter((row) => deferred.has(row.embed_id)
+          && !linked.has(row.embed_id)), current.graph.app_id, current.graph.skill_id,
+        key, current.graph.created_at, current.userId);
+        if (["images", "audio", "music", "videos"].includes(current.graph.app_id)) {
+          await refreshAppsGeneratedAssetUrls(current.graph.embeds.slice(1).map((row) => row.embed_id), current.teamId, current.userId).catch(() => {});
+        }
+      }
+      await deletePendingAppsResult(current);
+      if (pendingGraphs.get(current.id)?.revision === current.revision) pendingGraphs.delete(current.id);
+      next = pendingGraphs.get(current.id) ?? await getPendingAppsResult(current.userId, current.teamId, current.rootEmbedId);
+      setSaveState(current, next ? "saving" : "saved");
+      notifyResultUpdated(current);
+      if (!next && recoveredRoots.delete(current.id) && current.graph.embeds[0]?.status === "processing") {
+        void resumeAppsResult(current.rootEmbedId, current.teamId).catch(() => {});
+      }
+    }
+  })().catch(() => { setSaveState(pendingGraphs.get(record.id) ?? record, "error"); notifyResultUpdated(record); })
+    .finally(() => uploads.delete(record.id));
+  uploads.set(record.id, upload);
+  return upload;
+}
+
+/** Retry retention only: this never calls a skill or repeats its charge. */
+export async function retryAppsResultSave(rootId: string, teamId?: string | null): Promise<void> {
+  const userId = get(userProfile).user_id;
+  if (!userId || !get(authStore).isAuthenticated) return;
+  const id = makePendingAppsResultId(userId, teamId || null, rootId);
+  const record = pendingGraphs.get(id) ?? await getPendingAppsResult(userId, teamId || null, rootId);
+  if (record) {
+    pendingGraphs.set(id, record);
+    try { await stagePendingAppsResult(record); await uploadPendingResult(record); }
+    catch { setSaveState(record, "error"); }
+  }
+}
+
+async function hydratePendingResult(record: PendingAppsResult): Promise<Record<string, unknown>> {
+  assertSameAuthenticatedUser(record.userId);
+  const key = record.teamId
+    ? await unwrapEmbedKeyWithChatKey(record.graph.encrypted_embed_key, await getTeamKey(record.teamId), { embedId: record.rootEmbedId })
+    : await unwrapEmbedKeyWithMasterKey(record.graph.encrypted_embed_key, record.rootEmbedId);
+  if (!key) throw new Error("Pending Apps result key could not be unwrapped");
+  assertSameAuthenticatedUser(record.userId);
+  activeKeys.set(record.rootEmbedId, key);
+  activeContexts.set(record.rootEmbedId, { userId: record.userId, teamId: record.teamId, guest: false, wrapper: record.graph.encrypted_embed_key });
+  const deferred = new Set(record.deferredChildIds);
+  await hydrateRows(record.graph.embeds.filter((row) => !deferred.has(row.embed_id)), record.graph.app_id, record.graph.skill_id, key, record.graph.created_at, record.userId);
+  const content = await decryptWithEmbedKey(record.graph.embeds[0].encrypted_content, key);
+  if (!content) throw new Error("Pending Apps result content could not be decrypted");
+  return JSON.parse(content) as Record<string, unknown>;
+}
+
+/** Restore locally durable results on reload and resume sends in the current account. */
+export async function recoverPendingAppsResults(teamId?: string | null, appId?: string | null, skillId?: string | null): Promise<string | null> {
+  const userId = get(userProfile).user_id;
+  if (!userId || !get(authStore).isAuthenticated) return null;
+  const records = await listPendingAppsResults(userId, teamId || null);
+  assertSameAuthenticatedUser(userId);
+  if ((get(activeTeamId) || null) !== (teamId || null)) return null;
+  for (const record of records) {
+    const memory = pendingGraphs.get(record.id);
+    if (!memory && record.graph.embeds[0]?.status === "processing") {
+      const content = await hydratePendingResult(record);
+      const taskIds = Array.isArray(content.task_ids) ? content.task_ids : content.task_id ? [content.task_id] : [];
+      if (!taskIds.length) {
+        // A closed tab cannot safely re-dispatch an unaccepted request. Retain a
+        // truthful interrupted result instead of an unresumable processing root.
+        await retainAppsResult({ appId: record.graph.app_id, skillId: record.graph.skill_id,
+          input: content.input, response: { status: "error", error: "request_interrupted" },
+          teamId: record.teamId, requestId: record.rootEmbedId, persistence: "background" });
+        continue;
+      }
+    }
+    if (!memory || record.updatedAt > memory.updatedAt) pendingGraphs.set(record.id, record);
+    if (!memory) recoveredRoots.add(record.id);
+  }
+  const current = records.flatMap((record) => { const pending = pendingGraphs.get(record.id); return pending ? [pending] : []; }).filter((record) => record.graph.app_id === appId && record.graph.skill_id === skillId
+    && record.graph.embeds[0]?.status === "finished").sort((a, b) => b.updatedAt - a.updatedAt)[0];
+  if (current) await hydratePendingResult(current);
+  for (const record of records) {
+    const pending = pendingGraphs.get(record.id);
+    if (pending && (pending.graph.embeds[0]?.status !== "processing" || recoveredRoots.has(record.id))) void uploadPendingResult(pending);
+  }
+  return current?.rootEmbedId ?? null;
+}
+
+export async function listPendingAppsResultItems(appId: string, teamId?: string | null): Promise<AppsResultItem[]> {
+  const userId = get(userProfile).user_id;
+  if (!userId || !get(authStore).isAuthenticated) return [];
+  const records = await listPendingAppsResults(userId, teamId || null);
+  assertSameAuthenticatedUser(userId);
+  return records.filter((record) => record.graph.app_id === appId).sort((a, b) => b.updatedAt - a.updatedAt)
+    .slice(0, 20).map((record) => ({ embedId: record.rootEmbedId, appId, skillId: record.graph.skill_id,
+      createdAt: record.graph.created_at, status: record.graph.embeds[0].status }));
 }
 
 function assertHistoricalContext(userId: string, teamId: string | null): void {
@@ -630,7 +779,7 @@ export async function retainAppsResult(args: RetainAppsResultInput): Promise<str
   const existingGuest = guest ? (await guestRecords()).find((row) => row.root_embed_id === rootId) : undefined;
   let key = activeKeys.get(rootId) ?? await embedStore.getEmbedKey(rootId);
   if (!key && existingGuest) key = await unwrapAnonymousChatKey(existingGuest.encrypted_embed_key);
-  if (!key && !guest) {
+  if (!key && !guest && !args.newRequest) {
     try { await getAppsResult(rootId, args.teamId); key = activeKeys.get(rootId) ?? await embedStore.getEmbedKey(rootId); } catch { /* New result. */ }
   }
   key ||= generateEmbedKey();
@@ -711,10 +860,36 @@ export async function retainAppsResult(args: RetainAppsResultInput): Promise<str
     await writeGuest(graph);
   } else {
     assertSameAuthenticatedUser(submittedContext.userId!);
-    const saved = await uploadGraph(graph, submittedContext.userId!);
-    assertSameAuthenticatedUser(submittedContext.userId!);
-    const linked = new Set(saved.linked_embed_ids);
-    await hydrateRows([root, ...children.filter((row) => !linked.has(row.embed_id))], args.appId, args.skillId, key, createdAt, submittedContext.userId!);
+    if (args.persistence === "background") {
+      const record: PendingAppsResult = {
+        id: makePendingAppsResultId(submittedContext.userId!, submittedContext.teamId, rootId),
+        userId: submittedContext.userId!, teamId: submittedContext.teamId, rootEmbedId: rootId,
+        revision: crypto.randomUUID(), graph, updatedAt: Date.now(), deferredChildIds: Array.from(resultIds),
+      };
+      pendingGraphs.set(record.id, record);
+      let staged = false;
+      try { await stagePendingAppsResult(record); staged = true; setSaveState(record, "saving"); }
+      catch { setSaveState(record, "error"); }
+      assertSameAuthenticatedUser(submittedContext.userId!);
+      await hydrateRows([root, ...children.filter((row) => !resultIds.has(row.embed_id))], args.appId, args.skillId, key, createdAt, submittedContext.userId!);
+      notifyResultUpdated(record);
+      // A quick synchronous request needs only a local processing draft. Sending
+      // it first would compete with dispatch and add an unnecessary round trip.
+      if (staged && (status !== "processing" || acceptedTaskIds.length)) {
+        const uploaded = uploadPendingResult(record);
+        // Existing provider assets must be validated/reconciled before exposing
+        // their original IDs. Ordinary search children are immediately usable.
+        if (resultIds.size) {
+          await uploaded;
+          if (get(appsResultSaveStates)[appsResultSaveKey(record.userId, record.teamId, rootId)] !== "saved") throw new AppsResultSavePendingError(rootId);
+        }
+      }
+    } else {
+      const saved = await uploadGraph(graph, submittedContext.userId!);
+      assertSameAuthenticatedUser(submittedContext.userId!);
+      const linked = new Set(saved.linked_embed_ids);
+      await hydrateRows([root, ...children.filter((row) => !linked.has(row.embed_id))], args.appId, args.skillId, key, createdAt, submittedContext.userId!);
+    }
   }
   if (status === "finished") {
     // The encrypted graph is already durable; a transient URL refresh must not
@@ -764,7 +939,9 @@ export function resumeAppsResult(embedId: string, teamId?: string | null): Promi
       await retainAppsResult({ appId: String(content.app_id), skillId: String(content.skill_id),
         input: content.input, response: { success: true, data: completed.length === 1 ? completed[0] : completed },
         teamId, requestId: embedId });
-      if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("appsResultUpdated", { detail: { embedId, teamId: teamId ?? null } }));
+      if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("appsResultUpdated", { detail: {
+        embedId, teamId: teamId ?? null, userId: ownerId, appId: String(content.app_id), skillId: String(content.skill_id), status: "finished",
+      } }));
       return true;
     } catch {
       // Distinguish a terminal provider failure from network loss, account
@@ -791,6 +968,14 @@ export function resumeAppsResult(embedId: string, teamId?: string | null): Promi
 /** Fetch and ingest a saved root and all children into the standard embed store. */
 export async function getAppsResult(embedId: string, teamId?: string | null): Promise<void> {
   const requestedUserId = get(authStore).isAuthenticated ? get(userProfile).user_id : null;
+  if (requestedUserId) {
+    const pendingId = makePendingAppsResultId(requestedUserId, teamId || null, embedId);
+    const pending = pendingGraphs.get(pendingId) ?? await getPendingAppsResult(requestedUserId, teamId || null, embedId);
+    if (pending) {
+      await hydratePendingResult(pending);
+      return;
+    }
+  }
   const guest = !get(authStore).isAuthenticated ? (await guestRecords()).find((row) => row.root_embed_id === embedId) : undefined;
   if (guest) {
     const key = await unwrapAnonymousChatKey(guest.encrypted_embed_key);

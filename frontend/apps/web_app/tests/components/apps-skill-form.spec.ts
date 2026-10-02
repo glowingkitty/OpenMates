@@ -39,6 +39,40 @@ test('Apps skill form keeps two primary controls and preserves request shape', a
   });
 });
 
+// contract-test: direct surface=gui.web assertions=apps.forms.metadata-driven
+test('Events exposes native optional requirements outside settings and submits relevance criteria', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(preview(390));
+  await waitForComponentPreview(page);
+  const form = page.getByTestId('apps-skill-form');
+  const requirements = page.getByTestId('apps-skill-requirements');
+  const textarea = page.getByTestId('apps-skill-relevance-criteria');
+  await expect(requirements).toBeVisible();
+  await expect(requirements.getByText('Requirements')).toBeVisible();
+  await expect(textarea).toBeVisible();
+  await expect(textarea).toHaveAttribute('maxlength', '1000');
+  await expect(page.getByTestId('apps-skill-settings')).toHaveCount(0);
+  const formBox = await form.boundingBox();
+  const fieldBox = await textarea.boundingBox();
+  expect(formBox && fieldBox).toBeTruthy();
+  expect(fieldBox!.x).toBeGreaterThanOrEqual(formBox!.x);
+  expect(fieldBox!.x + fieldBox!.width).toBeLessThanOrEqual(formBox!.x + formBox!.width + 1);
+
+  await form.getByLabel('What').fill('AI');
+  await form.getByLabel('Where').fill('Berlin');
+  await textarea.fill('Events where I can meet potential users and give a future talk.');
+  await page.getByTestId('apps-skill-settings-toggle').click();
+  await expect(page.getByTestId('apps-skill-settings').getByTestId('apps-skill-relevance-criteria')).toHaveCount(0);
+  await page.evaluate(() => window.addEventListener('apps-skill-preview-submit', event => {
+    (window as typeof window & { __appsPreviewInput?: unknown }).__appsPreviewInput = (event as CustomEvent).detail;
+  }, { once: true }));
+  await page.getByTestId('apps-skill-submit').click();
+  await expect.poll(() => page.evaluate(() => (window as typeof window & { __appsPreviewInput?: unknown }).__appsPreviewInput)).toEqual({
+    requests: [{ query: 'AI', location: 'Berlin', relevance_criteria: 'Events where I can meet potential users and give a future talk.', start_date: '2026-10-01', end_date: '2026-10-07' }],
+    provider: 'default',
+  });
+});
+
 // contract-test: direct surface=gui.web assertions=apps.anonymous.cli-equivalent-gate
 test('ineligible guest sees signup before any skill request', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -60,6 +94,7 @@ test('ineligible guest sees signup before any skill request', async ({ page }) =
 test('Travel keeps origin and destination as two primary controls and requires date in settings', async ({ page }) => {
   await page.goto(preview(760, 'travel'));
   await waitForComponentPreview(page);
+  await expect(page.getByTestId('apps-skill-requirements')).toHaveCount(0);
   const primary = page.getByTestId('apps-skill-primary-fields');
   await expect(primary.locator('.schema-field--specialized')).toHaveCount(2);
   await expect(page.getByTestId('apps-skill-settings')).toHaveCount(0);
@@ -150,6 +185,7 @@ test('Audio shows one declared prompt textarea with a nearby coral action and ac
   const form = page.getByTestId('apps-skill-form');
   await expect(page.getByTestId('apps-skill-manual-intro')).toBeVisible();
   const primary = page.getByTestId('apps-skill-primary-fields');
+  await expect(page.getByTestId('apps-skill-requirements')).toHaveCount(0);
   await expect(primary.locator('.schema-field')).toHaveCount(1);
   const prompt = page.getByTestId('apps-skill-textarea-prompt');
   await expect(prompt).toBeVisible();

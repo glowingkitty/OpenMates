@@ -15,6 +15,9 @@ scope:
   - Lazy public metadata, shared schema forms, existing direct endpoints and guest eligibility.
   - Encrypted chatless results, guest promotion, Personal/Team app libraries with pagination.
   - Relevant unit and isolated browser coverage; scoped dev publication.
+  - Show locally retained skill results without waiting for remote graph saves; recover and retry encrypted
+    background uploads without re-executing skills.
+  - Expose optional natural-language Requirements when the native skill schema declares relevance_criteria.
   out:
   - Native Apple UI.
   - New app skills/providers, changes to CLI retention or billing.
@@ -85,6 +88,29 @@ acceptance_criteria:
   - T-APPS-3
   - T-APPS-4
   - T-APPS-5
+- id: AC-4
+  scenario: S-3
+  text: Display native result cards before a remote save acknowledgement, keep failed uploads locally
+    durable with retry and account isolation, and recover interrupted or accepted requests without repeating
+    execution.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: playwright
+  verification_ids:
+  - T-APPS-1
+  - T-APPS-4
+- id: AC-5
+  scenario: S-2
+  text: Show a Requirements field outside advanced settings when relevance_criteria is declared, preserve
+    native nested submission, and omit it for unsupported schemas.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: playwright
+  verification_ids:
+  - T-APPS-1
+  - T-APPS-2
 tests:
 - id: T-APPS-1
   type: playwright
@@ -96,6 +122,8 @@ tests:
   - AC-1
   - AC-2
   - AC-3
+  - AC-4
+  - AC-5
   assertions:
   - Public hash navigation, pre-dispatch guest gate, paginated app libraries, background-sync catch-up
     for older chat roots, and real encrypted 25-child save/read/reopen after leaving the form without
@@ -109,17 +137,7 @@ tests:
     required: true
     expected: pass
     evidence:
-      status: passed
-      timestamp: '2026-10-01T23:22:31.292Z'
-      command: Isolated GitHub Apps route suite:12cases,0skips/retries/failures; includes skill login,
-        immediate retained execution and desktop/phone gutters.
-      run_id: '36940072960'
-      subject_commit: a80e7c0ff072c9c601a6382dba681270ef6c8223
-      execution_environment: isolated_github_ci
-      harness_commit: ac12dcd4158a0fca191de0424bfa479718fbb3b0
-      profile: e2e
-      artifacts:
-      - https://github.com/glowingkitty/OpenMates/actions/runs/36940072960/artifacts/11200072413
+      status: pending
 - id: T-APPS-2
   type: playwright
   file: frontend/apps/web_app/tests/components/apps-skill-form.spec.ts
@@ -128,6 +146,7 @@ tests:
   execution_environment: isolated_github_ci
   covers:
   - AC-2
+  - AC-5
   assertions:
   - Render at most two primary schema-driven inputs, reveal advanced settings, preserve defaults, show
     declared provider/model/pricing, execute direct endpoints, and gate guest execution by CLI eligibility
@@ -174,6 +193,7 @@ tests:
   covers:
   - AC-2
   - AC-3
+  - AC-4
   assertions:
   - Frontend schema validation, account-scoped execution cache, complete encrypted graphs, guest promotion
     retry, bounded historical discovery/resume, sync catch-up and guarded writes across account switching.

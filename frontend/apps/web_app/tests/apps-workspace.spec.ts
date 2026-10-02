@@ -14,10 +14,11 @@ type SkillFixture = {
   primary_fields: string[];
   anonymous_allowed: boolean;
   requestEnvelope?: boolean;
+  relevanceCriteria?: boolean;
 };
 
 async function fixtureSkillDetails(page: any, fixture: SkillFixture): Promise<void> {
-  const { app_id, skill_id, name, primary_fields, anonymous_allowed, requestEnvelope } = fixture;
+  const { app_id, skill_id, name, primary_fields, anonymous_allowed, requestEnvelope, relevanceCriteria } = fixture;
   await page.route(`**/v1/apps/${app_id}/skills/${skill_id}/details`, async (route: any) => {
     await route.fulfill({
       status: 200,
@@ -37,6 +38,7 @@ async function fixtureSkillDetails(page: any, fixture: SkillFixture): Promise<vo
               type: 'object', required: ['query'], properties: {
                 query: { type: 'string', title: 'Query', minLength: 1, 'x-ui': { basic: true } },
                 count: { type: 'integer', title: 'Count', default: 10, minimum: 1, maximum: 20, 'x-ui': { basic: true } },
+                ...(relevanceCriteria ? { relevance_criteria: { type: 'string', title: 'Relevance criteria', maxLength: 1000, 'x-ui': { basic: true } } } : {}),
               },
             },
           } },
@@ -665,6 +667,196 @@ test.describe('Apps workspace', () => {
   });
 
   // contract-test: direct surface=gui.web assertions=apps.execution.direct-shared-contract,apps.results.web-retained-graph
+  test('Web results render and open locally before the finished background save is acknowledged', async ({ page }: { page: any }) => {
+    test.setTimeout(120000);
+    expect(getTestAccount().email, 'CI must provide its existing authenticated test account').toBeTruthy();
+    await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+    await loginToTestAccount(page, () => {}, async () => {});
+    await fixtureSkillDetails(page, {
+      app_id: 'web', skill_id: 'search', name: 'Search web',
+      primary_fields: ['query'], anonymous_allowed: false, requestEnvelope: true,
+    });
+    const query = 'Accessible museums for a local result';
+    const title = 'Website card before save acknowledgment';
+    const saves: any[] = [];
+    const skillBodies: any[] = [];
+    const rootGets: string[] = [];
+    let releaseFinished!: () => void;
+    const finishedGate = new Promise<void>(resolve => { releaseFinished = resolve; });
+    page.on('request', (request: any) => {
+      if (request.method() === 'GET' && /^\/v1\/apps\/workspace\/results\/[0-9a-f-]{36}$/i.test(new URL(request.url()).pathname)) rootGets.push(request.url());
+    });
+    await page.route('**/v1/apps/workspace/results', async (route: any) => {
+      const body = route.request().postDataJSON();
+      saves.push(body);
+      await finishedGate;
+      await route.fulfill({ json: { root_embed_id: body.root_embed_id, linked_embed_ids: [] } });
+    });
+    await page.route('**/v1/apps/web/skills/search', async (route: any) => {
+      skillBodies.push(route.request().postDataJSON());
+      await route.fulfill({ json: { success: true, data: { provider: 'Fixture Search', results: [{ id: 'request-1', results: [{
+        type: 'search_result', title, url: 'https://example.test/apps/local-before-save', description: 'Local result fixture.',
+      }] }] } } });
+    });
+    try {
+      await page.goto(getE2EDebugUrl('/#apps/web/search'), { waitUntil: 'domcontentloaded' });
+      const form = page.getByTestId('apps-skill-form');
+      await expect(form).toBeVisible({ timeout: 30000 });
+      await form.getByRole('textbox', { name: 'Query' }).fill(query);
+      await form.getByTestId('apps-skill-submit').click();
+      await expect(page.getByTestId('apps-inline-results-grid')).toContainText(title, { timeout: 30000 });
+      await expect.poll(() => saves.length).toBe(1);
+      expect(saves).toHaveLength(1);
+      expect(saves[0].embeds).toHaveLength(2);
+      expect(saves[0].embeds[0].status).toBe('finished');
+      expect(skillBodies).toHaveLength(1);
+      expect(skillBodies[0].requests[0].query).toBe(query);
+      expect(rootGets).toEqual([]);
+      await page.getByTestId('apps-inline-results-grid').getByTestId('embed-preview').click();
+      await expect(page.getByTestId('apps-result-fullscreen')).toContainText(title);
+      expect(rootGets).toEqual([]);
+      expect(saves).toHaveLength(1);
+      await expect(page.getByTestId('apps-result-fullscreen')).toContainText(title);
+      releaseFinished();
+      await expect(page.getByTestId('apps-result-save-state')).toHaveAttribute('data-save-state', 'saved');
+      expect(rootGets).toEqual([]);
+    } finally { releaseFinished(); }
+  });
+
+  // contract-test: direct surface=gui.web assertions=apps.results.web-retained-graph,apps.library.embeds-account-paginated
+  test('failed Web save keeps local cards and reload retries the finished graph without skill redispatch', async ({ page }: { page: any }) => {
+    test.setTimeout(120000);
+    expect(getTestAccount().email, 'CI must provide its existing authenticated test account').toBeTruthy();
+    await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+    await loginToTestAccount(page, () => {}, async () => {});
+    await fixtureSkillDetails(page, {
+      app_id: 'web', skill_id: 'search', name: 'Search web',
+      primary_fields: ['query'], anonymous_allowed: false, requestEnvelope: true,
+    });
+    const title = 'Website survives failed save and reload';
+    const savedBodies: any[] = [];
+    let skillPosts = 0;
+    let saveAcknowledged = false;
+    let libraryFails = true;
+    let releaseFailure!: () => void;
+    let releaseRetry!: () => void;
+    const failureGate = new Promise<void>(resolve => { releaseFailure = resolve; });
+    const retryGate = new Promise<void>(resolve => { releaseRetry = resolve; });
+    await page.route('**/v1/apps/workspace/results', async (route: any) => {
+      const body = route.request().postDataJSON();
+      savedBodies.push(body);
+      if (savedBodies.length === 1) {
+        await failureGate;
+        await route.fulfill({ status: 503, json: { detail: 'Fixture save outage' } });
+      } else {
+        await retryGate;
+        await route.fulfill({ json: { root_embed_id: body.root_embed_id, linked_embed_ids: [] } })
+          .then(() => { saveAcknowledged = true; }).catch(() => {});
+      }
+    });
+    await page.route('**/v1/apps/workspace/results?*', (route: any) => libraryFails
+      ? route.fulfill({ status: 503, json: { detail: 'Fixture library outage' } })
+      : route.fulfill({ json: {
+        items: saveAcknowledged ? [{ embed_id: savedBodies.at(-1).root_embed_id, app_id: 'web', skill_id: 'search',
+          created_at: 1, status: 'finished' }] : [],
+        has_more: false, offset: 0, limit: 20,
+      } }));
+    await page.route('**/v1/apps/web/skills/search', (route: any) => {
+      skillPosts += 1;
+      return route.fulfill({ json: { success: true, data: { provider: 'Fixture Search', results: [{ id: 'request-1', results: [{
+        type: 'search_result', title, url: 'https://example.test/apps/retry-after-reload', description: 'Retry fixture.',
+      }] }] } } });
+    });
+    try {
+      await page.goto(getE2EDebugUrl('/#apps/web/search'), { waitUntil: 'domcontentloaded' });
+      const form = page.getByTestId('apps-skill-form');
+      await expect(form).toBeVisible({ timeout: 30000 });
+      await form.getByRole('textbox', { name: 'Query' }).fill('Accessible museums after outage');
+      await form.getByTestId('apps-skill-submit').click();
+      await expect(page.getByTestId('apps-inline-results-grid')).toContainText(title, { timeout: 30000 });
+      await expect.poll(() => savedBodies.length).toBe(1);
+      expect(savedBodies).toHaveLength(1);
+      expect(savedBodies[0].embeds[0].status).toBe('finished');
+      expect(savedBodies[0].embeds).toHaveLength(2);
+      releaseFailure();
+      await expect(page.getByTestId('apps-result-save-state')).toHaveAttribute('data-save-state', 'error');
+      await expect(page.getByTestId('apps-result-save-retry')).toBeVisible();
+      await expect(page.getByTestId('apps-inline-results-grid')).toContainText(title);
+      const rootId = savedBodies[0].root_embed_id;
+      const childId = savedBodies[0].embeds[1].embed_id;
+      await page.getByTestId('apps-tab-embeds').click();
+      const pending = page.getByTestId('apps-pending-results-list');
+      await expect(pending).toBeVisible({ timeout: 30000 });
+      const pendingParent = pending.getByTestId(`apps-result-open-${rootId}`);
+      await expect(pendingParent.getByTestId('embed-preview')).toBeVisible();
+      await expect(page.getByRole('alert')).toBeVisible();
+      await expect(page.getByTestId(`apps-result-open-${childId}`)).toHaveCount(0);
+      await expect(pendingParent.getByTestId(`apps-result-save-retry-${rootId}`)).toBeVisible();
+      await pendingParent.getByTestId('embed-preview').click();
+      await expect(page.getByTestId('apps-result-fullscreen')).toContainText(title);
+      await page.getByTestId('apps-result-fullscreen').getByTestId('embed-minimize').click();
+      await pendingParent.getByTestId(`apps-result-save-retry-${rootId}`).click();
+      await expect.poll(() => savedBodies.length).toBe(2);
+      expect(savedBodies[1].embeds[0].status).toBe('finished');
+      expect(savedBodies[1].embeds).toHaveLength(2);
+      expect(skillPosts).toBe(1);
+      await page.evaluate(() => { window.location.hash = '#apps/web/search'; });
+      await expect(page.getByTestId('apps-skill-form')).toBeVisible();
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await expect(page.getByTestId('apps-inline-results-grid')).toContainText(title, { timeout: 30000 });
+      await expect.poll(() => savedBodies.length).toBeGreaterThanOrEqual(3);
+      expect(savedBodies.at(-1)).toEqual(savedBodies[1]);
+      expect(skillPosts).toBe(1);
+      releaseRetry();
+      await expect(page.getByTestId('apps-result-save-state')).toHaveAttribute('data-save-state', 'saved');
+      libraryFails = false;
+      await page.goto(getE2EDebugUrl('/#apps/web&tab=embeds'), { waitUntil: 'domcontentloaded' });
+      await expect(page.getByTestId(`apps-result-open-${rootId}`)).toBeVisible({ timeout: 30000 });
+      for (const row of savedBodies[1].embeds.slice(1)) await expect(page.getByTestId(`apps-result-open-${row.embed_id}`)).toHaveCount(0);
+    } finally { releaseFailure(); releaseRetry(); }
+  });
+
+  // contract-test: direct surface=gui.web assertions=apps.forms.metadata-driven,apps.execution.direct-shared-contract
+  test('Events relevance criteria is a schema-native requirement outside Settings and posts in the request', async ({ page }: { page: any }) => {
+    test.setTimeout(90000);
+    expect(getTestAccount().email, 'CI must provide its existing authenticated test account').toBeTruthy();
+    await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+    await loginToTestAccount(page, () => {}, async () => {});
+    await fixtureSkillDetails(page, {
+      app_id: 'events', skill_id: 'search', name: 'Search events',
+      primary_fields: ['requests[].query', 'requests[].count'], anonymous_allowed: false,
+      requestEnvelope: true, relevanceCriteria: true,
+    });
+    let posted: any;
+    await page.route('**/v1/apps/workspace/results', (route: any) => route.fulfill({ json: {
+      root_embed_id: route.request().postDataJSON().root_embed_id, linked_embed_ids: [],
+    } }));
+    await page.route('**/v1/apps/events/skills/search', (route: any) => {
+      posted = route.request().postDataJSON();
+      return route.fulfill({ json: { success: true, data: { provider: 'Fixture Events', results: [{ id: 'request-1', results: [] }] } } });
+    });
+    await page.goto(getE2EDebugUrl('/#apps/events/search'), { waitUntil: 'domcontentloaded' });
+    const form = page.getByTestId('apps-skill-form');
+    await expect(form).toBeVisible({ timeout: 30000 });
+    const criteria = form.getByTestId('apps-skill-relevance-criteria');
+    await expect(criteria).toBeVisible();
+    await expect(form.getByTestId('apps-skill-settings')).toHaveCount(0);
+    const naturalText = 'Prefer free outdoor jazz events near public transport.';
+    await form.getByRole('textbox', { name: 'Query' }).fill('jazz this weekend');
+    await criteria.fill(naturalText);
+    await form.getByTestId('apps-skill-submit').click();
+    await expect.poll(() => posted?.requests?.[0]?.relevance_criteria).toBe(naturalText);
+    expect(posted.requests[0].query).toBe('jazz this weekend');
+    await fixtureSkillDetails(page, {
+      app_id: 'web', skill_id: 'search', name: 'Search web',
+      primary_fields: ['query'], anonymous_allowed: false, requestEnvelope: true,
+    });
+    await page.goto(getE2EDebugUrl('/#apps/web/search'), { waitUntil: 'domcontentloaded' });
+    await expect(page.getByTestId('apps-skill-form')).toBeVisible({ timeout: 30000 });
+    await expect(page.getByTestId('apps-skill-relevance-criteria')).toHaveCount(0);
+  });
+
+  // contract-test: direct surface=gui.web assertions=apps.execution.direct-shared-contract,apps.results.web-retained-graph
   // contract-test: direct surface=rest_api assertions=apps.results.web-retained-graph,apps.library.embeds-account-paginated
   test('one Web search retains all 25 children after leaving its form and reopens after reload', async ({ page }: { page: any }) => {
     test.setTimeout(120000);
@@ -730,8 +922,7 @@ test.describe('Apps workspace', () => {
     expect(rootId).toMatch(/^[0-9a-f-]{36}$/i);
     expect(skillPosts).toBe(1);
     expect(chatPosts).toEqual([]);
-    expect(savedBodies).toHaveLength(2); // Processing parent, then finished parent plus children.
-    expect(savedBodies[0].embeds).toHaveLength(1);
+    expect(savedBodies).toHaveLength(1); // The sync processing draft stays local until the finished graph is ready.
     expect(body.embeds).toHaveLength(26);
     const root = body.embeds.find((row: any) => row.embed_id === rootId);
     expect(root?.embed_ids).toHaveLength(25);

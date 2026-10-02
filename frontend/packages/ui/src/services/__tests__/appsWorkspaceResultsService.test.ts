@@ -1,6 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { PendingAppsResult } from "../appsWorkspaceResultOutbox";
 
 const state = vi.hoisted(() => ({ authenticated: true, userId: "owner" as string | null, teamId: null as string | null }));
+const pendingDisk = vi.hoisted(() => new Map<string, PendingAppsResult>());
+vi.mock("../appsWorkspaceResultOutbox", () => ({
+  makePendingAppsResultId: (user: string, team: string | null, root: string) => JSON.stringify([user, team, root]),
+  stagePendingAppsResult: vi.fn(async (record: PendingAppsResult) => { pendingDisk.set(record.id, structuredClone(record)); }),
+  getPendingAppsResult: vi.fn(async (user: string, team: string | null, root: string) => pendingDisk.get(JSON.stringify([user, team, root]))),
+  listPendingAppsResults: vi.fn(async (user: string, team: string | null) => [...pendingDisk.values()].filter(row => row.userId === user && row.teamId === team)),
+  deletePendingAppsResult: vi.fn(async (record: PendingAppsResult) => { if (pendingDisk.get(record.id)?.revision === record.revision) pendingDisk.delete(record.id); }),
+}));
 const mocks = vi.hoisted(() => ({
   syncTarget: new EventTarget(),
   sendLoadMoreChats: vi.fn(async (_offset: number) => {}),
@@ -116,6 +125,7 @@ describe("Apps result persistence", () => {
     mocks.sendMessage.mockImplementation(async () => {});
     localStorage.clear();
     disk.clear();
+    pendingDisk.clear();
     state.authenticated = true;
     state.userId = "owner";
     state.teamId = null;
@@ -126,6 +136,192 @@ describe("Apps result persistence", () => {
       bytes[15] = data[data.length - 1] ?? 0;
       return bytes.buffer;
     } }, randomUUID: () => "00000000-0000-4000-8000-000000000000" });
+  });
+
+  // contract-test: direct surface=gui.web assertions=apps.results.web-retained-graph,apps.execution.direct-shared-contract
+  it("makes sync results locally available before a single finished upload is acknowledged", async () => {
+    const rootId = "94000000-0000-4000-8000-000000000001";
+    let acknowledge!: (response: Response) => void;
+    const fetchMock = vi.fn(() => new Promise<Response>(resolve => { acknowledge = resolve; }));
+    vi.stubGlobal("fetch", fetchMock);
+    const service = await import("../appsWorkspaceResultsService");
+    await service.retainAppsResult({ appId: "events", skillId: "search", input: { query: "Jazz" },
+      response: { status: "processing" }, requestId: rootId, newRequest: true, persistence: "background" });
+    expect(fetchMock).not.toHaveBeenCalled();
+    await expect(service.retainAppsResult({ appId: "events", skillId: "search", input: { query: "Jazz" },
+      response: { results: [{ title: "Jazz night" }] }, requestId: rootId, persistence: "background" })).resolves.toBe(rootId);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(mocks.putEncrypted).toHaveBeenCalledTimes(3); // draft, completed parent and child
+    const queued = [...pendingDisk.values()][0];
+    expect(queued.graph.embeds).toHaveLength(2);
+    expect(queued.graph.embeds[0].status).toBe("finished");
+    expect(JSON.stringify(queued)).not.toContain("Jazz night");
+    const retry = service.retryAppsResultSave(rootId);
+    acknowledge(new Response(JSON.stringify({ root_embed_id: rootId, linked_embed_ids: [] }), { status: 200 }));
+    await retry;
+    expect(pendingDisk.size).toBe(0);
+    const { get } = await import("svelte/store");
+    expect(get(service.appsResultSaveStates)[service.appsResultSaveKey("owner", null, rootId)]).toBe("saved");
+  });
+
+  // contract-test: direct surface=gui.web assertions=apps.results.web-retained-graph
+  it("keeps successful local results after upload failure and retries the identical ciphertext", async () => {
+    const rootId = "94000000-0000-4000-8000-000000000002";
+    const fetchMock = vi.fn().mockResolvedValueOnce(new Response("unavailable", { status: 503 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ root_embed_id: rootId, linked_embed_ids: [] }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const service = await import("../appsWorkspaceResultsService");
+    await service.retainAppsResult({ appId: "events", skillId: "search", input: {},
+      response: { results: [{ title: "Visible despite failed save" }] }, requestId: rootId, newRequest: true, persistence: "background" });
+    const { get } = await import("svelte/store");
+    await vi.waitFor(() => expect(get(service.appsResultSaveStates)[service.appsResultSaveKey("owner", null, rootId)]).toBe("error"));
+    expect(mocks.putEncrypted).toHaveBeenCalledTimes(2);
+    expect(pendingDisk.size).toBe(1);
+    const firstBody = fetchMock.mock.calls[0][1].body;
+    await service.retryAppsResultSave(rootId);
+    expect(fetchMock.mock.calls[1][1].body).toBe(firstBody);
+    expect(pendingDisk.size).toBe(0);
+    expect(get(service.appsResultSaveStates)[service.appsResultSaveKey("owner", null, rootId)]).toBe("saved");
+  });
+
+  // contract-test: direct surface=gui.web assertions=apps.results.web-retained-graph
+  it("serializes accepted processing and finished revisions without deleting a newer graph", async () => {
+    const rootId = "94000000-0000-4000-8000-000000000003";
+    let revision = 0;
+    vi.stubGlobal("crypto", { ...crypto, randomUUID: () => `revision-${++revision}` });
+    const acknowledgements: Array<(response: Response) => void> = [];
+    const fetchMock = vi.fn(() => new Promise<Response>(resolve => { acknowledgements.push(resolve); }));
+    vi.stubGlobal("fetch", fetchMock);
+    const service = await import("../appsWorkspaceResultsService");
+    await service.retainAppsResult({ appId: "events", skillId: "search", input: {},
+      response: { status: "processing", task_id: "accepted-task" }, requestId: rootId, newRequest: true, persistence: "background" });
+    await service.retainAppsResult({ appId: "events", skillId: "search", input: {},
+      response: { results: [{ title: "Completed" }] }, requestId: rootId, persistence: "background" });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect([...pendingDisk.values()][0].graph.embeds[0].status).toBe("finished");
+    acknowledgements[0](new Response(JSON.stringify({ root_embed_id: rootId, linked_embed_ids: [] }), { status: 200 }));
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect([...pendingDisk.values()][0].graph.embeds[0].status).toBe("finished");
+    const finished = service.retryAppsResultSave(rootId);
+    acknowledgements[1](new Response(JSON.stringify({ root_embed_id: rootId, linked_embed_ids: [] }), { status: 200 }));
+    await finished;
+    expect(pendingDisk.size).toBe(0);
+    const bodies = fetchMock.mock.calls.map((call: unknown[]) => JSON.parse((call[1] as RequestInit).body as string));
+    expect(bodies.map(body => body.embeds[0].status)).toEqual(["processing", "finished"]);
+  });
+
+  // contract-test: direct surface=gui.web assertions=apps.results.web-retained-graph,apps.library.embeds-account-paginated
+  it("recovers only the active account's pending graph after reload without a server lookup", async () => {
+    const rootId = "94000000-0000-4000-8000-000000000004";
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("offline", { status: 503 })));
+    const initial = await import("../appsWorkspaceResultsService");
+    await initial.retainAppsResult({ appId: "events", skillId: "search", input: {},
+      response: { results: [{ title: "Survives reload" }] }, requestId: rootId, newRequest: true, persistence: "background" });
+    const { get } = await import("svelte/store");
+    await vi.waitFor(() => expect(get(initial.appsResultSaveStates)[initial.appsResultSaveKey("owner", null, rootId)]).toBe("error"));
+    vi.resetModules();
+    mocks.putEncrypted.mockClear();
+    const recovered = await import("../appsWorkspaceResultsService");
+    state.userId = "other-user";
+    expect(await recovered.recoverPendingAppsResults(null, "events", "search")).toBeNull();
+    expect(mocks.putEncrypted).not.toHaveBeenCalled();
+    state.userId = "owner";
+    expect(await recovered.recoverPendingAppsResults(null, "events", "search")).toBe(rootId);
+    expect(mocks.putEncrypted).toHaveBeenCalledTimes(2);
+    expect(await recovered.listPendingAppsResultItems("events")).toHaveLength(1);
+    const requests = vi.mocked(fetch).mock.calls;
+    expect(requests.every((call) => call[1]?.method === "POST")).toBe(true);
+  });
+
+  // contract-test: direct surface=gui.web assertions=apps.results.web-retained-graph,apps.execution.direct-shared-contract
+  it("turns a cold unaccepted processing draft into an encrypted interrupted result", async () => {
+    const rootId = "94000000-0000-4000-8000-000000000005";
+    const initial = await import("../appsWorkspaceResultsService");
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ root_embed_id: rootId, linked_embed_ids: [] }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    await initial.retainAppsResult({ appId: "events", skillId: "search", input: { query: "Private draft" },
+      response: { status: "processing" }, requestId: rootId, newRequest: true, persistence: "background" });
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(pendingDisk.get(JSON.stringify(["owner", null, rootId]))?.graph.embeds[0].status).toBe("processing");
+
+    vi.resetModules();
+    const recovered = await import("../appsWorkspaceResultsService");
+    expect(await recovered.recoverPendingAppsResults(null, "events", "search")).toBeNull();
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    const body = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as { embeds: Array<{ status: string; encrypted_content: string }> };
+    expect(body.embeds[0].status).toBe("error");
+    expect(JSON.parse(decrypt(body.embeds[0].encrypted_content))).toMatchObject({
+      status: "error", error: "request_interrupted", input: { query: "Private draft" },
+    });
+    expect(String(fetchMock.mock.calls[0][1]?.body)).not.toContain("Private draft");
+    const { pollAppsSkillTask } = await import("../appsWorkspaceService");
+    expect(pollAppsSkillTask).not.toHaveBeenCalled();
+  });
+
+  // contract-test: direct surface=gui.web assertions=apps.results.web-retained-graph,apps.execution.direct-shared-contract
+  it("resumes a cold accepted task only after its processing graph is acknowledged", async () => {
+    const rootId = "94000000-0000-4000-8000-000000000006";
+    const id = JSON.stringify(["owner", null, rootId]);
+    const root = { embed_id: rootId, encrypted_type: crypt("app_skill_use"),
+      encrypted_content: crypt(JSON.stringify({ app_id: "events", skill_id: "search", input: { query: "Private search" },
+        task_ids: ["accepted-task"], status: "processing", embed_ids: [] })), status: "processing" as const, embed_ids: [] };
+    pendingDisk.set(id, { id, userId: "owner", teamId: null, rootEmbedId: rootId, revision: "accepted-1",
+      graph: { app_id: "events", skill_id: "search", root_embed_id: rootId, embeds: [root],
+        encrypted_embed_key: "master-wrapper", created_at: 123 }, updatedAt: 123 });
+    let acknowledge!: (response: Response) => void;
+    const requests: Array<{ url: string; init?: RequestInit }> = [];
+    const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+      requests.push({ url, init });
+      if (init?.method === "POST" && requests.filter(item => item.init?.method === "POST").length === 1) {
+        return new Promise<Response>(resolve => { acknowledge = resolve; });
+      }
+      if (url.endsWith(`/v1/apps/workspace/results/${rootId}`)) return Promise.resolve(new Response(JSON.stringify({
+        root: { ...root, app_id: "events", skill_id: "search", created_at: 123 }, children: [],
+        key: { encrypted_embed_key: "master-wrapper", hashed_user_id: "owner-hash", created_at: 123 },
+      }), { status: 200 }));
+      return Promise.resolve(new Response(JSON.stringify({ root_embed_id: rootId, linked_embed_ids: [] }), { status: 200 }));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    mocks.get.mockResolvedValue({ status: "processing", content: decrypt(root.encrypted_content) });
+    const { pollAppsSkillTask } = await import("../appsWorkspaceService");
+    vi.mocked(pollAppsSkillTask).mockResolvedValue({ results: [{ title: "Recovered event" }] });
+    const service = await import("../appsWorkspaceResultsService");
+    expect(await service.recoverPendingAppsResults(null, "events", "search")).toBeNull();
+    expect(requests).toHaveLength(1);
+    expect(pollAppsSkillTask).not.toHaveBeenCalled();
+    acknowledge(new Response(JSON.stringify({ root_embed_id: rootId, linked_embed_ids: [] }), { status: 200 }));
+    await vi.waitFor(() => expect(requests.filter(item => item.init?.method === "POST")).toHaveLength(2));
+    expect(pollAppsSkillTask).toHaveBeenCalledExactlyOnceWith("accepted-task", { expectedUserId: "owner" });
+    expect(requests.every(item => !item.url.includes("/v1/apps/events/skills/search"))).toBe(true);
+    const finished = JSON.parse(String(requests.filter(item => item.init?.method === "POST")[1].init?.body)) as {
+      embeds: Array<{ status: string; encrypted_content: string }>;
+    };
+    expect(finished.embeds[0].status).toBe("finished");
+    expect(finished.embeds).toHaveLength(2);
+    expect(JSON.parse(decrypt(finished.embeds[1].encrypted_content))).toMatchObject({ title: "Recovered event" });
+  });
+
+  // contract-test: direct surface=gui.web assertions=apps.results.web-retained-graph
+  it("keeps a provider-ID graph pending after failed save and preserves an existing linked asset on retry", async () => {
+    const rootId = "94000000-0000-4000-8000-000000000007";
+    const assetId = "94000000-0000-4000-8000-000000000008";
+    const fetchMock = vi.fn().mockResolvedValueOnce(new Response("unavailable", { status: 503 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ root_embed_id: rootId, linked_embed_ids: [assetId] }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const service = await import("../appsWorkspaceResultsService");
+    await expect(service.retainAppsResult({ appId: "events", skillId: "search", input: { query: "Private" },
+      response: { results: [{ embed_id: assetId, title: "Original provider asset" }] },
+      requestId: rootId, newRequest: true, persistence: "background" })).rejects.toBeInstanceOf(service.AppsResultSavePendingError);
+    const queued = pendingDisk.get(JSON.stringify(["owner", null, rootId]));
+    expect(queued?.graph.embeds[0].status).toBe("finished");
+    expect(queued?.graph.embeds.map(row => row.embed_id)).toEqual([rootId, assetId]);
+    expect(JSON.stringify(queued)).not.toContain("Original provider asset");
+    expect(mocks.putEncrypted.mock.calls.map(call => call[0])).toEqual([`embed:${rootId}`]);
+    await service.retryAppsResultSave(rootId);
+    expect(fetchMock.mock.calls[1][1].body).toBe(fetchMock.mock.calls[0][1].body);
+    expect(mocks.putEncrypted.mock.calls.map(call => call[0])).toEqual([`embed:${rootId}`]);
+    expect(mocks.setEmbedKeyInCache).not.toHaveBeenCalledWith(assetId, expect.anything());
+    expect(pendingDisk.has(JSON.stringify(["owner", null, rootId]))).toBe(false);
   });
 
   // contract-test: direct surface=gui.web assertions=apps.results.web-retained-graph
