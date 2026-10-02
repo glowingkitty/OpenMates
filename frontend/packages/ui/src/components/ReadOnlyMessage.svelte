@@ -26,10 +26,12 @@
     import type { PIIMapping } from '../types/chat';
     import { settingsDeepLink } from '../stores/settingsDeepLinkStore';
     import { panelState } from '../stores/panelStateStore';
+    import { getProject } from '../services/projectService';
+    import { chatDB } from '../services/db';
 
     // Bump this when parse/render semantics change so stale in-memory parsed docs
     // (cached by markdown text) are invalidated and re-parsed with new logic.
-    const READ_ONLY_PARSE_CACHE_VERSION = 'v4-inline-ratio-math';
+    const READ_ONLY_PARSE_CACHE_VERSION = 'v5-project-mentions';
 
     // Props using Svelte 5 runes mode
     // _embedUpdateTimestamp is used to force re-render when embed data becomes available
@@ -61,6 +63,35 @@
 
     let editorElement: HTMLElement;
     let editor: Editor | null = null;
+    const projectMentionNames = new Map<string, Promise<string>>();
+
+    function refreshProjectMentionNames() {
+        const targetEditor = editor;
+        if (!targetEditor || targetEditor.isDestroyed) return;
+        const pending = new Set<string>();
+        targetEditor.state.doc.descendants((node) => {
+            if (node.type.name === 'genericMention' && typeof node.attrs.projectId === 'string') pending.add(node.attrs.projectId);
+        });
+        for (const projectId of pending) {
+            if (!projectMentionNames.has(projectId)) {
+                projectMentionNames.set(projectId, (async () => {
+                    const chat = chatId ? await chatDB.getChat(chatId) : null;
+                    return (await getProject(projectId, { teamId: chat?.team_id })).name;
+                })());
+            }
+            void projectMentionNames.get(projectId)!.then((name) => {
+                if (editor !== targetEditor || targetEditor.isDestroyed) return;
+                const transaction = targetEditor.state.tr;
+                targetEditor.state.doc.descendants((node, position) => {
+                    if (node.type.name !== 'genericMention' || node.attrs.projectId !== projectId) return;
+                    const suffix = node.attrs.projectPath ? `-${String(node.attrs.projectPath).split('/').filter(Boolean).pop()}` : '';
+                    const displayName = `${name}${suffix}`.replace(/\s+/g, '-');
+                    if (node.attrs.displayName !== displayName) transaction.setNodeMarkup(position, undefined, { ...node.attrs, displayName });
+                });
+                if (transaction.docChanged) targetEditor.view.dispatch(transaction);
+            }).catch(() => { /* Unavailable Projects keep a stable, non-sensitive fallback. */ });
+        }
+    }
     const dispatch = createEventDispatcher();
 
     $effect(() => {
@@ -513,7 +544,11 @@
             //   entry:            same as settings_memory (links to category page)
             const parts = mentionSyntax.replace(/^@/, '').split(':');
 
-            if (mentionType === 'skill' && parts.length >= 3) {
+            if (mentionType === 'project' || mentionType === 'project_folder' || mentionType === 'project_file') {
+                const projectId = mentionEl.getAttribute('data-project-id');
+                if (projectId) window.location.hash = `project-id=${encodeURIComponent(projectId)}`;
+                return;
+            } else if (mentionType === 'skill' && parts.length >= 3) {
                 // parts[0]="skill", parts[1]=appId, parts[2]=skillId
                 deepLinkPath = `apps/${parts[1]}/skill/${parts[2]}`;
             } else if (mentionType === 'focus_mode' && parts.length >= 3) {
@@ -751,6 +786,7 @@
         editor.view.dom.addEventListener('click', handleMentionClick as EventListener);
         editor.view.dom.addEventListener('keydown', handlePIIInteraction as EventListener);
         editorCreated = true;
+        refreshProjectMentionNames();
         
         // Apply PII highlighting decorations after editor is created
         applyPIIDecorations(editor);
@@ -1055,6 +1091,7 @@
         }
         
         // Re-apply PII decorations after content update
+        refreshProjectMentionNames();
         applyPIIDecorations(editor);
 
         // Visual polish: fade in every freshly rendered streaming update chunk.

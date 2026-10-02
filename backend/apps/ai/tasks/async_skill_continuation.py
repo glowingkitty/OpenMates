@@ -214,6 +214,11 @@ async def dispatch_async_skill_continuation(
         )
     )
 
+    project_focus_accepted = (
+        context.get("skill_id") == "activate_focus_mode"
+        and str((context.get("tool_arguments") or {}).get("focus_id", "")).startswith("project-")
+        and any(result.get("access_granted") is True for result in completed_results)
+    )
     continuation_request = AskSkillRequest(
         chat_id=original_request.chat_id,
         message_id=original_request.message_id,
@@ -226,8 +231,13 @@ async def dispatch_async_skill_continuation(
         is_external=original_request.is_external,
         mate_id=original_request.mate_id,
         client_capabilities=original_request.client_capabilities,
-        active_focus_id=original_request.active_focus_id,
+        active_focus_id=None if project_focus_accepted else original_request.active_focus_id,
         current_project=original_request.current_project,
+        project_focus_candidates=original_request.project_focus_candidates,
+        project_access_declined=original_request.project_access_declined or (
+            context.get("skill_id") == "activate_focus_mode"
+            and any(result.get("access_granted") is False for result in completed_results)
+        ),
         active_project_focus=original_request.active_project_focus,
         continuation_message_id=original_request.continuation_message_id,
         is_async_skill_continuation=True,

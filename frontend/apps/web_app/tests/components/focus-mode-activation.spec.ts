@@ -6,6 +6,7 @@
  * The fixture inputs are encoded in the bare preview URL for repeatability.
  */
 import { expect, test } from '../helpers/cookie-audit';
+import { waitForComponentPreview } from '../helpers/component-preview';
 // playwright-account: not_required reason=isolated_component_preview
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { createVideoProofRuntime, defineVideoProof } = require('../helpers/video-proof');
@@ -18,6 +19,34 @@ const PROOF = defineVideoProof({
     tutorial: { readingWordsPerSecond: 2.5, minimumHoldMs: 1800, maximumHoldMs: 5000 },
 });
 test.describe('Focus activation component history', () => {
+    // contract-test: direct surface=gui.web assertions=projects.focus.inferred-consent
+    test('Project access waits for explicit confirmation beyond the catalog countdown', async ({ page }) => {
+        const query = new URLSearchParams({ chrome: '0', variant: 'projectConsent' });
+        await page.goto(`/dev/preview/embeds/focus_mode/FocusModeActivationEmbed?${query}`);
+        await waitForComponentPreview(page);
+        await expect(page.getByTestId('project-focus-consent')).toBeVisible();
+        await expect(page.getByTestId('focus-progress-bar')).toHaveCount(0);
+        await page.screenshot({ path: test.info().outputPath('project-focus-pending.png') });
+        await page.waitForTimeout(5_100);
+        await expect(page.getByTestId('project-focus-grant')).toBeVisible();
+        await expect(page.getByTestId('focus-status-value')).toHaveText('Waiting for your permission');
+        await page.getByTestId('project-focus-grant').click();
+        await expect(page.getByTestId('project-focus-consent')).toHaveCount(0);
+        await expect(page.getByTestId('focus-status-value')).toHaveText('Focus activated');
+        await page.screenshot({ path: test.info().outputPath('project-focus-consent.png') });
+    });
+    // contract-test: direct surface=gui.web assertions=projects.focus.inferred-consent,focus-modes.history-side-effects
+    test('historical Project request does not expose a grant action', async ({ page }) => {
+        const query = new URLSearchParams({ chrome: '0', props: JSON.stringify({
+            focusId: 'project-11111111-1111-4111-8111-111111111111', appId: 'projects',
+            focusModeName: 'Work on Garden notes', alreadyActive: false,
+        }) });
+        await page.goto(`/dev/preview/embeds/focus_mode/FocusModeActivationEmbed?${query}`);
+        await waitForComponentPreview(page);
+        await expect(page.getByTestId('focus-mode-bar')).toBeVisible();
+        await expect(page.getByTestId('project-focus-consent')).toHaveCount(0);
+        await expect(page.getByTestId('focus-progress-bar')).toHaveCount(0);
+    });
     // contract-test: direct surface=gui.web assertions=focus-modes.countdown,focus-modes.history-side-effects
     test('history without current active metadata never starts a countdown', async ({ page }, testInfo) => {
         const proof = createVideoProofRuntime(PROOF, { device: DEVICE, attach: testInfo.attach.bind(testInfo) });
@@ -44,6 +73,7 @@ test.describe('Focus activation component history', () => {
             id: 'live-focus-record', alreadyActive: false, pendingUntil: Date.now() + 4000,
         }) });
         await page.goto(`/dev/preview/embeds/focus_mode/FocusModeActivationEmbed?${query}`);
+        await waitForComponentPreview(page);
         await expect(page.getByTestId('focus-progress-bar')).toBeVisible();
         await page.getByTestId('focus-mode-bar').click();
         await expect(page.getByTestId('focus-mode-bar')).toHaveCount(0);

@@ -400,9 +400,9 @@ export function peekProjects(): ProjectViewModel[] | undefined { return projectL
 export function subscribeProjects(listener: () => void): () => void { return projectListCache.subscribe(listener); }
 export function getProjectsRefreshError(): unknown { return projectListCache.getError('list'); }
 
-export async function listProjects(options: { force?: boolean } = {}): Promise<ProjectViewModel[]> {
-  return projectListCache.load('list', async () => {
-    const data = await requestJson<{ projects: EncryptedProjectRecord[] }>("/v1/projects");
+export async function listProjects(options: { force?: boolean; teamId?: string | null } = {}): Promise<ProjectViewModel[]> {
+  return projectListCache.load(options.teamId ? `list:${options.teamId}` : 'list', async () => {
+    const data = await requestJson<{ projects: EncryptedProjectRecord[] }>(withProjectRemoteQuery("/v1/projects", { team_id: options.teamId }));
     const decrypted = await Promise.all(data.projects.map(decryptProject));
     return decrypted.filter((project): project is ProjectViewModel => project !== null);
   }, options);
@@ -1089,7 +1089,7 @@ export async function updateProjectSettings(
 
 export async function activateProjectFocus(
   projectId: string,
-  input: { chat_id: string; focus_id: string; instruction: string },
+  input: { chat_id: string; focus_id: string; instruction: string; activation_request_id?: string },
   context: ProjectApiContext = {},
 ): Promise<ActiveProjectFocus> {
   const data = await requestJson<{ focus: ActiveProjectFocus }>(

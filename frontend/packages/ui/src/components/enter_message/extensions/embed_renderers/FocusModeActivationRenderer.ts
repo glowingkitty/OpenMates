@@ -24,6 +24,10 @@ import FocusModeActivationEmbed from "../../../embeds/focus_mode/FocusModeActiva
 import { activeChatStore } from "../../../../stores/activeChatStore";
 import { chatMetadataCache } from "../../../../services/chatMetadataCache";
 import { chatDB } from "../../../../services/db";
+import { activateProjectFocusAfterConsent } from "../../../../services/projectFocusSendPreflight";
+import { deactivateProjectFocus, getActiveProjectFocus } from "../../../../services/projectService";
+import { webSocketService } from "../../../../services/websocketService";
+import { pendingFocusActivationStore } from "../../../../stores/pendingFocusActivationStore";
 
 // Track mounted components for cleanup
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
@@ -55,6 +59,7 @@ export class FocusModeActivationRenderer implements EmbedRenderer {
     // activation state. A freshly suggested focus embed can be `finished` while
     // the user still has a chance to reject it.
     const chatId = activeChatStore.get() || "";
+    const projectId = focusId.startsWith("project-") ? focusId.slice("project-".length) : null;
     let alreadyActive = false;
     try {
       if (chatId) {
@@ -64,6 +69,7 @@ export class FocusModeActivationRenderer implements EmbedRenderer {
           if (metadata?.activeFocusId === focusId) {
             alreadyActive = true;
           }
+          if (projectId) alreadyActive = (await getActiveProjectFocus(chatId))?.project_id === projectId;
         }
       }
     } catch (e) {
@@ -116,8 +122,29 @@ export class FocusModeActivationRenderer implements EmbedRenderer {
           focusModeName,
           alreadyActive,
           chatId,
+          onAcceptProject: async () => {
+            if (!projectId || activeChatStore.get() !== chatId) throw new Error("Project request is no longer current");
+            const chat = await chatDB.getChat(chatId);
+            const activation = await activateProjectFocusAfterConsent({
+              projectId, chatId, requestId: attrs.id || "", teamId: chat?.team_id,
+            });
+            const { chatSyncService } = await import("../../../../services/chatSyncService");
+            try {
+              await chatSyncService.applyConfirmedFocusActivation(chatId, activation.focus_id, activation.project_name);
+            } catch (error) {
+              await deactivateProjectFocus(chatId).catch(() => undefined);
+              throw error;
+            }
+            await webSocketService.sendMessage("project_focus_decision", { chat_id: chatId, request_id: attrs.id, accepted: true });
+            pendingFocusActivationStore.clear(attrs.id || "");
+          },
           onReject: (rejectedFocusId: string, rejectedName: string) => {
             if (activeChatStore.get() !== chatId) return;
+            if (projectId) {
+              void webSocketService.sendMessage("project_focus_decision", { chat_id: chatId, request_id: attrs.id, accepted: false });
+              pendingFocusActivationStore.clear(attrs.id || "");
+              return;
+            }
             console.debug(
               "[FocusModeActivationRenderer] Focus mode rejected:",
               rejectedFocusId,
@@ -156,6 +183,7 @@ export class FocusModeActivationRenderer implements EmbedRenderer {
             );
           },
           onDetails: (detailsFocusId: string, detailsAppId: string) => {
+            if (projectId) { window.location.hash = `project-id=${encodeURIComponent(projectId)}`; return; }
             console.debug(
               "[FocusModeActivationRenderer] Focus mode details requested:",
               detailsFocusId,

@@ -446,6 +446,7 @@ class ProjectFocusActivateRequest(BaseModel):
     chat_id: str = Field(min_length=1, max_length=128)
     focus_id: str = Field(min_length=36, max_length=36)
     instruction: str = Field(min_length=1, max_length=128_000)
+    activation_request_id: str | None = Field(default=None, min_length=36, max_length=36)
 
 
 class ProjectFocusDeactivateRequest(BaseModel):
@@ -1273,6 +1274,14 @@ async def activate_project_focus(
 ) -> Dict[str, Any]:
     """First-party session activation after DB chat and Project checks."""
     try:
+        if body.activation_request_id:
+            from backend.core.api.app.services.project_focus_request_service import ProjectFocusRequestService
+            pending = await ProjectFocusRequestService(request.app.state.cache_service, directus_service).require_pending(
+                user_id=current_user.id, chat_id=body.chat_id,
+                request_id=body.activation_request_id, project_id=project_id,
+            )
+            if pending.get("team_id") != team_id:
+                raise ProjectWriteAuthorizationError("PROJECT_FOCUS_MISMATCH")
         binding = await ProjectWriteAuthorizationService(
             directus_service,
             request.app.state.cache_service,

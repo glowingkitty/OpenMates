@@ -3142,11 +3142,9 @@ async def handle_main_processing(
     )
     active_project_focus = None
     active_project_sources: list[dict[str, Any]] = []
-    if project_file_tools_enabled or (
-        "remote_command_jobs" in project_capabilities
-        and not request_data.is_incognito
-        and cache_service is not None
-    ):
+    # Focus instructions remain active even when the current client cannot
+    # execute files. Execution capability controls tools, never focus semantics.
+    if not request_data.is_incognito and cache_service is not None:
         try:
             from backend.core.api.app.services.project_write_authorization_service import (
                 ProjectWriteAuthorizationService,
@@ -3742,14 +3740,37 @@ async def handle_main_processing(
     # deactivate_focus_mode: only when a focus mode is currently active
     
     relevant_focus_modes = preprocessing_results.relevant_focus_modes if hasattr(preprocessing_results, 'relevant_focus_modes') else []
-    has_active_focus_mode = bool(request_data.active_focus_id)
+    has_active_focus_mode = bool(request_data.active_focus_id or active_project_focus)
+    project_candidates = {
+        f"project-{candidate['project_id']}": candidate
+        for candidate in (getattr(request_data, "project_focus_candidates", None) or [])
+        if isinstance(candidate, dict) and candidate.get("project_id") and candidate.get("name")
+    }
+    relevant_focus_modes = [
+        focus for focus in relevant_focus_modes
+        if not focus.startswith("project-") or (
+            not getattr(request_data, "project_access_declined", False)
+            and focus in project_candidates
+            and project_file_tools_enabled
+            and (not active_project_focus or project_candidates[focus]["project_id"] != active_project_focus["project_id"])
+        )
+    ]
+    if has_active_focus_mode:
+        relevant_focus_modes = [focus for focus in relevant_focus_modes if focus in project_candidates]
     # Whether the user explicitly specified this focus mode via @focus:app:id mention
     user_requested_focus_only = getattr(preprocessing_results, 'user_requested_focus_only', False)
     
-    if relevant_focus_modes and not has_active_focus_mode and not user_requested_skills_only:
+    if relevant_focus_modes and not user_requested_skills_only:
         # Build enum and descriptions for activate_focus_mode tool
         focus_mode_descriptions = []
         for focus_id in relevant_focus_modes:
+            if focus_id in project_candidates:
+                focus_mode_descriptions.append(
+                    f"- {focus_id}: Request access to Project {project_candidates[focus_id]['name']!r}. "
+                    "The client asks for explicit confirmation. You cannot access its files or "
+                    "instructions until the user grants access. Never substitute a generic code tool."
+                )
+                continue
             try:
                 app_id, mode_id = focus_id.split('-', 1)
                 app_metadata = discovered_apps_metadata.get(app_id)
@@ -3807,7 +3828,7 @@ async def handle_main_processing(
         available_tools_for_llm.append(activate_tool)
         logger.info(f"{log_prefix} Added activate_focus_mode tool with {len(relevant_focus_modes)} available focus mode(s): {relevant_focus_modes}")
     
-    if has_active_focus_mode and not user_requested_skills_only:
+    if request_data.active_focus_id and not user_requested_skills_only:
         # Add deactivate tool when a focus mode is active
         deactivate_tool = {
             "type": "function",
@@ -6426,6 +6447,53 @@ async def handle_main_processing(
 
                     if skill_id == "activate_focus_mode":
                         focus_id = parsed_args.get("focus_id")
+                        if isinstance(focus_id, str) and focus_id.startswith("project-"):
+                            from backend.apps.ai.tasks.async_skill_continuation import cache_async_skill_continuation_context
+                            from backend.core.api.app.services.embed_service import EmbedService
+                            from backend.core.api.app.services.project_focus_request_service import (
+                                PROJECT_FOCUS_REQUEST_TTL, ProjectFocusRequestService,
+                            )
+                            if focus_id not in project_candidates or focus_id not in relevant_focus_modes or not project_file_tools_enabled:
+                                raise PermissionError("Project activation was not offered for this turn")
+                            candidate = project_candidates[focus_id]
+                            embed = await EmbedService(
+                                cache_service=cache_service, directus_service=directus_service,
+                                encryption_service=encryption_service,
+                            ).create_focus_mode_activation_embed(
+                                focus_id=focus_id, app_id="projects",
+                                focus_mode_name=f"Work on {candidate['name']}",
+                                chat_id=request_data.chat_id, message_id=request_data.message_id,
+                                user_id=request_data.user_id, user_id_hash=request_data.user_id_hash,
+                                user_vault_key_id=user_vault_key_id, task_id=task_id, log_prefix=log_prefix,
+                            )
+                            if not embed:
+                                raise RuntimeError("Project access confirmation could not be created")
+                            request_id = embed["embed_id"]
+                            await cache_async_skill_continuation_context(
+                                cache_service=cache_service, async_task_id=request_id,
+                                request_data=request_data, skill_config_dict=skill_config_dict,
+                                app_id="system", skill_id="activate_focus_mode", tool_name="activate_focus_mode",
+                                tool_arguments=parsed_args, requires_current_turn=True,
+                                defer_until_initial_response_complete=True, ttl_seconds=PROJECT_FOCUS_REQUEST_TTL,
+                            )
+                            pending = {
+                                "request_id": request_id, "continuation_id": request_id,
+                                "project_id": candidate["project_id"], "user_id": request_data.user_id,
+                                "chat_id": request_data.chat_id, "message_id": request_data.message_id,
+                                "team_id": request_data.team_id, "expires_at": time.time() + PROJECT_FOCUS_REQUEST_TTL,
+                            }
+                            key = ProjectFocusRequestService.key(request_data.user_id, request_data.chat_id)
+                            if not await cache_service.set(key + ":" + request_id, pending, ttl=PROJECT_FOCUS_REQUEST_TTL):
+                                raise RuntimeError("Project consent cache unavailable")
+                            if not await cache_service.set(key, pending, ttl=PROJECT_FOCUS_REQUEST_TTL):
+                                raise RuntimeError("Project consent cache unavailable")
+                            redis_client = await cache_service.client
+                            await redis_client.publish(f"user_cache_events:{request_data.user_id}", json.dumps({
+                                "event_type": "focus_mode_pending", "payload": ProjectFocusRequestService.pending_event(pending),
+                            }))
+                            yield f"```json\n{embed['embed_reference']}\n```\n\n"
+                            yield {"__awaiting_focus_mode_confirmation__": True, "focus_id": focus_id, "chat_id": request_data.chat_id}
+                            return
                         logger.info(f"{log_prefix} [FOCUS_MODE] LLM requested focus mode activation: {focus_id}")
                         
                         # --- DEFERRED ACTIVATION ARCHITECTURE ---

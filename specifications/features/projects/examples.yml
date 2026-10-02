@@ -1,6 +1,23 @@
 schema_version: 1
 specification: feature.projects@1
 
+project_focus_routing:
+  - id: explicit-mention
+    assertion_ids: [projects.focus.mention-activation, projects.focus.mention-history]
+    given: Alice can access a Project named Garden notes and this chat has no Project focus.
+    when: Alice types @, selects Garden notes, and sends a request to update README.md.
+    then: The current Project default focus activates before inference, the chat shows Work on Garden notes with an off control, and the saved write policy applies. The user message shows a clickable @Garden-notes chip that opens the Project page without changing focus authority.
+  - id: inferred-project-confirmation
+    assertion_ids: [projects.focus.inferred-consent]
+    given: Alice asks in natural language to update Garden notes without selecting a mention.
+    when: The preprocessor selects its authorized routing metadata and the main processor requests that Project focus.
+    then: A Grant access or Decline choice appears. No Project instructions or file content are loaded until explicit confirmation. Granting access shows the same named active focus and permits the requested work under current guards. Declining does not prompt again during this turn. Waiting beyond the ordinary focus countdown never grants Project access.
+  - id: old-or-unauthorized-request
+    assertion_ids: [projects.focus.inferred-consent]
+    given: An access request belongs to an earlier user turn, another chat, an expired request, or a Project whose permission was revoked.
+    when: A stale client tries to grant it, or historical focus content is rendered.
+    then: The request cannot activate authority or resume the old request. Historical content stays inert. A supplied candidate belonging to another user is filtered before preprocessing.
+
 project_search:
   - id: scoped-read-search
     assertion_ids: [projects.files.search-scoped, projects.files.search-consistent]

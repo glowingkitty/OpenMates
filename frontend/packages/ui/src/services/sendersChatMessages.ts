@@ -45,7 +45,7 @@ import {
 	isProjectFocusId,
 	type ProjectFocusSendIntent,
 } from "./projectFocusSendPreflight";
-import { deactivateProjectFocus } from "./projectService";
+import { deactivateProjectFocus, listProjects } from "./projectService";
 import { stageTeamNotificationPreview } from "./teamNotificationPreview";
 import { ordinaryTeamPreflightStorageKey, retainOrReuseOrdinaryTeamPreflight } from "./ordinaryTeamPreflightRetry";
 import { PreflightRejectionError, isPreflightAcknowledgementTimeout, waitForPreflightAcknowledgement } from "./preflightAcknowledgement";
@@ -991,6 +991,7 @@ export async function sendNewMessageImpl(
 		connected_account_token_refs?: PreparedConnectedAccountSendContext["tokenRefs"];
 		mentioned_settings_memories_cleartext?: Record<string, unknown[]>; // Cleartext for @memory/@memory-entry mentions so backend does not re-request
 		active_focus_id?: string | null; // Plaintext focus mode ID for AI processing (decrypted from E2E encrypted field)
+		project_focus_candidates?: Array<{ project_id: string; name: string }>;
 		team_ai_invocation?: {
 			history: Array<{
 				role: Message["role"];
@@ -1048,6 +1049,16 @@ export async function sendNewMessageImpl(
 
 	// When user mentioned @memory or @memory-entry in the message, send cleartext so the backend
 	// can use it and not request that category again during this request
+	if (!isIncognitoChat) {
+		try {
+			// Names are transient routing data. Instructions and file content are
+			// loaded only after a confirmed Project focus activation.
+			payload.project_focus_candidates = (await listProjects({ teamId: chat?.team_id }))
+				.slice(0, 40).map((project) => ({ project_id: project.project_id, name: project.name.slice(0, 160) }));
+		} catch (error) {
+			console.warn("[ChatSyncService:Senders] Project routing metadata unavailable", error);
+		}
+	}
 	if (!isIncognitoChat && contentForServer) {
 		try {
 			const { extractMentionedSettingsMemoriesCleartext } = await import(

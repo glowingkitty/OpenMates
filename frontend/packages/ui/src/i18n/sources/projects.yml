@@ -14,6 +14,22 @@ focus_active:
   context: Active Project focus pill in the chat composer. {project} is the decrypted Project name.
   en: Work on {project}
   verified_by_human: []
+focus_access_pending:
+  context: Status of an inferred Project focus waiting for explicit user consent
+  en: Waiting for your permission
+  verified_by_human: []
+focus_access_explanation:
+  context: Explain the chat-scoped access granted by activating a Project focus
+  en: Allow this chat to read and work on this Project using its instructions and saved write policy. Switch the focus off at any time to remove access.
+  verified_by_human: []
+focus_access_grant:
+  context: Explicitly approve an inferred Project focus activation
+  en: Grant access
+  verified_by_human: []
+focus_access_failed:
+  context: A Project focus activation failed or its pending request expired
+  en: Access could not be activated. Check your connection or send a new request.
+  verified_by_human: []
 connected_source:
   context: Badge for a folder or repository connected through the remote-access bridge
   en: Connected

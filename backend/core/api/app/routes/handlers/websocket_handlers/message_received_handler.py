@@ -2185,6 +2185,8 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             mate_id=None, # Let preprocessor determine the mate unless a specific one is tied to the chat
             active_focus_id=active_focus_id_for_ai,
             current_project=current_project,
+            project_focus_candidates=(message_payload_from_client.get("project_focus_candidates") or [])[:40]
+            if isinstance(message_payload_from_client.get("project_focus_candidates"), list) else [],
             active_project_focus=active_project_focus,
             user_preferences=user_preferences_dict,
             learning_mode=learning_mode_context,

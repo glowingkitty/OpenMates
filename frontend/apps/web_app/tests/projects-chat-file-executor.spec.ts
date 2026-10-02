@@ -263,7 +263,7 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
     await loginToTestAccount(page);
   });
 
-  // contract-test: direct surface=gui.web assertions=projects.files.hosted-ciphertext-commit,projects.files.expected-base,projects.files.exact-patch,projects.files.chat-focus-required,projects.files.write-policy-enforcement
+  // contract-test: direct surface=gui.web assertions=projects.files.hosted-ciphertext-commit,projects.files.expected-base,projects.files.exact-patch,projects.files.chat-focus-required,projects.files.write-policy-enforcement,projects.focus.mention-activation,projects.focus.inferred-consent,projects.focus.mention-history
   test('creates and updates an encrypted hosted file through explicit Project focus and approval', async ({ page }: { page: Page }) => {
     test.setTimeout(900_000);
     const projectName = `Browser hosted ${randomUUID().slice(0, 8)}`;
@@ -303,18 +303,35 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
       await page.reload({ waitUntil: 'domcontentloaded' });
       await waitForChatReady(page);
       await expectProjectFocusPill(page, projectName);
+      const historyMention = page.getByTestId('project-mention-link').filter({ hasText: `@${projectName.replace(/\s+/g, '-')}` }).first();
+      await expect(historyMention).toBeVisible({ timeout: 30_000 });
+      await expect(historyMention).toHaveAttribute('href', `#project-id=${projectId}`);
+
+      // Natural-language routing must request consent after focus is switched off.
+      await deactivateProjectFocusAndVerify(page, projectId);
+      await page.bringToFront();
+      await page.evaluate(() => window.dispatchEvent(new Event('focus')));
 
       await sendMessage(
         page,
-        `Read ${path}, then use an exact Project update patch to change only the second line from original to updated. Preserve the first line and final newline. Read it back after the update.`,
+        `In my existing Project named "${projectName}", read ${path}, then use an exact Project update patch to change only the second line from original to updated. Preserve the first line and final newline. Request access to this Project through its focus mode so I can confirm it, then perform the edit and read it back.`,
       );
+      await expect(page.getByTestId('project-focus-consent')).toBeVisible({ timeout: 240_000 });
+      await expect(page.getByTestId('focus-pill')).toHaveCount(0);
+      const beforeConsent = await page.evaluate(async ({ apiBaseUrl, chatId }) => {
+        const response = await fetch(`${apiBaseUrl}/v1/projects/focus/current?chat_id=${encodeURIComponent(chatId)}`, { credentials: 'include' });
+        return (await response.json()).focus;
+      }, { apiBaseUrl: API_BASE_URL, chatId: await currentChatId(page) });
+      expect(beforeConsent).toBeNull();
+      await page.getByTestId('project-focus-grant').click();
+      await expectProjectFocusPill(page, projectName);
       await approvePendingWrite(page, path, 'updated');
       await waitForTurnCompletion(page);
       await deactivateProjectFocusAndVerify(page, projectId);
-      await deleteActiveChat(page);
-      chatUrl = null;
 
-      await page.goto(`/#project-id=${encodeURIComponent(projectId)}`, { waitUntil: 'domcontentloaded' });
+      // Opening the Project through the historical mention must leave focus off.
+      await historyMention.click();
+      await expect(page).toHaveURL(new RegExp(`project-id=${projectId}`));
       const folder = page.getByTestId('project-virtual-folder-card').filter({ hasText: 'proofs' }).first();
       await expect(folder).toBeVisible({ timeout: 30_000 });
       await folder.click();
@@ -328,6 +345,12 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
       await expect(overlay.getByTestId('embed-version-timeline')).toBeVisible({ timeout: 30_000 });
       await expect(overlay.getByTestId('version-dot-2')).toBeVisible();
       await closeFullscreen(page, overlay);
+
+      await page.goto(chatUrl!, { waitUntil: 'domcontentloaded' });
+      await waitForChatReady(page);
+      await expect(page.getByTestId('focus-pill')).toHaveCount(0);
+      await deleteActiveChat(page);
+      chatUrl = null;
 
       const encryptedCommits = sentWebSocketMessages.filter((message) => message.type === 'commit_embed_revision');
       expect(encryptedCommits).toHaveLength(2);

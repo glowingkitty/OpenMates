@@ -1,4 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
+vi.mock("../projectService", () => ({
+  activateProjectFocus: vi.fn(), deactivateProjectFocus: vi.fn(),
+  getProject: vi.fn(), getProjectSettings: vi.fn(),
+}));
 import type {
   ActiveProjectFocus,
   ProjectSettingsViewModel,
@@ -6,6 +10,7 @@ import type {
 } from "../projectService";
 import {
   activateProjectFocusForSend,
+  activateProjectFocusAfterConsent,
   deactivateFocusForChat,
   extractProjectFocusSendIntent,
   isProjectFocusId,
@@ -46,6 +51,20 @@ function settings(focusId: string, instructions: string): ProjectSettingsViewMod
 }
 
 describe("Project focus send preflight", () => {
+  // contract-test: supporting surface=gui.web assertions=projects.focus.inferred-consent
+  it("binds inferred consent to the exact request and loads the current Project instruction", async () => {
+    const focusId = "799f65ce-77a6-4207-89b2-db57515b8470";
+    const activate = vi.fn(async () => ({ active: true, project_id: "project-1", focus_id: focusId } as ActiveProjectFocus));
+    await activateProjectFocusAfterConsent(
+      { projectId: "project-1", chatId: "chat-1", requestId: "request-1" },
+      { getProject: vi.fn(async () => project("project-1")),
+        getProjectSettings: vi.fn(async () => settings(focusId, "Current instruction")),
+        activateProjectFocus: activate },
+    );
+    expect(activate).toHaveBeenCalledWith("project-1", {
+      chat_id: "chat-1", focus_id: focusId, instruction: "Current instruction", activation_request_id: "request-1",
+    }, { teamId: null });
+  });
   // contract-test: direct surface=gui.web assertions=projects.files.chat-focus-required,focus-modes.project-write-gate
   it("captures current structured Project mention consent without trusting plaintext syntax", () => {
     expect(extractProjectFocusSendIntent({

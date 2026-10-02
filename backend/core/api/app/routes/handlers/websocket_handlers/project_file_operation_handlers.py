@@ -57,6 +57,20 @@ async def send_available_project_file_operations(
     """Deliver reconnect work only to an authorized, assigned executor."""
     if not manager.can_execute_project_file_job(user_id, device_fingerprint_hash, chat_id):
         return
+    from backend.core.api.app.services.project_focus_request_service import ProjectFocusRequestService
+    pending_service = ProjectFocusRequestService(cache_service, directus_service)
+    pending = await cache_service.get(pending_service.key(user_id, chat_id))
+    if isinstance(pending, dict):
+        try:
+            await pending_service.require_pending(
+                user_id=user_id, chat_id=chat_id, request_id=pending["request_id"],
+            )
+            await manager.send_personal_message(
+                {"type": "focus_mode_pending", "payload": pending_service.pending_event(pending)},
+                user_id, device_fingerprint_hash,
+            )
+        except ProjectWriteAuthorizationError:
+            pass
     focus = await ProjectWriteAuthorizationService(
         directus_service, cache_service
     ).get_active_focus(user_id=user_id, chat_id=chat_id)

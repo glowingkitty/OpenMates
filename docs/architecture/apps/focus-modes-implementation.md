@@ -85,6 +85,34 @@ When `activate_focus_mode` is called:
 5. Otherwise auto-confirm publishes `focus_mode_activated` and dispatches continuation with the active focus prompt.
 6. The client encrypts the focus ID with the chat key, stores it locally, and sends `update_encrypted_active_focus_id` for server persistence.
 
+### Project-owned focus modes
+
+Project focus modes share the visible named focus and off control, while their
+authority comes from the authenticated Project binding. Sending a structured
+Project mention activates the selected Project's current default focus after
+durable chat preflight and before inference. Its user-message chip links to the
+Project page; rendering or clicking history does not activate a focus.
+
+For natural-language requests, the client supplies only a bounded catalog of
+decrypted Project names. The backend filters it against current ownership or
+Team access before preprocessing selects relevant `project-<UUID>` candidates.
+Main processing can request a candidate through `activate_focus_mode`, but the
+Project embed shows **Grant access / Decline** and never schedules auto-confirm.
+Only confirmation loads client-decrypted Project instructions, invokes the same
+Project activation endpoint, persists the encrypted chat focus, and resumes the
+original request through the existing async continuation mechanism.
+
+Pending consent is tied to user, chat, Project, and current user turn, is consumed
+once, and expires after twenty minutes. Reconnection can redisplay a still-valid
+request through a fresh server event; historical embeds remain inert. Declining
+prevents another Project access prompt during that turn. The active Project's
+full instruction remains in each inference prompt even if no file executor is
+currently available. Keys and durable Project contents retain client encryption.
+
+Project focus off revokes the Project binding before clearing encrypted focus
+metadata. Existing displayed chat content remains readable within its prior
+access; future Project operations require the current authorization state.
+
 ### Backend: Deactivation
 
 **AI-initiated:** Clear cache, persist to Directus, create system message, restart without focus mode prompt.

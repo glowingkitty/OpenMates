@@ -49,6 +49,8 @@
     pendingUntil?: number;
     /** Callback when the user rejects the focus mode during countdown */
     onReject?: (focusId: string, focusModeName: string) => void;
+    /** Explicit Project consent; Project requests never auto-confirm. */
+    onAcceptProject?: () => Promise<void>;
     /** Callback when the countdown completes and the focus mode becomes active */
     onActivate?: (focusId: string) => void;
     /** Callback when the user deactivates the focus mode via context menu */
@@ -72,6 +74,7 @@
     chatId = "",
     pendingUntil = 0,
     onReject,
+    onAcceptProject,
     onActivate: _onActivate,
     onDeactivate: _onDeactivate,
     onDetails: _onDetails,
@@ -87,7 +90,11 @@
 
   // State
   let countdownValue = $state(COUNTDOWN_SECONDS);
-  let isActivated = $derived(alreadyActive || (!!chatId && $activeChatFocusStore[chatId] === focusId));
+  let projectAccepted = $state(false);
+  let accepting = $state(false);
+  let projectError = $state(false);
+  let isProjectRequest = $derived(focusId.startsWith('project-'));
+  let isActivated = $derived(projectAccepted || alreadyActive || (!!chatId && $activeChatFocusStore[chatId] === focusId));
   let now = $state(Date.now());
   let deadline = $derived(pendingUntil || ($pendingFocusActivationStore[id]?.chatId === chatId && $pendingFocusActivationStore[id]?.focusId === focusId ? $pendingFocusActivationStore[id].expiresAt : 0));
   let isPending = $derived(!isActivated && !isRejected && deadline > now);
@@ -124,6 +131,7 @@
     if (!isPending) {
       return isActivated ? $text('embeds.focus_mode.activated') : '';
     }
+    if (isProjectRequest) return $text('projects.focus_access_pending');
     return $text('embeds.focus_mode.activating', {
       values: { seconds: String(countdownValue) }
     });
@@ -162,6 +170,7 @@
    * - After activation: opens the context menu (same as right-click).
    */
   function handleClick(event: MouseEvent) {
+    if (isProjectRequest && isPending) return;
     if (isPending) {
       handleRejectClick();
     } else {
@@ -179,6 +188,7 @@
    * - After activation: opens the context menu.
    */
   function handleKeyPress(e: KeyboardEvent) {
+    if (isProjectRequest && isPending) return;
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       if (isPending) {
@@ -323,7 +333,7 @@
     </div>
 
     <!-- Progress bar (only during countdown, overlaid at bottom) -->
-    {#if isPending}
+    {#if isPending && !isProjectRequest}
       <div class="progress-bar-container" data-testid="focus-progress-bar">
         <div
           class="progress-bar"
@@ -334,7 +344,21 @@
   </div>
 
   <!-- Helper text below the bar during countdown -->
-  {#if isPending}
+  {#if isPending && isProjectRequest}
+    <div class="project-consent" data-testid="project-focus-consent">
+      <p>{$text('projects.focus_access_explanation')}</p>
+      {#if projectError}<p role="alert">{$text('projects.focus_access_failed')}</p>{/if}
+      <button type="button" data-testid="project-focus-grant" disabled={accepting} onclick={async () => {
+        if (!isPending || accepting || !onAcceptProject) return;
+        accepting = true;
+        projectError = false;
+        try { await onAcceptProject(); projectAccepted = true; }
+        catch { projectError = true; }
+        finally { accepting = false; }
+      }}>{$text('projects.focus_access_grant')}</button>
+      <button type="button" data-testid="project-focus-decline" disabled={accepting} onclick={handleRejectClick}>{$text('projects.file_approval_reject')}</button>
+    </div>
+  {:else if isPending}
     <div class="reject-hint" data-testid="focus-reject-hint">
       {$text('embeds.focus_mode.reject_hint', {
         default: 'Click or press ESC to prevent focus mode &\ncontinue regular chat'
@@ -344,6 +368,10 @@
 {/if}
 
 <style>
+  .project-consent { padding: 12px; color: var(--color-font-primary); }
+  .project-consent p { margin: 0 0 10px; font-size: var(--font-size-p); }
+  .project-consent button { padding: 8px 12px; margin-right: 8px; border-radius: 8px; border: 1px solid var(--color-grey-30); background: var(--color-grey-20); color: var(--color-font-primary); cursor: pointer; }
+  .project-consent button:disabled { opacity: 0.5; cursor: wait; }
   /* ===========================================
      Focus Mode Bar - Styled like BasicInfosBar
      =========================================== */

@@ -188,6 +188,35 @@ async def test_dispatch_async_skill_continuation_sends_normal_ask_task(monkeypat
     assert cache.deleted == [async_skill_continuation.async_skill_continuation_key("async-task-1")]
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize("accepted", [True, False])
+# contract-test: supporting surface=gui.web assertions=projects.focus.inferred-consent
+async def test_project_focus_consent_replaces_catalog_only_when_accepted(monkeypatch, async_skill_continuation, accepted):
+    cache = _FakeCache()
+    fake_celery_app = _FakeCeleryApp()
+    monkeypatch.setattr(async_skill_continuation, "celery_app", fake_celery_app)
+    request = _request()
+    request.active_focus_id = "jobs-career_insights"
+    await async_skill_continuation.cache_async_skill_continuation_context(
+        cache_service=cache,
+        async_task_id="project-request-1",
+        request_data=request,
+        skill_config_dict=_skill_config_dict(),
+        app_id="system",
+        skill_id="activate_focus_mode",
+        tool_name="activate_focus_mode",
+        tool_arguments={"focus_id": "project-11111111-1111-4111-8111-111111111111"},
+    )
+    await async_skill_continuation.dispatch_async_skill_continuation(
+        cache_service=cache,
+        async_task_id="project-request-1",
+        completed_results=[{"access_granted": accepted}],
+    )
+    payload = fake_celery_app.sent[0]["kwargs"]["request_data_dict"]
+    assert payload["active_focus_id"] == (None if accepted else "jobs-career_insights")
+    assert payload["project_access_declined"] is (not accepted)
+
+
 # contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
 def test_async_embed_instruction_omits_results_view_for_non_visual_skill(async_skill_continuation):
     message = async_skill_continuation._build_completed_tool_result_message(

@@ -152,6 +152,17 @@ export const GenericMentionNode = Node.create<GenericMentionNodeOptions>({
     ) {
       const accessMode = HTMLAttributes.projectAccessMode === "read_write" ? "read_write" : "read";
       const accessLabel = accessMode === "read_write" ? "Read & Write" : "Read";
+      if (!this.editor.isEditable) {
+        return [
+          "a",
+          mergeAttributes(attrs, {
+            href: `#project-id=${encodeURIComponent(HTMLAttributes.projectId)}`,
+            "data-testid": "project-mention-link",
+          }),
+          ["span", { class: "generic-mention-label" }, `@${HTMLAttributes.displayName}`],
+          ["span", { class: "project-access-chip", "aria-hidden": "true" }, accessLabel],
+        ];
+      }
       return [
         "span",
         attrs,

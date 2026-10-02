@@ -1542,6 +1542,39 @@ final_scope_freeze:
     terminal execution is unverified because the one-time OS guard has not been installed. Do not
     claim those checks passed or mark their Tasks complete merely because implementation is frozen.
 
+project_focus_routing_review_2026_10_02:
+  implementation_status: Implementation and targeted verification authorized by the user; in progress.
+  current_patch: Supply bounded client-decrypted Project names for server-filtered preprocessing
+    selection; reuse focus activation tooling with explicit Project consent and current-turn fencing.
+    Confirmation loads client-decrypted default instructions and uses the same activation lifecycle
+    as structured mentions. History chips resolve authorized names and link to the Project page.
+  verification_scope: One disposable hosted Project covers explicit mention create, focus reload,
+    focus-off, natural-language selection and grant, exact update, historical chip navigation, and
+    encrypted revision fullscreen. Never edit the OpenMates Project as a model-driven test target.
+  unit_evidence: Focused Project consent, write authorization and continuation checks pass 27 cases; frontend activation checks pass 8 cases.
+  component_evidence: Four isolated component cases pass in GitHub run 36999946107, including explicit Project consent, no countdown, and inert historical cards. The pending consent screenshot was inspected.
+  guard_scope: First-party session REST and authenticated WebSocket only, existing Project role and
+    chat checks, a 20-minute transient consent expiry, single-use continuation, and existing inference
+    budgets. Candidate metadata is data, not instructions. No independent server decryption is added.
+  user_direction: Continue implementation and targeted testing of both Project entry paths, visible
+    focus authority, and clickable historical mentions using a disposable hosted Project.
+  explicit_mentions: Project suggestions and structured mention send activation are implemented.
+    Activation loads client-decrypted Project default instructions, confirms the server binding,
+    persists encrypted chat focus metadata, and updates the visible focus pill before dispatch.
+    The last real browser proof still failed with no focus pill and no Project tools. The send-click
+    document snapshot correction is deployed in 03b0974f0d5e670d1331cf11db94b2deb38a70e3, with its
+    Vercel deployment confirmed successful; the corrected live flow has not yet been verified.
+  inferred_projects: Permission-scoped Project candidates now participate in preprocessing. Main
+    processing requests explicit Project consent through the existing activation tool and pauses
+    for confirmation. Acceptance loads instructions on the client and resumes with fresh authority;
+    decline suppresses another access request in the same turn. Live proof is pending deployment.
+  visible_state: Project focus name, toggle, encrypted restoration and server-binding revalidation
+    exist. Their presence in source does not establish reliable end-to-end activation.
+  next_boundary: Both entry paths must converge on one confirmed Project focus lifecycle. Project
+    candidates alone grant no file access or instructions. Retain U4 confirmation for inferred
+    Project access unless explicitly superseded by the user. Run one hosted real-inference browser
+    case after deployment, covering create, update, focus persistence/off, and mention navigation.
+
 deployment_handoff:
   implementation_commit: 66a757619ce2a428f26d9b7f07a1ed1bfc7501f8
   web: Vercel deployment 6618319740 is ready; Projects are available through app.dev.openmates.org.

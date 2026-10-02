@@ -48,6 +48,7 @@ from .handlers.websocket_handlers.cancel_ai_task_handler import handle_cancel_ai
 from .handlers.websocket_handlers.cancel_skill_handler import handle_cancel_skill # Handler for cancelling individual skill executions
 from .handlers.websocket_handlers.focus_mode_deactivate_handler import handle_focus_mode_deactivate # Handler for focus mode deactivation
 from .handlers.websocket_handlers.focus_mode_rejected_handler import handle_focus_mode_rejected # Handler for focus mode rejection during countdown
+from .handlers.websocket_handlers.project_focus_decision_handler import handle_project_focus_decision
 from .handlers.websocket_handlers.sub_chat_confirmation_handler import handle_sub_chat_confirmation # Handler for large sub-chat batch approval
 from .handlers.websocket_handlers.sub_chat_stop_handler import handle_sub_chat_stop # Handler for stopping sequential sub-chat queues
 from .handlers.websocket_handlers.ai_response_completed_handler import handle_ai_response_completed # Handler for completed AI responses
@@ -3132,6 +3133,12 @@ async def websocket_endpoint(
                     payload=payload,
                     cache_service=cache_service,
                     user_otel_attrs=user_otel_attrs,
+                )
+            elif message_type == "project_focus_decision":
+                await handle_project_focus_decision(
+                    websocket=websocket, manager=manager, user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash, payload=payload,
+                    cache_service=cache_service, directus_service=directus_service,
                 )
             elif message_type == "focus_mode_rejected":
                 # Handle user rejection of focus mode during the countdown

@@ -19,6 +19,16 @@ const defaultProps = {
 export default defaultProps;
 
 export const variants = {
+  projectConsent: {
+    ...defaultProps,
+    id: "preview-project-consent",
+    focusId: "project-11111111-1111-4111-8111-111111111111",
+    appId: "projects",
+    focusModeName: "Work on Garden notes",
+    alreadyActive: false,
+    pendingUntil: Date.now() + 60_000,
+    onAcceptProject: async () => {},
+  },
   countdown: {
     ...defaultProps,
     id: "preview-focus-mode-countdown",

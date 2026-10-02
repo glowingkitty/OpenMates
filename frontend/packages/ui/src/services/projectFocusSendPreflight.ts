@@ -54,7 +54,7 @@ interface ProjectFocusSendDependencies {
   ): Promise<ProjectSettingsViewModel>;
   activateProjectFocus(
     projectId: string,
-    input: { chat_id: string; focus_id: string; instruction: string },
+    input: { chat_id: string; focus_id: string; instruction: string; activation_request_id?: string },
     context?: { teamId?: string | null },
   ): Promise<ActiveProjectFocus>;
 }
@@ -158,16 +158,34 @@ export async function activateProjectFocusForSend(
   if (!input.preflightId.trim()) {
     throw new ProjectFocusSendPreflightError("CHAT_PREFLIGHT_REQUIRED");
   }
+  return activateProjectDefaultFocus(intent.projectId, input, dependencies);
+}
+
+export async function activateProjectFocusAfterConsent(
+  input: { projectId: string; chatId: string; requestId: string; teamId?: string | null },
+  dependencies: ProjectFocusSendDependencies = defaultDependencies,
+): Promise<ProjectFocusActivationPresentation> {
+  if (!input.requestId.trim()) throw new ProjectFocusSendPreflightError("CHAT_PREFLIGHT_REQUIRED");
+  return activateProjectDefaultFocus(input.projectId, input, dependencies, input.requestId);
+}
+
+async function activateProjectDefaultFocus(
+  projectId: string,
+  input: { chatId: string; teamId?: string | null },
+  dependencies: ProjectFocusSendDependencies,
+  requestId?: string,
+): Promise<ProjectFocusActivationPresentation> {
   const context = { teamId: input.teamId ?? null };
-  const project = await dependencies.getProject(intent.projectId, context);
+  const project = await dependencies.getProject(projectId, context);
   const settings = await dependencies.getProjectSettings(project, context);
   const focus = readDefaultFocus(settings);
   const activation = await dependencies.activateProjectFocus(
-    intent.projectId,
+    projectId,
     {
       chat_id: input.chatId,
       focus_id: focus.focus_id,
       instruction: focus.instructions,
+      ...(requestId ? { activation_request_id: requestId } : {}),
     },
     context,
   );

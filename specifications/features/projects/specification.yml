@@ -196,6 +196,15 @@ assertions:
   - id: projects.focus.existing-instructions
     type: behavior
     must: When an existing repository is added as a Project and has an AGENTS.md or CLAUDE.md-style agent instruction file, those existing instructions provide the Project's default Work on (project) focus instead of an unrelated generic instruction. Source files cannot grant themselves filesystem authority. Multiple-source precedence and synchronization policy remain separate design decisions.
+  - id: projects.focus.mention-activation
+    type: behavior
+    must: The @ mention picker suggests accessible Projects. Sending a selected structured Project mention constitutes consent and activates that Project's current default focus before inference or file work. The named Work on (project) indicator and off control reflect the confirmed chat-bound authority; mention text or historical rendering alone cannot activate access. A different explicit Project selection switches the binding, and ambiguous multi-Project sends require disambiguation.
+  - id: projects.focus.inferred-consent
+    type: security
+    must: An authorized client may supply bounded decrypted Project names as transient routing metadata. The preprocessor filters and selects relevant permission-scoped candidates, and main processing may request a Project focus. Inferred access requires explicit user confirmation before the client loads that Project's default instructions or file content. Decline, expiry, changed user turn, another chat, or loss of Project permission cannot grant access or resume an old request. Confirmation converges on the same focus state, instructions, and file guards as explicit mentions. No timer auto-confirms Project access and no stored Project decryption key is given to the server.
+  - id: projects.focus.mention-history
+    type: behavior
+    must: A Project mention in user chat history renders as an inline mention chip with its authorized Project name. Clicking or keyboard-activating it opens that Project's page through existing authenticated access checks. Opening a Project page does not grant the chat access or reactivate a historical focus. Unavailable Project names use a stable fallback without disclosing private data.
   - id: projects.files.chat-focus-required
     type: security
     must: Chat-initiated creation or modification of a Project file requires a currently active focus stored in that same Project, as enforced by the shared Project-focus write gate in feature.focus-modes. This requirement applies to both OpenMates-stored files and remote source files and does not replace ownership, role, path, version, or other applicable write checks. An active focus in another chat does not satisfy this chat's requirement.
@@ -303,4 +312,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [project_executor_wait, project_encrypted_file_writes, project_file_freshness, project_file_recovery, project_file_recovery_authorization, project_file_concurrency, project_write_policy, project_default_focus, project_focus_writes, project_contexts, project_key_wrappers, project_item_links, project_surface_catalog, project_work_chain, project_check_catalog, project_item_presentation, project_uploads, project_surface_parity]
+  required_groups: [project_focus_routing, project_executor_wait, project_encrypted_file_writes, project_file_freshness, project_file_recovery, project_file_recovery_authorization, project_file_concurrency, project_write_policy, project_default_focus, project_focus_writes, project_contexts, project_key_wrappers, project_item_links, project_surface_catalog, project_work_chain, project_check_catalog, project_item_presentation, project_uploads, project_surface_parity]
