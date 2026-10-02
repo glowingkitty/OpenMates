@@ -52,7 +52,7 @@ test.beforeEach(async ({ page }: { page: Page }) => {
 test('keeps the signed-out Sign up button unobscured at compact widths', async ({ page }: { page: Page }) => {
   for (const width of [320, 390, 730]) {
     await openHeader(page, width);
-    await expect(page.getByTestId('header-login-signup-btn')).toHaveText('Sign up');
+    await expect(page.getByTestId('header-login-signup-btn')).toHaveText('Sign up', { useInnerText: true });
     await expectGuestControlsFit(page);
   }
 });
@@ -63,7 +63,7 @@ test('keeps the returning guest Login button unobscured and clickable', async ({
   for (const width of [320, 390, 730]) {
     await openHeader(page, width);
     const cta = page.getByTestId('header-login-signup-btn');
-    await expect(cta).toHaveText('Login');
+    await expect(cta).toHaveText('Login', { useInnerText: true });
     await expectGuestControlsFit(page);
     await cta.focus();
     await expect(cta).toBeFocused();

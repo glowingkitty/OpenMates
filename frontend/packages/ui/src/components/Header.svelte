@@ -716,8 +716,7 @@
               }}
               aria-label={primaryCtaLabel ?? loginButtonText}
             >
-              <span class="login-signup-label">{primaryCtaLabel ?? loginButtonText}</span>
-              <span class="login-signup-icon" aria-hidden="true"></span>
+              {primaryCtaLabel ?? loginButtonText}
             </button>
           </div>
         {/if}
@@ -1149,14 +1148,6 @@
     transform: scale(1.02);
   }
 
-  .login-signup-icon {
-    display: none;
-    width: 1.5rem;
-    height: 1.5rem;
-    background: currentColor;
-    mask: url("@openmates/ui/static/icons/user.svg") center / contain no-repeat;
-  }
-
   .login-signup-button:active {
     background-color: var(--color-button-primary-pressed);
     transform: scale(0.98);
@@ -1319,22 +1310,8 @@
   }
 
   @media (max-width: 730px) {
-    header.webapp:not(.publication) .github-repo-button,
-    header.webapp:not(.publication) .login-signup-label {
+    header.webapp:not(.publication) .github-repo-button {
       display: none;
-    }
-
-    header.webapp:not(.publication) .login-signup-button {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 2.625rem;
-      height: 2.75rem;
-      padding: 0;
-    }
-
-    header.webapp:not(.publication) .login-signup-icon {
-      display: block;
     }
 
     .webapp-center-tabs {
@@ -1400,22 +1377,8 @@
   }
 
   @container main-content (max-width: 730px) {
-    header.webapp:not(.publication) .github-repo-button,
-    header.webapp:not(.publication) .login-signup-label {
+    header.webapp:not(.publication) .github-repo-button {
       display: none;
-    }
-
-    header.webapp:not(.publication) .login-signup-button {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 2.625rem;
-      height: 2.75rem;
-      padding: 0;
-    }
-
-    header.webapp:not(.publication) .login-signup-icon {
-      display: block;
     }
 
     .webapp-center-tabs {

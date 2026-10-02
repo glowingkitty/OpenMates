@@ -18,7 +18,7 @@ async function expectGuestHeaderLogin(page: Page, width: number): Promise<void> 
   await expect(select).toBeVisible();
   await expect(select).toHaveValue('/#apps');
   await expect(login).toBeVisible();
-  await expect(login).toHaveText('Login');
+  await expect(login).toHaveText('Login', { useInnerText: true });
   await expect(profile).toBeVisible();
   const [selectBox, rightBox, loginBox, profileBox] = await Promise.all([
     select.boundingBox(), header.locator('.right-section').boundingBox(),
