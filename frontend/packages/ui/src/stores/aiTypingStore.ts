@@ -24,6 +24,7 @@ const initialTypingStatus: AITypingStatus = {
 };
 
 const store = writable<AITypingStatus>(initialTypingStatus);
+export const aiTypingByChatStore = writable<Record<string, AITypingStatus>>({});
 
 export const aiTypingStore = {
   subscribe: store.subscribe,
@@ -38,7 +39,7 @@ export const aiTypingStore = {
     icon_names?: string[],
   ) => {
     // Changed mateName to category, added modelName, providerName, serverRegion and icon_names
-    store.set({
+    const status: AITypingStatus = {
       isTyping: true,
       category, // Changed from mateName
       modelName: modelName || null,
@@ -48,9 +49,17 @@ export const aiTypingStore = {
       userMessageId,
       aiMessageId,
       icon_names: icon_names || [],
-    });
+    };
+    aiTypingByChatStore.update(chats => ({ ...chats, [chatId]: status }));
+    store.set(status);
   },
   clearTyping: (chatId: string, aiMessageId: string) => {
+    aiTypingByChatStore.update(chats => {
+      if (chats[chatId]?.aiMessageId !== aiMessageId) return chats;
+      const next = { ...chats };
+      delete next[chatId];
+      return next;
+    });
     // Clear typing if the chat and message ID match
     store.update((current) => {
       if (current.chatId === chatId && current.aiMessageId === aiMessageId) {
@@ -71,6 +80,11 @@ export const aiTypingStore = {
    * @param chatId - The chat ID to clear typing for
    */
   clearTypingForChat: (chatId: string) => {
+    aiTypingByChatStore.update(chats => {
+      const next = { ...chats };
+      delete next[chatId];
+      return next;
+    });
     store.update((current) => {
       if (current.chatId === chatId) {
         console.debug(
@@ -85,6 +99,7 @@ export const aiTypingStore = {
     });
   },
   reset: () => {
+    aiTypingByChatStore.set({});
     store.set({ ...initialTypingStatus });
   },
 };

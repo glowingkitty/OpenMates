@@ -5,6 +5,7 @@ import { getWorkspaceInspirations } from "../../workspaceInspirationDefaults.js"
 import { CATEGORY_GRADIENTS } from "../../chatCategoryTheme.js";
 import { centeredCarouselText, renderCardCarousel } from "./tuiCarousel.js";
 import { terminalText, wrapCells, type TuiLine } from "./tuiText.js";
+import { runningTuiChatGroups } from './tuiChatSidebar.js';
 
 const BLUE = {start: "#4867cd", end: "#5a85eb"};
 const prompts: Record<TuiWorkspace, string> = {
@@ -59,6 +60,8 @@ export function homeHeader(state:TuiState,width:number,height:number):TuiLine[] 
 /** The newest chat and keyboard-selected previews share the web home's center position. */
 export function renderHomeChatCards(state:TuiState,width:number,height:number):TuiLine[] {
   const chats=homeChatItems(state), result=homeHeader(state,width,height);
+  const activeCount = runningTuiChatGroups(state).length;
+  if (activeCount) result.push(centered(`${activeCount} ${activeCount === 1 ? 'chat' : 'chats'} active…  /active`, width), '');
   if(!chats.length){
     result.push(centered(state.homeLoading ? "Loading your recent chats…" : "Start a chat below. Your recent chats will appear here.",width),"");
     return result;

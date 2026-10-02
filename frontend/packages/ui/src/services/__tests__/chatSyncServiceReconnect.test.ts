@@ -52,6 +52,8 @@ const mocks = vi.hoisted(() => {
     },
     chatDB: {
       getAllMessages: vi.fn(async () => []),
+      getChat: vi.fn(),
+      addChat: vi.fn(),
     },
     chatKeyManager: {
       getKeySync: vi.fn(),
@@ -65,6 +67,8 @@ const mocks = vi.hoisted(() => {
     aiTypingStore: {
       clearTypingForChat: vi.fn(),
     },
+    aiTypingByChatStore: createReadable({}),
+    workspaceIdentity: 'account-a',
     phasedSyncState: {
       reset: vi.fn(),
       markSyncCompleted: vi.fn(),
@@ -108,6 +112,11 @@ vi.mock("../../stores/notificationStore", () => ({
 }));
 vi.mock("../../stores/aiTypingStore", () => ({
   aiTypingStore: mocks.aiTypingStore,
+  aiTypingByChatStore: mocks.aiTypingByChatStore,
+}));
+vi.mock("../workspaceQueryCache", async (importOriginal) => ({
+  ...await importOriginal<typeof import('../workspaceQueryCache')>(),
+  getWorkspaceCacheIdentity: () => mocks.workspaceIdentity,
 }));
 vi.mock("../../stores/phasedSyncStateStore", () => ({
   phasedSyncState: mocks.phasedSyncState,
@@ -166,6 +175,44 @@ vi.mock("../chatSyncServiceHandlersConnectedAccounts", () => ({}));
 vi.mock("../chatSyncServiceHandlersWebhooks", () => ({}));
 
 import { chatSyncService } from "../chatSyncService";
+
+describe('Sidebar metadata hydration', () => {
+  beforeEach(() => {
+    mocks.workspaceIdentity = 'account-a';
+    mocks.authStore.subscribe.mockImplementation(run => { run({ isAuthenticated: true }); return () => undefined; });
+    mocks.chatDB.getChat.mockReset(); mocks.chatDB.addChat.mockReset();
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => ({ chats: [
+      { id: 'old-chat', encrypted_title: 'cipher-title', encrypted_chat_key: 'cipher-key', created_at: '1700000000', updated_at: '1700000100', title_v: 1 },
+    ] }) })));
+  });
+  afterEach(() => {
+    mocks.authStore.subscribe.mockImplementation(run => { run({ isAuthenticated: false }); return () => undefined; });
+    vi.unstubAllGlobals();
+  });
+  // contract-test: supporting surface=gui.web assertions=chat-navigation.projects.nested-readable,chat-navigation.activity.global-running
+  it('publishes the hidden-key classification and preserves old Unix-second timestamps', async () => {
+    const classified = { chat_id: 'old-chat', is_hidden_candidate: true };
+    mocks.chatDB.getChat.mockResolvedValueOnce(undefined).mockResolvedValueOnce(classified);
+    const listener = vi.fn(); chatSyncService.addEventListener('chatUpdated', listener);
+    try {
+      await chatSyncService.hydrateSidebarChats(['old-chat']);
+      expect(mocks.chatDB.addChat.mock.calls[0][0]).toMatchObject({ created_at: 1700000000, updated_at: 1700000100, last_edited_overall_timestamp: 1700000100 });
+      expect(listener.mock.calls[0][0].detail.chat).toBe(classified);
+    } finally { chatSyncService.removeEventListener('chatUpdated', listener); }
+  });
+  // contract-test: supporting surface=gui.web assertions=chat-navigation.projects.nested-readable
+  it('rejects a save whose account changes during the asynchronous IndexedDB write', async () => {
+    mocks.chatDB.getChat.mockResolvedValue(undefined);
+    mocks.chatDB.addChat.mockImplementation(async (_chat, _transaction, options) => {
+      mocks.workspaceIdentity = 'account-b'; options.writeGuard();
+    });
+    const listener = vi.fn(); chatSyncService.addEventListener('chatUpdated', listener);
+    try {
+      await expect(chatSyncService.hydrateSidebarChats(['old-chat'])).rejects.toThrow('Sidebar workspace changed');
+      expect(listener).not.toHaveBeenCalled();
+    } finally { chatSyncService.removeEventListener('chatUpdated', listener); }
+  });
+});
 
 describe("ChatSynchronizationService reconnect sync state", () => {
   beforeEach(async () => {

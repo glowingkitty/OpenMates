@@ -31,6 +31,7 @@ import { handleWorkspaceKey, handleWorkspaceCommand, rememberDraft, route, type 
 import { loadWorkflowRunGraph } from "./tuiWorkflowWorkspace.js";
 import { prepareTuiMessage } from "./tuiAttachments.js";
 import { loadHomeData } from "./tuiHome.js";
+import { refreshTuiChatSidebar } from './tuiChatSidebar.js';
 
 export type CliDefaultMode = "tui" | "quickstart";
 export type TuiResult = { action: "exit" | "signup" };
@@ -55,6 +56,19 @@ export async function runTui(
   let renderTimer: NodeJS.Timeout | null = null;
 
   let closed = false;
+  let stopActivity: (() => void) | undefined;
+  let activityTimer: ReturnType<typeof setTimeout> | undefined;
+  let refreshingActivity = false;
+  const refreshActivity = async () => {
+    if (closed || refreshingActivity || !state.signedIn) return;
+    refreshingActivity = true;
+    try { await refreshTuiChatSidebar(state, client, render); }
+    finally { refreshingActivity = false; }
+  };
+  const activityPoll = setInterval(() => { void refreshActivity(); }, 30_000);
+  const activityAnimation = setInterval(() => {
+    if (!closed && state.runningChatIds.length) { state.activityFrame = (state.activityFrame + 1) % 4; render(); }
+  }, 250);
   const render = () => {
     if (closed) return;
     if (state.screen !== "chat") client.clearInteractiveChatViewer();
@@ -71,6 +85,7 @@ export async function runTui(
 
   const finish = (result: TuiResult) => {
     closed = true;
+    stopActivity?.(); clearTimeout(activityTimer); clearInterval(activityPoll); clearInterval(activityAnimation);
     client.endInteractiveViewerSession();
     if (renderTimer) clearTimeout(renderTimer);
     renderTimer = null;
@@ -88,6 +103,12 @@ export async function runTui(
   });
   render();
   void loadHomeData(state,client,render);
+  void refreshActivity();
+  if (state.signedIn && typeof client.observeChatActivity === 'function') {
+    void client.observeChatActivity(() => {
+      clearTimeout(activityTimer); activityTimer = setTimeout(() => { void refreshActivity(); }, 300);
+    }).then(stop => { if (closed) stop(); else stopActivity = stop; }).catch(() => { /* Polling still repairs activity state. */ });
+  }
 
   return new Promise<TuiResult>((resolve) => {
     resolveResult = resolve;

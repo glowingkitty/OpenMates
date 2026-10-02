@@ -130,12 +130,12 @@ function storedPath(metadata: string, displayName: string): string | null {
   catch { return null; }
 }
 
-export async function loadTuiProject(client: OpenMatesClient, id: string): Promise<TuiProject> {
+export async function loadTuiProject(client: OpenMatesClient, id: string, chatOnly = false): Promise<TuiProject> {
   const context = contextFor(client);
   const detail = await client.getProject(id, context);
   const project = await projectFromRecord(client, detail.project, context);
   const [itemsResponse, sourceRecords] = await Promise.all([
-    client.listProjectItems(id, context), client.listProjectSources(id, context),
+    client.listProjectItems(id, { ...context, chatOnly }), chatOnly ? Promise.resolve([]) : client.listProjectSources(id, context),
   ]);
   const folderIds = itemsResponse.folders.map((folder) => String(folder.folder_id ?? "")).filter(Boolean);
   const folderByHash = new Map(folderIds.map((folderId) => [createHash("sha256").update(folderId).digest("hex"), folderId]));
@@ -377,7 +377,7 @@ export function buildProjectForm(): TuiForm {
   };
 }
 
-export async function submitProjectForm(client: OpenMatesClient, form: TuiForm): Promise<TuiProject> {
+export async function submitProjectForm(client: OpenMatesClient, form: TuiForm, chatOrganizationOnly = false): Promise<TuiProject> {
   const name = formValue(form, "name").trim();
   if (!name) throw new Error("Project name is required.");
   const writeMode = formValue(form, "write_mode");
@@ -396,7 +396,7 @@ export async function submitProjectForm(client: OpenMatesClient, form: TuiForm):
     encrypted_icon: await encryptWithAesGcmCombined("folder", key),
     encrypted_color: await encryptWithAesGcmCombined("default", key),
     pinned: false, created_at: timestamp, updated_at: timestamp, last_opened_at: timestamp,
-    write_mode: writeMode, default_focus_id: focus.focus_id,
+    write_mode: chatOrganizationOnly ? null : writeMode, default_focus_id: focus.focus_id,
     encrypted_settings: await encryptWithAesGcmCombined(JSON.stringify({ default_focus: focus }), key),
     key_wrappers: wrapping.teamId ? [{
       key_type: "team", hashed_team_id: createHash("sha256").update(wrapping.teamId).digest("hex"),
@@ -404,6 +404,6 @@ export async function submitProjectForm(client: OpenMatesClient, form: TuiForm):
       wrapper_version: 1, created_at: timestamp,
     }] : [],
   };
-  const result = await client.createProject(payload, context);
+  const result = await client.createProject({ ...payload, ...(chatOrganizationOnly ? { chat_organization_only: true } : {}) }, context);
   return projectFromRecord(client, { ...payload, ...((result.project ?? {}) as ProjectRecord) }, context);
 }

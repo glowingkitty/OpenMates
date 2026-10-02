@@ -7,6 +7,8 @@
 import { getApiEndpoint } from "../config/api";
 import { WorkspaceQueryCache, getWorkspaceCacheIdentity, WorkspaceCacheDiscardedError } from "./workspaceQueryCache";
 import { PROJECTS_CHANGED_EVENT } from "./projectBrowserEvents";
+import { getTeamKey } from './teamService';
+import { getActiveTeamContextSnapshot } from '../stores/teamStore';
 import { computeSHA256 } from "../message_parsing/utils";
 import {
   decryptChatKeyWithMasterKey,
@@ -56,6 +58,7 @@ export interface EncryptedProjectRecord {
   id?: string;
   project_id: string;
   encrypted_project_key: string;
+  key_wrappers?: Array<{ key_type: string; encrypted_project_key: string; hashed_team_id?: string }>;
   encrypted_name: string;
   encrypted_description?: string | null;
   encrypted_icon?: string | null;
@@ -377,7 +380,12 @@ async function decryptOptional(value: string | null | undefined, key: Uint8Array
 }
 
 export async function decryptProject(record: EncryptedProjectRecord): Promise<ProjectViewModel | null> {
-  const projectKey = await decryptChatKeyWithMasterKey(record.encrypted_project_key);
+  const teamId = getActiveTeamContextSnapshot().teamId;
+  const teamHash = teamId ? await computeSHA256(teamId) : null;
+  const teamWrapper = teamHash ? record.key_wrappers?.find(wrapper => wrapper.key_type === 'team' && wrapper.hashed_team_id === teamHash) : undefined;
+  const projectKey = teamWrapper && teamId
+    ? await unwrapEmbedKeyWithEmbedKey(teamWrapper.encrypted_project_key, await getTeamKey(teamId))
+    : record.encrypted_project_key ? await decryptChatKeyWithMasterKey(record.encrypted_project_key) : null;
   if (!projectKey) return null;
   return {
     project_id: record.project_id,
@@ -470,7 +478,7 @@ export async function updateProjectMetadata(
   return publishProject(updated);
 }
 
-export async function createProject(name: string, writeMode: ProjectWriteMode): Promise<ProjectViewModel> {
+export async function createProject(name: string, writeMode: ProjectWriteMode | null, context: ProjectApiContext = {}): Promise<ProjectViewModel> {
   const identity = getWorkspaceCacheIdentity();
   const projectKey = generateProjectKey();
   const encryptedProjectKey = await encryptChatKeyWithMasterKey(projectKey);
@@ -478,9 +486,14 @@ export async function createProject(name: string, writeMode: ProjectWriteMode): 
   const timestamp = nowSeconds();
   const projectId = crypto.randomUUID();
   const defaultFocus = buildDefaultProjectFocus(name);
+  const teamWrapper = context.teamId ? {
+    key_type: 'team', hashed_team_id: await computeSHA256(context.teamId), team_key_epoch: 1,
+    encrypted_project_key: await wrapEmbedKeyWithChatKey(projectKey, await getTeamKey(context.teamId)),
+  } : null;
   const body = {
     project_id: projectId,
     encrypted_project_key: encryptedProjectKey,
+    ...(teamWrapper ? { key_wrappers: [teamWrapper] } : {}),
     encrypted_name: await encryptWithEmbedKey(name, projectKey),
     encrypted_description: await encryptWithEmbedKey("", projectKey),
     encrypted_icon: await encryptWithEmbedKey("folder", projectKey),
@@ -490,10 +503,11 @@ export async function createProject(name: string, writeMode: ProjectWriteMode): 
     updated_at: timestamp,
     last_opened_at: timestamp,
     write_mode: writeMode,
+    ...(writeMode === null ? { chat_organization_only: true } : {}),
     default_focus_id: defaultFocus.focus_id,
     encrypted_settings: await encryptWithEmbedKey(JSON.stringify({ default_focus: defaultFocus }), projectKey),
   };
-  const data = await requestJson<{ project: EncryptedProjectRecord }>("/v1/projects", {
+  const data = await requestJson<{ project: EncryptedProjectRecord }>(withProjectRemoteQuery("/v1/projects", { team_id: context.teamId }), {
     method: "POST",
     body: JSON.stringify(body),
   });
@@ -1261,6 +1275,7 @@ function normalizeProjectWriteMode(writeMode: unknown): ProjectWriteMode | null 
 export async function getProjectContents(
   project: ProjectViewModel,
   context: ProjectApiContext = {},
+  chatOnly = false,
 ): Promise<{
   folders: ProjectFolderViewModel[];
   items: ProjectItemViewModel[];
@@ -1271,6 +1286,7 @@ export async function getProjectContents(
   }>(
     withProjectRemoteQuery(`/v1/projects/${project.project_id}/items`, {
       team_id: context.teamId,
+      ...(chatOnly ? { chat_only: "true" } : {}),
     }),
   );
   const folders = await Promise.all(
@@ -1313,9 +1329,9 @@ function parseProjectMetadata(metadataText: string, context: string): Record<str
   }
 }
 
-export async function createFolder(project: ProjectViewModel, name: string, parentFolderId?: string): Promise<void> {
+export async function createFolder(project: ProjectViewModel, name: string, parentFolderId?: string, context: ProjectApiContext = {}): Promise<void> {
   const timestamp = nowSeconds();
-  await requestJson(`/v1/projects/${project.project_id}/folders`, {
+  await requestJson(withProjectRemoteQuery(`/v1/projects/${project.project_id}/folders`, { team_id: context.teamId }), {
     method: "POST",
     body: JSON.stringify({
       folder_id: crypto.randomUUID(),
@@ -1371,6 +1387,13 @@ export async function moveProjectItemToFolder(
     method: "PATCH",
     body: JSON.stringify({ folder_id: folderId, updated_at: nowSeconds() }),
   });
+}
+
+/** Remove only a Project association; the chat and its messages remain intact. */
+export async function removeChatFromProject(projectId: string, chatId: string, context: ProjectApiContext = {}): Promise<void> {
+  await requestJson(withProjectRemoteQuery(`/v1/projects/${encodeURIComponent(projectId)}/items`, {
+    item_type: 'chat', target_id: chatId, team_id: context.teamId,
+  }), { method: 'DELETE' });
 }
 
 function embedTypeForUpload(upload: UploadFileResponse): string {

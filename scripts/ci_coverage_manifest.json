@@ -104,7 +104,8 @@
         "components/chat-settings-preview.spec.ts",
         "components/sheet-fullscreen.spec.ts",
         "notification-email-preferences.spec.ts",
-        "notification-email-links.spec.ts"
+        "notification-email-links.spec.ts",
+        "chat-sidebar-projects.spec.ts"
       ]
     },
     "external_integration": {
@@ -331,7 +332,8 @@
         "components/workflow-send-delivery-status.spec.ts",
         "components/workspace-home-responsive.spec.ts",
         "components/workflow-choice-loop.spec.ts",
-        "components/workflow-chat-embed.spec.ts"
+        "components/workflow-chat-embed.spec.ts",
+        "components/chat-project-navigation.spec.ts"
       ]
     },
     "synthetic_artifact": {

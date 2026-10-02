@@ -4317,6 +4317,64 @@
     }
   },
   "chats": {
+    "projects": {
+      "move": {
+        "text": "In Projekt verschieben"
+      },
+      "move_here": {
+        "text": "Hierhin verschieben"
+      },
+      "add": {
+        "text": "Zu Projekt hinzufügen"
+      },
+      "create": {
+        "text": "Neues Projekt erstellen"
+      },
+      "add_here": {
+        "text": "Hier hinzufügen"
+      },
+      "new_folder": {
+        "text": "Neuer Unterordner"
+      },
+      "folder_name": {
+        "text": "Ordnername"
+      },
+      "path": {
+        "text": "Projektpfad"
+      },
+      "up": {
+        "text": "Eine Ebene nach oben"
+      },
+      "ancestors": {
+        "text": "Vollständigen Pfad anzeigen"
+      },
+      "open": {
+        "text": "Projekt öffnen"
+      },
+      "organizing": {
+        "text": "Chats werden organisiert…"
+      },
+      "error": {
+        "text": "Chats konnten nicht organisiert werden. Bitte erneut versuchen."
+      }
+    },
+    "activity": {
+      "heading": {
+        "text": "Aktive Chats"
+      },
+      "count": {
+        "text": "{count} Chats aktiv…"
+      },
+      "count_single": {
+        "text": "1 Chat aktiv…"
+      },
+      "subchats": {
+        "text": "{count} Unterchats laufen"
+      },
+      "subchats_single": {
+        "text": "1 Unterchat läuft"
+      }
+    },
     "chat": {
       "welcome": {
         "back_to_recent": {

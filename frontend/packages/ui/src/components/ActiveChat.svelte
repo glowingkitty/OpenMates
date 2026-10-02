@@ -119,6 +119,8 @@
     import { getVideoForLocale } from '../demo_chats/data/videos';
     import { ALL_NEWSLETTER_CHATS } from '../demo_chats/newsletterChatStore';
     import ChatContextMenu from './chats/ChatContextMenu.svelte'; // Context menu for resume chat cards
+    import ActiveChatsLink from './chats/ActiveChatsLink.svelte';
+    import ChatProjectPicker from './chats/ChatProjectPicker.svelte';
     import { copyChatToClipboard } from '../services/chatExportService'; // For context menu copy action
     import { downloadChatAsZip } from '../services/zipExportService'; // For context menu download action
     import { notificationStore } from '../stores/notificationStore'; // For context menu action feedback
@@ -13727,6 +13729,7 @@
                                     {/if}
                                     <!-- Subtitle: decrypting indicator while Phase 1 metadata is syncing, then "Continue where you left off" when cards are ready. -->
                                     {#if $authStore.isAuthenticated}
+                                        <ActiveChatsLink />
                                         {#if isContinueChatsLoading}
                                             <p class="decrypting-chats-text" transition:fade={fadeParams}>
                                                 {$text('chats.resume_last_chat.decrypting')}
@@ -15028,6 +15031,7 @@
 />
 
 <!-- Resume Card Context Menu (right-click / long-press on welcome screen chat cards) -->
+<ChatProjectPicker />
 {#if resumeCardContextMenuShow && resumeCardContextMenuChat}
     <ChatContextMenu
         x={resumeCardContextMenuX}

@@ -9,6 +9,8 @@ import { buildWorkflowNodeForm, submitWorkflowNodeForm } from "./tuiWorkflowWork
 import { decryptUserTasks, TASK_STATUSES } from "./tasksCli.js";
 import { formValue } from "./tuiForms.js";
 import { WORKSPACES } from "./tuiLayout.js";
+import { tuiChatSidebarRows, refreshTuiChatSidebar, placeTuiChats, createTuiChatProject } from './tuiChatSidebar.js';
+import { encryptWithAesGcmCombined } from './crypto.js';
 import { paletteActions, TUI_ACTIONS } from "./tuiActions.js";
 import { eraseGrapheme, moveGraphemeCursor, terminalText } from "./tuiText.js";
 import { formatEmbedPreviewLines } from "./embedRenderers.js";
@@ -50,6 +52,7 @@ async function recent(context: WorkspaceContext): Promise<void> {
   if(request!==state.routeVersion||homeRequest!==state.homeLoadVersion||!state.signedIn)return;
   state.recentChats = chats;
   render();
+  await refreshTuiChatSidebar(state, client, render, true);
 }
 
 export async function openSavedChat(context: WorkspaceContext, id: string): Promise<void> {
@@ -145,6 +148,38 @@ export async function handleWorkspaceCommand(context: WorkspaceContext, command:
       if(request===state.routeVersion)state.activeAppResult=result;render();return true;
     }
     case "/new": case "/clear": newChat(state); state.selectedProjectId = null; render(); return true;
+    case '/active': state.sidebarOpen = true; state.focus = 'sidebar'; state.sidebarIndex = 0; render(); await refreshTuiChatSidebar(state, client, render, true); state.sidebarIndex = 0; render(); return true;
+    case '/chat-add-to-project': case '/chat-move-to-project': case '/chat-create-project': {
+      if (state.chatProjectBusy) return true;
+      if (!state.signedIn) throw new Error('Sign in to organize chats.');
+      const selected = state.focus === 'sidebar' ? tuiChatSidebarRows(state)[state.sidebarIndex]?.chatId :
+        ['start','chats'].includes(state.screen) ? homeChatItems(state)[state.selectedIndex]?.id : state.activeChatId;
+      const ids = arg ? arg.split(/\s+/).filter(Boolean) : selected ? [selected] : [];
+      if (!ids.length) throw new Error('Choose a saved chat first.');
+      await refreshTuiChatSidebar(state, client, render, true);
+      if (name === '/chat-create-project') {
+        state.chatProjectBusy = true; state.status = 'Organizing chats…'; render();
+        try { const id = await createTuiChatProject(state, client, ids); state.chatProjectOperation = null; await openProject(context, id); }
+        finally { state.chatProjectBusy = false; }
+      } else {
+        state.chatProjectOperation = { chatIds: ids, mode: name === '/chat-move-to-project' ? 'move' : 'add' };
+        state.chatSidebarLocation = null; state.sidebarOpen = true; state.focus = 'sidebar'; state.sidebarIndex = 0;
+        state.status = 'Choose a project or subfolder.';
+      }
+      render(); return true;
+    }
+    case '/chat-subfolder': {
+      const location = state.chatSidebarLocation;
+      if (!location || !arg.trim()) throw new Error('Open a project folder and enter /chat-subfolder followed by a name.');
+      const project = state.chatSidebarProjects.find(project => project.id === location.projectId);
+      if (!project) throw new Error('Project unavailable.');
+      const timestamp = Math.floor(Date.now() / 1000);
+      await client.createProjectFolder(project.id, { folder_id: randomUUID(), parent_folder_id: location.folderId,
+        encrypted_name: await encryptWithAesGcmCombined(arg.trim().slice(0, 200), project.projectKey),
+        encrypted_sort_key: await encryptWithAesGcmCombined(arg.trim().toLowerCase().slice(0, 200), project.projectKey),
+        created_at: timestamp, updated_at: timestamp, position: timestamp });
+      await refreshTuiChatSidebar(state, client, render, true); return true;
+    }
     case "/sidebar": state.sidebarOpen = !state.sidebarOpen; state.focus = state.sidebarOpen ? "sidebar" : state.workspace === "chats" && !["start","chats"].includes(state.screen) ? "composer" : "content"; render(); if (state.sidebarOpen) await recent(context); return true;
     case "/chats": route(state, "chats", "chats"); await recent(context); render(); return true;
     case "/chat": if (!arg) return handleWorkspaceCommand(context, "/chats"); await openSavedChat(context, arg); return true;
@@ -286,7 +321,7 @@ async function saveForm(context: WorkspaceContext): Promise<void> {
 }
 
 export async function handleWorkspaceKey(context: WorkspaceContext, chunk: string, key: TerminalKey): Promise<boolean> {
-  const {state, render} = context;
+  const {state, render, client} = context;
   if (state.form) {
     const form = state.form, field = form.fields[form.fieldIndex];
     if (!field) {if(key.name === "escape" && !form.busy) state.form=null;else if(key.name === "return" || key.ctrl && key.name === "s") await saveForm(context);render();return true;}
@@ -329,6 +364,8 @@ export async function handleWorkspaceKey(context: WorkspaceContext, chunk: strin
     render();return true;
   }
   if (key.name === "escape") {
+    if (state.chatProjectBusy) return true;
+    if (state.chatProjectOperation) { state.chatProjectOperation = null; state.status = null; render(); return true; }
     if (state.focus === "sidebar") { state.sidebarOpen = false; state.focus = chatHome ? "content" : state.workspace === "chats" ? "composer" : "content"; }
     else if (state.screen === "task") {state.screen = state.workspace === "projects" ? "project" : "tasks"; state.focus = "content"; state.scrollOffset = 0;}
     else if (state.screen === "workflow") {state.screen = "workflows"; state.focus = "content"; state.scrollOffset = 0;}
@@ -366,10 +403,29 @@ export async function handleWorkspaceKey(context: WorkspaceContext, chunk: strin
     render(); if (chunk !== "/") return true;
   }
   if (state.focus === "sidebar") {
-    const count = state.workspace === "chats" ? state.recentChats.length + 1 : state.workspace === "projects" ? state.projects.length : state.workspace === "tasks" ? state.tasks.length : state.workspace==="apps"?state.apps.length:state.workflows.length;
+    const chatRows = tuiChatSidebarRows(state);
+    const count = state.workspace === "chats" ? chatRows.length : state.workspace === "projects" ? state.projects.length : state.workspace === "tasks" ? state.tasks.length : state.workspace==="apps"?state.apps.length:state.workflows.length;
     if (key.name === "up" || key.name === "down") state.sidebarIndex = Math.max(0, Math.min(count - 1, state.sidebarIndex + (key.name === "up" ? -1 : 1)));
     else if (key.name === "return") {
-      if (state.workspace === "chats") await context.command(state.sidebarIndex === 0 ? "/new" : `/chat ${state.recentChats[state.sidebarIndex - 1]?.id}`);
+      if (state.workspace === 'chats') {
+        if (state.chatProjectBusy) return true;
+        const row = chatRows[state.sidebarIndex];
+        if (row?.kind === 'new') await context.command('/new');
+        else if (row?.kind === 'chat') await context.command(`/chat ${row.chatId}`);
+        else if (row?.kind === 'path') state.chatSidebarAncestors = !state.chatSidebarAncestors;
+        else if (row?.kind === 'create' && state.chatProjectOperation) await context.command(`/chat-create-project ${state.chatProjectOperation.chatIds.join(' ')}`);
+        else if (row?.kind === 'choose' && state.chatProjectOperation) {
+          const operation = state.chatProjectOperation;
+          state.chatProjectBusy = true;
+          try {
+            await placeTuiChats(state, client, operation.chatIds, { projectId: row.projectId!, folderId: row.folderId ?? null }, operation.mode);
+            state.chatProjectOperation = null; state.status = null;
+          } finally { state.chatProjectBusy = false; await refreshTuiChatSidebar(state, client, render, true); }
+        } else if (row && ['project','folder','up'].includes(row.kind)) {
+          state.chatSidebarLocation = row.kind === 'up' && row.folderId === undefined ? null : { projectId: row.projectId!, folderId: row.folderId ?? null };
+          state.chatSidebarAncestors = false; state.sidebarIndex = 0;
+        }
+      }
       else if (state.workspace === "projects") await context.command(`/project ${state.projects[state.sidebarIndex]?.id}`);
       else if (state.workspace === "tasks") await openTask(context,state.tasks[state.sidebarIndex]?.taskId ?? "");
       else if (state.workspace === "workflows") await context.command(`/workflow ${state.workflows[state.sidebarIndex]?.id}`);

@@ -2,6 +2,7 @@
 import type { TuiState } from "./tuiRenderer.js";
 import { CATEGORY_GRADIENTS } from "../../chatCategoryTheme.js";
 import { paletteActions } from "./tuiActions.js";
+import { tuiChatSidebarRows, tuiChatBreadcrumb } from './tuiChatSidebar.js';
 import { backgroundLine, cells, foreground, lineText, padCells, terminalText, truncateCells, wrapCells, type TuiColorMode, type TuiLine } from "./tuiText.js";
 
 export const WORKSPACES = ["chats", "apps", "projects", "workflows", "tasks"] as const;
@@ -13,7 +14,9 @@ export function chatBackground(category: string | null | undefined) {
 export function sidebarLines(state: TuiState): string[] {
   const selected = (label: string, index: number) => `${state.focus === "sidebar" && state.sidebarIndex === index ? ">" : " "} ${label}`;
   switch (state.workspace) {
-    case "chats": return ["Chats", "", selected("+ New chat", 0), "", "Recent chats", "", ...state.recentChats.map((c, i) => selected(c.title || "Untitled chat", i + 1)), "", "/chats browse   /examples"];
+    case "chats": return [tuiChatBreadcrumb(state) ?? 'Chats', '',
+      ...tuiChatSidebarRows(state).map((row, index) => selected(`${row.running ? ['◴','◷','◶','◵'][state.activityFrame % 4] + ' ' : ''}${row.label}`, index)),
+      '', '/active  /chat-add-to-project'];
     case "projects": return ["Projects", "", ...state.projects.map((p, i) => selected(p.name, i)), "", "/project-create new"];
     case "tasks": return ["Tasks", "", ...state.tasks.map((t, i) => selected(`${t.shortId} ${t.title}`, i)), "", "/task-create new"];
     case "workflows": return ["Workflows", "", ...state.workflows.map((w, i) => selected(w.title, i)), "", "Select a workflow to open"];

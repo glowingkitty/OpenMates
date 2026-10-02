@@ -1,6 +1,8 @@
 // frontend/packages/ui/src/services/chatSyncService.ts
 // Handles chat data synchronization between client and server via WebSockets.
 import { chatDB } from "./db";
+import { getApiEndpoint } from '../config/api';
+import { getWorkspaceCacheIdentity } from './workspaceQueryCache';
 import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { getCachedChatVersionMap } from "./db/chatKeyManagement";
 import { webSocketService } from "./websocketService";
@@ -84,6 +86,7 @@ import type { ProjectFocusSendIntent } from "./projectFocusSendPreflight";
 import { prepareConnectedAccountSendContext } from "./connectedAccountTokenBrokerService";
 import { buildConnectedAccountSendContext, listConnectedAccounts } from "./connectedAccountStorageService";
 import { chatListCache } from "./chatListCache";
+import { ActiveAITaskMap, runningChatIds, activityChats, subChatActivityIds } from "../stores/chatActivityStore";
 import { chatMetadataCache } from "./chatMetadataCache";
 import { getTeam, unwrapTeamChatKey } from "./teamService";
 import {
@@ -144,8 +147,86 @@ export class ChatSynchronizationService extends EventTarget {
   private cacheStatusRequestTimeout: NodeJS.Timeout | null = null;
   private readonly CACHE_STATUS_REQUEST_DELAY = 0; // INSTANT - cache is pre-warmed during /lookup
   public activeAITasks: Map<string, { taskId: string; userMessageId: string }> =
-    new Map(); // Made public for handlers
+    new ActiveAITaskMap();
   public activeSubChatIds: Set<string> = new Set();
+  private activityRevision = 0;
+  private activityAncestry = new Map<string, { parent_id?: string | null }>();
+  private activitySnapshotPending = false;
+  private activitySnapshotQueued = false;
+  private activityRequestedIds = new Set<string>();
+  private activityFirstObserved = new Map<string, number>();
+  private reloadActivityChats: (() => Promise<void>) | undefined;
+
+  public async hydrateSidebarChats(ids: string[]): Promise<void> {
+    if (!ids.length || !get(authStore).isAuthenticated) return;
+    const identity = getWorkspaceCacheIdentity(), teamId = get(activeTeamId);
+    for (let start = 0; start < ids.length; start += 100) {
+      const response = await fetch(getApiEndpoint(`/v1/chats/metadata/batch${teamId ? `?team_id=${encodeURIComponent(teamId)}` : ''}`), {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_ids: ids.slice(start, start + 100) }),
+      });
+      if (!response.ok) throw new Error('Sidebar chat metadata unavailable');
+      const data = await response.json() as { chats: Array<Omit<Partial<Chat>, 'created_at' | 'updated_at'> & { id: string; created_at?: number | string; updated_at?: number | string }> };
+      for (const record of data.chats) {
+        if (identity !== getWorkspaceCacheIdentity()) return;
+        if (await chatDB.getChat(record.id)) continue;
+        const seconds = (value: number | string | undefined): number | undefined => {
+          if (value == null || value === '') return undefined;
+          const numeric = Number(value);
+          const parsed = Number.isFinite(numeric) ? numeric : Date.parse(String(value)) / 1000;
+          return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : undefined;
+        };
+        const timestamp = seconds(record.last_edited_overall_timestamp) ?? seconds(record.updated_at) ?? seconds(record.created_at) ?? 0;
+        const chat: Chat = { ...record, chat_id: record.id, team_id: teamId,
+          encrypted_title: record.encrypted_title ?? null, messages_v: 0, title_v: record.title_v ?? 0,
+          unread_count: 0, created_at: seconds(record.created_at) ?? timestamp, updated_at: timestamp, last_edited_overall_timestamp: timestamp };
+        if (identity !== getWorkspaceCacheIdentity()) return;
+        await chatDB.addChat(chat, undefined, { isFromSync: true, writeGuard: () => {
+          if (identity !== getWorkspaceCacheIdentity()) throw new Error('Sidebar workspace changed');
+        } });
+        const classified = await chatDB.getChat(chat.chat_id);
+        if (identity !== getWorkspaceCacheIdentity()) return;
+        if (classified) this.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id: classified.chat_id, chat: classified } }));
+      }
+    }
+  }
+
+  public async refreshChatActivity(): Promise<void> {
+    if (!get(authStore).isAuthenticated) return;
+    if (this.activitySnapshotPending) { this.activitySnapshotQueued = true; return; }
+    const identity = getWorkspaceCacheIdentity();
+    const revision = this.activityRevision;
+    const teamId = get(activeTeamId);
+    this.activitySnapshotPending = true;
+    try {
+      const response = await fetch(getApiEndpoint(`/v1/chats/activity${teamId ? `?team_id=${encodeURIComponent(teamId)}` : ''}`), { credentials: 'include' });
+      if (!response.ok) throw new Error('Activity snapshot unavailable');
+      const snapshot = await response.json() as { active_tasks: Array<{ chat_id: string; task_id: string }>; chats: Array<{ chat_id: string; parent_id?: string | null }> };
+      if (identity !== getWorkspaceCacheIdentity() || revision !== this.activityRevision) return;
+      this.activityAncestry = new Map(snapshot.chats.map(chat => [chat.chat_id, chat]));
+      const active = new Map(snapshot.active_tasks.map(task => [task.chat_id, task.task_id]));
+      // Newly started chats can reach the socket before their database row.
+      for (const [id, task] of this.activeAITasks) if (!active.has(id) && Date.now() - (this.activityFirstObserved.get(id) ?? 0) < 3000) active.set(id, task.taskId);
+      for (const id of get(runningChatIds)) if (!active.has(id)) {
+        aiTypingStore.clearTypingForChat(id);
+        this.activeSubChatIds.delete(id);
+      }
+      subChatActivityIds.set(new Set(this.activeSubChatIds));
+      for (const [id, task] of this.activeAITasks) if (active.get(id) !== task.taskId) {
+        this.activeAITasks.delete(id); aiTypingStore.clearTypingForChat(id);
+      }
+      for (const [id, taskId] of active) if (!this.activeAITasks.has(id)) this.activeAITasks.set(id, { taskId, userMessageId: '' });
+      this.activityRequestedIds.clear();
+      await this.reloadActivityChats?.();
+    } catch (error) { console.warn('[ChatSyncService] Activity snapshot failed:', error); }
+    finally {
+      this.activitySnapshotPending = false;
+      if (this.activitySnapshotQueued) {
+        this.activitySnapshotQueued = false;
+        void this.refreshChatActivity();
+      }
+    }
+  }
   private syncingMessageIds: Set<string> = new Set(); // Track message IDs being sent to server to prevent duplicates
 
   // CRITICAL: Sync timeout mechanism to prevent UI from being stuck in "Loading chats..." state
@@ -220,6 +301,64 @@ export class ChatSynchronizationService extends EventTarget {
     super();
     this.registerWebSocketHandlers();
 
+    // Activity must survive sidebar unmounts. Read only running chats and their
+    // ancestors, independently of the sidebar's recent-chat pagination window.
+    queueMicrotask(() => {
+      let generation = 0;
+      let refreshTimer: ReturnType<typeof setTimeout> | undefined;
+      const metadataRetries = new Map<string, number>();
+      const requestedIds = this.activityRequestedIds;
+      const refreshActivity = async () => {
+        const current = ++generation;
+        const identity = getWorkspaceCacheIdentity();
+        const ids = get(runningChatIds);
+        if (!ids.size) { activityChats.set([]); requestedIds.clear(); metadataRetries.clear(); return; }
+        try {
+          const chats = new Map<string, Chat>();
+          await Promise.all([...ids].map(async id => {
+            let next: string | null | undefined = id;
+            const visited = new Set<string>();
+            while (next && !visited.has(next)) {
+              visited.add(next);
+              let chat = await chatDB.getChat(next);
+              if (!chat && !requestedIds.has(next)) {
+                const missingId = next; requestedIds.add(missingId);
+                try { await this.hydrateSidebarChats([missingId]); chat = await chatDB.getChat(missingId); }
+                catch (error) { requestedIds.delete(missingId); console.warn('[ChatSyncService] Running chat metadata unavailable:', error); }
+              }
+              if (!chat) {
+                requestedIds.delete(next);
+                const attempts = metadataRetries.get(next) ?? 0;
+                if (attempts < 5 && !refreshTimer) {
+                  metadataRetries.set(next, attempts + 1);
+                  refreshTimer = setTimeout(() => { refreshTimer = undefined; void refreshActivity(); }, Math.min(250 * 2 ** attempts, 2000));
+                }
+                break;
+              }
+              metadataRetries.delete(next);
+              const parentId = chat.parent_id ?? this.activityAncestry.get(chat.chat_id)?.parent_id;
+              chats.set(chat.chat_id, parentId ? { ...chat, parent_id: parentId } : chat);
+              next = parentId;
+            }
+          }));
+          if (current === generation && identity === getWorkspaceCacheIdentity()) activityChats.set([...chats.values()]);
+        } catch (error) {
+          console.error('[ChatSyncService] Could not load running chat ancestry:', error);
+        }
+      };
+      this.reloadActivityChats = refreshActivity;
+      runningChatIds.subscribe(ids => {
+        this.activityRevision++;
+        for (const id of this.activityFirstObserved.keys()) if (!ids.has(id)) this.activityFirstObserved.delete(id);
+        for (const id of ids) if (!this.activityFirstObserved.has(id)) this.activityFirstObserved.set(id, Date.now());
+        void refreshActivity();
+      });
+      this.addEventListener('chatUpdated', () => {
+        if (!get(runningChatIds).size || refreshTimer) return;
+        refreshTimer = setTimeout(() => { refreshTimer = undefined; void refreshActivity(); }, 100);
+      });
+    });
+
     // Listen for handlers being cleared (e.g., during logout)
     // and reset the registration flag so they can be re-registered on next login
     webSocketService.addEventListener("handlers_cleared", () => {
@@ -227,6 +366,13 @@ export class ChatSynchronizationService extends EventTarget {
         "[ChatSyncService] WebSocket handlers were cleared. Resetting registration flag.",
       );
       this.handlersRegistered = false;
+      this.activeAITasks.clear();
+      this.activeSubChatIds.clear();
+      this.activityRequestedIds.clear();
+      subChatActivityIds.set(new Set());
+      this.activityAncestry.clear();
+      aiTypingStore.reset();
+      activityChats.set([]);
       this.clearProjectFileExecutor(false);
       this.clearRemoteCommandClient(false);
       // Stop pending message retry on logout — without this, the interval
@@ -241,11 +387,13 @@ export class ChatSynchronizationService extends EventTarget {
     // Guard for SSR: window is not available during SvelteKit's build-time rendering.
     if (typeof window !== "undefined") {
       window.addEventListener("online", () => {
+        void this.refreshChatActivity();
         console.info("[ChatSyncService] Browser online event — cleaning up orphaned streaming messages");
         this._cleanupOrphanedStreamingMessages().catch((error) => {
           console.error("[ChatSyncService] Error cleaning up orphaned streaming messages on online event:", error);
         });
       });
+      window.addEventListener('focus', () => { if (this.webSocketConnected) void this.refreshChatActivity(); });
       window.addEventListener(TEAM_CONTEXT_CHANGED_EVENT, (event) => {
         const context = (event as CustomEvent<TeamContextSnapshot>).detail;
         void this.handleTeamContextChanged(context);
@@ -300,6 +448,7 @@ export class ChatSynchronizationService extends EventTarget {
           }
           this.activeAITasks.clear();
         }
+        void this.refreshChatActivity();
 
         // CRITICAL: Also clean up streaming/processing messages in ALL chats,
         // not just the ones tracked in activeAITasks (which only tracks recent tasks).
@@ -782,6 +931,7 @@ export class ChatSynchronizationService extends EventTarget {
   }
 
   private async handleTeamContextChanged(context: TeamContextSnapshot): Promise<void> {
+    void this.refreshChatActivity();
     this.clearPhasedSyncTimeout();
     this.cachePrimed = false;
     this.initialSyncAttempted = false;
@@ -2280,14 +2430,14 @@ export class ChatSynchronizationService extends EventTarget {
 
   // Removed legacy initial sync. Phased sync is the only sync path.
 
-  public requestChatContentBatch_FOR_HANDLERS_ONLY(
+  public async requestChatContentBatch_FOR_HANDLERS_ONLY(
     chat_ids: string[],
   ): Promise<void> {
-    return this.requestChatContentBatch(chat_ids);
+    await this.requestChatContentBatch(chat_ids);
   }
 
-  private async requestChatContentBatch(chat_ids: string[]): Promise<void> {
-    if (chat_ids.length === 0) return;
+  private async requestChatContentBatch(chat_ids: string[]): Promise<boolean> {
+    if (chat_ids.length === 0) return true;
     if (!this.webSocketConnected) {
       await new Promise<void>((resolve) => {
         const timeout = setTimeout(() => {
@@ -2306,15 +2456,17 @@ export class ChatSynchronizationService extends EventTarget {
         "[ChatSyncService] Skipping request_chat_content_batch because WebSocket did not connect in time.",
         { chat_ids },
       );
-      return;
+      return false;
     }
     const payload: RequestChatContentBatchPayload = { chat_ids };
     try {
       await webSocketService.sendMessage("request_chat_content_batch", payload);
+      return true;
     } catch {
       notificationStore.error(
         "Failed to request additional chat messages from server.",
       );
+      return false;
     }
   }
 
@@ -2357,6 +2509,7 @@ export class ChatSynchronizationService extends EventTarget {
     }
 
     if (wasProcessing !== isProcessing) {
+      subChatActivityIds.set(new Set(this.activeSubChatIds));
       this.dispatchEvent(
         new CustomEvent("subChatProcessingStateChanged", {
           detail: { chatId, isProcessing },

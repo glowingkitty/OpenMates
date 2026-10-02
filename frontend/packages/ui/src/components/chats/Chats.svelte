@@ -2,6 +2,12 @@
 	import { onMount, onDestroy, createEventDispatcher, tick } from 'svelte';
 	import { text } from '@repo/ui'; // Import text store for translations
 	import ChatComponent from './Chat.svelte'; // Renamed to avoid conflict with Chat type
+	import ChatProjectNavigator from './ChatProjectNavigator.svelte';
+	import ProcessingWheel from './ProcessingWheel.svelte';
+	import { runningChatGroups, runningChatIds, processingChatIds } from '../../stores/chatActivityStore';
+	import { loadChatProjectIndex, invalidateChatProjectIndex, placeChatsInProject, createChatProjectFolder, openChatProjectScreen } from '../../services/chatProjectService';
+	import { PROJECTS_CHANGED_EVENT } from '../../services/projectBrowserEvents';
+	import { projectFolderChatIds, type ChatProjectLocation, type SidebarProject } from '../../utils/chatProjectNavigation';
 	import { panelState, isActivityHistoryOpen } from '../../stores/panelStateStore';
 	import { authStore } from '../../stores/authStore';
 	import { chatDB } from '../../services/db';
@@ -90,6 +96,43 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 
 	// --- Component State ---
 	let allChatsFromDB: ChatType[] = $state([]); // Holds all chats fetched from chatDB
+	let sidebarProjects = $state<SidebarProject[]>([]);
+	let projectLocation = $state<ChatProjectLocation | null>(null);
+	let projectLoadError = $state(false);
+	let projectIndexGeneration = 0;
+	const requestedFolderChats = new Map<string, number>();
+	async function refreshSidebarProjects(force = false): Promise<void> {
+		const generation = ++projectIndexGeneration;
+		try {
+			const projects = await loadChatProjectIndex(force);
+			if (generation !== projectIndexGeneration) return;
+			sidebarProjects = projects; projectLoadError = false;
+			if (projectLocation && !projects.some(project => project.id === projectLocation!.projectId)) projectLocation = null;
+		} catch (error) {
+			console.error('[Chats] Could not load project navigation:', error);
+			if (generation === projectIndexGeneration) projectLoadError = true;
+		}
+	}
+	$effect(() => {
+		const authenticated = $authStore.isAuthenticated;
+		void $activeTeamId;
+		projectIndexGeneration++; sidebarProjects = []; projectLocation = null; requestedFolderChats.clear();
+		if (authenticated) void refreshSidebarProjects();
+	});
+	onMount(() => {
+		const changed = () => { invalidateChatProjectIndex(); void refreshSidebarProjects(true); };
+		const reveal = () => { closeSearch(); activityHistoryElement?.scrollTo({ top: 0, behavior: 'auto' }); };
+		window.addEventListener(PROJECTS_CHANGED_EVENT, changed);
+		window.addEventListener('openmates-reveal-running-chats', reveal);
+		return () => { projectIndexGeneration++; window.removeEventListener(PROJECTS_CHANGED_EVENT, changed); window.removeEventListener('openmates-reveal-running-chats', reveal); };
+	});
+	async function dropChatInFolder(chatId: string, location: ChatProjectLocation): Promise<void> {
+		try {
+			const chat = await chatDB.getChat(chatId);
+			if (!chat) throw new Error('Chat is unavailable');
+            await placeChatsInProject([chat], location, 'move');
+		} catch (error) { console.error('[Chats] Could not move chat into project:', error); notificationStore.error($text('chats.projects.error')); }
+	}
 	// Syncing indicator: true when authenticated AND sync has not completed yet
 	// Using $derived ensures reactivity to both authStore and phasedSyncState changes
 	let syncing = $derived($authStore.isAuthenticated && !$phasedSyncState.initialSyncCompleted);
@@ -536,13 +579,12 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 		const contextTeamId = $activeTeamId;
 
 		// 1. Process real chats from IndexedDB (exclude public chats - they come from visiblePublicChats, and sub-chats - they are rendered nested)
-		const processedRealChats = allChatsFromDB
+		const processedRealChats = uniqueChatsById([...allChatsFromDB, ...$runningChatGroups.map(group => group.chat)])
 			.filter(chat =>
 				(chat.team_id ?? null) === contextTeamId &&
 				!isLegalChat(chat.chat_id) &&
 				!isPublicChat(chat.chat_id) &&
-				!chat.parent_id &&
-				!chat.is_sub_chat
+				(projectLocation !== null || (!chat.parent_id && !chat.is_sub_chat))
 			);
 
 		// 2. Identify which visiblePublicChats should be excluded (already in IndexedDB for some reason)
@@ -740,6 +782,15 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 		}
 		return sorted.filter(chat => !chat.is_hidden && !chat.is_hidden_candidate);
 	})());
+	let runningGroupsForSidebar = $derived($runningChatGroups.filter(group => sortedAllChatsFiltered.some(chat => chat.chat_id === group.chat.chat_id)));
+	let runningRootIds = $derived(new Set(runningGroupsForSidebar.map(group => group.chat.chat_id)));
+	let folderRunningIds = $derived($processingChatIds);
+	let locationChatIds = $derived.by(() => {
+		if (!projectLocation) return null;
+		const project = sidebarProjects.find(project => project.id === projectLocation!.projectId);
+		return project ? projectFolderChatIds(project, projectLocation.folderId) : new Set<string>();
+	});
+	let organizedChatIds = $derived(new Set(sidebarProjects.flatMap(project => project.chats.map(chat => chat.chatId))));
 
 	// Separate list for hidden chats (only shown when unlocked)
 	let hiddenChats = $derived((() => {
@@ -800,64 +851,38 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 	// Static chats (intro, examples, legal) are always shown regardless of this limit.
 	let visibleUserChatLimit = $state(INITIAL_USER_CHAT_LIMIT);
 
-	// Apply display limit for progressive loading.
-	// User chats are capped at visibleUserChatLimit; static chats always shown.
-	let chatsForDisplay = $derived((() => {
-		const userChats: ChatType[] = [];
-		const staticChats: ChatType[] = [];
-		for (const chat of sortedAllChatsFiltered) {
-			if (chat.group_key && STATIC_GROUP_KEYS.includes(chat.group_key)) {
-				staticChats.push(chat);
-			} else {
-				userChats.push(chat);
-			}
+	// Filter to the selected folder before pagination; running entries are global.
+	let userChatsAtLocation = $derived(sortedAllChatsFiltered.filter(chat =>
+		!$processingChatIds.has(chat.chat_id) && (!chat.group_key || !STATIC_GROUP_KEYS.includes(chat.group_key)) &&
+		(locationChatIds ? locationChatIds.has(chat.chat_id) : !organizedChatIds.has(chat.chat_id))));
+	let chatsForDisplay = $derived.by(() => {
+		const visible = userChatsAtLocation.slice(0, visibleUserChatLimit);
+		const selected = userChatsAtLocation.find(chat => chat.chat_id === (selectedChatId ?? lastActiveChatIdForDisplay));
+		if (selected && !visible.some(chat => chat.chat_id === selected.chat_id)) {
+			if (visible.length >= visibleUserChatLimit) visible[visible.length - 1] = selected;
+			else visible.push(selected);
 		}
-
-		const visibleUserChats = userChats.slice(0, visibleUserChatLimit);
-		const chatIdToKeepVisible = selectedChatId ?? lastActiveChatIdForDisplay;
-		if (chatIdToKeepVisible && !visibleUserChats.some(chat => chat.chat_id === chatIdToKeepVisible)) {
-			const activeUserChat = userChats.find(chat => chat.chat_id === chatIdToKeepVisible);
-			if (activeUserChat) {
-				// Keep the active or recently-active row mounted even when it is outside the initial recent-chat window.
-				if (visibleUserChats.length >= visibleUserChatLimit && visibleUserChats.length > 0) {
-					visibleUserChats[visibleUserChats.length - 1] = activeUserChat;
-				} else {
-					visibleUserChats.push(activeUserChat);
-				}
-			}
+		const staticChats = projectLocation ? [] : sortedAllChatsFiltered.filter(chat =>
+			!runningRootIds.has(chat.chat_id) && chat.group_key && STATIC_GROUP_KEYS.includes(chat.group_key));
+		return [...visible, ...staticChats];
+	});
+	let showMoreButtonVisible = $derived.by(() => userChatsAtLocation.length > visibleUserChatLimit ||
+		(!projectLocation && (hasMoreOnServer || loadTier === 'loading_server')));
+	let remainingChatsCount = $derived(Math.max(0, userChatsAtLocation.length - visibleUserChatLimit));
+	$effect(() => {
+		if (!$authStore.isAuthenticated || !locationChatIds) return;
+		const available = new Set(allChatsFromDB.map(chat => chat.chat_id));
+		const now = Date.now();
+		const missing = [...locationChatIds].filter(id => !available.has(id) && now - (requestedFolderChats.get(id) ?? 0) > 5000);
+		for (const id of missing) requestedFolderChats.set(id, now);
+		for (let start = 0; start < missing.length; start += 50) {
+			const batch = missing.slice(start, start + 50);
+			void chatSyncService.hydrateSidebarChats(batch).catch(error => {
+				for (const id of batch) requestedFolderChats.delete(id);
+				console.warn('[Chats] Could not load folder chats:', error);
+			});
 		}
-
-		return [...visibleUserChats, ...staticChats];
-	})());
-
-	// Determine if "Show more" button should be visible.
-	// Show when there are more user chats locally than currently displayed,
-	// OR when the server has more chats that haven't been loaded yet.
-	let showMoreButtonVisible = $derived((() => {
-		const totalUserChats = sortedAllChatsFiltered.filter(
-			c => !c.group_key || !STATIC_GROUP_KEYS.includes(c.group_key)
-		).length;
-		// More local chats to show
-		if (totalUserChats > visibleUserChatLimit) return true;
-		// Loading from server in progress
-		if (loadTier === 'loading_server') return true;
-		// Server reports more chats than we have locally (guards against metadata sync
-		// setting hasMoreOnServer=false while local IDB hasn't refreshed yet)
-		if (totalServerChatCount > 0 && totalUserChats < totalServerChatCount) return true;
-		// Server has more chats beyond what we've loaded locally
-		return hasMoreOnServer;
-	})());
-
-	// Number of remaining chats not yet visible (for "Show more (N)" button text)
-	let remainingChatsCount = $derived((() => {
-		const totalUserChats = sortedAllChatsFiltered.filter(
-			c => !c.group_key || !STATIC_GROUP_KEYS.includes(c.group_key)
-		).length;
-		const totalKnown = totalServerChatCount > 0
-			? Math.max(totalUserChats, totalServerChatCount)
-			: totalUserChats;
-		return Math.max(0, totalKnown - visibleUserChatLimit);
-	})());
+	});
 
 	let remainingExampleChatsCount = $derived((() => {
 		const hiddenIds = getHiddenPublicChatIds();
@@ -926,25 +951,14 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 	// example chat chat (server timestamp) or a legal chat (order 3-5 from 7-days-ago)
 	// can interleave with — or appear before — user chats and intro chats.
 	//
-	// Fix: always sort by section first, then by the existing timestamp sort within each section:
-	//   Unauthenticated: intro(0) → examples(1) → legal(2)
-	//   Authenticated:   user chats without group_key(0) → intro(1) → examples(2) → legal(3)
-	//
-	// Chats without a group_key are real user chats (or incognito/session chats). For
-	// authenticated users they sort first; the fallback bucket (99) is never used in practice.
-	const GROUP_NAV_ORDER_UNAUTH: Record<string, number> = { intro: 0, examples: 1, announcements: 2, tips_and_tricks: 3, legal: 4 };
-	const GROUP_NAV_ORDER_AUTH:   Record<string, number> = { intro: 1, examples: 2, announcements: 3, tips_and_tricks: 4, legal: 5 };
 	let flattenedNavigableChats = $derived.by(() => {
-		const groupOrder = $authStore.isAuthenticated ? GROUP_NAV_ORDER_AUTH : GROUP_NAV_ORDER_UNAUTH;
-		return [...sortedAllChatsFiltered].sort((a, b) => {
-			// Chats without a group_key are user chats → bucket 0 for authenticated, or bucket 99 for unauth
-			// (unauth has no real user chats, so bucket 99 is never reached there)
-			const aGroup = a.group_key ? (groupOrder[a.group_key] ?? 99) : ($authStore.isAuthenticated ? 0 : 99);
-			const bGroup = b.group_key ? (groupOrder[b.group_key] ?? 99) : ($authStore.isAuthenticated ? 0 : 99);
-			if (aGroup !== bGroup) return aGroup - bGroup;
-			// Same section: preserve the existing timestamp sort (most-recent first)
-			return (b.last_edited_overall_timestamp || 0) - (a.last_edited_overall_timestamp || 0);
-		});
+		const staticGroups = orderedStaticChatGroups;
+		return uniqueChatsById([
+			...runningGroupsForSidebar.map(group => group.chat),
+			...staticGroups.filter(([key]) => key === 'incognito').flatMap(([, chats]) => chats),
+			...orderedUserChatGroups.flatMap(([, chats]) => chats),
+			...staticGroups.filter(([key]) => key !== 'incognito').flatMap(([, chats]) => chats),
+		]);
 	});
 
 	// Keep chatNavigationStore in sync so ChatHeader can show/hide the prev/next arrows
@@ -3852,6 +3866,198 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
   - Provides a "Show more" button if more chats are available (local or server).
   - Shows demo chats for both authenticated and non-authenticated users.
 -->
+			{#snippet chatGroupSnippet(groupKey: string, groupItems: ChatType[])}
+				{#if groupItems.length > 0}
+					<div class="chat-group" data-testid="chat-group" data-group-key={groupKey}>
+						<!-- Pass the translation function `$_` to the utility -->
+						<h2 class="group-title" data-testid="group-title">{groupKey === 'running' ? $text('chats.activity.heading') : getLocalizedGroupTitle(groupKey, $text)}</h2>
+		{#each groupItems as chat (chat.chat_id)}
+						{@const subChats = [...getExampleSubChats(chat.chat_id), ...allChatsFromDB.filter(c => c.parent_id === chat.chat_id)]}
+						<div
+							role="button"
+							tabindex="0"
+							class="chat-item"
+							data-testid="chat-item"
+							class:active={selectedChatId === chat.chat_id}
+							class:incognito={chat.is_incognito}
+							onclick={(event) => {
+								handleChatItemClick(chat, event);
+							}}
+								onkeydown={(e) => {
+									// Handle keyboard selection with modifiers
+									const isShift = e.shiftKey;
+									const isCmdOrCtrl = e.metaKey || e.ctrlKey;
+									
+									if ((selectMode || isShift || isCmdOrCtrl) && (e.key === 'Enter' || e.key === ' ')) {
+										e.preventDefault();
+										
+										// Shift+Space/Enter: Select range
+										if (isShift && lastSelectedChatId) {
+											const allChatsList = flattenedNavigableChats;
+											const lastIndex = allChatsList.findIndex(c => c.chat_id === lastSelectedChatId);
+											const currentIndex = allChatsList.findIndex(c => c.chat_id === chat.chat_id);
+
+											if (lastIndex !== -1 && currentIndex !== -1) {
+												if (!selectMode) {
+													selectMode = true;
+													selectedChatIds.clear();
+												}
+
+												const startIndex = Math.min(lastIndex, currentIndex);
+												const endIndex = Math.max(lastIndex, currentIndex);
+												
+												for (let i = startIndex; i <= endIndex; i++) {
+													selectedChatIds.add(allChatsList[i].chat_id);
+												}
+												selectedChatIds = new Set(selectedChatIds);
+												lastSelectedChatId = chat.chat_id;
+												return;
+											}
+										}
+										
+										// Cmd/Ctrl+Space/Enter: Toggle selection
+										if (isCmdOrCtrl) {
+											if (!selectMode) {
+												selectMode = true;
+												if (selectedChatId) {
+													selectedChatIds.add(selectedChatId);
+													lastSelectedChatId = selectedChatId;
+												}
+											}
+
+											if (selectedChatIds.has(chat.chat_id)) {
+												selectedChatIds.delete(chat.chat_id);
+												if (lastSelectedChatId === chat.chat_id) {
+													const remaining = Array.from(selectedChatIds);
+													lastSelectedChatId = remaining.length > 0 ? remaining[remaining.length - 1] : null;
+												}
+											} else {
+												selectedChatIds.add(chat.chat_id);
+												lastSelectedChatId = chat.chat_id;
+											}
+											selectedChatIds = new Set(selectedChatIds);
+											return;
+										}
+										
+										// Normal Space/Enter in select mode: toggle selection
+										if (selectMode) {
+											if (selectedChatIds.has(chat.chat_id)) {
+												selectedChatIds.delete(chat.chat_id);
+												if (lastSelectedChatId === chat.chat_id) {
+													const remaining = Array.from(selectedChatIds);
+													lastSelectedChatId = remaining.length > 0 ? remaining[remaining.length - 1] : null;
+												}
+											} else {
+												selectedChatIds.add(chat.chat_id);
+												lastSelectedChatId = chat.chat_id;
+											}
+											selectedChatIds = new Set(selectedChatIds);
+											return;
+										}
+									}
+									
+									// Fallback to normal keyboard navigation
+									handleKeyDown(e, chat);
+								}}
+								aria-current={selectedChatId === chat.chat_id ? 'page' : undefined}
+								aria-label={chat.title || $text('common.untitled_chat')}
+							>
+								<ChatComponent 
+									chat={chat} 
+									activeChatId={selectedChatId}
+									selectMode={selectMode}
+									selectedChatIds={selectedChatIds}
+									hasSubChats={subChats.length > 0}
+									subChatsExpanded={expandedSubChatParentIds.has(chat.chat_id)}
+									onToggleSubChats={toggleSubChatsForParent}
+									onToggleSelection={(chatId: string) => {
+										if (selectedChatIds.has(chatId)) {
+											selectedChatIds.delete(chatId);
+											selectedChatIds = new Set(selectedChatIds); // Trigger reactivity
+										} else {
+											selectedChatIds.add(chatId);
+											selectedChatIds = new Set(selectedChatIds); // Trigger reactivity
+										}
+									}}
+								/>
+								{#if groupKey === 'running' && runningGroupsForSidebar.find(group => group.chat.chat_id === chat.chat_id)?.activeSubChatCount}
+									{@const count = runningGroupsForSidebar.find(group => group.chat.chat_id === chat.chat_id)!.activeSubChatCount}
+									<p class="running-subchat-count">{$text(count === 1 ? 'chats.activity.subchats_single' : 'chats.activity.subchats', { values: { count } })}</p>
+								{/if}
+							</div>
+							<!-- Nested Sub-chats (Tier 1 & Tier 2) -->
+							{#if subChats.length > 0 && expandedSubChatParentIds.has(chat.chat_id)}
+								<div class="sub-chats-container" style="padding-left: 16px; margin-left: 12px; border-left: 1.5px solid var(--grey30); display: flex; flex-direction: column; gap: 4px; position: relative;">
+									{#each subChats as subChat (subChat.chat_id)}
+										<div
+											role="button"
+											tabindex="0"
+											class="chat-item sub-chat-item"
+											data-testid="sub-chat-item"
+											class:active={selectedChatId === subChat.chat_id}
+											onclick={(event) => {
+												handleChatItemClick(subChat, event);
+											}}
+											onkeydown={(e) => {
+												if (e.key === 'Enter' || e.key === ' ') {
+													e.preventDefault();
+													const syntheticEvent = new MouseEvent('click', {
+														bubbles: true,
+														cancelable: true
+													});
+													handleChatItemClick(subChat, syntheticEvent);
+												}
+											}}
+										>
+											<ChatComponent
+												chat={subChat}
+												activeChatId={selectedChatId}
+												selectMode={selectMode}
+												selectedChatIds={selectedChatIds}
+											/>
+										</div>
+										<!-- Nested Grandchild Sub-chats (Tier 2) -->
+										{@const grandChats = [...getExampleSubChats(subChat.chat_id), ...allChatsFromDB.filter(c => c.parent_id === subChat.chat_id)]}
+										{#if grandChats.length > 0}
+											<div class="sub-chats-container grandchild-chats-container" style="padding-left: 16px; margin-left: 12px; border-left: 1.5px solid var(--grey30); display: flex; flex-direction: column; gap: 4px; position: relative;">
+												{#each grandChats as grandChat (grandChat.chat_id)}
+													<div
+														role="button"
+														tabindex="0"
+														class="chat-item sub-chat-item grandchild-chat-item"
+														data-testid="grandchild-chat-item"
+														class:active={selectedChatId === grandChat.chat_id}
+														onclick={(event) => {
+															handleChatItemClick(grandChat, event);
+														}}
+														onkeydown={(e) => {
+															if (e.key === 'Enter' || e.key === ' ') {
+																e.preventDefault();
+																const syntheticEvent = new MouseEvent('click', {
+																	bubbles: true,
+																	cancelable: true
+																});
+																handleChatItemClick(grandChat, syntheticEvent);
+															}
+														}}
+													>
+														<ChatComponent
+															chat={grandChat}
+															activeChatId={selectedChatId}
+															selectMode={selectMode}
+															selectedChatIds={selectedChatIds}
+														/>
+													</div>
+												{/each}
+											</div>
+										{/if}
+									{/each}
+								</div>
+							{/if}
+						{/each}
+					</div>
+				{/if}
+			{/snippet}
 <div class="activity-history-wrapper" data-testid="activity-history-wrapper">
 		<!-- Fixed top buttons container -->
 		<div class="top-buttons-container">
@@ -3942,7 +4148,9 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 			>
 				<!-- Category circle + icon — matches Chat.svelte's rendering pattern exactly.
 				     No arrow icon: the pin position (top/bottom) makes direction self-evident. -->
-				{#if activePinCategory}
+				{#if $runningChatIds.has(selectedChatId) || runningRootIds.has(selectedChatId)}
+					<ProcessingWheel />
+				{:else if activePinCategory}
 					{@const pinIconName = activePinIcon || getFallbackIconForCategory(activePinCategory)}
 					{@const PinIconComponent = getLucideIcon(pinIconName)}
 					{@const pinGradient = getCategoryGradientColors(activePinCategory)}
@@ -4004,6 +4212,9 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 
 			<!-- Normal chat list (hidden when search is active with a query) -->
 			{#if !searchState.isActive || searchState.query.trim().length === 0}
+				{#if runningGroupsForSidebar.length > 0}
+					<div data-testid="running-chats-section">{@render chatGroupSnippet('running', runningGroupsForSidebar.map(group => group.chat))}</div>
+				{/if}
 			<!-- Sync status indicator - shows during sync regardless of hidden chat state -->
 		{#if syncing}
 			<div class="show-hidden-chats-container">
@@ -4187,196 +4398,16 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 			<!-- DEBUG: Rendering {allChats.length} chats (demo + real), loadTier: {loadTier}, grouped chats: {Object.keys(groupedChatsForDisplay).length} groups -->
 			
 			<!-- Snippet for rendering a chat group (avoids duplicating the complex chat item template) -->
-			{#snippet chatGroupSnippet(groupKey: string, groupItems: ChatType[])}
-				{#if groupItems.length > 0}
-					<div class="chat-group" data-testid="chat-group" data-group-key={groupKey}>
-						<!-- Pass the translation function `$_` to the utility -->
-						<h2 class="group-title" data-testid="group-title">{getLocalizedGroupTitle(groupKey, $text)}</h2>
-		{#each groupItems as chat (chat.chat_id)}
-						{@const subChats = [...getExampleSubChats(chat.chat_id), ...allChatsFromDB.filter(c => c.parent_id === chat.chat_id)]}
-						<div
-							role="button"
-							tabindex="0"
-							class="chat-item"
-							data-testid="chat-item"
-							class:active={selectedChatId === chat.chat_id}
-							class:incognito={chat.is_incognito}
-							onclick={(event) => {
-								handleChatItemClick(chat, event);
-							}}
-								onkeydown={(e) => {
-									// Handle keyboard selection with modifiers
-									const isShift = e.shiftKey;
-									const isCmdOrCtrl = e.metaKey || e.ctrlKey;
-									
-									if ((selectMode || isShift || isCmdOrCtrl) && (e.key === 'Enter' || e.key === ' ')) {
-										e.preventDefault();
-										
-										// Shift+Space/Enter: Select range
-										if (isShift && lastSelectedChatId) {
-											const allChatsList = flattenedNavigableChats;
-											const lastIndex = allChatsList.findIndex(c => c.chat_id === lastSelectedChatId);
-											const currentIndex = allChatsList.findIndex(c => c.chat_id === chat.chat_id);
 
-											if (lastIndex !== -1 && currentIndex !== -1) {
-												if (!selectMode) {
-													selectMode = true;
-													selectedChatIds.clear();
-												}
-
-												const startIndex = Math.min(lastIndex, currentIndex);
-												const endIndex = Math.max(lastIndex, currentIndex);
-												
-												for (let i = startIndex; i <= endIndex; i++) {
-													selectedChatIds.add(allChatsList[i].chat_id);
-												}
-												selectedChatIds = new Set(selectedChatIds);
-												lastSelectedChatId = chat.chat_id;
-												return;
-											}
-										}
-										
-										// Cmd/Ctrl+Space/Enter: Toggle selection
-										if (isCmdOrCtrl) {
-											if (!selectMode) {
-												selectMode = true;
-												if (selectedChatId) {
-													selectedChatIds.add(selectedChatId);
-													lastSelectedChatId = selectedChatId;
-												}
-											}
-
-											if (selectedChatIds.has(chat.chat_id)) {
-												selectedChatIds.delete(chat.chat_id);
-												if (lastSelectedChatId === chat.chat_id) {
-													const remaining = Array.from(selectedChatIds);
-													lastSelectedChatId = remaining.length > 0 ? remaining[remaining.length - 1] : null;
-												}
-											} else {
-												selectedChatIds.add(chat.chat_id);
-												lastSelectedChatId = chat.chat_id;
-											}
-											selectedChatIds = new Set(selectedChatIds);
-											return;
-										}
-										
-										// Normal Space/Enter in select mode: toggle selection
-										if (selectMode) {
-											if (selectedChatIds.has(chat.chat_id)) {
-												selectedChatIds.delete(chat.chat_id);
-												if (lastSelectedChatId === chat.chat_id) {
-													const remaining = Array.from(selectedChatIds);
-													lastSelectedChatId = remaining.length > 0 ? remaining[remaining.length - 1] : null;
-												}
-											} else {
-												selectedChatIds.add(chat.chat_id);
-												lastSelectedChatId = chat.chat_id;
-											}
-											selectedChatIds = new Set(selectedChatIds);
-											return;
-										}
-									}
-									
-									// Fallback to normal keyboard navigation
-									handleKeyDown(e, chat);
-								}}
-								aria-current={selectedChatId === chat.chat_id ? 'page' : undefined}
-								aria-label={chat.title || $text('common.untitled_chat')}
-							>
-								<ChatComponent 
-									chat={chat} 
-									activeChatId={selectedChatId}
-									selectMode={selectMode}
-									selectedChatIds={selectedChatIds}
-									hasSubChats={subChats.length > 0}
-									subChatsExpanded={expandedSubChatParentIds.has(chat.chat_id)}
-									onToggleSubChats={toggleSubChatsForParent}
-									onToggleSelection={(chatId: string) => {
-										if (selectedChatIds.has(chatId)) {
-											selectedChatIds.delete(chatId);
-											selectedChatIds = new Set(selectedChatIds); // Trigger reactivity
-										} else {
-											selectedChatIds.add(chatId);
-											selectedChatIds = new Set(selectedChatIds); // Trigger reactivity
-										}
-									}}
-								/>
-							</div>
-							<!-- Nested Sub-chats (Tier 1 & Tier 2) -->
-							{#if subChats.length > 0 && expandedSubChatParentIds.has(chat.chat_id)}
-								<div class="sub-chats-container" style="padding-left: 16px; margin-left: 12px; border-left: 1.5px solid var(--grey30); display: flex; flex-direction: column; gap: 4px; position: relative;">
-									{#each subChats as subChat (subChat.chat_id)}
-										<div
-											role="button"
-											tabindex="0"
-											class="chat-item sub-chat-item"
-											data-testid="sub-chat-item"
-											class:active={selectedChatId === subChat.chat_id}
-											onclick={(event) => {
-												handleChatItemClick(subChat, event);
-											}}
-											onkeydown={(e) => {
-												if (e.key === 'Enter' || e.key === ' ') {
-													e.preventDefault();
-													const syntheticEvent = new MouseEvent('click', {
-														bubbles: true,
-														cancelable: true
-													});
-													handleChatItemClick(subChat, syntheticEvent);
-												}
-											}}
-										>
-											<ChatComponent
-												chat={subChat}
-												activeChatId={selectedChatId}
-												selectMode={selectMode}
-												selectedChatIds={selectedChatIds}
-											/>
-										</div>
-										<!-- Nested Grandchild Sub-chats (Tier 2) -->
-										{@const grandChats = [...getExampleSubChats(subChat.chat_id), ...allChatsFromDB.filter(c => c.parent_id === subChat.chat_id)]}
-										{#if grandChats.length > 0}
-											<div class="sub-chats-container grandchild-chats-container" style="padding-left: 16px; margin-left: 12px; border-left: 1.5px solid var(--grey30); display: flex; flex-direction: column; gap: 4px; position: relative;">
-												{#each grandChats as grandChat (grandChat.chat_id)}
-													<div
-														role="button"
-														tabindex="0"
-														class="chat-item sub-chat-item grandchild-chat-item"
-														data-testid="grandchild-chat-item"
-														class:active={selectedChatId === grandChat.chat_id}
-														onclick={(event) => {
-															handleChatItemClick(grandChat, event);
-														}}
-														onkeydown={(e) => {
-															if (e.key === 'Enter' || e.key === ' ') {
-																e.preventDefault();
-																const syntheticEvent = new MouseEvent('click', {
-																	bubbles: true,
-																	cancelable: true
-																});
-																handleChatItemClick(grandChat, syntheticEvent);
-															}
-														}}
-													>
-														<ChatComponent
-															chat={grandChat}
-															activeChatId={selectedChatId}
-															selectMode={selectMode}
-															selectedChatIds={selectedChatIds}
-														/>
-													</div>
-												{/each}
-											</div>
-										{/if}
-									{/each}
-								</div>
-							{/if}
-						{/each}
-					</div>
-				{/if}
-			{/snippet}
 			
 			<div class="chat-groups" data-testid="chat-history">
+				{#if $authStore.isAuthenticated}
+					<ChatProjectNavigator projects={sidebarProjects} location={projectLocation} runningIds={folderRunningIds}
+						onNavigate={location => projectLocation = location} onDropChat={(id, location) => { void dropChatInFolder(id, location); }}
+						onCreateFolder={async (location, name) => { await createChatProjectFolder(location, name); await refreshSidebarProjects(true); }}
+						onOpenProject={openChatProjectScreen} />
+					{#if projectLoadError}<p role="alert">{$text('chats.projects.error')}</p>{/if}
+				{/if}
 				<!-- 1. Incognito chat group — shown at the top so active session chats are immediately visible.
 				     Only rendered when incognito mode is active and there are incognito chats. -->
 				{#each orderedStaticChatGroups.filter(([k]) => k === 'incognito') as [groupKey, groupItems] (groupKey)}
@@ -4503,6 +4534,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 </div>
 
 <style>
+    .running-subchat-count { margin: 0; padding-inline-start: 3rem; padding-block-end: var(--spacing-4); font-size: var(--font-size-small); color: var(--color-font-secondary); }
     .activity-history-wrapper {
         display: flex;
         flex-direction: column;

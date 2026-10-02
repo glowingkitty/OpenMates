@@ -1,3 +1,22 @@
+projects.move: { context: Move a chat to a different project, en: Move to project, de: In Projekt verschieben, verified_by_human: [] }
+projects.move_here: { context: Confirm a destination when moving a chat, en: Move here, de: Hierhin verschieben, verified_by_human: [] }
+activity.heading: { context: Sidebar section for currently processing chats, en: Active chats, de: Aktive Chats, verified_by_human: [] }
+activity.count: { context: Landing-page link counting visible parent chats with running work, en: "{count} chats active…", de: "{count} Chats aktiv…", verified_by_human: [] }
+activity.count_single: { context: Landing-page active link for one parent chat, en: "1 chat active…", de: "1 Chat aktiv…", verified_by_human: [] }
+activity.subchats: { context: Number of running subchats grouped under a parent row, en: "{count} subchats running", de: "{count} Unterchats laufen", verified_by_human: [] }
+activity.subchats_single: { context: One running subchat grouped under a parent row, en: "1 subchat running", de: "1 Unterchat läuft", verified_by_human: [] }
+projects.add: { context: Chat context-menu action selecting a project destination, en: Add to project, de: Zu Projekt hinzufügen, verified_by_human: [] }
+projects.create: { context: Create a new project from selected chats, en: Create new project, de: Neues Projekt erstellen, verified_by_human: [] }
+projects.add_here: { context: Confirm the selected folder as a chat destination, en: Add here, de: Hier hinzufügen, verified_by_human: [] }
+projects.new_folder: { context: Create a subfolder in the current project location, en: New subfolder, de: Neuer Unterordner, verified_by_human: [] }
+projects.folder_name: { context: Accessible label for the subfolder name input, en: Folder name, de: Ordnername, verified_by_human: [] }
+projects.path: { context: Accessible label for project breadcrumbs, en: Project path, de: Projektpfad, verified_by_human: [] }
+projects.up: { context: Return to the parent folder or sidebar root, en: Go up one level, de: Eine Ebene nach oben, verified_by_human: [] }
+projects.ancestors: { context: Open the complete project ancestor path, en: Show full path, de: Vollständigen Pfad anzeigen, verified_by_human: [] }
+projects.open: { context: Open the current project's workspace screen, en: Open project, de: Projekt öffnen, verified_by_human: [] }
+projects.organizing: { context: Chat project creation or membership mutation in progress, en: Organizing chats…, de: Chats werden organisiert…, verified_by_human: [] }
+projects.error: { context: Visible project navigation or chat organization failure, en: Could not organize chats. Please try again., de: Chats konnten nicht organisiert werden. Bitte erneut versuchen., verified_by_human: [] }
+
 chat.welcome.back_to_recent:
   context: Button label in the logged-out example chat gallery that returns from the full list to recent examples.
   en: Back to recent

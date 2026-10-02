@@ -2275,6 +2275,9 @@ export interface ChatListItem {
   category: string | null;
   mateName: string | null;
   source?: "example";
+  parentId?: string | null;
+  isSubChat?: boolean;
+  isHiddenCandidate?: boolean;
 }
 
 /** A single parameter extracted from the OpenAPI skill schema. */
@@ -5160,7 +5163,54 @@ export class OpenMatesClient {
           : null,
       category,
       mateName: category ? (MATE_NAMES[category] ?? null) : null,
+      parentId: typeof d.parent_id === 'string' ? d.parent_id : null,
+      isSubChat: d.is_sub_chat === true,
+      isHiddenCandidate: !chatKeyBytes,
     };
+  }
+
+  /** Global activity snapshot; decrypt only running chats and their ancestors. */
+  async getChatActivity(options: TeamContextOptions = {}): Promise<{ ids: string[]; chats: ChatListItem[] }> {
+    this.requireSession();
+    const teamId = this.resolveTeamContext(options), master = Buffer.from(this.getMasterKeyBytes());
+    const response = await this.http.get<{ active_tasks: Array<{ chat_id: string; task_id: string }>; chats: Array<{ chat_id: string; parent_id?: string | null; is_sub_chat?: boolean }> }>(
+      this.appendTeamQuery('/v1/chats/activity', options), this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Chat activity unavailable: HTTP ${response.status}`);
+    if (!this.hasSession() || teamId !== this.resolveTeamContext(options) || !master.equals(Buffer.from(this.getMasterKeyBytes()))) throw new Error('Chat workspace changed');
+    const ids = response.data.active_tasks.map(task => task.chat_id);
+    if (!ids.length) return { ids, chats: [] };
+    const chats = await this.getSidebarChats(response.data.chats.map(chat => chat.chat_id), options);
+    if (teamId !== this.resolveTeamContext(options)) throw new Error('Chat workspace changed');
+    return { ids, chats };
+  }
+
+  /** Minimal encrypted metadata; unreadable keys stay excluded from normal surfaces. */
+  async getSidebarChats(ids: string[], options: TeamContextOptions = {}): Promise<ChatListItem[]> {
+    this.requireSession();
+    const teamId = this.resolveTeamContext(options), master = Buffer.from(this.getMasterKeyBytes());
+    const key = await this.getChatWrappingKey(teamId, master), result: ChatListItem[] = [];
+    const current = () => this.hasSession() && teamId === this.resolveTeamContext(options) && master.equals(Buffer.from(this.getMasterKeyBytes()));
+    for (let start = 0; start < ids.length; start += 100) {
+      if (!current()) throw new Error('Chat workspace changed');
+      const response = await this.http.post<{ chats: Array<Record<string, unknown>> }>(
+        this.appendTeamQuery('/v1/chats/metadata/batch', options), { chat_ids: ids.slice(start, start + 100) }, this.getCliRequestHeaders());
+      if (!response.ok) throw new Error(`Sidebar metadata unavailable: HTTP ${response.status}`);
+      for (const details of response.data.chats) {
+        const timestamp = Number(details.updated_at);
+        result.push(await this.decryptChatListItem({ details: { ...details,
+          last_edited_overall_timestamp: Number.isFinite(timestamp) ? timestamp : Date.parse(String(details.updated_at)) / 1000 }, messages: [] }, key, null, teamId));
+      }
+    }
+    if (!current()) throw new Error('Chat workspace changed');
+    return result;
+  }
+
+  /** Observe lifecycle metadata without claiming or collecting AI responses. */
+  async observeChatActivity(onChange: () => void): Promise<() => void> {
+    const { ws } = await this.openWsClient({ taskUpdateJobs: false });
+    const types = ['ai_task_initiated', 'ai_typing_started', 'ai_typing_ended', 'ai_background_response_completed', 'ai_task_cancel_requested', 'ai_task_error', 'pending_ai_response'];
+    const cleanup = types.map(type => ws.onMessageType(type, onChange));
+    return () => { cleanup.forEach(remove => remove()); ws.close(); };
   }
 
   async listChats(limit = 10, page = 1, options: TeamContextOptions = {}): Promise<ChatListPage> {
@@ -10099,21 +10149,21 @@ export class OpenMatesClient {
     return response.data;
   }
 
-  async planProjectAsk(input: { instruction: string }): Promise<Record<string, unknown>> {
+  async planProjectAsk(input: { instruction: string; chatTitles?: string[] }): Promise<Record<string, unknown>> {
     this.requireSession();
     const response = await this.http.post<Record<string, unknown>>(
       "/v1/projects/ask/plan",
-      { instruction: input.instruction },
+      { instruction: input.instruction, ...(input.chatTitles !== undefined ? { chat_titles: input.chatTitles } : {}) },
       this.getCliRequestHeaders(),
     );
     if (!response.ok) throw new Error(`Project ask planning failed with HTTP ${response.status}`);
     return response.data;
   }
 
-  async listProjectItems(projectId: string, options: TeamContextOptions = {}): Promise<{ folders: Array<Record<string, unknown>>; items: ProjectItemRecord[] }> {
+  async listProjectItems(projectId: string, options: TeamContextOptions & { chatOnly?: boolean } = {}): Promise<{ folders: Array<Record<string, unknown>>; items: ProjectItemRecord[] }> {
     this.requireSession();
     const response = await this.http.get<{ folders?: Array<Record<string, unknown>>; items?: ProjectItemRecord[] }>(
-      this.appendTeamQuery(`/v1/projects/${encodeURIComponent(projectId)}/items`, options),
+      this.appendTeamQuery(`/v1/projects/${encodeURIComponent(projectId)}/items${options.chatOnly ? '?chat_only=true' : ''}`, options),
       this.getCliRequestHeaders(),
     );
     if (!response.ok) throw this.projectRequestError("item list", response);
@@ -10294,10 +10344,10 @@ export class OpenMatesClient {
     return { ws: opened.ws, ownerId: opened.ownerId };
   }
 
-  async createProjectItem(projectId: string, input: ProjectItemCreateInput): Promise<ProjectItemRecord> {
+  async createProjectItem(projectId: string, input: ProjectItemCreateInput, options: TeamContextOptions = {}): Promise<ProjectItemRecord> {
     this.requireSession();
     const response = await this.http.post<{ item?: ProjectItemRecord }>(
-      `/v1/projects/${encodeURIComponent(projectId)}/items`,
+      this.appendTeamQuery(`/v1/projects/${encodeURIComponent(projectId)}/items`, options),
       input,
       this.getCliRequestHeaders(),
     );
@@ -10305,6 +10355,19 @@ export class OpenMatesClient {
       throw new Error(`Project item create failed with HTTP ${response.status}`);
     }
     return response.data.item;
+  }
+
+  async moveProjectItemToFolder(projectId: string, itemId: string, folderId: string | null, options: TeamContextOptions = {}): Promise<void> {
+    this.requireSession();
+    const response = await this.http.patch(this.appendTeamQuery(`/v1/projects/${encodeURIComponent(projectId)}/items/${encodeURIComponent(itemId)}`, options),
+      { folder_id: folderId, updated_at: Math.floor(Date.now() / 1000) }, this.getCliRequestHeaders());
+    if (!response.ok) throw this.projectRequestError('folder move', response);
+  }
+
+  async createProjectFolder(projectId: string, input: Record<string, unknown>, options: TeamContextOptions = {}): Promise<void> {
+    this.requireSession();
+    const response = await this.http.post(this.appendTeamQuery(`/v1/projects/${encodeURIComponent(projectId)}/folders`, options), input, this.getCliRequestHeaders());
+    if (!response.ok) throw this.projectRequestError('folder create', response);
   }
 
   async deleteProjectItemByTarget(

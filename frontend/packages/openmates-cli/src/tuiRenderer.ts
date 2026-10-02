@@ -74,6 +74,15 @@ export type TuiState = {
   taskStatusFilter: string;
   taskContext: TaskContext | null;
   recentChats: ChatListItem[];
+  runningChatIds: string[];
+  activityChats: ChatListItem[];
+  sidebarLinkedChats: ChatListItem[];
+  activityFrame: number;
+  chatSidebarProjects: TuiProject[];
+  chatSidebarLocation: { projectId: string; folderId: string | null } | null;
+  chatSidebarAncestors: boolean;
+  chatProjectOperation: { chatIds: string[]; mode: 'add' | 'move' } | null;
+  chatProjectBusy: boolean;
   activeChatId: string | null;
   activeChat: ChatListItem | null;
   headerState: "new" | "loading" | "ready" | "error";
@@ -144,7 +153,9 @@ export function createInitialTuiState(): TuiState {
     workspace: "chats", sidebarOpen: false, sidebarIndex: 0, navigationIndex: 0,
     focus: "content", signedIn: false, form: null, paletteOpen: false,
     paletteQuery: "", paletteIndex: 0, filter: "", taskStatusFilter: "",
-    taskContext: null, recentChats: [], activeChatId: null, activeChat: null,
+    taskContext: null, recentChats: [], runningChatIds: [], activityChats: [], sidebarLinkedChats: [], activityFrame: 0,
+    chatSidebarProjects: [], chatSidebarLocation: null, chatSidebarAncestors: false, chatProjectOperation: null, chatProjectBusy: false,
+    activeChatId: null, activeChat: null,
     headerState: "new", headerError: null, followUpSuggestions: [], drafts: {}, routeVersion: 0, inputCursor: null, aiTaskId: null,
     detailTitle: "", detailLines: [], projects: [], activeProject: null,
     projectFiles: [], projectTab: "overview", projectPath: "", projectFolderId: null, projectSourceId: null, selectedProjectId: null,
