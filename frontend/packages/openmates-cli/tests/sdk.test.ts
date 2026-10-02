@@ -1058,6 +1058,7 @@ describe("OpenMates SDK", () => {
     ]);
   });
 
+  // contract-test: supporting surface=sdks.npm assertions=hosting-domains.embeds.parent-child,hosting-domains.surface-parity
   it("loads a chat and decrypts encrypted messages client-side", async () => {
     const masterKey = generateSalt(32);
     const chatKey = generateSalt(32);
@@ -1076,6 +1077,34 @@ describe("OpenMates SDK", () => {
     const encryptedToonEmbedContent = await encryptWithAesGcmCombined(toonEncode({ code: "export default function App() {}", file_path: "src/App.jsx" }), embedKey);
     const encryptedToonEmbedPreview = await encryptWithAesGcmCombined("src/App.jsx", embedKey);
     const hashedToonEmbedId = createHash("sha256").update("embed-2").digest("hex");
+    const hostingContent = {
+      type: "hosting_domain", domain_ascii: "meet-there.com", availability: "available",
+      registration_tiers: [
+        { unit: "year", duration_range: { minimum: 1, maximum: 1 }, price_including_tax: 13.09 },
+        { unit: "year", min_duration: 2, max_duration: 2, price_including_tax: 26.18 },
+      ],
+      renewal_tiers: [],
+    };
+    const hostingChild = {
+      embed_id: "domain-child", parent_embed_id: "hosting-parent",
+      encrypted_type: await encryptWithAesGcmCombined("hosting_domain", embedKey),
+      encrypted_content: await encryptWithAesGcmCombined(toonEncode(hostingContent), embedKey),
+    };
+    const hostingParent = {
+      embed_id: "hosting-parent",
+      encrypted_type: await encryptWithAesGcmCombined("app_skill_use", embedKey),
+      encrypted_content: await encryptWithAesGcmCombined(toonEncode({ type: "app_skill_use", embed_ids: ["domain-child"] }), embedKey),
+    };
+    const ownChildKey = generateSalt(32);
+    const ownChild = {
+      ...hostingChild, embed_id: "own-child",
+      encrypted_type: await encryptWithAesGcmCombined("hosting_domain", ownChildKey),
+      encrypted_content: await encryptWithAesGcmCombined(JSON.stringify(hostingContent), ownChildKey),
+    };
+    const blockedChild = { ...hostingChild, embed_id: "blocked-child" };
+    const hashId = (id: string) => createHash("sha256").update(id).digest("hex");
+    const ownChildWrapper = await encryptBytesWithAesGcm(ownChildKey, masterKey);
+    const invalidChildWrapper = await encryptBytesWithAesGcm(embedKey, generateSalt(32));
     const seenUrls: string[] = [];
 
     await withServer((request, response) => {
@@ -1098,10 +1127,14 @@ describe("OpenMates SDK", () => {
         embeds: [
           { embed_id: "embed-1", encrypted_type: encryptedEmbedType, encrypted_content: encryptedEmbedContent, encrypted_text_preview: encryptedEmbedPreview },
           { embed_id: "embed-2", encrypted_type: encryptedToonEmbedType, encrypted_content: encryptedToonEmbedContent, encrypted_text_preview: encryptedToonEmbedPreview },
+          hostingChild, hostingParent, ownChild, blockedChild,
         ],
         embed_keys: [
           { hashed_embed_id: hashedEmbedId, key_type: "master", encrypted_embed_key: encryptedEmbedKey },
           { hashed_embed_id: hashedToonEmbedId, key_type: "master", encrypted_embed_key: encryptedEmbedKey },
+          { hashed_embed_id: hashId("hosting-parent"), key_type: "master", encrypted_embed_key: encryptedEmbedKey },
+          { hashed_embed_id: hashId("own-child"), key_type: "master", encrypted_embed_key: ownChildWrapper },
+          { hashed_embed_id: hashId("blocked-child"), key_type: "master", encrypted_embed_key: invalidChildWrapper },
         ],
       }));
     }, async (apiUrl) => {
@@ -1117,6 +1150,11 @@ describe("OpenMates SDK", () => {
       assert.equal(loaded.embeds[1].type, "code");
       assert.deepEqual(loaded.embeds[1].content, { code: "export default function App() {}", file_path: "src/App.jsx" });
       assert.equal(loaded.embeds[1].textPreview, "src/App.jsx");
+      assert.equal(loaded.embeds[2].type, "hosting_domain");
+      assert.deepEqual(loaded.embeds[2].content, hostingContent);
+      assert.deepEqual(loaded.embeds[3].content, { type: "app_skill_use", embed_ids: ["domain-child"] });
+      assert.deepEqual(loaded.embeds[4].content, hostingContent);
+      assert.deepEqual(loaded.embeds[5], blockedChild, "failed own wrapper must not fall back to the parent key");
     });
 
     assert.deepEqual(seenUrls, [`GET /v1/sdk/chats/${CHAT_ID}`, "POST /v1/sdk/session"]);

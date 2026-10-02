@@ -979,7 +979,14 @@ export class OpenMates {
       if (!embedId) {
         return { ...embed };
       }
-      const hashedEmbedId = createHash("sha256").update(embedId).digest("hex");
+      let hashedEmbedId = createHash("sha256").update(embedId).digest("hex");
+      // Result children reuse their parent's key unless they have an explicit
+      // wrapper. Choose before decrypting: a failed own wrapper must not fall
+      // back to another key, and resolution must not depend on embed ordering.
+      if (!embedKeys.some((key) => key.hashed_embed_id === hashedEmbedId)
+        && typeof embed.parent_embed_id === "string" && embed.parent_embed_id) {
+        hashedEmbedId = createHash("sha256").update(embed.parent_embed_id).digest("hex");
+      }
       const embedKey = await this.resolveLoadedEmbedKey(embedKeys, hashedEmbedId, masterKey, chatKey);
       if (!embedKey) {
         return { ...embed };

@@ -17,6 +17,7 @@ from pathlib import Path
 import tempfile
 from typing import Any, Callable
 from urllib.parse import urlsplit
+from uuid import UUID
 
 from test_hosting_requirements import (
     CLI_DIST, DEFAULT_API_URL, LOGIN_HELPER, ProbeFailure, ROOT, _run, _test_account_env,
@@ -161,7 +162,15 @@ def _inspect(env: dict[str, str], api_url: str, chat_id: str, revision: str) -> 
     if not isinstance(messages, list):
         raise ProbeFailure("Saved graph chat has no messages")
     embeds: dict[str, dict[str, Any]] = {}
+    inline_aliases: list[str] = []
     for embed_id in _embed_ids([item for item in messages if isinstance(item, dict)]):
+        try:
+            UUID(embed_id)
+        except ValueError:
+            # Citation aliases are distinct from the UUIDs accepted by owner
+            # embed reads. Retain them for review against stored embed_ref data.
+            inline_aliases.append(embed_id)
+            continue
         embeds[embed_id] = _cli(env, api_url, ["embeds", "show", embed_id], "Saved parent inspection")
     parents = [embed for embed in embeds.values()
                if embed.get("appId") == "hosting" and embed.get("skillId") == "search_domains"
@@ -176,8 +185,11 @@ def _inspect(env: dict[str, str], api_url: str, chat_id: str, revision: str) -> 
     groups = [_validate_parent(parent, load_child) for parent in parents]
     if not child_cache:
         raise ProbeFailure("Natural chat did not save any checked Hosting domain children")
+    cli_snapshot = {embed_id: {"type": embed.get("type"), "content": embed.get("content")}
+                    for embed_id, embed in {**embeds, **child_cache}.items()}
     return {"revision": revision, "chat_id": chat_id, "chat_private": True,
-            "parent_count": len(groups), "child_count": len(child_cache), "groups": groups}
+            "parent_count": len(groups), "child_count": len(child_cache), "groups": groups,
+            "inline_embed_aliases": sorted(inline_aliases), "_cli_graph_snapshot": cli_snapshot}
 
 
 def _sdk_embeds(env: dict[str, str], api_url: str, chat_id: str, access: str,
@@ -264,8 +276,14 @@ def _verify_sdk_parity(env: dict[str, str], api_url: str, receipt: dict[str, Any
                                  for child_id in [group["parent_embed_id"], *group["checked_embed_ids"]]))
     # CLI comparisons use the logged-in owner; the disposable API key is only for the two SDK devices.
     owner_env = {name: value for name, value in env.items() if name != "OPENMATES_API_KEY"}
-    expected = {embed_id: _cli(owner_env, api_url, ["embeds", "show", embed_id], "CLI graph comparison")
-                for embed_id in targets}
+    snapshot = receipt.get("_cli_graph_snapshot")
+    if isinstance(snapshot, dict) and all(embed_id in snapshot for embed_id in targets):
+        # Reuse the complete owner inspection from this run rather than loading
+        # each checked domain a second time before comparing both SDKs.
+        expected = {embed_id: snapshot[embed_id] for embed_id in targets}
+    else:
+        expected = {embed_id: _cli(owner_env, api_url, ["embeds", "show", embed_id], "CLI graph comparison")
+                    for embed_id in targets}
     for access in ("npm", "pip"):
         actual = _sdk_embeds(env, api_url, chat_id, access, targets, key_id)
         if set(actual) != set(expected):
@@ -276,6 +294,7 @@ def _verify_sdk_parity(env: dict[str, str], api_url: str, receipt: dict[str, Any
             if actual[embed_id].get("content") != expected[embed_id].get("content"):
                 raise ProbeFailure(f"{access} SDK graph content differs from CLI")
     receipt["sdk_parity"] = {"npm": "pass", "pip": "pass", "compared_embeds": len(targets)}
+    receipt.pop("_cli_graph_snapshot", None)
 
 
 def main() -> int:

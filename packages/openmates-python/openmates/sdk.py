@@ -704,6 +704,12 @@ class OpenMates:
                 decrypted_embeds.append(embed)
                 continue
             hashed_embed_id = hashlib.sha256(embed_id.encode("utf-8")).hexdigest()
+            # Result children share the parent's key only when no own wrapper
+            # exists. Never retry a failed own wrapper with the parent's key.
+            parent_embed_id = embed.get("parent_embed_id")
+            if (not any(key.get("hashed_embed_id") == hashed_embed_id for key in embed_keys)
+                    and isinstance(parent_embed_id, str) and parent_embed_id):
+                hashed_embed_id = hashlib.sha256(parent_embed_id.encode("utf-8")).hexdigest()
             embed_key = _resolve_loaded_embed_key(embed_keys, hashed_embed_id, master_key, chat_key)
             if embed_key is None:
                 decrypted_embeds.append(embed)

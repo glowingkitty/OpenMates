@@ -1,0 +1,1467 @@
+title:
+  context: "Title of example chat: Social App Names with Checked Domains"
+  en: "Social App Names with Checked Domains"
+  de: Social-App-Namen mit geprüften Domains
+  zh: 已检查域名的社交应用名称
+  es: Nombres de aplicaciones sociales con dominios comprobados
+  fr: "Noms d'applis sociales avec domaines vérifiés"
+  pt: Nomes de Apps Sociais com Domínios Verificados
+  ru: Названия соцсетей с проверкой доменов
+  ja: ドメイン確認済みのソーシャルアプリ名
+  ko: 도메인 확인을 거친 소셜 앱 이름
+  it: Nomi per app social con domini verificati
+  tr: Alan Adı Kontrollü Sosyal Uygulama İsimleri
+  vi: Tên ứng dụng mạng xã hội với tên miền đã kiểm tra
+  id: Nama Aplikasi Sosial dengan Domain yang Diperiksa
+  pl: Nazwy aplikacji społecznościowych ze sprawdzonymi domenami
+  nl: Namen voor sociale apps met gecontroleerde domeinen
+  ar: أسماء تطبيقات اجتماعية مع نطاقات مفحوصة
+  hi: चेक किए गए डोमेन के साथ सोशल ऐप के नाम
+  th: ชื่อแอปโซเชียลพร้อมการตรวจสอบโดเมน
+  cs: Názvy sociálních aplikací s ověřenými doménami
+  sv: Namn på sociala appar med kontrollerade domäner
+  he: שמות לאפליקציות חברתיות עם דומיינים שנבדקו
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Social App Names with Checked Domains"
+  en: "Compare social app names using checked domain availability, registration and renewal pricing, and registration terms."
+  de: Vergleiche Social-App-Namen anhand der geprüften Domain-Verfügbarkeit, Registrierungs- und Verlängerungspreise sowie Registrierungsbedingungen.
+  zh: 通过检查域名的可用性、注册和续费价格以及注册条款来比较社交应用名称。
+  es: Compara nombres de aplicaciones sociales mediante la comprobación de disponibilidad de dominios, precios de registro y renovación, y condiciones de registro.
+  fr: "Compare des noms d'applis sociales en fonction de la disponibilité réelle des domaines, des tarifs d'enregistrement et de renouvellement, ainsi que des conditions d'enregistrement."
+  pt: Compare nomes de apps sociais usando disponibilidade de domínios verificada, preços de registro e renovação, e termos de registro.
+  ru: Сравнивай названия соцсетей по доступности доменов, стоимости регистрации и продления, а также условиям регистрации.
+  ja: ドメインの空き状況、登録・更新費用、登録条件を確認して、ソーシャルアプリ名を比較します。
+  ko: 도메인 사용 가능 여부, 등록 및 갱신 비용, 등록 약관 확인을 통해 소셜 앱 이름을 비교해 보세요.
+  it: Confronta i nomi per app social utilizzando la disponibilità dei domini verificata, i prezzi di registrazione e rinnovo e i termini di registrazione.
+  tr: Sosyal uygulama isimlerini; kontrol edilmiş alan adı müsaitliği, kayıt ve yenileme fiyatlandırması ve kayıt şartlarını kullanarak karşılaştır.
+  vi: So sánh tên ứng dụng mạng xã hội dựa trên tình trạng tên miền, giá đăng ký và gia hạn, cùng các điều khoản đăng ký.
+  id: Bandingkan nama aplikasi sosial menggunakan ketersediaan domain yang diperiksa, harga pendaftaran dan perpanjangan, serta ketentuan pendaftaran.
+  pl: Porównuj nazwy aplikacji społecznościowych, korzystając ze sprawdzonej dostępności domen, cen rejestracji i odnowienia oraz warunków rejestracji.
+  nl: Vergelijk namen voor sociale apps op basis van gecontroleerde domeinbeschikbaarheid, registratie- en verlengingsprijzen en registratievoorwaarden.
+  ar: قارن بين أسماء التطبيقات الاجتماعية بناءً على توفر النطاقات المفحوصة، وأسعار التسجيل والتجديد، وشروط التسجيل.
+  hi: चेक की गई डोमेन उपलब्धता, रजिस्ट्रेशन और रिन्यूअल की कीमतों और रजिस्ट्रेशन की शर्तों के आधार पर सोशल ऐप के नामों की तुलना करें।
+  th: เปรียบเทียบชื่อแอปโซเชียลโดยใช้ข้อมูลความว่างของโดเมนที่ตรวจสอบแล้ว ราคาจดทะเบียนและราคาต่ออายุ รวมถึงเงื่อนไขการจดทะเบียน
+  cs: Porovnej názvy sociálních aplikací podle dostupnosti domén, cen za registraci a obnovení a podmínek registrace.
+  sv: Jämför namn på sociala appar med hjälp av kontrollerad domäntillgänglighet, priser för registrering och förnyelse samt registreringsvillkor.
+  he: השוואת שמות לאפליקציות חברתיות באמצעות זמינות דומיינים שנבדקה, מחירי רישום וחידוש ותנאי רישום.
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Social App Names with Checked Domains. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "I am naming a social app that helps people keep in touch after meeting in person and meet new people. Recommend two distinctive name ideas. For each idea, please check its exact .com, .net, and .app domains live, then recommend only exact domains whose availability, registration price, renewal price, and restrictions appear in those checks. Do not guess about unchecked domains. Pick the stronger name based on the checked results."
+  de: Ich suche einen Namen für eine Social App, die Menschen hilft, nach einem persönlichen Treffen in Kontakt zu bleiben und neue Leute kennenzulernen. Empfiehl zwei markante Namensideen. Prüfe für jede Idee die exakten .com-, .net- und .app-Domains live und empfiehl dann nur exakte Domains, deren Verfügbarkeit, Registrierungspreis, Verlängerungspreis und Einschränkungen in diesen Prüfungen erscheinen. Rate nicht bei ungeprüften Domains. Wähle den stärkeren Namen basierend auf den geprüften Ergebnissen aus.
+  zh: 我正在为一个社交应用命名，该应用旨在帮助人们在见面后保持联系并结识新朋友。请推荐两个独特的名称创意。对于每个创意，请实时检查其精确的 .com、.net 和 .app 域名，然后仅推荐那些在检查中显示了可用性、注册价格、续费价格和限制条件的精确域名。请勿对未检查的域名进行猜测。根据检查结果选出更好的名称。
+  es: Estoy buscando un nombre para una aplicación social que ayude a las personas a mantenerse en contacto después de conocerse en persona y a conocer gente nueva. Recomienda dos ideas de nombres distintivos. Para cada idea, comprueba en tiempo real sus dominios exactos .com, .net y .app, y luego recomienda solo los dominios exactos cuya disponibilidad, precio de registro, precio de renovación y restricciones aparezcan en esas comprobaciones. No hagas suposiciones sobre dominios no comprobados. Elige el nombre más sólido basándote en los resultados comprobados.
+  fr: "Je cherche un nom pour une appli sociale qui aide les gens à rester en contact après s'être rencontrés en personne et à faire de nouvelles rencontres. Recommande deux idées de noms originaux. Pour chaque idée, vérifie en direct les domaines exacts en .com, .net et .app, puis ne recommande que les domaines exacts dont la disponibilité, le prix d'enregistrement, le prix de renouvellement et les restrictions apparaissent dans ces vérifications. Ne fais pas de suppositions sur les domaines non vérifiés. Choisis le nom le plus convaincant en fonction des résultats vérifiés."
+  pt: Estou escolhendo o nome para um app social que ajuda as pessoas a manterem contato após se conhecerem pessoalmente e a conhecerem novas pessoas. Recomende duas ideias de nomes distintos. Para cada ideia, verifique os domínios exatos .com, .net e .app em tempo real e, em seguida, recomende apenas domínios exatos cuja disponibilidade, preço de registro, preço de renovação e restrições apareçam nessas verificações. Não tente adivinhar sobre domínios não verificados. Escolha o nome mais forte com base nos resultados verificados.
+  ru: Я придумываю название для соцсети, которая помогает людям поддерживать связь после личного знакомства и находить новых друзей. Предложи два оригинальных названия. Для каждого варианта проверь в реальном времени домены .com, .net и .app, а затем порекомендуй только те точные домены, доступность, стоимость регистрации, стоимость продления и ограничения которых подтверждены проверкой. Не делай предположений о непроверенных доменах. Выбери лучший вариант на основе результатов проверки.
+  ja: 対面で会った後の連絡維持や、新しい出会いを支援するソーシャルアプリの命名を考えています。特徴的な名前のアイデアを2つ提案してください。それぞれのアイデアについて、.com、.net、.appドメインの空き状況をリアルタイムで確認し、空き状況、登録費用、更新費用、制限事項が確認できたドメインのみを提案してください。確認していないドメインについては推測しないでください。確認結果に基づいて、より優れた名前を選んでください。
+  ko: 오프라인에서 만난 후에도 연락을 유지하고 새로운 사람들을 만날 수 있게 도와주는 소셜 앱의 이름을 지으려고 합니다. 독특한 이름 아이디어 두 가지를 추천해 주세요. 각 아이디어에 대해 .com, .net, .app 도메인의 실시간 상태를 확인한 후, 사용 가능 여부, 등록 비용, 갱신 비용 및 제한 사항이 확인된 도메인만 추천해 주세요. 확인되지 않은 도메인에 대해 추측하지 마세요. 확인된 결과를 바탕으로 더 나은 이름을 선택해 주세요.
+  it: "Sto scegliendo il nome per un'app social che aiuta le persone a tenersi in contatto dopo essersi incontrate di persona e a conoscere nuove persone. Consigliami due idee di nomi distintivi. Per ogni idea, controlla in tempo reale i domini esatti .com, .net e .app, quindi consiglia solo i domini esatti la cui disponibilità, prezzo di registrazione, prezzo di rinnovo e restrizioni appaiono in tali controlli. Non fare supposizioni su domini non verificati. Scegli il nome migliore in base ai risultati verificati."
+  tr: İnsanların yüz yüze tanıştıktan sonra iletişimde kalmalarına ve yeni insanlarla tanışmalarına yardımcı olan bir sosyal uygulama isimlendiriyorum. İki tane özgün isim fikri öner. Her fikir için lütfen tam .com, .net ve .app alan adlarını canlı olarak kontrol et, ardından yalnızca bu kontrollerde müsaitlik durumu, kayıt fiyatı, yenileme fiyatı ve kısıtlamaları görünen tam alan adlarını öner. Kontrol edilmemiş alan adları hakkında tahminde bulunma. Kontrol edilen sonuçlara göre daha güçlü olan ismi seç.
+  vi: Tôi đang đặt tên cho một ứng dụng mạng xã hội giúp mọi người giữ liên lạc sau khi gặp mặt trực tiếp và làm quen với những người mới. Hãy đề xuất hai ý tưởng tên gọi độc đáo. Với mỗi ý tưởng, vui lòng kiểm tra trực tiếp các tên miền .com, .net và .app chính xác, sau đó chỉ đề xuất những tên miền chính xác có tình trạng sẵn có, giá đăng ký, giá gia hạn và các hạn chế xuất hiện trong các lần kiểm tra đó. Không đoán về các tên miền chưa được kiểm tra. Hãy chọn tên tốt hơn dựa trên kết quả đã kiểm tra.
+  id: Saya sedang menamai aplikasi sosial yang membantu orang tetap terhubung setelah bertemu langsung dan bertemu orang baru. Rekomendasikan dua ide nama yang unik. Untuk setiap ide, harap periksa domain .com, .net, dan .app yang persis secara langsung, lalu rekomendasikan hanya domain persis yang ketersediaan, harga pendaftaran, harga perpanjangan, dan batasannya muncul dalam pemeriksaan tersebut. Jangan menebak tentang domain yang tidak diperiksa. Pilih nama yang lebih kuat berdasarkan hasil pemeriksaan.
+  pl: Tworzę nazwę dla aplikacji społecznościowej, która pomaga ludziom utrzymywać kontakt po spotkaniu osobistym i poznawać nowe osoby. Zaproponuj dwa wyróżniające się pomysły na nazwę. Dla każdego pomysłu sprawdź na żywo dokładne domeny .com, .net i .app, a następnie poleć tylko te dokładne domeny, których dostępność, cena rejestracji, cena odnowienia i ograniczenia pojawiają się w tych sprawdzeniach. Nie zgaduj w przypadku niesprawdzonych domen. Wybierz lepszą nazwę na podstawie sprawdzonych wyników.
+  nl: Ik zoek een naam voor een sociale app die mensen helpt contact te houden na een persoonlijke ontmoeting en nieuwe mensen te leren kennen. Beveel twee onderscheidende naamideeën aan. Controleer voor elk idee live de exacte .com-, .net- en .app-domeinen en beveel vervolgens alleen exacte domeinen aan waarvan de beschikbaarheid, registratieprijs, verlengingsprijs en beperkingen in die controles naar voren komen. Doe geen aannames over niet-gecontroleerde domeinen. Kies de sterkste naam op basis van de gecontroleerde resultaten.
+  ar: أقوم بتسمية تطبيق اجتماعي يساعد الأشخاص على البقاء على تواصل بعد اللقاء شخصياً والتعرف على أشخاص جدد. اقترح فكرتين لاسمين مميزين. لكل فكرة، يرجى التحقق من نطاقات .com و .net و .app الخاصة بها مباشرة، ثم التوصية فقط بالنطاقات الدقيقة التي يظهر توفرها وسعر تسجيلها وسعر تجديدها وقيودها في تلك الفحوصات. لا تخمن بشأن النطاقات غير المفحوصة. اختر الاسم الأقوى بناءً على النتائج المفحوصة.
+  hi: मैं एक सोशल ऐप का नाम रख रहा हूँ जो लोगों को व्यक्तिगत रूप से मिलने के बाद संपर्क में रहने और नए लोगों से मिलने में मदद करता है। दो विशिष्ट नाम सुझाव दें। प्रत्येक सुझाव के लिए, कृपया इसके सटीक .com, .net और .app डोमेन को लाइव चेक करें, फिर केवल वही सटीक डोमेन सुझाएं जिनकी उपलब्धता, रजिस्ट्रेशन की कीमत, रिन्यूअल की कीमत और प्रतिबंध उन चेक में दिखाई देते हैं। अनचेक किए गए डोमेन के बारे में अनुमान न लगाएं। चेक किए गए परिणामों के आधार पर बेहतर नाम चुनें।
+  th: ฉันกำลังตั้งชื่อแอปโซเชียลที่ช่วยให้ผู้คนติดต่อกันได้หลังจากพบกันตัวจริงและช่วยให้ได้พบปะผู้คนใหม่ๆ ช่วยแนะนำไอเดียชื่อที่โดดเด่นมา 2 ชื่อ สำหรับแต่ละชื่อ โปรดตรวจสอบโดเมน .com, .net และ .app ที่ตรงกันแบบเรียลไทม์ จากนั้นแนะนำเฉพาะโดเมนที่ตรงกันซึ่งมีข้อมูลความว่าง ราคาจดทะเบียน ราคาต่ออายุ และข้อจำกัดปรากฏในการตรวจสอบเหล่านั้น ห้ามคาดเดาเกี่ยวกับโดเมนที่ไม่ได้ตรวจสอบ เลือกชื่อที่ดูดีกว่าโดยอิงจากผลการตรวจสอบ
+  cs: Pojmenovávám sociální aplikaci, která lidem pomáhá zůstat v kontaktu po osobním setkání a poznávat nové lidi. Doporuč dva osobité nápady na název. U každého nápadu prosím naživo ověř přesné domény .com, .net a .app a poté doporuč pouze ty přesné domény, jejichž dostupnost, cena za registraci, cena za obnovení a omezení se v těchto kontrolách zobrazí. Nehádej u neověřených domén. Vyber silnější název na základě výsledků kontroly.
+  sv: Jag ska namnge en social app som hjälper människor att hålla kontakten efter att ha träffats personligen och att träffa nya människor. Rekommendera två distinkta namnidéer. För varje idé, kontrollera dess exakta .com-, .net- och .app-domäner live, och rekommendera sedan endast exakta domäner vars tillgänglighet, registreringspris, förnyelsepris och begränsningar framgår av dessa kontroller. Gissa inte om okontrollerade domäner. Välj det starkare namnet baserat på de kontrollerade resultaten.
+  he: אני מחפש שם לאפליקציה חברתית שעוזרת לאנשים לשמור על קשר אחרי פגישה פנים אל פנים ולהכיר אנשים חדשים. המלץ על שני רעיונות לשמות ייחודיים. עבור כל רעיון, בדוק בשידור חי את הדומיינים המדויקים בסיומות .com, .net ו-.app, ולאחר מכן המלץ רק על דומיינים מדויקים שהזמינות, מחיר הרישום, מחיר החידוש וההגבלות שלהם מופיעים בבדיקות אלו. אל תנחש לגבי דומיינים שלא נבדקו. בחר את השם החזק יותר על סמך התוצאות שנבדקו.
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Social App Names with Checked Domains. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ```json
+    {"type":"app_skill_use","embed_id":"0b2c9f63-036e-44a8-b967-318b90533fcc","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"c1914c51-1b63-4a11-b6c6-fc2f6813105a","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"fb6d0336-f734-4b14-8192-3ebe50d3638c","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"bee65385-095b-481f-9e63-8c93e692ada5","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    Here are two distinctive name ideas tailored to an app focused on nurturing in-person connections and expanding social circles, along with the live domain checks for each name's exact `.com`, `.net`, and `.app` extensions.
+
+    ---
+
+    ### Idea 1: Kinloop
+    * **Concept:** Combines "kin" (community, personal affinity, trusted bonds) with "loop" (closing the loop after an initial meeting and keeping connections alive in an ongoing circle).
+    * **Live Domain Verification:**
+      * **`kinloop.com`**: **Unavailable** ([Gandi check](embed:shop.gandi.net-uFu))
+      * **`kinloop.net`**: **Unavailable** ([Gandi check](embed:shop.gandi.net-nTi))
+      * **`kinloop.app`**: **Unavailable** ([Gandi check](embed:shop.gandi.net-XJX))
+    * **Recommendation:** None. All three exact target domains are currently registered/unavailable, so no exact domain can be recommended for this name.
+
+    ---
+
+    ### Idea 2: Orbitfolk
+    * **Concept:** Evokes the idea of keeping real-life acquaintances in your personal orbit while continuously discovering and welcoming new people ("folk") into your world.
+    * **Live Domain Verification:**
+      * **`orbitfolk.com`**: **Unavailable** ([Gandi check](embed:shop.gandi.net-hBP))
+      * **`orbitfolk.net`**: **Available** ([Gandi check](embed:shop.gandi.net-cex))
+        * **Registration Price:** $12.99 / 1st year excluding tax ($15.46 including 19% VAT; regular 1-year rate $18.78)
+        * **Renewal Price:** $39.98 / year excluding tax ($47.58 including 19% VAT for 1-year terms; $35.98/yr before tax for 2–9 year terms)
+        * **Restrictions:** None reported
+      * **`orbitfolk.app`**: **Available** ([Gandi check](embed:shop.gandi.net-U3Z))
+        * **Registration Price:** $9.99 / 1st year excluding tax ($11.89 including 19% VAT; regular 1-year rate $23.29)
+        * **Renewal Price:** $47.98 / year excluding tax ($57.10 including 19% VAT for 1-year terms; $43.18/yr before tax for 2–9 year terms)
+        * **Restrictions:** None reported
+
+    ---
+
+    ### Comparison & Stronger Pick
+
+    **Orbitfolk** is the stronger choice:
+
+    1. **Direct Availability:** While `Kinloop` is taken across all three extensions, `Orbitfolk` has both its `.app` and `.net` versions immediately available for registration.
+    2. **Product Fit:** Because this is a mobile social product, **`orbitfolk.app`** offers a clean, purpose-built domain extension that communicates the product type directly to users.
+
+    ---
+
+    ### Next Steps
+
+    * [Explore more name variations around social orbits](/#message=Suggest%20three%20more%20names%20similar%20to%20Orbitfolk%20and%20check%20their%20domains.)
+    * [Draft the onboarding flow for meeting in person](/#message=Help%20me%20design%20the%20UX%20onboarding%20flow%20for%20connecting%20in%20person.)
+  de: |
+    ```json
+    {"type":"app_skill_use","embed_id":"0b2c9f63-036e-44a8-b967-318b90533fcc","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"c1914c51-1b63-4a11-b6c6-fc2f6813105a","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"fb6d0336-f734-4b14-8192-3ebe50d3638c","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"bee65385-095b-481f-9e63-8c93e692ada5","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    Hier sind zwei markante Namensideen für eine App, die darauf ausgerichtet ist, persönliche Kontakte zu pflegen und soziale Kreise zu erweitern, zusammen mit den Live-Domain-Checks für die Endungen `.com`, `.net` und `.app`.
+
+    ---
+
+    ### Idee 1: Kinloop
+    * **Konzept:** Kombiniert „kin“ (Gemeinschaft, persönliche Affinität, vertrauensvolle Bindungen) mit „loop“ (den Kreis nach einem ersten Treffen schließen und Verbindungen in einem fortlaufenden Kreis lebendig halten).
+    * **Live-Domain-Prüfung:**
+      * **`kinloop.com`**: **Nicht verfügbar** ([Gandi-Check](embed:shop.gandi.net-uFu))
+      * **`kinloop.net`**: **Nicht verfügbar** ([Gandi-Check](embed:shop.gandi.net-nTi))
+      * **`kinloop.app`**: **Nicht verfügbar** ([Gandi-Check](embed:shop.gandi.net-XJX))
+    * **Empfehlung:** Keine. Alle drei exakten Ziel-Domains sind derzeit registriert/nicht verfügbar, daher kann für diesen Namen keine exakte Domain empfohlen werden.
+
+    ---
+
+    ### Idee 2: Orbitfolk
+    * **Konzept:** Erinnert an die Idee, reale Bekannte im persönlichen Orbit zu behalten, während man kontinuierlich neue Leute („folk“) entdeckt und in seiner Welt willkommen heißt.
+    * **Live-Domain-Prüfung:**
+      * **`orbitfolk.com`**: **Nicht verfügbar** ([Gandi-Check](embed:shop.gandi.net-hBP))
+      * **`orbitfolk.net`**: **Verfügbar** ([Gandi-Check](embed:shop.gandi.net-cex))
+        * **Registrierungspreis:** 12,99 $ / 1. Jahr zzgl. MwSt. (15,46 $ inkl. 19 % MwSt.; regulärer Preis für 1 Jahr 18,78 $)
+        * **Verlängerungspreis:** 39,98 $ / Jahr zzgl. MwSt. (47,58 $ inkl. 19 % MwSt. bei 1-jähriger Laufzeit; 35,98 $/Jahr vor Steuern bei 2–9 Jahren Laufzeit)
+        * **Beschränkungen:** Keine gemeldet
+      * **`orbitfolk.app`**: **Verfügbar** ([Gandi-Check](embed:shop.gandi.net-U3Z))
+        * **Registrierungspreis:** 9,99 $ / 1. Jahr zzgl. MwSt. (11,89 $ inkl. 19 % MwSt.; regulärer Preis für 1 Jahr 23,29 $)
+        * **Verlängerungspreis:** 47,98 $ / Jahr zzgl. MwSt. (57,10 $ inkl. 19 % MwSt. bei 1-jähriger Laufzeit; 43,18 $/Jahr vor Steuern bei 2–9 Jahren Laufzeit)
+        * **Beschränkungen:** Keine gemeldet
+
+    ---
+
+    ### Vergleich & Favorit
+
+    **Orbitfolk** ist die bessere Wahl:
+
+    1. **Direkte Verfügbarkeit:** Während `Kinloop` bei allen drei Endungen vergeben ist, sind bei `Orbitfolk` sowohl die `.app`- als auch die `.net`-Version sofort zur Registrierung verfügbar.
+    2. **Produkt-Passung:** Da es sich um ein mobiles soziales Produkt handelt, bietet **`orbitfolk.app`** eine saubere, zweckgebundene Domain-Endung, die den Produkttyp direkt an die Nutzer kommuniziert.
+
+    ---
+
+    ### Nächste Schritte
+
+    * [Weitere Namensvarianten rund um soziale Orbits erkunden](/#message=Suggest%20three%20more%20names%20similar%20to%20Orbitfolk%20and%20check%20their%20domains.)
+    * [Den Onboarding-Flow für persönliche Treffen entwerfen](/#message=Help%20me%20design%20the%20UX%20onboarding%20flow%20for%20connecting%20in%20person.)
+  zh: |
+    ```json
+    {"type":"app_skill_use","embed_id":"0b2c9f63-036e-44a8-b967-318b90533fcc","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"c1914c51-1b63-4a11-b6c6-fc2f6813105a","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"fb6d0336-f734-4b14-8192-3ebe50d3638c","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"bee65385-095b-481f-9e63-8c93e692ada5","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    这里有两个针对专注于培养线下联系和扩大社交圈的应用而设计的独特名称创意，以及每个名称对应的 `.com`、`.net` 和 `.app` 后缀的实时域名检查结果。
+
+    ---
+
+    ### 创意 1：Kinloop
+    * **概念：** 结合了“kin”（社区、亲和力、信任纽带）和“loop”（在初次见面后形成闭环，并在持续的圈子中保持联系）。
+    * **实时域名验证：**
+      * **`kinloop.com`**：**不可用** ([Gandi 检查](embed:shop.gandi.net-uFu))
+      * **`kinloop.net`**：**不可用** ([Gandi 检查](embed:shop.gandi.net-nTi))
+      * **`kinloop.app`**：**不可用** ([Gandi 检查](embed:shop.gandi.net-XJX))
+    * **建议：** 无。所有三个目标域名目前都已被注册/不可用，因此无法为该名称推荐精确域名。
+
+    ---
+
+    ### 创意 2：Orbitfolk
+    * **概念：** 唤起将现实生活中的熟人保持在个人轨道（orbit）上的想法，同时不断发现并欢迎新朋友（“folk”）进入你的世界。
+    * **实时域名验证：**
+      * **`orbitfolk.com`**：**不可用** ([Gandi 检查](embed:shop.gandi.net-hBP))
+      * **`orbitfolk.net`**：**可用** ([Gandi 检查](embed:shop.gandi.net-cex))
+        * **注册价格：** $12.99 / 首年（不含税）（含 19% 增值税为 $15.46；常规 1 年价格为 $18.78）
+        * **续费价格：** $39.98 / 年（不含税）（1 年期含 19% 增值税为 $47.58；2–9 年期税前为 $35.98/年）
+        * **限制：** 无报告
+      * **`orbitfolk.app`**：**可用** ([Gandi 检查](embed:shop.gandi.net-U3Z))
+        * **注册价格：** $9.99 / 首年（不含税）（含 19% 增值税为 $11.89；常规 1 年价格为 $23.29）
+        * **续费价格：** $47.98 / 年（不含税）（1 年期含 19% 增值税为 $57.10；2–9 年期税前为 $43.18/年）
+        * **限制：** 无报告
+
+    ---
+
+    ### 对比与更佳选择
+
+    **Orbitfolk** 是更佳的选择：
+
+    1. **直接可用性：** 虽然 `Kinloop` 的三个后缀都已被占用，但 `Orbitfolk` 的 `.app` 和 `.net` 版本均可立即注册。
+    2. **产品契合度：** 由于这是一个移动社交产品，**`orbitfolk.app`** 提供了一个简洁、专用的域名后缀，能直接向用户传达产品类型。
+
+    ---
+
+    ### 后续步骤
+
+    * [探索更多围绕社交轨道的名称变体](/#message=Suggest%20three%20more%20names%20similar%20to%20Orbitfolk%20and%20check%20their%20domains.)
+    * [起草线下见面的新手引导流程](/#message=Help%20me%20design%20the%20UX%20onboarding%20flow%20for%20connecting%20in%20person.)
+  es: |
+    ```json
+    {"type":"app_skill_use","embed_id":"0b2c9f63-036e-44a8-b967-318b90533fcc","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"c1914c51-1b63-4a11-b6c6-fc2f6813105a","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"fb6d0336-f734-4b14-8192-3ebe50d3638c","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"bee65385-095b-481f-9e63-8c93e692ada5","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    Aquí tienes dos ideas de nombres distintivos adaptados a una aplicación centrada en fomentar las conexiones en persona y ampliar los círculos sociales, junto con las comprobaciones de dominio en tiempo real para las extensiones exactas `.com`, `.net` y `.app` de cada nombre.
+
+    ---
+
+    ### Idea 1: Kinloop
+    * **Concepto:** Combina «kin» (comunidad, afinidad personal, vínculos de confianza) con «loop» (cerrar el círculo tras un encuentro inicial y mantener vivas las conexiones en un círculo continuo).
+    * **Verificación de dominio en tiempo real:**
+      * **`kinloop.com`**: **No disponible** ([Gandi check](embed:shop.gandi.net-uFu))
+      * **`kinloop.net`**: **No disponible** ([Gandi check](embed:shop.gandi.net-nTi))
+      * **`kinloop.app`**: **No disponible** ([Gandi check](embed:shop.gandi.net-XJX))
+    * **Recomendación:** Ninguna. Los tres dominios exactos de destino están registrados o no disponibles actualmente, por lo que no se puede recomendar ningún dominio exacto para este nombre.
+
+    ---
+
+    ### Idea 2: Orbitfolk
+    * **Concepto:** Evoca la idea de mantener a los conocidos de la vida real en tu órbita personal mientras descubres y das la bienvenida continuamente a nuevas personas («folk») a tu mundo.
+    * **Verificación de dominio en tiempo real:**
+      * **`orbitfolk.com`**: **No disponible** ([Gandi check](embed:shop.gandi.net-hBP))
+      * **`orbitfolk.net`**: **Disponible** ([Gandi check](embed:shop.gandi.net-cex))
+        * **Precio de registro:** 12,99 $ / 1.er año sin impuestos (15,46 $ con el 19 % de IVA; tarifa regular de 1 año: 18,78 $)
+        * **Precio de renovación:** 39,98 $ / año sin impuestos (47,58 $ con el 19 % de IVA para periodos de 1 año; 35,98 $/año antes de impuestos para periodos de 2 a 9 años)
+        * **Restricciones:** Ninguna reportada
+      * **`orbitfolk.app`**: **Disponible** ([Gandi check](embed:shop.gandi.net-U3Z))
+        * **Precio de registro:** 9,99 $ / 1.er año sin impuestos (11,89 $ con el 19 % de IVA; tarifa regular de 1 año: 23,29 $)
+        * **Precio de renovación:** 47,98 $ / año sin impuestos (57,10 $ con el 19 % de IVA para periodos de 1 año; 43,18 $/año antes de impuestos para periodos de 2 a 9 años)
+        * **Restricciones:** Ninguna reportada
+
+    ---
+
+    ### Comparación y elección recomendada
+
+    **Orbitfolk** es la mejor opción:
+
+    1. **Disponibilidad directa:** Mientras que Kinloop está ocupado en las tres extensiones, Orbitfolk tiene sus versiones `.app` y `.net` disponibles de inmediato para el registro.
+    2. **Ajuste del producto:** Al tratarse de un producto social móvil, **`orbitfolk.app`** ofrece una extensión de dominio limpia y específica que comunica el tipo de producto directamente a los usuarios.
+
+    ---
+
+    ### Próximos pasos
+
+    * [Explorar más variaciones de nombres sobre órbitas sociales](/#message=Sugiere%20tres%20nombres%20m%C3%A1s%20similares%20a%20Orbitfolk%20y%20comprueba%20sus%20dominios.)
+    * [Redactar el flujo de incorporación para encuentros en persona](/#message=Ay%C3%BAdame%20a%20dise%C3%B1ar%20el%20flujo%20de%20incorporaci%C3%B3n%20UX%20para%20conectar%20en%20persona.)
+  fr: |
+    ```json
+    {"type":"app_skill_use","embed_id":"0b2c9f63-036e-44a8-b967-318b90533fcc","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"c1914c51-1b63-4a11-b6c6-fc2f6813105a","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"fb6d0336-f734-4b14-8192-3ebe50d3638c","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"bee65385-095b-481f-9e63-8c93e692ada5","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    Voici deux idées de noms distinctives conçues pour une application axée sur l'entretien des liens en personne et l'élargissement des cercles sociaux, ainsi que les vérifications de domaines en direct pour les extensions exactes `.com`, `.net` et `.app` de chaque nom.
+
+    ---
+
+    ### Idée 1 : Kinloop
+    * **Concept :** Combine « kin » (communauté, affinité personnelle, liens de confiance) avec « loop » (boucler la boucle après une première rencontre et maintenir les connexions actives au sein d'un cercle continu).
+    * **Vérification des domaines en direct :**
+      * **`kinloop.com`** : **Indisponible** ([Vérification Gandi](embed:shop.gandi.net-uFu))
+      * **`kinloop.net`** : **Indisponible** ([Vérification Gandi](embed:shop.gandi.net-nTi))
+      * **`kinloop.app`** : **Indisponible** ([Vérification Gandi](embed:shop.gandi.net-XJX))
+    * **Recommandation :** Aucune. Les trois domaines cibles exacts sont actuellement enregistrés/indisponibles, donc aucun domaine exact ne peut être recommandé pour ce nom.
+
+    ---
+
+    ### Idée 2 : Orbitfolk
+    * **Concept :** Évoque l'idée de garder des connaissances de la vie réelle dans ton orbite personnelle tout en découvrant et en accueillant continuellement de nouvelles personnes (« folk ») dans ton univers.
+    * **Vérification des domaines en direct :**
+      * **`orbitfolk.com`** : **Indisponible** ([Vérification Gandi](embed:shop.gandi.net-hBP))
+      * **`orbitfolk.net`** : **Disponible** ([Vérification Gandi](embed:shop.gandi.net-cex))
+        * **Prix d'enregistrement :** 12,99 $ / 1ère année hors taxes (15,46 $ incluant 19 % de TVA ; tarif régulier d'un an 18,78 $)
+        * **Prix de renouvellement :** 39,98 $ / an hors taxes (47,58 $ incluant 19 % de TVA pour des durées d'un an ; 35,98 $/an avant taxes pour des durées de 2 à 9 ans)
+        * **Restrictions :** Aucune signalée
+      * **`orbitfolk.app`** : **Disponible** ([Vérification Gandi](embed:shop.gandi.net-U3Z))
+        * **Prix d'enregistrement :** 9,99 $ / 1ère année hors taxes (11,89 $ incluant 19 % de TVA ; tarif régulier d'un an 23,29 $)
+        * **Prix de renouvellement :** 47,98 $ / an hors taxes (57,10 $ incluant 19 % de TVA pour des durées d'un an ; 43,18 $/an avant taxes pour des durées de 2 à 9 ans)
+        * **Restrictions :** Aucune signalée
+
+    ---
+
+    ### Comparaison et meilleur choix
+
+    **Orbitfolk** est le meilleur choix :
+
+    1. **Disponibilité directe :** Alors que `Kinloop` est pris pour les trois extensions, `Orbitfolk` a ses versions `.app` et `.net` immédiatement disponibles à l'enregistrement.
+    2. **Adéquation au produit :** Comme il s'agit d'un produit social mobile, **`orbitfolk.app`** offre une extension de domaine propre et spécialisée qui communique directement le type de produit aux utilisateurs.
+
+    ---
+
+    ### Prochaines étapes
+
+    * [Explorer d'autres variations de noms autour des orbites sociales](/#message=Suggest%20three%20more%20names%20similar%20to%20Orbitfolk%20and%20check%20their%20domains.)
+    * [Rédiger le flux d'onboarding pour les rencontres en personne](/#message=Help%20me%20design%20the%20UX%20onboarding%20flow%20for%20connecting%20in%20person.)
+  ru: |
+    ```json
+    {"type":"app_skill_use","embed_id":"0b2c9f63-036e-44a8-b967-318b90533fcc","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"c1914c51-1b63-4a11-b6c6-fc2f6813105a","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"fb6d0336-f734-4b14-8192-3ebe50d3638c","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"bee65385-095b-481f-9e63-8c93e692ada5","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    Вот две оригинальные идеи названий для приложения, ориентированного на развитие личных связей и расширение круга общения, а также результаты проверки доступности доменов в зонах `.com`, `.net` и `.app`.
+
+    ---
+
+    ### Идея 1: Kinloop
+    * **Концепция:** Сочетает в себе «kin» (сообщество, близость, доверительные узы) и «loop» (петля — завершение цикла после первой встречи и поддержание связи в постоянном кругу).
+    * **Проверка доменов:**
+      * **`kinloop.com`**: **Недоступен** ([Проверка Gandi](embed:shop.gandi.net-uFu))
+      * **`kinloop.net`**: **Недоступен** ([Проверка Gandi](embed:shop.gandi.net-nTi))
+      * **`kinloop.app`**: **Недоступен** ([Проверка Gandi](embed:shop.gandi.net-XJX))
+    * **Рекомендация:** Нет. Все три целевых домена уже зарегистрированы или недоступны, поэтому данное название не может быть рекомендовано.
+
+    ---
+
+    ### Идея 2: Orbitfolk
+    * **Концепция:** Вызывает ассоциации с тем, что знакомые из реальной жизни остаются на вашей личной орбите, пока вы продолжаете открывать для себя новых людей («folk»).
+    * **Проверка доменов:**
+      * **`orbitfolk.com`**: **Недоступен** ([Проверка Gandi](embed:shop.gandi.net-hBP))
+      * **`orbitfolk.net`**: **Доступен** ([Проверка Gandi](embed:shop.gandi.net-cex))
+        * **Цена регистрации:** $12.99 / 1-й год без учета налогов ($15.46 с учетом НДС 19%; стандартная стоимость за 1 год — $18.78)
+        * **Цена продления:** $39.98 / год без учета налогов ($47.58 с учетом НДС 19% при оплате на 1 год; $35.98/год без учета налогов при оплате на 2–9 лет)
+        * **Ограничения:** Не обнаружены
+      * **`orbitfolk.app`**: **Доступен** ([Проверка Gandi](embed:shop.gandi.net-U3Z))
+        * **Цена регистрации:** $9.99 / 1-й год без учета налогов ($11.89 с учетом НДС 19%; стандартная стоимость за 1 год — $23.29)
+        * **Цена продления:** $47.98 / год без учета налогов ($57.10 с учетом НДС 19% при оплате на 1 год; $43.18/год без учета налогов при оплате на 2–9 лет)
+        * **Ограничения:** Не обнаружены
+
+    ---
+
+    ### Сравнение и лучший выбор
+
+    **Orbitfolk** — более удачный вариант:
+
+    1. **Доступность:** В то время как `Kinloop` занят во всех трех зонах, для `Orbitfolk` доступны для регистрации версии `.app` и `.net`.
+    2. **Соответствие продукту:** Поскольку это мобильный социальный продукт, домен **`orbitfolk.app`** предлагает лаконичное и современное расширение, которое сразу сообщает пользователям о типе продукта.
+
+    ---
+
+    ### Следующие шаги
+
+    * [Найти больше вариантов названий, связанных с социальными «орбитами»](/#message=Suggest%20three%20more%20names%20similar%20to%20Orbitfolk%20and%20check%20their%20domains.)
+    * [Разработать процесс онбординга для личных встреч](/#message=Help%20me%20design%20the%20UX%20onboarding%20flow%20for%20connecting%20in%20person.)
+  ja: |
+    ```json
+    {"type":"app_skill_use","embed_id":"0b2c9f63-036e-44a8-b967-318b90533fcc","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"c1914c51-1b63-4a11-b6c6-fc2f6813105a","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"fb6d0336-f734-4b14-8192-3ebe50d3638c","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"bee65385-095b-481f-9e63-8c93e692ada5","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    対面でのつながりを育み、社交の輪を広げることに特化したアプリにぴったりの、特徴的な2つの名前のアイデアを提案します。それぞれの名前について、`.com`、`.net`、`.app` 拡張子のドメイン空き状況も確認しました。
+
+    ---
+
+    ### アイデア 1: Kinloop
+    * **コンセプト:** 「kin」（コミュニティ、親近感、信頼できる絆）と「loop」（最初の出会いの後のフォローアップや、継続的なサークル内でのつながりを維持すること）を組み合わせています。
+    * **ライブドメイン確認:**
+      * **`kinloop.com`**: **利用不可** ([Gandiで確認](embed:shop.gandi.net-uFu))
+      * **`kinloop.net`**: **利用不可** ([Gandiで確認](embed:shop.gandi.net-nTi))
+      * **`kinloop.app`**: **利用不可** ([Gandiで確認](embed:shop.gandi.net-XJX))
+    * **推奨事項:** なし。3つのターゲットドメインすべてが現在登録済み（利用不可）であるため、この名前に対して推奨できる正確なドメインはありません。
+
+    ---
+
+    ### アイデア 2: Orbitfolk
+    * **コンセプト:** 実生活での知人を自分の「orbit」（軌道、活動範囲）に留めつつ、新しい人々（「folk」）を常に発見し、自分の世界に迎え入れるというイメージを想起させます。
+    * **ライブドメイン確認:**
+      * **`orbitfolk.com`**: **利用不可** ([Gandiで確認](embed:shop.gandi.net-hBP))
+      * **`orbitfolk.net`**: **利用可能** ([Gandiで確認](embed:shop.gandi.net-cex))
+        * **登録価格:** 1年目 $12.99 税抜（19%のVAT込で $15.46、通常の1年間の料金は $18.78）
+        * **更新価格:** 年間 $39.98 税抜（1年契約の場合19%のVAT込で $47.58、2〜9年契約の場合は税抜 $35.98/年）
+        * **制限事項:** 報告なし
+      * **`orbitfolk.app`**: **利用可能** ([Gandiで確認](embed:shop.gandi.net-U3Z))
+        * **登録価格:** 1年目 $9.99 税抜（19%のVAT込で $11.89、通常の1年間の料金は $23.29）
+        * **更新価格:** 年間 $47.98 税抜（1年契約の場合19%のVAT込で $57.10、2〜9年契約の場合は税抜 $43.18/年）
+        * **制限事項:** 報告なし
+
+    ---
+
+    ### 比較とおすすめ
+
+    **Orbitfolk** の方が強力な選択肢です：
+
+    1. **直接的な可用性:** `Kinloop` は3つの拡張子すべてで取得済みですが、`Orbitfolk` は `.app` と `.net` の両方がすぐに登録可能です。
+    2. **プロダクトへの適合性:** これはモバイルソーシャル製品であるため、**`orbitfolk.app`** は製品タイプをユーザーに直接伝える、クリーンで目的に特化したドメイン拡張子を提供します。
+
+    ---
+
+    ### 次のステップ
+
+    * [ソーシャル・オービットに関連する名前のバリエーションをもっと探す](/#message=Suggest%20three%20more%20names%20similar%20to%20Orbitfolk%20and%20check%20their%20domains.)
+    * [対面でつながるためのオンボーディングフローをドラフトする](/#message=Help%20me%20design%20the%20UX%20onboarding%20flow%20for%20connecting%20in%20person.)
+  ko: |
+    ```json
+    {"type":"app_skill_use","embed_id":"0b2c9f63-036e-44a8-b967-318b90533fcc","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"c1914c51-1b63-4a11-b6c6-fc2f6813105a","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"fb6d0336-f734-4b14-8192-3ebe50d3638c","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"bee65385-095b-481f-9e63-8c93e692ada5","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    대면 관계를 돈독히 하고 사교 범위를 넓히는 데 초점을 맞춘 앱에 어울리는 독특한 이름 아이디어 두 가지와, 각 이름의 .com, .net, .app 확장자에 대한 실시간 도메인 확인 결과야.
+
+    ---
+
+    ### 아이디어 1: Kinloop
+    * **컨셉:** 'kin'(공동체, 개인적 친밀감, 신뢰할 수 있는 유대감)과 'loop'(첫 만남 이후의 고리를 완성하고 지속적인 관계망 속에서 인연을 이어감)를 결합했어.
+    * **실시간 도메인 확인:**
+      * **`kinloop.com`**: **사용 불가** ([Gandi 확인](embed:shop.gandi.net-uFu))
+      * **`kinloop.net`**: **사용 불가** ([Gandi 확인](embed:shop.gandi.net-nTi))
+      * **`kinloop.app`**: **사용 불가** ([Gandi 확인](embed:shop.gandi.net-XJX))
+    * **추천:** 없음. 세 가지 대상 도메인이 모두 현재 등록되어 있거나 사용 불가능해서, 이 이름에 대해서는 추천할 수 있는 정확한 도메인이 없어.
+
+    ---
+
+    ### 아이디어 2: Orbitfolk
+    * **컨셉:** 실생활의 지인들을 개인적인 궤도(orbit) 안에 유지하면서, 새로운 사람들('folk')을 끊임없이 발견하고 자신의 세계로 맞이한다는 아이디어를 떠올리게 해.
+    * **실시간 도메인 확인:**
+      * **`orbitfolk.com`**: **사용 불가** ([Gandi 확인](embed:shop.gandi.net-hBP))
+      * **`orbitfolk.net`**: **사용 가능** ([Gandi 확인](embed:shop.gandi.net-cex))
+        * **등록 가격:** 첫해 $12.99 (세금 제외) (19% 부가세 포함 시 $15.46, 일반 1년 요금 $18.78)
+        * **갱신 가격:** 연간 $39.98 (세금 제외) (1년 계약 시 19% 부가세 포함 $47.58, 2~9년 계약 시 세전 연간 $35.98)
+        * **제한 사항:** 보고된 사항 없음
+      * **`orbitfolk.app`**: **사용 가능** ([Gandi 확인](embed:shop.gandi.net-U3Z))
+        * **등록 가격:** 첫해 $9.99 (세금 제외) (19% 부가세 포함 시 $11.89, 일반 1년 요금 $23.29)
+        * **갱신 가격:** 연간 $47.98 (세금 제외) (1년 계약 시 19% 부가세 포함 $57.10, 2~9년 계약 시 세전 연간 $43.18)
+        * **제한 사항:** 보고된 사항 없음
+
+    ---
+
+    ### 비교 및 더 나은 선택
+
+    **Orbitfolk**가 더 나은 선택이야:
+
+    1. **직접적인 가용성:** `Kinloop`은 세 확장자 모두 선점되었지만, `Orbitfolk`은 `.app`과 `.net` 버전을 즉시 등록할 수 있어.
+    2. **제품 적합성:** 이 서비스는 모바일 소셜 제품이므로, **`orbitfolk.app`**은 사용자에게 제품의 성격을 직접적으로 전달하는 깔끔하고 목적에 특화된 도메인 확장자를 제공해.
+
+    ---
+
+    ### 다음 단계
+
+    * [소셜 궤도와 관련된 더 많은 이름 변형 찾아보기](/#message=Suggest%20three%20more%20names%20similar%20to%20Orbitfolk%20and%20check%20their%20domains.)
+    * [대면 만남을 위한 온보딩 흐름 초안 작성하기](/#message=Help%20me%20design%20the%20UX%20onboarding%20flow%20for%20connecting%20in%20person.)
+  it: |
+    ```json
+    {"type":"app_skill_use","embed_id":"0b2c9f63-036e-44a8-b967-318b90533fcc","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"c1914c51-1b63-4a11-b6c6-fc2f6813105a","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"fb6d0336-f734-4b14-8192-3ebe50d3638c","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"bee65385-095b-481f-9e63-8c93e692ada5","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    Ecco due idee di nomi distintivi pensate per un'app focalizzata sul coltivare connessioni dal vivo e ampliare le cerchie sociali, insieme ai controlli dei domini in tempo reale per le estensioni esatte `.com`, `.net` e `.app` di ogni nome.
+
+    ---
+
+    ### Idea 1: Kinloop
+    * **Concetto:** Combina "kin" (comunità, affinità personale, legami di fiducia) con "loop" (chiudere il cerchio dopo un primo incontro e mantenere vive le connessioni in una cerchia continua).
+    * **Verifica del dominio in tempo reale:**
+      * **`kinloop.com`**: **Non disponibile** ([Controllo Gandi](embed:shop.gandi.net-uFu))
+      * **`kinloop.net`**: **Non disponibile** ([Controllo Gandi](embed:shop.gandi.net-nTi))
+      * **`kinloop.app`**: **Non disponibile** ([Controllo Gandi](embed:shop.gandi.net-XJX))
+    * **Raccomandazione:** Nessuna. Tutti e tre i domini esatti di destinazione sono attualmente registrati/non disponibili, quindi non è possibile consigliare alcun dominio esatto per questo nome.
+
+    ---
+
+    ### Idea 2: Orbitfolk
+    * **Concetto:** Evoca l'idea di mantenere i conoscenti della vita reale nella tua orbita personale, scoprendo e accogliendo continuamente nuove persone ("folk") nel tuo mondo.
+    * **Verifica del dominio in tempo reale:**
+      * **`orbitfolk.com`**: **Non disponibile** ([Controllo Gandi](embed:shop.gandi.net-hBP))
+      * **`orbitfolk.net`**: **Disponibile** ([Controllo Gandi](embed:shop.gandi.net-cex))
+        * **Prezzo di registrazione:** 12,99 $ / 1° anno tasse escluse (15,46 $ inclusa IVA al 19%; tariffa regolare per 1 anno 18,78 $)
+        * **Prezzo di rinnovo:** 39,98 $ / anno tasse escluse (47,58 $ inclusa IVA al 19% per termini di 1 anno; 35,98 $/anno tasse escluse per termini di 2–9 anni)
+        * **Restrizioni:** Nessuna segnalata
+      * **`orbitfolk.app`**: **Disponibile** ([Controllo Gandi](embed:shop.gandi.net-U3Z))
+        * **Prezzo di registrazione:** 9,99 $ / 1° anno tasse escluse (11,89 $ inclusa IVA al 19%; tariffa regolare per 1 anno 23,29 $)
+        * **Prezzo di rinnovo:** 47,98 $ / anno tasse escluse (57,10 $ inclusa IVA al 19% per termini di 1 anno; 43,18 $/anno tasse escluse per termini di 2–9 anni)
+        * **Restrizioni:** Nessuna segnalata
+
+    ---
+
+    ### Confronto e scelta migliore
+
+    **Orbitfolk** è la scelta migliore:
+
+    1. **Disponibilità diretta:** Mentre `Kinloop` è occupato in tutte e tre le estensioni, `Orbitfolk` ha sia la versione `.app` che quella `.net` immediatamente disponibili per la registrazione.
+    2. **Idoneità del prodotto:** Trattandosi di un prodotto social per dispositivi mobili, **`orbitfolk.app`** offre un'estensione di dominio pulita e specifica che comunica direttamente il tipo di prodotto agli utenti.
+
+    ---
+
+    ### Passaggi successivi
+
+    * [Esplora altre varianti di nomi basate sulle orbite sociali](/#message=Suggest%20three%20more%20names%20similar%20to%20Orbitfolk%20and%20check%20their%20domains.)
+    * [Bozza del flusso di onboarding per incontrarsi di persona](/#message=Help%20me%20design%20the%20UX%20onboarding%20flow%20for%20connecting%20in%20person.)
+  tr: |
+    ```json
+    {"type":"app_skill_use","embed_id":"0b2c9f63-036e-44a8-b967-318b90533fcc","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"c1914c51-1b63-4a11-b6c6-fc2f6813105a","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"fb6d0336-f734-4b14-8192-3ebe50d3638c","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"bee65385-095b-481f-9e63-8c93e692ada5","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    Yüz yüze bağlantıları beslemeye ve sosyal çevreleri genişletmeye odaklanan bir uygulama için özel olarak hazırlanmış iki özgün isim fikri ve her bir ismin tam `.com`, `.net` ve `.app` uzantıları için canlı alan adı kontrolleri aşağıdadır.
+
+    ---
+
+    ### Fikir 1: Kinloop
+    * **Konsept:** "kin" (topluluk, kişisel yakınlık, güvenilir bağlar) ile "loop" (ilk görüşmeden sonra döngüyü tamamlamak ve bağlantıları devam eden bir çember içinde canlı tutmak) kelimelerini birleştirir.
+    * **Canlı Alan Adı Doğrulaması:**
+      * **`kinloop.com`**: **Müsait Değil** ([Gandi kontrolü](embed:shop.gandi.net-uFu))
+      * **`kinloop.net`**: **Müsait Değil** ([Gandi kontrolü](embed:shop.gandi.net-nTi))
+      * **`kinloop.app`**: **Müsait Değil** ([Gandi kontrolü](embed:shop.gandi.net-XJX))
+    * **Öneri:** Yok. Hedeflenen üç tam alan adının tümü şu anda kayıtlı/müsait değil, bu nedenle bu isim için tam bir alan adı önerilemiyor.
+
+    ---
+
+    ### Fikir 2: Orbitfolk
+    * **Konsept:** Gerçek hayattaki tanıdıkları kişisel yörüngende tutarken, dünyana sürekli yeni insanlar ("folk") keşfetme ve kabul etme fikrini çağrıştırır.
+    * **Canlı Alan Adı Doğrulaması:**
+      * **`orbitfolk.com`**: **Müsait Değil** ([Gandi kontrolü](embed:shop.gandi.net-hBP))
+      * **`orbitfolk.net`**: **Müsait** ([Gandi kontrolü](embed:shop.gandi.net-cex))
+        * **Kayıt Ücreti:** 1. yıl için 12,99 $ vergi hariç (%19 KDV dahil 15,46 $; normal 1 yıllık ücret 18,78 $)
+        * **Yenileme Ücreti:** Yıllık 39,98 $ vergi hariç (1 yıllık dönemler için %19 KDV dahil 47,58 $; 2-9 yıllık dönemler için vergi öncesi 35,98 $/yıl)
+        * **Kısıtlamalar:** Bildirilmedi
+      * **`orbitfolk.app`**: **Müsait** ([Gandi kontrolü](embed:shop.gandi.net-U3Z))
+        * **Kayıt Ücreti:** 1. yıl için 9,99 $ vergi hariç (%19 KDV dahil 11,89 $; normal 1 yıllık ücret 23,29 $)
+        * **Yenileme Ücreti:** Yıllık 47,98 $ vergi hariç (1 yıllık dönemler için %19 KDV dahil 57,10 $; 2-9 yıllık dönemler için vergi öncesi 43,18 $/yıl)
+        * **Kısıtlamalar:** Bildirilmedi
+
+    ---
+
+    ### Karşılaştırma ve Daha Güçlü Seçim
+
+    **Orbitfolk** daha güçlü bir seçimdir:
+
+    1. **Doğrudan Kullanılabilirlik:** Kinloop her üç uzantıda da alınmış olsa da, Orbitfolk'un hem `.app` hem de `.net` sürümleri kayıt için hemen müsaittir.
+    2. **Ürün Uyumu:** Bu bir mobil sosyal ürün olduğu için, **`orbitfolk.app`** ürün türünü doğrudan kullanıcılara ileten temiz, amaca yönelik bir alan adı uzantısı sunar.
+
+    ---
+
+    ### Sonraki Adımlar
+
+    * [Sosyal yörüngeler etrafında daha fazla isim varyasyonu keşfet](/#message=Suggest%20three%20more%20names%20similar%20to%20Orbitfolk%20and%20check%20their%20domains.)
+    * [Yüz yüze görüşme için ilk katılım (onboarding) akışını tasarla](/#message=Help%20me%20design%20the%20UX%20onboarding%20flow%20for%20connecting%20in%20person.)
+  vi: |
+    ```json
+    {"type":"app_skill_use","embed_id":"0b2c9f63-036e-44a8-b967-318b90533fcc","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"c1914c51-1b63-4a11-b6c6-fc2f6813105a","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"fb6d0336-f734-4b14-8192-3ebe50d3638c","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"bee65385-095b-481f-9e63-8c93e692ada5","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    Dưới đây là hai ý tưởng tên gọi độc đáo dành cho một ứng dụng tập trung vào việc nuôi dưỡng các kết nối trực tiếp và mở rộng vòng tròn xã hội, cùng với kết quả kiểm tra tên miền trực tiếp cho các đuôi .com, .net và .app của từng tên.
+
+    ---
+
+    ### Ý tưởng 1: Kinloop
+    * **Khái niệm:** Kết hợp giữa "kin" (cộng đồng, sự gần gũi cá nhân, các mối liên kết tin cậy) với "loop" (khép kín vòng lặp sau cuộc gặp gỡ ban đầu và duy trì các kết nối trong một vòng tròn liên tục).
+    * **Kiểm tra tên miền trực tiếp:**
+      * **`kinloop.com`**: **Không khả dụng** ([Kiểm tra trên Gandi](embed:shop.gandi.net-uFu))
+      * **`kinloop.net`**: **Không khả dụng** ([Kiểm tra trên Gandi](embed:shop.gandi.net-nTi))
+      * **`kinloop.app`**: **Không khả dụng** ([Kiểm tra trên Gandi](embed:shop.gandi.net-XJX))
+    * **Đề xuất:** Không có. Cả ba tên miền mục tiêu chính xác hiện đã được đăng ký/không khả dụng, vì vậy không thể đề xuất tên miền chính xác nào cho tên gọi này.
+
+    ---
+
+    ### Ý tưởng 2: Orbitfolk
+    * **Khái niệm:** Gợi lên ý tưởng giữ những người quen ngoài đời thực trong quỹ đạo cá nhân của bạn, đồng thời liên tục khám phá và chào đón những người mới ("folk") vào thế giới của bạn.
+    * **Kiểm tra tên miền trực tiếp:**
+      * **`orbitfolk.com`**: **Không khả dụng** ([Kiểm tra trên Gandi](embed:shop.gandi.net-hBP))
+      * **`orbitfolk.net`**: **Khả dụng** ([Kiểm tra trên Gandi](embed:shop.gandi.net-cex))
+        * **Giá đăng ký:** $12.99 / năm đầu chưa bao gồm thuế ($15.46 bao gồm 19% VAT; giá thông thường cho 1 năm là $18.78)
+        * **Giá gia hạn:** $39.98 / năm chưa bao gồm thuế ($47.58 bao gồm 19% VAT cho kỳ hạn 1 năm; $35.98/năm trước thuế cho kỳ hạn 2–9 năm)
+        * **Hạn chế:** Không có báo cáo
+      * **`orbitfolk.app`**: **Khả dụng** ([Kiểm tra trên Gandi](embed:shop.gandi.net-U3Z))
+        * **Giá đăng ký:** $9.99 / năm đầu chưa bao gồm thuế ($11.89 bao gồm 19% VAT; giá thông thường cho 1 năm là $23.29)
+        * **Giá gia hạn:** $47.98 / năm chưa bao gồm thuế ($57.10 bao gồm 19% VAT cho kỳ hạn 1 năm; $43.18/năm trước thuế cho kỳ hạn 2–9 năm)
+        * **Hạn chế:** Không có báo cáo
+
+    ---
+
+    ### So sánh & Lựa chọn tốt hơn
+
+    **Orbitfolk** là lựa chọn tốt hơn:
+
+    1. **Tính khả dụng trực tiếp:** Trong khi `Kinloop` đã bị chiếm dụng ở cả ba đuôi mở rộng, `Orbitfolk` có cả phiên bản `.app` và `.net` sẵn sàng để đăng ký ngay lập tức.
+    2. **Sự phù hợp với sản phẩm:** Vì đây là một sản phẩm xã hội trên di động, **`orbitfolk.app`** cung cấp một đuôi tên miền gọn gàng, được xây dựng có mục đích, giúp truyền tải trực tiếp loại hình sản phẩm đến người dùng.
+
+    ---
+
+    ### Các bước tiếp theo
+
+    * [Khám phá thêm các biến thể tên xoay quanh quỹ đạo xã hội](/#message=Suggest%20three%20more%20names%20similar%20to%20Orbitfolk%20and%20check%20their%20domains.)
+    * [Phác thảo quy trình onboarding để gặp gỡ trực tiếp](/#message=Help%20me%20design%20the%20UX%20onboarding%20flow%20for%20connecting%20in%20person.)
+  id: |
+    ```json
+    {"type":"app_skill_use","embed_id":"0b2c9f63-036e-44a8-b967-318b90533fcc","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"c1914c51-1b63-4a11-b6c6-fc2f6813105a","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"fb6d0336-f734-4b14-8192-3ebe50d3638c","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"bee65385-095b-481f-9e63-8c93e692ada5","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    Berikut adalah dua ide nama unik yang disesuaikan untuk aplikasi yang berfokus pada membina hubungan tatap muka dan memperluas lingkaran sosial, beserta pemeriksaan domain langsung untuk ekstensi `.com`, `.net`, dan `.app` yang tepat dari masing-masing nama.
+
+    ---
+
+    ### Ide 1: Kinloop
+    * **Konsep:** Menggabungkan "kin" (komunitas, afinitas pribadi, ikatan tepercaya) dengan "loop" (menutup lingkaran setelah pertemuan awal dan menjaga koneksi tetap hidup dalam lingkaran yang berkelanjutan).
+    * **Verifikasi Domain Langsung:**
+      * **`kinloop.com`**: **Tidak Tersedia** ([Cek Gandi](embed:shop.gandi.net-uFu))
+      * **`kinloop.net`**: **Tidak Tersedia** ([Cek Gandi](embed:shop.gandi.net-nTi))
+      * **`kinloop.app`**: **Tidak Tersedia** ([Cek Gandi](embed:shop.gandi.net-XJX))
+    * **Rekomendasi:** Tidak ada. Ketiga domain target yang tepat saat ini sudah terdaftar/tidak tersedia, sehingga tidak ada domain tepat yang dapat direkomendasikan untuk nama ini.
+
+    ---
+
+    ### Ide 2: Orbitfolk
+    * **Konsep:** Membangkitkan ide untuk menjaga kenalan di dunia nyata tetap berada dalam orbit pribadimu sambil terus menemukan dan menyambut orang-orang baru ("folk") ke dalam duniamu.
+    * **Verifikasi Domain Langsung:**
+      * **`orbitfolk.com`**: **Tidak Tersedia** ([Cek Gandi](embed:shop.gandi.net-hBP))
+      * **`orbitfolk.net`**: **Tersedia** ([Cek Gandi](embed:shop.gandi.net-cex))
+        * **Harga Pendaftaran:** $12.99 / tahun pertama tidak termasuk pajak ($15.46 termasuk PPN 19%; tarif reguler 1 tahun $18.78)
+        * **Harga Perpanjangan:** $39.98 / tahun tidak termasuk pajak ($47.58 termasuk PPN 19% untuk jangka waktu 1 tahun; $35.98/tahun sebelum pajak untuk jangka waktu 2–9 tahun)
+        * **Batasan:** Tidak ada yang dilaporkan
+      * **`orbitfolk.app`**: **Tersedia** ([Cek Gandi](embed:shop.gandi.net-U3Z))
+        * **Harga Pendaftaran:** $9.99 / tahun pertama tidak termasuk pajak ($11.89 termasuk PPN 19%; tarif reguler 1 tahun $23.29)
+        * **Harga Perpanjangan:** $47.98 / tahun tidak termasuk pajak ($57.10 termasuk PPN 19% untuk jangka waktu 1 tahun; $43.18/tahun sebelum pajak untuk jangka waktu 2–9 tahun)
+        * **Batasan:** Tidak ada yang dilaporkan
+
+    ---
+
+    ### Perbandingan & Pilihan yang Lebih Kuat
+
+    **Orbitfolk** adalah pilihan yang lebih kuat:
+
+    1. **Ketersediaan Langsung:** Meskipun `Kinloop` sudah diambil di ketiga ekstensi, `Orbitfolk` memiliki versi `.app` dan `.net` yang tersedia segera untuk didaftarkan.
+    2. **Kesesuaian Produk:** Karena ini adalah produk sosial seluler, **`orbitfolk.app`** menawarkan ekstensi domain yang bersih dan dibuat khusus yang mengomunikasikan jenis produk secara langsung kepada pengguna.
+
+    ---
+
+    ### Langkah Selanjutnya
+
+    * [Jelajahi lebih banyak variasi nama seputar orbit sosial](/#message=Suggest%20three%20more%20names%20similar%20to%20Orbitfolk%20and%20check%20their%20domains.)
+    * [Buat draf alur onboarding untuk bertemu secara langsung](/#message=Help%20me%20design%20the%20UX%20onboarding%20flow%20for%20connecting%20in%20person.)
+  ar: |
+    ```json
+    {"type":"app_skill_use","embed_id":"0b2c9f63-036e-44a8-b967-318b90533fcc","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"c1914c51-1b63-4a11-b6c6-fc2f6813105a","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"fb6d0336-f734-4b14-8192-3ebe50d3638c","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"bee65385-095b-481f-9e63-8c93e692ada5","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    إليك فكرتان مميزتان لأسماء تطبيقات تركز على تعزيز الروابط الشخصية وتوسيع الدوائر الاجتماعية، مع التحقق المباشر من النطاقات لكل اسم بامتدادات `.com` و `.net` و `.app`.
+
+    ---
+
+    ### الفكرة 1: Kinloop
+    * **المفهوم:** يجمع بين "kin" (المجتمع، الألفة الشخصية، الروابط الموثوقة) و "loop" (إغلاق الحلقة بعد اللقاء الأول والحفاظ على استمرارية الروابط في دائرة مستمرة).
+    * **التحقق المباشر من النطاق:**
+      * **`kinloop.com`**: **غير متاح** ([Gandi check](embed:shop.gandi.net-uFu))
+      * **`kinloop.net`**: **غير متاح** ([Gandi check](embed:shop.gandi.net-nTi))
+      * **`kinloop.app`**: **غير متاح** ([Gandi check](embed:shop.gandi.net-XJX))
+    * **التوصية:** لا يوجد. جميع النطاقات الثلاثة المستهدفة مسجلة حالياً أو غير متاحة، لذا لا يمكن التوصية بنطاق مطابق لهذا الاسم.
+
+    ---
+
+    ### الفكرة 2: Orbitfolk
+    * **المفهوم:** يوحي بفكرة إبقاء المعارف في الحياة الواقعية ضمن مدارك الشخصي مع اكتشاف أشخاص جدد ("folk") والترحيب بهم باستمرار في عالمك.
+    * **التحقق المباشر من النطاق:**
+      * **`orbitfolk.com`**: **غير متاح** ([Gandi check](embed:shop.gandi.net-hBP))
+      * **`orbitfolk.net`**: **متاح** ([Gandi check](embed:shop.gandi.net-cex))
+        * **سعر التسجيل:** 12.99 دولاراً للسنة الأولى غير شامل الضريبة (15.46 دولاراً شاملة ضريبة القيمة المضافة بنسبة 19%؛ السعر العادي لمدة سنة 18.78 دولاراً)
+        * **سعر التجديد:** 39.98 دولاراً سنوياً غير شامل الضريبة (47.58 دولاراً شاملة ضريبة القيمة المضافة بنسبة 19% لمدد السنة الواحدة؛ 35.98 دولاراً سنوياً قبل الضريبة لمدد تتراوح بين 2-9 سنوات)
+        * **القيود:** لا توجد قيود مسجلة
+      * **`orbitfolk.app`**: **متاح** ([Gandi check](embed:shop.gandi.net-U3Z))
+        * **سعر التسجيل:** 9.99 دولاراً للسنة الأولى غير شامل الضريبة (11.89 دولاراً شاملة ضريبة القيمة المضافة بنسبة 19%؛ السعر العادي لمدة سنة 23.29 دولاراً)
+        * **سعر التجديد:** 47.98 دولاراً سنوياً غير شامل الضريبة (57.10 دولاراً شاملة ضريبة القيمة المضافة بنسبة 19% لمدد السنة الواحدة؛ 43.18 دولاراً سنوياً قبل الضريبة لمدد تتراوح بين 2-9 سنوات)
+        * **القيود:** لا توجد قيود مسجلة
+
+    ---
+
+    ### المقارنة والاختيار الأفضل
+
+    يعتبر **Orbitfolk** هو الخيار الأقوى:
+
+    1. **التوفر المباشر:** بينما اسم `Kinloop` محجوز في جميع الامتدادات الثلاثة، يتوفر اسم `Orbitfolk` في إصداري `.app` و `.net` للتسجيل الفوري.
+    2. **ملاءمة المنتج:** بما أن هذا المنتج اجتماعي مخصص للهواتف المحمولة، فإن **`orbitfolk.app`** يوفر امتداد نطاق نظيفاً ومخصصاً يوضح نوع المنتج للمستخدمين مباشرة.
+
+    ---
+
+    ### الخطوات التالية
+
+    * [استكشاف المزيد من تنويعات الأسماء حول المدارات الاجتماعية](/#message=Suggest%20three%20more%20names%20similar%20to%20Orbitfolk%20and%20check%20their%20domains.)
+    * [صياغة تدفق التهيئة للقاءات الشخصية](/#message=Help%20me%20design%20the%20UX%20onboarding%20flow%20for%20connecting%20in%20person.)
+  hi: |
+    ```json
+    {"type":"app_skill_use","embed_id":"0b2c9f63-036e-44a8-b967-318b90533fcc","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"c1914c51-1b63-4a11-b6c6-fc2f6813105a","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"fb6d0336-f734-4b14-8192-3ebe50d3638c","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"bee65385-095b-481f-9e63-8c93e692ada5","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    यहाँ दो विशिष्ट नाम विचार दिए गए हैं जो व्यक्तिगत संबंधों को पोषित करने और सामाजिक दायरे का विस्तार करने पर केंद्रित ऐप के लिए तैयार किए गए हैं, साथ ही प्रत्येक नाम के सटीक `.com`, `.net`, और `.app` एक्सटेंशन के लिए लाइव डोमेन चेक भी दिए गए हैं।
+
+    ---
+
+    ### विचार 1: Kinloop
+    * **अवधारणा:** 'kin' (समुदाय, व्यक्तिगत आत्मीयता, विश्वसनीय बंधन) को 'loop' (प्रारंभिक मुलाकात के बाद लूप को बंद करना और चल रहे दायरे में कनेक्शन को जीवित रखना) के साथ जोड़ता है।
+    * **लाइव डोमेन सत्यापन:**
+      * **`kinloop.com`**: **अनुपलब्ध** ([Gandi check](embed:shop.gandi.net-uFu))
+      * **`kinloop.net`**: **अनुपलब्ध** ([Gandi check](embed:shop.gandi.net-nTi))
+      * **`kinloop.app`**: **अनुपलब्ध** ([Gandi check](embed:shop.gandi.net-XJX))
+    * **सिफारिश:** कोई नहीं। तीनों सटीक लक्षित डोमेन वर्तमान में पंजीकृत/अनुपलब्ध हैं, इसलिए इस नाम के लिए किसी सटीक डोमेन की सिफारिश नहीं की जा सकती है।
+
+    ---
+
+    ### विचार 2: Orbitfolk
+    * **अवधारणा:** नए लोगों ('folk') को अपनी दुनिया में लगातार खोजने और उनका स्वागत करने के साथ-साथ वास्तविक जीवन के परिचितों को अपने व्यक्तिगत दायरे (orbit) में रखने के विचार को उजागर करता है।
+    * **लाइव डोमेन सत्यापन:**
+      * **`orbitfolk.com`**: **अनुपलब्ध** ([Gandi check](embed:shop.gandi.net-hBP))
+      * **`orbitfolk.net`**: **उपलब्ध** ([Gandi check](embed:shop.gandi.net-cex))
+        * **पंजीकरण मूल्य:** $12.99 / प्रथम वर्ष कर को छोड़कर ($15.46 जिसमें 19% वैट शामिल है; नियमित 1-वर्ष की दर $18.78)
+        * **नवीनीकरण मूल्य:** $39.98 / वर्ष कर को छोड़कर ($47.58 जिसमें 1-वर्ष की अवधि के लिए 19% वैट शामिल है; 2–9 वर्ष की अवधि के लिए कर से पहले $35.98/वर्ष)
+        * **प्रतिबंध:** कोई रिपोर्ट नहीं की गई
+      * **`orbitfolk.app`**: **उपलब्ध** ([Gandi check](embed:shop.gandi.net-U3Z))
+        * **पंजीकरण मूल्य:** $9.99 / प्रथम वर्ष कर को छोड़कर ($11.89 जिसमें 19% वैट शामिल है; नियमित 1-वर्ष की दर $23.29)
+        * **नवीनीकरण मूल्य:** $47.98 / वर्ष कर को छोड़कर ($57.10 जिसमें 1-वर्ष की अवधि के लिए 19% वैट शामिल है; 2–9 वर्ष की अवधि के लिए कर से पहले $43.18/वर्ष)
+        * **प्रतिबंध:** कोई रिपोर्ट नहीं की गई
+
+    ---
+
+    ### तुलना और बेहतर विकल्प
+
+    **Orbitfolk** बेहतर विकल्प है:
+
+    1. **सीधी उपलब्धता:** जबकि `Kinloop` तीनों एक्सटेंशन पर लिया जा चुका है, `Orbitfolk` के `.app` और `.net` दोनों संस्करण पंजीकरण के लिए तुरंत उपलब्ध हैं।
+    2. **उत्पाद उपयुक्तता:** चूंकि यह एक मोबाइल सोशल उत्पाद है, **`orbitfolk.app`** एक स्पष्ट, उद्देश्य-निर्मित डोमेन एक्सटेंशन प्रदान करता है जो सीधे उपयोगकर्ताओं को उत्पाद के प्रकार के बारे में बताता है।
+
+    ---
+
+    ### अगले कदम
+
+    * [सामाजिक दायरे (social orbits) के इर्द-गिर्द और नाम विविधताओं का पता लगाएं](/#message=Suggest%20three%20more%20names%20similar%20to%20Orbitfolk%20and%20check%20their%20domains.)
+    * [व्यक्तिगत रूप से मिलने के लिए ऑनबोर्डिंग फ्लो का मसौदा तैयार करें](/#message=Help%20me%20design%20the%20UX%20onboarding%20flow%20for%20connecting%20in%20person.)
+  th: |
+    ```json
+    {"type":"app_skill_use","embed_id":"0b2c9f63-036e-44a8-b967-318b90533fcc","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"c1914c51-1b63-4a11-b6c6-fc2f6813105a","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"fb6d0336-f734-4b14-8192-3ebe50d3638c","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"bee65385-095b-481f-9e63-8c93e692ada5","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    นี่คือไอเดียชื่อที่โดดเด่น 2 ชื่อซึ่งออกแบบมาสำหรับแอปที่เน้นการกระชับความสัมพันธ์ในชีวิตจริงและการขยายวงสังคม พร้อมกับการตรวจสอบโดเมนแบบสดสำหรับนามสกุล `.com`, `.net` และ `.app` ของแต่ละชื่อ
+
+    ---
+
+    ### ไอเดียที่ 1: Kinloop
+    * **แนวคิด:** เป็นการผสมผสานระหว่าง "kin" (ชุมชน, ความชอบส่วนบุคคล, สายสัมพันธ์ที่ไว้วางใจได้) กับ "loop" (การปิดลูปหลังจากการพบกันครั้งแรก และการรักษาความสัมพันธ์ให้คงอยู่ในวงจรที่ต่อเนื่อง)
+    * **การตรวจสอบโดเมนแบบสด:**
+      * **`kinloop.com`**: **ไม่ว่าง** ([ตรวจสอบผ่าน Gandi](embed:shop.gandi.net-uFu))
+      * **`kinloop.net`**: **ไม่ว่าง** ([ตรวจสอบผ่าน Gandi](embed:shop.gandi.net-nTi))
+      * **`kinloop.app`**: **ไม่ว่าง** ([ตรวจสอบผ่าน Gandi](embed:shop.gandi.net-XJX))
+    * **คำแนะนำ:** ไม่มี เนื่องจากโดเมนเป้าหมายทั้งสามชื่อถูกจดทะเบียนหรือสถานะไม่ว่างในขณะนี้ จึงไม่สามารถแนะนำโดเมนที่ตรงกันสำหรับชื่อนี้ได้
+
+    ---
+
+    ### ไอเดียที่ 2: Orbitfolk
+    * **แนวคิด:** สื่อถึงแนวคิดในการรักษาคนรู้จักในชีวิตจริงให้อยู่ในวงโคจรส่วนตัวของคุณ ในขณะที่ค้นพบและต้อนรับผู้คนใหม่ๆ ("folk") เข้าสู่โลกของคุณอย่างต่อเนื่อง
+    * **การตรวจสอบโดเมนแบบสด:**
+      * **`orbitfolk.com`**: **ไม่ว่าง** ([ตรวจสอบผ่าน Gandi](embed:shop.gandi.net-hBP))
+      * **`orbitfolk.net`**: **ว่าง** ([ตรวจสอบผ่าน Gandi](embed:shop.gandi.net-cex))
+        * **ราคาจดทะเบียน:** $12.99 / ปีแรก ไม่รวมภาษี ($15.46 รวม VAT 19%; อัตราปกติ 1 ปี $18.78)
+        * **ราคาต่ออายุ:** $39.98 / ปี ไม่รวมภาษี ($47.58 รวม VAT 19% สำหรับระยะเวลา 1 ปี; $35.98/ปี ก่อนภาษีสำหรับระยะเวลา 2–9 ปี)
+        * **ข้อจำกัด:** ไม่มีรายงาน
+      * **`orbitfolk.app`**: **ว่าง** ([ตรวจสอบผ่าน Gandi](embed:shop.gandi.net-U3Z))
+        * **ราคาจดทะเบียน:** $9.99 / ปีแรก ไม่รวมภาษี ($11.89 รวม VAT 19%; อัตราปกติ 1 ปี $23.29)
+        * **ราคาต่ออายุ:** $47.98 / ปี ไม่รวมภาษี ($57.10 รวม VAT 19% สำหรับระยะเวลา 1 ปี; $43.18/ปี ก่อนภาษีสำหรับระยะเวลา 2–9 ปี)
+        * **ข้อจำกัด:** ไม่มีรายงาน
+
+    ---
+
+    ### การเปรียบเทียบและตัวเลือกที่แนะนำ
+
+    **Orbitfolk** เป็นตัวเลือกที่น่าสนใจกว่า:
+
+    1. **ความพร้อมใช้งานโดยตรง:** ในขณะที่ `Kinloop` ถูกจดทะเบียนไปแล้วทั้งสามนามสกุล แต่ `Orbitfolk` มีทั้งเวอร์ชัน `.app` และ `.net` ที่พร้อมสำหรับการจดทะเบียนทันที
+    2. **ความเหมาะสมกับผลิตภัณฑ์:** เนื่องจากนี่เป็นผลิตภัณฑ์โซเชียลบนมือถือ **`orbitfolk.app`** จึงมีนามสกุลโดเมนที่ดูสะอาดตาและสร้างขึ้นเพื่อจุดประสงค์นี้โดยเฉพาะ ซึ่งสื่อสารประเภทของผลิตภัณฑ์ไปยังผู้ใช้ได้โดยตรง
+
+    ---
+
+    ### ขั้นตอนถัดไป
+
+    * [สำรวจชื่ออื่นๆ เพิ่มเติมเกี่ยวกับวงโคจรทางสังคม](/#message=Suggest%20three%20more%20names%20similar%20to%20Orbitfolk%20and%20check%20their%20domains.)
+    * [ร่างขั้นตอนการเริ่มต้นใช้งานสำหรับการพบปะกันในชีวิตจริง](/#message=Help%20me%20design%20the%20UX%20onboarding%20flow%20for%20connecting%20in%20person.)
+  sv: |
+    ```json
+    {"type":"app_skill_use","embed_id":"0b2c9f63-036e-44a8-b967-318b90533fcc","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"c1914c51-1b63-4a11-b6c6-fc2f6813105a","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"fb6d0336-f734-4b14-8192-3ebe50d3638c","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"bee65385-095b-481f-9e63-8c93e692ada5","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    Här är två distinkta namnförslag skräddarsydda för en app fokuserad på att vårda personliga kontakter och utöka sociala cirklar, tillsammans med live-domänkontroller för varje namns exakta .com-, .net- och .app-tillägg.
+
+    ---
+
+    ### Idé 1: Kinloop
+    * **Koncept:** Kombinerar ”kin” (gemenskap, personlig samhörighet, betrodda band) med ”loop” (att sluta cirkeln efter ett första möte och hålla kontakten vid liv i en pågående cirkel).
+    * **Live-domänverifiering:**
+      * **`kinloop.com`**: **Ej tillgänglig** ([Gandi-kontroll](embed:shop.gandi.net-uFu))
+      * **`kinloop.net`**: **Ej tillgänglig** ([Gandi-kontroll](embed:shop.gandi.net-nTi))
+      * **`kinloop.app`**: **Ej tillgänglig** ([Gandi-kontroll](embed:shop.gandi.net-XJX))
+    * **Rekommendation:** Ingen. Alla tre exakta måldomäner är för närvarande registrerade/ej tillgängliga, så ingen exakt domän kan rekommenderas för detta namn.
+
+    ---
+
+    ### Idé 2: Orbitfolk
+    * **Koncept:** Väcker idén om att hålla bekanta från verkliga livet i din personliga omloppsbana samtidigt som du kontinuerligt upptäcker och välkomnar nya människor (”folk”) till din värld.
+    * **Live-domänverifiering:**
+      * **`orbitfolk.com`**: **Ej tillgänglig** ([Gandi-kontroll](embed:shop.gandi.net-hBP))
+      * **`orbitfolk.net`**: **Tillgänglig** ([Gandi-kontroll](embed:shop.gandi.net-cex))
+        * **Registreringspris:** 12,99 $ / första året exklusive moms (15,46 $ inklusive 19 % moms; ordinarie 1-årspris 18,78 $)
+        * **Förnyelsepris:** 39,98 $ / år exklusive moms (47,58 $ inklusive 19 % moms för 1-årsperioder; 35,98 $/år före moms för 2–9-årsperioder)
+        * **Restriktioner:** Inga rapporterade
+      * **`orbitfolk.app`**: **Tillgänglig** ([Gandi-kontroll](embed:shop.gandi.net-U3Z))
+        * **Registreringspris:** 9,99 $ / första året exklusive moms (11,89 $ inklusive 19 % moms; ordinarie 1-årspris 23,29 $)
+        * **Förnyelsepris:** 47,98 $ / år exklusive moms (57,10 $ inklusive 19 % moms för 1-årsperioder; 43,18 $/år före moms för 2–9-årsperioder)
+        * **Restriktioner:** Inga rapporterade
+
+    ---
+
+    ### Jämförelse och bästa val
+
+    **Orbitfolk** är det starkare valet:
+
+    1. **Direkt tillgänglighet:** Medan `Kinloop` är upptaget på alla tre tillägg, har `Orbitfolk` både sina .app- och .net-versioner omedelbart tillgängliga för registrering.
+    2. **Produktpassning:** Eftersom detta är en mobil social produkt erbjuder **`orbitfolk.app`** ett rent, ändamålsenligt domäntillägg som kommunicerar produkttypen direkt till användarna.
+
+    ---
+
+    ### Nästa steg
+
+    * [Utforska fler namnvariationer kring sociala omloppsbanor](/#message=Suggest%20three%20more%20names%20similar%20to%20Orbitfolk%20and%20check%20their%20domains.)
+    * [Skapa ett utkast för onboarding-flödet för att träffas personligen](/#message=Help%20me%20design%20the%20UX%20onboarding%20flow%20for%20connecting%20in%20person.)
+  he: |
+    ```json
+    {"type":"app_skill_use","embed_id":"0b2c9f63-036e-44a8-b967-318b90533fcc","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"c1914c51-1b63-4a11-b6c6-fc2f6813105a","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"fb6d0336-f734-4b14-8192-3ebe50d3638c","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"bee65385-095b-481f-9e63-8c93e692ada5","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    להלן שני רעיונות לשמות ייחודיים המותאמים לאפליקציה המתמקדת בטיפוח קשרים אישיים והרחבת מעגלים חברתיים, יחד עם בדיקות דומיין בזמן אמת עבור הסיומות המדויקות `.com`, `.net` ו-`.app` של כל שם.
+
+    ---
+
+    ### רעיון 1: Kinloop
+    * **קונספט:** משלב בין "kin" (קהילה, זיקה אישית, קשרים מהימנים) לבין "loop" (סגירת המעגל לאחר פגישה ראשונית ושמירה על קשרים פעילים בתוך מעגל מתמשך).
+    * **אימות דומיין בזמן אמת:**
+      * **`kinloop.com`**: **לא זמין** ([בדיקת Gandi](embed:shop.gandi.net-uFu))
+      * **`kinloop.net`**: **לא זמין** ([בדיקת Gandi](embed:shop.gandi.net-nTi))
+      * **`kinloop.app`**: **לא זמין** ([בדיקת Gandi](embed:shop.gandi.net-XJX))
+    * **המלצה:** אין. כל שלושת דומייני היעד המדויקים רשומים כרגע/אינם זמינים, ולכן לא ניתן להמליץ על דומיין מדויק עבור שם זה.
+
+    ---
+
+    ### רעיון 2: Orbitfolk
+    * **קונספט:** מעורר את הרעיון של שמירה על מכרים מהחיים האמיתיים במסלול האישי שלך (orbit) תוך גילוי וקבלת פנים מתמשכת לאנשים חדשים ("folk") לתוך עולמך.
+    * **אימות דומיין בזמן אמת:**
+      * **`orbitfolk.com`**: **לא זמין** ([בדיקת Gandi](embed:shop.gandi.net-hBP))
+      * **`orbitfolk.net`**: **זמין** ([בדיקת Gandi](embed:shop.gandi.net-cex))
+        * **מחיר רישום:** $12.99 / שנה ראשונה לפני מס ($15.46 כולל 19% מע"מ; תעריף רגיל לשנה אחת $18.78)
+        * **מחיר חידוש:** $39.98 / שנה לפני מס ($47.58 כולל 19% מע"מ לתקופות של שנה אחת; $35.98 לשנה לפני מס לתקופות של 2–9 שנים)
+        * **הגבלות:** לא דווחו
+      * **`orbitfolk.app`**: **זמין** ([בדיקת Gandi](embed:shop.gandi.net-U3Z))
+        * **מחיר רישום:** $9.99 / שנה ראשונה לפני מס ($11.89 כולל 19% מע"מ; תעריף רגיל לשנה אחת $23.29)
+        * **מחיר חידוש:** $47.98 / שנה לפני מס ($57.10 כולל 19% מע"מ לתקופות של שנה אחת; $43.18 לשנה לפני מס לתקופות של 2–9 שנים)
+        * **הגבלות:** לא דווחו
+
+    ---
+
+    ### השוואה והבחירה המועדפת
+
+    **Orbitfolk** הוא הבחירה החזקה יותר:
+
+    1. **זמינות ישירה:** בעוד ש-`Kinloop` תפוס בכל שלוש הסיומות, ל-`Orbitfolk` יש גם את גרסת ה-`.app` וגם את גרסת ה-`.net` זמינות לרישום מיידי.
+    2. **התאמה למוצר:** מכיוון שמדובר במוצר חברתי למובייל, **`orbitfolk.app`** מציע סיומת דומיין נקייה וייעודית שמתקשרת את סוג המוצר ישירות למשתמשים.
+
+    ---
+
+    ### הצעדים הבאים
+
+    * [גלה וריאציות נוספות לשמות סביב מסלולים חברתיים](/#message=Suggest%20three%20more%20names%20similar%20to%20Orbitfolk%20and%20check%20their%20domains.)
+    * [נסח את תהליך ההצטרפות (onboarding) למפגשים אישיים](/#message=Help%20me%20design%20the%20UX%20onboarding%20flow%20for%20connecting%20in%20person.)
+  pt: |
+    ```json
+    {"type":"app_skill_use","embed_id":"0b2c9f63-036e-44a8-b967-318b90533fcc","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"c1914c51-1b63-4a11-b6c6-fc2f6813105a","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"fb6d0336-f734-4b14-8192-3ebe50d3638c","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"bee65385-095b-481f-9e63-8c93e692ada5","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    Aqui estão duas ideias de nomes distintas adaptadas para um aplicativo focado em cultivar conexões presenciais e expandir círculos sociais, juntamente com as verificações de domínio em tempo real para as extensões exatas `.com`, `.net` e `.app` de cada nome.
+
+    ---
+
+    ### Ideia 1: Kinloop
+    * **Conceito:** Combina "kin" (comunidade, afinidade pessoal, laços de confiança) com "loop" (fechar o ciclo após um encontro inicial e manter as conexões vivas em um círculo contínuo).
+    * **Verificação de Domínio em Tempo Real:**
+      * **`kinloop.com`**: **Indisponível** ([Verificação Gandi](embed:shop.gandi.net-uFu))
+      * **`kinloop.net`**: **Indisponível** ([Verificação Gandi](embed:shop.gandi.net-nTi))
+      * **`kinloop.app`**: **Indisponível** ([Verificação Gandi](embed:shop.gandi.net-XJX))
+    * **Recomendação:** Nenhuma. Todos os três domínios exatos pretendidos estão registrados/indisponíveis no momento, portanto, nenhum domínio exato pode ser recomendado para este nome.
+
+    ---
+
+    ### Ideia 2: Orbitfolk
+    * **Conceito:** Evoca a ideia de manter conhecidos da vida real na sua órbita pessoal, enquanto descobre e acolhe continuamente novas pessoas ("folk") no seu mundo.
+    * **Verificação de Domínio ao Vivo:**
+      * **`orbitfolk.com`**: **Indisponível** ([Verificação Gandi](embed:shop.gandi.net-hBP))
+      * **`orbitfolk.net`**: **Disponível** ([Verificação Gandi](embed:shop.gandi.net-cex))
+        * **Preço de Registro:** $12.99 / 1º ano sem impostos ($15.46 incluindo 19% de IVA; taxa regular de 1 ano $18.78)
+        * **Preço de Renovação:** $39.98 / ano sem impostos ($47.58 incluindo 19% de IVA para termos de 1 ano; $35.98/ano antes de impostos para termos de 2 a 9 anos)
+        * **Restrições:** Nenhuma relatada
+      * **`orbitfolk.app`**: **Disponível** ([Verificação Gandi](embed:shop.gandi.net-U3Z))
+        * **Preço de Registro:** $9.99 / 1º ano sem impostos ($11.89 incluindo 19% de IVA; taxa regular de 1 ano $23.29)
+        * **Preço de Renovação:** $47.98 / ano sem impostos ($57.10 incluindo 19% de IVA para termos de 1 ano; $43.18/ano antes de impostos para termos de 2 a 9 anos)
+        * **Restrições:** Nenhuma relatada
+
+    ---
+
+    ### Comparação e Escolha Mais Forte
+
+    **Orbitfolk** é a escolha mais forte:
+
+    1. **Disponibilidade Direta:** Embora `Kinloop` esteja ocupado em todas as três extensões, o `Orbitfolk` tem as suas versões `.app` e `.net` imediatamente disponíveis para registo.
+    2. **Adequação do Produto:** Como este é um produto social móvel, o **`orbitfolk.app`** oferece uma extensão de domínio limpa e específica que comunica o tipo de produto diretamente aos utilizadores.
+
+    ---
+
+    ### Próximos Passos
+
+    * [Explorar mais variações de nomes em torno de órbitas sociais](/#message=Suggest%20three%20more%20names%20similar%20to%20Orbitfolk%20and%20check%20their%20domains.)
+    * [Esboçar o fluxo de integração para encontros presenciais](/#message=Help%20me%20design%20the%20UX%20onboarding%20flow%20for%20connecting%20in%20person.)
+  pl: |
+    ```json
+    {"type":"app_skill_use","embed_id":"0b2c9f63-036e-44a8-b967-318b90533fcc","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"c1914c51-1b63-4a11-b6c6-fc2f6813105a","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"fb6d0336-f734-4b14-8192-3ebe50d3638c","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"bee65385-095b-481f-9e63-8c93e692ada5","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    Oto dwa wyróżniające się pomysły na nazwę dostosowane do aplikacji skupionej na pielęgnowaniu relacji osobistych i rozszerzaniu kręgów towarzyskich, wraz ze sprawdzeniem dostępności domen na żywo dla rozszerzeń `.com`, `.net` i `.app` każdej z nazw.
+
+    ---
+
+    ### Pomysł 1: Kinloop
+    * **Koncepcja:** Łączy słowo „kin” (społeczność, osobiste pokrewieństwo, zaufane więzi) ze słowem „loop” (domykanie pętli po pierwszym spotkaniu i utrzymywanie relacji w trwającym kręgu).
+    * **Weryfikacja domeny na żywo:**
+      * **`kinloop.com`**: **Niedostępna** ([Sprawdź w Gandi](embed:shop.gandi.net-uFu))
+      * **`kinloop.net`**: **Niedostępna** ([Sprawdź w Gandi](embed:shop.gandi.net-nTi))
+      * **`kinloop.app`**: **Niedostępna** ([Sprawdź w Gandi](embed:shop.gandi.net-XJX))
+    * **Rekomendacja:** Brak. Wszystkie trzy docelowe domeny są obecnie zarejestrowane/niedostępne, więc żadna dokładna domena nie może zostać zarekomendowana dla tej nazwy.
+
+    ---
+
+    ### Pomysł 2: Orbitfolk
+    * **Koncepcja:** Przywołuje ideę utrzymywania znajomych z prawdziwego życia na własnej orbicie, przy jednoczesnym ciągłym odkrywaniu i witaniu nowych ludzi („folk”) w swoim świecie.
+    * **Weryfikacja domeny na żywo:**
+      * **`orbitfolk.com`**: **Niedostępna** ([Sprawdź w Gandi](embed:shop.gandi.net-hBP))
+      * **`orbitfolk.net`**: **Dostępna** ([Sprawdź w Gandi](embed:shop.gandi.net-cex))
+        * **Cena rejestracji:** $12.99 / 1. rok bez podatku ($15.46 z 19% VAT; standardowa stawka za 1 rok $18.78)
+        * **Cena odnowienia:** $39.98 / rok bez podatku ($47.58 z 19% VAT przy okresach 1-rocznych; $35.98/rok przed opodatkowaniem przy okresach 2–9 lat)
+        * **Ograniczenia:** Brak zgłoszonych
+      * **`orbitfolk.app`**: **Dostępna** ([Sprawdź w Gandi](embed:shop.gandi.net-U3Z))
+        * **Cena rejestracji:** $9.99 / 1. rok bez podatku ($11.89 z 19% VAT; standardowa stawka za 1 rok $23.29)
+        * **Cena odnowienia:** $47.98 / rok bez podatku ($57.10 z 19% VAT przy okresach 1-rocznych; $43.18/rok przed opodatkowaniem przy okresach 2–9 lat)
+        * **Ograniczenia:** Brak zgłoszonych
+
+    ---
+
+    ### Porównanie i silniejszy wybór
+
+    **Orbitfolk** to silniejszy wybór:
+
+    1. **Bezpośrednia dostępność:** Podczas gdy `Kinloop` jest zajęta we wszystkich trzech rozszerzeniach, `Orbitfolk` ma zarówno wersję `.app`, jak i `.net` natychmiast dostępną do rejestracji.
+    2. **Dopasowanie produktu:** Ponieważ jest to mobilny produkt społecznościowy, **`orbitfolk.app`** oferuje czyste, dedykowane rozszerzenie domeny, które bezpośrednio komunikuje użytkownikom typ produktu.
+
+    ---
+
+    ### Następne kroki
+
+    * [Odkryj więcej wariantów nazw związanych z orbitami społecznościowymi](/#message=Suggest%20three%20more%20names%20similar%20to%20Orbitfolk%20and%20check%20their%20domains.)
+    * [Zaprojektuj proces onboardingu dla spotkań osobistych](/#message=Help%20me%20design%20the%20UX%20onboarding%20flow%20for%20connecting%20in%20person.)
+  nl: |
+    ```json
+    {"type":"app_skill_use","embed_id":"0b2c9f63-036e-44a8-b967-318b90533fcc","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"c1914c51-1b63-4a11-b6c6-fc2f6813105a","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"fb6d0336-f734-4b14-8192-3ebe50d3638c","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"bee65385-095b-481f-9e63-8c93e692ada5","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    Hier zijn twee onderscheidende naamideeën, afgestemd op een app die gericht is op het koesteren van persoonlijke connecties en het uitbreiden van sociale kringen, samen met de live domeincontroles voor de exacte `.com`-, `.net`- en `.app`-extensies van elke naam.
+
+    ---
+
+    ### Idee 1: Kinloop
+    * **Concept:** Combineert "kin" (gemeenschap, persoonlijke affiniteit, vertrouwde banden) met "loop" (de cirkel rondmaken na een eerste ontmoeting en connecties levend houden in een voortdurende kring).
+    * **Live domeinverificatie:**
+      * **`kinloop.com`**: **Niet beschikbaar** ([Gandi-controle](embed:shop.gandi.net-uFu))
+      * **`kinloop.net`**: **Niet beschikbaar** ([Gandi-controle](embed:shop.gandi.net-nTi))
+      * **`kinloop.app`**: **Niet beschikbaar** ([Gandi-controle](embed:shop.gandi.net-XJX))
+    * **Aanbeveling:** Geen. Alle drie de exacte doeldomeinen zijn momenteel geregistreerd/niet beschikbaar, dus er kan geen exact domein worden aanbevolen voor deze naam.
+
+    ---
+
+    ### Idee 2: Orbitfolk
+    * **Concept:** Roept het idee op om kennissen uit het echte leven in je persoonlijke baan te houden, terwijl je voortdurend nieuwe mensen ("folk") ontdekt en verwelkomt in je wereld.
+    * **Live domeinverificatie:**
+      * **`orbitfolk.com`**: **Niet beschikbaar** ([Gandi-check](embed:shop.gandi.net-hBP))
+      * **`orbitfolk.net`**: **Beschikbaar** ([Gandi-check](embed:shop.gandi.net-cex))
+        * **Registratieprijs:** $12.99 / 1e jaar exclusief btw ($15.46 inclusief 19% btw; regulier tarief voor 1 jaar $18.78)
+        * **Verlengingsprijs:** $39.98 / jaar exclusief btw ($47.58 inclusief 19% btw voor termijnen van 1 jaar; $35.98/jr vóór btw voor termijnen van 2–9 jaar)
+        * **Beperkingen:** Geen gerapporteerd
+      * **`orbitfolk.app`**: **Beschikbaar** ([Gandi-check](embed:shop.gandi.net-U3Z))
+        * **Registratieprijs:** $9.99 / 1e jaar exclusief btw ($11.89 inclusief 19% btw; regulier tarief voor 1 jaar $23.29)
+        * **Verlengingsprijs:** $47.98 / jaar exclusief btw ($57.10 inclusief 19% btw voor termijnen van 1 jaar; $43.18/jr vóór btw voor termijnen van 2–9 jaar)
+        * **Beperkingen:** Geen gerapporteerd
+
+    ---
+
+    ### Vergelijking & Sterkere Keuze
+
+    **Orbitfolk** is de sterkere keuze:
+
+    1. **Directe beschikbaarheid:** Hoewel `Kinloop` bezet is op alle drie de extensies, zijn van `Orbitfolk` zowel de `.app`- als de `.net`-versie direct beschikbaar voor registratie.
+    2. **Product-fit:** Omdat dit een mobiel sociaal product is, biedt **`orbitfolk.app`** een strakke, doelgerichte domeinextensie die het producttype direct aan gebruikers communiceert.
+
+    ---
+
+    ### Volgende stappen
+
+    * [Ontdek meer naamvariaties rond sociale banen](/#message=Suggest%20three%20more%20names%20similar%20to%20Orbitfolk%20and%20check%20their%20domains.)
+    * [Stel de onboarding-flow op voor persoonlijke ontmoetingen](/#message=Help%20me%20design%20the%20UX%20onboarding%20flow%20for%20connecting%20in%20person.)
+  cs: |
+    ```json
+    {"type":"app_skill_use","embed_id":"0b2c9f63-036e-44a8-b967-318b90533fcc","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"c1914c51-1b63-4a11-b6c6-fc2f6813105a","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"fb6d0336-f734-4b14-8192-3ebe50d3638c","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"bee65385-095b-481f-9e63-8c93e692ada5","app_id":"hosting","skill_id":"search_domains"}
+    ```
+
+    Zde jsou dva osobité nápady na názvy šité na míru aplikaci zaměřené na pěstování osobních kontaktů a rozšiřování sociálních kruhů, spolu s aktuální kontrolou domén pro přesné koncovky `.com`, `.net` a `.app` u každého názvu.
+
+    ---
+
+    ### Nápad 1: Kinloop
+    * **Koncept:** Kombinuje slova „kin“ (komunita, osobní spřízněnost, důvěryhodná pouta) a „loop“ (uzavření smyčky po prvním setkání a udržování kontaktů v neustálém kruhu).
+    * **Aktuální ověření domény:**
+      * **`kinloop.com`**: **Nedostupná** ([Gandi kontrola](embed:shop.gandi.net-uFu))
+      * **`kinloop.net`**: **Nedostupná** ([Gandi kontrola](embed:shop.gandi.net-nTi))
+      * **`kinloop.app`**: **Nedostupná** ([Gandi kontrola](embed:shop.gandi.net-XJX))
+    * **Doporučení:** Žádné. Všechny tři přesné cílové domény jsou momentálně registrované/nedostupné, takže pro tento název nelze doporučit žádnou přesnou doménu.
+
+    ---
+
+    ### Nápad 2: Orbitfolk
+    * **Koncept:** Vyvolává představu udržování známých z reálného života ve vaší osobní sféře (orbitu) a zároveň neustálého objevování a vítání nových lidí („folk“) do vašeho světa.
+    * **Ověření domény v reálném čase:**
+      * **`orbitfolk.com`**: **Nedostupná** ([Kontrola na Gandi](embed:shop.gandi.net-hBP))
+      * **`orbitfolk.net`**: **Dostupná** ([Kontrola na Gandi](embed:shop.gandi.net-cex))
+        * **Registrační cena:** $12.99 / 1. rok bez daně ($15.46 včetně 19% DPH; běžná sazba za 1 rok $18.78)
+        * **Cena za obnovení:** $39.98 / rok bez daně ($47.58 včetně 19% DPH pro roční období; $35.98/rok před zdaněním pro období 2–9 let)
+        * **Omezení:** Žádná nebyla nahlášena
+      * **`orbitfolk.app`**: **Dostupná** ([Kontrola na Gandi](embed:shop.gandi.net-U3Z))
+        * **Registrační cena:** $9.99 / 1. rok bez daně ($11.89 včetně 19% DPH; běžná sazba za 1 rok $23.29)
+        * **Cena za obnovení:** $47.98 / rok bez daně ($57.10 včetně 19% DPH pro roční období; $43.18/rok před zdaněním pro období 2–9 let)
+        * **Omezení:** Žádná nebyla nahlášena
+
+    ---
+
+    ### Srovnání a silnější výběr
+
+    **Orbitfolk** je silnější volba:
+
+    1. **Přímá dostupnost:** Zatímco `Kinloop` je obsazen ve všech třech koncovkách, `Orbitfolk` má své verze `.app` i `.net` okamžitě k dispozici k registraci.
+    2. **Vhodnost pro produkt:** Protože se jedná o mobilní sociální produkt, **`orbitfolk.app`** nabízí čistou, účelovou doménovou koncovku, která uživatelům přímo sděluje typ produktu.
+
+    ---
+
+    ### Další kroky
+
+    * [Prozkoumat další varianty jmen kolem sociálních orbitů](/#message=Suggest%20three%20more%20names%20similar%20to%20Orbitfolk%20and%20check%20their%20domains.)
+    * [Navrhnout proces onboardingu pro osobní setkávání](/#message=Help%20me%20design%20the%20UX%20onboarding%20flow%20for%20connecting%20in%20person.)
+  verified_by_human: []
+
+follow_up_1:
+  context: "Follow-up suggestion 1"
+  en: "Search available domain names for another social app idea"
+  de: Suche nach verfügbaren Domainnamen für eine weitere Social-App-Idee
+  zh: 搜索另一个社交应用创意的可用域名
+  es: Busca dominios disponibles para otra idea de aplicación social
+  fr: "Recherche des noms de domaine disponibles pour une autre idée d'application sociale"
+  pt: Pesquisar domínios disponíveis para outra ideia de app social
+  ru: Найти доступные домены для другой идеи соцсети
+  ja: 別のソーシャルアプリのアイデアで空きドメインを検索する
+  ko: 다른 소셜 앱 아이디어를 위한 사용 가능한 도메인 이름 검색하기
+  it: "Cerca nomi di dominio disponibili per un'altra idea di app social"
+  tr: Başka bir sosyal uygulama fikri için uygun alan adlarını ara
+  vi: Tìm kiếm tên miền khả dụng cho một ý tưởng ứng dụng mạng xã hội khác
+  id: Cari nama domain yang tersedia untuk ide aplikasi sosial lainnya
+  pl: Wyszukaj dostępne domeny dla innego pomysłu na aplikację społecznościową
+  nl: Zoek beschikbare domeinnamen voor een ander idee voor een sociale app
+  ar: ابحث عن أسماء نطاقات متاحة لفكرة تطبيق اجتماعي آخر
+  hi: किसी अन्य सोशल ऐप आइडिया के लिए उपलब्ध डोमेन नाम खोजें
+  th: ค้นหาชื่อโดเมนที่ว่างสำหรับไอเดียแอปโซเชียลอื่น ๆ
+  cs: Vyhledej dostupné domény pro další nápad na sociální aplikaci
+  sv: Sök efter lediga domännamn för en annan idé till en social app
+  he: חיפוש שמות דומיין זמינים לרעיון נוסף לאפליקציה חברתית
+  verified_by_human: []
+
+follow_up_2:
+  context: "Follow-up suggestion 2"
+  en: "Explain why the .app domain extension is effective for mobile apps"
+  de: Erkläre, warum die .app-Domainendung für mobile Apps effektiv ist
+  zh: 解释为什么 .app 域名后缀对移动应用很有效
+  es: Explica por qué la extensión de dominio .app es efectiva para aplicaciones móviles
+  fr: "Explique pourquoi l'extension de domaine .app est efficace pour les applications mobiles"
+  pt: Explicar por que a extensão de domínio .app é eficaz para apps móveis
+  ru: Объяснить, почему расширение .app эффективно для мобильных приложений
+  ja: モバイルアプリに .app ドメインが効果的な理由を説明する
+  ko: 모바일 앱에 .app 도메인 확장자가 효과적인 이유 설명하기
+  it: "Spiega perché l'estensione di dominio .app è efficace per le app mobili"
+  tr: .app alan adı uzantısının mobil uygulamalar için neden etkili olduğunu açıkla
+  vi: Giải thích lý do tại sao phần mở rộng tên miền .app lại hiệu quả cho các ứng dụng di động
+  id: Jelaskan mengapa ekstensi domain .app efektif untuk aplikasi seluler
+  pl: Wyjaśnij, dlaczego rozszerzenie .app jest skuteczne dla aplikacji mobilnych
+  nl: Leg uit waarom de .app-domeinextensie effectief is voor mobiele apps
+  ar: اشرح لماذا يعد امتداد النطاق ‎.app فعالاً لتطبيقات الجوال
+  hi: बताएं कि मोबाइल ऐप्स के लिए .app डोमेन एक्सटेंशन प्रभावी क्यों है
+  th: อธิบายว่าทำไมดอทแอป (.app) ถึงมีประสิทธิภาพสำหรับแอปมือถือ
+  cs: Vysvětli, proč je doménová koncovka .app efektivní pro mobilní aplikace
+  sv: Förklara varför domänändelsen .app är effektiv för mobilappar
+  he: הסבר למה סיומת הדומיין ‎.app יעילה לאפליקציות מובייל
+  verified_by_human: []
+
+follow_up_3:
+  context: "Follow-up suggestion 3"
+  en: "Check domain availability for three alternative brand names"
+  de: Prüfe die Domain-Verfügbarkeit für drei alternative Markennamen
+  zh: 检查三个备选品牌名称的域名可用性
+  es: Comprueba la disponibilidad de dominios para tres nombres de marca alternativos
+  fr: Vérifie la disponibilité du domaine pour trois noms de marque alternatifs
+  pt: Verificar a disponibilidade de domínio para três nomes de marca alternativos
+  ru: Проверить доступность доменов для трех альтернативных названий бренда
+  ja: 3つの代替ブランド名でドメインの空き状況を確認する
+  ko: 세 가지 대체 브랜드 이름의 도메인 가용성 확인하기
+  it: Verifica la disponibilità del dominio per tre nomi di brand alternativi
+  tr: Üç alternatif marka adı için alan adı müsaitliğini kontrol et
+  vi: Kiểm tra tính khả dụng của tên miền cho ba tên thương hiệu thay thế
+  id: Cek ketersediaan domain untuk tiga nama merek alternatif
+  pl: Sprawdź dostępność domen dla trzech alternatywnych nazw marek
+  nl: Controleer de beschikbaarheid van domeinen voor drie alternatieve merknamen
+  ar: تحقق من توفر النطاق لثلاثة أسماء علامات تجارية بديلة
+  hi: तीन वैकल्पिक ब्रांड नामों के लिए डोमेन की उपलब्धता जांचें
+  th: ตรวจสอบสถานะว่างของโดเมนสำหรับชื่อแบรนด์ทางเลือก 3 ชื่อ
+  cs: Zkontroluj dostupnost domény pro tři alternativní názvy značek
+  sv: Kontrollera domäntillgänglighet för tre alternativa varumärkesnamn
+  he: בדיקת זמינות דומיין לשלושה שמות מותג חלופיים
+  verified_by_human: []
+
+follow_up_4:
+  context: "Follow-up suggestion 4"
+  en: "Compare .net and .app domain extensions for consumer applications"
+  de: Vergleiche .net- und .app-Domainendungen für Consumer-Anwendungen
+  zh: 比较消费级应用的 .net 和 .app 域名后缀
+  es: Compara las extensiones de dominio .net y .app para aplicaciones de consumo
+  fr: Compare les extensions de domaine .net et .app pour les applications grand public
+  pt: Comparar as extensões de domínio .net e .app para aplicativos de consumo
+  ru: Сравнить расширения .net и .app для потребительских приложений
+  ja: コンシューマー向けアプリにおける .net と .app ドメインを比較する
+  ko: 소비자용 애플리케이션을 위한 .net 및 .app 도메인 확장자 비교하기
+  it: Confronta le estensioni di dominio .net e .app per le applicazioni consumer
+  tr: Tüketici uygulamaları için .net ve .app alan adı uzantılarını karşılaştır
+  vi: So sánh phần mở rộng tên miền .net và .app cho các ứng dụng tiêu dùng
+  id: Bandingkan ekstensi domain .net dan .app untuk aplikasi konsumen
+  pl: Porównaj rozszerzenia .net i .app dla aplikacji konsumenckich
+  nl: Vergelijk .net- en .app-domeinextensies voor consumentenapplicaties
+  ar: قارن بين امتدادات النطاقات ‎.net و ‎.app للتطبيقات الاستهلاكية
+  hi: कंज्यूमर एप्लिकेशन के लिए .net और .app डोमेन एक्सटेंशन की तुलना करें
+  th: เปรียบเทียบดอทเน็ต (.net) และดอทแอป (.app) สำหรับแอปพลิเคชันสำหรับผู้บริโภค
+  cs: Porovnej doménové koncovky .net a .app pro spotřebitelské aplikace
+  sv: Jämför domänändelserna .net och .app för konsumentapplikationer
+  he: השוואה בין סיומות הדומיין ‎.net ו-‎.app לאפליקציות צרכניות
+  verified_by_human: []
+
+follow_up_5:
+  context: "Follow-up suggestion 5"
+  en: "Check domain pricing and availability for AppFolk name"
+  de: Prüfe Preise und Verfügbarkeit der Domain für den Namen AppFolk
+  zh: 检查 AppFolk 名称的域名价格和可用性
+  es: Consulta el precio y la disponibilidad del dominio para el nombre AppFolk
+  fr: Vérifie le prix et la disponibilité du domaine pour le nom AppFolk
+  pt: Verificar preços e disponibilidade de domínio para o nome AppFolk
+  ru: Проверить цены и доступность доменов для названия AppFolk
+  ja: AppFolk という名前のドメイン価格と空き状況を確認する
+  ko: AppFolk 이름의 도메인 가격 및 가용성 확인하기
+  it: Controlla prezzi e disponibilità del dominio per il nome AppFolk
+  tr: AppFolk ismi için alan adı fiyatlarını ve müsaitliğini kontrol et
+  vi: Kiểm tra giá và tính khả dụng của tên miền cho tên AppFolk
+  id: Cek harga dan ketersediaan domain untuk nama AppFolk
+  pl: Sprawdź ceny i dostępność domen dla nazwy AppFolk
+  nl: Controleer de prijzen en beschikbaarheid van domeinen voor de naam AppFolk
+  ar: تحقق من أسعار النطاقات وتوفرها لاسم AppFolk
+  hi: AppFolk नाम के लिए डोमेन की कीमत और उपलब्धता जांचें
+  th: ตรวจสอบราคาและสถานะว่างของโดเมนสำหรับชื่อ AppFolk
+  cs: Zkontroluj cenu a dostupnost domény pro název AppFolk
+  sv: Kontrollera domänpris och tillgänglighet för namnet AppFolk
+  he: בדיקת מחיר וזמינות דומיין עבור השם AppFolk
+  verified_by_human: []
+
+follow_up_6:
+  context: "Follow-up suggestion 6"
+  en: "Suggest three additional branding angles for this social connection app"
+  de: Schlage drei weitere Branding-Ansätze für diese Social-Connection-App vor
+  zh: 为此社交连接应用建议三个额外的品牌定位角度
+  es: Sugiere tres enfoques de marca adicionales para esta aplicación de conexión social
+  fr: Suggère trois angles de branding supplémentaires pour cette application de connexion sociale
+  pt: Sugerir três ângulos de branding adicionais para este app de conexão social
+  ru: Предложить еще три концепции брендинга для этого приложения для общения
+  ja: このソーシャル系アプリにさらに3つのブランディング案を提案する
+  ko: 이 소셜 연결 앱을 위한 세 가지 추가 브랜딩 관점 제안하기
+  it: Suggerisci tre ulteriori angolazioni di branding per questa app di connessione social
+  tr: Bu sosyal bağlantı uygulaması için üç ek markalaşma açısı öner
+  vi: Gợi ý thêm ba hướng xây dựng thương hiệu cho ứng dụng kết nối xã hội này
+  id: Sarankan tiga sudut pandang branding tambahan untuk aplikasi koneksi sosial ini
+  pl: Zaproponuj trzy dodatkowe kierunki budowania marki dla tej aplikacji społecznościowej
+  nl: Suggereer drie extra branding-invalshoeken voor deze sociale verbindings-app
+  ar: اقترح ثلاث زوايا إضافية للعلامة التجارية لتطبيق التواصل الاجتماعي هذا
+  hi: इस सोशल कनेक्शन ऐप के लिए तीन अतिरिक्त ब्रांडिंग एंगल सुझाएं
+  th: แนะนำมุมมองการสร้างแบรนด์เพิ่มเติม 3 มุมมองสำหรับแอปเชื่อมต่อโซเชียลนี้
+  cs: Navrhni tři další směry brandingu pro tuto aplikaci pro sociální propojování
+  sv: Föreslå ytterligare tre varumärkesvinklar för denna sociala app
+  he: הצעת שלוש זוויות מיתוג נוספות לאפליקציית הקשרים החברתיים הזו
+  verified_by_human: []

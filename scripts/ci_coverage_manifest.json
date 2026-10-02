@@ -280,6 +280,7 @@
         "example-chat-logout-preserve.spec.ts",
         "example-chat-settings-usage.spec.ts",
         "example-chat-speech.spec.ts",
+        "example-chat-hosting-domains.spec.ts",
         "example-chats-load.spec.ts",
         "feature-availability.spec.ts",
         "finance-check-accounts.spec.ts",
