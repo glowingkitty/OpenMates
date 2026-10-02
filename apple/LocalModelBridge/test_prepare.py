@@ -3,9 +3,13 @@
 import hashlib
 import importlib.util
 import json
+import os
 from pathlib import Path
 import plistlib
 import shlex
+import shutil
+import subprocess
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -100,6 +104,58 @@ class BridgePreparationTests(unittest.TestCase):
                     self.assertEqual(json.loads((selected / 'receipt.json').read_text())['swift_interface_sha256'], hashlib.sha256(self.OVERLAY).hexdigest())
             self.assertFalse((output / 'include/module.modulemap').exists(), 'No shared SwiftPM include output')
             self.assertEqual(len(list(output.glob('*/executorch.xcframework/*/Headers/module.modulemap'))), 3)
+
+    def testVerifiedUnchangedBuildInputsKeepMtimesAndCorruptionIsRepaired(self):
+        with tempfile.TemporaryDirectory(prefix='bridge-fixture-') as name:
+            root = Path(name)
+            archive, artifact = self.fixture(root)
+            output = root / 'output'
+            data = {'upstream_revision': 'fixture', 'artifacts': [artifact]}
+            with patch.object(bridge, 'get_archive', return_value=archive):
+                bridge.prepare(data, output, [], 'macosx')
+                selected = output / 'macosx'
+                inputs = [path for path in selected.rglob('*') if path.is_file() and path.name != 'receipt.json']
+                original = {path: path.read_bytes() for path in inputs}
+                for path in inputs:
+                    os.utime(path, ns=(1_000_000_000, 1_000_000_000))
+                bridge.prepare(data, output, [], 'macosx')
+                self.assertTrue(all(path.stat().st_mtime_ns == 1_000_000_000 for path in inputs))
+                for path in inputs:
+                    path.write_bytes(b'corrupted cached input')
+                bridge.prepare(data, output, [], 'macosx')
+                self.assertEqual({path: path.read_bytes() for path in inputs}, original)
+
+    @unittest.skipUnless(sys.platform == 'darwin' and shutil.which('xcrun'), 'Apple packaging tooling')
+    def testRustRuntimeLocalizationLinksBothLibrariesWithoutChangingTheirCalls(self):
+        with tempfile.TemporaryDirectory(prefix='bridge-link-fixture-') as name:
+            root = Path(name)
+            sources = {
+                'pair': 'int rust_eh_personality(void) { return 17; } int pair_opaque_call(void) { return rust_eh_personality(); } void pair_opaque_free(void) {}',
+                'tokenizers': 'int rust_eh_personality(void) { return 29; } int tokenizers_probe(void) { return rust_eh_personality(); }',
+                'main': 'int pair_opaque_call(void); int tokenizers_probe(void); int main(void) { return pair_opaque_call() == 17 && tokenizers_probe() == 29 ? 0 : 1; }',
+            }
+            for label, source in sources.items():
+                path = root / (label + '.c')
+                path.write_text(source)
+                subprocess.run(['xcrun', 'clang', '-O0', '-c', str(path), '-o', str(root / (label + '.o'))], check=True, capture_output=True)
+            library = root / 'pair.a'
+            subprocess.run(['xcrun', 'libtool', '-static', '-o', str(library), str(root / 'pair.o')], check=True, capture_output=True)
+            command = ['xcrun', 'clang', str(root / 'main.o'), str(library), str(root / 'tokenizers.o'), '-o', str(root / 'probe')]
+            rejected = subprocess.run(command, capture_output=True, text=True)
+            self.assertNotEqual(rejected.returncode, 0)
+            self.assertIn('duplicate symbol', rejected.stderr)
+            localizer = Path(__file__).parents[1] / 'PairOpaqueBridge/localize-runtime.sh'
+            env = {**os.environ, 'PLATFORM_NAME': 'iphoneos'}
+            original_hash = bridge.sha256(library)
+            subprocess.run([str(localizer), str(library)], env=env, check=True, capture_output=True)
+            self.assertEqual(bridge.sha256(library), original_hash, 'iOS packaging is untouched')
+            subprocess.run([str(localizer), str(library)], env={**env, 'PLATFORM_NAME': 'macosx'}, check=True, capture_output=True)
+            subprocess.run(command, check=True, capture_output=True)
+            subprocess.run([str(root / 'probe')], check=True, capture_output=True)
+            exports = subprocess.run(['xcrun', 'nm', '-gU', str(library)], check=True, capture_output=True, text=True).stdout
+            self.assertIn('_pair_opaque_call', exports)
+            self.assertIn('_pair_opaque_free', exports)
+            self.assertNotIn('_rust_eh_personality', exports)
 
     def testEveryGeneratedLinkerArchiveHasABuildGraphProducer(self):
         project = yaml.safe_load(Path(__file__).parents[1].joinpath('project.yml').read_text())

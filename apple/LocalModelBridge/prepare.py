@@ -146,6 +146,15 @@ def extract_slice(artifact, archive, destination, platform):
             if (item.external_attr >> 16) & 0o170000 == 0o120000:
                 raise ValueError('SDK archive contains symlink')
             target = destination / item.filename
+            # Compare against the verified ZIP member, not a cached receipt.
+            # Unchanged header mtimes preserve Xcode's compiled module cache.
+            if target.is_file():
+                expected = hashlib.sha256()
+                with zipped.open(item) as source:
+                    for chunk in iter(lambda: source.read(1024 * 1024), b''):
+                        expected.update(chunk)
+                if sha256(target) == expected.hexdigest():
+                    continue
             target.parent.mkdir(parents=True, exist_ok=True)
             with zipped.open(item) as source, target.open('wb') as output:
                 shutil.copyfileobj(source, output)
@@ -175,7 +184,9 @@ def prepare(data, output, cache_roots, platform):
         # Preserve the upstream overlay bytes; Swift imports its underlying ObjC module.
         modules = selected / 'Modules/ExecuTorch.swiftmodule'
         modules.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(interface, modules / PLATFORMS[platform][4])
+        overlay = modules / PLATFORMS[platform][4]
+        if not overlay.is_file() or sha256(overlay) != sha256(interface):
+            shutil.copyfile(interface, overlay)
         receipt = {'schema_version': 1, 'platform': platform, 'upstream_revision': data['upstream_revision'],
                    'artifacts': [{**a, 'verified': True} for a in data['artifacts']],
                    'module_map_sha256': sha256(headers / 'module.modulemap'),
