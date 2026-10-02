@@ -2488,6 +2488,10 @@
                 // re-render that destroyed the original <span>).
                 handleDOMEvents: {
                     keydown: (_view, event) => {
+                        if ((event.key === 'Enter' || event.key === ' ') && (event.target as HTMLElement).closest('[data-testid="project-access-chip"]')) {
+                            handleMessageWrapperKeyDown(event);
+                            return true;
+                        }
                         if (autoConvertedPasteCandidate && event.key.length === 1 && event.key.trim().length > 0) {
                             autoConvertedPasteCandidate = null;
                         }
@@ -2495,6 +2499,10 @@
                     },
                     click: (view, event) => {
                         const target = event.target as HTMLElement;
+                        if (target.closest('[data-testid="project-access-chip"]')) {
+                            handleMessageWrapperClick(event);
+                            return true;
+                        }
                         const piiEl = target.classList.contains('pii-highlight')
                             ? target
                             : target.closest('.pii-highlight') as HTMLElement | null;
@@ -4245,7 +4253,8 @@
         if (!editor || editor.isDestroyed) return null;
         let found: { node: ProseMirrorNode; pos: number } | null = null;
         editor.state.doc.descendants((node: ProseMirrorNode, pos: number) => {
-            if (found || node.type.name !== 'genericMention') return false;
+            if (found) return false;
+            if (node.type.name !== 'genericMention') return true;
             if (node.attrs?.mentionId === mentionId && isProjectMentionType(node.attrs?.mentionType)) {
                 found = { node, pos };
                 return false;

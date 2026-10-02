@@ -137,15 +137,9 @@ async function createProject(page: Page, name: string, writeMode: 'always_ask' |
 }
 
 async function deleteProject(page: Page, projectId: string): Promise<void> {
-  await page.goto(`/#project-id=${encodeURIComponent(projectId)}`, { waitUntil: 'domcontentloaded' });
-  const deleted = page.waitForResponse(
-    (response: Response) => response.request().method() === 'DELETE'
-      && new URL(response.url()).pathname === `/v1/projects/${projectId}`
-      && response.ok(),
-  );
-  page.once('dialog', (dialog) => dialog.accept());
-  await page.getByTestId('project-delete-button').click();
-  await deleted;
+  // Cleanup must not hide the original failure behind a composer overlay.
+  const response = await page.request.delete(`${API_BASE_URL}/v1/projects/${projectId}`, { timeout: 30_000 });
+  expect(response.ok(), 'disposable hosted Project cleanup').toBe(true);
 }
 
 async function sendWithProjectMention(
@@ -359,6 +353,10 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
         const payload = message.payload as { head?: { encrypted_content?: unknown } };
         expect(typeof payload.head?.encrypted_content).toBe('string');
       }
+    } catch (error) {
+      console.error('Hosted Project proof failed:', error instanceof Error ? error.message : String(error));
+      await page.screenshot({ path: test.info().outputPath('hosted-project-before-cleanup.png'), fullPage: true }).catch(() => undefined);
+      throw error;
     } finally {
       await cdp.detach().catch(() => undefined);
       if (chatUrl) {
