@@ -479,3 +479,15 @@ async def test_enqueue_uses_stable_identities_and_matching_commitment(monkeypatc
     assert first_data["inference_task_id"] != first_data["billing_identity"]
     assert first_data["billing_identity"] != first_data["outbox_id"]
     assert telemetry == [("enqueue_inference", 2.0), ("enqueue_inference", 2.0)]
+
+
+# contract-test: supporting surface=gui.web assertions=projects.focus.mention-activation,chats.message.identity-idempotent
+def test_project_activation_after_preflight_preserves_immutable_user_request(monkeypatch) -> None:
+    monkeypatch.setenv("CHAT_RECOVERY_COMMITMENT_KEY", "commitment-secret")
+    prepared = {**_payload()["inference_request"], "current_project": None, "active_project_focus": None}
+    dispatched = deepcopy(prepared)
+    dispatched["current_project"] = {"project_id": "project-1"}
+    dispatched["active_project_focus"] = {"project_id": "project-1", "instruction": "authorized instructions"}
+    assert chat_turn_preflight_handler.build_inference_commitment(prepared) == chat_turn_preflight_handler.build_inference_commitment(dispatched)
+    dispatched["message"] = {"content": "a different user request"}
+    assert chat_turn_preflight_handler.build_inference_commitment(prepared) != chat_turn_preflight_handler.build_inference_commitment(dispatched)

@@ -56,8 +56,15 @@ def _end_ws_span(otel_span: Any, otel_token: Any) -> None:
 def canonicalize_inference_request(inference_request: dict[str, Any]) -> bytes:
     if not isinstance(inference_request, dict) or not inference_request:
         raise ValueError("inference_request must be a non-empty object")
+    # Live Project authority is revalidated at dispatch and every file job.
+    # A new chat must be saved before its Project focus can be activated, so
+    # these server-derived bindings intentionally change after preflight.
+    committed_request = {
+        key: None if key in {"current_project", "active_project_focus"} else value
+        for key, value in inference_request.items()
+    }
     return json.dumps(
-        inference_request,
+        committed_request,
         sort_keys=True,
         separators=(",", ":"),
         ensure_ascii=False,
