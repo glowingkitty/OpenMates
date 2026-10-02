@@ -52149,7 +52149,7 @@ assertions:
     direct_tests:
     - &id6410
       path: backend/tests/test_commit_embed_revision_handler.py
-      line: 61
+      line: 62
       name: test_commit_runs_fresh_shared_authorization_then_atomic_transaction
       surface: rest_api
     - &id6412
@@ -53284,7 +53284,7 @@ assertions:
     direct_tests:
     - &id6537
       path: backend/tests/test_commit_embed_revision_handler.py
-      line: 61
+      line: 62
       name: test_commit_runs_fresh_shared_authorization_then_atomic_transaction
       surface: rest_api
     - &id6548
@@ -53322,7 +53322,7 @@ assertions:
       surface: gui.apple
     - &id6538
       path: backend/tests/test_commit_embed_revision_handler.py
-      line: 115
+      line: 120
       name: test_commit_rejects_when_fresh_project_focus_authorization_fails
       surface: rest_api
     - &id6539
@@ -53746,7 +53746,7 @@ assertions:
     direct_tests:
     - &id6586
       path: backend/tests/test_commit_embed_revision_handler.py
-      line: 61
+      line: 62
       name: test_commit_runs_fresh_shared_authorization_then_atomic_transaction
       surface: rest_api
     - &id6591
@@ -53837,7 +53837,7 @@ assertions:
     supporting_tests:
     - &id6587
       path: backend/tests/test_commit_embed_revision_handler.py
-      line: 115
+      line: 120
       name: test_commit_rejects_when_fresh_project_focus_authorization_fails
       surface: rest_api
     - &id6588

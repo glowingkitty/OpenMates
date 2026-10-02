@@ -58,7 +58,8 @@ def commit_payload():
 
 # contract-test: direct surface=rest_api assertions=projects.files.hosted-ciphertext-commit,projects.files.chat-focus-required,projects.files.write-policy-enforcement
 @pytest.mark.asyncio
-async def test_commit_runs_fresh_shared_authorization_then_atomic_transaction(monkeypatch):
+@pytest.mark.parametrize("traceparent", [None, "00-" + "1" * 32 + "-" + "2" * 16 + "-01"])
+async def test_commit_runs_fresh_shared_authorization_then_atomic_transaction(monkeypatch, traceparent):
     manager = FakeManager()
     calls = []
 
@@ -81,6 +82,8 @@ async def test_commit_runs_fresh_shared_authorization_then_atomic_transaction(mo
     monkeypatch.setattr(handler, "ProjectWriteAuthorizationService", FakeAuthorization)
     monkeypatch.setattr(handler, "EmbedVersionTransactionService", FakeTransaction)
     payload = commit_payload()
+    if traceparent:
+        payload["_traceparent"] = traceparent
 
     await handler.handle_commit_embed_revision(
         manager=manager,
@@ -96,6 +99,8 @@ async def test_commit_runs_fresh_shared_authorization_then_atomic_transaction(mo
     assert calls[2][1]["consume_approval"] is True
     assert calls[3][0] == "commit"
     assert "request_id" not in calls[3][1]
+    assert "_traceparent" not in calls[3][1]
+    assert calls[3][1] == {key: value for key, value in commit_payload().items() if key != "request_id"}
     assert calls[3][2] == "user-1"
     assert manager.personal[0][0] == {
         "type": "commit_embed_revision_result",
