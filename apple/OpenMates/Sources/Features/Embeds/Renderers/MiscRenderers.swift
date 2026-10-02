@@ -7,11 +7,15 @@
 //          frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedFullscreen.svelte
 //          frontend/packages/ui/src/components/embeds/diagrams/MermaidDiagramEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/diagrams/MermaidDiagramEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/math/MathPlotEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/math/MathPlotEmbedFullscreen.svelte
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
 //          TypographyTokens.generated.swift, GradientTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
 // Specification: specifications/features/specifications/specification.yml
 // Assertions: contracts.diagrams.private-rendering, contracts.diagrams.revision-pinned-editing
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.surface.semantic-parity (MathPlot web/native rendering)
 
 import SwiftUI
 
@@ -691,37 +695,152 @@ private enum MiscEmbedValue {
     }
 }
 
+// Web: embeds/mail/MailEmbedPreview.svelte, embeds/mail/MailEmbedFullscreen.svelte
 struct MailRenderer: View {
     let data: [String: AnyCodable]?
     let mode: EmbedDisplayMode
+    @Environment(\.embedPIIMappings) private var mappings
+    @Environment(\.embedPIIRevealed) private var revealed
 
-    private var subject: String? { data?["subject"]?.value as? String }
-    private var to: String? { data?["to"]?.value as? String }
-    private var body_: String? { data?["body"]?.value as? String }
+    private var mail: MailEmbedModel { MailEmbedModel(data).applyingPII(mappings: mappings, revealed: revealed) }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: .spacing3) {
-            if let subject {
-                Text(subject).font(mode == .preview ? .omSmall : .omH4).fontWeight(.medium)
-                    .foregroundStyle(Color.fontPrimary).lineLimit(mode == .preview ? 1 : nil)
+        switch mode {
+        case .preview:
+            Text(mail.previewBody.isEmpty ? AppStrings.localized("embeds.mail.empty_content") : mail.previewBody)
+                .font(.omXs).foregroundStyle(Color.fontSecondary)
+                .lineSpacing(1.8).lineLimit(5)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                .accessibilityIdentifier("mail-body-preview")
+        case .fullscreen:
+            VStack(alignment: .leading, spacing: 14) {
+                mailField("embeds.mail.to", value: mail.receiver.isEmpty ? "—" : mail.receiver, id: "mail-receiver")
+                mailField("embeds.mail.subject", value: mail.subject.isEmpty ? "—" : mail.subject, id: "mail-subject")
+                mailField("embeds.mail.content", value: mail.content.isEmpty ? AppStrings.localized("embeds.mail.empty_content") : mail.content, id: "mail-content", bordered: true)
+                if !mail.footer.isEmpty {
+                    mailField("embeds.mail.footer", value: mail.footer, id: "mail-footer", bordered: true, italic: true)
+                }
             }
-            if let to {
-                Label(to, systemImage: "person").font(.omXs).foregroundStyle(Color.fontSecondary)
-            }
-            if let body_ {
-                Text(body_).font(mode == .preview ? .omXs : .omP)
-                    .foregroundStyle(Color.fontSecondary)
-                    .lineLimit(mode == .preview ? 3 : nil)
-            }
+            .padding(.spacing8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.grey10, in: RoundedRectangle(cornerRadius: .radius6))
+            .overlay(RoundedRectangle(cornerRadius: .radius6).stroke(Color.grey25, lineWidth: 1))
+            .padding(.horizontal, 12)
+            .padding(.top, 50)
+            .padding(.bottom, 100)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("mail-fullscreen-content")
         }
-        .padding(.spacing4)
-        .frame(maxWidth: .infinity, maxHeight: mode == .preview ? .infinity : nil, alignment: .topLeading)
+    }
+
+    private func mailField(_ key: String, value: String, id: String, bordered: Bool = false, italic: Bool = false) -> some View {
+        VStack(alignment: .leading, spacing: .spacing3) {
+            Text(AppStrings.localized(key).uppercased())
+                .font(.omTiny.weight(.bold)).tracking(0.55).foregroundStyle(Color.fontSecondary)
+                .accessibilityIdentifier(id + "-label")
+            MailDraftText(value: value, italic: italic)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.vertical, bordered ? .spacing5 : 0)
+                .padding(.horizontal, bordered ? .spacing6 : 0)
+                .frame(maxWidth: .infinity, minHeight: bordered ? 44 : nil, alignment: .leading)
+                .background(Color.grey10, in: RoundedRectangle(cornerRadius: .radius4))
+                .overlay(RoundedRectangle(cornerRadius: .radius4).stroke(bordered ? Color.grey20 : .clear, lineWidth: 1))
+                .accessibilityIdentifier(id)
+        }
+    }
+}
+
+// MathPlotEmbedFullscreen.svelte and function-plot's chart.js define these
+// dimensions, domain, tick spacing and graph colors (they are library values).
+private struct MathPlotViewportHeightKey: EnvironmentKey {
+    static let defaultValue: CGFloat = 0
+}
+
+extension EnvironmentValues {
+    var mathPlotViewportHeight: CGFloat {
+        get { self[MathPlotViewportHeightKey.self] }
+        set { self[MathPlotViewportHeightKey.self] = newValue }
+    }
+}
+
+struct MathPlotGeometry {
+    let bounds: CGRect
+    let unit: CGFloat
+    let origin: CGPoint
+
+    init(size: CGSize, zoom: CGFloat = 1, offset: CGSize = .zero) {
+        bounds = CGRect(x: 40, y: 20, width: max(1, size.width - 60), height: max(1, size.height - 40))
+        unit = bounds.width / 12 * zoom
+        origin = CGPoint(x: bounds.midX + offset.width, y: bounds.midY + offset.height)
+    }
+
+    var xRange: ClosedRange<Double> {
+        Double((bounds.minX - origin.x) / unit)...Double((bounds.maxX - origin.x) / unit)
+    }
+    var yRange: ClosedRange<Double> {
+        Double((origin.y - bounds.maxY) / unit)...Double((origin.y - bounds.minY) / unit)
+    }
+
+    func sample(_ expression: MathPlotExpression, at pixelX: CGFloat) -> CGPoint? {
+        let x = Double((pixelX - origin.x) / unit)
+        guard let value = expression.value(at: x), value.isFinite else { return nil }
+        let point = CGPoint(x: pixelX, y: origin.y - CGFloat(value) * unit)
+        // Cull against the visible viewport, which stays fixed while the
+        // function origin pans. Retain a bounded margin for edge crossings.
+        let margin = bounds.height * 4
+        guard point.y >= bounds.minY - margin, point.y <= bounds.maxY + margin else { return nil }
+        return point
+    }
+
+    // d3's linear tick increment, used by function-plot with the default count10.
+    static func ticks(in range: ClosedRange<Double>) -> [Double] {
+        let step = (range.upperBound - range.lowerBound) / 10
+        guard step.isFinite, step > 0 else { return [] }
+        let power = floor(log10(step))
+        let error = step / pow(10, power)
+        let factor = error >= sqrt(50) ? 10.0 : error >= sqrt(10) ? 5.0 : error >= sqrt(2) ? 2.0 : 1.0
+        let increment = pow(10, power) * factor
+        let first = Int(ceil(range.lowerBound / increment))
+        let last = Int(floor(range.upperBound / increment))
+        guard first <= last, last - first < 100 else { return [] }
+        return (first...last).map { Double($0) * increment }
+    }
+
+    static func graphHeight(viewportHeight: CGFloat, formulaCount: Int) -> CGFloat {
+        // Web wrapper: min-height100vh-196-48; includes48px vertical
+        // padding,16px gap and the formula card (32px padding +23px rows).
+        let card = formulaCount > 0 ? 32 + CGFloat(formulaCount) * 23 + CGFloat(formulaCount - 1) * 8 : 0
+        return max(200, viewportHeight - 196 - 96 - card - (formulaCount > 0 ? 16 : 0))
+    }
+}
+
+struct MathPlotExpression {
+    let source: String
+
+    init(_ formula: String) {
+        source = (formula.split(separator: "=", maxSplits: 1).last.map(String.init) ?? formula)
+            .replacingOccurrences(of: " ", with: "").lowercased()
+    }
+
+    var isSupported: Bool { value(at: 0) != nil }
+
+    func value(at x: Double) -> Double? {
+        switch source {
+        case "sin(x)": return sin(x)
+        case "cos(x)": return cos(x)
+        case "tan(x)": return tan(x)
+        case "x": return x
+        case "x^2": return x * x
+        case "x^3": return x * x * x
+        default: return Double(source)
+        }
     }
 }
 
 struct MathPlotRenderer: View {
     let data: [String: AnyCodable]?
     let mode: EmbedDisplayMode
+    @Environment(\.mathPlotViewportHeight) private var viewportHeight
 
     private var plotSpec: String {
         (data?["plot_spec"]?.value as? String)
@@ -740,106 +859,163 @@ struct MathPlotRenderer: View {
         case .preview:
             VStack(alignment: .leading, spacing: .spacing3) {
                 ForEach(Array(formulas.prefix(4).enumerated()), id: \.offset) { _, formula in
-                    Text(formula)
-                        .font(.omSmall)
+                    formulaText(formula, size: 14)
                         .foregroundStyle(Color.fontPrimary)
                         .lineLimit(1)
+                        .accessibilityLabel(formula)
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             .accessibilityIdentifier("math-plot-formulas")
 
         case .fullscreen:
             VStack(spacing: .spacing8) {
-                VStack(spacing: .spacing4) {
-                    ForEach(Array(formulas.enumerated()), id: \.offset) { _, formula in
-                        Text(formula)
-                            .font(.omH3)
-                            .foregroundStyle(Color.fontPrimary)
-                            .frame(maxWidth: .infinity)
+                if !formulas.isEmpty {
+                    VStack(spacing: .spacing4) {
+                        ForEach(Array(formulas.enumerated()), id: \.offset) { index, formula in
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                formulaText(formula)
+                                    .foregroundStyle(Color.fontPrimary)
+                                    .frame(minWidth: 1)
+                                    .padding(.horizontal, 1)
+                                    .accessibilityLabel(formula)
+                            }
+                            .defaultScrollAnchor(.center)
+                            .frame(height: 23)
+                            .accessibilityElement(children: .contain)
+                            .accessibilityIdentifier("math-plot-formula-\(index)")
+                        }
                     }
-                }
-                .padding(.vertical, .spacing8)
-                .padding(.horizontal, .spacing10)
-                .frame(maxWidth: .infinity)
-                .background(Color.grey10, in: RoundedRectangle(cornerRadius: .radius5))
-                .overlay(RoundedRectangle(cornerRadius: .radius5).stroke(Color.grey20))
-
-                MathPlotGraph(formulas: formulas)
-                    .frame(minHeight: 300)
-                    .background(Color.grey0, in: RoundedRectangle(cornerRadius: .radius5))
+                    .padding(.vertical, .spacing8)
+                    .padding(.horizontal, .spacing10)
+                    .frame(maxWidth: .infinity)
+                    .background(Color.grey10, in: RoundedRectangle(cornerRadius: .radius5))
                     .overlay(RoundedRectangle(cornerRadius: .radius5).stroke(Color.grey20))
+                    .accessibilityElement(children: .contain)
+                    .accessibilityIdentifier("math-plot-formula-card")
+                }
+
+                if formulas.contains(where: { !MathPlotExpression($0).isSupported }) {
+                    // Keep the submitted formulas visible and expose failed plotting;
+                    // unsupported expressions must never become an empty success graph.
+                    Text(AppStrings.error)
+                        .font(.omSmall).foregroundStyle(Color.fontSecondary)
+                        .accessibilityIdentifier("math-plot-render-error")
+                } else {
+                    MathPlotGraph(formulas: formulas)
+                        .frame(height: MathPlotGeometry.graphHeight(viewportHeight: viewportHeight, formulaCount: formulas.count))
+                        .background(Color.grey0, in: RoundedRectangle(cornerRadius: .radius5))
+                        .overlay(RoundedRectangle(cornerRadius: .radius5).stroke(Color.grey20))
+                }
             }
             .padding(.vertical, .spacing12)
             .padding(.horizontal, .spacing8)
+            .accessibilityElement(children: .contain)
             .accessibilityIdentifier("math-plot-fullscreen")
         }
+    }
+
+    // Match KaTeX's18px serif variables and upright function names. Preserve
+    // source text for VoiceOver; superscripts only change visual presentation.
+    private func formulaText(_ formula: String, size: CGFloat = 18) -> Text {
+        let chars = Array(formula)
+        var text = Text("")
+        var index = 0
+        while index < chars.count {
+            if chars[index] == "^", index + 1 < chars.count, chars[index + 1].isNumber {
+                index += 1
+                text = text + Text(String(chars[index])).font(.custom("TimesNewRomanPSMT", size: size * 2 / 3)).baselineOffset(size / 3)
+            } else {
+                let char = chars[index]
+                let isVariable = char.isLetter && (index == 0 || !chars[index - 1].isLetter)
+                    && (index + 1 == chars.count || !chars[index + 1].isLetter)
+                text = text + Text(String(char)).font(.custom(isVariable ? "TimesNewRomanPS-ItalicMT" : "TimesNewRomanPSMT", size: size))
+            }
+            index += 1
+        }
+        return text
     }
 }
 
 private struct MathPlotGraph: View {
     let formulas: [String]
+    @Environment(\.colorScheme) private var colorScheme
     @State private var zoom: CGFloat = 1
+    @State private var zoomOrigin: CGFloat = 1
     @State private var dragOffset: CGSize = .zero
     @State private var dragOrigin: CGSize = .zero
 
     var body: some View {
         Canvas { context, size in
-            let unit = min(size.width, size.height) / 12 * zoom
-            let center = CGPoint(x: size.width / 2 + dragOffset.width,
-                                 y: size.height / 2 + dragOffset.height)
+            let geometry = MathPlotGeometry(size: size, zoom: zoom, offset: dragOffset)
+            let rect = geometry.bounds
+            let unit = geometry.unit
+            let center = geometry.origin
+            let labelColor: Color = colorScheme == .dark ? Color(white: 0.8) : Color(white: 0.2)
+            let gridColor: Color = colorScheme == .dark ? .grey60 : Color(white: 1.0 / 3)
             var grid = Path()
-            for tick in -20...20 {
+            for tick in MathPlotGeometry.ticks(in: geometry.xRange) {
                 let x = center.x + CGFloat(tick) * unit
-                let y = center.y + CGFloat(tick) * unit
-                grid.move(to: CGPoint(x: x, y: 0))
-                grid.addLine(to: CGPoint(x: x, y: size.height))
-                grid.move(to: CGPoint(x: 0, y: y))
-                grid.addLine(to: CGPoint(x: size.width, y: y))
+                grid.move(to: CGPoint(x: x, y: rect.minY))
+                grid.addLine(to: CGPoint(x: x, y: rect.maxY))
+                context.draw(Text(tickLabel(tick)).font(.system(size: 11)).foregroundColor(labelColor),
+                             at: CGPoint(x: x, y: rect.maxY + 3), anchor: .top)
             }
-            context.stroke(grid, with: .color(Color.grey20), lineWidth: 1)
+            for tick in MathPlotGeometry.ticks(in: geometry.yRange) {
+                let y = center.y - CGFloat(tick) * unit
+                grid.move(to: CGPoint(x: rect.minX, y: y))
+                grid.addLine(to: CGPoint(x: rect.maxX, y: y))
+                context.draw(Text(tickLabel(tick)).font(.system(size: 11)).foregroundColor(labelColor),
+                             at: CGPoint(x: rect.minX - 3, y: y), anchor: .trailing)
+            }
+            context.stroke(grid, with: .color(gridColor.opacity(0.1)), lineWidth: 1)
+            context.stroke(Path(rect), with: .color(gridColor.opacity(0.2)), lineWidth: 1)
             var axes = Path()
-            axes.move(to: CGPoint(x: center.x, y: 0))
-            axes.addLine(to: CGPoint(x: center.x, y: size.height))
-            axes.move(to: CGPoint(x: 0, y: center.y))
-            axes.addLine(to: CGPoint(x: size.width, y: center.y))
-            context.stroke(axes, with: .color(Color.grey60), lineWidth: 1)
+            if rect.minX...rect.maxX ~= center.x {
+                axes.move(to: CGPoint(x: center.x, y: rect.minY))
+                axes.addLine(to: CGPoint(x: center.x, y: rect.maxY))
+            }
+            if rect.minY...rect.maxY ~= center.y {
+                axes.move(to: CGPoint(x: rect.minX, y: center.y))
+                axes.addLine(to: CGPoint(x: rect.maxX, y: center.y))
+            }
+            context.stroke(axes, with: .color(labelColor.opacity(0.2)), lineWidth: 1)
 
-            let colors: [Color] = [.blue, .red, .green, .orange]
+            // function-plot globals.COLORS, independent of system accent colors.
+            let colors: [Color] = [Color(red: 70/255, green: 130/255, blue: 180/255),
+                                   Color(red: 1, green: 0, blue: 0),
+                                   Color(red: 5/255, green: 179/255, blue: 120/255), .orange]
+            var curveContext = context
+            curveContext.clip(to: Path(rect))
             for (index, formula) in formulas.enumerated() {
-                let expression = formula.split(separator: "=", maxSplits: 1).last.map(String.init) ?? formula
+                let expression = MathPlotExpression(formula)
                 var line = Path()
-                var isDrawing = false
-                for pixel in stride(from: CGFloat.zero, through: size.width, by: 2) {
-                    let x = Double((pixel - center.x) / unit)
-                    guard let value = evaluate(expression, x: x), value.isFinite else {
-                        isDrawing = false
-                        continue
-                    }
-                    let point = CGPoint(x: pixel, y: center.y - CGFloat(value) * unit)
-                    guard abs(point.y) < size.height * 4 else { isDrawing = false; continue }
-                    if isDrawing { line.addLine(to: point) } else { line.move(to: point); isDrawing = true }
+                var previous: CGPoint?
+                for pixel in stride(from: rect.minX, through: rect.maxX, by: 0.5) {
+                    guard let point = geometry.sample(expression, at: pixel) else { previous = nil; continue }
+                    // Break tangent asymptotes instead of connecting opposite branches.
+                    if let previous, abs(point.y - previous.y) < rect.height {
+                        line.addLine(to: point)
+                    } else { line.move(to: point) }
+                    previous = point
                 }
-                context.stroke(line, with: .color(colors[index % colors.count]), lineWidth: 2)
+                curveContext.stroke(line, with: .color(colors[index % colors.count]), lineWidth: 1)
             }
         }
         .clipped()
         .gesture(DragGesture().onChanged { dragOffset = CGSize(width: dragOrigin.width + $0.translation.width,
                                                               height: dragOrigin.height + $0.translation.height) }
             .onEnded { _ in dragOrigin = dragOffset })
-        .simultaneousGesture(MagnificationGesture().onChanged { zoom = min(max($0, 0.5), 4) })
-        .accessibilityLabel("Interactive function graph")
+        .simultaneousGesture(MagnificationGesture().onChanged { zoom = min(max(zoomOrigin * $0, 0.5), 4) }
+            .onEnded { _ in zoomOrigin = zoom })
+        .accessibilityLabel(formulas.joined(separator: "; "))
+        .accessibilityValue("\(formulas.count)")
+        .accessibilityIdentifier("math-plot-graph")
     }
 
-    private func evaluate(_ expression: String, x: Double) -> Double? {
-        let source = expression.replacingOccurrences(of: " ", with: "").lowercased()
-        if source == "sin(x)" { return sin(x) }
-        if source == "cos(x)" { return cos(x) }
-        if source == "tan(x)" { return tan(x) }
-        if source == "x" { return x }
-        if source == "x^2" { return x * x }
-        if source == "x^3" { return x * x * x }
-        return Double(source)
+    private func tickLabel(_ value: Double) -> String {
+        let label = value.formatted(.number.precision(.fractionLength(0...4)))
+        return label.replacingOccurrences(of: "-", with: "−")
     }
 }
 

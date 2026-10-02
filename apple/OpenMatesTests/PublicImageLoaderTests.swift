@@ -98,6 +98,86 @@ final class PublicImageLoaderTests: XCTestCase {
         XCTAssertEqual(requests, [url], "Render the selected source without an alternate image URL")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    @MainActor
+    func testCanonicalMapsSVGDataURIIsValidatedWithoutNetworkTransport() async throws {
+        let fixture = try XCTUnwrap(DevEmbedPreviewFixtures.fixture(for: .init(
+            registryKey: "maps-place", surface: .preview, variant: "default", direction: .ltr)))
+        let uri = try XCTUnwrap(fixture.primaryEmbed.rawData?["map_image_url"]?.value as? String)
+        let payload = try XCTUnwrap(uri.split(separator: ",", maxSplits: 1).last)
+        let expected = Data(try XCTUnwrap(String(payload).removingPercentEncoding).utf8)
+        XCTAssertTrue(String(decoding: expected, as: UTF8.self).contains("dominant-baseline=\"middle\""))
+        let probe = PublicImageTransportProbe(data: png, status: 200, mime: "image/png")
+        let received = try await RemoteImageCache.download(uri, allowStaticSVG: true) { try await probe.fetch($0) }
+        XCTAssertEqual(received, expected)
+        XCTAssertNotNil(StaticSVGImageSource(data: received))
+        let requests = await probe.requests
+        XCTAssertTrue(requests.isEmpty, "Inline map SVGs must never start a network request")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testStaticSVGBase64DataURIRequiresExplicitOptInAndRetainsBytes() async throws {
+        let svg = Data("<svg xmlns='http://www.w3.org/2000/svg'><text dominant-baseline='middle'>Map</text></svg>".utf8)
+        let uri = "data:image/svg+xml;charset=utf-8;base64,\(svg.base64EncodedString())"
+        let probe = PublicImageTransportProbe(data: png, status: 200, mime: "image/png")
+        let received = try await RemoteImageCache.download(uri, allowStaticSVG: true) { try await probe.fetch($0) }
+        XCTAssertEqual(received, svg)
+        do {
+            _ = try await RemoteImageCache.download(uri) { try await probe.fetch($0) }
+            XCTFail("Raster-only consumers must not accept inline SVG")
+        } catch { XCTAssertTrue(error is S3Error) }
+        let requests = await probe.requests
+        XCTAssertTrue(requests.isEmpty)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testInlineSVGRejectsActiveMarkupInvalidEncodingAndOtherSchemesWithoutTransport() async {
+        let texts = [
+            "<svg xmlns='http://www.w3.org/2000/svg'><script>alert(1)</script></svg>",
+            "<svg xmlns='http://www.w3.org/2000/svg' onload='alert(1)'/>",
+            "<svg xmlns='http://www.w3.org/2000/svg'><use href='https://example.org/map.svg#map'/></svg>",
+            "<!DOCTYPE svg [<!ENTITY map SYSTEM 'https://example.org/private'>]><svg xmlns='http://www.w3.org/2000/svg'>&map;</svg>",
+        ]
+        let uris = texts.flatMap { text in [
+            "data:image/svg+xml,\(text.addingPercentEncoding(withAllowedCharacters: .alphanumerics)!)",
+            "data:image/svg+xml;base64,\(Data(text.utf8).base64EncodedString())"
+        ] } + [
+            "data:image/png;base64,\(png.base64EncodedString())",
+            "data:text/html,%3Chtml%3EMap%3C/html%3E",
+            "data:image/svg+xml,", "data:image/svg+xml,%ZZ",
+            "data:image/svg+xml;base64,AAAA!", "data:image/svg+xml;charset=iso-8859-1,%3Csvg/%3E",
+            "data:image/svg+xml;base64;base64,AAAA", "file:///tmp/map.svg", "ftp://example.org/map.svg",
+        ]
+        let probe = PublicImageTransportProbe(data: png, status: 200, mime: "image/png")
+        for uri in uris {
+            do {
+                _ = try await RemoteImageCache.download(uri, allowStaticSVG: true) { try await probe.fetch($0) }
+                XCTFail("Reject unsafe or unsupported inline image: \(uri.prefix(80))")
+            } catch { XCTAssertTrue(error is S3Error) }
+        }
+        let requests = await probe.requests
+        XCTAssertTrue(requests.isEmpty, "Rejected local URLs cannot enter network transport")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testInlineSVGBoundsEncodedAndDecodedBytesBeforeTransport() async {
+        let oversizedSVG = "<svg xmlns='http://www.w3.org/2000/svg'>\(String(repeating: " ", count: 2_000_001))</svg>"
+        let uris = [
+            "data:image/svg+xml,\(oversizedSVG)",
+            "data:image/svg+xml;base64,\(Data(oversizedSVG.utf8).base64EncodedString())",
+            "data:image/svg+xml,\(String(repeating: "%20", count: 2_000_044))",
+        ]
+        let probe = PublicImageTransportProbe(data: png, status: 200, mime: "image/png")
+        for uri in uris {
+            do {
+                _ = try await RemoteImageCache.download(uri, allowStaticSVG: true) { try await probe.fetch($0) }
+                XCTFail("Oversized inline images must be rejected")
+            } catch { XCTAssertTrue(error is S3Error) }
+        }
+        let requests = await probe.requests
+        XCTAssertTrue(requests.isEmpty)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=web-search.surface-parity
     func testStaticSVGRejectsActiveMarkupExternalResourcesAndEntities() async {
         let contents = [

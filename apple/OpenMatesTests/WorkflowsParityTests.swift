@@ -170,6 +170,38 @@ final class WorkflowsParityTests: XCTestCase {
                        "A Team switch during authorization must never reach the authoring service.")
     }
 
+    @MainActor
+    // contract-test: supporting surface=gui.apple assertions=workflows.surface.semantic-parity
+    func testWorkflowSelectionKeepsTemplateWhenRunHistoryFails() async throws {
+        let detail = try JSONDecoder().decode(WorkflowDetail.self, from: workflowFixtureData())
+        let store = WorkflowStore(detailRequest: { _, _ in detail }, runsRequest: { _, _ in
+            throw URLError(.cannotParseResponse)
+        })
+        store.reset(accountId: "synthetic-owner")
+        await store.select(id: detail.id)
+        XCTAssertEqual(store.selectedWorkflow?.id, detail.id,
+                       "Ancillary run-history failure must not discard a valid template.")
+        XCTAssertEqual(store.selectedWorkflow?.graph.nodes.count, detail.graph.nodes.count)
+        XCTAssertFalse(store.isLoading)
+        XCTAssertNil(store.errorMessage, "Template loading succeeded.")
+        XCTAssertTrue(store.runs.isEmpty)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=workflows.surface.semantic-parity
+    func testWorkflowListDetailAndRunsDecodeServerEnvelopes() throws {
+        let object = try JSONSerialization.jsonObject(with: workflowFixtureData())
+        let list = try WorkflowAPI.decodeResponse(WorkflowListResponse.self,
+            from: JSONSerialization.data(withJSONObject: ["workflows": [object]]))
+        let detail = try WorkflowAPI.decodeResponse(WorkflowResponse.self,
+            from: JSONSerialization.data(withJSONObject: ["workflow": object]))
+        let runs = try WorkflowAPI.decodeResponse(WorkflowRunsResponse.self,
+            from: Data(#"{"runs":[]}"#.utf8))
+        XCTAssertEqual(list.workflows.first?.currentVersionId, "version-fixture")
+        XCTAssertEqual(list.workflows.first?.sourceChatId, "chat-fixture")
+        XCTAssertEqual(detail.workflow.graph.triggerNodeId, "trigger")
+        XCTAssertTrue(runs.runs.isEmpty)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=workflows.surface.semantic-parity
     func testWorkflowAPIResponseDecoderPreservesServerSnakeCaseFields() throws {
         let workflow = try WorkflowAPI.decodeResponse(WorkflowDetail.self, from: workflowFixtureData())

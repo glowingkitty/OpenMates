@@ -127,13 +127,13 @@ enum DevPreviewComponentRegistry {
         case .welcome:
             return .init(component: component, webComponentPath: "ActiveChat", nativeRendererNames: ["WelcomeContinuationCarousel"], variants: ["default", "empty", "continuation"], hostSupport: .componentHost)
         case .login:
-            return .init(component: component, webComponentPath: "Login", nativeRendererNames: ["AuthLoginHeading", "EmailLookupForm", "PasswordLoginForm"], variants: ["default", "email", "password", "otp", "error", "lookup-error", "password-error"], hostSupport: .componentHost)
+            return .init(component: component, webComponentPath: "Login", nativeRendererNames: ["AuthLoginHeading", "EmailLookupForm", "PasswordLoginForm"], variants: ["default", "email", "password", "otp", "error", "lookup-error", "password-error", "passkey-lifecycle"], hostSupport: .componentHost)
         case .signup:
             return .init(component: component, webComponentPath: "signup/Signup", nativeRendererNames: ["NativeSignupForm", "SignupBasicsFormView", "SignupConfirmEmailStep", "SignupPasswordStep"], variants: ["default", "basics", "error", "loading", "unavailable", "confirm-email", "secure-account", "password", "creation-uncertain", "passkey", "passkey-prf-error", "passkey-cancel", "passkey-uncertain"], hostSupport: .componentHost)
         case .tasks:
-            return .init(component: component, webComponentPath: "tasks/TasksPage", nativeRendererNames: ["TasksWorkspaceView", "TaskDetailView", "PlanDetailView", "TasksSidebarView"], variants: ["default", "plans", "supplementary-load-failure"], hostSupport: .componentHost)
+            return .init(component: component, webComponentPath: "tasks/TasksPage", nativeRendererNames: ["TasksWorkspaceView", "TaskDetailView", "PlanDetailView", "TasksSidebarView"], variants: ["default", "plans", "supplementary-load-failure", "task-load-failure"], hostSupport: .componentHost)
         case .projects:
-            return .init(component: component, webComponentPath: "projects/ProjectsPage", nativeRendererNames: ["ProjectsWorkspaceView", "ProjectsSidebarView"], variants: ["default", "landing", "folders", "readme", "tasks", "connectedSource", "localFolderSource", "multipleSources", "largeConnectedSource", "legacyConnectedSource", "sidebar"], hostSupport: .componentHost)
+            return .init(component: component, webComponentPath: "projects/ProjectsPage", nativeRendererNames: ["ProjectsWorkspaceView", "ProjectsSidebarView"], variants: ["default", "landing", "folders", "readme", "tasks", "connectedSource", "localFolderSource", "multipleSources", "largeConnectedSource", "legacyConnectedSource", "rootFiles", "truncatedConnectedSource", "sidebar"], hostSupport: .componentHost)
         case .notification:
             return .init(component: component, webComponentPath: "Notification", nativeRendererNames: ["InAppNotificationCard"], variants: ["default", "connection", "progress", "stack"], hostSupport: .componentHost)
         case .sharedRecipient:

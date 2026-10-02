@@ -1050,6 +1050,24 @@ final class SkillApplicationParityTests: XCTestCase {
         XCTAssertEqual(jameda.skill.primaryEmbed.rawData?["name"]?.value as? String, "Dr. Markus Reinholz")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testMapsPlaceCaptureFixturesResolveIndependentWebDefaults() throws {
+        let preview = try XCTUnwrap(DevEmbedPreviewFixtures.fixture(for: .init(
+            registryKey: "maps-place", surface: .preview, variant: "default", direction: .ltr)))
+        let fullscreen = try XCTUnwrap(DevEmbedPreviewFixtures.fixture(for: .init(
+            registryKey: "maps-place", surface: .fullscreen, variant: "default", direction: .ltr)))
+        XCTAssertEqual(preview.primaryEmbed.type, "maps-place")
+        XCTAssertEqual(fullscreen.primaryEmbed.type, "maps-place")
+        XCTAssertEqual(preview.primaryEmbed.rawData?["name"]?.value as? String, "Berlin Hauptbahnhof")
+        XCTAssertEqual(preview.primaryEmbed.rawData?["address"]?.value as? String, "Europaplatz 1, 10557 Berlin")
+        XCTAssertTrue((preview.primaryEmbed.rawData?["map_image_url"]?.value as? String)?.hasPrefix("data:image/svg+xml,") == true)
+        XCTAssertEqual(fullscreen.primaryEmbed.rawData?["name"]?.value as? String, "Man vs. Machine Coffee Roasters")
+        XCTAssertEqual(fullscreen.primaryEmbed.rawData?["latitude"]?.value as? Double, 48.1321)
+        XCTAssertEqual(fullscreen.primaryEmbed.rawData?["longitude"]?.value as? Double, 11.5718)
+        XCTAssertEqual(DevEmbedPreviewFixtures.skill(forRegistryKey: "maps")?.primaryEmbed.type, "maps")
+        XCTAssertEqual(DevEmbedPreviewFixtures.skill(forRegistryKey: "app:maps:search")?.childEmbeds.count, 3)
+    }
+
     private func decodeRecord(_ json: String) throws -> EmbedRecord {
         try JSONDecoder().decode(EmbedRecord.self, from: Data(json.utf8))
     }

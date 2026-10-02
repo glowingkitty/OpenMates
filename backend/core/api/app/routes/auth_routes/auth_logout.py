@@ -16,7 +16,10 @@ from backend.core.api.app.routes.handlers.websocket_handlers.chat_recovery_job_h
     invalidate_recovery_leases_for_device,
 )
 from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError
-from backend.core.api.app.services.session_security_state import revoke_session_state
+from backend.core.api.app.services.session_security_state import (
+    get_session_state_cached, revoke_logical_session, revoke_all_user_sessions,
+)
+from backend.core.api.app.utils.session_refresh import resolve_session_credential
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -43,8 +46,9 @@ async def logout(
     try:
         # Use either our renamed cookie or the original directus cookie
         refresh_token = refresh_token or directus_refresh_token
-        
+
         if refresh_token:
+            refresh_token = await resolve_session_credential(cache_service, directus_service, refresh_token)
             # Hash the token for cache operations
             token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
             cache_key = f"session:{token_hash}"
@@ -52,11 +56,15 @@ async def logout(
 
             # Get user_id from session cache before deleting it
             session_data = await cache_service.get(cache_key)
-            user_id = session_data.get("user_id") if session_data else None
+            security_state = await get_session_state_cached(directus_service, cache_service, token_hash)
+            user_id = security_state.get("user_id") if security_state else (
+                session_data.get("user_id") if isinstance(session_data, dict) else None
+            )
             device_hash = None
+            revoked_hashes = {token_hash}
 
             if user_id:
-                await revoke_session_state(directus_service, cache_service, token_hash, user_id)
+                revoked_hashes = await revoke_logical_session(directus_service, cache_service, token_hash, user_id)
 
             if user_id:
                 device_hash, _, _, _, _, _, _, _ = generate_device_fingerprint_hash(request, user_id=user_id)
@@ -106,9 +114,10 @@ async def logout(
                 current_tokens_map = await cache_service.get(user_tokens_key) or {}
                 
                 token_found_in_list = False
-                if token_hash in current_tokens_map:
-                    token_found_in_list = True
-                    del current_tokens_map[token_hash]
+                for revoked_hash in revoked_hashes:
+                    if revoked_hash in current_tokens_map:
+                        token_found_in_list = True
+                        del current_tokens_map[revoked_hash]
                 
                 is_last_device_logout = not current_tokens_map
 
@@ -238,25 +247,17 @@ async def logout_all(
                 message="Not logged in"
             )
             
-        # Hash the token to get user_id
+        refresh_token = await resolve_session_credential(cache_service, directus_service, refresh_token)
         token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
-        user_key = f"user_token:{token_hash}"
-        
-        # Get user_id from cache
-        user_id = await cache_service.get(user_key)
-        
-        if not user_id:
-            logger.warning("User ID not found in cache for logout-all request")
-            
-            # Try to get user information from Directus by refreshing the token
-            success, auth_data, message = await directus_service.refresh_token(refresh_token)
-            
-            if success and auth_data and "user" in auth_data:
-                user_id = auth_data["user"].get("id")
-                logger.info(f"Retrieved user ID {user_id[:6]}... from token refresh")
-        
+        security_state = await get_session_state_cached(directus_service, cache_service, token_hash)
+        profile = await cache_service.get_user_by_token(refresh_token)
+        user_id = security_state.get("user_id") if security_state else (
+            (profile or {}).get("user_id") or (profile or {}).get("id")
+        )
+
         # If we have the user_id, clear all tokens
         if user_id:
+            await revoke_all_user_sessions(directus_service, cache_service, user_id)
             # Attempt to logout all sessions from Directus
             success, message = await directus_service.logout_all_sessions(user_id)
             if not success:

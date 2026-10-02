@@ -1,6 +1,11 @@
 import SwiftUI
 
 /// TaskDetailFullscreen.svelte chrome with TaskDetailContent and TaskActivity.
+// Web source: frontend/packages/ui/src/components/tasks/TaskDetailFullscreen.svelte
+//             frontend/packages/ui/src/components/tasks/TaskDetailContent.svelte
+//             frontend/packages/ui/src/components/tasks/TaskActivity.svelte
+// Specification: specifications/features/tasks/specification.yml
+// Assertions: tasks.detail.embed-responsive, tasks.activity.single-final-section
 struct TaskDetailView: View {
     @ObservedObject var store: TasksWorkspaceStore
     let task: UserTaskItem
@@ -8,7 +13,6 @@ struct TaskDetailView: View {
     var onOpenChat: (String) -> Void = { _ in }
     var onReportIssue: () -> Void = {}
 
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @EnvironmentObject private var authManager: AuthManager
     @State private var title = ""
@@ -59,7 +63,7 @@ struct TaskDetailView: View {
             ScrollView {
                 VStack(spacing: 0) {
                     header
-                    VStack(alignment: .leading, spacing: 16) {
+                    VStack(alignment: .leading, spacing: 28) {
                     detailIntro
                     VStack(spacing: 14) {
                         statusPicker
@@ -179,8 +183,7 @@ struct TaskDetailView: View {
         }
         section(AppStrings.tasksDue, icon: "calendar") {
             if editing {
-                Toggle(AppStrings.tasksDue, isOn: $hasDueDate)
-                    .labelsHidden()
+                OMToggle(isOn: $hasDueDate, accessibilityIdentifier: "task-detail-due-toggle")
                 if hasDueDate { DatePicker(AppStrings.tasksDue, selection: $dueDate, displayedComponents: .date) }
             } else {
                 Text(current.dueAt.map { Date(timeIntervalSince1970: TimeInterval($0)).formatted(date: .abbreviated, time: .omitted) }
@@ -242,7 +245,7 @@ struct TaskDetailView: View {
                     .accessibilityLabel(AppStrings.reportIssue)
                     .accessibilityIdentifier("task-detail-report-issue")
                     Spacer()
-                    Button { dismiss() } label: {
+                    Button { store.closeDetail() } label: {
                         Icon("close", size: 19)
                             .foregroundStyle(.white)
                             .frame(width: 40, height: 40)
@@ -258,7 +261,8 @@ struct TaskDetailView: View {
         }
         .frame(maxWidth: .infinity)
         .frame(height: 190)
-        .clipShape(.rect(bottomLeadingRadius: 14, bottomTrailingRadius: 14))
+        // UnifiedEmbedFullscreen.svelte rendered overlay radius: 17px.
+        .clipShape(.rect(bottomLeadingRadius: 17, bottomTrailingRadius: 17))
         .shadow(color: .black.opacity(0.22), radius: 18, y: 10)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("task-detail-fullscreen")
@@ -283,7 +287,8 @@ struct TaskDetailView: View {
                     } label: {
                         Text(current.title)
                             .font(.omH3.weight(.bold))
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .multilineTextAlignment(.center)
+                            .frame(maxWidth: .infinity, alignment: .center)
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("task-detail-title")
@@ -311,6 +316,7 @@ struct TaskDetailView: View {
                     .lineLimit(2...5)
             } else {
                 Text(current.description.isEmpty ? AppStrings.tasksNoDescription : current.description)
+                    .font(.omSmall)
                     .foregroundStyle(current.description.isEmpty ? Color.fontSecondary : Color.fontPrimary)
                     .frame(maxWidth: .infinity, alignment: .center)
             }
@@ -318,8 +324,8 @@ struct TaskDetailView: View {
                 .font(.omXs.weight(.semibold))
                 .foregroundStyle(Color.fontPrimary)
         }
-        .padding(.horizontal, 8)
-        .padding(.top, 12)
+        .padding(.horizontal, .spacing4)
+        .padding(.top, .spacing6)
         .padding(.bottom, 12)
     }
 
@@ -395,17 +401,22 @@ struct TaskDetailView: View {
         }
     }
 
-    private func section<Content: View>(_ title: String, icon: String,
+    private func section<Content: View>(_ title: String, icon: String, settingsHeading: Bool = true,
                                         @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
-                Icon(icon, size: 17).foregroundStyle(Color.fontSecondary)
-                Text(title).font(.omP).fontWeight(.bold)
+        VStack(alignment: .leading, spacing: 0) {
+            if settingsHeading {
+                OMSettingsSectionHeading(title: title, icon: icon)
+            } else {
+                HStack(spacing: .spacing4) {
+                    Icon(icon, size: 22).foregroundStyle(Color.fontSecondary)
+                    Text(title).font(.omH3.weight(.bold))
+                }
+                .padding(.vertical, .spacing8)
             }
-            content().font(.omSmall)
+            content().font(.omP)
+                .padding(.horizontal, .spacing4)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 8)
     }
 
     private var assigneeLabel: String {
@@ -418,7 +429,7 @@ struct TaskDetailView: View {
     }
 
     private var activitySection: some View {
-        section(AppStrings.tasksActivity, icon: "chat") {
+        section(AppStrings.tasksActivity, icon: "chat", settingsHeading: false) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 8) {
                     TextField(AppStrings.tasksCommentPlaceholder, text: $comment, axis: .vertical)

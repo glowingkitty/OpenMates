@@ -1,4 +1,5 @@
-// Web sources: utils/calendarDownload.ts and health/HealthAppointmentEmbedFullscreen.svelte.
+// Web sources: utils/calendarDownload.ts, health/HealthAppointmentEmbedFullscreen.svelte,
+// travel/TravelConnectionEmbedFullscreen.svelte.
 // Calendar exports are files; they never write Calendar data or request permissions.
 // Specification: specifications/features/chats/specification.yml
 // Assertions: chats.surface.semantic-parity
@@ -8,11 +9,14 @@ struct EmbedCalendarFile: Equatable, Sendable {
     let filename: String
     let content: String
 
-    static func build(title: String, start: String, location: String?, description: String?, url: String?,
+    static func build(title: String, start: String, end explicitEnd: String? = nil,
+                      location: String?, description: String?, url: String?, filename: String? = nil,
                       now: Date = Date(), timeZone: TimeZone = .current) -> Self? {
         guard let date = parse(start, timeZone: timeZone) else { return nil }
         let allDay = start.count == 10
-        let end = date.addingTimeInterval(allDay ? 86_400 : 3_600)
+        let parsedEnd = explicitEnd.flatMap { parse($0, timeZone: timeZone) }
+        let end = parsedEnd.flatMap { $0 > date ? $0 : nil }
+            ?? date.addingTimeInterval(allDay ? 86_400 : 3_600)
         let formatter = DateFormatter()
         formatter.calendar = Calendar(identifier: .gregorian)
         formatter.locale = Locale(identifier: "en_US_POSIX")
@@ -31,7 +35,7 @@ struct EmbedCalendarFile: Equatable, Sendable {
         if let description, !description.isEmpty { lines.append("DESCRIPTION:\(escape(description))") }
         if let url, !url.isEmpty { lines.append("URL:\(escape(url))") }
         lines += ["END:VEVENT", "END:VCALENDAR"]
-        return .init(filename: sanitizeFilename("\(safeTitle)-\(start.prefix(10))") + ".ics",
+        return .init(filename: sanitizeFilename(filename ?? "\(safeTitle)-\(start.prefix(10))") + ".ics",
                      content: lines.map(fold).joined(separator: "\r\n") + "\r\n")
     }
 

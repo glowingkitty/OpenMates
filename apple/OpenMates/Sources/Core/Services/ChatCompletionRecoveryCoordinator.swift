@@ -126,6 +126,7 @@ final class ChatCompletionRecoveryCoordinator {
                 chatStore.applySyncedContent(messagesByChat: [chatId: merged], embedsByChat: [:])
             }
         )
+        (transport as? WebSocketManager)?.configureMetadataRecovery(chatStore: chatStore)
         chatStore.setPendingAssistantRecoveryLookup { [weak self] chatId in
             self?.pendingAssistantMessageIds(in: chatId) ?? []
         }

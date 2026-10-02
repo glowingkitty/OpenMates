@@ -25,6 +25,8 @@ final class WorkflowStore: ObservableObject {
 
     private let api: WorkflowAPI
     private let createWorkflowRequest: (@MainActor (WorkflowCreateRequest, WorkflowAPIOperationScope) async throws -> WorkflowDetail)?
+    private let detailRequest: (@MainActor (String, WorkflowAPIOperationScope) async throws -> WorkflowDetail)?
+    private let runsRequest: (@MainActor (String, WorkflowAPIOperationScope) async throws -> [WorkflowRunSummary])?
     private(set) var accountId: String?
     private var generation = 0
     private var selectionGeneration = 0
@@ -32,9 +34,13 @@ final class WorkflowStore: ObservableObject {
     private var selectedRunId: String?
 
     init(api: WorkflowAPI = WorkflowAPI(),
-         createWorkflowRequest: (@MainActor (WorkflowCreateRequest, WorkflowAPIOperationScope) async throws -> WorkflowDetail)? = nil) {
+         createWorkflowRequest: (@MainActor (WorkflowCreateRequest, WorkflowAPIOperationScope) async throws -> WorkflowDetail)? = nil,
+         detailRequest: (@MainActor (String, WorkflowAPIOperationScope) async throws -> WorkflowDetail)? = nil,
+         runsRequest: (@MainActor (String, WorkflowAPIOperationScope) async throws -> [WorkflowRunSummary])? = nil) {
         self.api = api
         self.createWorkflowRequest = createWorkflowRequest
+        self.detailRequest = detailRequest
+        self.runsRequest = runsRequest
     }
 
     func reset(accountId newAccountId: String?) {
@@ -141,20 +147,40 @@ final class WorkflowStore: ObservableObject {
         pinnedRunGraph = nil
         isLoading = true
         errorMessage = nil
+        // Run history is ancillary: a failed or slow history request must not
+        // suppress a successfully loaded template (web selectWorkflow parity).
+        async let history: Void = loadSelectionRuns(workflowId, requestGeneration: requestGeneration,
+                                                    selection: selection, owner: owner, scope: scope)
         do {
-            async let detail = api.getWorkflow(workflowId, scope: scope)
-            async let history = api.listRuns(workflowId: workflowId, scope: scope)
-            let (loadedDetail, loadedRuns) = try await (detail, history)
+            let loadedDetail: WorkflowDetail
+            if let detailRequest { loadedDetail = try await detailRequest(workflowId, scope) }
+            else { loadedDetail = try await api.getWorkflow(workflowId, scope: scope) }
             guard isCurrent(requestGeneration, account: owner, scope: scope),
                   selection == selectionGeneration, selectedWorkflowId == workflowId else { return }
             selectedWorkflow = loadedDetail
-            runs = loadedRuns
         } catch {
             guard isCurrent(requestGeneration, account: owner, scope: scope), selection == selectionGeneration else { return }
             errorMessage = error.localizedDescription
             NativeDiagnostics.warning("request_failed", category: "workflow_select_failed")
         }
         if isCurrent(requestGeneration, account: owner, scope: scope), selection == selectionGeneration { isLoading = false }
+        await history
+    }
+
+    private func loadSelectionRuns(_ workflowId: String, requestGeneration: Int, selection: Int,
+                                   owner: String, scope: WorkflowAPIOperationScope) async {
+        do {
+            let loadedRuns: [WorkflowRunSummary]
+            if let runsRequest { loadedRuns = try await runsRequest(workflowId, scope) }
+            else { loadedRuns = try await api.listRuns(workflowId: workflowId, scope: scope) }
+            guard isCurrent(requestGeneration, account: owner, scope: scope),
+                  selection == selectionGeneration, selectedWorkflowId == workflowId else { return }
+            runs = loadedRuns
+        } catch {
+            guard isCurrent(requestGeneration, account: owner, scope: scope),
+                  selection == selectionGeneration, selectedWorkflowId == workflowId else { return }
+            NativeDiagnostics.warning("request_failed", category: "workflow_runs_failed")
+        }
     }
 
     func loadCapabilities() async {
@@ -445,6 +471,41 @@ final class WorkflowStore: ObservableObject {
     func showFixture(_ kind: String) {
         reset(accountId: "workflow-preview")
         let now = Int(Date().timeIntervalSince1970)
+        // Match deployed WorkflowGraphRenderer.preview.ts capability fixtures so
+        // screenshots exercise the production schema/date controls.
+        skills = [WorkflowSkillChoice(
+            id: "weather.forecast", appId: "weather", skillId: "forecast", title: "Forecast",
+            inputSchema: [
+                "type": AnyCodable("object"),
+                "x-ui": AnyCodable(["control": "date-range", "start_field": "start_date", "end_field": "end_date", "min": "today", "max_offset_days": 13, "default": "today"] as [String: Any]),
+                "properties": AnyCodable([
+                    "location": ["type": "string"],
+                    "latitude": ["type": "number"], "longitude": ["type": "number"],
+                    "start_date": ["type": "string", "format": "date"],
+                    "end_date": ["type": "string", "format": "date"],
+                    "timezone": ["type": "string"],
+                    "units": ["type": "string", "enum": ["metric"], "default": "metric"]
+                ] as [String: Any]), "required": AnyCodable(["location"])
+            ],
+            outputSchema: ["properties": AnyCodable([
+                "rain_probability": ["type": "number", "example": 60],
+                "rain_expected": ["type": "boolean", "example": true],
+                "rain_periods": ["type": "array", "example": [["start": "09:00", "end": "11:00"]]],
+                "forecast_day": ["type": "object"]
+            ] as [String: Any])], fixedCreditCost: 10
+        )]
+        skills.append(WorkflowSkillChoice(
+            id: "news.search", appId: "news", skillId: "search", title: "Search",
+            inputSchema: ["type": AnyCodable("object"), "properties": AnyCodable([
+                "requests": ["type": "array", "items": ["type": "object", "properties": ["query": ["type": "string"], "count": ["type": "integer", "minimum": 1, "maximum": 20]], "required": ["query"]]]
+            ] as [String: Any])],
+            outputSchema: ["properties": AnyCodable(["results": ["type": "array", "example": [["title": "Example article", "url": "https://example.com/article"]]]] as [String: Any])]
+        ))
+        skills.append(WorkflowSkillChoice(
+            id: "ai.ask", appId: "ai", skillId: "ask", title: "Ask",
+            inputSchema: ["type": AnyCodable("object"), "properties": AnyCodable(["prompt": ["type": "string"]]), "required": AnyCodable(["prompt"])],
+            outputSchema: ["properties": AnyCodable(["answer": ["type": "string", "title": "Answer", "example": "A concise summary"]])]
+        ))
         let regularNodes = [
             WorkflowNode(id: "trigger", type: .scheduleTrigger, title: nil,
                          config: ["schedule": AnyCodable(["type": "daily", "time": "09:00", "timezone": "Europe/Berlin"])],
@@ -465,14 +526,18 @@ final class WorkflowStore: ObservableObject {
                                   "message": AnyCodable("Your morning update\n{{steps.weather.rain_periods}}\n{{steps.news.results}}")],
                          inputMapping: [:], ui: [:])
         ]
-        let nodes: [WorkflowNode] = kind == "ask-ai-blocked" ? [
+        var nodes: [WorkflowNode] = kind == "ask-ai-blocked" ? [
             regularNodes[0],
             WorkflowNode(id: "ask-ai", type: .appSkillAction, title: "Ask AI",
                          config: ["app_id": AnyCodable("ai"), "skill_id": AnyCodable("ask"),
                                   "input": AnyCodable(["prompt": "Search for new AI events"] )],
                          inputMapping: [:], ui: [:])
         ] : regularNodes
-        previewAskAIVerdict = kind == "ask-ai-blocked" ? .asksToInvokeAppSkill : nil
+        if kind == "editor-all-nodes" {
+            nodes.insert(WorkflowNode(id: "ask-ai", type: .appSkillAction, title: "Ask AI",
+                config: ["app_id": AnyCodable("ai"), "skill_id": AnyCodable("ask"), "input": AnyCodable(["prompt": "Summarize {{steps.news.results}}", "model": "auto"])], inputMapping: [:], ui: [:]), at: nodes.count - 1)
+        }
+        previewAskAIVerdict = kind == "ask-ai-blocked" ? .asksToInvokeAppSkill : kind == "editor-all-nodes" ? .allowed : nil
         let edges = zip(nodes, nodes.dropFirst()).map { WorkflowEdge(from: $0.0.id, to: $0.1.id, branch: nil) }
         let graph = WorkflowGraph(version: 2, triggerNodeId: "trigger", nodes: nodes,
                                   edges: edges, variables: [:], limits: [:], uiLayout: [:])

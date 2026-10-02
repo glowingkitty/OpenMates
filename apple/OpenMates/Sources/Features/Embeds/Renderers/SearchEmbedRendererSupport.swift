@@ -1,4 +1,6 @@
 // SearchEmbedRendererSupport — shared source summary/grid helpers.
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.surface.semantic-parity, chats.layout.responsive-history
 //
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/embeds/SearchResultsTemplate.svelte
@@ -76,6 +78,10 @@ struct SearchResultsGrid<Result: Identifiable, Content: View>: View {
     let results: [Result]
     let emptyText: String
     var webLayout: Bool = false
+    // SearchResultsTemplate props; repository search uses 320px and
+    // electronics search allows a 1100px grid instead of the defaults.
+    var minimumCardWidth: CGFloat = 280
+    var maximumGridWidth: CGFloat = 1000
     @State private var viewportWidth: CGFloat = 390
     private var narrow: Bool { webLayout && viewportWidth <= 500 }
     @ViewBuilder let content: (Result) -> Content
@@ -86,7 +92,7 @@ struct SearchResultsGrid<Result: Identifiable, Content: View>: View {
         }
         // CSS minmax(280px, 1fr) lets the cell fill its column; the card
         // independently caps at 320pt, centered inside that column.
-        return [GridItem(.adaptive(minimum: 280), spacing: .spacing8, alignment: .top)]
+        return [GridItem(.adaptive(minimum: minimumCardWidth), spacing: .spacing8, alignment: .top)]
     }
 
     var body: some View {
@@ -104,7 +110,7 @@ struct SearchResultsGrid<Result: Identifiable, Content: View>: View {
                             .frame(maxWidth: .infinity)
                     }
                 }
-                .frame(maxWidth: 1000)
+                .frame(maxWidth: maximumGridWidth)
                 .padding(.horizontal, narrow ? .spacing3 : .spacing5)
                 .padding(.top, narrow ? .spacing8 : .spacing12)
                 .padding(.bottom, narrow ? 96 : 120)

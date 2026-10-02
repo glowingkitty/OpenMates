@@ -21,6 +21,8 @@ struct DevAuthFormFixture: View {
     var body: some View {
         if configuration.component == .signup {
             DevSignupFlowFixture(configuration: configuration)
+        } else if configuration.variant == "passkey-lifecycle" {
+            DevPasskeyLifecycleFixture()
         } else {
             GeometryReader { geometry in
                 ScrollView {

@@ -1,4 +1,4 @@
-// Figma Watch hub and compact read-only Tasks and Workflows lists.
+// Figma Watch hub and compact private Tasks and Workflows.
 // Web source: frontend/packages/ui/src/components/tasks/TasksPage.svelte,
 // frontend/packages/ui/src/components/tasks/TaskBoard.svelte,
 // frontend/packages/ui/src/components/tasks/TaskDetailContent.svelte,
@@ -6,7 +6,8 @@
 // Figma: Apple watch board, node 6073:63296 (184 × 224 frames).
 // Specification: specifications/features/apple-watch/specification.yml
 // Assertions: apple-watch.hub.compact-navigation, apple-watch.lists.read-only-private,
-//             apple-watch.handoff.exact-private.
+//             apple-watch.handoff.exact-private, apple-watch.tasks.edit-private,
+//             apple-watch.workflows.compact-editor.
 // Specification: specifications/features/apple-notifications/specification.yml
 // Assertions: apple-notifications.action.routing-coherent, apple-notifications.delivery.idempotent-visible
 
@@ -194,6 +195,7 @@ private enum WatchHubCopy {
 
 struct WatchHubView: View {
     @StateObject private var dataService: WatchHubDataService
+    @StateObject private var workflowService: WatchWorkflowDetailService
     private let chatRuntime: WatchChatRuntime
     @State private var selectedSection: WatchHubSection?
     @State private var showsSectionMenu = true
@@ -202,9 +204,12 @@ struct WatchHubView: View {
     @State private var popupMessage: String?
     @State private var selectedTaskGroup: WatchTaskGroup = .backlog
     @State private var selectedTask: WatchTaskListItem?
+    @State private var selectedWorkflow: WatchWorkflowListItem?
+    @State private var workflowScope: WatchWorkflowDetailScope?
 
     private let currentUserId: String?
     private let currentUsername: String?
+    private let currentAccountID: @MainActor @Sendable () -> String?
     private let notificationRoute: WatchNotificationRoute?
     private let onOpenItem: (WatchItemOpenRequest) -> Void
     private let onOpenSettings: () -> Void
@@ -214,9 +219,11 @@ struct WatchHubView: View {
         chatRuntime: WatchChatRuntime,
         currentUserId: String?,
         currentUsername: String? = nil,
+        currentAccountID: @escaping @MainActor @Sendable () -> String? = { nil },
         notificationRoute: WatchNotificationRoute? = nil,
         fixtureTasks: [WatchTaskListItem]? = nil,
         fixtureWorkflows: [WatchWorkflowListItem]? = nil,
+        workflowDetailService: WatchWorkflowDetailService? = nil,
         onOpenItem: @escaping (WatchItemOpenRequest) -> Void,
         onOpenSettings: @escaping () -> Void,
         onCreate: @escaping (WatchHubSection) -> Void
@@ -224,6 +231,7 @@ struct WatchHubView: View {
         self.chatRuntime = chatRuntime
         self.currentUserId = currentUserId
         self.currentUsername = currentUsername
+        self.currentAccountID = currentAccountID
         self.notificationRoute = notificationRoute
         self.onOpenItem = onOpenItem
         self.onOpenSettings = onOpenSettings
@@ -231,8 +239,11 @@ struct WatchHubView: View {
         _dataService = StateObject(wrappedValue: WatchHubDataService(
             userId: currentUserId,
             fixtureTasks: fixtureTasks,
-            fixtureWorkflows: fixtureWorkflows
+            fixtureWorkflows: fixtureWorkflows,
+            currentAccountID: currentAccountID
         ))
+        _workflowService = StateObject(wrappedValue: workflowDetailService ??
+            WatchWorkflowDetailService(currentAccountID: currentAccountID))
     }
 
     var body: some View {
@@ -252,6 +263,12 @@ struct WatchHubView: View {
                     )
                 case .tasks, .workflows:
                     if let selectedTask { taskDetail(selectedTask) }
+                    else if let selectedWorkflow {
+                        WatchWorkflowDetailView(item: selectedWorkflow, accountScope: workflowScope,
+                            service: workflowService,
+                            crownActive: !showsSectionMenu && popupMessage == nil && !isSearching,
+                            onClose: closeWorkflow, onOpenOnPhone: onOpenItem)
+                    }
                     else { listScreen }
                 }
             }
@@ -300,6 +317,8 @@ struct WatchHubView: View {
         .task(id: notificationRoute?.id) {
             guard notificationRoute != nil else { return }
             selectedSection = .chat
+            selectedTask = nil
+            closeWorkflow()
             showsSectionMenu = false
             popupMessage = nil
             isSearching = false
@@ -430,6 +449,12 @@ struct WatchHubView: View {
         .accessibilityIdentifier(id)
     }
 
+    private var taskColumnFocusTarget: WatchTaskGroup? {
+        guard selectedSection == .tasks, !showsSectionMenu, !isSearching,
+              popupMessage == nil, selectedTask == nil, selectedWorkflow == nil else { return nil }
+        return selectedTaskGroup
+    }
+
     private var taskGroups: some View {
         TabView(selection: $selectedTaskGroup) {
             ForEach(WatchTaskGroup.allCases) { group in
@@ -442,7 +467,7 @@ struct WatchHubView: View {
 
     private func taskColumn(_ group: WatchTaskGroup) -> some View {
         let items = filteredTasks.filter { $0.group == group }
-        return ScrollView(.vertical) {
+        return WatchCrownScrollView(active: taskColumnFocusTarget == group, identity: group.status) {
             VStack(alignment: .leading, spacing: .spacing2) {
                 HStack(spacing: .spacing2) {
                     RoundedRectangle(cornerRadius: .radius1)
@@ -479,58 +504,13 @@ struct WatchHubView: View {
     }
 
     private func taskDetail(_ item: WatchTaskListItem) -> some View {
-        VStack(spacing: 0) {
-            Button { selectedTask = nil } label: {
-                HStack(spacing: .spacing2) {
-                    Image(systemName: "chevron.left")
-                    Text(WatchStrings.back)
-                    Spacer(minLength: 0)
-                }
-                .font(.omXs)
-                .foregroundStyle(Color.grey0)
-                .padding(.spacing3)
+        WatchTaskDetailView(service: dataService, item: item,
+            onClose: { selectedTask = nil }, onOpenItem: onOpenItem,
+            onSaved: { updated in
+                selectedTask = updated
+                selectedTaskGroup = updated.group
             }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("watch-task-detail-back")
-            ScrollView(.vertical) {
-                VStack(alignment: .leading, spacing: .spacing4) {
-                    Text(item.title).font(.omSmall.weight(.bold))
-                        .accessibilityIdentifier("watch-task-detail-title")
-                    Text(groupTitle(item.group)).font(.omXs).foregroundStyle(taskAccent(item.group))
-                        .accessibilityIdentifier("watch-task-detail-status")
-                    detailText(WatchLocalization.text("watch.task.description"), value: item.description, id: "description")
-                    detailText(WatchLocalization.text("watch.task.context"), value: item.latestInstruction, id: "context")
-                    detailText(WatchLocalization.text("watch.task.progress"), value: item.activitySummary, id: "progress")
-                    detailText(WatchLocalization.text("tasks.blocked_heading"), value: item.blockedReason, id: "blocked-reason")
-                    Button { onOpenItem(item.openRequest) } label: {
-                        Text(WatchLocalization.text("watch.hub.open_on_phone"))
-                            .font(.omXs).frame(maxWidth: .infinity)
-                            .padding(.spacing3)
-                            .background(WatchHubPalette.blue, in: Capsule())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("watch-task-detail-open-on-phone")
-                }
-                .foregroundStyle(Color.grey0)
-                .padding(.horizontal, .spacing3)
-                .padding(.bottom, .spacing6)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .accessibilityIdentifier("watch-task-detail-scroll")
-        }
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("watch-task-detail")
-    }
-
-    @ViewBuilder
-    private func detailText(_ title: String, value: String, id: String) -> some View {
-        if !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            VStack(alignment: .leading, spacing: .spacing1) {
-                Text(title).font(.omMicro).foregroundStyle(Color.grey30)
-                Text(value).font(.omXs).fixedSize(horizontal: false, vertical: true)
-                    .accessibilityIdentifier("watch-task-detail-\(id)")
-            }
-        }
+        )
     }
 
     private func taskAccent(_ group: WatchTaskGroup) -> Color {
@@ -549,7 +529,10 @@ struct WatchHubView: View {
             else if dataService.workflowsError && dataService.workflows.isEmpty { statusText(WatchStrings.offlineBanner) }
             else if filteredWorkflows.isEmpty { statusText(WatchHubCopy.emptyWorkflows) }
             ForEach(filteredWorkflows) { workflow in
-                Button { onOpenItem(workflow.openRequest) } label: {
+                Button {
+                    workflowScope = currentAccountID().map { WatchWorkflowDetailScope.capture(accountID: $0) }
+                    selectedWorkflow = workflow
+                } label: {
                     HStack(alignment: .top, spacing: 10) {
                         Image(systemName: WatchWorkflowBadge.symbol(for: workflow))
                             .font(.omXs)
@@ -603,6 +586,7 @@ struct WatchHubView: View {
     private func select(_ section: WatchHubSection) {
         selectedSection = section
         selectedTask = nil
+        closeWorkflow()
         showsSectionMenu = false
         isSearching = false
         searchText = ""
@@ -612,6 +596,12 @@ struct WatchHubView: View {
 
     private func openSectionMenu() {
         showsSectionMenu = true
+    }
+
+    private func closeWorkflow() {
+        selectedWorkflow = nil
+        workflowScope = nil
+        workflowService.clear()
     }
 
     private func showSettingsPopup() {

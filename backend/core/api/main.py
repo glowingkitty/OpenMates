@@ -107,6 +107,7 @@ from backend.shared.python_schemas.app_metadata_schemas import AppYAML  # noqa: 
 
 # Middleware & Utils
 from backend.core.api.app.middleware.logging_middleware import LoggingMiddleware  # noqa: E402
+from backend.core.api.app.middleware.session_cookie_publication import SessionCookiePublicationMiddleware  # noqa: E402
 
 # Add import for Celery app
 from backend.core.api.app.tasks.celery_config import app as celery_app  # noqa: E402
@@ -1220,7 +1221,8 @@ def create_app() -> FastAPI:
 
     # Add logging middleware (pass metrics service from backend.core.api.app.state if needed, or remove if unused)
     # Assuming LoggingMiddleware doesn't actually need metrics_service passed here
-    app.add_middleware(LoggingMiddleware) 
+    app.add_middleware(LoggingMiddleware)
+    app.add_middleware(SessionCookiePublicationMiddleware)
     # If it does need it, it should fetch it via request.app.state inside the middleware
 
     # Determine environment (using .lower() for case-insensitivity)

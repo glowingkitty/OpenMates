@@ -3,9 +3,11 @@
  * Durable content-bearing values are ciphertext, sealed envelopes, or digests.
  */
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { metadataOperations } from './metadata_operations.js';
 
 const PREFLIGHTS = 'chat_turn_preflights';
 const JOBS = 'chat_completion_recovery_jobs';
+const METADATA_JOBS = 'chat_metadata_recovery_jobs';
 const OUTBOX = 'chat_inference_outbox';
 const CHATS = 'chats';
 const MESSAGES = 'messages';
@@ -1032,6 +1034,9 @@ async function invalidateDeletion(database, raw, now) {
     const jobs = trx(JOBS).where({ hashed_user_id: ownerHash });
     const outbox = trx(OUTBOX).where({ hashed_user_id: ownerHash });
     if (chatId) { preflights.andWhere({ chat_id: chatId }); jobs.andWhere({ chat_id: chatId }); outbox.andWhere({ chat_id: chatId }); }
+    const metadataJobs = trx(METADATA_JOBS).where({ hashed_user_id: ownerHash });
+    if (chatId) metadataJobs.andWhere({ chat_id: chatId });
+    const deletedMetadataJobs = await metadataJobs.delete();
     const deletedJobs = await jobs.delete();
     if (deletedJobs > 0) {
       await trx(OPERATIONAL_EVENTS).insert({
@@ -1040,7 +1045,7 @@ async function invalidateDeletion(database, raw, now) {
     }
     const deletedOutbox = await outbox.delete();
     const deletedPreflights = await preflights.delete();
-    return { deleted_preflights: deletedPreflights, deleted_jobs: deletedJobs, deleted_outbox: deletedOutbox };
+    return { deleted_preflights: deletedPreflights, deleted_jobs: deletedJobs, deleted_metadata_jobs: deletedMetadataJobs, deleted_outbox: deletedOutbox };
   });
 }
 
@@ -1117,6 +1122,8 @@ async function cleanupExpired(database, raw, now) {
         .select(['id', 'inference_task_id', 'chat_id', 'user_message_id', 'failure_category'])
       : [];
     return {
+      expired_metadata_jobs: await trx(METADATA_JOBS).where({ state: 'AVAILABLE' }).andWhere('expires_at', '<=', now).delete(),
+      expired_metadata_tombstones: await trx(METADATA_JOBS).whereIn('state', ['TERMINAL', 'SUPERSEDED']).andWhere('tombstone_expires_at', '<=', now).delete(),
       expired_jobs: await trx(JOBS).whereIn('state', ['AVAILABLE', 'LEASED']).andWhere('expires_at', '<=', now).delete(),
       expired_tombstones: await trx(JOBS).where({ state: 'TERMINAL' }).andWhere('tombstone_expires_at', '<=', now).delete(),
       abandoned_preflights: abandonedPreflights,
@@ -1164,6 +1171,8 @@ async function acknowledgeFailureAlert(database, raw, now) {
 }
 
 export const operations = Object.freeze({
+  ...metadataOperations({ fail, exactKeys, string, uuid, integer, validateEnvelope, digest, ownedChat,
+    JOB_TTL_MS, TOMBSTONE_TTL_MS }),
   prepare_preflight: preparePreflight, verify_committed_team_message: verifyCommittedTeamMessage,
   enqueue_inference: enqueueInference,
   claim_inference: claimInference, mark_outbox_dispatched: markOutboxDispatched,

@@ -91,6 +91,7 @@ struct DevPreviewRootView: View {
             DevMessageEditFixtureView()
         case .embeds:
             DevEmbedPreviewGalleryView(initialApp: configuration.appSlug)
+                .overlay { ToastOverlay() }
         }
     }
 }
@@ -346,6 +347,7 @@ struct DevEmbedPreviewGalleryView: View {
     @State private var galleryColorScheme: ColorScheme?
     @State private var openedSkill: DevEmbedPreviewSkill?
     @State private var openedQuote: String?
+    @State private var canonicalFullscreenOpen = true
 
     private var canonicalRequest: DevEmbedPreviewRequest? {
         DevEmbedPreviewRequest.parse(arguments: ProcessInfo.processInfo.arguments)
@@ -436,15 +438,21 @@ struct DevEmbedPreviewGalleryView: View {
                         .frame(width: 300, height: 200)
                     }
                 case .fullscreen:
-                    EmbedFullscreenContainer(
-                        embeds: [skill.primaryEmbed], initialEmbedId: skill.primaryEmbed.id,
-                        allEmbedRecords: skill.allRecords,
-                        chatId: ProcessInfo.processInfo.arguments.contains("--dev-code-run-output-preview")
-                            ? "dev-embed-preview-chat" : nil,
-                        hasPIIMappings: !previewPIIMappings.isEmpty, piiMappings: previewPIIMappings,
-                        isPIIRevealed: isPreviewPIIRevealed,
-                        onTogglePII: { isPreviewPIIRevealed.toggle() }
-                    )
+                    if canonicalFullscreenOpen {
+                        EmbedFullscreenContainer(
+                            embeds: [skill.primaryEmbed], initialEmbedId: skill.primaryEmbed.id,
+                            allEmbedRecords: skill.allRecords,
+                            chatId: ProcessInfo.processInfo.arguments.contains("--dev-code-run-output-preview")
+                                ? "dev-embed-preview-chat" : nil,
+                            hasPIIMappings: !previewPIIMappings.isEmpty, piiMappings: previewPIIMappings,
+                            isPIIRevealed: isPreviewPIIRevealed,
+                            onTogglePII: { isPreviewPIIRevealed.toggle() },
+                            onClose: { canonicalFullscreenOpen = false }
+                        )
+                    } else {
+                        Button("Reopen fullscreen embed") { canonicalFullscreenOpen = true }
+                            .accessibilityIdentifier("dev-embed-fullscreen-dismissed")
+                    }
                 case .inline:
                     DevEmbedInlineLinkBlock(skill: skill) { open(skill) }
                         .padding(.spacing10)

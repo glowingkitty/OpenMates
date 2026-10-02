@@ -1442,7 +1442,7 @@ test('chat deletion invalidates recovery state and rejects a late sealed job', a
     protocol_version: 1, hashed_user_id: OWNER, scope: 'chat', chat_id: CHAT_ID,
   }, new Date('2029-01-01T00:00:00Z'));
 
-  assert.deepEqual(invalidated, { deleted_preflights: 1, deleted_jobs: 1, deleted_outbox: 1 });
+  assert.deepEqual(invalidated, { deleted_preflights: 1, deleted_jobs: 1, deleted_metadata_jobs: 0, deleted_outbox: 1 });
   assert.deepEqual(database.rows.operational_monitoring_events, [{
     id: database.rows.operational_monitoring_events[0].id,
     event_type: 'recovery_jobs_invalidated', count: 1,

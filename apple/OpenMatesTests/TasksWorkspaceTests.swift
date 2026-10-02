@@ -162,6 +162,30 @@ final class TasksWorkspaceTests: XCTestCase {
     #endif
 
     #if DEBUG
+    // contract-test: supporting surface=gui.apple assertions=tasks.lifecycle.visible,tasks.surface.semantic-parity
+    func testWorkspaceSearchMatchesWebLabelsAssigneesPlanStatusAndProjectNames() {
+        let store = TasksWorkspaceStore()
+        store.installPreview()
+        XCTAssertEqual(store.filterTags, ["Self driving ballpit", "OpenMates"])
+        store.searchText = " #Research "
+        XCTAssertEqual(store.visibleBoardItems.count, 2, "A leading label marker applies to titles too")
+        store.searchText = "external_ai"
+        XCTAssertTrue(store.visibleBoardItems.isEmpty)
+        store.searchText = "openmates"
+        XCTAssertEqual(store.visibleBoardItems.count, 3, "Assignment is searchable even without that label")
+        store.searchText = "user"
+        XCTAssertEqual(store.visibleBoardItems.count, 2, "Workflow projections retain the web human assignment")
+        store.searchText = "completed"
+        XCTAssertEqual(store.visiblePlans.map(\.id), ["preview-plan-completed"])
+        store.searchText = "#OpenMates"
+        XCTAssertEqual(store.visiblePlans.count, 2, "Linked Project names participate in Plan search")
+        store.searchText = "#"
+        XCTAssertEqual(store.visibleBoardItems.count, 6)
+        XCTAssertEqual(store.visiblePlans.count, 2)
+        store.searchText = "research#"
+        XCTAssertTrue(store.visibleBoardItems.isEmpty, "Only the leading marker is removed")
+    }
+
     // contract-test: supporting surface=gui.apple assertions=tasks.content.client-encrypted,tasks.workflow-projections.read-only
     func testAccountResetDropsDecryptedPreviewStateAndSelection() {
         let store = TasksWorkspaceStore()

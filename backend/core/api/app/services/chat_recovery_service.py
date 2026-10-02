@@ -17,6 +17,11 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 RECOVERY_OPERATIONS = {
+    "create_metadata_job",
+    "metadata_job_admitted",
+    "list_metadata_jobs",
+    "claim_metadata_job",
+    "persist_metadata_job",
     "prepare_preflight",
     "verify_committed_team_message",
     "enqueue_inference",

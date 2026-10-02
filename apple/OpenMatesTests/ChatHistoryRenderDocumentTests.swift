@@ -50,6 +50,42 @@ final class ChatHistoryRenderDocumentTests: XCTestCase {
     }
 
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,pii.surface.semantic-parity
+    func testTranscriptMappingsKeepStableOrderAcrossStreamingAndLatestUserReplacement() {
+        let first = PIIMapping(placeholder: "[PERSON_NAME_1]", original: "Synthetic first name", type: "person_name")
+        let second = PIIMapping(placeholder: "[EMAIL_1]", original: "first@example.invalid", type: "email")
+        let latest = PIIMapping(placeholder: first.placeholder, original: "Synthetic updated name", type: first.type)
+        let third = PIIMapping(placeholder: "[PHONE_1]", original: "+0000000000", type: "phone")
+        let ignored = PIIMapping(placeholder: second.placeholder, original: "assistant@example.invalid", type: second.type)
+        let user = Message(id: "stable-user-1", chatId: "stable-mappings-chat", role: .user,
+                           content: first.placeholder, encryptedContent: "synthetic-ciphertext-1",
+                           createdAt: "2026-01-01T00:00:00Z", updatedAt: nil, appId: nil,
+                           isStreaming: false, embedRefs: nil, piiMappings: [first, second])
+        let nextUser = Message(id: "stable-user-2", chatId: user.chatId, role: .user,
+                               content: latest.placeholder, encryptedContent: "synthetic-ciphertext-2",
+                               createdAt: "2026-01-01T00:00:01Z", updatedAt: nil, appId: nil,
+                               isStreaming: false, embedRefs: nil, piiMappings: [third, latest])
+
+        for update in 0..<32 {
+            let assistant = Message(id: "stable-assistant", chatId: user.chatId, role: .assistant,
+                                    content: "Partial synthetic response \(update)", encryptedContent: nil,
+                                    createdAt: "2026-01-01T00:00:02Z", updatedAt: nil, appId: nil,
+                                    isStreaming: true, embedRefs: nil, piiMappings: [ignored])
+            for revealed in [false, true] {
+                let projection = ChatTranscriptDisplayProjection(messages: [user, nextUser, assistant],
+                                                                embedRecords: [:], isPIIRevealed: revealed)
+                XCTAssertEqual(projection.piiMappings, [latest, second, third],
+                               "Partial response and reveal changes must not reorder shared row/environment inputs")
+            }
+        }
+        XCTAssertEqual(ChatTranscriptDisplayProjection.cumulativeMappings(in: [user]), [first, second],
+                       "History window replacement must rebuild mappings from the current rows")
+        XCTAssertEqual(user.piiMappings, [first, second], "Projection must not mutate the canonical message")
+        XCTAssertEqual(user.encryptedContent, "synthetic-ciphertext-1")
+        XCTAssertEqual(nextUser.piiMappings, [third, latest])
+        XCTAssertEqual(nextUser.encryptedContent, "synthetic-ciphertext-2")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,pii.surface.semantic-parity
     func testTranscriptDisplayProjectionRestoresSharedEmbedsOnceAndKeepsUserMappingPrecedence() {
         let placeholder = "[PERSON_NAME_1]"
         let old = PIIMapping(placeholder: placeholder, original: "Earlier synthetic name", type: "person_name")

@@ -47,18 +47,33 @@ final class WatchAuthStore: ObservableObject {
             await clearRevokedSession(for: user.id)
             return
         }
-        guard (try? await CryptoManager.shared.loadMasterKey(for: user.id)) != nil else {
+        let restoreGeneration = WatchChatAccountLifecycle.generation
+        let restoreProfile = ServerProfile.current()
+        let hasMasterKey = (try? await CryptoManager.shared.loadMasterKey(for: user.id)) != nil
+        guard restoreGeneration == WatchChatAccountLifecycle.generation,
+              restoreProfile == ServerProfile.current() else { return }
+        guard hasMasterKey else {
             NativeDiagnostics.event("session_restore_missing_master_key", category: Self.diagnosticsCategory)
             state = .unauthenticated
             return
         }
+        if PairSessionDeadlineStore.isExpired(userID: user.id) {
+            await clearRevokedSession(for: user.id)
+            return
+        }
+        if currentUser?.id != user.id { WatchChatAccountLifecycle.invalidate() }
         currentUser = user
+        let generation = WatchChatAccountLifecycle.generation
+        let profile = ServerProfile.current()
         NativeDiagnostics.event(
             "session_restore_request",
             category: Self.diagnosticsCategory,
             flags: ["refresh_cookie_present": hasRefreshCookie]
         )
-        switch await refreshSessionToken() {
+        let disposition = await refreshSessionToken()
+        guard generation == WatchChatAccountLifecycle.generation, profile == ServerProfile.current(),
+              currentUser?.id == user.id else { return }
+        switch disposition {
         case .authenticated, .transientFailure:
             state = .authenticated
         case .revoked:
@@ -112,27 +127,26 @@ final class WatchAuthStore: ObservableObject {
 
     private func refreshSessionToken() async -> WatchSessionRefreshDisposition {
         isVerifiedOnline = false
+        guard let accountID = currentUser?.id else { return .transientFailure }
         let generation = WatchChatAccountLifecycle.generation
         let profile = ServerProfile.current()
+        let context = WatchChatRequestContext(accountID: accountID, profile: profile,
+            accountGeneration: generation, validate: { [weak self] in
+                guard self?.currentUser?.id == accountID else { throw CancellationError() }
+            })
         do {
-            let response: SessionResponse = try await api.request(
-                .post,
-                path: "/v1/auth/session",
-                body: SessionRequest(
-                    sessionId: WatchCompatibleSession.nativeSessionId,
-                    deviceInfo: WatchCompatibleSession.makeNativeDeviceInfo()
-                )
-            )
-            guard generation == WatchChatAccountLifecycle.generation, profile == ServerProfile.current() else {
-                return .transientFailure
-            }
+            let response = try await WatchSessionTransport.loadSession(api: api,
+                body: SessionRequest(sessionId: WatchCompatibleSession.nativeSessionId,
+                                     deviceInfo: WatchCompatibleSession.makeNativeDeviceInfo()),
+                context: context)
+            try context.check()
             guard response.isAuthenticated, let user = response.user else {
                 webSocketToken = nil
                 errorMessage = response.reAuthReason ?? response.reAuthRequired ?? response.message
                 NativeDiagnostics.event("session_restore_revoked", category: Self.diagnosticsCategory, level: .warning)
                 return .revoked
             }
-            if currentUser?.id != user.id { WatchChatAccountLifecycle.invalidate() }
+            guard user.id == accountID else { return .transientFailure }
             currentUser = user
             webSocketToken = response.wsToken
             isVerifiedOnline = true
@@ -141,6 +155,9 @@ final class WatchAuthStore: ObservableObject {
             NativeDiagnostics.event("session_restore_authenticated", category: Self.diagnosticsCategory)
             return .authenticated
         } catch {
+            guard generation == WatchChatAccountLifecycle.generation, profile == ServerProfile.current(),
+                  currentUser?.id == accountID else { return .transientFailure }
+            if PairSessionDeadlineStore.isExpired(userID: accountID) { return .revoked }
             webSocketToken = nil
             errorMessage = error.localizedDescription
             NativeDiagnostics.failure(

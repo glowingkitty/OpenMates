@@ -6,12 +6,12 @@ import time
 import hashlib
 from typing import Tuple, Dict, Any, Optional, TYPE_CHECKING
 
+from backend.core.api.app.middleware.session_cookie_publication import queue_rotated_session_cookie
 from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash
 from backend.core.api.app.services.cache_config import ACCESS_TOKEN_TTL_SECONDS
-from backend.core.api.app.utils.session_refresh import refresh_session_token, complete_refresh_rotation
-from backend.core.api.app.services.pair_session_deadline import enforce_pair_deadline
+from backend.core.api.app.utils.session_refresh import refresh_session_token, complete_refresh_rotation, resolve_session_credential
 from backend.core.api.app.services.session_security_state import (
-    ensure_legacy_session_state, get_session_state_cached, token_hash,
+    ensure_legacy_session_state,
 )
 from backend.core.api.app.utils.directus_cookies import extract_directus_refresh_token
 
@@ -183,8 +183,8 @@ async def verify_authenticated_user(
             logger.info("No refresh token provided")
             return False, {}, None, "authentication_failed"
 
-        await enforce_pair_deadline(directus_service, cache_service, refresh_token)
-        await get_session_state_cached(directus_service, cache_service, token_hash(refresh_token))
+        refresh_token = await resolve_session_credential(cache_service, directus_service, refresh_token)
+        request.state.auth_refresh_token = refresh_token
 
         # Get user data from cache using refresh token
         user_data = await cache_service.get_user_by_token(refresh_token)
@@ -288,7 +288,8 @@ async def verify_authenticated_user(
             user_data = user_profile
             # Return the new refresh token so the caller (/session) can update the browser cookie
             refresh_token = new_refresh_token
-        
+            request.state.auth_refresh_token = refresh_token
+
         # Validate that user_data has required fields
         user_id = user_data.get("user_id") or user_data.get("id")
         if not user_id:
@@ -317,6 +318,7 @@ async def verify_authenticated_user(
                 logger.debug(f"Device hash {device_hash[:8]}... recognized for user {user_id[:6]}...")
 
         # If we reached here, authentication token is valid, and device (if checked) is known
+        await queue_rotated_session_cookie(request, cache_service, refresh_token, user_data)
         return True, user_data, refresh_token, None
 
     except HTTPException:

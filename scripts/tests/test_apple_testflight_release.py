@@ -93,9 +93,10 @@ def test_receipt_only_resumes_matching_fingerprint(tmp_path: Path) -> None:
     assert release.read_receipt(tmp_path, "archive-ios", "two") is None
 
 
-def test_commands_pin_one_build_and_do_not_delete_simulators(tmp_path: Path) -> None:
+@pytest.mark.parametrize("use_credentials", [False, True])
+def test_commands_pin_one_build_and_do_not_delete_simulators(tmp_path: Path, use_credentials: bool) -> None:
     release = load_module()
-    credentials = release.Credentials(Path("/private/AuthKey.p8"), "KEY", "ISSUER")
+    credentials = release.Credentials(Path("/private/AuthKey.p8"), "KEY", "ISSUER") if use_credentials else None
 
     ios = release.archive_command("ios", tmp_path, 74, "TEAM", credentials)
     macos = release.archive_command("macos", tmp_path, 74, "TEAM", credentials)
@@ -107,7 +108,12 @@ def test_commands_pin_one_build_and_do_not_delete_simulators(tmp_path: Path) -> 
     assert "ENABLE_USER_SCRIPT_SANDBOXING=NO" in ios
     assert "ENABLE_USER_SCRIPT_SANDBOXING=NO" in macos
     assert "ARCHS=arm64 x86_64" in macos
-    assert macos[macos.index("-jobs") + 1] == "1"
+    for command in (ios, macos):
+        assert command.count("-jobs") == 1
+        assert command[command.index("-jobs") + 1] == "1"
+        assert command.count("SWIFT_USE_PARALLEL_WHOLE_MODULE_OPTIMIZATION=NO") == 1
+        assert command.count("SWIFT_USE_PARALLEL_WMO_TARGETS=NO") == 1
+        assert command.count("OTHER_SWIFT_FLAGS=$(inherited) -j1 -num-threads 1") == 1
     assert "simctl" not in all_text
     assert "delete" not in all_text
     assert "VERCEL" not in SCRIPT.read_text(encoding="utf-8")

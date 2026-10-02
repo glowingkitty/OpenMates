@@ -1,4 +1,6 @@
 // ImagesSearchEmbedRenderer — native counterpart for image search embeds.
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.surface.semantic-parity, chats.layout.responsive-history
 //
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/embeds/images/ImagesSearchEmbedPreview.svelte
@@ -132,12 +134,16 @@ struct ImagesSearchEmbedFullscreenContent: View {
             status: model.status,
             query: model.query,
             results: model.imageResults,
-            emptyText: emptyText
+            emptyText: emptyText,
+            webLayout: true
         ) { result in
             EmbedPreviewCard(embed: result.embed, variant: .compact) {
                 onOpenEmbed(result.embed)
             }
+            .accessibilityIdentifier("images-search-result-\(result.embed.id)")
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("images-search-fullscreen-results")
     }
 
     private var emptyText: String {

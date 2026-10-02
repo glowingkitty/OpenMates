@@ -301,9 +301,75 @@ final class DevComponentPreviewUITests: XCTestCase {
         XCTAssertEqual(app.descendants(matching: .any).matching(identifier: "embeds-map-view-card").count, 5)
     }
 
-    // contract-test: supporting surface=gui.apple assertions=tasks.detail.embed-responsive
-    func testTasksWorkspaceBoardAndTaskDetailAtWebPhoneWidth() {
+    // contract-test: supporting surface=gui.apple assertions=tasks.lifecycle.visible,tasks.surface.semantic-parity
+    func testTasksLoadFailureShowsHittableRetryWithoutCrossingPreviewAccountFence() {
+        let app = launch(component: "tasks", variant: "task-load-failure")
+        XCTAssertTrue(element(app, "tasks-load-error").waitForExistence(timeout: 10))
+        let retry = app.buttons["tasks-retry-load"]
+        XCTAssertTrue(retry.waitForExistence(timeout: 3))
+        XCTAssertTrue(retry.isHittable)
+        XCTAssertTrue(retry.isEnabled)
+        retry.tap()
+        XCTAssertTrue(element(app, "tasks-load-error").exists,
+                      "The signed-out fixture must not start authenticated requests")
+        XCTAssertFalse(element(app, "tasks-loading").exists)
+        XCTAssertEqual(element(app, "dev-preview-root").value as? String,
+                       "auth=not-started;store=detached;socket=disconnected")
+        attachScreenshot("Tasks failure with production Retry control")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=tasks.detail.embed-responsive,tasks.surface.semantic-parity
+    func testTasksWorkspaceReaderUsesAvailableWidthSplitOnTablet() throws {
+        #if os(iOS)
+        XCUIDevice.shared.orientation = .landscapeLeft
+        defer { XCUIDevice.shared.orientation = .portrait }
+        #endif
+        let app = launch(component: "tasks", variant: "default", theme: "dark")
+        let workspace = element(app, "tasks-workspace")
+        XCTAssertTrue(workspace.waitForExistence(timeout: 10))
+        guard workspace.frame.width >= 1100 else {
+            throw XCTSkip("Tasks split requires at least 1100 points of available workspace width")
+        }
+        XCTAssertTrue(app.buttons["#Self driving ballpit"].exists,
+                      "The wide workspace initially shows its rendered label filters")
+        let task = app.buttons.matching(identifier: "task-card-open").firstMatch
+        XCTAssertTrue(task.isHittable)
+        task.tap()
+        XCTAssertTrue(element(app, "tasks-workspace-split").waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["task-detail-minimize"].isHittable)
+        XCTAssertTrue(element(app, "task-board").exists)
+        XCTAssertFalse(app.buttons["task-search-link"].exists,
+                       "The 32 percent board uses remaining width for its narrow controls")
+        attachScreenshot("Tasks wide workspace reader split")
+        app.buttons["task-detail-minimize"].tap()
+        XCTAssertTrue(element(app, "tasks-workspace-split").waitForNonExistence(timeout: 3))
+        XCTAssertTrue(task.isHittable)
+        XCTAssertTrue(app.buttons["task-search-link"].exists)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=tasks.lifecycle.visible,tasks.surface.semantic-parity
+    func testTasksWorkspaceFiltersRenderedLabels() {
         let app = launch(component: "tasks", variant: "default")
+        XCTAssertTrue(element(app, "task-board").waitForExistence(timeout: 10))
+        let filter = app.buttons["task-filter-button"]
+        XCTAssertTrue(filter.isHittable)
+        let label = app.buttons["#Self driving ballpit"]
+        if !label.exists { filter.tap() }
+        XCTAssertTrue(label.waitForExistence(timeout: 3))
+        XCTAssertTrue(label.isHittable)
+        label.tap()
+        let cards = app.descendants(matching: .any).matching(identifier: "task-card")
+        expectation(for: NSPredicate(format: "count == 2"), evaluatedWith: cards)
+        waitForExpectations(timeout: 3)
+        XCTAssertEqual(cards.count, 2)
+        XCTAssertEqual(app.descendants(matching: .any).matching(identifier: "task-board-plan-card").count, 0)
+        XCTAssertFalse(element(app, "tasks-filter-empty").exists)
+        attachScreenshot("Tasks rendered label filters production board")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=tasks.detail.embed-responsive,tasks.lifecycle.visible,tasks.surface.semantic-parity
+    func testTasksWorkspaceBoardAndTaskDetailAtWebPhoneWidth() {
+        let app = launch(component: "tasks", variant: "default", theme: "dark")
         XCTAssertTrue(element(app, "task-board").waitForExistence(timeout: 10))
         XCTAssertEqual(app.descendants(matching: .any).matching(identifier: "task-column-backlog").count, 1)
         XCTAssertEqual(app.descendants(matching: .any).matching(identifier: "task-card").count, 6,
@@ -317,6 +383,9 @@ final class DevComponentPreviewUITests: XCTestCase {
         XCTAssertTrue(firstTask.isHittable)
         firstTask.tap()
         XCTAssertTrue(element(app, "task-detail-content").waitForExistence(timeout: 5))
+        XCTAssertEqual(app.descendants(matching: .any).matching(identifier: "task-detail-content").count, 1)
+        XCTAssertFalse(element(app, "task-action-menu-items").exists,
+                       "A normal tap opens one reader and cannot activate the long-press menu")
         XCTAssertTrue(app.staticTexts["Research how expensive hoverboard motors are to carry 2–3 people"].exists)
         XCTAssertTrue(app.buttons["task-detail-report-issue"].exists,
                       "Task detail must expose the shared report-issue action in its header")
@@ -336,6 +405,26 @@ final class DevComponentPreviewUITests: XCTestCase {
         XCTAssertTrue(selectedAssignee.waitForExistence(timeout: 3))
         selectedAssignee.tap()
         attachScreenshot("Tasks detail deployed web phone fixture")
+        let close = app.buttons["task-detail-minimize"]
+        XCTAssertTrue(close.isHittable)
+        close.tap()
+        XCTAssertTrue(element(app, "task-detail-content").waitForNonExistence(timeout: 3))
+        XCTAssertTrue(firstTask.isHittable, "Closing the custom reader restores the retained board")
+        firstTask.press(forDuration: 1)
+        let actions = element(app, "task-action-menu-items")
+        XCTAssertTrue(actions.waitForExistence(timeout: 3))
+        XCTAssertFalse(element(app, "task-detail-content").exists,
+                       "A long press opens actions without also running the title tap")
+        XCTAssertEqual(app.descendants(matching: .any).matching(identifier: "task-action-menu-items").count, 1)
+        XCTAssertTrue(app.buttons["task-move-todo"].isHittable,
+                      "The custom card popup exposes real production actions")
+        attachScreenshot("Tasks custom card actions")
+        let openTask = app.buttons["task-detail-link"]
+        XCTAssertTrue(openTask.isHittable)
+        openTask.tap()
+        XCTAssertTrue(element(app, "task-detail-content").waitForExistence(timeout: 5))
+        XCTAssertEqual(app.descendants(matching: .any).matching(identifier: "task-detail-content").count, 1)
+        XCTAssertFalse(element(app, "task-action-menu-items").exists)
     }
 
     // contract-test: supporting surface=gui.apple assertions=plans.surface.semantic-parity
@@ -440,12 +529,9 @@ final class DevComponentPreviewUITests: XCTestCase {
     func testProjectsConnectedSourceAndSidebarAtWebPhoneWidth() {
         let connected = launch(component: "projects", variant: "connectedSource")
         XCTAssertTrue(connected.textFields["project-files-search"].waitForExistence(timeout: 10))
-        let source = connected.buttons["project-source-source-preview"]
         let page = connected.scrollViews.firstMatch
-        for _ in 0..<3 where !source.isHittable { page.swipeUp() }
-        XCTAssertTrue(source.isHittable)
-        attachScreenshot("Projects connected source at phone width")
-        source.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        XCTAssertFalse(connected.buttons["project-source-source-preview"].exists,
+                       "Files opens the default connected repository automatically")
         XCTAssertTrue(element(connected, "project-remote-entry-frontend").waitForExistence(timeout: 5))
         XCTAssertTrue(connected.buttons["project-remote-entry-frontend"].exists)
         attachScreenshot("Projects source browser at phone width")
@@ -454,6 +540,7 @@ final class DevComponentPreviewUITests: XCTestCase {
         XCTAssertTrue(readme.isHittable)
         readme.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
         XCTAssertTrue(element(connected, "project-remote-file-detail").waitForExistence(timeout: 5))
+        XCTAssertTrue(element(connected, "code-source-panel").waitForExistence(timeout: 5))
         XCTAssertTrue(connected.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "A private workspace")).firstMatch.waitForExistence(timeout: 5))
         attachScreenshot("Projects connected README detail")
         connected.terminate()

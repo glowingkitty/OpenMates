@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.apple-watch@2
+specification: feature.apple-watch@3
 
 pairing:
   - id: iphone-offer-and-short-url
@@ -20,11 +20,29 @@ lists:
   - id: private-read-only-rows
     given: The account has encrypted Tasks and Workflow runs.
     when: The Watch loads the Task and Workflow sections.
-    then: The owner sees readable Tasks in the iPhone kanban section order and readable Workflow rows, with no native mutation controls.
+    then: The owner sees readable Tasks in the iPhone kanban section order and readable Workflow rows; opening a row shows its private details, and the lists contain no mutation controls.
   - id: kanban-crown-and-task-read-view
     given: The Watch has Tasks in Backlog, To do, In progress, Blocked, and Done, and To do contains more Tasks than fit on screen.
     when: The user swipes to To do, turns the Digital Crown to scroll down, and taps a Task.
     then: Only the current column scrolls vertically, and the selected Task opens its private readable details with an explicit Open on iPhone action.
+task_editing:
+  - id: save-personal-task-on-watch
+    given: An editable personal Task called Prepare meetup notes is in To do on the signed-in Watch.
+    when: The user edits its title and description, selects In progress and High priority, and saves.
+    then: The existing versioned update saves encrypted private text; only the accepted response updates the detail and moves the Task to In progress. Cancel would leave the Task unchanged.
+  - id: failed-or-stale-task-edit
+    given: The user has an unsaved Task edit on Watch.
+    when: Saving fails, or the account or server changes before the response arrives.
+    then: An ordinary failure retains the edit for retry without showing success; an account or server change prevents the old response from changing credentials or displaying private content. Team, read-only, and workflow-run Tasks have no Edit control.
+workflow_details:
+  - id: inspect-workflow-nodes-on-watch
+    given: A personal Workflow has a time trigger, an app-skill action, an Ask AI action, a Check with true and false branches, and a Send message action.
+    when: The user opens the Workflow, expands the nodes, and scrolls with the Digital Crown.
+    then: The compact view shows configuration, input references, and real connections; existing editable personal nodes offer an editor, Back returns to the list, and Open on iPhone is available, with no run controls.
+  - id: edit-and-guard-workflow-save
+    given: A personal Workflow detail is open on Watch with a Send message node.
+    when: The user edits its message and saves, cancels, or encounters a failure or intervening Workflow change.
+    then: An accepted save updates that node while preserving other graph fields and activation; Cancel makes no changes, failure retains the edit for retry, and a detected conflict requires reload. Changed identity or selection discards late responses, empty graphs are explained, and unsupported Team context is unavailable.
 handoff:
   - id: exact-task-on-matching-phone
     given: A Watch and iPhone use the same self-hosted OpenMates server and a Task with an opaque id is visible.

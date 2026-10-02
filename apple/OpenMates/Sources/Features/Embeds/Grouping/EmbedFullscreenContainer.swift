@@ -1,6 +1,8 @@
 // Fullscreen embed container with navigation between embeds in a group.
 // Supports prev/next navigation arrows, child embed loading for composite types,
 // and the full slide-up presentation matching the web app.
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.surface.semantic-parity, chats.layout.responsive-history
 //
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
@@ -9,6 +11,7 @@
 //          frontend/packages/ui/src/components/embeds/web/WebsiteEmbedFullscreen.svelte
 //          frontend/packages/ui/src/components/embeds/images/ImageResultEmbedFullscreen.svelte
 //          frontend/packages/ui/src/components/embeds/file/FileEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/projects/ProjectsPage.svelte
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
 //          TypographyTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
@@ -16,6 +19,8 @@
 //                specifications/features/app-skills/code-run/specification.yml
 // Assertions: chats.surface.semantic-parity,
 //             code-run.artifacts.parent-child-navigation
+// Specification: specifications/features/projects/specification.yml
+// Assertions: projects.files.connected-embed-previews
 
 import SwiftUI
 #if os(iOS)
@@ -23,6 +28,20 @@ import UIKit
 #elseif os(macOS)
 import AppKit
 #endif
+
+/// Connected file content is a bounded preview. Its original download belongs
+/// to the source transport, rather than the code snippet export action.
+struct EmbedOriginalFileActions {
+    let warning: String?
+    let downloadLabel: String
+    let readyLabel: String
+    let isDownloading: Bool
+    let progressLabel: String?
+    let progressValue: String?
+    let downloadURL: URL?
+    let errorMessage: String?
+    let onDownload: () -> Void
+}
 
 struct EmbedFullscreenContainer: View {
     let embeds: [EmbedRecord]
@@ -43,6 +62,7 @@ struct EmbedFullscreenContainer: View {
     var showChat = false
     var onShowChat: () -> Void = {}
     var highlightQuoteText: String? = nil
+    var originalFileActions: EmbedOriginalFileActions? = nil
 
     @State private var quoteAnchor: SourceQuoteHighlightAnchor?
     @State private var quoteContentSize: CGSize = .zero
@@ -135,6 +155,7 @@ struct EmbedFullscreenContainer: View {
     }
 
     private func showsHeaderShare(for embed: EmbedRecord) -> Bool {
+        if originalFileActions != nil { return false }
         switch EmbedType.normalized(rawValue: embed.type) {
         case .recording, .pdf, .audioGenerate, .audioSpeak:
             return false
@@ -159,10 +180,12 @@ struct EmbedFullscreenContainer: View {
     }
 
     private var usesEdgeToEdgeContent: Bool {
+        if currentEmbedType == .mailEmail { return true }
         switch currentEmbedType {
         // These renderers own their responsive content gutters. Adding generic
         // fullscreen padding shifts the web grid and shrinks website snippets.
-        case .webSearch, .webWebsite, .eventsEvent, .travelConnection, .travelStay, .healthSearch, .healthAppointment, .fileFile, .sheetsSheet:
+        case .webSearch, .imagesSearch, .newsSearch, .videosSearch, .codeRepoSearch, .electronicsSearch, .maps, .mapsPlace,
+             .webWebsite, .eventsEvent, .travelConnection, .travelStay, .healthSearch, .healthAppointment, .fileFile, .sheetsSheet, .mathPlot:
             return true
         default:
             return false
@@ -271,7 +294,16 @@ struct EmbedFullscreenContainer: View {
                     ScrollView {
                         VStack(spacing: 0) {
                             fullscreenHeader(for: embed, viewportWidth: proxy.size.width, topInset: safeAreaInsets.top)
+                            originalFileStatus
                             fullscreenEmbedContent(for: embed)
+                                .environment(\.mapsMapViewportHeight, max(150,
+                                    proxy.size.height - EmbedFullscreenHeaderLayout.height(
+                                        viewportWidth: proxy.size.width,
+                                        fallbackCompact: false,
+                                        topContentInset: safeAreaInsets.top) - safeAreaInsets.bottom))
+                                // The web plot uses 100vh. Header safe-area padding
+                                // must not reduce the graph's own viewport calculation.
+                                .environment(\.mathPlotViewportHeight, max(0, proxy.size.height))
                             if shouldShowVersionTimeline(for: embed) {
                                 versionTimeline(for: embed)
                             }
@@ -318,14 +350,19 @@ struct EmbedFullscreenContainer: View {
                     }
 
                     if moreActionsOpen {
-                        Color.clear.contentShape(Rectangle()).onTapGesture { moreActionsOpen = false }
+                        Color.clear.contentShape(Rectangle()).onTapGesture {
+                            traceFullscreenHeaderAction("dismiss-outside")
+                            moreActionsOpen = false
+                        }
                             .accessibilityHidden(true)
                     }
                     EmbedFullscreenTopBar(
                         embed: embed,
-                        showCopy: isCodeEmbed || isSheetEmbed || currentEmbedType == .videosVideo,
+                        showCopy: isCodeEmbed || isSheetEmbed || currentEmbedType == .videosVideo || currentEmbedType == .travelConnection
+                            || ((currentEmbedType == .maps || currentEmbedType == .mapsPlace)
+                                && MapsEmbedModel(embed.rawData).osmURL != nil),
                         showShare: showsHeaderShare(for: embed),
-                        showDownload: isCodeEmbed || isSheetEmbed
+                        showDownload: originalFileActions != nil || isCodeEmbed || isSheetEmbed || currentEmbedType == .mindmapsMindmap
                             || (currentEmbedType == .fileFile && FileEmbedPayload(embed.rawData).availableDownloadURL != nil)
                             || ImageOriginalDownloadController.canDownload(data: imageDownloadData(for: embed)),
                         showRun: isCodeRunnable,
@@ -340,7 +377,11 @@ struct EmbedFullscreenContainer: View {
                         onShare: { shareEmbed(embed) },
                         onCopy: { copyEmbedContent(embed) },
                         onDownload: {
-                            if currentEmbedType == .fileFile {
+                            if let originalFileActions {
+                                originalFileActions.onDownload()
+                            } else if currentEmbedType == .mindmapsMindmap {
+                                downloadMindMapFile(embed)
+                            } else if currentEmbedType == .fileFile {
                                 if let url = FileEmbedPayload(embed.rawData).availableDownloadURL { openURL(url) }
                             } else if let imageData = imageDownloadData(for: embed) {
                                 imageDownloadController.download(data: imageData)
@@ -352,7 +393,10 @@ struct EmbedFullscreenContainer: View {
                         onTogglePreview: { codePreviewActive.toggle() },
                         onCalendar: { downloadCalendarFile(embed) },
                         onReportIssue: { reportIssue(embed) },
-                        showChat: showChat, onShowChat: onShowChat
+                        showChat: showChat, onShowChat: onShowChat,
+                        downloadLabel: originalFileActions?.downloadLabel ?? AppStrings.download,
+                        downloadDisabled: originalFileActions?.isDownloading ?? false,
+                        downloadIdentifier: originalFileActions == nil ? "embed-download-button" : "project-remote-download"
                     )
                     .padding(.top, safeAreaInsets.top)
                     .padding(.leading, safeAreaInsets.leading)
@@ -398,8 +442,13 @@ struct EmbedFullscreenContainer: View {
         .overlay(alignment: .topLeading) {
             #if DEBUG
             if ProcessInfo.processInfo.arguments.contains("--ui-test-embed-presentation") {
-                Color.clear.frame(width: 1, height: 1)
-                    .accessibilityElement()
+                // A transparent Shape can be omitted from the accessibility
+                // tree in the Projects overlay. Retain a text element whose
+                // label reflects the real animation-completion callback.
+                Text(" ").font(.omTiny).foregroundStyle(Color.clear)
+                    .frame(width: 1, height: 1)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityHidden(false)
                     .accessibilityLabel(presentationReady ? "ready" : "presenting")
                     .accessibilityIdentifier("embed-presentation-state")
                     .allowsHitTesting(false)
@@ -419,7 +468,9 @@ struct EmbedFullscreenContainer: View {
             topContentInset: topInset,
             viewportWidth: viewportWidth,
             responsiveViewportWidth: responsiveViewportWidth,
-            contentUnderlapsCTA: healthMapHeaderUnderlap(for: embed) > 0
+            contentUnderlapsCTA: healthMapHeaderUnderlap(for: embed) > 0,
+            mailPIIMappings: currentPIIMappings,
+            mailPIIRevealed: isPIIRevealed
         )
         .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("embed-fullscreen-coordinate")) } action: { headerFrame = $0 }
         .zIndex(2)
@@ -460,6 +511,11 @@ struct EmbedFullscreenContainer: View {
     }
 
     private func headerCTA(for embed: EmbedRecord) -> EmbedHeaderCTA? {
+        if EmbedType.normalized(rawValue: embed.type) == .mailEmail {
+            let mail = MailEmbedModel(embed.rawData).applyingPII(mappings: currentPIIMappings, revealed: isPIIRevealed)
+            guard let url = mail.mailtoURL else { return nil }
+            return EmbedHeaderCTA(title: AppStrings.localized("embeds.mail.open_mail_client"), accessibilityIdentifier: "mail-open-client", usesMailResponsiveSizing: true) { openURL(url) }
+        }
         if EmbedType.normalized(rawValue: embed.type) == .healthAppointment {
             let model = HealthAppointmentModel(embed.rawData ?? [:])
             if let url = model.bookingURL {
@@ -488,6 +544,11 @@ struct EmbedFullscreenContainer: View {
         }
 
         switch type {
+        case .maps, .mapsPlace:
+            guard let url = MapsEmbedModel(data).googleMapsURL(isPlace: type == .mapsPlace) else { return nil }
+            return EmbedHeaderCTA(title: AppStrings.openOnProvider("Google Maps"),
+                                  accessibilityIdentifier: "maps-open-google-maps") { openURL(url) }
+
         case .videosVideo:
             guard let url = firstString(["url"], in: data) else { return nil }
             return EmbedHeaderCTA(title: AppStrings.openOnProvider("YouTube")) {
@@ -553,7 +614,7 @@ struct EmbedFullscreenContainer: View {
 
         case .travelStay:
             guard let url = firstString(["link", "url", "booking_url"], in: data) else { return nil }
-            return EmbedHeaderCTA(title: AppStrings.viewOnGoogleHotels) {
+            return EmbedHeaderCTA(title: AppStrings.openOnProvider("Google Hotels")) {
                 openExternalURL(url)
             }
 
@@ -803,6 +864,24 @@ struct EmbedFullscreenContainer: View {
     }
 
     private func copyEmbedContent(_ embed: EmbedRecord) {
+        if EmbedType.normalized(rawValue: embed.type) == .travelConnection {
+            let text = TravelConnectionActions(data: embed.rawData ?? [:]).copyText
+            copyToClipboard(EmbedPIIText.render(text, mappings: currentPIIMappings, revealed: isPIIRevealed))
+            ToastManager.shared.show(AppStrings.localized("embeds.copied_to_clipboard"), type: .success)
+            return
+        }
+        if let type = EmbedType.normalized(rawValue: embed.type), type == .maps || type == .mapsPlace {
+            guard let url = MapsEmbedModel(embed.rawData).osmURL else { return }
+            copyToClipboard(url.absoluteString)
+            ToastManager.shared.show(AppStrings.localized("embeds.copied_to_clipboard"), type: .success)
+            return
+        }
+        if EmbedType.normalized(rawValue: embed.type) == .mailEmail {
+            let mail = MailEmbedModel(embed.rawData).applyingPII(mappings: currentPIIMappings, revealed: isPIIRevealed)
+            copyToClipboard(mail.copyText)
+            ToastManager.shared.show(AppStrings.localized("embeds.mail.copied"), type: .success)
+            return
+        }
         if EmbedType.normalized(rawValue: embed.type) == .videosVideo,
            let url = embed.rawData?["url"]?.value as? String {
             copyToClipboard(url)
@@ -833,6 +912,75 @@ struct EmbedFullscreenContainer: View {
         #elseif os(macOS)
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
+        #endif
+    }
+
+    @ViewBuilder
+    private var originalFileStatus: some View {
+        if let actions = originalFileActions {
+            VStack(alignment: .leading, spacing: .spacing4) {
+                if let warning = actions.warning {
+                    Text(warning).font(.omSmall).foregroundStyle(Color.fontSecondary)
+                        .accessibilityIdentifier("project-remote-preview-truncated")
+                }
+                if let progress = actions.progressLabel {
+                    Text(progress).font(.omSmall).foregroundStyle(Color.fontSecondary)
+                        .accessibilityValue(actions.progressValue ?? "")
+                        .accessibilityIdentifier("project-remote-download-progress")
+                }
+                if actions.isDownloading { ProgressView() }
+                if let error = actions.errorMessage {
+                    Text(error).font(.omSmall).foregroundStyle(Color.error)
+                        .accessibilityIdentifier("project-remote-download-error")
+                }
+                if let url = actions.downloadURL {
+                    ShareLink(item: url) {
+                        HStack(spacing: .spacing4) {
+                            Icon("share", size: 18)
+                            Text(actions.readyLabel).font(.omSmall)
+                        }
+                    }
+                    .buttonStyle(OMSecondaryButtonStyle())
+                    .accessibilityIdentifier("project-remote-share-download")
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, .spacing8)
+            .padding(.vertical, .spacing4)
+        }
+    }
+
+    private func downloadMindMapFile(_ embed: EmbedRecord) {
+        let file = NativeMindMapDownloadFile.build(data: embed.rawData)
+        #if os(macOS)
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = file.filename
+        panel.canCreateDirectories = true
+        panel.begin { response in
+            guard response == .OK, let url = panel.url else { return }
+            do { try file.content.write(to: url, atomically: true, encoding: .utf8) }
+            catch { ToastManager.shared.show(AppStrings.error, type: .error) }
+        }
+        #elseif os(iOS)
+        guard let scene = UIApplication.shared.connectedScenes.first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene,
+              var presenter = scene.windows.first(where: \.isKeyWindow)?.rootViewController else { return }
+        while let presented = presenter.presentedViewController { presenter = presented }
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        do {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            let url = directory.appendingPathComponent(file.filename)
+            try file.content.write(to: url, atomically: true, encoding: .utf8)
+            let activity = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+            activity.completionWithItemsHandler = { _, _, _, _ in try? FileManager.default.removeItem(at: directory) }
+            if let popover = activity.popoverPresentationController {
+                popover.sourceView = presenter.view
+                popover.sourceRect = CGRect(x: presenter.view.bounds.midX, y: presenter.view.bounds.maxY, width: 1, height: 1)
+            }
+            presenter.present(activity, animated: true)
+        } catch {
+            try? FileManager.default.removeItem(at: directory)
+            ToastManager.shared.show(AppStrings.error, type: .error)
+        }
         #endif
     }
 
@@ -885,6 +1033,11 @@ struct EmbedFullscreenContainer: View {
     }
 
     private func calendarFile(for embed: EmbedRecord) -> EmbedCalendarFile? {
+        if EmbedType.normalized(rawValue: embed.type) == .travelConnection {
+            return TravelConnectionActions(data: embed.rawData ?? [:]).calendarFile(renderText: {
+                EmbedPIIText.render($0, mappings: currentPIIMappings, revealed: isPIIRevealed)
+            })
+        }
         guard EmbedType.normalized(rawValue: embed.type) == .healthAppointment else { return nil }
         return HealthAppointmentCalendarFile.make(embed.rawData ?? [:], renderText: {
             EmbedPIIText.render($0, mappings: currentPIIMappings, revealed: isPIIRevealed)
@@ -892,6 +1045,12 @@ struct EmbedFullscreenContainer: View {
     }
 
     private func healthMapHeaderUnderlap(for embed: EmbedRecord) -> CGFloat {
+        if let type = EmbedType.normalized(rawValue: embed.type), type == .maps || type == .mapsPlace {
+            let map = MapsEmbedModel(embed.rawData)
+            return EmbedFullscreenHeaderLayout.healthMapUnderlap(
+                hasHeaderCTA: headerCTA(for: embed) != nil,
+                hasMap: map.hasCoordinates || map.mapImageURL != nil)
+        }
         guard EmbedType.normalized(rawValue: embed.type) == .healthAppointment else { return 0 }
         // EntryWithMapTemplate starts the map at the panel edge while its absolute
         // CTA straddles that edge. Keep the header's full 44pt CTA hit bounds and
@@ -987,6 +1146,7 @@ struct EmbedFullscreenContainer: View {
     }
 
     private var isCodeRunnable: Bool {
+        guard originalFileActions == nil else { return false }
         guard let payload = currentEmbed?.codePayload else { return false }
         return CodeRunSupport.isSupported(language: payload.language, filename: payload.filename)
     }
@@ -1067,6 +1227,14 @@ enum EmbedHeaderActionPolicy {
     }
 }
 
+private func traceFullscreenHeaderAction(_ event: String) {
+    #if DEBUG
+    if ProcessInfo.processInfo.arguments.contains("--ui-test-embed-presentation") {
+        NativeDiagnostics.record(level: .info, category: "embed_header_action_fixture", message: event)
+    }
+    #endif
+}
+
 private struct EmbedFullscreenTopBar: View {
     let embed: EmbedRecord
     let showCopy: Bool
@@ -1090,6 +1258,9 @@ private struct EmbedFullscreenTopBar: View {
     let onReportIssue: () -> Void
     var showChat = false
     var onShowChat: () -> Void = {}
+    var downloadLabel = AppStrings.download
+    var downloadDisabled = false
+    var downloadIdentifier = "embed-download-button"
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @FocusState private var focusedActionID: String?
     @State private var toolbarFrame: CGRect = .zero
@@ -1106,7 +1277,7 @@ private struct EmbedFullscreenTopBar: View {
     private var actions: [Action] {
         var values: [Action] = []
         if showCopy { values.append(.init(id: "copy", icon: "copy", label: AppStrings.copy, perform: onCopy)) }
-        if showDownload { values.append(.init(id: "download", icon: "download", label: AppStrings.download, perform: onDownload)) }
+        if showDownload { values.append(.init(id: "download", icon: "download", label: downloadLabel, perform: onDownload)) }
         if showCalendar { values.append(.init(id: "calendar", icon: "calendar", label: "Add to calendar", perform: onCalendar)) }
         if showRun { values.append(.init(id: "run", icon: "play", label: AppStrings.codeRun, active: runActive, perform: onRun)) }
         if showPreview { values.append(.init(id: "preview", icon: "preview", label: AppStrings.preview, active: previewActive, perform: onTogglePreview)) }
@@ -1124,6 +1295,7 @@ private struct EmbedFullscreenTopBar: View {
             if usesMore {
                 pill(.init(id: "more", icon: "more", label: LocalizationManager.shared.text("common.more_actions"), perform: {
                     moreOpen.toggle()
+                    traceFullscreenHeaderAction("more-\(moreOpen ? "expanded" : "collapsed")")
                     if moreOpen { focusedActionID = "more" }
                 }))
                     .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("embed-fullscreen-coordinate")) } action: { moreFrame = $0 }
@@ -1163,7 +1335,10 @@ private struct EmbedFullscreenTopBar: View {
         .frame(maxWidth: .infinity, alignment: .top)
         .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("embed-fullscreen-coordinate")) } action: { toolbarFrame = $0 }
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: moreOpen)
-        .onChange(of: embed.id) { _, _ in moreOpen = false; focusFirstMenuAction = false }
+        .onChange(of: embed.id) { _, _ in
+            traceFullscreenHeaderAction("dismiss-embed-change")
+            moreOpen = false; focusFirstMenuAction = false
+        }
         .onChange(of: moreOpen) { _, open in if !open { focusFirstMenuAction = false } }
         .onKeyPress(.downArrow) {
             guard focusedActionID == "more", usesMore else { return .ignored }
@@ -1174,7 +1349,9 @@ private struct EmbedFullscreenTopBar: View {
             }
             return .handled
         }
-        .onChange(of: usesMore) { _, value in if !value { moreOpen = false } }
+        .onChange(of: usesMore) { _, value in
+            if !value { traceFullscreenHeaderAction("dismiss-action-policy"); moreOpen = false }
+        }
         .onKeyPress(.escape) {
             guard moreOpen else { return .ignored }; moreOpen = false; focusedActionID = "more"; return .handled
         }
@@ -1189,10 +1366,12 @@ private struct EmbedFullscreenTopBar: View {
     private func pill(_ action: Action, label: Bool = false, inMenu: Bool = false) -> some View {
         EmbedHeaderActionPill(icon: action.icon, label: action.label, showsLabel: label,
                               headerFrame: inMenu ? .zero : headerFrame, active: action.active, inMenu: inMenu) {
+            traceFullscreenHeaderAction("action-\(action.id)")
             if action.id != "more" { moreOpen = false }
             action.perform()
         }.focused($focusedActionID, equals: action.id)
-            .accessibilityIdentifier("embed-\(action.id)-button")
+            .disabled(action.id == "download" && downloadDisabled)
+            .accessibilityIdentifier(action.id == "download" ? downloadIdentifier : "embed-\(action.id)-button")
     }
 }
 
@@ -1220,7 +1399,7 @@ private struct EmbedHeaderActionPill: View {
                 .background(overHeader ? Color.white.opacity(0.2) : Color.grey10)
                 .clipShape(Capsule())
                 .contentShape(Capsule())
-        }.buttonStyle(EmbedHeaderPillInteractionStyle(anchor: inMenu ? .leading : .center))
+        }.buttonStyle(EmbedHeaderPillInteractionStyle(anchor: inMenu ? .leading : .center, traceIcon: icon))
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: overHeader)
             .help(Text(label)).accessibilityLabel(label)
             .accessibilityAddTraits(active ? .isSelected : [])
@@ -1232,6 +1411,7 @@ private struct EmbedHeaderActionPill: View {
 }
 private struct EmbedHeaderPillInteractionStyle: ButtonStyle {
     let anchor: UnitPoint
+    let traceIcon: String
     @State private var hovered = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     func makeBody(configuration: Configuration) -> some View {
@@ -1241,6 +1421,11 @@ private struct EmbedHeaderPillInteractionStyle: ButtonStyle {
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: configuration.isPressed)
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: hovered)
             .onHover { hovered = $0 }
+            #if DEBUG
+            .onChange(of: configuration.isPressed) { _, pressed in
+                traceFullscreenHeaderAction("press-\(traceIcon)-\(pressed)")
+            }
+            #endif
     }
 }
 
@@ -1250,10 +1435,12 @@ struct EmbedHeaderCTA {
     let title: String
     var accessibilityIdentifier: String?
     let action: () -> Void
+    var usesMailResponsiveSizing = false
 
-    init(title: String, accessibilityIdentifier: String? = nil, action: @escaping () -> Void) {
+    init(title: String, accessibilityIdentifier: String? = nil, usesMailResponsiveSizing: Bool = false, action: @escaping () -> Void) {
         self.title = title
         self.accessibilityIdentifier = accessibilityIdentifier
+        self.usesMailResponsiveSizing = usesMailResponsiveSizing
         self.action = action
     }
 }
@@ -1285,6 +1472,8 @@ struct EmbedFullscreenHeader: View {
 
     /// Map templates can flow behind the CTA without shrinking its hit-test bounds.
     var contentUnderlapsCTA = false
+    var mailPIIMappings: [PIIMapping] = []
+    var mailPIIRevealed = false
 
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
@@ -1399,16 +1588,21 @@ struct EmbedFullscreenHeader: View {
     }
 
     private func headerCTAButton(_ cta: EmbedHeaderCTA) -> some View {
-        Button(action: cta.action) {
+        let mailNarrow = cta.usesMailResponsiveSizing && (responsiveViewportWidth ?? viewportWidth ?? 0) <= 600
+        return Button(action: cta.action) {
             Text(cta.title)
-                .font(.omP)
-                .fontWeight(.medium)
+                // The deployed Mail CTA names an unavailable web font family;
+                // CDP confirms its rendered fallback is Helvetica regular 16px.
+                .font(cta.usesMailResponsiveSizing ? .custom("Helvetica", size: 16) : .omP)
+                .fontWeight(cta.usesMailResponsiveSizing ? .regular : .medium)
                 .foregroundStyle(Color.fontButton)
                 .lineLimit(1)
                 .minimumScaleFactor(0.78)
-                .padding(.horizontal, .spacing12)
-                .padding(.vertical, .spacing6)
-                .frame(minWidth: isNarrow ? 160 : 200)
+                .padding(.horizontal, mailNarrow ? .spacing10 : .spacing12)
+                .padding(.vertical, mailNarrow ? .spacing5 : .spacing6)
+                .frame(minWidth: cta.usesMailResponsiveSizing ? (mailNarrow ? 160 : 200) : (isNarrow ? 160 : 200),
+                       minHeight: cta.usesMailResponsiveSizing ? (mailNarrow ? 41 : 45) : nil,
+                       maxHeight: cta.usesMailResponsiveSizing ? (mailNarrow ? 41 : 45) : nil)
                 .background(Color.buttonPrimary)
                 .clipShape(RoundedRectangle(cornerRadius: .radius7))
                 .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 4)
@@ -1452,6 +1646,12 @@ struct EmbedFullscreenHeader: View {
     }
 
     private var headerTitle: String {
+        if embedType == .maps { return AppStrings.domainLocation }
+        if embedType == .mapsPlace { return MapsEmbedModel(embed.rawData).name ?? AppStrings.domainLocation }
+        if embedType == .mailEmail {
+            let mail = MailEmbedModel(embed.rawData).applyingPII(mappings: mailPIIMappings, revealed: mailPIIRevealed)
+            return mail.subject.isEmpty ? AppStrings.localized("embeds.mail.email") : mail.subject
+        }
         if embedType == .fileFile { return FileEmbedPayload(embed.rawData).filename }
         if embedType == .healthAppointment { return HealthAppointmentModel(embed.rawData ?? [:]).title }
         if embedType == .healthSearch || (embed.appId == "health" && embed.skillId == "search_appointments") {
@@ -1511,6 +1711,9 @@ struct EmbedFullscreenHeader: View {
         if let table = sheetTable {
             return table.title ?? LocalizationManager.shared.text("embeds.table")
         }
+        if embedType == .travelStay {
+            return AppStrings.localized("app_skills.travel.search_stays")
+        }
         if let connection = travelConnection {
             return connection.priceHeader ?? EmbedType.travelConnection.displayName
         }
@@ -1528,6 +1731,10 @@ struct EmbedFullscreenHeader: View {
     }
 
     private var headerSubtitle: String? {
+        if embedType == .mailEmail {
+            let mail = MailEmbedModel(embed.rawData).applyingPII(mappings: mailPIIMappings, revealed: mailPIIRevealed)
+            return mail.receiver.isEmpty ? nil : "\(AppStrings.localized("embeds.mail.to")): \(mail.receiver)"
+        }
         if embedType == .fileFile { return FileEmbedPayload(embed.rawData).metadata }
         if embedType == .healthAppointment { return HealthAppointmentModel(embed.rawData ?? [:]).subtitle }
         if embedType == .healthSearch || (embed.appId == "health" && embed.skillId == "search_appointments") {

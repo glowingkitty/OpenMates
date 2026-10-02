@@ -513,12 +513,69 @@ struct WatchRemoteMessage: Equatable, Sendable {
     }
 }
 
+/// Captured by the originating MainActor service/runtime before the API actor
+/// hop. Rotation cannot replace this account's pair deadline or lifecycle scope.
+struct WatchChatRequestContext: Sendable {
+    let accountID: String?
+    let profile: ServerProfile
+    let accountGeneration: UInt64
+    private let pairDeadline: Int?
+    private let deadline: @MainActor @Sendable (String) -> Int?
+    private let now: @MainActor @Sendable () -> Int
+    private let validate: @MainActor @Sendable () throws -> Void
+
+    @MainActor init(accountID: String?, profile: ServerProfile, accountGeneration: UInt64,
+        deadline: @escaping @MainActor @Sendable (String) -> Int? = { PairSessionDeadlineStore.deadline(userID: $0) },
+        now: @escaping @MainActor @Sendable () -> Int = { Int(Date().timeIntervalSince1970) },
+        validate: @escaping @MainActor @Sendable () throws -> Void = {}) {
+        self.accountID = accountID
+        self.profile = profile
+        self.accountGeneration = accountGeneration
+        self.pairDeadline = accountID.flatMap { deadline($0) }
+        self.deadline = deadline
+        self.now = now
+        self.validate = validate
+    }
+
+    @MainActor func check() throws {
+        try Task.checkCancellation()
+        guard accountGeneration == WatchChatAccountLifecycle.generation,
+              profile == ServerProfile.current() else { throw CancellationError() }
+        if let accountID {
+            guard deadline(accountID) == pairDeadline,
+                  pairDeadline.map({ now() < $0 }) ?? true else { throw CancellationError() }
+        }
+        try validate()
+    }
+}
+
+@MainActor enum WatchSessionTransport {
+    static func loadSession(api: APIClient = .shared, body: SessionRequest,
+                            context: WatchChatRequestContext) async throws -> SessionResponse {
+        guard let accountID = context.accountID else { throw CancellationError() }
+        let encoder = JSONEncoder()
+        encoder.keyEncodingStrategy = .convertToSnakeCase
+        let rawBody = JSONRawBody(data: try encoder.encode(body))
+        let data = try await api.requestForVerifiedWatchSession(.post, path: "/v1/auth/session",
+            serverProfile: context.profile, body: rawBody, verifyResponse: { response, data in
+                guard (200...299).contains(response.statusCode) else { return }
+                let decoder = JSONDecoder()
+                decoder.keyDecodingStrategy = .convertFromSnakeCase
+                let result = try decoder.decode(SessionResponse.self, from: data)
+                if let user = result.user, user.id != accountID { throw CancellationError() }
+            }, validate: { try context.check() })
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return try decoder.decode(SessionResponse.self, from: data)
+    }
+}
+
 protocol WatchChatAPI: Sendable {
-    func fetchRecentChats(limit: Int, offset: Int) async throws -> [WatchRemoteChat]
-    func fetchMessages(chatId: String) async throws -> [WatchRemoteMessage]
-    func fetchMessagesVersion(chatId: String) async throws -> Int?
-    func uploadAudioRecording(data: Data, filename: String, chatId: String) async throws -> WatchUploadedAudio
-    func transcribeAudioRecording(_ upload: WatchUploadedAudio, chatId: String) async throws -> WatchTranscriptionMetadata?
+    func fetchRecentChats(limit: Int, offset: Int, context: WatchChatRequestContext) async throws -> [WatchRemoteChat]
+    func fetchMessages(chatId: String, context: WatchChatRequestContext) async throws -> [WatchRemoteMessage]
+    func fetchMessagesVersion(chatId: String, context: WatchChatRequestContext) async throws -> Int?
+    func uploadAudioRecording(data: Data, filename: String, chatId: String, context: WatchChatRequestContext) async throws -> WatchUploadedAudio
+    func transcribeAudioRecording(_ upload: WatchUploadedAudio, chatId: String, context: WatchChatRequestContext) async throws -> WatchTranscriptionMetadata?
 }
 
 @MainActor
@@ -669,6 +726,7 @@ final class WatchChatRuntime: ObservableObject {
         return profile.apiBaseURL.absoluteString + "|" + profile.webBaseURL.absoluteString
     }
     private let serverScope = WatchChatRuntime.currentServerScope
+    private let requestServerProfile = ServerProfile.current()
     private let accountID: String?
     var lifecycleGeneration: UInt64 = 0
     private var stopped = false
@@ -754,6 +812,14 @@ final class WatchChatRuntime: ObservableObject {
         }
     }
 #endif
+
+    private func requestContext() -> WatchChatRequestContext {
+        let generation = lifecycleGeneration
+        return WatchChatRequestContext(accountID: accountID, profile: requestServerProfile,
+            accountGeneration: accountLifecycleGeneration, validate: { [weak self] in
+                guard let self, !self.isStopped, self.lifecycleGeneration == generation else { throw CancellationError() }
+            })
+    }
 
     var selectedChat: WatchChatSummary? {
         guard let selectedChatId else { return nil }
@@ -843,7 +909,7 @@ final class WatchChatRuntime: ObservableObject {
             let page: [WatchRemoteChat]
             do {
                 page = try await fetchWithRetry {
-                    try await api.fetchRecentChats(limit: limit, offset: offset)
+                    try await api.fetchRecentChats(limit: limit, offset: offset, context: requestContext())
                 }
             } catch {
                 guard current() else { return }
@@ -1002,12 +1068,12 @@ final class WatchChatRuntime: ObservableObject {
 
         do {
             let messages = try await fetchWithRetry {
-                try await api.fetchMessages(chatId: chat.id)
+                try await api.fetchMessages(chatId: chat.id, context: requestContext())
             }
             let decrypted = Self.sortedMessages(await decryptMessages(messages))
             guard !isStopped, generation == lifecycleGeneration, profile == ServerProfile.current() else { return }
             messagesByChatId[chat.id] = decrypted
-            let authoritativeVersion = try? await api.fetchMessagesVersion(chatId: chat.id)
+            let authoritativeVersion = try? await api.fetchMessagesVersion(chatId: chat.id, context: requestContext())
             guard !isStopped, generation == lifecycleGeneration, profile == ServerProfile.current() else { return }
             if let index = chats.firstIndex(where: { $0.id == chat.id }) {
                 chats[index].messagesV = max(chats[index].messagesV, authoritativeVersion ?? messages.count)
@@ -1561,9 +1627,9 @@ final class WatchChatRuntime: ObservableObject {
         let profile = ServerProfile.current()
         do {
             chat = try await prepareDraftChatForSending(chat)
-            let upload = try await api.uploadAudioRecording(data: data, filename: filename, chatId: chat.id)
+            let upload = try await api.uploadAudioRecording(data: data, filename: filename, chatId: chat.id, context: requestContext())
             guard generation == lifecycleGeneration, !isStopped, profile == ServerProfile.current() else { return false }
-            let transcription = try await api.transcribeAudioRecording(upload, chatId: chat.id)
+            let transcription = try await api.transcribeAudioRecording(upload, chatId: chat.id, context: requestContext())
             guard generation == lifecycleGeneration, !isStopped, profile == ServerProfile.current() else { return false }
             let embed = WatchPendingAudioEmbed.from(upload: upload, transcription: transcription, duration: duration)
             return await send(content: embed.markdownReference, chat: chat, embed: embed)
@@ -1758,13 +1824,13 @@ final class WatchChatRuntime: ObservableObject {
         let generation = lifecycleGeneration
         let profile = ServerProfile.current()
         do {
-            let remote = try await api.fetchMessages(chatId: chat.id)
+            let remote = try await api.fetchMessages(chatId: chat.id, context: requestContext())
             let decrypted = Self.sortedMessages(await decryptMessages(remote))
             guard !isStopped, generation == lifecycleGeneration, profile == ServerProfile.current() else { return }
             let remoteIds = Set(decrypted.map(\.id))
             let localOnly = (messagesByChatId[chat.id] ?? []).filter { !remoteIds.contains($0.id) }
             messagesByChatId[chat.id] = Self.sortedMessages(decrypted + localOnly)
-            let authoritativeVersion = try? await api.fetchMessagesVersion(chatId: chat.id)
+            let authoritativeVersion = try? await api.fetchMessagesVersion(chatId: chat.id, context: requestContext())
             guard !isStopped, generation == lifecycleGeneration, profile == ServerProfile.current() else { return }
             if let index = chats.firstIndex(where: { $0.id == chat.id }) {
                 chats[index].messagesV = max(chats[index].messagesV, authoritativeVersion ?? remote.count)
@@ -2114,7 +2180,7 @@ final class WatchChatRuntime: ObservableObject {
                 do {
                     try validate()
                     guard var chat = chats.first(where: { $0.id == job.chatId }) else { throw WatchChatRuntimeError.noSelectedChat }
-                    if let authoritative = try await api.fetchMessagesVersion(chatId: chat.id) { chat.messagesV = authoritative }
+                    if let authoritative = try await api.fetchMessagesVersion(chatId: chat.id, context: requestContext()) { chat.messagesV = authoritative }
                     try validate()
                     let result = try await WatchCanonicalStorage.recover(job, chat: chat, ownerID: owner,
                         request: { type, payload, responses, matching in
@@ -2125,9 +2191,9 @@ final class WatchChatRuntime: ObservableObject {
                         }, encrypt: { try await self.crypto.encryptText($0, for: chat) }, validate: validate)
                     try validate()
                     if result.requiresHydration {
-                        let remote = try await api.fetchMessages(chatId: chat.id)
+                        let remote = try await api.fetchMessages(chatId: chat.id, context: requestContext())
                         let hydrated = await decryptMessages(remote)
-                        let version = try await api.fetchMessagesVersion(chatId: chat.id)
+                        let version = try await api.fetchMessagesVersion(chatId: chat.id, context: requestContext())
                         try validate()
                         guard (version ?? -1) >= result.version,
                               hydrated.contains(where: { $0.id == job.messageId && $0.encryptedContent?.isEmpty == false }) else { throw WatchChatRuntimeError.historyUnavailable }
@@ -2200,56 +2266,55 @@ final class WatchChatRuntime: ObservableObject {
 }
 
 extension APIClient: WatchChatAPI {
-    func fetchRecentChats(limit: Int, offset: Int) async throws -> [WatchRemoteChat] {
-        let response: WatchChatListEnvelope = try await request(.get, path: "/v1/chats?limit=\(limit)&offset=\(offset)")
-        return response.chats.map(WatchRemoteChat.init(dto:))
+    private func verifiedWatchData(_ method: HTTPMethod, path: String, context: WatchChatRequestContext,
+                                   body: (any Encodable & Sendable)? = nil) async throws -> Data {
+        guard context.accountID != nil else { throw CancellationError() }
+        return try await requestForVerifiedWatchSession(method, path: path, serverProfile: context.profile,
+            body: body, validate: { try context.check() })
     }
 
-    func fetchMessages(chatId: String) async throws -> [WatchRemoteMessage] {
-        let response: [WatchChatMessageDTO] = try await request(.get, path: "/v1/chats/\(chatId)/messages")
-        return response.map(WatchRemoteMessage.init(dto:))
+    private func decodeWatchResponse<T: Decodable>(_ type: T.Type, data: Data) throws -> T {
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return try decoder.decode(type, from: data)
     }
 
-    func fetchMessagesVersion(chatId: String) async throws -> Int? {
-        let response: WatchChatVersionEnvelope = try await request(
-            .get, path: "/v1/chats/\(chatId)/messages/window?limit=1"
-        )
+    func fetchRecentChats(limit: Int, offset: Int, context: WatchChatRequestContext) async throws -> [WatchRemoteChat] {
+        let data = try await verifiedWatchData(.get, path: "/v1/chats?limit=\(limit)&offset=\(offset)", context: context)
+        return try decodeWatchResponse(WatchChatListEnvelope.self, data: data).chats.map(WatchRemoteChat.init(dto:))
+    }
+
+    func fetchMessages(chatId: String, context: WatchChatRequestContext) async throws -> [WatchRemoteMessage] {
+        let data = try await verifiedWatchData(.get, path: "/v1/chats/\(chatId)/messages", context: context)
+        return try decodeWatchResponse([WatchChatMessageDTO].self, data: data).map(WatchRemoteMessage.init(dto:))
+    }
+
+    func fetchMessagesVersion(chatId: String, context: WatchChatRequestContext) async throws -> Int? {
+        let data = try await verifiedWatchData(.get, path: "/v1/chats/\(chatId)/messages/window?limit=1", context: context)
+        let response = try decodeWatchResponse(WatchChatVersionEnvelope.self, data: data)
         return response.messagesV ?? response.serverMessageCount
     }
 
-    func uploadAudioRecording(data: Data, filename: String, chatId: String) async throws -> WatchUploadedAudio {
-        let responseData = try await uploadFile(
-            data: data, filename: filename, contentType: "audio/mp4", chatId: chatId
-        )
-        let decoder = JSONDecoder()
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
-        return try decoder.decode(WatchUploadedAudio.self, from: responseData)
+    func uploadAudioRecording(data: Data, filename: String, chatId: String, context: WatchChatRequestContext) async throws -> WatchUploadedAudio {
+        guard context.accountID != nil else { throw CancellationError() }
+        let response = try await uploadFileForVerifiedWatchSession(data: data, filename: filename,
+            contentType: "audio/mp4", chatId: chatId, serverProfile: context.profile, validate: { try context.check() })
+        return try decodeWatchResponse(WatchUploadedAudio.self, data: response)
     }
 
-    func transcribeAudioRecording(_ upload: WatchUploadedAudio, chatId: String) async throws -> WatchTranscriptionMetadata? {
+    func transcribeAudioRecording(_ upload: WatchUploadedAudio, chatId: String, context: WatchChatRequestContext) async throws -> WatchTranscriptionMetadata? {
         let s3Key = upload.files["original"]?.s3Key ?? upload.files.values.first?.s3Key
         guard let s3Key else { throw WatchChatRuntimeError.audioUploadFailed }
         let embedId = UUID().uuidString
-        let request: [String: Any] = [
-            "requests": [[
-                "id": embedId,
-                "embed_id": upload.embedId,
-                "s3_key": s3Key,
-                "s3_base_url": upload.s3BaseUrl,
-                "aes_key": upload.aesKey,
-                "aes_nonce": upload.aesNonce,
-                "vault_wrapped_aes_key": upload.vaultWrappedAesKey,
-                "filename": upload.filename,
-                "mime_type": upload.contentType,
-                "chat_id": chatId,
-            ]]
-        ]
-        let response: WatchTranscribeSkillResponse = try await self.request(
-            .post,
-            path: "apps/audio/skills/transcribe",
-            body: request
-        )
-        return response.data.results.first?.results.first
+        let body: [String: Any] = ["requests": [[
+            "id": embedId, "embed_id": upload.embedId, "s3_key": s3Key,
+            "s3_base_url": upload.s3BaseUrl, "aes_key": upload.aesKey, "aes_nonce": upload.aesNonce,
+            "vault_wrapped_aes_key": upload.vaultWrappedAesKey, "filename": upload.filename,
+            "mime_type": upload.contentType, "chat_id": chatId,
+        ]]]
+        let raw = JSONRawBody(data: try JSONSerialization.data(withJSONObject: body))
+        let data = try await verifiedWatchData(.post, path: "apps/audio/skills/transcribe", context: context, body: raw)
+        return try decodeWatchResponse(WatchTranscribeSkillResponse.self, data: data).data.results.first?.results.first
     }
 }
 

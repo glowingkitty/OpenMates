@@ -343,10 +343,16 @@ struct OMSettingsToggleRow: View {
 struct OMDropdownOption: Identifiable, Equatable {
     let id: String
     let label: String
+    var iconName: String?
+    var iconText: String?
+    var iconAppId: String?
 
-    init(_ id: String, label: String) {
+    init(_ id: String, label: String, iconName: String? = nil, iconText: String? = nil, iconAppId: String? = nil) {
         self.id = id
         self.label = label
+        self.iconName = iconName
+        self.iconText = iconText
+        self.iconAppId = iconAppId
     }
 }
 
@@ -355,6 +361,8 @@ struct OMDropdown: View {
     let options: [OMDropdownOption]
     @Binding var selection: String
     var disabled = false
+    var controlSurface: LinearGradient?
+    var controlHeight: CGFloat?
 
     @State private var isExpanded = false
 
@@ -372,6 +380,9 @@ struct OMDropdown: View {
                 }
             } label: {
                 HStack(spacing: .spacing4) {
+                    if let option = options.first(where: { $0.id == selection }) {
+                        optionIcon(option)
+                    }
                     Text(selectedLabel)
                         .font(.omP)
                         .fontWeight(.medium)
@@ -389,12 +400,21 @@ struct OMDropdown: View {
                 .padding(.leading, .spacing12)  // 1.4375rem=23px — closest: spacing12=24pt
                 .padding(.trailing, .spacing24) // 3rem=48px — exact: spacing24=48pt
                 .padding(.vertical, .spacing8)  // 1.0625rem=17px — closest: spacing8=16pt
-                .background(Color.grey0)
+                .frame(minHeight: controlHeight)
+                .background {
+                    if let controlSurface { controlSurface } else { Color.grey0 }
+                }
                 // border-radius: 1.5rem = 24px — no matching radius token exists (radius7=16, radius8=20)
                 .clipShape(RoundedRectangle(cornerRadius: 24)) // 1.5rem from SettingsDropdown.svelte
                 .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 4)
             }
+            // A Button already owns a combined accessibility element. Adding
+            // accessibilityElement here creates an Other wrapper on iOS and
+            // leaves the actual Button announcing only its selected text.
+            .accessibilityLabel(title)
+            .accessibilityValue(selectedLabel)
             .buttonStyle(.plain)
+            .disabled(disabled)
             .opacity(disabled ? 0.5 : 1)
 
             // Expanded dropdown list
@@ -408,6 +428,7 @@ struct OMDropdown: View {
                             }
                         } label: {
                             HStack(spacing: .spacing4) {
+                                optionIcon(option)
                                 Text(option.label)
                                     .font(.omP)
                                     .foregroundStyle(Color.fontPrimary)
@@ -423,6 +444,8 @@ struct OMDropdown: View {
                             .padding(.vertical, .spacing4)
                             .contentShape(Rectangle())
                         }
+                        .accessibilityLabel(option.label)
+                        .accessibilityAddTraits(option.id == selection ? .isSelected : [])
                         .buttonStyle(.plain)
                     }
                 }
@@ -438,8 +461,23 @@ struct OMDropdown: View {
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
-        .accessibilityLabel(title)
+        // Own the group so caller identifiers remain on this container rather
+        // than propagating the same label/identifier to every option button.
+        .accessibilityElement(children: .contain)
         .help(Text(title))
+    }
+
+    @ViewBuilder private func optionIcon(_ option: OMDropdownOption) -> some View {
+        if option.iconName != nil || option.iconText != nil {
+            Group {
+                if let name = option.iconName { Icon(name, size: 16) }
+                else if let text = option.iconText { Text(text).font(.omP.weight(.bold)) }
+            }
+            .foregroundStyle(Color.fontButton)
+            .frame(width: 28, height: 28)
+            .background(AppIconView.gradient(forAppId: option.iconAppId ?? "workflows"), in: RoundedRectangle(cornerRadius: 4))
+            .accessibilityHidden(true)
+        }
     }
 }
 
@@ -719,66 +757,79 @@ struct OMSettingsPage<Content: View>: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            if showsHeader {
-                HStack(alignment: .center, spacing: .spacing4) {
-                    VStack(alignment: .leading, spacing: .spacing1) {
-                        Text(title)
-                            .font(.omH2)
-                            .fontWeight(.semibold)
-                            .foregroundStyle(Color.fontPrimary)
-                        if let subtitle {
-                            Text(subtitle)
-                                .font(.omSmall)
-                                .foregroundStyle(Color.fontSecondary)
-                        }
-                    }
-                    Spacer(minLength: .spacing4)
-                    if let trailing {
-                        trailing
-                    }
+        GeometryReader { pageFrame in
+            // In short panels, the page title belongs to the scrollable content.
+            // Fixed shell/parent headers must never consume the entire body height.
+            let scrollsHeader = pageFrame.size.height < 240
+            VStack(spacing: 0) {
+                if showsHeader && !scrollsHeader {
+                    pageHeader
                 }
-                .padding(.horizontal, .spacing8)
-                .padding(.top, .spacing8)
-                .padding(.bottom, .spacing6)
-                .background(Color.grey20)
-            }
 
-            GeometryReader { scrollFrame in
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: contentVerticalSpacing) {
-                        GeometryReader { contentFrame in
-                            Color.clear.preference(
-                                key: OMSettingsScrollOffsetPreferenceKey.self,
-                                value: max(
-                                    0,
-                                    scrollFrame.frame(in: .global).minY - contentFrame.frame(in: .global).minY
+                GeometryReader { scrollFrame in
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: contentVerticalSpacing) {
+                            GeometryReader { contentFrame in
+                                Color.clear.preference(
+                                    key: OMSettingsScrollOffsetPreferenceKey.self,
+                                    value: max(
+                                        0,
+                                        scrollFrame.frame(in: .global).minY - contentFrame.frame(in: .global).minY
+                                    )
                                 )
-                            )
+                            }
+                            .frame(height: 0)
+
+                            if showsHeader && scrollsHeader {
+                                pageHeader.padding(.horizontal, -contentHorizontalPadding)
+                            }
+
+                            content
+
+                            if showsFooter {
+                                OMSettingsFooter()
+                            }
                         }
-                        .frame(height: 0)
-
-                        content
-
-                        if showsFooter {
-                            OMSettingsFooter()
+                        .padding(.horizontal, contentHorizontalPadding)
+                        .padding(.bottom, .spacing16)
+                    }
+                    .modifier(OMSettingsScrollIdentity(identifier: scrollAccessibilityIdentifier))
+                    .onPreferenceChange(OMSettingsScrollOffsetPreferenceKey.self) { offset in
+                        if let callback = scrollOffsetHandler.callback {
+                            Task { @MainActor in
+                                callback(offset)
+                            }
                         }
                     }
-                    .padding(.horizontal, contentHorizontalPadding)
-                    .padding(.bottom, .spacing16)
+                    .scrollContentBackground(.hidden)
+                    .background(Color.grey20)
                 }
-                .modifier(OMSettingsScrollIdentity(identifier: scrollAccessibilityIdentifier))
-                .onPreferenceChange(OMSettingsScrollOffsetPreferenceKey.self) { offset in
-                    if let callback = scrollOffsetHandler.callback {
-                        Task { @MainActor in
-                            callback(offset)
-                        }
-                    }
+            }
+            .background(Color.grey20)
+        }
+    }
+
+    private var pageHeader: some View {
+        HStack(alignment: .center, spacing: .spacing4) {
+            VStack(alignment: .leading, spacing: .spacing1) {
+                Text(title)
+                    .font(.omH2)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.fontPrimary)
+                if let subtitle {
+                    Text(subtitle)
+                        .font(.omSmall)
+                        .foregroundStyle(Color.fontSecondary)
                 }
-                .scrollContentBackground(.hidden)
-                .background(Color.grey20)
+            }
+            Spacer(minLength: .spacing4)
+            if let trailing {
+                trailing
             }
         }
+        .padding(.horizontal, .spacing8)
+        .padding(.top, .spacing8)
+        .padding(.bottom, .spacing6)
         .background(Color.grey20)
     }
 }

@@ -214,8 +214,8 @@ struct EmbedPreviewCard: View {
                     type: embedType?.displayName ?? embed.type,
                     title: statusTitle
                 )
-                .accessibilityElement(children: embed.status == .finished &&
-                    (embedType == .webSearch || embedType == .newsSearch || (embedType == .webWebsite && appId == "news") || embedType == .imagesSearch || embedType == .sheetsSheet || (embed.isAppSkillUse && appId == "web")) ? .contain : .combine)
+                .accessibilityElement(children: embedType == .mindmapsMindmap || (embed.status == .finished &&
+                    (embedType == .maps || embedType == .mapsPlace || embedType == .webSearch || embedType == .newsSearch || (embedType == .webWebsite && appId == "news") || embedType == .imagesSearch || embedType == .sheetsSheet || (embed.isAppSkillUse && appId == "web"))) ? .contain : .combine)
                 .accessibilityValue(statusAccessibilityValue)
             }
         }
@@ -399,7 +399,7 @@ struct EmbedPreviewCard: View {
                 )
                 .padding(.horizontal, .spacing10)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            } else if embed.status == .processing {
+            } else if embed.status == .processing && embedType != .mindmapsMindmap {
                 processingView
             } else if embed.status == .error {
                 errorView
@@ -464,6 +464,7 @@ struct EmbedPreviewCard: View {
     private var statusBar: some View {
         EmbedBasicInfoBar(
             appId: appId,
+            appIconName: embedType == .mindmapsMindmap ? "workflow" : nil,
             skillIconName: skillIconName,
             title: statusTitle,
             subtitle: statusSubtitle,
@@ -508,6 +509,7 @@ struct EmbedPreviewCard: View {
     }
 
     private var showsSkillIcon: Bool {
+        if embedType == .mailEmail || embedType == .mathPlot { return false }
         if embedType == .webSearch
             || embedType == .videosSearch
             || embedType == .image
@@ -521,6 +523,7 @@ struct EmbedPreviewCard: View {
             || embedType == .eventsEvent
             || embedType == .healthAppointment
             || embedType == .travelConnection
+            || embedType == .travelStay
             || embedType == .codeApplication
             || embedType == .designIconResult
             || embedType == .electronicsPcbSchematic
@@ -533,10 +536,14 @@ struct EmbedPreviewCard: View {
     }
 
     private var hasFullWidthDetails: Bool {
+        if embedType == .maps || embedType == .mapsPlace {
+            return MapsEmbedModel(embed.rawData).mapImageURL != nil
+        }
         if embedType == .webWebsite {
             return websiteUsesFullWidthImage
         }
-        return embedType == .codeCode
+        return embedType == .travelStay
+            || embedType == .codeCode
             || embedType == .docsDoc
             || embedType == .image
             || embedType == .imagesImageResult
@@ -546,6 +553,17 @@ struct EmbedPreviewCard: View {
     }
 
     private var statusTitle: String {
+        if embedType == .mindmapsMindmap {
+            return NativeMindMapPreviewTitle.resolve(embed.rawData)
+        }
+        if embedType == .travelStay {
+            return firstString(in: embed.rawData ?? [:], keys: ["name"]) ?? "Stay"
+        }
+        if embedType == .maps || embedType == .mapsPlace { return AppStrings.domainLocation }
+        if embedType == .mailEmail {
+            let mail = MailEmbedModel(embed.rawData).applyingPII(mappings: embedPIIMappings, revealed: embedPIIRevealed)
+            return mail.subject.isEmpty ? AppStrings.localized("embeds.mail.email") : mail.subject
+        }
         switch embedType {
         case .audioGenerate, .audioSpeak: return "Generate SFX"
         case .calendarListCalendars, .calendarGetEvents, .calendarCreateEvent,
@@ -657,6 +675,12 @@ struct EmbedPreviewCard: View {
     }
 
     private var statusSubtitle: String? {
+        if embedType == .travelStay { return nil }
+        if embedType == .maps || embedType == .mapsPlace { return nil }
+        if embedType == .mailEmail {
+            let mail = MailEmbedModel(embed.rawData).applyingPII(mappings: embedPIIMappings, revealed: embedPIIRevealed)
+            return mail.receiver.isEmpty ? nil : "\(AppStrings.localized("embeds.mail.to")) \(mail.receiver)"
+        }
         if statusHintPhase == .storedEncrypted {
             return AppStrings.embedStoredEncrypted
         }

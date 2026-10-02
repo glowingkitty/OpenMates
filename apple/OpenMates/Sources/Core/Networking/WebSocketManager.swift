@@ -32,6 +32,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
     private var messageWaiters: [UUID: MessageWaiter] = [:]
     private let streamEventDispatcher = OrderedStreamEventDispatcher()
     private(set) var recoveryCoordinator: ChatCompletionRecoveryCoordinator?
+    private var metadataRecoveryCoordinator: ChatMetadataRecoveryCoordinator?
     private var embedStreamCoordinator: ChatEmbedStreamCoordinator?
     private lazy var session: URLSession = {
         let config = URLSessionConfiguration.default
@@ -111,6 +112,11 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         connectionGeneration += 1
         streamEventDispatcher.reset()
         embedStreamCoordinator?.reset()
+        if activeConnectionKey?.sessionId != nextKey.sessionId {
+            metadataRecoveryCoordinator?.reset()
+        } else {
+            metadataRecoveryCoordinator?.disconnected()
+        }
         let generation = connectionGeneration
         connectTask?.cancel()
         pingTimer?.invalidate()
@@ -146,6 +152,9 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             components.scheme = components.scheme == "https" ? "wss" : "ws"
             components.path = "/v1/ws"
             var queryItems = [URLQueryItem(name: "sessionId", value: sessionId)]
+            if !advertisedClientCapabilities.isEmpty {
+                queryItems.append(URLQueryItem(name: "client_capabilities", value: advertisedClientCapabilities.joined(separator: ",")))
+            }
             if let token, !token.isEmpty {
                 queryItems.append(URLQueryItem(name: "token", value: token))
             }
@@ -191,6 +200,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             #endif
             traceNativeStartupSync("phase=socketRecoveryStart")
             await recoveryCoordinator?.handleTransportConnected()
+            await metadataRecoveryCoordinator?.connectedToTransport()
             traceNativeStartupSync("phase=socketRecoveryReturned")
             let currentSyncState = syncStateProvider?() ?? activeSyncState
             activeSyncState = currentSyncState
@@ -207,6 +217,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
     }
 
     func disconnect() {
+        metadataRecoveryCoordinator?.reset()
         rejectAllWaiters()
         connectionGeneration += 1
         streamEventDispatcher.reset()
@@ -265,6 +276,25 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
     func configureRecoveryCoordinator(_ coordinator: ChatCompletionRecoveryCoordinator) {
         recoveryCoordinator = coordinator
     }
+
+    var advertisedClientCapabilities: [String] {
+        metadataRecoveryCoordinator == nil ? [] : ["chat_metadata_recovery"]
+    }
+
+    func configureMetadataRecovery(chatStore: ChatStore) {
+        configureMetadataRecovery(ChatMetadataRecoveryCoordinator(transport: self, chatStore: chatStore))
+    }
+
+    func configureMetadataRecovery(_ coordinator: ChatMetadataRecoveryCoordinator) {
+        metadataRecoveryCoordinator?.reset()
+        metadataRecoveryCoordinator = coordinator
+    }
+
+    #if DEBUG
+    func debugMetadataTransportOpened() async {
+        await metadataRecoveryCoordinator?.connectedToTransport()
+    }
+    #endif
 
     func configureEmbedStreamCoordinator(_ coordinator: ChatEmbedStreamCoordinator) {
         embedStreamCoordinator = coordinator
@@ -773,6 +803,12 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         case "native_client_lifecycle_ack":
             break
 
+        case "metadata_jobs_available":
+            metadataRecoveryCoordinator?.available(msg.fields)
+
+        case "metadata_job_claimed", "metadata_job_persisted":
+            break
+
         case "recovery_jobs_available":
             Task { await recoveryCoordinator?.handleAvailableJobs(msg.fields) }
 
@@ -829,10 +865,12 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
 
     func markRecoveryInitialSyncReady() async {
         await recoveryCoordinator?.markInitialSyncReady()
+        await metadataRecoveryCoordinator?.syncReady()
     }
 
     func handleRecoveryChatKeyAvailabilityChanged() async {
         await recoveryCoordinator?.handleChatKeyAvailabilityChanged()
+        metadataRecoveryCoordinator?.keysChanged()
     }
 
     // MARK: - Ping timer
@@ -878,6 +916,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         webSocketTask = nil
         didOpenCurrentSocket = false
         recoveryCoordinator?.handleTransportDisconnected()
+        metadataRecoveryCoordinator?.disconnected()
         guard shouldReconnect else {
             connectionState = .disconnected
             return

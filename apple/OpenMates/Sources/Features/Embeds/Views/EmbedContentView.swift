@@ -286,6 +286,8 @@ struct EmbedContentView: View {
             // Mail
             case .mailEmail:
                 MailRenderer(data: rawData, mode: mode)
+                    .environment(\.embedPIIMappings, piiMappings)
+                    .environment(\.embedPIIRevealed, isPIIRevealed)
             case .mailSearch:
                 SearchResultsRenderer(data: rawData, mode: mode, resultLabel: "emails")
 

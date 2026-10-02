@@ -99,6 +99,9 @@ enum AppStrings {
     static var tasksNewPlan: String { L("tasks.workspace.new_plan") }
     static var tasksPlanRequiresProject: String { L("tasks.workspace.plan_requires_project") }
     static var tasksOpenTask: String { L("tasks.workspace.open_task") }
+    static var tasksMoreActions: String { L("tasks.workspace.more_actions") }
+    static var tasksBlock: String { L("tasks.workspace.block") }
+    static var tasksUnblock: String { L("tasks.workspace.unblock") }
     static var tasksOpenPlan: String { L("tasks.workspace.open_plan") }
     static var tasksOpenChat: String { L("tasks.workspace.open_chat") }
     static var tasksShowMore: String { L("tasks.workspace.show_more") }
@@ -1383,6 +1386,13 @@ extension AppStrings {
     static var projectLabel: String { localized("projects.workspace_project") }
     static var projectOverview: String { localized("projects.workspace_overview") }
     static var projectFiles: String { localized("projects.workspace_files") }
+    static var projectRemotePreviewPending: String { localized("projects.workspace_remote_preview_pending") }
+    static var projectRemoteFileDetailsPending: String { localized("projects.workspace_remote_file_details_pending") }
+    static func projectEntryRange(start: Int, end: Int, total: Int) -> String {
+        LocalizationManager.shared.text("projects.workspace_entry_range", replacements: [
+            "start": String(start), "end": String(end), "total": String(total)
+        ])
+    }
     static var projectTasks: String { localized("projects.workspace_tasks") }
     static var projectOverviewLoading: String { localized("projects.workspace_overview_loading") }
     static var projectOverviewTruncated: String { localized("projects.workspace_overview_truncated") }

@@ -87,13 +87,22 @@ struct ChatTranscriptDisplayProjection {
     }
 
     static func cumulativeMappings(in messages: [Message]) -> [PIIMapping] {
-        var byPlaceholder: [String: PIIMapping] = [:]
+        var indexByPlaceholder: [String: Int] = [:]
+        var mappings: [PIIMapping] = []
         for message in messages where message.role == .user {
             for mapping in message.piiMappings ?? [] {
-                byPlaceholder[mapping.placeholder] = mapping
+                if let index = indexByPlaceholder[mapping.placeholder] {
+                    mappings[index] = mapping
+                } else {
+                    indexByPlaceholder[mapping.placeholder] = mappings.count
+                    mappings.append(mapping)
+                }
             }
         }
-        return Array(byPlaceholder.values)
+        // Preserve first appearance order while retaining the latest user value.
+        // Dictionary iteration can reorder an unchanged row/environment input
+        // every time streaming or layout reevaluates the transcript projection.
+        return mappings
     }
 }
 
@@ -159,10 +168,33 @@ private struct ChatVisibleMessagePreferenceKey: PreferenceKey {
     }
 }
 
-private struct ChatScrollBoundaries: Equatable {
+/// Only changes that affect transcript controls belong in the observable projection.
+struct ChatScrollBoundaries: Equatable {
     let isAtTop: Bool
     let isAtBottom: Bool
-    let contentOffsetY: CGFloat
+    let overlapsBanner: Bool?
+}
+
+/// Retains exact geometry without invalidating ChatView on every scroll pixel.
+/// SwiftUI compares the returned projection before invoking the geometry action.
+final class ChatTranscriptScrollState {
+    private(set) var contentOffsetY: CGFloat = 0
+
+    func record(contentOffsetY: CGFloat, isAtBottom: Bool, bannerHeight: CGFloat) -> ChatScrollBoundaries {
+        self.contentOffsetY = max(0, contentOffsetY)
+        return ChatScrollBoundaries(isAtTop: self.contentOffsetY <= 8,
+                                    isAtBottom: isAtBottom,
+                                    overlapsBanner: bannerOverlap(bannerHeight: bannerHeight))
+    }
+
+    func bannerOverlap(bannerHeight: CGFloat) -> Bool? {
+        guard bannerHeight > 0 else { return nil }
+        return contentOffsetY < max(0, bannerHeight - 64)
+    }
+
+    func reset() {
+        contentOffsetY = 0
+    }
 }
 
 /// Current systems report scroll visibility directly; older systems project row
@@ -189,6 +221,8 @@ private struct ChatMessageVisibilityTracking: ViewModifier {
 }
 
 private struct ChatTranscriptScrollTracking: ViewModifier {
+    let scrollState: ChatTranscriptScrollState
+    let bannerHeight: CGFloat
     let viewportHeight: CGFloat
     let onBoundariesChanged: (ChatScrollBoundaries) -> Void
     let onVisibleMessagesChanged: (Set<String>) -> Void
@@ -203,11 +237,10 @@ private struct ChatTranscriptScrollTracking: ViewModifier {
                 }
                 .onScrollGeometryChange(for: ChatScrollBoundaries.self) { geometry in
                     let contentOffsetY = max(0, geometry.contentOffset.y + geometry.contentInsets.top)
-                    return ChatScrollBoundaries(
-                        isAtTop: contentOffsetY <= 8,
+                    return scrollState.record(contentOffsetY: contentOffsetY,
                         isAtBottom: geometry.contentSize.height + geometry.contentInsets.bottom
                             - geometry.contentOffset.y <= geometry.containerSize.height + 8,
-                        contentOffsetY: contentOffsetY)
+                        bannerHeight: bannerHeight)
                 } action: { _, boundaries in
                     onBoundariesChanged(boundaries)
                 }
@@ -220,10 +253,9 @@ private struct ChatTranscriptScrollTracking: ViewModifier {
             content
                 .onPreferenceChange(ChatScrollSentinelPreferenceKey.self) { values in
                     let contentOffsetY = max(0, -(values[.top] ?? 0))
-                    onBoundariesChanged(ChatScrollBoundaries(
-                        isAtTop: contentOffsetY <= 8,
+                    onBoundariesChanged(scrollState.record(contentOffsetY: contentOffsetY,
                         isAtBottom: values[.bottom].map { $0 <= viewportHeight + 8 } ?? false,
-                        contentOffsetY: contentOffsetY))
+                        bannerHeight: bannerHeight))
                 }
                 .onPreferenceChange(ChatVisibleMessagePreferenceKey.self, perform: onVisibleMessagesChanged)
         }
@@ -445,7 +477,7 @@ struct ChatView: View {
     @State private var chatHeaderMoreOpen = false
     @State private var chatHeaderActionsOverlapBanner = true
     @State private var chatBannerHeight: CGFloat = 0
-    @State private var chatTranscriptContentOffsetY: CGFloat = 0
+    @State private var transcriptScrollState = ChatTranscriptScrollState()
     @State private var isPIIRevealed = false
     @State private var showAttachmentMenu = false
     @State private var showCameraCapture = false
@@ -740,7 +772,9 @@ struct ChatView: View {
         }
     }
 
-    private var lifecycleWithoutFocusView: some View {
+    // Keep lifecycle modifiers in the same order while giving Swift smaller
+    // expressions to type-check. Each property retains its concrete view type.
+    private var appearanceLifecycleChatView: some View {
         decoratedChatView
         .onAppear(perform: handleInitialAppear)
         .onChange(of: inputFocusRequest) { _, _ in
@@ -762,6 +796,10 @@ struct ChatView: View {
         .onChange(of: viewModel.forkedChatId) {
             handleForkedChatChange()
         }
+    }
+
+    private var syncLifecycleChatView: some View {
+        appearanceLifecycleChatView
         .onChange(of: latestAssistantMessageId) { _, newMessageId in
             guard assistantFeedbackMessageId != newMessageId else { return }
             assistantFeedbackMessageId = newMessageId
@@ -786,6 +824,10 @@ struct ChatView: View {
         .onChange(of: embedRecordIdsSignature) { _, _ in
             openInitialEmbedIfReady()
         }
+    }
+
+    private var lifecycleWithoutFocusView: some View {
+        syncLifecycleChatView
         .onChange(of: messageText) { _, newValue in
             updatePIIMatches(for: newValue)
             updateMentionQuery(for: newValue)
@@ -1301,9 +1343,17 @@ struct ChatView: View {
 
     // MARK: - Message list
 
-    private func updateChatHeaderBannerOverlap(contentOffsetY: CGFloat, bannerHeight: CGFloat) {
-        guard bannerHeight > 0 else { return }
-        let overlaps = contentOffsetY < max(0, bannerHeight - 64)
+    private func resetTranscriptScrollGeometry() {
+        transcriptScrollState.reset()
+        isAtTop = true
+        isAtBottom = false
+        // The banner can stay mounted with the same height across a reset.
+        // Preserve its measurement: onGeometryChange need not republish it.
+        chatHeaderActionsOverlapBanner = transcriptScrollState.bannerOverlap(bannerHeight: chatBannerHeight) ?? true
+    }
+
+    private func updateChatHeaderBannerOverlap(_ overlap: Bool?) {
+        guard let overlaps = overlap else { return }
         guard overlaps != chatHeaderActionsOverlapBanner else { return }
         if reduceMotion {
             chatHeaderActionsOverlapBanner = overlaps
@@ -1346,10 +1396,7 @@ struct ChatView: View {
                                     } action: { height in
                                         guard height != chatBannerHeight else { return }
                                         chatBannerHeight = height
-                                        updateChatHeaderBannerOverlap(
-                                            contentOffsetY: chatTranscriptContentOffsetY,
-                                            bannerHeight: height
-                                        )
+                                        updateChatHeaderBannerOverlap(transcriptScrollState.bannerOverlap(bannerHeight: height))
                                     }
                             }
 
@@ -1431,7 +1478,7 @@ struct ChatView: View {
                                     .environment(\.sourceQuoteOpenAction, { embed, quote in
                                         openEmbedFullscreen(embed, quote: quote)
                                     })
-                                    .environment(\.embedPIIMappings, cumulativePIIMappings)
+                                    .environment(\.embedPIIMappings, displayProjection.piiMappings)
                                     .environment(\.embedPIIRevealed, isPIIRevealed)
                                     .modifier(ChatMessageVisibilityTracking(
                                         messageId: message.id, viewportHeight: scrollGeo.size.height))
@@ -1537,15 +1584,13 @@ struct ChatView: View {
                         dismissInputIfNeeded()
                     }
                     .modifier(ChatTranscriptScrollTracking(
+                        scrollState: transcriptScrollState,
+                        bannerHeight: chatBannerHeight,
                         viewportHeight: scrollGeo.size.height,
                         onBoundariesChanged: { boundaries in
                             let reachedTop = !isAtTop && boundaries.isAtTop
                             let reachedBottom = !isAtBottom && boundaries.isAtBottom
-                            chatTranscriptContentOffsetY = boundaries.contentOffsetY
-                            updateChatHeaderBannerOverlap(
-                                contentOffsetY: boundaries.contentOffsetY,
-                                bannerHeight: chatBannerHeight
-                            )
+                            updateChatHeaderBannerOverlap(boundaries.overlapsBanner)
                             if isAtTop != boundaries.isAtTop { isAtTop = boundaries.isAtTop }
                             if isAtBottom != boundaries.isAtBottom { isAtBottom = boundaries.isAtBottom }
                             if reachedTop { pageHistoryAtBoundary(isTop: true, proxy: proxy) }
@@ -1586,16 +1631,19 @@ struct ChatView: View {
                     #endif
                 }
                 .onAppear {
+                    resetTranscriptScrollGeometry()
                     resetScrollRestoration()
                     proxy.scrollTo("scroll-top", anchor: .top)
                 }
                 .onChange(of: chatId) { _, _ in
                     chatHeaderMoreOpen = false
-                    chatHeaderActionsOverlapBanner = true
-                    chatBannerHeight = 0
-                    chatTranscriptContentOffsetY = 0
+                    resetTranscriptScrollGeometry()
                     resetScrollRestoration()
                     proxy.scrollTo("scroll-top", anchor: .top)
+                }
+                .onChange(of: authManager.currentUser?.id) { _, _ in
+                    resetTranscriptScrollGeometry()
+                    resetScrollRestoration()
                 }
                 .onChange(of: viewModel.messages.map(\.id)) { _, _ in
                     restoreInitialScrollIfNeeded(proxy: proxy)

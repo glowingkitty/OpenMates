@@ -269,14 +269,8 @@ final class EmbedRenderingParityUITests: XCTestCase {
         // Collect every key's screenshot even if a preceding key fails. XCTest still
         // reports each assertion as a failure for the canonical parity gate.
         continueAfterFailure = true
-        let requestedKey = ProcessInfo.processInfo.environment["EMBED_REGISTRY_KEY"]
-        let requestedKeys = ProcessInfo.processInfo.environment["EMBED_REGISTRY_KEYS"]?
-            .split(separator: ",")
-            .map(String.init)
-        let keys = requestedKeys ?? requestedKey.map { [$0] } ?? canonicalRegistryKeys
-        XCTAssertEqual(canonicalRegistryKeys.count, 88, "The canonical native evidence inventory must track all generated registry keys.")
-
-        captureCanonicalRegistryKeys(keys)
+        XCUIDevice.shared.orientation = .portrait
+        captureCanonicalRegistryKeys(try selectedCanonicalRegistryKeys())
     }
 
     // contract-test: supporting surface=gui.apple assertions=chats.rendering.assistant-document-convergence,chats.surface.semantic-parity
@@ -287,6 +281,211 @@ final class EmbedRenderingParityUITests: XCTestCase {
             "app:videos:search", "app:web:search", "app:images:search", "image",
             "images-image-result", "pdf", "recording", "videos-video"
         ])
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chats.layout.responsive-history
+    func testImagesSearchFullscreenNarrowGridMatchesWebBoundsAndSpacing() throws {
+        XCUIDevice.shared.orientation = .portrait
+        let app = launchImagesSearchFullscreen()
+        guard app.frame.width <= 500 else {
+            throw XCTSkip("The narrow fullscreen contract requires a phone viewport at or below 500 points")
+        }
+        let scroll = app.scrollViews["embed-fullscreen-scroll"].firstMatch
+        let header = app.descendants(matching: .any)["embed-fullscreen-header"].firstMatch
+        let first = imageSearchResult(1, in: app)
+        let second = imageSearchResult(2, in: app)
+        XCTAssertTrue(first.waitForExistence(timeout: 5))
+        XCTAssertTrue(second.waitForExistence(timeout: 5))
+        attachSearchGridMeasurements(app: app, name: "Images narrow", header: header, scroll: scroll,
+                                     cards: [first, second])
+        let settled = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            abs(first.frame.minY - header.frame.maxY - 16) <= 1
+                && abs(second.frame.minY - first.frame.maxY - 10) <= 1
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [settled], timeout: 5), .completed,
+                       "Narrow search results must use rendered 16pt top padding and 10pt row spacing")
+        XCTAssertEqual(header.frame.width, scroll.frame.width, accuracy: 1)
+        XCTAssertEqual(first.frame.width, min(320, scroll.frame.width - 12), accuracy: 1,
+                       "The image grid must own its gutters without generic fullscreen padding")
+        XCTAssertEqual(first.frame.midX, scroll.frame.midX, accuracy: 1)
+        XCTAssertEqual(second.frame.minX, first.frame.minX, accuracy: 1)
+        XCTAssertEqual(first.frame.height, 200, accuracy: 1)
+        XCTAssertEqual(second.frame.width, first.frame.width, accuracy: 1)
+        assertImageResultContentInsideCard(first)
+        assertImageResultContentInsideCard(second)
+        XCTAssertTrue(first.isHittable)
+        XCTAssertTrue(app.frame.contains(first.frame))
+        attachScreenshot(name: "Images search narrow fullscreen web grid bounds")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chats.layout.responsive-history
+    func testImagesSearchFullscreenWideGridMatchesWebBoundsAndSpacing() {
+        XCUIDevice.shared.orientation = .landscapeLeft
+        defer { XCUIDevice.shared.orientation = .portrait }
+        let app = launchImagesSearchFullscreen()
+        XCTAssertGreaterThan(app.frame.width, 500, "Run the wide grid contract in a landscape viewport")
+        let scroll = app.scrollViews["embed-fullscreen-scroll"].firstMatch
+        let header = app.descendants(matching: .any)["embed-fullscreen-header"].firstMatch
+        let first = imageSearchResult(1, in: app)
+        let second = imageSearchResult(2, in: app)
+        XCTAssertTrue(first.waitForExistence(timeout: 5))
+        XCTAssertTrue(second.waitForExistence(timeout: 5))
+        attachSearchGridMeasurements(app: app, name: "Images wide", header: header, scroll: scroll,
+                                     cards: [first, second])
+        let settled = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            abs(first.frame.minY - header.frame.maxY - 24) <= 1
+                && abs(second.frame.minY - first.frame.minY) <= 1
+                && second.frame.minX > first.frame.maxX
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [settled], timeout: 5), .completed,
+                       "Wide search results must use rendered 24pt top padding and multiple columns")
+        XCTAssertEqual(header.frame.width, scroll.frame.width, accuracy: 1)
+        let availableWidth = min(1000, scroll.frame.width - 20)
+        let columns = max(1, Int((availableWidth + 16) / 296))
+        let cellWidth = (availableWidth - CGFloat(columns - 1) * 16) / CGFloat(columns)
+        XCTAssertEqual(first.frame.width, min(320, cellWidth), accuracy: 1)
+        XCTAssertEqual(second.frame.midX - first.frame.midX, cellWidth + 16, accuracy: 1)
+        XCTAssertEqual(first.frame.height, 200, accuracy: 1)
+        XCTAssertEqual(second.frame.width, first.frame.width, accuracy: 1)
+        assertImageResultContentInsideCard(first)
+        assertImageResultContentInsideCard(second)
+        let gridLeft = scroll.frame.midX - availableWidth / 2
+        XCTAssertEqual(first.frame.midX, gridLeft + cellWidth / 2, accuracy: 1,
+                       "The image grid must own its gutters without generic fullscreen padding")
+        XCTAssertGreaterThanOrEqual(first.frame.minX, scroll.frame.minX + 10 - 1)
+        XCTAssertLessThanOrEqual(second.frame.maxX, scroll.frame.maxX - 10 + 1)
+        if !first.isHittable { app.swipeUp() }
+        XCTAssertTrue(first.isHittable)
+        if columns == 2 {
+            // The third canonical result begins a second row on wide phones.
+            app.swipeUp()
+            let third = imageSearchResult(3, in: app)
+            XCTAssertTrue(third.waitForExistence(timeout: 5))
+            XCTAssertEqual(third.frame.minY - first.frame.maxY, 16, accuracy: 1)
+        }
+        attachScreenshot(name: "Images search wide fullscreen web grid bounds")
+    }
+
+    private func launchImagesSearchFullscreen() -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments = ["--dev-preview", "embeds", "--dev-preview-app", "images",
+                               "--embed-registry-key", "app:images:search", "--embed-surface", "fullscreen"]
+        app.launch()
+        XCTAssertTrue(app.descendants(matching: .any)["images-search-fullscreen-results"]
+            .waitForExistence(timeout: 8))
+        return app
+    }
+
+    private func imageSearchResult(_ index: Int, in app: XCUIApplication) -> XCUIElement {
+        app.descendants(matching: .any)["images-search-result-preview-images-search-result-\(index)"].firstMatch
+    }
+
+    private func assertImageResultContentInsideCard(_ card: XCUIElement) {
+        let content = card.descendants(matching: .any)["image-result-preview-content"].firstMatch
+        XCTAssertTrue(content.exists, "The image viewport must stay measurable before and after image decoding")
+        XCTAssertEqual(content.frame.width, card.frame.width, accuracy: 1)
+        XCTAssertGreaterThanOrEqual(content.frame.minX, card.frame.minX - 1)
+        XCTAssertLessThanOrEqual(content.frame.maxX, card.frame.maxX + 1)
+        let image = card.descendants(matching: .any)["image-result-preview-image"].firstMatch
+        // The original public-image fixture also exercises its placeholder.
+        // Validate any decoded bitmap without making layout proof wait on a CDN.
+        if image.exists {
+            // object-fit:contain preserves the source aspect ratio; a portrait
+            // image may paint160pt wide inside the unchanged320pt viewport.
+            XCTAssertGreaterThan(image.frame.width, 0)
+            XCTAssertGreaterThan(image.frame.height, 0)
+            XCTAssertLessThanOrEqual(image.frame.width, content.frame.width + 1)
+            XCTAssertLessThanOrEqual(image.frame.height, content.frame.height + 1)
+            XCTAssertEqual(image.frame.midX, content.frame.midX, accuracy: 1)
+            XCTAssertEqual(image.frame.midY, content.frame.midY, accuracy: 1)
+            XCTAssertGreaterThanOrEqual(image.frame.minX, content.frame.minX - 1)
+            XCTAssertLessThanOrEqual(image.frame.maxX, content.frame.maxX + 1)
+            XCTAssertGreaterThanOrEqual(image.frame.minY, content.frame.minY - 1)
+            XCTAssertLessThanOrEqual(image.frame.maxY, content.frame.maxY + 1)
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chats.layout.responsive-history
+    func testVideoRepositoryAndElectronicsNarrowSearchGridsOwnTheirGutters() throws {
+        XCUIDevice.shared.orientation = .portrait
+        try assertAdditionalSearchGridBounds(narrow: true)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chats.layout.responsive-history
+    func testVideoRepositoryAndElectronicsWideSearchGridsUseWebColumnParameters() throws {
+        XCUIDevice.shared.orientation = .landscapeLeft
+        defer { XCUIDevice.shared.orientation = .portrait }
+        try assertAdditionalSearchGridBounds(narrow: false)
+    }
+
+    private func assertAdditionalSearchGridBounds(narrow: Bool) throws {
+        let cases: [(app: String, key: String, grid: String, cardPrefix: String, minimum: CGFloat, maximum: CGFloat)] = [
+            ("videos", "app:videos:search", "videos-search-fullscreen-results",
+             "videos-search-result-preview-videos-search-result-", 280, 1000),
+            ("code", "app:code:search_repos", "code-repo-search-fullscreen-results",
+             "embed-preview-preview-code-repo-", 320, 1000),
+            ("electronics", "app:electronics:search_components", "electronics-search-fullscreen",
+             "embed-preview-preview-electronics-search-fullscreen-component-", 280, 1100),
+        ]
+        for item in cases {
+            let app = XCUIApplication()
+            app.launchArguments = ["--dev-preview", "embeds", "--dev-preview-app", item.app,
+                                   "--embed-registry-key", item.key, "--embed-surface", "fullscreen"]
+            app.launch()
+            let grid = app.descendants(matching: .any)[item.grid].firstMatch
+            XCTAssertTrue(grid.waitForExistence(timeout: 8), item.key)
+            let scroll = app.scrollViews["embed-fullscreen-scroll"].firstMatch
+            let header = app.descendants(matching: .any)["embed-fullscreen-header"].firstMatch
+            if narrow && scroll.frame.width > 500 {
+                app.terminate()
+                throw XCTSkip("The narrow grid contract requires a phone viewport at or below 500 points")
+            }
+            if !narrow { XCTAssertGreaterThan(scroll.frame.width, 500, item.key) }
+            let first = app.descendants(matching: .any)["\(item.cardPrefix)1"].firstMatch
+            let second = app.descendants(matching: .any)["\(item.cardPrefix)2"].firstMatch
+            XCTAssertTrue(first.waitForExistence(timeout: 5), item.key)
+            XCTAssertTrue(second.waitForExistence(timeout: 5), item.key)
+            attachSearchGridMeasurements(app: app, name: "\(item.key) \(narrow ? "narrow" : "wide")",
+                                         header: header, scroll: scroll, cards: [first, second])
+            let topPadding: CGFloat = narrow ? 16 : 24
+            let settled = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+                abs(first.frame.minY - header.frame.maxY - topPadding) <= 1
+            }, object: nil)
+            XCTAssertEqual(XCTWaiter.wait(for: [settled], timeout: 5), .completed, item.key)
+            XCTAssertEqual(header.frame.width, scroll.frame.width, accuracy: 1, item.key)
+            let horizontalPadding: CGFloat = narrow ? 6 : 10
+            let availableWidth = min(item.maximum, scroll.frame.width - 2 * horizontalPadding)
+            let columns = narrow ? 1 : max(1, Int((availableWidth + 16) / (item.minimum + 16)))
+            let cellWidth = (availableWidth - CGFloat(columns - 1) * 16) / CGFloat(columns)
+            XCTAssertEqual(first.frame.width, min(320, cellWidth), accuracy: 1, item.key)
+            XCTAssertEqual(second.frame.width, first.frame.width, accuracy: 1, item.key)
+            XCTAssertEqual(first.frame.height, 200, accuracy: 1, item.key)
+            let gridLeft = scroll.frame.midX - availableWidth / 2
+            XCTAssertEqual(first.frame.midX, gridLeft + cellWidth / 2, accuracy: 1, item.key)
+            if columns == 1 {
+                XCTAssertEqual(second.frame.minY - first.frame.maxY, narrow ? 10 : 16, accuracy: 1, item.key)
+            } else {
+                XCTAssertEqual(second.frame.minY, first.frame.minY, accuracy: 1, item.key)
+                XCTAssertEqual(second.frame.midX - first.frame.midX, cellWidth + 16, accuracy: 1, item.key)
+            }
+            if !first.isHittable { app.swipeUp() }
+            XCTAssertTrue(first.isHittable, item.key)
+            attachScreenshot(name: "\(item.key) \(narrow ? "narrow" : "wide") fullscreen web grid bounds")
+            app.terminate()
+        }
+    }
+
+    private func attachSearchGridMeasurements(
+        app: XCUIApplication, name: String, header: XCUIElement, scroll: XCUIElement, cards: [XCUIElement]
+    ) {
+        // A transparent SwiftUI accessibility container can report its child
+        // union instead of its padded layout frame. Measure independently
+        // rendered header/scroll bounds and retain actual geometry before waits.
+        let measurements = XCTAttachment(string: "header=\(header.frame); viewport=\(scroll.frame); cards=\(cards.map(\.frame))")
+        measurements.name = "Search grid bounds|\(name)"
+        measurements.lifetime = .keepAlways
+        add(measurements)
+        attachScreenshot(name: "Search grid before geometry assertion|\(name)")
     }
 
     // contract-test: supporting surface=gui.apple assertions=chats.rendering.assistant-document-convergence
@@ -495,7 +694,7 @@ final class EmbedRenderingParityUITests: XCTestCase {
             let card = app.descendants(matching: .any)["videos-search-result-preview-videos-search-result-\(index)"].firstMatch
             if !card.waitForExistence(timeout: 2) { app.swipeUp() }
             XCTAssertTrue(card.waitForExistence(timeout: 5))
-            XCTAssertEqual(card.frame.width, 300, accuracy: 1)
+            XCTAssertEqual(card.frame.width, 320, accuracy: 1)
             XCTAssertEqual(card.frame.height, 200, accuracy: 1)
         }
         let thirdCard = app.descendants(matching: .any)["videos-search-result-preview-videos-search-result-3"].firstMatch
@@ -504,13 +703,29 @@ final class EmbedRenderingParityUITests: XCTestCase {
     }
 
     // contract-test: supporting surface=gui.apple assertions=chats.rendering.assistant-document-convergence,chats.layout.responsive-history
-    func testCanonicalRegistryKeysRenderWideFullscreen() {
+    func testCanonicalRegistryKeysRenderWideFullscreen() throws {
         continueAfterFailure = true
         XCUIDevice.shared.orientation = .landscapeLeft
         defer { XCUIDevice.shared.orientation = .portrait }
-        captureCanonicalRegistryKeys(canonicalRegistryKeys,
+        captureCanonicalRegistryKeys(try selectedCanonicalRegistryKeys(),
                                      surfaces: ["fullscreen"],
                                      viewportLabel: "ipad-landscape-light-ltr")
+    }
+
+    private func selectedCanonicalRegistryKeys() throws -> [String] {
+        XCTAssertEqual(canonicalRegistryKeys.count, 88, "The canonical native evidence inventory must track all generated registry keys.")
+        let environment = ProcessInfo.processInfo.environment
+        guard let requested = environment["EMBED_REGISTRY_KEYS"] ?? environment["EMBED_REGISTRY_KEY"] else {
+            return canonicalRegistryKeys
+        }
+        let keys = requested.split(separator: ",", omittingEmptySubsequences: false)
+            .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
+        let unknown = keys.filter { !canonicalRegistryKeys.contains($0) }
+        guard unknown.isEmpty else {
+            XCTFail("Unknown EMBED_REGISTRY_KEYS: \(unknown.joined(separator: ","))")
+            throw NSError(domain: "EmbedRegistryCapture", code: 1)
+        }
+        return keys
     }
 
     private func captureCanonicalRegistryKeys(
@@ -613,6 +828,185 @@ final class EmbedRenderingParityUITests: XCTestCase {
         XCTAssertTrue(canonical.waitForExistence(timeout: 8))
         XCTAssertEqual(canonical.value as? String, "app:events:search|default")
         assertFullscreenSettled(app: app, key: "app:events:search")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.rendering.assistant-document-convergence,chats.layout.responsive-history
+    func testTravelFullscreenCanonicalDetailsNarrow() throws {
+        try assertTravelFullscreenDetails(wide: false)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.rendering.assistant-document-convergence,chats.layout.responsive-history
+    func testTravelFullscreenCanonicalDetailsWide() throws {
+        XCUIDevice.shared.orientation = .landscapeLeft
+        defer { XCUIDevice.shared.orientation = .portrait }
+        try assertTravelFullscreenDetails(wide: true)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chats.layout.responsive-history
+    func testTravelConnectionCopyAndCalendarActionsNarrow() throws {
+        try assertTravelConnectionActions(wide: false)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chats.layout.responsive-history
+    func testTravelConnectionCopyAndCalendarActionsWide() throws {
+        XCUIDevice.shared.orientation = .landscapeLeft
+        defer { XCUIDevice.shared.orientation = .portrait }
+        try assertTravelConnectionActions(wide: true)
+    }
+
+    private func assertTravelConnectionActions(wide: Bool) throws {
+        XCUIDevice.shared.orientation = wide ? .landscapeLeft : .portrait
+        let app = XCUIApplication()
+        app.launchArguments = ["--dev-preview", "embeds", "--dev-preview-app", "travel",
+                               "--embed-registry-key", "travel-connection", "--embed-surface", "fullscreen",
+                               "--ui-test-embed-presentation",
+                               "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        app.launch()
+        try settleTravelOrientation(app: app, wide: wide)
+        assertFullscreenSettled(app: app, key: "travel-connection")
+        let presentation = app.descendants(matching: .any)["embed-presentation-state"].firstMatch
+        XCTAssertTrue(presentation.waitForExistence(timeout: 5))
+        let ready = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", "ready"), object: presentation)
+        XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 5), .completed)
+        // Copy + calendar overflow at both widths under the production policy.
+        XCTAssertTrue(app.buttons["embed-more-button"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.buttons["embed-copy-button"].exists)
+        try openTravelMoreIfPresent(app: app)
+        let copy = app.buttons["embed-copy-button"]
+        XCTAssertTrue(copy.waitForExistence(timeout: 3))
+        XCTAssertTrue(copy.isHittable)
+        copy.tap()
+        let feedback = app.staticTexts["Copied to clipboard"]
+        XCTAssertTrue(feedback.waitForExistence(timeout: 3))
+        let dismissFeedback = app.buttons["notification-dismiss"].firstMatch
+        if dismissFeedback.exists && dismissFeedback.isHittable { dismissFeedback.tap() }
+        let feedbackGone = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: feedback)
+        XCTAssertEqual(XCTWaiter.wait(for: [feedbackGone], timeout: 5), .completed,
+                       "Copy feedback must clear before operating the header underneath")
+        try openTravelMoreIfPresent(app: app)
+        let calendar = app.buttons["embed-calendar-button"]
+        XCTAssertTrue(calendar.waitForExistence(timeout: 3))
+        XCTAssertTrue(calendar.isHittable)
+        attachScreenshot(name: "Travel connection copy and calendar responsive actions")
+        calendar.tap()
+        XCTAssertTrue(app.otherElements["ShareSheet.RemoteContainerView"].firstMatch.waitForExistence(timeout: 8))
+        let filename = app.descendants(matching: .any).matching(NSPredicate(
+            format: "identifier == %@ AND label == %@", "LP.CaptionBar.BottomCaption",
+            "munich-muc-london-heathrow-lhr-2026-03-15.ics")).firstMatch
+        XCTAssertTrue(filename.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.cells.matching(NSPredicate(format: "label == %@", "Save to Files")).firstMatch.isHittable)
+        attachScreenshot(name: "Travel connection real ICS export")
+    }
+
+    private func assertTravelFullscreenDetails(wide: Bool) throws {
+        for key in ["travel-connection", "travel-stay"] {
+            XCUIDevice.shared.orientation = wide ? .landscapeLeft : .portrait
+            let app = XCUIApplication()
+            app.launchArguments = ["--dev-preview", "embeds", "--dev-preview-app", "travel",
+                                   "--embed-registry-key", key, "--embed-surface", "fullscreen",
+                                   "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+            app.launchEnvironment["DEV_PREVIEW"] = "embeds"
+            app.launchEnvironment["DEV_PREVIEW_APP"] = "travel"
+            app.launch()
+            try settleTravelOrientation(app: app, wide: wide)
+            assertFullscreenSettled(app: app, key: key)
+            if key == "travel-connection" {
+                let fare = app.staticTexts["connection-fare-summary"]
+                XCTAssertTrue(fare.waitForExistence(timeout: 3))
+                XCTAssertEqual(fare.label, "EUR 189")
+                let times = app.staticTexts.matching(identifier: "connection-segment-time")
+                XCTAssertEqual(times.count, 2)
+                XCTAssertEqual(times.element(boundBy: 0).label, "08:30 AM")
+                XCTAssertEqual(times.element(boundBy: 1).label, "10:00 AM")
+                revealTravelDetail(fare, app: app)
+                XCTAssertTrue(fare.isHittable)
+                revealTravelDetail(times.element(boundBy: 1), app: app)
+                XCTAssertTrue(times.element(boundBy: 1).isHittable)
+            } else {
+                let name = app.staticTexts["stay-name"]
+                XCTAssertTrue(name.waitForExistence(timeout: 3))
+                XCTAssertEqual(name.label, "Hotel Maximilian")
+                XCTAssertTrue(app.staticTexts["Search stays"].exists)
+                let price = app.staticTexts["stay-price-per-night"]
+                revealTravelDetail(price, app: app)
+                XCTAssertEqual(price.label, "EUR 129")
+                XCTAssertTrue(price.isHittable)
+                XCTAssertEqual(app.staticTexts["stay-total-price"].label, "EUR 387 total")
+            }
+            attachScreenshot(name: "Travel details|\(key)|\(wide ? "wide" : "narrow")")
+            app.terminate()
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.rendering.assistant-document-convergence
+    func testTravelStayPreviewShowsStarsAndPropertyFooter() throws {
+        XCUIDevice.shared.orientation = .portrait
+        let app = XCUIApplication()
+        app.launchArguments = ["--dev-preview", "embeds", "--dev-preview-app", "travel",
+                               "--embed-registry-key", "travel-stay", "--embed-surface", "preview"]
+        app.launchEnvironment["DEV_PREVIEW"] = "embeds"
+        app.launchEnvironment["DEV_PREVIEW_APP"] = "travel"
+        app.launch()
+        try settleTravelOrientation(app: app, wide: false)
+        XCTAssertTrue(app.descendants(matching: .any)["dev-embed-canonical-preview"].waitForExistence(timeout: 8))
+        let preview = app.buttons["embed-preview"].firstMatch
+        XCTAssertTrue(preview.waitForExistence(timeout: 3))
+        let stars = app.staticTexts["stay-preview-stars"]
+        XCTAssertTrue(stars.waitForExistence(timeout: 3))
+        XCTAssertEqual(stars.label, "★★★★")
+        XCTAssertTrue(stars.isHittable)
+        XCTAssertGreaterThan(stars.frame.width, 60, "All four star glyphs must retain their visible width")
+        XCTAssertGreaterThanOrEqual(stars.frame.minY, preview.frame.minY + 110,
+                                    "Stars belong below the full 110pt thumbnail")
+        XCTAssertLessThanOrEqual(stars.frame.maxY, preview.frame.maxY - 61 + 1,
+                                 "The four stars must fit above the real 61pt footer without being covered")
+        XCTAssertEqual(app.staticTexts["embed-basic-info-title"].label, "Hotel Maximilian")
+        XCTAssertEqual(preview.frame.width, 300, accuracy: 1)
+        XCTAssertEqual(preview.frame.height, 200, accuracy: 1)
+        attachScreenshot(name: "Travel stay image stars and property footer")
+    }
+
+    private func settleTravelOrientation(app: XCUIApplication, wide: Bool) throws {
+        XCUIDevice.shared.orientation = wide ? .landscapeLeft : .portrait
+        let settled = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            wide ? app.frame.width > app.frame.height : app.frame.width < app.frame.height
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [settled], timeout: 8), .completed,
+                       "Travel must render in the requested viewport before checking visibility")
+        XCTAssertEqual(app.frame.width > app.frame.height, wide)
+    }
+
+    private func openTravelMoreIfPresent(app: XCUIApplication) throws {
+        let more = app.buttons["embed-more-button"].firstMatch
+        guard more.exists else { return }
+        XCTAssertTrue(more.isHittable)
+        if more.value as? String != "expanded" {
+            let before = XCTAttachment(string: app.debugDescription)
+            before.name = "Travel More actual AX tree before tap"
+            before.lifetime = .keepAlways; add(before)
+            attachScreenshot(name: "Travel More rendered target before tap")
+            more.tap()
+            let after = XCTAttachment(string: app.debugDescription)
+            after.name = "Travel More actual AX tree after tap"
+            after.lifetime = .keepAlways; add(after)
+            attachScreenshot(name: "Travel More rendered state after tap")
+        }
+        let expanded = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            more.value as? String == "expanded" && app.buttons["embed-copy-button"].firstMatch.isHittable
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [expanded], timeout: 3), .completed)
+    }
+
+    private func revealTravelDetail(_ element: XCUIElement, app: XCUIApplication) {
+        let scroll = app.scrollViews["embed-fullscreen-scroll"].firstMatch
+        for _ in 0..<3 {
+            if element.isHittable { return }
+            XCTAssertTrue(scroll.exists, "Fullscreen details must remain in the real product scroll view")
+            // Drag over the detail card at the left, avoiding the interactive map.
+            let start = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.2, dy: 0.85))
+            let end = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.2, dy: 0.35))
+            start.press(forDuration: 0.05, thenDragTo: end)
+        }
     }
 
     // contract-test: supporting surface=gui.apple assertions=chats.rendering.assistant-document-convergence

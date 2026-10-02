@@ -61,8 +61,207 @@ final class WorkflowsParityUITests: XCTestCase {
         app.descendants(matching: .any)["workspace-detail-title"].tap()
         assertVisible("workflow-title-input", in: app, message: "Tapping identity must expose the title editor.")
         app.descendants(matching: .any)["workflow-node-summary"].firstMatch.tap()
-        assertVisible("workflow-node-title-input", in: app, message: "Tapping a step must expose its focused editor.")
+        assertVisible("workflow-editor-header", in: app, message: "Tapping a step must expose its branded editor header.")
+        assertVisible("workflow-time-trigger-schedule", in: app, message: "A time trigger must expose its schedule dropdown.")
         assertVisible("workflow-node-save", in: app, message: "A focused step must save independently.")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=workflows-ui.detail.stable-visual-header,workflows-ui.template.centered-in-place-editor
+    func testWorkflowToolbarAndExpandedNodeControlsAreClickable() throws {
+        let app = launchWorkflowFixture("editor")
+        let more = app.buttons["workflow-detail-actions"]
+        XCTAssertTrue(more.waitForExistence(timeout: 8))
+        XCTAssertTrue(more.isHittable, "The header More pill must be visible and clickable.")
+        more.tap()
+        let run = app.buttons["run-workflow"]
+        XCTAssertTrue(run.waitForExistence(timeout: 5))
+        XCTAssertTrue(run.isHittable)
+        let delete = app.buttons["delete-workflow"]
+        XCTAssertTrue(delete.isHittable)
+        attachScreenshot("Workflow header custom action pills")
+        more.tap()
+
+        let summaries = app.buttons.matching(identifier: "workflow-node-summary")
+        let initialCount = summaries.count
+        let trigger = summaries.firstMatch
+        XCTAssertTrue(trigger.isHittable)
+        trigger.tap()
+        XCTAssertEqual(summaries.count, initialCount - 1,
+                       "An editable expanded panel must replace its compact summary card.")
+        // The native hierarchy exposes the graph's scroll viewport directly;
+        // SwiftUI may flatten the nested node-stack accessibility container.
+        let editorScroll = app.scrollViews["workflow-management"]
+        XCTAssertTrue(editorScroll.waitForExistence(timeout: 5))
+        let dropdownContainer = app.descendants(matching: .any)["workflow-time-trigger-schedule"]
+        XCTAssertTrue(dropdownContainer.waitForExistence(timeout: 5))
+        let dropdown = editorScroll.buttons["Repeat"]
+        XCTAssertTrue(dropdown.waitForExistence(timeout: 5))
+        // Expanding the trigger near the viewport bottom must reveal its editor
+        // automatically. No test scroll may make this interaction pass.
+        let automaticallyVisible = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "isHittable == true"), object: dropdown
+        )
+        XCTAssertEqual(XCTWaiter.wait(for: [automaticallyVisible], timeout: 5), .completed,
+                       "Expansion must automatically bring the schedule into view.")
+        let editorHeader = app.descendants(matching: .any)["workflow-editor-header"]
+        XCTAssertTrue(editorHeader.exists)
+        XCTAssertGreaterThanOrEqual(editorHeader.frame.minY, editorScroll.frame.minY - 1,
+                                    "Automatic scrolling must retain the expanded editor header in the viewport.")
+        XCTAssertLessThanOrEqual(editorHeader.frame.maxY, editorScroll.frame.maxY + 1)
+        XCTAssertTrue(app.buttons["workflow-node-close"].isHittable)
+        attachScreenshot("Workflow time trigger automatically revealed after expansion")
+        dropdown.tap()
+        let weekly = app.buttons["Every week"]
+        XCTAssertTrue(weekly.waitForExistence(timeout: 5))
+        for _ in 0..<3 where !weekly.isHittable { editorScroll.swipeUp() }
+        XCTAssertTrue(weekly.isHittable, "The rendered schedule option must be clickable.")
+        weekly.tap()
+        XCTAssertEqual(dropdown.value as? String, "Every week",
+                       "Choosing a repeat option must update the actual dropdown selection.")
+        XCTAssertTrue(app.textFields["workflow-schedule-time"].exists)
+        attachScreenshot("Workflow time trigger editor after schedule selection")
+        let close = app.buttons["workflow-node-close"]
+        for _ in 0..<6 where !close.isHittable { editorScroll.swipeDown() }
+        XCTAssertTrue(close.isHittable, "The expanded editor's Close must become clickable after returning to its header.")
+        close.tap()
+        XCTAssertEqual(summaries.count, initialCount, "Close must restore the compact summary.")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=workflows-ui.template.centered-in-place-editor,workflows-ui.template.explicit-guarded-save,workflows.control.typed-data
+    func testExpandedNodeMatrixMatchesRenderedWebFieldComposition() throws {
+        let app = launchWorkflowFixture("editor-all-nodes")
+        let scroll = app.scrollViews["workflow-management"]
+        XCTAssertTrue(scroll.waitForExistence(timeout: 8))
+        let composer = app.descendants(matching: .any)["workflow-ai-editor-composer"]
+        XCTAssertTrue(composer.exists)
+        XCTAssertGreaterThanOrEqual(composer.frame.minY, scroll.frame.maxY - 1,
+                                    "The workflow instruction composer must dock below the graph viewport.")
+
+        let nodes: [(String, String, String)] = [
+            ("Weather", "workflow-node-summary", "workflow-input-heading"),
+            ("Check", "workflow-node-summary", "workflow-check-source"),
+            ("News", "workflow-node-summary", "workflow-input-heading"),
+            ("Ask AI", "workflow-ask-ai-node", "composer-model-selector"),
+            ("Send message", "workflow-node-summary", "workflow-message-title")
+        ]
+        for (name, identifier, expectedField) in nodes {
+            let summary = app.buttons.matching(identifier: identifier)
+                .matching(NSPredicate(format: "label CONTAINS[c] %@", name)).firstMatch
+            XCTAssertTrue(summary.exists)
+            for _ in 0..<12 where !summary.isHittable { scroll.swipeUp() }
+            XCTAssertTrue(summary.isHittable, "\(name) must be reachable in the graph.")
+            summary.tap()
+            XCTAssertTrue(app.descendants(matching: .any)[expectedField].waitForExistence(timeout: 5),
+                          "\(name) must expose its rendered web field structure.")
+            if name == "Weather" {
+                XCTAssertTrue(app.descendants(matching: .any)["workflow-date-range-field"].exists)
+                XCTAssertTrue(app.buttons["Show all fields"].exists)
+            } else if name == "Check" {
+                XCTAssertTrue(app.descendants(matching: .any)["workflow-check-variable"].exists)
+                XCTAssertTrue(app.descendants(matching: .any)["workflow-check-compare-source"].exists)
+                XCTAssertFalse(app.descendants(matching: .any)["workflow-check-mode"].exists,
+                               "The source selector replaces the legacy mode-only dropdown.")
+                let source = app.buttons["Select action or AI confirms"]
+                for _ in 0..<5 where !source.isHittable { scroll.swipeUp() }
+                XCTAssertTrue(source.isHittable); source.tap()
+                let ai = app.buttons["AI confirms"]
+                XCTAssertTrue(ai.waitForExistence(timeout: 5))
+                for _ in 0..<3 where !ai.isHittable { scroll.swipeUp() }
+                XCTAssertTrue(ai.isHittable); ai.tap()
+                XCTAssertEqual(source.value as? String, "AI confirms",
+                               "The check's real source selection must switch to AI confirmation.")
+                XCTAssertTrue(app.descendants(matching: .any)["workflow-ai-check-instruction"].waitForExistence(timeout: 5))
+                XCTAssertTrue(app.descendants(matching: .any)["workflow-variable-picker"].exists)
+                let variables = app.buttons["workflow-variable-source-weather"]
+                XCTAssertTrue(variables.isHittable,
+                              "Earlier weather outputs must remain an actionable child of the AI instruction editor.")
+                variables.tap()
+                let rain = app.buttons.matching(identifier: "workflow-message-output-reference")
+                    .matching(NSPredicate(format: "label CONTAINS[c] %@", "Rain Probability")).firstMatch
+                XCTAssertTrue(rain.waitForExistence(timeout: 5))
+                XCTAssertTrue(rain.isHittable)
+                let instruction = app.textViews["workflow-message-template"]
+                XCTAssertTrue(instruction.exists)
+                let previousValue = instruction.value as? String ?? ""
+                rain.tap()
+                XCTAssertNotEqual(instruction.value as? String ?? "", previousValue,
+                                  "Choosing an earlier output must insert a variable into the actual instruction.")
+                let editor = app.otherElements["workflow-ai-check-instruction"]
+                XCTAssertEqual(editor.value as? String, "{{steps.weather.rain_probability}}",
+                               "The Check draft binding must receive the selected reference.")
+                XCTAssertFalse(app.staticTexts["workflow-message-placeholder"].exists,
+                               "A populated instruction must remove its placeholder.")
+                XCTAssertTrue((instruction.value as? String ?? "").contains("Rain Probability"),
+                              "The inserted chip must expose its readable output label.")
+                XCTAssertFalse((instruction.value as? String ?? "").contains("{{steps."),
+                               "The live editor must render the reference instead of raw storage syntax.")
+            } else if name == "Ask AI" || name == "Send message" {
+                let variables = app.descendants(matching: .any)["workflow-variable-picker"]
+                let input = app.descendants(matching: .any)["workflow-message-template"]
+                XCTAssertTrue(variables.exists); XCTAssertTrue(input.exists)
+                XCTAssertLessThanOrEqual(variables.frame.maxY, input.frame.minY + 1,
+                                         "Earlier-output choices must appear before the message input.")
+                if name == "Send message" { XCTAssertTrue(app.staticTexts["Chat title"].exists) }
+                if name == "Ask AI" {
+                    let models = app.buttons["composer-model-selector"]
+                    for _ in 0..<8 where !models.isHittable { scroll.swipeUp() }
+                    XCTAssertTrue(models.isHittable); models.tap()
+                    let auto = app.buttons["composer-model-auto"]
+                    XCTAssertTrue(auto.waitForExistence(timeout: 5))
+                    XCTAssertTrue(auto.isHittable, "The inline model popup must stay within the workflow card viewport.")
+                    XCTAssertGreaterThanOrEqual(auto.frame.minX, scroll.frame.minX - 1)
+                    XCTAssertLessThanOrEqual(auto.frame.maxX, scroll.frame.maxX + 1)
+                    attachScreenshot("Workflow Ask AI inline model popup")
+                    auto.tap()
+                    XCTAssertEqual(models.value as? String, "collapsed")
+                }
+            }
+            attachScreenshot("Workflow expanded \(name) rendered field composition")
+            let close = app.buttons["workflow-node-close"]
+            for _ in 0..<12 where !close.isHittable { scroll.swipeDown() }
+            XCTAssertTrue(close.isHittable); close.tap()
+            XCTAssertTrue(summary.exists, "Close must restore \(name)'s compact node.")
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=workflows-ui.template.centered-in-place-editor,workflows-ui.template.explicit-guarded-save
+    func testMessageDestinationBackPreservesExistingEditorDraft() throws {
+        let app = launchWorkflowFixture("editor")
+        let messageNode = app.buttons.matching(identifier: "workflow-node-summary")
+            .matching(NSPredicate(format: "label CONTAINS[c] %@", "Send message")).firstMatch
+        XCTAssertTrue(messageNode.waitForExistence(timeout: 8))
+        for _ in 0..<8 where !messageNode.isHittable { app.swipeUp() }
+        XCTAssertTrue(messageNode.isHittable)
+        messageNode.tap()
+
+        let title = app.textFields["workflow-message-title"]
+        XCTAssertTrue(title.waitForExistence(timeout: 5))
+        for _ in 0..<3 where !title.isHittable { app.swipeUp() }
+        XCTAssertTrue(title.isHittable)
+        let originalTitle = try XCTUnwrap(title.value as? String)
+        title.tap()
+        title.typeText(" unsaved draft")
+        let draftTitle = try XCTUnwrap(title.value as? String)
+        XCTAssertNotEqual(draftTitle, originalTitle, "The regression guard must contain a real unsaved edit.")
+
+        let destination = app.buttons["workflow-message-destination"]
+        XCTAssertTrue(destination.exists)
+        for _ in 0..<3 where !destination.isHittable { app.swipeDown() }
+        XCTAssertTrue(destination.isHittable)
+        destination.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["workflow-chat-destination-picker"].waitForExistence(timeout: 5))
+        XCTAssertFalse(title.exists, "The chooser replaces message fields until Back is used.")
+        let back = app.buttons["workflow-node-back"]
+        for _ in 0..<3 where !back.isHittable { app.swipeDown() }
+        XCTAssertTrue(back.isHittable)
+        back.tap()
+
+        XCTAssertTrue(title.waitForExistence(timeout: 5), "Back must return to the existing message editor.")
+        XCTAssertEqual(title.value as? String, draftTitle, "Back must retain the unsubmitted title draft.")
+        XCTAssertFalse(app.descendants(matching: .any)["workflow-chat-destination-picker"].exists)
+        XCTAssertTrue(app.buttons["workflow-node-save"].exists)
+        XCTAssertFalse(messageNode.exists, "The message editor must remain expanded.")
+        attachScreenshot("Workflow message draft retained after destination Back")
     }
 
     // contract-test: supporting surface=gui.apple assertions=workflows-ui.runs.timeline-execution-detail
@@ -88,7 +287,7 @@ final class WorkflowsParityUITests: XCTestCase {
         XCTAssertTrue(askNode.waitForExistence(timeout: 8))
         app.swipeUp()
         askNode.tap()
-        XCTAssertEqual(askNode.value as? String, "expanded")
+        XCTAssertFalse(askNode.exists, "The editable expanded panel replaces the summary card.")
         assertVisible("workflow-ai-app-warning", in: app,
                       message: "Ask AI must explain when the instruction would invoke an app skill.")
         attachScreenshot("Workflow Ask AI blocked hint")

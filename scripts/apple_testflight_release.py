@@ -461,12 +461,19 @@ def archive_command(platform: str, release_dir: Path, build_number: int, team_id
         f"DEVELOPMENT_TEAM={team_id}", f"CURRENT_PROJECT_VERSION={build_number}",
         # Cargo needs the bridge sources and its configured toolchain/cache paths.
         "ENABLE_USER_SCRIPT_SANDBOXING=NO",
+        # Keep the actual Swift compiler serial as well as Xcode's build queue.
+        # Release WMO otherwise defaults to eight backend threads, which can
+        # exhaust memory and swap space on the 8 GB release Mac.
+        "-jobs", "1",
+        "SWIFT_USE_PARALLEL_WHOLE_MODULE_OPTIMIZATION=NO",
+        "SWIFT_USE_PARALLEL_WMO_TARGETS=NO",
+        "OTHER_SWIFT_FLAGS=$(inherited) -j1 -num-threads 1",
     ]
     if credentials:
         command[command.index(f"DEVELOPMENT_TEAM={team_id}"):command.index(f"DEVELOPMENT_TEAM={team_id}")] = credentials.xcode_arguments()
     if platform == "macos":
         # Limit concurrent universal-architecture Swift compiles on 8 GB Macs.
-        command.extend(["-jobs", "1", "ARCHS=arm64 x86_64", "ONLY_ACTIVE_ARCH=NO", "CODE_SIGNING_ALLOWED=NO"])
+        command.extend(["ARCHS=arm64 x86_64", "ONLY_ACTIVE_ARCH=NO", "CODE_SIGNING_ALLOWED=NO"])
     command.append("archive")
     return command
 

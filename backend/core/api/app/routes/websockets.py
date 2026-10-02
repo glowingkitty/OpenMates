@@ -54,6 +54,9 @@ from .handlers.websocket_handlers.ai_response_completed_handler import handle_ai
 from .handlers.websocket_handlers.encrypted_chat_metadata_handler import handle_encrypted_chat_metadata # Handler for encrypted chat metadata
 from .handlers.websocket_handlers.chat_turn_preflight_handler import handle_chat_turn_preflight
 from .handlers.websocket_handlers.assistant_speech_handler import handle_assistant_speech_event
+from .handlers.websocket_handlers.chat_metadata_recovery_handlers import (
+    handle_metadata_recovery, send_available_metadata_jobs, filter_generated_metadata_storage,
+)
 from .handlers.websocket_handlers.chat_recovery_job_handlers import (
     handle_recovery_job_claim,
     handle_recovery_job_persist,
@@ -1196,6 +1199,19 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                 
                 internal_event_type = redis_payload.get("type")
 
+                if internal_event_type == "chat_metadata_recovery_available":
+                    owner_hash = redis_payload.get("user_id_hash")
+                    job = redis_payload.get("metadata_recovery_job")
+                    if isinstance(job, dict):
+                        for owner_id in list(manager.active_connections):
+                            if hashlib.sha256(owner_id.encode()).hexdigest() != owner_hash:
+                                continue
+                            for device_hash in manager.get_connections_for_user(owner_id):
+                                if manager.supports_chat_metadata_recovery(owner_id, device_hash):
+                                    await manager.send_personal_message({"type": "metadata_jobs_available",
+                                        "payload": {"jobs": [job]}}, owner_id, device_hash)
+                    continue
+
                 # Handle ai_processing_started_event (typing indicator)
                 if internal_event_type == "ai_processing_started_event":
                     client_event_name = redis_payload.get("event_for_client") # Should be "ai_typing_started"
@@ -1248,11 +1264,8 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                     }
 
                     # This event should go to all devices of the user, as it's a UI update.
-                    await manager.broadcast_to_user_specific_event(
-                        user_id=user_id_uuid,
-                        event_name=client_event_name, # "ai_typing_started"
-                        payload=client_payload
-                    )
+                    await _deliver_metadata_event(manager, user_id_uuid, client_event_name,
+                                                  client_payload, redis_payload.get("metadata_recovery_job"))
                     logger.debug(
                         f"AI Typing Listener: Broadcasted '{client_event_name}' to user {user_id_uuid} "
                         f"with payload summary: {_safe_payload_summary(client_payload)}"
@@ -1295,11 +1308,8 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                     if updated_title:
                         client_payload["updated_chat_title"] = updated_title
 
-                    await manager.broadcast_to_user_specific_event(
-                        user_id=user_id_uuid,
-                        event_name=client_event_name, # "post_processing_completed"
-                        payload=client_payload
-                    )
+                    await _deliver_metadata_event(manager, user_id_uuid, client_event_name,
+                                                  client_payload, redis_payload.get("metadata_recovery_job"))
                     logger.info(f"AI Typing Listener: Broadcasted '{client_event_name}' to user {user_id_uuid} with {len(client_payload.get('follow_up_request_suggestions', []))} follow-up suggestions")
 
                 # Handle skill_execution_status event
@@ -2327,6 +2337,22 @@ def _cancel_superseded_phased_sync_tasks(
     return next_context, True, True
 
 
+async def _deliver_metadata_event(manager, user_id, event_name, payload, recovery_job):
+    """Route generated fields through the sealed path only when supported."""
+    for device_hash in manager.get_connections_for_user(user_id):
+        capable = manager.supports_chat_metadata_recovery(user_id, device_hash)
+        client_payload = dict(payload)
+        if capable and recovery_job:
+            if event_name == "post_processing_completed":
+                client_payload.pop("chat_summary", None)
+                client_payload.pop("updated_chat_title", None)
+            await manager.send_personal_message(
+                {"type": "metadata_jobs_available", "payload": {"jobs": [recovery_job]}},
+                user_id, device_hash,
+            )
+        await manager.send_personal_message({"type": event_name, "payload": client_payload}, user_id, device_hash)
+
+
 # Authentication logic is now in auth_ws.py
 @router.websocket("")
 async def websocket_endpoint(
@@ -2355,6 +2381,8 @@ async def websocket_endpoint(
     presence_interactive = False
     raw_capabilities = websocket.query_params.get("client_capabilities", "")
     connection_capabilities = {item.strip() for item in raw_capabilities.split(",") if item.strip()}
+    supports_chat_metadata_recovery = "chat_metadata_recovery" in connection_capabilities
+    metadata_request_times: list[float] = []
     supports_task_update_jobs = "task_update_jobs" in connection_capabilities
     supports_project_file_jobs = "project_file_jobs" in connection_capabilities
     supports_remote_command_jobs = "remote_command_jobs" in connection_capabilities
@@ -2377,6 +2405,7 @@ async def websocket_endpoint(
         user_id,
         device_fingerprint_hash,
         supports_task_update_jobs=supports_task_update_jobs,
+        supports_chat_metadata_recovery=supports_chat_metadata_recovery,
         supports_project_file_jobs=supports_project_file_jobs,
         supports_remote_command_jobs=supports_remote_command_jobs,
     )
@@ -2451,6 +2480,12 @@ async def websocket_endpoint(
             user_otel_attrs=user_otel_attrs,
         )
     )
+
+    if supports_chat_metadata_recovery:
+        asyncio.create_task(send_available_metadata_jobs(
+            manager=manager, directus_service=directus_service, user_id=user_id,
+            user_id_hash=user_id_hash, device_fingerprint_hash=device_fingerprint_hash,
+        ))
 
     if supports_task_update_jobs:
         asyncio.create_task(
@@ -2591,6 +2626,33 @@ async def websocket_endpoint(
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload,
                 )
+
+            elif message_type in {"metadata_jobs_request", "metadata_job_claim", "metadata_job_persist"}:
+                if not supports_chat_metadata_recovery:
+                    await websocket.send_json({"type": "error", "payload": {"code": "metadata_capability_required",
+                        "request_id": payload.get("request_id"), "job_id": payload.get("job_id")}})
+                    continue
+                now = time.monotonic()
+                metadata_request_times[:] = [value for value in metadata_request_times if value > now - 60]
+                if len(metadata_request_times) >= 240:
+                    await websocket.send_json({"type": "error", "payload": {
+                        "code": "metadata_rate_limited", "request_id": payload.get("request_id"),
+                        "job_id": payload.get("job_id"),
+                    }})
+                    continue
+                metadata_request_times.append(now)
+                if message_type == "metadata_jobs_request":
+                    await send_available_metadata_jobs(
+                        manager=manager, directus_service=directus_service, user_id=user_id,
+                        user_id_hash=user_id_hash, device_fingerprint_hash=device_fingerprint_hash,
+                    )
+                else:
+                    await handle_metadata_recovery(
+                        manager=manager, cache_service=cache_service, directus_service=directus_service,
+                        user_id=user_id, user_id_hash=user_id_hash,
+                        device_fingerprint_hash=device_fingerprint_hash, payload=payload,
+                        persist=message_type == "metadata_job_persist",
+                    )
 
             elif message_type == "recovery_job_claim":
                 await handle_recovery_job_claim(
@@ -3148,6 +3210,10 @@ async def websocket_endpoint(
                 )
 
             elif message_type == "encrypted_chat_metadata":
+                payload = await filter_generated_metadata_storage(payload=payload,
+                    supports_recovery=supports_chat_metadata_recovery,
+                    directus_service=directus_service, user_id_hash=user_id_hash)
+
                 # Handle encrypted chat metadata and user message storage
                 # This is the SEPARATE handler for encrypted data after preprocessing
                 await handle_encrypted_chat_metadata(

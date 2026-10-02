@@ -435,7 +435,7 @@ struct SettingsView: View {
         GeometryReader { geometry in
         ZStack {
             VStack(spacing: 0) {
-                settingsBannerShell(viewportWidth: viewportWidth ?? geometry.size.width)
+                settingsBannerShell(viewportWidth: viewportWidth ?? geometry.size.width, viewportHeight: geometry.size.height)
                     .overlay(alignment: .bottom) {
                         if isAuthenticated, destination == nil, let teamContext {
                             TeamWorkspaceContextSelector(context: teamContext, isCollapsed: homeScrollTop > 30)
@@ -675,12 +675,15 @@ struct SettingsView: View {
     // MARK: - Settings Banner Shell
     // Web: .settings-banner-shell wrapping SettingsMainHeader.svelte.
 
-    private func settingsBannerShell(viewportWidth: CGFloat) -> some View {
-        VStack(spacing: 0) {
+    private func settingsBannerShell(viewportWidth: CGFloat, viewportHeight: CGFloat) -> some View {
+        // A short settings panel must reserve space for the actual controls.
+        // Reuse the existing collapsed banner rather than clipping its hero.
+        let usesCompactBanner = viewportHeight < 400
+        return VStack(spacing: 0) {
             if let destination {
                 SettingsStandardBanner(
                     destination: destination,
-                    scrollTop: destinationScrollTop,
+                    scrollTop: usesCompactBanner ? max(80, destinationScrollTop) : destinationScrollTop,
                     viewportWidth: viewportWidth,
                     titleOverride: destination == .mates ? settingsMate?.name : destinationChildNavigation?.title,
                     descriptionOverride: destination == .mates && settingsMate != nil ? "" : destinationChildNavigation?.description,
@@ -725,7 +728,7 @@ struct SettingsView: View {
                     profileImageUrl: settingsUser?.profileImageUrl,
                     isAuthenticated: isAuthenticated,
                     credits: settingsUser?.credits,
-                    scrollTop: homeScrollTop,
+                    scrollTop: usesCompactBanner ? max(60, homeScrollTop) : homeScrollTop,
                     onAvatarClick: { navigateToAccountChild("profile-picture") },
                     onUsernameClick: { navigateToAccountChild("username") },
                     onBillingClick: { navigateTo(.billing) }

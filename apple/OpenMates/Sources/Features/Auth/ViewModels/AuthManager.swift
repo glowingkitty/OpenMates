@@ -2,7 +2,7 @@
 // Handles login flows (password, passkey, recovery key, backup code),
 // session persistence, and device verification state.
 // Specification: specifications/features/auth/specification.yml
-// Assertions: auth.session.lifecycle, auth.session.authoritative-enforcement, auth.session.isolation
+// Assertions: auth.session.lifecycle, auth.session.authoritative-enforcement, auth.session.isolation, auth.lookup.anti-enumeration, auth.login.method-convergence
 
 import Foundation
 import SwiftUI
@@ -36,7 +36,7 @@ final class AuthManager: ObservableObject {
     @Published private(set) var webSocketToken: String?
     @Published private(set) var sessionValidationState: SessionValidationState = .initializing
 
-    private let api = APIClient.shared
+    private let api: APIClient
     private let crypto = CryptoManager.shared
     typealias SessionValidator = @MainActor (ServerProfile, SessionRequest) async throws -> SessionResponse
     private let sessionValidator: SessionValidator?
@@ -102,9 +102,10 @@ final class AuthManager: ObservableObject {
     private var pendingPassword: String?
     private var pendingEmail: String?
 
-    init(sessionValidator: SessionValidator? = nil, profileCacheWriter: ((UserProfile) -> Void)? = nil,
+    init(api: APIClient = .shared, sessionValidator: SessionValidator? = nil, profileCacheWriter: ((UserProfile) -> Void)? = nil,
          sessionMasterKeyAvailable: ((String) async -> Bool)? = nil,
          sessionScopeActivator: ((UserProfile) throws -> Void)? = nil) {
+        self.api = api
         self.sessionValidator = sessionValidator
         self.profileCacheWriter = profileCacheWriter
         self.sessionMasterKeyAvailable = sessionMasterKeyAvailable
@@ -303,6 +304,9 @@ final class AuthManager: ObservableObject {
         }
         guard ownsValidation() else { return }
         sessionValidationState = .validating
+        let cookieCount = (OpenMatesSharedEnvironment.cookieStorage.cookies(for: profile.apiBaseURL) ?? [])
+            .filter { $0.name == "auth_refresh_token" }.count
+        NativeDiagnostics.info("Native session validation started cached_account=\(accountId != nil) refresh_cookie_count=\(cookieCount)", category: "auth")
         do {
             let request = SessionRequest(sessionId: sessionId, deviceInfo: makeDeviceInfo())
             let response: SessionResponse
@@ -318,6 +322,7 @@ final class AuthManager: ObservableObject {
                     expectedAccountID: accountId, isCurrent: ownsValidation)
             }
             guard ownsValidation() else { return }
+            NativeDiagnostics.info("Native session validation response authenticated=\(response.isAuthenticated) verification_required=\(response.needsDeviceVerification == true)", category: "auth")
 
             if response.isAuthenticated, let user = response.user {
                 guard accountId == nil || user.id == accountId else {
@@ -369,6 +374,15 @@ final class AuthManager: ObservableObject {
             }
         } catch {
             guard ownsValidation() else { return }
+            let failureClass: String
+            if case APIError.httpError(let status, _) = error {
+                failureClass = status == 401 || status == 403 ? "credential_rejected" : "server_response"
+            } else if error is DecodingError {
+                failureClass = "response_decoding"
+            } else {
+                failureClass = "transport_unavailable"
+            }
+            NativeDiagnostics.warning("Native session validation failed class=\(failureClass) preserve_cached_account=\(keepOfflineSessionOnFailure)", category: "auth")
             webSocketToken = nil
             if keepOfflineSessionOnFailure {
                 // An explicit rejected session is not an offline connection.

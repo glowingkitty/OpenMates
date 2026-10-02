@@ -1,6 +1,6 @@
 // Web source: frontend/packages/ui/src/services/projectService.ts
 // Specification: specifications/features/projects/specification.yml
-// Assertions: projects.access.explicit-context, projects.files.no-server-decryption-authority
+// Assertions: projects.access.explicit-context, projects.files.no-server-decryption-authority, projects.files.connected-embed-previews
 import CryptoKit
 import Foundation
 
@@ -20,6 +20,117 @@ struct ProjectRemoteDirectory {
     let omitted: Int
     let excluded: Int
     let nextCursor: String?
+}
+
+/// Matches projectRemoteSources.ts: unknown extensions may still be plain
+/// text. The connected source enforces hidden/private/binary read policy.
+enum ProjectRemotePreviewPolicy {
+    private static let binaryExtensions: Set<String> = [
+        "7z", "avi", "bin", "bmp", "dmg", "doc", "docx", "dylib", "exe", "gif", "gz", "ico", "jar",
+        "jpeg", "jpg", "mov", "mp3", "mp4", "odt", "pdf", "png", "ppt", "pptx", "rar", "so", "tar",
+        "ttf", "wasm", "webm", "webp", "woff", "woff2", "xls", "xlsx", "zip",
+    ]
+
+    private static let languages = ["c": "c", "cjs": "javascript", "cpp": "cpp", "css": "css",
+        "entitlements": "entitlements", "go": "go", "gradle": "gradle", "h": "c", "hpp": "cpp",
+        "html": "html", "java": "java", "js": "javascript", "jsx": "javascript", "kt": "kotlin",
+        "mjs": "javascript", "php": "php", "plist": "plist", "py": "python", "rb": "ruby", "rs": "rust",
+        "sh": "bash", "sql": "sql", "svelte": "svelte", "swift": "swift", "toml": "toml", "ts": "typescript",
+        "tsx": "typescript", "xml": "xml", "yaml": "yaml", "yml": "yaml"]
+
+    static func language(_ path: String) -> String {
+        let name = path.split(separator: "/").last.map(String.init)?.lowercased() ?? ""
+        if name == "dockerfile" || name == "makefile" { return name }
+        let suffix = name.split(separator: ".").last.map(String.init) ?? ""
+        if ["md", "mdx"].contains(suffix) { return "markdown" }
+        if ["json", "jsonl"].contains(suffix) { return "json" }
+        return languages[suffix] ?? "text"
+    }
+
+    static func appID(_ path: String) -> String {
+        let suffix = path.split(separator: ".").last.map(String.init)?.lowercased() ?? ""
+        if ["md", "mdx", "txt", "rst"].contains(suffix) { return "docs" }
+        if ["png", "jpg", "jpeg", "gif", "webp", "avif", "svg"].contains(suffix) { return "images" }
+        if suffix == "pdf" { return "pdf" }
+        if ["xls", "xlsx", "csv", "ods"].contains(suffix) { return "sheets" }
+        return language(path) == "text" ? "files" : "code"
+    }
+
+    static func kindLabel(_ path: String) -> String {
+        let suffix = path.split(separator: ".").last.map(String.init)?.lowercased() ?? ""
+        let labels = ["md": "Markdown", "mdx": "Markdown", "rst": "reStructuredText", "txt": "Text",
+            "plist": "Property list", "pdf": "PDF", "csv": "CSV", "png": "PNG image", "jpg": "JPEG image",
+            "jpeg": "JPEG image", "ts": "TypeScript", "tsx": "TypeScript", "js": "JavaScript", "jsx": "JavaScript",
+            "json": "JSON", "yaml": "YAML", "yml": "YAML", "html": "HTML", "css": "CSS", "toml": "TOML"]
+        return labels[suffix] ?? (language(path) == "text" ? "File" : language(path).capitalized)
+    }
+
+    static func embed(sourceID: String, sourceLabel: String, path: String, text: ProjectRemoteText) -> EmbedRecord {
+        EmbedRecord(id: "remote:\(sourceID):\(path)", type: "code-code", status: .finished,
+            data: .raw(["type": AnyCodable("remote_file_preview"), "source_id": AnyCodable(sourceID),
+                "remote_source_label": AnyCodable(sourceLabel), "path": AnyCodable(path),
+                "filename": AnyCodable(path.split(separator: "/").last.map(String.init) ?? path),
+                "language": AnyCodable(language(path)), "code": AnyCodable(text.content),
+                "line_count": AnyCodable(text.lineCount), "size_bytes": AnyCodable(text.sizeBytes),
+                "safety_flags": AnyCodable(text.truncated ? ["truncated"] : [])]),
+            parentEmbedId: nil, appId: "code", skillId: "code", embedIds: nil, createdAt: nil)
+    }
+
+    static func canReadText(_ path: String) -> Bool {
+        guard ProjectWorkspacePath.normalized(path) != nil else { return false }
+        let name = path.split(separator: "/").last.map(String.init)?.lowercased() ?? ""
+        let suffix = name.contains(".") ? name.split(separator: ".", omittingEmptySubsequences: false).last.map(String.init) ?? "" : ""
+        return !binaryExtensions.contains(suffix)
+    }
+}
+
+/// Cursor-capable sources are paged remotely. Older connected CLIs return all
+/// entries in one response, which is retained only in this scoped memory value.
+struct ProjectRemotePagination {
+    static let pageSize = 48
+    private(set) var pageIndex = 0
+    private(set) var nextCursor: String?
+    private(set) var omitted = 0
+    private(set) var entries: [ProjectRemoteEntry] = []
+    private var cursors: [String?] = [nil]
+    private var legacy: ProjectRemoteDirectory?
+
+    var firstEntryNumber: Int { entries.isEmpty ? 0 : pageIndex * Self.pageSize + 1 }
+    var lastEntryNumber: Int { pageIndex * Self.pageSize + entries.count }
+    var totalEntryCount: Int { lastEntryNumber + omitted }
+
+    func cursor(for index: Int) -> String? {
+        cursors.indices.contains(index) ? cursors[index] : nil
+    }
+
+    func canShow(_ index: Int) -> Bool {
+        index >= 0 && (index <= pageIndex || (index == pageIndex + 1 && nextCursor != nil))
+    }
+
+    mutating func install(_ directory: ProjectRemoteDirectory, page index: Int) {
+        if directory.entries.count > Self.pageSize && directory.nextCursor == nil {
+            legacy = directory
+        }
+        if let legacy {
+            let start = index * Self.pageSize
+            entries = Array(legacy.entries.dropFirst(start).prefix(Self.pageSize))
+            nextCursor = start + entries.count < legacy.entries.count ? entries.last?.name : nil
+            omitted = legacy.omitted + max(0, legacy.entries.count - start - entries.count)
+        } else {
+            entries = Array(directory.entries.prefix(Self.pageSize))
+            nextCursor = directory.nextCursor
+            omitted = directory.omitted + max(0, directory.entries.count - entries.count)
+        }
+        pageIndex = index
+        cursors = Array(cursors.prefix(index + 1))
+        cursors.append(nextCursor)
+    }
+
+    mutating func showLegacyPage(_ index: Int) -> Bool {
+        guard let legacy, canShow(index) else { return false }
+        install(legacy, page: index)
+        return true
+    }
 }
 
 struct ProjectRemoteText {

@@ -6,6 +6,8 @@
 //          frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
 //          frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/electronics/ElectronicsSearchEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/electronics/ElectronicsSearchEmbedFullscreen.svelte
 //          frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
 //          frontend/packages/ui/src/components/embeds/finance/FinanceCheckAccountsEmbedPreview.svelte
@@ -52,7 +54,7 @@
 //                specifications/features/app-skills/web-search/specification.yml
 //                specifications/features/chats/specification.yml
 // Assertions: videos.transcript.surface-parity, web-search.surface-parity,
-//             chats.surface.semantic-parity
+//             chats.surface.semantic-parity, chats.layout.responsive-history
 
 import Combine
 import SwiftUI
@@ -286,6 +288,11 @@ struct AppSkillUseRenderer: View {
                 mode: .preview,
                 onOpenEmbed: onOpenEmbed
             ))
+        } else if appId == "electronics", skillId == "search_components" {
+            return AnyView(ElectronicsSearchParentRenderer(
+                embed: embed, allEmbedRecords: allEmbedRecords,
+                mode: .preview, onOpenEmbed: onOpenEmbed
+            ))
         } else if appId == "audio", skillId == "generate" || skillId == "speak" {
             return AnyView(GeneratedAudioSkillEmbedRenderer(data: data, status: embed.status, skillId: skillId, mode: .preview))
         } else if appId == "web", skillId == "read" {
@@ -470,6 +477,11 @@ struct AppSkillUseRenderer: View {
                 model: CodeRepoSearchModel(embed: embed, allEmbedRecords: allEmbedRecords),
                 mode: .fullscreen,
                 onOpenEmbed: onOpenEmbed
+            )
+        } else if appId == "electronics", skillId == "search_components" {
+            ElectronicsSearchParentRenderer(
+                embed: embed, allEmbedRecords: allEmbedRecords,
+                mode: .fullscreen, onOpenEmbed: onOpenEmbed
             )
         } else if appId == "audio", skillId == "generate" || skillId == "speak" {
             GeneratedAudioSkillEmbedRenderer(data: data, status: embed.status, skillId: skillId, mode: .fullscreen)

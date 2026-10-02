@@ -1086,7 +1086,9 @@ function generateLucideCategoryIconAssets() {
   const names = [...new Set([
     ...categoryFallbackIconNames(),
     "folder", "calendar-days", "folder-kanban", "list-checks", "archive", "link", "pencil", "chevron-down",
-    "house", "cloud-rain", "newspaper", "workflow"
+    "house", "cloud-rain", "newspaper", "workflow",
+    // Workflow editor field labels use these Lucide assets on the web.
+    "repeat", "globe", "heading", "hash", "download", "map-pin"
   ])].sort();
 
   for (const name of names) {

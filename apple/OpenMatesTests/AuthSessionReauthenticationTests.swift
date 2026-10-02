@@ -191,6 +191,68 @@ import XCTest
         }
     }
 
+    // contract-test: supporting surface=gui.apple assertions=auth.lookup.anti-enumeration,auth.login.method-convergence
+    func testPreTFAResponseDecodesNullIDAsChallengeWithoutPublishingProfile() throws {
+        let response = try loginResponse(#"{"success":true,"tfa_required":true,"user":{"id":null,"username":"","tfa_enabled":true}}"#)
+        XCTAssertTrue(response.success)
+        XCTAssertEqual(response.tfaRequired, true)
+        XCTAssertNil(response.user)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=auth.lookup.anti-enumeration,auth.login.method-convergence
+    func testRealAndDecoyPreTFAProfilesRemainChallengeMetadata() throws {
+        let actual = try loginResponse(#"{"success":true,"tfa_required":true,"user":{"id":"fixture-account","username":"","tfa_enabled":true}}"#)
+        let omitted = try loginResponse(#"{"success":true,"tfa_required":true,"user":null}"#)
+        XCTAssertEqual(actual.tfaRequired, omitted.tfaRequired)
+        XCTAssertNil(actual.user)
+        XCTAssertNil(omitted.user)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=auth.login.method-convergence,auth.session.authoritative-enforcement
+    func testFinalLoginStillRejectsNullOrMissingProfileID() throws {
+        for payload in [
+            #"{"success":true,"tfa_required":false,"user":{"id":null,"username":""}}"#,
+            #"{"success":true,"user":{"username":"Fixture"}}"#,
+        ] {
+            XCTAssertThrowsError(try loginResponse(payload))
+        }
+        let completed = try loginResponse(#"{"success":true,"tfa_required":false,"user":{"id":"fixture-account","username":"Fixture"},"ws_token":"fixture-socket"}"#)
+        XCTAssertEqual(completed.user?.id, "fixture-account")
+        XCTAssertEqual(completed.wsToken, "fixture-socket")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=auth.lookup.anti-enumeration,auth.login.method-convergence
+    func testProductionPasswordLoginRoutesDocumentedDecoyToTFAWithoutAuthenticating() async throws {
+        let originalProfile = ServerConfiguration.current
+        ServerConfiguration.current = ServerProfile.custom(domain: "password-tfa-fixture.example").endpointConfiguration
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [PasswordTFAURLProtocol.self]
+        let session = URLSession(configuration: configuration)
+        defer {
+            session.invalidateAndCancel()
+            ServerConfiguration.current = originalProfile
+        }
+        let api = APIClient(session: session, cookieStorage: try XCTUnwrap(configuration.httpCookieStorage))
+        let auth = AuthManager(api: api, profileCacheWriter: { _ in })
+        let initialState = auth.state
+        let initialValidationState = auth.sessionValidationState
+        do {
+            try await auth.loginWithPassword(email: "fixture@example.test", password: "FixturePassword1!",
+                userEmailSalt: Data((0..<16).map(UInt8.init)).base64EncodedString())
+            XCTFail("Pre-TFA response must not complete login")
+        } catch AuthError.tfaRequired {}
+        XCTAssertNil(auth.currentUser)
+        XCTAssertNil(auth.webSocketToken)
+        XCTAssertEqual(auth.state, initialState)
+        XCTAssertEqual(auth.sessionValidationState, initialValidationState)
+    }
+
+    private func loginResponse(_ payload: String) throws -> LoginResponse {
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return try decoder.decode(LoginResponse.self, from: Data(payload.utf8))
+    }
+
     private func sessionResponse(account: String, token: String) throws -> SessionResponse {
         try JSONDecoder().decode(SessionResponse.self, from: JSONSerialization.data(withJSONObject: [
             "success": true, "user": ["id": account, "username": "Fixture"], "wsToken": token
@@ -201,4 +263,31 @@ import XCTest
         try JSONDecoder().decode(UserProfile.self,
             from: JSONSerialization.data(withJSONObject: ["id": id, "username": "Fixture"]))
     }
+}
+
+// Deterministic transport for the real password challenge/login path. This
+// protocol intercepts every request; it cannot contact a reserved or live account.
+private final class PasswordTFAURLProtocol: URLProtocol, @unchecked Sendable {
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override func startLoading() {
+        let payload: Data
+        switch request.url?.path {
+        case "/v1/auth/password-v2/challenge":
+            payload = try! JSONSerialization.data(withJSONObject: ["challenge_id": "fixture-challenge",
+                "nonce": Data(repeating: 0, count: 32).base64URLEncodedString(), "expires_in": 120])
+        case "/v1/auth/login":
+            payload = Data(#"{"success":true,"message":"2FA required","tfa_required":true,"user":{"id":null,"username":"","tfa_enabled":true}}"#.utf8)
+        default:
+            XCTFail("Unexpected password-flow endpoint")
+            client?.urlProtocol(self, didFailWithError: URLError(.unsupportedURL))
+            return
+        }
+        let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil,
+            headerFields: ["Content-Type": "application/json"])!
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: payload)
+        client?.urlProtocolDidFinishLoading(self)
+    }
+    override func stopLoading() {}
 }

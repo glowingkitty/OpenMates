@@ -1,23 +1,26 @@
 schema_version: 1
 id: feature.apple-watch
-version: 2
+version: 3
 status: draft
 title: Apple Watch companion
 summary: >
   The Apple Watch companion follows the approved compact Watch design for
-  iPhone-first pairing, read-only Task and Workflow browsing, and private Chats
-  with text and audio replies.
+  iPhone-first pairing, private Task browsing and editing, compact Workflow
+  viewing and node editing, and private Chats with text and audio replies.
 
 scope:
   includes:
     - Watch pairing through the matching iPhone with a prominent short-URL and manual pair-code fallback.
-    - Watch Chat, Task, and Workflow navigation and read-only lists.
-    - A horizontally paged Tasks kanban board with canonical iPhone sections, vertical Digital Crown scrolling, and native read-only Task details.
+    - Watch Chat, Task, and Workflow navigation and private lists.
+    - A horizontally paged Tasks kanban board with canonical iPhone sections, vertical Digital Crown scrolling, and native Task details.
+    - Editing the title, description, status, and priority of an existing editable personal Task.
+    - Compact Workflow details with expandable nodes and editing of an existing personal Workflow's node configuration and input references.
     - Privacy-preserving Task and Workflow handoff to the paired iPhone.
     - Saved-chat browsing, search, new chat, text replies, and audio replies.
     - Compact Watch layout and accessible controls for these surfaces.
   excludes:
-    - Native Watch Workflow detail, and Task or Workflow creation, editing, or execution.
+    - Watch Task or Workflow creation, Workflow execution, or automatically changing activation when editing.
+    - Mutating Team Tasks, read-only Tasks, or workflow-run projections on Watch.
     - On-device audio transcription or a post-recording attachment editor.
     - Changes to the shared pair-login, encrypted chat, or server transcription contracts.
 
@@ -56,17 +59,48 @@ assertions:
     must: >
       An authenticated Watch lists readable client-decrypted Tasks and Workflows,
       including workflow-run projections where available, without exposing
-      ciphertext or offering native mutations. Tasks use the iPhone kanban section
+      ciphertext or offering mutations in the lists. Tasks use the iPhone kanban section
       order: Backlog, To do, In progress, Blocked, and Done. Swiping horizontally
       changes sections while the Digital Crown scrolls the current section
       vertically. Tapping a Task opens its readable private details on Watch.
-      Workflow detail stays on the paired iPhone. Loading, empty, and failure
-      states remain visible.
+      Tapping a Workflow opens its compact details on Watch. Loading,
+      empty, and failure states remain visible.
     depends_on: [examples.lists]
+  - id: apple-watch.tasks.edit-private
+    type: behavior
+    must: >
+      A Task detail offers editing of its title, description, status, and priority
+      only for an existing editable personal Task. Saving uses the existing
+      authenticated versioned update contract, encrypts private text with that
+      Task's key, and updates the displayed Task and kanban section only after a
+      valid server response. Cancel makes no changes. Failed saves preserve the
+      edit for retry and show failure. Account, session, or server changes prevent
+      stale requests and responses from publishing cookies, private content, or
+      apparent success. Team Tasks, read-only Tasks, and workflow-run projections
+      have no Edit control.
+    depends_on: [examples.task_editing]
+  - id: apple-watch.workflows.compact-editor
+    type: behavior
+    must: >
+      A personal Workflow opens a vertically scrollable compact graph on Watch.
+      Its trigger, app-skill, Ask AI, Check, and Send message nodes can expand to
+      show their readable configuration, input references, and actual connections
+      including conditional branches. Editable personal nodes offer compact
+      configuration and input-reference controls. Saving preserves graph fields
+      and connections outside the edit, uses the existing authenticated update
+      contract, and publishes success only after an accepted response. Cancel
+      makes no changes; failure retains the edit for retry. A detected intervening
+      Workflow change requires reloading rather than overwriting it. Editing does
+      not execute or automatically activate a Workflow. The Digital Crown scrolls
+      the view; Back returns to the Workflow list and Open on iPhone remains
+      explicit. Loading, empty, and failure with retry are visible. A changed
+      account, session, server, or selected Workflow discards stale detail
+      responses; unsupported Team context fails closed.
+    depends_on: [examples.workflow_details]
   - id: apple-watch.handoff.exact-private
     type: behavior
     must: >
-      Choosing Open on iPhone in a Task read view, or tapping a Workflow on Watch,
+      Choosing Open on iPhone in a Task or Workflow detail view on Watch
       sends only an item kind, opaque id, and
       server identity to the paired iPhone. The iPhone accepts only a matching
       server profile and valid identifier, then routes the user to the exact HTTPS
@@ -126,4 +160,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [pairing, pairing_privacy, hub, lists, handoff, chats, replies, audio, chat_layout]
+  required_groups: [pairing, pairing_privacy, hub, lists, task_editing, workflow_details, handoff, chats, replies, audio, chat_layout]

@@ -136,8 +136,9 @@ async def test_get_current_user_repairs_stale_cached_admin_status(monkeypatch):
     _stub_auth_dependency_imports(monkeypatch)
     import importlib
     module = importlib.import_module("backend.core.api.app.routes.auth_routes.auth_dependencies")
-    monkeypatch.setattr(module, "enforce_pair_deadline", AsyncMock())
-    monkeypatch.setattr(module, "get_session_state_cached", AsyncMock(return_value=None))
+    async def existing_credential(_cache, _directus, token, **_kwargs):
+        return token
+    monkeypatch.setattr(module, "resolve_session_credential", existing_credential)
     monkeypatch.setattr(module, "ensure_legacy_session_state", AsyncMock())
     from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
 

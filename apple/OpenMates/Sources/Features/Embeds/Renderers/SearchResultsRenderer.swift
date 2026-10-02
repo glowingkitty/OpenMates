@@ -3,12 +3,13 @@
 // ─── Web source ─────────────────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/embeds/code/CodeRepoSearchEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/code/CodeRepoSearchEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/electronics/ElectronicsSearchEmbedFullscreen.svelte
 //          frontend/packages/ui/src/components/embeds/SearchResultsTemplate.svelte
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
 //          TypographyTokens.generated.swift
 // ──────────────────────────────────────────────────────────────────
 // Specification: specifications/features/chats/specification.yml
-// Assertions: chats.surface.semantic-parity
+// Assertions: chats.surface.semantic-parity, chats.layout.responsive-history
 
 import SwiftUI
 
@@ -65,13 +66,16 @@ struct CodeRepoSearchEmbedRenderer: View {
             query: model.query,
             results: model.repositoryEmbeds,
             emptyText: AppStrings.searchNoResults,
-            webLayout: true
+            webLayout: true,
+            minimumCardWidth: 320
         ) { repository in
             EmbedPreviewCard(embed: repository, variant: .compact) {
                 onOpenEmbed(repository)
             }
             .accessibilityIdentifier("embed-preview-\(repository.id)")
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("code-repo-search-fullscreen-results")
     }
 }
 
@@ -194,12 +198,14 @@ struct ElectronicsSearchParentRenderer: View {
             .accessibilityIdentifier("electronics-search-preview")
         case .fullscreen:
             SearchResultsGrid(status: embed.status, query: query, results: children,
-                              emptyText: AppStrings.searchNoResults, webLayout: true) { child in
+                              emptyText: AppStrings.searchNoResults, webLayout: true,
+                              maximumGridWidth: 1100) { child in
                 EmbedPreviewCard(embed: child, allEmbedRecords: allEmbedRecords) {
                     onOpenEmbed(child)
                 }
                 .accessibilityIdentifier("embed-preview-\(child.id)")
             }
+            .accessibilityElement(children: .contain)
             .accessibilityIdentifier("electronics-search-fullscreen")
         }
     }

@@ -208,12 +208,17 @@ struct ChatSettingsView: View {
         #endif
     }
     #if DEBUG
-    private func recordExportReceipt(_ url: URL) {
+    private func recordExportReceipt(_ url: URL, expectedData: Data?) {
         let accessing = url.startAccessingSecurityScopedResource()
         defer { if accessing { url.stopAccessingSecurityScopedResource() } }
         let attributes = try? FileManager.default.attributesOfItem(atPath: url.path)
         let bytes = (attributes?[.size] as? NSNumber).map { String($0.uint64Value) } ?? "unavailable"
         lastExportReceipt = "saved=\(url.lastPathComponent);bytes=\(bytes)"
+        if isPreview {
+            let saved = try? Data(contentsOf: url)
+            let matches = expectedData.map { saved == $0 } ?? false
+            lastExportReceipt? += ";content=\(matches ? "verified" : "mismatch")"
+        }
     }
     #endif
     private var displayedCredits: Double { usage.total ?? chat.budgetSpent ?? usage.knownCredits }
@@ -418,11 +423,14 @@ struct ChatSettingsView: View {
         } catch { failExport() }
     }
     private func completeExport(_ result: Result<URL, Error>) {
+        #if DEBUG
+        let expectedData = isPreview ? exportDocument?.data : nil
+        #endif
         exportDocument = nil
         switch result {
         case .success(let url):
             #if DEBUG
-            recordExportReceipt(url)
+            recordExportReceipt(url, expectedData: expectedData)
             #endif
             exportError = nil; exportPhase = .idle
         case .failure(let error):

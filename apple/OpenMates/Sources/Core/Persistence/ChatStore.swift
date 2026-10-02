@@ -18,6 +18,8 @@ final class ChatStore: ObservableObject {
     private var bridge: OfflineSyncBridge?
     private var persistenceSuppressionDepth = 0
     private var serverSortOrderByChatId: [String: Int] = [:]
+    private var recoveredMetadataFieldVersions: [String: [String: Int]] = [:]
+    private var requiredCompleteMetadataRevision: [String: Int] = [:]
     private var pendingAssistantRecoveryLookup: (String) -> Set<String> = { _ in [] }
 
     /// The recovery coordinator supplies account-scoped, durable job awareness.
@@ -47,7 +49,7 @@ final class ChatStore: ObservableObject {
         let persisted: Chat
         if let index = chats.firstIndex(where: { $0.id == chat.id }) {
             logMetadataMerge(existing: chats[index], incoming: chat)
-            chats[index] = chats[index].merged(with: chat)
+            chats[index] = mergeRecoveredMetadata(current: chats[index], incoming: chat, authoritative: false)
             persisted = chats[index]
         } else {
             chats.append(chat)
@@ -62,7 +64,8 @@ final class ChatStore: ObservableObject {
         persistIfAllowed { $0.onChatsReceived([persisted]) }
     }
 
-    func upsertChats(_ newChats: [Chat], serverSortOrder: [String]? = nil, serverSortOffset: Int = 0) {
+    func upsertChats(_ newChats: [Chat], serverSortOrder: [String]? = nil, serverSortOffset: Int = 0,
+                     authoritativeMetadata: Bool = false) {
         if let serverSortOrder {
             for (index, chatId) in serverSortOrder.enumerated() {
                 serverSortOrderByChatId[chatId] = serverSortOffset + index
@@ -81,7 +84,7 @@ final class ChatStore: ObservableObject {
         for chat in newChats {
             if let index = indexByChatId[chat.id] {
                 logMetadataMerge(existing: nextChats[index], incoming: chat)
-                nextChats[index] = nextChats[index].merged(with: chat)
+                nextChats[index] = mergeRecoveredMetadata(current: nextChats[index], incoming: chat, authoritative: authoritativeMetadata)
                 persisted.append(nextChats[index])
             } else {
                 indexByChatId[chat.id] = nextChats.count
@@ -97,7 +100,94 @@ final class ChatStore: ObservableObject {
         persistIfAllowed { $0.onChatsReceived(persisted) }
     }
 
+    /// The receipt contains only fields accepted by the atomic owner/key/edit
+    /// guard. Older receipt retries cannot reverse newer local metadata.
+    func applyRecoveredMetadata(chatId: String, encrypted: [String: String], plaintext: [String: String],
+                                metadataVersion: Int, titleVersion: Int) {
+        guard let current = chat(for: chatId) else { return }
+        let existing: [String: (String?, String?)] = [
+            "encrypted_title": (current.encryptedTitle, current.title),
+            "encrypted_chat_summary": (current.encryptedChatSummary, current.chatSummary),
+            "encrypted_category": (current.encryptedCategory, current.category),
+            "encrypted_icon": (current.encryptedIcon, current.icon),
+        ]
+        let accepted = encrypted.filter { field, ciphertext in
+            guard let (storedCiphertext, storedPlaintext) = existing[field] else { return false }
+            let incomingRevision = field == "encrypted_title" ? titleVersion : metadataVersion
+            let localRevision = field == "encrypted_title" ? (current.titleV ?? 0)
+                : max(current.metadataV ?? 0, recoveredMetadataFieldVersions[chatId]?[field] ?? 0)
+            return incomingRevision > localRevision
+                || (incomingRevision == localRevision && storedPlaintext == nil
+                    && (storedCiphertext == nil || storedCiphertext == ciphertext))
+        }
+        guard !accepted.isEmpty else { return }
+        let recovered = current.withRecoveredMetadata(encrypted: accepted,
+            plaintext: plaintext.filter { accepted[$0.key] != nil },
+            metadataVersion: current.metadataV ?? 0,
+            titleVersion: accepted["encrypted_title"] == nil
+                ? (current.titleV ?? 0) : max(titleVersion, current.titleV ?? 0))
+        guard let index = chats.firstIndex(where: { $0.id == chatId }) else { return }
+        requiredCompleteMetadataRevision[chatId] = max(requiredCompleteMetadataRevision[chatId] ?? 0, metadataVersion)
+        for field in accepted.keys where field != "encrypted_title" {
+            recoveredMetadataFieldVersions[chatId, default: [:]][field] = metadataVersion
+        }
+        chats[index] = recovered
+        persistIfAllowed { $0.onChatsReceived([recovered]) }
+    }
+
+    /// Only the server's complete phased-sync snapshot may advance the global
+    /// revision after a partial receipt. Decryption and individual updates are
+    /// partial; their accepted field revisions remain fenced until that sync.
+    private func mergeRecoveredMetadata(current: Chat, incoming: Chat, authoritative: Bool) -> Chat {
+        let merged = current.merged(with: incoming)
+        guard let required = requiredCompleteMetadataRevision[current.id] else { return merged }
+        let currentValues = recoveredMetadataValues(current)
+        let incomingValues = recoveredMetadataValues(incoming)
+        let incomingRevision = incoming.metadataV ?? 0
+        let fieldVersions = recoveredMetadataFieldVersions[current.id] ?? [:]
+        var protectedEncrypted: [String: String] = [:]
+        var protectedPlaintext: [String: String] = [:]
+        for field in currentValues.keys {
+            let revision = max(current.metadataV ?? 0, fieldVersions[field] ?? 0)
+            if incomingRevision < revision
+                || (incomingRevision == revision && currentValues[field]?.0 != nil
+                    && incomingValues[field]?.0 != currentValues[field]?.0) {
+                protectedEncrypted[field] = currentValues[field]?.0
+                protectedPlaintext[field] = currentValues[field]?.1
+            }
+        }
+        let complete = authoritative && incomingRevision >= required
+            && fieldVersions.allSatisfy { field, revision in
+                incomingRevision > revision || incomingValues[field]?.0 == currentValues[field]?.0
+            }
+        if complete {
+            requiredCompleteMetadataRevision.removeValue(forKey: current.id)
+            recoveredMetadataFieldVersions.removeValue(forKey: current.id)
+        } else {
+            // Partial sync/broadcasts can contain other newer encrypted fields.
+            // Fence those individually too while retaining the complete version.
+            for (field, value) in incomingValues where value.0 != nil && protectedEncrypted[field] == nil {
+                recoveredMetadataFieldVersions[current.id, default: [:]][field] = max(
+                    recoveredMetadataFieldVersions[current.id]?[field] ?? 0, incomingRevision)
+            }
+            requiredCompleteMetadataRevision[current.id] = max(required, incomingRevision)
+        }
+        return merged.withRecoveredMetadata(encrypted: protectedEncrypted, plaintext: protectedPlaintext,
+            metadataVersion: complete ? (merged.metadataV ?? incomingRevision) : (current.metadataV ?? 0),
+            titleVersion: merged.titleV ?? 0)
+    }
+
+    private func recoveredMetadataValues(_ chat: Chat) -> [String: (String?, String?)] {
+        ["encrypted_chat_summary": (chat.encryptedChatSummary, chat.chatSummary),
+         "encrypted_category": (chat.encryptedCategory, chat.category),
+         "encrypted_icon": (chat.encryptedIcon, chat.icon),
+         "encrypted_follow_up_request_suggestions": (chat.encryptedFollowUpRequestSuggestions, nil),
+         "encrypted_auto_speak_response": (chat.encryptedAutoSpeakResponse, nil)]
+    }
+
     func removeChat(_ chatId: String) {
+        recoveredMetadataFieldVersions.removeValue(forKey: chatId)
+        requiredCompleteMetadataRevision.removeValue(forKey: chatId)
         serverSortOrderByChatId.removeValue(forKey: chatId)
         chats.removeAll { $0.id == chatId }
         messagesByChat.removeValue(forKey: chatId)
@@ -106,6 +196,8 @@ final class ChatStore: ObservableObject {
     }
 
     func clearInMemory() {
+        recoveredMetadataFieldVersions.removeAll()
+        requiredCompleteMetadataRevision.removeAll()
         chats.removeAll()
         messagesByChat.removeAll()
         embedsByChat.removeAll()
@@ -499,6 +591,48 @@ final class ChatStore: ObservableObject {
 }
 
 private extension Chat {
+    func withRecoveredMetadata(encrypted: [String: String], plaintext: [String: String],
+                               metadataVersion: Int, titleVersion: Int) -> Chat {
+        Chat(
+            id: id,
+            title: plaintext["encrypted_title"] ?? title,
+            lastMessageAt: lastMessageAt,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            isArchived: isArchived,
+            isPinned: isPinned,
+            appId: appId,
+            category: plaintext["encrypted_category"] ?? category,
+            icon: plaintext["encrypted_icon"] ?? icon,
+            chatSummary: plaintext["encrypted_chat_summary"] ?? chatSummary,
+            encryptedTitle: encrypted["encrypted_title"] ?? encryptedTitle,
+            encryptedCategory: encrypted["encrypted_category"] ?? encryptedCategory,
+            encryptedIcon: encrypted["encrypted_icon"] ?? encryptedIcon,
+            encryptedChatSummary: encrypted["encrypted_chat_summary"] ?? encryptedChatSummary,
+            encryptedFollowUpRequestSuggestions: encrypted["encrypted_follow_up_request_suggestions"] ?? encryptedFollowUpRequestSuggestions,
+            encryptedAutoSpeakResponse: encrypted["encrypted_auto_speak_response"] ?? encryptedAutoSpeakResponse,
+            encryptedChatKey: encryptedChatKey,
+            messagesV: messagesV,
+            titleV: titleVersion,
+            draftV: draftV,
+            metadataV: metadataVersion,
+            lastVisibleMessageId: lastVisibleMessageId,
+            parentId: parentId,
+            isSubChat: isSubChat,
+            subChatSettings: subChatSettings,
+            budgetLimit: budgetLimit,
+            budgetSpent: budgetSpent,
+            encryptedActiveFocusId: encrypted["encrypted_active_focus_id"] ?? encryptedActiveFocusId,
+            activeFocusId: plaintext["encrypted_active_focus_id"] ?? activeFocusId,
+            isPrivate: isPrivate,
+            isHidden: isHidden,
+            isHiddenCandidate: isHiddenCandidate,
+            hasNonEmptyDraft: hasNonEmptyDraft,
+            clearedDraftV: clearedDraftV
+        )
+    }
+
+
     func withMessagesVersion(_ messagesVersion: Int) -> Chat {
         Chat(
             id: id,
@@ -640,11 +774,24 @@ private extension Chat {
             ? max(clearedDraftV ?? 0, max(draftV ?? 0, incomingVersion))
             : max(clearedDraftV ?? 0, incoming.clearedDraftV ?? 0)
         let acceptsIncomingMetadata = (incoming.metadataV ?? 0) >= (metadataV ?? 0)
-        let acceptsIncomingSummary = (incoming.metadataV ?? 0) > (metadataV ?? 0)
-            || ((incoming.metadataV ?? 0) == (metadataV ?? 0)
-                && chatSummary == nil
-                && (encryptedChatSummary == nil
-                    || (incoming.chatSummary != nil && encryptedChatSummary == incoming.encryptedChatSummary)))
+        let newerMetadata = (incoming.metadataV ?? 0) > (metadataV ?? 0)
+        let equalMetadata = (incoming.metadataV ?? 0) == (metadataV ?? 0)
+        func metadataPlaintext(_ current: String?, _ currentCiphertext: String?,
+                               _ next: String?, _ nextCiphertext: String?) -> String? {
+            if newerMetadata {
+                // Changed encrypted content invalidates the cached plaintext.
+                // Equal-revision decryption can then hydrate that exact content.
+                if let nextCiphertext, nextCiphertext != currentCiphertext { return next }
+                return next ?? current
+            }
+            if equalMetadata && current == nil
+                && (currentCiphertext == nil || currentCiphertext == nextCiphertext) { return next }
+            return current
+        }
+        func metadataCiphertext(_ current: String?, _ next: String?) -> String? {
+            if newerMetadata { return next ?? current }
+            return equalMetadata ? (current ?? next) : current
+        }
         let incomingTitleVersion = incoming.titleV ?? 0
         let currentTitleVersion = titleV ?? 0
         let acceptsNewerTitleRevision = incomingTitleVersion > currentTitleVersion
@@ -674,14 +821,13 @@ private extension Chat {
             isArchived: incoming.isArchived ?? isArchived,
             isPinned: incoming.isPinned ?? isPinned,
             appId: incoming.appId ?? appId,
-            category: incoming.category ?? category,
-            icon: incoming.icon ?? icon,
-            chatSummary: acceptsIncomingSummary ? (incoming.chatSummary ?? chatSummary) : chatSummary,
+            category: metadataPlaintext(category, encryptedCategory, incoming.category, incoming.encryptedCategory),
+            icon: metadataPlaintext(icon, encryptedIcon, incoming.icon, incoming.encryptedIcon),
+            chatSummary: metadataPlaintext(chatSummary, encryptedChatSummary, incoming.chatSummary, incoming.encryptedChatSummary),
             encryptedTitle: resolvedEncryptedTitle,
-            encryptedCategory: incoming.encryptedCategory ?? encryptedCategory,
-            encryptedIcon: incoming.encryptedIcon ?? encryptedIcon,
-            encryptedChatSummary: acceptsIncomingSummary
-                ? (incoming.encryptedChatSummary ?? encryptedChatSummary) : encryptedChatSummary,
+            encryptedCategory: metadataCiphertext(encryptedCategory, incoming.encryptedCategory),
+            encryptedIcon: metadataCiphertext(encryptedIcon, incoming.encryptedIcon),
+            encryptedChatSummary: metadataCiphertext(encryptedChatSummary, incoming.encryptedChatSummary),
             encryptedFollowUpRequestSuggestions: acceptsIncomingMetadata
                 ? (incoming.encryptedFollowUpRequestSuggestions ?? encryptedFollowUpRequestSuggestions)
                 : encryptedFollowUpRequestSuggestions,
@@ -698,7 +844,8 @@ private extension Chat {
             budgetLimit: incoming.budgetLimit ?? budgetLimit,
             budgetSpent: incoming.budgetSpent ?? budgetSpent,
             encryptedActiveFocusId: incoming.encryptedActiveFocusId ?? encryptedActiveFocusId,
-            activeFocusId: incoming.activeFocusId ?? activeFocusId,
+            activeFocusId: incoming.encryptedActiveFocusId != nil && incoming.encryptedActiveFocusId != encryptedActiveFocusId
+                ? incoming.activeFocusId : (incoming.activeFocusId ?? activeFocusId),
             isPrivate: incoming.isPrivate ?? isPrivate,
             isHidden: incoming.isHidden ?? isHidden,
             isHiddenCandidate: incoming.isHiddenCandidate ?? isHiddenCandidate,

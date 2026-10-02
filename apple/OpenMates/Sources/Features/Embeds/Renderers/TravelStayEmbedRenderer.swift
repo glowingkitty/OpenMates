@@ -18,7 +18,7 @@ struct TravelStayEmbedRenderer: View {
 
     private var name: String { data?["name"]?.value as? String ?? "Stay" }
     private var location: String? { TravelValue.string(data, ["location", "address"]) }
-    private var pricePerNight: Double? { TravelValue.double(data, ["price_per_night", "extracted_rate_per_night", "rate_per_night"]) }
+    private var pricePerNight: Double? { TravelValue.double(data, ["extracted_rate_per_night", "price_per_night", "rate_per_night"]) }
     private var totalRate: Double? { TravelValue.double(data, ["extracted_total_rate", "total_rate"]) }
     private var currency: String { TravelValue.string(data, ["currency"]) ?? "EUR" }
     private var rating: Double? { TravelValue.double(data, ["overall_rating", "rating"]) }
@@ -42,38 +42,72 @@ struct TravelStayEmbedRenderer: View {
     var body: some View {
         switch mode {
         case .preview:
-            ZStack(alignment: .bottomLeading) {
-                if let imageUrl, let imgURL = URL(string: imageUrl) {
-                    CachedRemoteImage(url: imgURL) { image in
-                        image.resizable().aspectRatio(contentMode: .fill)
-                    } placeholder: {
-                        Color.grey20
+            GeometryReader { viewport in
+                VStack(alignment: .leading, spacing: 0) {
+                    // The web's --color-grey-15 is undeclared. Its thumbnail
+                    // and amenity background declarations resolve to transparent,
+                    // exposing UnifiedEmbedPreview's --color-grey-25 card surface.
+                    Group {
+                        if let imageUrl, let imgURL = URL(string: imageUrl) {
+                            CachedRemoteImage(url: imgURL) { image in
+                                image.resizable().aspectRatio(contentMode: .fill)
+                            } placeholder: { Color.clear }
+                        } else {
+                            Color.clear.overlay(Text("🏨").font(.omH1).opacity(0.4))
+                        }
                     }
-                } else {
-                    Color.grey20.overlay(Icon("travel", size: 36).foregroundStyle(Color.fontTertiary))
-                }
+                    .frame(width: viewport.size.width, height: 110)
+                    .clipped()
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(name).font(.omSmall).fontWeight(.medium).foregroundStyle(.white).lineLimit(1)
-                    HStack {
-                        if let pricePerNight {
-                            Text("\(currency)\(String(format: "%.0f", pricePerNight))\(AppStrings.perNight)")
-                                .font(.omXs).foregroundStyle(.white)
+                    VStack(alignment: .leading, spacing: .spacing1) {
+                        // In the rendered 300×200 web card, .stay-name's
+                        // shrinkable overflow-hidden row collapses inside
+                        // .stay-info. Stars paint directly below the 110pt image;
+                        // BasicInfosBar carries the visible property name.
+                        if let hotelClass, (1...5).contains(hotelClass) {
+                            Text(String(repeating: "★", count: hotelClass))
+                                .font(.omP).tracking(1)
+                                .foregroundStyle(Color(hex: 0xF5A623))
+                                .accessibilityIdentifier("stay-preview-stars")
                         }
                         if let rating {
-                            Label { Text(String(format: "%.1f", rating)).font(.omTiny) } icon: { Icon("rating", size: 10) }
-                                .foregroundStyle(.yellow)
+                            HStack(spacing: 3) {
+                                Text(String(format: "%.1f", rating)).fontWeight(.semibold)
+                                if let reviews { Text("(\(reviews.formatted()))").foregroundStyle(Color.fontSecondary) }
+                            }
+                            .font(.omTiny).foregroundStyle(Color.fontPrimary)
                         }
+                        FlowLayout(spacing: 3) {
+                            ForEach(amenities.prefix(3), id: \.self) { amenity in
+                                Text(amenity).font(.omP).foregroundStyle(Color.fontSecondary)
+                                    .padding(.horizontal, 6).padding(.vertical, 1)
+                                    .background(Color.clear)
+                                    .clipShape(RoundedRectangle(cornerRadius: .radius3))
+                            }
+                        }
+                        HStack(alignment: .firstTextBaseline, spacing: 3) {
+                            if let pricePerNight {
+                                Text("\(currency) \(String(format: "%.0f", pricePerNight))")
+                                    .font(.omSmall).fontWeight(.bold)
+                                Text(AppStrings.perNight).font(.omTiny)
+                            }
+                            if let totalRate {
+                                Spacer(minLength: 0)
+                                Text("\(currency) \(String(format: "%.0f", totalRate)) \(AppStrings.total)").font(.omTiny)
+                            }
+                        }
+                        .foregroundStyle(Color.fontPrimary)
                     }
+                    .padding(.horizontal, .spacing6)
+                    .padding(.top, .spacing4)
+                    .padding(.bottom, .spacing3)
                 }
-                .padding(.spacing3)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(.linearGradient(colors: [.clear, .black.opacity(0.7)], startPoint: .top, endPoint: .bottom))
+                .frame(width: viewport.size.width, alignment: .topLeading)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .clipped()
 
         case .fullscreen:
-            EmbedMapDetailTemplate(mapConfiguration: mapConfiguration) {
+            EmbedMapDetailTemplate(mapConfiguration: mapConfiguration, narrowDetailInset: .spacing8) {
                 VStack(alignment: .leading, spacing: .spacing8) {
                     VStack(alignment: .center, spacing: .spacing3) {
                         Text(name)
@@ -82,11 +116,13 @@ struct TravelStayEmbedRenderer: View {
                             .foregroundStyle(Color.fontPrimary)
                             .multilineTextAlignment(.center)
                             .lineLimit(3)
+                            .accessibilityIdentifier("stay-name")
 
                         HStack(spacing: .spacing4) {
                             if let hotelClass, hotelClass > 0 {
                                 Text(String(repeating: "★", count: min(hotelClass, 5)))
                                     .font(.omSmall)
+                                    .tracking(1)
                                     .foregroundStyle(Color(hex: 0xF5A623))
                             }
                             if let propertyType {
@@ -115,6 +151,7 @@ struct TravelStayEmbedRenderer: View {
                             }
                         }
                     }
+                    .frame(maxWidth: .infinity)
 
                 if let imageUrl, let imgURL = URL(string: imageUrl) {
                     CachedRemoteImage(url: imgURL) { image in
@@ -132,6 +169,7 @@ struct TravelStayEmbedRenderer: View {
                                 .font(.omH3)
                                 .fontWeight(.bold)
                                 .foregroundStyle(Color.fontPrimary)
+                                .accessibilityIdentifier("stay-price-per-night")
                             Text(AppStrings.perNight)
                                 .font(.omSmall)
                                 .foregroundStyle(Color.fontSecondary)
@@ -141,6 +179,7 @@ struct TravelStayEmbedRenderer: View {
                         Text("\(currency) \(String(format: "%.0f", totalRate)) \(AppStrings.total)")
                             .font(.omSmall)
                             .foregroundStyle(Color.fontSecondary)
+                            .accessibilityIdentifier("stay-total-price")
                     }
                 }
                 .frame(maxWidth: .infinity)
@@ -148,10 +187,10 @@ struct TravelStayEmbedRenderer: View {
                 if freeCancellation || ecoCertified {
                     HStack(spacing: .spacing3) {
                         if freeCancellation {
-                            TravelStayBadge(label: AppStrings.freeCancellation, foreground: Color.fontPrimary, background: Color.grey10)
+                            TravelStayBadge(label: AppStrings.freeCancellation, foreground: Color.fontPrimary, background: Color.clear)
                         }
                         if ecoCertified {
-                            TravelStayBadge(label: AppStrings.ecoCertified, foreground: Color.fontPrimary, background: Color.grey10)
+                            TravelStayBadge(label: AppStrings.ecoCertified, foreground: Color.fontPrimary, background: Color.clear)
                         }
                     }
                     .frame(maxWidth: .infinity)
@@ -179,7 +218,7 @@ struct TravelStayEmbedRenderer: View {
 
                 if !amenities.isEmpty {
                     FlowLayout(spacing: .spacing3) {
-                        ForEach(amenities.prefix(10), id: \.self) { amenity in
+                        ForEach(amenities, id: \.self) { amenity in
                             Text(amenity)
                                 .font(.omTiny)
                                 .foregroundStyle(Color.grey80)

@@ -1,5 +1,7 @@
 // Auth data models matching the backend Pydantic schemas.
 // Used for login, lookup, session, and device verification flows.
+// Specification: specifications/features/auth/specification.yml
+// Assertions: auth.lookup.anti-enumeration, auth.login.method-convergence
 
 import Foundation
 
@@ -99,6 +101,28 @@ struct LoginResponse: Decodable {
     let deviceVerificationType: String?
     let wsToken: String?
     let pairExpiresAt: Int?
+}
+
+// Backend pre-TFA responses include an anti-enumeration placeholder whose id
+// is null. It is challenge metadata, never an authenticated UserProfile. Decode
+// the gate first; final authenticated profiles still require their strict ID.
+extension LoginResponse {
+    private enum CodingKeys: String, CodingKey {
+        case success, tfaRequired, user, needsDeviceVerification, deviceVerificationType, wsToken, pairExpiresAt
+    }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        success = try values.decode(Bool.self, forKey: .success)
+        let requiresTFA = try values.decodeIfPresent(Bool.self, forKey: .tfaRequired)
+        tfaRequired = requiresTFA
+        if requiresTFA == true { user = nil }
+        else { user = try values.decodeIfPresent(UserProfile.self, forKey: .user) }
+        needsDeviceVerification = try values.decodeIfPresent(Bool.self, forKey: .needsDeviceVerification)
+        deviceVerificationType = try values.decodeIfPresent(String.self, forKey: .deviceVerificationType)
+        wsToken = try values.decodeIfPresent(String.self, forKey: .wsToken)
+        pairExpiresAt = try values.decodeIfPresent(Int.self, forKey: .pairExpiresAt)
+    }
 }
 
 // MARK: - PAKE pair login v2

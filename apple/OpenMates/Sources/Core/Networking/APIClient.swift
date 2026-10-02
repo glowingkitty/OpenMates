@@ -6,7 +6,7 @@
 // Specification: specifications/features/apple-notifications/specification.yml
 // Assertions: apple-notifications.registration.lifecycle
 // Specification: specifications/features/auth/specification.yml
-// Assertions: auth.session.lifecycle, auth.session.isolation
+// Assertions: auth.session.lifecycle, auth.session.authoritative-enforcement, auth.session.isolation
 
 import Foundation
 
@@ -39,12 +39,14 @@ actor APIClient {
 
     private let session: URLSession
     private let uploadSession: URLSession
+    private let cookieStorage: HTTPCookieStorage
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
 
-    private init() {
-        self.session = URLSession(configuration: Self.makeStandardSessionConfiguration())
-        self.uploadSession = URLSession(configuration: Self.makeUploadSessionConfiguration())
+    init(session: URLSession? = nil, uploadSession: URLSession? = nil, cookieStorage: HTTPCookieStorage = OpenMatesSharedEnvironment.cookieStorage) {
+        self.cookieStorage = cookieStorage
+        self.session = session ?? URLSession(configuration: Self.makeStandardSessionConfiguration())
+        self.uploadSession = uploadSession ?? URLSession(configuration: Self.makeUploadSessionConfiguration())
 
         self.encoder = JSONEncoder()
         encoder.keyEncodingStrategy = .convertToSnakeCase
@@ -215,7 +217,7 @@ actor APIClient {
         request = try await MainActor.run {
             guard isCurrent() else { throw CancellationError() }
             var pinned = prepared
-            Self.pinAuthorizedCookies(in: &pinned)
+            Self.pinAuthorizedCookies(in: &pinned, cookieStorage: cookieStorage)
             return pinned
         }
         let data = try await execute(request, using: session, authorizeSessionResponse: { response, data in
@@ -235,25 +237,40 @@ actor APIClient {
 
     // MARK: - Encodable body
 
-    /// Watch push requests pin the verified account's cookies atomically with
-    /// its lifecycle check, before crossing into network execution.
+    /// Watch services supply their verified account/session/deadline fence. Both
+    /// dispatch and response publication use that fence and the pinned credential.
+    func requestForVerifiedWatchSession(_ method: HTTPMethod, path: String, serverProfile: ServerProfile,
+                                        body: (any Encodable & Sendable)? = nil, headers: [String: String]? = nil,
+                                        verifyResponse: (@MainActor @Sendable (HTTPURLResponse, Data) throws -> Void)? = nil,
+                                        validate: @escaping @MainActor @Sendable () throws -> Void) async throws -> Data {
+        var request = buildRequest(method, path: path, headers: headers,
+                                   baseURL: serverProfile.apiBaseURL, webAppURL: serverProfile.webBaseURL)
+        if let body {
+            if let rawBody = body as? JSONRawBody { request.httpBody = rawBody.data }
+            else { request.httpBody = try encoder.encode(body) }
+        }
+        return try await execute(request, using: session, cookieAuthority: validate,
+                                 authenticationURL: serverProfile.apiBaseURL, verifyCookieResponse: verifyResponse)
+    }
+
+    func uploadFileForVerifiedWatchSession(data: Data, filename: String, contentType: String,
+        chatId: String, serverProfile: ServerProfile,
+        validate: @escaping @MainActor @Sendable () throws -> Void) async throws -> Data {
+        let boundary = UUID().uuidString
+        let body = try Self.makeUploadBody(data: data, filename: filename,
+            contentType: contentType, chatID: chatId, boundary: boundary)
+        let request = Self.makeUploadRequest(uploadURL: serverProfile.uploadBaseURL.appendingPathComponent("v1/upload/file"),
+            authenticationURL: serverProfile.apiBaseURL, webAppURL: serverProfile.webBaseURL,
+            boundary: boundary, body: body, cookieStorage: cookieStorage)
+        return try await execute(request, using: uploadSession, cookieAuthority: validate,
+                                 authenticationURL: serverProfile.apiBaseURL)
+    }
+
     func requestForWatchPush(_ method: HTTPMethod, path: String, serverProfile: ServerProfile,
                              body: [String: String],
                              validate: @escaping @MainActor @Sendable () throws -> Void) async throws -> Data {
-        var request = buildRequest(method, path: path, headers: nil,
-                                   baseURL: serverProfile.apiBaseURL, webAppURL: serverProfile.webBaseURL)
-        request.httpBody = try encoder.encode(body)
-        let prepared = request
-        request = try await MainActor.run {
-            try validate()
-            var pinned = prepared
-            Self.pinAuthorizedCookies(in: &pinned)
-            return pinned
-        }
-        try Task.checkCancellation()
-        let response = try await execute(request)
-        try await MainActor.run { try validate() }
-        return response
+        try await requestForVerifiedWatchSession(method, path: path, serverProfile: serverProfile,
+                                                body: body, validate: validate)
     }
 
     func request(
@@ -405,7 +422,8 @@ actor APIClient {
         webAppURL: URL,
         boundary: String,
         body: Data,
-        pinCookies: Bool = false
+        pinCookies: Bool = false,
+        cookieStorage: HTTPCookieStorage = OpenMatesSharedEnvironment.cookieStorage
     ) -> URLRequest {
         var request = URLRequest(url: uploadURL)
         request.httpMethod = HTTPMethod.post.rawValue
@@ -420,12 +438,9 @@ actor APIClient {
         // for the upload host even though this is the trusted upload transport.
         // Forward only the authentication cookie; never copy unrelated API-host
         // cookies across hosts.
-        let uploadCookies = OpenMatesSharedEnvironment.cookieStorage.cookies(for: uploadURL) ?? []
-        let authenticationCookies = authenticationURL.flatMap {
-            OpenMatesSharedEnvironment.cookieStorage.cookies(for: $0)
-        } ?? []
-        let authenticationRefreshCookie = authenticationCookies.first {
-            $0.name == "auth_refresh_token"
+        let uploadCookies = cookieStorage.cookies(for: uploadURL) ?? []
+        let authenticationRefreshCookie = authenticationURL.flatMap {
+            Self.authoritativeRefreshCookie(in: cookieStorage, for: $0)
         }
         let authenticationCookieReachesUpload = authenticationRefreshCookie.map { authenticationCookie in
             uploadCookies.contains {
@@ -467,14 +482,19 @@ actor APIClient {
         return true
     }
 
-    static func pinAuthorizedCookies(in request: inout URLRequest) {
+    static func pinAuthorizedCookies(in request: inout URLRequest,
+                                    cookieStorage: HTTPCookieStorage = OpenMatesSharedEnvironment.cookieStorage,
+                                    authenticationURL: URL? = nil) {
         request.httpShouldHandleCookies = false
-        guard request.value(forHTTPHeaderField: "Cookie") == nil, let url = request.url else { return }
-        let cookies = OpenMatesSharedEnvironment.cookieStorage.cookies(for: url) ?? []
-        if !cookies.isEmpty {
-            request.setValue(HTTPCookie.requestHeaderFields(with: cookies)["Cookie"],
-                forHTTPHeaderField: "Cookie")
+        guard let url = request.url else { return }
+        if authenticationURL == nil, request.value(forHTTPHeaderField: "Cookie") != nil { return }
+        var cookies = cookieStorage.cookies(for: url) ?? []
+        if let refreshCookie = Self.authoritativeRefreshCookie(in: cookieStorage, for: authenticationURL ?? url) {
+            cookies.removeAll { $0.name == refreshCookie.name }
+            cookies.append(refreshCookie)
         }
+        request.setValue(cookies.isEmpty ? nil : HTTPCookie.requestHeaderFields(with: cookies)["Cookie"],
+            forHTTPHeaderField: "Cookie")
     }
 
     private static func makeSessionConfiguration(
@@ -555,30 +575,78 @@ actor APIClient {
 
     private func execute(_ request: URLRequest, using transport: URLSession,
                          expectedRecoveryAccountID: String? = nil,
-                         authorizeSessionResponse: (@MainActor (HTTPURLResponse, Data) -> (isCurrent: Bool, publishCookies: Bool))? = nil) async throws -> Data {
+                         authorizeSessionResponse: (@MainActor (HTTPURLResponse, Data) -> (isCurrent: Bool, publishCookies: Bool))? = nil,
+                         cookieAuthority: (@MainActor @Sendable () throws -> Void)? = nil,
+                         authenticationURL: URL? = nil,
+                         verifyCookieResponse: (@MainActor @Sendable (HTTPURLResponse, Data) throws -> Void)? = nil) async throws -> Data {
         #if DEBUG
         if let stubbedData = Self.uiTestIssueReportResponse(for: request) {
             return stubbedData
         }
         #endif
 
+        var dispatchedRequest = request
+        var responseCookieAuthority = cookieAuthority
+        var cookieAuthenticationURL = authenticationURL ?? request.url
+        let explicitMutationProfile: ServerProfile?
+        if request.url.map({ Self.isExplicitSessionMutation($0.path) }) == true {
+            explicitMutationProfile = await MainActor.run { ServerProfile.current() }
+        } else { explicitMutationProfile = nil }
         #if os(iOS) || os(macOS)
-        // Auth endpoints own their explicit login/session errors. Product requests
-        // capture authority before IO, and only signal recovery; writes are never
-        // automatically replayed by this path.
-        let recoveryContext: AuthSessionRecoveryContext?
-        if let url = request.url, !url.path.hasPrefix("/v1/auth/") {
-            recoveryContext = await MainActor.run {
-                let context = AuthManager.captureSessionRecoveryContext()
-                guard let context,
-                      expectedRecoveryAccountID == nil || context.accountID == expectedRecoveryAccountID,
-                      context.profile.apiBaseURL.host == url.host ||
-                      context.profile.uploadBaseURL.host == url.host else { return nil }
-                return context
-            }
-        } else { recoveryContext = nil }
+        var capturedContext: AuthSessionRecoveryContext?
         #endif
-        let (data, response) = try await transport.data(for: request)
+        // Auxiliary/public requests can carry a retained cookie during startup
+        // or device verification. Pin every ordinary request, including nil
+        // authenticated identity, so a late response cannot replace a login.
+        if cookieAuthority == nil, authorizeSessionResponse == nil,
+           let url = request.url, !Self.isExplicitSessionMutation(url.path) {
+            #if os(iOS) || os(macOS)
+            let snapshot = try await MainActor.run {
+                let context = AuthManager.captureSessionRecoveryContext()
+                if let expectedRecoveryAccountID, context?.accountID != expectedRecoveryAccountID {
+                    throw CancellationError()
+                }
+                return (profile: ServerProfile.current(), accountID: AuthManager.notificationAccountId,
+                        sessionID: AuthManager.nativeSessionId, context: context)
+            }
+            if let context = snapshot.context,
+               context.profile.apiBaseURL.host == url.host || context.profile.uploadBaseURL.host == url.host {
+                capturedContext = context
+                cookieAuthenticationURL = context.profile.apiBaseURL
+            }
+            responseCookieAuthority = {
+                let current = AuthManager.captureSessionRecoveryContext()
+                // Recovery generation may advance while the same logical
+                // session legitimately renews. Its identity must remain stable.
+                guard ServerProfile.current() == snapshot.profile,
+                      AuthManager.notificationAccountId == snapshot.accountID,
+                      AuthManager.nativeSessionId == snapshot.sessionID,
+                      current?.accountID == snapshot.context?.accountID else { throw CancellationError() }
+            }
+            #else
+            let profile = ServerProfile.current()
+            responseCookieAuthority = {
+                guard ServerProfile.current() == profile else { throw CancellationError() }
+            }
+            #endif
+        }
+        #if os(iOS) || os(macOS)
+        let recoveryContext = request.url?.path.hasPrefix("/v1/auth/") == false ? capturedContext : nil
+        #endif
+        if let responseCookieAuthority {
+            let prepared = dispatchedRequest
+            let authenticationURL = cookieAuthenticationURL
+            dispatchedRequest = try await MainActor.run {
+                try responseCookieAuthority()
+                var pinned = prepared
+                Self.pinAuthorizedCookies(in: &pinned, cookieStorage: cookieStorage, authenticationURL: authenticationURL)
+                return pinned
+            }
+        }
+        try Task.checkCancellation()
+        let sentRequest = dispatchedRequest
+        let cookieURL = cookieAuthenticationURL
+        let (data, response) = try await transport.data(for: sentRequest)
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw APIError.invalidResponse
@@ -588,13 +656,24 @@ actor APIClient {
             try await MainActor.run {
                 let authorization = authorizeSessionResponse(httpResponse, data)
                 guard authorization.isCurrent, !Task.isCancelled else { throw CancellationError() }
-                if authorization.publishCookies, let url = request.url {
-                    let headers = httpResponse.allHeaderFields.reduce(into: [String: String]()) { values, entry in
-                        if let key = entry.key as? String, let value = entry.value as? String { values[key] = value }
-                    }
-                    let cookies = HTTPCookie.cookies(withResponseHeaderFields: headers, for: url)
-                    OpenMatesSharedEnvironment.cookieStorage.setCookies(cookies, for: url, mainDocumentURL: nil)
+                if authorization.publishCookies {
+                    Self.publishResponseCookies(httpResponse, request: sentRequest,
+                        authenticationURL: cookieURL, cookieStorage: cookieStorage)
                 }
+            }
+        } else if let responseCookieAuthority {
+            try await MainActor.run {
+                try responseCookieAuthority()
+                try Task.checkCancellation()
+                try verifyCookieResponse?(httpResponse, data)
+                Self.publishResponseCookies(httpResponse, request: sentRequest,
+                    authenticationURL: cookieURL, cookieStorage: cookieStorage)
+            }
+        } else if let explicitMutationProfile {
+            await MainActor.run {
+                guard ServerProfile.current() == explicitMutationProfile else { return }
+                Self.reconcileExplicitSessionCookies(httpResponse, request: sentRequest,
+                    profile: explicitMutationProfile, cookieStorage: cookieStorage)
             }
         }
         guard (200...299).contains(httpResponse.statusCode) else {
@@ -615,6 +694,94 @@ actor APIClient {
         }
 
         return data
+    }
+
+    /// Login/pair completion create a new logical credential; explicit logout
+    /// owns deletion. Their existing auth flows retain cookie handling.
+    private static func isExplicitSessionMutation(_ path: String) -> Bool {
+        ["/v1/auth/login", "/v1/auth/logout", "/v1/auth/logout-all",
+         "/v1/auth/policy-violation-logout"].contains(path) ||
+            path.hasPrefix("/v1/auth/pair/v2/complete/")
+    }
+
+    private static func refreshCredential(in request: URLRequest) -> String? {
+        request.value(forHTTPHeaderField: "Cookie")?.split(separator: ";").compactMap { part -> String? in
+            let pair = part.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)
+            guard pair.count == 2, pair[0].trimmingCharacters(in: .whitespaces) == "auth_refresh_token" else { return nil }
+            return pair[1].trimmingCharacters(in: .whitespaces)
+        }.first
+    }
+
+    /// The API host is the credential authority for bridged uploads. Prefer its
+    /// host-only cookie to an overlapping parent-domain alias, consistently at
+    /// dispatch and publication, and emit one refresh credential per request.
+    private static func authoritativeRefreshCookie(in storage: HTTPCookieStorage, for url: URL) -> HTTPCookie? {
+        let cookies = (storage.cookies(for: url) ?? []).filter { $0.name == "auth_refresh_token" }
+        return cookies.first { $0.domain.lowercased() == url.host?.lowercased() } ?? cookies.first
+    }
+
+    private static func responseCookies(_ response: HTTPURLResponse, url: URL) -> [HTTPCookie] {
+        let headers = response.allHeaderFields.reduce(into: [String: String]()) { values, entry in
+            if let key = entry.key as? String, let value = entry.value as? String { values[key] = value }
+        }
+        return HTTPCookie.cookies(withResponseHeaderFields: headers, for: url)
+    }
+
+    /// Called only after an admitted response, without suspension. Retire refresh
+    /// aliases eligible for these configured URLs; leave other names/hosts alone.
+    @MainActor private static func installRefreshResponse(_ cookies: [HTTPCookie], responseURL: URL,
+        authenticationURL: URL, scopeURLs: [URL], cookieStorage: HTTPCookieStorage) {
+        guard let successor = cookies.first(where: { $0.name == "auth_refresh_token" }) else {
+            cookieStorage.setCookies(cookies, for: responseURL, mainDocumentURL: nil)
+            return
+        }
+        for url in scopeURLs {
+            for cookie in cookieStorage.cookies(for: url) ?? [] where cookie.name == "auth_refresh_token" {
+                cookieStorage.deleteCookie(cookie)
+            }
+        }
+        cookieStorage.setCookies(cookies, for: responseURL, mainDocumentURL: nil)
+        // A host-only upload renewal cannot reach the API host. Its trusted API
+        // mirror narrows the domain while retaining the response's path, expiry,
+        // Secure, HttpOnly and SameSite properties. Shared-domain responses keep
+        // their original attributes and need no mirror.
+        guard !successor.value.isEmpty, successor.expiresDate.map({ $0 > Date() }) ?? true,
+              Self.authoritativeRefreshCookie(in: cookieStorage, for: authenticationURL)?.value != successor.value,
+              var properties = successor.properties, let host = authenticationURL.host else { return }
+        properties[.domain] = host
+        properties[.originURL] = authenticationURL
+        if let mirror = HTTPCookie(properties: properties) { cookieStorage.setCookie(mirror) }
+    }
+
+    /// Compare and publish on MainActor without suspension. A duplicate response
+    /// for the installed successor is harmless; older responses cannot retire
+    /// aliases or overwrite a newer credential. No HTTP write is replayed.
+    @MainActor private static func publishResponseCookies(_ response: HTTPURLResponse, request: URLRequest,
+        authenticationURL: URL?, cookieStorage: HTTPCookieStorage) {
+        guard let url = request.url else { return }
+        let authURL = authenticationURL ?? url
+        let cookies = Self.responseCookies(response, url: url)
+        let current = Self.authoritativeRefreshCookie(in: cookieStorage, for: authURL)?.value
+            ?? Self.authoritativeRefreshCookie(in: cookieStorage, for: url)?.value
+        let successor = cookies.first { $0.name == "auth_refresh_token" }?.value
+        guard current == refreshCredential(in: request) || (successor != nil && successor == current) else { return }
+        Self.installRefreshResponse(cookies, responseURL: url, authenticationURL: authURL,
+            scopeURLs: [authURL, url], cookieStorage: cookieStorage)
+    }
+
+    /// Explicit login/logout already owns cookie creation/deletion. Reconcile
+    /// only that response's refresh aliases so a prior API mirror cannot shadow
+    /// a new shared-domain login or survive logout.
+    @MainActor private static func reconcileExplicitSessionCookies(_ response: HTTPURLResponse, request: URLRequest,
+        profile: ServerProfile, cookieStorage: HTTPCookieStorage) {
+        guard let url = request.url else { return }
+        let cookies = Self.responseCookies(response, url: url)
+        guard cookies.contains(where: { $0.name == "auth_refresh_token" }) else { return }
+        let isConfiguredAPI = url.host == profile.apiBaseURL.host
+        let authURL = isConfiguredAPI ? profile.apiBaseURL : url
+        let urls = isConfiguredAPI ? [authURL, profile.uploadBaseURL] : [url]
+        Self.installRefreshResponse(cookies, responseURL: url, authenticationURL: authURL,
+            scopeURLs: urls, cookieStorage: cookieStorage)
     }
 
     #if DEBUG

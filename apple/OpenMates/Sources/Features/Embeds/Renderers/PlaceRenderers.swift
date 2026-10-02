@@ -1,4 +1,12 @@
 // Maps, events, health, home, nutrition, shopping embed renderers.
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte: frontend/packages/ui/src/components/embeds/maps/MapsLocationEmbedPreview.svelte
+//         frontend/packages/ui/src/components/embeds/maps/MapsLocationEmbedFullscreen.svelte
+//         frontend/packages/ui/src/components/embeds/maps/MapLocationEmbedFullscreen.svelte
+// Tokens: ColorTokens.generated.swift, SpacingTokens.generated.swift, TypographyTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.surface.semantic-parity
 
 import SwiftUI
 
@@ -6,77 +14,14 @@ struct MapsPlaceRenderer: View {
     let data: [String: AnyCodable]?
     let mode: EmbedDisplayMode
 
-    private var name: String { data?["name"]?.value as? String ?? "Place" }
-    private var address: String? { data?["address"]?.value as? String }
-    private var rating: Double? { data?["rating"]?.value as? Double }
-    private var category: String? { data?["category"]?.value as? String }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: .spacing3) {
-            Icon("maps", size: mode == .preview ? 24 : 32)
-                .foregroundStyle(Color.buttonPrimary)
-            Text(name).font(mode == .preview ? .omSmall : .omH4).fontWeight(.medium)
-                .foregroundStyle(Color.fontPrimary).lineLimit(mode == .preview ? 1 : nil)
-            if let address {
-                Text(address).font(.omXs).foregroundStyle(Color.fontSecondary)
-                    .lineLimit(mode == .preview ? 2 : nil)
-            }
-            if let rating {
-                HStack(spacing: 2) {
-                    Icon("rating", size: 12).foregroundStyle(.yellow)
-                    Text(String(format: "%.1f", rating)).font(.omXs).foregroundStyle(Color.fontSecondary)
-                }
-            }
-        }
-        .padding(.spacing4)
-        .frame(maxWidth: .infinity, maxHeight: mode == .preview ? .infinity : nil, alignment: .topLeading)
-    }
+    var body: some View { MapsEmbedRenderer(data: data, mode: mode, isPlace: true) }
 }
 
 struct MapsLocationRenderer: View {
     let data: [String: AnyCodable]?
     let mode: EmbedDisplayMode
 
-    private var name: String {
-        data?["name"]?.value as? String ?? AppStrings.selectedLocation
-    }
-    private var address: String? { data?["address"]?.value as? String }
-    private var placeType: String? { data?["place_type"]?.value as? String }
-    private var locationType: String? { data?["location_type"]?.value as? String }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: .spacing2) {
-            if locationType == "area" {
-                Text(AppStrings.locationNearby)
-                    .font(.omMicro.weight(.medium))
-                    .foregroundStyle(Color.fontSecondary)
-            }
-            HStack(spacing: .spacing3) {
-                Icon("maps", size: 18)
-                    .foregroundStyle(Color.buttonPrimary)
-                Text(name)
-                    .font(mode == .preview ? .omSmall : .omH4)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(Color.fontPrimary)
-                    .lineLimit(mode == .preview ? 1 : nil)
-            }
-            if let placeType {
-                Text(placeType)
-                    .font(.omMicro.weight(.medium))
-                    .foregroundStyle(Color.fontSecondary)
-                    .textCase(.uppercase)
-                    .lineLimit(1)
-            }
-            if let address {
-                Text(address)
-                    .font(.omXs)
-                    .foregroundStyle(Color.fontSecondary)
-                    .lineLimit(mode == .preview ? 2 : nil)
-            }
-        }
-        .padding(.spacing4)
-        .frame(maxWidth: .infinity, maxHeight: mode == .preview ? .infinity : nil, alignment: .leading)
-    }
+    var body: some View { MapsEmbedRenderer(data: data, mode: mode, isPlace: false) }
 }
 
 struct EventRenderer: View {

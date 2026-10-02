@@ -60,8 +60,9 @@ def _import_auth_common(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setitem(sys.modules, "backend.core.api.app.utils.directus_cookies", directus_cookies_module)
 
     module = importlib.import_module("backend.core.api.app.routes.auth_routes.auth_common")
-    monkeypatch.setattr(module, "enforce_pair_deadline", AsyncMock())
-    monkeypatch.setattr(module, "get_session_state_cached", AsyncMock(return_value=None))
+    async def existing_credential(_cache, _directus, token, **_kwargs):
+        return token
+    monkeypatch.setattr(module, "resolve_session_credential", existing_credential)
     monkeypatch.setattr(module, "ensure_legacy_session_state", AsyncMock())
     return module
 

@@ -60,6 +60,7 @@ struct AppIconView: View {
         case "maps": return .appMaps
         case "shopping": return .appShopping
         case "mail": return .appMail
+        case "math": return .appMath
         case "calendar": return .appCalendar
         case "notes": return .appNotes
         case "events": return .appEvents

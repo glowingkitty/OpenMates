@@ -1,0 +1,53 @@
+{
+  "chat_key": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+  "private_key": "KQll8d7V5jese7b5gc6x-z4XR57mmo3KzhByokoGaSE",
+  "build": {
+    "owner_id": "11111111-1111-4111-8111-111111111111",
+    "owner_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "chat_id": "22222222-2222-4222-8222-222222222222",
+    "task_id": "55555555-5555-4555-8555-555555555555",
+    "inference_task_id": "55555555-5555-4555-8555-555555555555",
+    "preflight_id": "44444444-4444-4444-8444-444444444444",
+    "recovery_public_key": "seVpBd-Gd4z8zbCt5cVsIEXkogP5mjnJX0WhkouUNxE",
+    "chat_key_version": 1,
+    "stage": "postprocessing",
+    "metadata": {
+      "title": "Synthetic title",
+      "summary": "Synthetic summary",
+      "category": "technology",
+      "icon": "cpu"
+    },
+    "ephemeral_private_key": "oKGio6SlpqeoqaqrrK2ur7CxsrO0tba3uLm6u7y9vr8",
+    "nonce": "AAECAwQFBgcICQoL",
+    "generated_at": "2029-01-01T00:00:00.000Z"
+  },
+  "identity": {
+    "owner_id": "11111111-1111-4111-8111-111111111111",
+    "chat_id": "22222222-2222-4222-8222-222222222222",
+    "task_id": "55555555-5555-4555-8555-555555555555",
+    "job_id": "505d1eba-b21f-52fd-8422-fc15ff24e609",
+    "stage": "postprocessing",
+    "key_version": 1
+  },
+  "job": {
+    "protocol_version": 1,
+    "job_id": "505d1eba-b21f-52fd-8422-fc15ff24e609",
+    "hashed_user_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "chat_id": "22222222-2222-4222-8222-222222222222",
+    "task_id": "55555555-5555-4555-8555-555555555555",
+    "inference_task_id": "55555555-5555-4555-8555-555555555555",
+    "preflight_id": "44444444-4444-4444-8444-444444444444",
+    "chat_key_version": 1,
+    "stage": "postprocessing",
+    "source_metadata_v": 0,
+    "encrypted_fields": [
+      "encrypted_category",
+      "encrypted_chat_summary",
+      "encrypted_icon",
+      "encrypted_title"
+    ],
+    "sealed_payload": "{\"ciphertext\":\"haESvlxic95QxMWoBOeBpDFwE3tn0wgayyPkpVG5MqIwIYkkXRpNznJIKjrJVS1_cxNDvi8mseuSiqtZZ1-zX0XHjRtbugkG6B9OS1nsU9r47iQgqLwEyGisemusxF1WpKeI2Jr69UWNtUs-DZh6lIwAvKA0w8Gb2c38ijCCbG6KDSIYQ-saPxYTjZVi_cL6ZPZY9Xy1m3dPqqHSJL5F73aRv1SFh_0upZ_PBz6j7juAflI8nCG126FG9TZEgb1FzCIpyzlu8cceNp_Q1kcSE6-sA_tfT0yAZOmGdm59VNnU0x8vDggOKT5y3X-p47-GPiakzdWfnULfJ7L5DnMyykRHajwF2GYO7eXjuaY2huVpyGkew6A8vGxH1tcmlK5Py5Br2LsJ8Gtn7aaCili9HEHDCEEE77pgXKdT6A9ZaO6R60lFUNQqgTCtEI_xhJmNLUh8pDWPvHgAtZE22J-8OihHEU60W51E\",\"epk\":\"YFpyXSpK3-6xop4X7dYhwbdZPujNvESsbEq24vgF0jw\",\"nonce\":\"AAECAwQFBgcICQoL\",\"v\":1}",
+    "generated_at": "2029-01-01T00:00:00.000Z"
+  },
+  "associated_data_hex": "4f4d434d310000002431313131313131312d313131312d343131312d383131312d3131313131313131313131310000002432323232323232322d323232322d343232322d383232322d3232323232323232323232320000002435353535353535352d353535352d343535352d383535352d3535353535353535353535350000002435303564316562612d623231662d353266642d383432322d6663313566663234653630390000000e706f737470726f63657373696e6700000001"
+}

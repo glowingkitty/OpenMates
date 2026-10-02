@@ -1,7 +1,7 @@
-// Read-only Watch Tasks and Workflows data. Tasks use the same per-task key
+// Watch Tasks and read-only Workflows data. Tasks use the same per-task key
 // wrapping as the web client. Ciphertext is never used as display text.
 // Specification: specifications/features/apple-watch/specification.yml
-// Assertions: apple-watch.lists.read-only-private.
+// Assertions: apple-watch.lists.read-only-private, apple-watch.tasks.edit-private.
 
 import CryptoKit
 import Foundation
@@ -44,11 +44,13 @@ struct WatchTaskListItem: Identifiable, Equatable {
     let latestInstruction: String
     let activitySummary: String
     let blockedReason: String
+    let record: WatchTaskRecord?
+    var priority: Int { record?.priority ?? 0 }
 
     init(id: String, title: String, group: WatchTaskGroup, status: String,
          position: Int, updatedAt: Int, openRequest: WatchItemOpenRequest,
          description: String = "", latestInstruction: String = "",
-         activitySummary: String = "", blockedReason: String = "") {
+         activitySummary: String = "", blockedReason: String = "", record: WatchTaskRecord? = nil) {
         self.id = id
         self.title = title
         self.group = group
@@ -60,6 +62,7 @@ struct WatchTaskListItem: Identifiable, Equatable {
         self.latestInstruction = latestInstruction
         self.activitySummary = activitySummary
         self.blockedReason = blockedReason
+        self.record = record
     }
 }
 
@@ -104,7 +107,7 @@ struct WatchWorkflowRecord: Decodable {
     let icon: String?
 }
 
-struct WatchTaskRecord: Decodable {
+struct WatchTaskRecord: Decodable, Equatable {
     let taskId: String
     let source: String?
     let workflowId: String?
@@ -119,6 +122,70 @@ struct WatchTaskRecord: Decodable {
     let status: String
     let position: Int?
     let updatedAt: Int?
+    let version: Int?
+    let priority: Int?
+    let teamId: String?
+    let readOnly: Bool?
+}
+
+struct WatchTaskDraft: Equatable {
+    var title: String
+    var description: String
+    var group: WatchTaskGroup
+    var priority: Int
+
+    init(item: WatchTaskListItem) {
+        title = item.title
+        description = item.description
+        group = item.group
+        priority = item.priority
+    }
+
+    var isValid: Bool {
+        !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && (0...4).contains(priority)
+    }
+
+    func hasChanges(from item: WatchTaskListItem) -> Bool {
+        title.trimmingCharacters(in: .whitespacesAndNewlines) != item.title ||
+            description != item.description || group != item.group || priority != item.priority
+    }
+}
+
+enum WatchTaskEditingError: Error, Equatable {
+    case accountChanged, readOnly, invalidDraft, unavailableKey, invalidResponse
+}
+
+struct WatchTaskUpdateResponse: Decodable { let task: WatchTaskRecord }
+
+struct WatchTaskRequestContext: Sendable {
+    let accountID: String
+    let generation: UInt64
+    let serverProfile: ServerProfile
+    let currentAccountID: @MainActor @Sendable () -> String?
+
+    @MainActor func check() throws {
+        try Task.checkCancellation()
+        guard !accountID.isEmpty, currentAccountID() == accountID,
+              generation == WatchChatAccountLifecycle.generation,
+              serverProfile == ServerProfile.current(),
+              !PairSessionDeadlineStore.isExpired(userID: accountID) else {
+            throw WatchTaskEditingError.accountChanged
+        }
+    }
+}
+
+@MainActor
+struct WatchTaskDependencies {
+    let request: @MainActor (HTTPMethod, String, Data?, WatchTaskRequestContext) async throws -> Data
+    let masterKey: @MainActor (String) async throws -> SymmetricKey?
+
+    static var live: WatchTaskDependencies {
+        WatchTaskDependencies(request: { method, path, body, context in
+            try await APIClient.shared.requestForVerifiedWatchSession(method, path: path,
+                serverProfile: context.serverProfile, body: body.map { JSONRawBody(data: $0) },
+                validate: { try context.check() })
+        }, masterKey: { try await CryptoManager.shared.loadMasterKey(for: $0) })
+    }
 }
 
 @MainActor
@@ -132,9 +199,21 @@ final class WatchHubDataService: ObservableObject {
 
     private let userId: String?
     private let usesFixture: Bool
+    private let taskDependencies: WatchTaskDependencies
+    private let currentTaskAccountID: @MainActor @Sendable () -> String?
+    private let taskGeneration: UInt64
+    private let taskProfile: ServerProfile
+    @Published private(set) var isSavingTask = false
 
-    init(userId: String?, fixtureTasks: [WatchTaskListItem]? = nil, fixtureWorkflows: [WatchWorkflowListItem]? = nil) {
+    init(userId: String?, fixtureTasks: [WatchTaskListItem]? = nil,
+         fixtureWorkflows: [WatchWorkflowListItem]? = nil,
+         currentAccountID: @escaping @MainActor @Sendable () -> String? = { nil },
+         taskDependencies: WatchTaskDependencies? = nil) {
         self.userId = userId
+        self.taskDependencies = taskDependencies ?? .live
+        currentTaskAccountID = currentAccountID
+        taskGeneration = WatchChatAccountLifecycle.generation
+        taskProfile = ServerProfile.current()
         usesFixture = fixtureTasks != nil || fixtureWorkflows != nil
         tasks = fixtureTasks ?? []
         workflows = fixtureWorkflows ?? []
@@ -142,40 +221,112 @@ final class WatchHubDataService: ObservableObject {
 
     func refreshTasks() async {
         if usesFixture { return }
-        guard !isLoadingTasks, let userId else { return }
+        guard !isLoadingTasks, !isSavingTask, let userId else { return }
         isLoadingTasks = true
         defer { isLoadingTasks = false }
         do {
-            let response: WatchTaskListResponse = try await APIClient.shared.request(
-                .get, path: "/v1/user-tasks?limit=200"
-            )
-            guard let masterKey = try await CryptoManager.shared.loadMasterKey(for: userId) else {
-                tasks = []
-                tasksError = true
-                return
+            try checkTaskAccount()
+            let data = try await taskDependencies.request(.get, "/v1/user-tasks?limit=200", nil, taskContext(userId))
+            try checkTaskAccount()
+            let decoder = JSONDecoder()
+            decoder.keyDecodingStrategy = .convertFromSnakeCase
+            let response = try decoder.decode(WatchTaskListResponse.self, from: data)
+            guard let masterKey = try await taskDependencies.masterKey(userId) else {
+                throw WatchTaskEditingError.unavailableKey
             }
+            try checkTaskAccount()
             var decrypted: [WatchTaskListItem] = []
             for record in response.tasks {
-                if let item = await Self.openTask(record, masterKey: masterKey) {
-                    decrypted.append(item)
-                }
+                if let item = await Self.openTask(record, masterKey: masterKey) { decrypted.append(item) }
+                try checkTaskAccount()
             }
-            tasks = decrypted.sorted {
-                if $0.group.rawValue != $1.group.rawValue { return $0.group.rawValue < $1.group.rawValue }
-                if $0.position != $1.position { return $0.position < $1.position }
-                return $0.updatedAt > $1.updatedAt
-            }
+            tasks = Self.sortedTasks(decrypted)
             tasksError = false
-            NativeDiagnostics.event(
-                "watch_tasks_refreshed", category: "watch_hub",
-                counts: ["response_rows": response.tasks.count, "displayed_rows": tasks.count]
-            )
         } catch {
+            if (try? checkTaskAccount()) == nil { tasks = [] }
             tasksError = true
-            NativeDiagnostics.failure(
-                "watch_tasks_refresh_failed", category: "watch_hub",
-                level: .warning, error: error
-            )
+            NativeDiagnostics.event("watch_tasks_refresh_failed", category: "watch_hub", level: .warning)
+        }
+    }
+
+    func canEditTask(_ item: WatchTaskListItem) -> Bool {
+        guard !isLoadingTasks, let record = item.record, record.taskId == item.id, record.source != "workflow_run",
+              item.openRequest.kind == .task, record.teamId == nil, record.readOnly != true,
+              let version = record.version, version > 0, record.encryptedTaskKey != nil,
+              tasks.contains(item) else { return false }
+        return (try? checkTaskAccount()) != nil
+    }
+
+    /// Only returned encrypted records become saved state. A failure leaves the
+    /// caller's draft untouched and does not invent a successful local mutation.
+    func saveTask(_ item: WatchTaskListItem, draft: WatchTaskDraft) async throws -> WatchTaskListItem {
+        try checkTaskAccount()
+        guard !isSavingTask, canEditTask(item), let userId, let record = item.record,
+              let version = record.version else { throw WatchTaskEditingError.readOnly }
+        let title = draft.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty, (0...4).contains(draft.priority) else { throw WatchTaskEditingError.invalidDraft }
+        guard draft.hasChanges(from: item) else { return item }
+        isSavingTask = true
+        defer { isSavingTask = false }
+        guard let masterKey = try await taskDependencies.masterKey(userId),
+              let wrappedKey = record.encryptedTaskKey else { throw WatchTaskEditingError.unavailableKey }
+        try checkTaskAccount()
+        let key = try await CryptoManager.shared.unwrapChatKey(encryptedChatKeyBase64: wrappedKey, masterKey: masterKey)
+        try checkTaskAccount()
+        var body: [String: Any] = ["version": version, "updated_at": Int(Date().timeIntervalSince1970)]
+        if title != item.title { body["encrypted_title"] = try await CryptoManager.shared.encryptContent(title, key: key) }
+        if draft.description != item.description {
+            body["encrypted_description"] = try await CryptoManager.shared.encryptContent(draft.description, key: key)
+        }
+        if draft.group != item.group { body["status"] = draft.group.status }
+        if draft.priority != item.priority { body["priority"] = draft.priority }
+        try checkTaskAccount()
+        guard canEditTask(item) else { throw WatchTaskEditingError.readOnly }
+        let escapedID = item.id.addingPercentEncoding(withAllowedCharacters: CharacterSet(charactersIn:
+            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~")) ?? ""
+        guard !escapedID.isEmpty else { throw WatchTaskEditingError.invalidResponse }
+        let data = try await taskDependencies.request(.patch, "/v1/user-tasks/\(escapedID)",
+            JSONSerialization.data(withJSONObject: body), taskContext(userId))
+        try checkTaskAccount()
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let response = try decoder.decode(WatchTaskUpdateResponse.self, from: data)
+        guard response.task.taskId == item.id, response.task.source != "workflow_run",
+              response.task.teamId == nil, response.task.readOnly != true,
+              response.task.encryptedTaskKey == wrappedKey,
+              let returnedVersion = response.task.version, returnedVersion > version,
+              let returned = await Self.openTask(response.task, masterKey: masterKey) else {
+            throw WatchTaskEditingError.invalidResponse
+        }
+        try checkTaskAccount()
+        guard let index = tasks.firstIndex(where: { $0.id == item.id && $0.record?.version == version }) else {
+            throw WatchTaskEditingError.invalidResponse
+        }
+        tasks[index] = returned
+        tasks = Self.sortedTasks(tasks)
+        return returned
+    }
+
+    private func taskContext(_ accountID: String) -> WatchTaskRequestContext {
+        WatchTaskRequestContext(accountID: accountID, generation: taskGeneration, serverProfile: taskProfile,
+            currentAccountID: currentTaskAccountID)
+    }
+
+    private func checkTaskAccount() throws {
+        try Task.checkCancellation()
+        guard let userId, !userId.isEmpty, currentTaskAccountID() == userId,
+              !PairSessionDeadlineStore.isExpired(userID: userId),
+              taskGeneration == WatchChatAccountLifecycle.generation, taskProfile == ServerProfile.current() else {
+            throw WatchTaskEditingError.accountChanged
+        }
+    }
+
+    private static func sortedTasks(_ items: [WatchTaskListItem]) -> [WatchTaskListItem] {
+        items.sorted {
+            if $0.group != $1.group { return $0.group.rawValue < $1.group.rawValue }
+            if $0.position != $1.position { return $0.position < $1.position }
+            if $0.updatedAt != $1.updatedAt { return $0.updatedAt > $1.updatedAt }
+            return $0.id < $1.id
         }
     }
 
@@ -205,7 +356,7 @@ final class WatchHubDataService: ObservableObject {
             return WatchTaskListItem(id: record.taskId, title: title, group: group,
                 status: record.status, position: record.position ?? 0, updatedAt: record.updatedAt ?? 0,
                 openRequest: request, description: description, latestInstruction: instruction,
-                activitySummary: summary, blockedReason: blockedReason)
+                activitySummary: summary, blockedReason: blockedReason, record: record)
         } catch {
             return nil
         }
@@ -218,13 +369,16 @@ final class WatchHubDataService: ObservableObject {
 
     func refreshWorkflows() async {
         if usesFixture { return }
-        guard !isLoadingWorkflows else { return }
+        guard !isLoadingWorkflows, let userId else { return }
         isLoadingWorkflows = true
         defer { isLoadingWorkflows = false }
         do {
-            let response: WatchWorkflowListResponse = try await APIClient.shared.request(
-                .get, path: "/v1/workflows"
-            )
+            try checkTaskAccount()
+            let data = try await taskDependencies.request(.get, "/v1/workflows", nil, taskContext(userId))
+            try checkTaskAccount()
+            let decoder = JSONDecoder()
+            decoder.keyDecodingStrategy = .convertFromSnakeCase
+            let response = try decoder.decode(WatchWorkflowListResponse.self, from: data)
             workflows = response.workflows.compactMap { workflow in
                 guard let request = WatchItemOpenRequest(kind: .workflow, id: workflow.id),
                       !workflow.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
@@ -241,6 +395,7 @@ final class WatchHubDataService: ObservableObject {
                 counts: ["response_rows": response.workflows.count, "displayed_rows": workflows.count]
             )
         } catch {
+            if (try? checkTaskAccount()) == nil { workflows = [] }
             workflowsError = true
             NativeDiagnostics.failure(
                 "watch_workflows_refresh_failed", category: "watch_hub",

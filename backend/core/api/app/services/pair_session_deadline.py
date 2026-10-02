@@ -124,6 +124,22 @@ async def get_pair_deadline(directus, cache, token: str) -> tuple[int | None, st
     return deadline, user_id
 
 
+async def enforce_pair_rotation_lineage(directus, cache, old_token: str, new_token: str, user_id: str) -> None:
+    """Allow only an acknowledged successor with the original pair deadline."""
+    old = await _record(directus, _hash(old_token))
+    successor = await get_pair_deadline(directus, cache, new_token)
+    if old is None:
+        if successor is not None:
+            raise HTTPException(401, "Invalid pair session rotation")
+        return
+    deadline = int(old["expires_at"]) if old.get("expires_at") is not None else None
+    if (old.get("user_id") != user_id or old.get("pending_ack")
+            or not old.get("relay_acknowledged")
+            or (deadline is not None and deadline <= int(time.time()))
+            or successor != (deadline, user_id)):
+        raise HTTPException(401, "Invalid pair session rotation")
+
+
 async def transfer_pair_deadline(directus, cache, old_token: str, new_token: str, deadline: int | None, user_id: str) -> None:
     """Move the durable marker before a rotated cookie is published."""
     if deadline is not None and deadline <= int(time.time()):

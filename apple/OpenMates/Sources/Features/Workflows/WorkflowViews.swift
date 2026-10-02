@@ -95,6 +95,7 @@ struct WorkflowSidebarView: View {
 }
 
 private struct WorkflowEditorView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ObservedObject var store: WorkflowStore
     @ObservedObject var authManager: AuthManager
     @ObservedObject var authoring: WorkflowAIAuthoringController
@@ -107,12 +108,16 @@ private struct WorkflowEditorView: View {
     @State private var editorInstruction = ""
     @State private var showSharingSoon = false
     @State private var showingVoiceInput = false
+    @State private var revealedEditorId: String?
 
     private var canActivate: Bool {
         !workflow.graph.triggerNodeId.isEmpty && workflow.graph.nodes.count > 1
     }
 
     var body: some View {
+        VStack(spacing: 0) {
+        GeometryReader { viewport in
+        ScrollViewReader { scrollProxy in
         ScrollView {
             VStack(spacing: 0) {
                 WorkflowDetailHeader(
@@ -139,43 +144,6 @@ private struct WorkflowEditorView: View {
 
                 if tab == .template {
                     VStack(spacing: .spacing4) {
-                        WorkflowPromptComposerView(
-                            text: $editorInstruction,
-                            placeholder: AppStrings.workflowBuilder(.ai_edit_placeholder),
-                            submitLabel: AppStrings.workflowBuilder(.ai_edit_submit),
-                            submittingLabel: AppStrings.workflowBuilder(.ai_edit_submitting),
-                            disabled: store.isLoading || authoring.pendingSession != nil,
-                            submitting: authoring.isSubmitting,
-                            identifier: "workflow-ai-editor-composer",
-                            inputIdentifier: "workflow-ai-edit-textarea",
-                            submitIdentifier: "workflow-ai-edit-submit",
-                            micIdentifier: "workflow-ai-edit-mic",
-                            onSubmit: { submitted in
-                                Task {
-                                    if await store.submitInstruction(submitted, selectedWorkflowId: workflow.id) {
-                                        editorInstruction = ""
-                                    }
-                                }
-                            },
-                            onMic: { showingVoiceInput = true }
-                        )
-                        .padding(.top, .spacing8)
-                        .sheet(isPresented: $showingVoiceInput) {
-                            WorkflowVoiceInputView(
-                                authManager: authManager, expectedAccountID: store.accountId,
-                                onSubmit: { submitted in
-                                    Task {
-                                        if await store.submitInstruction(submitted, selectedWorkflowId: workflow.id) {
-                                            editorInstruction = ""
-                                        }
-                                    }
-                                },
-                                onReview: { editorInstruction = $0 },
-                                onClose: { showingVoiceInput = false }
-                            )
-                            .modifier(WorkflowVoiceSheetLayout())
-                        }
-
                         WorkflowAIAuthoringStatusView(authoring: authoring, workflowId: workflow.id) {
                             Task { await store.undoInstruction() }
                         }
@@ -246,13 +214,23 @@ private struct WorkflowEditorView: View {
                 }
             }
         }
+        .coordinateSpace(name: WorkflowEditorScrollTarget.coordinateSpace)
+        .onPreferenceChange(WorkflowEditorScrollTargetKey.self) { target in
+            revealEditor(target, viewportHeight: viewport.size.height, using: scrollProxy)
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("workflow-management")
+        }
+        }
+        // Keep the actual scroll viewport separate from the composer. Its
+        // measured height now excludes the dock, including for editor reveal.
+            if tab == .template { dockedComposer }
+        }
         .task {
             guard !ProcessInfo.processInfo.arguments.contains("--ui-test-workflows-fixture") else { return }
             await store.loadCapabilities()
             await store.loadVersions()
         }
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("workflow-management")
         .overlay(alignment: .top) {
             if showSharingSoon {
                 Text(AppStrings.workflowBuilder(.sharing_soon))
@@ -267,6 +245,70 @@ private struct WorkflowEditorView: View {
                         try? await Task.sleep(for: .seconds(4))
                         showSharingSoon = false
                     }
+            }
+        }
+    }
+
+    private var dockedComposer: some View {
+        WorkflowPromptComposerView(
+            text: $editorInstruction,
+            placeholder: AppStrings.workflowBuilder(.ai_edit_placeholder),
+            submitLabel: AppStrings.workflowBuilder(.ai_edit_submit),
+            submittingLabel: AppStrings.workflowBuilder(.ai_edit_submitting),
+            disabled: store.isLoading || authoring.pendingSession != nil,
+            submitting: authoring.isSubmitting,
+            identifier: "workflow-ai-editor-composer",
+            inputIdentifier: "workflow-ai-edit-textarea",
+            submitIdentifier: "workflow-ai-edit-submit",
+            micIdentifier: "workflow-ai-edit-mic",
+            onSubmit: { submitted in
+                Task {
+                    if await store.submitInstruction(submitted, selectedWorkflowId: workflow.id) {
+                        editorInstruction = ""
+                    }
+                }
+            },
+            onMic: { showingVoiceInput = true }
+        )
+        .padding(.horizontal, .spacing8)
+        .padding(.top, .spacing6)
+        .padding(.bottom, .spacing6)
+        .background(LinearGradient(colors: [.clear, .grey10], startPoint: .top, endPoint: .bottom))
+        .sheet(isPresented: $showingVoiceInput) {
+            WorkflowVoiceInputView(
+                authManager: authManager, expectedAccountID: store.accountId,
+                onSubmit: { submitted in
+                    Task {
+                        if await store.submitInstruction(submitted, selectedWorkflowId: workflow.id) {
+                            editorInstruction = ""
+                        }
+                    }
+                },
+                onReview: { editorInstruction = $0 },
+                onClose: { showingVoiceInput = false }
+            )
+            .modifier(WorkflowVoiceSheetLayout())
+        }
+    }
+
+    private func revealEditor(_ target: WorkflowEditorScrollTarget?, viewportHeight: CGFloat,
+                              using proxy: ScrollViewProxy) {
+        guard let target else { revealedEditorId = nil; return }
+        guard target.id != revealedEditorId, viewportHeight > 0, target.bounds.height > 0 else { return }
+        revealedEditorId = target.id
+
+        // Web scrollEditorIntoView uses block: nearest. Keep the current viewport
+        // when the editor fits inside it or already spans both viewport edges.
+        let above = target.bounds.minY < 0
+        let below = target.bounds.maxY > viewportHeight
+        guard above != below else { return }
+        let fits = target.bounds.height <= viewportHeight
+        let anchor: UnitPoint = above ? (fits ? .top : .bottom) : (fits ? .bottom : .top)
+        if reduceMotion {
+            proxy.scrollTo(target.id, anchor: anchor)
+        } else {
+            withAnimation(.easeInOut(duration: 0.25)) {
+                proxy.scrollTo(target.id, anchor: anchor)
             }
         }
     }

@@ -1,6 +1,6 @@
 // Web source: frontend/packages/ui/src/services/projectReadme.ts, projectService.ts
 // Specification: specifications/features/projects/specification.yml
-// Assertions: projects.access.explicit-context, projects.files.search-scoped
+// Assertions: projects.access.explicit-context, projects.files.search-scoped, projects.files.connected-embed-previews
 import CryptoKit
 import Combine
 import Foundation
@@ -50,7 +50,10 @@ final class ProjectsWorkspaceStore: ObservableObject {
     @Published private(set) var activeRemoteSourceID: String?
     @Published private(set) var remotePath = "."
     @Published private(set) var remoteEntries: [ProjectRemoteEntry] = []
+    @Published private(set) var remotePagination = ProjectRemotePagination()
     @Published private(set) var remoteText: ProjectRemoteText?
+    @Published private(set) var remoteEmbed: EmbedRecord?
+    @Published private(set) var remoteFilePreviews: [String: EmbedRecord] = [:]
     @Published private(set) var remoteDownloadURL: URL?
     @Published private(set) var remoteDownloadProgress: (Int, Int)?
     @Published private(set) var remoteError: String?
@@ -75,9 +78,13 @@ final class ProjectsWorkspaceStore: ObservableObject {
     private var teamID: String?
     private var generation = UUID()
     private var searchGeneration = UUID()
+    private var remoteGeneration = UUID()
+    private var downloadGeneration = UUID()
     private var loadingEmbedPreviewIDs: [String: UUID] = [:]
     #if DEBUG
     private var previewVariant: String?
+    /// Account-free fixture transport; nil always uses the encrypted source client.
+    var debugOriginalDownload: (@MainActor (String, @escaping (Int, Int) -> Void) async throws -> URL)?
     #endif
 
     init(service: any ProjectsWorkspaceServing = ProjectsWorkspaceService(),
@@ -128,6 +135,7 @@ final class ProjectsWorkspaceStore: ObservableObject {
         cancelSearch()
         #if DEBUG
         previewVariant = nil
+        debugOriginalDownload = nil
         #endif
         accountID = accountId
         teamID = nil
@@ -182,10 +190,17 @@ final class ProjectsWorkspaceStore: ObservableObject {
             loadingEmbedPreviewIDs = [:]
             sources = contents.sources
             self.settings = settings
-            let loadedReadme = await loadReadme(project: project, contents: contents, fence: fence)
-            guard requestGeneration == generation, selectedProjectID == project.id else { return }
-            try await validateFence(fence)
-            readme = loadedReadme
+            // README discovery may wait for a remote host. Its independent
+            // overview state must not hold Files or Tasks behind that read.
+            isLoadingDetail = false
+            Task { [weak self] in
+                guard let self else { return }
+                let loadedReadme = await self.loadReadme(project: project, contents: contents, fence: fence)
+                guard requestGeneration == self.generation, self.selectedProjectID == project.id else { return }
+                guard (try? await self.validateFence(fence)) != nil,
+                      requestGeneration == self.generation, self.selectedProjectID == project.id else { return }
+                self.readme = loadedReadme
+            }
             Task { [weak self] in
                 await self?.prefetchSourceRoots(project: project, sources: contents.sources,
                                                 fence: fence, generation: requestGeneration)
@@ -548,66 +563,101 @@ final class ProjectsWorkspaceStore: ObservableObject {
     }
 
     func openRemoteSource(_ sourceID: String) async {
-        #if DEBUG
-        if let previewVariant {
-            activeRemoteSourceID = sourceID
-            remotePath = "."
-            remoteEntries = Array(ProjectsWorkspacePreviewFixture.state(for: previewVariant)
-                .remoteEntries.prefix(48))
-            remoteText = nil
-            remoteError = nil
-            return
-        }
-        #endif
         clearRemoteDownload()
+        remoteGeneration = UUID()
         activeRemoteSourceID = sourceID
+        remoteFilePreviews = [:]
         remotePath = "."
+        remotePagination = ProjectRemotePagination()
         remoteEntries = []
         remoteText = nil
+        remoteEmbed = nil
         await browseRemote(path: ".")
     }
 
     func closeRemoteSource() {
+        remoteGeneration = UUID()
         clearRemoteDownload()
         activeRemoteSourceID = nil
+        remoteFilePreviews = [:]
         remotePath = "."
+        remotePagination = ProjectRemotePagination()
         remoteEntries = []
         remoteText = nil
+        remoteEmbed = nil
         remoteError = nil
+        isLoadingRemote = false
+    }
+
+    func showRemotePage(_ index: Int) async {
+        guard !isLoadingRemote, remotePagination.canShow(index) else { return }
+        await browseRemote(path: remotePath, pageIndex: index)
     }
 
     func downloadRemoteFile(_ path: String) async {
-        guard let project = selectedProject, let accountID,
+        guard !isLoadingRemote, let project = selectedProject,
               let sourceID = activeRemoteSourceID,
               let source = sources.first(where: { $0.id == sourceID }) else { return }
+        let fence = accountID.map { ProjectsWorkspaceFence(accountID: $0) }
+        #if DEBUG
+        guard fence != nil || (previewVariant != nil && debugOriginalDownload != nil) else { return }
+        #else
+        guard fence != nil else { return }
+        #endif
         let requestGeneration = generation
-        let fence = ProjectsWorkspaceFence(accountID: accountID)
         clearRemoteDownload()
+        let downloadRequest = downloadGeneration
         isLoadingRemote = true
         remoteError = nil
+        var downloadedURL: URL?
         do {
-            let url = try await remoteClient.downloadOriginal(project: project, source: source,
-                path: path, fence: fence) { [weak self] downloaded, total in
+            if let fence { try await validateFence(fence) }
+            guard requestGeneration == generation, downloadRequest == downloadGeneration,
+                  selectedProjectID == project.id, activeRemoteSourceID == sourceID else { return }
+            let progress: (Int, Int) -> Void = { [weak self] downloaded, total in
                     Task { @MainActor in
                         guard self?.generation == requestGeneration,
+                              self?.downloadGeneration == downloadRequest,
                               self?.activeRemoteSourceID == sourceID else { return }
                         self?.remoteDownloadProgress = (downloaded, total)
                     }
                 }
-            guard requestGeneration == generation,
+            let url: URL
+            #if DEBUG
+            if let debugOriginalDownload {
+                url = try await debugOriginalDownload(path, progress)
+            } else {
+                guard let requestFence = fence else { throw ProjectsWorkspaceError.invalidContext }
+                url = try await remoteClient.downloadOriginal(project: project, source: source,
+                    path: path, fence: requestFence, progress: progress)
+            }
+            #else
+            guard let requestFence = fence else { throw ProjectsWorkspaceError.invalidContext }
+            url = try await remoteClient.downloadOriginal(project: project, source: source,
+                path: path, fence: requestFence, progress: progress)
+            #endif
+            downloadedURL = url
+            guard requestGeneration == generation, downloadRequest == downloadGeneration,
                   selectedProjectID == project.id, activeRemoteSourceID == sourceID else {
                 try? FileManager.default.removeItem(at: url.deletingLastPathComponent())
                 return
             }
-            try await fence.check()
+            if let fence { try await validateFence(fence) }
+            guard requestGeneration == generation, downloadRequest == downloadGeneration,
+                  selectedProjectID == project.id, activeRemoteSourceID == sourceID else {
+                try? FileManager.default.removeItem(at: url.deletingLastPathComponent())
+                return
+            }
             remoteDownloadURL = url
         } catch {
-            if requestGeneration == generation { remoteError = AppStrings.projectError(error) }
+            if let downloadedURL { try? FileManager.default.removeItem(at: downloadedURL.deletingLastPathComponent()) }
+            if requestGeneration == generation && downloadRequest == downloadGeneration { remoteError = AppStrings.projectError(error) }
         }
-        if requestGeneration == generation { isLoadingRemote = false }
+        if requestGeneration == generation && downloadRequest == downloadGeneration { isLoadingRemote = false }
     }
 
     func clearRemoteDownload() {
+        downloadGeneration = UUID()
         if let url = remoteDownloadURL {
             try? FileManager.default.removeItem(at: url.deletingLastPathComponent())
         }
@@ -616,18 +666,39 @@ final class ProjectsWorkspaceStore: ObservableObject {
     }
 
     func clearRemoteText() {
+        clearRemoteDownload()
+        remoteGeneration = UUID()
+        isLoadingRemote = false
         remoteText = nil
+        remoteEmbed = nil
         remoteError = nil
     }
 
-    func browseRemote(path: String) async {
+    func browseRemote(path: String, pageIndex: Int = 0) async {
+        let sameDirectory = path == remotePath
+        if !sameDirectory || pageIndex == 0 { remotePagination = ProjectRemotePagination() }
+        guard pageIndex == 0 || (sameDirectory && remotePagination.canShow(pageIndex)) else { return }
+        remoteGeneration = UUID()
+        let remoteRequest = remoteGeneration
+        remoteError = nil
+        remoteText = nil
+        remoteEmbed = nil
+        if remotePagination.showLegacyPage(pageIndex) {
+            remoteEntries = remotePagination.entries
+            return
+        }
         #if DEBUG
         if let previewVariant {
-            remotePath = path
             let entries = ProjectsWorkspacePreviewFixture.state(for: previewVariant).remoteEntries
-            remoteEntries = path == "." ? Array(entries.prefix(48))
-                : entries.filter { $0.path.hasPrefix(path + "/") }
-            remoteError = entries.count > 48 && path == "." ? AppStrings.projectRemoteLimited : nil
+                .filter { entry in
+                    let parts = entry.path.split(separator: "/")
+                    return (parts.count > 1 ? parts.dropLast().joined(separator: "/") : ".") == path
+                }.sorted { $0.path.localizedStandardCompare($1.path) == .orderedAscending }
+            // Replay a complete legacy response through production pagination.
+            remotePagination.install(ProjectRemoteDirectory(entries: entries, omitted: 0,
+                excluded: 0, nextCursor: nil), page: pageIndex)
+            remotePath = path
+            remoteEntries = remotePagination.entries
             return
         }
         #endif
@@ -636,31 +707,46 @@ final class ProjectsWorkspaceStore: ObservableObject {
         let requestGeneration = generation
         let fence = ProjectsWorkspaceFence(accountID: accountID)
         isLoadingRemote = true
-        remoteError = nil
-        remoteText = nil
         do {
             let directory = try await remoteClient.list(project: project, source: source,
-                                                        path: path, fence: fence)
-            guard requestGeneration == generation, activeRemoteSourceID == source.id else { return }
-            try await fence.check()
+                path: path, cursor: remotePagination.cursor(for: pageIndex), fence: fence)
+            guard requestGeneration == generation, remoteRequest == remoteGeneration,
+                  activeRemoteSourceID == source.id else { return }
+            try await validateFence(fence)
+            guard requestGeneration == generation, remoteRequest == remoteGeneration,
+                  activeRemoteSourceID == source.id else { return }
             remotePath = path
-            remoteEntries = Array(directory.entries.prefix(48))
-            if directory.omitted > 0 || directory.nextCursor != nil {
+            remotePagination.install(directory, page: pageIndex)
+            remoteEntries = remotePagination.entries
+            if remotePagination.omitted > 0 && remotePagination.nextCursor == nil {
                 remoteError = AppStrings.projectRemoteLimited
             }
         } catch {
-            if requestGeneration == generation { remoteError = AppStrings.projectError(error) }
+            if requestGeneration == generation && remoteRequest == remoteGeneration {
+                remoteError = AppStrings.projectError(error)
+            }
         }
-        if requestGeneration == generation { isLoadingRemote = false }
+        if requestGeneration == generation && remoteRequest == remoteGeneration { isLoadingRemote = false }
     }
 
     func openRemoteText(_ path: String) async {
+        remoteGeneration = UUID()
+        let remoteRequest = remoteGeneration
+        remoteText = nil
+        remoteEmbed = nil
+        remoteError = nil
         #if DEBUG
-        if previewVariant != nil {
-            remoteText = ProjectRemoteText(content: path == "README.md"
+        if let previewVariant {
+            remoteText = previewVariant == "truncatedConnectedSource"
+                ? ProjectsWorkspacePreviewFixture.truncatedText
+                : ProjectRemoteText(content: path == "README.md"
                 ? "# OpenMates\n\nA private workspace for planning and research.\n"
                 : "// Preview of \(path)\n", truncated: false,
                 sizeBytes: 64, lineCount: 3, expectedBase: nil)
+            if let text = remoteText, let source = sources.first(where: { $0.id == activeRemoteSourceID }) {
+                remoteEmbed = ProjectRemotePreviewPolicy.embed(sourceID: source.id, sourceLabel: source.name, path: path, text: text)
+                cacheRemotePreview(path: path, source: source, text: text)
+            }
             return
         }
         #endif
@@ -673,13 +759,32 @@ final class ProjectsWorkspaceStore: ObservableObject {
         do {
             let result = try await remoteClient.readText(project: project, source: source,
                                                          path: path, fence: fence)
-            guard requestGeneration == generation, activeRemoteSourceID == source.id else { return }
-            try await fence.check()
+            guard requestGeneration == generation, remoteRequest == remoteGeneration,
+                  activeRemoteSourceID == source.id else { return }
+            try await validateFence(fence)
+            guard requestGeneration == generation, remoteRequest == remoteGeneration,
+                  activeRemoteSourceID == source.id else { return }
             remoteText = result
+            remoteEmbed = ProjectRemotePreviewPolicy.embed(sourceID: source.id, sourceLabel: source.name, path: path, text: result)
+            cacheRemotePreview(path: path, source: source, text: result)
         } catch {
-            if requestGeneration == generation { remoteError = AppStrings.projectError(error) }
+            if requestGeneration == generation && remoteRequest == remoteGeneration { remoteError = AppStrings.projectError(error) }
         }
-        if requestGeneration == generation { isLoadingRemote = false }
+        if requestGeneration == generation && remoteRequest == remoteGeneration { isLoadingRemote = false }
+    }
+
+    private func cacheRemotePreview(path: String, source: ProjectWorkspaceSource, text: ProjectRemoteText) {
+        // Web virtual preview snippets are bounded to 20,000 characters. Retain
+        // at most one page of opened cards; only the active fullscreen has the
+        // complete bounded read, and neither value is written to disk.
+        let snippet = String(text.content.prefix(20_000))
+        let preview = ProjectRemoteText(content: snippet,
+            truncated: text.truncated || snippet.count < text.content.count,
+            sizeBytes: text.sizeBytes, lineCount: text.lineCount, expectedBase: nil)
+        if remoteFilePreviews[path] == nil && remoteFilePreviews.count >= ProjectRemotePagination.pageSize,
+           let evicted = remoteFilePreviews.keys.first { remoteFilePreviews.removeValue(forKey: evicted) }
+        remoteFilePreviews[path] = ProjectRemotePreviewPolicy.embed(sourceID: source.id,
+            sourceLabel: source.name, path: path, text: preview)
     }
 
     func folderHash(_ folderID: String) -> String {
@@ -709,6 +814,7 @@ final class ProjectsWorkspaceStore: ObservableObject {
         isLoadingDetail = false
         closeRemoteSource()
         sourceRootPreviews = [:]
+        remoteFilePreviews = [:]
     }
 
     private func loadReadme(project: ProjectWorkspaceProject, contents: ProjectWorkspaceContents,
@@ -776,6 +882,10 @@ final class ProjectsWorkspaceStore: ObservableObject {
     /// a service, so production actions cannot mutate live Project data.
     func installPreview(variant: String) {
         previewVariant = variant
+        debugOriginalDownload = nil
+        if variant == "truncatedConnectedSource" {
+            debugOriginalDownload = ProjectsWorkspacePreviewFixture.downloadOriginal(path:progress:)
+        }
         generation = UUID()
         accountID = nil
         let state = ProjectsWorkspacePreviewFixture.state(for: variant)
@@ -798,9 +908,11 @@ final class ProjectsWorkspaceStore: ObservableObject {
         readme = state.readme
         sourceRootPreviews = state.rootPreviews
         activeRemoteSourceID = nil
+        remoteFilePreviews = [:]
         remotePath = "."
         remoteEntries = []
         remoteText = nil
+        remoteEmbed = nil
         remoteError = nil
         isLoadingDetail = false
         isLoadingRemote = false

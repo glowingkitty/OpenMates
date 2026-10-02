@@ -12,6 +12,8 @@
 // Specification: specifications/features/apple-notifications/specification.yml
 // Assertions: apple-notifications.registration.lifecycle, apple-notifications.action.routing-coherent,
 //             apple-notifications.delivery.idempotent-visible
+// Specification: specifications/features/apple-watch/specification.yml
+// Assertions: apple-watch.tasks.edit-private, apple-watch.workflows.compact-editor
 
 import SwiftUI
 
@@ -43,6 +45,10 @@ struct WatchRootView: View {
                         chatRuntime: chatRuntime,
                         currentUserId: authStore.currentUser?.id,
                         currentUsername: authStore.currentUser?.username,
+                        currentAccountID: {
+                            guard authStore.state == .authenticated, authStore.isVerifiedOnline else { return nil }
+                            return authStore.currentUser?.id
+                        },
                         notificationRoute: push.pendingRoute.flatMap { push.permitsOpen($0) ? $0 : nil },
                         onOpenItem: { request in
                             _ = phoneBridge.sendItemOpenRequest(request)
@@ -58,7 +64,7 @@ struct WatchRootView: View {
                             }
                         }
                     )
-                    .id(runtimeRevision)
+                    .id("\(authStore.currentUser?.id ?? ""):\(WatchChatAccountLifecycle.generation):\(ServerProfile.current().apiBaseURL.absoluteString):\(runtimeRevision)")
                     .task { phoneBridge.start(onApproval: { _ in }, onAcknowledgment: { _ in }) }
                 } else {
                     loadingView

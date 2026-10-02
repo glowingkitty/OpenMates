@@ -1,5 +1,7 @@
 // Email lookup — first step of login. User enters email, we call /v1/auth/lookup
 // to discover available login methods. Mirrors EmailLookup.svelte.
+// Specification: specifications/features/auth/specification.yml
+// Assertions: auth.login.method-convergence
 
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/EmailLookup.svelte
@@ -41,6 +43,8 @@ struct EmailLookupView: View {
         do {
             try await PasskeyLoginCoordinator.login(authManager: authManager,
                 stayLoggedIn: stayLoggedIn, preferImmediatelyAvailableCredentials: true)
+        } catch is CancellationError {
+            // SwiftUI cancels this task on navigation; the coordinator drains OS UI.
         } catch PasskeyError.cancelled {
             // Absence or dismissal of an immediately available OS credential is normal.
         } catch {

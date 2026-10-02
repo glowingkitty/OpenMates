@@ -6,6 +6,8 @@
 // User-visible copy belongs in localized view layers, never in the app entry.
 // Specification: specifications/features/apple-notifications/specification.yml
 // Assertions: apple-notifications.registration.lifecycle
+// Specification: specifications/features/apple-watch/specification.yml
+// Assertions: apple-watch.tasks.edit-private, apple-watch.workflows.compact-editor
 
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/Header.svelte
@@ -27,7 +29,23 @@ struct OpenMatesWatchApp: App {
     var body: some Scene {
         WindowGroup {
             #if DEBUG
-            if ProcessInfo.processInfo.arguments.contains("--ui-test-watch-native-crown") {
+            if ProcessInfo.processInfo.arguments.contains("--ui-test-watch-workflow-save-failure") {
+                WatchWorkflowUITestFixtureView(failFirstSave: true)
+            } else if ProcessInfo.processInfo.arguments.contains("--ui-test-watch-workflow-retry") {
+                WatchWorkflowUITestFixtureView(failFirstRead: true)
+            } else if ProcessInfo.processInfo.arguments.contains("--ui-test-watch-workflow-empty") {
+                WatchWorkflowUITestFixtureView(empty: true)
+            } else if ProcessInfo.processInfo.arguments.contains("--ui-test-watch-workflow-detail") {
+                WatchWorkflowUITestFixtureView()
+            } else if ProcessInfo.processInfo.arguments.contains("--ui-test-watch-task-edit-failure") {
+                WatchTaskEditingUITestFixtureView(failsSave: true)
+            } else if ProcessInfo.processInfo.arguments.contains("--ui-test-watch-task-edit-workflow") {
+                WatchTaskEditingUITestFixtureView(workflowProjection: true)
+            } else if ProcessInfo.processInfo.arguments.contains("--ui-test-watch-task-edit") {
+                WatchTaskEditingUITestFixtureView()
+            } else if ProcessInfo.processInfo.arguments.contains("--ui-test-watch-crown-binding") {
+                WatchCrownBindingDiagnosticView()
+            } else if ProcessInfo.processInfo.arguments.contains("--ui-test-watch-native-crown") {
                 WatchNativeCrownDiagnosticView()
             } else if ProcessInfo.processInfo.arguments.contains("--ui-test-watch-chat-layout") {
                 WatchChatShellView(
@@ -162,6 +180,37 @@ struct OpenMatesWatchApp: App {
 }
 
 #if DEBUG
+/// Tooling only: separates Crown event delivery from automatic ScrollView focus.
+private struct WatchCrownBindingDiagnosticView: View {
+    @State private var rotation = 0.0
+    @State private var eventCount = 0
+    @FocusState private var crownFocused: Bool
+
+    var body: some View {
+        VStack(spacing: .spacing3) {
+            Text(crownFocused ? "true" : "false")
+                .accessibilityIdentifier("watch-crown-binding-focus")
+            Text(String(eventCount))
+                .accessibilityIdentifier("watch-crown-binding-events")
+            Text(String(format: "%.4f", rotation))
+                .accessibilityIdentifier("watch-crown-binding-rotation")
+        }
+        .font(.omSmall)
+        .foregroundStyle(Color.grey0)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.grey100)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("watch-crown-binding-control")
+        .focusable()
+        .focused($crownFocused)
+        .digitalCrownRotation($rotation)
+        .onChange(of: rotation) { _, _ in eventCount += 1 }
+        .task { crownFocused = true }
+    }
+}
+#endif
+
+#if DEBUG
 private struct WatchHubUITestFixtureView: View {
     @State private var openedItem: WatchItemOpenRequest?
     @StateObject private var chatRuntime = WatchChatRuntime(uiTestSnapshot: .empty, selectedChatId: nil)
@@ -196,7 +245,8 @@ private struct WatchHubUITestFixtureView: View {
     var body: some View {
         WatchHubView(
             chatRuntime: chatRuntime,
-            currentUserId: nil,
+            currentUserId: WatchWorkflowDetailFixtures.accountID,
+            currentAccountID: { WatchWorkflowDetailFixtures.accountID },
             fixtureTasks: Self.tasks,
             fixtureWorkflows: [
                 WatchWorkflowListItem(
@@ -210,6 +260,7 @@ private struct WatchHubUITestFixtureView: View {
                     openRequest: WatchItemOpenRequest(kind: .workflow, id: "workflow-two")!
                 ),
             ],
+            workflowDetailService: WatchWorkflowDetailFixtures.service(),
             onOpenItem: { openedItem = $0 },
             onOpenSettings: {},
             onCreate: { _ in }

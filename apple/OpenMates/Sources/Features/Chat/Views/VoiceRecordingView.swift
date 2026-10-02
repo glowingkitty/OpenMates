@@ -562,7 +562,12 @@ final class VoiceRecorder: ObservableObject {
     }
 
     nonisolated private static func monoSamples(from buffer: AVAudioPCMBuffer) -> [Float]? {
-        guard let channels = buffer.floatChannelData else { return nil }
+        // The tap can still receive a hardware layout rejected by the writer.
+        // Interleaved PCM exposes one pointer for all channels; indexing it as
+        // planar stereo would read beyond the channel-pointer array.
+        guard buffer.format.commonFormat == .pcmFormatFloat32,
+              !buffer.format.isInterleaved,
+              let channels = buffer.floatChannelData else { return nil }
         let frameCount = Int(buffer.frameLength)
         let channelCount = Int(buffer.format.channelCount)
         guard frameCount > 0, channelCount > 0 else { return nil }

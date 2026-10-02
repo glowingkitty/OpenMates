@@ -168,9 +168,32 @@ enum DevEmbedPreviewFixtures {
             component = webVariants.preview[skill.primaryEmbed.type]
         }
         let web = component.flatMap { webVariants.variants[$0] } ?? []
-        return [DevEmbedPreviewVariant(name: "default", skill: skill)] + web.map {
+        var result = [DevEmbedPreviewVariant(name: "default", skill: skill)] + web.map {
             DevEmbedPreviewVariant(name: $0.name, skill: applying($0, to: skill, fullscreen: fullscreen))
         }
+        // Supplemental valid preview; keep the web's empty processing default intact.
+        if !fullscreen, skill.primaryEmbed.type == EmbedType.mindmapsMindmap.rawValue,
+           let finished = fullscreenSkill(forRegistryKey: EmbedType.mindmapsMindmap.rawValue) {
+            result.append(DevEmbedPreviewVariant(name: "finished", skill: finished))
+        }
+        // Supplemental fullscreen regressions exercise the production shared
+        // template with both coordinates and an image. Canonical defaults stay
+        // unchanged and local data URLs need no provider/server state.
+        if fullscreen, skill.primaryEmbed.type == EmbedType.maps.rawValue {
+            let staticURL = mapsPlacePreview.primaryEmbed.rawData?["map_image_url"]?.value as? String
+            for (name, imageURL) in [
+                ("staticWithCoordinates", staticURL),
+                ("invalidStaticWithCoordinates", "data:image/svg+xml,%3Csvg%3E%3Cscript%3Ealert(1)%3C/script%3E%3C/svg%3E")
+            ] {
+                guard let imageURL else { continue }
+                var payload = skill.primaryEmbed.rawData?.mapValues(\.value) ?? [:]
+                payload["map_image_url"] = imageURL
+                let variant = WebVariant(name: name, props: ["data": AnyCodable(["decodedContent": payload])])
+                result.append(DevEmbedPreviewVariant(name: name,
+                    skill: applying(variant, to: skill, fullscreen: true)))
+            }
+        }
+        return result
     }
 
     static func dataVariants(for skill: DevEmbedPreviewSkill, fullscreen: Bool = false) -> [DevEmbedPreviewVariant] {
@@ -512,6 +535,8 @@ enum DevEmbedPreviewFixtures {
     }
 
     static func skill(forRegistryKey registryKey: String) -> DevEmbedPreviewSkill? {
+        if registryKey == EmbedType.travelStay.rawValue { return travelStayFullscreen }
+        if registryKey == EmbedType.mapsPlace.rawValue { return mapsPlacePreview }
         if registryKey == EmbedType.fileFile.rawValue {
             let embed = record(id: "preview-file-processing", type: EmbedType.fileFile.rawValue,
                                status: .processing, appId: "file", skillId: "file", data: [:])
@@ -551,6 +576,7 @@ enum DevEmbedPreviewFixtures {
     }
 
     static func fullscreenSkill(forRegistryKey registryKey: String) -> DevEmbedPreviewSkill? {
+        if registryKey == EmbedType.mapsPlace.rawValue { return mapsPlaceFullscreen }
         if registryKey == EmbedType.fileFile.rawValue { return fileArtifact }
         if registryKey == EmbedType.codeCode.rawValue { return codeFullscreen }
         if registryKey == EmbedType.sheetsSheet.rawValue { return sheetFullscreen }
@@ -1295,6 +1321,14 @@ enum DevEmbedPreviewFixtures {
         return skill(id: "travel-stay", label: "Stay", primary: embed)
     }
 
+    private static var travelStayFullscreen: DevEmbedPreviewSkill {
+        let embed = travelStayRecord(id: "preview-travel-stay-1", name: "Hotel Maximilian",
+                                     hotelClass: 4, rating: 4.3, reviews: 1248,
+                                     ratePerNight: "129", totalRate: "387", parentId: nil,
+                                     canonicalRates: true)
+        return skill(id: "travel-stay", label: "Stay", primary: embed)
+    }
+
     private static var travelStays: DevEmbedPreviewSkill {
         let children = [
             travelStayRecord(id: "preview-travel-stays-result-1", name: "Hotel Arts Barcelona", hotelClass: 5, rating: 4.7, reviews: 4521, ratePerNight: "320", totalRate: "960", parentId: "preview-travel-stays-1"),
@@ -2019,7 +2053,12 @@ enum DevEmbedPreviewFixtures {
     }
 
     private static var mail: DevEmbedPreviewSkill {
-        let embed = record(id: "preview-mail-email-1", type: EmbedType.mailEmail.rawValue, appId: "mail", data: ["subject": "Project update", "from": "anna@example.com", "snippet": "The latest sprint review went well."])
+        let embed = record(id: "preview-mail-email-1", type: EmbedType.mailEmail.rawValue, appId: "mail", data: [
+            "receiver": "[EMAIL_1_com]",
+            "subject": "Project Update — Sprint 12 Review",
+            "content": "Hi Anna,\n\nThe latest sprint review went well. All tickets were closed except the auth refactor, which is carried over to Sprint 13.\n\nKey highlights:\n- Login flow redesigned (done)\n- API rate limiting added (done)\n- Auth refactor (carried over)\n\nLet me know if you have any questions.\n\nBest,\nMax",
+            "footer": ""
+        ])
         return skill(id: "mail-email", label: "Mail", primary: embed)
     }
 
@@ -2057,6 +2096,33 @@ enum DevEmbedPreviewFixtures {
                                      "time_range": "All time", "result_count": 0,
                                      "results": [] as [[String: Any]]])
         return skill(id: "mail-search-fullscreen", label: "Search", primary: parent)
+    }
+
+    // Independent defaults mirror the deployed preview and fullscreen fixtures.
+    private static var mapsPlacePreview: DevEmbedPreviewSkill {
+        let embed = record(id: "preview-maps-place-location", type: EmbedType.mapsPlace.rawValue,
+                           appId: "maps", data: normalizeWebProps([
+                            "name": "Berlin Hauptbahnhof", "address": "Europaplatz 1, 10557 Berlin",
+                            "locationType": "precise_location", "placeType": "railway",
+                            "mapImageUrl": "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20640%20360%22%3E%3Crect%20width%3D%22640%22%20height%3D%22360%22%20fill%3D%22%23e5e7eb%22%2F%3E%3Ctext%20x%3D%22320%22%20y%3D%22180%22%20text-anchor%3D%22middle%22%20dominant-baseline%3D%22middle%22%20font-family%3D%22sans-serif%22%20font-size%3D%2232%22%20fill%3D%22%236b7280%22%3EMap%20preview%3C%2Ftext%3E%3C%2Fsvg%3E"
+                           ]))
+        return skill(id: "maps-place-preview", label: "Location", primary: embed)
+    }
+
+    private static var mapsPlaceFullscreen: DevEmbedPreviewSkill {
+        let embed = record(id: "preview-maps-place-fullscreen", type: EmbedType.mapsPlace.rawValue,
+                           appId: "maps", data: normalizeWebProps([
+                            "name": "Man vs. Machine Coffee Roasters",
+                            "displayName": "Man vs. Machine Coffee Roasters",
+                            "address": "Müllerstraße 23, 80469 Munich, Germany",
+                            "formattedAddress": "Müllerstraße 23, 80469 Munich, Germany",
+                            "lat": 48.1321, "lon": 11.5718, "zoom": 16,
+                            "latitude": 48.1321, "longitude": 11.5718,
+                            "rating": 4.7, "reviews": 1832, "userRatingCount": 1832,
+                            "placeType": "Coffee Shop", "category": "Coffee Shop",
+                            "websiteUri": "https://www.mvsm.coffee", "placeId": "ChIJabc123"
+                           ]))
+        return skill(id: "maps-place-fullscreen", label: "Location", primary: embed)
     }
 
     private static var mapsLocation: DevEmbedPreviewSkill {
@@ -3031,7 +3097,8 @@ enum DevEmbedPreviewFixtures {
         reviews: Int,
         ratePerNight: String,
         totalRate: String,
-        parentId: String?
+        parentId: String?,
+        canonicalRates: Bool = false
     ) -> EmbedRecord {
         record(
             id: id,
@@ -3056,7 +3123,10 @@ enum DevEmbedPreviewFixtures {
                 "amenities": ["Free Wi-Fi", "Breakfast included", "Spa", "Fitness center"],
                 "free_cancellation": true,
                 "eco_certified": true
-            ],
+            ].merging(canonicalRates ? [
+                "extracted_rate_per_night": Double(ratePerNight) ?? 0,
+                "extracted_total_rate": Double(totalRate) ?? 0
+            ] : [:], uniquingKeysWith: { _, canonical in canonical }),
             parentEmbedId: parentId
         )
     }

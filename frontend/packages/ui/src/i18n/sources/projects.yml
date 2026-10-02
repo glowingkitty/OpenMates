@@ -336,3 +336,21 @@ workspace_sync: { context: Refresh current Project contents, en: "Sync", verifie
 workspace_new_chat_description: { context: Project Create menu chat description, en: "Start a chat inside this project", verified_by_human: [] }
 workspace_new_workflow_description: { context: Project Create menu workflow description, en: "Build a workflow for this project", verified_by_human: [] }
 workspace_new_plan_description: { context: Project Create menu plan description, en: "Plan work for this project", verified_by_human: [] }
+
+workspace_remote_preview_pending:
+  context: Connected project file preview before reading its contents
+  en: Open to render preview
+  de: Zur Vorschau öffnen
+  verified_by_human: []
+
+workspace_remote_file_details_pending:
+  context: Connected project binary file before opening details
+  en: Open for file details and download
+  de: Für Dateidetails und Download öffnen
+  verified_by_human: []
+
+workspace_entry_range:
+  context: Connected project browser pagination range
+  en: "{start}–{end} of {total} entries"
+  de: "{start}–{end} von {total} Einträgen"
+  verified_by_human: []

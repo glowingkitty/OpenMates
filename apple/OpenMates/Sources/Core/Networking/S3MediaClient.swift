@@ -369,6 +369,17 @@ actor RemoteImageCache {
         transport: ImageTransport = { try await URLSession.shared.data(for: RemoteImageCache.request(for: $0)) }
     ) async throws -> Data {
         guard let url = URL(string: urlString) else { throw S3Error.invalidURL }
+        if url.scheme?.lowercased() == "data" {
+            // Static image fixtures and provider SVGs may be inline. Decode
+            // locally, then apply exactly the same opt-in SVG validation as
+            // remote bytes; data URLs never enter URLSession or origin retries.
+            guard allowStaticSVG, let data = staticSVGDataURI(urlString),
+                  StaticSVGImageSource(data: data) != nil else { throw S3Error.downloadFailed }
+            return data
+        }
+        guard ["http", "https"].contains(url.scheme?.lowercased() ?? "") else {
+            throw S3Error.invalidURL
+        }
         let (data, response) = try await transport(url)
         guard let response = response as? HTTPURLResponse,
               (200...299).contains(response.statusCode),
@@ -377,6 +388,24 @@ actor RemoteImageCache {
             // retrying its `url` parameter against the third-party origin.
             throw S3Error.downloadFailed
         }
+        return data
+    }
+
+    private static func staticSVGDataURI(_ value: String) -> Data? {
+        // Bound encoded input before percent/base64 decoding allocations. A
+        // percent-encoded byte needs at most three characters; decoded SVGs
+        // retain the existing two-megabyte validation limit.
+        guard value.utf8.count <= 6_000_128, let comma = value.firstIndex(of: ","),
+              value[..<comma].utf8.count <= 128 else { return nil }
+        let metadata = value[..<comma].lowercased().split(separator: ";", omittingEmptySubsequences: false)
+        guard metadata.first == "data:image/svg+xml" else { return nil }
+        let parameters = Array(metadata.dropFirst())
+        guard Set(parameters).count == parameters.count,
+              parameters.allSatisfy({ $0 == "charset=utf-8" || $0 == "base64" }),
+              !parameters.contains("base64") || parameters.last == "base64",
+              let payload = String(value[value.index(after: comma)...]).removingPercentEncoding else { return nil }
+        let data = parameters.contains("base64") ? Data(base64Encoded: payload) : Data(payload.utf8)
+        guard let data, !data.isEmpty, data.count <= 2_000_000 else { return nil }
         return data
     }
 
@@ -430,7 +459,8 @@ private final class StaticSVGXMLValidator: NSObject, XMLParserDelegate {
         "stroke-dasharray", "stroke-dashoffset", "opacity", "transform", "gradienttransform",
         "gradientunits", "spreadmethod", "offset", "stop-color", "stop-opacity", "clip-path",
         "clip-rule", "clippathunits", "mask", "maskunits", "maskcontentunits", "preserveaspectratio",
-        "href", "xlink:href", "font-family", "font-size", "font-weight", "text-anchor", "dx", "dy"]
+        "href", "xlink:href", "font-family", "font-size", "font-weight", "text-anchor",
+        "dominant-baseline", "dx", "dy"]
 
     private func reject(_ parser: XMLParser) { valid = false; parser.abortParsing() }
 

@@ -10,6 +10,8 @@
 //          frontend/packages/ui/src/components/embeds/videos/VideoGenerateEmbedFullscreen.svelte
 //          frontend/packages/ui/src/components/embeds/videos/VideoEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/videos/VideoEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/videos/VideosSearchEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/SearchResultsTemplate.svelte
 //          frontend/packages/ui/src/components/embeds/videos/VideoTranscriptEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/videos/VideoTranscriptEmbedFullscreen.svelte
 //          frontend/packages/ui/src/components/embeds/audio/RecordingEmbedPreview.svelte
@@ -24,7 +26,7 @@
 //                specifications/features/app-skills/web-search/specification.yml
 //                specifications/features/chat-share-settings/specification.yml
 // Assertions: chat-share-settings.shared-link-open, chats.surface.semantic-parity, videos.transcript.surface-parity, audio-generate.surface-parity,
-//             audio-speak.surface-parity, web-search.surface-parity
+//             audio-speak.surface-parity, web-search.surface-parity, chats.layout.responsive-history
 
 import SwiftUI
 import WebKit
@@ -1108,10 +1110,10 @@ struct VideosSearchEmbedRenderer: View {
                 EmbedPreviewCard(embed: child, variant: .compact) {
                     onOpenEmbed(child)
                 }
-                .frame(width: 300)
                 .accessibilityIdentifier("videos-search-result-\(child.id)")
                 .accessibilityValue(EmbedFieldReader.string(child.rawData ?? [:], keys: ["title"]) ?? "")
             }
+            .accessibilityElement(children: .contain)
             .accessibilityIdentifier("videos-search-fullscreen-results")
         }
     }

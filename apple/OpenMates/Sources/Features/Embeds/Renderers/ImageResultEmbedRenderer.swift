@@ -1,4 +1,6 @@
 // ImageResultEmbedRenderer — native counterpart for image result embeds.
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.surface.semantic-parity, chats.layout.responsive-history
 //
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/embeds/images/ImageResultEmbedPreview.svelte
@@ -64,25 +66,30 @@ struct ImageResultEmbedRenderer: View {
     var body: some View {
         switch mode {
         case .preview:
-            Group {
+            GeometryReader { viewport in
                 if let previewURL, !previewFailed {
                     CachedRemoteImage(url: previewURL, onFailure: { previewFailed = true }) { image in
-                        image.resizable().aspectRatio(contentMode: .fill)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        // Web .result-image: width/height100%, object-fit:contain.
+                        // Bound the bitmap to the proposed card viewport so its
+                        // aspect ratio cannot widen a 320pt search result card.
+                        image.resizable().aspectRatio(contentMode: .fit)
+                            .frame(width: viewport.size.width, height: viewport.size.height)
                             .clipped()
                             .overlay(alignment: .topLeading) { previewTitle }
+                            .accessibilityIdentifier("image-result-preview-image")
                     } placeholder: {
                         Color(hex: 0xEBEBEB)
                     }
                 } else {
                     placeholderIcon(size: 28)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .frame(width: viewport.size.width, height: viewport.size.height)
                         .background(Color(hex: 0xEBEBEB))
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .clipped()
             .background(Color(hex: 0xEBEBEB))
+            .accessibilityElement(children: .contain)
             .accessibilityIdentifier("image-result-preview-content")
 
         case .fullscreen:

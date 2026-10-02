@@ -5,6 +5,8 @@ import SwiftUI
 // Web source: frontend/packages/ui/src/components/tasks/TasksPage.svelte
 //             frontend/packages/ui/src/components/tasks/TaskBoard.svelte
 //             frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+// Specification: specifications/features/tasks/specification.yml
+// Assertions: tasks.lifecycle.visible, tasks.detail.embed-responsive, tasks.surface.semantic-parity
 struct TasksWorkspaceView: View {
     @ObservedObject var store: TasksWorkspaceStore
     var showPlansOnly = false
@@ -18,6 +20,7 @@ struct TasksWorkspaceView: View {
 
     @State private var searchExpanded = false
     @State private var filtersExpanded = false
+    @State private var desktopFiltersExpanded = true
     @State private var prompt = ""
     @State private var showingNewTask = false
     @State private var newTaskTitle = ""
@@ -26,17 +29,24 @@ struct TasksWorkspaceView: View {
     @State private var visibleCounts: [UserTaskStatus: Int] = [:]
     @State private var pendingDelete: UserTaskItem?
     @State private var inspirationIndex = 0
+    @State private var cardActionsID: String?
+    @State private var hoveredCardID: String?
 
     var body: some View {
         GeometryReader { geometry in
-            let narrow = geometry.size.width < 550
+            // TasksPage.svelte measures the remaining workspace width after
+            // opening its 32% board / reader split, rather than window width.
+            let split = !compactProjectBoard && geometry.size.width >= 1100
+                && (store.selectedTaskID != nil || store.selectedWorkflowRunID != nil)
+            let workspaceWidth = split ? max(340, geometry.size.width * 0.32) : geometry.size.width
+            let narrow = workspaceWidth <= 900
             ZStack(alignment: .bottom) {
                 ScrollView(.vertical) {
                     VStack(spacing: 0) {
                         if compactProjectBoard {
                             compactProjectToolbar
                         } else {
-                            banner(width: geometry.size.width, height: geometry.size.height)
+                            banner(width: workspaceWidth, height: geometry.size.height)
                             toolbar(narrow: narrow)
                             greeting
                         }
@@ -49,8 +59,12 @@ struct TasksWorkspaceView: View {
                                 Text(AppStrings.tasksLoadError)
                                 Text(store.errorMessage ?? "").font(.omSmall)
                                     .foregroundStyle(Color.fontSecondary)
+                                Button(AppStrings.retry) { Task { await store.retryLoad() } }
+                                    .buttonStyle(OMSecondaryButtonStyle())
+                                    .accessibilityIdentifier("tasks-retry-load")
                             }
                             .frame(maxWidth: .infinity, minHeight: 160)
+                            .accessibilityElement(children: .contain)
                             .accessibilityIdentifier("tasks-load-error")
                         } else {
                             if let error = store.plansLoadErrorMessage {
@@ -63,7 +77,7 @@ struct TasksWorkspaceView: View {
                                     .padding(.horizontal, .spacing6)
                                     .accessibilityIdentifier("tasks-project-names-load-error")
                             }
-                            board(narrow: narrow, width: geometry.size.width)
+                            board(narrow: narrow, width: workspaceWidth)
                         }
                     }
                     .padding(.bottom, 120)
@@ -71,18 +85,17 @@ struct TasksWorkspaceView: View {
                 composer
             }
             .background(Color.grey20.ignoresSafeArea())
-            .sheet(isPresented: $showingNewTask) { newTaskSheet }
+            .overlay { OMSheet(isPresented: $showingNewTask, title: showPlansOnly ? AppStrings.tasksNewPlan : AppStrings.tasksNew) { newTaskSheet } }
             .modifier(TasksDetailPresentation(selection: selectedDetailBinding,
-                store: store, onOpenProject: onOpenProject, onOpenChat: onOpenChat,
+                store: store, allowsSplit: !compactProjectBoard,
+                onOpenProject: onOpenProject, onOpenChat: onOpenChat,
                 onReportIssue: onReportIssue))
-            .confirmationDialog(AppStrings.tasksDeleteConfirmation,
-                                isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }),
-                                titleVisibility: .visible) {
+            .overlay {
                 if let task = pendingDelete {
-                    Button(AppStrings.delete, role: .destructive) {
-                        pendingDelete = nil
-                        Task { await store.deleteTask(task) }
-                    }
+                    OMConfirmDialog(title: AppStrings.delete, message: AppStrings.tasksDeleteConfirmation,
+                                    confirmTitle: AppStrings.delete, isDestructive: true,
+                                    onConfirm: { pendingDelete = nil; Task { await store.deleteTask(task) } },
+                                    onCancel: { pendingDelete = nil })
                 }
             }
             .accessibilityElement(children: .contain)
@@ -171,7 +184,8 @@ struct TasksWorkspaceView: View {
             HStack(spacing: 14) {
                 Button(action: onReportIssue) {
                     Icon("bug", size: 22)
-                        .foregroundStyle(Color(hex: 0x4867CD))
+                        // WorkspaceReportIssueButton uses --color-primary.
+                        .foregroundStyle(LinearGradient.primary)
                         .frame(width: 42, height: 42)
                         .background(Color.grey0, in: Circle())
                         .shadow(color: .black.opacity(0.12), radius: 7, y: 3)
@@ -193,17 +207,21 @@ struct TasksWorkspaceView: View {
                         Button {
                             searchExpanded = true
                         } label: {
-                            Label(AppStrings.tasksSearch, systemImage: "magnifyingglass")
+                            HStack(spacing: .spacing3) {
+                                Icon("search", size: 14)
+                                Text(AppStrings.tasksSearch).font(.omP.weight(.bold))
+                            }
                         }
                         .buttonStyle(.plain)
                         .accessibilityIdentifier("task-search-link")
                     }
-                    if filtersExpanded { filterChips }
+                    if desktopFiltersExpanded { filterChips }
                 }
-                Button { filtersExpanded.toggle() } label: {
+                Button { if narrow { filtersExpanded.toggle() } else { desktopFiltersExpanded.toggle() } } label: {
                     Icon("filter", size: 18)
-                        .foregroundStyle(Color(hex: 0x4867CD))
-                        .frame(width: 36, height: 36)
+                        // TasksPage .task-filter-button span uses --color-primary.
+                        .foregroundStyle(LinearGradient.primary)
+                        .frame(width: 40, height: 40)
                         .background(Color.grey0, in: Circle())
                 }
                 .buttonStyle(.plain)
@@ -212,33 +230,32 @@ struct TasksWorkspaceView: View {
             }
             if narrow && filtersExpanded {
                 HStack {
-                    TextField(AppStrings.tasksSearch, text: $store.searchText)
-                        .textFieldStyle(.roundedBorder)
-                        .accessibilityIdentifier("task-search-input")
                     filterChips
                 }
             }
         }
         .frame(maxWidth: .infinity, alignment: .trailing)
-        .padding(.horizontal, narrow ? 48 : 16)
+        .padding(.horizontal, 16)
         .padding(.top, 10)
     }
 
     private var filterChips: some View {
         ScrollView(.horizontal) {
-            HStack(spacing: 8) {
-                ForEach(Array(Set(store.boardItems.compactMap { item -> [String]? in
-                    if case .task(let task) = item { return task.tags }
-                    return nil
-                }.flatMap { $0 })).sorted(), id: \.self) { tag in
+            HStack(spacing: .spacing3) {
+                ForEach(store.filterTags, id: \.self) { tag in
                     Button("#\(tag)") {
-                        store.searchText = store.searchText == tag ? "" : tag
+                        store.searchText = store.searchText.replacingOccurrences(of: "^#", with: "", options: .regularExpression) == tag ? "" : tag
                     }
-                    .font(.omXs)
+                    .font(.omXxs)
                     .buttonStyle(.plain)
-                    .padding(.horizontal, 10).padding(.vertical, 5)
-                    .background(store.searchText == tag ? Color.buttonPrimary : Color.grey0, in: Capsule())
-                    .foregroundStyle(store.searchText == tag ? Color.white : Color.fontSecondary)
+                    // TasksPage.svelte .task-filter-chips: 20px height, 9px inline padding.
+                    .padding(.horizontal, 9)
+                    .frame(height: 20)
+                    .background {
+                        if store.searchText == tag { Capsule().fill(Color.buttonPrimary) }
+                        else { Capsule().fill(LinearGradient.primary) }
+                    }
+                    .foregroundStyle(Color.fontButton)
                 }
             }
         }
@@ -261,7 +278,7 @@ struct TasksWorkspaceView: View {
             filterChips
             Button { filtersExpanded.toggle() } label: {
                 Icon("filter", size: 18)
-                    .foregroundStyle(Color(hex: 0x4867CD))
+                    .foregroundStyle(LinearGradient.primary)
                     .frame(width: 40, height: 40)
                     .background(Color.grey0, in: Circle())
             }
@@ -277,7 +294,7 @@ struct TasksWorkspaceView: View {
     private var greeting: some View {
         VStack(spacing: 8) {
             Text(showPlansOnly ? AppStrings.plans : AppStrings.tasksGreeting)
-                .font(.custom("Lexend Deca", size: 24).weight(.semibold))
+                .font(.omH2.weight(.semibold))
                 .foregroundStyle(Color.grey80)
             if !showPlansOnly {
                 Text(AppStrings.tasksNext)
@@ -301,14 +318,15 @@ struct TasksWorkspaceView: View {
         let plans = store.visiblePlans
         return VStack(alignment: .leading, spacing: 12) {
             ScrollView(.horizontal) {
-                HStack(alignment: .top, spacing: narrow ? 0 : 14) {
+                HStack(alignment: .top, spacing: 14) {
                     ForEach(UserTaskStatus.allCases) { status in
                         column(status, tasks: tasks, plans: plans)
-                            .frame(width: narrow ? 240 : max(230, (width - 150) / 5))
+                            .frame(width: narrow ? 240 : max(230, (width - 104) / 5))
                     }
                 }
-                .padding(.leading, narrow ? (compactProjectBoard ? 0 : 48) : 8)
-                .padding(.trailing, narrow ? 14 : 8)
+                .padding(.leading, narrow ? (compactProjectBoard ? 0 : 14) : .spacing2)
+                .padding(.top, .spacing2)
+                .padding(.trailing, narrow ? 14 : .spacing2)
             }
             .scrollIndicators(.hidden)
             .accessibilityElement(children: .contain)
@@ -322,7 +340,7 @@ struct TasksWorkspaceView: View {
                     .accessibilityIdentifier(store.searchText.isEmpty ? "tasks-empty" : "tasks-filter-empty")
             }
         }
-        .padding(.horizontal, narrow ? 0 : 8)
+        .padding(.horizontal, narrow ? 0 : .spacing12)
         .accessibilityElement(children: .contain)
     }
 
@@ -331,11 +349,11 @@ struct TasksWorkspaceView: View {
         let columnPlans = plans.filter { $0.status.boardColumn == status }.sorted { $0.updatedAt > $1.updatedAt }
         let count = columnTasks.count + columnPlans.count
         let visible = visibleCounts[status] ?? 30
-        return VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
+        return VStack(alignment: .leading, spacing: .spacing8) {
+            HStack(spacing: .spacing3) {
                 RoundedRectangle(cornerRadius: 2).fill(status.accent).frame(width: 4, height: 28)
                 Text(status.localizedTitle).font(.omH3).fontWeight(.bold)
-                Text("(\(count))").font(.omXs).foregroundStyle(Color.fontSecondary)
+                Text("(\(count))").font(.omXxs).foregroundStyle(Color.fontSecondary)
             }
             .frame(height: 28)
             ForEach(Array(columnTasks.prefix(visible))) { item in
@@ -355,25 +373,35 @@ struct TasksWorkspaceView: View {
         .padding(.horizontal, 12).padding(.vertical, 16)
         .frame(minHeight: compactProjectBoard ? 280 : 410, alignment: .topLeading)
         .background(status == .blocked ? Color.grey25 : Color.clear,
-                    in: RoundedRectangle(cornerRadius: 8))
+                    in: RoundedRectangle(cornerRadius: .radius8))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("task-column-\(status.rawValue)")
     }
 
     private func taskCard(_ item: TaskBoardItem) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: .spacing2) {
             Button {
+                guard cardActionsID != item.id else { return }
                 switch item {
                 case .task: store.openTask(item.id)
                 case .workflowRun: store.openWorkflowRun(item.id)
                 }
             } label: {
                 Text(item.title).font(.omP).fontWeight(.bold)
-                    .foregroundStyle(Color.fontPrimary)
+                    .foregroundStyle(Color.grey100)
                     .lineLimit(3)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .buttonStyle(.plain)
+            .highPriorityGesture(cardActivationGesture(onSelect: {
+                cardActionsID = nil
+                switch item {
+                case .task: store.openTask(item.id)
+                case .workflowRun: store.openWorkflowRun(item.id)
+                }
+            }, onActions: {
+                if case .task = item { cardActionsID = item.id }
+            }))
             .accessibilityIdentifier({
                 if case .workflowRun = item { return "workflow-run-projection" }
                 return "task-card-open"
@@ -386,7 +414,7 @@ struct TasksWorkspaceView: View {
                             Text(store.projectNames[projectID] ?? AppStrings.projects).lineLimit(1)
                         }
                             .font(.omXxs)
-                            .padding(.horizontal, 6).padding(.vertical, 3)
+                            .padding(.horizontal, .spacing3).padding(.vertical, .spacing1)
                             .background(LinearGradient.primary, in: Capsule())
                             .foregroundStyle(.white)
                     }
@@ -394,7 +422,7 @@ struct TasksWorkspaceView: View {
                         Text("\(AppStrings.tasksDue) \(Date(timeIntervalSince1970: TimeInterval(dueAt)).formatted(date: .abbreviated, time: .omitted))")
                             .font(.omXxs)
                             .foregroundStyle(Color.fontSecondary)
-                            .padding(.horizontal, 6).padding(.vertical, 3)
+                            .padding(.horizontal, .spacing3).padding(.vertical, .spacing1)
                             .background(Color.grey10, in: Capsule())
                             .accessibilityIdentifier("task-card-due")
                     }
@@ -411,10 +439,10 @@ struct TasksWorkspaceView: View {
                             .accessibilityIdentifier("task-assignment-user")
                     }
                 }
-                if let chatID = task.primaryChatId {
+                if (task.assigneeType == .openmates || task.assigneeType == .externalAI), let chatID = task.primaryChatId {
                     Button(AppStrings.tasksOpenChat) { onOpenChat(chatID) }
                         .font(.omXs).buttonStyle(.plain)
-                        .foregroundStyle(Color(hex: 0x4867CD))
+                        .foregroundStyle(Color.buttonPrimary)
                 }
             } else if case .workflowRun(let run) = item {
                 Button {
@@ -434,53 +462,175 @@ struct TasksWorkspaceView: View {
         }
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.grey0, in: RoundedRectangle(cornerRadius: 5))
-        .overlay(RoundedRectangle(cornerRadius: 5).stroke(Color.grey25, lineWidth: 1))
+        .background {
+            RoundedRectangle(cornerRadius: .radius5).fill(Color.grey0)
+            Color.clear.contentShape(RoundedRectangle(cornerRadius: .radius5))
+                .highPriorityGesture(cardActivationGesture(onSelect: {
+                    cardActionsID = nil
+                    switch item {
+                    case .task: store.openTask(item.id)
+                    case .workflowRun: store.openWorkflowRun(item.id)
+                    }
+                }, onActions: {
+                    if case .task = item { cardActionsID = item.id }
+                }))
+                .accessibilityHidden(true)
+        }
+        .overlay(RoundedRectangle(cornerRadius: .radius5).stroke(Color.grey25, lineWidth: 1))
         .shadow(color: .black.opacity(0.10), radius: 5, y: 2)
-        .contextMenu {
+        .onHover { hoveredCardID = $0 ? item.id : nil }
+        .overlay(alignment: .topTrailing) {
             if case .task(let task) = item {
-                ForEach(UserTaskStatus.allCases) { status in
-                    Button(status.localizedTitle) { Task { await store.moveTask(task, to: status) } }
-                }
-                Button(AppStrings.tasksSkip) { Task { await store.taskAction("skip", task: task) } }
-                Button(AppStrings.delete, role: .destructive) { pendingDelete = task }
+                cardActions(task)
             }
         }
+        .zIndex(cardActionsID == item.id ? 9 : 0)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("task-card")
     }
 
     private func planCard(_ plan: UserPlanItem) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Button { store.openPlan(plan.id) } label: {
+        VStack(alignment: .leading, spacing: .spacing2) {
+            Button { if cardActionsID != plan.id { store.openPlan(plan.id) } } label: {
                 Text(plan.title).font(.omP).fontWeight(.bold)
-                    .foregroundStyle(Color.fontPrimary)
+                    .foregroundStyle(Color.grey100)
                     .lineLimit(3).frame(maxWidth: .infinity, alignment: .leading)
             }
             .buttonStyle(.plain)
+            .highPriorityGesture(cardActivationGesture(
+                onSelect: { cardActionsID = nil; store.openPlan(plan.id) },
+                onActions: { cardActionsID = plan.id }))
             if let projectID = plan.linkedProjectIds.first {
-                Label(store.projectNames[projectID] ?? AppStrings.projects, systemImage: "folder")
+                HStack(spacing: .spacing2) {
+                    Icon("project", size: 12)
+                    Text(store.projectNames[projectID] ?? AppStrings.projects)
+                }
                     .font(.omXs)
-                    .padding(.horizontal, 6).padding(.vertical, 3)
+                    .padding(.horizontal, .spacing3).padding(.vertical, .spacing1)
                     .background(LinearGradient.primary, in: Capsule())
                     .foregroundStyle(.white)
             }
             Button(AppStrings.tasksOpenPlan) { store.openPlan(plan.id) }
-                .font(.omXs).buttonStyle(.plain).foregroundStyle(Color(hex: 0x4867CD))
+                .font(.omXs).buttonStyle(.plain).foregroundStyle(Color.fontSecondary)
+                .frame(maxWidth: .infinity)
                 .accessibilityIdentifier("task-board-open-plan")
         }
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.grey0, in: RoundedRectangle(cornerRadius: 5))
-        .overlay(RoundedRectangle(cornerRadius: 5).stroke(Color.grey25, lineWidth: 1))
-        .shadow(color: .black.opacity(0.10), radius: 5, y: 2)
-        .contextMenu {
-            ForEach(UserTaskStatus.allCases) { status in
-                Button(status.localizedTitle) { Task { await store.movePlan(plan, to: status) } }
-            }
+        .background {
+            RoundedRectangle(cornerRadius: .radius5).fill(Color.grey0)
+            Color.clear.contentShape(RoundedRectangle(cornerRadius: .radius5))
+                .highPriorityGesture(cardActivationGesture(
+                    onSelect: { cardActionsID = nil; store.openPlan(plan.id) },
+                    onActions: { cardActionsID = plan.id }))
+                .accessibilityHidden(true)
         }
+        .overlay(RoundedRectangle(cornerRadius: .radius5).stroke(Color.grey25, lineWidth: 1))
+        .shadow(color: .black.opacity(0.10), radius: 5, y: 2)
+        .onHover { hoveredCardID = $0 ? plan.id : nil }
+        .overlay(alignment: .topTrailing) { planActions(plan) }
+        .zIndex(cardActionsID == plan.id ? 9 : 0)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("task-board-plan-card")
+    }
+
+    /// One exclusive recognizer owns touch activation. The semantic Button
+    /// action remains available for accessibility activation; long press never
+    /// reaches the tap branch or the underlying Button's touch handler.
+    private func cardActivationGesture(onSelect: @escaping () -> Void,
+                                       onActions: @escaping () -> Void) -> some Gesture {
+        LongPressGesture(minimumDuration: 0.5)
+            .exclusively(before: TapGesture())
+            .onEnded { gesture in
+                switch gesture {
+                case .first(let completed): if completed { onActions() }
+                case .second: onSelect()
+                }
+            }
+    }
+
+    @ViewBuilder private func cardActions(_ task: UserTaskItem) -> some View {
+        if hoveredCardID == task.id || cardActionsID == task.id {
+            VStack(alignment: .trailing, spacing: .spacing2) {
+                Button { cardActionsID = cardActionsID == task.id ? nil : task.id } label: {
+                    Text("•••").font(.omXxs).foregroundStyle(Color.fontSecondary)
+                        .frame(width: 28, height: 24)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(AppStrings.tasksMoreActions)
+                .accessibilityIdentifier("task-actions-more")
+                if cardActionsID == task.id {
+                    VStack(spacing: .spacing2) {
+                        Button(AppStrings.tasksOpenTask) { cardActionsID = nil; store.openTask(task.id) }
+                            .accessibilityIdentifier("task-detail-link")
+                        if task.assigneeType != .openmates && task.assigneeType != .externalAI {
+                            Button(AppStrings.tasksAssignAI) {
+                                cardActionsID = nil
+                                Task { await store.saveTask(task, patch: UserTaskUpdateInput(assigneeType: .openmates)) }
+                            }
+                            .accessibilityIdentifier("task-start-ai")
+                        }
+                        ForEach(UserTaskStatus.allCases.filter { $0 != task.status && $0 != .blocked }) { status in
+                            Button(status.localizedTitle) {
+                                cardActionsID = nil
+                                Task { await store.moveTask(task, to: status) }
+                            }
+                            .accessibilityIdentifier("task-move-\(status.rawValue)")
+                        }
+                        Button(task.status == .blocked ? AppStrings.tasksUnblock : AppStrings.tasksBlock) {
+                            cardActionsID = nil
+                            Task { await store.taskAction(task.status == .blocked ? "unblock" : "block", task: task) }
+                        }
+                        if task.status != .backlog {
+                            Button(AppStrings.tasksSkip) { cardActionsID = nil; Task { await store.taskAction("skip", task: task) } }
+                        }
+                        Button(AppStrings.delete) { cardActionsID = nil; pendingDelete = task }
+                            .foregroundStyle(Color.error)
+                    }
+                    .font(.omXxs)
+                    .buttonStyle(TasksCardActionStyle())
+                    .padding(.spacing4)
+                    .frame(width: 136)
+                    .background(Color.grey0, in: RoundedRectangle(cornerRadius: .radius5))
+                    .overlay(RoundedRectangle(cornerRadius: .radius5).stroke(Color.grey25, lineWidth: 1))
+                    .shadow(color: .black.opacity(0.2), radius: 8, y: 4)
+                    .accessibilityElement(children: .contain)
+                    .accessibilityIdentifier("task-action-menu-items")
+                }
+            }
+            .padding(.spacing2)
+        }
+    }
+
+    @ViewBuilder private func planActions(_ plan: UserPlanItem) -> some View {
+        if hoveredCardID == plan.id || cardActionsID == plan.id {
+            VStack(alignment: .trailing, spacing: .spacing2) {
+                Button { cardActionsID = cardActionsID == plan.id ? nil : plan.id } label: {
+                    Text("•••").font(.omXxs).foregroundStyle(Color.fontSecondary)
+                        .frame(width: 28, height: 24)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(AppStrings.tasksMoreActions)
+                .accessibilityIdentifier("plan-actions-more")
+                if cardActionsID == plan.id {
+                    VStack(spacing: .spacing2) {
+                        ForEach(UserTaskStatus.allCases) { status in
+                            Button(status.localizedTitle) {
+                                cardActionsID = nil
+                                Task { await store.movePlan(plan, to: status) }
+                            }
+                        }
+                    }
+                    .buttonStyle(TasksCardActionStyle())
+                    .padding(.spacing4)
+                    .frame(width: 136)
+                    .background(Color.grey0, in: RoundedRectangle(cornerRadius: .radius5))
+                    .overlay(RoundedRectangle(cornerRadius: .radius5).stroke(Color.grey25, lineWidth: 1))
+                    .shadow(color: .black.opacity(0.2), radius: 8, y: 4)
+                }
+            }
+            .padding(.spacing2)
+        }
     }
 
     private var composer: some View {
@@ -514,50 +664,54 @@ struct TasksWorkspaceView: View {
     }
 
     private var newTaskSheet: some View {
-        NavigationStack {
-            Form {
-                TextField(showPlansOnly ? AppStrings.tasksNewPlan : AppStrings.tasksNew, text: $newTaskTitle)
-                    .accessibilityIdentifier("task-create-title")
-                if showPlansOnly {
-                    TextField(AppStrings.tasksPlanGoal, text: $newPlanGoal, axis: .vertical)
-                    if store.projectNames.isEmpty {
-                        Text(AppStrings.tasksPlanRequiresProject)
-                            .foregroundStyle(Color.fontSecondary)
-                    } else {
-                        Picker(AppStrings.projects, selection: $newPlanProjectID) {
-                            Text(AppStrings.tasksPlanRequiresProject).tag("")
-                            ForEach(store.projectNames.keys.sorted(), id: \.self) { id in
-                                Text(store.projectNames[id] ?? AppStrings.projects).tag(id)
-                            }
-                        }
-                    }
-                }
+        VStack(alignment: .leading, spacing: .spacing8) {
+            TextField(showPlansOnly ? AppStrings.tasksNewPlan : AppStrings.tasksNew, text: $newTaskTitle)
+                .textFieldStyle(OMTextFieldStyle())
+                .accessibilityIdentifier("task-create-title")
+            if showPlansOnly {
+                TextField(AppStrings.tasksPlanGoal, text: $newPlanGoal)
+                    .textFieldStyle(OMTextFieldStyle())
+                OMDropdown(title: AppStrings.tasksPlanRequiresProject,
+                           options: store.projectNames.keys.sorted().map {
+                               OMDropdownOption($0, label: store.projectNames[$0] ?? AppStrings.projects)
+                           }, selection: $newPlanProjectID)
             }
-            .navigationTitle(showPlansOnly ? AppStrings.tasksNewPlan : AppStrings.tasksNew)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(AppStrings.cancel) { showingNewTask = false }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(AppStrings.tasksAdd) {
-                        let title = newTaskTitle.trimmingCharacters(in: .whitespacesAndNewlines)
-                        showingNewTask = false
-                        newTaskTitle = ""
-                        if showPlansOnly {
-                            let goal = newPlanGoal
-                            let projectID = newPlanProjectID
-                            newPlanGoal = ""
-                            newPlanProjectID = ""
-                            Task { await store.createPlan(title: title, goal: goal, projectIDs: [projectID]) }
-                        } else {
-                            Task { await store.createTask(UserTaskCreateInput(title: title)) }
-                        }
+            HStack {
+                Button(AppStrings.cancel) { showingNewTask = false }
+                    .buttonStyle(OMSecondaryButtonStyle())
+                Button(AppStrings.tasksAdd) {
+                    let title = newTaskTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+                    showingNewTask = false
+                    newTaskTitle = ""
+                    if showPlansOnly {
+                        let goal = newPlanGoal
+                        let projectID = newPlanProjectID
+                        newPlanGoal = ""
+                        newPlanProjectID = ""
+                        Task { await store.createPlan(title: title, goal: goal, projectIDs: [projectID]) }
+                    } else {
+                        Task { await store.createTask(UserTaskCreateInput(title: title)) }
                     }
-                    .disabled(newTaskTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                              || (showPlansOnly && newPlanProjectID.isEmpty))
                 }
+                .buttonStyle(OMPrimaryButtonStyle())
+                .disabled(newTaskTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                          || (showPlansOnly && newPlanProjectID.isEmpty))
             }
         }
+    }
+
+}
+
+// TaskCard.svelte .task-action-menu-items: 41px rendered button height,
+// 12px text, 6px horizontal padding, pill-shaped grey10 background.
+private struct TasksCardActionStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.omXxs)
+            .frame(maxWidth: .infinity, minHeight: 41)
+            .padding(.horizontal, .spacing3)
+            .background(Color.grey10, in: Capsule())
+            .opacity(configuration.isPressed ? 0.8 : 1)
     }
 }
 
@@ -575,16 +729,35 @@ private enum TasksDetailSelection: Identifiable {
 private struct TasksDetailPresentation: ViewModifier {
     @Binding var selection: TasksDetailSelection?
     @ObservedObject var store: TasksWorkspaceStore
+    let allowsSplit: Bool
     let onOpenProject: (String) -> Void
     let onOpenChat: (String) -> Void
     let onReportIssue: () -> Void
 
     func body(content: Content) -> some View {
-        #if os(iOS)
-        content.fullScreenCover(item: $selection) { detail($0) }
-        #else
-        content.sheet(item: $selection) { detail($0) }
-        #endif
+        GeometryReader { geometry in
+            let split = allowsSplit && geometry.size.width >= 1100
+                && (store.selectedTaskID != nil || store.selectedWorkflowRunID != nil)
+            if split, let selection {
+                HStack(spacing: .spacing5) {
+                    content.frame(width: max(340, geometry.size.width * 0.32))
+                    reader(selection)
+                }
+                .accessibilityIdentifier("tasks-workspace-split")
+            } else {
+                content.overlay {
+                    if let selection { reader(selection).zIndex(10) }
+                }
+            }
+        }
+    }
+
+    private func reader(_ selection: TasksDetailSelection) -> some View {
+        detail(selection)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color.grey20)
+            // UnifiedEmbedFullscreen's rendered outer radius is 17px.
+            .clipShape(RoundedRectangle(cornerRadius: 17))
     }
 
     @ViewBuilder private func detail(_ selection: TasksDetailSelection) -> some View {
@@ -616,12 +789,11 @@ private struct TasksDetailPresentation: ViewModifier {
 }
 
 /// Read-only exact-run detail used by Workflow projections on the Tasks board.
-/// Its task is cancelled when the sheet closes, and every fetch is account/server fenced.
+/// Its task is cancelled when the reader closes, and every fetch is account/server fenced.
 private struct WorkflowRunTaskDetailView: View {
     @ObservedObject var store: TasksWorkspaceStore
     let projection: WorkflowRunTaskProjection
 
-    @Environment(\.dismiss) private var dismiss
     @State private var run: WorkflowRunDetail?
     @State private var graph: WorkflowGraph?
     @State private var errorMessage: String?
@@ -632,7 +804,13 @@ private struct WorkflowRunTaskDetailView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        VStack(spacing: 0) {
+            HStack {
+                OMIconButton(icon: "back", label: AppStrings.tasks) { store.closeDetail() }
+                Text(projection.displayTitle).font(.omH3).lineLimit(2)
+                Spacer()
+            }
+            .padding(.spacing8)
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     VStack(alignment: .leading, spacing: 8) {
@@ -684,21 +862,6 @@ private struct WorkflowRunTaskDetailView: View {
                 .padding(24)
             }
             .background(Color.grey0)
-            .navigationTitle(projection.displayTitle)
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
-            .toolbar {
-                #if os(iOS)
-                ToolbarItem(placement: .topBarLeading) {
-                    Button(AppStrings.tasks) { dismiss() }
-                }
-                #else
-                ToolbarItem {
-                    Button(AppStrings.tasks) { dismiss() }
-                }
-                #endif
-            }
             .task(id: projection.id) { await loadExactRun() }
             .accessibilityIdentifier("workflow-run-projection-detail")
         }

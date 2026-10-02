@@ -180,6 +180,47 @@ final class VoiceRecorderTests: XCTestCase {
     }
 
     // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle,message-input.privacy-context
+    func testMicrophoneTapRejectsUnsupportedLayoutsWithoutForwardingPCM() async throws {
+        let recorder = VoiceRecorder()
+        recorder.isRecording = true
+        let receivedPCM = expectation(description: "unsupported microphone layouts do not reach transcription")
+        receivedPCM.isInverted = true
+        let formats = [
+            try XCTUnwrap(AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 48_000,
+                                       channels: 2, interleaved: true)),
+            try XCTUnwrap(AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: 48_000,
+                                       channels: 2, interleaved: false))
+        ]
+        for format in formats {
+            let url = FileManager.default.temporaryDirectory
+                .appendingPathComponent("voice-recorder-unsupported-\(UUID().uuidString).m4a")
+            defer { try? FileManager.default.removeItem(at: url) }
+            let writer = try AudioRecordingFileWriter(url: url, sourceFormat: format)
+            let buffer = try XCTUnwrap(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 480))
+            buffer.frameLength = 480
+            if format.commonFormat == .pcmFormatInt16 {
+                XCTAssertNil(buffer.floatChannelData, "Integer PCM must exercise the missing float-pointer path")
+            } else {
+                XCTAssertTrue(buffer.format.isInterleaved)
+                XCTAssertEqual(buffer.audioBufferList.pointee.mNumberBuffers, 1)
+            }
+            let tap = VoiceRecorder.makePCMInputTapHandler(writer: writer, handler: { _, _ in
+                receivedPCM.fulfill()
+            }, recorder: recorder)
+            let processed = expectation(description: "unsupported hardware buffer returns safely")
+            DispatchQueue(label: "org.openmates.tests.unsupported-audio-tap").async {
+                tap(buffer, AVAudioTime())
+                processed.fulfill()
+            }
+            await fulfillment(of: [processed], timeout: 5)
+            XCTAssertFalse(writer.finish(), "An unsupported capture must fail rather than publish partial audio")
+        }
+        await fulfillment(of: [receivedPCM], timeout: 0.1)
+        XCTAssertEqual(recorder.waveformSamples, Array(repeating: 0, count: 64))
+        XCTAssertNil(recorder.recordingWaveform(duration: 0.1))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle,message-input.privacy-context
     func testWriterRejectsInterleavedPCMInsteadOfReadingInvalidChannelPointers() throws {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("voice-recorder-interleaved-\(UUID().uuidString).m4a")

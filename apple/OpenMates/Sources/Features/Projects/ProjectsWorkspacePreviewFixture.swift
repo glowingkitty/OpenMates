@@ -6,6 +6,32 @@ import Foundation
 /// production Projects workspace and sidebar views in the account-free host.
 @MainActor
 enum ProjectsWorkspacePreviewFixture {
+    // Public synthetic bytes distinguish the full original from its bounded preview.
+    static let originalText = String(repeating: String(repeating: "public fixture line ", count: 1_000) + "\n",
+        count: 12) + "ORIGINAL FILE END\n"
+    private static let previewByteLimit = 180 * 1024
+    static var truncatedText: ProjectRemoteText {
+        // Reach the actual source byte limit with few long lines. The original
+        // still exceeds that limit; AX traversal of 8,000 line/gutter elements
+        // would measure the generic renderer rather than download correctness.
+        ProjectRemoteText(content: String(originalText.prefix(previewByteLimit)),
+            truncated: true, sizeBytes: originalText.utf8.count, lineCount: 10, expectedBase: nil)
+    }
+
+    static func downloadOriginal(path: String, progress: @escaping (Int, Int) -> Void) async throws -> URL {
+        guard path == "large.txt" else { throw ProjectsWorkspaceError.invalidContext }
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("OpenMatesProjectDownloads", isDirectory: true)
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true,
+            attributes: [.protectionKey: FileProtectionType.complete])
+        let url = directory.appendingPathComponent(path)
+        let bytes = Data(originalText.utf8)
+        try bytes.write(to: url, options: .completeFileProtection)
+        progress(bytes.count, bytes.count)
+        return url
+    }
+
     struct State {
         let project: ProjectWorkspaceProject
         let folders: [ProjectWorkspaceFolder]
@@ -80,7 +106,7 @@ enum ProjectsWorkspacePreviewFixture {
         }
         let sourceKind = variant == "localFolderSource" ? "local_folder" : "local_git_repository"
         let hasSource = ["connectedSource", "localFolderSource", "multipleSources",
-            "largeConnectedSource", "legacyConnectedSource"].contains(variant)
+            "largeConnectedSource", "legacyConnectedSource", "rootFiles", "truncatedConnectedSource"].contains(variant)
         let source = ProjectWorkspaceSource(id: "source-preview", kind: sourceKind,
             name: "OpenMates repository", metadata: ["root": "/workspace/OpenMates"],
             capabilities: ["read"], status: "connected", sessionID: nil, keyEpoch: nil)
@@ -91,7 +117,12 @@ enum ProjectsWorkspacePreviewFixture {
                 status: "connected", sessionID: nil, keyEpoch: nil))
         }
         let remoteEntries: [ProjectRemoteEntry]
-        if variant == "largeConnectedSource" {
+        if variant == "truncatedConnectedSource" {
+            remoteEntries = [entry("large.txt", kind: "file", size: originalText.utf8.count)]
+        } else if variant == "rootFiles" {
+            remoteEntries = ["Dockerfile", "Makefile", "config.toml", "notes.custom", "archive.pdf"]
+                .map { entry($0, kind: "file", size: 128) }
+        } else if variant == "largeConnectedSource" {
             remoteEntries = (0..<125).map { index in
                 entry(index == 0 ? "needle-current.ts" : "remote-file-\(String(format: "%03d", index)).ts",
                     kind: "file", size: 1024 + index)

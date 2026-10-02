@@ -716,3 +716,21 @@ plan.add_check:
   en: Add check
   de: Prüfung hinzufügen
   verified_by_human: []
+
+workspace.more_actions:
+  context: Accessible label for task card actions
+  en: More actions
+  de: Weitere Aktionen
+  verified_by_human: []
+
+workspace.block:
+  context: Task card action to block a task
+  en: Block
+  de: Blockieren
+  verified_by_human: []
+
+workspace.unblock:
+  context: Task card action to move a blocked task back to todo
+  en: Unblock
+  de: Blockierung aufheben
+  verified_by_human: []

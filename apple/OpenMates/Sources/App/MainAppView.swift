@@ -4566,7 +4566,7 @@ struct MainAppView: View {
         guard !chats.isEmpty else { return }
         let scopeGeneration = OfflineStore.shared.scopeGeneration
         let start = NativeSyncPerfLog.now()
-        chatStore.upsertChats(chats, serverSortOrder: chats.map(\.id), serverSortOffset: serverSortOffset)
+        chatStore.upsertChats(chats, serverSortOrder: chats.map(\.id), serverSortOffset: serverSortOffset, authoritativeMetadata: true)
         appSession.modelPreferences.metadataChanged()
 
         switch metadataDecryption {

@@ -1,8 +1,9 @@
 // Web source: frontend/packages/ui/src/components/projects/ProjectsPage.svelte,
-// ProjectWorkspaceHeader.svelte, ProjectReadme.svelte, ProjectBrowserItem.svelte.
+// ProjectWorkspaceHeader.svelte, ProjectReadme.svelte, ProjectBrowserItem.svelte,
+// ProjectRemotePreviewCard.svelte, embeds/UnifiedEmbedFullscreen.svelte.
 // Specification: specifications/features/projects/specification.yml
 // Assertions: projects.access.explicit-context, projects.files.search-scoped,
-// projects.workspace.contract-plan-task-check-chain
+// projects.workspace.contract-plan-task-check-chain, projects.files.connected-embed-previews
 // Rendered reference: .runtime/build85-web-reference/projects-{overview,create-expanded,readme,files}.
 import SwiftUI
 import UniformTypeIdentifiers
@@ -42,6 +43,7 @@ struct ProjectsWorkspaceView: View {
     @State private var editedDescription = ""
     @State private var showDeleteConfirmation = false
     @State private var selectedRemoteFile: ProjectRemoteEntry?
+    @State private var autoBrowsedProjectID: String?
     @State private var showsFileImporter = false
     @State private var showCreateMenu = false
     @State private var showProjectMenu = false
@@ -73,8 +75,22 @@ struct ProjectsWorkspaceView: View {
         .overlay { OMSheet(isPresented: $editingMetadata, title: AppStrings.projectEdit) { metadataSheet } }
         .overlay {
             if let entry = selectedRemoteFile {
-                OMSheet(isPresented: Binding(get: { selectedRemoteFile != nil }, set: { if !$0 { selectedRemoteFile = nil } }), title: entry.name) {
-                    remoteFileSheet(entry).frame(maxHeight: 560)
+                if let embed = store.remoteEmbed {
+                    // Identify an explicit parent, rather than the fullscreen's
+                    // multiple root elements (toolbar, content and readiness).
+                    ZStack {
+                        EmbedFullscreenContainer(embeds: [embed], initialEmbedId: embed.id,
+                            allEmbedRecords: [embed.id: embed], chatId: nil,
+                            onClose: { selectedRemoteFile = nil; store.clearRemoteText() },
+                            originalFileActions: originalFileActions(for: entry))
+                    }
+                    .accessibilityElement(children: .contain)
+                    .accessibilityIdentifier("project-remote-file-detail")
+                } else {
+                    OMSheet(isPresented: Binding(get: { selectedRemoteFile != nil },
+                        set: { if !$0 { selectedRemoteFile = nil; store.clearRemoteText() } }), title: entry.name) {
+                        remoteFileSheet(entry).frame(maxHeight: 560)
+                    }
                 }
             }
         }
@@ -98,6 +114,8 @@ struct ProjectsWorkspaceView: View {
         }
         .onChange(of: store.selectedProjectID) { _, _ in
             projectNameInput = ""
+            selectedRemoteFile = nil
+            autoBrowsedProjectID = nil
             selectedTab = previewInitialTab ?? .overview
             currentFolderID = nil
             virtualPath = nil
@@ -113,6 +131,21 @@ struct ProjectsWorkspaceView: View {
         .onChange(of: currentFolderID) { _, _ in fileSearch = "" }
         .onChange(of: virtualPath) { _, _ in fileSearch = "" }
         .onAppear { if let previewInitialTab { selectedTab = previewInitialTab } }
+        .task(id: connectedBrowserIdentity) {
+            guard selectedTab == .files, let project = store.selectedProject,
+                  autoBrowsedProjectID != project.id, store.activeRemoteSourceID == nil,
+                  currentFolderID == nil, virtualPath == nil else { return }
+            let connected = store.sources.filter { $0.status == "connected" && $0.capabilities.contains("read") }
+            guard let source = connected.first(where: { $0.kind == "local_git_repository" })
+                ?? (connected.count == 1 ? connected.first : nil) else { return }
+            autoBrowsedProjectID = project.id
+            await store.openRemoteSource(source.id)
+        }
+    }
+
+    private var connectedBrowserIdentity: String {
+        [store.selectedProjectID ?? "", selectedTab.rawValue,
+         store.sources.map { "\($0.id):\($0.status)" }.joined(separator: ",")].joined(separator: "|")
     }
 
     private var projectsHome: some View {
@@ -668,7 +701,7 @@ struct ProjectsWorkspaceView: View {
             ? AppStrings.projectCount(store.searchResults.count, key: "workspace_search_results_count")
             : store.activeRemoteSourceID == nil
             ? AppStrings.projectBrowserCount(folders: store.folders.count, files: store.items.count)
-            : AppStrings.projectCount(store.remoteEntries.count, key: "workspace_remote_entries_count")
+            : AppStrings.projectCount(store.remotePagination.totalEntryCount, key: "workspace_remote_entries_count")
     }
 
     @ViewBuilder
@@ -761,7 +794,10 @@ struct ProjectsWorkspaceView: View {
     }
 
     private var projectEntryCount: some View {
-        Text(AppStrings.projectCount(visibleEntryCount, key: "workspace_entries_count"))
+        Text(store.activeRemoteSourceID != nil && !store.searchActive
+             ? AppStrings.projectEntryRange(start: store.remotePagination.firstEntryNumber,
+                 end: store.remotePagination.lastEntryNumber, total: store.remotePagination.totalEntryCount)
+             : AppStrings.projectCount(visibleEntryCount, key: "workspace_entries_count"))
             .font(.omSmall).fontWeight(.bold)
     }
 
@@ -858,6 +894,28 @@ struct ProjectsWorkspaceView: View {
                         ForEach(visibleItems) { item in itemCard(item) }
                     }
                 }
+            }
+            if store.activeRemoteSourceID != nil && !store.searchActive && !store.isLoadingRemote &&
+                (store.remotePagination.pageIndex > 0 || store.remotePagination.nextCursor != nil) {
+                HStack(spacing: .spacing5) {
+                    Button(AppStrings.projectPrevious) {
+                        Task { await store.showRemotePage(store.remotePagination.pageIndex - 1) }
+                    }
+                    .disabled(store.remotePagination.pageIndex == 0)
+                    .accessibilityIdentifier("project-remote-page-previous")
+                    Text("\(store.remotePagination.pageIndex + 1)").font(.omSmall).foregroundStyle(Color.fontSecondary)
+                        .accessibilityIdentifier("project-remote-page-number")
+                    Button(AppStrings.projectNext) {
+                        Task { await store.showRemotePage(store.remotePagination.pageIndex + 1) }
+                    }
+                    .disabled(store.remotePagination.nextCursor == nil)
+                    .accessibilityIdentifier("project-remote-page-next")
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, .spacing5)
+                .buttonStyle(ProjectRemotePageButtonStyle())
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("project-remote-page-controls")
             }
             if let remoteError = store.remoteError {
                 Text(remoteError).font(.omSmall).foregroundStyle(Color.fontSecondary)
@@ -1315,22 +1373,72 @@ struct ProjectsWorkspaceView: View {
         .accessibilityIdentifier("project-source-\(source.id)")
     }
 
+    @ViewBuilder
     private func remoteEntryCard(_ entry: ProjectRemoteEntry) -> some View {
-        Button {
-            if selectingFiles {
-                if selectedRemotePaths.contains(entry.path) { selectedRemotePaths.remove(entry.path) }
-                else { selectedRemotePaths.insert(entry.path) }
-                return
-            }
-            if entry.kind == "directory" {
-                Task { await store.browseRemote(path: entry.path) }
-            } else {
-                selectedRemoteFile = entry
-                store.clearRemoteText()
-                if isTextPreviewable(entry.name) {
-                    Task { await store.openRemoteText(entry.path) }
+        if entry.kind == "file" && !listMode {
+            Group {
+                if let embed = store.remoteFilePreviews[entry.path] {
+                    EmbedPreviewCard(embed: embed) { openRemoteEntry(entry) }
+                } else {
+                    Button { openRemoteEntry(entry) } label: {
+                        VStack(spacing: 0) {
+                            VStack(alignment: .leading, spacing: .spacing2) {
+                                Text(ProjectRemotePreviewPolicy.kindLabel(entry.path).uppercased())
+                                    .font(.omXs.weight(.bold)).tracking(0.5)
+                                if let size = entry.sizeBytes {
+                                    Text(ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .binary))
+                                        .font(.omXs)
+                                }
+                                Text(ProjectRemotePreviewPolicy.canReadText(entry.path)
+                                     ? AppStrings.projectRemotePreviewPending : AppStrings.projectRemoteFileDetailsPending)
+                                    .font(.omXs)
+                            }
+                            .foregroundStyle(Color.fontSecondary)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                            .padding(.spacing8)
+                            EmbedBasicInfoBar(appId: ProjectRemotePreviewPolicy.appID(entry.path),
+                                skillIconName: iconName(for: entry.path), title: entry.name,
+                                subtitle: ProjectRemotePreviewPolicy.kindLabel(entry.path),
+                                faviconURL: nil, showSkillIcon: false)
+                        }
+                        .frame(maxWidth: 300, minHeight: 200, maxHeight: 200)
+                        .background(Color.grey25, in: RoundedRectangle(cornerRadius: 30))
+                        .clipShape(RoundedRectangle(cornerRadius: 30))
+                    }
+                    .buttonStyle(.plain)
                 }
             }
+            .overlay(alignment: .topTrailing) {
+                Icon("cloud", size: 13)
+                    .foregroundStyle(Color.fontSecondary)
+                    .frame(width: 20, height: 20)
+                    .background(Color.grey0, in: Circle())
+                    .padding(.spacing3)
+                    .accessibilityLabel(AppStrings.projectStoredRemotely)
+            }
+            .overlay(RoundedRectangle(cornerRadius: 30).stroke(
+                selectedRemotePaths.contains(entry.path) ? Color.buttonPrimary : .clear, lineWidth: 2))
+            .accessibilityIdentifier("project-remote-entry-\(entry.path)")
+        } else {
+            remoteEntryPlainCard(entry)
+        }
+    }
+
+    private func openRemoteEntry(_ entry: ProjectRemoteEntry) {
+        if selectingFiles {
+            if selectedRemotePaths.contains(entry.path) { selectedRemotePaths.remove(entry.path) }
+            else { selectedRemotePaths.insert(entry.path) }
+        } else if entry.kind == "directory" {
+            Task { await store.browseRemote(path: entry.path) }
+        } else {
+            selectedRemoteFile = entry
+            store.clearRemoteText()
+            if isTextPreviewable(entry.path) { Task { await store.openRemoteText(entry.path) } }
+        }
+    }
+
+    private func remoteEntryPlainCard(_ entry: ProjectRemoteEntry) -> some View {
+        Button { openRemoteEntry(entry)
         } label: {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
@@ -1367,10 +1475,20 @@ struct ProjectsWorkspaceView: View {
     }
 
     private func isTextPreviewable(_ name: String) -> Bool {
-        let lower = name.lowercased()
-        return [".md", ".mdx", ".txt", ".rst", ".swift", ".ts", ".tsx", ".js", ".json",
-                ".py", ".rs", ".svelte", ".html", ".css", ".yaml", ".yml", ".sh"]
-            .contains(where: lower.hasSuffix)
+        ProjectRemotePreviewPolicy.canReadText(name)
+    }
+
+    private func originalFileActions(for entry: ProjectRemoteEntry) -> EmbedOriginalFileActions {
+        let progress = store.remoteDownloadProgress
+        return EmbedOriginalFileActions(
+            warning: store.remoteText?.truncated == true ? AppStrings.projectRemotePreviewTruncated : nil,
+            downloadLabel: AppStrings.projectDownloadOriginal,
+            readyLabel: AppStrings.projectShareDownload,
+            isDownloading: store.isLoadingRemote,
+            progressLabel: progress.map { AppStrings.projectDownloading(downloaded: $0.0, total: $0.1) },
+            progressValue: progress.map { "\($0.0)/\($0.1)" },
+            downloadURL: store.remoteDownloadURL, errorMessage: store.remoteError,
+            onDownload: { Task { await store.downloadRemoteFile(entry.path) } })
     }
 
     private func remoteFileSheet(_ entry: ProjectRemoteEntry) -> some View {
@@ -1385,10 +1503,11 @@ struct ProjectsWorkspaceView: View {
                         ProgressView(AppStrings.projectRemoteOpening)
                     } else if let remoteText = store.remoteText {
                         if remoteText.truncated {
-                            Text(AppStrings.localized("projects.remote_preview_truncated"))
+                            Text(AppStrings.projectRemotePreviewTruncated)
                                 .font(.omSmall).foregroundStyle(Color.fontSecondary)
                         }
                         Text(remoteText.content)
+                            .accessibilityIdentifier("project-remote-file-content")
                             .font(.omSmall.monospaced())
                             .textSelection(.enabled)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -1425,7 +1544,7 @@ struct ProjectsWorkspaceView: View {
             }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("project-remote-file-detail")
-        .onDisappear { store.clearRemoteDownload() }
+
     }
 
     @ViewBuilder
@@ -1631,6 +1750,7 @@ extension AppStrings {
         }
     }
     static var projectDownloadOriginal: String { localized("projects.workspace_download_original") }
+    static var projectRemotePreviewTruncated: String { localized("projects.remote_preview_truncated") }
     static var projectShareDownload: String { localized("projects.workspace_share_download") }
     static func projectDownloading(downloaded: Int, total: Int) -> String {
         LocalizationManager.shared.text("projects.workspace_downloading", replacements: [
@@ -1730,5 +1850,21 @@ private struct ProjectContinueOrb: View {
             .blur(radius: 22)
             .opacity(opacity)
             .accessibilityHidden(true)
+    }
+}
+
+// ProjectsPage.svelte .files-page-controls button (2.75rem at the 16px root).
+private struct ProjectRemotePageButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.omP)
+            .foregroundStyle(Color.fontPrimary)
+            .padding(.horizontal, .spacing5)
+            .frame(minHeight: 44)
+            .background(Color.grey10, in: RoundedRectangle(cornerRadius: .radius5))
+            .overlay(RoundedRectangle(cornerRadius: .radius5).stroke(Color.grey20))
+            .opacity(isEnabled ? 1 : 0.45)
     }
 }

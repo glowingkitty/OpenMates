@@ -1,5 +1,12 @@
 // Workflow identity header and template/runs tabs.
-// Web source: frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte: frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte
+//         frontend/packages/ui/src/components/HeaderActionMenu.svelte
+// CSS: WorkflowDetailPage.svelte .workflow-detail-header, .identity, .toggle
+//      HeaderActionMenu.svelte .header-action-menu, .more-actions
+// Tokens: ColorTokens.generated.swift, SpacingTokens.generated.swift,
+//         TypographyTokens.generated.swift, GradientTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
 // Specification: specifications/features/workflows/specification.yml
 // Assertions: workflows.mvp.editor, workflows.mvp.run-history
 
@@ -97,6 +104,7 @@ struct WorkflowDetailHeader: View {
     let onReportIssue: () -> Void
 
     @State private var editing = false
+    @State private var actionsOpen = false
     @State private var draftTitle = ""
     @State private var draftDescription = ""
 
@@ -120,23 +128,24 @@ struct WorkflowDetailHeader: View {
                 CategoryMapping.gradient(for: CategoryMapping.isKnownCategory(category) ? category : "general_knowledge")
 
                 VStack(spacing: 10) {
-                    Spacer(minLength: 40)
                     WorkflowIconView(title: title, icon: icon, category: category, size: 38)
                         .foregroundStyle(Color.fontButton)
+                        .frame(height: 42) // Web identity icon line box.
 
                     if editing {
                         VStack(spacing: 6) {
                             TextField(tr(.workflow_name), text: $draftTitle)
-                                .textFieldStyle(.roundedBorder)
+                                .textFieldStyle(OMTextFieldStyle())
                                 .accessibilityIdentifier("workflow-title-input")
                             TextField(tr(.description), text: $draftDescription)
-                                .textFieldStyle(.roundedBorder)
+                                .textFieldStyle(OMTextFieldStyle())
                                 .accessibilityIdentifier("workflow-description-input")
                             Button(tr(.save)) {
                                 Task {
                                     if await onUpdateIdentity(draftTitle, draftDescription) { editing = false }
                                 }
                             }
+                            .buttonStyle(OMPrimaryButtonStyle())
                             .disabled(saving || draftTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                         }
                         .frame(maxWidth: 400)
@@ -147,11 +156,12 @@ struct WorkflowDetailHeader: View {
                             editing = true
                         } label: {
                             Text(title)
-                                .font(.omH2.weight(.semibold))
+                                .font(.omXl.weight(.heavy))
                                 .multilineTextAlignment(.center)
-                                .foregroundStyle(Color.fontPrimary)
+                                .foregroundStyle(Color.fontButton)
                         }
                         .buttonStyle(.plain)
+                        .frame(minHeight: 41)
                         .accessibilityIdentifier("workspace-detail-title")
                     }
 
@@ -170,8 +180,8 @@ struct WorkflowDetailHeader: View {
                         .font(.omSmall.weight(.semibold))
                         .foregroundStyle(Color.fontButton)
                         .padding(.horizontal, 10)
-                        .frame(height: 32)
-                        .background(Color(hex: 0x4867CD))
+                        .frame(height: 41)
+                        .background(LinearGradient.primary)
                         .clipShape(Capsule())
                     }
                     .buttonStyle(.plain)
@@ -190,18 +200,23 @@ struct WorkflowDetailHeader: View {
                                 .foregroundStyle(Color.fontButton.opacity(0.95))
                         }
                         .buttonStyle(.plain)
-                        .frame(maxWidth: 416)
+                        .frame(maxWidth: 416, minHeight: 41)
                         .accessibilityIdentifier("workspace-detail-description")
                     }
-                    Spacer(minLength: 16)
+                }
+                .padding(.horizontal, .spacing10)
+                // WorkflowDetailPage .workflow-detail-header computed padding.
+                .padding(.top, 76.8)
+                .padding(.bottom, 57.6)
+
+                VStack {
+                    Spacer()
                     Text(metadata)
                         .font(.omSmall)
                         .foregroundStyle(Color.fontButton.opacity(0.8))
                         .accessibilityIdentifier("workflow-detail-metadata")
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 48)
-                .padding(.bottom, 16)
+                .padding(.bottom, .spacing8)
 
                 GeometryReader { geometry in
                     Text(tr(.workflow))
@@ -212,28 +227,48 @@ struct WorkflowDetailHeader: View {
 
                     HStack(spacing: 8) {
                         toolbarButton("bug", label: AppStrings.reportIssue,
-                                      showLabel: geometry.size.width > 730, action: onReportIssue)
+                                      showLabel: geometry.size.width >= 640, action: onReportIssue)
                             .accessibilityIdentifier("workflow-report-issue")
-                        if geometry.size.width > 730 {
+                        if geometry.size.width >= 460 {
                             toolbarButton("share", label: tr(.share), action: onShare)
                                 .accessibilityIdentifier("workflow-share")
                         }
-                        Menu {
-                            Button(tr(.share), action: onShare)
-                            if canRun { Button(tr(.run_now), action: onRun).disabled(saving) }
-                            Button(tr(.delete_workflow), role: .destructive, action: onDelete)
-                        } label: {
-                            toolbarCircle("more")
-                        }
-                        .accessibilityLabel(tr(.action_question))
-                        .accessibilityIdentifier("workflow-detail-actions")
+                        Button { actionsOpen.toggle() } label: { toolbarCircle("more") }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(LocalizationManager.shared.text("common.more_actions"))
+                            .accessibilityValue(actionsOpen ? "expanded" : "collapsed")
+                            .accessibilityIdentifier("workflow-detail-actions")
+                            .overlay(alignment: .topLeading) {
+                                if actionsOpen {
+                                    VStack(alignment: .leading, spacing: .spacing4) {
+                                        if geometry.size.width < 460 {
+                                            toolbarButton("share", label: tr(.share), showLabel: true) { performAction(onShare) }
+                                                .accessibilityIdentifier("workflow-share")
+                                        }
+                                        if canRun {
+                                            toolbarButton("play", label: tr(.run_now), showLabel: true) { performAction(onRun) }
+                                                .disabled(saving)
+                                                .accessibilityIdentifier("run-workflow")
+                                        }
+                                        toolbarButton("delete", label: tr(.delete_workflow), showLabel: true) { performAction(onDelete) }
+                                            .disabled(saving)
+                                            .accessibilityIdentifier("delete-workflow")
+                                    }
+                                    .fixedSize(horizontal: true, vertical: false)
+                                    .offset(y: 53) // HeaderActionMenu: 41pt pill + 12pt menu gap.
+                                }
+                            }
+                            .zIndex(3)
                         Spacer()
                         toolbarButton("close", label: tr(.close), action: onBack)
                             .accessibilityIdentifier("workflow-detail-back")
                     }
                     .padding(.horizontal, 15)
                     .padding(.top, 15)
+                    .accessibilityElement(children: .contain)
+                    .accessibilityIdentifier("workflow-header-toolbar")
                 }
+                .zIndex(3)
             }
             .frame(minHeight: 304)
             .clipShape(UnevenRoundedRectangle(bottomLeadingRadius: 16, bottomTrailingRadius: 16))
@@ -246,10 +281,17 @@ struct WorkflowDetailHeader: View {
             }
             .background(Color.grey10, in: Capsule())
             .shadow(color: .black.opacity(0.14), radius: 4, y: 4)
-            .padding(.top, 20)
+            .padding(.top, .spacing10)
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("workflow-view-tabs")
         }
+        .onChange(of: title) { _, _ in actionsOpen = false }
+        .onChange(of: tab) { _, _ in actionsOpen = false }
+    }
+
+    private func performAction(_ action: () -> Void) {
+        actionsOpen = false
+        action()
     }
 
     private func tabButton(_ value: WorkflowDetailTab, icon: String, label: String) -> some View {
@@ -267,9 +309,9 @@ struct WorkflowDetailHeader: View {
     }
 
     private func toolbarCircle(_ icon: String) -> some View {
-        Icon(icon, size: 20)
+        Icon(icon, size: 25)
             .foregroundStyle(LinearGradient.primary)
-            .frame(width: 40, height: 40)
+            .frame(width: 41, height: 41)
             .background(Color.grey10, in: Circle())
             .shadow(color: .black.opacity(0.16), radius: 4, y: 2)
     }
@@ -277,12 +319,12 @@ struct WorkflowDetailHeader: View {
     private func toolbarButton(_ icon: String, label: String, showLabel: Bool = false,
                                action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            HStack(spacing: 7) {
-                Icon(icon, size: 20)
-                if showLabel { Text(label).font(.omSmall.weight(.semibold)) }
+            HStack(spacing: .spacing4) {
+                Icon(icon, size: 25)
+                if showLabel { Text(label).font(.omP.weight(.semibold)).foregroundStyle(Color.fontPrimary) }
             }
             .foregroundStyle(LinearGradient.primary)
-            .frame(minWidth: 40, minHeight: 40)
+            .frame(minWidth: 41, minHeight: 41)
             .padding(.horizontal, showLabel ? 10 : 0)
             .background(Color.grey10, in: Capsule())
             .shadow(color: .black.opacity(0.16), radius: 4, y: 2)

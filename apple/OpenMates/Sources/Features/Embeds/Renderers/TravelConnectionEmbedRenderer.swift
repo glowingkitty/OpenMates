@@ -105,7 +105,7 @@ private struct TravelConnectionFullscreenDetails: View {
     let connection: TravelConnectionSummary
 
     var body: some View {
-        EmbedMapDetailTemplate(mapConfiguration: connection.mapConfiguration) {
+        EmbedMapDetailTemplate(mapConfiguration: connection.mapConfiguration, narrowDetailInset: .spacing8) {
             VStack(alignment: .leading, spacing: .spacing6) {
                 if let route = connection.routeHeader {
                     Text(route)
@@ -127,6 +127,17 @@ private struct TravelConnectionFullscreenDetails: View {
                         .foregroundStyle(Color.fontPrimary)
                         .multilineTextAlignment(.center)
                         .frame(maxWidth: .infinity)
+                }
+
+                if let price = connection.priceText {
+                    Text(price)
+                        .font(.omSmall)
+                        .fontWeight(.heavy)
+                        .foregroundStyle(Color.fontPrimary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .padding(.horizontal, 14)
+                        .accessibilityIdentifier("connection-fare-summary")
                 }
 
                 if let startAirport = connection.startAirportName {
@@ -220,8 +231,6 @@ private struct TravelSegmentCard: View {
                         .background(Color.white)
                         .clipShape(Circle())
                         .overlay(Circle().stroke(Color.grey20, lineWidth: 1.5))
-                    } else {
-                        AirlineLogoStack(carrierCodes: segment.carrierCode.map { [$0] } ?? [])
                     }
 
                     VStack(alignment: .leading, spacing: 1) {
@@ -267,6 +276,8 @@ private struct TravelTimeBadge: View {
             Text(time)
                 .font(.omSmall)
                 .fontWeight(.bold)
+                .fixedSize()
+                .accessibilityIdentifier("connection-segment-time")
         }
         .foregroundStyle(.white)
         .padding(.horizontal, .spacing5)
@@ -398,6 +409,9 @@ struct TravelConnectionSummary: Identifiable {
     let bookingURL: String?
     let bookingProvider: String?
     let bookingToken: String?
+    private let bookingOrigin: String?
+    private let bookingDestination: String?
+    private let bookingOutboundDate: String?
     fileprivate let legs: [TravelLegSummary]
 
     init(embedId: String?, data: [String: AnyCodable]) {
@@ -417,6 +431,17 @@ struct TravelConnectionSummary: Identifiable {
         self.bookingURL = TravelValue.string(data, ["booking_url"])
         self.bookingProvider = TravelValue.string(data, ["booking_provider"])
         self.bookingToken = TravelValue.string(data, ["booking_token"])
+        let context: [String: AnyCodable]
+        if let raw = data["booking_context"]?.value as? [String: Any] {
+            context = raw.mapValues(AnyCodable.init)
+        } else {
+            context = ["departure_id", "arrival_id", "outbound_date"].reduce(into: [:]) { result, key in
+                if let value = data["booking_context_" + key] { result[key] = value }
+            }
+        }
+        self.bookingOrigin = TravelValue.string(context, ["departure_id"])
+        self.bookingDestination = TravelValue.string(context, ["arrival_id"])
+        self.bookingOutboundDate = TravelValue.string(context, ["outbound_date"])
         self.legs = TravelLegSummary.list(from: data)
     }
 
@@ -495,16 +520,16 @@ struct TravelConnectionSummary: Identifiable {
     }
 
     var googleFlightsURL: String? {
-        let originCode = TravelValue.iataCode(from: origin)
-        let destinationCode = TravelValue.iataCode(from: destination)
+        // Match the web fallback, including full route names and provider context.
         var parts = ["Flights"]
-        if let originCode { parts.append("from \(originCode)") }
-        if let destinationCode { parts.append("to \(destinationCode)") }
-        if let date = departure?.split(separator: "T").first ?? departure?.split(separator: " ").first {
+        if let origin = bookingOrigin ?? origin { parts.append("from \(origin)") }
+        if let destination = bookingDestination ?? destination { parts.append("to \(destination)") }
+        if let date = bookingOutboundDate ?? departure?.components(separatedBy: "T").first, !date.isEmpty {
             parts.append("on \(date)")
         }
-        guard parts.count > 1 else { return nil }
-        let query = parts.joined(separator: " ").addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? parts.joined(separator: "+")
+        // JavaScript encodeURIComponent escapes query separators and Unicode.
+        let allowed = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.!~*'()")
+        let query = parts.joined(separator: " ").addingPercentEncoding(withAllowedCharacters: allowed) ?? "Flights"
         return "https://www.google.com/travel/flights?q=\(query)"
     }
 
@@ -623,7 +648,7 @@ private struct TravelSegmentSummary {
                 carrierCode: TravelValue.string(wrapped, ["carrier_code"]),
                 number: TravelValue.string(wrapped, ["number"]),
                 departureStation: TravelValue.string(wrapped, ["departure_station"]) ?? "",
-                departureTime: TravelValue.formatTime(TravelValue.string(wrapped, ["departure_time"]) ?? ""),
+                departureTime: TravelValue.formatTime(TravelValue.string(wrapped, ["actual_departure_time", "departure_time"]) ?? ""),
                 scheduledDepartureTime: TravelValue.string(wrapped, ["scheduled_departure_time"]),
                 actualDepartureTime: TravelValue.string(wrapped, ["actual_departure_time"]),
                 departureDelayMinutes: TravelValue.int(wrapped, ["departure_delay_minutes"]),
@@ -634,7 +659,7 @@ private struct TravelSegmentSummary {
                 departureLatitude: TravelValue.double(wrapped, ["departure_latitude"]),
                 departureLongitude: TravelValue.double(wrapped, ["departure_longitude"]),
                 arrivalStation: TravelValue.string(wrapped, ["arrival_station"]) ?? "",
-                arrivalTime: TravelValue.formatTime(TravelValue.string(wrapped, ["arrival_time"]) ?? ""),
+                arrivalTime: TravelValue.formatTime(TravelValue.string(wrapped, ["actual_arrival_time", "arrival_time"]) ?? ""),
                 scheduledArrivalTime: TravelValue.string(wrapped, ["scheduled_arrival_time"]),
                 actualArrivalTime: TravelValue.string(wrapped, ["actual_arrival_time"]),
                 arrivalDelayMinutes: TravelValue.int(wrapped, ["arrival_delay_minutes"]),
@@ -794,61 +819,50 @@ enum TravelValue {
         return String(String.UnicodeScalarView(scalars))
     }
 
-    static func formatDate(_ value: String) -> String {
-        if let date = parseDate(value) {
-            let out = DateFormatter()
-            out.locale = Locale(identifier: "en_US_POSIX")
-            out.dateFormat = "EEE, MMM d"
-            return out.string(from: date)
-        }
-        return value
+    static func formatDate(_ value: String, locale: Locale = .current, timeZone: TimeZone = .current) -> String {
+        guard let date = parseDate(value, timeZone: timeZone) else { return value }
+        let out = DateFormatter()
+        out.locale = locale
+        out.timeZone = timeZone
+        out.setLocalizedDateFormatFromTemplate("EEE MMM d")
+        return out.string(from: date)
     }
 
-    static func formatTime(_ value: String) -> String {
-        if let date = parseDate(value) {
-            let out = DateFormatter()
-            out.locale = Locale(identifier: "en_US_POSIX")
-            out.dateFormat = "HH:mm"
-            return out.string(from: date)
-        }
-        return value
+    static func formatTime(_ value: String, locale: Locale = .current, timeZone: TimeZone = .current) -> String {
+        guard let date = parseDate(value, timeZone: timeZone) else { return value }
+        let out = DateFormatter()
+        out.locale = locale
+        out.timeZone = timeZone
+        // The fullscreen browser requests two-digit hour and minute in its locale.
+        let hourTemplate = DateFormatter.dateFormat(fromTemplate: "j", options: 0, locale: locale) ?? "HH"
+        out.dateFormat = hourTemplate.contains("a") ? "hh:mm a" : "HH:mm"
+        return out.string(from: date)
     }
 
     static func formatPreviewTime(_ value: String) -> String? {
-        // Browser `new Date` treats an ISO timestamp without a zone as local
-        // time. Keep that behavior for the compact card's departure/arrival row.
-        let hasExplicitZone = value.hasSuffix("Z")
-            || value.range(of: #"[+-]\d{2}:\d{2}$"#, options: .regularExpression) != nil
-        let date: Date?
-        if hasExplicitZone {
-            date = parseDate(value)
-        } else {
-            let local = DateFormatter()
-            local.locale = Locale(identifier: "en_US_POSIX")
-            local.timeZone = .current
-            local.dateFormat = value.contains("T") ? "yyyy-MM-dd'T'HH:mm:ss" : "yyyy-MM-dd HH:mm"
-            date = local.date(from: value) ?? parseDate(value)
-        }
-        guard let date else { return nil }
+        guard let date = parseDate(value) else { return nil }
         let out = DateFormatter()
         out.locale = .current
         out.timeStyle = .short
         return out.string(from: date)
     }
 
-    private static func parseDate(_ value: String) -> Date? {
+    private static func parseDate(_ value: String, timeZone: TimeZone = .current) -> Date? {
         let isoFormatter = ISO8601DateFormatter()
+        if let date = isoFormatter.date(from: value) { return date }
+        isoFormatter.formatOptions.insert(.withFractionalSeconds)
         if let date = isoFormatter.date(from: value) { return date }
 
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = TimeZone(secondsFromGMT: 0)
-
-        for format in ["yyyy-MM-dd'T'HH:mm:ssXXXXX", "yyyy-MM-dd'T'HH:mm:ss", "yyyy-MM-dd HH:mm", "yyyy-MM-dd"] {
+        // JavaScript interprets zone-naive date-times as local wall time;
+        // date-only ISO values are UTC. Explicit offsets remain absolute instants.
+        formatter.timeZone = value.count == 10 ? TimeZone(secondsFromGMT: 0) : timeZone
+        formatter.isLenient = false
+        for format in ["yyyy-MM-dd'T'HH:mm:ss.SSSXXXXX", "yyyy-MM-dd'T'HH:mm:ssXXXXX", "yyyy-MM-dd'T'HH:mmXXXXX", "yyyy-MM-dd'T'HH:mm:ss.SSS", "yyyy-MM-dd'T'HH:mm:ss", "yyyy-MM-dd'T'HH:mm", "yyyy-MM-dd HH:mm", "yyyy-MM-dd"] {
             formatter.dateFormat = format
             if let date = formatter.date(from: value) { return date }
         }
-
         return nil
     }
 }

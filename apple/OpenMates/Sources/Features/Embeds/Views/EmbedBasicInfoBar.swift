@@ -23,6 +23,7 @@ struct EmbedBasicInfoBar: View {
     }
 
     let appId: String
+    let appIconName: String?
     let skillIconName: String
     let title: String
     let subtitle: String?
@@ -35,6 +36,7 @@ struct EmbedBasicInfoBar: View {
 
     init(
         appId: String,
+        appIconName: String? = nil,
         skillIconName: String,
         title: String,
         subtitle: String?,
@@ -46,6 +48,7 @@ struct EmbedBasicInfoBar: View {
         trailingAction: AnyView? = nil
     ) {
         self.appId = appId
+        self.appIconName = appIconName
         self.skillIconName = skillIconName
         self.title = title
         self.subtitle = subtitle
@@ -64,7 +67,7 @@ struct EmbedBasicInfoBar: View {
                 .frame(width: Constants.appIconSize, height: Constants.appIconSize)
                 .overlay {
                     // BasicInfosBar uses a 26pt wrapper and 25pt CSS glyph.
-                    Icon(AppIconView.iconName(forAppId: appId), size: 25)
+                    Icon(appIconName ?? AppIconView.iconName(forAppId: appId), size: 25)
                         .foregroundStyle(.white)
                         .frame(width: 26, height: 26)
                 }

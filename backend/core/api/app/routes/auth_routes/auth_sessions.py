@@ -83,9 +83,11 @@ def _find_token_hash_by_prefix(tokens_map: dict, prefix: str) -> Optional[str]:
 
 
 async def _get_current_token_hash(
-    refresh_token: Optional[str],
+    refresh_token: Optional[str], request: Request | None = None,
 ) -> Optional[str]:
-    """Hash the current request's refresh token to match against user_tokens."""
+    """Use the credential verified by the dependency, including rotation grace."""
+    if request is not None:
+        refresh_token = getattr(getattr(request, "state", None), "auth_refresh_token", None) or refresh_token
     if not refresh_token:
         return None
     return hashlib.sha256(refresh_token.encode()).hexdigest()
@@ -149,7 +151,7 @@ async def list_sessions(
     Returns session metadata — encrypted blobs if registered, else plaintext fallback.
     """
     user_id = current_user.id
-    current_hash = await _get_current_token_hash(refresh_token)
+    current_hash = await _get_current_token_hash(refresh_token, request)
 
     user_tokens_key = f"user_tokens:{user_id}"
     tokens_map: dict = await cache_service.get(user_tokens_key) or {}
@@ -222,7 +224,7 @@ async def register_session_meta(
     the plaintext fallback fields.
     """
     user_id = current_user.id
-    current_hash = await _get_current_token_hash(refresh_token)
+    current_hash = await _get_current_token_hash(refresh_token, request)
     if not current_hash:
         raise HTTPException(status_code=401, detail="Missing auth token")
 
@@ -268,7 +270,7 @@ async def revoke_session(
     Broadcasts a force_logout event via Redis so the target device logs out in real-time.
     """
     user_id = current_user.id
-    current_hash = await _get_current_token_hash(refresh_token)
+    current_hash = await _get_current_token_hash(refresh_token, request)
 
     user_tokens_key = f"user_tokens:{user_id}"
     tokens_map: dict = await cache_service.get(user_tokens_key) or {}
@@ -358,7 +360,7 @@ async def logout_all_others(
     Useful when user suspects compromise but wants to stay logged in.
     """
     user_id = current_user.id
-    current_hash = await _get_current_token_hash(refresh_token)
+    current_hash = await _get_current_token_hash(refresh_token, request)
     if not current_hash:
         raise HTTPException(status_code=401, detail="Missing auth token")
 
@@ -474,8 +476,9 @@ async def logout_all_devices(
 
     # 4. Logout from Directus
     try:
-        if refresh_token:
-            await directus_service.logout_user(refresh_token)
+        effective_token = getattr(request.state, "auth_refresh_token", None) or refresh_token
+        if effective_token:
+            await directus_service.logout_user(effective_token)
     except Exception as e:
         logger.warning(f"Directus logout failed during logout-all-devices: {e}")
 

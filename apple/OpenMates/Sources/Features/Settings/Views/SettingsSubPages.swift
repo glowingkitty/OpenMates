@@ -1,12 +1,19 @@
 // Settings sub-page views — each page loads data from backend API endpoints.
-// All functionality is native — no web redirects. All strings use AppStrings (i18n).
+// Account/security pages use native services. Account import is deliberately
+// deferred to the verified web flow in ChatImportView. Strings use AppStrings/i18n.
 // Uses OMSettingsPage/Section/Row primitives — no Form/List/Toggle/Picker/.navigationTitle.
 // Specification: specifications/features/notifications/specification.yml
 // Assertions: notifications.settings.ack-persisted, notifications.content.privacy-boundary
 
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/settings/SettingsAccount.svelte
-//          frontend/packages/ui/src/components/settings/SettingsSecurity.svelte
+//          frontend/packages/ui/src/components/settings/SettingsPasskeys.svelte
+//          frontend/packages/ui/src/components/settings/account/SettingsUsername.svelte
+//          frontend/packages/ui/src/components/settings/account/SettingsTimezone.svelte
+//          frontend/packages/ui/src/components/settings/security/SettingsPassword.svelte
+//          frontend/packages/ui/src/components/settings/security/SettingsTwoFactorAuth.svelte
+//          frontend/packages/ui/src/components/settings/security/SettingsRecoveryKey.svelte
+//          frontend/packages/ui/src/components/settings/security/SettingsSessions.svelte
 //          frontend/packages/ui/src/components/settings/SettingsNotifications.svelte
 //          frontend/packages/ui/src/components/settings/notifications/SettingsChatNotifications.svelte
 //          frontend/packages/ui/src/components/settings/SettingsPrivacy.svelte
@@ -357,6 +364,24 @@ struct SettingsPasskeysView: View {
     }
 }
 
+// Discard the expired proof and pending secrets before returning to verification.
+// Shared with focused regression coverage; this does not perform or replay writes.
+enum PasswordSettingsFailureRecovery {
+    static func resetIfVerificationRequired(
+        _ error: Error, currentPassword: inout String, newPassword: inout String,
+        confirmPassword: inout String, factorCode: inout String,
+        emailChallenge: inout SensitiveEmailChallenge?
+    ) {
+        guard let failure = error as? AccountSecurityError,
+              failure.requiresPasswordVerification else { return }
+        currentPassword = ""
+        newPassword = ""
+        confirmPassword = ""
+        factorCode = ""
+        emailChallenge = nil
+    }
+}
+
 // MARK: - Password
 
 struct SettingsPasswordView: View {
@@ -381,7 +406,7 @@ struct SettingsPasswordView: View {
     }
 
     var body: some View {
-        OMSettingsPage(title: AppStrings.password) {
+        OMSettingsPage(title: AppStrings.password, scrollAccessibilityIdentifier: "settings-password-form-scroll") {
             OMSettingsSection {
                 VStack(alignment: .leading, spacing: .spacing3) {
                     if usesEmail {
@@ -391,6 +416,7 @@ struct SettingsPasswordView: View {
                             .padding(.horizontal, .spacing6)
                             .padding(.vertical, .spacing4)
                             .accessibleInput(L("settings.password.current"), hint: L("settings.current_password_hint"))
+                            .accessibilityIdentifier("settings-password-current-input")
                     }
                     SecureField(L("settings.password.new"), text: $newPassword)
                         .textContentType(.newPassword)
@@ -398,12 +424,14 @@ struct SettingsPasswordView: View {
                         .padding(.horizontal, .spacing6)
                         .padding(.vertical, .spacing4)
                         .accessibleInput(L("settings.password.new"), hint: L("settings.new_password_hint"))
+                        .accessibilityIdentifier("settings-password-new-input")
                     SecureField(L("settings.password.confirm"), text: $confirmPassword)
                         .textContentType(.newPassword)
                         .font(.omP)
                         .padding(.horizontal, .spacing6)
                         .padding(.vertical, .spacing4)
                         .accessibleInput(L("settings.password.confirm"), hint: L("auth.retype_new_password"))
+                        .accessibilityIdentifier("settings-password-confirm-input")
                 }
             }
 
@@ -450,6 +478,8 @@ struct SettingsPasswordView: View {
                                   ? L("settings.security.send_verification_code")
                                   : L("settings.password.update"),
                                   hint: L("settings.save_new_password_hint"))
+                .accessibilityIdentifier("settings-password-submit")
+                .accessibilityValue(emailChallenge == nil && usesEmail ? "request-verification" : "commit-password")
 
             if emailChallenge == nil && (hasTOTP || hasPasskey) && !useEmailFallback {
                 Button(L("settings.security.use_password_instead")) {
@@ -466,6 +496,7 @@ struct SettingsPasswordView: View {
                     .font(.omXs)
                     .foregroundStyle(result.contains(AppStrings.error) ? Color.error : Color.fontPrimary)
                     .padding(.horizontal, .spacing6)
+                    .accessibilityIdentifier("settings-password-result")
             }
         }
         .task { await loadAuthMethods() }
@@ -476,6 +507,17 @@ struct SettingsPasswordView: View {
         result = nil
         Task {
             do {
+                #if DEBUG
+                if let fixture = DevSecurityPasswordFixture.current {
+                    if emailChallenge == nil {
+                        emailChallenge = fixture.challenge
+                        factorCode = ""
+                        isSaving = false
+                        return
+                    }
+                    try fixture.rejectCommit()
+                }
+                #endif
                 guard let user = authManager.currentUser else { throw AccountSecurityError.missingAccountData }
                 if let emailChallenge {
                     try await verifyEmailCode(emailChallenge, user: user)
@@ -497,6 +539,10 @@ struct SettingsPasswordView: View {
                 emailChallenge = nil
                 AccessibilityAnnouncement.announce(AppStrings.success)
             } catch {
+                PasswordSettingsFailureRecovery.resetIfVerificationRequired(
+                    error, currentPassword: &currentPassword, newPassword: &newPassword,
+                    confirmPassword: &confirmPassword, factorCode: &factorCode,
+                    emailChallenge: &emailChallenge)
                 result = "\(AppStrings.error): \(error.localizedDescription)"
                 AccessibilityAnnouncement.announce(error.localizedDescription)
                 NativeDiagnostics.error("Password update failed", category: "settings.security")
@@ -506,6 +552,14 @@ struct SettingsPasswordView: View {
     }
 
     private func loadAuthMethods() async {
+        #if DEBUG
+        if DevSecurityPasswordFixture.current != nil {
+            hasPassword = true
+            hasTOTP = false
+            hasPasskey = false
+            return
+        }
+        #endif
         do {
             let methods = try await AccountSecurityService.shared.authMethods()
             hasPassword = methods.hasPassword

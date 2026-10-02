@@ -18,6 +18,8 @@
 #if DEBUG
 import SwiftUI
 import UniformTypeIdentifiers
+import ZIPFoundation
+import Yams
 
 struct DevComponentPreviewView: View {
     let configuration: DevPreviewLaunchConfiguration
@@ -389,17 +391,23 @@ private struct DevComponentPreviewCanvas: View {
             TasksWorkspaceView(store: tasksFixtureStore,
                                showPlansOnly: configuration.variant == "plans",
                                inspiration: DailyInspirationData(
-                                   inspirationId: configuration.variant == "plans" ? "hardcoded-plan-timeline" : "hardcoded-task-priorities",
+                                   inspirationId: configuration.variant == "plans" ? "hardcoded-plan-timeline" : "hardcoded-task-next-action",
                                    text: configuration.variant == "plans"
-                                       ? AppStrings.plansInspirationTimeline : AppStrings.tasksInspirationPriorities,
+                                       ? AppStrings.plansInspirationTimeline : AppStrings.tasksInspirationNextAction,
                                    title: configuration.variant == "plans"
-                                       ? AppStrings.plansInspirationTimelineTitle : AppStrings.tasksInspirationPrioritiesTitle,
+                                       ? AppStrings.plansInspirationTimelineTitle : AppStrings.tasksInspirationNextActionTitle,
                                    category: "productivity"),
                                onStartInspiration: { _ in lastAction = "tasks-inspiration-started" },
                                onOpenProject: { lastAction = "opened-project-\($0)" },
                                onOpenChat: { lastAction = "opened-chat-\($0)" })
                 .onAppear {
                     tasksFixtureStore.installPreview()
+                    if configuration.variant == "task-load-failure" {
+                        let failure = NSError(domain: "SyntheticTasksPreview", code: 1,
+                            userInfo: [NSLocalizedDescriptionKey: "Synthetic task data is unavailable."])
+                        tasksFixtureStore.debugApplyLoadFailure(failure, stage: "tasks",
+                            generation: tasksFixtureStore.debugLoadGeneration)
+                    }
                     if configuration.variant == "supplementary-load-failure" {
                         let failure = NSError(domain: "SyntheticTasksPreview", code: 1,
                             userInfo: [NSLocalizedDescriptionKey: "Synthetic supplementary data is unavailable."])
@@ -418,7 +426,7 @@ private struct DevComponentPreviewCanvas: View {
                 ProjectsWorkspaceView(store: projectsFixtureStore,
                     tasksStore: projectTasksFixtureStore,
                     previewInitialTab: ["folders", "connectedSource", "localFolderSource",
-                        "multipleSources", "largeConnectedSource", "legacyConnectedSource"]
+                        "multipleSources", "largeConnectedSource", "legacyConnectedSource", "rootFiles", "truncatedConnectedSource"]
                         .contains(configuration.variant) ? .files
                         : configuration.variant == "tasks" ? .tasks : .overview,
                     onOpenChat: { lastAction = "opened-chat-\($0)" },
@@ -846,28 +854,80 @@ private struct DevNativeJSONExportControl: View {
     @State private var document: DevNativeJSONExportDocument?
     @State private var presented = false
     @State private var phase = "idle"
+    private var zip: Bool { ProcessInfo.processInfo.environment["UI_TEST_NATIVE_EXPORT_FORMAT"] == "zip" }
+    private var filename: String { zip ? "parity-export-control.zip" : "parity-export-control.json" }
+    private static let messageContent = "Native ZIP Save fixture"
+    private static let fileContent = "Native ZIP attachment fixture\n"
     var body: some View {
         Button(AppStrings.chatSettingsDownloadFiles) {
-            document = .init(data: Data("{\"fixture\":\"parity-export-control\"}".utf8))
-            phase = "presenting"; presented = true
+            Task { @MainActor in
+                do {
+                    let data = zip ? try await Self.makeZIP() : Data("{\"fixture\":\"parity-export-control\"}".utf8)
+                    document = .init(data: data)
+                    phase = zip ? "presenting;expected-bytes=\(data.count)" : "presenting"
+                    presented = true
+                } catch { phase = "failed" }
+            }
         }.buttonStyle(OMPrimaryButtonStyle()).accessibilityIdentifier("native-export-control-open")
-            .fileExporter(isPresented: $presented, document: document, contentType: .json, defaultFilename: "parity-export-control.json") { result in
+            .fileExporter(isPresented: $presented, document: document, contentType: zip ? .zip : .json, defaultFilename: filename) { result in
                 switch result {
                 case .success(let url):
                     let scoped = url.startAccessingSecurityScopedResource()
                     defer { if scoped { url.stopAccessingSecurityScopedResource() } }
-                    let attributes = try? FileManager.default.attributesOfItem(atPath: url.path)
-                    let bytes = (attributes?[.size] as? NSNumber)?.stringValue ?? "unavailable"
-                    phase = "saved=\(url.lastPathComponent);bytes=\(bytes)"
+                    do {
+                        let saved = try Data(contentsOf: url)
+                        let matches = document.map { saved == $0.data } ?? false
+                        phase = "saved=\(url.lastPathComponent);bytes=\(saved.count);content=\(matches ? "verified" : "mismatch")"
+                        if zip {
+                            let valid = try Self.validateZIP(saved)
+                            phase += ";members=chat.md,chat.yaml,fixture.txt;archive-content=\(valid ? "verified" : "mismatch")"
+                        } else {
+                            let json = try JSONSerialization.jsonObject(with: saved) as? [String: String]
+                            phase += ";json=\(json == ["fixture": "parity-export-control"] ? "verified" : "mismatch")"
+                        }
+                    } catch { phase = "failed" }
                 case .failure: phase = "finished"
                 }
                 document = nil
             }
             .accessibilityValue(phase)
     }
+
+    @MainActor
+    private static func makeZIP() async throws -> Data {
+        let chat = Chat(id: "native-export-fixture", title: "Native ZIP fixture", lastMessageAt: nil,
+                        createdAt: "2026-01-01", updatedAt: nil, isArchived: false, isPinned: false,
+                        appId: nil, encryptedTitle: nil, encryptedChatKey: nil)
+        let message = Message(id: "native-export-message", chatId: chat.id, role: .user,
+                              content: messageContent, encryptedContent: nil, createdAt: "2026-01-01",
+                              updatedAt: nil, appId: nil, isStreaming: false, embedRefs: nil)
+        let file = EmbedRecord(id: "native-export-file", type: "code-code", status: .finished,
+                               data: .raw(["filename": AnyCodable("fixture.txt"), "code": AnyCodable(fileContent)]),
+                               parentEmbedId: nil, appId: nil, skillId: nil, embedIds: nil, createdAt: nil)
+        return try await ChatSettingsExport.zip(chat: chat, messages: [message], embeds: [file],
+                                                scope: nil, check: {})
+    }
+
+    private static func validateZIP(_ data: Data) throws -> Bool {
+        let archive = try Archive(data: data, accessMode: .read)
+        guard Set(archive.map(\.path)) == Set(["chat.md", "chat.yaml", "fixture.txt"]) else { return false }
+        func content(_ name: String) throws -> Data {
+            guard let entry = archive[name] else { throw CocoaError(.fileReadCorruptFile) }
+            var bytes = Data()
+            _ = try archive.extract(entry) { bytes.append($0) }
+            return bytes
+        }
+        guard try content("fixture.txt") == Data(fileContent.utf8),
+              try content("chat.md") == Data("## User\n\n\(messageContent)".utf8),
+              let yaml = try Yams.load(yaml: String(decoding: content("chat.yaml"), as: UTF8.self)) as? [String: Any],
+              yaml["chat_id"] as? String == "native-export-fixture",
+              yaml["title"] as? String == "Native ZIP fixture",
+              let messages = yaml["messages"] as? [[String: Any]], messages.count == 1 else { return false }
+        return messages[0]["content"] as? String == messageContent && messages[0]["role"] as? String == "user"
+    }
 }
 private struct DevNativeJSONExportDocument: FileDocument {
-    static var readableContentTypes: [UTType] { [.json] }
+    static var readableContentTypes: [UTType] { [.json, .zip] }
     let data: Data
     init(data: Data) { self.data = data }
     init(configuration: ReadConfiguration) throws {

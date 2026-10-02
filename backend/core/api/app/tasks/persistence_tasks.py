@@ -3447,3 +3447,6 @@ def process_pending_embeds_task(self):
     finally:
         if loop:
             loop.close()
+
+# Register the independent sealed-only retry on existing persistence workers.
+from backend.core.api.app.tasks.chat_metadata_recovery_tasks import persist_chat_metadata_recovery  # noqa: F401,E402

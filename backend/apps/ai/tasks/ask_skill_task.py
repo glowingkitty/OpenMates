@@ -10,6 +10,7 @@
 # that the 'task-worker' is configured to use. This is how tasks defined here
 # are registered with and executed by that worker.
 
+from backend.shared.python_utils.chat_metadata_recovery import persist_generated_metadata
 from backend.shared.python_utils.chat_failure_notifications import (
     EXPECTED_REJECTIONS,
     failure_stage,
@@ -2003,6 +2004,14 @@ async def _async_process_ai_skill_ask_task(
                 # CRITICAL: Skip WebSocket events for external requests (REST API)
                 # This prevents typing indicators from popping up in the web app when a user makes an API call.
                 if not request_data.is_external:
+                    initial_metadata_job = await persist_generated_metadata(
+                        request=request_data, task_id=task_id, stage="initial",
+                        metadata={"title": preprocessing_result.title,
+                                  "category": typing_category if not request_data.chat_has_title else None,
+                                  "icon": (preprocessing_result.icon_names or [None])[0] if not request_data.chat_has_title else None},
+                    )
+                    if initial_metadata_job:
+                        typing_payload_data["metadata_recovery_job"] = initial_metadata_job
                     typing_indicator_channel = f"ai_typing_indicator_events::{request_data.user_id_hash}" # Channel uses hashed ID
                     await cache_service_instance.publish_event(typing_indicator_channel, typing_payload_data)
                     logger.info(f"[Task ID: {task_id}] Published '{typing_payload_data['event_for_client']}' event to Redis channel '{typing_indicator_channel}' with metadata for encryption.")
@@ -2533,6 +2542,17 @@ async def _async_process_ai_skill_ask_task(
                 postprocessing_payload["updated_chat_title"] = postprocessing_result.updated_chat_title
                 logger.info(f"[Task ID: {task_id}] Including updated_chat_title in post-processing payload: '{postprocessing_result.updated_chat_title}'")
 
+            # The final delivery consolidates every generated field so a lost
+            # typing event cannot strand the title/category/icon independently.
+            final_metadata_job = await persist_generated_metadata(
+                request=request_data, task_id=task_id, stage="postprocessing",
+                metadata={"title": postprocessing_result.updated_chat_title or preprocessing_result.title,
+                          "summary": final_chat_summary,
+                          "category": (preprocessing_result.category or "general_knowledge") if not request_data.chat_has_title else None,
+                          "icon": (preprocessing_result.icon_names or [None])[0] if not request_data.chat_has_title else None},
+            )
+            if final_metadata_job:
+                postprocessing_payload["metadata_recovery_job"] = final_metadata_job
             postprocessing_channel = f"ai_typing_indicator_events::{request_data.user_id_hash}"
             with ai_phase_span("postprocess.delivery"):
                 await cache_service_instance.publish_event(postprocessing_channel, postprocessing_payload)

@@ -86,6 +86,7 @@ class ConnectionManager:
         # Structure: {(user_id, device_fingerprint_hash): bool} tracks clients
         # that implement client-encrypted task update job claim/persist.
         self.task_update_job_capability: Dict[Tuple[str, str], bool] = {}
+        self.chat_metadata_recovery_capability: Dict[Tuple[str, str], bool] = {}
         # Clients that can execute Project file operations for their currently
         # assigned chat. Capability alone never grants Project authority.
         self.project_file_job_capability: Dict[Tuple[str, str], bool] = {}
@@ -101,6 +102,7 @@ class ConnectionManager:
         device_fingerprint_hash: str,
         *,
         supports_task_update_jobs: bool = False,
+        supports_chat_metadata_recovery: bool = False,
         supports_project_file_jobs: bool = False,
         supports_remote_command_jobs: bool = False,
     ):
@@ -136,6 +138,7 @@ class ConnectionManager:
             logger.debug(f"WebSocket re-established: User {user_id}, Device {device_fingerprint_hash}. Active chat: {self.active_chat_per_connection[connection_key]}.")
         self.connection_foreground_state[connection_key] = True
         self.task_update_job_capability[connection_key] = supports_task_update_jobs
+        self.chat_metadata_recovery_capability[connection_key] = supports_chat_metadata_recovery
         self.project_file_job_capability[connection_key] = supports_project_file_jobs
         self.remote_command_job_capability[connection_key] = supports_remote_command_jobs
 
@@ -220,6 +223,7 @@ class ConnectionManager:
                     logger.debug(f"Finalized: Cleared active chat tracking for {user_id}/{device_fingerprint_hash} (ws_id: {ws_id_to_finalize}) after grace period.")
                 self.connection_foreground_state.pop(connection_key, None)
                 self.task_update_job_capability.pop(connection_key, None)
+                self.chat_metadata_recovery_capability.pop(connection_key, None)
                 self.project_file_job_capability.pop(connection_key, None)
                 self.remote_command_job_capability.pop(connection_key, None)
             else:
@@ -239,6 +243,7 @@ class ConnectionManager:
                     logger.debug(f"Finalized: Cleared lingering active chat tracking for {user_id}/{device_fingerprint_hash} as no active connection exists.")
                 self.connection_foreground_state.pop(connection_key, None)
                 self.task_update_job_capability.pop(connection_key, None)
+                self.chat_metadata_recovery_capability.pop(connection_key, None)
                 self.project_file_job_capability.pop(connection_key, None)
                 self.remote_command_job_capability.pop(connection_key, None)
 
@@ -423,6 +428,9 @@ class ConnectionManager:
         if not is_connected_or_grace:
             return False
         return self.connection_foreground_state.get(connection_key, True)
+
+    def supports_chat_metadata_recovery(self, user_id: str, device_fingerprint_hash: str) -> bool:
+        return self.chat_metadata_recovery_capability.get((user_id, device_fingerprint_hash), False)
 
     def supports_task_update_jobs(self, user_id: str, device_fingerprint_hash: str) -> bool:
         """True when a connection can claim and persist client-encrypted task jobs."""

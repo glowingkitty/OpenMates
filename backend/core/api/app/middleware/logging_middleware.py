@@ -174,7 +174,12 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             # This ensures the client receives the body after we've iterated over it.
             # Prepare headers and media_type for the new response
             # Safely create a dictionary from the response headers
-            final_headers = {key.lower(): value for key, value in response_from_handler.headers.items()}
+            # Set-Cookie is a repeated header; a dict would discard rotation or
+            # logout cookies when a route sets more than one cookie.
+            cookie_headers = [header for header in response_from_handler.raw_headers
+                              if header[0].lower() == b"set-cookie"]
+            final_headers = {key.lower(): value for key, value in response_from_handler.headers.items()
+                             if key.lower() != "set-cookie"}
             final_media_type = response_from_handler.media_type
 
             # If the request is for the /metrics path and the original response
@@ -196,6 +201,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
                 media_type=final_media_type
             )
 
+            response_to_send.raw_headers.extend(cookie_headers)
             duration = time.time() - start_time
 
             if not is_excluded:

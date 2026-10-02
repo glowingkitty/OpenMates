@@ -1140,7 +1140,7 @@ private final class FakeWatchChatAPI: WatchChatAPI, @unchecked Sendable {
         self.chatFetchGate = chatFetchGate
     }
 
-    func fetchRecentChats(limit: Int, offset: Int) async throws -> [WatchRemoteChat] {
+    func fetchRecentChats(limit: Int, offset: Int, context: WatchChatRequestContext) async throws -> [WatchRemoteChat] {
         await chatFetchGate?.suspendFetch()
         fetchRecentChatsCallCount += 1
         lastRequestedChatLimit = limit
@@ -1157,11 +1157,11 @@ private final class FakeWatchChatAPI: WatchChatAPI, @unchecked Sendable {
         return Array(chats.dropFirst(ignoresChatOffset ? 0 : offset).prefix(limit))
     }
 
-    func fetchMessagesVersion(chatId: String) async throws -> Int? {
+    func fetchMessagesVersion(chatId: String, context: WatchChatRequestContext) async throws -> Int? {
         messagesByChatId[chatId]?.count
     }
 
-    func fetchMessages(chatId: String) async throws -> [WatchRemoteMessage] {
+    func fetchMessages(chatId: String, context: WatchChatRequestContext) async throws -> [WatchRemoteMessage] {
         fetchMessagesCallCount += 1
         if transientMessageFetchFailures > 0 {
             transientMessageFetchFailures -= 1
@@ -1171,7 +1171,7 @@ private final class FakeWatchChatAPI: WatchChatAPI, @unchecked Sendable {
         return messagesByChatId[chatId] ?? []
     }
 
-    func uploadAudioRecording(data: Data, filename: String, chatId: String) async throws -> WatchUploadedAudio {
+    func uploadAudioRecording(data: Data, filename: String, chatId: String, context: WatchChatRequestContext) async throws -> WatchUploadedAudio {
         if shouldThrow { throw URLError(.notConnectedToInternet) }
         uploadedAudioRequests.append(FakeAudioUploadRequest(data: data, filename: filename, chatId: chatId))
         if let uploadGate { await uploadGate.suspendUpload() }
@@ -1179,7 +1179,7 @@ private final class FakeWatchChatAPI: WatchChatAPI, @unchecked Sendable {
         return uploadedAudio
     }
 
-    func transcribeAudioRecording(_ upload: WatchUploadedAudio, chatId: String) async throws -> WatchTranscriptionMetadata? {
+    func transcribeAudioRecording(_ upload: WatchUploadedAudio, chatId: String, context: WatchChatRequestContext) async throws -> WatchTranscriptionMetadata? {
         if shouldThrow { throw URLError(.notConnectedToInternet) }
         transcribedAudioIds.append(upload.embedId)
         return WatchTranscriptionMetadata(

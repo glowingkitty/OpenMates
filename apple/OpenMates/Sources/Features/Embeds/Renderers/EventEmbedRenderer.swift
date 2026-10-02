@@ -221,10 +221,21 @@ struct EmbedMapDetailTemplate<Content: View>: View {
     #else
     let mapConfiguration: Never?
     #endif
+    // Optional Maps-only overrides; existing event/travel callers keep defaults.
+    var wideMapHeight: CGFloat? = nil
+    var narrowDetailInset: CGFloat = .spacing10
+    var staticMapImageURL: URL? = nil
     @ViewBuilder let content: () -> Content
 
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var containerWidth: CGFloat = 0
+    @State private var failedStaticMapURL: URL?
+    @State private var loadedStaticMapURL: URL?
+
+    private var availableStaticMapURL: URL? {
+        guard let url = staticMapImageURL, failedStaticMapURL != url else { return nil }
+        return url
+    }
 
     private var usesWideMapLayout: Bool {
         containerWidth > 0 ? containerWidth > 600 : horizontalSizeClass != .compact
@@ -239,21 +250,22 @@ struct EmbedMapDetailTemplate<Content: View>: View {
 
     var body: some View {
         #if canImport(MapKit)
-        if let mapConfiguration = positionedMapConfiguration {
+        if positionedMapConfiguration != nil || availableStaticMapURL != nil {
             if usesWideMapLayout {
                 ZStack(alignment: .topLeading) {
-                    EmbedFullscreenMapView(configuration: mapConfiguration)
+                    mapSurface
 
-                    detailCard
+                    wideDetailCard
                         .frame(width: 345)
                         .padding(.top, .spacing12)
                         .padding(.leading, .spacing12)
                 }
-                .frame(maxWidth: .infinity, minHeight: 540, alignment: .topLeading)
+                .frame(maxWidth: .infinity, minHeight: wideMapHeight == nil ? 540 : nil, alignment: .topLeading)
+                .frame(height: wideMapHeight)
                 .background { containerWidthObserver }
             } else {
                 VStack(spacing: 0) {
-                    EmbedFullscreenMapView(configuration: mapConfiguration)
+                    mapSurface
                         .frame(height: 150)
                     detailCard
                 }
@@ -272,6 +284,49 @@ struct EmbedMapDetailTemplate<Content: View>: View {
         #endif
     }
 
+    #if canImport(MapKit)
+    @ViewBuilder
+    private var mapSurface: some View {
+        // EntryWithMapTemplate paints a supplied static map first. Mount only
+        // this image while loading; MapKit starts after a real image failure.
+        if let url = availableStaticMapURL {
+            GeometryReader { viewport in
+                CachedRemoteImage(url: url,
+                    onFailure: {
+                        guard staticMapImageURL == url else { return }
+                        failedStaticMapURL = url
+                        loadedStaticMapURL = nil
+                    },
+                    onSuccess: {
+                        guard staticMapImageURL == url else { return }
+                        loadedStaticMapURL = url
+                    }, svgContentMode: .fill) { image in
+                    image.resizable().aspectRatio(contentMode: .fill)
+                } placeholder: { Color.grey25 }
+                .frame(width: viewport.size.width, height: viewport.size.height)
+                .clipped()
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityIdentifier("maps-fullscreen-static-map")
+            .accessibilityLabel(AppStrings.domainLocation)
+            .accessibilityValue(loadedStaticMapURL == url ? "loaded" : "loading")
+        } else if let configuration = positionedMapConfiguration {
+            // The native map and app-owned zoom controls expose their own
+            // identifiers. A wrapper identifier propagates over both children.
+            EmbedFullscreenMapView(configuration: configuration)
+        }
+    }
+    #endif
+
+    @ViewBuilder
+    private var wideDetailCard: some View {
+        if let height = wideMapHeight {
+            ScrollView { detailCard }
+                .frame(maxHeight: max(1, height - 48))
+                .clipShape(RoundedRectangle(cornerRadius: .radius7))
+        } else { detailCard }
+    }
+
     private var containerWidthObserver: some View {
         GeometryReader { proxy in
             Color.clear.onAppear { containerWidth = proxy.size.width }
@@ -281,7 +336,8 @@ struct EmbedMapDetailTemplate<Content: View>: View {
 
     private var detailCard: some View {
         content()
-            .padding(.spacing10)
+            .padding(.vertical, .spacing10)
+            .padding(.horizontal, usesWideMapLayout ? .spacing10 : narrowDetailInset)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Color.grey20)
             .clipShape(RoundedRectangle(cornerRadius: usesWideMapLayout ? .radius7 : 0))

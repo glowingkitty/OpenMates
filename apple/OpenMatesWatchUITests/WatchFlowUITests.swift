@@ -173,7 +173,16 @@ final class WatchFlowUITests: XCTestCase {
         XCTAssertTrue(workflow.waitForExistence(timeout: 5))
         keepScreenshot("Watch read-only Workflows list")
         workflow.tap()
+        XCTAssertTrue(app.staticTexts["watch-workflow-detail-title"].waitForExistence(timeout: 5))
+        XCTAssertEqual(openedItem.label, "task:task-one", "Opening details must not immediately hand off to iPhone.")
+        let workflowDetail = app.scrollViews["watch-workflow-detail-scroll"]
+        let workflowOnPhone = app.buttons["watch-workflow-detail-open-on-phone"]
+        for _ in 0..<8 where !workflowOnPhone.isHittable { workflowDetail.swipeUp() }
+        XCTAssertTrue(workflowOnPhone.isHittable)
+        workflowOnPhone.tap()
         XCTAssertEqual(openedItem.label, "workflow:workflow-one")
+        app.buttons["watch-workflow-detail-back"].tap()
+        XCTAssertTrue(workflow.waitForExistence(timeout: 5))
 
         sectionSelector.tap()
         let chatOption = app.buttons["watch-hub-select-chat"]
@@ -278,6 +287,33 @@ final class WatchFlowUITests: XCTestCase {
         }
         XCTAssertTrue(firstRow.isHittable)
         XCTAssertFalse(lastRow.isHittable)
+    }
+
+    @MainActor
+    // contract-test: tooling
+    func testFocusedDigitalCrownBindingReceivesNativeInput() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-watch-crown-binding"]
+        app.launch()
+        let focus = app.staticTexts["watch-crown-binding-focus"]
+        XCTAssertTrue(focus.waitForExistence(timeout: 12))
+        expectation(for: NSPredicate(format: "label == 'true'"), evaluatedWith: focus)
+        waitForExpectations(timeout: 5)
+        let events = app.staticTexts["watch-crown-binding-events"]
+        let rotation = app.staticTexts["watch-crown-binding-rotation"]
+        let initialRotation = rotation.label
+        XCTAssertEqual(events.label, "0")
+        XCUIDevice.shared.rotateDigitalCrown(delta: -0.25)
+        expectation(for: NSPredicate(format: "label != '0'"), evaluatedWith: events)
+        waitForExpectations(timeout: 5)
+        keepScreenshot("Focused native Crown binding after input")
+        let layout = XCTAttachment(string: app.debugDescription)
+        layout.name = "Focused Crown binding delivery diagnostic"
+        layout.lifetime = .keepAlways
+        add(layout)
+        XCTAssertGreaterThan(Int(events.label) ?? 0, 0)
+        XCTAssertNotEqual(rotation.label, initialRotation)
+        XCTAssertEqual(focus.label, "true")
     }
 
     @MainActor

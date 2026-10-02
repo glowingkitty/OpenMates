@@ -1,5 +1,7 @@
 // Retained Tasks workspace state. MainAppView owns this object so board selection,
 // horizontal position, and detail context survive workspace switches.
+// Specification: specifications/features/tasks/specification.yml
+// Assertions: tasks.lifecycle.visible, tasks.surface.semantic-parity
 
 import Combine
 import Foundation
@@ -70,25 +72,56 @@ final class TasksWorkspaceStore: ObservableObject {
 
     var canEditPlans: Bool { teamID == nil }
 
+    /// TasksPage.svelte keeps the first three distinct labels in board order.
+    var filterTags: [String] {
+        var seen = Set<String>()
+        var labels: [String] = []
+        for item in boardItems {
+            guard case .task(let task) = item else { continue }
+            for tag in task.tags where !tag.isEmpty && seen.insert(tag).inserted {
+                labels.append(tag)
+                if labels.count == 3 { return labels }
+            }
+        }
+        return labels.isEmpty ? ["my-tasks", "software", "hardware"] : labels
+    }
+
     var visibleBoardItems: [TaskBoardItem] {
-        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let query = normalizedSearchQuery
         guard !query.isEmpty else { return boardItems }
         return boardItems.filter { item in
             if case .task(let task) = item {
                 return task.title.localizedCaseInsensitiveContains(query)
                     || task.description.localizedCaseInsensitiveContains(query)
-                    || task.tags.contains { $0.localizedCaseInsensitiveContains(query.replacingOccurrences(of: "#", with: "")) }
+                    || task.assigneeType.rawValue.localizedCaseInsensitiveContains(query)
+                    || task.tags.contains { $0.localizedCaseInsensitiveContains(query) }
             }
-            return item.title.localizedCaseInsensitiveContains(query)
+            if case .workflowRun(let run) = item {
+                return run.displayTitle.localizedCaseInsensitiveContains(query)
+                    || (run.blockedMessage ?? "").localizedCaseInsensitiveContains(query)
+                    || "user".localizedCaseInsensitiveContains(query)
+            }
+            return false
         }
     }
 
     var visiblePlans: [UserPlanItem] {
-        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let query = normalizedSearchQuery
         return plans.filter { plan in
             plan.status != .archived && (query.isEmpty || plan.title.localizedCaseInsensitiveContains(query)
-                || plan.goal.localizedCaseInsensitiveContains(query))
+                || plan.goal.localizedCaseInsensitiveContains(query)
+                || plan.status.rawValue.localizedCaseInsensitiveContains(query)
+                || plan.status.rawValue.replacingOccurrences(of: "_", with: "-").localizedCaseInsensitiveContains(query)
+                || plan.risks.localizedCaseInsensitiveContains(query)
+                || plan.linkedProjectIds.contains { (projectNames[$0] ?? "").localizedCaseInsensitiveContains(query) })
         }
+    }
+
+    /// TasksPage.svelte strips one leading label marker before searching every
+    /// supported field; a marker inside a title or label remains meaningful.
+    private var normalizedSearchQuery: String {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        return query.hasPrefix("#") ? String(query.dropFirst()) : query
     }
 
     func reset(accountID: String?) {
@@ -193,6 +226,11 @@ final class TasksWorkspaceStore: ObservableObject {
     }
 
     private enum LoadStage: String { case tasks, plans, projectNames = "project_names" }
+
+    func retryLoad() async {
+        guard let accountID, currentFence() != nil else { return }
+        await load(accountID: accountID, projectID: projectID, teamID: teamID, force: true)
+    }
 
     private func acceptsLoadResult(generation: UUID, fence: UserTasksAccountFence) async -> Bool {
         guard generation == loadGeneration, (try? await fence.check()) != nil else { return false }

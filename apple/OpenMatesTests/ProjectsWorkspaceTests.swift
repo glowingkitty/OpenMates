@@ -77,6 +77,176 @@ final class ProjectsWorkspaceTests: XCTestCase {
         XCTAssertEqual(inspiration.feature?.description, "Define the outcome before collecting files and chats.")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=projects.files.connected-embed-previews
+    func testConnectedRootFilesUseWebTextPreviewPolicy() {
+        for path in ["Dockerfile", "Makefile", "config.toml", "notes.custom", "package-lock.json",
+                     "Info.plist", "LICENSE", "docs/README.md", "types/header.hpp"] {
+            XCTAssertTrue(ProjectRemotePreviewPolicy.canReadText(path), path)
+        }
+        for path in ["archive.pdf", "image.png", "bundle.zip", "movie.mp4", "font.woff2", "../secret", "/absolute"] {
+            XCTAssertFalse(ProjectRemotePreviewPolicy.canReadText(path), path)
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=projects.files.connected-embed-previews,projects.files.no-server-decryption-authority
+    func testRemoteTextUsesTransientCodeEmbedWithSourceAndFilename() throws {
+        let text = ProjectRemoteText(content: "FROM scratch", truncated: false, sizeBytes: 12,
+            lineCount: 1, expectedBase: nil)
+        let embed = ProjectRemotePreviewPolicy.embed(sourceID: "fixture-source", sourceLabel: "Repository",
+            path: "Dockerfile", text: text)
+        XCTAssertEqual(embed.id, "remote:fixture-source:Dockerfile")
+        XCTAssertEqual(embed.type, "code-code")
+        XCTAssertEqual(embed.appId, "code")
+        XCTAssertEqual(embed.rawData?["language"]?.value as? String, "dockerfile")
+        XCTAssertEqual(embed.rawData?["filename"]?.value as? String, "Dockerfile")
+        XCTAssertEqual(embed.rawData?["code"]?.value as? String, "FROM scratch")
+        XCTAssertEqual(embed.rawData?["remote_source_label"]?.value as? String, "Repository")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=projects.files.connected-embed-previews
+    func testConnectedDirectoryRetainsCursorPagesAndAllowsPrevious() {
+        var pages = ProjectRemotePagination()
+        let first = (0..<48).map { remoteEntry("file-\($0).ts") }
+        pages.install(ProjectRemoteDirectory(entries: first, omitted: 10, excluded: 0,
+            nextCursor: "file-47.ts"), page: 0)
+        XCTAssertEqual(pages.entries.count, 48)
+        XCTAssertEqual(pages.firstEntryNumber, 1)
+        XCTAssertEqual(pages.lastEntryNumber, 48)
+        XCTAssertEqual(pages.totalEntryCount, 58)
+        XCTAssertEqual(pages.cursor(for: 1), "file-47.ts")
+        XCTAssertTrue(pages.canShow(1))
+        XCTAssertFalse(pages.canShow(2))
+        let second = (48..<58).map { remoteEntry("file-\($0).ts") }
+        pages.install(ProjectRemoteDirectory(entries: second, omitted: 0, excluded: 0,
+            nextCursor: nil), page: 1)
+        XCTAssertEqual(pages.entries.last?.path, "file-57.ts")
+        XCTAssertEqual(pages.firstEntryNumber, 49)
+        XCTAssertEqual(pages.lastEntryNumber, 58)
+        XCTAssertEqual(pages.totalEntryCount, 58)
+        XCTAssertTrue(pages.canShow(0))
+        XCTAssertFalse(pages.canShow(2))
+        XCTAssertNil(pages.cursor(for: 0))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=projects.files.connected-embed-previews
+    func testLegacyConnectedDirectoryReachesEveryFileWithoutMountingAllCards() {
+        var pages = ProjectRemotePagination()
+        let all = (0..<105).map { remoteEntry("file-\($0).ts") }
+        pages.install(ProjectRemoteDirectory(entries: all, omitted: 3, excluded: 0,
+            nextCursor: nil), page: 0)
+        var opened = pages.entries.map(\.path)
+        XCTAssertEqual(pages.entries.count, 48)
+        XCTAssertTrue(pages.showLegacyPage(1))
+        opened += pages.entries.map(\.path)
+        XCTAssertEqual(pages.entries.count, 48)
+        XCTAssertTrue(pages.showLegacyPage(2))
+        opened += pages.entries.map(\.path)
+        XCTAssertEqual(pages.entries.count, 9)
+        XCTAssertNil(pages.nextCursor)
+        XCTAssertEqual(pages.omitted, 3, "Source omissions stay visible on the last page")
+        XCTAssertEqual(opened, all.map(\.path))
+        XCTAssertTrue(pages.showLegacyPage(0))
+        XCTAssertEqual(pages.entries.first?.path, "file-0.ts")
+        XCTAssertFalse(pages.showLegacyPage(4))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=projects.files.connected-embed-previews,projects.access.explicit-context
+    func testConnectedFixturePaginationUsesOnlyImmediateChildrenAndResetsOnClose() async {
+        let store = ProjectsWorkspaceStore()
+        store.installPreview(variant: "largeConnectedSource")
+        await store.openRemoteSource("source-preview")
+        XCTAssertEqual(store.remoteEntries.count, 48)
+        XCTAssertFalse(store.remoteEntries.contains { $0.path == "nested/needle-child.ts" })
+        await store.showRemotePage(1)
+        XCTAssertEqual(store.remotePagination.pageIndex, 1)
+        XCTAssertEqual(store.remoteEntries.count, 48)
+        await store.browseRemote(path: "nested")
+        XCTAssertEqual(store.remotePagination.pageIndex, 0)
+        XCTAssertEqual(store.remoteEntries.map(\.path), ["nested/needle-child.ts"])
+        store.closeRemoteSource()
+        XCTAssertTrue(store.remoteEntries.isEmpty)
+        XCTAssertEqual(store.remotePagination.pageIndex, 0)
+        XCTAssertNil(store.remotePagination.nextCursor)
+    }
+
+    private func remoteEntry(_ path: String) -> ProjectRemoteEntry {
+        ProjectRemoteEntry(path: path, kind: "file", sizeBytes: 128,
+            childFileCount: nil, childFolderCount: nil, childSummaryTruncated: false)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=projects.files.connected-embed-previews
+    func testTruncatedConnectedFileDownloadsFullOriginalInsteadOfPreview() async throws {
+        let store = ProjectsWorkspaceStore()
+        store.installPreview(variant: "truncatedConnectedSource")
+        await store.openRemoteSource("source-preview")
+        await store.openRemoteText("large.txt")
+        let preview = try XCTUnwrap(store.remoteText)
+        XCTAssertTrue(preview.truncated)
+        XCTAssertFalse(preview.content.contains("ORIGINAL FILE END"))
+        await store.downloadRemoteFile("large.txt")
+        let url = try XCTUnwrap(store.remoteDownloadURL)
+        let downloaded = try Data(contentsOf: url)
+        XCTAssertEqual(downloaded, Data(ProjectsWorkspacePreviewFixture.originalText.utf8))
+        XCTAssertGreaterThan(downloaded.count, preview.content.utf8.count)
+        XCTAssertEqual(url.lastPathComponent, "large.txt")
+        XCTAssertTrue(store.remoteText?.truncated == true, "Downloading never replaces the bounded preview")
+        store.clearRemoteText()
+        XCTAssertFalse(FileManager.default.fileExists(atPath: url.path))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=projects.files.connected-embed-previews,projects.access.explicit-context
+    func testConnectedOriginalDownloadRejectsCompletionAfterSourceCloses() async throws {
+        let store = ProjectsWorkspaceStore()
+        store.installPreview(variant: "truncatedConnectedSource")
+        await store.openRemoteSource("source-preview")
+        var pending: CheckedContinuation<URL, Never>?
+        store.debugOriginalDownload = { _, _ in
+            await withCheckedContinuation { pending = $0 }
+        }
+        let request = Task { await store.downloadRemoteFile("large.txt") }
+        for _ in 0..<100 where pending == nil { await Task.yield() }
+        let continuation = try XCTUnwrap(pending)
+        store.closeRemoteSource()
+        let url = try await ProjectsWorkspacePreviewFixture.downloadOriginal(path: "large.txt", progress: { _, _ in })
+        continuation.resume(returning: url)
+        await request.value
+        XCTAssertNil(store.remoteDownloadURL)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: url.path))
+        XCTAssertFalse(store.isLoadingRemote)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=projects.files.connected-embed-previews,projects.access.explicit-context
+    func testConnectedOriginalDownloadChecksAccountFenceAfterTransport() async throws {
+        let service = ProjectsWorkspaceMockService()
+        service.listResult = [makeProject(id: "fixture-project", name: "Public fixture")]
+        service.contentsResult = ProjectWorkspaceContents(folders: [], items: [], sources: [readmeSource("fixture-source")])
+        var checks = 0
+        var checkingDownload = false
+        let store = ProjectsWorkspaceStore(service: service, validateFence: { _ in
+            guard checkingDownload else { return }
+            checks += 1
+            if checks == 2 { throw ProjectsWorkspaceError.accountChanged }
+        })
+        await store.load(accountId: "fixture-account")
+        await store.selectProject("fixture-project")
+        await store.openRemoteSource("fixture-source")
+        for _ in 0..<20 { await Task.yield() }
+        checkingDownload = true
+        checks = 0
+        var transferredURL: URL?
+        store.debugOriginalDownload = { path, progress in
+            let url = try await ProjectsWorkspacePreviewFixture.downloadOriginal(path: path, progress: progress)
+            transferredURL = url
+            return url
+        }
+        await store.downloadRemoteFile("large.txt")
+        let url = try XCTUnwrap(transferredURL)
+        XCTAssertEqual(checks, 2, "Validate before dispatch and before publishing downloaded private bytes")
+        XCTAssertNil(store.remoteDownloadURL)
+        XCTAssertNotNil(store.remoteError)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: url.path))
+    }
+
     // contract-test: supporting surface=gui.apple assertions=projects.files.search-scoped
     func testProjectSearchFindsNestedStoredAndConnectedSourceMatchesAndClearsOnSelection() async {
         let store = ProjectsWorkspaceStore()
@@ -107,6 +277,31 @@ final class ProjectsWorkspaceTests: XCTestCase {
         XCTAssertNotNil(store.itemEmbedPreviews[item.id])
         await store.selectProject(nil)
         XCTAssertTrue(store.itemEmbedPreviews.isEmpty)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=projects.files.connected-embed-previews,projects.access.explicit-context
+    func testSlowReadmeDoesNotBlockLoadedFilesAndLateReadmeCannotCrossProjectSelection() async {
+        let service = ProjectsWorkspaceMockService()
+        let project = makeProject(id: "readme-project", name: "Project")
+        let item = ProjectWorkspaceItem(id: "readme-item", kind: "embed", targetID: "readme-target",
+            name: "README.md", metadata: [:], folderHash: nil, position: 0, createdAt: 1)
+        service.listResult = [project]
+        service.contentsResult = ProjectWorkspaceContents(folders: [], items: [item], sources: [])
+        service.suspendStoredFile = true
+        let store = ProjectsWorkspaceStore(service: service, validateFence: { _ in })
+        await store.load(accountId: "account-a")
+        await store.selectProject(project.id)
+        for _ in 0..<100 where service.storedFileContinuation == nil { await Task.yield() }
+        XCTAssertNotNil(service.storedFileContinuation)
+        XCTAssertFalse(store.isLoadingDetail, "Files must be available while README content is pending")
+        XCTAssertEqual(store.items.map(\.id), [item.id])
+        await store.selectProject(nil)
+        service.storedFileContinuation?.resume(returning: ["code": "# Project"])
+        service.storedFileContinuation = nil
+        for _ in 0..<20 { await Task.yield() }
+        XCTAssertNil(store.selectedProjectID)
+        XCTAssertTrue(store.items.isEmpty)
+        if case .ready = store.readme { XCTFail("A previous Project's README cannot publish after navigation") }
     }
 
     // contract-test: supporting surface=gui.apple assertions=projects.access.explicit-context
@@ -432,6 +627,8 @@ private final class ProjectsWorkspaceMockService: ProjectsWorkspaceServing {
     var listContinuation: CheckedContinuation<[ProjectWorkspaceProject], Never>?
     var contentsContinuation: CheckedContinuation<ProjectWorkspaceContents, Never>?
     var embedContinuation: CheckedContinuation<EmbedRecord, Never>?
+    var suspendStoredFile = false
+    var storedFileContinuation: CheckedContinuation<[String: Any], Never>?
 
     func finishList(with projects: [ProjectWorkspaceProject]) {
         listContinuation?.resume(returning: projects)
@@ -482,7 +679,10 @@ private final class ProjectsWorkspaceMockService: ProjectsWorkspaceServing {
                        instruction: String, fence: ProjectsWorkspaceFence) async throws { throw ProjectsWorkspaceError.invalidContext }
     func deleteProject(_ project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws { throw ProjectsWorkspaceError.invalidContext }
     func readStoredFile(_ item: ProjectWorkspaceItem, project: ProjectWorkspaceProject,
-                        fence: ProjectsWorkspaceFence) async throws -> [String: Any] { throw ProjectsWorkspaceError.invalidContext }
+                        fence: ProjectsWorkspaceFence) async throws -> [String: Any] {
+        guard suspendStoredFile else { throw ProjectsWorkspaceError.invalidContext }
+        return await withCheckedContinuation { storedFileContinuation = $0 }
+    }
     func openLinkedEmbed(_ item: ProjectWorkspaceItem, project: ProjectWorkspaceProject,
                          fence: ProjectsWorkspaceFence) async throws -> EmbedRecord {
         await withCheckedContinuation { embedContinuation = $0 }
