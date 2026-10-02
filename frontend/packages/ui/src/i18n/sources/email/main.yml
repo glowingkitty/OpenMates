@@ -11274,3 +11274,148 @@ bank_transfer_reminder_footer:
   sv: Frågor? Svara på detta e-postmeddelande eller besök vår supportsida.
   he: שאלות? השב על מייל זה או בקר בדף התמיכה שלנו.
   verified_by_human: []
+workflow_digest.subject:
+  context: Subject of the daily scheduled Workflow run email
+  en: Your daily Workflow runs
+  de: Deine täglichen Workflow-Ausführungen
+  verified_by_human: []
+workflow_digest.heading:
+  context: Heading of the daily scheduled Workflow run email
+  en: Your Workflow runs
+  de: Deine Workflow-Ausführungen
+  verified_by_human: []
+workflow_digest.intro:
+  context: Intro of the private daily scheduled Workflow run email
+  en: Here is a private summary of your scheduled Workflow runs. Open a run to view its details.
+  de: Hier ist eine private Übersicht deiner geplanten Workflow-Ausführungen. Öffne eine Ausführung, um Details zu sehen.
+  verified_by_human: []
+workflow_digest.period:
+  context: Label for the UTC time window in the Workflow digest
+  en: Period
+  de: Zeitraum
+  verified_by_human: []
+workflow_digest.runs:
+  context: Label for the total run count in the Workflow digest
+  en: Runs
+  de: Ausführungen
+  verified_by_human: []
+workflow_digest.run:
+  context: Anonymous Workflow run label, followed by a number
+  en: Run
+  de: Ausführung
+  verified_by_human: []
+workflow_digest.status:
+  context: Label for the status of one Workflow run in the digest
+  en: Status
+  de: Status
+  verified_by_human: []
+workflow_digest.completed:
+  context: Completed Workflow run status in the digest
+  en: Completed
+  de: Abgeschlossen
+  verified_by_human: []
+workflow_digest.failed:
+  context: Failed Workflow run status in the digest
+  en: Failed
+  de: Fehlgeschlagen
+  verified_by_human: []
+workflow_digest.queued:
+  context: Queued Workflow run status in the digest
+  en: Queued
+  de: In der Warteschlange
+  verified_by_human: []
+workflow_digest.running:
+  context: Running Workflow run status in the digest
+  en: Running
+  de: Wird ausgeführt
+  verified_by_human: []
+workflow_digest.waiting:
+  context: Waiting Workflow run status in the digest
+  en: Waiting
+  de: Wartet
+  verified_by_human: []
+workflow_digest.cancellation_requested:
+  context: Cancellation requested Workflow run status in the digest
+  en: Cancellation requested
+  de: Abbruch angefordert
+  verified_by_human: []
+workflow_digest.cancelled:
+  context: Cancelled Workflow run status in the digest
+  en: Cancelled
+  de: Abgebrochen
+  verified_by_human: []
+workflow_digest.skipped:
+  context: Skipped Workflow run status in the digest
+  en: Skipped
+  de: Übersprungen
+  verified_by_human: []
+workflow_digest.planned:
+  context: Planned Workflow run status in the digest
+  en: Planned
+  de: Geplant
+  verified_by_human: []
+workflow_digest.unknown:
+  context: Unknown Workflow run status in the digest
+  en: Unknown
+  de: Unbekannt
+  verified_by_human: []
+workflow_digest.accepted:
+  context: Timestamp when the Workflow run was accepted
+  en: Accepted
+  de: Angenommen
+  verified_by_human: []
+workflow_digest.started:
+  context: Timestamp when the Workflow run started
+  en: Started
+  de: Gestartet
+  verified_by_human: []
+workflow_digest.finished:
+  context: Timestamp when the Workflow run finished
+  en: Finished
+  de: Beendet
+  verified_by_human: []
+workflow_digest.pending:
+  context: Count of Workflow chat messages awaiting device delivery
+  en: Awaiting device delivery
+  de: Wartet auf Geräte-Zustellung
+  verified_by_human: []
+workflow_digest.acknowledged:
+  context: Count of Workflow chat messages acknowledged by a device
+  en: Delivered to a device
+  de: An ein Gerät zugestellt
+  verified_by_human: []
+workflow_digest.delivery_heading:
+  context: Heading separating Workflow chat message delivery outcomes from run statuses
+  en: Chat message delivery
+  de: Zustellung von Chat-Nachrichten
+  verified_by_human: []
+workflow_digest.expired:
+  context: Workflow chat message delivery expired before device persistence
+  en: Expired
+  de: Abgelaufen
+  verified_by_human: []
+workflow_digest.delivery_note:
+  context: Explain that Workflow run status and chat delivery are separate
+  en: Run status and chat message delivery are tracked separately.
+  de: Ausführungsstatus und Zustellung von Chat-Nachrichten werden getrennt erfasst.
+  verified_by_human: []
+workflow_digest.view:
+  context: Link to inspect an authenticated Workflow run
+  en: View run
+  de: Ausführung ansehen
+  verified_by_human: []
+workflow_digest.more:
+  context: Suffix after the count of Workflow runs omitted from the email
+  en: more runs are available in OpenMates.
+  de: weitere Ausführungen sind in OpenMates verfügbar.
+  verified_by_human: []
+workflow_digest.settings:
+  context: Link to the chat notification email preferences in the daily Workflow digest
+  en: Manage email notifications
+  de: E-Mail-Benachrichtigungen verwalten
+  verified_by_human: []
+workflow_digest.message_preview:
+  context: Optional intended Send message excerpt in an opted-in Workflow digest
+  en: Message preview
+  de: Nachrichtenvorschau
+  verified_by_human: []

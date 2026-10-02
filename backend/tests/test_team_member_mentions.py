@@ -1,7 +1,8 @@
 """Teams V1 member-mention notification contract tests.
 
 Mention recipients are resolved and authorized without exposing message text.
-In-app and default-on email notifications carry safe routing metadata only, and
+In-app notifications carry safe routing metadata only, while committed Team
+messages use the shared chat email path, and
 member mentions do not independently invoke AI processing.
 """
 
@@ -46,7 +47,7 @@ async def test_member_mention_notifies_only_active_member_without_plaintext_or_a
         "safe_body_key": "notifications.team_member_mention.body",
     }
     assert notifications.events == [("bob", expected_payload)]
-    assert notifications.emails == [("bob", expected_payload)]
+    assert notifications.emails == []  # The committed-message path sends one email per message.
     assert result.notified_user_ids == ("bob",)
     assert result.should_trigger_ai is False
     assert "content" not in repr(notifications.events)

@@ -902,6 +902,98 @@ test('prepare_preflight rolls back team chat when team wrapper insert fails', as
   assert.deepEqual(database.rows, { chats: [], messages: [], chat_turn_preflights: [], chat_key_wrappers: [] });
 });
 
+// contract-test: direct surface=rest_api assertions=teams.chat.encrypted-until-invoked,chats.message.identity-idempotent
+test('ordinary Team relay proof binds preflight, sender, team, message, and ciphertext', async () => {
+  const database = fakeDatabase({
+    chats: [], messages: [], chat_turn_preflights: [], chat_key_wrappers: [],
+    ...protocolSeed(),
+  });
+  const prepared = await executeOperation(database, 'prepare_preflight',
+    prepareBody({ hashed_team_id: TEAM_HASH }), new Date('2029-01-01T00:00:00Z'));
+  const proof = {
+    protocol_version: 1, preflight_id: prepared.preflight_id,
+    hashed_user_id: OWNER, hashed_team_id: TEAM_HASH, chat_id: CHAT_ID,
+    user_message_id: 'user-message-1', encrypted_content_digest: testing.digest('encrypted-user'),
+  };
+  assert.deepEqual(await executeOperation(database, 'verify_committed_team_message', proof), { committed: true });
+  assert.deepEqual(await executeOperation(database, 'verify_committed_team_message', proof), { committed: true });
+  for (const [field, value] of [
+    ['preflight_id', JOB_ID], ['hashed_user_id', 'd'.repeat(64)],
+    ['hashed_team_id', 'd'.repeat(64)], ['chat_id', JOB_ID],
+    ['user_message_id', 'different-message'], ['encrypted_content_digest', 'd'.repeat(64)],
+  ]) {
+    await assert.rejects(
+      executeOperation(database, 'verify_committed_team_message', { ...proof, [field]: value }),
+      (error) => error instanceof ProtocolError && [
+        'preflight_not_found', 'chat_not_found', 'message_identity_mismatch',
+      ].includes(error.code),
+    );
+  }
+  database.rows.chat_recovery_protocol_state[0].sends_paused = true;
+  await assert.rejects(
+    executeOperation(database, 'verify_committed_team_message', proof),
+    (error) => error instanceof ProtocolError && error.code === 'inference_temporarily_paused',
+  );
+});
+
+// contract-test: direct surface=rest_api assertions=teams.chat.encrypted-until-invoked,chats.message.identity-idempotent
+test('lost ordinary Team ACK replays one committed turn and rejects changed ciphertext', async () => {
+  const database = fakeDatabase({
+    chats: [], messages: [], chat_turn_preflights: [], chat_key_wrappers: [],
+    ...protocolSeed(),
+  });
+  const original = prepareBody({ hashed_team_id: TEAM_HASH });
+  const first = await executeOperation(database, 'prepare_preflight', original);
+  const retry = await executeOperation(database, 'prepare_preflight', structuredClone(original));
+  assert.deepEqual(retry, first);
+  assert.equal(database.rows.chats.length, 1);
+  assert.equal(database.rows.messages.length, 1);
+  assert.equal(database.rows.chat_turn_preflights.length, 1);
+  assert.equal(database.rows.chat_key_wrappers.length, 1);
+  await assert.rejects(
+    executeOperation(database, 'prepare_preflight', prepareBody({
+      hashed_team_id: TEAM_HASH,
+      encrypted_user_message: { ...userMessage(), encrypted_content: 'different-ciphertext' },
+    })),
+    (error) => error instanceof ProtocolError && error.code === 'preflight_mismatch',
+  );
+  assert.equal(database.rows.messages.length, 1);
+});
+
+// contract-test: direct surface=rest_api assertions=teams.chat.encrypted-until-invoked
+test('failed Team preflight cannot authorize a relay', async () => {
+  const database = fakeDatabase({
+    chats: [], messages: [], chat_turn_preflights: [], chat_key_wrappers: [],
+    ...protocolSeed(),
+  }, { operation: 'insert', table: 'chat_key_wrappers' });
+  await assert.rejects(
+    executeOperation(database, 'prepare_preflight', prepareBody({ hashed_team_id: TEAM_HASH })),
+    /injected insert:chat_key_wrappers failure/,
+  );
+  await assert.rejects(
+    executeOperation(database, 'verify_committed_team_message', {
+      protocol_version: 1, preflight_id: PREFLIGHT_ID, hashed_user_id: OWNER,
+      hashed_team_id: TEAM_HASH, chat_id: CHAT_ID, user_message_id: 'user-message-1',
+      encrypted_content_digest: testing.digest('encrypted-user'),
+    }),
+    (error) => error instanceof ProtocolError && error.code === 'preflight_not_found',
+  );
+});
+
+// contract-test: supporting surface=rest_api assertions=teams.chat.encrypted-until-invoked
+test('paused sends cannot commit an ordinary Team preflight', async () => {
+  const database = fakeDatabase({
+    chats: [], messages: [], chat_turn_preflights: [], chat_key_wrappers: [],
+    ...protocolSeed({ paused: true }),
+  });
+  await assert.rejects(
+    executeOperation(database, 'prepare_preflight', prepareBody({ hashed_team_id: TEAM_HASH })),
+    (error) => error instanceof ProtocolError && error.code === 'inference_temporarily_paused',
+  );
+  assert.equal(database.rows.messages.length, 0);
+  assert.equal(database.rows.chats.length, 0);
+});
+
 // contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
 test('prepare_preflight rolls back all writes when the final preflight insert fails', async () => {
   const database = fakeDatabase(

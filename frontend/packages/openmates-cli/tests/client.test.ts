@@ -77,7 +77,82 @@ const {
   getClientMessagesVersionForSync,
   parseEmbedContentObject,
   selectNewChatSlugValue,
+  stageCliTeamNotificationPreview,
 } = await import("../src/client.ts");
+
+describe("Team notification preview transport", () => {
+  // contract-test: supporting surface=cli assertions=notifications.content.privacy-boundary
+  it("does not upload plaintext without a fresh opted-in recipient capability", async () => {
+    const frames: Array<{ type: string; payload: Record<string, unknown> }> = [];
+    const ws = {
+      waitForMessage: async (_type: string, _match: unknown) => ({ payload: { capability_id: null, recipient_count: 0 } }),
+      sendAsync: async (type: string, payload: Record<string, unknown>) => { frames.push({ type, payload }); },
+    } as unknown as Parameters<typeof stageCliTeamNotificationPreview>[0];
+    await stageCliTeamNotificationPreview(ws, { teamId: "team", chatId: "chat", messageId: "message", content: "private text" });
+    assert.deepEqual(frames.map((frame) => frame.type), ["team_notification_preview_capabilities"]);
+    assert.equal(JSON.stringify(frames).includes("private text"), false);
+  });
+
+  // contract-test: supporting surface=cli assertions=notifications.content.privacy-boundary,notifications.surface.semantic-parity
+  it("stages at most ten lines, 2000 characters and a 60 character title after consent", async () => {
+    const frames: Array<{ type: string; payload: Record<string, unknown> }> = [];
+    const ws = {
+      waitForMessage: async (type: string, match: (payload: unknown) => boolean) => {
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        const sent = frames.at(-1);
+        assert.ok(sent && match({ request_id: sent.payload.request_id }));
+        return { payload: type.endsWith("capabilities_result")
+          ? { request_id: sent.payload.request_id, capability_id: "fresh-capability", recipient_count: 1 }
+          : { request_id: sent.payload.request_id, staged: 1 } };
+      },
+      sendAsync: async (type: string, payload: Record<string, unknown>) => { frames.push({ type, payload }); },
+    } as unknown as Parameters<typeof stageCliTeamNotificationPreview>[0];
+    await stageCliTeamNotificationPreview(ws, {
+      teamId: "team", chatId: "chat", messageId: "message",
+      content: Array.from({ length: 12 }, (_, index) => `${index}: ${"x".repeat(300)}`).join("\n"),
+      title: "T".repeat(80),
+    });
+    assert.equal(frames[1]?.type, "team_notification_preview_stage");
+    assert.equal(String(frames[1]?.payload.preview).length, 2000);
+    assert.ok(String(frames[1]?.payload.preview).split("\n").length <= 10);
+    assert.equal(String(frames[1]?.payload.title).length, 60);
+    assert.equal(frames[1]?.payload.capability_id, "fresh-capability");
+  });
+
+  // contract-test: supporting surface=cli assertions=notifications.content.privacy-boundary
+  it("treats a failed preview request as a generic notification fallback", async () => {
+    const frames: string[] = [];
+    const ws = {
+      waitForMessage: async () => { throw new Error("unavailable"); },
+      sendAsync: async (type: string) => { frames.push(type); },
+    } as unknown as Parameters<typeof stageCliTeamNotificationPreview>[0];
+    await assert.doesNotReject(stageCliTeamNotificationPreview(ws, {
+      teamId: "team", chatId: "chat", messageId: "message", content: "private text",
+    }));
+    assert.deepEqual(frames, ["team_notification_preview_capabilities"]);
+  });
+
+  // contract-test: supporting surface=cli assertions=notifications.content.privacy-boundary
+  it("falls back when the socket send callback stalls until the reply times out", async () => {
+    const frames: string[] = [];
+    const ws = {
+      waitForMessage: () => new Promise((_, reject) => {
+        setTimeout(() => reject(new Error("reply timed out")), 10);
+      }),
+      sendAsync: (type: string) => {
+        frames.push(type);
+        return new Promise<void>(() => {});
+      },
+    } as unknown as Parameters<typeof stageCliTeamNotificationPreview>[0];
+    await Promise.race([
+      stageCliTeamNotificationPreview(ws, {
+        teamId: "team", chatId: "chat", messageId: "message", content: "private text",
+      }),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error("preview fallback stalled")), 100)),
+    ]);
+    assert.deepEqual(frames, ["team_notification_preview_capabilities"]);
+  });
+});
 const {
   decryptBytesWithAesGcm,
   decryptWithAesGcmCombined,

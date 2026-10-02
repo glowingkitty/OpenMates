@@ -44,6 +44,7 @@ export interface DeepLinkHandlers {
     scrollToLatestResponse?: boolean,
     embedId?: string | null,
     autoplayVideo?: boolean,
+    teamId?: string | null,
   ) => Promise<void>;
   onSettings?: (path: string, hash: string) => void;
   onSignup?: (step: string) => void;
@@ -93,6 +94,7 @@ export function parseDeepLink(
     // Extract optional scroll param — 'latest-response' means scroll to top of newest assistant message
     const scrollToLatestResponse = params.get("scroll") === "latest-response";
 
+    const teamId = params.get("team-id");
     return {
       type: "chat",
       data: {
@@ -101,6 +103,7 @@ export function parseDeepLink(
         scrollToLatestResponse,
         embedId: params.get("embed-id") ?? params.get("embed_id"),
         autoplayVideo: params.has("autoplay-video") || params.has("autoplay_video"),
+        ...(teamId ? { teamId } : {}),
       },
     };
   }
@@ -251,12 +254,18 @@ export async function processDeepLink(
         return { type: "chat", processed: true };
       }
       if (handlers.onChat) {
+        if (parsed.data.teamId && handlers.isAuthenticated && !handlers.isAuthenticated()) {
+          if (typeof window !== "undefined") sessionStorage.setItem("pendingDeepLink", hash);
+          handlers.openLogin?.();
+          return { type: "chat", processed: true, requiresAuth: true };
+        }
         await handlers.onChat(
           parsed.data.chatId,
           parsed.data.messageId,
           parsed.data.scrollToLatestResponse,
           parsed.data.embedId ?? null,
           parsed.data.autoplayVideo ?? false,
+          parsed.data.teamId ?? null,
         );
         const settingsPath = getSettingsPathFromHash(hash);
         if (settingsPath && handlers.onSettings) {

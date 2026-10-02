@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 RECOVERY_OPERATIONS = {
     "prepare_preflight",
+    "verify_committed_team_message",
     "enqueue_inference",
     "claim_inference",
     "mark_outbox_dispatched",

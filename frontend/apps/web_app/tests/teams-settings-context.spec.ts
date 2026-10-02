@@ -14,6 +14,7 @@ const { expect, test } = require('./helpers/cookie-audit');
 const {
 	dismissSecurityReminderIfPresent,
 	fillMessageEditor,
+	focusMessageEditor,
 	loginToTestAccount,
 	startNewChat
 } = require('./helpers/chat-test-helpers');
@@ -51,6 +52,58 @@ function captureProtocol(page: Page, frames: ProtocolFrame[], apiUrl: string): v
 		};
 		websocket.on('framesent', capture('sent'));
 		websocket.on('framereceived', capture('received'));
+	});
+}
+
+async function installOneTeamPreflightAckDrop(page: Page): Promise<void> {
+	await page.addInitScript(() => {
+		const NativeWebSocket = window.WebSocket;
+		const state = { armedTeamId: null as string | null, turnId: null as string | null, dropped: 0 };
+		(window as Window & { __teamPreflightAckDrop?: {
+			arm: (teamId: string) => void;
+			snapshot: () => { turnId: string | null; dropped: number };
+		} }).__teamPreflightAckDrop = {
+			arm(teamId: string) {
+				state.armedTeamId = teamId;
+				state.turnId = null;
+			},
+			snapshot: () => ({ turnId: state.turnId, dropped: state.dropped }),
+		};
+
+		function TestWebSocket(this: WebSocket, ...args: ConstructorParameters<typeof WebSocket>) {
+			const socket = new NativeWebSocket(...args);
+			const nativeSend = socket.send.bind(socket);
+			socket.send = (data: string | ArrayBufferLike | Blob | ArrayBufferView) => {
+				if (typeof data === 'string' && state.armedTeamId && !state.turnId) {
+					try {
+						const frame = JSON.parse(data);
+						if (frame?.type === 'chat_turn_preflight' && frame.payload?.team_id === state.armedTeamId) {
+							state.turnId = frame.payload.turn_id;
+						}
+					} catch {
+						// Other WebSocket traffic is outside this fixture.
+					}
+				}
+				return nativeSend(data);
+			};
+			socket.addEventListener('message', (event: MessageEvent) => {
+				if (!state.armedTeamId || !state.turnId || state.dropped > 0) return;
+				try {
+					const frame = JSON.parse(String(event.data));
+					if (frame?.type === 'chat_turn_preflight_ack' && frame.payload?.turn_id === state.turnId) {
+						state.dropped += 1;
+						state.armedTeamId = null;
+						event.stopImmediatePropagation();
+					}
+				} catch {
+					// Other WebSocket traffic is outside this fixture.
+				}
+			});
+			return socket;
+		}
+		Object.setPrototypeOf(TestWebSocket, NativeWebSocket);
+		TestWebSocket.prototype = NativeWebSocket.prototype;
+		window.WebSocket = TestWebSocket as typeof WebSocket;
 	});
 }
 
@@ -125,9 +178,9 @@ async function openProfileMenu(page: Page): Promise<void> {
 }
 
 test.describe('Teams V1 context isolation', () => {
-	// contract-test: direct surface=gui.web assertions=teams.context.full-switch-local,teams.chat.encrypted-until-invoked
+	// contract-test: direct surface=gui.web assertions=teams.context.full-switch-local,teams.chat.encrypted-until-invoked,notifications.surface.semantic-parity
 	test('isolates Team chats and sends ordinary Team turns as scoped ciphertext', async ({ page }: { page: Page }) => {
-		test.setTimeout(180000);
+		test.setTimeout(300000);
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
 		await skipIfFeaturesDisabled(test, page, ['platform:teams']);
 
@@ -136,8 +189,10 @@ test.describe('Teams V1 context isolation', () => {
 		const uniqueSuffix = `${Date.now()}-${test.info().workerIndex}`;
 		const teamName = `E2E context team ${uniqueSuffix}`;
 		const ordinaryMessage = 'Private Team note for context isolation';
+		const lostAckMessage = 'Private Team note for preflight retry';
 		let teamId = '';
 		captureProtocol(page, frames, apiUrl);
+		await installOneTeamPreflightAckDrop(page);
 
 		try {
 			await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
@@ -218,6 +273,16 @@ test.describe('Teams V1 context isolation', () => {
 			});
 			const sentMessage = await waitForFrame(frames, sendFrameIndex, 'sent', 'chat_message_added', (payload) =>
 				payload.team_id === teamId);
+			const previewCapability = await waitForFrame(
+				frames, sendFrameIndex, 'sent', 'team_notification_preview_capabilities',
+				(payload) => payload.team_id === teamId,
+			);
+			expect(previewCapability.raw).not.toContain(ordinaryMessage);
+			expect(frames.indexOf(previewCapability)).toBeLessThan(frames.indexOf(preflight));
+			// This newly created Team has no other consenting member. No plaintext
+			// preview may be uploaded for the ordinary message.
+			expect(frames.slice(sendFrameIndex).filter((frame) =>
+				frame.direction === 'sent' && frame.type === 'team_notification_preview_stage')).toEqual([]);
 			expect(preflight.payload.team_id).toBe(teamId);
 			expect(preflight.payload.inference_request?.team_id).toBe(teamId);
 			expect(preflight.payload.inference_request?.message?.encrypted_content).toBeTruthy();
@@ -233,10 +298,112 @@ test.describe('Teams V1 context isolation', () => {
 			await expect(ordinaryTeamMessage.getByText('Sending...')).not.toBeVisible({ timeout: 30000 });
 			await expect(page.getByTestId('chat-header-banner')).not.toContainText('Creating new chat', { timeout: 15000 });
 			await expect(page.getByTestId('chat-header-banner')).toContainText('New team chat', { timeout: 15000 });
-			await page.waitForTimeout(6000);
+			// The literal mention is extracted into an encrypted code embed. It must
+			// remain an ordinary Team turn even with no AI provider configured.
+			const fencedMention = 'Literal code sample:\n```text\n@OpenMates summarize\n```';
+			const fencedSendFrameIndex = frames.length;
+			await focusMessageEditor(editor);
+			await page.keyboard.insertText(fencedMention);
+			await expect(editor).toContainText('Literal code sample:');
+			const codeEmbed = editor.locator('[data-testid="embed-full-width-wrapper"][data-embed-type="code-code"]');
+			await expect(codeEmbed).toContainText('@OpenMates summarize');
+			await messageInput.getByTestId('message-field').locator('[data-action="send-message"]').click();
+			const fencedPreflight = await waitForFrame(frames, fencedSendFrameIndex, 'sent', 'chat_turn_preflight',
+				(payload) => payload.team_id === teamId);
+			const fencedSend = await waitForFrame(frames, fencedSendFrameIndex, 'sent', 'chat_message_added',
+				(payload) => payload.team_id === teamId);
+			expect(fencedPreflight.payload.team_ai_invocation).toBeUndefined();
+			expect(fencedPreflight.payload.inference_request?.team_ai_invocation).toBeUndefined();
+			expect(fencedSend.payload.team_ai_invocation).toBeUndefined();
+			expect(fencedPreflight.raw).not.toContain(fencedMention);
+			expect(fencedSend.raw).not.toContain(fencedMention);
+			const fencedMessageId = String(fencedPreflight.payload.message_id ?? '');
+			expect(fencedMessageId).not.toBe('');
+			await waitForFrame(frames, fencedSendFrameIndex, 'received', 'chat_message_confirmed',
+				(payload) => payload.chat_id === fencedSend.payload.chat_id && payload.message_id === fencedMessageId);
+			// The composer keeps its send guard until draft cleanup finishes. Its
+			// delete receipt follows the fenced WebSocket dispatch, unlike the
+			// preview capability exchange, which precedes the preflight.
+			await waitForFrame(frames, fencedSendFrameIndex, 'sent', 'delete_draft',
+				(payload) => payload.chatId === fencedSend.payload.chat_id);
+			await waitForFrame(frames, fencedSendFrameIndex, 'received', 'draft_delete_receipt',
+				(payload) => payload.chat_id === fencedSend.payload.chat_id && payload.success === true);
+			const fencedTeamMessage = page.getByTestId('message-user').filter({ hasText: 'Literal code sample:' }).last();
+			await expect(fencedTeamMessage).toBeVisible({ timeout: 30000 });
+			await expect(fencedTeamMessage.getByText('Sending...')).not.toBeVisible({ timeout: 30000 });
+			await expect(messageInput.getByTestId('stop-processing-button')).not.toBeVisible({ timeout: 30000 });
+			await expect(editor).toHaveText('', { timeout: 30000 });
 
+			// A committed ordinary Team turn must survive losing its first preflight
+			// acknowledgement. The browser may replay the exact packet or recover
+			// the committed row through authoritative phased sync on reconnect.
+			await page.evaluate((activeTeamId) => {
+				const gate = (window as Window & { __teamPreflightAckDrop?: { arm: (teamId: string) => void } })
+					.__teamPreflightAckDrop;
+				if (!gate) throw new Error('Team preflight ACK drop fixture was not installed');
+				gate.arm(activeTeamId);
+			}, teamId);
+			const lostAckFrameIndex = frames.length;
+			await fillMessageEditor(page, editor, lostAckMessage);
+			await messageInput.getByTestId('message-field').locator('[data-action="send-message"]').click();
+			const lostAckPreflight = await waitForFrame(frames, lostAckFrameIndex, 'sent', 'chat_turn_preflight',
+				(payload) => payload.team_id === teamId);
+			const lostAckMessageId = String(lostAckPreflight.payload.message_id ?? '');
+			expect(lostAckMessageId).not.toBe('');
+			expect(lostAckPreflight.payload.inference_request?.team_ai_invocation).toBeUndefined();
+			expect(lostAckPreflight.payload.encrypted_user_message?.encrypted_content).toBeTruthy();
+			expect(lostAckPreflight.raw).not.toContain(lostAckMessage);
+			const droppedAckFrame = await waitForFrame(frames, lostAckFrameIndex, 'received', 'chat_turn_preflight_ack',
+				(payload) => payload.turn_id === lostAckPreflight.payload.turn_id);
+			await expect.poll(() => page.evaluate(() => (window as Window & {
+				__teamPreflightAckDrop?: { snapshot: () => { turnId: string | null; dropped: number } }
+			}).__teamPreflightAckDrop?.snapshot()), { timeout: 15000 }).toEqual({
+				turnId: lostAckPreflight.payload.turn_id,
+				dropped: 1,
+			});
+			await expect.poll(() => {
+				const recoveredFrames = frames.slice(frames.indexOf(droppedAckFrame) + 1);
+				if (recoveredFrames.filter((frame) => frame.direction === 'sent'
+					&& frame.type === 'chat_turn_preflight'
+					&& frame.payload.message_id === lostAckMessageId).length > 1) return 'retry';
+				return recoveredFrames.some((frame) => frame.direction === 'received'
+					&& frame.type === 'phased_sync_complete' && frame.payload.team_id === teamId)
+					? 'sync' : 'pending';
+			}, { timeout: 120000 }).not.toBe('pending');
+			const preflightAttempts = frames.slice(lostAckFrameIndex).filter((frame) => frame.direction === 'sent'
+				&& frame.type === 'chat_turn_preflight' && frame.payload.team_id === teamId);
+			// WebSocket transport injects a fresh top-level tracing span on every
+			// dispatch. Compare every other JSON field, including nested committed
+			// trace, ciphertext, turn, scope, and inference request, byte for byte.
+			const preflightWithoutTransportTrace = (frame: ProtocolFrame): string => {
+				const payload = { ...frame.payload };
+				delete payload._traceparent;
+				return JSON.stringify({ type: frame.type, payload });
+			};
+			const committedPreflight = preflightWithoutTransportTrace(lostAckPreflight);
+			expect(preflightAttempts.every((frame) =>
+				preflightWithoutTransportTrace(frame) === committedPreflight)).toBe(true);
 			const teamChatId = String(sentMessage.payload.chat_id ?? '');
 			expect(teamChatId).not.toBe('');
+			expect(lostAckPreflight.payload.chat_id).toBe(teamChatId);
+			await expect.poll(async () => {
+				const response = await page.request.get(
+					`${apiUrl}/v1/chats/${encodeURIComponent(teamChatId)}/messages/window?team_id=${encodeURIComponent(teamId)}&limit=100`
+				);
+				if (!response.ok()) return -1;
+				const body = await response.json() as { messages?: Array<{ message_id?: string; client_message_id?: string }> };
+				return (body.messages ?? []).filter((message) =>
+					(message.client_message_id ?? message.message_id) === lostAckMessageId).length;
+			}, { timeout: 30000 }).toBe(1);
+			const lostAckTeamMessage = page.getByTestId('message-user').filter({ hasText: lostAckMessage }).last();
+			await expect(lostAckTeamMessage).toBeVisible({ timeout: 30000 });
+			await expect(lostAckTeamMessage.getByText('Sending...')).not.toBeVisible({ timeout: 30000 });
+			expect(frames.slice(lostAckFrameIndex).filter((frame) => frame.direction === 'sent'
+				&& frame.type === 'chat_message_added' && frame.payload.message?.message_id === lostAckMessageId
+				&& frame.payload.team_ai_invocation !== undefined)).toEqual([]);
+			await page.waitForTimeout(6000);
+
+			expect(fencedSend.payload.chat_id).toBe(teamChatId);
 			await ensureSidebarOpen(page);
 			const visibleTeamChat = page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${teamChatId}"]`);
 			await expect(visibleTeamChat).toBeVisible({ timeout: 30000 });
@@ -246,19 +413,28 @@ test.describe('Teams V1 context isolation', () => {
 			// controls cannot overlap the message. Phone history is a full-screen
 			// overlay; the covered chat geometry is intentionally out of view there.
 			if ((page.viewportSize()?.width ?? 0) > 730) {
-				const detailsButton = page.getByTestId('chat-details-button');
-				await expect(detailsButton).toBeVisible({ timeout: 15000 });
-				const [messageBox, detailsBox] = await Promise.all([
-					ordinaryTeamMessage.boundingBox(),
-					detailsButton.boundingBox()
+				// The responsive header places Details in More alongside Reminders.
+				// Check that action in the open menu, then measure the closed toolbar.
+				const moreButton = page.getByTestId('chat-top-actions').locator('button.more-trigger');
+				await expect(moreButton).toBeVisible({ timeout: 15000 });
+				await moreButton.click();
+				await expect(moreButton).toHaveAttribute('aria-expanded', 'true');
+				await expect(page.getByTestId('chat-details-button')).toBeVisible({ timeout: 15000 });
+				await moreButton.click();
+				await expect(moreButton).toHaveAttribute('aria-expanded', 'false');
+				const userBubble = ordinaryTeamMessage.getByTestId('user-message-content');
+				await expect(userBubble).toBeVisible();
+				const [bubbleBox, controlBox] = await Promise.all([
+					userBubble.boundingBox(),
+					moreButton.boundingBox()
 				]);
-				expect(messageBox).not.toBeNull();
-				expect(detailsBox).not.toBeNull();
-				const overlapsDetails = messageBox!.x < detailsBox!.x + detailsBox!.width
-					&& messageBox!.x + messageBox!.width > detailsBox!.x
-					&& messageBox!.y < detailsBox!.y + detailsBox!.height
-					&& messageBox!.y + messageBox!.height > detailsBox!.y;
-				expect(overlapsDetails).toBe(false);
+				expect(bubbleBox).not.toBeNull();
+				expect(controlBox).not.toBeNull();
+				const overlapsControl = bubbleBox!.x < controlBox!.x + controlBox!.width
+					&& bubbleBox!.x + bubbleBox!.width > controlBox!.x
+					&& bubbleBox!.y < controlBox!.y + controlBox!.height
+					&& bubbleBox!.y + bubbleBox!.height > controlBox!.y;
+				expect(overlapsControl).toBe(false);
 			}
 			for (const personalChatId of personalChatIds) {
 				await expect(page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${personalChatId}"]`)).toHaveCount(0);
@@ -287,6 +463,23 @@ test.describe('Teams V1 context isolation', () => {
 			await expect(page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${teamChatId}"]`)).toHaveCount(0);
 			// Keep the verified Personal-only list and clean Personal chat visible long enough for proof capture.
 			await page.waitForTimeout(6000);
+
+			const teamWindowResponsePromise = page.waitForResponse((response) => {
+				if (!isApiPath(response, 'GET', `/v1/chats/${teamChatId}/messages/window`)) return false;
+				const params = new URL(response.url()).searchParams;
+				return params.get('team_id') === teamId && params.get('limit') === '1';
+			});
+			const teamLinkFrameIndex = frames.length;
+			await page.goto(getE2EDebugUrl(
+				`/#chat-id=${encodeURIComponent(teamChatId)}&team-id=${encodeURIComponent(teamId)}`
+			), { waitUntil: 'domcontentloaded' });
+			const teamWindowResponse = await teamWindowResponsePromise;
+			expect(teamWindowResponse.ok(), 'Team link chat access check must succeed').toBe(true);
+			await waitForPhasedSyncCompletion(frames, teamLinkFrameIndex, teamId);
+			await expect(page.getByTestId('profile-active-team-avatar')).toContainText(teamName, { timeout: 30000 });
+			await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', teamChatId, { timeout: 30000 });
+			await expect(page.getByTestId('message-user').filter({ hasText: ordinaryMessage })).toBeVisible({ timeout: 30000 });
+			await expect(page.getByTestId('message-user').filter({ hasText: lostAckMessage })).toBeVisible({ timeout: 30000 });
 		} finally {
 			if (teamId) {
 				const cleanupResponse = await page.request.delete(`${apiUrl}/v1/teams/${encodeURIComponent(teamId)}`);

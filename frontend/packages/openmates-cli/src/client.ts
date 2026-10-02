@@ -3056,6 +3056,43 @@ type WorkflowDeliveryClaim = WorkflowDeliveryDiscovery & {
   request_id?: string;
 };
 
+/** A fresh, recipient-scoped capability is required before uploading any preview text. */
+export async function stageCliTeamNotificationPreview(
+  ws: Pick<OpenMatesWsClient, "waitForMessage" | "sendAsync">,
+  input: { teamId: string; chatId: string; messageId: string; content: string; title?: string | null },
+): Promise<void> {
+  if (!input.content.trim()) return;
+  const request = async (kind: string, resultKind: string, payload: Record<string, unknown>): Promise<Record<string, unknown> | null> => {
+    const requestId = randomUUID();
+    const reply = ws.waitForMessage(
+      resultKind,
+      (value) => Boolean(value && typeof value === "object" && (value as Record<string, unknown>).request_id === requestId),
+      1_500,
+    );
+    try {
+      const send = ws.sendAsync(kind, { ...payload, request_id: requestId });
+      // The correlated reply's timeout also bounds a stalled socket send callback.
+      // A send failure still aborts immediately; neither branch leaves reply unobserved.
+      return (await Promise.race([reply, send.then(() => reply)])).payload as Record<string, unknown>;
+    } catch {
+      void reply.catch(() => {});
+      return null;
+    }
+  };
+  const capability = await request("team_notification_preview_capabilities", "team_notification_preview_capabilities_result", {
+    team_id: input.teamId, chat_id: input.chatId,
+  });
+  if (typeof capability?.capability_id !== "string" || !capability.capability_id ||
+      typeof capability.recipient_count !== "number" || capability.recipient_count <= 0) return;
+  const preview = input.content.trim().split(/\r?\n/).slice(0, 10).join("\n").slice(0, 2_000);
+  if (!preview) return;
+  const title = input.title?.trim().slice(0, 60);
+  await request("team_notification_preview_stage", "team_notification_preview_stage_result", {
+    team_id: input.teamId, chat_id: input.chatId, message_id: input.messageId,
+    capability_id: capability.capability_id, preview, ...(title ? { title } : {}),
+  });
+}
+
 export class OpenMatesClient {
   private readonly workflowDeliveriesBySocket = new WeakMap<OpenMatesWsClient, Map<string, WorkflowDeliveryDiscovery>>();
   readonly apiUrl: string;
@@ -6727,6 +6764,8 @@ export class OpenMatesClient {
     incognito?: boolean;
     /** Streaming callback — fires for typing, chunk, and done events. */
     onStream?: (event: import("./ws.js").StreamEvent) => void;
+    /** Set only by the attached human terminal chat UI, never by SDK callers. */
+    interactiveHuman?: boolean;
     /** Sub-chat lifecycle callback for progress/status output. */
     onSubChatEvent?: (event: SubChatEvent) => void;
     /** Approval callback used when the server asks before starting a large sub-chat batch. */
@@ -6868,6 +6907,8 @@ export class OpenMatesClient {
       taskUpdateJobs: taskUpdateJobsEnabled,
       projectFileJobs: !params.incognito,
       remoteCommandJobs: !params.incognito,
+      interactiveHuman: params.interactiveHuman === true && this.interactiveViewerAllowed
+        && process.stdin.isTTY === true && process.stdout.isTTY === true,
     });
     if (!params.incognito && !ownerId) {
       ws.close();
@@ -6919,6 +6960,7 @@ export class OpenMatesClient {
     let encryptedChatKey: string | null = null;
     let chatSlugLookupKey: Uint8Array | null = null;
     let baselineMessagesV = 0;
+    let notificationTitle: string | null = null;
     let terminalExpectedMessagesV = 1;
     let savedTurnId: string | null = null;
 
@@ -6959,6 +7001,13 @@ export class OpenMatesClient {
             chatKeyBytes = await decryptBytesWithAesGcm(encKey, wrappingKey);
             encryptedChatKey = encKey;
             if (!chatKeyBytes) throw new Error("Could not decrypt the saved chat key.");
+            if (typeof chat.details.encrypted_title === "string") {
+              try {
+                notificationTitle = await decryptWithAesGcmCombined(chat.details.encrypted_title, chatKeyBytes);
+              } catch {
+                // Missing or stale metadata only removes the optional mail title.
+              }
+            }
             const encryptedFocusId = chat.details.encrypted_active_focus_id;
             if (typeof encryptedFocusId === "string" && encryptedFocusId) {
               activeFocusId = await decryptWithAesGcmCombined(encryptedFocusId, chatKeyBytes);
@@ -7213,6 +7262,12 @@ export class OpenMatesClient {
 
       let ackPayload: Record<string, unknown>;
       try {
+        if (teamId) {
+          await stageCliTeamNotificationPreview(ws, {
+            teamId, chatId, messageId, content: finalMessage,
+            title: notificationTitle,
+          });
+        }
         if (params.projectId) {
           await prepareCliProjectFocusForPreflight({
             ws,
@@ -11412,17 +11467,61 @@ export class OpenMatesClient {
     return response.data;
   }
 
-  async updateEmailNotificationSettings(payload: {
+  async getEmailNotificationSettings(): Promise<{
     enabled: boolean;
-    email?: string | null;
     preferences: Record<string, boolean>;
+    choices: Record<string, unknown>;
+    backup_reminder_interval_days: number;
+  }> {
+    const { ws } = await this.openWsClient();
+    try {
+      const requestId = randomUUID();
+      const snapshotPromise = ws.waitForMessage(
+        "email_notification_settings_snapshot",
+        (value) => (value as Record<string, unknown> | null)?.request_id === requestId,
+      );
+      let snapshot;
+      try {
+        const send = ws.sendAsync("email_notification_settings_get", { request_id: requestId });
+        snapshot = await Promise.race([snapshotPromise, send.then(() => snapshotPromise)]);
+      } catch (error) {
+        void snapshotPromise.catch(() => {});
+        throw error;
+      }
+      const { request_id: _requestId, ...settings } = snapshot.payload as {
+        request_id: string;
+        enabled: boolean;
+        preferences: Record<string, boolean>;
+        choices: Record<string, unknown>;
+        backup_reminder_interval_days: number;
+      };
+      return settings;
+    } finally {
+      ws.close();
+    }
+  }
+
+  async updateEmailNotificationSettings(payload: {
+    enabled?: boolean;
+    email?: string | null;
+    preferences?: Record<string, boolean>;
     backup_reminder_interval_days?: number;
   }): Promise<unknown> {
     const { ws } = await this.openWsClient();
     try {
-      const ackPromise = ws.waitForMessage("email_notification_settings_ack");
-      ws.send("email_notification_settings", payload);
-      const ack = await ackPromise;
+      const requestId = randomUUID();
+      const ackPromise = ws.waitForMessage(
+        "email_notification_settings_ack",
+        (value) => (value as Record<string, unknown> | null)?.request_id === requestId,
+      );
+      let ack;
+      try {
+        const send = ws.sendAsync("email_notification_settings", { ...payload, request_id: requestId });
+        ack = await Promise.race([ackPromise, send.then(() => ackPromise)]);
+      } catch (error) {
+        void ackPromise.catch(() => {});
+        throw error;
+      }
       return ack.payload;
     } finally {
       ws.close();
@@ -12583,7 +12682,7 @@ export class OpenMatesClient {
 
   private makeWsClient(
     session: OpenMatesSession,
-    options: { taskUpdateJobs?: boolean; projectFileJobs?: boolean; remoteCommandJobs?: boolean } = {},
+    options: { taskUpdateJobs?: boolean; projectFileJobs?: boolean; remoteCommandJobs?: boolean; interactiveHuman?: boolean } = {},
   ): OpenMatesWsClient {
     const ws = new OpenMatesWsClient({
       apiUrl: session.apiUrl,
@@ -12597,6 +12696,7 @@ export class OpenMatesClient {
       taskUpdateJobs: options.taskUpdateJobs,
       projectFileJobs: options.projectFileJobs,
       remoteCommandJobs: options.remoteCommandJobs,
+      interactiveHuman: options.interactiveHuman,
       onForceLogout: () => {
         purgeLocalPrivateData();
         this.session = null;
@@ -12618,7 +12718,7 @@ export class OpenMatesClient {
    * Combines refreshWsToken() + makeWsClient() + ws.open() into one call
    * so every WebSocket usage gets a fresh HMAC token automatically.
    */
-  private async openWsClient(options: { taskUpdateJobs?: boolean; projectFileJobs?: boolean; remoteCommandJobs?: boolean } = {}): Promise<{
+  private async openWsClient(options: { taskUpdateJobs?: boolean; projectFileJobs?: boolean; remoteCommandJobs?: boolean; interactiveHuman?: boolean } = {}): Promise<{
     ws: OpenMatesWsClient;
     session: OpenMatesSession;
     ownerId: string | null;
@@ -12628,6 +12728,55 @@ export class OpenMatesClient {
     const ws = this.makeWsClient(session, options);
     await ws.open();
     return { ws, session, ownerId };
+  }
+
+  private interactiveViewerChatId: string | null = null;
+  private interactiveViewerSocket: OpenMatesWsClient | null = null;
+  private interactiveViewerAllowed = false;
+
+  beginInteractiveViewerSession(): void {
+    this.interactiveViewerAllowed = process.stdin.isTTY === true && process.stdout.isTTY === true;
+  }
+
+  endInteractiveViewerSession(): void {
+    this.interactiveViewerAllowed = false;
+    this.clearInteractiveChatViewer();
+  }
+
+  /** Keep one TTY chat viewer present after its request socket has closed. */
+  async setInteractiveChatViewer(chatId: string): Promise<void> {
+    if (!this.interactiveViewerAllowed || !process.stdin.isTTY || !process.stdout.isTTY || !this.hasSession()) return;
+    if (this.interactiveViewerChatId === chatId && this.interactiveViewerSocket) return;
+    this.clearInteractiveChatViewer();
+    this.interactiveViewerChatId = chatId;
+    try {
+      const { ws } = await this.openWsClient({ taskUpdateJobs: false, interactiveHuman: true });
+      if (this.interactiveViewerChatId !== chatId) { ws.close(); return; }
+      this.interactiveViewerSocket = ws;
+      ws.onClose(() => {
+        if (this.interactiveViewerSocket !== ws) return;
+        this.interactiveViewerSocket = null;
+        if (this.interactiveViewerChatId !== chatId) return;
+        const retry = setTimeout(() => {
+          if (this.interactiveViewerChatId === chatId) void this.setInteractiveChatViewer(chatId);
+        }, 1_000);
+        retry.unref?.();
+      });
+      ws.send("set_active_chat", { chat_id: chatId });
+    } catch {
+      if (this.interactiveViewerChatId !== chatId) return;
+      const retry = setTimeout(() => {
+        if (this.interactiveViewerChatId === chatId) void this.setInteractiveChatViewer(chatId);
+      }, 1_000);
+      retry.unref?.();
+    }
+  }
+
+  clearInteractiveChatViewer(): void {
+    this.interactiveViewerChatId = null;
+    const ws = this.interactiveViewerSocket;
+    this.interactiveViewerSocket = null;
+    ws?.close();
   }
 
   /**

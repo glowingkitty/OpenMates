@@ -8,7 +8,7 @@
 // Assertions: apple-watch.hub.compact-navigation, apple-watch.lists.read-only-private,
 //             apple-watch.handoff.exact-private.
 // Specification: specifications/features/apple-notifications/specification.yml
-// Assertions: apple-notifications.action.routing-coherent
+// Assertions: apple-notifications.action.routing-coherent, apple-notifications.delivery.idempotent-visible
 
 import SwiftUI
 
@@ -194,6 +194,7 @@ private enum WatchHubCopy {
 
 struct WatchHubView: View {
     @StateObject private var dataService: WatchHubDataService
+    private let chatRuntime: WatchChatRuntime
     @State private var selectedSection: WatchHubSection?
     @State private var showsSectionMenu = true
     @State private var isSearching = false
@@ -204,16 +205,15 @@ struct WatchHubView: View {
 
     private let currentUserId: String?
     private let currentUsername: String?
-    private let webSocketToken: String?
     private let notificationRoute: WatchNotificationRoute?
     private let onOpenItem: (WatchItemOpenRequest) -> Void
     private let onOpenSettings: () -> Void
     private let onCreate: (WatchHubSection) -> Void
 
     init(
+        chatRuntime: WatchChatRuntime,
         currentUserId: String?,
         currentUsername: String? = nil,
-        webSocketToken: String?,
         notificationRoute: WatchNotificationRoute? = nil,
         fixtureTasks: [WatchTaskListItem]? = nil,
         fixtureWorkflows: [WatchWorkflowListItem]? = nil,
@@ -221,9 +221,9 @@ struct WatchHubView: View {
         onOpenSettings: @escaping () -> Void,
         onCreate: @escaping (WatchHubSection) -> Void
     ) {
+        self.chatRuntime = chatRuntime
         self.currentUserId = currentUserId
         self.currentUsername = currentUsername
-        self.webSocketToken = webSocketToken
         self.notificationRoute = notificationRoute
         self.onOpenItem = onOpenItem
         self.onOpenSettings = onOpenSettings
@@ -243,11 +243,10 @@ struct WatchHubView: View {
                     Color.black
                 case .chat:
                     WatchChatShellView(
-                        currentUserId: currentUserId,
+                        runtime: chatRuntime,
                         currentUsername: currentUsername,
-                        webSocketToken: webSocketToken,
                         notificationRoute: notificationRoute,
-                        isVisible: !showsSectionMenu,
+                        isVisible: !showsSectionMenu && popupMessage == nil,
                         onOpenHub: openSectionMenu,
                         onOpenSettings: showSettingsPopup
                     )

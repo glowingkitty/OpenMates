@@ -1,0 +1,403 @@
+schema_version: 2
+goal: 'Investigate, implement, and verify email notifications for completed chat responses and a daily
+  workflow-run digest in OpenMates.
+
+  '
+scope:
+  in:
+  - Independent default-on chat and scheduled Workflow digest categories.
+  - Preserve identifiable opt-outs, unsubscribes, and unrelated category settings.
+  - Record explicit preference choices separately from defaults.
+  - Verified account contact addresses through the existing Vault path.
+  - Fresh foreground web/Apple presence and interactive CLI chat viewing.
+  - Completed visible Mate and committed Team user messages, excluding own and all Workflow output.
+  - Content-free defaults, authenticated links, and separately consented bounded previews.
+  - One fixed-window daily digest with computation and acknowledged delivery reported separately.
+  - Automated, failure-blocking preference migration during supported core upgrades.
+  out:
+  - Production rollout; webhook functionality; workflow UI and device-delivery acknowledgement changes.
+decisions:
+- id: legacy_transition
+  status: active
+  decision: 'User chose a clean default-on transition on 2026-10-01 after disclosure that legacy master=false
+    values have no provenance. Reset only ambiguous master values; stored category false and identifiable
+    user opt-outs still win.
+
+    '
+  reason: User requirements and inspected encryption/delivery boundaries.
+  decided_at: '2026-10-01'
+- id: unrelated_mail
+  status: active
+  decision: 'Legacy master-off accounts had no effective backup/webhook permission; preserve that effective
+    off state while enabling the two requested categories.
+
+    '
+  reason: User requirements and inspected encryption/delivery boundaries.
+  decided_at: '2026-10-01'
+- id: verified_email
+  status: active
+  decision: 'Resolve the verified matching account_contact_emails Vault ciphertext and check ignored_emails
+    at send time. Client-only encrypted account addresses cannot be decrypted offline and are never bypassed.
+
+    '
+  reason: User requirements and inspected encryption/delivery boundaries.
+  decided_at: '2026-10-01'
+- id: digest_window
+  status: active
+  decision: 'Daily 09:00 UTC cutoff, preceding half-open 24-hour acceptance window. Fixed cutoff survives
+    retries. Scheduled runs qualify regardless of user activity; manual and test runs never qualify. Webhook
+    eligibility has an allowlist seam.
+
+    '
+  reason: User requirements and inspected encryption/delivery boundaries.
+  decided_at: '2026-10-01'
+- id: team_preview
+  status: active
+  decision: 'Authorized sender obtains scoped recipient-consent capability before transmitting a bounded
+    preview on the first-party WebSocket. Server seals per-recipient Vault envelopes with short TTL. No
+    stored chat or Team keys are disclosed. Missing capability/material falls back to private mail.
+
+    '
+  reason: User requirements and inspected encryption/delivery boundaries.
+  decided_at: '2026-10-01'
+- id: workflow_preview
+  status: active
+  decision: 'Opted-in titles may be decrypted using existing Workflow Vault encryption. Execution context
+    is not a user output preview; do not mail internal inputs or arbitrary output_summary structures.
+
+    '
+  reason: User requirements and inspected encryption/delivery boundaries.
+  decided_at: '2026-10-01'
+- id: coordination
+  status: active
+  decision: 'TASK-3503/session 3e87 owns Workflow UI and delivery acknowledgement handlers. Digest reads
+    their acknowledged state and never updates it.
+
+    '
+  reason: User requirements and inspected encryption/delivery boundaries.
+  decided_at: '2026-10-01'
+- id: automated_migration
+  status: active
+  decision: Upgrade the production CLI before the first core rollout, require its setup-gate capability,
+    stop the old API and email consumers, and run fresh cms-setup successfully before resuming them.
+    The migration is packaged, transactional and idempotent; no operator SQL is required.
+  reason: User explicitly requires safe automatic migration on production deployment. Old updater
+    processes cannot execute newly added ordering until upgraded.
+  decided_at: '2026-10-01'
+checks:
+- Focused backend unit and CLI viewer checks.
+- Isolated GitHub product tests for settings, Team preview transport, chat dispatch and digest capture.
+- Source privacy and race review, migration/setup verification, and authenticated links.
+- Controlled live email delivery with provider acceptance and mailbox receipt recorded separately.
+references:
+- feature.notifications@1
+- TASK-7066
+id: chat-email-workflow-digest
+title: Chat response email and daily Workflow digest
+status: implementing
+scenarios:
+- id: S-1
+  title: Private message email after reconnect grace
+  given:
+  - A completed message exists and no human foreground client views OpenMates.
+  when:
+  - The dispatch grace expires.
+  then:
+  - Fresh preferences, verified address, membership, presence and viewed state gate one email.
+- id: S-2
+  title: Independent categories and explicit preview consent
+  given:
+  - An account has default or explicit category choices.
+  when:
+  - Another client changes one category.
+  then:
+  - Only that choice changes; unknown categories and opt-outs survive.
+- id: S-3
+  title: Daily scheduled runs with pending delivery
+  given:
+  - Scheduled, manual and test runs cross the daily UTC cutoff.
+  when:
+  - The daily dispatcher aggregates the immutable window.
+  then:
+  - Only scheduled runs qualify; acknowledged chat delivery stays separate.
+- id: S-4
+  title: External controlled mailbox evidence
+  given:
+  - Controlled test mailbox access is available.
+  when:
+  - The deployed worker sends a synthetic sample.
+  then:
+  - Provider acceptance and actual receipt are separately recorded.
+- id: S-5
+  title: Core upgrade automatically migrates existing preferences
+  given:
+  - An existing installation is updated using the released CLI with the setup-gate capability.
+  when:
+  - A full or filtered core-runtime update runs.
+  then:
+  - Old API and email consumers stop before fresh cms-setup; setup failure prevents their restart.
+  - Repeated setup preserves explicit choices, category opt-outs and unsubscribes.
+acceptance_criteria:
+- id: AC-1
+  scenario: S-1
+  text: Foreground human presence, viewed state, opt-outs and duplicate completions govern content-free
+    or consented preview email.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: playwright
+  verification_ids:
+  - T-CHAT
+- id: AC-2
+  scenario: S-2
+  text: Sparse persisted choices preserve other devices and categories, defaults and identifiable opt-outs.
+  required: true
+  status: satisfied
+  coverage_status: covered
+  verification_scope: playwright
+  verification_ids:
+  - T-PREFS
+- id: AC-3
+  scenario: S-3
+  text: Scheduled-only daily aggregation preserves cutoff, dedupe, privacy and pending device delivery
+    states.
+  required: true
+  status: satisfied
+  coverage_status: covered
+  verification_scope: playwright
+  verification_ids:
+  - T-DIGEST
+- id: AC-4
+  scenario: S-4
+  text: Actual controlled-mailbox receipt is recorded separately from provider acceptance; unavailable
+    configuration remains unverified.
+  required: true
+  status: blocked
+  coverage_status: blocked
+  verification_scope: manual
+- id: AC-5
+  scenario: S-5
+  text: Supported core updates automatically run the packaged migration before compatible email
+    consumers resume, block on failure, and preserve preferences on repeated setup.
+  required: true
+  status: satisfied
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids:
+  - T-UPGRADE-CLI
+  - T-UPGRADE-SIDECAR
+  - T-MIGRATION
+  - T-SELFHOST
+tests:
+- id: T-CHAT
+  type: playwright
+  file: frontend/apps/web_app/tests/chat-response-email.spec.ts
+  command: 'Isolated CI coordinator: chat-response-email.spec.ts'
+  assertions:
+  - Foreground human presence, viewed state, opt-outs and duplicate completions govern content-free or
+    consented preview email.
+  covers:
+  - AC-1
+  red_phase:
+    required: false
+    expected: Inspected source establishes the gaps.
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+  target: runner-private localhost
+  execution_environment: isolated_github_ci
+- id: T-PREFS
+  type: playwright
+  file: frontend/apps/web_app/tests/notification-email-preferences.spec.ts
+  command: 'Isolated CI coordinator: notification-email-preferences.spec.ts'
+  assertions:
+  - Sparse persisted choices preserve other devices and categories, defaults and identifiable opt-outs.
+  covers:
+  - AC-2
+  red_phase:
+    required: false
+    expected: Inspected source establishes the gaps.
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+  target: runner-private localhost
+  execution_environment: isolated_github_ci
+- id: T-DIGEST
+  type: playwright
+  file: frontend/apps/web_app/tests/workflow-email-digest.spec.ts
+  command: 'Isolated CI coordinator: workflow-email-digest.spec.ts'
+  assertions:
+  - Scheduled-only daily aggregation preserves cutoff, dedupe, privacy and pending device delivery states.
+  covers:
+  - AC-3
+  red_phase:
+    required: false
+    expected: Inspected source establishes the gaps.
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+  target: runner-private localhost
+  execution_environment: isolated_github_ci
+- id: T-LIVE
+  type: manual
+  file: docs/architecture/core/chat-workflow-email-notifications.md
+  command: Controlled dev-host mailbox probe
+  assertions:
+  - Actual controlled-mailbox receipt is recorded separately from provider acceptance; unavailable configuration
+    remains unverified.
+  covers:
+  - AC-4
+  red_phase:
+    required: false
+    expected: Inspected source establishes the gaps.
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+- id: T-UPGRADE-CLI
+  type: unit
+  file: frontend/packages/openmates-cli/tests/server.test.ts
+  command: Node CLI server update unit checks
+  assertions:
+  - Core update selection includes fresh setup and the stopped email cohort; setup failure blocks up.
+  covers:
+  - AC-5
+  red_phase:
+    required: false
+    expected: Existing updater inspection established the ordering gap.
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+- id: T-UPGRADE-SIDECAR
+  type: pytest
+  file: backend/tests/test_admin_sidecar_updates.py
+  command: python -m pytest backend/tests/test_admin_sidecar_updates.py -q
+  assertions:
+  - Core setup follows a successful stop and precedes startup; stop/setup failure blocks startup.
+  covers:
+  - AC-5
+  red_phase:
+    required: false
+    expected: Existing sidecar inspection established the ordering gap.
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+- id: T-MIGRATION
+  type: playwright
+  file: frontend/apps/web_app/tests/notification-email-migration.spec.ts
+  command: 'Isolated CI coordinator: notification-email-migration.spec.ts'
+  assertions:
+  - Packaged SQL preserves identifiable opt-outs and unrelated categories on repeated application.
+  covers:
+  - AC-5
+  red_phase:
+    required: false
+    expected: Inspected source establishes missing migration.
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+  target: runner-private localhost
+  execution_environment: isolated_github_ci
+- id: T-SELFHOST
+  type: playwright
+  file: frontend/apps/web_app/tests/selfhost-smoke.spec.ts
+  command: 'Isolated CI coordinator: selfhost-smoke.spec.ts --mode selfhost --no-prepared-builds'
+  assertions:
+  - A real image update reaches runtime completion after successful fresh setup and starts the compatible email cohort.
+  covers:
+  - AC-5
+  red_phase:
+    required: false
+    expected: Existing updater inspection established the ordering gap.
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+  target: runner-private self-host stack
+  execution_environment: isolated_github_ci
+implementation_state:
+  subject_commit: uncommitted session 02ea candidate
+approvals:
+  specification:
+    status: not_required
+    reason: Existing feature.notifications privacy/idempotency assertions reused; explicit user-authored
+      requirements authorize the task scope.
+  plan:
+    status: approved
+    approved_at: '2026-10-01'
+tasks:
+- id: TASK-7066
+  title: Implement chat response emails and daily workflow-run digest
+  status: in_progress
+  phase: running_checks
+  covers:
+    scenarios:
+    - S-1
+    - S-2
+    - S-3
+    - S-4
+    - S-5
+    acceptance_criteria:
+    - AC-1
+    - AC-2
+    - AC-3
+    - AC-4
+    - AC-5
+  expected_files:
+  - backend/core/api/app/services/chat_email_notification_service.py
+  - backend/core/api/app/services/workflow_digest_service.py
+  verification_ids:
+  - T-CHAT
+  - T-PREFS
+  - T-DIGEST
+  - T-LIVE
+  - T-UPGRADE-CLI
+  - T-UPGRADE-SIDECAR
+  - T-MIGRATION
+  - T-SELFHOST
+  dependencies: []
+  blockers:
+  - Controlled external mailbox and exact-source Apple runtime evidence unavailable
+  follow_up_tasks: []
+  ownership:
+    files:
+    - notification email paths
+    shared_files:
+    - WebSocket lifecycle and settings client integration
+attempts:
+- id: implementation
+  task_id: TASK-7066
+  outcome: planned
+  approach: Use existing encryption, email, presence and workflow delivery seams; verify in isolated CI.
+  recorded_at: '2026-10-01'
+handoff:
+  current_task_id: TASK-7066
+  next_action: Publish the reviewed implementation to dev, activate compatible services, and verify
+    aggregate migration invariants. Team replay and authenticated links passed on e1a390283f. Automated-upgrade, chat, digest, migration, settings and Personal/run-link product checks passed on their
+    recorded sources. Web lifecycle remains red on two login console errors; a bounded unrelated
+    repair awaits user authorization. External mailbox and native runtime proof remain unavailable.
+  command: python3 scripts/sessions.py ci-source --session 02ea
+  expected_outcome: Immutable source with product verification receipts.
+  last_verified_commit: 174 combined notification and Team backend checks, 55 transaction-extension and five frontend retry/waiter checks,
+    and 9 focused notification CLI checks; 137 current-dev integrated
+    CLI server/Caddy checks and 10 sidecar upgrade checks; integrated CLI build; migration, chat SMTP,
+    digest SMTP, settings and Personal/run links passed on their recorded sources without skips;
+    automatic self-host upgrade/install passes all four product cases on c8082fd6e3;
+    complete Team commit/replay/navigation passes on e1a390283f
+  blocker:
+    live_mailbox: No controlled inbox configuration; user unavailable for setup.
+    native_runtime: No exact-source Mac/iOS build or lifecycle evidence.

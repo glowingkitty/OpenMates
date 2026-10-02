@@ -8996,10 +8996,11 @@ const SETTINGS_EXECUTABLE_COMMANDS: SettingsInfoCommand[] = [
   { path: ["billing", "gift-card", "purchased"], description: "List purchased unused gift cards", examples: ["openmates settings billing gift-card purchased"] },
   { path: ["billing", "auto-topup", "low-balance", "set"], description: "Configure low-balance auto top-up", examples: ["openmates settings billing auto-topup low-balance set --enabled true --amount 1000 --currency eur --email you@example.com"] },
   { path: ["notifications", "status"], description: "Show notification settings", examples: ["openmates settings notifications status --json"] },
+  { path: ["notifications", "email", "get"], description: "Show current email notification settings", examples: ["openmates settings notifications email get --json"] },
   { path: ["notifications", "list"], description: "List recent notification events", examples: ["openmates settings notifications list --limit 20 --json"] },
   { path: ["notifications", "stream"], description: "Stream notification events with SSE", examples: ["openmates settings notifications stream", "openmates settings notifications stream --count 1 --json"] },
-  { path: ["notifications", "email", "set"], description: "Configure email notifications", examples: ["openmates settings notifications email set --enabled true --email you@example.com --ai-responses true --backup-reminder true --webhook-chats true"] },
-  { path: ["notifications", "backup", "set"], description: "Configure backup reminder emails", examples: ["openmates settings notifications backup set --enabled true --interval 30 --email you@example.com"] },
+  { path: ["notifications", "email", "set"], description: "Configure email notifications", examples: ["openmates settings notifications email set --enabled true --ai-responses true --workflow-runs true --include-content false"] },
+  { path: ["notifications", "backup", "set"], description: "Configure backup reminder emails", examples: ["openmates settings notifications backup set --enabled true --interval 30"] },
   { path: ["reminders", "list"], description: "List active reminders", examples: ["openmates settings reminders list"] },
   { path: ["reminders", "update"], description: "Update a reminder", examples: ["openmates settings reminders update <id> --enabled false"] },
   { path: ["reminders", "delete"], description: "Delete a reminder", examples: ["openmates settings reminders delete <id> --yes"] },
@@ -10892,18 +10893,17 @@ async function handleSettings(
   }
 
   if (matches(tokens, ["notifications", "status"])) {
-    const user = await client.whoAmI() as Record<string, unknown>;
-    const status = {
-      enabled: user.email_notifications_enabled ?? false,
-      preferences: user.email_notification_preferences ?? {},
-      backup_reminder_interval_days: user.backup_reminder_interval_days ?? null,
-      encrypted_notification_email_configured: Boolean(user.encrypted_notification_email),
-    };
+    const status = await client.getEmailNotificationSettings();
     if (flags.json === true) {
       printJson(status);
     } else {
       printGenericObject(status);
     }
+    return;
+  }
+
+  if (matches(tokens, ["notifications", "email", "get"])) {
+    await printSettingsResult(client.getEmailNotificationSettings(), flags);
     return;
   }
 
@@ -10929,14 +10929,21 @@ async function handleSettings(
   }
 
   if (matches(tokens, ["notifications", "email", "set"])) {
-    const enabled = parseOnOff(String(flags.enabled ?? ""), "email notifications");
-    const email = typeof flags.email === "string" ? flags.email : null;
-    if (enabled && !email) throw new Error("Provide --email when enabling email notifications.");
-    const preferences = {
-      aiResponses: parseOptionalBoolean(flags["ai-responses"], true, "AI response notifications"),
-      backupReminder: parseOptionalBoolean(flags["backup-reminder"], false, "backup reminder notifications"),
-      webhookChats: parseOptionalBoolean(flags["webhook-chats"], false, "webhook chat notifications"),
-    };
+    const enabled = flags.enabled === undefined ? undefined : parseOnOff(String(flags.enabled), "email notifications");
+    const email = typeof flags.email === "string" ? flags.email : undefined;
+    const preferences: Record<string, boolean> = {};
+    for (const [flag, key, label] of [
+      ["ai-responses", "aiResponses", "AI response notifications"],
+      ["workflow-runs", "workflowRuns", "workflow run digest"],
+      ["include-content", "includeContent", "email content previews"],
+      ["backup-reminder", "backupReminder", "backup reminder notifications"],
+      ["webhook-chats", "webhookChats", "webhook chat notifications"],
+    ]) {
+      if (flags[flag] !== undefined) preferences[key] = parseOnOff(String(flags[flag]), label);
+    }
+    if (enabled === undefined && Object.keys(preferences).length === 0) {
+      throw new Error("Provide --enabled or at least one email category flag.");
+    }
     await printSettingsMutationResult(
       client.updateEmailNotificationSettings({ enabled, email, preferences }),
       flags,
@@ -10946,14 +10953,12 @@ async function handleSettings(
 
   if (matches(tokens, ["notifications", "backup", "set"])) {
     const enabled = parseOnOff(String(flags.enabled ?? ""), "backup reminders");
-    const email = typeof flags.email === "string" ? flags.email : null;
+    const email = typeof flags.email === "string" ? flags.email : undefined;
     const interval = parseRequiredNumber(flags.interval, "--interval");
-    if (enabled && !email) throw new Error("Provide --email when enabling backup reminders.");
     await printSettingsMutationResult(
       client.updateEmailNotificationSettings({
-        enabled,
         email,
-        preferences: { aiResponses: false, backupReminder: enabled },
+        preferences: { backupReminder: enabled },
         backup_reminder_interval_days: interval,
       }),
       flags,

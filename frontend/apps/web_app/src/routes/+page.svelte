@@ -76,6 +76,7 @@
 		getSettingsPathFromHash,
 		getApiEndpoint
 	} from '@repo/ui';
+	import { activeTeamId, listTeams, getTeamKey, setActiveTeamContext } from '@repo/ui';
 	import {
 		checkAndClearMasterKeyOnLoad,
 		isProgrammaticHashUpdate,
@@ -125,6 +126,8 @@
 	let anonymousHashRecoveryChatId = $state<string | null>(null);
 	let authenticatedHashRecoveryChatId = $state<string | null>(null);
 	let originalHashChatId: string | null = null; // Store original hash chat ID from URL (read before anything modifies it)
+	let pendingTeamDeepLink: { chatId: string; teamId: string } | null = null;
+	let authorizedTeamDeepLink: string | null = null;
 	let deepLinkProcessed = $state(false); // Track if any deep link was processed during onMount to avoid loading welcome chat
 	let pendingDeepLinkHandler: ((event: Event) => void) | null = null; // Store event handler for cleanup
 	let pendingAuthenticatedDeepLinkCleanup: (() => void) | null = null;
@@ -212,6 +215,14 @@
 		if (!browser || isCurrentChatNavigationTarget(chatId)) return false;
 		console.debug(`[+page.svelte] Skipping stale ${source} for chat ${chatId}`);
 		return true;
+	}
+
+	function teamChatLinkNeedsValidation(chatId: string): boolean {
+		const params = browser ? new URLSearchParams(window.location.hash.replace(/^#\/?/, '')) : null;
+		const teamId = params?.get('chat-id') === chatId ? params.get('team-id') : null;
+		const pendingTeamId = pendingTeamDeepLink?.chatId === chatId ? pendingTeamDeepLink.teamId : null;
+		const scopedTeamId = teamId || pendingTeamId;
+		return !!scopedTeamId && authorizedTeamDeepLink !== `${chatId}/${scopedTeamId}`;
 	}
 
 	type AuthenticatedDraftResponse = {
@@ -658,13 +669,83 @@
 	 * Supports both user chats (from IndexedDB) and demo/legal chats (from static data)
 	 * After loading, immediately clears the URL to prevent sharing chat history
 	 */
+	async function prepareTeamChatDeepLink(chatId: string, teamId: string): Promise<boolean> {
+		pendingTeamDeepLink = { chatId, teamId };
+		authorizedTeamDeepLink = null;
+		if (!$authStore.isAuthenticated) {
+			sessionStorage.setItem('pendingDeepLink', window.location.hash);
+			loginInterfaceOpen.set(true);
+			return false;
+		}
+		try {
+			await cryptoReady;
+			const team = (await listTeams()).find((candidate) => candidate.team_id === teamId && candidate.status === 'active');
+			if (!team) throw new Error('Team membership unavailable');
+			await getTeamKey(teamId);
+			// A chat ID alone is not proof of Team scope. This endpoint checks the
+			// authenticated membership and chat's hashed Team ID before returning.
+			const response = await fetch(getApiEndpoint(
+				`/v1/chats/${encodeURIComponent(chatId)}/messages/window?team_id=${encodeURIComponent(teamId)}&limit=1`
+			), { credentials: 'include' });
+			if (!response.ok) throw new Error('Team chat access unavailable');
+			if (get(activeTeamId) !== teamId) {
+				// ActiveChat clears the previous workspace selection asynchronously.
+				// Wait for that reset before selecting a cached Team chat, otherwise
+				// its final deselection can erase the deep-link selection.
+				const previousChatReset = activeChat?.getCurrentChatId()
+					? new Promise<void>((resolve, reject) => {
+						const timeout = setTimeout(() => {
+							window.removeEventListener('globalChatDeselected', onDeselected);
+							reject(new Error('Previous chat did not finish closing'));
+						}, 10_000);
+						const onDeselected = () => {
+							clearTimeout(timeout);
+							resolve();
+						};
+						window.addEventListener('globalChatDeselected', onDeselected, { once: true });
+					})
+					: null;
+				setActiveTeamContext(team);
+				if (previousChatReset) await previousChatReset;
+			}
+
+			// Context switching starts Team-scoped phased sync and clears the prior
+			// Personal selection. Open only after its authenticated metadata is local.
+			const deadline = Date.now() + 30_000;
+			while (Date.now() < deadline) {
+				if (get(activeTeamId) !== teamId) {
+					pendingTeamDeepLink = null;
+					return false;
+				}
+				const chat = await chatDB.getRawChat(chatId).catch(() => null);
+				if (chat?.team_id === teamId) {
+					authorizedTeamDeepLink = `${chatId}/${teamId}`;
+					pendingTeamDeepLink = null;
+					return true;
+				}
+				await new Promise((resolve) => setTimeout(resolve, 250));
+			}
+			throw new Error('Team chat did not arrive during sync');
+		} catch (error) {
+			pendingTeamDeepLink = null;
+			console.warn('[+page.svelte] Team chat link could not be opened:', error);
+			notificationStore.error('Team chat could not be opened');
+			originalHashChatId = null;
+			activeChatStore.setWithoutHashUpdate(null);
+			replaceState(window.location.pathname + window.location.search, {});
+			return false;
+		}
+	}
+
 	async function handleChatDeepLink(
 		chatId: string,
 		messageId?: string | null,
 		scrollToLatestResponse?: boolean,
 		embedId?: string | null,
-		autoplayVideo?: boolean
+		autoplayVideo?: boolean,
+		teamId?: string | null
 	) {
+		if (teamId && !(await prepareTeamChatDeepLink(chatId, teamId))) return;
 		pendingAuthenticatedDeepLinkCleanup?.();
 		pendingAuthenticatedDeepLinkCleanup = null;
 		console.debug(
@@ -1248,6 +1329,7 @@
 			!activeChatComponent ||
 			!$authStore.isAuthenticated ||
 			!activeChatId ||
+			teamChatLinkNeedsValidation(activeChatId) ||
 			isStaticPublicChatTarget(activeChatId) ||
 			isAnonymousChatId(activeChatId) ||
 			lastLoadedChatId === activeChatId ||
@@ -1412,6 +1494,7 @@
 			hashChatIdToLoad = null;
 		}
 
+		if (hashChatIdToLoad && teamChatLinkNeedsValidation(hashChatIdToLoad)) return;
 		if (hashChatIdToLoad) {
 			console.debug(
 				'[+page.svelte] URL hash contains chat ID, loading hash chat (priority 1):',
@@ -2298,7 +2381,7 @@
 					originalHashChatId = null;
 					shouldSuppressForcedLogoutHash = true;
 					activeChatStore.clearActiveChat();
-				} else {
+				} else if (!teamChatLinkNeedsValidation(originalHashChatId)) {
 					// Set active chat store immediately to prevent race conditions
 					activeChatStore.setActiveChat(originalHashChatId);
 				}
@@ -3226,7 +3309,8 @@
 				messageId?: string | null,
 				scrollToLatestResponse?: boolean,
 				embedId?: string | null,
-				autoplayVideo?: boolean
+				autoplayVideo?: boolean,
+				teamId?: string | null
 			) => {
 				// Update originalHashChatId to reflect the new hash (important for sync completion handler)
 				originalHashChatId = chatId;
@@ -3235,10 +3319,11 @@
 				isProcessingInitialHash = true;
 				deepLinkProcessed = true; // Mark that a deep link was processed
 
-				await handleChatDeepLink(chatId, messageId, scrollToLatestResponse, embedId, autoplayVideo);
-
-				// Reset flag after processing
-				isProcessingInitialHash = false;
+				try {
+					await handleChatDeepLink(chatId, messageId, scrollToLatestResponse, embedId, autoplayVideo, teamId);
+				} finally {
+					isProcessingInitialHash = false;
+				}
 			},
 			onSettings: (path: string, fullHash: string) => {
 				deepLinkProcessed = true; // Mark that a deep link was processed

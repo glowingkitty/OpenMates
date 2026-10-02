@@ -289,13 +289,23 @@ class BrevoProvider(BaseEmailProvider):
                             logger.error(f"Failed to parse Brevo JSON response: {e}. Response text: {response_text[:500]}")
                             return False
                     else:
-                        logger.error(f"Failed to send email via Brevo. Status: {response.status}, Response: {response_text[:1000]}")
+                        if response.status == 400 and email_headers.get("idempotencyKey"):
+                            try:
+                                duplicate_error = json.loads(response_text)
+                            except (TypeError, ValueError):
+                                duplicate_error = None
+                            if isinstance(duplicate_error, dict) and duplicate_error.get("code") == "duplicate_parameter":
+                                # Brevo accepted an earlier request bearing this same
+                                # key; its documented duplicate response means no new
+                                # send was performed on this attempt.
+                                logger.info("Brevo accepted an earlier email delivery with this idempotency key")
+                                return True
+                        logger.error("Failed to send email via Brevo. Status: %s", response.status)
                         # Try to parse error response for more details
                         try:
                             error_data = json.loads(response_text)
-                            error_message = error_data.get('message', 'Unknown error')
                             error_code = error_data.get('code', 'unknown')
-                            logger.error(f"Brevo API error: {error_message} (Code: {error_code})")
+                            logger.error("Brevo API error code: %s", error_code)
                         except Exception:
                             pass
                         return False
@@ -584,4 +594,3 @@ class BrevoProvider(BaseEmailProvider):
         )
         
         return result
-

@@ -1543,6 +1543,43 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
     }
   });
 
+  it("waitForMessage ignores other request errors and rejects its own request error", async () => {
+    server.once("connection", (socket) => {
+      setTimeout(() => {
+        socket.send(JSON.stringify({
+          type: "error",
+          payload: { request_id: "other-request", message: "Other request failed." },
+        }));
+        socket.send(JSON.stringify({
+          type: "error",
+          payload: { request_id: "settings-request", message: "Invalid notification setting." },
+        }));
+      }, 5);
+    });
+
+    const client = new OpenMatesWsClient({
+      apiUrl,
+      sessionId: "session-settings-error",
+      wsToken: "token",
+      refreshToken: null,
+    });
+    await client.open();
+
+    try {
+      await assert.rejects(
+        client.waitForMessage(
+          "email_notification_settings_ack",
+          (payload) => (payload as Record<string, unknown>).request_id === "settings-request",
+          1_000,
+        ),
+        (error) => error instanceof WebSocketProtocolError
+          && error.message === "Invalid notification setting.",
+      );
+    } finally {
+      client.close();
+    }
+  });
+
   it("invokes the force logout handler and closes the socket", async () => {
     const receivedPayloads: unknown[] = [];
 

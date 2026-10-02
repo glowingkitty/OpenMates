@@ -9,6 +9,76 @@ import CryptoKit
 
 @MainActor
 final class WatchChatRuntimeTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=apple-notifications.delivery.idempotent-visible
+    func testWatchForegroundPresenceCoversHubAndClearsOnBackgroundThenReconnects() async {
+        let socket = WatchNotificationTestSocket()
+        let runtime = WatchChatRuntime(currentUserId: "account", api: FakeWatchChatAPI(),
+            crypto: FakeWatchChatCrypto(), syncSocket: socket,
+            syncSession: WatchSyncSession(sessionId: "session", token: "token"))
+        await runtime.startRealtimeSync()
+        await runtime.setForeground(true)
+        XCTAssertTrue(socket.events.contains { $0.0 == "native_client_lifecycle"
+            && $0.1["is_foreground"] as? Bool == true })
+        XCTAssertNil(runtime.selectedChatId, "Hub presence must not require an open chat")
+
+        await runtime.setForeground(false)
+        XCTAssertEqual(socket.events.last(where: { $0.0 == "native_client_lifecycle" })?.1["is_foreground"] as? Bool, false)
+        let backgroundCount = socket.events.count
+        await runtime.foregroundHeartbeat()
+        XCTAssertEqual(socket.events.count, backgroundCount)
+
+        socket.dropConnection()
+        await runtime.setForeground(true)
+        await waitForWatchNotificationRequests { socket.events.filter {
+            $0.0 == "native_client_lifecycle" && $0.1["is_foreground"] as? Bool == true
+        }.count >= 2 }
+        XCTAssertGreaterThanOrEqual(socket.connectCount, 2)
+        runtime.stopRealtimeSync()
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-notifications.delivery.idempotent-visible
+    func testWatchVisibleCommittedReceiptRetriesNegativeAckAndStopsAfterPositiveAck() async {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let socket = WatchNotificationTestSocket(viewedResponses: [false, true])
+        let chat = Self.chat(id: "chat-a", title: "Alpha", lastMessageAt: "2026-07-06T10:00:00Z")
+        let runtime = WatchChatRuntime(currentUserId: "account",
+            api: FakeWatchChatAPI(messagesByChatId: ["chat-a": [
+                Self.remoteMessage(id: "message-a", chatId: "chat-a", content: "Fixture")
+            ]]), cache: WatchChatOfflineCache(directory: directory), crypto: FakeWatchChatCrypto(),
+            syncSocket: socket, syncSession: WatchSyncSession(sessionId: "session", token: "token"))
+        await runtime.startRealtimeSync()
+        await runtime.setForeground(true)
+        await runtime.openChat(chat)
+        runtime.setVisibleChatID(chat.id)
+        runtime.updateVisibleMessages(["offscreen"], chatID: chat.id)
+        XCTAssertTrue(socket.receiptRequests.isEmpty)
+        runtime.updateVisibleMessages(["message-a"], chatID: chat.id)
+        await waitForWatchNotificationRequests { socket.receiptRequests.count >= 1 }
+        XCTAssertEqual(socket.receiptRequests.count, 1)
+        XCTAssertEqual(socket.receiptRequests[0]["chat_id"] as? String, chat.id)
+        XCTAssertEqual(socket.receiptRequests[0]["message_id"] as? String, "message-a")
+
+        await runtime.setForeground(false)
+        runtime.updateVisibleMessages(["message-a"], chatID: chat.id)
+        XCTAssertEqual(socket.receiptRequests.count, 1, "Background viewing cannot send receipts")
+        await runtime.setForeground(true)
+        await waitForWatchNotificationRequests { socket.receiptRequests.count >= 2 }
+        XCTAssertEqual(socket.receiptRequests.count, 2, "A negative ACK must retry after foreground return")
+        await runtime.foregroundHeartbeat()
+        XCTAssertEqual(socket.receiptRequests.count, 2, "A positive ACK must prevent further sends")
+        runtime.stopRealtimeSync()
+    }
+
+    private func waitForWatchNotificationRequests(_ condition: () -> Bool) async {
+        for _ in 0..<100 {
+            if condition() { break }
+            await Task.yield()
+        }
+        XCTAssertTrue(condition())
+        for _ in 0..<4 { await Task.yield() }
+    }
+
     // contract-test: supporting surface=gui.apple assertions=apple-notifications.action.routing-coherent
     func testNotificationJoinsInflightRefreshBeforeResolvingUncachedTarget() async throws {
         let directory = temporaryDirectory()
@@ -1256,6 +1326,56 @@ private final class FakeWatchChatSyncSocket: WatchChatSyncSocket {
             throw WatchChatRuntimeError.preflightRejected
         }
         sentTurns.append(pending)
+    }
+}
+
+@MainActor
+private final class WatchNotificationTestSocket: WatchChatSyncSocket {
+    private(set) var generation = 0
+    private(set) var isConnected = false
+    private(set) var connectCount = 0
+    private(set) var events: [(String, [String: Any])] = []
+    private(set) var receiptRequests: [[String: Any]] = []
+    private var readyHandler: (@MainActor () -> Void)?
+    private var viewedResponses: [Bool]
+
+    init(viewedResponses: [Bool] = []) { self.viewedResponses = viewedResponses }
+
+    func connect(session: WatchSyncSession, syncState: WatchSyncClientState) {
+        generation += 1
+        connectCount += 1
+        isConnected = true
+        readyHandler?()
+    }
+
+    func disconnect() { dropConnection() }
+    func dropConnection() { generation += 1; isConnected = false }
+    func setChangeHandler(_ handler: (@MainActor () -> Void)?) {}
+    func setReadyHandler(_ handler: (@MainActor () -> Void)?) { readyHandler = handler }
+    func sendTurn(_ pending: WatchPendingTextSend) async throws { throw WatchChatRuntimeError.socketUnavailable }
+
+    func sendEvent(type: String, payload: [String: Any]) async throws {
+        guard isConnected else { throw WatchChatRuntimeError.socketUnavailable }
+        events.append((type, payload))
+    }
+
+    func requestEvent(type: String, payload: [String: Any], responseTypes: Set<String>,
+        matching: @escaping @MainActor ([String: Any]) -> Bool,
+        beforeSend: @escaping @MainActor () throws -> Void) async throws -> [String: Any] {
+        try beforeSend()
+        guard isConnected else { throw WatchChatRuntimeError.socketUnavailable }
+        receiptRequests.append(payload)
+        let viewed = viewedResponses.isEmpty ? true : viewedResponses.removeFirst()
+        let response: [String: Any] = [
+            "request_id": payload["request_id"] ?? "",
+            "chat_id": payload["chat_id"] ?? "",
+            "message_id": payload["message_id"] ?? "",
+            "viewed": viewed,
+        ]
+        guard responseTypes.contains("notification_message_viewed_ack"), matching(response) else {
+            throw WatchChatRuntimeError.socketUnavailable
+        }
+        return response
     }
 }
 

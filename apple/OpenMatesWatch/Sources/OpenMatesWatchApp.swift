@@ -164,6 +164,7 @@ struct OpenMatesWatchApp: App {
 #if DEBUG
 private struct WatchHubUITestFixtureView: View {
     @State private var openedItem: WatchItemOpenRequest?
+    @StateObject private var chatRuntime = WatchChatRuntime(uiTestSnapshot: .empty, selectedChatId: nil)
 
     private static var tasks: [WatchTaskListItem] {
         var items = (0..<12).map { index in
@@ -194,8 +195,8 @@ private struct WatchHubUITestFixtureView: View {
 
     var body: some View {
         WatchHubView(
+            chatRuntime: chatRuntime,
             currentUserId: nil,
-            webSocketToken: nil,
             fixtureTasks: Self.tasks,
             fixtureWorkflows: [
                 WatchWorkflowListItem(

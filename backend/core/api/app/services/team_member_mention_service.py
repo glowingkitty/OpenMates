@@ -11,9 +11,6 @@ from typing import Any, Iterable
 from backend.core.api.app.services.notification_event_service import NotificationEventService
 
 
-TEAM_MEMBER_MENTION_EMAIL_TASK = "app.tasks.email_tasks.team_member_mention_email_task.send_team_member_mention_email"
-
-
 @dataclass(frozen=True)
 class TeamMemberMentionResult:
     notified_user_ids: tuple[str, ...]
@@ -21,7 +18,7 @@ class TeamMemberMentionResult:
 
 
 class TeamMemberMentionNotificationSink:
-    """Bridge safe mentions to the existing in-app store and email worker."""
+    """Bridge safe mentions to the existing in-app store."""
 
     def __init__(self, cache_service: Any) -> None:
         self.events = NotificationEventService(cache_service)
@@ -33,16 +30,6 @@ class TeamMemberMentionNotificationSink:
             chat_id=payload["chat_id"],
             message_id=payload["message_id"],
         )
-
-    async def enqueue_email(self, user_id: str, payload: dict[str, str]) -> None:
-        from backend.core.api.app.tasks.celery_config import app as celery_app
-
-        celery_app.send_task(
-            TEAM_MEMBER_MENTION_EMAIL_TASK,
-            kwargs={"user_id": user_id, "team_id": payload["team_id"], "chat_id": payload["chat_id"]},
-            queue="email",
-        )
-
 
 async def notify_team_member_mentions(
     *,
@@ -69,5 +56,6 @@ async def notify_team_member_mentions(
     }
     for user_id in recipients:
         await notification_sink.create_in_app(user_id, payload)
-        await notification_sink.enqueue_email(user_id, payload)
+        # Every committed Team user message is emailed by the chat notification
+        # path. Keep the in-app mention without sending a duplicate mention email.
     return TeamMemberMentionResult(notified_user_ids=recipients)

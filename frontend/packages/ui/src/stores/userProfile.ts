@@ -64,13 +64,16 @@ export interface UserProfile {
   // Managed via Privacy → Auto Deletion → Chats. Persisted to server via POST /v1/settings/auto-delete-chats.
   auto_delete_chats_after_days?: number | null;
   // Email notification settings (synced with server)
-  // Only sends email when user is offline (no active WebSocket connections after 3 retry attempts)
+  // Chat mail requires no foreground web/Apple or interactive viewer of that chat.
   email_notifications_enabled?: boolean;
   email_notification_email?: string; // Decrypted notification email (separate from login email)
   email_notification_preferences?: {
     aiResponses: boolean; // Notify when AI completes a response
+    workflowRuns?: boolean; // Daily summary of workflow runs
+    includeContent?: boolean; // Explicit consent for email title/preview content
     backupReminder: boolean; // Periodic backup reminder emails (Settings → Notifications → Backup Reminders)
-    webhookChats?: boolean; // Notify when an incoming webhook creates a new chat (default: true)
+    webhookChats?: boolean; // Legacy category; off by default for new accounts
+    [key: string]: boolean | undefined; // Preserve future and legacy categories across clients
   };
   // Backup reminder fields — synced with server via the email notification settings WebSocket flow.
   // last_export_at: set server-side when the user fetches the export manifest.

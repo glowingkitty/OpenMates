@@ -9,6 +9,9 @@ the Directus transaction extension.
 import hashlib
 import hmac
 import json
+import base64
+from copy import deepcopy
+from types import SimpleNamespace
 
 import pytest
 
@@ -115,6 +118,7 @@ async def test_preflight_commits_only_encrypted_data_and_acknowledges(monkeypatc
     operation, transaction_data = FakeRecoveryService.calls[1]
     assert operation == "prepare_preflight"
     assert transaction_data["hashed_user_id"] == "owner-hash"
+    assert transaction_data["device_hash"] == "device-hash"
     assert transaction_data["encrypted_user_message"]["hashed_user_id"] == "owner-hash"
     assert "inference_request" not in transaction_data
     assert "private plaintext" not in json.dumps(transaction_data)
@@ -167,6 +171,223 @@ async def test_epoch_zero_acknowledges_without_persisting_recovery_state(monkeyp
             "turn_id": payload["turn_id"],
         },
     }
+
+
+@pytest.mark.asyncio
+# contract-test: direct surface=gui.web assertions=teams.chat.encrypted-until-invoked,chats.persistence.client-encrypted
+async def test_epoch_zero_ordinary_team_preflight_commits_before_ack(monkeypatch) -> None:
+    class EpochZeroRecoveryService(FakeRecoveryService):
+        async def execute(self, operation: str, data: dict) -> dict:
+            self.calls.append((operation, data))
+            if operation == "get_cutover_state":
+                return {"protocol_epoch": 0, "sends_paused": False, "legacy_in_flight": 0}
+            return {"preflight_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "state": "PREPARED"}
+
+    async def require_team_role(*_args):
+        return None
+
+    monkeypatch.setenv("CHAT_RECOVERY_COMMITMENT_KEY", "commitment-key")
+    monkeypatch.setattr(chat_turn_preflight_handler, "ChatRecoveryService", EpochZeroRecoveryService)
+    EpochZeroRecoveryService.calls = []
+    directus = type("Directus", (), {"team": type("Team", (), {"require_team_role": staticmethod(require_team_role)})()})()
+    manager = FakeManager()
+    payload = _payload()
+    payload["team_id"] = "team-1"
+    ciphertext = base64.b64encode(b"x" * 29).decode("ascii")
+    payload["encrypted_user_message"]["encrypted_content"] = ciphertext
+    payload["inference_request"] = {
+        "team_id": "team-1",
+        "chat_id": payload["chat_id"],
+        "message": {"message_id": payload["message_id"], "encrypted_content": ciphertext},
+    }
+
+    await chat_turn_preflight_handler.handle_chat_turn_preflight(
+        manager=manager, directus_service=directus, user_id="user-1", user_id_hash="owner-hash",
+        device_fingerprint_hash="device-hash", payload=payload,
+    )
+
+    assert [operation for operation, _ in EpochZeroRecoveryService.calls] == ["get_cutover_state", "prepare_preflight"]
+    committed = EpochZeroRecoveryService.calls[1][1]
+    assert committed["hashed_team_id"] == hashlib.sha256(b"team-1").hexdigest()
+    assert committed["encrypted_user_message"]["encrypted_content"] == ciphertext
+    assert "inference_request" not in committed
+    assert manager.messages[0][0]["payload"]["state"] == "PREPARED"
+
+
+@pytest.mark.asyncio
+# contract-test: direct surface=gui.web assertions=teams.chat.encrypted-until-invoked,chats.message.identity-idempotent
+async def test_ordinary_team_lost_ack_retry_ignores_live_inference_metadata(monkeypatch) -> None:
+    from backend.core.api.app.services import project_write_authorization_service
+    from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError
+
+    class IdempotentRecoveryService:
+        committed: dict | None = None
+        commit_count = 0
+
+        def __init__(self, _directus_service) -> None:
+            pass
+
+        async def execute(self, operation: str, data: dict) -> dict:
+            if operation == "get_cutover_state":
+                return {"protocol_epoch": 0, "sends_paused": False, "legacy_in_flight": 0}
+            assert operation == "prepare_preflight"
+            if self.committed is None:
+                self.__class__.committed = deepcopy(data)
+                self.__class__.commit_count += 1
+            elif data != self.committed:
+                raise ChatRecoveryProtocolError(409, "preflight_mismatch")
+            return {"preflight_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "state": "PREPARED"}
+
+    focus = {"project_id": "project-before"}
+    focus_reads = []
+
+    class ChangingFocus:
+        def __init__(self, *_args) -> None:
+            pass
+
+        async def get_active_focus(self, **_kwargs) -> dict:
+            focus_reads.append(focus["project_id"])
+            return {"project_id": focus["project_id"]}
+
+    async def require_team_role(*_args):
+        return None
+
+    monkeypatch.setenv("CHAT_RECOVERY_COMMITMENT_KEY", "commitment-key")
+    monkeypatch.setattr(chat_turn_preflight_handler, "ChatRecoveryService", IdempotentRecoveryService)
+    monkeypatch.setattr(project_write_authorization_service, "ProjectWriteAuthorizationService", ChangingFocus)
+    directus = SimpleNamespace(team=SimpleNamespace(require_team_role=require_team_role))
+    websocket = FakeWebSocket()
+    websocket.app = SimpleNamespace(state=SimpleNamespace(cache_service=object(), encryption_service=None))
+    manager = FakeManager()
+    payload = _payload()
+    payload["team_id"] = "team-1"
+    ciphertext = base64.b64encode(b"x" * 29).decode("ascii")
+    payload["encrypted_user_message"]["encrypted_content"] = ciphertext
+    payload["inference_request"] = {
+        "team_id": "team-1", "chat_id": payload["chat_id"],
+        "message": {"message_id": payload["message_id"], "encrypted_content": ciphertext},
+    }
+
+    async def attempt(request: dict, connection_hash: str) -> None:
+        await chat_turn_preflight_handler.handle_chat_turn_preflight(
+            websocket=websocket, manager=manager, directus_service=directus,
+            user_id="user-1", user_id_hash="owner-hash",
+            device_fingerprint_hash=connection_hash,
+            stable_device_fingerprint_hash="authenticated-device-hash", payload=request,
+        )
+
+    await attempt(deepcopy(payload), "connection-before")
+    manager.task_update_jobs = True
+    focus["project_id"] = "project-after"
+    await attempt(deepcopy(payload), "connection-after")
+
+    assert [message["type"] for message in websocket.messages] == [
+        "chat_turn_preflight_ack", "chat_turn_preflight_ack"
+    ]
+    assert websocket.messages[0]["payload"]["preflight_id"] == websocket.messages[1]["payload"]["preflight_id"]
+    assert IdempotentRecoveryService.commit_count == 1
+    assert focus_reads == []
+    assert IdempotentRecoveryService.committed["device_hash"] == "authenticated-device-hash"
+    assert IdempotentRecoveryService.committed["inference_commitment"] == (
+        chat_turn_preflight_handler.build_inference_commitment(payload["inference_request"])
+    )
+
+    changed = deepcopy(payload)
+    changed_ciphertext = base64.b64encode(b"y" * 29).decode("ascii")
+    changed["encrypted_user_message"]["encrypted_content"] = changed_ciphertext
+    changed["inference_request"]["message"]["encrypted_content"] = changed_ciphertext
+    await attempt(changed, "connection-after")
+    assert websocket.messages[-1]["type"] == "error"
+    assert websocket.messages[-1]["payload"]["code"] == "preflight_mismatch"
+    assert IdempotentRecoveryService.commit_count == 1
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=gui.web assertions=teams.chat.encrypted-until-invoked
+async def test_epoch_zero_ordinary_team_preflight_respects_send_pause(monkeypatch) -> None:
+    class PausedRecoveryService(FakeRecoveryService):
+        async def execute(self, operation: str, data: dict) -> dict:
+            self.calls.append((operation, data))
+            return {"protocol_epoch": 0, "sends_paused": True, "legacy_in_flight": 0}
+
+    monkeypatch.setattr(chat_turn_preflight_handler, "ChatRecoveryService", PausedRecoveryService)
+    PausedRecoveryService.calls = []
+    payload = _payload()
+    payload["team_id"] = "team-1"
+    payload["inference_request"] = {
+        "team_id": "team-1", "chat_id": payload["chat_id"],
+        "message": {"message_id": payload["message_id"], "encrypted_content": "ciphertext"},
+    }
+    manager = FakeManager()
+    await chat_turn_preflight_handler.handle_chat_turn_preflight(
+        manager=manager, directus_service=object(), user_id="user-1", user_id_hash="owner-hash",
+        device_fingerprint_hash="device-hash", payload=payload,
+    )
+    assert [operation for operation, _ in PausedRecoveryService.calls] == ["get_cutover_state"]
+    assert manager.messages[0][0]["type"] == "error"
+    assert manager.messages[0][0]["payload"]["code"] == "inference_temporarily_paused"
+
+
+@pytest.mark.asyncio
+# contract-test: direct surface=gui.web assertions=teams.chat.encrypted-until-invoked,chats.persistence.client-encrypted
+async def test_epoch_zero_ordinary_team_commit_failure_sends_no_ack(monkeypatch) -> None:
+    from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError
+
+    class FailingRecoveryService(FakeRecoveryService):
+        async def execute(self, operation: str, data: dict) -> dict:
+            self.calls.append((operation, data))
+            if operation == "get_cutover_state":
+                return {"protocol_epoch": 0, "sends_paused": False, "legacy_in_flight": 0}
+            raise ChatRecoveryProtocolError(409, "version_conflict")
+
+    async def require_team_role(*_args):
+        return None
+
+    monkeypatch.setenv("CHAT_RECOVERY_COMMITMENT_KEY", "commitment-key")
+    monkeypatch.setattr(chat_turn_preflight_handler, "ChatRecoveryService", FailingRecoveryService)
+    FailingRecoveryService.calls = []
+    directus = type("Directus", (), {"team": type("Team", (), {"require_team_role": staticmethod(require_team_role)})()})()
+    payload = _payload()
+    payload["team_id"] = "team-1"
+    ciphertext = base64.b64encode(b"x" * 29).decode("ascii")
+    payload["encrypted_user_message"]["encrypted_content"] = ciphertext
+    payload["inference_request"] = {
+        "team_id": "team-1", "chat_id": payload["chat_id"],
+        "message": {"message_id": payload["message_id"], "encrypted_content": ciphertext},
+    }
+    manager = FakeManager()
+    await chat_turn_preflight_handler.handle_chat_turn_preflight(
+        manager=manager, directus_service=directus, user_id="user-1", user_id_hash="owner-hash",
+        device_fingerprint_hash="device-hash", payload=payload,
+    )
+    assert [operation for operation, _ in FailingRecoveryService.calls] == ["get_cutover_state", "prepare_preflight"]
+    assert [message[0]["type"] for message in manager.messages] == ["error"]
+    assert manager.messages[0][0]["payload"]["code"] == "version_conflict"
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=gui.web assertions=teams.chat.encrypted-until-invoked
+async def test_epoch_zero_ordinary_team_scope_mismatch_never_commits(monkeypatch) -> None:
+    class EpochZeroRecoveryService(FakeRecoveryService):
+        async def execute(self, operation: str, data: dict) -> dict:
+            self.calls.append((operation, data))
+            return {"protocol_epoch": 0, "sends_paused": False, "legacy_in_flight": 0}
+
+    monkeypatch.setattr(chat_turn_preflight_handler, "ChatRecoveryService", EpochZeroRecoveryService)
+    EpochZeroRecoveryService.calls = []
+    payload = _payload()
+    payload["team_id"] = "team-1"
+    payload["inference_request"] = {
+        "team_id": "team-2", "chat_id": payload["chat_id"],
+        "message": {"message_id": payload["message_id"], "encrypted_content": "ciphertext"},
+    }
+    manager = FakeManager()
+    await chat_turn_preflight_handler.handle_chat_turn_preflight(
+        manager=manager, directus_service=object(), user_id="user-1", user_id_hash="owner-hash",
+        device_fingerprint_hash="device-hash", payload=payload,
+    )
+    assert [operation for operation, _ in EpochZeroRecoveryService.calls] == ["get_cutover_state"]
+    assert manager.messages[0][0]["payload"]["code"] == "team_chat_scope_mismatch"
 
 
 @pytest.mark.asyncio

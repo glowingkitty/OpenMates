@@ -58,6 +58,10 @@ const OPERATION_FIELDS = Object.freeze({
     'inference_commitment', 'commitment_version', 'expected_messages_v', 'encrypted_user_message',
     'encrypted_chat_metadata', 'hashed_team_id',
   ]),
+  verify_committed_team_message: new Set([
+    'protocol_version', 'preflight_id', 'hashed_user_id', 'hashed_team_id',
+    'chat_id', 'user_message_id', 'encrypted_content_digest',
+  ]),
   enqueue_inference: new Set([
     'protocol_version', 'preflight_id', 'hashed_user_id', 'device_hash',
     'inference_commitment', 'inference_task_id', 'billing_identity', 'outbox_id',
@@ -589,6 +593,10 @@ async function preparePreflight(database, raw, now) {
     commitment_version: commitmentVersion,
   };
   return database.transaction(async (trx) => {
+    if (teamHash) {
+      const cutover = await lockedProtocolState(trx);
+      if (cutover.sends_paused) fail(503, 'inference_temporarily_paused');
+    }
     await lockIdentity(trx, `${ownerHash}:${chatId}:${keyVersion}`);
     let chat = await trx(CHATS).where({ id: chatId }).forUpdate().first();
     if (chat && (teamHash ? chat.hashed_team_id !== teamHash : chat.hashed_user_id !== ownerHash || chat.hashed_team_id)) fail(404, 'chat_not_found');
@@ -670,6 +678,31 @@ async function preparePreflight(database, raw, now) {
     };
     await trx(PREFLIGHTS).insert(row);
     return responseForPreflight(row);
+  });
+}
+
+async function verifyCommittedTeamMessage(database, raw) {
+  const body = operationBody(raw, 'verify_committed_team_message');
+  const preflightId = uuid(body.preflight_id, 'invalid_preflight_id');
+  const ownerHash = hexDigest(body.hashed_user_id, 'invalid_owner');
+  const teamHash = hexDigest(body.hashed_team_id, 'invalid_team');
+  const chatId = uuid(body.chat_id, 'invalid_chat_id');
+  const messageId = string(body.user_message_id, 'invalid_message_id', 255);
+  const ciphertextDigest = hexDigest(body.encrypted_content_digest, 'invalid_content_digest');
+  return database.transaction(async (trx) => {
+    const cutover = await lockedProtocolState(trx);
+    if (cutover.sends_paused) fail(503, 'inference_temporarily_paused');
+    const preflight = await trx(PREFLIGHTS).where({
+      id: preflightId, hashed_user_id: ownerHash, chat_id: chatId, user_message_id: messageId,
+    }).first();
+    if (!preflight || preflight.deletion_invalidated_at) fail(404, 'preflight_not_found');
+    const chat = await trx(CHATS).where({ id: chatId, hashed_team_id: teamHash }).first();
+    if (!chat) fail(404, 'chat_not_found');
+    const message = await trx(MESSAGES).where({
+      chat_id: chatId, client_message_id: messageId, hashed_user_id: ownerHash, role: 'user',
+    }).first();
+    if (!message || digest(message.encrypted_content) !== ciphertextDigest) fail(409, 'message_identity_mismatch');
+    return { committed: true };
   });
 }
 
@@ -1131,7 +1164,8 @@ async function acknowledgeFailureAlert(database, raw, now) {
 }
 
 export const operations = Object.freeze({
-  prepare_preflight: preparePreflight, enqueue_inference: enqueueInference,
+  prepare_preflight: preparePreflight, verify_committed_team_message: verifyCommittedTeamMessage,
+  enqueue_inference: enqueueInference,
   claim_inference: claimInference, mark_outbox_dispatched: markOutboxDispatched,
   mark_inference_failed: markInferenceFailed,
   create_sealed_job: createSealedJob, list_available_jobs: listAvailableJobs,

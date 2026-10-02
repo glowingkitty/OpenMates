@@ -43,6 +43,7 @@ export async function runTui(
   terminal = new TuiTerminal(),
 ): Promise<TuiResult> {
   const state = createInitialTuiState();
+  client.beginInteractiveViewerSession();
   hydrateExamples(state);
   let resolveResult: ((result: TuiResult) => void) | null = null;
   let renderTimer: NodeJS.Timeout | null = null;
@@ -56,6 +57,7 @@ export async function runTui(
   };
 
   const finish = (result: TuiResult) => {
+    client.endInteractiveViewerSession();
     if (renderTimer) clearTimeout(renderTimer);
     renderTimer = null;
     terminal.leave();
@@ -89,6 +91,7 @@ async function handleKey(params: {
     return;
   }
   if (key.name === "escape") {
+    client.clearInteractiveChatViewer();
     if (state.workflowEdit) {
       state.workflowEdit = null;
       render();
@@ -275,6 +278,7 @@ async function handleCommand(params: {
     finish({ action: "exit" });
     return;
   }
+  client.clearInteractiveChatViewer();
   if (name === "/help") {
     state.screen = "help";
     render();
@@ -351,6 +355,7 @@ async function sendTuiMessage(params: {
   render: () => void;
 }): Promise<void> {
   const { message, state, client, render } = params;
+  client.clearInteractiveChatViewer();
   const sourceExample = state.screen === "example" ? state.activeExample : null;
   state.screen = "chat";
   state.isBusy = true;
@@ -368,6 +373,7 @@ async function sendTuiMessage(params: {
     } else {
       const result = await client.sendMessage({
         message,
+        interactiveHuman: true,
         messageHistory: sourceExample ? buildExampleContinuationHistory(sourceExample) : undefined,
         onStream: (event: StreamEvent) => {
           if (event.kind === "chunk" || event.kind === "done") {
@@ -377,6 +383,7 @@ async function sendTuiMessage(params: {
         },
       });
       assistantMessage.content = result.assistant;
+      await client.setInteractiveChatViewer(result.chatId);
     }
     state.status = null;
   } catch (error) {

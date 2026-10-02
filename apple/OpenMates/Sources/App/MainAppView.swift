@@ -695,6 +695,17 @@ struct MainAppView: View {
         .onChange(of: showSettings, showSettingsDidChange)
         .onChange(of: scenePhase, scenePhaseDidChange)
         .onChange(of: wsManager.connectionState, websocketConnectionStateDidChange)
+        .onReceive(Timer.publish(every: 25, on: .main, in: .common).autoconnect()) { _ in
+            guard isAuthenticated, didBootstrapAuthenticatedSession,
+                  wsManager.connectionState == .connected else { return }
+            #if os(macOS)
+            guard NativeClientLifecyclePolicy.isMacForeground(scenePhase, appIsActive: NSApp.isActive),
+                  isKeyChatWindow else { return }
+            #else
+            guard NativeClientLifecyclePolicy.isCompletionCapable(scenePhase) else { return }
+            #endif
+            sendNativeClientForegroundAndActiveChat()
+        }
     }
 
     private var shellWithOverlays: some View {
@@ -2375,6 +2386,9 @@ struct MainAppView: View {
                 onScrollPositionChanged: { messageId in
                     sendScrollPositionUpdate(chatId: chatId, messageId: messageId)
                 },
+                onFinalMessagesVisible: { messageIds in
+                    await reportVisibleChatMessages(chatId: chatId, messageIds: messageIds)
+                },
                 onInitialEmbedOpened: { embedId in
                     if pendingExternalEmbedOpen == PendingExternalEmbedOpen(chatId: chatId, embedId: embedId) {
                         pendingExternalEmbedOpen = nil
@@ -3509,7 +3523,7 @@ struct MainAppView: View {
             await attempt.waitForAcknowledgement {
                 do {
                     _ = try await wsManager.sendAndWait(WSOutboundMessage(
-                        type: "native_client_lifecycle", payload: ["is_foreground": false]),
+                        type: "native_client_lifecycle", payload: ["is_foreground": false, "client_type": "apple"]),
                         responseTypes: ["native_client_lifecycle_ack"], timeout: .seconds(3),
                         matching: { ($0["is_foreground"] as? Bool) == false }, beforeSend: {
                             guard let current = currentContext(), captured.matchesSession(current),
@@ -3528,7 +3542,7 @@ struct MainAppView: View {
         do {
             try await wsManager.send(WSOutboundMessage(
                 type: "native_client_lifecycle",
-                payload: ["is_foreground": isForeground]
+                payload: ["is_foreground": isForeground, "client_type": "apple"]
             ))
         } catch {
             NativeDiagnostics.warning(
@@ -3573,6 +3587,52 @@ struct MainAppView: View {
                 print("[MainApp] Failed to sync scroll position chat=\(chatId.prefix(8)) message=\(messageId.prefix(8)): \(error)")
             }
         }
+    }
+
+    private func reportVisibleChatMessages(chatId: String, messageIds: Set<String>) async -> Set<String> {
+        guard let accountID = authManager.currentUser?.id else { return [] }
+        let scope = OfflineStore.shared.scopeGeneration
+        let socketGeneration = wsManager.transportGeneration
+        func contextIsCurrent() -> Bool {
+            guard isAuthenticated, authManager.currentUser?.id == accountID,
+                  OfflineStore.shared.scopeGeneration == scope,
+                  wsManager.transportGeneration == socketGeneration,
+                  wsManager.connectionState == .connected,
+                  selectedWorkspace == .chat, !showNewChat,
+                  selectedChatId == chatId, scenePhase == .active else { return false }
+            #if os(macOS)
+            return isKeyChatWindow && NSApp.isActive
+            #else
+            return true
+            #endif
+        }
+        guard contextIsCurrent() else { return [] }
+        var acknowledged: Set<String> = []
+        for messageID in messageIds.sorted() {
+            guard contextIsCurrent() else { break }
+            let requestID = UUID().uuidString
+            do {
+                let response = try await wsManager.sendAndWait(
+                    WSOutboundMessage(type: "chat_message_viewed", payload: [
+                        "request_id": requestID, "chat_id": chatId, "message_id": messageID
+                    ]), responseTypes: ["notification_message_viewed_ack", "notification_message_viewed_error"],
+                    matching: { ($0["request_id"] as? String) == requestID }, beforeSend: {
+                        guard contextIsCurrent() else { throw CancellationError() }
+                    }
+                )
+                guard contextIsCurrent() else { break }
+                if response.type == "notification_message_viewed_ack",
+                   response.fields["chat_id"] as? String == chatId,
+                   response.fields["message_id"] as? String == messageID,
+                   response.fields["viewed"] as? Bool == true {
+                    acknowledged.insert(messageID)
+                }
+            } catch {
+                NativeDiagnostics.warning("Visible message acknowledgement failed: \(type(of: error))",
+                                          category: "chat.notifications")
+            }
+        }
+        return acknowledged
     }
 
     private func handleChatUpdate(_ notification: Notification) {

@@ -7,7 +7,7 @@
 // Specification: specifications/features/apple-watch/specification.yml
 // Assertions: apple-watch.chats.browse-search-open, apple-watch.chats.new-text-reply, apple-watch.chats.audio-reply
 // Specification: specifications/features/apple-notifications/specification.yml
-// Assertions: apple-notifications.action.routing-coherent
+// Assertions: apple-notifications.action.routing-coherent, apple-notifications.delivery.idempotent-visible
 
 import CryptoKit
 import Foundation
@@ -531,8 +531,13 @@ protocol WatchChatSyncSocket: AnyObject {
     var generation: Int { get }
     func sendEvent(type: String, payload: [String: Any]) async throws
     func setEventHandler(_ handler: (@MainActor (String, [String: Any]) -> Void)?)
+    func setReadyHandler(_ handler: (@MainActor () -> Void)?)
+    var isConnected: Bool { get }
     func requestEvent(type: String, payload: [String: Any], responseTypes: Set<String>,
                       matching: @escaping @MainActor ([String: Any]) -> Bool) async throws -> [String: Any]
+    func requestEvent(type: String, payload: [String: Any], responseTypes: Set<String>,
+                      matching: @escaping @MainActor ([String: Any]) -> Bool,
+                      beforeSend: @escaping @MainActor () throws -> Void) async throws -> [String: Any]
 }
 
 extension WatchChatSyncSocket {
@@ -542,9 +547,18 @@ extension WatchChatSyncSocket {
     }
     func sendEvent(type: String, payload: [String: Any]) async throws { throw WatchChatRuntimeError.socketUnavailable }
     func setEventHandler(_ handler: (@MainActor (String, [String: Any]) -> Void)?) {}
+    func setReadyHandler(_ handler: (@MainActor () -> Void)?) {}
+    var isConnected: Bool { false }
     func requestEvent(type: String, payload: [String: Any], responseTypes: Set<String>,
                       matching: @escaping @MainActor ([String: Any]) -> Bool) async throws -> [String: Any] {
         throw WatchChatRuntimeError.socketUnavailable
+    }
+    func requestEvent(type: String, payload: [String: Any], responseTypes: Set<String>,
+                      matching: @escaping @MainActor ([String: Any]) -> Bool,
+                      beforeSend: @escaping @MainActor () throws -> Void) async throws -> [String: Any] {
+        try beforeSend()
+        return try await requestEvent(type: type, payload: payload,
+                                      responseTypes: responseTypes, matching: matching)
     }
 }
 
@@ -672,12 +686,19 @@ final class WatchChatRuntime: ObservableObject {
     private var inFlightDrafts: [String: WatchEncryptedDraft] = [:]
     private var draftSocketGeneration: Int?
     private var draftReconciledSocketGeneration: Int?
-    private var isPreviewFixture = false
+    private(set) var isPreviewFixture = false
     private let api: any WatchChatAPI
     private let cache: WatchChatOfflineCache
     private let crypto: any WatchChatCrypto
     private let syncSocket: (any WatchChatSyncSocket)?
-    private let syncSession: WatchSyncSession?
+    private var syncSession: WatchSyncSession?
+    private var isForeground = false
+    @Published private(set) var visibleChatID: String?
+    private var receiptChatID: String?
+    private var visibleReceiptIDs: Set<String> = []
+    private var acknowledgedReceiptIDs: Set<String> = []
+    private var inFlightReceiptIDs: Set<String> = []
+    private var receiptAttemptID = UUID()
     private var isSending = false
     private var refreshTask: Task<Void, Never>?
     private var chatListAuthoritative = false
@@ -915,6 +936,12 @@ final class WatchChatRuntime: ObservableObject {
                 guard self.lifecycleGeneration == generation, !self.isStopped else { return }
                 await self.handleEmbedEvent(type: type, payload: payload)
             }
+        }
+        syncSocket.setReadyHandler { [weak self] in
+            guard let self, !self.isStopped, self.lifecycleGeneration == generation else { return }
+            self.receiptAttemptID = UUID()
+            self.inFlightReceiptIDs = []
+            Task { @MainActor in await self.foregroundHeartbeat() }
         }
         syncSocket.connect(session: syncSession, syncState: makeSyncClientState())
         await replayPendingDrafts()
@@ -1372,7 +1399,132 @@ final class WatchChatRuntime: ObservableObject {
         draftSaveTask?.cancel()
         completionTask?.cancel()
         inFlightDrafts.removeAll()
+        receiptAttemptID = UUID()
+        inFlightReceiptIDs = []
+        visibleReceiptIDs = []
+        visibleChatID = nil
+        receiptChatID = nil
+        acknowledgedReceiptIDs = []
+        isForeground = false
         syncSocket?.disconnect()
+    }
+
+    func updateWebSocketToken(_ token: String?) {
+        guard !isStopped, let syncSession else { return }
+        self.syncSession = WatchSyncSession(sessionId: syncSession.sessionId, token: token)
+    }
+
+    func setForeground(_ foreground: Bool) async {
+        guard !isStopped else { return }
+        isForeground = foreground
+        receiptAttemptID = UUID()
+        inFlightReceiptIDs = []
+        if foreground {
+            await foregroundHeartbeat()
+        } else if let syncSocket, syncSocket.isConnected {
+            do {
+                try await syncSocket.sendEvent(type: "native_client_lifecycle",
+                    payload: ["is_foreground": false, "client_type": "apple"])
+            } catch {
+                NativeDiagnostics.failure("background_presence_failed", category: "watch_chat_socket",
+                                          level: .warning, error: error)
+            }
+        }
+    }
+
+    func foregroundHeartbeat() async {
+        guard !isStopped, isForeground, accountID != nil,
+              let syncSocket, let syncSession else { return }
+        if !syncSocket.isConnected {
+            syncSocket.connect(session: syncSession, syncState: makeSyncClientState())
+            return
+        }
+        do {
+            try await syncSocket.sendEvent(type: "native_client_lifecycle",
+                payload: ["is_foreground": true, "client_type": "apple"])
+            try await syncSocket.sendEvent(type: "set_active_chat",
+                payload: ["chat_id": visibleChatID.map { $0 as Any } ?? NSNull()])
+        } catch {
+            NativeDiagnostics.failure("foreground_presence_failed", category: "watch_chat_socket",
+                                      level: .warning, error: error)
+        }
+        retryVisibleReceipts()
+    }
+
+    func setVisibleChatID(_ chatID: String?) {
+        guard !isStopped else { return }
+        if let chatID, receiptChatID != chatID {
+            receiptChatID = chatID
+            acknowledgedReceiptIDs = []
+        }
+        if visibleChatID != chatID {
+            visibleChatID = chatID
+            visibleReceiptIDs = []
+            inFlightReceiptIDs = []
+            receiptAttemptID = UUID()
+        }
+        guard isForeground, syncSocket?.isConnected == true else { return }
+        Task { @MainActor in
+            guard !isStopped, isForeground, visibleChatID == chatID else { return }
+            try? await syncSocket?.sendEvent(type: "set_active_chat",
+                payload: ["chat_id": chatID.map { $0 as Any } ?? NSNull()])
+        }
+    }
+
+    func updateVisibleMessages(_ ids: Set<String>, chatID: String?) {
+        guard !isStopped, let chatID, visibleChatID == chatID, selectedChatId == chatID else { return }
+        let committed = Set((messagesByChatId[chatID] ?? []).filter {
+            ids.contains($0.id) && !$0.isPending && ($0.role == .assistant || $0.role == .user)
+        }.map(\.id))
+        visibleReceiptIDs = committed
+        retryVisibleReceipts()
+    }
+
+    private func retryVisibleReceipts() {
+        guard !isStopped, isForeground, let accountID, let chatID = visibleChatID,
+              selectedChatId == chatID, let syncSocket, syncSocket.isConnected else { return }
+        let scope = serverScope
+        let accountGeneration = accountLifecycleGeneration
+        let socketGeneration = syncSocket.generation
+        let attemptID = receiptAttemptID
+        for messageID in visibleReceiptIDs.subtracting(acknowledgedReceiptIDs).subtracting(inFlightReceiptIDs) {
+            inFlightReceiptIDs.insert(messageID)
+            Task { @MainActor in
+                let requestID = UUID().uuidString
+                var viewed = false
+                do {
+                    let response = try await syncSocket.requestEvent(
+                        type: "chat_message_viewed",
+                        payload: ["request_id": requestID, "chat_id": chatID, "message_id": messageID],
+                        responseTypes: ["notification_message_viewed_ack"],
+                        matching: { ($0["request_id"] as? String) == requestID },
+                        beforeSend: {
+                            guard !self.isStopped, self.isForeground, self.accountID == accountID,
+                                  self.accountLifecycleGeneration == accountGeneration,
+                                  self.serverScope == scope, Self.currentServerScope == scope,
+                                  syncSocket.generation == socketGeneration,
+                                  self.visibleChatID == chatID, self.selectedChatId == chatID,
+                                  self.visibleReceiptIDs.contains(messageID),
+                                  self.receiptAttemptID == attemptID else { throw CancellationError() }
+                        }
+                    )
+                    viewed = response["chat_id"] as? String == chatID
+                        && response["message_id"] as? String == messageID
+                        && response["viewed"] as? Bool == true
+                } catch {
+                    NativeDiagnostics.failure("visible_receipt_failed", category: "watch_chat_socket",
+                                              level: .warning, error: error)
+                }
+                guard !isStopped, isForeground, self.accountID == accountID,
+                      accountLifecycleGeneration == accountGeneration,
+                      serverScope == scope, Self.currentServerScope == scope,
+                      syncSocket.generation == socketGeneration,
+                      visibleChatID == chatID, selectedChatId == chatID,
+                      receiptAttemptID == attemptID else { return }
+                inFlightReceiptIDs.remove(messageID)
+                if viewed { acknowledgedReceiptIDs.insert(messageID) }
+            }
+        }
     }
 
     func flushDraftAndStop() async {
@@ -2158,6 +2310,8 @@ private final class WatchRealtimeSyncSocket: WatchChatSyncSocket {
     private var connectionGeneration = 0
     var generation: Int { connectionGeneration }
     private var eventHandler: (@MainActor (String, [String: Any]) -> Void)?
+    private var readyHandler: (@MainActor () -> Void)?
+    var isConnected: Bool { webSocketTask != nil && isReady }
     private lazy var session: URLSession = {
         let config = URLSessionConfiguration.default
         config.httpCookieAcceptPolicy = .always
@@ -2168,6 +2322,10 @@ private final class WatchRealtimeSyncSocket: WatchChatSyncSocket {
 
     func setChangeHandler(_ handler: (@MainActor () -> Void)?) { changeHandler = handler }
     func setEventHandler(_ handler: (@MainActor (String, [String: Any]) -> Void)?) { eventHandler = handler }
+    func setReadyHandler(_ handler: (@MainActor () -> Void)?) {
+        readyHandler = handler
+        if isConnected { readyHandler?() }
+    }
 
     func connect(session syncSession: WatchSyncSession, syncState: WatchSyncClientState) {
         guard webSocketTask == nil, !isConnecting else { return }
@@ -2226,6 +2384,7 @@ private final class WatchRealtimeSyncSocket: WatchChatSyncSocket {
                 try await self.send(sync, on: task)
                 guard self.webSocketTask === task, self.connectionGeneration == expectedGeneration else { return }
                 self.isReady = true
+                self.readyHandler?()
             } catch {
                 guard self.webSocketTask === task, self.connectionGeneration == expectedGeneration else { return }
                 NativeDiagnostics.failure(
@@ -2284,8 +2443,16 @@ private final class WatchRealtimeSyncSocket: WatchChatSyncSocket {
 
     func requestEvent(type: String, payload: [String: Any], responseTypes: Set<String>,
                       matching: @escaping @MainActor ([String: Any]) -> Bool) async throws -> [String: Any] {
+        try await requestEvent(type: type, payload: payload, responseTypes: responseTypes,
+                               matching: matching, beforeSend: {})
+    }
+
+    func requestEvent(type: String, payload: [String: Any], responseTypes: Set<String>,
+                      matching: @escaping @MainActor ([String: Any]) -> Bool,
+                      beforeSend: @escaping @MainActor () throws -> Void) async throws -> [String: Any] {
         let expected = connectionGeneration
         let task = try await connectedTask()
+        try beforeSend()
         guard expected == connectionGeneration, !Task.isCancelled else { throw WatchChatRuntimeError.socketUnavailable }
         if !type.isEmpty { try await send(WatchWSOutboundMessage(type: type, payload: payload), on: task) }
         for _ in 0..<200 {

@@ -883,6 +883,31 @@ async def _async_persist_new_chat_message_task(
                 f"Directus operation returned: {created_message_item}"
             )
             return  # Stop if message creation fails
+
+        if role == "user" and hashed_team_id:
+            # Legacy path only. The current durable preflight has its own commit
+            # hook; both paths use the shared recipient/message dedupe key.
+            try:
+                from backend.core.api.app.services.team_chat_notification_service import queue_committed_team_message_by_hash
+
+                sender_id = user_id or await directus_service.get_user_id_from_hashed_user_id(hashed_user_id)
+                if sender_id and hashlib.sha256(sender_id.encode()).hexdigest() == hashed_user_id:
+                    notification_cache = CacheService()
+                    notification_encryption = EncryptionService()
+                    await notification_cache.initialize()
+                    await notification_encryption.initialize()
+                    try:
+                        await queue_committed_team_message_by_hash(
+                            directus=directus_service, cache=notification_cache,
+                            encryption=notification_encryption,
+                            hashed_team_id=hashed_team_id, chat_id=chat_id,
+                            message_id=message_id, sender_id=sender_id,
+                        )
+                    finally:
+                        await notification_cache.close()
+                        await notification_encryption.close()
+            except Exception:
+                logger.exception("Team chat notification fanout failed after legacy message commit")
         
         logger.info(
             f"Successfully created message {message_id} (Directus ID: {created_message_item['id']}) "

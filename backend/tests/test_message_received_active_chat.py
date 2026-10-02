@@ -10,11 +10,12 @@
 
 import asyncio
 import base64
+import hashlib
 import json
 import sys
 
 import pytest
-from types import SimpleNamespace
+from types import ModuleType, SimpleNamespace
 from unittest.mock import AsyncMock
 
 from backend.core.api.app.services.directus.team_methods import hash_id
@@ -27,6 +28,18 @@ sys.modules.setdefault(
     "backend.core.api.app.services.directus.directus",
     SimpleNamespace(DirectusService=object),
 )
+
+
+@pytest.fixture(autouse=True)
+def stub_async_skill_turn_fence(monkeypatch):
+    """Keep turn-fencing tests isolated from worker/Celery imports."""
+    tasks_module = ModuleType("backend.apps.ai.tasks")
+    tasks_module.__path__ = []
+    continuation = ModuleType("backend.apps.ai.tasks.async_skill_continuation")
+    continuation.ASYNC_SKILL_CONTINUATION_TTL_SECONDS = 900
+    continuation.async_skill_latest_user_turn_key = lambda user_id, chat_id: f"turn:{user_id}:{chat_id}"
+    monkeypatch.setitem(sys.modules, tasks_module.__name__, tasks_module)
+    monkeypatch.setitem(sys.modules, continuation.__name__, continuation)
 
 class FakeManager:
     def __init__(self):
@@ -65,6 +78,79 @@ class FakeEmbedService:
 
 def client_ciphertext(label: bytes = b"ciphertext-ok") -> str:
     return base64.b64encode(b"OM" + bytes.fromhex("1a5b3b7c") + (b"0" * 12) + label + (b"t" * 16)).decode("ascii")
+
+
+# contract-test: direct surface=rest_api assertions=teams.chat.encrypted-until-invoked,chats.message.identity-idempotent
+@pytest.mark.asyncio
+async def test_ordinary_team_relay_proof_sends_only_hashed_identity_and_ciphertext_digest(monkeypatch):
+    from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler
+
+    calls = []
+
+    class Recovery:
+        def __init__(self, _directus):
+            pass
+
+        async def execute(self, operation, data):
+            calls.append((operation, data))
+            return {"committed": True}
+
+    monkeypatch.setattr(message_received_handler, "ChatRecoveryService", Recovery)
+    ciphertext = client_ciphertext()
+    assert await message_received_handler._ordinary_team_message_is_committed(
+        object(), preflight_id="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        team_id="team-123", chat_id="chat-123", message_id="msg-123",
+        user_id="user-123", encrypted_content=ciphertext,
+    )
+    assert calls == [("verify_committed_team_message", {
+        "protocol_version": 1,
+        "preflight_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        "hashed_user_id": hash_id("user-123"),
+        "hashed_team_id": hash_id("team-123"),
+        "chat_id": "chat-123",
+        "user_message_id": "msg-123",
+        "encrypted_content_digest": hashlib.sha256(ciphertext.encode()).hexdigest(),
+    })]
+
+
+# contract-test: direct surface=rest_api assertions=teams.chat.encrypted-until-invoked,teams.collaboration.realtime-team-sync
+@pytest.mark.asyncio
+async def test_uncommitted_ordinary_team_message_has_no_fanout_or_confirmation(monkeypatch):
+    from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler
+
+    manager = FakeManager()
+    websocket = FakeWebSocket()
+    broadcast = AsyncMock()
+    mentions = AsyncMock()
+    proof = AsyncMock(return_value=False)
+    monkeypatch.setattr(message_received_handler, "broadcast_team_event", broadcast)
+    monkeypatch.setattr(message_received_handler, "notify_team_member_mentions", mentions)
+    monkeypatch.setattr(message_received_handler, "_ordinary_team_message_is_committed", proof)
+    monkeypatch.setattr(message_received_handler, "ChatRecoveryCutoverController", lambda *_: SimpleNamespace(
+        get_epoch=AsyncMock(return_value=0),
+    ))
+    directus = SimpleNamespace(
+        team=SimpleNamespace(require_team_role=AsyncMock(return_value={"role": "member"})),
+        chat=SimpleNamespace(get_chat_metadata=AsyncMock(return_value={
+            "hashed_team_id": hash_id("team-123"), "messages_v": 1,
+        })),
+    )
+    await message_received_handler.handle_message_received(
+        websocket=websocket, manager=manager, cache_service=SimpleNamespace(),
+        directus_service=directus, encryption_service=SimpleNamespace(),
+        user_id="user-123", device_fingerprint_hash="device-123",
+        payload={
+            "chat_id": "team-chat-123", "team_id": "team-123",
+            "preflight_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            "message": {"message_id": "msg-123", "role": "user",
+                        "encrypted_content": client_ciphertext(), "created_at": 100},
+        },
+    )
+    proof.assert_awaited_once()
+    broadcast.assert_not_awaited()
+    mentions.assert_not_awaited()
+    assert websocket.sent == []
+    assert manager.calls == [("send_personal_message", "error", "user-123", "device-123")]
 
 
 class FakeSkillRegistry:
@@ -108,6 +194,8 @@ def test_message_send_marks_origin_connection_active_before_ai_dispatch(monkeypa
         release_legacy_inference=AsyncMock(return_value={"released": True}),
     )
     cache_service = SimpleNamespace(
+        set=AsyncMock(return_value=True),
+        get=AsyncMock(return_value=None),
         get_user_vault_key_id=AsyncMock(return_value="vault-key-123"),
         save_chat_message_and_update_versions=AsyncMock(
             return_value={"messages_v": 1, "last_edited_overall_timestamp": 1_700_000_000}
@@ -214,6 +302,8 @@ def test_message_send_forwards_client_embed_ref_index(monkeypatch):
         release_legacy_inference=AsyncMock(return_value={"released": True}),
     )
     cache_service = SimpleNamespace(
+        set=AsyncMock(return_value=True),
+        get=AsyncMock(return_value=None),
         get_user_vault_key_id=AsyncMock(return_value="vault-key-123"),
         save_chat_message_and_update_versions=AsyncMock(
             return_value={"messages_v": 1, "last_edited_overall_timestamp": 1_700_000_000}
@@ -301,6 +391,8 @@ def test_recovery_send_does_not_enqueue_while_another_task_is_active(monkeypatch
 
     manager = FakeManager()
     cache_service = SimpleNamespace(
+        set=AsyncMock(return_value=True),
+        get=AsyncMock(return_value=None),
         get_active_ai_task=AsyncMock(return_value="active-task-123"),
     )
     enqueue = AsyncMock()
@@ -365,6 +457,8 @@ def test_team_recovery_send_skips_personal_cache_completeness_gate(monkeypatch):
         ),
     ]
     cache_service = SimpleNamespace(
+        set=AsyncMock(return_value=True),
+        get=AsyncMock(return_value=None),
         get_user_vault_key_id=AsyncMock(return_value="vault-key-123"),
         save_chat_message_and_update_versions=AsyncMock(
             return_value={"messages_v": 5, "last_edited_overall_timestamp": 1_700_000_010}
@@ -500,6 +594,8 @@ def test_recovery_send_marks_enqueue_failed_when_dispatch_returns_no_task(monkey
         }
     )
     cache_service = SimpleNamespace(
+        set=AsyncMock(return_value=True),
+        get=AsyncMock(return_value=None),
         get_user_vault_key_id=AsyncMock(return_value="vault-key-123"),
         save_chat_message_and_update_versions=AsyncMock(
             return_value={"messages_v": 2, "last_edited_overall_timestamp": 1_700_000_010}
@@ -608,6 +704,8 @@ def test_incognito_send_skips_durable_cutover_lookup(monkeypatch):
     controller_calls = []
     manager = FakeManager()
     cache_service = SimpleNamespace(
+        set=AsyncMock(return_value=True),
+        get=AsyncMock(return_value=None),
         get_user_vault_key_id=AsyncMock(return_value="vault-key-123"),
         delete_chat_messages_history=AsyncMock(),
         add_message_to_chat_history=AsyncMock(),
@@ -689,6 +787,8 @@ def test_contextual_pdf_processing_preserves_embed_ref(monkeypatch):
         release_legacy_inference=AsyncMock(return_value={"released": True}),
     )
     cache_service = SimpleNamespace(
+        set=AsyncMock(return_value=True),
+        get=AsyncMock(return_value=None),
         get_user_vault_key_id=AsyncMock(return_value="vault-key-123"),
         save_chat_message_and_update_versions=AsyncMock(
             return_value={"messages_v": 1, "last_edited_overall_timestamp": 1_700_000_000}
@@ -827,6 +927,8 @@ def test_existing_personal_chat_rejects_user_user_ai_cache_history(monkeypatch):
         ),
     ]
     cache_service = SimpleNamespace(
+        set=AsyncMock(return_value=True),
+        get=AsyncMock(return_value=None),
         get_user_vault_key_id=AsyncMock(return_value="vault-key-123"),
         save_chat_message_and_update_versions=AsyncMock(
             return_value={"messages_v": 3, "last_edited_overall_timestamp": 1_700_000_020}

@@ -2,6 +2,7 @@ import logging
 import json
 import base64
 import hashlib
+import time
 from datetime import datetime
 from typing import Dict, Any, Optional, Tuple, List # Add List import
 
@@ -400,13 +401,14 @@ async def add_user_lookup_hash(self, user_id: str, lookup_hash: str) -> Tuple[bo
         logger.error(error_msg, exc_info=True)
         return False, error_msg
 
-async def get_user_fields_direct(self, user_id: str, fields: List[str]) -> Optional[Dict[str, Any]]:
+async def get_user_fields_direct(self, user_id: str, fields: List[str], *, no_cache: bool = False) -> Optional[Dict[str, Any]]:
     """
     Fetches specific fields for a user directly from Directus, bypassing cache.
 
     Args:
         user_id: The ID of the user to fetch.
         fields: A list of field names to retrieve (e.g., ["encrypted_credit_balance", "vault_key_id"]).
+        no_cache: Also bypass Directus HTTP caching for dispatch-time eligibility.
 
     Returns:
         A dictionary containing the requested fields and their values,
@@ -427,7 +429,11 @@ async def get_user_fields_direct(self, user_id: str, fields: List[str]) -> Optio
         fields_query = ",".join(fields_to_fetch)
         logger.info(f"Fetching direct fields '{fields_query}' for user {user_id}")
         url = f"{self.base_url}/users/{user_id}?fields={fields_query}"
-        response = await self._make_api_request("GET", url)
+        request_options = {}
+        if no_cache:
+            url += f"&_ts={time.time_ns()}"
+            request_options["headers"] = {"Cache-Control": "no-store"}
+        response = await self._make_api_request("GET", url, **request_options)
 
         if response.status_code == 404:
             logger.warning(f"User {user_id} not found when fetching direct fields.")

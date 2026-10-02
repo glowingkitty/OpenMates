@@ -9801,6 +9801,11 @@ async def _consume_main_processing_stream(
         total_credits=billing_info.get("total_credits"),
         category=preprocessing_result.category or "general_knowledge"
     )
+    # This is the title already supplied/generated for this inference. It is
+    # never recovered by decrypting the permanently stored chat title.
+    notification_title = preprocessing_result.title or request_data.current_chat_title
+    if notification_title:
+        final_payload["chat_title"] = notification_title
     if getattr(request_data, "is_anonymous", False):
         # The anonymous SSE adapter must not present a failed answer as a
         # completed task. Only this public, non-diagnostic limit code is sent

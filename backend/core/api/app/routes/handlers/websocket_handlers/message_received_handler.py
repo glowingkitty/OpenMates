@@ -40,6 +40,32 @@ from backend.core.api.app.utils.text_sanitization import sanitize_text_for_ascii
 
 logger = logging.getLogger(__name__)
 
+
+async def _ordinary_team_message_is_committed(
+    directus_service: Any, *, preflight_id: Any, team_id: str, chat_id: str,
+    message_id: Any, user_id: str, encrypted_content: str,
+) -> bool:
+    """Bind an ordinary Team relay to its durable preflight and ciphertext."""
+    try:
+        uuid.UUID(str(preflight_id))
+    except (ValueError, TypeError, AttributeError):
+        return False
+    if not isinstance(message_id, str) or not message_id:
+        return False
+    result = await ChatRecoveryService(directus_service).execute(
+        "verify_committed_team_message",
+        {
+            "protocol_version": 1,
+            "preflight_id": str(preflight_id),
+            "hashed_user_id": hash_id(user_id),
+            "hashed_team_id": hash_id(team_id),
+            "chat_id": chat_id,
+            "user_message_id": message_id,
+            "encrypted_content_digest": hashlib.sha256(encrypted_content.encode("utf-8")).hexdigest(),
+        },
+    )
+    return result.get("committed") is True
+
 TEST_MOCK_MARKER_PREFIX = "<<<TEST_MOCK:"
 TEST_LIVE_MOCK_MARKER_PREFIX = "<<<TEST_LIVE_MOCK:"
 TEST_LIVE_RECORD_MARKER_PREFIX = "<<<TEST_LIVE_RECORD:"
@@ -604,6 +630,36 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 return
         else:
             logger.info(f"Processing incognito chat message {message_payload_from_client.get('message_id')} for chat {chat_id} - skipping Directus operations")
+
+        if is_team_chat and not team_should_trigger_ai:
+            try:
+                committed = await _ordinary_team_message_is_committed(
+                    directus_service,
+                    preflight_id=payload.get("preflight_id"),
+                    team_id=str(team_id),
+                    chat_id=chat_id,
+                    message_id=message_payload_from_client.get("message_id"),
+                    user_id=user_id,
+                    encrypted_content=team_transport.encrypted_content,
+                )
+            except Exception:
+                logger.warning("Ordinary Team message commit verification failed", exc_info=True)
+                committed = False
+            if not committed:
+                await manager.send_personal_message(
+                    {
+                        "type": "error",
+                        "payload": {
+                            "code": "durable_preflight_failed",
+                            "message": "Encrypted Team message was not committed. Please retry.",
+                            "chat_id": chat_id,
+                            "message_id": message_payload_from_client.get("message_id"),
+                        },
+                    },
+                    user_id,
+                    device_fingerprint_hash,
+                )
+                return
 
         if is_team_chat:
             active_member_hashes = await directus_service.team.list_active_member_hashes(str(team_id))

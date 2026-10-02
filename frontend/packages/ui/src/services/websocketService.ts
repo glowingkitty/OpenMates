@@ -330,10 +330,13 @@ class WebSocketService extends EventTarget {
       // and the ping/pong mechanism may not fire (timers are throttled in background tabs).
       // This handler runs an immediate liveness check when the user returns to the page.
       document.addEventListener("visibilitychange", () => {
-        this.sendClientLifecycle(document.visibilityState === "visible", "visibilitychange");
+        this.sendClientLifecycle(document.visibilityState === "visible" && document.hasFocus(), "visibilitychange");
         if (document.visibilityState !== "visible") return;
         this.handlePageResume("visibilitychange");
       });
+
+      window.addEventListener("focus", () => this.sendClientLifecycle(true, "focus"));
+      window.addEventListener("blur", () => this.sendClientLifecycle(false, "blur"));
 
       window.addEventListener("pagehide", () => {
         this.sendClientLifecycle(false, "pagehide");
@@ -711,7 +714,7 @@ class WebSocketService extends EventTarget {
           this.dispatchEvent(new CustomEvent("open"));
           websocketStatus.setStatus("connected"); // Update status
           this.sendClientLifecycle(
-            typeof document === "undefined" || document.visibilityState === "visible",
+            typeof document !== "undefined" && document.visibilityState === "visible" && document.hasFocus(),
             "open",
           );
           this.startPing(); // Start pinging on successful connection
@@ -1234,6 +1237,12 @@ class WebSocketService extends EventTarget {
     this.pingIntervalId = setInterval(() => {
       if (this.isConnected()) {
         try {
+          // Presence expires independently of transport liveness. A visible tab
+          // refreshes its human lease while the WebSocket remains connected.
+          this.sendClientLifecycle(
+            typeof document !== "undefined" && document.visibilityState === "visible" && document.hasFocus(),
+            "heartbeat",
+          );
           console.debug("[WebSocketService] Sending ping...");
           this.sendMessage("ping", {}); // sendMessage already checks for connection
           // Start pong timeout
@@ -1453,19 +1462,21 @@ class WebSocketService extends EventTarget {
 
   private sendClientLifecycle(isForeground: boolean, source: string): void {
     if (!this.isConnected()) return;
+    const activeForeground = isForeground && typeof document !== "undefined"
+      && document.visibilityState === "visible" && document.hasFocus();
     try {
       this.ws?.send(
         JSON.stringify({
           type: "native_client_lifecycle",
           payload: {
-            is_foreground: isForeground,
+            is_foreground: activeForeground,
             client_type: "web",
             source,
           },
         }),
       );
       console.debug(
-        `[WebSocketService] Sent lifecycle state: foreground=${isForeground}, source=${source}`,
+        `[WebSocketService] Sent lifecycle state: foreground=${activeForeground}, source=${source}`,
       );
     } catch (error) {
       console.warn("[WebSocketService] Failed to send lifecycle state:", error);

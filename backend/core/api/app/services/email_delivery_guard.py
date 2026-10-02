@@ -9,15 +9,18 @@ import hashlib
 import logging
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any, Awaitable, Callable, Optional
 
 from backend.core.api.app.services.directus.directus import DirectusService
-from backend.core.api.app.services.email_template import EmailTemplateService
+from backend.core.api.app.services.email_template import EmailSendIneligible, EmailTemplateService
 
 logger = logging.getLogger(__name__)
 
 COLLECTION = "email_deliveries"
 DELIVERY_UUID_NAMESPACE = uuid.UUID("4d5fd979-0f7c-56c7-82d3-d50de814c2e5")
+RETRY_WINDOW_SECONDS = 600
+RETRY_LOCK_SECONDS = 120
+_RELEASE_LOCK = "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end"
 
 
 def normalize_email_hash(email: str | None) -> str | None:
@@ -53,6 +56,29 @@ def build_delivery_id(delivery_key: str) -> str:
     return str(uuid.uuid5(DELIVERY_UUID_NAMESPACE, delivery_key))
 
 
+def _provider_enforces_idempotency(email_template_service: EmailTemplateService) -> bool:
+    """Fail closed for unknown transports; a MIME header alone is not deduplication."""
+    capability = getattr(email_template_service, "supports_delivery_idempotency", None)
+    if not callable(capability):
+        return False
+    try:
+        return capability() is True
+    except Exception:
+        return False
+
+
+def _selected_delivery_transport(email_template_service: EmailTemplateService) -> str:
+    selected = getattr(email_template_service, "selected_delivery_transport", None)
+    if callable(selected):
+        try:
+            name = selected()
+            if isinstance(name, str) and name:
+                return name
+        except Exception:
+            pass
+    return "unknown"
+
+
 async def reserve_delivery(
     directus: DirectusService,
     *,
@@ -65,6 +91,7 @@ async def reserve_delivery(
     lang: str | None = None,
     scheduled_for: str | None = None,
     metadata: Optional[dict[str, Any]] = None,
+    provider: str = "brevo",
 ) -> tuple[bool, str, str]:
     """Reserve a delivery row.
 
@@ -91,7 +118,7 @@ async def reserve_delivery(
         "stage": stage,
         "status": "processing",
         "lang": lang,
-        "provider": "brevo",
+        "provider": provider,
         "scheduled_for": scheduled_for,
         "processing_started_at": now,
         "metadata": metadata,
@@ -148,6 +175,46 @@ async def mark_delivery_failed(directus: DirectusService, delivery_id: str, erro
     )
 
 
+async def _prepare_bounded_retry(
+    directus: DirectusService, delivery_id: str, delivery_key: str, recipient_hash: str | None,
+    provider: str,
+) -> str:
+    """Reopen only a matching, recent failed/stale reservation without changing its first timestamp."""
+    rows = await directus.get_items(
+        COLLECTION,
+        params={"filter": {"id": {"_eq": delivery_id}}, "fields": "id,delivery_key,recipient_hash,provider,status,processing_started_at", "limit": 1},
+        admin_required=True,
+    )
+    if not rows:
+        return "already_reserved"  # An uncertain create response must fail closed.
+    row = rows[0]
+    if row.get("delivery_key") != delivery_key or row.get("recipient_hash") != recipient_hash or row.get("provider") != provider:
+        return "already_reserved"
+    status = row.get("status")
+    if status not in ("failed", "processing"):
+        return "already_reserved"
+    started_at = row.get("processing_started_at")
+    try:
+        started = datetime.fromisoformat(str(started_at).replace("Z", "+00:00"))
+        if started.tzinfo is None:
+            return "retry_window_closed"
+        age = (datetime.now(timezone.utc) - started.astimezone(timezone.utc)).total_seconds()
+    except (TypeError, ValueError):
+        return "retry_window_closed"
+    if age < 0 or age >= RETRY_WINDOW_SECONDS:
+        return "retry_window_closed"
+    if status == "processing" and age < RETRY_LOCK_SECONDS:
+        # The first worker may still be active, or its reservation response
+        # was lost. Let the bounded task schedule another check after it ages.
+        return "retry_locked"
+    await directus.update_item(
+        COLLECTION, delivery_id,
+        {"status": "processing", "error": None},
+        admin_required=True,
+    )
+    return "retry_ready"
+
+
 async def send_email_once(
     *,
     directus: DirectusService,
@@ -168,45 +235,89 @@ async def send_email_once(
     scheduled_for: str | None = None,
     metadata: Optional[dict[str, Any]] = None,
     attachments: Optional[list] = None,
+    before_send: Callable[[], Awaitable[bool]] | None = None,
+    send_options: dict[str, Any] | None = None,
+    retry_cache: Any | None = None,
 ) -> tuple[bool, str]:
-    """Reserve and send one email. Returns (sent, status)."""
-    reserved, delivery_id, _delivery_key = await reserve_delivery(
-        directus,
-        email_type=email_type,
-        campaign_key=campaign_key,
-        recipient_kind=recipient_kind,
-        recipient_id=recipient_id,
-        recipient_hash=normalize_email_hash(recipient_email),
-        stage=stage,
-        lang=lang,
-        scheduled_for=scheduled_for,
-        metadata=metadata,
+    """Reserve and send one email. Optional retries are bounded by provider deduplication."""
+    delivery_key = build_delivery_key(
+        email_type=email_type, campaign_key=campaign_key, recipient_kind=recipient_kind,
+        recipient_id=recipient_id, stage=stage,
     )
-    if not reserved:
-        return False, "already_reserved"
-
+    delivery_id = build_delivery_id(delivery_key)
+    recipient_hash = normalize_email_hash(recipient_email)
+    provider = _selected_delivery_transport(email_template_service) if retry_cache is not None else "brevo"
+    cache_client = None
+    lock_key = f"email_delivery_retry_lock:{delivery_id}"
+    lock_token = str(uuid.uuid4())
+    if retry_cache is not None:
+        try:
+            cache_client = await retry_cache.client
+            if not cache_client or not await cache_client.set(lock_key, lock_token, nx=True, ex=RETRY_LOCK_SECONDS):
+                return False, "retry_locked"
+        except Exception:
+            logger.warning("Email delivery retry lock unavailable for %s", delivery_id)
+            return False, "retry_unavailable"
+    can_mark_failed = False
     try:
+        reserved, _, _ = await reserve_delivery(
+            directus,
+            email_type=email_type, campaign_key=campaign_key, recipient_kind=recipient_kind,
+            recipient_id=recipient_id, recipient_hash=recipient_hash, stage=stage,
+            lang=lang, scheduled_for=scheduled_for, metadata=metadata, provider=provider,
+        )
+        if not reserved:
+            if retry_cache is None:
+                return False, "already_reserved"
+            if not _provider_enforces_idempotency(email_template_service):
+                # SMTP may have accepted the previous call before failing.
+                # Without a provider-enforced key it must never be replayed.
+                return False, "retry_unsafe_transport"
+            retry_status = await _prepare_bounded_retry(directus, delivery_id, delivery_key, recipient_hash, provider)
+            if retry_status != "retry_ready":
+                return False, retry_status
+        can_mark_failed = True
+        if before_send is not None and not await before_send():
+            await directus.update_item(
+                COLLECTION, delivery_id, {"status": "skipped", "error": None}, admin_required=True,
+            )
+            return False, "ineligible_at_dispatch"
         sent = await email_template_service.send_email(
             template=template,
             recipient_email=recipient_email,
             recipient_name=recipient_name,
             context=context,
-            subject=subject,
+            subject=(send_options or {}).get("subject", subject),
             sender_name=sender_name,
             sender_email=sender_email,
             lang=lang,
             attachments=attachments,
+            **({"late_before_send": before_send, "subject_options": send_options} if before_send is not None else {}),
+            **({"delivery_idempotency_key": delivery_id} if retry_cache is not None and _provider_enforces_idempotency(email_template_service) else {}),
         )
+        if sent:
+            await mark_delivery_sent(directus, delivery_id)
+            return True, "sent"
+
+        await mark_delivery_failed(directus, delivery_id, "EmailTemplateService.send_email returned False")
+        return False, "failed"
+    except EmailSendIneligible:
+        await directus.update_item(
+            COLLECTION, delivery_id, {"status": "skipped", "error": None}, admin_required=True,
+        )
+        return False, "ineligible_at_dispatch"
     except Exception as exc:
-        await mark_delivery_failed(directus, delivery_id, str(exc))
+        # A failed ledger update is still uncertain; the original start time
+        # bounds all subsequent attempts and the provider key stays stable.
+        if can_mark_failed:
+            await mark_delivery_failed(directus, delivery_id, type(exc).__name__)
         raise
-
-    if sent:
-        await mark_delivery_sent(directus, delivery_id)
-        return True, "sent"
-
-    await mark_delivery_failed(directus, delivery_id, "EmailTemplateService.send_email returned False")
-    return False, "failed"
+    finally:
+        if cache_client is not None:
+            try:
+                await cache_client.eval(_RELEASE_LOCK, 1, lock_key, lock_token)
+            except Exception:
+                logger.warning("Email delivery retry lock release failed for %s", delivery_id)
 
 
 async def fetch_existing_recipient_ids(

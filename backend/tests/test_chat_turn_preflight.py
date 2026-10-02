@@ -6,6 +6,8 @@ acknowledgement is emitted before persistence succeeds and retry identities are
 stable. Transaction rollback itself remains covered by the extension runtime.
 """
 
+import base64
+
 import pytest
 
 from backend.core.api.app.routes.handlers.websocket_handlers import chat_turn_preflight_handler
@@ -135,6 +137,12 @@ async def test_team_preflight_persists_canonical_team_scope(monkeypatch) -> None
     manager = RecordingManager()
     payload = preflight_payload()
     payload["team_id"] = "team-1"
+    ciphertext = base64.b64encode(b"x" * 29).decode("ascii")
+    payload["encrypted_user_message"]["encrypted_content"] = ciphertext
+    payload["inference_request"] = {
+        "team_id": "team-1", "chat_id": payload["chat_id"],
+        "message": {"message_id": payload["message_id"], "encrypted_content": ciphertext},
+    }
     directus_service = type("Directus", (), {
         "team": type("Team", (), {
             "require_team_role": staticmethod(lambda *_args: _async_none()),
@@ -153,7 +161,7 @@ async def test_team_preflight_persists_canonical_team_scope(monkeypatch) -> None
     operation, data = RecordingRecoveryService.calls[1]
     assert operation == "prepare_preflight"
     assert data["hashed_team_id"] == hash_id("team-1")
-    assert data["encrypted_user_message"]["encrypted_content"] == "ciphertext"
+    assert data["encrypted_user_message"]["encrypted_content"] == ciphertext
 
 
 async def _async_none() -> None:

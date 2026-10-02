@@ -46,23 +46,44 @@ import {
 	type ProjectFocusSendIntent,
 } from "./projectFocusSendPreflight";
 import { deactivateProjectFocus } from "./projectService";
+import { stageTeamNotificationPreview } from "./teamNotificationPreview";
+import { ordinaryTeamPreflightStorageKey, retainOrReuseOrdinaryTeamPreflight } from "./ordinaryTeamPreflightRetry";
+import { PreflightRejectionError, isPreflightAcknowledgementTimeout, waitForPreflightAcknowledgement } from "./preflightAcknowledgement";
+export { isPreflightAcknowledgementTimeout } from "./preflightAcknowledgement";
 
 const CHAT_RECOVERY_PROTOCOL_VERSION = 1;
 const CHAT_RECOVERY_KEY_VERSION = 1;
-const CHAT_PREFLIGHT_TIMEOUT_MS = 60_000;
-const CHAT_PREFLIGHT_TIMEOUT_MESSAGE = "Encrypted chat preflight acknowledgement timed out.";
 const SEND_EMBED_LOAD_RETRY_ATTEMPTS = 12;
 const SEND_EMBED_LOAD_RETRY_DELAY_MS = 500;
-const PREFLIGHT_ERROR_CODES = new Set([
-	"client_update_required",
-	"durable_preflight_failed",
-	"immutable_chat_key_mismatch",
-	"preflight_expired",
-	"preflight_mismatch",
-	"preflight_required",
-	"recovery_key_mismatch",
-	"version_conflict"
+const DEFINITIVE_TEAM_PREFLIGHT_ERRORS = new Set([
+	"immutable_chat_key_mismatch", "message_identity_mismatch", "preflight_mismatch",
+	"recovery_key_mismatch", "team_chat_scope_mismatch", "version_conflict"
 ]);
+
+const teamPreflightConfirmListeners = new Map<string, (payload: unknown) => void>();
+function watchOrdinaryTeamConfirmation(chatId: string, messageId: string): void {
+	const key = ordinaryTeamPreflightStorageKey(chatId, messageId);
+	if (teamPreflightConfirmListeners.has(key)) return;
+	const confirmed = (payload: unknown) => {
+		const value = payload as { chat_id?: string; message_id?: string };
+		if (value?.chat_id !== chatId || value.message_id !== messageId) return;
+		try { sessionStorage.removeItem(key); }
+		finally {
+			webSocketService.off("chat_message_confirmed", confirmed);
+			teamPreflightConfirmListeners.delete(key);
+		}
+	};
+	teamPreflightConfirmListeners.set(key, confirmed);
+	webSocketService.on("chat_message_confirmed", confirmed);
+}
+
+function forgetOrdinaryTeamPreflight(chatId: string, messageId: string): void {
+	const key = ordinaryTeamPreflightStorageKey(chatId, messageId);
+	sessionStorage.removeItem(key);
+	const listener = teamPreflightConfirmListeners.get(key);
+	if (listener) webSocketService.off("chat_message_confirmed", listener);
+	teamPreflightConfirmListeners.delete(key);
+}
 
 function recordPreflightDebugStep(step: string, details: Record<string, unknown> = {}): void {
 	const debugWindow = window as Window & {
@@ -109,60 +130,6 @@ function encodeBase64Url(bytes: Uint8Array): string {
 	return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-function waitForPreflightAcknowledgement(turnId: string): Promise<{ preflight_id: string }> {
-	return new Promise((resolve, reject) => {
-		recordPreflightDebugStep("preflight_waiter_registered", { turnId });
-		const timeout = window.setTimeout(() => {
-			recordPreflightDebugStep("preflight_ack_timeout", { turnId });
-			cleanup();
-			reject(new Error(CHAT_PREFLIGHT_TIMEOUT_MESSAGE));
-		}, CHAT_PREFLIGHT_TIMEOUT_MS);
-		const handleAck = (payload: unknown) => {
-			const ack = payload as { turn_id?: string; preflight_id?: string };
-			if (ack.turn_id && ack.turn_id !== turnId) {
-				recordPreflightDebugStep("preflight_ack_ignored_turn_mismatch", {
-					turnId,
-					receivedTurnId: ack.turn_id
-				});
-				return;
-			}
-			if (!ack.preflight_id) {
-				recordPreflightDebugStep("preflight_ack_missing_id", { turnId });
-				cleanup();
-				reject(new Error("Encrypted chat preflight acknowledgement omitted preflight_id."));
-				return;
-			}
-			recordPreflightDebugStep("preflight_ack_received", { turnId });
-			cleanup();
-			resolve({ preflight_id: ack.preflight_id });
-		};
-		const handleError = (payload: unknown) => {
-			const error = payload as { code?: string; message?: string };
-			if (!error.code || !PREFLIGHT_ERROR_CODES.has(error.code)) return;
-			recordPreflightDebugStep("preflight_error_received", {
-				turnId,
-				code: error.code
-			});
-			cleanup();
-			reject(new Error(error.message || "Encrypted chat preflight was rejected."));
-		};
-		const handleDebug = (payload: unknown) => {
-			const debug = payload as { turn_id?: string; phase?: string };
-			if (debug.turn_id !== turnId || !debug.phase) return;
-			recordPreflightDebugStep(`preflight_server_${debug.phase}`, { turnId });
-		};
-		const cleanup = () => {
-			window.clearTimeout(timeout);
-			webSocketService.off("chat_turn_preflight_ack", handleAck);
-			webSocketService.off("error", handleError);
-			webSocketService.off("chat_turn_preflight_debug", handleDebug);
-		};
-		webSocketService.on("chat_turn_preflight_ack", handleAck);
-		webSocketService.on("error", handleError);
-		webSocketService.on("chat_turn_preflight_debug", handleDebug);
-	});
-}
-
 async function abortUnsafeKeyMismatch(
 	chatId: string,
 	encryptedChatKey: string,
@@ -202,10 +169,6 @@ export function shouldIncludePreflightChatMetadata(localMessagesVersion: number 
 	return (localMessagesVersion ?? 1) <= 1;
 }
 
-export function isPreflightAcknowledgementTimeout(error: unknown): boolean {
-	return error instanceof Error && error.message === CHAT_PREFLIGHT_TIMEOUT_MESSAGE;
-}
-
 export async function resolveHistoryCategoryForInference(
 	message: Message,
 	isIncognito: boolean,
@@ -227,6 +190,7 @@ export async function resolveHistoryCategoryForInference(
 export function buildTeamMessageTransport(params: {
 	message: Message;
 	content: string;
+	invokeAI?: boolean;
 	encryptedContent: string;
 	encryptedSenderName?: string;
 	history: Message[];
@@ -256,7 +220,7 @@ export function buildTeamMessageTransport(params: {
 		team_member_mentions: [],
 		created_at: params.message.created_at
 	};
-	if (!isTeamAIInvocation(params.content)) {
+	if (!(params.invokeAI ?? isTeamAIInvocation(params.content))) {
 		return { message: messageEnvelope };
 	}
 	const history = params.history
@@ -297,6 +261,32 @@ async function updateMessageStatusForSendRetry(
 			detail: { chatId: message.chat_id, messageId: message.message_id, status }
 		})
 	);
+}
+
+async function blockSendWithoutConfiguredAiModels(
+	serviceInstance: ChatSynchronizationService,
+	message: Message,
+): Promise<boolean> {
+	let serverStatusState = get(serverStatusStore);
+	if (!serverStatusState.initialized && !serverStatusState.loading) {
+		await initializeServerStatus();
+		serverStatusState = get(serverStatusStore);
+	}
+	if (serverStatusState.status?.is_self_hosted !== true || serverStatusState.status.ai_models_configured !== false) {
+		return false;
+	}
+	notificationStore.error(
+		"Server setup incomplete. AI models not set up. Add an AI provider API key in your self-hosted .env file and restart OpenMates."
+	);
+	if (message.status === "sending") {
+		await chatDB.updateMessageStatus(message.message_id, "failed");
+		serviceInstance.dispatchEvent(
+			new CustomEvent("messageStatusChanged", {
+				detail: { chatId: message.chat_id, messageId: message.message_id, status: "failed" }
+			})
+		);
+	}
+	return true;
 }
 
 export async function sendNewMessageImpl(
@@ -357,34 +347,6 @@ export async function sendNewMessageImpl(
 		return;
 	}
 
-	let serverStatusState = get(serverStatusStore);
-	if (!serverStatusState.initialized && !serverStatusState.loading) {
-		await initializeServerStatus();
-		serverStatusState = get(serverStatusStore);
-	}
-
-	if (
-		serverStatusState.status?.is_self_hosted === true &&
-		serverStatusState.status.ai_models_configured === false
-	) {
-		notificationStore.error(
-			"Server setup incomplete. AI models not set up. Add an AI provider API key in your self-hosted .env file and restart OpenMates."
-		);
-		if (message.status === "sending") {
-			await chatDB.updateMessageStatus(message.message_id, "failed");
-			serviceInstance.dispatchEvent(
-				new CustomEvent("messageStatusChanged", {
-					detail: {
-						chatId: message.chat_id,
-						messageId: message.message_id,
-						status: "failed"
-					}
-				})
-			);
-		}
-		return;
-	}
-
 	// OTel instrumentation: trace the entire sendNewMessageImpl pipeline
 	const tracer = getTracer();
 	const implSpan = tracer.startSpan('message.send.sendNewMessageImpl', {
@@ -418,6 +380,9 @@ export async function sendNewMessageImpl(
 	if (!chat) {
 		chat = await chatDB.getChat(message.chat_id);
 	}
+
+	// Personal and incognito turns always invoke AI; preserve their early gate.
+	if ((!chat?.team_id || isIncognitoChat) && await blockSendWithoutConfiguredAiModels(serviceInstance, message)) return;
 
 	// Use title_v to determine if the chat already has a title generated.
 	// Previously used (messages_v > 1) as a proxy, but this was unreliable due to race conditions:
@@ -825,6 +790,10 @@ export async function sendNewMessageImpl(
 
 	// Use processed content (with code blocks and tables replaced by embed references)
 	const contentForServer = processedContent;
+	// Team AI inference is decided from the same final content sent to the
+	// transport. A mention inside extracted code/table content is ciphertext-only.
+	const shouldInvokeTeamAI = !!chat?.team_id && !isIncognitoChat && isTeamAIInvocation(contentForServer ?? "");
+	if (shouldInvokeTeamAI && await blockSendWithoutConfiguredAiModels(serviceInstance, message)) return;
 	const getHistoryContentForServer = (msg: Message): string => {
 		if (msg.message_id === message.message_id) return contentForServer ?? "";
 		return typeof msg.content === "string" ? msg.content : "";
@@ -1032,7 +1001,7 @@ export async function sendNewMessageImpl(
 		};
 		test_mock_marker?: string;
 	}
-	const payload: SendMessagePayload = {
+	let payload: SendMessagePayload = {
 		chat_id: message.chat_id,
 		parent_id: chat?.parent_id || null,
 		broadcast: ((message as unknown) as Record<string, unknown>).broadcast as boolean || false,
@@ -1527,6 +1496,18 @@ export async function sendNewMessageImpl(
 		}
 	);
 
+	if (chat?.team_id && !isIncognitoChat) {
+		// Preview upload is optional and bounded. Failure leaves a content-free
+		// notification; it never prevents the encrypted message from being sent.
+		await stageTeamNotificationPreview({
+			teamId: chat.team_id,
+			chatId: message.chat_id,
+			messageId: message.message_id,
+			content: message.content ?? "",
+			title: typeof payload.message.current_chat_title === "string" ? payload.message.current_chat_title : undefined,
+		});
+	}
+
 	if (!isIncognitoChat) {
 		if (!encryptedChatKey) {
 			throw new Error(`Saved chat ${message.chat_id} has no encrypted chat key for durable preflight.`);
@@ -1537,7 +1518,7 @@ export async function sendNewMessageImpl(
 		if (!chatKey || !(await ensureChatKeySafeForWrite(message.chat_id, chatKey, "chat turn preflight"))) {
 			throw new Error(`Saved chat ${message.chat_id} has no safe chat key for durable preflight.`);
 		}
-		const turnId = generateUUID();
+		let turnId = generateUUID();
 		const recoveryKeypair = await deriveChatCompletionRecoveryKeypair(
 			encodeBase64Url(chatKey),
 			message.chat_id,
@@ -1557,6 +1538,7 @@ export async function sendNewMessageImpl(
 			const teamTransport = buildTeamMessageTransport({
 				message,
 				content: contentForServer,
+				invokeAI: shouldInvokeTeamAI,
 				encryptedContent: encryptedFields.encrypted_content,
 				encryptedSenderName: encryptedFields.encrypted_sender_name,
 				history: messageHistory.map((historyMessage) => ({
@@ -1564,7 +1546,6 @@ export async function sendNewMessageImpl(
 					content: getHistoryContentForServer(historyMessage)
 				}))
 			});
-			const shouldInvokeTeamAI = !!teamTransport.teamAIInvocation;
 			payload.team_id = chat.team_id;
 			payload.message = teamTransport.message;
 			delete payload.message_history;
@@ -1584,7 +1565,7 @@ export async function sendNewMessageImpl(
 				};
 			}
 		}
-		const preflightPayload: Record<string, unknown> = {
+		let preflightPayload: Record<string, unknown> = {
 			protocol_version: CHAT_RECOVERY_PROTOCOL_VERSION,
 			chat_id: message.chat_id,
 			turn_id: turnId,
@@ -1620,9 +1601,30 @@ export async function sendNewMessageImpl(
 		// The commitment covers the exact inference payload. Inject tracing before
 		// preflight and never mutate that payload between acknowledgement and send.
 		injectTraceparent(payload as unknown as Record<string, unknown>);
+		if (chat?.team_id && !shouldInvokeTeamAI) {
+			try {
+				const { userDB } = await import("./userDB");
+				const accountId = (await userDB.getUserProfile())?.user_id;
+				if (!accountId) throw new Error("Ordinary Team preflight requires an authenticated account.");
+				preflightPayload = await retainOrReuseOrdinaryTeamPreflight({
+					accountId, teamId: chat.team_id, chatId: message.chat_id,
+					messageId: message.message_id, role: message.role, createdAt: message.created_at,
+					content: message.content, senderName: message.sender_name,
+					chatKey, encryptedChatKey,
+				}, preflightPayload);
+				payload = preflightPayload.inference_request as SendMessagePayload;
+				turnId = preflightPayload.turn_id as string;
+				watchOrdinaryTeamConfirmation(message.chat_id, message.message_id);
+			} catch (error) {
+				await updateMessageStatusForSendRetry(serviceInstance, message, "failed");
+				throw error;
+			}
+		}
 		try {
 			const { preflight_id } = await runSerializedPreflight(async () => {
-				const acknowledgement = waitForPreflightAcknowledgement(turnId);
+				const acknowledgement = waitForPreflightAcknowledgement(
+					turnId, webSocketService, recordPreflightDebugStep
+				);
 				recordPreflightDebugStep("preflight_dispatch_started", {
 					turnId,
 					webSocketConnected: serviceInstance.webSocketConnected_FOR_SENDERS_ONLY
@@ -1635,6 +1637,10 @@ export async function sendNewMessageImpl(
 			payload.preflight_id = preflight_id;
 			durablePreflightId = preflight_id;
 		} catch (error) {
+			if (
+				chat?.team_id && !shouldInvokeTeamAI && error instanceof PreflightRejectionError &&
+				DEFINITIVE_TEAM_PREFLIGHT_ERRORS.has(error.code)
+			) forgetOrdinaryTeamPreflight(message.chat_id, message.message_id);
 			if (isPreflightAcknowledgementTimeout(error)) {
 				await updateMessageStatusForSendRetry(serviceInstance, message, "waiting_for_internet");
 				webSocketService.forceReconnect("chat preflight acknowledgement timed out");

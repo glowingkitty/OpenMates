@@ -15,7 +15,7 @@
 // Specification: specifications/features/apple-watch/specification.yml
 // Assertions: apple-watch.chats.browse-search-open, apple-watch.chats.compact-layout
 // Specification: specifications/features/apple-notifications/specification.yml
-// Assertions: apple-notifications.action.routing-coherent
+// Assertions: apple-notifications.action.routing-coherent, apple-notifications.delivery.idempotent-visible
 
 import AVFoundation
 import SwiftUI
@@ -146,17 +146,11 @@ struct WatchChatShellView: View {
     @State private var networkReady = false
     @State private var resolvingRouteID: UUID?
 
-    init(currentUserId: String?, currentUsername: String? = nil, webSocketToken: String?,
+    init(runtime: WatchChatRuntime, currentUsername: String? = nil,
          notificationRoute: WatchNotificationRoute? = nil, isVisible: Bool = true,
          onOpenHub: (() -> Void)? = nil, onOpenSettings: (() -> Void)? = nil) {
-        _runtime = StateObject(wrappedValue: WatchChatRuntime(
-            currentUserId: currentUserId,
-            syncSession: WatchSyncSession(
-                sessionId: WatchCompatibleSession.nativeSessionId,
-                token: webSocketToken
-            )
-        ))
-        startsNetworkTasks = true
+        _runtime = StateObject(wrappedValue: runtime)
+        startsNetworkTasks = !runtime.isPreviewFixture
         seedsRemoteDraftFixture = false
         self.onOpenHub = onOpenHub
         self.onOpenSettings = onOpenSettings
@@ -209,9 +203,9 @@ struct WatchChatShellView: View {
 #endif
             guard startsNetworkTasks else { return }
             phoneBridge.start(onApproval: { _ in }, onAcknowledgment: { _ in })
-            await runtime.loadCachedSnapshot()
-            await runtime.startRealtimeSync()
             await runtime.refresh()
+            WatchPushNotificationManager.shared.viewedChatID = isVisible ? runtime.selectedChatId : nil
+            runtime.setVisibleChatID(isVisible ? runtime.selectedChatId : nil)
             networkReady = true
         }
         .task(id: networkReady ? notificationRoute?.id : nil) {
@@ -221,15 +215,21 @@ struct WatchChatShellView: View {
             if !syncing { Task { await resolveNotificationRoute() } }
         }
         .onChange(of: runtime.selectedChatId) { _, chatID in
-            if startsNetworkTasks { WatchPushNotificationManager.shared.viewedChatID = isVisible ? chatID : nil }
+            if startsNetworkTasks {
+                WatchPushNotificationManager.shared.viewedChatID = isVisible ? chatID : nil
+                runtime.setVisibleChatID(isVisible ? chatID : nil)
+            }
         }
         .onChange(of: isVisible) { _, visible in
-            if startsNetworkTasks { WatchPushNotificationManager.shared.viewedChatID = visible ? runtime.selectedChatId : nil }
+            if startsNetworkTasks {
+                WatchPushNotificationManager.shared.viewedChatID = visible ? runtime.selectedChatId : nil
+                runtime.setVisibleChatID(visible ? runtime.selectedChatId : nil)
+            }
         }
         .onDisappear {
             if startsNetworkTasks {
                 WatchPushNotificationManager.shared.viewedChatID = nil
-                Task { await runtime.flushDraftAndStop() }
+                runtime.setVisibleChatID(nil)
             }
         }
     }
@@ -412,6 +412,14 @@ private struct WatchChatListView: View {
     }
 }
 
+private struct WatchVisibleMessageFrames: PreferenceKey {
+    static var defaultValue: [String: CGRect] = [:]
+
+    static func reduce(value: inout [String: CGRect], nextValue: () -> [String: CGRect]) {
+        value.merge(nextValue(), uniquingKeysWith: { _, newer in newer })
+    }
+}
+
 private struct WatchChatThreadView: View {
     @ObservedObject var runtime: WatchChatRuntime
     let currentUsername: String?
@@ -421,6 +429,12 @@ private struct WatchChatThreadView: View {
     @State private var isSending = false
     @State private var pendingRecording: (url: URL, duration: TimeInterval)?
     @State private var recordingPreviewActive: Bool
+    @State private var geometricallyVisibleMessageIDs: Set<String> = []
+    @State private var transcriptMeasurementID = UUID()
+
+    private var transcriptIsDisplayed: Bool {
+        !audioRecorder.isRecording && !recordingPreviewActive
+    }
 
     init(runtime: WatchChatRuntime, currentUsername: String? = nil, showsRecordingFixture: Bool = false) {
         self.runtime = runtime
@@ -431,7 +445,7 @@ private struct WatchChatThreadView: View {
 
     var body: some View {
         ZStack {
-            if audioRecorder.isRecording || recordingPreviewActive {
+            if !transcriptIsDisplayed {
                 recordingView
             } else {
                 threadView
@@ -448,27 +462,68 @@ private struct WatchChatThreadView: View {
                 draft = restored
             }
         }
+        .onChange(of: runtime.selectedMessages) { _, _ in
+            runtime.updateVisibleMessages(
+                transcriptIsDisplayed ? geometricallyVisibleMessageIDs : [],
+                chatID: runtime.selectedChatId)
+        }
+        .onChange(of: runtime.visibleChatID) { _, chatID in
+            runtime.updateVisibleMessages(
+                transcriptIsDisplayed ? geometricallyVisibleMessageIDs : [], chatID: chatID)
+        }
+        .onChange(of: runtime.selectedChatId) { _, _ in
+            geometricallyVisibleMessageIDs = []
+        }
+        .onChange(of: transcriptIsDisplayed) { _, displayed in
+            geometricallyVisibleMessageIDs = []
+            runtime.updateVisibleMessages([], chatID: runtime.selectedChatId)
+            if displayed { transcriptMeasurementID = UUID() }
+        }
     }
 
     private var threadView: some View {
         VStack(spacing: 0) {
             navigationHeader
 
-            ScrollView {
-                LazyVStack(spacing: .spacing3) {
-                    if runtime.selectedMessages.isEmpty {
-                        emptyChatWelcome
-                    }
-                    ForEach(runtime.selectedMessages) { message in
-                        WatchMessageBubble(message: runtime.messageWithHydratedEmbeds(message)) { model in
-                            sendEmbedOpenNotification(model)
+            GeometryReader { viewport in
+                ScrollView {
+                    LazyVStack(spacing: .spacing3) {
+                        if runtime.selectedMessages.isEmpty {
+                            emptyChatWelcome
+                        }
+                        ForEach(runtime.selectedMessages) { message in
+                            WatchMessageBubble(message: runtime.messageWithHydratedEmbeds(message)) { model in
+                                sendEmbedOpenNotification(model)
+                            }
+                            .background {
+                                GeometryReader { row in
+                                    Color.clear.preference(key: WatchVisibleMessageFrames.self,
+                                        value: [message.id: row.frame(in: .named("watch-chat-scroll"))])
+                                }
+                            }
                         }
                     }
+                    .padding(.horizontal, .spacing4)
+                    .padding(.bottom, .spacing2)
                 }
-                .padding(.horizontal, .spacing4)
-                .padding(.bottom, .spacing2)
+                .coordinateSpace(name: "watch-chat-scroll")
+                .onPreferenceChange(WatchVisibleMessageFrames.self) { frames in
+                    guard transcriptIsDisplayed else {
+                        geometricallyVisibleMessageIDs = []
+                        runtime.updateVisibleMessages([], chatID: runtime.selectedChatId)
+                        return
+                    }
+                    let visible = Set(frames.compactMap { id, frame -> String? in
+                        guard frame.width > 0, frame.height > 0,
+                              frame.maxY > 0, frame.minY < viewport.size.height else { return nil }
+                        return id
+                    })
+                    geometricallyVisibleMessageIDs = visible
+                    runtime.updateVisibleMessages(visible, chatID: runtime.selectedChatId)
+                }
+                .accessibilityIdentifier("watch-chat-shell")
             }
-            .accessibilityIdentifier("watch-chat-shell")
+            .id(transcriptMeasurementID)
 
             HStack(spacing: .spacing2) {
                 Image(systemName: "keyboard")

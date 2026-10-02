@@ -84,7 +84,17 @@ from .handlers.websocket_handlers.store_embed_diff_handler import handle_store_e
 from .handlers.websocket_handlers.commit_embed_revision_handler import handle_commit_embed_revision
 from .handlers.websocket_handlers.delete_new_chat_suggestion_handler import handle_delete_new_chat_suggestion # Handler for deleting new chat suggestions
 from .handlers.websocket_handlers.system_message_handler import handle_chat_system_message_added # Handler for system messages (app settings/memories response, etc.)
-from .handlers.websocket_handlers.email_notification_settings_handler import handle_email_notification_settings # Handler for email notification settings
+from backend.core.api.app.services.chat_email_notification_service import enqueue_chat_email
+from backend.core.api.app.services.notification_presence import (
+    classify_lifecycle_client, clear_presence, refresh_legacy_apple_presence_on_message, report_presence,
+)
+from backend.core.api.app.routes.handlers.websocket_handlers.notification_preview_handler import (
+    handle_team_notification_preview_capabilities, handle_team_notification_preview_stage,
+)
+from backend.core.api.app.routes.handlers.websocket_handlers.notification_read_receipt_handler import handle_notification_read_receipt
+from .handlers.websocket_handlers.email_notification_settings_handler import (
+    handle_email_notification_settings, handle_email_notification_settings_get,
+)
 from .handlers.websocket_handlers.load_more_chats_handler import handle_load_more_chats # Handler for loading additional older chats on demand
 from .handlers.websocket_handlers.sync_metadata_chats_handler import handle_sync_metadata_chats # Handler for syncing metadata-only chats 101–1000
 from .handlers.websocket_handlers.inspiration_viewed_handler import handle_inspiration_viewed # Handler for daily inspiration view tracking
@@ -272,9 +282,8 @@ async def _check_user_offline_and_send_email(
         logger.error(f"{log_prefix} Failed to create notification event: {e}", exc_info=True)
 
     # 2. Decide push vs. immediate email
-    push_sent = False
     try:
-        push_sent = await _send_push_notification_if_enabled(
+        await _send_push_notification_if_enabled(
             app=app,
             user_id=user_id,
             chat_id=chat_id,
@@ -283,26 +292,6 @@ async def _check_user_offline_and_send_email(
     except Exception as e:
         logger.error(f"{log_prefix} Push notification attempt failed: {e}", exc_info=True)
 
-    if push_sent:
-        # Push was dispatched — give user 60 s to open the app before sending email
-        logger.info(f"{log_prefix} Push sent — waiting 60 s before email fallback")
-        await asyncio.sleep(60)
-
-        if manager.has_foreground_connection_for_chat(user_id, chat_id) or manager.is_user_active(user_id):
-            logger.info(f"{log_prefix} User active after push — skipping email")
-            return
-        logger.info(f"{log_prefix} User still offline 60 s after push — sending email fallback")
-
-    # 3. Send email (immediately if no push, or as fallback after 60 s)
-    try:
-        await _send_offline_email_notification(
-            app=app,
-            user_id=user_id,
-            chat_id=chat_id,
-            response_preview=response_preview,
-        )
-    except Exception as e:
-        logger.error(f"{log_prefix} Failed to send email notification: {e}", exc_info=True)
 
 
 async def _send_push_notification_if_enabled(
@@ -391,103 +380,41 @@ async def _send_push_notification_if_enabled(
         return False
 
 
+def email_eligible_completion(payload: dict) -> bool:
+    """Only final user-visible messages, excluding internal/workflow continuations."""
+    return bool(
+        payload.get("is_final_chunk") and payload.get("full_content_so_far")
+        and not any(payload.get(key) for key in (
+            "external_request", "workflow_id", "workflow_run_id", "step_test",
+            "interrupted_by_revocation", "rejection_reason", "is_anonymous", "awaiting_focus_mode_continuation",
+            "awaiting_async_skill_continuation", "awaiting_sub_chats_completion",
+        ))
+    )
+
+
 async def _send_offline_email_notification(
-    app: FastAPI,
-    user_id: str,
-    chat_id: str,
-    response_preview: str
+    app: FastAPI, user_id: str, chat_id: str, response_preview: str,
+    message_id: str | None = None, sender_name: str = "Mate", chat_title: str | None = None,
+    mate_category: str | None = None,
 ) -> None:
-    """
-    Check user's email notification settings and dispatch the email task.
-    
-    Args:
-        app: FastAPI app instance
-        user_id: The user's UUID
-        chat_id: The chat ID
-        response_preview: Preview of the AI response
-    """
-    log_prefix = f"[EMAIL_NOTIFICATION user={user_id} chat={chat_id}]"
-    
-    if not hasattr(app.state, 'cache_service'):
-        logger.warning(f"{log_prefix} Cache service not available, cannot check user settings")
+    if not message_id:
         return
-    
-    cache_service: CacheService = app.state.cache_service
-    
-    # Fetch user data from cache
-    cached_user = await cache_service.get_user_by_id(user_id)
-    if not cached_user:
-        logger.debug(f"{log_prefix} User not in cache, skipping email")
+    from backend.core.api.app.services.team_chat_notification_service import queue_completed_team_mate_response
+    if await queue_completed_team_mate_response(
+        directus=app.state.directus_service, cache=app.state.cache_service,
+        encryption=app.state.encryption_service, initiating_user_id=user_id,
+        chat_id=chat_id, message_id=message_id, mate_category=mate_category,
+        preview=response_preview, title=chat_title,
+    ):
         return
-    
-    # Check if email notifications are enabled
-    email_enabled = cached_user.get("email_notifications_enabled", False)
-    if not email_enabled:
-        logger.debug(f"{log_prefix} Email notifications disabled for user")
-        return
-    
-    # Decrypt the notification email from cache (stored as vault-encrypted ciphertext)
-    encrypted_notification_email = cached_user.get("encrypted_notification_email")
-    if not encrypted_notification_email:
-        logger.debug(f"{log_prefix} No notification email configured")
-        return
-    
-    # Need encryption service to decrypt vault-encrypted email
-    if not hasattr(app.state, 'encryption_service'):
-        logger.warning(f"{log_prefix} Encryption service not available, cannot decrypt notification email")
-        return
-    
-    encryption_service: EncryptionService = app.state.encryption_service
-    vault_key_id = cached_user.get("vault_key_id")
-    if not vault_key_id:
-        logger.warning(f"{log_prefix} No vault_key_id in cached user data, cannot decrypt notification email")
-        return
-    
-    try:
-        notification_email = await encryption_service.decrypt_with_user_key(
-            encrypted_notification_email, vault_key_id
-        )
-    except Exception as e:
-        logger.error(f"{log_prefix} Failed to decrypt notification email: {e}", exc_info=True)
-        return
-    
-    if not notification_email:
-        logger.warning(f"{log_prefix} Notification email decryption returned empty result")
-        return
-    
-    # Check if AI responses preference is enabled
-    email_prefs = cached_user.get("email_notification_preferences", {})
-    if not isinstance(email_prefs, dict):
-        email_prefs = {}
-    if not email_prefs.get("aiResponses", True):
-        logger.debug(f"{log_prefix} AI response notifications disabled in preferences")
-        return
-    
-    # Get user's language and darkmode preferences
-    language = cached_user.get("language", "en") or "en"
-    darkmode = cached_user.get("darkmode", False)
-    
-    # Queue the email task (no delay since we already did the retry checks)
-    try:
-        from backend.core.api.app.tasks.celery_config import app as celery_app
-        
-        celery_app.send_task(
-            name='app.tasks.email_tasks.ai_response_notification_email_task.send_ai_response_notification',
-            args=[
-                notification_email,           # recipient_email
-                response_preview[:500] if response_preview else "",  # response_preview (truncated)
-                chat_id,                      # chat_id
-                None,                         # chat_title (not fetched for speed)
-                language,                     # language
-                darkmode,                     # darkmode
-                None,                         # user_id (not needed - we already verified offline)
-                None                          # task_queued_timestamp (not needed)
-            ],
-            queue="email"
-        )
-        logger.info(f"{log_prefix} Queued email notification task to {notification_email}")
-    except Exception as e:
-        logger.error(f"{log_prefix} Failed to queue email task: {e}", exc_info=True)
+    await enqueue_chat_email(
+        cache_service=app.state.cache_service,
+        directus_service=app.state.directus_service,
+        encryption_service=app.state.encryption_service,
+        user_id=user_id, chat_id=chat_id, message_id=message_id,
+        sender_name=sender_name, preview=response_preview, title=chat_title, mate_category=mate_category,
+    )
+
 
 # --- Redis Pub/Sub Listener for Cache Events ---
 # This function will be imported and started by main.py
@@ -771,12 +698,6 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                         if not manager.is_user_active(user_id_uuid):
                             question_preview = redis_payload.get("question") or "A sub-chat needs your input."
                             await _send_push_notification_if_enabled(
-                                app=app,
-                                user_id=user_id_uuid,
-                                chat_id=redis_payload.get("chat_id"),
-                                response_preview=question_preview,
-                            )
-                            await _send_offline_email_notification(
                                 app=app,
                                 user_id=user_id_uuid,
                                 chat_id=redis_payload.get("chat_id"),
@@ -1073,13 +994,21 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                                 logger.debug(f"AI Stream Listener: Sent 'ai_typing_ended' for chat {chat_id_from_payload} to inactive device {user_id_uuid}/{device_hash}.")
                     
                     # =====================================================================
-                    # EMAIL NOTIFICATION CHECK (after final marker processing)
-                    # If the user has NO active WebSocket connections, attempt to reach them
-                    # with retries before sending an email notification.
+                    # Completed messages queue IDs only. The worker independently
+                    # rechecks human presence, consent and viewed state after grace.
                     # =====================================================================
                     is_final_marker = redis_payload.get("is_final_chunk", False)
                     was_interrupted = redis_payload.get("interrupted_by_revocation", False)
                     
+                    if email_eligible_completion(redis_payload):
+                        await _send_offline_email_notification(
+                            app=app, user_id=user_id_uuid, chat_id=chat_id_from_payload,
+                            response_preview=redis_payload.get("full_content_so_far", ""),
+                            message_id=redis_payload.get("message_id"),
+                            sender_name="Mate",
+                            chat_title=redis_payload.get("chat_title"),
+                            mate_category=redis_payload.get("category"),
+                        )
                     if is_final_marker and not redis_payload.get("external_request") and not was_interrupted:
                         # Notify unless a foreground client is visibly viewing this chat.
                         # A hidden/background tab may keep its WebSocket open, but it
@@ -2419,6 +2348,11 @@ async def websocket_endpoint(
     if not isinstance(stable_device_fingerprint_hash, str) or not stable_device_fingerprint_hash:
         stable_device_fingerprint_hash = device_fingerprint_hash
     user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
+    presence_connection_id = f"{device_fingerprint_hash}:{uuid.uuid4()}"
+    presence_client_type = "automation"
+    presence_legacy_apple = False
+    presence_foreground = False
+    presence_interactive = False
     raw_capabilities = websocket.query_params.get("client_capabilities", "")
     connection_capabilities = {item.strip() for item in raw_capabilities.split(",") if item.strip()}
     supports_task_update_jobs = "task_update_jobs" in connection_capabilities
@@ -2576,6 +2510,11 @@ async def websocket_endpoint(
 
             message_type = data.get("type")
             payload = data.get("payload", {})
+            if presence_legacy_apple and message_type != "native_client_lifecycle":
+                await refresh_legacy_apple_presence_on_message(
+                    cache_service, user_id, presence_connection_id, presence_foreground,
+                    manager.get_active_chat(user_id, device_fingerprint_hash),
+                )
 
             # Process different message types
             if message_type == "update_draft":
@@ -2638,6 +2577,7 @@ async def websocket_endpoint(
                     user_id=user_id,
                     user_id_hash=user_id_hash,
                     device_fingerprint_hash=device_fingerprint_hash,
+                    stable_device_fingerprint_hash=stable_device_fingerprint_hash,
                     payload=payload,
                     user_otel_attrs=user_otel_attrs,
                 )
@@ -3035,6 +2975,10 @@ async def websocket_endpoint(
                     active_chat_id=active_chat_id,
                     user_otel_attrs=user_otel_attrs,
                 )
+                await report_presence(
+                    cache_service, user_id, presence_connection_id, presence_client_type,
+                    presence_foreground, presence_interactive, active_chat_id,
+                )
                 if supports_project_file_jobs and isinstance(active_chat_id, str) and active_chat_id:
                     await send_available_project_file_operations(
                         manager=manager,
@@ -3047,6 +2991,14 @@ async def websocket_endpoint(
             elif message_type == "native_client_lifecycle":
                 is_foreground = bool(payload.get("is_foreground", True))
                 manager.set_connection_foreground(user_id, device_fingerprint_hash, is_foreground)
+                presence_client_type, presence_legacy_apple = classify_lifecycle_client(payload, websocket.headers)
+                presence_foreground = is_foreground
+                presence_interactive = payload.get("interactive") is True
+                await report_presence(
+                    cache_service, user_id, presence_connection_id, presence_client_type,
+                    presence_foreground, presence_interactive,
+                    manager.get_active_chat(user_id, device_fingerprint_hash),
+                )
                 await manager.send_personal_message(
                     {
                         "type": "native_client_lifecycle_ack",
@@ -3054,6 +3006,36 @@ async def websocket_endpoint(
                     },
                     user_id,
                     device_fingerprint_hash,
+                )
+            elif message_type == "chat_message_viewed":
+                try:
+                    viewed = await handle_notification_read_receipt(
+                        directus_service=directus_service, cache_service=cache_service,
+                        user_id=user_id, payload=payload,
+                    )
+                except Exception:
+                    logger.warning("Notification viewed receipt unavailable for user %s", user_id[:8])
+                    viewed = False
+                request_id = payload.get("request_id")
+                if isinstance(request_id, str) and 0 < len(request_id) <= 128:
+                    await manager.send_personal_message(
+                        message={"type": "notification_message_viewed_ack", "payload": {
+                            "request_id": request_id, "chat_id": payload.get("chat_id"),
+                            "message_id": payload.get("message_id"), "viewed": viewed,
+                        }},
+                        user_id=user_id, device_fingerprint_hash=device_fingerprint_hash,
+                    )
+            elif message_type == "team_notification_preview_capabilities":
+                await handle_team_notification_preview_capabilities(
+                    websocket=websocket, manager=manager, directus_service=directus_service,
+                    cache_service=cache_service, user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash, payload=payload,
+                )
+            elif message_type == "team_notification_preview_stage":
+                await handle_team_notification_preview_stage(
+                    websocket=websocket, manager=manager, directus_service=directus_service,
+                    cache_service=cache_service, encryption_service=encryption_service,
+                    user_id=user_id, device_fingerprint_hash=device_fingerprint_hash, payload=payload,
                 )
             elif message_type == "cancel_ai_task":
                 await handle_cancel_ai_task(
@@ -3472,6 +3454,11 @@ async def websocket_endpoint(
                     user_otel_attrs=user_otel_attrs,
                 )
 
+            elif message_type == "email_notification_settings_get":
+                await handle_email_notification_settings_get(
+                    manager=manager, directus_service=directus_service, user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash, payload=payload,
+                )
             elif message_type == "email_notification_settings":
                 # Handle email notification settings update
                 logger.debug(
@@ -3791,6 +3778,11 @@ async def websocket_endpoint(
             # Ensure cleanup happens even with unexpected errors, passing the reason.
             manager.disconnect(websocket, reason=unexpected_error_reason)
     finally:
+        try:
+            await clear_presence(cache_service, user_id, presence_connection_id)
+        except Exception:
+            # The bounded lease expires without preventing socket/task cleanup.
+            logger.warning("Could not remove notification presence lease", exc_info=True)
         if pair_expiry_task is not None:
             pair_expiry_task.cancel()
         if session_watch_task is not None:

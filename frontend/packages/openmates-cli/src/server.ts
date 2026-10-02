@@ -557,8 +557,8 @@ export function imageUpdateUpArgs(baseArgs: string[], selectedServices: string[]
   return appendSelectedServices([...baseArgs, "up", "-d", ...(reuseCompletedSetup ? ["--no-deps"] : [])], selectedServices, filterRequested);
 }
 
-function inspectReuseCompletedSetupContainer(installPath: string, withOverrides: boolean, service: string, includeStopped: boolean): ReusedSetupContainer {
-  const compose = composeArgs(installPath, withOverrides, "image", "core", false);
+function inspectReuseCompletedSetupContainer(installPath: string, withOverrides: boolean, service: string, includeStopped: boolean, installMode: "image" | "source" = "image"): ReusedSetupContainer {
+  const compose = composeArgs(installPath, withOverrides, installMode, "core", false);
   const ps = spawnSync("docker", [...compose, "ps", ...(includeStopped ? ["-a"] : []), "-q", service], { cwd: installPath, encoding: "utf8", timeout: 5_000 });
   const ids = ps.status === 0 ? ps.stdout.trim().split(/\s+/).filter(Boolean) : [];
   if (ids.length !== 1) throw new Error(`--reuse-completed-setup could not identify one ${service} container.`);
@@ -579,8 +579,74 @@ function verifyReuseCompletedSetup(installPath: string, withOverrides: boolean, 
   validateReuseCompletedSetup({ ...input, setup, dependencies });
 }
 
+function verifyCoreSetupResult(installPath: string, withOverrides: boolean, installMode: "image" | "source", targetTag?: string): void {
+  const setup = inspectReuseCompletedSetupContainer(installPath, withOverrides, "cms-setup", true, installMode);
+  if (setup.status !== "exited" || setup.exitCode !== 0) {
+    throw new Error("Target cms-setup did not exit successfully; API and email consumers remain stopped.");
+  }
+  if (installMode === "image") {
+    const registry = (readEnvMap(installPath).OPENMATES_IMAGE_REGISTRY || DEFAULT_IMAGE_REGISTRY).replace(/\/$/, "");
+    if (setup.image !== `${registry}/openmates-cms-setup:${targetTag}`) {
+      throw new Error("Target cms-setup image did not match the requested tag; API and email consumers remain stopped.");
+    }
+  }
+}
+
 function shouldPullImages(): boolean {
   return process.env.OPENMATES_SKIP_IMAGE_PULL !== "1";
+}
+
+const CORE_NOTIFICATION_SERVICES = ["api", "task-worker", "task-scheduler"] as const;
+
+/** A core code update must not leave old email consumers running after setup changes defaults. */
+export function planCoreSetupUpdate(role: ServerRole, selectedServices: string[], filterRequested: boolean, reuseCompletedSetup = false): {
+  required: boolean;
+  pullOrBuildServices: string[];
+  startServices: string[];
+  stopServices: string[];
+} {
+  const required = role === "core" && (reuseCompletedSetup || !filterRequested || selectedServices.some((service) =>
+    service === "cms" || service === "cms-setup" || service === "api" || service.endsWith("-worker") || service === "task-scheduler"));
+  if (!required) return { required: false, pullOrBuildServices: selectedServices, startServices: selectedServices, stopServices: [] };
+  const add = (services: string[], extra: readonly string[]) => [...new Set([...services, ...extra])];
+  const cohort = add(selectedServices, CORE_NOTIFICATION_SERVICES);
+  return {
+    required: true,
+    pullOrBuildServices: filterRequested ? add(cohort, reuseCompletedSetup ? [] : ["cms", "cms-setup"]) : selectedServices,
+    startServices: filterRequested ? cohort.filter((service) => service !== "cms-setup") : selectedServices,
+    stopServices: [...CORE_NOTIFICATION_SERVICES],
+  };
+}
+
+/** The one-shot setup exit is checked before any target API or email consumer starts. */
+export async function runCoreSetupUpdate(input: {
+  compose: string[];
+  stopServices: string[];
+  upArgs: string[];
+  reuseCompletedSetup: boolean;
+  run: (args: string[]) => Promise<number>;
+  verifySetup: () => void;
+  step?: (name: string) => void;
+}): Promise<void> {
+  input.step?.("stop-email-consumers");
+  if (await input.run([...input.compose, "stop", ...input.stopServices]) !== 0) {
+    throw new Error("Could not stop old API and email consumers; setup was not started.");
+  }
+  if (!input.reuseCompletedSetup) {
+    input.step?.("stage-cms");
+    if (await input.run([...input.compose, "up", "-d", "--no-deps", "cms"]) !== 0) {
+      throw new Error("Target CMS could not start; API and email consumers remain stopped.");
+    }
+    input.step?.("cms-setup");
+    if (await input.run([...input.compose, "up", "--no-deps", "--force-recreate", "--exit-code-from", "cms-setup", "cms-setup"]) !== 0) {
+      throw new Error("Target cms-setup failed; API and email consumers remain stopped. Fix setup and retry the update.");
+    }
+  }
+  input.verifySetup();
+  input.step?.("up");
+  if (await input.run(input.upArgs) !== 0) {
+    throw new Error("Target containers could not start; check Docker Compose and retry the update.");
+  }
 }
 
 type FeatureOverrides = {
@@ -2968,8 +3034,7 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
     const selection = lifecycleServiceSelection(role, flags, config);
     const requested = resolveTargetImageTag(flags, getImageTagFromEnv(installPath, config), getPackageVersion());
     guardedTarget = requested.channel === "stable" ? { ...requested, tag: await resolveStableImageTag() } : requested;
-    requireDocker();
-    verifyReuseCompletedSetup(installPath, withOverrides, {
+    validateReuseCompletedSetupScope({
       role,
       installMode,
       servicesFlag: flags.services,
@@ -2978,6 +3043,14 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
       targetTag: guardedTarget.tag,
       registry: DEFAULT_IMAGE_REGISTRY,
     });
+    if (!dryRun) {
+      requireDocker();
+      verifyReuseCompletedSetup(installPath, withOverrides, {
+        role, installMode, servicesFlag: flags.services, excludeFlag: flags.exclude,
+        selectedServices: selection.services, targetTag: guardedTarget.tag,
+        registry: readEnvMap(installPath).OPENMATES_IMAGE_REGISTRY || DEFAULT_IMAGE_REGISTRY,
+      });
+    }
   }
   if (!dryRun) {
     ensureGitWorkDirEnv(installPath);
@@ -2992,6 +3065,7 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
   const selection = lifecycleServiceSelection(role, flags, config);
   const filterRequested = selection.requested;
   const selectedServices = selection.services;
+  const coreSetupPlan = planCoreSetupUpdate(role, selectedServices, filterRequested, reuseCompletedSetup);
   const sourceStrategy = config?.sourceStrategy ?? "managed_clone";
   const missingEnvKeys = missingRequiredEnvKeys(installPath, role);
   const secretPreflight = runtimeSecretPreflight(installPath, role);
@@ -3028,7 +3102,17 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
       channel: target.channel ?? null,
       templateRef,
       caddy: caddyPlan,
-      selectedServices: filterRequested ? selectedServices : "all",
+      selectedServices: filterRequested ? coreSetupPlan.startServices : "all",
+      requestedServices: filterRequested ? selectedServices : "all",
+      preparedServices: filterRequested ? coreSetupPlan.pullOrBuildServices : "all",
+      setupMigration: coreSetupPlan.required ? (reuseCompletedSetup ? "verified_reuse" : "automatic") : "not_applicable",
+      stoppedBeforeSetup: coreSetupPlan.stopServices,
+      coreSetupGate: {
+        required: coreSetupPlan.required,
+        stopServices: coreSetupPlan.stopServices,
+        setupService: "cms-setup",
+        failurePolicy: "keep-email-consumers-stopped",
+      },
       steps: safetyPlan.steps,
       backupName: safetyPlan.backupName,
       missingRequiredEnvKeys: missingEnvKeys,
@@ -3052,7 +3136,9 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
         console.log(`  Template ref:  ${templateRef}`);
         console.log(`  Source:        ${sourceLinks.releaseUrl ?? sourceLinks.sourceUrl}`);
         console.log(`  Role:          ${role}`);
-        console.log(`  Services:      ${filterRequested ? selectedServices.join(", ") : "all"}`);
+        console.log(`  Services:      ${filterRequested ? coreSetupPlan.startServices.join(", ") : "all"}`);
+        if (filterRequested && coreSetupPlan.required) console.log(`  Prepared:      ${coreSetupPlan.pullOrBuildServices.join(", ")}`);
+        if (coreSetupPlan.required) console.log(`  Setup:         stop ${coreSetupPlan.stopServices.join(", ")}, ${reuseCompletedSetup ? "verify completed" : "run target"} cms-setup, then start target services`);
         console.log(`  Backup:        ${safetyPlan.backupName ?? "none"}`);
         console.log(`  Steps:         ${safetyPlan.steps.join(" -> ")}`);
         console.log(`  Env preflight: ${missingEnvKeys.length ? `missing ${missingEnvKeys.join(", ")}` : "ok"}`);
@@ -3060,7 +3146,7 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
         if (secretPreflight.emptySecretEnvKeys.length) {
           console.log(`  Provider keys: add ${secretPreflight.emptySecretEnvKeys.join(", ")} to activate those providers`);
         }
-        console.log(`  Commands:      refresh compose, docker compose pull, docker compose up -d${reuseCompletedSetup ? " --no-deps" : ""}, health checks`);
+        console.log(`  Commands:      refresh compose, docker compose pull, ${coreSetupPlan.required ? "stop email consumers, cms-setup, " : ""}docker compose up -d, health checks`);
       }
       return;
     }
@@ -3092,7 +3178,7 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
 
     const pullArgs = appendSelectedServices(
       [...composeArgs(installPath, withOverrides, installMode, role), "pull"],
-      selectedServices,
+      coreSetupPlan.pullOrBuildServices,
       filterRequested,
     );
     let code = 0;
@@ -3105,27 +3191,39 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
       console.error("Skipping image pull because OPENMATES_SKIP_IMAGE_PULL=1.");
     }
 
-    if (reuseCompletedSetup) {
-      verifyReuseCompletedSetup(installPath, withOverrides, {
-        role,
-        installMode,
-        servicesFlag: flags.services,
-        excludeFlag: flags.exclude,
-        selectedServices,
-        targetTag: target.tag,
-        registry: DEFAULT_IMAGE_REGISTRY,
-      });
+    const compose = composeArgs(installPath, withOverrides, installMode, role);
+    const upArgs = imageUpdateUpArgs(compose, coreSetupPlan.startServices, filterRequested, reuseCompletedSetup);
+    if (coreSetupPlan.required) {
+      let updateStep = "stop-email-consumers";
+      try {
+        await runCoreSetupUpdate({
+          compose,
+          stopServices: coreSetupPlan.stopServices,
+          upArgs,
+          reuseCompletedSetup,
+          run: (args) => runInteractive("docker", args, installPath),
+          verifySetup: () => {
+            verifyCoreSetupResult(installPath, withOverrides, "image", target.tag);
+            if (reuseCompletedSetup) verifyReuseCompletedSetup(installPath, withOverrides, {
+              role, installMode, servicesFlag: flags.services, excludeFlag: flags.exclude,
+              selectedServices, targetTag: target.tag,
+              registry: readEnvMap(installPath).OPENMATES_IMAGE_REGISTRY || DEFAULT_IMAGE_REGISTRY,
+            });
+          },
+          step: (step) => {
+            updateStep = step;
+            writeUpdateStatus(installPath, role, { status: "in_progress", targetImageTag: target.tag, sourceLinks, step });
+          },
+        });
+      } catch (error) {
+        writeUpdateStatus(installPath, role, { status: "degraded", targetImageTag: target.tag, sourceLinks, step: updateStep });
+        throw error;
+      }
+    } else {
+      writeUpdateStatus(installPath, role, { status: "in_progress", targetImageTag: target.tag, sourceLinks, step: "up" });
+      code = await runInteractive("docker", upArgs, installPath);
+      if (code !== 0) throw new Error(`Docker image restart failed with exit code ${code}.`);
     }
-
-    writeUpdateStatus(installPath, role, { status: "in_progress", targetImageTag: target.tag, sourceLinks, providerKeyReminders: secretPreflight.emptySecretEnvKeys, step: "up" });
-    const upArgs = imageUpdateUpArgs(
-      composeArgs(installPath, withOverrides, installMode, role),
-      selectedServices,
-      filterRequested,
-      reuseCompletedSetup,
-    );
-    code = await runInteractive("docker", upArgs, installPath);
-    if (code !== 0) throw new Error(`Docker image restart failed with exit code ${code}.`);
 
     console.error("Waiting for role health checks...");
     let successfulRuntimeOutput: RuntimeVerifierOutput | null = null;
@@ -3271,16 +3369,27 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
         mode: "source",
         sourceStrategy,
         caddy: caddyPlan,
-        selectedServices: filterRequested ? selectedServices : "all",
+        selectedServices: filterRequested ? coreSetupPlan.startServices : "all",
+        requestedServices: filterRequested ? selectedServices : "all",
+        preparedServices: filterRequested ? coreSetupPlan.pullOrBuildServices : "all",
+        setupMigration: coreSetupPlan.required ? "automatic" : "not_applicable",
+        coreSetupGate: {
+          required: coreSetupPlan.required,
+          stopServices: coreSetupPlan.stopServices,
+          setupService: "cms-setup",
+          failurePolicy: "keep-email-consumers-stopped",
+        },
         checkWebApp: shouldCheckWebHealth({ role, deploymentMode, selectedServices, filterRequested }),
         dryRun: true,
       });
     } else {
       console.log("Update plan:");
       console.log(`  Mode:          source (${sourceStrategy === "working_tree" ? "current working tree" : "managed clone"})`);
-      console.log(`  Services:      ${filterRequested ? selectedServices.join(", ") : "all"}`);
+      console.log(`  Services:      ${filterRequested ? coreSetupPlan.startServices.join(", ") : "all"}`);
+      if (filterRequested && coreSetupPlan.required) console.log(`  Prepared:      ${coreSetupPlan.pullOrBuildServices.join(", ")}`);
+      if (coreSetupPlan.required) console.log(`  Setup:         stop ${coreSetupPlan.stopServices.join(", ")}, run target cms-setup, then start target services`);
       console.log(`  Web health:    ${shouldCheckWebHealth({ role, deploymentMode, selectedServices, filterRequested }) ? "enabled" : "skipped"}`);
-      console.log(`  Commands:      ${sourceStrategy === "working_tree" ? "docker compose build" : "git pull --ff-only, docker compose build"}, docker compose up -d, health checks`);
+      console.log(`  Commands:      ${sourceStrategy === "working_tree" ? "docker compose build" : "git pull --ff-only, docker compose build"}, ${coreSetupPlan.required ? "stop email consumers, cms-setup, " : ""}docker compose up -d, health checks`);
     }
     return;
   }
@@ -3309,20 +3418,38 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
   // Rebuild and restart
   const buildArgs = appendSelectedServices(
     [...composeArgs(installPath, withOverrides, installMode, role), "build"],
-    selectedServices,
+    coreSetupPlan.pullOrBuildServices,
     filterRequested,
   );
   console.error("Rebuilding containers...");
   let code = await runInteractive("docker", buildArgs, installPath);
   if (code !== 0) throw new Error(`Docker source build failed with exit code ${code}.`);
 
-  const upArgs = appendSelectedServices(
-    [...composeArgs(installPath, withOverrides, installMode, role), "up", "-d"],
-    selectedServices,
-    filterRequested,
-  );
-  code = await runInteractive("docker", upArgs, installPath);
-  if (code !== 0) throw new Error(`Docker source restart failed with exit code ${code}.`);
+  const compose = composeArgs(installPath, withOverrides, installMode, role);
+  const upArgs = appendSelectedServices([...compose, "up", "-d"], coreSetupPlan.startServices, filterRequested);
+  if (coreSetupPlan.required) {
+    let updateStep = "stop-email-consumers";
+    try {
+      await runCoreSetupUpdate({
+        compose,
+        stopServices: coreSetupPlan.stopServices,
+        upArgs,
+        reuseCompletedSetup: false,
+        run: (args) => runInteractive("docker", args, installPath),
+        verifySetup: () => verifyCoreSetupResult(installPath, withOverrides, "source"),
+        step: (step) => {
+          updateStep = step;
+          writeUpdateStatus(installPath, role, { status: "in_progress", step });
+        },
+      });
+    } catch (error) {
+      writeUpdateStatus(installPath, role, { status: "degraded", step: updateStep });
+      throw error;
+    }
+  } else {
+    code = await runInteractive("docker", upArgs, installPath);
+    if (code !== 0) throw new Error(`Docker source restart failed with exit code ${code}.`);
+  }
 
   const checkWebApp = shouldCheckWebHealth({ role, deploymentMode, selectedServices, filterRequested });
   console.error(checkWebApp ? "Waiting for API and web health checks..." : "Waiting for API health checks...");

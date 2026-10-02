@@ -133,6 +133,7 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
             # must be decrypted at point of use with the user's vault key)
             "email_notifications_enabled": user_data.get("email_notifications_enabled", False),
             "email_notification_preferences": user_data.get("email_notification_preferences", {}),
+            "email_notification_preference_choices": user_data.get("email_notification_preference_choices", {}),
             "encrypted_notification_email": user_data.get("encrypted_notification_email"),
 
             # Backup reminder fields — used by daily_notification_dispatcher to determine eligibility.

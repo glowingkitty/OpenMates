@@ -167,6 +167,10 @@ USER_CHAT_PREFERENCE_MIGRATION_PATH = os.getenv(
     'USER_CHAT_PREFERENCE_MIGRATION_PATH',
     '/usr/src/app/migrations/migrate_user_chat_preferences_indexes.sql',
 )
+NOTIFICATION_EMAIL_MIGRATION_PATH = os.getenv(
+    'NOTIFICATION_EMAIL_MIGRATION_PATH',
+    '/usr/src/app/migrations/migrate_notification_email_preferences.sql',
+)
 APPS_WORKSPACE_RESULT_MIGRATION_PATH = os.getenv(
     'APPS_WORKSPACE_RESULT_MIGRATION_PATH',
     '/usr/src/app/migrations/migrate_apps_workspace_result_indexes.sql',
@@ -1482,6 +1486,27 @@ def apply_and_verify_user_chat_preference_indexes():
     print(f"Verified {len(USER_CHAT_PREFERENCE_INDEXES)} user chat preference indexes")
 
 
+def apply_and_verify_notification_email_preferences():
+    """Apply the idempotent notification default transition after schema sync."""
+    if not os.path.isfile(NOTIFICATION_EMAIL_MIGRATION_PATH):
+        raise RuntimeError(
+            f"Required notification email migration is missing: {NOTIFICATION_EMAIL_MIGRATION_PATH}"
+        )
+    with open(NOTIFICATION_EMAIL_MIGRATION_PATH, 'r', encoding='utf-8') as migration_file:
+        migration_sql = migration_file.read()
+    with connect_database() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(migration_sql)
+            cursor.execute(
+                """SELECT 1 FROM information_schema.columns
+                   WHERE table_schema = 'public' AND table_name = 'directus_users'
+                     AND column_name = 'email_notification_preference_choices'"""
+            )
+            if cursor.fetchone() is None:
+                raise RuntimeError('Notification email choice column verification failed')
+    print('Verified notification email preference migration')
+
+
 def apply_and_verify_apps_workspace_result_indexes():
     """Apply account/app catalog and graph lookup indexes after schema sync."""
     if not os.path.isfile(APPS_WORKSPACE_RESULT_MIGRATION_PATH):
@@ -1702,6 +1727,9 @@ def setup_schemas():
 
         print("\n--- Applying user chat preference database indexes ---")
         apply_and_verify_user_chat_preference_indexes()
+
+        print("\n--- Applying notification email preference migration ---")
+        apply_and_verify_notification_email_preferences()
 
         print("\n--- Applying Apps workspace result database indexes ---")
         apply_and_verify_apps_workspace_result_indexes()

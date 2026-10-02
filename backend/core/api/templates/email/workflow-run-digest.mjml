@@ -1,0 +1,76 @@
+<mjml>
+  <mj-head>
+    <mj-title>{{ t.email.workflow_digest.subject.text }}</mj-title>
+    <mj-attributes>
+      <mj-all font-family="Arial, Helvetica, sans-serif" font-size="16px" align="left" line-height="1.4" />
+    </mj-attributes>
+    <mj-include path="./components/email-styles.mjml" />
+  </mj-head>
+  <mj-body css-class="{% if darkmode %}dark-mode{% else %}light-mode{% endif %}">
+    <mj-include path="./components/header.mjml" />
+    <mj-wrapper css-class="content-box" padding="20px">
+      <mj-section><mj-column>
+        <mj-text font-size="26px" font-weight="bold"><mark>{{ t.email.workflow_digest.heading.text }}</mark></mj-text>
+        <mj-text>{{ t.email.workflow_digest.intro.text }}</mj-text>
+        <mj-text font-size="13px" color="#808080">{{ t.email.workflow_digest.period.text }}: {{ window_start }} – {{ window_end }}</mj-text>
+        <mj-text><strong>{{ t.email.workflow_digest.runs.text }}:</strong> {{ run_count }}</mj-text>
+        <mj-text font-size="14px">
+          {{ t.email.workflow_digest.completed.text }}: {{ status_counts.get('completed', 0) }} ·
+          {{ t.email.workflow_digest.failed.text }}: {{ status_counts.get('failed', 0) }} ·
+          {{ t.email.workflow_digest.cancelled.text }}: {{ status_counts.get('cancelled', 0) }} ·
+          {{ t.email.workflow_digest.queued.text }}: {{ status_counts.get('queued', 0) }} ·
+          {{ t.email.workflow_digest.running.text }}: {{ status_counts.get('running', 0) }} ·
+          {{ t.email.workflow_digest.waiting.text }}: {{ status_counts.get('waiting', 0) }}
+        </mj-text>
+        <mj-text font-size="14px">
+          <strong>{{ t.email.workflow_digest.delivery_heading.text }}:</strong><br />
+          {{ t.email.workflow_digest.pending.text }}: {{ delivery_pending_count }} ·
+          {{ t.email.workflow_digest.acknowledged.text }}: {{ delivery_acknowledged_count }} ·
+          {{ t.email.workflow_digest.cancelled.text }}: {{ delivery_cancelled_count }} ·
+          {{ t.email.workflow_digest.expired.text }}: {{ delivery_expired_count }} ·
+          {{ t.email.workflow_digest.failed.text }}: {{ delivery_failed_count }}
+        </mj-text>
+        <mj-text font-size="13px" color="#808080">{{ t.email.workflow_digest.delivery_note.text }}</mj-text>
+        {% for row in rows %}
+        <mj-text font-size="14px" padding-top="12px" padding-bottom="4px">
+          <strong>{% if row.title %}{{ row.title | e }}{% else %}{{ t.email.workflow_digest.run.text }} {{ loop.index }}{% endif %}</strong><br />
+          {{ t.email.workflow_digest.status.text }}:
+          {% if row.status == 'completed' %}{{ t.email.workflow_digest.completed.text }}
+          {% elif row.status == 'failed' %}{{ t.email.workflow_digest.failed.text }}
+          {% elif row.status == 'queued' %}{{ t.email.workflow_digest.queued.text }}
+          {% elif row.status == 'running' %}{{ t.email.workflow_digest.running.text }}
+          {% elif row.status == 'waiting' %}{{ t.email.workflow_digest.waiting.text }}
+          {% elif row.status == 'cancellation_requested' %}{{ t.email.workflow_digest.cancellation_requested.text }}
+          {% elif row.status == 'cancelled' %}{{ t.email.workflow_digest.cancelled.text }}
+          {% elif row.status == 'skipped_by_user' %}{{ t.email.workflow_digest.skipped.text }}
+          {% elif row.status == 'planned' %}{{ t.email.workflow_digest.planned.text }}
+          {% else %}{{ t.email.workflow_digest.unknown.text }}{% endif %}<br />
+          {{ t.email.workflow_digest.accepted.text }}: {{ row.accepted_time }}
+          {% if row.started_time %}<br />{{ t.email.workflow_digest.started.text }}: {{ row.started_time }}{% endif %}
+          {% if row.finished_time %}<br />{{ t.email.workflow_digest.finished.text }}: {{ row.finished_time }}{% endif %}
+          {% if row.delivery_pending_count or row.delivery_acknowledged_count or row.delivery_cancelled_count or row.delivery_expired_count or row.delivery_failed_count %}
+          <br /><strong>{{ t.email.workflow_digest.delivery_heading.text }}:</strong>
+          {% if row.delivery_pending_count %}<br />{{ t.email.workflow_digest.pending.text }}: {{ row.delivery_pending_count }}{% endif %}
+          {% if row.delivery_acknowledged_count %}<br />{{ t.email.workflow_digest.acknowledged.text }}: {{ row.delivery_acknowledged_count }}{% endif %}
+          {% if row.delivery_cancelled_count %}<br />{{ t.email.workflow_digest.cancelled.text }}: {{ row.delivery_cancelled_count }}{% endif %}
+          {% if row.delivery_expired_count %}<br />{{ t.email.workflow_digest.expired.text }}: {{ row.delivery_expired_count }}{% endif %}
+          {% if row.delivery_failed_count %}<br />{{ t.email.workflow_digest.failed.text }}: {{ row.delivery_failed_count }}{% endif %}
+          {% endif %}<br />
+          <a href="{{ row.url | e }}">{{ t.email.workflow_digest.view.text }}</a>
+        </mj-text>
+        {% if row.output_preview %}
+        <mj-text font-size="13px" padding-top="0px" padding-bottom="4px">
+          <strong>{{ t.email.workflow_digest.message_preview.text }}:</strong><br />
+          {{ row.output_preview | e | replace('\n', '<br />') }}
+        </mj-text>
+        {% endif %}
+        {% endfor %}
+        {% if omitted_count %}<mj-text font-size="13px">{{ omitted_count }} {{ t.email.workflow_digest.more.text }}</mj-text>{% endif %}
+        <mj-text font-size="13px" padding-top="18px">
+          <a href="{{ settings_url | e }}">{{ t.email.workflow_digest.settings.text }}</a>
+        </mj-text>
+      </mj-column></mj-section>
+    </mj-wrapper>
+    <mj-include path="./components/footer.mjml" />
+  </mj-body>
+</mjml>

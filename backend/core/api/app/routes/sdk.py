@@ -1616,6 +1616,7 @@ async def create_sdk_chat(
                     "commitment_version": COMMITMENT_VERSION,
                     "expected_messages_v": request_body.expected_messages_v,
                     "encrypted_user_message": encrypted_user_message,
+                    **({"hashed_team_id": hash_id(str(team_id))} if is_team_chat else {}),
                     **(
                         {"encrypted_chat_metadata": request_body.encrypted_chat_metadata}
                         if request_body.encrypted_chat_metadata is not None
@@ -1623,6 +1624,23 @@ async def create_sdk_chat(
                     ),
                 },
             )
+            if is_team_chat:
+                try:
+                    from backend.core.api.app.services.team_chat_notification_service import queue_committed_team_message
+
+                    encryption_service = getattr(request.app.state, "encryption_service", None)
+                    if encryption_service is not None:
+                        await queue_committed_team_message(
+                            directus=request.app.state.directus_service,
+                            cache=request.app.state.cache_service,
+                            encryption=encryption_service,
+                            team_id=str(team_id),
+                            chat_id=str(request_body.chat_id),
+                            message_id=str(request_body.message_id),
+                            sender_id=user_id,
+                        )
+                except Exception:
+                    logger.exception("Team SDK notification fanout failed after committed preflight")
             enqueue = None
             if team_should_trigger_ai:
                 enqueue = await enqueue_chat_turn(

@@ -824,6 +824,31 @@ notifications.email_saving:
   he: שומר...
 
   verified_by_human: []
+notifications.email_chat_how_it_works:
+  context: Explains availability for immediate chat email alerts, separate from the daily workflow digest
+  en: Chat emails are sent when you're away. Workflow runs are summarized in one daily email.
+  de: Chat-E-Mails werden gesendet, wenn Sie abwesend sind. Workflow-Ausführungen werden in einer täglichen E-Mail zusammengefasst.
+  verified_by_human: []
+notifications.email_workflow_runs:
+  context: Toggle label for the daily workflow run email summary
+  en: Workflow runs
+  de: Workflow-Ausführungen
+  verified_by_human: []
+notifications.email_workflow_runs_desc:
+  context: Description for the daily workflow run email summary
+  en: One daily email summarizing your workflow runs
+  de: Eine tägliche E-Mail mit einer Zusammenfassung Ihrer Workflow-Ausführungen
+  verified_by_human: []
+notifications.email_include_content:
+  context: Optional email content preview toggle
+  en: Include titles and previews in email
+  de: Titel und Vorschauen in E-Mails aufnehmen
+  verified_by_human: []
+notifications.email_include_content_desc:
+  context: Consent disclosure for chat and workflow title and preview content in email
+  en: Allow chat and workflow titles and previews in email. Your email provider can read this content.
+  de: Chat- und Workflow-Titel sowie Vorschauen in E-Mails zulassen. Ihr E-Mail-Anbieter kann diese Inhalte lesen.
+  verified_by_human: []
 notifications.email_webhooks:
   context: Toggle label for webhook chat email notifications
   en: Webhook Chats

@@ -154,8 +154,10 @@ final class WatchChatLayoutUITests: XCTestCase {
         let duration = app.descendants(matching: .any)["watch-audio-recording-duration"]
         let cancel = app.buttons["watch-audio-cancel-button"]
         let send = app.buttons["watch-audio-send-button"]
+        let transcript = app.descendants(matching: .any)["watch-chat-shell"]
         XCTAssertTrue(back.waitForExistence(timeout: 12))
         XCTAssertTrue(card.exists)
+        XCTAssertFalse(transcript.exists, "The transcript is hidden while recording covers the screen")
         XCTAssertTrue(duration.exists)
         XCTAssertTrue(cancel.isHittable)
         XCTAssertTrue(send.isHittable)
@@ -168,6 +170,8 @@ final class WatchChatLayoutUITests: XCTestCase {
 
         cancel.tap()
         XCTAssertTrue(app.textFields["watch-message-input"].waitForExistence(timeout: 5))
+        XCTAssertTrue(transcript.waitForExistence(timeout: 5),
+                      "The transcript is measured again after leaving recording")
     }
 }
 

@@ -34,6 +34,8 @@ ACCOUNT_EMAIL_TEMPLATES = {
 
 NOTIFICATION_EMAIL_TEMPLATES = {
     "ai-response-notification",
+    "chat-message-notification",
+    "workflow-run-digest",
     "community_share_notification",
     "referral-reward",
     "reminder-notification",

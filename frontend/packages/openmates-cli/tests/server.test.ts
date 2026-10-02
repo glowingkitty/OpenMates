@@ -117,7 +117,7 @@ import {
   serverUpdateStatusFile,
   writeServerUpdateStatus,
 } from "../src/serverUpdateState.ts";
-import { ensureCoreAlertmanagerRuntimeFile, ensureCorePrometheusRuntimeFiles, imageUpdateUpArgs, loadSelfHostComposeTemplate, validateReuseCompletedSetup, waitForServerHealth } from "../src/server.ts";
+import { ensureCoreAlertmanagerRuntimeFile, ensureCorePrometheusRuntimeFiles, imageUpdateUpArgs, planCoreSetupUpdate, runCoreSetupUpdate, loadSelfHostComposeTemplate, validateReuseCompletedSetup, waitForServerHealth } from "../src/server.ts";
 
 const ORIGINAL_STATE_DIR = process.env.OPENMATES_STATE_DIR;
 
@@ -683,6 +683,86 @@ describe("resolveServerPath", () => {
 // ---------------------------------------------------------------------------
 // server.ts tests
 // ---------------------------------------------------------------------------
+
+describe("core setup update ordering", () => {
+  it("accepts staged setup reuse only for a completed immutable target image", () => {
+    const healthy = { image: "ignored", status: "running", exitCode: 0, health: "healthy" };
+    const input = {
+      role: "core" as const, installMode: "image", servicesFlag: "api,task-worker", excludeFlag: undefined,
+      selectedServices: ["api", "task-worker"], targetTag: `sha-${"a".repeat(40)}`,
+      registry: "ghcr.io/glowingkitty",
+      setup: { image: `ghcr.io/glowingkitty/openmates-cms-setup:sha-${"a".repeat(40)}`, status: "exited", exitCode: 0 },
+      dependencies: Object.fromEntries(["cms", "cms-database", "cache", "vault"].map((service) => [service, healthy])),
+    };
+    assert.doesNotThrow(() => validateReuseCompletedSetup(input));
+    assert.deepEqual(imageUpdateUpArgs(["compose"], input.selectedServices, true, true), ["compose", "up", "-d", "--no-deps", ...input.selectedServices]);
+    assert.deepEqual(imageUpdateUpArgs(["compose"], input.selectedServices, true, false), ["compose", "up", "-d", ...input.selectedServices]);
+    assert.throws(() => imageUpdateUpArgs(["compose"], input.selectedServices, false, true), /explicitly selected services/);
+    assert.throws(() => validateReuseCompletedSetup({ ...input, setup: { ...input.setup, status: "running" } }), /exited successfully/);
+    assert.throws(() => validateReuseCompletedSetup({ ...input, setup: { ...input.setup, exitCode: 1 } }), /exited successfully/);
+    assert.throws(() => validateReuseCompletedSetup({ ...input, setup: { ...input.setup, image: "wrong:tag" } }), /target image/);
+    assert.throws(() => validateReuseCompletedSetup({ ...input, dependencies: { ...input.dependencies, cms: { ...healthy, health: "unhealthy" } } }), /healthy cms/);
+    assert.throws(() => validateReuseCompletedSetup({ ...input, servicesFlag: undefined }), /explicit --services/);
+    assert.throws(() => validateReuseCompletedSetup({ ...input, selectedServices: ["cms-setup"] }), /allows only api/);
+    assert.throws(() => validateReuseCompletedSetup({ ...input, role: "upload" }), /core image-mode/);
+    assert.throws(() => validateReuseCompletedSetup({ ...input, installMode: "source" }), /core image-mode/);
+    assert.throws(() => validateReuseCompletedSetup({ ...input, targetTag: "main" }), /immutable --image-tag/);
+    assert.throws(() => validateReuseCompletedSetup({ ...input, targetTag: "sha-abc123" }), /immutable --image-tag/);
+  });
+
+  it("expands filtered core updates to setup, API and both email consumers", () => {
+    const plan = planCoreSetupUpdate("core", ["app-ai-worker"], true);
+    assert.deepEqual(plan.pullOrBuildServices, ["app-ai-worker", "api", "task-worker", "task-scheduler", "cms", "cms-setup"]);
+    assert.deepEqual(plan.startServices, ["app-ai-worker", "api", "task-worker", "task-scheduler"]);
+    assert.deepEqual(plan.stopServices, ["api", "task-worker", "task-scheduler"]);
+    assert.equal(planCoreSetupUpdate("core", ["prometheus"], true).required, false);
+    assert.equal(planCoreSetupUpdate("core", ["prometheus"], true, true).required, true);
+    assert.deepEqual(planCoreSetupUpdate("core", ["api"], true, true).pullOrBuildServices, ["api", "task-worker", "task-scheduler"]);
+    assert.equal(planCoreSetupUpdate("upload", ["app-uploads"], true).required, false);
+  });
+
+  it("stops old consumers, runs setup to zero, verifies it, then starts target services", async () => {
+    const calls: string[] = [];
+    const input = {
+      compose: ["compose"], stopServices: ["api", "task-worker", "task-scheduler"],
+      upArgs: ["compose", "up", "-d", "api", "task-worker", "task-scheduler"],
+      reuseCompletedSetup: false,
+      run: async (args: string[]) => { calls.push(args.join(" ")); return 0; },
+      verifySetup: () => { calls.push("verify target setup exited zero"); },
+    };
+    await runCoreSetupUpdate(input);
+    assert.deepEqual(calls, [
+      "compose stop api task-worker task-scheduler",
+      "compose up -d --no-deps cms",
+      "compose up --no-deps --force-recreate --exit-code-from cms-setup cms-setup",
+      "verify target setup exited zero",
+      "compose up -d api task-worker task-scheduler",
+    ]);
+    calls.length = 0;
+    await runCoreSetupUpdate({ ...input, reuseCompletedSetup: true });
+    assert.deepEqual(calls, ["compose stop api task-worker task-scheduler", "verify target setup exited zero", "compose up -d api task-worker task-scheduler"]);
+  });
+
+  it("fails closed on stop, setup, or verification failure and permits an idempotent retry", async () => {
+    for (const failingStep of [0, 1, 2, 3]) {
+      const calls: string[] = [];
+      await assert.rejects(runCoreSetupUpdate({
+        compose: ["compose"], stopServices: ["api", "task-worker", "task-scheduler"],
+        upArgs: ["compose", "up", "-d", "api"], reuseCompletedSetup: false,
+        run: async (args) => { calls.push(args.join(" ")); return failingStep < 3 && calls.length - 1 === failingStep ? 1 : 0; },
+        verifySetup: () => { if (failingStep === 3) throw new Error("setup inspect failed"); },
+      }), /Could not stop|CMS could not start|cms-setup failed|setup inspect failed/);
+      assert.equal(calls.some((call) => call === "compose up -d api"), false);
+    }
+    const retryCalls: string[] = [];
+    await runCoreSetupUpdate({
+      compose: ["compose"], stopServices: ["api", "task-worker", "task-scheduler"],
+      upArgs: ["compose", "up", "-d", "api"], reuseCompletedSetup: false,
+      run: async (args) => { retryCalls.push(args.join(" ")); return 0; }, verifySetup: () => undefined,
+    });
+    assert.equal(retryCalls.at(-1), "compose up -d api");
+  });
+});
 
 describe("composeArgs", () => {
   let tempDir: string;

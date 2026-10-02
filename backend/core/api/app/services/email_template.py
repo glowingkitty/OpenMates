@@ -1,7 +1,7 @@
 import os
 import logging
 import re
-from typing import Dict, Any, Optional, Tuple, Union
+from typing import Dict, Any, Optional, Tuple, Union, Awaitable, Callable
 import cssutils  # Add this import to configure cssutils logger
 import sys
 from html.parser import HTMLParser
@@ -28,6 +28,10 @@ logger = logging.getLogger(__name__)
 
 # Apply sensitive data filter to this logger
 logger.addFilter(SensitiveDataFilter())
+
+
+class EmailSendIneligible(Exception):
+    """The recipient became ineligible before crossing the transport boundary."""
 
 # Force this module's logger to have a direct console handler to ensure output
 if not logger.handlers:
@@ -211,6 +215,14 @@ class EmailTemplateService:
             logger.error(f"Error rendering email template '{template_name}': {str(e)}", exc_info=True)
             raise
     
+    def selected_delivery_transport(self) -> str:
+        """Keep retry capability tied to the transport used by send_email."""
+        return "ci_smtp" if os.getenv("OPENMATES_CI_MAIL_CAPTURE") == "1" else "brevo"
+
+    def supports_delivery_idempotency(self) -> bool:
+        """True only when the selected provider enforces our stable key."""
+        return self.selected_delivery_transport() == "brevo"
+
     async def send_email(
         self,
         template: str,
@@ -221,7 +233,10 @@ class EmailTemplateService:
         sender_name: str = None,
         sender_email: str = None,
         lang: str = "en",
-        attachments: Optional[list] = None # Add attachments parameter
+        attachments: Optional[list] = None, # Add attachments parameter
+        delivery_idempotency_key: str | None = None,
+        late_before_send: Callable[[], Awaitable[bool]] | None = None,
+        subject_options: dict[str, Any] | None = None,
     ) -> bool:
         """
         Send an email via Brevo with a rendered template.
@@ -240,7 +255,7 @@ class EmailTemplateService:
         Returns:
             True if email was sent successfully, False otherwise
         """
-        ci_mail_capture = os.getenv("OPENMATES_CI_MAIL_CAPTURE") == "1"
+        ci_mail_capture = self.selected_delivery_transport() == "ci_smtp"
         brevo_api_key = None
         if not ci_mail_capture:
             brevo_api_key = await self.secrets_manager.get_secret(
@@ -251,6 +266,13 @@ class EmailTemplateService:
                 logger.error("Cannot send email: Brevo API key not found in Vault")
                 return False
         try:
+            # Credential lookup may yield while consent, presence, or preview
+            # permission changes. Recheck after that await and before rendering.
+            if late_before_send is not None and not await late_before_send():
+                raise EmailSendIneligible()
+            if subject_options is not None:
+                subject = subject_options.get("subject", subject)
+
             # Initialize default context if needed
             if context is None:
                 context = {}
@@ -474,6 +496,9 @@ class EmailTemplateService:
                 # Auto-Submitted header indicates automated email
                 "Auto-Submitted": "auto-generated"
             }
+            if delivery_idempotency_key:
+                # Brevo deduplicates this UUID across uncertain transport retries.
+                email_headers["idempotencyKey"] = delivery_idempotency_key
             
             # Add List-Unsubscribe header(s).
             # RFC 2369 allows multiple URLs separated by commas; RFC 8058 one-click applies to HTTP(S).
@@ -530,6 +555,8 @@ class EmailTemplateService:
                 attachments=attachments
             )
                         
+        except EmailSendIneligible:
+            raise
         except Exception as e:
             logger.error(f"Error sending email: {str(e)}", exc_info=True)
             return False

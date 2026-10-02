@@ -141,13 +141,15 @@ Bank-transfer credit and gift-card purchases are supported in the CLI. The gift-
 
 ```
 openmates settings notifications status
+openmates settings notifications email get --json
 openmates settings notifications list --limit 20 --json
 openmates settings notifications stream --count 1 --json
-openmates settings notifications email set --enabled true --email you@example.com --ai-responses true --backup-reminder true
-openmates settings notifications backup set --enabled true --interval 30 --email you@example.com
+openmates settings notifications email set --enabled true --ai-responses true --workflow-runs true --include-content false
+openmates settings notifications email set --workflow-runs false
+openmates settings notifications backup set --enabled true --interval 30
 ```
 
-Notification writes use the same WebSocket `email_notification_settings` contract as the web app. Enabling email notifications requires an email address so the backend can encrypt it with the user's vault key before storage.
+Notification writes use the same WebSocket `email_notification_settings` contract as the web app. Email notifications go to the verified account address. Category flags only change the categories supplied; `--enabled` changes the master switch independently. `--include-content true` explicitly allows chat and workflow titles and previews in email, which the email provider can read. Chat alerts contain a generic message and a link by default. Workflow runs are summarized in one daily email.
 
 `notifications list` prints recent notification events. `notifications stream` opens the CLI notification stream and can be bounded with `--count <n>` for scripts.
 

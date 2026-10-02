@@ -10,6 +10,8 @@
 // Assertions: message-input.recording.lifecycle, message-input.embeds.gated-send, message-input.send.ownership, message-input.privacy-context, message-input.suggestions.contextual
 // Specification: specifications/features/chats/specification.yml
 // Assertions: chats.layout.responsive-history, chats.streaming.progressive-presentation, chats.rendering.assistant-document-convergence, chats.surface.semantic-parity
+// Specification: specifications/features/apple-notifications/specification.yml
+// Assertions: apple-notifications.delivery.idempotent-visible
 
 // ─── Web source ─────────────────────────────────────────────────────
 // MessageBubble:
@@ -415,6 +417,8 @@ struct ChatView: View {
     var onOpenModelSettings: ((String) -> Void)? = nil
     /// Sends the last visible message ID to the app shell for cross-device sync.
     var onScrollPositionChanged: ((String) -> Void)? = nil
+    /// Reports decrypted, final messages that are actually in the visible transcript.
+    var onFinalMessagesVisible: ((Set<String>) async -> Set<String>)? = nil
     /// Called after an external chat/embed deep link has opened the fullscreen embed route.
     var onInitialEmbedOpened: ((String) -> Void)? = nil
 
@@ -477,6 +481,11 @@ struct ChatView: View {
     @State private var handledInputFocusRequest = 0
     @State private var handledCameraCaptureRequest = 0
     @State private var lastReportedVisibleMessageId: String?
+    @State private var latestVisibleMessageIds: Set<String> = []
+    @State private var reportedVisibleReceiptIds: Set<String> = []
+    @State private var pendingVisibleReceiptIds: Set<String> = []
+    @State private var inFlightVisibleReceiptIds: Set<String> = []
+    @State private var visibleReceiptAttemptID = UUID()
     @State private var assistantFeedbackMessageId: String?
     @State private var selectedAssistantRating: Int?
     @State private var assistantFeedbackSubmitted = false
@@ -802,6 +811,14 @@ struct ChatView: View {
         }
         .onChange(of: scenePhase) { _, phase in
             if phase != .active { flushEncryptedDraft() }
+            else {
+                visibleReceiptAttemptID = UUID()
+                inFlightVisibleReceiptIds = []
+                reportFinalVisibleMessages(latestVisibleMessageIds)
+            }
+        }
+        .onReceive(Timer.publish(every: 25, on: .main, in: .common).autoconnect()) { _ in
+            reportFinalVisibleMessages(latestVisibleMessageIds)
         }
         .onDisappear(perform: handleDisappear)
         .onChange(of: piiPrivacySettingsStore.settings) { _, _ in
@@ -812,6 +829,9 @@ struct ChatView: View {
         }
         .onReceive((wsManager ?? AppSessionCoordinator.shared.webSocketManager).$connectionState) { state in
             guard state == .connected else { return }
+            visibleReceiptAttemptID = UUID()
+            inFlightVisibleReceiptIds = []
+            reportFinalVisibleMessages(latestVisibleMessageIds)
             deferredSocketConnectedEpoch += 1
             Task { @MainActor in await retryDeferredComposerSendsAfterReconnect() }
         }
@@ -1586,6 +1606,12 @@ struct ChatView: View {
                     scrollToStreamingResponseIfNeeded(proxy: proxy)
                 }
                 .onChange(of: viewModel.isStreaming) { wasStreaming, isStreaming in
+                    if wasStreaming && !isStreaming {
+                        Task { @MainActor in
+                            await Task.yield()
+                            reportFinalVisibleMessages(latestVisibleMessageIds)
+                        }
+                    }
                     if !wasStreaming, isStreaming {
                         followsStreamingResponse = !viewModel.hasNewerMessages
                             && (displayedChatMessages.last?.role == .user || isAtBottom)
@@ -2027,6 +2053,11 @@ struct ChatView: View {
         hasRestoredInitialScroll = false
         isRestoringScroll = true
         lastReportedVisibleMessageId = nil
+        latestVisibleMessageIds = []
+        reportedVisibleReceiptIds = []
+        pendingVisibleReceiptIds = []
+        inFlightVisibleReceiptIds = []
+        visibleReceiptAttemptID = UUID()
         scrollPositionDebounceTask?.cancel()
         scrollPositionDebounceTask = nil
         stopFollowingStreamingResponse()
@@ -2078,6 +2109,8 @@ struct ChatView: View {
     }
 
     private func trackVisibleMessage(_ visibleIds: Set<String>) {
+        latestVisibleMessageIds = visibleIds
+        reportFinalVisibleMessages(visibleIds)
         guard transcriptIsVisible, !isRestoringScroll, onScrollPositionChanged != nil, !viewModel.messages.isEmpty else { return }
         guard let lastVisibleId = viewModel.messages.last(where: { visibleIds.contains($0.id) })?.id,
               lastVisibleId != lastReportedVisibleMessageId else { return }
@@ -2094,6 +2127,40 @@ struct ChatView: View {
                   viewModel.messages.contains(where: { $0.id == lastVisibleId }) else { return }
             onScrollPositionChanged?(lastVisibleId)
             NativeSyncPerfLog.info("phase=chatScrollPositionSend chat=\(chatId.prefix(8)) message=\(lastVisibleId.prefix(8))")
+        }
+    }
+
+    private func reportFinalVisibleMessages(_ visibleIds: Set<String>) {
+        guard transcriptIsVisible, !isRestoringScroll, scenePhase == .active,
+              let onFinalMessagesVisible else { return }
+        #if os(macOS)
+        guard NSApp.isActive else { return }
+        #endif
+        let finalIds = Set(viewModel.messages.filter {
+            visibleIds.contains($0.id) && ($0.role == .assistant || $0.role == .user)
+                && $0.isStreaming != true && !viewModel.isStreamingMessage($0.id)
+        }.map(\.id))
+        pendingVisibleReceiptIds.formUnion(finalIds.subtracting(reportedVisibleReceiptIds))
+        let toSend = pendingVisibleReceiptIds.intersection(finalIds)
+            .subtracting(reportedVisibleReceiptIds)
+            .subtracting(inFlightVisibleReceiptIds)
+        guard !toSend.isEmpty else { return }
+        pendingVisibleReceiptIds.subtract(toSend)
+        inFlightVisibleReceiptIds.formUnion(toSend)
+        let requestedChatID = chatId
+        let navigationID = historyNavigationID
+        let scope = OfflineStore.shared.scopeGeneration
+        let attemptID = visibleReceiptAttemptID
+        Task { @MainActor in
+            let confirmed = await onFinalMessagesVisible(toSend)
+            let acknowledged = confirmed.intersection(toSend)
+            guard chatId == requestedChatID, historyNavigationID == navigationID,
+                  OfflineStore.shared.scopeGeneration == scope,
+                  visibleReceiptAttemptID == attemptID else { return }
+            inFlightVisibleReceiptIds.subtract(toSend)
+            reportedVisibleReceiptIds.formUnion(acknowledged)
+            pendingVisibleReceiptIds.formUnion(toSend.subtracting(acknowledged)
+                .subtracting(reportedVisibleReceiptIds))
         }
     }
 

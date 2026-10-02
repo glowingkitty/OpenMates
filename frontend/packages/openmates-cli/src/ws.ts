@@ -290,6 +290,7 @@ function scopedErrorMissesPredicate(
     ? envelope.payload as Record<string, unknown>
     : {};
   const hasScope = typeof payload.turn_id === "string"
+    || typeof payload.request_id === "string"
     || typeof payload.chat_id === "string"
     || typeof payload.message_id === "string"
     || typeof payload.user_message_id === "string"
@@ -394,6 +395,9 @@ function parseAvailableRecoveryJobs(value: unknown): AvailableRecoveryJobFrame[]
 }
 
 export class OpenMatesWsClient {
+  private readonly interactiveHuman: boolean;
+  private activeHumanChatId: string | null = null;
+  private presenceTimer: ReturnType<typeof setInterval> | null = null;
   private readonly socket: InstanceType<typeof WebSocket>;
   private readonly passiveTaskUpdateJobs = new Map<string, PendingTaskUpdateJobFrame>();
   private readonly remoteCommandReviewDeferredHandlers = new Set<(payload: Record<string, unknown>) => void>();
@@ -409,8 +413,10 @@ export class OpenMatesWsClient {
     taskUpdateJobs?: boolean;
     projectFileJobs?: boolean;
     remoteCommandJobs?: boolean;
+    interactiveHuman?: boolean;
     onForceLogout?: (payload: ForceLogoutPayload) => void | Promise<void>;
   }) {
+    this.interactiveHuman = options.interactiveHuman === true;
     const wsBase = options.apiUrl.replace(/^http/, "ws").replace(/\/$/, "");
     // Refresh credentials may travel as protected cookies, never in a URL.
     const token = options.wsToken || "";
@@ -442,6 +448,10 @@ export class OpenMatesWsClient {
     }
     this.socket = new WebSocket(`${wsBase}/v1/ws?${query.toString()}`, {
       headers: wsHeaders,
+    });
+    this.socket.on("close", () => {
+      if (this.presenceTimer) clearInterval(this.presenceTimer);
+      this.presenceTimer = null;
     });
     this.socket.on("message", (rawData: RawData) => {
       if (this.handleForceLogout(rawData, options.onForceLogout)) return;
@@ -482,10 +492,36 @@ export class OpenMatesWsClient {
         }
       });
     });
+    if (this.interactiveHuman) {
+      this.presenceTimer = setInterval(() => this.reportInteractivePresence(), 25_000);
+      this.presenceTimer.unref?.();
+    }
   }
 
   close(): void {
+    if (this.presenceTimer) clearInterval(this.presenceTimer);
+    this.presenceTimer = null;
+    if (this.interactiveHuman && this.socket.readyState === WebSocket.OPEN) {
+      try {
+        this.socket.send(JSON.stringify({ type: "native_client_lifecycle", payload: {
+          client_type: "cli", is_foreground: false, interactive: true,
+        } }));
+      } catch {
+        // The lease expires if the socket closes before the background frame.
+      }
+    }
     this.socket.close();
+  }
+
+  private reportInteractivePresence(): void {
+    if (!this.interactiveHuman || !this.activeHumanChatId || this.socket.readyState !== WebSocket.OPEN) return;
+    try {
+      this.socket.send(JSON.stringify({ type: "native_client_lifecycle", payload: {
+        client_type: "cli", is_foreground: true, interactive: true, chat_id: this.activeHumanChatId,
+      } }));
+    } catch {
+      // A failed heartbeat cannot extend the server lease.
+    }
   }
 
   onClose(handler: () => void): () => void {
@@ -495,6 +531,10 @@ export class OpenMatesWsClient {
 
   send(type: string, payload: unknown): void {
     this.socket.send(JSON.stringify({ type, payload }));
+    if (type === "set_active_chat" && this.interactiveHuman) {
+      this.activeHumanChatId = (payload as { chat_id?: string | null })?.chat_id ?? null;
+      this.reportInteractivePresence();
+    }
   }
 
   sendAsync(type: string, payload: unknown): Promise<void> {

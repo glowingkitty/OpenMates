@@ -6825,6 +6825,9 @@
                 if (finalMessageIndex !== -1) {
                     currentMessages[finalMessageIndex] = updatedFinalMessage;
                     currentMessages = [...currentMessages]; // Ensure reactivity for UI
+                    if (document.visibilityState === 'visible' && document.hasFocus()) {
+                        void reportVisibleMessages(chunk.chat_id);
+                    }
                 }
 
                 // CRITICAL FIX: Also update the corresponding user message status from 'sending' to appropriate status
@@ -9255,6 +9258,7 @@
         // Immediately update UI state for responsive button visibility
         isAtBottom = atBottom;
         isAtTop = atTop;
+        if (currentChat?.chat_id) void reportVisibleMessages(currentChat.chat_id);
     }
     
     // Handle scroll position changes from ChatHistory (debounced for saving)
@@ -9342,10 +9346,20 @@
         anchorMessageId?: string;
         compressedUpToTimestamp?: number;
     }) {
+        const teamScope = get(activeTeamId);
+        const scopeEpoch = getWorkspaceCacheEpoch();
+        const storedChat = await chatDB.getRawChat(chatId);
+        const scopedChat = storedChat ?? (currentChat?.chat_id === chatId ? currentChat : null);
+        if (scopeEpoch !== getWorkspaceCacheEpoch() || get(activeTeamId) !== teamScope
+            || (scopedChat && !isChatInActiveTeamContext(scopedChat, teamScope))
+            || (teamScope && !scopedChat)) {
+            throw new Error('Chat message window is outside the active workspace');
+        }
         const params = new URLSearchParams({
             direction: options.direction,
             limit: String(MESSAGE_WINDOW_LIMIT),
         });
+        if (scopedChat?.team_id) params.set('team_id', scopedChat.team_id);
         if (typeof options.beforeTimestamp === 'number') params.set('before_timestamp', String(options.beforeTimestamp));
         if (options.beforeMessageId) params.set('before_message_id', options.beforeMessageId);
         if (options.anchorMessageId) params.set('anchor_message_id', options.anchorMessageId);
@@ -9355,6 +9369,9 @@
         });
         if (!response.ok) throw new Error(`Authenticated message-window fetch failed: ${response.status}`);
         const payload = await response.json() as AuthenticatedMessageWindowPayload;
+        if (scopeEpoch !== getWorkspaceCacheEpoch() || get(activeTeamId) !== teamScope) {
+            throw new Error('Chat message window arrived after workspace switch');
+        }
         const parsedMessages = (payload.messages || []).flatMap((raw) => {
             const normalized = normalizeServerMessage(raw, chatId);
             return normalized ? [normalized] : [];
@@ -9376,6 +9393,9 @@
         await chatDB.evictStaleMessageWindowPages(chatId, {
             protectedMessageIds: localWindow.messages.map((message) => message.message_id),
         });
+        if (scopeEpoch !== getWorkspaceCacheEpoch() || get(activeTeamId) !== teamScope) {
+            throw new Error('Chat message window completed after workspace switch');
+        }
         return {
             ...localWindow,
             hasMoreBefore: payload.has_more_before ?? localWindow.hasMoreBefore,
@@ -9505,6 +9525,26 @@
     }
 
     // Handle scrolled to bottom (mark as read)
+    async function reportVisibleMessages(chatId: string) {
+        if (!$authStore.isAuthenticated || isPublicChat(chatId)) return;
+        if (document.visibilityState !== 'visible' || !document.hasFocus() || currentChat?.chat_id !== chatId) return;
+        await tick();
+        if (document.visibilityState !== 'visible' || !document.hasFocus() || currentChat?.chat_id !== chatId) return;
+        const { webSocketService } = await import('../services/websocketService');
+        const finalIds = new Set(currentMessages.filter(m =>
+            (m.role === 'assistant' || m.role === 'user') && m.status === 'synced'
+        ).map(m => m.message_id));
+        const seen = new Set<string>();
+        for (const element of document.querySelectorAll<HTMLElement>('[data-message-id]')) {
+            const messageId = element.dataset.messageId;
+            if (!messageId || !finalIds.has(messageId) || seen.has(messageId)) continue;
+            const bounds = element.getBoundingClientRect();
+            if (bounds.bottom <= 0 || bounds.top >= window.innerHeight || bounds.height <= 0) continue;
+            seen.add(messageId);
+            await webSocketService.sendMessage('chat_message_viewed', { chat_id: chatId, message_id: messageId });
+        }
+    }
+
     async function handleScrolledToBottom() {
         // Update isAtBottom state to show action buttons
         isAtBottom = true;
@@ -9516,6 +9556,7 @@
             console.debug(`[ActiveChat] Skipping read status update for ${isPublicChat(currentChat.chat_id) ? 'public chat' : 'non-authenticated user'}: ${currentChat.chat_id}`);
             return;
         }
+        void reportVisibleMessages(currentChat.chat_id);
         
         try {
             // Update unread count to 0 (mark as read)
@@ -12665,6 +12706,7 @@
         let _visibilityTimer: ReturnType<typeof setTimeout> | null = null;
         const handleVisibilityChange = () => {
             if (document.visibilityState !== 'visible') return;
+            if (currentChat?.chat_id) void reportVisibleMessages(currentChat.chat_id);
             if (!showWelcome) return;
             if (_visibilityTimer) clearTimeout(_visibilityTimer);
             _visibilityTimer = setTimeout(() => {
@@ -12681,6 +12723,10 @@
             }, 1500);
         };
         document.addEventListener('visibilitychange', handleVisibilityChange);
+        const handleWindowFocus = () => {
+            if (currentChat?.chat_id) void reportVisibleMessages(currentChat.chat_id);
+        };
+        window.addEventListener('focus', handleWindowFocus);
 
         const priorityCarouselInvalidatedHandler = (() => {
             if (showWelcome) {
@@ -13205,6 +13251,7 @@
             chatSyncService.removeEventListener('syncComplete', syncCompleteHandler);
             chatSyncService.removeEventListener('phase_1b_chat_content_ready', phase1bContentReadyHandler);
             document.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener('focus', handleWindowFocus);
             window.removeEventListener('savedEmbedMemorySaved', priorityCarouselInvalidatedHandler);
             window.removeEventListener('savedEmbedMemoryForgotten', priorityCarouselInvalidatedHandler);
             chatSyncService.removeEventListener('reminderFiredInChat', priorityCarouselInvalidatedHandler);

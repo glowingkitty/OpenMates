@@ -22,6 +22,7 @@ from backend.core.api.app.services.chat_recovery_service import (
     ChatRecoveryService,
 )
 from backend.core.api.app.services.directus.team_methods import TeamPermissionError, hash_id
+from backend.core.api.app.services.team_chat_ai_service import parse_team_message_transport
 from backend.core.api.app.services.chat_recovery_telemetry import (
     record_recovery_duration,
     start_recovery_timing,
@@ -141,6 +142,7 @@ async def handle_chat_turn_preflight(
     user_id_hash: str,
     device_fingerprint_hash: str,
     payload: dict[str, Any],
+    stable_device_fingerprint_hash: str | None = None,
     user_otel_attrs: dict | None = None,
 ) -> None:
     async def send_response(message: dict[str, Any]) -> None:
@@ -190,7 +192,15 @@ async def handle_chat_turn_preflight(
             cutover_state.get("protocol_epoch"),
         )
         await send_debug_phase("cutover_completed")
-        if cutover_state.get("protocol_epoch") == 0:
+        inference_request_payload = payload.get("inference_request")
+        team_id = payload.get("team_id")
+        ordinary_team_turn = (
+            isinstance(team_id, str)
+            and bool(team_id)
+            and isinstance(inference_request_payload, dict)
+            and inference_request_payload.get("team_ai_invocation") is None
+        )
+        if cutover_state.get("protocol_epoch") == 0 and not ordinary_team_turn:
             legacy_preflight_id = str(
                 uuid.uuid5(uuid.UUID(payload["turn_id"]), "legacy-preflight")
             )
@@ -205,10 +215,31 @@ async def handle_chat_turn_preflight(
                 }
             )
             return
+        if ordinary_team_turn:
+            if cutover_state.get("sends_paused"):
+                raise ChatRecoveryProtocolError(503, "inference_temporarily_paused")
+            message = inference_request_payload.get("message")
+            if not isinstance(message, dict):
+                raise ChatRecoveryProtocolError(400, "invalid_team_message_transport")
+            if (
+                inference_request_payload.get("team_id") != team_id
+                or inference_request_payload.get("chat_id") != payload.get("chat_id")
+            ):
+                raise ChatRecoveryProtocolError(409, "team_chat_scope_mismatch")
+            try:
+                parse_team_message_transport(inference_request_payload, message)
+            except ValueError:
+                raise ChatRecoveryProtocolError(400, "invalid_team_message_transport") from None
+            encrypted_message = payload.get("encrypted_user_message")
+            if (
+                not isinstance(encrypted_message, dict)
+                or message.get("message_id") != payload.get("message_id")
+                or message.get("encrypted_content") != encrypted_message.get("encrypted_content")
+            ):
+                raise ChatRecoveryProtocolError(409, "message_identity_mismatch")
         encrypted_user_message = dict(payload["encrypted_user_message"])
         encrypted_user_message["hashed_user_id"] = user_id_hash
         inference_request = dict(payload["inference_request"])
-        team_id = payload.get("team_id")
         hashed_team_id = None
         if isinstance(team_id, str) and team_id:
             try:
@@ -216,14 +247,18 @@ async def handle_chat_turn_preflight(
             except TeamPermissionError:
                 raise ChatRecoveryProtocolError(403, "team_permission_denied") from None
             hashed_team_id = hash_id(team_id)
-        inference_request["client_capabilities"] = server_client_capabilities(
-            manager,
-            user_id,
-            device_fingerprint_hash,
-        )
+        # Ordinary Team turns only commit and relay ciphertext. Live inference
+        # metadata is irrelevant to them and can drift after a lost ACK,
+        # changing the commitment for an otherwise identical retry.
+        if not ordinary_team_turn:
+            inference_request["client_capabilities"] = server_client_capabilities(
+                manager,
+                user_id,
+                device_fingerprint_hash,
+            )
         cache_service = getattr(getattr(websocket, "app", None), "state", None)
         cache_service = getattr(cache_service, "cache_service", None)
-        if cache_service is not None:
+        if cache_service is not None and not ordinary_team_turn:
             from backend.core.api.app.services.project_write_authorization_service import (
                 ProjectWriteAuthorizationService,
             )
@@ -240,13 +275,22 @@ async def handle_chat_turn_preflight(
                 if project_focus
                 else None
             )
+        # The WebSocket routing hash includes the tab session ID. Ordinary Team
+        # commits have no recovery job, so bind their idempotent preflight to
+        # the authenticated device hash across reconnects and page reloads.
+        preflight_device_hash = (
+            stable_device_fingerprint_hash
+            if ordinary_team_turn and isinstance(stable_device_fingerprint_hash, str)
+            and stable_device_fingerprint_hash
+            else device_fingerprint_hash
+        )
         transaction_data = {
             "protocol_version": payload["protocol_version"],
             "hashed_user_id": user_id_hash,
             "chat_id": payload["chat_id"],
             "turn_id": payload["turn_id"],
             "user_message_id": payload["message_id"],
-            "device_hash": device_fingerprint_hash,
+            "device_hash": preflight_device_hash,
             "chat_key_version": payload["chat_key_version"],
             "wrapped_chat_key": payload["encrypted_chat_key"],
             "recovery_public_key": payload["recovery_public_key"],
@@ -270,6 +314,24 @@ async def handle_chat_turn_preflight(
             await send_debug_phase("prepare_completed")
         finally:
             record_recovery_duration("durable_preflight", started_at)
+        if hashed_team_id and cache_service is not None:
+            try:
+                from backend.core.api.app.services.team_chat_notification_service import queue_committed_team_message
+
+                encryption_service = getattr(websocket.app.state, "encryption_service", None)
+                if encryption_service is not None:
+                    await queue_committed_team_message(
+                        directus=directus_service,
+                        cache=cache_service,
+                        encryption=encryption_service,
+                        team_id=team_id,
+                        chat_id=str(payload["chat_id"]),
+                        message_id=str(payload["message_id"]),
+                        sender_id=user_id,
+                    )
+            except Exception:
+                # Notification delivery must never invalidate a durable message commit.
+                logger.exception("Team chat notification fanout failed after committed preflight")
         result["turn_id"] = payload["turn_id"]
         await send_response({"type": "chat_turn_preflight_ack", "payload": result})
         logger.info("Chat preflight phase=ack_sent turn=%s", turn_id[:8])
