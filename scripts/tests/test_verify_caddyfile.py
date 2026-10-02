@@ -235,3 +235,43 @@ def test_dev_apps_workspace_credentialed_cors_precedes_public_api() -> None:
         return
 
     pytest.fail("Could not find credentialed and public Apps routes in adapted dev Caddyfile")
+
+
+@pytest.mark.parametrize("caddyfile", CADDYFILES)
+def test_hosted_project_file_routes_retain_credentialed_cors(caddyfile: Path) -> None:
+    """Project ciphertext reads must never fall into public wildcard CORS."""
+    caddy = shutil.which("caddy")
+    if caddy is None:
+        pytest.skip("caddy is not installed")
+    env = os.environ.copy()
+    env.setdefault("GANDI_BEARER_TOKEN", "openmates-caddyfile-syntax-check-token")
+    result = subprocess.run(
+        [caddy, "adapt", "--config", str(caddyfile), "--adapter", "caddyfile"],
+        cwd=REPO_ROOT, env=env, text=True, stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE, check=False,
+    )
+    if "module not registered: dns.providers.gandi" in result.stderr:
+        pytest.skip("installed caddy lacks the Gandi DNS module")
+    assert result.returncode == 0, result.stderr
+    hosted_paths = {"/v1/embeds/*/encrypted", "/v1/embeds/*/revision-receipts/*"}
+    for routes in _route_lists(json.loads(result.stdout)):
+        public_routes = {
+            "OPTIONS" if route.get("match", [{}])[0].get("method") == ["OPTIONS"] else "actual": index
+            for index, route in enumerate(routes)
+            if "/v1/embeds/*" in _matched_paths(route)
+            and "headers" in _nested_handlers(route)
+        }
+        if set(public_routes) != {"OPTIONS", "actual"}:
+            continue
+        matched_methods = set()
+        for index, route in enumerate(routes):
+            if not hosted_paths.issubset(_matched_paths(route)):
+                continue
+            method = "OPTIONS" if route.get("match", [{}])[0].get("method") == ["OPTIONS"] else "actual"
+            assert index < public_routes[method]
+            assert "reverse_proxy" in _nested_handlers(route)
+            assert "headers" not in _nested_handlers(route)
+            matched_methods.add(method)
+        assert matched_methods == {"OPTIONS", "actual"}
+        return
+    pytest.fail(f"Could not find public and first-party embed routes in {caddyfile}")
