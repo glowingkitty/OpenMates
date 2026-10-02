@@ -37005,7 +37005,7 @@ assertions:
     - &id4507
       path: frontend/packages/ui/src/services/__tests__/preflightAcknowledgement.test.ts
       line: 39
-      name: still handles a legacy error without turn_id
+      name: rejects %s promptly and removes pending listeners
       surface: gui.web
     - &id4509
       path: frontend/packages/ui/src/services/__tests__/websocketService.test.ts
@@ -52243,7 +52243,7 @@ assertions:
       surface: cli
     - &id6435
       path: frontend/apps/web_app/tests/projects-chat-file-executor.spec.ts
-      line: 267
+      line: 291
       name: creates and updates an encrypted hosted file through explicit Project
         focus and approval
       surface: gui.web
@@ -52453,7 +52453,7 @@ assertions:
       surface: rest_api
     - &id6459
       path: frontend/apps/web_app/tests/projects-chat-file-executor.spec.ts
-      line: 392
+      line: 494
       name: reads and updates the original remote file through the browser WebSocket
         executor
       surface: gui.web
@@ -52935,13 +52935,13 @@ assertions:
       surface: cli
     - &id6504
       path: frontend/apps/web_app/tests/projects-chat-file-executor.spec.ts
-      line: 267
+      line: 291
       name: creates and updates an encrypted hosted file through explicit Project
         focus and approval
       surface: gui.web
     - &id6505
       path: frontend/apps/web_app/tests/projects-chat-file-executor.spec.ts
-      line: 392
+      line: 494
       name: reads and updates the original remote file through the browser WebSocket
         executor
       surface: gui.web
@@ -53020,13 +53020,13 @@ assertions:
       surface: cli
     - &id6512
       path: frontend/apps/web_app/tests/projects-chat-file-executor.spec.ts
-      line: 267
+      line: 291
       name: creates and updates an encrypted hosted file through explicit Project
         focus and approval
       surface: gui.web
     - &id6513
       path: frontend/apps/web_app/tests/projects-chat-file-executor.spec.ts
-      line: 392
+      line: 494
       name: reads and updates the original remote file through the browser WebSocket
         executor
       surface: gui.web
@@ -53367,13 +53367,13 @@ assertions:
       surface: rest_api
     - &id6558
       path: frontend/apps/web_app/tests/projects-chat-file-executor.spec.ts
-      line: 267
+      line: 291
       name: creates and updates an encrypted hosted file through explicit Project
         focus and approval
       surface: gui.web
     - &id6559
       path: frontend/apps/web_app/tests/projects-chat-file-executor.spec.ts
-      line: 392
+      line: 494
       name: reads and updates the original remote file through the browser WebSocket
         executor
       surface: gui.web
@@ -53700,7 +53700,7 @@ assertions:
     direct_tests:
     - &id6585
       path: frontend/apps/web_app/tests/projects-chat-file-executor.spec.ts
-      line: 267
+      line: 291
       name: creates and updates an encrypted hosted file through explicit Project
         focus and approval
       surface: gui.web
@@ -53751,7 +53751,7 @@ assertions:
       surface: gui.web
     - &id6595
       path: frontend/apps/web_app/tests/projects-chat-file-executor.spec.ts
-      line: 267
+      line: 291
       name: creates and updates an encrypted hosted file through explicit Project
         focus and approval
       surface: gui.web
@@ -53819,7 +53819,7 @@ assertions:
     direct_tests:
     - &id6597
       path: frontend/apps/web_app/tests/projects-chat-file-executor.spec.ts
-      line: 267
+      line: 291
       name: creates and updates an encrypted hosted file through explicit Project
         focus and approval
       surface: gui.web
@@ -53854,13 +53854,13 @@ assertions:
       surface: cli
     - &id6605
       path: frontend/apps/web_app/tests/projects-chat-file-executor.spec.ts
-      line: 267
+      line: 291
       name: creates and updates an encrypted hosted file through explicit Project
         focus and approval
       surface: gui.web
     - &id6606
       path: frontend/apps/web_app/tests/projects-chat-file-executor.spec.ts
-      line: 392
+      line: 494
       name: reads and updates the original remote file through the browser WebSocket
         executor
       surface: gui.web

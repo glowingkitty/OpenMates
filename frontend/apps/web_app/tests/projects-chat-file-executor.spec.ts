@@ -31,6 +31,11 @@ const API_BASE_URL = process.env.PLAYWRIGHT_TEST_API_URL
 const REPO_ROOT = resolve(__dirname, '../../../..');
 const CLI_DIR = resolve(REPO_ROOT, 'frontend/packages/openmates-cli');
 
+function syntheticMarker(prefix: string): string {
+  // Keep transport identity checks independent of phone-number PII detection.
+  return `${prefix}-${randomUUID().replace(/[0-9]/g, (digit: string) => String.fromCharCode(103 + Number(digit)))}`;
+}
+
 interface RemoteFixtureEvent {
   event: string;
   project_id?: string;
@@ -223,14 +228,33 @@ async function currentChatId(page: Page): Promise<string> {
   return chatId as string;
 }
 
+async function logChatVersion(page: Page, phase: string): Promise<void> {
+  const chatId = await currentChatId(page);
+  const version = await page.evaluate((id) => new Promise<number | null>((resolveVersion, rejectVersion) => {
+    const open = indexedDB.open('chats_db');
+    open.onerror = () => rejectVersion(open.error);
+    open.onsuccess = () => {
+      const db = open.result;
+      const transaction = db.transaction('chats', 'readonly');
+      const request = transaction.objectStore('chats').get(id);
+      request.onsuccess = () => resolveVersion(request.result?.messages_v ?? null);
+      request.onerror = () => rejectVersion(request.error);
+      transaction.oncomplete = () => db.close();
+    };
+  }), chatId);
+  console.log('Hosted chat version:', phase, version);
+}
+
 async function deactivateProjectFocusAndVerify(page: Page, projectId: string): Promise<void> {
   const chatId = await currentChatId(page);
   const deactivated = page.waitForResponse(
     (response: Response) => response.request().method() === 'POST'
       && new URL(response.url()).pathname === '/v1/projects/focus/deactivate'
       && response.ok(),
+    { timeout: 30_000 },
   );
-  await page.getByTestId('focus-pill-toggle').locator('input[type="checkbox"]').click();
+  // Toggle's checkbox is intentionally zero-sized; users click its visible label.
+  await page.getByTestId('focus-pill-toggle').click();
   await deactivated;
   await expect(page.getByTestId('focus-pill')).toHaveCount(0, { timeout: 30_000 });
   const authority = await page.evaluate(async ({ apiBaseUrl, activeChatId }) => {
@@ -268,8 +292,10 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
     test.setTimeout(900_000);
     const projectName = `Browser hosted ${randomUUID().slice(0, 8)}`;
     const path = 'proofs/browser-hosted-proof.txt';
-    const marker = `hosted-${randomUUID()}`;
+    const marker = syntheticMarker('hosted');
     const sentWebSocketMessages: Array<Record<string, unknown>> = [];
+    const readOperations = new Set<string>();
+    const persistedRecoveryJobs = new Set<string>();
     const advertisedCapabilities = new Set<string>();
     const cdp = await page.context().newCDPSession(page);
     await cdp.send('Network.enable');
@@ -281,14 +307,49 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
       try {
         const message = JSON.parse(response.payloadData) as Record<string, unknown>;
         sentWebSocketMessages.push(message);
+        if (message.type === 'project_file_operation_result') {
+          const payload = message.payload as { status?: string; result?: { code?: string; reason?: string } };
+          console.log('Project executor outcome:', payload.status, payload.result?.code ?? payload.result?.reason ?? '');
+        }
       } catch {
         // Binary/control frames and non-JSON traffic are irrelevant here.
+      }
+    });
+    cdp.on('Network.webSocketFrameReceived', ({ response }: { response: { payloadData: string } }) => {
+      try {
+        const message = JSON.parse(response.payloadData) as { type?: string; payload?: { status?: string; state?: string; job_id?: string; code?: string; operation?: string; operation_id?: string; arguments?: { path?: string } } };
+        if (message.type === 'recovery_job_persisted' && message.payload?.state === 'TERMINAL' && message.payload.job_id) {
+          persistedRecoveryJobs.add(message.payload.job_id);
+        }
+        if (message.type === 'project_file_operation_request' && message.payload?.operation === 'read_text'
+          && message.payload.arguments?.path === path && message.payload.operation_id) {
+          readOperations.add(message.payload.operation_id);
+        }
+        if (message.type === 'commit_embed_revision_result') {
+          console.log('Hosted commit outcome:', message.payload?.status, message.payload?.code ?? '');
+        }
+      } catch {
+        // Keep diagnostics to public outcome codes; never log ciphertext or keys.
       }
     });
     let projectId: string | null = null;
     let chatUrl: string | null = null;
     try {
       projectId = await createProject(page, projectName, 'always_ask');
+      console.log('Disposable hosted Project:', projectId, projectName);
+      // First-party ciphertext routes must be readable with browser cookies;
+      // wildcard CORS would fail here before spending any inference budget.
+      const missingEmbedId = randomUUID();
+      const transportStatuses = await page.evaluate(async ({ apiBaseUrl, targetProjectId, embedId }) => {
+        const scope = `project_id=${encodeURIComponent(targetProjectId)}`;
+        const paths = [
+          `/v1/embeds/${embedId}/encrypted?${scope}`,
+          `/v1/embeds/${embedId}/revision-receipts/transport-proof?${scope}&chat_id=transport-proof&proposal_digest=${'a'.repeat(64)}`,
+        ];
+        return Promise.all(paths.map(async (endpoint) =>
+          (await fetch(`${apiBaseUrl}${endpoint}`, { credentials: 'include' })).status));
+      }, { apiBaseUrl: API_BASE_URL, targetProjectId: projectId, embedId: missingEmbedId });
+      expect(transportStatuses, 'hosted ciphertext CORS must preserve opaque missing-file responses').toEqual([404, 404]);
       await page.goto('/', { waitUntil: 'domcontentloaded' });
       await startNewChat(page);
       await waitForChatReady(page);
@@ -308,25 +369,45 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
       await expectProjectFocusPill(page, projectName);
       console.log('Hosted Project proof: explicit mention activated the named focus.');
       await approvePendingWrite(page, path, marker);
+      // The initial response can finish before its asynchronous read-back.
+      // Verify that requested operation before revoking focus for the next turn.
+      await expect.poll(() => sentWebSocketMessages.some((message) => {
+        const payload = message.payload as { operation_id?: string; status?: string; result?: { content?: string } };
+        return message.type === 'project_file_operation_result' && payload.status === 'completed'
+          && readOperations.has(payload.operation_id ?? '') && payload.result?.content === `${marker}\noriginal\n`;
+      }), { message: 'the created file must be read back before switching off Project access', timeout: 180_000 }).toBe(true);
+      await expect.poll(() => persistedRecoveryJobs.size, {
+        message: 'the final asynchronous answer must be durably encrypted before reload', timeout: 180_000,
+      }).toBeGreaterThan(0);
       await waitForTurnCompletion(page);
       console.log('Hosted Project proof: first encrypted file revision applied.');
+      await logChatVersion(page, 'before reload');
 
       await page.reload({ waitUntil: 'domcontentloaded' });
       await waitForChatReady(page);
       await expectProjectFocusPill(page, projectName);
+      await logChatVersion(page, 'after reload');
+      console.log('Hosted Project proof: named focus survived reload.');
       const historyMention = page.getByTestId('project-mention-link').filter({ hasText: `@${projectName.replace(/\s+/g, '-')}` }).first();
       await expect(historyMention).toBeVisible({ timeout: 30_000 });
       await expect(historyMention).toHaveAttribute('href', `#project-id=${projectId}`);
 
       // Natural-language routing must request consent after focus is switched off.
       await deactivateProjectFocusAndVerify(page, projectId);
+      await logChatVersion(page, 'after focus off');
+      console.log('Hosted Project proof: focus off revoked server Project authority.');
       await page.bringToFront();
       await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+      const completedJobsBeforeFollowup = persistedRecoveryJobs.size;
 
       await sendMessage(
         page,
         `In my existing Project named "${projectName}", read ${path}, then use an exact Project update patch to change only the second line from original to updated. Preserve the first line and final newline. Request access to this Project through its focus mode so I can confirm it, then perform the edit and read it back.`,
       );
+      const followupPreflight = sentWebSocketMessages.filter((message) => message.type === 'chat_turn_preflight').at(-1);
+      const routing = (followupPreflight?.payload as { inference_request?: { project_focus_candidates?: Array<{ project_id: string }> } })?.inference_request;
+      expect(routing?.project_focus_candidates?.some((candidate) => candidate.project_id === projectId),
+        'natural-language routing must carry the existing Project without granting access').toBe(true);
       await expect(page.getByTestId('project-focus-consent')).toBeVisible({ timeout: 240_000 });
       await expect(page.getByTestId('focus-pill')).toHaveCount(0);
       const beforeConsent = await page.evaluate(async ({ apiBaseUrl, chatId }) => {
@@ -338,6 +419,14 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
       await page.getByTestId('project-focus-grant').click();
       await expectProjectFocusPill(page, projectName);
       await approvePendingWrite(page, path, 'updated');
+      await expect.poll(() => sentWebSocketMessages.some((message) => {
+        const payload = message.payload as { operation_id?: string; status?: string; result?: { content?: string } };
+        return message.type === 'project_file_operation_result' && payload.status === 'completed'
+          && readOperations.has(payload.operation_id ?? '') && payload.result?.content === `${marker}\nupdated\n`;
+      }), { message: 'the updated file must be read back before revoking Project access', timeout: 180_000 }).toBe(true);
+      await expect.poll(() => persistedRecoveryJobs.size, {
+        message: 'the second asynchronous answer must also be durably encrypted', timeout: 180_000,
+      }).toBeGreaterThan(completedJobsBeforeFollowup);
       await waitForTurnCompletion(page);
       console.log('Hosted Project proof: consent resumed the chat and applied the exact update.');
       await deactivateProjectFocusAndVerify(page, projectId);
@@ -345,13 +434,15 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
       // Opening the Project through the historical mention must leave focus off.
       await historyMention.click();
       await expect(page).toHaveURL(new RegExp(`project-id=${projectId}`));
+      await page.getByRole('tab', { name: 'Files', exact: true }).click();
       const folder = page.getByTestId('project-virtual-folder-card').filter({ hasText: 'proofs' }).first();
       await expect(folder).toBeVisible({ timeout: 30_000 });
       await folder.click();
       const item = page.getByTestId('project-item-card').filter({ hasText: 'browser-hosted-proof.txt' }).first();
       await expect(item).toBeVisible({ timeout: 30_000 });
-      await expect(item).toHaveAttribute('aria-disabled', 'false', { timeout: 30_000 });
-      await item.click();
+      const hostedPreview = item.locator('.unified-embed-preview');
+      await expect(hostedPreview).toHaveAttribute('aria-disabled', 'false', { timeout: 30_000 });
+      await hostedPreview.click();
       const overlay = page.getByTestId('embed-fullscreen-overlay').last();
       await expect(overlay).toBeVisible({ timeout: 30_000 });
       expect(await readFullscreenCodeLines(overlay)).toEqual([marker, 'updated', '']);
@@ -375,6 +466,17 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
       }
     } catch (error) {
       console.error('Hosted Project proof failed:', error instanceof Error ? error.message : String(error));
+      const diagnostics = await page.evaluate(() => {
+        const state = window as unknown as { __openmatesLastPreflightDebug?: { step?: string }; __openmatesLastSendDebug?: { step?: string } };
+        return { preflightStep: state.__openmatesLastPreflightDebug?.step, sendStep: state.__openmatesLastSendDebug?.step };
+      }).catch(() => ({}));
+      console.error('Hosted transport steps:', diagnostics);
+      console.error('Recent WebSocket event types:', sentWebSocketMessages.slice(-12).map((message) => message.type));
+      console.error('Preflight versions:', sentWebSocketMessages.filter((message) => message.type === 'chat_turn_preflight')
+        .map((message) => {
+          const payload = message.payload as { expected_messages_v?: number; encrypted_chat_metadata?: unknown };
+          return { expected: payload.expected_messages_v, createsChat: Boolean(payload.encrypted_chat_metadata) };
+        }));
       if (!chatUrl && page.url().includes('chat-id=')) chatUrl = page.url();
       await page.screenshot({ path: test.info().outputPath('hosted-project-before-cleanup.png'), fullPage: true }).catch(() => undefined);
       throw error;
@@ -409,7 +511,7 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
         OPENMATES_CLI_DEVICE_IDENTITY: fixtureDeviceIdentity,
       },
     );
-    const marker = `remote-${randomUUID()}`;
+    const marker = syntheticMarker('remote');
     const expectedContent = `export const remoteDemo = "${marker}";\nexport const imported = true;\n`;
     let chatUrl: string | null = null;
     const bridge = spawn(
@@ -467,12 +569,15 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
       chatUrl = null;
 
       await page.goto(`/#project-id=${encodeURIComponent(fixture.project_id as string)}`, { waitUntil: 'domcontentloaded' });
+      await page.getByRole('tab', { name: 'Files', exact: true }).click();
       await expect(page.getByTestId('project-item-card')).toHaveCount(0);
-      const sourceCard = page.getByTestId('project-connected-source-root').filter({ hasText: 'Live remote source' });
-      await expect(sourceCard).toBeVisible({ timeout: 30_000 });
-      await sourceCard.click();
+      // A Project with one connected source opens that root directly in Files.
       const sourceBrowser = page.getByTestId('project-remote-browser');
-      await sourceBrowser.getByTestId('project-remote-entry').filter({ hasText: /\bsrc\b/ }).click();
+      await expect(sourceBrowser).toBeVisible({ timeout: 30_000 });
+      const sourceFolder = sourceBrowser.locator('[data-testid="project-remote-entry"][data-kind="directory"]')
+        .filter({ hasText: /\bsrc\b/ });
+      await expect(sourceFolder.getByTestId('project-remote-cloud-badge')).toBeVisible();
+      await sourceFolder.locator('.unified-embed-preview').click();
       const preview = sourceBrowser.getByTestId('project-remote-preview-card').filter({ hasText: 'remote-demo.ts' });
       await expect(preview).toBeVisible({ timeout: 30_000 });
       await preview.locator('.unified-embed-preview').click();
@@ -484,6 +589,7 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
         '',
       ]);
       await closeFullscreen(page, overlay);
+      await expect(page.getByTestId('project-item-card')).toHaveCount(0);
     } finally {
       if (chatUrl) {
         await page.goto(chatUrl, { waitUntil: 'domcontentloaded' }).catch(() => undefined);

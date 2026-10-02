@@ -36,11 +36,12 @@ describe("durable preflight acknowledgement", () => {
 	});
 
 	// contract-test: supporting surface=gui.web assertions=chats.message.identity-idempotent
-	it("still handles a legacy error without turn_id", async () => {
+	it.each(["preflight_mismatch", "existing_chat_metadata_forbidden"])("rejects %s promptly and removes pending listeners", async (code) => {
 		const { source, emit, handlers } = eventSource();
 		const pending = waitForPreflightAcknowledgement("turn-current", source, vi.fn());
-		emit("error", { code: "preflight_mismatch" });
+		emit("error", { code });
 		await expect(pending).rejects.toBeInstanceOf(PreflightRejectionError);
+		await expect(pending).rejects.toHaveProperty("code", code);
 		expect(handlers.size).toBe(0);
 	});
 });

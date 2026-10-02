@@ -4,7 +4,7 @@ title: 'Agentic coding implementation: project file access first'
 status: implementing
 goal: Implement CLI and chat read/write access to remote and OpenMates-stored Project files, then web
   Project browsing and editing, then address Tasks, Specifications, and Plans gaps.
-revision: r65
+revision: r67
 conversation: codex:01a0caf0-76d6-7e73-86d1-c7c759db3cf4
 workspace_session: '8c51'
 approved_by_user: true
@@ -26,6 +26,22 @@ specification_refs:
 - specification: feature.app-skill.code-run@1
   role: related
   fingerprint: 09b06da0aa7020a23125d0a77e5052731185ac05212581cabccc6f8132b840a7
+current_checkpoint_2026_10_02:
+  scope: Finish the approved Project file and web-chat foundation; retain the decision history below.
+  hosted_chat: Passed real inference on dev with the personal account and a disposable hosted Project.
+    Explicit mention, named focus, encrypted create, write approval, exact read-back, reload, focus-off,
+    inferred consent, Grant, update, historical mention navigation and two-revision fullscreen all pass.
+  remote_chat: Passed real inference on dev. The disposable source file changed by the exact requested
+    bytes, focus-off revoked authority, and Files opened the connected root directly. Nested browsing
+    and fullscreen showed the edited content with no hosted Project items; no engineering files were edited.
+  remote_workspace: The retained validation Project README, nested tree and fullscreen code view pass.
+    The updated global CLI runs in the existing openmates-remote Zellij session, terminal_5.
+  open_issues:
+  - Client PII placeholders can change proposed file content; exact restoration needs a targeted repair.
+  - Normal OS authorization is needed to install the terminal guard and verify one live command.
+  - The corrected dev proxy configuration needs its normal privileged on-disk update for reboot durability.
+  - Tasks execution/completion gaps, then Specifications and Plans execution, remain later work.
+  handoff: The two retained Agentic Coding validation Projects below are available for manual testing.
 implementation_checkpoint_2026_09_23:
   completed_local_slices:
   - Project focus/role/write policy, setup/settings surfaces and exact approval checks.
@@ -1695,3 +1711,72 @@ remote_project_browsing_recovery_2026_10_02:
     fullscreen_file: /tmp/8c51-remote-file.png
   remaining: The separate hosted chat create/update and inferred Project consent live proof is pending;
     this successful remote browsing check does not establish that result.
+
+hosted_browser_commit_recovery_2026_10_02:
+  task: TASK-6182
+  status: verified_with_recorded_limitations
+  changes:
+  - commit: da885666d53d7c74896edcc96ae97b680e80b9e3
+    outcome: Both authenticated ciphertext-head and revision-receipt routes preserve first-party
+      credentialed CORS. Source includes dev and production templates; only the dev runtime was changed.
+  - commit: 49c75f309221bc73518402eee417cd21e4140682
+    outcome: The WebSocket commit handler removes request correlation and tracing metadata before
+      forwarding the strict ciphertext transaction. Unknown transaction fields remain rejected.
+  - commit: 5728c013b0a188e9cd589b32676cf0f675ff3652
+    outcome: Automatic tool-completion events use an explicitly labelled lower-priority user turn
+      so Gemini can resume asynchronous file work. The event does not grant Project access.
+  - commit: 818e63c7ab235f326f66716093ee4361df44a8a4
+    outcome: Candidate Project names are read from the browser request envelope and reach the
+      ownership-validated preprocessor route. Candidates still grant no access by themselves.
+  - commit: db358e8a750c8043e7d7c2ac0c97ca2a059a0401
+    outcome: An exact owned Project name in the current request remains eligible for a main-processor
+      focus request even when classification omits that focus. Explicit focus overrides and declined
+      access are respected; no focus activation or Project access occurs without user confirmation.
+  verification:
+  - Nine focused Caddy routing checks pass. The real browser can request both missing-file routes
+    with its personal dev session and receives opaque 404 responses before making any model calls.
+  - Three focused commit-handler checks and nine atomic transaction checks pass, including traced
+    requests, authorization, encrypted creation, replay, and same-revision conflict rejection.
+  - Ten asynchronous continuation checks pass. Live hosted browser creation, explicit approval,
+    exact file read-back, durable encrypted answer persistence, focus restoration after reload,
+    and server-side access revocation now pass on a disposable Project.
+  - A real remote web-chat edit passed with exact bytes verified on the disposable source machine.
+    The current Files tab opens a sole connected source directly. The corrected final case opens src,
+    verifies the remote badge and edited fullscreen contents, and confirms no hosted items were created.
+  - An initial natural-language follow-up was admitted, but no Project consent prompt appeared. The WebSocket
+    dispatcher incorrectly read candidate names from the nested message instead of the top-level
+    request envelope. The deployed correction passed its focused routing regressions and final live proof.
+  - The final hosted real-inference case now passes through exact-name inferred consent, explicit
+    Grant, approved update, exact read-back, encrypted terminal answer persistence, focus-off,
+    historical mention navigation, fullscreen file content, and the two-revision timeline.
+  - Eighteen focused dispatcher and exact-name routing checks pass. Exact-name fallback is only a
+    selection hint from owned candidates; it never bypasses explicit inferred-access consent.
+  - Three frontend preflight checks pass. A definitive existing-chat metadata rejection now removes
+    pending listeners and surfaces immediately instead of leaving the sender waiting for a timeout.
+  evidence:
+    hosted: /tmp/8c51-final-project-proofs.log
+    hosted_result: The hosted case passed; the combined run failed only its separate remote browsing selector.
+    remote: /tmp/8c51-remote-project-proof-final.log
+    remote_result: The focused remote case passed without retries in 2.1 minutes after following the current Files view.
+    isolation: Personal dev account, disposable hosted Project and remote folder; all automated fixture state cleaned up.
+  remaining:
+  - Remote terminal capability still requires normal interactive OS authorization for the CLI's
+    bundled protection installer. The existing Zellij host continues providing file access.
+  - The dev Caddy admin configuration is corrected, and source templates are deployed. The root-owned
+    on-disk host Caddyfile still needs the normal privileged configuration update for reboot durability.
+  - File-content fidelity with client PII placeholders needs a separate targeted repair. The phone
+    detector redacted part of a synthetic UUID; the approval diff contained the placeholder. Do not
+    expose client-only mappings to the server or silently approve a differing proposal. Current
+    transport fixtures use alphabetic markers and continue asserting the exact committed bytes.
+  manual_validation_projects:
+    hosted:
+      project_id: dcfde7f6-95a5-4a13-95fb-d455856215ac
+      name: Agentic Coding Hosted Validation 8c51
+      write_policy: apply_and_show
+      purpose: Empty disposable hosted Project for the user to create and edit files through chat.
+    remote:
+      project_id: 136d1b48-bbca-457a-b287-a62e364b132c
+      name: Agentic Coding Validation 8c51
+      root: /tmp/openmates-agentic-validation-8c51
+      source_id: ec3c0e40-785e-41ee-a648-1ff83e2c54a3
+      host: Existing openmates-remote Zellij session, terminal_5.

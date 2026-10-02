@@ -5,7 +5,7 @@ const PREFLIGHT_ERROR_CODES = new Set([
 	"client_update_required", "durable_preflight_failed", "immutable_chat_key_mismatch",
 	"preflight_expired", "preflight_mismatch", "preflight_required",
 	"recovery_key_mismatch", "message_identity_mismatch", "team_chat_scope_mismatch",
-	"version_conflict"
+	"version_conflict", "existing_chat_metadata_forbidden"
 ]);
 
 type EventHandler = (payload: unknown) => void;
