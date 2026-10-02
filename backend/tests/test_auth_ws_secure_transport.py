@@ -2,9 +2,13 @@
 import asyncio
 import hashlib
 import importlib
+import logging
 import sys
 from types import ModuleType, SimpleNamespace
 from unittest.mock import AsyncMock
+
+import pytest
+from fastapi import HTTPException, status
 
 
 # contract-test: direct surface=rest_api assertions=auth.secrets.lifecycle,auth.session.authoritative-enforcement
@@ -122,3 +126,65 @@ def test_signed_ws_cache_link_is_enrolled_in_durable_authority_before_admission(
     assert result["session_expires_at"] == 4102444800
     enroll.assert_awaited_once_with(Socket.app.state.directus_service,
                                     Socket.app.state.cache_service, digest, "u1")
+
+
+@pytest.mark.parametrize(
+    ("http_status", "expected_close", "expected_log_level"),
+    [
+        (401, status.WS_1008_POLICY_VIOLATION, "WARNING"),
+        (403, status.WS_1008_POLICY_VIOLATION, "WARNING"),
+        (503, status.WS_1011_INTERNAL_ERROR, "ERROR"),
+    ],
+)
+# contract-test: direct surface=rest_api assertions=auth.session.authoritative-enforcement,auth.session.lifecycle
+def test_session_authority_denial_closes_websocket_with_matching_failure_class(
+    monkeypatch, http_status, expected_close, expected_log_level,
+):
+    auth_ws = importlib.import_module("backend.core.api.app.routes.auth_ws")
+    detail = "Session security state unavailable" if http_status == 503 else "Session expired or revoked"
+    authority = AsyncMock(side_effect=HTTPException(http_status, detail))
+    monkeypatch.setattr(auth_ws, "get_session_state_cached", authority)
+    monkeypatch.setattr(auth_ws, "get_pair_deadline_hash", AsyncMock(return_value=None))
+
+    class Cache:
+        SESSION_KEY_PREFIX = "session:"
+
+        async def get(self, _key):
+            return {"user_id": "u1"}
+
+    class Socket:
+        app = SimpleNamespace(state=SimpleNamespace(
+            cache_service=Cache(), directus_service=SimpleNamespace(),
+        ))
+        cookies = {"auth_refresh_token": "issued-cookie"}
+        query_params = {"sessionId": "browser-session"}
+        headers = {}
+
+        def __init__(self):
+            self.closes = []
+
+        async def close(self, **kwargs):
+            self.closes.append(kwargs)
+
+    socket = Socket()
+    matching_logs = []
+    capture_handler = logging.Handler()
+    capture_handler.emit = matching_logs.append
+    old_level = auth_ws.logger.level
+    auth_ws.logger.addHandler(capture_handler)
+    auth_ws.logger.setLevel(logging.DEBUG)
+    try:
+        result = asyncio.run(auth_ws.get_current_user_ws(socket))
+    finally:
+        auth_ws.logger.removeHandler(capture_handler)
+        auth_ws.logger.setLevel(old_level)
+
+    assert result is None
+    assert socket.closes == [{
+        "code": expected_close,
+        "reason": "Invalid session" if http_status in (401, 403) else "Authentication error",
+    }]
+    authority.assert_awaited_once()
+    assert any(record.levelname == expected_log_level for record in matching_logs)
+    if http_status in (401, 403):
+        assert all(record.levelname != "ERROR" for record in matching_logs)

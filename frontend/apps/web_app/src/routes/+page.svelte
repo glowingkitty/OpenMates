@@ -2156,25 +2156,8 @@
 				isInitialized: true // Mark as initialized so UI updates immediately
 			}));
 
-			// Start clientLogForwarder for admin users on session restore (page reload).
-			// On a fresh login, setAuthenticatedState() handles this. But on page reload the
-			// optimistic auth path sets isInitialized=true early and initialize() returns
-			// immediately, skipping checkAuth() — so clientLogForwarder.start() would never
-			// be called without this explicit check here.
-			{
-				const { clientLogForwarder } = await import('@repo/ui/services/clientLogForwarder');
-				const isDev = import.meta.env.VITE_ENV !== 'production';
-				if (localProfile.is_admin || isDev) {
-					console.debug(
-						'[+page.svelte] Starting clientLogForwarder (admin or dev)'
-					);
-					clientLogForwarder.start();
-				}
-				// Start ephemeral log forwarding for all authenticated users (unless opted out)
-				if (!localProfile.console_log_forwarding_opted_out) {
-					clientLogForwarder.startEphemeral();
-				}
-			}
+			// checkAuth() below validates the restored session before starting log
+			// forwarding. Its network/503 fallback retains offline access.
 		} else {
 			console.debug('[+page.svelte] No local auth data found - user will remain unauthenticated');
 
@@ -2778,13 +2761,15 @@
 			);
 		}
 
-		// Initialize authentication state (panelState will react to this)
-		// PERF: Await initialize() and cryptoReady in parallel so IDB + key loading
-		// completes alongside the auth check instead of after it.
+		// Validate optimistic local auth on every reload. isInitialized keeps the
+		// cached UI responsive, but must not bypass the server's expiry decision.
+		const authInitialization = hasLocalAuthData ? checkAuth(undefined, true) : initialize();
+		// Await auth and cryptoReady in parallel so IDB + key loading completes
+		// alongside the session check instead of after it.
 		if (cryptoReadyPromise) {
-			await Promise.all([initialize(), cryptoReadyPromise]);
+			await Promise.all([authInitialization, cryptoReadyPromise]);
 		} else {
-			await initialize();
+			await authInitialization;
 		}
 		console.debug('[+page.svelte] initialize() finished (cryptoReady resolved in parallel)');
 		// NOW safe to consume the shared chat redirect flag from sessionStorage.

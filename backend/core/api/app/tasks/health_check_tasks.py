@@ -1367,14 +1367,16 @@ def _inspect_active_worker_queues() -> Dict[str, Any]:
     from celery.app.control import Control, flatten_reply
     from backend.core.api.app.tasks.celery_config import app as celery_app
 
-    # asyncio.to_thread can use a different thread on each health-check loop.
-    # Kombu caches its reply queue but derives its reply address from the current
-    # thread. A fresh mailbox keeps both addresses together and avoids stale
-    # subscriptions (and overlapping inspections consuming each other's replies).
+    # Keep the mailbox and broker connection local to this inspection. Celery's
+    # default broadcast path borrows a pooled connection, which may be inherited
+    # by a worker child or reused by a concurrent health probe. A reply timeout
+    # on that connection is not evidence that every app worker disappeared.
     control = Control(app=celery_app)
-    return flatten_reply(control.broadcast(
-        "active_queues", reply=True, timeout=CELERY_WORKER_INSPECT_TIMEOUT_SECONDS,
-    )) or {}
+    with celery_app.connection_for_write() as connection:
+        return flatten_reply(control.broadcast(
+            "active_queues", reply=True, timeout=CELERY_WORKER_INSPECT_TIMEOUT_SECONDS,
+            connection=connection,
+        )) or {}
 
 
 def _active_queue_names(active_workers: Optional[Dict[str, Any]]) -> set[str]:
@@ -1390,7 +1392,7 @@ def _active_queue_names(active_workers: Optional[Dict[str, Any]]) -> set[str]:
 
 async def _inspect_active_worker_queues_with_retry(app_ids: list[str]) -> Optional[Dict[str, Any]]:
     """Merge a fresh retry when Celery returns only a partial worker snapshot."""
-    active_workers = await asyncio.to_thread(_inspect_active_worker_queues)
+    active_workers = dict(await asyncio.to_thread(_inspect_active_worker_queues) or {})
     expected_queues = {
         queue_name
         for app_id in app_ids
@@ -1404,11 +1406,10 @@ async def _inspect_active_worker_queues_with_retry(app_ids: list[str]) -> Option
         "Health check: Celery worker inspection missed queues %s; retrying with a fresh snapshot",
         sorted(missing_queues),
     )
-    retry_workers = await asyncio.to_thread(_inspect_active_worker_queues)
-    if not active_workers:
-        return retry_workers
-    if retry_workers:
-        active_workers.update(retry_workers)
+    retry_workers = await asyncio.to_thread(_inspect_active_worker_queues) or {}
+    for worker_name, queues in retry_workers.items():
+        if queues or worker_name not in active_workers:
+            active_workers[worker_name] = queues
     remaining_queues = expected_queues - _active_queue_names(active_workers)
     if remaining_queues:
         logger.warning(

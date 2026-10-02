@@ -11,6 +11,7 @@ They do NOT start a Celery broker — they only verify module-level setup.
 """
 
 import asyncio
+from contextlib import nullcontext
 # contract-test-file: tooling
 # Most checks validate task imports and deployment wiring; health behavior below
 # carries its own product assertion mapping.
@@ -370,15 +371,24 @@ class TestAppHealthChecks:
         from backend.core.api.app.tasks import celery_config
 
         observed = {}
+        connections = []
+
+        def fresh_connection():
+            connection = object()
+            connections.append(connection)
+            return nullcontext(connection)
+
+        monkeypatch.setattr(celery_config.app, "connection_for_write", fresh_connection)
 
         class FakeControl:
             def __init__(self, *, app):
                 assert app is celery_config.app
                 observed.setdefault("controls", []).append(self)
 
-            def broadcast(self, command, *, reply, timeout):
+            def broadcast(self, command, *, reply, timeout, connection):
                 assert command == "active_queues"
                 assert reply is True
+                assert connection is connections[-1]
                 observed["timeout"] = timeout
                 return [{"celery@app-worker": [{"name": "app_videos"}]}]
 
@@ -391,6 +401,8 @@ class TestAppHealthChecks:
         health_check_tasks._inspect_active_worker_queues()
         assert len(observed["controls"]) == 2
         assert observed["controls"][0] is not observed["controls"][1]
+        assert len(connections) == 2
+        assert connections[0] is not connections[1]
 
     # contract-test: supporting surface=rest_api assertions=operational-monitoring.alerts.actionable-low-noise
     def test_empty_shared_snapshot_does_not_trigger_per_app_broadcasts(self, monkeypatch):
@@ -403,6 +415,14 @@ class TestAppHealthChecks:
         assert asyncio.run(health_check_tasks._check_app_worker_health("videos", active_workers={})) == (
             False, "No active Celery workers found",
         )
+
+    # contract-test: supporting surface=rest_api assertions=operational-monitoring.alerts.actionable-low-noise
+    def test_missing_app_queue_is_reported_as_no_worker(self):
+        from backend.core.api.app.tasks import health_check_tasks
+
+        assert asyncio.run(health_check_tasks._check_app_worker_health(
+            "videos", active_workers={"celery@core-worker": [{"name": "health_check"}]},
+        )) == (False, "no_worker")
 
     # contract-test: supporting surface=rest_api assertions=operational-monitoring.alerts.actionable-low-noise
     def test_worker_queue_inspection_retries_and_merges_partial_replies(self, monkeypatch):
@@ -426,6 +446,41 @@ class TestAppHealthChecks:
             "celery@task-worker": [{"name": "health_check"}],
             "celery@app-worker": [{"name": "app_videos"}],
         }
+
+    # contract-test: supporting surface=rest_api assertions=operational-monitoring.alerts.actionable-low-noise
+    def test_worker_queue_inspection_reports_incomplete_empty_first_reply(self, monkeypatch):
+        from backend.core.api.app.tasks import health_check_tasks
+
+        warnings = []
+        monkeypatch.setattr(health_check_tasks.logger, "warning", lambda message, *args: warnings.append(message % args))
+        snapshots = iter([
+            {},
+            {"celery@core-worker": [{"name": "health_check"}]},
+        ])
+        monkeypatch.setattr(health_check_tasks, "_inspect_active_worker_queues", lambda: next(snapshots))
+
+        active_workers = asyncio.run(
+            health_check_tasks._inspect_active_worker_queues_with_retry(["videos"])
+        )
+
+        assert active_workers == {"celery@core-worker": [{"name": "health_check"}]}
+        assert any("remained incomplete after retry; missing queues ['app_videos']" in warning for warning in warnings)
+
+    # contract-test: supporting surface=rest_api assertions=operational-monitoring.alerts.actionable-low-noise
+    def test_worker_queue_retry_keeps_earlier_nonempty_reply(self, monkeypatch):
+        from backend.core.api.app.tasks import health_check_tasks
+
+        snapshots = iter([
+            {"celery@app-worker": [{"name": "app_videos"}]},
+            {"celery@app-worker": [], "celery@other": [{"name": "app_music"}]},
+        ])
+        monkeypatch.setattr(health_check_tasks, "_inspect_active_worker_queues", lambda: next(snapshots))
+
+        active_workers = asyncio.run(
+            health_check_tasks._inspect_active_worker_queues_with_retry(["videos", "music"])
+        )
+
+        assert health_check_tasks._active_queue_names(active_workers) == {"app_videos", "app_music"}
 
 
 class TestLeaderboardCache:

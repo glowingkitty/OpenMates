@@ -38,6 +38,9 @@ export interface ChatVersionEntry {
 
 /** In-memory version map populated during bulk key loading. */
 const cachedChatVersionMap = new Map<string, ChatVersionEntry>();
+// A logout invalidates every in-flight cursor, decryption, and background retry.
+// The logout flag alone can already be false by the time an old promise resumes.
+let bulkLoadGeneration = 0;
 const MIN_CLIENT_ENCRYPTED_PAYLOAD_BYTES = 29;
 
 function looksLikeClientEncryptedOptionalField(value: string): boolean {
@@ -132,6 +135,7 @@ export function clearChatKey(
  * @param _dbInstance - Unused (kept for API compatibility)
  */
 export function clearAllChatKeys(_dbInstance: ChatDatabaseInstance): void {
+  bulkLoadGeneration++;
   chatKeyManager.clearAll();
   clearCachedChatVersionMap();
 }
@@ -200,6 +204,9 @@ export function getOrCreateChatKeyForOriginator(
 export async function loadChatKeysFromDatabase(
   dbInstance: ChatDatabaseInstance,
 ): Promise<void> {
+  const generation = bulkLoadGeneration;
+  const isCurrentLoad = () =>
+    generation === bulkLoadGeneration && !get(forcedLogoutInProgress);
   // CRITICAL: Skip loading chat keys during forced logout (missing master key scenario)
   // This prevents errors when trying to decrypt chat keys without a master key
   if (get(forcedLogoutInProgress)) {
@@ -236,6 +243,10 @@ export async function loadChatKeysFromDatabase(
       cachedChatVersionMap.clear();
 
       request.onsuccess = (event) => {
+        if (!isCurrentLoad()) {
+          resolve();
+          return;
+        }
         const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
         if (cursor) {
           const chat = cursor.value;
@@ -264,6 +275,10 @@ export async function loadChatKeysFromDatabase(
           // This happens after the transaction completes, which is fine
           (async () => {
             try {
+              if (!isCurrentLoad()) {
+                resolve();
+                return;
+              }
               // Cold-load fast path: when there are no keys to decrypt (new account,
               // empty IDB, or all keys already cached), skip the entire master-key
               // fetch + retry loop. Without this, cold loads spuriously emit
@@ -279,7 +294,15 @@ export async function loadChatKeysFromDatabase(
               // Without this, each decryptChatKeyWithMasterKey call opens its own
               // IDB connection, causing massive contention for stayLoggedIn=true users.
               const { getKeyFromStorage } = await import("../cryptoService");
+              if (!isCurrentLoad()) {
+                resolve();
+                return;
+              }
               const prefetchedMasterKey = await getKeyFromStorage();
+              if (!isCurrentLoad()) {
+                resolve();
+                return;
+              }
               if (!prefetchedMasterKey) {
                 // OPE-314: Don't silently skip — schedule a retry so keys eventually load.
                 // Without this, all message decryption permanently fails on new tabs where
@@ -291,20 +314,23 @@ export async function loadChatKeysFromDatabase(
                 const MAX_RETRIES = 6; // 3 seconds total
                 let retryCount = 0;
                 const retryBulkDecrypt = async () => {
+                  if (!isCurrentLoad()) return;
                   retryCount++;
                   const masterKey = await getKeyFromStorage();
+                  if (!isCurrentLoad()) return;
                   if (masterKey) {
                     console.info(
                       `[ChatDatabase] Master key available on retry ${retryCount}, decrypting ${keysToDecrypt.length} chat keys`,
                     );
                     const BATCH_SIZE = 20;
                     for (let i = 0; i < keysToDecrypt.length; i += BATCH_SIZE) {
+                      if (!isCurrentLoad()) return;
                       const batch = keysToDecrypt.slice(i, i + BATCH_SIZE);
                       await Promise.all(
                         batch.map(({ chatId, encryptedKey }) =>
                           decryptChatKeyWithMasterKey(encryptedKey, masterKey)
                             .then((chatKey) => {
-                              if (chatKey) {
+                              if (chatKey && isCurrentLoad()) {
                                 chatKeyManager.injectKey(chatId, chatKey, "bulk_init");
                               }
                             })
@@ -317,7 +343,7 @@ export async function loadChatKeysFromDatabase(
                     console.debug(
                       `[ChatDatabase] Retry: loaded ${keysToDecrypt.length} chat keys`,
                     );
-                  } else if (retryCount < MAX_RETRIES) {
+                  } else if (retryCount < MAX_RETRIES && isCurrentLoad()) {
                     setTimeout(retryBulkDecrypt, RETRY_DELAY_MS);
                   } else {
                     console.error(
@@ -337,12 +363,16 @@ export async function loadChatKeysFromDatabase(
                 i < keysToDecrypt.length;
                 i += BATCH_SIZE
               ) {
+                if (!isCurrentLoad()) {
+                  resolve();
+                  return;
+                }
                 const batch = keysToDecrypt.slice(i, i + BATCH_SIZE);
                 await Promise.all(
                   batch.map(({ chatId, encryptedKey }) =>
                     decryptChatKeyWithMasterKey(encryptedKey, prefetchedMasterKey)
                       .then((chatKey) => {
-                        if (chatKey) {
+                        if (chatKey && isCurrentLoad()) {
                           chatKeyManager.injectKey(
                             chatId,
                             chatKey,

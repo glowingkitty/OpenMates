@@ -153,6 +153,11 @@ async function performAuthCheck(
             credentials: "include",
             signal: authAbortController.signal,
           });
+          if (response.status === 401) {
+            // An explicit auth rejection is definitive, unlike a network/503
+            // failure. Route it through the existing session-expiry cleanup.
+            return { success: false, message: "Session expired or revoked" };
+          }
           if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
           }
@@ -852,8 +857,10 @@ async function performAuthCheck(
         data.message,
       );
 
-      // Stop admin log streaming on session expiry
-      void clientLogForwarder.stop();
+      // The server has rejected this session: stop authenticated diagnostics
+      // without sending a final batch with the already-invalid cookie.
+      void clientLogForwarder.stopEphemeral(false);
+      void clientLogForwarder.stop(false);
 
       // Check if master key was present before clearing (to determine if user was previously authenticated)
       const hadMasterKey = !!(await cryptoService.getKeyFromStorage());

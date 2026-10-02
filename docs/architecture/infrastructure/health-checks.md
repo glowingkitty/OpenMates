@@ -91,9 +91,9 @@ App and external-service checks run every **5 minutes**. Provider inference prob
 
 ### App Health Checks (`health_check.check_all_apps`)
 
-- Discovers enabled apps via cache, `/metadata` endpoints, or filesystem fallback. Filters by `SERVER_ENVIRONMENT`.
-- Per app: HTTP GET to `http://app-{app_id}:8000/health` (5s timeout) + Celery worker inspection via `active_queues()`.
-- One retry after 1-second wait on failure for both API and worker checks.
+- Discovers enabled apps via cached metadata, in-process registry, or filesystem fallback. Filters by `SERVER_ENVIRONMENT`.
+- Per app: verifies its in-process skill registry entry and, for apps with tasks, checks that a Celery worker consumes the configured queue.
+- Takes one shared `active_queues` snapshot for all apps and retries incomplete snapshots on a fresh broker connection. An app's worker check retries the same validated snapshot after 1 second; API registry checks also retry once.
 - Status: `healthy` (both up), `degraded` (one up), `unhealthy` (both down).
 
 ### External Services Health Checks (`health_check.check_external_services`)

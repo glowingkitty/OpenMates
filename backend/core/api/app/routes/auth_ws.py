@@ -2,7 +2,7 @@ import asyncio
 import hashlib
 import logging
 from typing import Optional
-from fastapi import WebSocket, status
+from fastapi import HTTPException, WebSocket, status
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.cache_user_mixin import canonical_session_user_id
 from backend.core.api.app.services.directus import DirectusService
@@ -229,6 +229,17 @@ async def get_current_user_ws(
                 "pair_expires_at": pair_expires_at, "session_hash": session_hash,
                 "session_expires_at": security_state.get("expires_at") if security_state else None}
 
+    except HTTPException as e:
+        if e.status_code in (401, 403):
+            logger.warning("WebSocket connection denied: Session authorization failed (%s).", e.status_code)
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid session")
+            return None
+        logger.error("Unexpected HTTP error during WebSocket authentication: %s", e, exc_info=True)
+        try:
+            await websocket.close(code=status.WS_1011_INTERNAL_ERROR, reason="Authentication error")
+        except Exception:
+            pass
+        return None
     except Exception as e:
         logger.error(f"Unexpected error during WebSocket authentication: {e}", exc_info=True)
         # Attempt to close gracefully before returning None

@@ -6,6 +6,11 @@
 # The Celery task itself delegates to these helpers at runtime.
 
 import json
+import asyncio
+import sys
+from types import SimpleNamespace
+
+import pytest
 
 from backend.core.api.app.services import degraded_services_report as report
 
@@ -45,6 +50,62 @@ def test_build_degraded_issue_report_groups_exact_inner_messages():
     assert issues[0]["message"] == "Failed to connect to cache at cache:6379: Timeout connecting to server"
     assert issues[1]["service"] == "task-worker"
     assert "is degraded" in issues[1]["message"]
+
+
+# contract-test: direct surface=cli assertions=operational-monitoring.alerts.actionable-low-noise
+def test_report_counts_mirrored_api_events_once_in_either_order():
+    container_rows = [_row("api", "WARNING", "Request failed: diagnostic upload")] * 3
+    file_rows = [dict(row, service="", job="api-logs") for row in container_rows]
+    for rows in (container_rows + file_rows, file_rows + container_rows):
+        issues = report.build_degraded_issue_report(rows)
+        assert len(issues) == 1
+        assert issues[0]["service"] == "api"
+        assert issues[0]["count"] == 3
+    # File ingestion still carries real evidence if stdout ingestion is absent.
+    assert report.build_degraded_issue_report(file_rows)[0]["count"] == 3
+
+
+# contract-test: direct surface=cli assertions=operational-monitoring.alerts.actionable-low-noise
+def test_report_preserves_distinct_events_and_same_source_repeats():
+    first = _row("api", "WARNING", "Request failed: diagnostic upload")
+    second = dict(first, job="api-logs", service="")
+    payload = json.loads(second["message"])
+    payload["timestamp"] = "2026-06-03 10:00:00,001"
+    second["message"] = json.dumps(payload)
+    assert report.build_degraded_issue_report([first, first, second])[0]["count"] == 3
+
+
+# contract-test: supporting surface=cli assertions=operational-monitoring.alerts.actionable-low-noise
+def test_collect_degraded_rows_pages_the_entire_fixed_window(monkeypatch):
+    calls = []
+    pages = [[_row("api", "ERROR", "failed")] * 2, [_row("core-worker", "ERROR", "failed")]]
+
+    class Collector:
+        async def _search(self, stream, sql, **kwargs):
+            calls.append((stream, sql, kwargs))
+            return pages.pop(0)
+
+    monkeypatch.setattr(report, "DEGRADED_SERVICES_REPORT_QUERY_LIMIT", 2)
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.services.openobserve_log_collector",
+                        SimpleNamespace(OpenObserveLogCollectorService=Collector))
+    rows = asyncio.run(report.collect_recent_degraded_log_rows())
+    assert len(rows) == 3
+    assert "OFFSET 0" in calls[0][1]
+    assert "OFFSET 2" in calls[1][1]
+    assert "job" in calls[0][1]
+    assert calls[0][2] == calls[1][2]
+
+
+# contract-test: supporting surface=cli assertions=operational-monitoring.alerts.actionable-low-noise
+def test_collect_degraded_rows_does_not_publish_partial_query_results(monkeypatch):
+    class Collector:
+        async def _search(self, *args, **kwargs):
+            return None
+
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.services.openobserve_log_collector",
+                        SimpleNamespace(OpenObserveLogCollectorService=Collector))
+    with pytest.raises(RuntimeError, match="complete degraded-services"):
+        asyncio.run(report.collect_recent_degraded_log_rows())
 
 
 # contract-test: direct surface=cli assertions=operational-monitoring.alerts.actionable-low-noise
