@@ -73,6 +73,52 @@
   let hasControlledSidebar = $derived(!!onToggleSidebar);
 
   let headerDiv: HTMLElement;
+  let isSignedOut = $derived(
+    context === "webapp" &&
+      !isLoggedIn &&
+      !$authStore.isAuthenticated &&
+      !docsMode &&
+      !publicationLabel,
+  );
+
+  // Measure the original layout so compact styling only applies when controls overlap.
+  function fitGuestHeader(node: HTMLElement, signedOut: boolean) {
+    const update = () => {
+      node.classList.remove("guest-crowded");
+      if (!signedOut) return;
+      const switcher = node.querySelector<HTMLElement>(".workspace-select-shell");
+      const cta = node.querySelector<HTMLElement>(".login-signup-button");
+      const left = node.querySelector<HTMLElement>(".left-section");
+      const right = node.querySelector<HTMLElement>(".right-section");
+      if (
+        !switcher?.offsetWidth ||
+        !cta?.offsetWidth ||
+        !left ||
+        !right ||
+        getComputedStyle(cta).visibility === "hidden"
+      ) return;
+      const switcherBox = switcher.getBoundingClientRect();
+      node.classList.toggle(
+        "guest-crowded",
+        switcherBox.left < left.getBoundingClientRect().right ||
+        switcherBox.right > right.getBoundingClientRect().left,
+      );
+    };
+    const observer = new ResizeObserver(update);
+    observer.observe(node.parentElement!);
+    const cta = node.querySelector<HTMLElement>(".login-signup-button");
+    if (cta) observer.observe(cta);
+    update();
+    return {
+      update(value: boolean) {
+        signedOut = value;
+        update();
+      },
+      destroy() {
+        observer.disconnect();
+      },
+    };
+  }
 
   const WORKSPACE_SWITCHER_ENABLED = true;
 
@@ -490,11 +536,7 @@
   bind:this={headerDiv}
   data-testid="global-header"
   class:webapp={context === "webapp"}
-  class:signed-out={context === "webapp" &&
-    !isLoggedIn &&
-    !$authStore.isAuthenticated &&
-    !docsMode &&
-    !publicationLabel}
+  class:signed-out={isSignedOut}
   class:publication={!!publicationLabel}
 >
   {#await waitLocale()}
@@ -508,7 +550,7 @@
     </div>
   {:then}
     <div class="container">
-      <nav class:webapp={context === "webapp"}>
+      <nav class:webapp={context === "webapp"} use:fitGuestHeader={isSignedOut}>
         <div class="left-section">
           <!-- Menu button container - always rendered to maintain header height -->
           <!-- Show menu button for both authenticated and non-authenticated users (to access demo chats) -->
@@ -1322,21 +1364,21 @@
       display: inline-flex;
     }
 
-    /* Keep the guest CTA and settings slot clear on compact headers. */
-    header.signed-out nav.webapp {
+    /* Keep the guest CTA and settings slot clear only when controls overlap. */
+    header.signed-out nav.webapp:global(.guest-crowded) {
       justify-content: flex-start;
       padding-inline-end: 50px;
     }
 
-    header.signed-out .logo-container {
+    header.signed-out nav:global(.guest-crowded) .logo-container {
       display: none;
     }
 
-    header.signed-out .left-section {
+    header.signed-out nav:global(.guest-crowded) .left-section {
       gap: 0;
     }
 
-    header.signed-out .workspace-select-shell {
+    header.signed-out nav:global(.guest-crowded) .workspace-select-shell {
       position: relative;
       left: auto;
       transform: none;
@@ -1346,7 +1388,7 @@
       padding-inline: var(--spacing-2);
     }
 
-    header.signed-out .right-section {
+    header.signed-out nav:global(.guest-crowded) .right-section {
       position: static;
       transform: none;
       flex-shrink: 0;
@@ -1389,20 +1431,20 @@
       display: inline-flex;
     }
 
-    header.signed-out nav.webapp {
+    header.signed-out nav.webapp:global(.guest-crowded) {
       justify-content: flex-start;
       padding-inline-end: 50px;
     }
 
-    header.signed-out .logo-container {
+    header.signed-out nav:global(.guest-crowded) .logo-container {
       display: none;
     }
 
-    header.signed-out .left-section {
+    header.signed-out nav:global(.guest-crowded) .left-section {
       gap: 0;
     }
 
-    header.signed-out .workspace-select-shell {
+    header.signed-out nav:global(.guest-crowded) .workspace-select-shell {
       position: relative;
       left: auto;
       transform: none;
@@ -1412,7 +1454,7 @@
       padding-inline: var(--spacing-2);
     }
 
-    header.signed-out .right-section {
+    header.signed-out nav:global(.guest-crowded) .right-section {
       position: static;
       transform: none;
       flex-shrink: 0;

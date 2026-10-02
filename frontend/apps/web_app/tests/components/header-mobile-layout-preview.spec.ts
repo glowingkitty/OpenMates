@@ -14,12 +14,14 @@ async function openHeader(page: Page, width: number, signedIn = false): Promise<
   await waitForComponentPreview(page);
 }
 
-async function expectGuestControlsFit(page: Page): Promise<void> {
+async function expectGuestControlsFit(page: Page, compact = true): Promise<void> {
   const header = page.getByTestId('global-header');
   const menu = page.getByTestId('sidebar-toggle');
   const select = page.getByTestId('workspace-mobile-select');
   const cta = page.getByTestId('header-login-signup-btn');
-  await expect(header.locator('.mobile-logo-icon')).toBeHidden();
+  const logo = header.locator('.mobile-logo-icon');
+  if (compact) await expect(logo).toBeHidden();
+  else await expect(logo).toBeVisible();
   for (const control of [menu, select, cta]) await expect(control).toBeVisible();
   const [headerBox, menuBox, selectBox, ctaBox, rightBox] = await Promise.all([
     header.boundingBox(), menu.boundingBox(), select.boundingBox(), cta.boundingBox(),
@@ -29,6 +31,14 @@ async function expectGuestControlsFit(page: Page): Promise<void> {
   expect(selectBox!.x).toBeGreaterThanOrEqual(menuBox!.x + menuBox!.width + 4);
   expect(selectBox!.x + selectBox!.width).toBeLessThanOrEqual(rightBox!.x + 1);
   expect(ctaBox!.x + ctaBox!.width).toBeLessThanOrEqual(headerBox!.x + headerBox!.width - 50);
+  if (!compact) {
+    const navBox = await header.locator('nav').boundingBox();
+    const logoBox = await logo.boundingBox();
+    expect(navBox).not.toBeNull();
+    expect(logoBox).not.toBeNull();
+    expect(Math.abs(selectBox!.x + selectBox!.width / 2 - navBox!.x - navBox!.width / 2)).toBeLessThanOrEqual(1);
+    expect(selectBox!.x).toBeGreaterThanOrEqual(logoBox!.x + logoBox!.width);
+  }
   expect(await cta.evaluate(element => {
     const rect = element.getBoundingClientRect();
     return [0.1, 0.5, 0.9].every(fraction => {
@@ -50,7 +60,7 @@ test.beforeEach(async ({ page }: { page: Page }) => {
 
 // contract-test: supporting surface=gui.web assertions=workspace-shell.nav.released-surfaces-visible,landing-onboarding.signup-cta
 test('keeps the signed-out Sign up button unobscured at compact widths', async ({ page }: { page: Page }) => {
-  for (const width of [320, 390, 730]) {
+  for (const width of [320, 390]) {
     await openHeader(page, width);
     await expect(page.getByTestId('header-login-signup-btn')).toHaveText('Sign up', { useInnerText: true });
     await expectGuestControlsFit(page);
@@ -60,7 +70,7 @@ test('keeps the signed-out Sign up button unobscured at compact widths', async (
 // contract-test: supporting surface=gui.web assertions=workspace-shell.nav.released-surfaces-visible,landing-onboarding.signup-cta
 test('keeps the returning guest Login button unobscured and clickable', async ({ page }: { page: Page }) => {
   await page.addInitScript(() => localStorage.setItem('openmates:last-auth-method', 'email'));
-  for (const width of [320, 390, 730]) {
+  for (const width of [320, 390]) {
     await openHeader(page, width);
     const cta = page.getByTestId('header-login-signup-btn');
     await expect(cta).toHaveText('Login', { useInnerText: true });
@@ -75,6 +85,32 @@ test('keeps the returning guest Login button unobscured and clickable', async ({
     await loginRequested;
     if (width === 390) await page.screenshot({ path: test.info().outputPath('guest-mobile-login.png') });
   }
+});
+
+// contract-test: supporting surface=gui.web assertions=workspace-shell.nav.released-surfaces-visible,landing-onboarding.signup-cta
+test('keeps the guest favicon and centered dropdown when all controls fit', async ({ page }: { page: Page }) => {
+  for (const label of ['Sign up', 'Login']) {
+    if (label === 'Login') await page.addInitScript(() => localStorage.setItem('openmates:last-auth-method', 'email'));
+    for (const width of [480, 600, 730]) {
+      await openHeader(page, width);
+      await expect(page.getByTestId('header-login-signup-btn')).toHaveText(label, { useInnerText: true });
+      await expectGuestControlsFit(page, false);
+      if (width === 600 && label === 'Login') await page.screenshot({ path: test.info().outputPath('guest-roomy-login.png') });
+    }
+  }
+});
+
+// contract-test: supporting surface=gui.web assertions=workspace-shell.nav.released-surfaces-visible,landing-onboarding.signup-cta
+test('updates guest header positioning as available width changes', async ({ page }: { page: Page }) => {
+  await page.addInitScript(() => localStorage.setItem('openmates:last-auth-method', 'email'));
+  await openHeader(page, 730);
+  await expectGuestControlsFit(page, false);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expectGuestControlsFit(page);
+  await page.setViewportSize({ width: 600, height: 844 });
+  await expectGuestControlsFit(page, false);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expectGuestControlsFit(page);
 });
 
 // contract-test: supporting surface=gui.web assertions=workspace-shell.nav.released-surfaces-visible
