@@ -8,7 +8,64 @@ as `ae48ac9fd6ce231375c1568c87a60e777c33d413`, from reviewed candidate
 the passing Team candidate `e1a390283f`; the final delta contains verification
 documents only. Web readiness, compatible backend activation and packaged setup
 migration completed on dev on 2026-10-02. Production rollout is outside scope.
-Task `TASK-7066` is blocked on the remaining verification environment/scope gaps.
+The user approved the bounded web login repairs and supported Apple native
+verification work on 2026-10-02. That follow-up is now published; Task `TASK-7066`
+is blocked on the remaining required evidence. The native capability dependency
+is `TASK-9150` in the same workspace/session. Controlled external mailbox and
+live-inference evidence remain unavailable.
+
+The two web fixes treat an unavailable anonymous-usage endpoint as unavailable
+and distinguish a Team request superseded by an account/key transition. Thirteen
+focused unit tests, targeted ESLint and whitespace checks pass. The existing
+strict web lifecycle spec is unchanged. Its rerun passed on source `a8e900c1`
+in [run 36988610157](https://github.com/glowingkitty/OpenMates/actions/runs/36988610157):
+one expected/passed, zero skipped/unexpected/flaky, complete coverage and verified
+cleanup. Preparation also passed in run `36988044995`. Normal deployment then
+rejected three changed-file TypeScript diagnostics in the Team service and its
+test. That candidate was not published. The required Team key scope arguments
+and test resolver type are now corrected; five focused Team tests pass,
+including usable billing decryption and an encrypted invite request. The
+revised lifecycle check passed on runtime source `c14b26b6` in
+[run 36990866486](https://github.com/glowingkitty/OpenMates/actions/runs/36990866486).
+The final combined candidate `f4e4cc8e228f1dda485a64235f06412575cfd6bb`
+preserves subsequent upstream login/composer changes and includes the new unit
+regression and static helper. Its strict lifecycle check passed in
+[run 36992254140](https://github.com/glowingkitty/OpenMates/actions/runs/36992254140):
+one expected/passed, zero skipped/unexpected/flaky, complete coverage and verified
+cleanup. Exact-source preparation passed in run `36991759411`. No check was bypassed.
+
+The ten-file follow-up was published to dev as
+`0206b916a7030c013507b32c9c7aab63a51d96ff`. Its selected source exactly matches
+candidate `f4e4cc8e`. Normal Specification regeneration/gate, lint including
+changed-file type checking, translation generation and locale validation passed.
+Web readiness succeeded for that exact public commit. The final evidence update
+changes documents only; it requires no backend restart or repeated migration.
+The backend pytest gate was naturally inapplicable; no backend Python changed.
+Nine server-store, five Team and 98 tooling checks passed in the focused local
+runs. No shared backend container was mutated by this follow-up. Protected
+receipts include `follow-up-deploy.txt`, `follow-up-deployed-source.json`, and
+`follow-up-result.json` under `tmp/notification-verification/`.
+Web readiness is recorded separately in `follow-up-web-readiness.txt`.
+
+The reviewed static Mac doctor passed on 2026-10-02. It reported Xcode 26.6
+(build 17F113), iOS/macOS/Watch SDK directory names, the expected six scheme
+files and checkout HEAD `e1bb0047b5faf43d885c957a85e585a2bdf7fad7`.
+It did not execute Git, Xcode, Simulator or project scripts, change source,
+install an app, or read account data. Dirty status is unverified. The static
+system-runtime directory was absent; this does not establish whether other
+mounted simulator runtimes exist. Protected receipts are
+`tmp/notification-verification/mac-static-doctor-response.json` and
+`mac-static-doctor-dispatch.txt`. Ninety-eight focused tooling checks pass.
+
+Native workloads remain unsupported: the remote boundary cannot reliably
+observe a policy kill in an Xcode descendant, and source build scripts need a
+trusted execution boundary. The implementation admits only bounded static
+metadata requests; unsupported workload requests fail before configuration or
+SSH. Task `TASK-9150` is blocked on that capability. No actual
+`MAC_NO_DELETE_STOP` occurred. Mac chat creation tools are unavailable on this
+host; no Mac Codex chat or substitute dev-host worker was started.
+The Plan records exact-source native compilation and lifecycle proof as
+`T-APPLE-LIFECYCLE`, required and unexecuted; static readiness does not satisfy it.
 
 ## Dev activation and migration
 
@@ -98,6 +155,8 @@ private subject artifact rather than a deployed web build.
 | Scheduled digest and SMTP Mailpit capture | cb0487676f | [36923312588](https://github.com/glowingkitty/OpenMates/actions/runs/36923312588) | Passed; 1 expected, 0 skipped/unexpected/flaky; cleanup verified; final cutoff/fresh sweep covered |
 | Populated signed-in chat/settings/run destinations | 245beddcf6 | [36927908298](https://github.com/glowingkitty/OpenMates/actions/runs/36927908298) | Passed; 1 expected, 0 skipped/unexpected/flaky; cleanup verified; Personal chat/settings and exact queued Workflow run |
 | Web foreground/background lifecycle | ef37ac911a | [36931970975](https://github.com/glowingkitty/OpenMates/actions/runs/36931970975) | Failed strict console teardown on both attempts; lifecycle transitions observed; cleanup verified |
+| Web lifecycle after bounded login repairs | c14b26b63b | [36990866486](https://github.com/glowingkitty/OpenMates/actions/runs/36990866486) | Passed; 1 expected/passed, 0 skipped/unexpected/flaky; coverage complete; cleanup verified; strict console passed |
+| Final combined web/static-helper source | f4e4cc8e22 | [36992254140](https://github.com/glowingkitty/OpenMates/actions/runs/36992254140) | Passed; 1 expected/passed, 0 skipped/unexpected/flaky; coverage complete; cleanup verified; strict console passed |
 | Encrypted Team transport and context link | 3bda742d9b | [36932754846](https://github.com/glowingkitty/OpenMates/actions/runs/36932754846) | Failed rich-editor fixture equality on both attempts; 0 skipped; cleanup verified; fixture corrected |
 | Encrypted Team transport and context link | bad4088e1c | [36939385537](https://github.com/glowingkitty/OpenMates/actions/runs/36939385537) | Ordinary/fenced encrypted send checks succeeded; failed overlap geometry on both attempts; 0 skipped/flaky; cleanup verified; corrected to measure visible bubble |
 | Encrypted Team transport and context link | da698df808 | [36942845856](https://github.com/glowingkitty/OpenMates/actions/runs/36942845856) | Encrypted ordinary/fenced sends, More action, bubble geometry and Personal/Team list isolation passed; authenticated Team link GET returned 404 on both attempts; 1 unexpected, 0 skipped/flaky; coverage complete; cleanup verified |
@@ -211,7 +270,8 @@ Web lifecycle [36931970975](https://github.com/glowingkitty/OpenMates/actions/ru
 again observed foreground/background transitions, but strict console teardown
 failed on anonymous usage 404 and Team-context cancellation during account/key
 transition. Both attempts failed; no further retries or assertion suppression
-were performed. A bounded unrelated login fix awaits user authorization.
+were performed. The user subsequently authorized the two bounded repairs;
+their strict source-bound rerun passed as recorded above.
 
 ## Actual limitations
 
@@ -220,7 +280,8 @@ were performed. A bounded unrelated login fix awaits user authorization.
 - **Controlled external mailbox receipt: unverified.** No inbox access is configured;
   the user deferred setup. No recipient was guessed.
 - **Apple compilation and runtime: unverified.** Typed remote build operations
-  reported unsupported; no raw remote bypass was attempted. Native/Watch source
+  remain unsupported; reviewed static Mac readiness passed, and no raw remote
+  bypass was attempted. Native/Watch source
   changes and mock-socket XCTest coverage are added, but not executed here. Older
   Apple clients require the lifecycle heartbeat update for idle foreground use:
   control pings do not reach the ASGI handler, so their legacy lease expires after

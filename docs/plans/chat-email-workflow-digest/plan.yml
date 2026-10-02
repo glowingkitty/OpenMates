@@ -84,6 +84,13 @@ decisions:
   reason: User explicitly requires safe automatic migration on production deployment. Old updater
     processes cannot execute newly added ordering until upgraded.
   decided_at: '2026-10-01'
+- id: verification_follow_up
+  status: active
+  decision: Repair the two identified web login console errors and add supported, audited
+    Apple native verification operations using the online Mac. Reuse session 02ea; preserve
+    installed apps, account data and the repository-scoped Mac safety policy.
+  reason: User explicitly asked to continue the recommended next steps on 2026-10-02.
+  decided_at: '2026-10-02'
 checks:
 - Focused backend unit and CLI viewer checks.
 - Isolated GitHub product tests for settings, Team preview transport, chat dispatch and digest capture.
@@ -148,6 +155,7 @@ acceptance_criteria:
   verification_scope: playwright
   verification_ids:
   - T-CHAT
+  - T-APPLE-LIFECYCLE
 - id: AC-2
   scenario: S-2
   text: Sparse persisted choices preserve other devices and categories, defaults and identifiable opt-outs.
@@ -208,6 +216,24 @@ tests:
     evidence: {}
   target: runner-private localhost
   execution_environment: isolated_github_ci
+- id: T-APPLE-LIFECYCLE
+  type: manual
+  file: apple/OpenMatesTests/WatchChatRuntimeTests.swift
+  command: Admitted typed Apple native build and focused lifecycle verification on exact reviewed source
+  assertions:
+  - Updated Apple clients report foreground activity anywhere in the app and clear it on backgrounding.
+  - Foreground presence resumes after reconnect; viewed receipts remain separate from email delivery.
+  - Exact-source native compilation and lifecycle tests pass through supported audited operations.
+  covers:
+  - AC-1
+  red_phase:
+    required: false
+    expected: Source inspection established missing native runtime verification.
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
 - id: T-PREFS
   type: playwright
   file: frontend/apps/web_app/tests/notification-email-preferences.spec.ts
@@ -362,6 +388,7 @@ tasks:
   - backend/core/api/app/services/workflow_digest_service.py
   verification_ids:
   - T-CHAT
+  - T-APPLE-LIFECYCLE
   - T-PREFS
   - T-DIGEST
   - T-LIVE
@@ -369,16 +396,41 @@ tasks:
   - T-UPGRADE-SIDECAR
   - T-MIGRATION
   - T-SELFHOST
-  dependencies: []
+  dependencies:
+  - TASK-9150
   blockers:
-  - Controlled external mailbox and exact-source Apple runtime evidence unavailable
-  - Authenticated disposable dev inference account unavailable; unrelated web login console repair awaits authorization
+  - Controlled external mailbox and authenticated disposable dev inference account unavailable
+  - Native build/runtime proof requires the blocked TASK-9150 capability.
   follow_up_tasks: []
   ownership:
     files:
     - notification email paths
     shared_files:
     - WebSocket lifecycle and settings client integration
+- id: TASK-9150
+  title: Enable audited Apple native verification for notification rollout
+  status: blocked
+  phase: running_checks
+  covers:
+    scenarios:
+    - S-1
+    acceptance_criteria:
+    - AC-1
+  expected_files:
+  - scripts/apple_remote.py
+  - scripts/apple_no_delete_guard.py
+  - scripts/_apple_native_remote.py
+  - scripts/tests/test_apple_remote_native_verification.py
+  verification_ids:
+  - T-APPLE-LIFECYCLE
+  dependencies: []
+  blockers:
+  - Admitted native workloads need reliable descendant policy-stop detection and a trusted source execution boundary.
+  follow_up_tasks: []
+  ownership:
+    files:
+    - Typed Apple remote verification helper and tooling regression coverage
+    shared_files: []
 attempts:
 - id: implementation
   task_id: TASK-7066
@@ -387,12 +439,17 @@ attempts:
   recorded_at: '2026-10-01'
 handoff:
   current_task_id: TASK-7066
-  next_action: Obtain controlled external mail receipt and supported Apple runtime evidence;
-    provide disposable live-inference authentication and resolve the bounded web-console repair scope.
+  next_action: Obtain supported native runtime, external mailbox and disposable
+    live-inference evidence. Dev 0206b91 is published and web-ready;
+    production rollout requires the released setup-gate CLI and verified updated Apple clients.
     Dev ae48ac9 is web-ready, activated and migrated; 413/414 accounts enabled with zero opt-out/block violations and unrelated counts unchanged. Team replay and authenticated links passed on e1a390283f. Automated-upgrade, chat, digest, migration, settings and Personal/run-link product checks passed on their
-    recorded sources. Web lifecycle remains red on two login console errors; a bounded unrelated
-    repair awaits user authorization. External mailbox and native runtime proof remain unavailable.
-  command: python3 scripts/sessions.py ci-source --session 02ea
+    recorded sources. The bounded web repair and supported native tooling work are authorized;
+    lifecycle CI passed on a8e900c1; required key-scope arguments and resolver type
+    are corrected; revised c14b26b6 and final combined f4e4cc8e strict lifecycle CI passed without skips/flakes and with verified cleanup.
+    Follow-up 0206b91 is web-ready and published all ten reviewed files with normal Specification, lint/type and translation gates passed.
+    Static Mac readiness passed; native workload admission, external mailbox and live-inference proof remain unavailable.
+  command: python3 scripts/sessions.py ci-source --session 02ea --base <reviewed-dev-sha>
+    --resolved-patch tmp/notification-verification/follow-up-resolved.patch --patch-sha256 <reviewed-patch-sha256>
   expected_outcome: Immutable source with product verification receipts.
   last_verified_commit: 174 combined notification and Team backend checks, 55 transaction-extension and five frontend retry/waiter checks,
     and 9 focused notification CLI checks; 137 current-dev integrated
@@ -400,9 +457,11 @@ handoff:
     digest SMTP, settings and Personal/run links passed on their recorded sources without skips;
     automatic self-host upgrade/install passes all four product cases on c8082fd6e3;
     complete Team commit/replay/navigation passes on e1a390283f;
-    dev ae48ac9 normal deployment gates, 17-service activation, packaged CMS setup and aggregate post-migration/default/health checks passed
+    dev ae48ac9 normal deployment gates, 17-service activation, packaged CMS setup and aggregate post-migration/default/health checks passed;
+    follow-up 0206b91 normal gates and web readiness passed; final strict lifecycle CI 36992254140 passed;
+    14 focused web and 98 tooling checks passed.
   blocker:
     live_mailbox: No controlled inbox configuration; user unavailable for setup.
-    native_runtime: No exact-source Mac/iOS build or lifecycle evidence.
+    native_runtime: Static Mac readiness passed with Xcode 26.6; TASK-9150 is blocked on admitted native execution.
     live_inference: No authenticated disposable dev account; controlled verification inbox unavailable.
-    web_console: Existing login errors fail strict console; unrelated repair authorization pending.
+    web_console: Resolved; final combined source f4e4cc8e passed strict lifecycle CI36992254140 and normal publication gates in dev0206b91.
