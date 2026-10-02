@@ -150,6 +150,7 @@ async function deleteProject(page: Page, projectId: string): Promise<void> {
 
 async function sendWithProjectMention(
   page: Page,
+  projectId: string,
   projectName: string,
   prompt: string,
   accessMode: 'read' | 'read_write',
@@ -174,6 +175,9 @@ async function sendWithProjectMention(
     await accessChip.click();
   }
   await expect(accessChip).toHaveAttribute('data-project-access-mode', accessMode);
+  const mention = accessChip.locator('xpath=ancestor::*[@data-type="generic-mention"][1]');
+  await expect(mention).toHaveAttribute('data-project-id', projectId);
+  await expect(mention).toHaveAttribute('data-mention-syntax', `@project:${projectId}:${accessMode}`);
   await focusMessageEditor(editor);
   await page.keyboard.press('End');
   await sendMessage(page, ` ${prompt}`, undefined, undefined, 'project-file', { preserveExistingContent: true });
@@ -280,6 +284,7 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
 
       await sendWithProjectMention(
         page,
+        projectId,
         projectName,
         `Use the active Project file tools now. Create exactly one file named ${path} with exactly these two lines and a final newline:\n${marker}\noriginal\nThen read the file back. Do not use code.run or give me instructions to perform the edit.`,
         'read_write',
@@ -392,6 +397,7 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
       await waitForChatReady(page);
       await sendWithProjectMention(
         page,
+        fixture.project_id as string,
         fixture.project_name as string,
         `Use the active Project file tools now. Read src/remote-demo.ts, then use an exact Project update patch to replace only the string OpenMates live remote preview with ${marker}. Preserve every other byte and read the file back. Do not use code.run or give me instructions to perform the edit.`,
         'read_write',

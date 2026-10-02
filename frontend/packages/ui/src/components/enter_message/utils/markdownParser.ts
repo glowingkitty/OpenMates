@@ -334,6 +334,9 @@ function htmlToTiptapJson(html: string): any {
  * - @memory:{app_id}:{memory_id}:{type}
  * - @memory-entry:{app_id}:{category_id}:{entry_id}
  * - @wikipedia:{language}:{percent_encoded_title}
+ * - @project:{project_id}:{read|read_write}
+ * - @project-folder:{project_id}[:{source_id}]:{percent_encoded_path}:{read|read_write}
+ * - @project-file:{project_id}[:{source_id}]:{percent_encoded_path}:{read|read_write}
  *
  * This is a unified parser that handles all mention types in order of appearance.
  * Returns an array of TipTap nodes.
@@ -342,8 +345,12 @@ function parseMentions(text: string): any[] {
   const result: any[] = [];
 
   // Combined pattern to match all mention types
-  // Group 1-2: Wikipedia language/title, or group 3+: legacy mention type/parts.
+  // Group 1-7: Project mention fields, group 8-9: Wikipedia
+  // language/title, or group 10+: legacy mention type/parts.
   // Pattern breakdown:
+  // - @project:project_id:access_mode
+  // - @project-folder:project_id[:source_id]:percent_encoded_path:access_mode
+  // - @project-file:project_id[:source_id]:percent_encoded_path:access_mode
   // - @wikipedia:language:percent_encoded_title
   // - @best-model:alias_id (e.g., @best-model:best, @best-model:fast)
   // - @ai-model:id or @ai-model:id:provider
@@ -353,7 +360,7 @@ function parseMentions(text: string): any[] {
   // - @memory:app:id:type
   // - @memory-entry:app:category:entry_id
   const mentionPattern =
-    /@wikipedia:([a-z]{2,10}):([^\s]+)|@(best-model|ai-model|mate|skill|focus|memory-entry|memory):([a-zA-Z0-9_.-]+)(?::([a-zA-Z0-9_.-]+))?(?::([a-zA-Z0-9_.-]+))?/gi;
+    /@(project-folder|project-file):([a-zA-Z0-9_.-]+):(?:(?:([a-zA-Z0-9_.-]+):)?([^\s:]+)):(read_write|read)|@project:([a-zA-Z0-9_.-]+):(read_write|read)|@wikipedia:([a-z]{2,10}):([^\s]+)|@(best-model|ai-model|mate|skill|focus|memory-entry|memory):([a-zA-Z0-9_.-]+)(?::([a-zA-Z0-9_.-]+))?(?::([a-zA-Z0-9_.-]+))?/gi;
 
   let lastIndex = 0;
   let match;
@@ -367,14 +374,50 @@ function parseMentions(text: string): any[] {
       }
     }
 
-    const isWikipediaMention = typeof match[1] === "string";
-    const mentionType = isWikipediaMention ? "wikipedia" : match[3]; // "ai-model", "mate", "skill", "focus", "memory", or "wikipedia"
-    const part1 = isWikipediaMention ? match[1] : match[4]; // First ID part or Wikipedia language
-    const part2 = isWikipediaMention ? match[2] : match[5]; // Second ID part or Wikipedia encoded title
-    // part3 (match[6]) is the third ID part for memory type - captured via fullMatch for mentionSyntax
-
     // Get the full matched text for mentionSyntax
     const fullMatch = match[0];
+
+    const scopedProjectType = match[1];
+    const rootProjectId = match[6];
+    if (scopedProjectType || rootProjectId) {
+      const mentionType = scopedProjectType === "project-folder"
+        ? "project_folder"
+        : scopedProjectType === "project-file"
+          ? "project_file"
+          : "project";
+      const projectId = scopedProjectType ? match[2] : rootProjectId;
+      const projectSourceId = scopedProjectType ? match[3] : undefined;
+      const encodedProjectPath = scopedProjectType ? match[4] : undefined;
+      const projectPath = encodedProjectPath
+        ? safelyDecodeMentionPart(encodedProjectPath)
+        : undefined;
+      const projectAccessMode = scopedProjectType ? match[5] : match[7];
+      result.push({
+        type: "genericMention",
+        attrs: {
+          mentionType,
+          displayName: formatProjectMentionDisplayName(
+            mentionType,
+            projectId,
+            projectPath,
+          ),
+          mentionSyntax: fullMatch,
+          mentionId: crypto.randomUUID(),
+          projectId,
+          projectSourceId,
+          projectPath,
+          projectAccessMode,
+        },
+      });
+      lastIndex = match.index + match[0].length;
+      continue;
+    }
+
+    const isWikipediaMention = typeof match[8] === "string";
+    const mentionType = isWikipediaMention ? "wikipedia" : match[10]; // "ai-model", "mate", "skill", "focus", "memory", or "wikipedia"
+    const part1 = isWikipediaMention ? match[8] : match[11]; // First ID part or Wikipedia language
+    const part2 = isWikipediaMention ? match[9] : match[12]; // Second ID part or Wikipedia encoded title
+    // part3 (match[13]) is the third ID part for memory type - captured via fullMatch for mentionSyntax
 
     switch (mentionType) {
       case "best-model": {
@@ -483,7 +526,9 @@ function parseMentions(text: string): any[] {
         // Represents a single entry within a settings/memory category
         const appId = part1;
         const categoryId = part2 || "";
-        const entryId = match[4] || "";
+        // Preserve the existing memory-entry fallback behavior while Project
+        // alternatives add capture groups before the legacy mention pattern.
+        const entryId = match[11] || "";
         // Resolve actual entry title from store, fall back to UUID fragment if unavailable
         const resolvedTitle = resolveEntryTitle(appId, categoryId, entryId);
         const displayName = formatMentionDisplayName(
@@ -616,6 +661,32 @@ function formatWikipediaMentionDisplayName(encodedTitle: string): string {
   return `Wiki-${displayTitle || encodedTitle}`;
 }
 
+function safelyDecodeMentionPart(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+function formatProjectMentionDisplayName(
+  mentionType: "project" | "project_folder" | "project_file",
+  projectId: string,
+  projectPath?: string,
+): string {
+  if (mentionType === "project") return `Project-${projectId.slice(0, 8)}`;
+
+  const pathLabel = projectPath
+    ?.replace(/\/+$/, "")
+    .split("/")
+    .filter(Boolean)
+    .pop()
+    ?.trim()
+    .replace(/\s+/g, "-");
+  const prefix = mentionType === "project_folder" ? "Folder" : "File";
+  return `${prefix}-${pathLabel || projectId.slice(0, 8)}`;
+}
+
 function convertNodeToTiptap(node: Node): any {
   if (node.nodeType === Node.TEXT_NODE) {
     const text = node.textContent;
@@ -629,8 +700,11 @@ function convertNodeToTiptap(node: Node): any {
     }
 
     // Check for any mention types in the text
-    // Supported: @ai-model:, @best-model:, @mate:, @skill:, @focus:, @memory:, @memory-entry:
+    // Supported: Project, model, mate, skill, focus, memory, and Wikipedia mentions.
     if (
+      text.includes("@project:") ||
+      text.includes("@project-folder:") ||
+      text.includes("@project-file:") ||
       text.includes("@ai-model:") ||
       text.includes("@best-model:") ||
       text.includes("@mate:") ||

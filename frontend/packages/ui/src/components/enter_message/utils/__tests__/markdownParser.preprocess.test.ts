@@ -205,6 +205,49 @@ describe("preprocessMarkdown — fence tracking (OPE-380)", () => {
     expect(bodyText.text).toBe(" Summarize his most important contribution.");
   });
 
+  it("rehydrates canonical Project directives with their scoped authority", () => {
+    const projectId = "1837e404-f5aa-4d7b-9db0-4e33b9fb3ee8";
+    const sourceId = "a14a2ac5-eefa-4c0d-bca4-68f19089a1ba";
+    const doc = parseMarkdownToTiptap(
+      `@project:${projectId}:read_write ` +
+        `@project-folder:${projectId}:${sourceId}:src%2Fcomponents:read ` +
+        `@project-file:${projectId}:notes.md:read_write`,
+    );
+
+    const [project, folder, file] = doc.content[0].content.filter(
+      (node: { type: string }) => node.type === "genericMention",
+    );
+    expect(project.attrs).toMatchObject({
+      mentionType: "project",
+      mentionSyntax: `@project:${projectId}:read_write`,
+      projectId,
+      projectAccessMode: "read_write",
+    });
+    expect(folder.attrs).toMatchObject({
+      mentionType: "project_folder",
+      projectId,
+      projectSourceId: sourceId,
+      projectPath: "src/components",
+      projectAccessMode: "read",
+    });
+    expect(file.attrs).toMatchObject({
+      mentionType: "project_file",
+      projectId,
+      projectPath: "notes.md",
+      projectAccessMode: "read_write",
+    });
+  });
+
+  it("keeps malformed Project-like text inert", () => {
+    const doc = parseMarkdownToTiptap(
+      "@project:not-enough-parts and @project:project-1:admin",
+    );
+
+    expect(JSON.stringify(doc)).not.toContain('"type":"genericMention"');
+    expect(JSON.stringify(doc)).toContain("@project:not-enough-parts");
+    expect(JSON.stringify(doc)).toContain("@project:project-1:admin");
+  });
+
   it("separates adjacent invalid settings fallback links into separate paragraphs", () => {
     const processed = preprocessMarkdown(
       '[Fitnessziel setzen](/#settings/apps/fitness/settings_memories/goals/create?prefill={“name”:“Neue USC-Standorte erkunden”})' +
