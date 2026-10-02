@@ -231,7 +231,7 @@ describe("serverStatusStore anonymous free usage", () => {
   });
 
   // contract-test: supporting surface=gui.web assertions=billing.self-host.cloud-guard
-  it("treats an in-flight self-host 404 as unavailable", async () => {
+  it("treats an in-flight unavailable endpoint 404 as unavailable", async () => {
     let resolveResponse!: (response: Response) => void;
     vi.spyOn(globalThis, "fetch").mockImplementation(() => new Promise(resolve => {
       resolveResponse = resolve;
@@ -239,10 +239,6 @@ describe("serverStatusStore anonymous free usage", () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     const refresh = refreshAnonymousFreeUsageStatus();
-    serverStatusStore.update((state) => ({
-      ...state,
-      status: state.status ? { ...state.status, is_self_hosted: true } : null,
-    }));
     resolveResponse({ ok: false, status: 404 } as Response);
 
     expect(await refresh).toBeNull();
@@ -251,7 +247,7 @@ describe("serverStatusStore anonymous free usage", () => {
   });
 
   // contract-test: supporting surface=gui.web assertions=billing.anonymous.daily-remaining-percent
-  it.each([404, 500])("still reports cloud HTTP %i failures", async (status) => {
+  it.each([500])("still reports cloud HTTP %i failures", async (status) => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue({ ok: false, status } as Response);
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 

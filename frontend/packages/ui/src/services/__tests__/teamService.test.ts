@@ -28,7 +28,7 @@ vi.mock('../../stores/userProfile', async () => {
 	return { userProfile: writable({ user_id: 'team-cache-test-user' }) };
 });
 
-import { createTeam, getTeam, getTeamKey, listTeams } from '../teamService';
+import { createTeam, createTeamEmailInvite, getTeam, getTeamKey, listTeams, loadTeamBilling, TeamRequestCancelledError } from '../teamService';
 import { invalidateWorkspaceCaches } from '../workspaceCacheLifecycle';
 import { TEAMS_UPDATED_EVENT } from '../../stores/teamStore';
 
@@ -56,8 +56,8 @@ describe('teamService', () => {
 
 	// contract-test: supporting surface=gui.web assertions=teams.context.full-switch-local
 	it('discards a team key decrypted after the workspace identity resets', async () => {
-		let releaseDecrypt!: (key: Uint8Array) => void;
-		cryptoMocks.decryptChatKeyWithMasterKey.mockImplementationOnce(() => new Promise(resolve => {
+		let releaseDecrypt!: (key: Uint8Array<ArrayBuffer>) => void;
+		cryptoMocks.decryptChatKeyWithMasterKey.mockImplementationOnce(() => new Promise<Uint8Array<ArrayBuffer>>(resolve => {
 			releaseDecrypt = resolve;
 		}));
 		const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(JSON.stringify({
@@ -67,10 +67,58 @@ describe('teamService', () => {
 		await vi.waitFor(() => expect(cryptoMocks.decryptChatKeyWithMasterKey).toHaveBeenCalledTimes(1));
 		invalidateWorkspaceCaches();
 		releaseDecrypt(new Uint8Array([1, 2, 3, 4]));
-		await expect(oldRead).rejects.toThrow(/cancelled/);
+		await expect(oldRead).rejects.toBeInstanceOf(TeamRequestCancelledError);
 		await expect(getTeamKey('team-old')).resolves.toEqual(new Uint8Array([1, 2, 3, 4]));
 		expect(fetchMock).toHaveBeenCalledTimes(2);
 		expect(cryptoMocks.decryptChatKeyWithMasterKey).toHaveBeenCalledTimes(2);
+	});
+
+	// contract-test: supporting surface=gui.web assertions=teams.context.full-switch-local
+	it('identifies a team list superseded by an account/key transition', async () => {
+		let releaseResponse!: (response: Response) => void;
+		const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(() => new Promise(resolve => {
+			releaseResponse = resolve;
+		}));
+		const oldRead = listTeams();
+		await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+		invalidateWorkspaceCaches();
+		releaseResponse(new Response(JSON.stringify({ teams: [] }), {
+			status: 200,
+			headers: { 'Content-Type': 'application/json' }
+		}));
+		await expect(oldRead).rejects.toBeInstanceOf(TeamRequestCancelledError);
+	});
+
+	// contract-test: supporting surface=gui.web assertions=teams.context.full-switch-local
+	it('decrypts Team billing and sends an encrypted invite for the active account', async () => {
+		let invitePayload: Record<string, unknown> | null = null;
+		vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+			const url = String(input);
+			if (url === 'https://api.test/v1/teams/team-1') {
+				return new Response(JSON.stringify({ team: {
+					team_id: 'team-1', encrypted_team_key: 'wrapped', encrypted_name: 'enc:Project Team'
+				} }), { status: 200 });
+			}
+			if (url === 'https://api.test/v1/teams/team-1/billing') {
+				return new Response(JSON.stringify({ billing: { encrypted_balance: 'enc:42' } }), { status: 200 });
+			}
+			if (url === 'https://api.test/v1/teams/team-1/invites') {
+				invitePayload = JSON.parse(String(init?.body)) as Record<string, unknown>;
+				return new Response(JSON.stringify({ invite: { invite_id: 'invite-1', status: 'created' } }), { status: 200 });
+			}
+			throw new Error(`Unexpected Teams request: ${url}`);
+		});
+
+		const team = await getTeam('team-1');
+		const billing = await loadTeamBilling(team);
+		const invite = await createTeamEmailInvite(team, ' Member@Example.invalid ', 'member');
+
+		expect(billing.balanceCredits).toBe(42);
+		expect(invite).toMatchObject({ inviteId: 'invite-1', role: 'member', status: 'created' });
+		expect(invitePayload).toMatchObject({
+			recipient_email: 'member@example.invalid',
+			encrypted_recipient_hint: 'enc:{"recipient_email":"member@example.invalid","role":"member"}'
+		});
 	});
 
 	// contract-test: direct surface=gui.web assertions=teams.lifecycle.encrypted-profiled

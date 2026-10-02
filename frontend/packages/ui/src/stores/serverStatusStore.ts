@@ -296,8 +296,10 @@ export async function refreshAnonymousFreeUsageStatus(): Promise<ServerStatus['a
         });
 
         if (!response.ok) {
-            // Status may have changed while the request was in flight.
-            if (response.status === 404 && get(serverStatusStore).status?.is_self_hosted) {
+            // The endpoint is absent on editions without anonymous usage. A
+            // server-status response can identify the edition differently from
+            // this request while login and host context are settling.
+            if (response.status === 404) {
                 serverStatusStore.update(state => ({
                     ...state,
                     status: state.status ? { ...state.status, anonymous_free_usage: null } : null

@@ -77,6 +77,13 @@ if (typeof window !== "undefined") {
 
 type TeamKeyScope = { identity: string | null; epoch: number };
 
+export class TeamRequestCancelledError extends Error {
+  constructor() {
+    super("Team request was cancelled because the account or key changed.");
+    this.name = "TeamRequestCancelledError";
+  }
+}
+
 function ensureTeamKeyScope(): TeamKeyScope {
   const identity = getWorkspaceCacheIdentity();
   const epoch = getWorkspaceCacheEpoch();
@@ -89,7 +96,7 @@ function ensureTeamKeyScope(): TeamKeyScope {
 
 function assertTeamKeyScope(scope: TeamKeyScope): void {
   if (scope.epoch !== getWorkspaceCacheEpoch() || scope.identity !== getWorkspaceCacheIdentity()) {
-    throw new Error("Team request was cancelled because the account or key changed.");
+    throw new TeamRequestCancelledError();
   }
 }
 
@@ -290,11 +297,13 @@ export async function createTeam(input: { name: string; description?: string | n
 }
 
 export async function loadTeamBilling(team: TeamViewModel): Promise<TeamBillingSummary> {
+  const scope = ensureTeamKeyScope();
   const data = await requestJson<{ billing: Record<string, unknown> }>(`/v1/teams/${encodeURIComponent(team.team_id)}/billing`);
+  assertTeamKeyScope(scope);
   const rawBalance = data.billing.balance_credits ?? data.billing.credits ?? data.billing.balance;
   let balanceCredits = typeof rawBalance === "number" ? rawBalance : Number.parseInt(String(rawBalance ?? ""), 10);
   const encryptedBalance = typeof data.billing.encrypted_balance === "string" ? data.billing.encrypted_balance : null;
-  const teamKey = await teamKeyForRecord(team.encrypted);
+  const teamKey = await teamKeyForRecord(team.encrypted, scope);
   if ((!Number.isFinite(balanceCredits) || balanceCredits < 0) && encryptedBalance && teamKey) {
     const decrypted = await decryptWithEmbedKey(encryptedBalance, teamKey);
     balanceCredits = Number.parseInt(decrypted ?? "0", 10);
@@ -309,9 +318,10 @@ export async function loadTeamMemoryCount(teamId: string): Promise<number> {
 }
 
 export async function createTeamEmailInvite(team: TeamViewModel, email: string, role: InviteRole = "member"): Promise<TeamInviteResult> {
+  const scope = ensureTeamKeyScope();
   const recipientEmail = email.trim().toLowerCase();
   if (!recipientEmail) throw new Error("Recipient email is required");
-  const teamKey = await teamKeyForRecord(team.encrypted);
+  const teamKey = await teamKeyForRecord(team.encrypted, scope);
   if (!teamKey) throw new Error("Team key is unavailable for invite encryption");
   const payload = {
     invite_id: crypto.randomUUID(),

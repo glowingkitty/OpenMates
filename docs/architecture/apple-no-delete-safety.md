@@ -65,6 +65,28 @@ Remotion cleanup inside the authorized roots is allowed. Old no-delete-retained
 evidence is historical and is not erased as part of this change. Marketing owns
 creative code, folder reorganization, source selections and final video work.
 
+### Static native readiness for session02ea
+
+`apple_remote.py native-op --request <local.json> --output <local.json>` admits
+only `workspace-info` and `doctor`. Requests are at most 4 KiB and contain
+exactly one action; unsupported actions and source bundles are rejected before
+configuration, credentials, or SSH. The fixed helper verifies the ordinary
+OpenMates checkout origin and reads its HEAD as bounded Git metadata without
+running Git or its hooks. Dirty status is explicitly unverified. `doctor` reads
+bounded, regular Xcode version metadata and lists system SDK and runtime names;
+it does not run Xcode, Simulator, build scripts, or account-level probes.
+
+Source staging, compilation, and native tests remain unsupported under this
+transport. The repository-scoped Seatbelt profile sends SIGKILL to a process
+that attempts an outside-root unlink. When that process is a descendant,
+`xcodebuild` may convert the kill to an ordinary error, so the wrapper cannot
+reliably distinguish a policy stop from a compile failure. The profile also
+does not constrain all outside-root writes. Xcode projects can execute build
+scripts from source. Native workloads must stay closed until a deterministic
+supervisor and source boundary are available. This limitation is
+`UNSUPPORTED_REMOTE_OPERATION`, not a `MAC_NO_DELETE_STOP`; no stop is cleared
+or inferred. Legacy arbitrary build/test shell handlers remain unadmitted.
+
 ## Stop and host limits
 
 An outside/protected-path stop ends the affected task. Only an actual fresh human

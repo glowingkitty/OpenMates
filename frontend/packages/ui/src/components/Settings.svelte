@@ -57,7 +57,7 @@ changes to the documentation (to keep the documentation up to date).
     import { panelState } from '../stores/panelStateStore'; // Import panelState to sync with isSettingsOpen
     import { pendingMentionStore } from '../stores/pendingMentionStore';
     import { activeTeam, activeTeamId, setActiveTeamContext, TEAMS_UPDATED_EVENT } from '../stores/teamStore';
-    import { listTeams, subscribeTeamListRefresh, type TeamViewModel } from '../services/teamService';
+    import { listTeams, subscribeTeamListRefresh, TeamRequestCancelledError, type TeamViewModel } from '../services/teamService';
     import { getTeamAvatarBackground } from '../utils/teamAvatar';
     // Admin status is now read directly from userProfile.is_admin (synced during login)
     import { phasedSyncState } from '../stores/phasedSyncStateStore'; // Import phased sync state store
@@ -2284,6 +2284,7 @@ changes to the documentation (to keep the documentation up to date).
         profileTeamsRefreshGeneration = refreshGeneration;
         profileTeamsLoading = true;
         profileTeamsLoadError = '';
+        let wasCancelled = false;
         try {
             const nextTeams = await listTeams();
             if (
@@ -2299,11 +2300,17 @@ changes to the documentation (to keep the documentation up to date).
             setActiveTeamContext(persistedTeam);
         } catch (error) {
             if (refreshGeneration !== profileTeamsRefreshGeneration) return;
+            if (error instanceof TeamRequestCancelledError) {
+                // Account/key transitions invalidate this response. Let the
+                // authenticated effect fetch teams for the new identity.
+                wasCancelled = true;
+                return;
+            }
             console.error('[Settings] Failed to load teams for profile context switcher:', error);
             profileTeamsLoadError = 'Teams could not be loaded.';
         } finally {
             if (refreshGeneration === profileTeamsRefreshGeneration) {
-                profileTeamsLoaded = true;
+                profileTeamsLoaded = !wasCancelled;
                 profileTeamsLoading = false;
             }
         }
@@ -2386,13 +2393,13 @@ changes to the documentation (to keep the documentation up to date).
         	// Reset scroll position and clear the All Apps scroll memory so a
         	// stale position doesn't persist into the next time the menu is opened.
         	allAppsScrollPosition = 0;
-        	const closingContent = settingsContentElement;
+            const closingContent = settingsContentElement;
         	setTimeout(() => {
-        		// The workspace may unmount Settings before its close animation
-        		// finishes. Do not reset a detached or reopened panel.
-        		if (!isMenuVisible && settingsContentElement === closingContent) {
-        			closingContent.scrollTop = 0;
-        		}
+                // The workspace may unmount Settings before its close animation
+                // finishes. Do not reset a detached or reopened panel.
+                if (!isMenuVisible && settingsContentElement === closingContent) {
+                    closingContent.scrollTop = 0;
+                }
         	}, 300);
         }
     }

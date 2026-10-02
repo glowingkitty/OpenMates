@@ -53,6 +53,14 @@ def remotion_command():
     return shlex.join(['/usr/bin/python3', '-I', '-B', '-c', helper])
 
 
+def native_command():
+    """The sole admitted transport for fixed, repository-scoped native actions."""
+    helper = Path(__file__).with_name('_apple_native_remote.py').read_text()
+    policy = Path(__file__).with_name('_apple_repository_policy.py').read_text()
+    helper = helper.replace('POLICY_CODE = None', 'POLICY_CODE = ' + repr(policy))
+    return shlex.join(['/usr/bin/python3', '-I', '-B', '-c', helper])
+
+
 def diagnostic_command():
     helper = Path(__file__).with_name('_apple_render_diagnostic.py').read_text()
     return shlex.join(['/usr/bin/sandbox-exec', '-p', '(version 1)(allow default)(deny file-write*)',
@@ -189,7 +197,7 @@ def require_safe_command(command: str):
     # Exact complete commands only. Never tokenize/expand user shell strings or
     # consider the absence of deletion substrings evidence of safety. No Python,
     # shell, git, package-manager, browser, Xcode or arbitrary executable entry.
-    if command in SAFE_COMMANDS or command == remotion_command():
+    if command in SAFE_COMMANDS or command == remotion_command() or command == native_command():
         return
     if explicit_deletion(command):
         block('Explicit remote file removal is prohibited.', command)
@@ -201,7 +209,7 @@ def require_safe_operation(operation: str):
         require_diagnostic_authorization()
         return
     require_unlatched()
-    if operation in {'status', 'run', 'finalize-proof', 'remotion-op'}:
+    if operation in {'status', 'run', 'finalize-proof', 'remotion-op', 'native-op'}:
         return
     if operation in {'xcode-cache-clean', 'sync-repo'}:
         block(f'Apple helper {operation!r} includes file deletion.')
