@@ -90,7 +90,11 @@ def test_signed_ws_cache_link_is_enrolled_in_durable_authority_before_admission(
         SESSION_KEY_PREFIX = "session:"
 
         async def get(self, key):
-            return {"user_id": "u1"} if key == f"session:{digest}" else None
+            if key == f"session:{digest}":
+                return {"user_id": "u1"}
+            if key == "user_tokens:u1":
+                return {digest: {"device_hash": "registered-device"}}
+            return None
 
         async def get_user_by_id(self, user_id):
             return {"user_id": user_id}
@@ -98,7 +102,7 @@ def test_signed_ws_cache_link_is_enrolled_in_durable_authority_before_admission(
     class Directus:
         async def get_user_device_hashes(self, user_id):
             assert user_id == "u1"
-            return ["known-device"]
+            return ["known-device", "registered-device"]
 
     class Socket:
         app = SimpleNamespace(state=SimpleNamespace(
@@ -114,7 +118,7 @@ def test_signed_ws_cache_link_is_enrolled_in_durable_authority_before_admission(
     result = asyncio.run(auth_ws.get_current_user_ws(Socket()))
     assert result["user_id"] == "u1"
     assert result["device_fingerprint_hash"] == "connection"
-    assert result["stable_device_fingerprint_hash"] == "known-device"
+    assert result["stable_device_fingerprint_hash"] == "registered-device"
     assert result["session_expires_at"] == 4102444800
     enroll.assert_awaited_once_with(Socket.app.state.directus_service,
                                     Socket.app.state.cache_service, digest, "u1")
