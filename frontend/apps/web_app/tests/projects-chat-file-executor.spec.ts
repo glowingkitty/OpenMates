@@ -178,6 +178,12 @@ async function sendWithProjectMention(
   const mention = accessChip.locator('xpath=ancestor::*[@data-type="generic-mention"][1]');
   await expect(mention).toHaveAttribute('data-project-id', projectId);
   await expect(mention).toHaveAttribute('data-mention-syntax', `@project:${projectId}:${accessMode}`);
+  // Project file execution is intentionally limited to a foreground origin
+  // client. Headless Chromium does not always foreground its only page at
+  // launch, so make that real protocol condition explicit before sending.
+  await page.bringToFront();
+  await expect.poll(() => page.evaluate(() => document.hasFocus()), { timeout: 5_000 }).toBe(true);
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
   await focusMessageEditor(editor);
   await page.keyboard.press('End');
   await sendMessage(page, ` ${prompt}`, undefined, undefined, 'project-file', { preserveExistingContent: true });

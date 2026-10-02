@@ -5070,6 +5070,11 @@
 
         if (sendClickInProgress) return;
         sendClickInProgress = true;
+        // Project mention authority belongs to the exact document the user saw
+        // when pressing Send. Later awaits can rebind or restore the composer.
+        const projectFocusDocumentAtSendRequest = editor && !editor.isDestroyed
+            ? editor.getJSON()
+            : undefined;
 
         try {
             await chatDB.ensureReadyForSend();
@@ -5184,7 +5189,8 @@
             piiExclusions, // Pass PII exclusions so excluded matches are not replaced
             broadcastToSiblings,
             (chatId) => cancelledNewChatSendIds.has(chatId),
-            getE2EServerContentOverride(event)
+            getE2EServerContentOverride(event),
+            projectFocusDocumentAtSendRequest
         );
         sendClickInProgress = false;
         

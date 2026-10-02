@@ -511,6 +511,7 @@ export async function handleSend(
   broadcastToSiblings: boolean = false,
   isSendCancelled: (chatId: string) => boolean = () => false,
   e2eServerContentOverride?: E2ESendServerContentOverride,
+  projectFocusDocumentAtSendRequest?: unknown,
 ) {
   const editorTextLength = editor && !editor.isDestroyed ? editor.getText().length : 0;
   console.info("[handleSend] Send invoked", {
@@ -542,7 +543,12 @@ export async function handleSend(
 
   let projectFocusIntent: ProjectFocusSendIntent | null = null;
   try {
-    projectFocusIntent = extractProjectFocusSendIntent(editor.getJSON());
+    // The visible composer can be rebound while the click path awaits local DB
+    // readiness. Resolve Project authority from the immutable document captured
+    // at the user's click, rather than a later editor instance/state.
+    projectFocusIntent = extractProjectFocusSendIntent(
+      projectFocusDocumentAtSendRequest ?? editor.getJSON(),
+    );
   } catch (error) {
     if (error instanceof ProjectFocusSendPreflightError && error.code === "MULTIPLE_PROJECTS") {
       notificationStore.error("A message can activate one Project at a time.");
