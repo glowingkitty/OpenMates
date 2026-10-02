@@ -4,9 +4,9 @@ title: 'Agentic coding implementation: project file access first'
 status: implementing
 goal: Implement CLI and chat read/write access to remote and OpenMates-stored Project files, then web
   Project browsing and editing, then address Tasks, Specifications, and Plans gaps.
-revision: r64
+revision: r65
 conversation: codex:01a0caf0-76d6-7e73-86d1-c7c759db3cf4
-workspace_session: '6407'
+workspace_session: '8c51'
 approved_by_user: true
 approvals:
   specification:
@@ -45,9 +45,9 @@ implementation_checkpoint_2026_09_23:
   - Origin CLI review, resource controls, deferred noninteractive prompts and fallback completeness metadata pass their final focused checks.
   verification_remaining:
   - Isolated Project settings verification passed both cases without retries, skips or failures. Supporting evidence includes source transport 8/8, runtime 11/11, backend 77/77, origin 6/6, resource grants 1/1, WebSocket 24/24 and CLI focused suites 13/13.
-  - Actual CLI/chat remote and hosted edits plus one exact approved remote command run directly on dev per U24.
+  - A real CLI/chat remote edit now passes on dev; hosted encrypted chat editing and one exact approved remote command still need direct dev verification per U24.
   - Exact three-bundle Specification review receipts are recorded after the user approved the presented PDFs.
-  - CLI build and declarations pass. Scoped dev deployment 5fe487f43d262864326ccc15d078943690b96c57 passed the required integration gates; schema setup, service refresh, API health, Vercel and automatic CLI alpha publication succeeded. Real chat verification remains pending.
+  - CLI build and declarations pass. The remote write authorization repairs are deployed in 275fd07 and 3ddb970; the coordinated dev API refresh loaded them and the disposable real-chat edit passed.
   limitations:
   - Linux bubblewrap retains general command confinement while the AppArmor-first adapter enforces
     private-content access on the original live folder; unsupported hosts fail closed.
@@ -309,16 +309,13 @@ open_questions:
   answer: Accepted automatic recovery before a twenty-minute wait deadline, with a private email reminder
     after ten minutes. Expiry stops automatic continuation and requires an explicit chat resume.
 current_checkpoint:
-  step: Finish P1 and P2 web Project coding integration and deliver it for user testing
+  step: Finish remaining P1 hosted verification and P2 real browser Project-chat verification
   next_question: null
   clarification_rounds_remaining: 0
-  next_action: Hand over the deployed web and backend implementation for user testing. Commit
-    66a757619ce2a428f26d9b7f07a1ed1bfc7501f8 is published to dev; Vercel is ready, the coordinated
-    runtime refresh succeeded, and the API health endpoint returns 200. A small CLI publication fix
-    changes prepack to verify the already-built guard assets instead of rebuilding without development
-    dependencies. Its automatic alpha publication is the final delivery step. Do not start further
-    feature work or optional tests. The two real-AI hosted/remote browser cases remain unexecuted;
-    record user testing results before claiming end-to-end chat verification or starting later phases.
+  next_action: Keep the disposable validation Project available for focused browser testing. Remote
+    read and direct update through a real Project-bound chat now pass. Next verify the web Project
+    selection/focus UI against this connected source, then run one hosted encrypted create/update case.
+    Remote terminal execution remains a separate explicitly approved test and must not block file editing.
   implementation_started: true
   task_id: 9accd17f-21b0-4802-b5aa-934eb36eb12c
   task_project_id: 96033196-e4b1-431e-b773-ba221e952fed
@@ -1571,6 +1568,38 @@ final_registry_confirmation:
   registry: The pinned version and alpha tag are both confirmed available; all three guard assets are included.
   deployment: Web alias and backend are confirmed on implementation commit 66a7576; API health is 200.
   verification_remaining: Real-AI hosted/remote web-chat edits and actual installed dev-host terminal execution.
+
+live_remote_chat_validation_2026_10_02:
+  status: passed
+  account: Personal dev account Glowingkitty; no generic E2E account or engineering repository mutation was used.
+  disposable_project:
+    id: 136d1b48-bbca-457a-b287-a62e364b132c
+    name: Agentic Coding Validation 8c51
+    source_id: ec3c0e40-785e-41ee-a648-1ff83e2c54a3
+    local_root: /tmp/openmates-agentic-validation-8c51
+    policy: apply_and_show
+  chat_reference: Passing the Project to the saved chat selected its Project context and active default
+    focus. The model read README.md and src/greeting.js through the encrypted remote bridge, then issued
+    an update_file request for that source.
+  applied_change: src/greeting.js changed from Hello to Welcome while preserving the name template
+    interpolation, export, indentation and trailing newline. The reported base changed from 4e1524d...
+    to aeae647..., and a direct filesystem read confirmed the result.
+  isolation_evidence:
+  - The ignored .env path returned protected_path during the read check and its contents were never sent to the model.
+  - File timestamps show only src/greeting.js changed during the successful chat edit; README.md,
+    AGENTS.md, .gitignore and .env retained their original timestamps.
+  defects_fixed:
+  - Commit 275fd07 keeps the exact WebSocket connection identity for encrypted request delivery while
+    authorizing the subsequent REST write with a separate stable host-device identity.
+  - Commit 3ddb970 binds that stable identity to the exact authenticated refresh-token session, because
+    CLI HTTP and WebSocket transports can expose different User-Agent fingerprints on the same machine.
+  verification:
+  - 51 focused backend bridge/authentication tests pass, including exact-socket routing and same-session
+    device authorization; targeted Ruff and diff checks pass.
+  - The dev API was refreshed through session 8c51 and inspected to confirm the deployed source and both
+    identity bindings were active before the final real-chat attempt.
+  - The successful assistant result explicitly reported the applied file and before/after hashes; a direct
+    read confirmed the requested content and no other disposable Project file changed.
 
 projects_creation_policy_correction:
   status: ready_for_scoped_deployment
