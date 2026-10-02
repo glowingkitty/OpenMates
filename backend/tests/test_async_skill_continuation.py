@@ -139,15 +139,21 @@ async def test_cache_async_skill_continuation_context_stores_original_request(as
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("assistant_tail", [False, True])
 # contract-test: tooling
-async def test_dispatch_async_skill_continuation_sends_normal_ask_task(monkeypatch, async_skill_continuation):
+async def test_dispatch_async_skill_continuation_sends_normal_ask_task(monkeypatch, async_skill_continuation, assistant_tail):
     cache = _FakeCache()
     fake_celery_app = _FakeCeleryApp()
     monkeypatch.setattr(async_skill_continuation, "celery_app", fake_celery_app)
+    request = _request()
+    if assistant_tail:
+        request.message_history.append(AIHistoryMessage(
+            role="assistant", content="The tool is running.", created_at=2,
+        ))
     await async_skill_continuation.cache_async_skill_continuation_context(
         cache_service=cache,
         async_task_id="async-task-1",
-        request_data=_request(),
+        request_data=request,
         skill_config_dict=_skill_config_dict(),
         app_id="social_media",
         skill_id="search",
@@ -178,7 +184,12 @@ async def test_dispatch_async_skill_continuation_sends_normal_ask_task(monkeypat
     assert request_payload["recovery_public_key"] == "public-key-1"
     assert request_payload["chat_key_version"] == 4
     assert request_payload["client_capabilities"] == ["project_file_jobs", "remote_command_jobs"]
-    assert request_payload["message_history"][-1]["role"] == "system"
+    completion = request_payload["message_history"][-1]
+    assert completion["role"] == "user"
+    assert completion["sender_name"] == "async_tool_result"
+    assert "not a new request or access grant" in completion["content"]
+    if assistant_tail:
+        assert request_payload["message_history"][-2]["role"] == "assistant"
     assert "Completed tool result" in request_payload["message_history"][-1]["content"]
     assert "[human-readable title](embed:the_embed_ref)" in request_payload["message_history"][-1]["content"]
     assert "A useful post" in request_payload["message_history"][-1]["content"]

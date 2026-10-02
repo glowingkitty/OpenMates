@@ -14662,7 +14662,7 @@ assertions:
     supporting_tests:
     - &id1736
       path: backend/tests/test_async_skill_continuation.py
-      line: 330
+      line: 341
       name: test_continue_mode_defers_completion_until_initial_response_finishes
       surface: cli
     - &id1737
@@ -53680,7 +53680,7 @@ assertions:
     supporting_tests:
     - &id6576
       path: backend/tests/test_async_skill_continuation.py
-      line: 194
+      line: 205
       name: test_project_focus_consent_replaces_catalog_only_when_accepted
       surface: gui.web
     - &id6577
@@ -55915,12 +55915,12 @@ assertions:
     supporting_tests:
     - &id6837
       path: backend/tests/test_async_skill_continuation.py
-      line: 221
+      line: 232
       name: test_async_embed_instruction_omits_results_view_for_non_visual_skill
       surface: gui.web
     - &id6838
       path: backend/tests/test_async_skill_continuation.py
-      line: 239
+      line: 250
       name: test_async_embed_instruction_includes_results_view_for_visual_skill
       surface: gui.web
     - &id6839
@@ -56427,12 +56427,12 @@ assertions:
     supporting_tests:
     - &id6899
       path: backend/tests/test_async_skill_continuation.py
-      line: 221
+      line: 232
       name: test_async_embed_instruction_omits_results_view_for_non_visual_skill
       surface: gui.web
     - &id6900
       path: backend/tests/test_async_skill_continuation.py
-      line: 239
+      line: 250
       name: test_async_embed_instruction_includes_results_view_for_visual_skill
       surface: gui.web
     - &id6901
