@@ -1199,7 +1199,7 @@ capabilities:
                 type: boolean
   social_media.get-posts:
     available: true
-    execution_mode: sync
+    execution_mode: async_job
     effect: read
     unattended: true
     approval: never
@@ -1286,7 +1286,7 @@ capabilities:
                 type: string
   social_media.search:
     available: true
-    execution_mode: sync
+    execution_mode: async_job
     effect: read
     unattended: true
     approval: never

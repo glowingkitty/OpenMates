@@ -10,7 +10,7 @@
 
   let {
     metadata, onSubmit, submitting = false, disabled = false, guest = false,
-    guestEligibility, onSignup, timezone = Intl.DateTimeFormat().resolvedOptions().timeZone,
+    guestEligibility, onSignup, showManualIntro = true, timezone = Intl.DateTimeFormat().resolvedOptions().timeZone,
   }: {
     metadata: AppsSkillDetails;
     onSubmit: (input: Record<string, unknown>) => void | Promise<void>;
@@ -19,6 +19,8 @@
     guest?: boolean;
     guestEligibility?: AppsSkillGuestEligibility;
     onSignup?: () => void;
+    /** Workspace supplies its own compact context disclosure above the form. */
+    showManualIntro?: boolean;
     timezone?: string;
   } = $props();
 
@@ -137,7 +139,7 @@
 </script>
 
 <form class="apps-skill-form" data-testid="apps-skill-form" onsubmit={submit}>
-  <p class="manual-intro" data-testid="apps-skill-manual-intro">{tr('manual_intro')}</p>
+  {#if showManualIntro}<p class="manual-intro" data-testid="apps-skill-manual-intro">{tr('manual_intro')}</p>{/if}
   {#if primarySchema}
     <div class="primary-fields" data-testid="apps-skill-primary-fields">
       <WorkflowSchemaFields schema={showAllSkillSchema(primarySchema)} value={input} onChange={next => input = next as Record<string, unknown>} path="apps-primary" appId={metadata.app_id} {timezone} appsMode />

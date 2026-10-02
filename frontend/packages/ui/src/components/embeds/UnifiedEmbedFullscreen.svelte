@@ -40,6 +40,7 @@
   import { userProfile } from '../../stores/userProfile';
   import EmbedTopBar from './EmbedTopBar.svelte';
   import EmbedHeader from './EmbedHeader.svelte';
+  import { loadChildrenWithRetry } from './childEmbedRetry';
   
   // Animation state: controls both open and close animations via CSS classes
   // - false: collapsed state (initial + closing)
@@ -508,14 +509,6 @@
         // decodedContent starts as string (TOON-encoded) and gets decoded to object
         let decodedContent: Record<string, unknown> | null = null;
         
-        // Debug: Log raw content before decoding
-        console.debug('[UnifiedEmbedFullscreen] Child embed raw content:', {
-          childEmbedId,
-          contentType: typeof embedData.content,
-          isString: typeof embedData.content === 'string',
-          contentPreview: typeof embedData.content === 'string' ? embedData.content.substring(0, 200) : 'not a string'
-        });
-        
         if (typeof embedData.content === 'string') {
           decodedContent = await decodeToonContent(embedData.content);
         } else if (typeof embedData.content === 'object' && embedData.content !== null) {
@@ -523,14 +516,6 @@
           decodedContent = embedData.content as Record<string, unknown>;
         }
         if (!isCurrentChildLoad(generation)) return null;
-        
-        // Debug: Log decoded content
-        console.debug('[UnifiedEmbedFullscreen] Child embed decoded content:', {
-          childEmbedId,
-          contentKeys: decodedContent ? Object.keys(decodedContent) : [],
-          extra_snippets: decodedContent?.extra_snippets,
-          extra_snippets_type: typeof decodedContent?.extra_snippets
-        });
         
         if (!decodedContent) {
           console.warn('[UnifiedEmbedFullscreen] Failed to decode child embed content:', childEmbedId);
@@ -558,36 +543,26 @@
     // One bounded loader owns search hydration. Publish available cards without
     // repeating successful work; missing streamed children retry inside the pane.
     // Keep completion callbacks final-only: consumers can backfill stored metadata.
-    const childrenById = new Map<string, unknown>();
-    const retryLimit = appId === 'web' && skillId === 'search' ? CHILD_EMBED_RETRY_LIMIT : 0;
-    let children: unknown[] = [];
-    for (let attempt = 0; attempt <= retryLimit; attempt++) {
-      if (!isCurrentChildLoad(generation)) return;
-      const pendingIds = embedIdList.filter((id) => !childrenById.has(id));
-      if (pendingIds.length === 0) break;
-      for (let start = 0; start < pendingIds.length; start += CHILD_EMBED_LOAD_CONCURRENCY) {
-        if (!isCurrentChildLoad(generation)) return;
-        const chunk = pendingIds.slice(start, start + CHILD_EMBED_LOAD_CONCURRENCY);
-        const loadedChunk = await Promise.all(chunk.map(loadOneChildEmbed));
-        if (!isCurrentChildLoad(generation)) return;
-        loadedChunk.forEach((child, index) => {
-          if (child !== null) childrenById.set(chunk[index], child);
-        });
-        children = embedIdList.filter((id) => childrenById.has(id)).map((id) => childrenById.get(id)!);
-        loadedChildren = children;
-      }
-      if (childrenById.size === embedIdList.length || attempt === retryLimit) break;
-      await new Promise<void>((resolve) => {
+    const retryLimit = (appId === 'web' && skillId === 'search') || (appId === 'hosting' && skillId === 'search_domains')
+      ? CHILD_EMBED_RETRY_LIMIT : 0;
+    const children = await loadChildrenWithRetry({
+      ids: embedIdList,
+      concurrency: CHILD_EMBED_LOAD_CONCURRENCY,
+      retryLimit,
+      load: loadOneChildEmbed,
+      isCurrent: () => isCurrentChildLoad(generation),
+      onProgress: (loaded) => { loadedChildren = loaded; },
+      wait: () => new Promise<void>((resolve) => {
         finishChildRetry = resolve;
         childRetryTimer = setTimeout(() => {
           finishChildRetry = undefined;
           childRetryTimer = undefined;
           resolve();
         }, CHILD_EMBED_RETRY_DELAY_MS);
-      });
-    }
+      }),
+    });
     
-    if (!isCurrentChildLoad(generation)) return;
+    if (!isCurrentChildLoad(generation) || children === null) return;
     loadedChildren = children;
     isLoadingChildren = false;
     console.debug('[UnifiedEmbedFullscreen] Finished loading', children.length, 'child embeds');

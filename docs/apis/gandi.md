@@ -1,8 +1,12 @@
 # Gandi anonymous domain search research
 
 Tested 2026-10-01 from the dev `api` container. The provider and Hosting skill
-are implemented in the task workspace; programmatic integration verification is
-pending. The anonymous shop endpoints are not a supported Gandi API contract.
+are deployed to dev. REST, CLI, npm and pip integration checks passed in isolated
+CI, with real requirements ranking and a real naming chat verified on dev.
+The Workflow capability also passed a complete isolated CLI run, including
+typed downstream checks and encrypted chat delivery. See the
+[Workflow CI result](https://github.com/glowingkitty/OpenMates/actions/runs/36898310280).
+The anonymous shop endpoints are not a supported Gandi API contract.
 
 ## Live evidence
 
@@ -241,3 +245,35 @@ status with an unknown check. Mismatched-currency prices remain unknown.
 Programmatic coverage is in `skill-hosting-search-api.spec.ts`. The separate
 `scripts/api_tests/test_hosting_requirements.py` requires real dev-server Jev
 inference with disposable CLI state; replay does not satisfy that check.
+
+## Workflow composition
+
+The Workflow capability is `hosting.search_domains`: synchronous, read-only,
+unattended, with no connected account or approval required. Its `requests` input
+is the same grouped contract as the REST and CLI skill route.
+
+```yaml
+title: Check a product domain
+start_when:
+  manual: {}
+steps:
+  - id: domains
+    use_app_skill: hosting.search_domains
+    input:
+      requests:
+        - query: example.com
+          availability: available_only
+          max_results: 1
+  - id: report
+    send_chat_message:
+      title: Domain check
+      message: "Found {{steps.domains.result_count}} available domains."
+```
+
+Later steps can reference `$nodes.domains.output.results` or
+`$nodes.domains.output.result_count`. The normalized list contains selected
+domains across all groups. `raw.results` preserves each original group, including
+checked candidates, complete quote tiers, warnings and partial errors. A completed
+available-only search may have a zero result count; checked in-use evidence remains
+in `raw`. The dedicated `skill-hosting-search-workflow.spec.ts` covers real CLI
+step tests and a complete Workflow run against the anonymous Gandi endpoint.

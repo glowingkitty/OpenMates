@@ -619,7 +619,14 @@ def _validate_builder_execution_inputs(
 
     def types(schema: dict[str, Any]) -> set[str]:
         declared = schema.get("type")
-        return {declared} if isinstance(declared, str) else set(declared or [])
+        declared_types = {declared} if isinstance(declared, str) else set(declared or [])
+        alternatives = schema.get("anyOf")
+        if alternatives is not None:
+            if not isinstance(alternatives, list) or not alternatives:
+                return set()
+            alternative_types = set().union(*(types(item) for item in alternatives if isinstance(item, dict)))
+            return alternative_types if declared is None else declared_types & alternative_types
+        return declared_types
 
     def compatible(actual: set[str], expected: set[str]) -> bool:
         return bool(actual) and all(kind in expected or kind == "integer" and "number" in expected for kind in actual)

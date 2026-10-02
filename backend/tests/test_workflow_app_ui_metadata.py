@@ -31,7 +31,8 @@ def test_workflow_available_skills_explicitly_classify_all_ui_fields() -> None:
 
     capabilities = WorkflowCapabilityRegistry(_FilesystemWorkflowMetadataRegistry()).list_capabilities()
     enabled = [capability for capability in capabilities if capability.enabled]
-    assert len(enabled) == 40
+    assert len(enabled) == 41
+    assert "hosting.search_domains" in {capability.id for capability in enabled}
     fallback_result_capabilities = {
         capability.id
         for capability in enabled
@@ -43,6 +44,7 @@ def test_workflow_available_skills_explicitly_classify_all_ui_fields() -> None:
     }
     assert fallback_result_capabilities <= normalized_result_capabilities
     assert {"business.company_financials", "web.search"} <= normalized_result_capabilities
+    assert "hosting.search_domains" in normalized_result_capabilities
 
     for capability in enabled:
         schemas = {

@@ -5058,7 +5058,11 @@ async def handle_main_processing(
                                 request_metadata["request_id"] = request_id
                                 
                                 # Log all extracted metadata for debugging
-                                metadata_summary = ", ".join([f"{k}={v}" for k, v in request_metadata.items() if k != "request_id"])
+                                metadata_summary = (
+                                    ", ".join(sorted(k for k in request_metadata if k != "request_id"))
+                                    if app_id == "hosting"
+                                    else ", ".join(f"{k}={v}" for k, v in request_metadata.items() if k != "request_id")
+                                )
                                 logger.debug(
                                     f"{log_prefix} INLINE: Creating placeholder {request_idx + 1}/{len(requests_list)}: "
                                     f"request_id={request_id} (normalized={request_id_normalized}), metadata=[{metadata_summary}]"
@@ -8262,9 +8266,11 @@ async def handle_main_processing(
                         
                         if is_multiple_requests:
                             # Multiple requests: Update existing placeholders or create new embeds
+                            redact_group_ids = app_id == "hosting"
                             logger.info(
                                 f"{log_prefix} Processing {len(grouped_results)} separate embeds for multiple requests. "
-                                f"Grouped results structure: {[{'id': r.get('id'), 'result_count': len(r.get('results', []))} for r in grouped_results]}"
+                                f"Grouped results structure: "
+                                f"{[{'id': '<redacted>' if redact_group_ids else r.get('id'), 'result_count': len(r.get('results', []))} for r in grouped_results]}"
                             )
                             
                             # Check if we have multiple placeholders stored (from inline creation)
@@ -8280,7 +8286,7 @@ async def handle_main_processing(
                                         placeholder_embeds_map[placeholder_request_id_key] = placeholder
                                 logger.info(
                                     f"{log_prefix} Found {len(placeholder_embeds_map)} placeholders to update for multiple requests. "
-                                    f"Request IDs: {list(placeholder_embeds_map.keys())}"
+                                    f"Request IDs: {['<redacted>'] * len(placeholder_embeds_map) if redact_group_ids else list(placeholder_embeds_map.keys())}"
                                 )
                             elif placeholder_embed_data and isinstance(placeholder_embed_data, dict) and "embed_id" in placeholder_embed_data:
                                 # Fallback: Single placeholder was created (old behavior)
@@ -8310,11 +8316,19 @@ async def handle_main_processing(
                                 f"request_count={len(requests_list)}"
                             )
                             
-                            # Log all grouped_result request_ids for debugging ID mismatches
-                            grouped_result_ids = [str(gr.get("id")) for gr in grouped_results]
+                            # Hosting IDs may be caller-supplied domain names. Keep them for
+                            # matching, but redact all grouped-request log surfaces.
+                            grouped_result_ids = (
+                                ["<redacted>"] * len(grouped_results) if redact_group_ids
+                                else [str(gr.get("id")) for gr in grouped_results]
+                            )
+                            placeholder_ids_log = (
+                                ["<redacted>"] * len(placeholder_embeds_map) if redact_group_ids
+                                else list(placeholder_embeds_map.keys())
+                            )
                             logger.info(
                                 f"{log_prefix} Processing {len(grouped_results)} grouped results. "
-                                f"Result request IDs: {grouped_result_ids}, Placeholder request IDs: {list(placeholder_embeds_map.keys())}"
+                                f"Result request IDs: {grouped_result_ids}, Placeholder request IDs: {placeholder_ids_log}"
                             )
                             
                             for grouped_result in grouped_results:
@@ -8323,9 +8337,12 @@ async def handle_main_processing(
                                 
                                 # Normalize request_id to string for consistent matching with placeholders
                                 request_id_key = str(request_id) if request_id is not None else None
+                                request_id_log = "<redacted>" if redact_group_ids else request_id
+                                request_id_key_log = "<redacted>" if redact_group_ids else request_id_key
+                                request_log_prefix = f"{log_prefix}[request_id={request_id_log}]"
                                 
                                 logger.debug(
-                                    f"{log_prefix} Processing grouped result: request_id={request_id} (key={request_id_key}), "
+                                    f"{log_prefix} Processing grouped result: request_id={request_id_log} (key={request_id_key_log}), "
                                     f"result_count={len(request_results)}, has_error={bool(grouped_result.get('error'))}"
                                 )
                                 
@@ -8335,9 +8352,10 @@ async def handle_main_processing(
                                 
                                 # DEBUG: Log request_metadata_map keys and lookup results
                                 logger.info(
-                                    f"{log_prefix} [QUERY_DEBUG] request_metadata_map keys: {list(request_metadata_map.keys())}, "
-                                    f"request_id={request_id} (type={type(request_id).__name__}), "
-                                    f"request_id_key={request_id_key}, "
+                                    f"{log_prefix} [QUERY_DEBUG] request_metadata_map keys: "
+                                    f"{['<redacted>'] * len(request_metadata_map) if redact_group_ids else list(request_metadata_map.keys())}, "
+                                    f"request_id={request_id_log} (type={type(request_id).__name__}), "
+                                    f"request_id_key={request_id_key_log}, "
                                     f"lookup result has query: {'query' in request_metadata}, "
                                     f"query value: {'<redacted>' if app_id == 'hosting' else request_metadata.get('query', 'NOT_FOUND')}"
                                 )
@@ -8397,13 +8415,17 @@ async def handle_main_processing(
                                 # _finalize_embed_no_results() (status="finished", no error).
                                 has_explicit_error = bool(grouped_result.get("error"))
                                 has_results_field = "results" in grouped_result
-                                request_is_real_failure = has_explicit_error or not has_results_field
+                                is_hosting_group = app_id == "hosting" and skill_id == "search_domains"
+                                request_is_real_failure = (
+                                    (has_explicit_error or not has_results_field)
+                                    and not (is_hosting_group and has_results_field)
+                                )
 
                                 if request_is_real_failure:
                                     # Request failed - update placeholder to error or create error embed
                                     error_message = grouped_result.get("error") or "Request failed with no results"
                                     logger.warning(
-                                        f"{log_prefix} Request {request_id} failed: {error_message}."
+                                        f"{log_prefix} Request {request_id_log} failed: {error_message}."
                                     )
                                     
                                     # Check if we have a placeholder for this request (use normalized key)
@@ -8412,8 +8434,8 @@ async def handle_main_processing(
                                         # Update existing placeholder to error status
                                         placeholder_embed_id = matching_placeholder.get("embed_id")
                                         logger.info(
-                                            f"{log_prefix} Found matching placeholder for failed request {request_id}: "
-                                            f"embed_id={placeholder_embed_id}, key={request_id_key}"
+                                            f"{log_prefix} Found matching placeholder for failed request {request_id_log}: "
+                                            f"embed_id={placeholder_embed_id}, key={request_id_key_log}"
                                         )
                                         try:
                                             updated_error_embed = await embed_service.update_embed_status_to_error(
@@ -8427,7 +8449,7 @@ async def handle_main_processing(
                                                 user_id_hash=request_data.user_id_hash,
                                                 user_vault_key_id=user_vault_key_id,
                                                 task_id=task_id,
-                                                log_prefix=f"{log_prefix}[request_id={request_id}]"
+                                                log_prefix=request_log_prefix
                                             )
                                             
                                             if updated_error_embed:
@@ -8451,19 +8473,20 @@ async def handle_main_processing(
                                                 updated_error_embed["request_metadata"] = request_metadata
                                                 updated_embed_data_list.append(updated_error_embed)
                                                 logger.info(
-                                                    f"{log_prefix} Updated placeholder {placeholder_embed_id} to error for request {request_id}"
+                                                    f"{log_prefix} Updated placeholder {placeholder_embed_id} to error for request {request_id_log}"
                                                 )
                                                 failed_embed_ids.add(placeholder_embed_id)
                                         except Exception as error_update_error:
                                             logger.warning(
-                                                f"{log_prefix} Failed to update placeholder to error status: {error_update_error}"
+                                                f"{log_prefix} Failed to update placeholder to error status: "
+                                                f"{'<redacted>' if redact_group_ids else error_update_error}"
                                             )
                                     else:
                                         # No placeholder found - create new error embed
                                         # This may indicate a request_id mismatch between placeholder creation and skill result
                                         logger.warning(
-                                            f"{log_prefix} No placeholder found for failed request {request_id} (key={request_id_key}). "
-                                            f"Available placeholder keys: {list(placeholder_embeds_map.keys())}. Creating new error embed."
+                                            f"{log_prefix} No placeholder found for failed request {request_id_log} (key={request_id_key_log}). "
+                                            f"Available placeholder keys: {placeholder_ids_log}. Creating new error embed."
                                         )
                                         error_embed_data = await embed_service.create_processing_embed_placeholder(
                                             app_id=app_id,
@@ -8475,7 +8498,7 @@ async def handle_main_processing(
                                             user_vault_key_id=user_vault_key_id,
                                             task_id=task_id,
                                             metadata=request_metadata_with_provider,
-                                            log_prefix=f"{log_prefix}[request_id={request_id}]"
+                                            log_prefix=request_log_prefix
                                         )
                                         
                                         if error_embed_data:
@@ -8491,7 +8514,7 @@ async def handle_main_processing(
                                                 user_id_hash=request_data.user_id_hash,
                                                 user_vault_key_id=user_vault_key_id,
                                                 task_id=task_id,
-                                                log_prefix=f"{log_prefix}[request_id={request_id}]"
+                                                log_prefix=request_log_prefix
                                             )
                                             
                                             if updated_error_embed:
@@ -8507,7 +8530,7 @@ async def handle_main_processing(
                                     # Update existing placeholder with results
                                     placeholder_embed_id = matching_placeholder.get("embed_id")
                                     logger.info(
-                                        f"{log_prefix} Updating placeholder {placeholder_embed_id} with results for request {request_id}"
+                                        f"{log_prefix} Updating placeholder {placeholder_embed_id} with results for request {request_id_log}"
                                     )
                                     
                                     # CRITICAL: Pass request_results directly — for grouped multi-request
@@ -8526,9 +8549,10 @@ async def handle_main_processing(
                                         user_id_hash=request_data.user_id_hash,
                                         user_vault_key_id=user_vault_key_id,
                                         task_id=task_id,
-                                        log_prefix=f"{log_prefix}[request_id={request_id}]",
+                                        log_prefix=request_log_prefix,
                                         request_metadata=request_metadata_with_provider,
                                         learning_mode_context=getattr(request_data, "learning_mode", None),
+                                        hosting_group=grouped_result if app_id == "hosting" and skill_id == "search_domains" else None,
                                     )
                                     
                                     if updated_embed_data:
@@ -8555,16 +8579,16 @@ async def handle_main_processing(
                                         updated_embed_data["from_placeholder"] = True  # Flag: already yielded
                                         updated_embed_data_list.append(updated_embed_data)
                                         logger.info(
-                                            f"{log_prefix} Updated placeholder {placeholder_embed_id} with results for request {request_id}: "
+                                            f"{log_prefix} Updated placeholder {placeholder_embed_id} with results for request {request_id_log}: "
                                             f"child_count={len(updated_embed_data.get('child_embed_ids', []))}"
                                         )
                                     else:
-                                        logger.warning(f"{log_prefix} Failed to update placeholder for request {request_id}")
+                                        logger.warning(f"{log_prefix} Failed to update placeholder for request {request_id_log}")
                                 else:
                                     # No placeholder found - create new embed
                                     # This is a NEW embed, not from a placeholder, so we'll need to yield it
                                     logger.info(
-                                        f"{log_prefix} No placeholder found for request {request_id}, creating new embed"
+                                        f"{log_prefix} No placeholder found for request {request_id_log}, creating new embed"
                                     )
                                     embed_data = await embed_service.create_embeds_from_skill_results(
                                         app_id=app_id,
@@ -8576,9 +8600,10 @@ async def handle_main_processing(
                                         user_id_hash=request_data.user_id_hash,
                                         user_vault_key_id=user_vault_key_id,
                                         task_id=task_id,
-                                        log_prefix=f"{log_prefix}[request_id={request_id}]",
+                                        log_prefix=request_log_prefix,
                                         request_metadata=request_metadata_with_provider,
                                         learning_mode_context=getattr(request_data, "learning_mode", None),
+                                        hosting_group=grouped_result if app_id == "hosting" and skill_id == "search_domains" else None,
                                     )
                                     
                                     if embed_data:
@@ -8587,11 +8612,11 @@ async def handle_main_processing(
                                         embed_data["from_placeholder"] = False  # Flag: newly created, needs yielding
                                         updated_embed_data_list.append(embed_data)
                                         logger.info(
-                                            f"{log_prefix} Created embed {embed_data.get('parent_embed_id')} for request {request_id}: "
+                                            f"{log_prefix} Created embed {embed_data.get('parent_embed_id')} for request {request_id_log}: "
                                             f"child_count={len(embed_data.get('child_embed_ids', []))}"
                                         )
                                     else:
-                                        logger.warning(f"{log_prefix} Failed to create embed for request {request_id}")
+                                        logger.warning(f"{log_prefix} Failed to create embed for request {request_id_log}")
                             
                             # Stream embed references ONLY for newly created embeds (not from placeholders)
                             # Placeholder embed references were already yielded at creation time (line ~949)
@@ -8602,7 +8627,7 @@ async def handle_main_processing(
                                 if embed_data.get("from_placeholder"):
                                     logger.debug(
                                         f"{log_prefix} Skipping duplicate yield for placeholder embed: "
-                                        f"request_id={embed_data.get('request_id')}"
+                                        f"request_id={'<redacted>' if redact_group_ids else embed_data.get('request_id')}"
                                     )
                                     continue
                                     
@@ -8610,9 +8635,16 @@ async def handle_main_processing(
                                 if embed_reference:
                                     embed_code_block = f"```json\n{embed_reference}\n```\n\n"
                                     yield embed_code_block
-                                    logger.debug(f"{log_prefix} Streamed embed reference for request {embed_data.get('request_id')}")
+                                    logger.debug(f"{log_prefix} Streamed embed reference for request "
+                                                 f"{'<redacted>' if redact_group_ids else embed_data.get('request_id')}")
                         else:
                             # Single request: Update the existing placeholder embed
+                            single_hosting_group = (
+                                grouped_results[0]
+                                if app_id == "hosting" and skill_id == "search_domains"
+                                and grouped_results and len(grouped_results) == 1
+                                else None
+                            )
                             if placeholder_embed_data:
                                 # CRITICAL: Check if placeholder_embed_data has "multiple" structure but we fell here
                                 # because is_multiple_requests was False (e.g., skill returned non-grouped results)
@@ -8662,6 +8694,7 @@ async def handle_main_processing(
                                             log_prefix=f"{log_prefix}[placeholder_{idx}]",
                                             request_metadata=placeholder_metadata,
                                             learning_mode_context=getattr(request_data, "learning_mode", None),
+                                            hosting_group=single_hosting_group,
                                         )
                                         
                                         if updated_embed_data:
@@ -8752,6 +8785,7 @@ async def handle_main_processing(
                                         log_prefix=log_prefix,
                                         request_metadata=single_request_metadata,
                                         learning_mode_context=getattr(request_data, "learning_mode", None),
+                                        hosting_group=single_hosting_group,
                                     )
 
                                 if updated_embed_data:
@@ -8777,7 +8811,9 @@ async def handle_main_processing(
                                     user_vault_key_id=user_vault_key_id,
                                     task_id=task_id,
                                     log_prefix=log_prefix,
+                                    request_metadata=(parsed_args.get("requests", [{}])[0] if isinstance(parsed_args, dict) and isinstance(parsed_args.get("requests"), list) and parsed_args["requests"] and isinstance(parsed_args["requests"][0], dict) else None) if single_hosting_group else None,
                                     learning_mode_context=getattr(request_data, "learning_mode", None),
+                                    hosting_group=single_hosting_group,
                                 )
                                 
                                 if embed_data:

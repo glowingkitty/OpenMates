@@ -172,6 +172,54 @@ async def test_complete_graph_verifies_every_region_before_hot_child_deletion() 
     assert created_manifest["state"] == "preparing"
 
 
+# contract-test: direct surface=rest_api assertions=storage.cold.atomic-eligible-graphs,storage-resilience.core.s3-is-noncritical
+def test_celery_archive_uses_storage_clients_without_remote_reconciliation(monkeypatch) -> None:
+    """A failing control plane must not prevent the durable archive task from running."""
+    from backend.core.api.app.tasks import base_task, storage_tasks
+
+    directus = FakeDirectus()
+    storage = FakeS3()
+    cache_checks: list[str] = []
+    init_modes: list[bool] = []
+
+    async def initialize_storage(*, configure_buckets: bool = True) -> None:
+        init_modes.append(configure_buckets)
+        if configure_buckets:
+            raise RuntimeError("object_storage_reconciliation_failed")
+
+    async def get_active_ai_task(chat_id: str) -> None:
+        cache_checks.append(chat_id)
+        return None
+
+    async def initialize_core_services(task) -> None:
+        task._directus_service = directus
+        task._secrets_manager = object()
+        task._cache_service = type("Cache", (), {"get_active_ai_task": staticmethod(get_active_ai_task)})()
+
+    async def cleanup_services(_task) -> None:
+        pass
+
+    storage.initialize = initialize_storage
+    monkeypatch.setattr(base_task, "S3UploadService", lambda **_kwargs: storage)
+    monkeypatch.setattr(base_task.BaseServiceTask, "initialize_core_services", initialize_core_services)
+    monkeypatch.setattr(base_task.BaseServiceTask, "cleanup_services", cleanup_services)
+    task = storage_tasks.archive_cold_chat
+    for name in (
+        "_s3_service", "_invoice_template_service", "_credit_note_template_service",
+        "_email_template_service", "_translation_service", "_invoice_ninja_service",
+        "_payment_service",
+    ):
+        monkeypatch.setattr(task, name, None if name == "_s3_service" else object(), raising=False)
+
+    result = task.run(chat_id="chat-1")
+
+    assert init_modes == [False]
+    assert result["state"] == "cold"
+    assert result["verified_regions"] == ["fsn1", "hel1", "nbg1"]
+    assert cache_checks
+    assert directus.collections["messages"] == []
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize("timeout_first_upload", [False, True])
 # contract-test: direct surface=rest_api assertions=storage.cold.atomic-eligible-graphs,storage.replication.active-write-durable-outbox

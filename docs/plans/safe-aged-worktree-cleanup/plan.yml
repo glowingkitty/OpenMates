@@ -1,0 +1,53 @@
+id: safe-aged-worktree-cleanup
+title: Restore disk headroom with recoverable worktree expiry
+status: verified
+goal: Investigate and fix disk pressure, cleaning old worktrees older than a week
+  and taking other safe clearing steps for build caches and temporary files.
+scope:
+  in:
+  - Remove inactive managed worktrees older than seven days through sessions.py.
+  - Verify private recovery archives before removing unique source or user files.
+  - Fix the hourly cleanup timer and remove proven obsolete reproducible caches.
+  out:
+  - Deleting live work, private database backups, Docker volumes or running containers.
+  - Automatically merging archived work into dev.
+  - Discarding commits outside dev history without a recoverable bundle.
+decisions:
+- Preserve staged and working patches separately, plus untracked and valuable ignored
+  files and symlinks.
+- Exclude only recognised reproducible cache directories from source archives.
+- Use private immutable archives and record their paths before managed removal.
+- Recheck source contents and current activity immediately before removing a worktree.
+- Retain worktrees on inspection, archive verification, activity or commit-recovery
+  failure.
+- Serialize timer, manual and capacity-triggered expiry using one host-wide lock,
+  separate from session record mutation.
+checks:
+- Focused worktree cleanup tests, Python compile check and timer shell syntax check.
+- Independent archive safety review.
+- Install the corrected timer and run one managed expiry sweep; measure removed worktrees
+  and disk headroom.
+evidence:
+  initial:
+  - Managed worktrees occupied 47 GB; 74 inactive aged worktrees retained unique changes.
+  - Six other aged worktrees had activity or writing protection and were preserved.
+  - Hourly timer called a removed auto-integrate subcommand.
+  - Obsolete Node/OpenCode caches were cleared while preserving private backups and
+    active runtime data.
+  managed_sweep:
+    deployed_commit: ac12dcd4158a0fca191de0424bfa479718fbb3b0
+    idle_aged_removed: 73
+    retained_live_aged: 6
+    retained_unarchivable: 1
+    worktree_reduction_gib: 19.37
+    recovery_archives_gib: 0.64
+    available_disk_bytes: 59021213696
+    disk_used_percent: 81
+    receipt: /tmp/openmates-worktree-expire-postdeploy-20261001.json
+    concurrency_finding: Session capacity cleanup overlapped the manual sweep; duplicate
+      immutable archives were preserved. Serialize future expiry calls using a separate
+      shared lock.
+  follow_up:
+    focused_tests_passed: 33
+    checks: Subprocess lock contention, normal and error release, Python syntax and
+      diff checks passed.

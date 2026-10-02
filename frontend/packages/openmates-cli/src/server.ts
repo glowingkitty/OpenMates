@@ -1,3 +1,4 @@
+import { evaluateNotificationDestinationConfiguration, resolveHostNotificationDestinations } from "./serverNotifications.js";
 /*
  * OpenMates CLI server management commands.
  *
@@ -63,7 +64,7 @@ import {
   validateServerEnvironmentTarget,
 } from "./serverPlanning.js";
 import { publishServerBackupArchive } from "./serverBackupArchive.js";
-import { applyCaddyPathUpdate, caddyHostOperation, verifyCaddyCoreRoutes, type CaddyUpdateResult } from "./serverCaddyUpdate.js";
+import { applyCaddyPathUpdate, caddyHostOperation, officialUploadOrigins, readCaddyUpdateState, renderOfficialUploadCaddyTemplate, resolveCaddyProfile, validateOfficialUploadCaddy, verifyCaddyCoreRoutes, verifyCaddyUploadRoutes, type CaddyUpdateResult } from "./serverCaddyUpdate.js";
 import {
   CMS_CACHE_INSPECT_FORMAT,
   applyRuntimeCheckResults,
@@ -2573,19 +2574,10 @@ function runRuntimeVerification(installPath: string, role: ServerRole, config: S
     if (cmsCacheCheck.status !== "passed") output.status = "failed";
   }
   if (mode.effectiveMode === "official_cloud") {
-    const destinations = runtimeNotificationConfig(installPath);
-    const configuredCount = [destinations.email, destinations.discordWebhookUrl, destinations.genericWebhook].filter(Boolean).length;
-    if (configuredCount < 2) {
-      output.status = "failed";
-      output.checks.push({
-        id: "notifications.destination_configured",
-        status: "failed",
-        required: true,
-        duration_ms: 0,
-        failureClass: "configuration",
-        sanitized_reason: "notification_destination_or_fallback_missing",
-      });
-    }
+    const notificationCheck = evaluateNotificationDestinationConfiguration(runtimeNotificationConfig(installPath));
+    // Emit success too so the durable incident writer can close a repaired check.
+    output.checks.push(notificationCheck);
+    if (notificationCheck.status === "failed") output.status = "failed";
   }
   for (const check of output.checks) {
     const marker = check.status === "passed" ? "x" : "!";
@@ -2601,12 +2593,7 @@ function runtimeNotificationConfig(installPath: string) {
   const deploymentMode = getInstallDeploymentMode(installPath, serverConfig);
   const serverEnvironment = value("SERVER_ENVIRONMENT") === "production" ? "production" : "development";
   const environment: RuntimeNotificationPayload["environment"] = deploymentMode === "self_host" ? "self_host" : serverEnvironment;
-  const emailTo = value("OPENMATES_RUNTIME_HEALTH_EMAIL_TO") || value("ADMIN_NOTIFY_EMAIL");
-  const emailFrom = value("OPENMATES_RUNTIME_HEALTH_EMAIL_FROM") || value("EMAIL_SENDER_EMAIL") || "noreply@openmates.org";
-  const emailApiKey = value("OPENMATES_RUNTIME_HEALTH_BREVO_API_KEY") || value("BREVO_API_KEY");
-  const email = emailTo && emailFrom && emailApiKey
-    ? { to: emailTo, from: emailFrom, apiKey: emailApiKey }
-    : undefined;
+  const destinations = resolveHostNotificationDestinations(value, deploymentMode, serverEnvironment);
   const webhookUrl = value("OPENMATES_RUNTIME_HEALTH_WEBHOOK_URL");
   const webhookSecret = value("OPENMATES_RUNTIME_HEALTH_WEBHOOK_SECRET");
   const allowLocalDevelopmentFixture = value("SERVER_ENVIRONMENT") === "development"
@@ -2614,30 +2601,12 @@ function runtimeNotificationConfig(installPath: string) {
   const genericWebhook = webhookUrl && webhookSecret
     ? { url: webhookUrl, secret: webhookSecret, allowLocalDevelopmentFixture }
     : undefined;
-  const canonicalDiscordWebhookUrl = deploymentMode === "self_host"
-    ? value("DISCORD_WEBHOOK_OPERATIONAL_MONITORING_SELF_HOST") || value("OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL_SELF_HOST") || value("OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL")
-    : serverEnvironment === "production"
-      ? value("OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL_PRODUCTION") || value("DISCORD_WEBHOOK_OPERATIONAL_MONITORING_PRODUCTION")
-      : value("OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL_DEVELOPMENT") || value("DISCORD_WEBHOOK_OPERATIONAL_MONITORING_DEVELOPMENT");
-  const fallbackDiscordWebhookUrl = deploymentMode === "self_host"
-    ? undefined
-    : serverEnvironment === "production"
-      ? value("DISCORD_WEBHOOK_PROD_SMOKE")
-      : value("DISCORD_WEBHOOK_DEV_NIGHTLY") || value("DISCORD_WEBHOOK_DEV_SMOKE");
-  const discordWebhookUrl = canonicalDiscordWebhookUrl || fallbackDiscordWebhookUrl;
   return {
     environment,
     deploymentMode,
     serverName: value("OPENMATES_RUNTIME_SERVER_NAME"),
     version: value("OPENMATES_IMAGE_TAG") || serverConfig?.imageTag || "source",
-    email,
-    discordWebhookUrl,
-    discordDestinationSource: canonicalDiscordWebhookUrl
-      ? "canonical"
-      : fallbackDiscordWebhookUrl
-        ? serverEnvironment === "production" ? "prod_smoke_fallback" : "dev_fallback"
-        : "missing",
-    discordFallbackUsed: !canonicalDiscordWebhookUrl && Boolean(fallbackDiscordWebhookUrl),
+    ...destinations,
     genericWebhook,
   };
 }
@@ -2854,12 +2823,20 @@ async function autoInstallRuntimeMonitoringServices(installPath: string, role: S
   return "installed";
 }
 
-function caddyUpdatePlan(installPath: string, role: ServerRole, config: ServerConfig | null, flags: Record<string, string | boolean>) {
+export function caddyUpdatePlan(installPath: string, role: ServerRole, config: ServerConfig | null, flags: Record<string, string | boolean>) {
   if (flags["caddy-config"] === true) throw new Error("Provide --caddy-config <file>.");
   const configPath = resolve(typeof flags["caddy-config"] === "string" ? flags["caddy-config"] : "/etc/caddy/Caddyfile");
   const required = role === "core" && getInstallDeploymentMode(installPath, config) === "official_cloud";
   if (!existsSync(configPath) && required) throw new Error("Managed cloud Caddyfile is missing; update cannot proceed.");
-  return { configPath, status: existsSync(configPath) ? "planned" : "not_installed" };
+  const prior = role === "upload" ? readCaddyUpdateState(join(installPath, ".openmates", "caddy", `${role}.json`), configPath, null) : undefined;
+  const profile = resolveCaddyProfile(role, flags["caddy-profile"], prior ? prior.profile ?? "self-host" : undefined);
+  if (profile === "official-upload" && !existsSync(configPath)) throw new Error("caddy_official_upload_host_missing");
+  if (role === "upload" && existsSync(configPath)) {
+    const live = caddyHostOperation({ action: "read", configPath }).content!;
+    if (profile === "official-upload") validateOfficialUploadCaddy(live);
+    else if (live.includes("@prod_origin") || live.includes("@dev_origin")) throw new Error("caddy_profile_required_official_upload");
+  }
+  return { configPath, status: existsSync(configPath) ? "planned" : "not_installed", profile };
 }
 
 async function updateServerCaddy(input: {
@@ -2879,6 +2856,8 @@ async function updateServerCaddy(input: {
     templatePath = site === "api.openmates.org" ? "deployment/prod_server/Caddyfile" : "deployment/dev_server/Caddyfile";
   } else if (cloud) {
     templatePath = `deployment/${input.role}_server/Caddyfile`;
+  } else if (plan.profile === "official-upload") {
+    templatePath = "deployment/upload_server/Caddyfile";
   }
   const revision = input.mode === "image"
     ? installedImageLabels(input)["org.opencontainers.image.revision"]?.trim()
@@ -2896,16 +2875,24 @@ async function updateServerCaddy(input: {
   const env = readEnvMap(input.installPath);
   const urls = deriveSelfHostCliUrls(readEnvContent(input.installPath));
   const domain = env[`DEPLOY_${input.role.toUpperCase()}_DOMAIN`];
-  const hostname = site ?? domain ?? live.split("\n").map(line => /^([^\s{$]+)\s+\{$/.exec(line)?.[1]).find(Boolean);
+  const liveHostname = live.split("\n").map(line => /^([^\s{$]+)\s+\{$/.exec(line)?.[1]).find(Boolean);
+  const hostname = site ?? (plan.profile === "official-upload" ? liveHostname : domain ?? liveHostname);
   if (!hostname) throw new Error("caddy_public_endpoint_unavailable");
+  if (plan.profile === "official-upload") {
+    const email = /^\s*email\s+(\S+)\s*$/m.exec(live)?.[1];
+    if (!email) throw new Error("caddy_official_upload_email_missing");
+    target = renderOfficialUploadCaddyTemplate(target, hostname, email);
+    validateOfficialUploadCaddy(live, officialUploadOrigins(target));
+  }
   const baseUrl = hostname.includes("://") ? hostname : `https://${hostname}`;
   const endpoint = new URL(baseUrl);
   if (!["http:", "https:"].includes(endpoint.protocol) || endpoint.username || endpoint.password) throw new Error("caddy_public_endpoint_invalid");
   return applyCaddyPathUpdate({
     installPath: input.installPath, role: input.role, configPath: plan.configPath,
-    site, target, revision,
+    site, target, revision, profile: plan.profile,
     verify: async () => {
       if (input.role === "core") await verifyCaddyCoreRoutes(baseUrl, new URL(urls.appUrl).origin);
+      else if (plan.profile === "official-upload") await verifyCaddyUploadRoutes(baseUrl, officialUploadOrigins(target));
       else {
         const response = await fetch(`${baseUrl}/health`, { redirect: "error", signal: AbortSignal.timeout(5_000) });
         if (!response.ok) throw new Error("caddy_health_route_failed");
@@ -4530,6 +4517,7 @@ Command Options:
   update:
     --dry-run           Show update plan without changing files or containers
     --caddy-config <file> Host Caddyfile (default: /etc/caddy/Caddyfile); automatically update managed routes
+    --caddy-profile official-upload  Preserve the upload host's prod/dev Origin routing; saved after verification
     --services <csv>    Update only selected role services
     --exclude <csv>     Update all role services except selected services
     --image-tag <tag>   Image mode: update to a specific prebuilt image tag

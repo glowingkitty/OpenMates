@@ -124,6 +124,18 @@ override for both the dry-run and the actual update. Pin the images to the same
 merge SHA so a moving channel cannot advance between build verification and
 deployment:
 
+Check host-owned notification configuration on each affected VM without printing
+credentials or recipients. A Vault-backed API email service and a delivered
+Alertmanager Discord alert do not prove the CLI host notifier or upload VM can
+send its required completion email. Treat `IMPORTED_TO_VAULT` as a marker, not a
+host credential. Brevo access must be authorized for that VM's IPv4 egress
+address (the CLI email adapter uses IPv4); do not disable provider IP security.
+Repair secret values only with the user's specific authorization through
+`openmates server env set`, entering values through its hidden prompt. For a
+legacy generic cloud Discord URL, explicitly bind it to the host environment
+using `OPENMATES_RUNTIME_HEALTH_LEGACY_DISCORD_ENVIRONMENT`; never infer a
+production destination from an unscoped URL.
+
 ```bash
 ./scripts/prod-ssh.sh "env OPENMATES_SELFHOST_COMPOSE_URL=https://raw.githubusercontent.com/glowingkitty/OpenMates/<MERGE_SHA>/frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml /usr/bin/openmates server update --path /home/superdev/openmates --exclude webapp --image-tag sha-<MERGE_SHA> --dry-run"
 ```
@@ -229,6 +241,16 @@ to the same reviewed merge SHA. Include `vault-setup` and `app-uploads` together
 when migrating token volumes: setup must populate the scoped periodic token
 before the app starts. A failed upload image must be restored through the CLI
 to a verified working image while its packaging defect is repaired.
+
+The official upload host has separate production/dev Origin handlers. Select
+`--caddy-profile official-upload` explicitly for its first CLI adoption, in both
+the dry run and actual update; this is independent of the core-only cloud
+Compose mode. Require both trusted Origin preflights and unknown-Origin denial
+before accepting Caddy state. Preserve operator routes and credential-selection
+headers. For a routing-only repair, keep the current immutable upload image and
+select only a service with no upload-app dependencies (such as `admin-sidecar`)
+so the healthy recording upload process remains available. A completion-email
+failure leaves the update degraded even when routing and service health pass.
 
 After the server update succeeds, smoke-test the production web app as a guest
 in a signed-out browser context with no prior account session. Keep the same

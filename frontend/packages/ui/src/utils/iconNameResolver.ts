@@ -56,6 +56,7 @@ export const ICON_NAME_MAP: Record<string, string> = {
     'events': 'event',
     'finance': 'finance',
     'health': 'heart',
+    'hosting': 'server',
     'images': 'image',
     'models3d': '3dmodels',
     'social_media': 'socialmedia',

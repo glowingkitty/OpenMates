@@ -7,9 +7,14 @@ proxy attempt; domain availability and missing prices are separate outcomes.
 from __future__ import annotations
 
 import asyncio
+from contextlib import contextmanager
+from contextvars import ContextVar
 import json
+import logging
 import math
 import os
+import re
+from threading import Lock
 from dataclasses import dataclass, field
 from typing import Any, Callable
 from urllib.parse import quote, urlencode
@@ -33,6 +38,67 @@ SUPPORTED_CURRENCIES = frozenset({"EUR", "USD"})
 MAX_RESULTS = 40
 _MAX_BODY_BYTES = 512_000
 _MAX_EVENTS = 160
+_LOG_CONTEXT: ContextVar[str | None] = ContextVar("gandi_request_path", default=None)
+_LOG_FACTORY_LOCK = Lock()
+_LOG_STATUS = re.compile(r"\b(?:status(?:_code)?[=: ]+|HTTP/[12](?:\.\d)?['\", ]+)([1-5][0-9]{2})\b")
+
+
+def _install_log_redaction() -> None:
+    """Sanitize library records before any handler, including CI capture, sees them."""
+    with _LOG_FACTORY_LOCK:
+        previous = logging.getLogRecordFactory()
+        if getattr(previous, "_gandi_url_redaction", False):
+            return
+
+        def make_record(*args: Any, **kwargs: Any) -> logging.LogRecord:
+            record = previous(*args, **kwargs)
+            path = _LOG_CONTEXT.get()
+            if path is None or not (record.name == "httpx" or record.name.startswith("httpcore")):
+                return record
+            if (
+                record.name == "httpx"
+                and record.msg == 'HTTP Request: %s %s "%s %d %s"'
+                and isinstance(record.args, tuple)
+                and len(record.args) == 5
+                and isinstance(record.args[1], httpx.URL)
+                and record.args[1].scheme in {"http", "https"}
+                and record.args[1].host
+                and record.args[1].host != "shop.gandi.net"
+            ):
+                # Only a recognized request to another origin can bypass this
+                # scope. Originless diagnostics can still contain private data.
+                return record
+            # httpx includes the URL object as an argument; httpcore can place
+            # full URLs, query strings, or exception reprs inside its message.
+            # Build from known safe values rather than trying to scrub every
+            # possible encoding of the private query or proxy credentials.
+            event = "request" if record.name == "httpx" else "transport"
+            status = None
+            if record.name == "httpx" and isinstance(record.args, tuple) and len(record.args) >= 5:
+                value = record.args[3]
+                status = value if isinstance(value, int) and 100 <= value <= 599 else None
+            else:
+                rendered = record.getMessage()
+                match = _LOG_STATUS.search(rendered)
+                status = match.group(1) if match else None
+            record.msg = f"Gandi HTTP {event}: GET {_ORIGIN}{path}" + (f" status={status}" if status else "")
+            record.args = ()
+            record.exc_info = None
+            record.exc_text = None
+            record.stack_info = None
+            return record
+
+        make_record._gandi_url_redaction = True  # type: ignore[attr-defined]
+        logging.setLogRecordFactory(make_record)
+
+
+@contextmanager
+def _request_log_context(endpoint: str):
+    token = _LOG_CONTEXT.set(f"/api/v5/suggest/{endpoint}")
+    try:
+        yield
+    finally:
+        _LOG_CONTEXT.reset(token)
 
 
 class _ProviderFailure(Exception):
@@ -191,6 +257,7 @@ class GandiClient:
     """Async shop client. Pass the application's SecretsManager for Vault fallback."""
 
     def __init__(self, secrets_manager: Any = None, *, client_factory: Callable[..., httpx.AsyncClient] | None = None):
+        _install_log_redaction()
         self._secrets_manager = secrets_manager
         self._client_factory = client_factory or (lambda **kwargs: create_http_client("gandi", **kwargs))
 
@@ -255,8 +322,9 @@ class GandiClient:
             if attempt and proxy is None:
                 break
             try:
-                async with self._client(proxy) as client:
-                    body = await self._read_json(client, params)
+                with _request_log_context("lookup"):
+                    async with self._client(proxy) as client:
+                        body = await self._read_json(client, params)
                 body_ascii, _ = _fqdn(body["fqdn"])
                 if body_ascii != ascii_name:
                     raise _ProviderFailure("malformed_response", fallback=True)
@@ -442,25 +510,26 @@ class GandiClient:
             seen: set[str] = set()
             failure: _ProviderFailure | None = None
             try:
-                async with self._client(proxy) as client:
-                    for page_number in (1, 2):
-                        params: dict[str, Any] = {
-                            "search": query, "currency": currency, "country": country, "grid": "A",
-                            "lang": lang, "page": page_number, "per_page": min(20, max_results),
-                            "source": "shop", "lock_sentence": "false", "phases": "golive",
-                        }
-                        if tld:
-                            params["tlds"] = tld
-                        page = await self._search_page(client, params, currency, country, output.checked_at, tld)
-                        for item in page.results:
-                            if item.domain_ascii not in seen:
-                                seen.add(item.domain_ascii)
-                                results.append(item)
-                        if page.failure:
-                            failure = page.failure
-                            break
-                        if len(results) >= max_results or not page.next_page:
-                            break
+                with _request_log_context("suggest"):
+                    async with self._client(proxy) as client:
+                        for page_number in (1, 2):
+                            params: dict[str, Any] = {
+                                "search": query, "currency": currency, "country": country, "grid": "A",
+                                "lang": lang, "page": page_number, "per_page": min(20, max_results),
+                                "source": "shop", "lock_sentence": "false", "phases": "golive",
+                            }
+                            if tld:
+                                params["tlds"] = tld
+                            page = await self._search_page(client, params, currency, country, output.checked_at, tld)
+                            for item in page.results:
+                                if item.domain_ascii not in seen:
+                                    seen.add(item.domain_ascii)
+                                    results.append(item)
+                            if page.failure:
+                                failure = page.failure
+                                break
+                            if len(results) >= max_results or not page.next_page:
+                                break
             except httpx.HTTPError:
                 failure = _ProviderFailure("network_timeout", fallback=True)
             except Exception:

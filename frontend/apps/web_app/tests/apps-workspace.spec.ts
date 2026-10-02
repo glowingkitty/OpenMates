@@ -2,7 +2,7 @@
 /** Browser contracts for public Apps navigation, schema forms, and guest admission. */
 export {};
 const { expect, test } = require('./helpers/cookie-audit');
-const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+const { loginToTestAccount, submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
 const { deriveApiUrl } = require('./helpers/cli-test-helpers');
 const { getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
 
@@ -77,6 +77,73 @@ async function assertProfileInHeader(page: any): Promise<void> {
 }
 
 test.describe('Apps workspace', () => {
+  // contract-test: direct surface=gui.web assertions=apps.discovery.public-catalog,apps.navigation.hash-and-forwarding,apps.presentation.shared-detail-and-recency,workspace-shell.start.shared-affordances
+  test('Show all replaces the home with the shared searchable grid and restores it after app close', async ({ page }: { page: any }) => {
+    test.setTimeout(90000);
+    for (const width of [1180, 390]) {
+      await page.setViewportSize({ width, height: 844 });
+      await page.goto(getE2EDebugUrl('/#apps/all'), { waitUntil: 'domcontentloaded' });
+      const grid = page.getByTestId('apps-all-items-grid');
+      await expect(grid).toBeVisible({ timeout: 30000 });
+      await expect(page.getByTestId('apps-all-items-toolbar')).toBeVisible();
+      await page.getByTestId('apps-back-to-recent').click();
+      await expect.poll(() => appHash(page)).toBe('#apps');
+      await expect(page.getByTestId('apps-daily-inspiration-area')).toBeVisible();
+      const homeCard = page.getByTestId('apps-app-card').getByTestId('app-store-card').filter({ hasText: /Web/i }).first();
+      await expect(homeCard).toBeVisible();
+      if (width === 1180) await expect(homeCard).toHaveCSS('height', '129px');
+      else await expect(homeCard).toHaveCSS('height', '44px');
+
+      await page.getByTestId('apps-show-all').click();
+      await expect.poll(() => appHash(page)).toBe('#apps/all');
+      await expect(grid).toBeVisible();
+      await expect(grid).toHaveCSS('display', 'grid');
+      await expect(page.getByTestId('apps-daily-inspiration-area')).toHaveCount(0);
+      await expect(page.getByTestId('apps-home-apps')).toHaveCount(0);
+      await expect(page.getByRole('heading', { name: 'What app do you want to use?' })).toHaveCount(0);
+      await expect(page.locator('.workspace-composer-slot, .ProseMirror, textarea')).toHaveCount(0);
+      await expect(page.getByTestId('apps-search')).toHaveText('Search');
+      await page.getByTestId('apps-search').click();
+      const controls = page.getByTestId('apps-catalog-controls');
+      const search = controls.getByRole('textbox');
+      await expect(search).toBeFocused();
+      await search.fill('Brave');
+      const web = grid.locator('[data-app-id="web"]');
+      await expect(web).toBeVisible();
+      await expect(web).toHaveClass(/app-store-card/);
+      await expect(web.getByTestId('app-card-name')).toHaveCSS('text-align', 'left');
+      await expect(grid.locator('[data-app-id="health"]')).toHaveCount(0);
+      await search.fill('no-app-matches-this-query-7295');
+      await expect(grid.getByTestId('apps-all-item')).toHaveCount(0);
+      await expect(page.getByTestId('apps-all-items-empty')).toHaveText(/No apps found/i);
+      await search.fill('');
+      await controls.getByRole('combobox', { name: 'Sort', exact: true }).selectOption('name_asc');
+      const names = await grid.getByTestId('app-card-name').allTextContents();
+      expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b)));
+      await expect(grid.locator('[data-app-id="weather"]')).toHaveCount(1);
+      await controls.getByRole('combobox', { name: 'Filter', exact: true }).selectOption('focus_modes');
+      await expect(web).toBeVisible();
+      await expect(grid.locator('[data-app-id="health"]')).toHaveCount(1);
+      await expect(grid.locator('[data-app-id="weather"]')).toHaveCount(0);
+      await web.click();
+      await expect.poll(() => appHash(page)).toBe('#apps/web');
+      await expect(page.getByTestId('apps-detail-fullscreen')).toBeVisible();
+      await page.getByTestId('apps-detail-close').click();
+      await expect.poll(() => appHash(page)).toBe('#apps/all');
+      await expect(grid).toBeVisible();
+      await expect(controls.getByRole('combobox', { name: 'Filter', exact: true })).toHaveValue('focus_modes');
+      await page.getByTestId('apps-back-to-recent').click();
+      await expect.poll(() => appHash(page)).toBe('#apps');
+      await expect(homeCard).toBeVisible();
+      await page.goBack();
+      await expect.poll(() => appHash(page)).toBe('#apps/all');
+      await expect(grid).toBeVisible();
+      await page.goForward();
+      await expect.poll(() => appHash(page)).toBe('#apps');
+      await expect(page.getByTestId('apps-home-apps')).toBeVisible();
+    }
+  });
+
   // contract-test: direct surface=gui.web assertions=apps.discovery.public-catalog,apps.navigation.hash-and-forwarding
   test('guest browses the app and compact skill URL, then Back, Forward, and close restore the parent', async ({ page }: { page: any }) => {
     test.setTimeout(90000);
@@ -136,6 +203,20 @@ test.describe('Apps workspace', () => {
     await page.getByTestId('icon-button-close').click();
     await expect(page.getByTestId('settings-menu')).not.toBeVisible();
 
+    for (const width of [390, 320]) {
+      await page.setViewportSize({ width, height: 844 });
+      const selector = page.getByTestId('workspace-mobile-select');
+      const login = page.getByTestId('header-login-signup-btn');
+      await expect(login).toBeVisible();
+      await expect(login.locator('.login-signup-icon')).toBeVisible();
+      const selectorBounds = await selector.boundingBox();
+      const loginBounds = await login.boundingBox();
+      const profileBounds = await page.getByTestId('profile-container').boundingBox();
+      expect(selectorBounds.x + selectorBounds.width).toBeLessThanOrEqual(loginBounds.x);
+      expect(loginBounds.x + loginBounds.width).toBeLessThanOrEqual(profileBounds.x);
+    }
+    await page.setViewportSize({ width: 1440, height: 1000 });
+
     // Keep this endpoint real: fixtures cannot prove deployed CORS admission.
     const details = page.waitForResponse((response: any) => response.url().includes('/v1/apps/web/skills/search/details') && response.request().method() === 'GET');
     await page.getByTestId('apps-nav-link').click();
@@ -144,6 +225,11 @@ test.describe('Apps workspace', () => {
     await expect(page.getByTestId('apps-skill-form')).toBeVisible({ timeout: 30000 });
     await assertProfileInHeader(page);
     await expect(page.getByText('The skill details could not be loaded.', { exact: true })).toHaveCount(0);
+    await expect(page.getByTestId('apps-skill-context-details')).toHaveCount(0);
+    await page.getByTestId('apps-skill-context-toggle').click();
+    await expect(page.getByTestId('apps-skill-context-details')).toBeVisible();
+    await page.getByTestId('apps-skill-context-toggle').click();
+    await expect(page.getByTestId('apps-skill-context-details')).toHaveCount(0);
     const hero = page.getByTestId('apps-hero-icon');
     await expect(hero).toHaveAttribute('aria-hidden', 'true');
     await expect(hero).toHaveCSS('pointer-events', 'none');
@@ -161,11 +247,56 @@ test.describe('Apps workspace', () => {
     expect(appHash(page)).not.toMatch(/^#apps/);
   });
 
-  // contract-test: direct surface=gui.web assertions=apps.navigation.hash-and-forwarding,workspace-shell.nav.released-surfaces-visible
-  test('authenticated header stays aligned and Chats exits Apps on desktop and mobile', async ({ page }: { page: any }) => {
+  // contract-test: direct surface=gui.web assertions=apps.navigation.hash-and-forwarding,apps.forms.metadata-driven,apps.execution.direct-shared-contract,apps.results.web-retained-graph,workspace-shell.nav.released-surfaces-visible
+  test('login from a skill preserves its route and input, then Chats exits Apps on desktop and mobile', async ({ page }: { page: any }) => {
     test.setTimeout(180000);
     test.skip(!getTestAccount().email, 'Test account credentials required.');
-    await loginToTestAccount(page, () => {}, async () => {});
+    const credentials = getTestAccount();
+    await fixtureSkillDetails(page, {
+      app_id: 'web', skill_id: 'search', name: 'Search web',
+      primary_fields: ['query'], anonymous_allowed: false,
+    });
+    await page.goto(getE2EDebugUrl('/#apps/web/search&tab=overview'), { waitUntil: 'domcontentloaded' });
+    const initialUrl = page.url();
+    const query = page.getByTestId('apps-skill-form').getByRole('textbox', { name: 'Query' });
+    await expect(query).toBeVisible({ timeout: 30000 });
+    await query.fill('gpt 6 astra');
+    await page.evaluate(() => { (window as Window & { appsLoginDocument?: string }).appsLoginDocument = 'same-document'; });
+    await page.getByTestId('apps-skill-signup').click();
+    await expect(page.locator('.apps-auth-layer')).toBeVisible();
+    await page.getByTestId('tab-login').click();
+    await page.getByTestId('login-email-input').fill(credentials.email);
+    if (!await page.locator('#stayLoggedIn').isChecked()) {
+      await page.locator('label.toggle[for="stayLoggedIn"], label.toggle:has(#stayLoggedIn)').click();
+    }
+    await expect(page.getByTestId('login-continue-button')).toBeEnabled();
+    await page.getByTestId('login-continue-button').click();
+    await expect(page.getByTestId('login-password-input')).toBeVisible({ timeout: 15000 });
+    await page.getByTestId('login-password-input').fill(credentials.password);
+    await submitPasswordAndHandleOtp(page, credentials.otpKey);
+    await expect(page.locator('.apps-route')).toHaveAttribute('data-authenticated', 'true');
+    await expect(page.locator('.apps-auth-layer')).toHaveCount(0);
+    await expect(page.getByTestId('header-login-signup-btn')).toBeHidden();
+    expect(page.url()).toBe(initialUrl);
+    expect(await page.evaluate(() => (window as Window & { appsLoginDocument?: string }).appsLoginDocument)).toBe('same-document');
+    await expect(query).toHaveValue('gpt 6 astra');
+    await expect(page.getByTestId('apps-skill-submit')).toBeVisible();
+    // Exercise the retained request immediately after login, before visiting
+    // another route or reloading to fill in any missing session state.
+    let skillPosts = 0;
+    await page.route('**/v1/apps/web/skills/search', (request: any) => {
+      skillPosts += 1;
+      expect(request.request().postDataJSON().query).toBe('gpt 6 astra');
+      return request.fulfill({ json: { success: true, data: { results: [{ id: 'request-1', results: [{
+        title: 'Saved search after login', url: 'https://example.test/apps/login-return',
+        description: 'Safe result fixture after authentication.',
+      }] }] } } });
+    });
+    await page.getByTestId('apps-skill-submit').click();
+    await expect(page.getByTestId('apps-result-fullscreen')).toBeVisible({ timeout: 30000 });
+    expect(skillPosts).toBe(1);
+    await expect(page.getByText('The request could not finish. You can try again.', { exact: true })).toHaveCount(0);
+    await page.getByTestId('apps-result-fullscreen').getByTestId('embed-minimize').click();
     for (const width of [1440, 390]) {
       await page.setViewportSize({ width, height: 1000 });
       if (width === 1440) await page.getByTestId('apps-nav-link').click();
@@ -196,6 +327,55 @@ test.describe('Apps workspace', () => {
       await page.goForward();
       await expect(page.getByTestId('apps-workspace')).toHaveCount(0);
       expect(appHash(page)).not.toMatch(/^#apps/);
+    }
+  });
+
+  // contract-test: direct surface=gui.web assertions=apps.presentation.shared-detail-and-recency,workspace-shell.start.chat-visual-parity
+  test('Apps keeps the shared outer gutters and settings gap at desktop and phone widths', async ({ page }: { page: any }) => {
+    for (const width of [1440, 390]) {
+      await page.setViewportSize({ width, height: 1000 });
+      await page.goto(getE2EDebugUrl('/#apps/web/search'), { waitUntil: 'domcontentloaded' });
+      const fullscreen = page.getByTestId('apps-detail-fullscreen');
+      await expect(fullscreen).toBeVisible({ timeout: 30000 });
+      const main = page.locator('.apps-route-body > main');
+      const header = await page.getByTestId('global-header').boundingBox();
+      const bounds = await main.boundingBox();
+      const geometry = await main.evaluate((element: Element) => ({
+        scrollX: window.scrollX,
+        viewportWidth: window.innerWidth,
+        documentWidth: document.documentElement.scrollWidth,
+        ancestors: [element, element.parentElement, element.closest('.apps-route'), document.body].map(node => {
+          const box = node.getBoundingClientRect();
+          const style = getComputedStyle(node);
+          return { className: node.className, x: box.x, width: box.width, position: style.position, transform: style.transform,
+            scrollLeft: node.scrollLeft, scrollWidth: node.scrollWidth, clientWidth: node.clientWidth, overflowX: style.overflowX };
+        }),
+      }));
+      await test.info().attach(`apps-layout-${width}`, { body: JSON.stringify(geometry), contentType: 'application/json' });
+      expect(bounds.x).toBeCloseTo(10, 0);
+      expect(bounds.y).toBeCloseTo(header.y + header.height + 10, 0);
+      expect(width - bounds.x - bounds.width).toBeCloseTo(width === 1440 ? 20 : 10, 0);
+      expect(1000 - bounds.y - bounds.height).toBeCloseTo(10, 0);
+      await page.getByTestId('embed-report-issue-button').click();
+      const settings = page.getByTestId('settings-menu');
+      await expect(settings).toBeVisible();
+      await expect(settings).toHaveCSS('width', '323px');
+      await settings.evaluate(async (element: Element) => {
+        await Promise.all(element.getAnimations().map(animation => animation.finished.catch(() => {})));
+      });
+      const panel = await settings.boundingBox();
+      expect(width - panel.x - panel.width).toBeCloseTo(width === 1440 ? 20 : 10, 0);
+      if (width === 1440) {
+        const narrowed = await main.boundingBox();
+        expect(panel.x - narrowed.x - narrowed.width).toBeCloseTo(20, 0);
+        expect(panel.y).toBeCloseTo(narrowed.y, 0);
+        expect(narrowed.x).toBeCloseTo(10, 0);
+      }
+      const screenshot = test.info().outputPath(`apps-settings-gutters-${width}.png`);
+      await page.screenshot({ path: screenshot, animations: 'disabled' });
+      await test.info().attach(`apps-settings-gutters-${width}`, { path: screenshot, contentType: 'image/png' });
+      await page.getByTestId('icon-button-close').click();
+      await expect(settings).not.toBeVisible();
     }
   });
 

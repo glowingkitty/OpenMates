@@ -185,7 +185,10 @@
         }
 
         logger.debug('Initializing map...');
-        
+
+        // The search input is usable during the intro animation. Keep a query
+        // typed before the map is ready when cleanup resets the map state.
+        const pendingSearch = searchQuery.trim();
         cleanupMap();
         
         L = (await import('leaflet')).default;
@@ -332,10 +335,17 @@
                 }
             });
 
+            const activeSearch = searchQuery.trim() || pendingSearch;
             if (hasInitialCoordinates && currentLocation) {
                 mapCenter = { ...currentLocation };
                 void reverseGeocode(currentLocation.lat, currentLocation.lon);
-            } else if (initialLocationText.trim()) {
+            }
+            if (activeSearch) {
+                if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+                searchDebounceTimer = null;
+                searchQuery = activeSearch;
+                void searchLocations(activeSearch);
+            } else if (!hasInitialCoordinates && initialLocationText.trim()) {
                 searchQuery = initialLocationText.trim();
                 void searchLocations(searchQuery, true);
             }
@@ -343,8 +353,11 @@
     }
 
     function onTransitionEnd() {
+        // Child slide transitions also emit introend. Reinitializing for one of
+        // those transitions clears an in-progress location search.
+        if (isTransitionComplete) return;
         isTransitionComplete = true;
-        initializeMap();
+        void initializeMap();
     }
 
     function cleanupMap() {

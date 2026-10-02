@@ -12,6 +12,7 @@ import fnmatch
 import glob as glob_mod
 import hashlib
 import html
+import io
 import json
 import os
 import re
@@ -206,6 +207,9 @@ WORKTREE_ROOT_HANDOFF_DENIED_PREFIXES = (".git/", "logs/nightly-reports/")
 WORKTREE_CHECKPOINT_LOCKS_DIR = CONTROL_PLANE_ROOT / ".claude" / "checkpoint-locks"
 WORKTREE_RECONCILIATION_REPORT = CONTROL_PLANE_ROOT / "logs" / "nightly-reports" / "worktree-reconciliation.json"
 WORKTREE_ORPHAN_RECOVERY_DIR = CONTROL_PLANE_ROOT.parent / ".openmates-worktree-recovery"
+WORKTREE_EXPIRY_ARCHIVE_DIR = WORKTREE_ORPHAN_RECOVERY_DIR / "expired-worktrees"
+WORKTREE_EXPIRY_LOCK_FILE = CONTROL_PLANE_ROOT / ".claude" / "worktree-expiry.lock"
+_WORKTREE_EXPIRY_THREAD_LOCK = threading.Lock()
 DEFAULT_REPO_ID = "openmates"
 OPENMATESCLOUD_REPO_ID = "openmatescloud"
 OPENMATESCLOUD_REPO_ROOT = (CONTROL_PLANE_ROOT.parent / "OpenMatesCloud").resolve()
@@ -4386,10 +4390,10 @@ def _hard_expiry_record_is_live(
 ) -> bool:
     """Protect active work, without treating a stale task binding as a lease."""
     session_id = str(record.get("session_id") or "")
-    session = record.get("session") if isinstance(record.get("session"), dict) else {}
-    if not session and session_id:
-        current = data.get("sessions", {}).get(session_id)
-        session = current if isinstance(current, dict) else {}
+    current = data.get("sessions", {}).get(session_id)
+    session = current if isinstance(current, dict) else (
+        record.get("session") if isinstance(record.get("session"), dict) else {}
+    )
     if not session:
         return False
     if session.get("writing"):
@@ -4415,6 +4419,27 @@ def _hard_expiry_record_is_live(
     return now_timestamp - last_active_timestamp < idle_hours * 3600
 
 
+WORKTREE_EXPIRY_REPRODUCIBLE_DIRS = frozenset({
+    "node_modules", ".venv", "venv", "__pycache__", ".pytest_cache",
+    ".mypy_cache", ".ruff_cache", ".svelte-kit", ".next", ".turbo",
+})
+
+
+def _expiry_sha256_stream(stream: Any) -> str:
+    digest = hashlib.sha256()
+    for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+        digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _expiry_ignored_roots(path: Path) -> list[str]:
+    output = subprocess.run(
+        ["git", "ls-files", "--others", "--ignored", "--exclude-standard", "--directory", "-z"],
+        cwd=path, capture_output=True, check=True, timeout=120,
+    ).stdout
+    return [os.fsdecode(name).rstrip("/") for name in output.split(b"\0") if name]
+
+
 def _hard_expiry_record_is_safely_disposable(record: dict) -> tuple[bool, str]:
     """Require proof that an aged worktree contains no unrecoverable work."""
     path = Path(str(record.get("path") or ""))
@@ -4424,7 +4449,14 @@ def _hard_expiry_record_is_safely_disposable(record: dict) -> tuple[bool, str]:
     try:
         if _candidate_changed_files(path, metadata):
             return False, "unique_changes"
-    except (OSError, RuntimeError, ValueError):
+        if any(
+            Path(name).name not in WORKTREE_EXPIRY_REPRODUCIBLE_DIRS
+            or not (path / name).is_dir()
+            or (path / name).is_symlink()
+            for name in _expiry_ignored_roots(path)
+        ):
+            return False, "unique_ignored_files"
+    except (OSError, RuntimeError, ValueError, subprocess.SubprocessError):
         return False, "inspection_failed"
     rc, head, _stderr = _run_cmd(["git", "rev-parse", "HEAD"], cwd=str(path))
     if rc != 0 or not head.strip():
@@ -4434,6 +4466,159 @@ def _hard_expiry_record_is_safely_disposable(record: dict) -> tuple[bool, str]:
     if not _git_is_ancestor(head.strip(), target_ref):
         return False, "unmerged_head"
     return True, "reachable_clean_head"
+
+
+def _expiry_archive_snapshot(path: Path) -> tuple[str, bytes, bytes, list[dict]]:
+    """Capture source changes and ignored user files, omitting known generated caches."""
+    head = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=path, capture_output=True, check=True, timeout=30
+    ).stdout.decode().strip()
+    staged_patch = subprocess.run(
+        ["git", "diff", "--binary", "--no-ext-diff", "--cached", "HEAD", "--"],
+        cwd=path, capture_output=True, check=True, timeout=120,
+    ).stdout
+    working_patch = subprocess.run(
+        ["git", "diff", "--binary", "--no-ext-diff", "--"],
+        cwd=path, capture_output=True, check=True, timeout=120,
+    ).stdout
+    untracked = subprocess.run(
+        ["git", "ls-files", "--others", "--exclude-standard", "-z"],
+        cwd=path, capture_output=True, check=True, timeout=60,
+    ).stdout
+    names = {os.fsdecode(name) for name in filter(None, untracked.split(b"\0"))}
+    for root_name in _expiry_ignored_roots(path):
+        if not root_name:
+            continue
+        pending = [Path(root_name)]
+        while pending:
+            relative = pending.pop()
+            source = path / relative
+            if source.is_dir() and not source.is_symlink():
+                if relative.name in WORKTREE_EXPIRY_REPRODUCIBLE_DIRS:
+                    continue
+                names.add(relative.as_posix())
+                pending.extend(relative / child.name for child in source.iterdir())
+            else:
+                names.add(relative.as_posix())
+    entries: list[dict] = []
+    for name in sorted(names):
+        relative = Path(name)
+        if relative.is_absolute() or ".." in relative.parts or not relative.parts:
+            raise RuntimeError(f"Unsafe untracked path in expired worktree: {name!r}")
+        source = path / relative
+        if any((path / Path(*relative.parts[:index])).is_symlink() for index in range(1, len(relative.parts))):
+            raise RuntimeError(f"Untracked path crosses a symlink: {name!r}")
+        mode = source.lstat().st_mode
+        if stat.S_ISLNK(mode):
+            target = os.readlink(source)
+            payload = os.fsencode(target)
+            kind = "symlink"
+        elif stat.S_ISREG(mode):
+            with source.open("rb") as source_stream:
+                file_hash = _expiry_sha256_stream(source_stream)
+            kind = "file"
+            entries.append({"path": name, "kind": kind, "sha256": file_hash, "size": source.stat().st_size})
+            continue
+        elif stat.S_ISDIR(mode):
+            payload = b""
+            kind = "directory"
+        else:
+            raise RuntimeError(f"Unsupported untracked file type in expired worktree: {name!r}")
+        entries.append({"path": name, "kind": kind, "sha256": hashlib.sha256(payload).hexdigest(), "size": len(payload)})
+    return head, staged_patch, working_patch, entries
+
+
+def _archive_expired_worktree(record: dict) -> str:
+    """Write and verify a private recovery archive before removing unique work."""
+    path = Path(str(record["path"])).resolve(strict=True)
+    if not (is_valid_managed_worktree_path(path) or _is_integration_worktree_path(path)):
+        raise RuntimeError(f"Refusing to archive unmanaged worktree: {path}")
+    head, staged_patch, working_patch, entries = _expiry_archive_snapshot(path)
+    session = record.get("session") if isinstance(record.get("session"), dict) else {}
+    target_ref = f"{_session_repo_remote(session)}/{_session_repo_branch(session)}"
+    if not _git_is_ancestor(head, target_ref):
+        raise RuntimeError(f"Expired worktree HEAD is not reachable from {target_ref}; bundle required")
+    archive_id = hashlib.sha256(str(path).encode()).hexdigest()[:20]
+    manifest = {
+        "format": 1,
+        "session_id": str(record.get("session_id") or ""),
+        "worktree": str(path),
+        "head": head,
+        "head_reachable_from": target_ref,
+        "staged_patch_sha256": hashlib.sha256(staged_patch).hexdigest(),
+        "working_patch_sha256": hashlib.sha256(working_patch).hexdigest(),
+        "untracked": entries,
+        "restore": "Check out the exact head commit in a new workspace. Apply staged.patch with git apply --index, then working.patch with git apply. Inspect links before extracting untracked/.",
+    }
+    WORKTREE_EXPIRY_ARCHIVE_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
+    WORKTREE_EXPIRY_ARCHIVE_DIR.chmod(0o700)
+    archive = WORKTREE_EXPIRY_ARCHIVE_DIR / f"{path.name}-{archive_id}-{secrets.token_hex(8)}.tar.gz"
+    temporary = archive.with_name(f".{archive.name}.{secrets.token_hex(6)}.tmp")
+    try:
+        with temporary.open("xb") as raw:
+            os.fchmod(raw.fileno(), 0o600)
+            with tarfile.open(fileobj=raw, mode="w:gz", dereference=False) as output:
+                for name, payload in (
+                    ("manifest.json", json.dumps(manifest, sort_keys=True, indent=2).encode()),
+                    ("staged.patch", staged_patch),
+                    ("working.patch", working_patch),
+                ):
+                    info = tarfile.TarInfo(name)
+                    info.size = len(payload)
+                    info.mode = 0o600
+                    output.addfile(info, io.BytesIO(payload))
+                for entry in entries:
+                    output.add(path / entry["path"], arcname=f"untracked/{entry['path']}", recursive=False)
+            raw.flush()
+            os.fsync(raw.fileno())
+        with tarfile.open(temporary, mode="r:gz") as verified:
+            expected = {
+                "manifest.json": hashlib.sha256(json.dumps(manifest, sort_keys=True, indent=2).encode()).hexdigest(),
+                "staged.patch": manifest["staged_patch_sha256"],
+                "working.patch": manifest["working_patch_sha256"],
+            }
+            expected.update({f"untracked/{entry['path']}": entry["sha256"] for entry in entries})
+            actual = {}
+            for member in verified:
+                if member.name not in expected or member.name in actual:
+                    raise RuntimeError("Expired worktree archive has unexpected or duplicate members")
+                if member.issym():
+                    actual[member.name] = hashlib.sha256(os.fsencode(member.linkname)).hexdigest()
+                elif member.isdir():
+                    actual[member.name] = hashlib.sha256(b"").hexdigest()
+                elif member.isfile():
+                    stream = verified.extractfile(member)
+                    if stream is None:
+                        raise RuntimeError("Expired worktree archive member is unreadable")
+                    actual[member.name] = _expiry_sha256_stream(stream)
+                else:
+                    raise RuntimeError("Expired worktree archive contains unsupported member")
+            if actual != expected:
+                raise RuntimeError("Expired worktree archive verification failed")
+        if (head, staged_patch, working_patch, entries) != _expiry_archive_snapshot(path):
+            raise RuntimeError("Expired worktree changed during archive creation")
+        # Link publication is atomic and refuses to overwrite any prior recovery.
+        os.link(temporary, archive)
+        return str(archive)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def _verify_expired_worktree_archive_snapshot(record: dict, archive_path: str) -> None:
+    """Stop deletion if the source changed after its recovery archive was written."""
+    with tarfile.open(archive_path, mode="r:gz") as saved:
+        manifest_stream = saved.extractfile("manifest.json")
+        if manifest_stream is None:
+            raise RuntimeError("Expired worktree recovery archive has no manifest")
+        manifest = json.load(manifest_stream)
+    head, staged_patch, working_patch, entries = _expiry_archive_snapshot(Path(str(record["path"])))
+    if (
+        head != manifest.get("head")
+        or hashlib.sha256(staged_patch).hexdigest() != manifest.get("staged_patch_sha256")
+        or hashlib.sha256(working_patch).hexdigest() != manifest.get("working_patch_sha256")
+        or entries != manifest.get("untracked")
+    ):
+        raise RuntimeError("Expired worktree changed after recovery archive verification")
 
 
 def _remove_expired_worktree_with_container(path: Path) -> None:
@@ -4491,6 +4676,22 @@ def _remove_expired_worktree(record: dict) -> None:
         raise RuntimeError(f"Expired worktree still exists after removal: {path}")
 
 
+def _serialized_worktree_expiry(callback):
+    """Hold one host-wide lock through inventory, archiving, and manifests."""
+    @wraps(callback)
+    def wrapped(*args, **kwargs):
+        with _WORKTREE_EXPIRY_THREAD_LOCK:
+            WORKTREE_EXPIRY_LOCK_FILE.parent.mkdir(parents=True, exist_ok=True)
+            with WORKTREE_EXPIRY_LOCK_FILE.open("a+", encoding="utf-8") as handle:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+                try:
+                    return callback(*args, **kwargs)
+                finally:
+                    fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+    return wrapped
+
+
+@_serialized_worktree_expiry
 def expire_managed_worktrees(
     *,
     max_age_hours: int = WORKTREE_HARD_MAX_AGE_HOURS,
@@ -4523,7 +4724,8 @@ def expire_managed_worktrees(
             continue
         disposable, reason = _hard_expiry_record_is_safely_disposable(record)
         candidate = {**record, "age_hours": age_hours}
-        if disposable:
+        if disposable or reason in {"unique_changes", "unique_ignored_files", "unmerged_head"}:
+            candidate["requires_archive"] = not disposable
             expired.append(candidate)
         else:
             protected_unresolved.append(
@@ -4539,9 +4741,47 @@ def expire_managed_worktrees(
     deleted_records: list[dict] = []
     failures: list[dict] = []
     for record in expired:
+        path = Path(str(record["path"])).resolve(strict=False)
+        deleted_path_set = {Path(str(item["path"])).resolve(strict=False) for item in deleted_records}
+        blocking_children = [
+            child for child in records
+            if (child_path := Path(str(child["path"])).resolve(strict=False)) != path
+            and child_path.is_relative_to(path)
+            and child_path not in deleted_path_set
+        ]
+        if blocking_children:
+            protected_unresolved.append({
+                "session_id": str(record["session_id"]),
+                "path": str(record["path"]),
+                "reason": "nested_worktree_retained",
+            })
+            continue
         try:
+            if _hard_expiry_record_is_live(
+                record, _load_sessions(), now_timestamp=time.time(), idle_hours=max_age_hours
+            ):
+                continue
+            if record.get("requires_archive"):
+                archive_path = _archive_expired_worktree(record)
+                record["recovery_archive"] = archive_path
+
+                def record_archive(data: dict) -> None:
+                    session = data.get("sessions", {}).get(str(record["session_id"]))
+                    if isinstance(session, dict) and isinstance(session.get("worktree"), dict):
+                        session["worktree"]["recovery_archive"] = archive_path
+
+                _mutate_sessions(record_archive)
+                _verify_expired_worktree_archive_snapshot(record, archive_path)
+            else:
+                disposable_now, reason_now = _hard_expiry_record_is_safely_disposable(record)
+                if not disposable_now:
+                    raise RuntimeError(f"Expired worktree changed before removal: {reason_now}")
+            if _hard_expiry_record_is_live(
+                record, _load_sessions(), now_timestamp=time.time(), idle_hours=max_age_hours
+            ):
+                raise RuntimeError("Expired worktree became active before removal")
             _remove_expired_worktree(record)
-        except RuntimeError as exc:
+        except (OSError, RuntimeError, subprocess.SubprocessError) as exc:
             failures.append({"session_id": record["session_id"], "path": record["path"], "error": str(exc)})
             continue
         deleted_records.append(record)
@@ -4590,6 +4830,7 @@ def expire_managed_worktrees(
                     "changed_file_count": len(session.get("modified_files") or []),
                     "head": str(record.get("head") or ""),
                     "target_commit": str(metadata.get("merged_commit") or ""),
+                    "recovery_archive": str(record.get("recovery_archive") or ""),
                     "deleted_at": _now_iso(),
                 }
             )

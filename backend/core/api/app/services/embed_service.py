@@ -6,6 +6,7 @@ import asyncio
 import logging
 import json
 import hashlib
+import math
 import uuid
 import random
 import string
@@ -421,6 +422,10 @@ class EmbedService:
         results: List[Dict[str, Any]],
     ) -> Dict[str, Any]:
         """Return lightweight parent-only preview metadata for composite embeds."""
+        if app_id == "hosting" and skill_id == "search_domains":
+            # Hosting's full checked pool is stored as encrypted children. Its
+            # parent preview needs only a bounded, truthful summary.
+            return EmbedService._hosting_checked_summary(results)
         if app_id == "images" and skill_id == "search":
             preview_results: List[Dict[str, Any]] = []
             preview_fields = (
@@ -488,6 +493,110 @@ class EmbedService:
         if not preview_results:
             return {}
         return {"preview_results": preview_results}
+
+    @staticmethod
+    def _hosting_checked_children(
+        group: Dict[str, Any], selected: List[Dict[str, Any]],
+    ) -> List[Dict[str, Any]]:
+        """Retain checked evidence while reusing LLM-visible selected references."""
+        selected_by_name = {
+            item.get("domain_ascii"): item
+            for item in selected[:20]
+            if isinstance(item, dict) and isinstance(item.get("domain_ascii"), str)
+        }
+        children: List[Dict[str, Any]] = []
+        seen: set[str] = set()
+        for raw in group.get("checked_results", [])[:40]:
+            if not isinstance(raw, dict):
+                continue
+            name = raw.get("domain_ascii")
+            if not isinstance(name, str) or not name or name in seen:
+                continue
+            seen.add(name)
+            child = {**raw, **selected_by_name.get(name, {})}
+            child["type"] = "hosting_domain"
+            children.append(child)
+        return children
+
+    @staticmethod
+    def _hosting_checked_summary(children: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Count checked states and quote only comparable one-year offers."""
+        counts = {state: 0 for state in ("available", "unavailable", "unknown")}
+        available: List[Dict[str, Any]] = []
+        for child in children[:40]:
+            state = child.get("availability")
+            if state not in counts:
+                state = "unknown"
+            counts[state] += 1
+            if state == "available":
+                available.append(child)
+
+        offers: List[Dict[str, Any]] = []
+        for child in available:
+            tiers = child.get("registration_tiers")
+            one_year = next((tier for tier in tiers if isinstance(tier, dict)
+                             and tier.get("unit") in {"year", "y"}
+                             and isinstance(tier.get("duration_range"), dict)
+                             and tier["duration_range"].get("minimum") == 1
+                             and (tier["duration_range"].get("maximum") is None
+                                  or isinstance(tier["duration_range"].get("maximum"), int)
+                                  and tier["duration_range"]["maximum"] >= 1)), None) if isinstance(tiers, list) else None
+            if one_year is None:
+                offers = []
+                break
+            offers.append({"currency": child.get("currency"), "tier": one_year})
+
+        quote = None
+        if offers and len({offer["currency"] for offer in offers}) == 1:
+            for field, basis in (("price_including_tax", "including"), ("price_excluding_tax", "excluding")):
+                amounts = [offer["tier"].get(field) for offer in offers]
+                if all(isinstance(amount, (int, float)) and not isinstance(amount, bool)
+                       and math.isfinite(amount) and amount > 0 for amount in amounts):
+                    quote = {"amount": min(amounts), "currency": offers[0]["currency"],
+                             "tax_basis": basis, "unit": "year", "duration": 1}
+                    break
+        return {"checked_count": len(children), "available_count": counts["available"],
+                "unavailable_count": counts["unavailable"], "unknown_count": counts["unknown"],
+                "preview_starting_registration": quote}
+
+    @staticmethod
+    def _hosting_parent_metadata(
+        group: Dict[str, Any], children: List[Dict[str, Any]],
+        child_ids: List[str], request_metadata: Optional[Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        """Build the encrypted per-group selection and diagnostic contract."""
+        request_metadata = request_metadata or {}
+        requested_limit = request_metadata.get("max_results", 10)
+        max_results = requested_limit if isinstance(requested_limit, int) and not isinstance(requested_limit, bool) and 1 <= requested_limit <= 20 else 10
+        policy = request_metadata.get("availability", "prefer_available")
+        if policy not in {"prefer_available", "available_only", "all"}:
+            policy = "prefer_available"
+        ids_by_name = {child["domain_ascii"]: child_id for child, child_id in zip(children, child_ids)}
+        selected_ids = []
+        for selected in group.get("results", [])[:max_results]:
+            if not isinstance(selected, dict):
+                continue
+            child_id = ids_by_name.get(selected.get("domain_ascii"))
+            if child_id and child_id not in selected_ids:
+                selected_ids.append(child_id)
+        summary = EmbedService._hosting_checked_summary(children)
+        selected_names = {child_id for child_id in selected_ids}
+        selected_children = [child for child, child_id in zip(children, child_ids) if child_id in selected_names]
+        summary["preview_starting_registration"] = EmbedService._hosting_checked_summary(
+            selected_children,
+        )["preview_starting_registration"]
+        return {
+            "id": group.get("id"), "query": group.get("query") or request_metadata.get("query", ""),
+            "provider": "Gandi", "country": group.get("country") or request_metadata.get("country", "DE"),
+            "currency": group.get("currency") or request_metadata.get("currency", "EUR"),
+            "checked_at": group.get("checked_at"), "partial": bool(group.get("partial")),
+            "warnings": [warning for warning in group.get("warnings", []) if isinstance(warning, str)],
+            "error": group.get("error") if isinstance(group.get("error"), str) else None,
+            "availability": policy, "max_results": max_results,
+            "result_count": len(selected_ids), "embed_ids": child_ids,
+            "selected_embed_ids": selected_ids,
+            **summary,
+        }
 
     @staticmethod
     def _parent_preview_fields_for(app_id: str, skill_id: str) -> Tuple[str, ...]:
@@ -4530,6 +4639,7 @@ class EmbedService:
         ("tasks", "search"): "task",
         ("workflows", "create-or-modify"): "workflow",
         ("workflows", "search"): "workflow",
+        ("hosting", "search_domains"): "hosting_domain",
     }
 
     @staticmethod
@@ -5079,6 +5189,7 @@ class EmbedService:
         log_prefix: str = "",
         request_metadata: Optional[Dict[str, Any]] = None,
         learning_mode_context: Optional[Dict[str, Any]] = None,
+        hosting_group: Optional[Dict[str, Any]] = None,
     ) -> Optional[Dict[str, Any]]:
         """
         Update an existing "processing" embed with actual skill results.
@@ -5111,7 +5222,9 @@ class EmbedService:
             - status: "finished" or "error"
             None if update fails
         """
-        if not results or len(results) == 0:
+        hosting_graph = app_id == "hosting" and skill_id == "search_domains" and isinstance(hosting_group, dict)
+        embed_results = EmbedService._hosting_checked_children(hosting_group, results) if hosting_graph else results
+        if not embed_results:
             # CRITICAL FIX: Finalize the placeholder with 0 results instead of abandoning it.
             # Without this, placeholders stay stuck at status=processing forever, causing the
             # frontend to show an infinite "Processing..." shimmer. The skill completed
@@ -5131,6 +5244,7 @@ class EmbedService:
                     task_id=task_id,
                     log_prefix=log_prefix,
                     request_metadata=request_metadata,
+                    hosting_group=hosting_group if hosting_graph else None,
                 )
             except Exception as e:
                 logger.error(f"{log_prefix} Error finalizing 0-result embed {embed_id}: {e}", exc_info=True)
@@ -5166,7 +5280,7 @@ class EmbedService:
                 logger.warning(f"{log_prefix} Could not retrieve original embed metadata for {embed_id} and no request_metadata provided")
 
             if is_composite:
-                for result in results:
+                for result in embed_results:
                     # Determine per-result child type (may override default for YouTube URLs in web search)
                     child_type = EmbedService._get_per_result_child_type(
                         default_child_type, result, app_id, skill_id
@@ -5201,7 +5315,8 @@ class EmbedService:
                     )
                     if "embed_ref" in result_for_embed:
                         child_embed_ref = result_for_embed["embed_ref"]
-                        logger.debug(f"{log_prefix} Reusing pre-generated embed_ref '{child_embed_ref}' for child embed")
+                        logger.debug(f"{log_prefix} Reusing pre-generated embed_ref for child embed" if hosting_graph
+                                     else f"{log_prefix} Reusing pre-generated embed_ref '{child_embed_ref}' for child embed")
                     else:
                         child_embed_ref = self._generate_embed_ref_slug(child_type, enriched_result)
                         result_for_embed["embed_ref"] = child_embed_ref
@@ -5212,9 +5327,11 @@ class EmbedService:
                     # the child result dict only contains flight/event fields, not app metadata.
                     result_for_embed["app_id"] = app_id
                     result_for_embed["skill_id"] = skill_id
+                    if hosting_graph:
+                        result_for_embed["type"] = "hosting_domain"
 
                     # Convert result to TOON format (PLAINTEXT)
-                    flattened_result = _flatten_for_toon_tabular(result_for_embed)
+                    flattened_result = result_for_embed if hosting_graph else _flatten_for_toon_tabular(result_for_embed)
                     
                     # DEBUG: Log the result AFTER flattening to see if thumbnail_original/meta_url_favicon exist
                     logger.info(
@@ -5298,6 +5415,10 @@ class EmbedService:
                     **original_metadata,  # Preserve query, provider, url, etc. from placeholder
                     **EmbedService._build_parent_preview_metadata(app_id, skill_id, results),
                 }
+                if hosting_graph:
+                    parent_content.update(EmbedService._hosting_parent_metadata(
+                        hosting_group, embed_results, child_embed_ids, original_metadata,
+                    ))
                 parent_content = EmbedService._sanitize_final_app_skill_content(app_id, skill_id, parent_content)
                 
                 # Log final parent content to verify query is included
@@ -5310,7 +5431,7 @@ class EmbedService:
                 )
 
                 # Convert to TOON (PLAINTEXT)
-                flattened_parent = _flatten_for_toon_tabular(parent_content)
+                flattened_parent = parent_content if hosting_graph else _flatten_for_toon_tabular(parent_content)
                 parent_content_toon = EmbedService._sanitize_finance_check_accounts_toon(encode(flattened_parent))
 
                 # Calculate text length for parent embed
@@ -5949,6 +6070,7 @@ class EmbedService:
         log_prefix: str = "",
         request_metadata: Optional[Dict[str, Any]] = None,
         learning_mode_context: Optional[Dict[str, Any]] = None,
+        hosting_group: Optional[Dict[str, Any]] = None,
     ) -> Optional[Dict[str, Any]]:
         """
         Create embeds from skill results immediately after skill execution.
@@ -5979,11 +6101,14 @@ class EmbedService:
             - child_embed_ids: List of child embed IDs (if composite)
             None if creation fails
         """
-        if not results or len(results) == 0:
+        hosting_graph = app_id == "hosting" and skill_id == "search_domains" and isinstance(hosting_group, dict)
+        embed_results = EmbedService._hosting_checked_children(hosting_group, results) if hosting_graph else results
+        if not embed_results and not hosting_graph:
             logger.warning(f"{log_prefix} No results to create embeds from")
             return None
 
         safe_request_metadata = EmbedService._sanitize_request_metadata(request_metadata)
+        hosting_status = "error" if hosting_graph and not embed_results and hosting_group.get("error") else "finished"
 
         try:
             # Hash sensitive IDs for privacy protection
@@ -6003,7 +6128,7 @@ class EmbedService:
                 # This enables key inheritance: child embeds use parent's encryption key
                 parent_embed_id = str(uuid.uuid4())
                 
-                for result in results:
+                for result in embed_results:
                     # Determine per-result child type (may override default for YouTube URLs in web search)
                     child_type = EmbedService._get_per_result_child_type(
                         default_child_type, result, app_id, skill_id
@@ -6031,7 +6156,8 @@ class EmbedService:
                     )
                     if "embed_ref" in result_for_embed:
                         child_embed_ref = result_for_embed["embed_ref"]
-                        logger.debug(f"{log_prefix} Reusing pre-generated embed_ref '{child_embed_ref}' for child embed")
+                        logger.debug(f"{log_prefix} Reusing pre-generated embed_ref for child embed" if hosting_graph
+                                     else f"{log_prefix} Reusing pre-generated embed_ref '{child_embed_ref}' for child embed")
                     else:
                         child_embed_ref = self._generate_embed_ref_slug(child_type, enriched_result)
                         result_for_embed["embed_ref"] = child_embed_ref
@@ -6042,8 +6168,10 @@ class EmbedService:
                     # the child result dict only contains flight/event fields, not app metadata.
                     result_for_embed["app_id"] = app_id
                     result_for_embed["skill_id"] = skill_id
+                    if hosting_graph:
+                        result_for_embed["type"] = "hosting_domain"
 
-                    flattened_result = _flatten_for_toon_tabular(result_for_embed)
+                    flattened_result = result_for_embed if hosting_graph else _flatten_for_toon_tabular(result_for_embed)
                     content_toon = encode(flattened_result)
                     
                     # Calculate text length for child embed
@@ -6140,10 +6268,15 @@ class EmbedService:
                     for key in ["country", "search_lang", "safesearch", "start_date", "end_date", "time_range", "location"]:
                         if key in safe_request_metadata:
                             parent_content[key] = safe_request_metadata[key]
+                if hosting_graph:
+                    parent_content.update(EmbedService._hosting_parent_metadata(
+                        hosting_group, embed_results, child_embed_ids, safe_request_metadata,
+                    ))
+                    parent_content["status"] = hosting_status
                 parent_content = EmbedService._sanitize_final_app_skill_content(app_id, skill_id, parent_content)
                 
                 # Convert to TOON
-                flattened_parent = _flatten_for_toon_tabular(parent_content)
+                flattened_parent = parent_content if hosting_graph else _flatten_for_toon_tabular(parent_content)
                 parent_content_toon = EmbedService._sanitize_finance_check_accounts_toon(encode(flattened_parent))
                 
                 # Calculate text length for parent embed
@@ -6164,7 +6297,7 @@ class EmbedService:
                     "hashed_chat_id": hashed_chat_id,
                     "hashed_message_id": hashed_message_id,
                     "hashed_task_id": hashed_task_id,
-                    "status": "finished",
+                    "status": hosting_status,
                     "hashed_user_id": user_id_hash,
                     "is_private": False,
                     "is_shared": False,
@@ -6187,7 +6320,7 @@ class EmbedService:
                     message_id=message_id,
                     user_id=user_id,
                     user_id_hash=user_id_hash,
-                    status="finished",
+                    status=hosting_status,
                     task_id=task_id,
                     embed_ids=child_embed_ids,
                     text_length_chars=parent_text_length_chars,
@@ -6368,6 +6501,7 @@ class EmbedService:
         task_id: Optional[str] = None,
         log_prefix: str = "",
         request_metadata: Optional[Dict[str, Any]] = None,
+        hosting_group: Optional[Dict[str, Any]] = None,
     ) -> Optional[Dict[str, Any]]:
         """
         Finalize a processing placeholder embed that received 0 results.
@@ -6388,18 +6522,24 @@ class EmbedService:
         original_metadata = self._merge_request_metadata(original_content, request_metadata)
 
         # Build finished content with 0 results
+        hosting_error = bool(hosting_group and hosting_group.get("error"))
+        final_status = "error" if hosting_error else "finished"
         finished_content = {
             "app_id": app_id,
             "skill_id": skill_id,
             "result_count": 0,
             "embed_ids": [],
-            "status": "finished",
+            "status": final_status,
             **original_metadata,
         }
+        if hosting_group is not None and app_id == "hosting" and skill_id == "search_domains":
+            finished_content.update(EmbedService._hosting_parent_metadata(
+                hosting_group, [], [], original_metadata,
+            ))
         finished_content = EmbedService._sanitize_final_app_skill_content(app_id, skill_id, finished_content)
 
         # Convert to TOON and encrypt
-        flattened = _flatten_for_toon_tabular(finished_content)
+        flattened = finished_content if hosting_group is not None and app_id == "hosting" and skill_id == "search_domains" else _flatten_for_toon_tabular(finished_content)
         content_toon = EmbedService._sanitize_finance_check_accounts_toon(encode(flattened))
         text_length_chars = len(content_toon)
 
@@ -6416,7 +6556,7 @@ class EmbedService:
             "hashed_chat_id": hashed_chat_id,
             "hashed_message_id": hashed_message_id,
             "hashed_task_id": hashed_task_id,
-            "status": "finished",
+            "status": final_status,
             "hashed_user_id": user_id_hash,
             "is_private": False,
             "is_shared": False,
@@ -6437,7 +6577,7 @@ class EmbedService:
             message_id=message_id,
             user_id=user_id,
             user_id_hash=user_id_hash,
-            status="finished",
+            status=final_status,
             task_id=task_id,
             embed_ids=[],
             text_length_chars=text_length_chars,
@@ -6455,15 +6595,12 @@ class EmbedService:
         # Schedule fallback persistence
         self._schedule_embed_persistence_fallback(embed_id)
 
-        logger.info(
-            f"{log_prefix} Finalized embed {embed_id} with 0 results "
-            f"(app={app_id}, skill={skill_id}, query={original_metadata.get('query', 'N/A')})"
-        )
+        logger.info(f"{log_prefix} Finalized embed {embed_id} with 0 results (app={app_id}, skill={skill_id})")
 
         return {
             "embed_id": embed_id,
             "child_embed_ids": [],
-            "status": "finished",
+            "status": final_status,
         }
 
     async def _cache_embed(

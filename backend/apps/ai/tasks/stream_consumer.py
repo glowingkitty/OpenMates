@@ -9595,6 +9595,10 @@ async def _consume_main_processing_stream(
     log_msg_suffix = f"Total chunks: {stream_chunk_count}. Aggregated response length: {len(aggregated_response)}."
     if speech_tracker is not None:
         speech_tracker.observe(aggregated_response, is_final=True)
+        # ElevenLabs generation remains fully asynchronous, but the durable
+        # segment records and Celery handoffs must finish before this task closes
+        # its event loop or the generated reply can be silently abandoned.
+        await speech_tracker.wait_for_handoff()
     stream_error_message_for_log: Optional[str] = None
 
     if was_revoked_during_stream:

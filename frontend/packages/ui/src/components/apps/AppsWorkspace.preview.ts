@@ -12,7 +12,10 @@ const onSettings = (path: string) => window.dispatchEvent(new CustomEvent('apps-
 export default { hash: '#apps', onNavigate, onSignup, onSettings };
 export const layout = 'fill';
 export const variants = {
+  allApps: { hash: '#apps/all', onNavigate, onSignup, onSettings },
+  allFocusApps: { hash: '#apps/all&filter=focus_modes', onNavigate, onSignup, onSettings },
   app: { hash: '#apps/health', onNavigate, onSignup, onSettings },
+  appCode: { hash: '#apps/code', onNavigate, onSignup, onSettings },
   appFocus: { hash: '#apps/health&tab=focus_modes', onNavigate, onSignup, onSettings },
   appMemory: { hash: '#apps/books&tab=settings_memories', onNavigate, onSignup, onSettings },
   skill: { hash: '#apps/web/search', onNavigate, onSignup, onSettings },

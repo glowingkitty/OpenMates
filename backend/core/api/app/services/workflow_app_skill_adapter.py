@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 import hashlib
 import json
 from typing import Any, Awaitable, Callable
@@ -41,6 +42,7 @@ WORKFLOW_RESULT_LIST_SKILLS = frozenset(
         ("fitness", "search_locations"),
         ("fitness", "search_classes"),
         ("health", "search_appointments"),
+        ("hosting", "search_domains"),
         ("images", "search"),
         ("maps", "search"),
         ("models3d", "search"),
@@ -140,6 +142,7 @@ class WorkflowAppSkillAdapter:
             user_id,
         )
         metadata = registry.get_metadata(app_id) if hasattr(registry, "get_metadata") else None
+        _require_workflow_runtime_safe(app_id, skill_id, metadata)
         if billing_context and (app_id, skill_id) != (AI_APP_ID, AI_ASK_SKILL_ID):
             _workflow_usage_source(billing_context)
             _workflow_billing_identity(
@@ -324,7 +327,16 @@ def _prepare_workflow_skill_request(
     request: dict[str, Any],
     user_id: str | None,
 ) -> dict[str, Any]:
+    # BaseApp takes execution context from private request fields. A workflow's
+    # authored input must never supply those fields or replace its owner.
+    request = {
+        key: value for key, value in request.items()
+        if isinstance(key, str) and not key.startswith("_") and key not in {"user_id", "external_request"}
+    }
     if app_id != AI_APP_ID or skill_id != AI_ASK_SKILL_ID:
+        if user_id:
+            request["_user_id"] = user_id
+        request["_external_request"] = True
         return request
     if "messages" in request:
         messages = request.get("messages")
@@ -381,7 +393,28 @@ def _workflow_billing_identity(
 def _find_skill_definition(metadata: Any, skill_id: str) -> Any | None:
     if metadata is None:
         return None
-    return next((skill for skill in (getattr(metadata, "skills", None) or []) if skill.id == skill_id), None)
+    skills = metadata.get("skills", []) if isinstance(metadata, Mapping) else getattr(metadata, "skills", None) or []
+    return next((skill for skill in skills if (skill.get("id") if isinstance(skill, Mapping) else getattr(skill, "id", None)) == skill_id), None)
+
+
+def _require_workflow_runtime_safe(app_id: str, skill_id: str, metadata: Any) -> None:
+    """Reject unsupported execution contracts before provider work or billing."""
+    from backend.core.api.app.services.workflow_capability_registry import (
+        _load_workflow_classifications,
+        workflow_runtime_unavailable_reason,
+    )
+
+    definition = _find_skill_definition(metadata, skill_id)
+    declared = definition.get("workflow") if isinstance(definition, Mapping) else getattr(definition, "workflow", None)
+    if hasattr(declared, "model_dump"):
+        declared = declared.model_dump(mode="json")
+    central = _load_workflow_classifications().get(f"{app_id}.{skill_id}")
+    for workflow in (central, declared):
+        if isinstance(workflow, Mapping) and workflow_runtime_unavailable_reason(workflow):
+            raise WorkflowSkillBillingError(
+                "WORKFLOW_RUNTIME_UNSUPPORTED",
+                "This app skill is unavailable for workflow execution",
+            )
 
 
 async def _precheck_workflow_skill_billing(
@@ -569,6 +602,59 @@ def _normalize_skill_output(
         )
         return output
 
+    if (app_id, skill_id) == ("code", "get_docs"):
+        documentation = raw_output.get("documentation")
+        results = ([{
+            "documentation": documentation,
+            "library": raw_output.get("library"),
+            "word_count": raw_output.get("word_count"),
+            "source": raw_output.get("source"),
+        }] if isinstance(documentation, str) and documentation.strip() else [])
+        output.update({
+            "summary": "Documentation retrieved" if results else "No documentation found",
+            "results": results,
+            "result_count": len(results),
+            "provider": raw_output.get("source"),
+        })
+        return output
+
+    if (app_id, skill_id) == ("openmates", "get-docs"):
+        content = raw_output.get("content")
+        results = ([{
+            field: raw_output.get(field)
+            for field in ("title", "slug", "content", "word_count", "url")
+        }] if isinstance(content, str) and content.strip() and not raw_output.get("error") else [])
+        output.update({
+            "summary": "Documentation retrieved" if results else "Documentation unavailable",
+            "results": results,
+            "result_count": len(results),
+            "provider": "OpenMates",
+        })
+        return output
+
+    if (app_id, skill_id) == ("travel", "get_flight"):
+        succeeded = raw_output.get("success") is True and not raw_output.get("error")
+        flight_number = raw_output.get("flight_number")
+        output.update({
+            "summary": f"Flight {flight_number} retrieved" if succeeded and flight_number else "Flight retrieved" if succeeded else "Flight lookup failed",
+            "results": [dict(raw_output)] if succeeded else [],
+            "result_count": 1 if succeeded else 0,
+            "provider": raw_output.get("data_source"),
+        })
+        return output
+
+    if (app_id, skill_id) == ("weather", "rain_radar"):
+        timeline = [dict(frame) for frame in raw_output.get("timeline", []) if isinstance(frame, dict)]
+        radar_summary = raw_output.get("summary")
+        summary = (radar_summary.get("next_2_hours") or radar_summary.get("in_10_min")) if isinstance(radar_summary, dict) else radar_summary
+        output.update({
+            "summary": summary if isinstance(summary, str) and summary else "Rain radar checked",
+            "results": timeline,
+            "result_count": len(timeline),
+            "provider": raw_output.get("provider"),
+        })
+        return output
+
     if app_id in {"news", "events", "home"} and skill_id == "search":
         requests = request.get("requests") or []
         queries = [item.get("query") for item in requests if isinstance(item, dict) and item.get("query")]
@@ -590,14 +676,31 @@ def _normalize_skill_output(
         from backend.shared.python_utils.website_text import website_read_status
         pages = _search_results(raw_output)
         page = pages[0] if len(pages) == 1 else {}
+        multi_sections = []
+        if len(pages) > 1:
+            for item in pages:
+                markdown = item.get("markdown")
+                if not isinstance(markdown, str) or not markdown.strip():
+                    continue
+                source = item.get("source_url") or item.get("url")
+                multi_sections.append(f"Source: {source}\n\n{markdown}" if isinstance(source, str) and source else markdown)
+        multi_text = "\n\n".join(multi_sections)
+        page_statuses = [website_read_status(item) for item in pages]
+        multi_status = (
+            "usable" if page_statuses and all(status == "usable" for status in page_statuses)
+            else "partial" if any(status == "usable" for status in page_statuses)
+            else "failed"
+        )
         output.update({
-            "text": page.get("markdown") or "",
+            "text": page.get("markdown") or multi_text,
             "source_url": page.get("source_url") or page.get("url") or "",
-            "read_status": website_read_status(page) if page else "failed",
+            "read_status": website_read_status(page) if page else multi_status,
             "has_changed": False, "changes": "", "change_status": "not_tracking",
         })
         for field in ("text", "source_url", "read_status", "has_changed", "changes", "change_status"):
             if field in raw_output:
+                if field == "text" and len(pages) > 1 and not raw_output[field]:
+                    continue
                 output[field] = raw_output[field]
 
     results = raw_output.get("results")
@@ -608,17 +711,23 @@ def _normalize_skill_output(
     )
     artifact_ids = _collect_artifact_ids(raw_output)
     task_ids = _collect_string_values(raw_output, ("task_id", "task_ids", "job_id", "job_ids"))
+    status = raw_output.get("status")
+    pending = isinstance(status, str) and status.lower() in {"processing", "pending", "queued", "rendering"}
     output.update(
         {
-            "summary": raw_output.get("summary") or f"{app_id}:{skill_id} completed",
+            "summary": raw_output.get("summary") or f"{app_id}:{skill_id} {'processing' if pending else 'completed'}",
             "result_count": (
                 len(normalized_results)
                 if normalized_results is not None
-                else len(results) if isinstance(results, list) else None
+                else len(results) if isinstance(results, list)
+                else 1 if (app_id, skill_id) == ("math", "calculate") and raw_output.get("result") is not None
+                else 0 if (app_id, skill_id) == ("math", "calculate") else None
             ),
             "provider": raw_output.get("provider"),
         }
     )
+    if pending:
+        output["pending"] = True
     if normalized_results is not None:
         output["results"] = normalized_results
     for field in WORKFLOW_PASSTHROUGH_FIELDS.get((app_id, skill_id), ()):

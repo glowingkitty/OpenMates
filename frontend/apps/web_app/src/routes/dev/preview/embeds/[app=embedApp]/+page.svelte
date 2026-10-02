@@ -473,6 +473,25 @@
 				quoteText: 'Bio Vollmilch-Joghurt Naturell, 500g, 1,39 EUR.'
 			}
 		],
+		hosting: [
+			{
+				skillLabel: 'Search domains',
+				appId: 'hosting',
+				previewPath: 'embeds/hosting/HostingSearchEmbedPreview',
+				fullscreenPath: 'embeds/hosting/HostingSearchEmbedFullscreen',
+				inlineLinkText: 'cedarcomet domains',
+				quoteText: 'Checked cedarcomet domain availability and registration quotes.',
+				isAppSkill: true
+			},
+			{
+				skillLabel: 'Domain',
+				appId: 'hosting',
+				previewPath: 'embeds/hosting/HostingDomainEmbedPreview',
+				fullscreenPath: 'embeds/hosting/HostingDomainEmbedFullscreen',
+				inlineLinkText: 'cedarcomet.com',
+				quoteText: 'cedarcomet.com is available via Gandi.'
+			}
+		],
 		fitness: [
 			{
 				skillLabel: 'Classes',
@@ -623,6 +642,7 @@
 		mail: 'mail',
 		pdf: 'pdf',
 		shopping: 'shopping',
+		hosting: 'server',
 		fitness: 'fitness',
 		electronics: 'pcbdesign',
 		home: 'home',

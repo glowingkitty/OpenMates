@@ -26,7 +26,7 @@ _AI_RESULT_FIELDS = (
 )
 _EMBED_LINK = re.compile(r"\[([^\]]*)\]\(embed:([^\s)]+)\)")
 _RESULTS_VIEW = re.compile(r"```(?:embeds_results_view|embeds_map_view)\s*\n(.*?)\n?```", re.DOTALL | re.IGNORECASE)
-_PERSISTABLE_RESULT_EMBED_TYPES = {"events": "event", "news": "website", "home": "listing"}
+_PERSISTABLE_RESULT_EMBED_TYPES = {"events": "event", "news": "website", "home": "listing", "hosting": "hosting_domain"}
 
 
 def persistable_result_embed_type(app_id: Any) -> str | None:

@@ -184,6 +184,22 @@ export function parentPreviewProps(
  */
 const resolvers = new Map<string, PreviewResolver>();
 
+resolvers.set("app:hosting:search_domains", async ({ embedId, decodedContent, embedData, onFullscreen }) => {
+  const { default: component } = await import("../components/embeds/hosting/HostingSearchEmbedPreview.svelte");
+  return { component, props: {
+    id: embedId,
+    content: decodedContent,
+    status: normalizeStatus(embedData.status ?? decodedContent.status),
+    isMobile: false,
+    onFullscreen,
+  } };
+});
+
+resolvers.set("hosting-domain", async ({ embedId, decodedContent, onFullscreen }) => {
+  const { default: component } = await import("../components/embeds/hosting/HostingDomainEmbedPreview.svelte");
+  return { component, props: { id: embedId, content: decodedContent, isMobile: false, onFullscreen } };
+});
+
 // ── App-skill-use: web ────────────────────────────────────────────────────────
 
 resolvers.set(

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+# test-file: backend/tests/test_cold_chat_archive_service.py
+
 import logging
 import os # Import os for environment variables
 from typing import Optional, Dict, Any, TYPE_CHECKING
@@ -311,7 +313,10 @@ class BaseServiceTask(DedupedTask):
                 secrets_manager=self._secrets_manager,
                 directus_service=self._directus_service,
             )
-            await self._s3_service.initialize() # S3 service needs init
+            # API startup owns remote bucket and policy reconciliation. Celery
+            # tasks only need clients; repeating control-plane work here can
+            # block unrelated persistence jobs during a provider outage.
+            await self._s3_service.initialize(configure_buckets=False)
             logger.debug(f"S3Service initialized for task {self.request.id}")
         else:
              logger.debug(f"S3Service already initialized for task {self.request.id}")

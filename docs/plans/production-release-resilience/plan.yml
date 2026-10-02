@@ -1,0 +1,219 @@
+schema_version: 2
+id: production-release-resilience
+title: Prevent production and upload deployment regressions
+status: draft
+goal: >-
+  Once we complete the fixing of the prod server issues / upload server issues
+  we must plan out how we prevent such issues from happening again
+  (code changes? Changes to deploy skill?)
+scope:
+  in:
+    - Release tooling, deployment runbooks, runtime readiness, satellite roles and critical journey verification.
+    - A prioritized proposal with observable acceptance checks and remaining operator decisions.
+  out:
+    - Approval to implement every proposed change or change public feature availability.
+    - Raising anonymous quotas, changing guest focus availability or modifying customer data.
+    - Publishing private issue reports, credentials or account identifiers.
+related_tasks:
+  planning: TASK-1695
+  rollout: TASK-4173
+  upload_audio: TASK-79
+  ranking_resilience: TASK-9493
+  # OpenMates Tasks owns status and dependencies; this Plan is not a task ledger.
+protections_already_shipped:
+  - Stable CLI upgrade before updates, immutable release templates and effective CMS cache-setting verification in the production-update skill.
+  - Exact-SHA completed-setup and healthy-infrastructure proof, rechecked before a scoped application update can reuse setup.
+  - Periodic scoped upload credentials, startup validation, renewal and build-time import checks.
+  - Bounded answer-only provider recovery without replaying tools; truthful guest-limit completion and preservation of useful results.
+  - Reconnect inspiration stability and workflow preview, node layout and draft cleanup regressions.
+  - Last-good ranking preservation, invalid-cache fallback, refresh deduplication and explicit worker metrics ports.
+  - Installer-owned private health receipts and focused CLI regression coverage.
+next_changes:
+  - priority: P0
+    title: Enforce a compatible release bundle before mutation
+    owned_paths:
+      - frontend/packages/openmates-cli/src/server.ts
+      - frontend/packages/openmates-cli/src/serverUpdateState.ts
+      - .github/workflows
+      - .claude/skills/update-prod-server/SKILL.md
+    proposal:
+      - Publish a manifest binding image digests, role templates, cloud overlay requirements and supported CLI versions to one immutable source revision.
+      - Upgrade the CLI first, then refuse incompatible versions or mixed templates and images before backup, environment writes or container replacement.
+      - Resolve and validate remote templates and the intended host-routing profile during preflight; a dry run must detect an unavailable template or unsupported migration.
+      - Inventory every configured satellite role and distinguish affected-service updates from intentionally retained services.
+      - Retain a known-good rollback bundle across staged updates; a second stage must not overwrite its only restore point with mixed runtime state.
+    acceptance:
+      - A stale CLI, mismatched template, missing artifact or mutable target fails before runtime state changes.
+      - A staged failure can restore the recorded image/configuration bundle; source identity is based on running containers, not only the environment tag.
+  - priority: P0
+    title: Preserve official upload routing during CLI updates
+    owned_paths:
+      - frontend/packages/openmates-cli/src/serverCaddyUpdate.ts
+      - frontend/packages/openmates-cli/src/server.ts
+      - deployment/upload_server/Caddyfile
+    proposal:
+      - Model an explicit dual-environment upload routing profile separately from core-only official-cloud Compose mode.
+      - Identify matchers by lexical scope and name, preserving valid repeated names inside separate origin handlers.
+      - Preserve production/development Origin gates, trusted X-Target-Env headers, custom host routes and operator edits; reject conflicting changes before container mutation.
+      - Validate the candidate Caddy configuration and verify both origin branches; retain atomic backup and rollback behavior.
+      - Preserve the specific sanitized failed probe and use bounded readiness retries for transient startup failures.
+      - Require the configured first-party origin before probing CORS; never silently use a localhost development origin for production.
+    acceptance:
+      - A fixture matching the existing dual-origin upload layout updates without removing either branch or changing credential selection.
+      - An unknown profile, conflicting operator edit or failed public probe cannot silently report a successful update.
+  - priority: P0
+    title: Gate releases on critical first-party journeys
+    owned_paths:
+      - frontend/apps/web_app/tests
+      - backend/tests
+      - scripts/ci_coordinator.py
+      - .claude/skills/update-prod-server/SKILL.md
+    proposal:
+      - Require signed-in session authority, WebSocket authentication and encrypted phased sync using disposable test accounts.
+      - Exercise real upload service storage, antivirus, scoped credentials and core key wrapping; separately prove recording upload, transcription and chat delivery with approved live inference on dev.
+      - Cover workflow preparation, commit, cancellation and stale authoring-state cleanup.
+      - Cover guest first turn, follow-up, app output, interrupted answer, quota exhaustion, spinner termination and reload persistence with one identity.
+      - Test natural-language focus activation with an authenticated disposable account under the existing product contract.
+      - Run product tests through isolated CI on exact candidate source; keep paid/live inference out of CI and record bounded approved production smoke separately.
+    acceptance:
+      - Public HTTP 200 and container health cannot substitute for authentication, sync, upload/audio or terminal-answer receipts.
+      - Missing journey evidence is explicitly pending; guest caps are never reset or bypassed to manufacture a passing result.
+  - priority: P0
+    title: Make monitoring delivery and runtime checks agree
+    owned_paths:
+      - frontend/packages/openmates-cli/src/serverHealth.ts
+      - backend/core/api/app/services/operational_monitoring.py
+      - backend/core/monitoring
+    proposal:
+      - Reconcile CLI host-environment destination checks with the API/Vault and Alertmanager paths without copying credentials into logs or broadening access.
+      - Distinguish a delivered Alertmanager critical alert from CLI status-report delivery and independent fallback availability.
+      - Verify target count, worker port bindings, alert rules, delivery receipts and resolved notifications after deployment.
+      - Alert on expired/failed credential renewal, upload restart loops, authentication errors, queue age and stale operational data.
+      - Replace internal-container source links in operator messages with a configured accessible monitoring link or omit them.
+    acceptance:
+      - A real bounded delivery test has an acknowledged primary receipt and an independently verified fallback, with no secret in receipts.
+      - Missing configuration, delivery rejection and unreachable metrics are separate actionable states.
+  - priority: P1
+    title: Bound migration and background-work impact
+    owned_paths:
+      - backend/core/directus/setup
+      - backend/shared/python_utils
+      - frontend/packages/openmates-cli/src/server.ts
+    proposal:
+      - Use a schema/setup fingerprint and successful target proof to avoid redundant bootstrap while preserving required migrations.
+      - Keep the existing API serving during compatible setup, then wait for new API readiness before declaring completion.
+      - Move object-storage bucket/ACL reconciliation out of per-task bootstrap; bound timeouts, retries and queue aging.
+      - Audit all generated health and operational-report state writers for installer ownership and atomic replacement.
+    acceptance:
+      - A provider timeout or expired credential produces bounded retries without queue amplification or an indefinite loading state.
+      - Migration failure leaves an explicit recovery path and cannot be bypassed by a successful HTTP probe.
+  - priority: P1
+    title: Restore credible release gates
+    owned_paths:
+      - scripts
+      - .github/workflows
+      - .claude/skills/deploy/SKILL.md
+      - .claude/skills/update-prod-server/SKILL.md
+    proposal:
+      - Repair tracked baseline CI failures and the prepared release-candidate reporting path in bounded independently reviewed work.
+      - Make mandatory critical gates fail closed on missing artifacts, skipped execution or incompatible source identity.
+      - Keep emergency exceptions explicit, scoped and expiring, with the failed gate and recovery obligation recorded.
+    acceptance:
+      - A release cannot be presented as fully verified when required journeys did not execute or only unrelated baseline failures were waived.
+  - priority: P2
+    title: Make guest affordability accurate
+    proposal:
+      - Evaluate provider-input affordability and final-answer reserves before costly app work; preserve current quota limits.
+      - Define any changed admission behavior through the approved product Specification workflow before implementation.
+    acceptance:
+      - Remaining allowance percentages are not presented as proof that an arbitrary new request can be afforded.
+operator_decisions:
+  - Select and verify an independent alert fallback; the observed Discord critical-alert delivery already establishes one working path.
+  - Approve the ordered future implementation scope and any required paid inference budget separately from this planning deliverable.
+verification_for_future_implementation:
+  - Failure injection for stale CLI/template identity, failed setup, unavailable templates and staged rollback retention.
+  - Dual-origin Caddy fixtures plus real isolated routing, CORS and trusted-header verification.
+  - Expired-token and missing-import cases; real isolated upload processing and separate approved recording/transcription proof.
+  - Provider 503/429 and queued-refresh flood tests preserving the last good data and avoiding tool replay.
+  - Worker metrics-port parity, root-to-installer health-state access and acknowledged primary/fallback delivery.
+evidence:
+  shipped_pull_requests:
+    - https://github.com/glowingkitty/OpenMates/pull/528
+    - https://github.com/glowingkitty/OpenMates/pull/529
+  focused_ci:
+    - https://github.com/glowingkitty/OpenMates/actions/runs/36909889149
+    - https://github.com/glowingkitty/OpenMates/actions/runs/36911944921
+    - https://github.com/glowingkitty/OpenMates/actions/runs/36919414879
+    - https://github.com/glowingkitty/OpenMates/actions/runs/36919506645
+    - https://github.com/glowingkitty/OpenMates/actions/runs/36928125932
+  limits:
+    - Focused test passes do not establish a fully passing broad release gate.
+    - Live authenticated recording confirmation remains separate from isolated upload-service proof.
+    - Private incident findings and runtime receipts are retained outside the public release notes.
+# The current validator requires executable-schema fields even for a draft
+# engineering proposal. These records cover only this planning deliverable;
+# future implementation remains subject to the operator decisions above.
+scenarios:
+  - id: S-1
+    title: Review deployment prevention after stabilization
+    given: [Authorized runtime repairs and their available evidence have been assessed.]
+    when: [The operator reviews this proposal.]
+    then: [Shipped safeguards, proposed work, verification limits and outstanding decisions are distinguishable.]
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: The proposal prioritizes release compatibility, upload routing, critical journeys and alert delivery, separates shipped work from proposed implementation, and links available evidence without private issue data.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: manual
+    verification_ids: [T-PLAN-REVIEW]
+tests:
+  - id: T-PLAN-REVIEW
+    type: manual
+    assertions: [Planning scope is explicit and future runtime/code work is not presented as approved or completed.]
+    covers: [AC-1]
+    red_phase:
+      required: false
+      expected: not_required
+      evidence: {reason: Documentation proposal; no additional product behavior implemented.}
+    green_phase:
+      required: true
+      expected: passed
+      evidence: {result: Proposal checked against shipped PRs, focused CI receipts and known runtime limits.}
+implementation_state:
+  subject_commit: 141f051e8bd3d866fd43303fccc67361bcfd22e0
+approvals:
+  specification: {status: not_required, reason: Engineering deployment proposal; existing product contracts remain unchanged.}
+  plan: {status: pending}
+decisions:
+  - id: D-1
+    status: active
+    decision: Record prevention work now; approve future implementation priorities separately.
+    reason: The user explicitly requested a prevention plan after the production repairs.
+    decided_at: '2026-10-01'
+tasks:
+  - id: TASK-1695
+    title: Record the prevention proposal
+    status: done
+    phase: complete
+    covers: {scenarios: [S-1], acceptance_criteria: [AC-1]}
+    expected_files: [docs/plans/production-release-resilience/plan.yml]
+    verification_ids: [T-PLAN-REVIEW]
+    dependencies: []
+    blockers: []
+    follow_up_tasks: []
+    ownership: {files: [docs/plans/production-release-resilience/plan.yml], shared_files: []}
+attempts:
+  - id: A-1
+    task_id: TASK-1695
+    outcome: succeeded
+    approach: Prepare an evidence-based ordered proposal; preserve private incident receipts outside release notes.
+    recorded_at: '2026-10-01'
+handoff:
+  current_task_id: TASK-1695
+  next_action: Review operator decisions and select the next bounded implementation scope.
+  command: openmates tasks show TASK-1695
+  expected_outcome: Future implementation has explicit approved scope and authoritative Tasks.
+  last_verified_commit: 141f051e8bd3d866fd43303fccc67361bcfd22e0
+  blocker: null

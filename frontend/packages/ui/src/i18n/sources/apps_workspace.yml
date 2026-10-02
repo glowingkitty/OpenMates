@@ -82,6 +82,26 @@ use_skill:
   context: Apps workspace interface
   en: Use skill
   de: Skill verwenden
+skill_context_intro:
+  context: Collapsed skill explanation above the direct-use form
+  en: On this page you can use the skill manually.
+  de: Auf dieser Seite kannst du den Skill direkt verwenden.
+  verified_by_human: []
+skill_context_chat:
+  context: Collapsed skill explanation about automatic use in chats
+  en: Your mates can also use this skill automatically in chats.
+  de: Deine Mates können diesen Skill auch automatisch in Chats verwenden.
+  verified_by_human: []
+skill_context_expand:
+  context: Expand the skill context, examples and detailed pricing above the direct-use form
+  en: Click here to learn more
+  de: Klicke hier, um mehr zu erfahren
+  verified_by_human: []
+skill_context_collapse:
+  context: Collapse the expanded skill context above the direct-use form
+  en: Hide details
+  de: Details ausblenden
+  verified_by_human: []
 library_error:
   context: Apps workspace interface
   en: Saved items could not be loaded.

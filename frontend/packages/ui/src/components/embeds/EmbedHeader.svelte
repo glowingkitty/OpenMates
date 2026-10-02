@@ -22,6 +22,7 @@
 <script lang="ts">
   import { resolveHeaderSwipeNavigation } from '../headerSwipeNavigation';
   import { text } from '../../i18n/translations';
+  import Icon from '../Icon.svelte';
   import ProviderIcon from '../settings/ProviderIcon.svelte';
 
   interface Props {
@@ -118,6 +119,9 @@
    */
   let useDecoSkillIcon = $derived(!!skillIconName);
   let safeAppIconName = $derived(normalizeIconName(appIconName ? resolveIconName(appIconName) : undefined));
+  // Icon expects the app-facing aliases used by AppStoreCard, rather than
+  // the SVG filename, so its tile selects the matching app gradient.
+  let appTileIconName = $derived(({ email: 'mail', coding: 'code', heart: 'health' } as Record<string, string>)[safeAppIconName || fallbackAppIconName] || safeAppIconName || fallbackAppIconName || appId);
   let appIconStyle = $derived(safeAppIconName ? `--embed-app-icon-url: var(--icon-url-${safeAppIconName});` : '');
   let fallbackAppIconName = $derived(normalizeIconName(resolveIconName(appId)));
   let fallbackAppIconStyle = $derived(fallbackAppIconName ? `--embed-app-icon-url: var(--icon-url-${fallbackAppIconName});` : '');
@@ -254,7 +258,20 @@
 
     <!-- Center content: small icon + title + subtitle -->
     <div class="header-center" data-testid={presentation === 'apps' ? 'apps-hero-identity' : undefined}>
-      {#if onHeaderIconClick}
+      {#if presentation === 'apps' && !useSkillIcon}
+        <div class="header-icon" data-testid="apps-hero-icon" aria-hidden="true">
+          <Icon
+            name={appTileIconName}
+            type="app"
+            size="var(--apps-hero-icon-size)"
+            className="apps-header-app-icon"
+            borderColor="#ffffff"
+            noAnimation
+            noMargin
+            ariaHidden
+          />
+        </div>
+      {:else if onHeaderIconClick && presentation !== 'apps'}
         <button
           type="button"
           class="header-icon header-icon-button"
@@ -394,13 +411,9 @@
   }
   .apps-presentation .header-center { box-sizing: border-box; max-width: min(100%, 640px); padding: 56px 40px 40px; gap: 10px; }
   .apps-presentation.has-cta .header-center { transform: translateY(-32px); }
-  .apps-presentation .header-icon { width: 70px; height: 70px; border: 1px solid rgba(255,255,255,.5); border-radius: var(--radius-5); background: rgba(0,0,0,.14); box-shadow: 0 5px 14px rgba(0,0,0,.17); }
-  .apps-presentation .header-skill-identity { border: 0; background: transparent; box-shadow: none; }
-  .apps-presentation .header-icon-button { min-width: 0; min-height: 0; margin: 0; padding: 0; box-sizing: border-box; }
-  .apps-presentation .header-app-icon-mask,
+  .apps-presentation .header-icon { --apps-hero-icon-size: 70px; width: 70px; height: 70px; }
+  .apps-presentation .header-icon :global(.apps-header-app-icon) { border-radius: 18px; border-width: 2.24px; }
   .apps-presentation .header-skill-icon { width: 52px; height: 52px; -webkit-mask-size: contain; mask-size: contain; }
-  .apps-presentation .header-app-icon { width: 52px; height: 52px; }
-  .apps-presentation .header-app-icon::after { background-size: 42px 42px !important; }
   .apps-presentation .header-title-text { font-size: var(--font-size-h2-mobile); }
   .apps-presentation .header-subtitle { max-width: 560px; line-clamp: 3; -webkit-line-clamp: 3; }
   .apps-presentation .apps-header-footer { position: absolute; left: 20px; right: 20px; bottom: 19px; z-index: var(--z-index-raised-2); color: rgba(255,255,255,.94); font-size: var(--font-size-small); font-weight: 700; text-align: center; }
@@ -1005,11 +1018,9 @@
     .apps-presentation .apps-header-eyebrow { top: 20px; }
     .apps-presentation .header-center { padding: 66px 26px 42px; }
     .apps-presentation.has-cta .header-center { transform: translateY(-38px); }
-    .apps-presentation .header-icon { width: 58px; height: 58px; }
-    .apps-presentation .header-app-icon-mask,
-    .apps-presentation .header-skill-icon,
-    .apps-presentation .header-app-icon { width: 42px; height: 42px; }
-    .apps-presentation .header-app-icon::after { background-size: 34px 34px !important; }
+    .apps-presentation .header-icon { --apps-hero-icon-size: 58px; width: 58px; height: 58px; }
+    .apps-presentation .header-icon :global(.apps-header-app-icon) { border-radius: 15px; border-width: 1.86px; }
+    .apps-presentation .header-skill-icon { width: 42px; height: 42px; }
     .apps-presentation .header-cta-area { bottom: 45px; }
     .embed-header {
       height: 190px;

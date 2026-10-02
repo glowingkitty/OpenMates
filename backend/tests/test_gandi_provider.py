@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from urllib.parse import parse_qs
 
 import httpx
@@ -319,3 +320,61 @@ async def test_proxy_unknown_child_does_not_replace_confirmed_direct_status_or_a
     assert result.results[0].pricing_status == "missing"
     assert result.results[0].error is None and result.results[1].error is None
     assert not result.partial and result.error is None and attempts == 2
+
+
+# contract-test: supporting surface=rest_api assertions=hosting-domains.results.partial-and-safe,hosting-domains.provider.bounded-fallback
+async def test_gandi_http_library_logs_hide_query_on_success_and_preserve_other_requests(caplog):
+    caplog.set_level(logging.DEBUG, logger="httpcore.http11")
+    caplog.set_level(logging.INFO, logger="httpx")
+    secret = "private-synthetic-customer-name"
+    calls = []
+
+    def handler(request):
+        logging.getLogger("httpcore.http11").debug(
+            "send_request_headers.started path=b'/api/v5/suggest/suggest?search=%s'", secret)
+        logging.getLogger("httpx").info(
+            'HTTP Request: %s %s "%s %d %s"',
+            "GET", httpx.URL("https://elsewhere.test/?query=visible"), "HTTP/1.1", 200, "OK")
+        return httpx.Response(200, text=_sse(("suggestions", []), ("done", None)),
+                              headers={"Content-Type": "text/event-stream"})
+
+    result = await GandiClient(client_factory=_factory(handler, calls)).search(secret)
+    assert result.error is None
+    messages = "\n".join(caplog.messages)
+    assert secret not in messages
+    assert "GET https://shop.gandi.net/api/v5/suggest/suggest status=200" in messages
+    assert "https://elsewhere.test/?query=visible" in messages
+    assert all(secret not in str(record.args) for record in caplog.records)
+
+
+# contract-test: supporting surface=rest_api assertions=hosting-domains.results.partial-and-safe,hosting-domains.provider.bounded-fallback
+async def test_gandi_http_library_exception_logs_hide_query_and_restore_scope(caplog, monkeypatch):
+    caplog.set_level(logging.DEBUG, logger="httpcore.http11")
+    caplog.set_level(logging.INFO, logger="httpx")
+    monkeypatch.delenv("SECRET__WEBSHARE__PROXY_USERNAME", raising=False)
+    monkeypatch.delenv("SECRET__WEBSHARE__PROXY_PASSWORD", raising=False)
+    secret = "private-synthetic-exact-domain.com"
+    proxy_secret = "synthetic-private-proxy-token"
+    calls = []
+
+    def handler(request):
+        try:
+            raise httpx.ReadTimeout(f"{secret} https://shop.gandi.net/api/v5/suggest/lookup?search={secret}")
+        except httpx.ReadTimeout:
+            logging.getLogger("httpcore.http11").error(
+                "%s receive_response_headers.failed", secret, exc_info=True, stack_info=True)
+            logging.getLogger("httpx").error(
+                "Request failed for %s with proxy %s", secret, proxy_secret,
+                exc_info=True, stack_info=True)
+        raise httpx.ReadTimeout("synthetic timeout")
+
+    result = await GandiClient(client_factory=_factory(handler, calls)).lookup(secret)
+    assert result.error == "network_timeout"
+    messages = "\n".join(caplog.messages)
+    assert secret not in messages
+    assert secret not in caplog.text
+    assert proxy_secret not in caplog.text
+    assert "GET https://shop.gandi.net/api/v5/suggest/lookup" in messages
+    assert all(secret not in str(record.args) for record in caplog.records)
+    logging.getLogger("httpx").info("Other request after Gandi: %s", "https://elsewhere.test/?query=visible")
+    assert "https://elsewhere.test/?query=visible" in caplog.messages[-1]

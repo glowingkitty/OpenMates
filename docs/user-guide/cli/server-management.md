@@ -82,7 +82,7 @@ Then run the installer:
 openmates server install
 openmates server install --path /opt/openmates
 openmates server install --env-path ~/my-env-file
-openmates server install --image-tag v0.25.0
+openmates server install --image-tag v0.26.0
 openmates server install --role core --profile production
 openmates server install --role upload --path /opt/openmates-upload
 openmates server install --role preview --path /opt/openmates-preview
@@ -212,7 +212,7 @@ openmates server logs --services api,task-worker
 ```
 openmates server update
 openmates server update --dry-run
-openmates server update --image-tag v0.25.0
+openmates server update --image-tag v0.26.0
 openmates server update --channel stable
 openmates server update --channel dev
 openmates server update --services api,task-worker
@@ -360,6 +360,17 @@ OPENMATES_RUNTIME_HEALTH_WEBHOOK_SECRET="<RANDOM_SIGNING_SECRET>"
 ```
 
 Do not commit these values or pass them on the command line. Use `openmates server env set <KEY>` so secret values are prompted for and CLI output remains redacted.
+
+Official cloud installations use environment-specific Discord settings such as
+`OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL_PRODUCTION` or
+`OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL_DEVELOPMENT`. A legacy host can
+reuse its existing generic Discord setting by explicitly setting
+`OPENMATES_RUNTIME_HEALTH_LEGACY_DISCORD_ENVIRONMENT` to its own `production` or
+`development` environment. The mapping is ignored in the other environment;
+dedicated settings take precedence. Self-host installations continue using the
+generic setting. An `IMPORTED_TO_VAULT` marker is not a usable host credential:
+host notifications require their own configured provider key so they remain
+available when API or Celery services are down.
 
 The email recipient, sender, and Brevo key form the mandatory final completion check for `openmates server update`. Discord and generic webhook configuration remain optional and are not substitutes for the admin completion email.
 

@@ -97,6 +97,21 @@ test.describe.serial('Audio recording and assistant speech', () => {
 	test('sends one recording and controls the spoken response', async ({ page }: { page: any }, testInfo: any) => {
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
 		const log = createSignupLogger('audio-recording-and-speech');
+		await page.addInitScript(() => {
+			let nextElementId = 1;
+			const elementIds = new WeakMap<HTMLMediaElement, number>();
+			const originalPlay = HTMLMediaElement.prototype.play;
+			(window as any).__assistantSpeechPlaybackCalls = [];
+			HTMLMediaElement.prototype.play = function (...args: Parameters<HTMLMediaElement['play']>) {
+				let elementId = elementIds.get(this);
+				if (!elementId) {
+					elementId = nextElementId++;
+					elementIds.set(this, elementId);
+				}
+				(window as any).__assistantSpeechPlaybackCalls.push({ elementId, src: this.currentSrc || this.src });
+				return originalPlay.apply(this, args);
+			};
+		});
         // Keep only safe sequence/status metadata from the real replay exchange.
         let requestedSpeechSequences: number[] = [];
         let acceptedSpeechSegments: Array<{ request_sequence: number; status: string }> = [];
@@ -343,6 +358,9 @@ test.describe.serial('Audio recording and assistant speech', () => {
 		const reloadedToggle = page.getByTestId('message-field').last().getByTestId('assistant-speech-toggle');
 		await expect(reloadedToggle).toHaveAttribute('aria-pressed', 'true', { timeout: 30_000 });
 		await expect(reloadedToggle).toHaveAccessibleName('Turn off speaking');
+		await page.evaluate(() => {
+			(window as any).__assistantSpeechPlaybackCalls = [];
+		});
 		await sendMessage(
 			page,
 			withRequiredLiveMock('Use weather.forecast to check Berlin for the next two days, then answer in exactly two short plain-text paragraphs. Summarize the forecast first, then give one practical suggestion.'),
@@ -373,6 +391,15 @@ test.describe.serial('Audio recording and assistant speech', () => {
 			const status = await player.getAttribute('data-status');
 			expect(placeholder === 'false' || status === 'autoplay_blocked').toBeTruthy();
 		}).toPass({ timeout: SPEECH_TIMEOUT_MS });
+		await expect.poll(async () => page.evaluate(() => {
+			const calls = (window as any).__assistantSpeechPlaybackCalls as Array<{ elementId: number; src: string }>;
+			return new Set(calls.map((call) => call.src).filter(Boolean)).size;
+		}), { timeout: SPEECH_TIMEOUT_MS }).toBeGreaterThanOrEqual(2);
+		const speechPlaybackElementIds = await page.evaluate(() => {
+			const calls = (window as any).__assistantSpeechPlaybackCalls as Array<{ elementId: number; src: string }>;
+			return [...new Set(calls.filter((call) => call.src).map((call) => call.elementId))];
+		});
+		expect(speechPlaybackElementIds, 'confirmation and generated speech must retain one autoplay-authorized media element').toHaveLength(1);
 
 		await expect(player.getByTestId('assistant-speech-primary-control').last()).toBeVisible({ timeout: 30_000 });
 		await expect(player.getByTestId('assistant-speech-next-chapter')).toBeVisible();
