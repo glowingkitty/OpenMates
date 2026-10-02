@@ -140,7 +140,7 @@ async function deleteProject(page: Page, projectId: string): Promise<void> {
   // Use the browser's authenticated fetch and CSRF context; bound cleanup so
   // a failed composer cannot conceal the actual assertion behind an overlay.
   const status = await page.evaluate(async ({ apiBaseUrl, targetId }) => {
-    const response = await fetch(`${apiBaseUrl}/v1/projects/${targetId}`, { method: 'DELETE', credentials: 'include' });
+    const response = await fetch(`${apiBaseUrl}/v1/projects/${targetId}?confirmation_project_id=${encodeURIComponent(targetId)}`, { method: 'DELETE', credentials: 'include' });
     return response.status;
   }, { apiBaseUrl: API_BASE_URL, targetId: projectId });
   expect(status, 'disposable hosted Project cleanup').toBeGreaterThanOrEqual(200);
@@ -155,12 +155,13 @@ async function sendWithProjectMention(
   accessMode: 'read' | 'read_write',
 ): Promise<void> {
   const editor = page.getByTestId('message-editor');
-  await editor.click();
+  await page.bringToFront();
+  await focusMessageEditor(editor);
   // A space ends mention search, so use the fixture's unique suffix to find
   // multiword Project names through the same keystrokes a user emits.
   const projectQuery = projectName.trim().split(/\s+/).at(-1);
   expect(projectQuery).toBeTruthy();
-  await page.keyboard.type(`@${projectQuery}`);
+  await page.keyboard.insertText(`@${projectQuery}`);
   const projectResult = page
     .locator('.mention-dropdown .mention-result')
     .filter({ hasText: projectName })
@@ -269,8 +270,13 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
     const path = 'proofs/browser-hosted-proof.txt';
     const marker = `hosted-${randomUUID()}`;
     const sentWebSocketMessages: Array<Record<string, unknown>> = [];
+    const advertisedCapabilities = new Set<string>();
     const cdp = await page.context().newCDPSession(page);
     await cdp.send('Network.enable');
+    cdp.on('Network.webSocketCreated', ({ url }: { url: string }) => {
+      const values = new URL(url).searchParams.get('client_capabilities') || '';
+      values.split(',').filter(Boolean).forEach((capability) => advertisedCapabilities.add(capability));
+    });
     cdp.on('Network.webSocketFrameSent', ({ response }: { response: { payloadData: string } }) => {
       try {
         const message = JSON.parse(response.payloadData) as Record<string, unknown>;
@@ -286,6 +292,10 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
       await page.goto('/', { waitUntil: 'domcontentloaded' });
       await startNewChat(page);
       await waitForChatReady(page);
+      await expect.poll(() => advertisedCapabilities.has('project_file_jobs'), {
+        message: 'the real browser Project executor must register before inference', timeout: 30_000,
+      }).toBe(true);
+      console.log('Hosted Project proof: browser advertised its installed Project executor.');
 
       await sendWithProjectMention(
         page,
@@ -365,6 +375,7 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
       }
     } catch (error) {
       console.error('Hosted Project proof failed:', error instanceof Error ? error.message : String(error));
+      if (!chatUrl && page.url().includes('chat-id=')) chatUrl = page.url();
       await page.screenshot({ path: test.info().outputPath('hosted-project-before-cleanup.png'), fullPage: true }).catch(() => undefined);
       throw error;
     } finally {

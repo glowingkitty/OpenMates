@@ -1568,6 +1568,21 @@ project_focus_routing_review_2026_10_02:
     processing requests explicit Project consent through the existing activation tool and pauses
     for confirmation. Acceptance loads instructions on the client and resumes with fresh authority;
     decline suppresses another access request in the same turn. Live proof is pending deployment.
+  latest_status: Entry-path fixes are deployed; hosted create/update live proof remains pending.
+  send_boundary_fix: The next hosted run passed chip toggling but lost focus before inference.
+    Text-only DOM drift recovery flattened the structured chip because button text differs from
+    editor.getText(); it now skips structured inline atoms. Shared API AskSkillRequest dropped the
+    candidate catalog; its schema now preserves it and a transport regression passes. Project
+    clients register before asynchronous app initialization. Published in b80e3abca47a8faa31433450ead0e5ece44016c7.
+    The disposable Project and submitted chat were removed. Next live run asserts advertised
+    project_file_jobs before sending, then tests both entry paths and encrypted revisions.
+  durable_focus_transition_fix: A subsequent live run advertised project_file_jobs and displayed
+    the correct Project focus. Its send was rejected because authenticated Project context changed
+    between durable preflight and inference enqueue. The commitment now normalizes only server-derived
+    current_project and active_project_focus values; immutable user content remains protected and
+    authority is still revalidated at dispatch and every file job. Focused preflight regression passes;
+    deployed in 6bae1c73d89c9037a65e1ff29c8db754d37a7ee0 and the coordinated dev runtime is healthy.
+    The failed disposable Project was removed. Real encrypted create/update proof is still pending.
   visible_state: Project focus name, toggle, encrypted restoration and server-binding revalidation
     exist. Their presence in source does not establish reliable end-to-end activation.
   next_boundary: Both entry paths must converge on one confirmed Project focus lifecycle. Project
@@ -1653,3 +1668,30 @@ projects_creation_policy_correction:
   verification: Focused backend settings/authorization tests pass 26/26; the browser settings
     migration test passes 7/7 in its file; ProjectsPage compiles; CLI ESM and declaration builds pass;
     scoped diff validation passes. Existing unrelated repository-wide type errors remain outside scope.
+
+remote_project_browsing_recovery_2026_10_02:
+  status: passed
+  task: TASK-335
+  reported_project: 136d1b48-bbca-457a-b287-a62e364b132c
+  cause: Both remote Project hosts were stopped. The existing Zellij session contained exited CLI
+    commands, with no live remote-access process; the disposable folder and its files were intact.
+  correction: Upgraded the installed dev CLI from 0.27.0-alpha.0 to 0.27.0-alpha.1 and started one
+    foreground host in the existing openmates-remote Zellij session, terminal_5. It uses the existing
+    personal-account bindings for the engineering repository and disposable validation folder.
+  roots:
+  - /home/superdev/projects/OpenMates
+  - /tmp/openmates-agentic-validation-8c51
+  verification:
+  - Both existing source IDs report connected; no duplicate Projects or sources were created.
+  - Authenticated encrypted remote README read and root/subfolder listing succeeded.
+  - Read-only deployed browser inspection on the personal Glowingkitty dev account opened the
+    validation Project, rendered Tiny Greeting from README.md, expanded src, and opened greeting.js
+    in the fullscreen code embed with the previously edited Welcome content.
+  - The screenshot failure required restoring the host, not uploading the remote folder. Browser
+    browsing used the existing encrypted transient delivery path and did not modify project files.
+  evidence:
+    readme: /tmp/8c51-remote-readme.png
+    file_tree: /tmp/8c51-remote-root.png
+    fullscreen_file: /tmp/8c51-remote-file.png
+  remaining: The separate hosted chat create/update and inferred Project consent live proof is pending;
+    this successful remote browsing check does not establish that result.
