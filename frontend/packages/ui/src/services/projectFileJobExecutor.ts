@@ -3,6 +3,7 @@ import {
   isProjectFileMutationOperation, projectFileMutationDigest, validateProjectFileMutation,
   type ProjectFileMutation,
 } from "../utils/projectFileMutationProtocol";
+import type { ProjectFilePrivacy } from "./projectFilePrivacy";
 
 export interface ProjectWriteApprovalRequest {
   projectId: string;
@@ -39,6 +40,7 @@ export interface ProjectFileJob {
 
 export interface ProjectFileExecutionContext {
   projectKey: Uint8Array;
+  privacy?: ProjectFilePrivacy;
   /** Actual source selected by the fresh resolver; null identifies hosted Project files. */
   sourceId?: string | null;
   writeMode: "apply_and_show" | "always_ask" | null;
@@ -116,12 +118,14 @@ export function createProjectFileJobExecutor(options: ProjectFileJobExecutorOpti
       let proposalCommitment: string | undefined;
       if (isProjectFileMutationOperation(job.operation)) {
         mutation = validateProjectFileMutation({ ...job.arguments, operation: job.operation, operation_id: job.operation_id });
+        if (context.privacy) mutation = context.privacy.restoreMutation(mutation);
         if (!context.writeMode) throw Object.assign(new Error(), { code: "write_policy_required" });
         const digest = await projectFileMutationDigest(context.projectKey, job.project_id, job.chat_id, mutation);
         proposalCommitment = digest;
         if (context.writeMode === "always_ask" && approved.get(job.operation_id) !== digest) {
           const approvalRequest = { projectId: job.project_id, chatId: job.chat_id, mutation };
-          await result("awaiting_approval", { proposal_commitment: digest, proposal: mutation });
+          const proposal = context.privacy ? await context.privacy.redactResult(mutation) : mutation;
+          await result("awaiting_approval", { proposal_commitment: digest, proposal });
           leaseReleased = true;
           options.onWaitingForUser?.(approvalRequest);
           if (!options.requestApproval) return;
@@ -140,8 +144,10 @@ export function createProjectFileJobExecutor(options: ProjectFileJobExecutorOpti
         }
       }
       if (job.lease_expires_at * 1000 <= Date.now()) throw Object.assign(new Error(), { code: "lease_expired" });
-      const requestedPath = job.operation === "read_text" && typeof job.arguments.path === "string"
-        ? job.arguments.path : null;
+      const executionJob = context.privacy
+        ? { ...job, arguments: context.privacy.restoreArguments(job.arguments) } : job;
+      const requestedPath = job.operation === "read_text" && typeof executionJob.arguments.path === "string"
+        ? executionJob.arguments.path : null;
       const readApprovalRequest: ProjectReadApprovalRequest | null = requestedPath ? {
         projectId: job.project_id,
         sourceId: context.sourceId !== undefined ? context.sourceId : job.source_id ?? null,
@@ -154,14 +160,15 @@ export function createProjectFileJobExecutor(options: ProjectFileJobExecutorOpti
         : null;
       let output: unknown;
       try {
-        output = await context.execute(job, mutation,
+        output = await context.execute(executionJob, mutation,
           readApprovalRequest && readApprovalKey && approvedIgnoredReads.has(readApprovalKey)
             ? { path: readApprovalRequest.path, chatId: job.chat_id, operationId: job.operation_id }
             : undefined);
       } catch (error) {
         const code = (error as { code?: unknown })?.code;
         if (code !== "ignored_path_requires_approval" || !readApprovalRequest || !readApprovalKey) throw error;
-        await result("awaiting_approval", { reason: "ignored_path_requires_approval", path: readApprovalRequest.path });
+        const waiting = { reason: "ignored_path_requires_approval", path: readApprovalRequest.path };
+        await result("awaiting_approval", context.privacy ? await context.privacy.redactResult(waiting) : waiting);
         leaseReleased = true;
         options.onWaitingForRead?.(readApprovalRequest);
         if (!options.requestReadApproval) return;
@@ -177,7 +184,8 @@ export function createProjectFileJobExecutor(options: ProjectFileJobExecutorOpti
         return;
       }
       approved.delete(job.operation_id);
-      await result("completed", { ...(output && typeof output === "object" ? output : { value: output }), ...(proposalCommitment ? { proposal_commitment: proposalCommitment } : {}) });
+      const safeOutput = context.privacy ? await context.privacy.redactResult(output) : output;
+      await result("completed", { ...(safeOutput && typeof safeOutput === "object" ? safeOutput : { value: safeOutput }), ...(proposalCommitment ? { proposal_commitment: proposalCommitment } : {}) });
       if (mutation) {
         // Display failure cannot turn an acknowledged successful write into a failed job.
         try { options.onMutationApplied?.({ projectId: job.project_id, chatId: job.chat_id, mutation }); }

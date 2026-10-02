@@ -427,6 +427,7 @@ function purgeLocalTeamKeys(hashedEmail: string | null): void {
 }
 
 function purgeSyncCaches(stateDir: string): void {
+  rmSync(join(stateDir, "project_file_privacy"), { recursive: true, force: true });
   for (const fileName of readdirSync(stateDir)) {
     if (fileName === SYNC_CACHE_FILE || (fileName.startsWith("sync_cache.team.") && fileName.endsWith(".json"))) {
       rmSync(join(stateDir, fileName), { force: true });

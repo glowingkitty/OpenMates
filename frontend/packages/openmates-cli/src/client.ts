@@ -2427,6 +2427,8 @@ export interface DecryptedMessage {
   modelName: string | null;
   createdAt: number;
   embedIds: string[];
+  /** Owner-local originals; never include these in model message history. */
+  piiMappings?: Array<{ placeholder: string; original: string; type?: string }>;
 }
 
 interface AssistantSpeechStatus {
@@ -5887,6 +5889,9 @@ export class OpenMatesClient {
         modelName,
         createdAt: typeof m.created_at === "number" ? m.created_at : 0,
         embedIds: msgEmbedIds,
+        ...(typeof m.encrypted_pii_mappings === "string" && chatKeyBytes ? {
+          piiMappings: JSON.parse(await decryptWithAesGcmCombined(m.encrypted_pii_mappings, chatKeyBytes) ?? "[]"),
+        } : {}),
       });
     }
     messages.sort((a, b) => a.createdAt - b.createdAt);
@@ -7049,6 +7054,7 @@ export class OpenMatesClient {
     if (!params.incognito && chatKeyBytes) {
       registerCliProjectFileExecutor({
         client: this, ws, chatId, chatKey: chatKeyBytes,
+        piiMappings, memories: availableMemories,
         requestApproval: params.onProjectWriteApproval,
         requestReadApproval: params.onProjectReadApproval,
       });

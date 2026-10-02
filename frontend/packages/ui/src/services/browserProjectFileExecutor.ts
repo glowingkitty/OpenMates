@@ -37,6 +37,10 @@ import {
 } from "./projectService";
 import type { ProjectFileMutation } from "../utils/projectFileMutationProtocol";
 import { broadcastProjectFilesChanged } from "./projectBrowserEvents";
+import { chatDB } from "./db";
+import { personalDataStore } from "../stores/personalDataStore";
+import { loadProjectFilePrivacy, PROJECT_FILE_PRIVACY_PREFIX } from "./projectFilePrivacyStorage";
+import type { ProjectFilePrivacy } from "./projectFilePrivacy";
 
 export interface BrowserProjectFileTransport {
   send: (event: string, payload: Record<string, unknown>) => void | Promise<void>;
@@ -93,6 +97,7 @@ async function authoritativePrivatePaths(
 /** Build one browser executor. ChatSync owns its WebSocket and auth lifetime. */
 export function createBrowserProjectFileExecutor(options: BrowserProjectFileExecutorOptions) {
   let stopped = false;
+  const privacyContexts = new Map<string, Promise<ProjectFilePrivacy>>();
   const executor = createProjectFileJobExecutor({
     isActiveChat: (chatId) => !stopped && options.isActiveChat(chatId),
     send: options.transport.send,
@@ -118,6 +123,32 @@ export function createBrowserProjectFileExecutor(options: BrowserProjectFileExec
       if (focus?.project_id !== job.project_id) fail("project_focus_required");
       const chatKey = await chatKeyManager.getKey(job.chat_id);
       if (!chatKey) fail("chat_key_unavailable");
+      const messages = await chatDB.getMessagesForChat(job.chat_id);
+      const mappings = messages.flatMap((message) => message.pii_mappings ?? []);
+      const privacyId = JSON.stringify([job.chat_id, job.project_id]);
+      if (!privacyContexts.has(privacyId)) {
+        const storageKey = PROJECT_FILE_PRIVACY_PREFIX + privacyId;
+        const privacySettings = get(personalDataStore.settings);
+        const entries = get(personalDataStore.enabledEntries);
+        const loaded = loadProjectFilePrivacy({
+          chatId: job.chat_id, projectId: job.project_id, key: chatKey, mappings,
+          enabled: privacySettings.masterEnabled,
+          detection: {
+            disabledCategories: new Set(Object.entries(privacySettings.categories).filter(([, enabled]) => !enabled).map(([key]) => key)),
+            personalDataEntries: entries.map((entry) => ({
+              id: entry.id, textToHide: entry.textToHide, replaceWith: entry.replaceWith,
+              additionalTexts: entry.addressLines ? Object.values(entry.addressLines).filter((value): value is string => typeof value === "string" && Boolean(value)) : undefined,
+            })),
+          },
+          read: async () => localStorage.getItem(storageKey),
+          write: async (ciphertext) => { localStorage.setItem(storageKey, ciphertext); },
+          encrypt: encryptWithEmbedKey, decrypt: decryptWithEmbedKey,
+        });
+        privacyContexts.set(privacyId, loaded);
+        void loaded.catch(() => privacyContexts.delete(privacyId));
+      }
+      const privacy = await privacyContexts.get(privacyId)!;
+      privacy.addMappings(mappings);
       const context = { teamId: focus.team_id };
       const project = await getProject(job.project_id, context);
       const [settings, sources, contents] = await Promise.all([
@@ -137,6 +168,7 @@ export function createBrowserProjectFileExecutor(options: BrowserProjectFileExec
       }
       return {
         projectKey: project.projectKey,
+        privacy,
         sourceId: source?.source_id ?? null,
         writeMode: settings.selectionRequired ? null : settings.writeMode,
         execute: async (
@@ -224,6 +256,7 @@ export function createBrowserProjectFileExecutor(options: BrowserProjectFileExec
       if (stopped) return;
       stopped = true;
       executor.stop();
+      privacyContexts.clear();
     },
   };
 }

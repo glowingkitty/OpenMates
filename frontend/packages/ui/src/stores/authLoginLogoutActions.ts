@@ -30,6 +30,7 @@ import { invalidateWorkspaceCaches } from "../services/workspaceCacheLifecycle";
 import { chatMetadataCache } from "../services/chatMetadataCache";
 import { clearAllSharedChatKeys } from "../services/sharedChatKeyStorage";
 import { clearAllSessionStorageDrafts } from "../services/drafts/sessionStorageDraftService";
+import { clearProjectFilePrivacyStorage } from "../services/projectFilePrivacyStorage";
 import { resetChatNavigationList } from "./chatNavigationStore";
 import { activeChatStore } from "./activeChatStore";
 import { clientLogForwarder } from "../services/clientLogForwarder";
@@ -134,6 +135,7 @@ export function resetLocalLogoutState(): void {
   invalidateWorkspaceCaches();
   chatMetadataCache.clearAll();
   clearAllSessionStorageDrafts();
+  clearProjectFilePrivacyStorage();
   chatDB.clearAllChatKeys();
   resetChatNavigationList();
   const isOgImageModeLogout =

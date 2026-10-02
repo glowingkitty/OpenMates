@@ -873,7 +873,9 @@ async function runServeFixture(client, fixture) {
   const sourceStorePath = join(cliStateDir, "remote-sources.json");
   const originalSourceStore = existsSync(sourceStorePath) ? readFileSync(sourceStorePath) : null;
   mkdirSync(join(rootPath, "src"), { recursive: true });
-  writeFileSync(join(rootPath, "src", "remote-demo.ts"), 'export const remoteDemo = "OpenMates live remote preview";\nexport const imported = true;\n');
+  const privacyFixture = process.env.OPENMATES_PROJECT_FILE_PII_FIXTURE === "1"
+    ? 'export const owner = "owner@example.invalid";\nexport const reference = "6d0a8c71-be37-4a1e-b601-8ab667997311";\n' : "";
+  writeFileSync(join(rootPath, "src", "remote-demo.ts"), 'export const remoteDemo = "OpenMates live remote preview";\nexport const imported = true;\n' + privacyFixture);
   mkdirSync(join(rootPath, "src", "lib", "deep"), { recursive: true });
   writeFileSync(join(rootPath, "src", "lib", "deep", "large-demo.ts"),
     '// Bounded remote text fixture\n'.repeat(1_500)

@@ -4,7 +4,7 @@ title: 'Agentic coding implementation: project file access first'
 status: implementing
 goal: Implement CLI and chat read/write access to remote and OpenMates-stored Project files, then web
   Project browsing and editing, then address Tasks, Specifications, and Plans gaps.
-revision: r67
+revision: r68
 conversation: codex:01a0caf0-76d6-7e73-86d1-c7c759db3cf4
 workspace_session: '8c51'
 approved_by_user: true
@@ -37,11 +37,26 @@ current_checkpoint_2026_10_02:
   remote_workspace: The retained validation Project README, nested tree and fullscreen code view pass.
     The updated global CLI runs in the existing openmates-remote Zellij session, terminal_5.
   open_issues:
-  - Client PII placeholders can change proposed file content; exact restoration needs a targeted repair.
+  - Deterministic file-boundary redaction/restoration is implemented locally; deployed disposable-Project verification is next.
   - Normal OS authorization is needed to install the terminal guard and verify one live command.
   - The corrected dev proxy configuration needs its normal privileged on-disk update for reboot durability.
   - Tasks execution/completion gaps, then Specifications and Plans execution, remain later work.
   handoff: The two retained Agentic Coding validation Projects below are available for manual testing.
+deterministic_privacy_checkpoint_2026_10_02:
+  task: TASK-6182
+  deferred_model_review: {task: TASK-5996, due: '2026-10-16', status: backlog}
+  implementation:
+  - Browser and CLI Project file jobs use the same deterministic detector, encrypted custom entries and client-only restoration.
+  - Read/search results and write-approval proposals are redacted before the server, model or injection checker sees them.
+  - Proposal commitments and exact patches bind restored original bytes; real-file base hashes remain unchanged.
+  - UUIDs, source hashes and placeholder tokens are excluded from phone-number pattern matches in both existing detectors.
+  - Chat-and-Project-scoped mappings persist locally encrypted with the chat key, and logout removes their caches.
+  verification: 23 targeted CLI/privacy/executor checks and 3 browser assembly checks pass; CLI build and declarations pass.
+  limitations:
+  - File-generated mappings are local ciphertext, not a new cloud secret vault. Another device must re-read the file before using its tokens; missing or ambiguous mappings fail closed.
+  - Multiline file reads keep original CR/LF boundaries. A legacy multiline message token inside a unified patch is rejected rather than corrupting hunk counts.
+  - Guard installation and durable Caddy configuration still need normal OS authorization; sudo noninteractive authorization is unavailable.
+  next: Deploy and verify fake-email and UUID round trips in disposable hosted and remote Projects. Then reassess Tasks and Plan/Specification gaps against current source before making changes.
 implementation_checkpoint_2026_09_23:
   completed_local_slices:
   - Project focus/role/write policy, setup/settings surfaces and exact approval checks.

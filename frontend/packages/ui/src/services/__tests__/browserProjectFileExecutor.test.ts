@@ -29,6 +29,13 @@ vi.mock("../../stores/projectFileApprovalStore", () => ({
 vi.mock("../encryption/ChatKeyManager", () => ({
   chatKeyManager: { getKey: vi.fn(async () => mocks.chatKey) },
 }));
+vi.mock("../db", () => ({ chatDB: { getMessagesForChat: vi.fn(async () => []) } }));
+vi.mock("../../stores/personalDataStore", () => ({
+  personalDataStore: {
+    settings: { subscribe(run: (value: unknown) => void) { run({ masterEnabled: true, categories: {} }); return () => {}; } },
+    enabledEntries: { subscribe(run: (value: unknown) => void) { run([]); return () => {}; } },
+  },
+}));
 vi.mock("../cryptoService", () => ({
   decryptWithEmbedKey: vi.fn(async (value: string) => value),
   encryptWithEmbedKey: vi.fn(async () => "ciphertext"),
@@ -76,6 +83,7 @@ function job(sourceId?: string): ProjectFileJob {
 describe("browser Project file executor", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     mocks.activeFocus.mockResolvedValue({
       active: true,
       project_id: "project-1",

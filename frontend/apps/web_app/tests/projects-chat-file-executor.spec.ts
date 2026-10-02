@@ -362,7 +362,7 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
         page,
         projectId,
         projectName,
-        `Use the active Project file tools now. Create exactly one file named ${path} with exactly these two lines and a final newline:\n${marker}\noriginal\nThen read the file back. Do not use code.run or give me instructions to perform the edit.`,
+        `Use the active Project file tools now. Create exactly one file named ${path} with exactly these three lines and a final newline:\n${marker}\noriginal\nowner@example.invalid\nThen read the file back. Do not use code.run or give me instructions to perform the edit.`,
         'read_write',
       );
       chatUrl = page.url();
@@ -374,7 +374,8 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
       await expect.poll(() => sentWebSocketMessages.some((message) => {
         const payload = message.payload as { operation_id?: string; status?: string; result?: { content?: string } };
         return message.type === 'project_file_operation_result' && payload.status === 'completed'
-          && readOperations.has(payload.operation_id ?? '') && payload.result?.content === `${marker}\noriginal\n`;
+          && readOperations.has(payload.operation_id ?? '') && Boolean(payload.result?.content?.startsWith(`${marker}\noriginal\n`))
+          && /^\[[A-Za-z0-9_]+\]$/.test(payload.result?.content?.split('\n')[2] ?? '');
       }), { message: 'the created file must be read back before switching off Project access', timeout: 180_000 }).toBe(true);
       await expect.poll(() => persistedRecoveryJobs.size, {
         message: 'the final asynchronous answer must be durably encrypted before reload', timeout: 180_000,
@@ -402,7 +403,7 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
 
       await sendMessage(
         page,
-        `In my existing Project named "${projectName}", read ${path}, then use an exact Project update patch to change only the second line from original to updated. Preserve the first line and final newline. Request access to this Project through its focus mode so I can confirm it, then perform the edit and read it back.`,
+        `In my existing Project named "${projectName}", read ${path}, then use an exact Project update patch to change only the second line from original to updated. Preserve every other byte, including the first and third lines and final newline. Request access to this Project through its focus mode so I can confirm it, then perform the edit and read it back.`,
       );
       const followupPreflight = sentWebSocketMessages.filter((message) => message.type === 'chat_turn_preflight').at(-1);
       const routing = (followupPreflight?.payload as { inference_request?: { project_focus_candidates?: Array<{ project_id: string }> } })?.inference_request;
@@ -422,7 +423,8 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
       await expect.poll(() => sentWebSocketMessages.some((message) => {
         const payload = message.payload as { operation_id?: string; status?: string; result?: { content?: string } };
         return message.type === 'project_file_operation_result' && payload.status === 'completed'
-          && readOperations.has(payload.operation_id ?? '') && payload.result?.content === `${marker}\nupdated\n`;
+          && readOperations.has(payload.operation_id ?? '') && Boolean(payload.result?.content?.startsWith(`${marker}\nupdated\n`))
+          && /^\[[A-Za-z0-9_]+\]$/.test(payload.result?.content?.split('\n')[2] ?? '');
       }), { message: 'the updated file must be read back before revoking Project access', timeout: 180_000 }).toBe(true);
       await expect.poll(() => persistedRecoveryJobs.size, {
         message: 'the second asynchronous answer must also be durably encrypted', timeout: 180_000,
@@ -445,7 +447,7 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
       await hostedPreview.click();
       const overlay = page.getByTestId('embed-fullscreen-overlay').last();
       await expect(overlay).toBeVisible({ timeout: 30_000 });
-      expect(await readFullscreenCodeLines(overlay)).toEqual([marker, 'updated', '']);
+      expect(await readFullscreenCodeLines(overlay)).toEqual([marker, 'updated', 'owner@example.invalid', '']);
       await expect(overlay.getByTestId('embed-version-timeline')).toBeVisible({ timeout: 30_000 });
       await expect(overlay.getByTestId('version-dot-2')).toBeVisible();
       await closeFullscreen(page, overlay);
@@ -460,6 +462,8 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
       const encryptedCommits = sentWebSocketMessages.filter((message) => message.type === 'commit_embed_revision');
       expect(encryptedCommits).toHaveLength(2);
       expect(JSON.stringify(encryptedCommits)).not.toContain(marker);
+      expect(JSON.stringify(encryptedCommits)).not.toContain('owner@example.invalid');
+      expect(JSON.stringify(sentWebSocketMessages.filter((message) => message.type === 'project_file_operation_result'))).not.toContain('owner@example.invalid');
       for (const message of encryptedCommits) {
         const payload = message.payload as { head?: { encrypted_content?: unknown } };
         expect(typeof payload.head?.encrypted_content).toBe('string');
@@ -512,7 +516,17 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
       },
     );
     const marker = syntheticMarker('remote');
-    const expectedContent = `export const remoteDemo = "${marker}";\nexport const imported = true;\n`;
+    const privacyLines = 'export const owner = "owner@example.invalid";\nexport const reference = "6d0a8c71-be37-4a1e-b601-8ab667997311";\n';
+    const expectedContent = `export const remoteDemo = "${marker}";\nexport const imported = true;\n${privacyLines}`;
+    const fileResults: Array<Record<string, unknown>> = [];
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send('Network.enable');
+    cdp.on('Network.webSocketFrameSent', ({ response }: { response: { payloadData: string } }) => {
+      try {
+        const message = JSON.parse(response.payloadData);
+        if (message.type === 'project_file_operation_result') fileResults.push(message);
+      } catch { /* Ignore non-JSON frames. */ }
+    });
     let chatUrl: string | null = null;
     const bridge = spawn(
       'node',
@@ -530,6 +544,7 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
           ...process.env,
           OPENMATES_STATE_DIR: fixtureStateDir,
           OPENMATES_CLI_DEVICE_IDENTITY: fixtureDeviceIdentity,
+          OPENMATES_PROJECT_FILE_PII_FIXTURE: '1',
           OPENMATES_REMOTE_HOST_SESSION: join(fixtureStateDir, 'session.json'),
         },
         stdio: ['ignore', 'pipe', 'pipe'],
@@ -564,6 +579,10 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
       expect(remoteState.path).toBe('src/remote-demo.ts');
       expect(remoteState.size_bytes).toBe(Buffer.byteLength(expectedContent));
       expect(Buffer.from(remoteState.content_base64 as string, 'base64').toString('utf8')).toBe(expectedContent);
+      expect(fileResults.length).toBeGreaterThan(0);
+      expect(JSON.stringify(fileResults)).not.toContain('owner@example.invalid');
+      expect(JSON.stringify(fileResults)).toContain('[OM_PII_');
+      expect(JSON.stringify(fileResults)).toContain('6d0a8c71-be37-4a1e-b601-8ab667997311');
       await deactivateProjectFocusAndVerify(page, fixture.project_id as string);
       await deleteActiveChat(page);
       chatUrl = null;
@@ -586,11 +605,14 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
       expect(await readFullscreenCodeLines(overlay)).toEqual([
         `export const remoteDemo = "${marker}";`,
         'export const imported = true;',
+        'export const owner = "owner@example.invalid";',
+        'export const reference = "6d0a8c71-be37-4a1e-b601-8ab667997311";',
         '',
       ]);
       await closeFullscreen(page, overlay);
       await expect(page.getByTestId('project-item-card')).toHaveCount(0);
     } finally {
+      await cdp.detach().catch(() => undefined);
       if (chatUrl) {
         await page.goto(chatUrl, { waitUntil: 'domcontentloaded' }).catch(() => undefined);
         await deleteActiveChat(page);
