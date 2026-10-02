@@ -338,8 +338,8 @@ test.describe('Apps workspace', () => {
     }
   });
 
-  // contract-test: direct surface=gui.web assertions=apps.presentation.shared-detail-and-recency,workspace-shell.start.chat-visual-parity
-  test('Apps keeps the shared outer gutters and settings gap at desktop and phone widths', async ({ page }: { page: any }) => {
+  // contract-test: direct surface=gui.web assertions=apps.navigation.hash-and-forwarding,apps.presentation.shared-detail-and-recency,workspace-shell.start.chat-visual-parity
+  test('Apps keeps shared gutters and safely exits to Chats while Settings closes', async ({ page }: { page: any }) => {
     for (const width of [1440, 390]) {
       await page.setViewportSize({ width, height: 1000 });
       await page.goto(getE2EDebugUrl('/#apps/web/search'), { waitUntil: 'domcontentloaded' });
@@ -382,8 +382,47 @@ test.describe('Apps workspace', () => {
       const screenshot = test.info().outputPath(`apps-settings-gutters-${width}.png`);
       await page.screenshot({ path: screenshot, animations: 'disabled' });
       await test.info().attach(`apps-settings-gutters-${width}`, { path: screenshot, contentType: 'image/png' });
+      // Observe the actual close callbacks so the assertion cannot finish
+      // before a delayed write runs after Apps has unmounted. Timer delays
+      // and production callbacks are unchanged.
+      await page.evaluate(() => {
+        const browser = window as Window & {
+          appsSettingsCloseTimers?: { scheduled: number; settled: number };
+          appsSettingsRestoreTimers?: () => void;
+        };
+        const stats = { scheduled: 0, settled: 0 };
+        browser.appsSettingsCloseTimers = stats;
+        const original = window.setTimeout;
+        window.setTimeout = ((handler: TimerHandler, delay?: number, ...args: unknown[]) => {
+          if (delay !== 300 || typeof handler !== 'function') {
+            return original.call(window, handler, delay, ...args);
+          }
+          stats.scheduled += 1;
+          return original.call(window, () => {
+            try { handler(...args); }
+            finally { stats.settled += 1; }
+          }, delay);
+        }) as typeof window.setTimeout;
+        browser.appsSettingsRestoreTimers = () => { window.setTimeout = original; };
+      });
+      const navigationErrors: string[] = [];
+      const recordError = (error: Error) => navigationErrors.push(error.message);
+      page.on('pageerror', recordError);
       await page.getByTestId('icon-button-close').click();
-      await expect(settings).not.toBeVisible();
+      if (width === 1440) await page.getByTestId('chats-nav-link').click();
+      else await page.getByTestId('workspace-mobile-select').selectOption('/');
+      await expect(page.getByTestId('apps-workspace')).toHaveCount(0);
+      await page.evaluate(() => {
+        (window as Window & { appsSettingsRestoreTimers?: () => void }).appsSettingsRestoreTimers?.();
+      });
+      await expect.poll(() => page.evaluate(() => {
+        const stats = (window as Window & { appsSettingsCloseTimers?: { scheduled: number; settled: number } }).appsSettingsCloseTimers;
+        return stats && stats.scheduled > 0 && stats.scheduled === stats.settled;
+      })).toBe(true);
+      expect(navigationErrors).toEqual([]);
+      page.off('pageerror', recordError);
+      await expect(page.locator('.ProseMirror').first()).toBeVisible({ timeout: 30000 });
+      expect(appHash(page)).not.toMatch(/^#apps/);
     }
   });
 

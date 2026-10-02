@@ -2386,8 +2386,13 @@ changes to the documentation (to keep the documentation up to date).
         	// Reset scroll position and clear the All Apps scroll memory so a
         	// stale position doesn't persist into the next time the menu is opened.
         	allAppsScrollPosition = 0;
+        	const closingContent = settingsContentElement;
         	setTimeout(() => {
-        		settingsContentElement.scrollTop = 0;
+        		// The workspace may unmount Settings before its close animation
+        		// finishes. Do not reset a detached or reopened panel.
+        		if (!isMenuVisible && settingsContentElement === closingContent) {
+        			closingContent.scrollTop = 0;
+        		}
         	}, 300);
         }
     }
