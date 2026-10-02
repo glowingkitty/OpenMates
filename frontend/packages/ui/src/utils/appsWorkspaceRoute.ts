@@ -11,6 +11,8 @@ export interface AppsWorkspaceRoute {
   tab: AppsWorkspaceTab;
   showAll: boolean;
   embedId: string | null;
+  /** Parent graph used when opening a child from the inline result grid. */
+  rootEmbedId: string | null;
 }
 
 function decodeSegment(segment: string): string {
@@ -91,6 +93,7 @@ export function readAppsWorkspaceRoute(hash: string): AppsWorkspaceRoute | null 
     tab,
     showAll: parts[0] === 'all',
     embedId: params.get('embed-id') || null,
+    rootEmbedId: params.get('root-id') || null,
   };
 }
 

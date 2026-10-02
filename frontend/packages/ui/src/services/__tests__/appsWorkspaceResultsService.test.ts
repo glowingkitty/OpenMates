@@ -482,4 +482,25 @@ describe("Apps result persistence", () => {
     expect(bodies).toHaveLength(1); // Server accepted A; B received no local row.
     expect(mocks.putEncrypted).toHaveBeenCalledTimes(1);
   });
+  // contract-test: direct surface=gui.web assertions=apps.results.web-retained-graph
+  it("keeps the request query in the encrypted parent for the regular search preview", async () => {
+    const bodies = successfulUploads();
+    const { retainAppsResult } = await import("../appsWorkspaceResultsService");
+    await retainAppsResult({ appId: "events", skillId: "search", input: { query: "Saved parent query" }, response: { results: [{ title: "Result" }] }, requestId: "92000000-0000-4000-8000-000000000001" });
+    const root = (bodies[0] as { embeds: Array<{ encrypted_content: string }> }).embeds[0];
+    expect(JSON.parse(decrypt(root.encrypted_content)).query).toBe("Saved parent query");
+    expect(JSON.stringify(bodies)).not.toContain("Saved parent query");
+  });
+
+  // contract-test: supporting surface=gui.web assertions=apps.results.web-retained-graph
+  it("does not hide a hydrated media graph if generated URL refresh fails", async () => {
+    const id = "93000000-0000-4000-8000-000000000001";
+    const root = { embed_id: id, app_id: "images", skill_id: "generate", encrypted_type: crypt("app_skill_use"), encrypted_content: crypt('{"app_id":"images"}'), status: "finished", embed_ids: [], created_at: 1, updated_at: 1 };
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ root, children: [], linked: [], key: { hashed_embed_id: "hash", hashed_user_id: "owner-hash", encrypted_embed_key: "master-wrapper", key_type: "master", created_at: 1 } }), { status: 200 })));
+    mocks.get.mockRejectedValueOnce(new Error("Transient cache failure"));
+    const { getAppsResult } = await import("../appsWorkspaceResultsService");
+    await expect(getAppsResult(id)).resolves.toBeUndefined();
+    expect(mocks.putEncrypted).toHaveBeenCalledTimes(1);
+  });
+
 });

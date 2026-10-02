@@ -20,7 +20,8 @@
   import SkillDetails from '../settings/SkillDetails.svelte';
   import SettingsTabs from '../settings/elements/SettingsTabs.svelte';
   import UnifiedEmbedFullscreen from '../embeds/UnifiedEmbedFullscreen.svelte';
-  import GenericAppSkillEmbedPreview from '../embeds/app_skill/GenericAppSkillEmbedPreview.svelte';
+  import AppsEmbedPreview from './AppsEmbedPreview.svelte';
+  import AppsInlineResults from './AppsInlineResults.svelte';
   import AppsSkillForm from './AppsSkillForm.svelte';
   import AppsResultFullscreen from './AppsResultFullscreen.svelte';
 
@@ -50,6 +51,7 @@
   let skillContextOpen = $state(false);
   let submitting = $state(false);
   let requestError = $state(false);
+  let inlineResultId = $state<string | null>(null);
   let libraryError = $state(false);
   let libraryLoading = $state(false);
   let results = $state<AppsResultItem[]>([]);
@@ -176,8 +178,9 @@
     catch { recents = []; }
   });
   $effect(() => {
-    void resolvedAppId; void skillId;
+    void resolvedAppId; void skillId; void accountKey;
     skillContextOpen = false;
+    inlineResultId = null;
   });
   $effect(() => {
     const appId = resolvedAppId; const selectedSkill = skillId;
@@ -239,13 +242,13 @@
     const selected = metadata; const submittedTeamId = teamId; const guest = !$authStore.isAuthenticated;
     const submittedContext = accountKey; const requestId = crypto.randomUUID();
     let acceptedTaskId: string | undefined;
-    submitting = true; requestError = false;
+    submitting = true; requestError = false; inlineResultId = null;
     try {
       await retainAppsResult({ appId: selected.app_id, skillId: selected.skill_id, input, response: { status: 'processing' }, teamId: submittedTeamId, guest, requestId });
       const response = await executeAppsSkill(selected.app_id, selected.skill_id, input, { guest, teamId: submittedTeamId, metadata: selected, onTaskSubmitted: async taskId => { acceptedTaskId = taskId; await retainAppsResult({ appId: selected.app_id, skillId: selected.skill_id, input, response: { status: 'processing', task_id: taskId }, teamId: submittedTeamId, guest, requestId }); } });
       const embedId = await retainAppsResult({ appId: selected.app_id, skillId: selected.skill_id, input, response, teamId: submittedTeamId, guest, requestId });
       remember(selected.app_id, submittedContext);
-      if (mounted && accountKey === submittedContext && resolvedAppId === selected.app_id && skillId === selected.skill_id && route?.tab === 'overview') onNavigate(`${buildAppsWorkspaceHash(detailPath, 'embeds')}&embed-id=${encodeURIComponent(embedId)}`);
+      if (mounted && accountKey === submittedContext && resolvedAppId === selected.app_id && skillId === selected.skill_id) inlineResultId = embedId;
     } catch {
       await retainAppsResult({ appId: selected.app_id, skillId: selected.skill_id, input, response: acceptedTaskId ? { status: 'processing', task_id: acceptedTaskId } : { status: 'error' }, teamId: submittedTeamId, guest, requestId }).catch(() => {});
       if (accountKey === submittedContext) requestError = true;
@@ -266,8 +269,10 @@
     } catch { if (generation === libraryGeneration) libraryError = true; }
     finally { if (generation === libraryGeneration) libraryLoading = false; }
   }
-  function openResult(embedId: string): void { onNavigate(`${buildAppsWorkspaceHash(detailPath, 'embeds')}&embed-id=${encodeURIComponent(embedId)}`); }
-  function closeResult(): void { onNavigate(buildAppsWorkspaceHash(detailPath, 'embeds')); }
+  function openResult(embedId: string, rootEmbedId?: string): void {
+    onNavigate(`${buildAppsWorkspaceHash(detailPath, route?.tab ?? 'overview')}&embed-id=${encodeURIComponent(embedId)}${rootEmbedId && rootEmbedId !== embedId ? `&root-id=${encodeURIComponent(rootEmbedId)}` : ''}`);
+  }
+  function closeResult(): void { onNavigate(buildAppsWorkspaceHash(detailPath, route?.tab ?? 'overview')); }
   function openExample(example: string): void { window.open(`/#new-message=${encodeURIComponent(example)}`, '_blank', 'noopener,noreferrer'); }
   async function shareDetail(): Promise<void> {
     if (!detailPath) return;
@@ -314,7 +319,7 @@
                       <div class="results-grid" data-testid="apps-results-list">
                         {#each results as result (result.embedId)}
                           <div data-testid={`apps-result-open-${result.embedId}`}>
-                            <GenericAppSkillEmbedPreview id={result.embedId} appId={result.appId} skillId={result.skillId} status={result.status} onFullscreen={() => openResult(result.embedId)} />
+                            <AppsEmbedPreview embedId={result.embedId} appId={result.appId} skillId={result.skillId} status={result.status} {teamId} hydrate onFullscreen={() => openResult(result.embedId)} />
                           </div>
                         {:else}<p>{tr('no_embeds')}</p>{/each}
                       </div>
@@ -349,6 +354,9 @@
                       {:else if metadata}<AppsSkillForm {metadata} showManualIntro={false} onSubmit={submit} {submitting} disabled={viewer} guest={!$authStore.isAuthenticated} {guestEligibility} {onSignup} />{/if}
                       {#if requestError}<p role="alert">{tr('request_error')}</p>{/if}
                       {#if viewer}<p>{tr('viewer_read_only')}</p>{/if}
+                      {#if inlineResultId}
+                        {#key `${accountKey}:${inlineResultId}`}<AppsInlineResults embedId={inlineResultId} appId={app.id} {skillId} onOpen={openResult} />{/key}
+                      {/if}
                     </div>
                   {:else}
                     <AppDetailsWrapper presentation="apps" section={route?.tab === 'focus_modes' || route?.tab === 'settings_memories' ? route.tab : 'skills'} onOpenExample={openExample} activeSettingsView={detailPath} on:openSettings={navigateSettings} />
@@ -369,7 +377,7 @@
   {/if}
   {#if route?.embedId && route.appId}
     <div class="apps-result-layer" data-testid="apps-result-fullscreen">
-      {#key `${accountKey}:${route.embedId}`}<AppsResultFullscreen embedId={route.embedId} appId={resolvedAppId ?? route.appId} {teamId} onClose={closeResult} />{/key}
+      {#key `${accountKey}:${route.embedId}`}<AppsResultFullscreen embedId={route.embedId} rootEmbedId={route.rootEmbedId ?? route.embedId} appId={resolvedAppId ?? route.appId} {teamId} onClose={closeResult} />{/key}
     </div>
   {/if}
 </div>

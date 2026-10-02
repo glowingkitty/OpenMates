@@ -2,6 +2,14 @@ title:
   context: Apps workspace interface
   en: Apps
   de: Apps
+results:
+  context: Results displayed below the direct app skill form
+  en: Results
+  de: Ergebnisse
+no_results:
+  context: A direct app skill request finished without results
+  en: No results found.
+  de: Keine Ergebnisse gefunden.
 app_label:
   context: Apps workspace interface
   en: App

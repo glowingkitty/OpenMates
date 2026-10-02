@@ -22,10 +22,10 @@ describe('Apps workspace route', () => {
     expect(buildAppsWorkspaceHash('apps/health/content/report')).toBe('#apps/health/content/report');
     expect(readAppsWorkspaceRoute('#apps/health/search-appointments&tab=embeds&embed-id=embed-1'))
       .toEqual({ appId: 'health', skillId: 'search-appointments', settingsPath: null,
-        tab: 'embeds', showAll: false, embedId: 'embed-1' });
+        tab: 'embeds', showAll: false, embedId: 'embed-1', rootEmbedId: null });
     expect(readAppsWorkspaceRoute('#apps/health/search-appointments/provider/doctorly&tab=workflows'))
       .toEqual({ appId: 'health', skillId: 'search-appointments', settingsPath: 'provider/doctorly',
-        tab: 'workflows', showAll: false, embedId: null });
+        tab: 'workflows', showAll: false, embedId: null, rootEmbedId: null });
     expect(buildAppsWorkspaceHash('apps/health/search-appointments&embed-id=one&tab=embeds'))
       .toBe('#apps/health/search-appointments&embed-id=one&tab=embeds');
     expect(readAppsWorkspaceRoute(buildAppsWorkspaceHash('apps/health', 'focus_modes'))?.tab)
@@ -37,7 +37,8 @@ describe('Apps workspace route', () => {
   // contract-test: supporting surface=gui.web assertions=apps.navigation.hash-and-forwarding
   it('recognizes the public index and leaves other workspaces alone', () => {
     expect(readAppsWorkspaceRoute('#apps')).toEqual({ appId: null, skillId: null,
-      settingsPath: null, tab: 'overview', showAll: false, embedId: null });
+      settingsPath: null, tab: 'overview', showAll: false, embedId: null, rootEmbedId: null });
+    expect(readAppsWorkspaceRoute('#apps/web/search&embed-id=child&root-id=parent')?.rootEmbedId).toBe('parent');
     expect(readAppsWorkspaceRoute('#apps/all&filter=settings_memories')?.showAll).toBe(true);
     expect(buildAppsWorkspaceHash('apps/all/focus-modes')).toBe('#apps/all&filter=focus_modes');
     expect(readAppsWorkspaceRoute('#chat-id=1')).toBeNull();

@@ -682,6 +682,7 @@ export async function retainAppsResult(args: RetainAppsResultInput): Promise<str
     acceptedTaskIds = Array.from(new Set(acceptedTaskIds));
   }
   const rootContent = {
+    ...(args.input && typeof args.input === "object" && !Array.isArray(args.input) ? args.input : {}),
     ...responseMetadata,
     app_id: args.appId, skill_id: args.skillId, input: args.input,
     ...(acceptedTaskIds.length ? { task_ids: acceptedTaskIds } : {}),
@@ -717,7 +718,7 @@ export async function retainAppsResult(args: RetainAppsResultInput): Promise<str
   if (status === "finished") {
     // The encrypted graph is already durable; a transient URL refresh must not
     // report the provider result as unsaved.
-    try { await refreshAppsGeneratedAssetUrls(children.map((row) => row.embed_id), args.teamId, submittedContext.userId); }
+    try { if (["images", "audio", "music", "videos"].includes(args.appId)) await refreshAppsGeneratedAssetUrls(children.map((row) => row.embed_id), args.teamId, submittedContext.userId); }
     catch { /* Reopening the result retries the refresh. */ }
   }
   return rootId;
@@ -834,7 +835,7 @@ export async function getAppsResult(embedId: string, teamId?: string | null): Pr
       assertSameAuthenticatedUser(requestedUserId);
       activeKeys.set(embedId, chatKey);
       activeContexts.set(embedId, { teamId: teamId ?? null, guest: false, userId: requestedUserId });
-      await refreshAppsGeneratedAssetUrls([...detail.children, ...(detail.linked || [])].map((row) => row.embed_id), teamId, requestedUserId);
+      if (["images", "audio", "music", "videos"].includes(detail.root.app_id)) await refreshAppsGeneratedAssetUrls([...detail.children, ...(detail.linked || [])].map((row) => row.embed_id), teamId, requestedUserId);
       return;
     }
     const local = await embedStore.get(`embed:${embedId}`);
@@ -853,7 +854,11 @@ export async function getAppsResult(embedId: string, teamId?: string | null): Pr
   assertSameAuthenticatedUser(requestedUserId);
   activeKeys.set(embedId, key);
   activeContexts.set(embedId, { teamId: teamId ?? null, guest: false, userId: requestedUserId, wrapper: detail.key.encrypted_embed_key });
-  await refreshAppsGeneratedAssetUrls([...detail.children, ...(detail.linked || [])].map((row) => row.embed_id), teamId, requestedUserId);
+  // The graph is usable once hydrated. URL-refresh failures must not hide a
+  // saved result, and Web/search graphs have no generated media to refresh.
+  try {
+    if (["images", "audio", "music", "videos"].includes(detail.root.app_id)) await refreshAppsGeneratedAssetUrls([...detail.children, ...(detail.linked || [])].map((row) => row.embed_id), teamId, requestedUserId);
+  } catch { /* Opening the media embed can retry refreshing its asset URLs. */ }
 }
 
 /** Rewrap guest keys for Personal and retry exact same IDs until upload succeeds. */

@@ -3,7 +3,15 @@
 // These assertions keep metadata-only parent embeds useful without forcing
 // preview-time child hydration or provider calls.
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+// These unit checks verify renderer selection and its props. The real Svelte
+// components are exercised by the bare preview and route E2E specs; importing
+// their authentication/runtime graph here would obscure that small contract.
+const previews = vi.hoisted(() => ({ website: () => {}, connection: () => {}, place: () => {} }));
+vi.mock('../../components/embeds/web/WebsiteEmbedPreview.svelte', () => ({ default: previews.website }));
+vi.mock('../../components/embeds/travel/TravelConnectionEmbedPreview.svelte', () => ({ default: previews.connection }));
+vi.mock('../../components/embeds/maps/MapLocationEmbedPreview.svelte', () => ({ default: previews.place }));
 import { embedPreviewRegistry, parentPreviewProps, pdfPreviewProps } from '../embedPreviewRegistry';
 
 function metadataFor(decodedContent: Record<string, unknown>) {
@@ -21,6 +29,23 @@ function metadataFor(decodedContent: Record<string, unknown>) {
 }
 
 describe('embedPreviewRegistry parent preview metadata', () => {
+  // contract-test: supporting surface=gui.web assertions=apps.results.web-retained-graph,apps.presentation.shared-detail-and-recency
+  it('renders website children with their own metadata instead of the inherited search parent', async () => {
+    const onFullscreen = () => {};
+    for (const type of ['website', 'web-website']) {
+      const resolved = await embedPreviewRegistry.resolve({
+        embedId: 'website-child',
+        embedData: { type, status: 'finished', app_id: 'web', skill_id: 'search' },
+        decodedContent: { app_id: 'web', skill_id: 'search', url: 'https://example.test', title: 'Saved website', snippet: 'Website snippet', meta_url: { favicon: 'https://example.test/icon.png' }, thumbnail: { original: 'https://example.test/photo.png' } },
+        onFullscreen,
+      });
+      expect(resolved?.component).toBe(previews.website);
+      expect(resolved?.props).toMatchObject({ id: 'website-child', url: 'https://example.test', title: 'Saved website', description: 'Website snippet', favicon: 'https://example.test/icon.png', image: 'https://example.test/photo.png', status: 'finished', onFullscreen });
+      expect(resolved?.props).not.toHaveProperty('childEmbedIds');
+      expect(resolved?.props).not.toHaveProperty('resultCount');
+    }
+  });
+
   // contract-test: supporting surface=gui.web assertions=public-example-chats.surface.semantic-parity
   it('resolves Finance check_accounts app skill previews', () => {
     expect(embedPreviewRegistry.canResolve({

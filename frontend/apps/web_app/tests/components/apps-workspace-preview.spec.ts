@@ -9,7 +9,7 @@ import { waitForComponentPreview } from '../helpers/component-preview';
 
 const { expect, test } = require('../helpers/cookie-audit');
 
-const preview = (component: 'Header' | 'apps/AppsWorkspace' | 'apps/AppsResultFullscreen', width: number, variant?: string) =>
+const preview = (component: 'Header' | 'apps/AppsWorkspace' | 'apps/AppsResultFullscreen' | 'apps/AppsInlineResults' | 'apps/AppsEmbedPreview', width: number, variant?: string) =>
   `/dev/preview/${component}?${new URLSearchParams({
     theme: 'light', background: '#dbeafe', width: String(width), chrome: '0',
     ...(variant ? { variant } : {}),
@@ -79,6 +79,57 @@ async function attachWorkspaceScreenshot(page: Page, name: string): Promise<void
 }
 
 test.describe('Apps bare component previews', () => {
+  // contract-test: supporting surface=gui.web assertions=apps.results.web-retained-graph
+  test('a saved failed request remains a truthful failure rather than an unavailable empty search', async ({ page }: { page: Page }) => {
+    await page.goto(preview('apps/AppsResultFullscreen', 390, 'failedRequest'), { waitUntil: 'domcontentloaded' });
+    await waitForComponentPreview(page);
+    await expect(page.getByRole('alert')).toHaveText('The request could not finish. You can try again.');
+    await expect(page.getByTestId('search-template-grid')).toHaveCount(0);
+    const closed = page.evaluate(() => new Promise<void>(resolve => window.addEventListener('apps-result-preview-close', () => resolve(), { once: true })));
+    await page.getByTestId('embed-minimize').click();
+    await closed;
+  });
+  // contract-test: supporting surface=gui.web assertions=apps.results.web-retained-graph,apps.presentation.shared-detail-and-recency
+  test('inline results use the regular child previews and pass their parent graph when opened', async ({ page }: { page: Page }) => {
+    for (const width of [1180, 390]) {
+      await page.setViewportSize({ width, height: 844 });
+      await page.goto(preview('apps/AppsInlineResults', width), { waitUntil: 'domcontentloaded' });
+      await waitForComponentPreview(page);
+      const grid = page.getByTestId('apps-inline-results-grid');
+      await expect(grid.getByTestId('embed-preview')).toHaveCount(2);
+      await expect(grid).toContainText('Preview page 1');
+      await expect(grid).toContainText('Preview page 2');
+      const cards = await grid.getByTestId('embed-preview').all();
+      const first = await cards[0].boundingBox();
+      const second = await cards[1].boundingBox();
+      if (width === 1180) {
+        expect(second!.x).toBeGreaterThanOrEqual(first!.x + first!.width);
+        expect(second!.y).toBeCloseTo(first!.y, 0);
+      } else {
+        expect(second!.y).toBeGreaterThanOrEqual(first!.y + first!.height);
+      }
+      await expectNoHorizontalOverflow(page);
+      const opened = page.evaluate(() => new Promise(resolve => window.addEventListener('apps-inline-preview-open', event => resolve((event as CustomEvent).detail), { once: true })));
+      await grid.getByTestId('embed-preview').first().click();
+      expect(await opened).toEqual({ id: '90000000-0000-4000-8000-000000000002', parent: '90000000-0000-4000-8000-000000000001' });
+      await attachWorkspaceScreenshot(page, `inline-results-${width}.png`);
+    }
+    await page.goto(preview('apps/AppsInlineResults', 390, 'empty'), { waitUntil: 'domcontentloaded' });
+    await waitForComponentPreview(page);
+    await expect(page.getByRole('status')).toHaveText('No results found.');
+    await expect(page.getByTestId('embed-preview')).toHaveCount(0);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=apps.library.embeds-account-paginated,apps.presentation.shared-detail-and-recency
+  test('saved parent cards use the regular Search preview with query and result count', async ({ page }: { page: Page }) => {
+    await page.goto(preview('apps/AppsEmbedPreview', 390), { waitUntil: 'domcontentloaded' });
+    await waitForComponentPreview(page);
+    await expect(page.getByTestId('embed-preview')).toContainText('Preview search');
+    await expect(page.getByTestId('embed-preview')).toContainText('2');
+    const opened = page.evaluate(() => new Promise(resolve => window.addEventListener('apps-embed-preview-open', resolve, { once: true })));
+    await page.getByTestId('embed-preview').click();
+    await opened;
+  });
   // contract-test: supporting surface=gui.web assertions=apps.results.web-retained-graph,apps.presentation.shared-detail-and-recency
   test('keeps an unavailable result closeable when its renderer is missing', async ({ page }: { page: Page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
@@ -164,7 +215,9 @@ test.describe('Apps bare component previews', () => {
       await expect(selector.locator('option[value="/#apps"]')).toHaveText(/Apps/i);
       await expect(login).toBeVisible();
       await expect(login).toHaveAccessibleName(/Login|Sign\s*up/i);
-      await expect(login.locator('.login-signup-icon')).toBeVisible();
+      await expect(login).toContainText(/Login|Sign\s*up/i);
+      await login.focus();
+      await expect(login).toBeFocused();
       const selectorBounds = await selector.boundingBox();
       const loginBounds = await login.boundingBox();
       expect(selectorBounds!.x + selectorBounds!.width).toBeLessThanOrEqual(loginBounds!.x);

@@ -9,5 +9,6 @@ const onClose = () => window.dispatchEvent(new Event('apps-result-preview-close'
 
 export default { embedId, appId: 'web', exampleData, onClose };
 export const variants = {
+  failedRequest: { embedId, appId: 'web', onClose, exampleData: { ...exampleData, decodedContent: { app_id: 'web', skill_id: 'search', status: 'error', results: [] } } },
   missingRegistry: { embedId, appId: 'web', onClose, exampleData: { ...exampleData, decodedContent: { app_id: 'web', results: [] } } },
 };

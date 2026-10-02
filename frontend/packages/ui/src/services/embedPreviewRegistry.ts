@@ -1,4 +1,5 @@
 import { normalizeEmbedType } from '../data/embedRegistry.generated';
+import { searchResultImageUrl } from '../utils/searchPreviewImages';
 
 /**
  * embedPreviewRegistry.ts
@@ -198,6 +199,26 @@ resolvers.set("app:hosting:search_domains", async ({ embedId, decodedContent, em
 resolvers.set("hosting-domain", async ({ embedId, decodedContent, onFullscreen }) => {
   const { default: component } = await import("../components/embeds/hosting/HostingDomainEmbedPreview.svelte");
   return { component, props: { id: embedId, content: decodedContent, isMobile: false, onFullscreen } };
+});
+
+// Website children retain the search skill that produced them, but have their
+// own preview contract. Resolve their concrete type before the parent skill.
+resolvers.set("web-website", async ({ embedId, decodedContent, embedData, onFullscreen }) => {
+  const { default: component } = await import("../components/embeds/web/WebsiteEmbedPreview.svelte");
+  const status = normalizeStatus(embedData.status);
+  return {
+    component,
+    props: {
+      id: embedId,
+      url: firstText(decodedContent.url) ?? "",
+      title: firstText(decodedContent.title),
+      description: firstText(decodedContent.description, decodedContent.snippet),
+      favicon: firstText(nestedRecord(decodedContent, 'meta_url')?.favicon, decodedContent['meta_url.favicon'], decodedContent.meta_url_favicon, decodedContent.favicon_url, decodedContent.favicon),
+      image: searchResultImageUrl(decodedContent),
+      status: status === "cancelled" ? "error" : status,
+      onFullscreen,
+    },
+  };
 });
 
 // ── App-skill-use: web ────────────────────────────────────────────────────────
@@ -942,9 +963,9 @@ resolvers.set("app:docs:doc", docsResolver);
  * Derive the registry key from the embed context.
  *
  * Resolution order (first match wins):
- *  1. Specific app-skill key:  "app:<appId>:<skillId>"
- *  2. Wildcard app key:        "app:<appId>:*"   (catches code embeds via app_id only)
- *  3. Direct type key:         embedData.type    (e.g. "docs-doc", "math-plot")
+ *  1. Concrete child/direct type (e.g. "web-website", "maps-place")
+ *  2. Specific app-skill key:  "app:<appId>:<skillId>"
+ *  3. Wildcard app key:        "app:<appId>:*"   (catches code embeds via app_id only)
  *
  * Returns null if no key matches — the caller should fall back to a text summary.
  */
@@ -962,7 +983,7 @@ function deriveKey(ctx: EmbedPreviewContext): string | null {
 
   // Child/direct embeds often carry the parent skill_id that created them. Prefer
   // the concrete embed type so child route/place cards don't render as parent searches.
-  if (type && type !== "app_skill_use" && resolvers.has(type)) return type;
+  if (type && type !== "app-skill-use" && resolvers.has(type)) return type;
 
   // 1. Specific app:skill key
   if (appId && skillId) {

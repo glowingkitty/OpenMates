@@ -46,6 +46,8 @@ class AppsWorkspaceResultsService:
         root = selected if root_id == embed_id else await self._find_embed(root_id)
         if not root or not self._scope_matches(root, owner_hash, team_hash):
             raise AppsResultConflict("Saved embed root is unavailable in the selected account")
+        if root.get("parent_embed_id") or root.get("root_embed_id") not in (None, root_id):
+            raise AppsResultConflict("Only parent embeds can be indexed in the app library")
         if root.get("workspace_origin") == "web_apps":
             if root.get("app_id") != app_id:
                 raise AppsResultConflict("Saved embed belongs to another app")
@@ -300,20 +302,24 @@ class AppsWorkspaceResultsService:
         filters: dict[str, Any] = {
             "filter[app_id][_eq]": app_id,
             "filter[workspace_origin][_in]": "web_apps,chat",
+            "filter[parent_embed_id][_null]": True,
             "filter[hashed_team_id][_eq]" if team_hash else "filter[hashed_team_id][_null]": team_hash if team_hash else True,
         }
         if not team_hash:
             filters["filter[hashed_user_id][_eq]"] = owner_hash
         rows = await self.directus.get_items(
-            "embeds", params={**filters, "fields": "embed_id,app_id,skill_id,status,embed_ids,created_at,updated_at,encrypted_type,encrypted_content,encrypted_text_preview,hashed_user_id,hashed_team_id", "sort": "-created_at,-embed_id", "offset": offset, "limit": limit + 1},
+            "embeds", params={**filters, "fields": "embed_id,root_embed_id,parent_embed_id,app_id,skill_id,status,embed_ids,created_at,updated_at,encrypted_type,encrypted_content,encrypted_text_preview,hashed_user_id,hashed_team_id", "sort": "-created_at,-embed_id", "offset": offset, "limit": limit + 1},
             no_cache=True, admin_required=True, raise_on_error=True,
         )
-        return {"items": rows[:limit], "has_more": len(rows) > limit, "offset": offset, "limit": limit}
+        # Also reject old malformed index rows. Keep the raw bounded offset so
+        # skipping a corrupt row cannot duplicate or skip a valid next page.
+        parents = [row for row in rows[:limit] if not row.get("parent_embed_id") and row.get("root_embed_id") == row.get("embed_id")]
+        return {"items": parents, "has_more": len(rows) > limit, "offset": offset, "limit": limit}
 
     async def detail(self, user_id: str, root_id: str, team_id: str | None) -> dict[str, Any] | None:
         owner_hash, team_hash = await self._authorize(user_id, team_id, write=False)
         root = await self._find_embed(root_id)
-        if not root or not self._scope_matches(root, owner_hash, team_hash) or root.get("workspace_origin") not in {"web_apps", "chat"} or root.get("root_embed_id") != root_id:
+        if not root or not self._scope_matches(root, owner_hash, team_hash) or root.get("parent_embed_id") or root.get("workspace_origin") not in {"web_apps", "chat"} or root.get("root_embed_id") != root_id:
             return None
         child_ids = root.get("embed_ids") or []
         if not isinstance(child_ids, list) or len(child_ids) > 500:
