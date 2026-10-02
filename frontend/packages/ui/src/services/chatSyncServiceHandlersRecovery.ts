@@ -21,6 +21,7 @@ import { aiTypingStore } from "../stores/aiTypingStore";
 import { notificationStore } from "../stores/notificationStore";
 import { unreadMessagesStore } from "../stores/unreadMessagesStore";
 import { isChatVisiblyActive } from "./chatNotificationVisibility";
+import { refreshRecoveryChatVersion } from "./chatRecoveryVersionRefresh";
 
 const CHAT_RECOVERY_PROTOCOL_VERSION = 1;
 const CHAT_RECOVERY_EVENT_TIMEOUT_MS = 20_000;
@@ -30,8 +31,6 @@ const CHAT_RECOVERY_RETRY_DELAY_MS = CHAT_RECOVERY_LEASE_EXPIRY_MS + 1_000;
 const INITIAL_SYNC_POLL_MS = 100;
 const RECOVERY_PREREQUISITE_POLL_MS = 250;
 const RECOVERY_PREREQUISITE_TIMEOUT_MS = 120_000;
-const RECOVERY_VERSION_REFRESH_POLL_MS = 100;
-const RECOVERY_VERSION_REFRESH_TIMEOUT_MS = 5_000;
 const RECOVERY_RETRYABLE_ERROR_CODES = new Set(["lease_conflict"]);
 const RECOVERY_STALE_TERMINAL_ERROR_CODES = new Set(["recovery_job_not_found"]);
 const recoveryJobsInProgress = new Set<string>();
@@ -120,25 +119,6 @@ async function waitForRecoveryPrerequisites(job: AvailableRecoveryJob): Promise<
     }
 
     await new Promise((resolve) => window.setTimeout(resolve, RECOVERY_PREREQUISITE_POLL_MS));
-  }
-  return null;
-}
-
-async function waitForRefreshedChatVersion(
-  serviceInstance: ChatSynchronizationService,
-  chatId: string,
-  previousMessagesV: number,
-): Promise<Chat | null> {
-  await serviceInstance.requestChatContentBatch_FOR_HANDLERS_ONLY([chatId]);
-  const deadline = Date.now() + RECOVERY_VERSION_REFRESH_TIMEOUT_MS;
-  while (Date.now() < deadline) {
-    const chat = await chatDB.getChat(chatId);
-    if (
-      chat &&
-      Number.isSafeInteger(chat.messages_v) &&
-      chat.messages_v > previousMessagesV
-    ) return chat;
-    await new Promise((resolve) => window.setTimeout(resolve, RECOVERY_VERSION_REFRESH_POLL_MS));
   }
   return null;
 }
@@ -382,11 +362,7 @@ export async function handleRecoveryJobsAvailableImpl(
         persistedResult = await persistRecoveredMessage(chat.messages_v);
       } catch (error) {
         if (!(error instanceof RecoveryProtocolError) || error.code !== "version_conflict") throw error;
-        const refreshedChat = await waitForRefreshedChatVersion(
-          serviceInstance,
-          job.chat_id,
-          chat.messages_v,
-        );
+        const refreshedChat = await refreshRecoveryChatVersion(chat);
         if (!refreshedChat) throw error;
         persistBaseChat = refreshedChat;
         persistedResult = await persistRecoveredMessage(refreshedChat.messages_v);

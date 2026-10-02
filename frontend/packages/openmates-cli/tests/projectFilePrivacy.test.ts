@@ -45,6 +45,7 @@ test("read and search redact exact spans, preserve line boundaries and commitmen
   assert.equal(reloaded.restoreText(safe.content), original);
   const foreign = new ProjectFilePrivacy({ save: async () => {} });
   assert.throws(() => foreign.restoreText(safe.content), { code: "pii_mapping_unavailable" });
+  assert.throws(() => foreign.restoreText("[EMAIL_1_lid]"), { code: "pii_mapping_unavailable" });
   await assert.rejects(loadProjectFilePrivacy({ ...options, projectId: "other-project" }), { code: "pii_mapping_unavailable" });
 });
 
@@ -90,4 +91,6 @@ test("ambiguous legacy tokens, unavailable mappings and persistence failures nev
   const literalPrivacy = new ProjectFilePrivacy({ mappings: [{ placeholder: "[NAME]", original: "Alice" }], save: async () => {} });
   const literalCode = 'const template = "[NAME]";';
   assert.equal(literalPrivacy.restoreText(literalPrivacy.redactText(literalCode)), literalCode);
+  const legacyLiteral = 'const template = "[EMAIL_2_lid]";';
+  assert.equal(literalPrivacy.restoreText(literalPrivacy.redactText(legacyLiteral)), legacyLiteral);
 });

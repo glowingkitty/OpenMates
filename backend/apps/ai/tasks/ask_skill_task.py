@@ -51,6 +51,7 @@ from backend.apps.ai.skills.ask_skill import AskSkillRequest
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML
 from backend.apps.ai.skills.ask_skill import AskSkillDefaultConfig
 from backend.apps.ai.utils.instruction_loader import load_base_instructions
+from backend.apps.ai.utils.user_task_turn_finalization import finalize_user_task_turn
 from backend.apps.ai.utils.mate_utils import load_mates_config, MateConfig
 from backend.apps.ai.utils.model_selector import DEFAULT_FALLBACK_MODEL
 from backend.apps.ai.processing.preprocessor import handle_preprocessing, PreprocessingResult
@@ -598,41 +599,25 @@ async def _update_user_task_execution_state(
         return False
 
 
-async def _complete_user_task_execution(
+async def _finalize_user_task_execution(
     request_data: AskSkillRequest,
     directus_service: Optional[DirectusService],
 ) -> None:
-    """Complete a product task through the queue service so continuation runs."""
+    """Only explicit Task tools complete work; a finished reply ends its attempt."""
     user_task_id = getattr(request_data, "user_task_id", None)
     if not user_task_id or not directus_service:
         return
 
     try:
         team_id = getattr(request_data, "team_id", None)
-        current_task = await directus_service.user_task.get_task(user_task_id, request_data.user_id, team_id)
-        if not current_task:
-            logger.warning("User task %s was not found while completing execution", user_task_id)
-            return
-        current_version = current_task.get("version")
-        if current_version is None:
-            logger.warning("User task %s has no version while completing execution", user_task_id)
-            return
-        updated_task = await UserTaskQueueService(directus_service.user_task).complete_task(
-            user_task_id,
-            request_data.user_id,
-            version=int(current_version),
-            team_id=team_id,
-            now=int(time.time()),
-        )
-        logger.info(
-            "[Task ID: %s] Completed user task %s through queue service with queue_result=%s",
-            getattr(request_data, "message_id", "unknown"),
-            user_task_id,
-            updated_task.get("queue_result") if isinstance(updated_task, dict) else None,
+        await finalize_user_task_turn(
+            directus_service.user_task,
+            task_id=user_task_id, user_id=request_data.user_id, chat_id=request_data.chat_id,
+            team_id=team_id, now=int(time.time()),
         )
     except Exception as exc:
         logger.warning(
-            "Failed to complete user task %s through queue service: %s",
+            "Failed to finalize user task %s inference attempt: %s",
             user_task_id,
             exc,
             exc_info=True,
@@ -2706,7 +2691,7 @@ async def _async_process_ai_skill_ask_task(
                 ai_execution_state=final_status_message,
             )
         else:
-            await _complete_user_task_execution(request_data, directus_service_instance)
+            await _finalize_user_task_execution(request_data, directus_service_instance)
 
     return {
         "task_id": task_id,

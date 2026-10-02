@@ -1,6 +1,6 @@
 /** Reversible, client-owned PII handling at the Project file/model boundary. */
 import {
-  detectPII, type PIIDetectionOptions, type PIIMappingGeneric,
+  detectPII, PII_TYPE_TO_CATEGORY, type PIIDetectionOptions, type PIIMappingGeneric,
 } from "../components/enter_message/services/piiDetectionService";
 import { validateProjectFileMutation, type ProjectFileMutation } from "../utils/projectFileMutationProtocol";
 
@@ -15,6 +15,10 @@ export interface ProjectFilePrivacyOptions {
 function fail(code: string): never { throw Object.assign(new Error(code), { code }); }
 const TOKEN = /\[[A-Za-z][A-Za-z0-9_]*\]/g;
 const GENERATED_TOKEN = /^\[OM_PII_[A-F0-9]{32}\]$/;
+function legacyToken(token: string): boolean {
+  const match = /^\[([A-Z_]+)_\d+_[A-Za-z0-9]{1,3}\]$/.exec(token);
+  return Boolean(match && Object.prototype.hasOwnProperty.call(PII_TYPE_TO_CATEGORY, match[1]!));
+}
 
 export class ProjectFilePrivacy {
   private readonly values = new Map<string, PIIMappingGeneric>();
@@ -47,7 +51,9 @@ export class ProjectFilePrivacy {
     return text.replace(TOKEN, (token) => {
       if (this.ambiguous.has(token)) fail("pii_mapping_ambiguous");
       const mapping = this.values.get(token);
-      if (!mapping && GENERATED_TOKEN.test(token)) fail("pii_mapping_unavailable");
+      const customToken = this.options.detection?.personalDataEntries?.some((entry) =>
+        (entry.replaceWith.startsWith("[") ? entry.replaceWith : `[${entry.replaceWith}]`) === token);
+      if (!mapping && (GENERATED_TOKEN.test(token) || legacyToken(token) || customToken)) fail("pii_mapping_unavailable");
       return mapping?.original ?? token;
     });
   }
@@ -77,7 +83,7 @@ export class ProjectFilePrivacy {
   }
 
   private token(original: string, type?: string): string {
-    for (const [token, mapping] of this.values) {
+    for (const [token, mapping] of Array.from(this.values)) {
       if (!this.ambiguous.has(token) && mapping.original === original) return token;
     }
     let placeholder: string;
@@ -91,14 +97,14 @@ export class ProjectFilePrivacy {
     const ranges: Array<{ start: number; end: number; type?: string }> = [];
     // Input here is original file/proposal text. Shield literal token spellings
     // that collide with known mappings; one-pass restoration preserves them.
-    const tokens = [...text.matchAll(TOKEN)].map((match) => ({ start: match.index!, end: match.index! + match[0].length }));
+    const tokens = Array.from(text.matchAll(TOKEN)).map((match) => ({ start: match.index!, end: match.index! + match[0].length }));
     for (const range of tokens) {
       const literal = text.slice(range.start, range.end);
-      if (this.values.has(literal) || GENERATED_TOKEN.test(literal)) ranges.push(range);
+      if (this.values.has(literal) || GENERATED_TOKEN.test(literal) || legacyToken(literal)) ranges.push(range);
     }
     const overlaps = (start: number, end: number) => [...tokens, ...ranges].some((r) => start < r.end && end > r.start);
     // Known values are matched exactly, so restoration preserves original case.
-    for (const mapping of [...this.values.values()].sort((a, b) => b.original.length - a.original.length)) {
+    for (const mapping of Array.from(this.values.values()).sort((a, b) => b.original.length - a.original.length)) {
       let start = text.indexOf(mapping.original);
       while (start !== -1) {
         const end = start + mapping.original.length;
@@ -135,7 +141,7 @@ export class ProjectFilePrivacy {
       return item;
     };
     const result = visit(value);
-    const save = this.savePending.catch(() => {}).then(() => this.options.save([...this.values.values(), ...this.conflicts]));
+    const save = this.savePending.catch(() => {}).then(() => this.options.save([...Array.from(this.values.values()), ...this.conflicts]));
     this.savePending = save;
     await save;
     return result;

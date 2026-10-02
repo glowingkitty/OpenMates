@@ -4,7 +4,7 @@ title: 'Agentic coding implementation: project file access first'
 status: implementing
 goal: Implement CLI and chat read/write access to remote and OpenMates-stored Project files, then web
   Project browsing and editing, then address Tasks, Specifications, and Plans gaps.
-revision: r68
+revision: r69
 conversation: codex:01a0caf0-76d6-7e73-86d1-c7c759db3cf4
 workspace_session: '8c51'
 approved_by_user: true
@@ -23,6 +23,8 @@ specification_refs:
   fingerprint: 096846bbfd905d649adcfd26e218d95b98643f3d0d8fa406e2ac03056bd06094
 - specification: feature.focus-modes@1
   role: related
+- specification: feature.tasks@1
+  role: related
 - specification: feature.app-skill.code-run@1
   role: related
   fingerprint: 09b06da0aa7020a23125d0a77e5052731185ac05212581cabccc6f8132b840a7
@@ -37,7 +39,7 @@ current_checkpoint_2026_10_02:
   remote_workspace: The retained validation Project README, nested tree and fullscreen code view pass.
     The updated global CLI runs in the existing openmates-remote Zellij session, terminal_5.
   open_issues:
-  - Deterministic file-boundary redaction/restoration is implemented locally; deployed disposable-Project verification is next.
+  - Deterministic file privacy is deployed. Remote fake-email/UUID edit and fullscreen pass; hosted create/update/read pass but final answer persistence hit version_conflict and is being repaired.
   - Normal OS authorization is needed to install the terminal guard and verify one live command.
   - The corrected dev proxy configuration needs its normal privileged on-disk update for reboot durability.
   - Tasks execution/completion gaps, then Specifications and Plans execution, remain later work.
@@ -56,7 +58,16 @@ deterministic_privacy_checkpoint_2026_10_02:
   - File-generated mappings are local ciphertext, not a new cloud secret vault. Another device must re-read the file before using its tokens; missing or ambiguous mappings fail closed.
   - Multiline file reads keep original CR/LF boundaries. A legacy multiline message token inside a unified patch is rejected rather than corrupting hunk counts.
   - Guard installation and durable Caddy configuration still need normal OS authorization; sudo noninteractive authorization is unavailable.
-  next: Deploy and verify fake-email and UUID round trips in disposable hosted and remote Projects. Then reassess Tasks and Plan/Specification gaps against current source before making changes.
+  deployed: c50516eb30e8d6f3a74e73e4c4cdca3f2fb531d7
+  live_evidence: Remote fake-email and UUID edit preserves exact bytes and original fullscreen content; no raw fake email crosses file-result messages. Hosted writes and redacted reads pass but second answer persistence conflicts.
+  recovery_repair: Version-conflict recovery now reads the authoritative persisted version from the existing authenticated encrypted message-window route, instead of waiting only for a higher optimistic local version. CAS, owner/Team authorization and lease checks remain enforced.
+  next: Verify the repaired hosted completion, then one unfinished-Task/resume smoke. Four version-refresh checks pass; the existing correlation suite cannot collect locally because the worktree lacks dompurify.
+task_completion_checkpoint_2026_10_02:
+  task: TASK-3466
+  observed_gap: The scheduled AI ask wrapper still automatically completed its Task when a turn ended, despite the main processor's explicit Task tools and deterministic queue guard.
+  repair: Explicit Task completion remains the only Done transition. An unfinished owned running Task keeps its status and becomes awaiting_resume; moves, reassignment, blocked/done states and newer versions are preserved.
+  verification: Eight focused finalization checks pass locally. A disposable-Project real-inference smoke is next; pure unit checks do not need duplicate CI execution.
+  later_gaps: Plan context/Specification workflows require a fresh bounded audit; their remaining design is not silently inferred from the September proposal.
 implementation_checkpoint_2026_09_23:
   completed_local_slices:
   - Project focus/role/write policy, setup/settings surfaces and exact approval checks.

@@ -52,6 +52,24 @@ claims:
 
 > Client-side detection and replacement of personally identifiable information before messages reach the server, with encrypted mappings for client-side restoration.
 
+## Project file operations
+
+The browser and CLI share `ProjectFilePrivacy` at the file-job boundary. Read and
+search text, filenames and approval proposals are redacted on the authorized
+client before reaching the model or server-side injection checker. Local file
+browsing still opens the original owner-authorized content.
+
+Writes restore only mappings from that chat and Project before calculating the
+approval commitment and applying the exact patch. Real-file base hashes remain
+unchanged. Numeric detection excludes UUIDs, hashes and existing tokens; multiline
+reads retain CR/LF boundaries so patch line numbers stay meaningful.
+
+Mappings persist locally as chat-key ciphertext, not as a server-readable secret
+registry. Reloading that client restores them. Another device must re-read files
+to obtain its own mappings. Missing/ambiguous tokens fail closed; literal tokens
+inside existing source are shielded and survive one-pass restoration. Logout
+clears the caches. Offline model detection is deferred to TASK-5996 (16 October).
+
 ## Why This Exists
 
 Users may inadvertently paste API keys, email addresses, or credit card numbers into chat messages. The server and LLM providers should never see these values. All detection and replacement happens client-side; the server only receives encrypted placeholders and encrypted mappings it cannot read.
