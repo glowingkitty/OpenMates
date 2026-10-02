@@ -211,7 +211,8 @@ async def get_current_user_ws(
             status="success",
             details={}
         )
-        return {"user_id": user_id, "device_fingerprint_hash": connection_hash, "user_data": user_data,
+        return {"user_id": user_id, "device_fingerprint_hash": connection_hash,
+                "stable_device_fingerprint_hash": device_hash, "user_data": user_data,
                 "pair_expires_at": pair_expires_at, "session_hash": session_hash,
                 "session_expires_at": security_state.get("expires_at") if security_state else None}
 

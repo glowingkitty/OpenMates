@@ -73,6 +73,7 @@ class ProjectRemoteAccessService:
         confirmed_takeover: bool,
         now: int,
         team_id: str | None = None,
+        stable_device_fingerprint_hash: str | None = None,
     ) -> dict[str, Any]:
         normalized = [_normalize_binding(item) for item in bindings]
         if not normalized:
@@ -80,6 +81,7 @@ class ProjectRemoteAccessService:
         if len({(item["project_id"], item["source_id"]) for item in normalized}) != len(normalized):
             raise ProjectRemoteAccessError("duplicate_source_binding")
 
+        stable_device_hash = stable_device_fingerprint_hash or device_fingerprint_hash
         replaced_sessions: set[str] = set()
         context_type, context_id = _context(user_id, team_id)
         async with self._state_lock(context_type, context_id):
@@ -100,6 +102,7 @@ class ProjectRemoteAccessService:
                 "host_user_id": user_id,
                 "host_member_hash": _hash(user_id),
                 "device_fingerprint_hash": device_fingerprint_hash,
+                "stable_device_fingerprint_hash": stable_device_hash,
                 "bindings": normalized,
                 "last_heartbeat_at": now,
                 "deadline_at": now + SESSION_TIMEOUT_SECONDS,
@@ -119,6 +122,7 @@ class ProjectRemoteAccessService:
                         "host_user_id": user_id,
                         "host_member_hash": _hash(user_id),
                         "device_fingerprint_hash": device_fingerprint_hash,
+                        "stable_device_fingerprint_hash": stable_device_hash,
                         "key_epoch": item["key_epoch"],
                         "capabilities": item["capabilities"],
                         "deadline_at": session["deadline_at"],
@@ -424,6 +428,9 @@ class ProjectRemoteAccessService:
                 "source_id": source_id,
                 "source_session_id": session_id,
                 "device_fingerprint_hash": binding["device_fingerprint_hash"],
+                "stable_device_fingerprint_hash": binding.get(
+                    "stable_device_fingerprint_hash", binding["device_fingerprint_hash"]
+                ),
                 "requesting_client_id": requesting_client_id,
                 "operation": operation,
                 "key_epoch": key_epoch,
@@ -476,7 +483,7 @@ class ProjectRemoteAccessService:
 
     async def require_remote_write_request(
         self, *, host_user_id: str, project_id: str, source_id: str,
-        source_session_id: str, request_id: str, device_fingerprint_hash: str,
+        source_session_id: str, request_id: str, stable_device_fingerprint_hash: str,
         now: int, team_id: str | None = None,
     ) -> dict[str, Any]:
         """Resolve a current delivery for its authenticated host before a write.
@@ -491,7 +498,7 @@ class ProjectRemoteAccessService:
             or request.get("project_id") != project_id
             or request.get("source_id") != source_id
             or request.get("source_session_id") != source_session_id
-            or request.get("device_fingerprint_hash") != device_fingerprint_hash
+            or request.get("stable_device_fingerprint_hash") != stable_device_fingerprint_hash
             or request.get("operation") not in WRITE_OPERATIONS
             or request.get("status") != "delivered"
             or int(request.get("deadline_at") or 0) <= now
@@ -501,7 +508,7 @@ class ProjectRemoteAccessService:
             host_user_id, project_id, source_id, now=now, team_id=team_id,
         )
         if (binding.get("source_session_id") != source_session_id
-                or binding.get("device_fingerprint_hash") != device_fingerprint_hash
+                or binding.get("stable_device_fingerprint_hash") != stable_device_fingerprint_hash
                 or binding.get("key_epoch") != request.get("key_epoch")
                 or "write_request" not in set(binding.get("capabilities") or [])):
             raise ProjectRemoteAccessError("source_session_changed", status_code=409)
@@ -509,7 +516,7 @@ class ProjectRemoteAccessService:
 
     async def require_remote_user_file_request(
         self, *, host_user_id: str, project_id: str, source_id: str,
-        source_session_id: str, request_id: str, device_fingerprint_hash: str,
+        source_session_id: str, request_id: str, stable_device_fingerprint_hash: str,
         now: int, team_id: str | None = None,
     ) -> dict[str, Any]:
         """Resolve an explicit user file action against its live host binding."""
@@ -520,7 +527,7 @@ class ProjectRemoteAccessService:
             or request.get("project_id") != project_id
             or request.get("source_id") != source_id
             or request.get("source_session_id") != source_session_id
-            or request.get("device_fingerprint_hash") != device_fingerprint_hash
+            or request.get("stable_device_fingerprint_hash") != stable_device_fingerprint_hash
             or request.get("operation") not in USER_FILE_OPERATIONS
             or request.get("user_initiated") is not True
             or request.get("status") != "delivered"
@@ -531,7 +538,7 @@ class ProjectRemoteAccessService:
             host_user_id, project_id, source_id, now=now, team_id=team_id,
         )
         if (binding.get("source_session_id") != source_session_id
-                or binding.get("device_fingerprint_hash") != device_fingerprint_hash
+                or binding.get("stable_device_fingerprint_hash") != stable_device_fingerprint_hash
                 or binding.get("key_epoch") != request.get("key_epoch")
                 or "write_request" not in set(binding.get("capabilities") or [])):
             raise ProjectRemoteAccessError("source_session_changed", status_code=409)
@@ -813,7 +820,7 @@ class ProjectRemoteAccessService:
             "context_id_hash": context_hash,
             "host_member_hash": _scoped_identity(context_hash, str(request["host_member_hash"])),
             "host_device_fingerprint_hash": _scoped_identity(
-                context_hash, str(request["device_fingerprint_hash"])
+                context_hash, str(request["stable_device_fingerprint_hash"])
             ),
             "requester_member_hash": _scoped_identity(
                 context_hash, str(request["requester_member_hash"])

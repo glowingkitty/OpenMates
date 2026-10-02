@@ -1085,7 +1085,7 @@ async def authorize_project_remote_write(
         delivery = await service.require_remote_write_request(
             host_user_id=current_user.id, project_id=project_id, source_id=source_id,
             source_session_id=body.source_session_id, request_id=request_id,
-            device_fingerprint_hash=device_hash, team_id=team_id, now=int(time.time()),
+            stable_device_fingerprint_hash=device_hash, team_id=team_id, now=int(time.time()),
         )
         await ProjectWriteAuthorizationService(
             directus_service, request.app.state.cache_service,
@@ -1124,7 +1124,7 @@ async def authorize_project_remote_transfer(
         delivery = await service.require_remote_user_file_request(
             host_user_id=current_user.id, project_id=project_id, source_id=source_id,
             source_session_id=body.source_session_id, request_id=request_id,
-            device_fingerprint_hash=device_hash, team_id=team_id, now=int(time.time()),
+            stable_device_fingerprint_hash=device_hash, team_id=team_id, now=int(time.time()),
         )
         requester_id = delivery["requester_user_id"]
         await _require_project_role(directus_service, team_id, requester_id, TEAM_MUTATE_ROLES)
@@ -1177,25 +1177,25 @@ async def get_project_remote_access_request_result(
 
 
 async def _authenticated_request_device_hash(request: Request, user_id: str) -> str:
-    """Resolve the current session's server-associated WebSocket identity."""
+    """Resolve the stable authenticated device identity for source authorization."""
     auth_info = getattr(getattr(request, "state", None), "auth_info", None)
-    connection_hash = auth_info.get("connection_hash") if isinstance(auth_info, dict) else None
+    device_hash = auth_info.get("device_hash") if isinstance(auth_info, dict) else None
     refresh_token = request.cookies.get("auth_refresh_token")
-    if not connection_hash and not refresh_token:
+    if not device_hash and not refresh_token:
         raise HTTPException(status_code=401, detail="FIRST_PARTY_SESSION_REQUIRED")
-    if not connection_hash:
+    if not device_hash:
         assert refresh_token is not None
         token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
         token_map = await request.app.state.cache_service.get(f"user_tokens:{user_id}") or {}
         metadata = token_map.get(token_hash) if isinstance(token_map, dict) else None
-        connection_hash = metadata.get("connection_hash") if isinstance(metadata, dict) else None
+        device_hash = metadata.get("device_hash") if isinstance(metadata, dict) else None
     if (
-        not isinstance(connection_hash, str)
-        or len(connection_hash) != 64
-        or any(character not in "0123456789abcdef" for character in connection_hash)
+        not isinstance(device_hash, str)
+        or len(device_hash) != 64
+        or any(character not in "0123456789abcdef" for character in device_hash)
     ):
         raise HTTPException(status_code=409, detail="REQUESTER_DEVICE_IDENTITY_UNAVAILABLE")
-    return connection_hash
+    return device_hash
 
 
 @router.get("/{project_id}/settings")

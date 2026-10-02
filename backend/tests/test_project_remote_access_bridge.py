@@ -28,6 +28,7 @@ from backend.core.api.app.routes.handlers.websocket_handlers.project_remote_acce
 )
 from backend.core.api.app.routes.projects import (
     ProjectRemoteAccessRequestCreate,
+    _authenticated_request_device_hash,
     create_project_remote_access_request,
 )
 from backend.core.api.app.services.directus.team_methods import TeamPermissionError
@@ -68,6 +69,19 @@ class MemoryWebSocket:
 
     async def send_json(self, message: dict[str, Any]) -> None:
         self.messages.append(message)
+
+
+@pytest.mark.anyio
+async def test_remote_access_rest_identity_uses_stable_device_hash() -> None:
+    request = SimpleNamespace(
+        state=SimpleNamespace(auth_info={
+            "device_hash": "b" * 64,
+            "connection_hash": "a" * 64,
+        }),
+        cookies={},
+    )
+
+    assert await _authenticated_request_device_hash(request, "user-1") == "b" * 64
 
 
 class TeamMembershipStub:
@@ -183,7 +197,8 @@ async def test_create_request_routes_only_opaque_envelope_to_exact_device() -> N
     service = ProjectRemoteAccessService(cache)
     await service.register_session(
         user_id="user-1",
-        device_fingerprint_hash="device-cli",
+        device_fingerprint_hash="connection-cli",
+        stable_device_fingerprint_hash="stable-device-cli",
         source_session_id="session-1",
         bindings=[binding()],
         confirmed_takeover=False,
@@ -210,13 +225,65 @@ async def test_create_request_routes_only_opaque_envelope_to_exact_device() -> N
     }
     channel, event = cache.published[-1]
     assert channel.startswith("user_updates::")
-    assert event["target_device_fingerprint_hash"] == "device-cli"
+    assert event["target_device_fingerprint_hash"] == "connection-cli"
     assert event["event_for_client"] == "project_remote_access_request"
     assert event["payload"]["encrypted_envelope"] == "opaque-request-ciphertext"
     assert event["payload"]["requesting_client_id"] == "browser-1"
     serialized = repr(cache.values) + repr(cache.published)
     for forbidden in ("/workspace/private", "billing query", "file contents"):
         assert forbidden not in serialized
+
+
+@pytest.mark.anyio
+async def test_remote_write_auth_uses_stable_device_and_routes_exact_connection() -> None:
+    cache = MemoryCache()
+    service = ProjectRemoteAccessService(cache)
+    source_binding = {**binding(), "capabilities": ["read", "write_request"]}
+    await service.register_session(
+        user_id="user-1",
+        device_fingerprint_hash="connection-cli",
+        stable_device_fingerprint_hash="stable-device-cli",
+        source_session_id="session-1",
+        bindings=[source_binding],
+        confirmed_takeover=False,
+        now=2_000,
+    )
+    await service.create_request(
+        user_id="user-1",
+        project_id="project-1",
+        source_id="source-1",
+        request_id="write-1",
+        requesting_client_id="chat-client",
+        operation="update_file",
+        key_epoch=1,
+        encrypted_envelope="opaque",
+        chat_id="chat-1",
+        operation_id="operation-1",
+        proposal_digest="digest-1",
+        now=2_001,
+    )
+
+    assert cache.published[-1][1]["target_device_fingerprint_hash"] == "connection-cli"
+    delivery = await service.require_remote_write_request(
+        host_user_id="user-1",
+        project_id="project-1",
+        source_id="source-1",
+        source_session_id="session-1",
+        request_id="write-1",
+        stable_device_fingerprint_hash="stable-device-cli",
+        now=2_002,
+    )
+    assert delivery["device_fingerprint_hash"] == "connection-cli"
+    with pytest.raises(ProjectRemoteAccessError, match="write_request_unavailable"):
+        await service.require_remote_write_request(
+            host_user_id="user-1",
+            project_id="project-1",
+            source_id="source-1",
+            source_session_id="session-1",
+            request_id="write-1",
+            stable_device_fingerprint_hash="connection-cli",
+            now=2_002,
+        )
 
 
 @pytest.mark.anyio
@@ -248,7 +315,7 @@ async def test_user_file_transfer_requires_explicit_intent_and_live_write_bindin
     delivery = await service.require_remote_user_file_request(
         host_user_id="user-1", project_id="project-1", source_id="source-1",
         source_session_id="session-1", request_id="transfer",
-        device_fingerprint_hash="device-cli", now=2_002,
+        stable_device_fingerprint_hash="device-cli", now=2_002,
     )
     assert delivery["operation"] == "copy_entries"
     assert cache.published[-1][1]["payload"]["user_initiated"] is True
@@ -256,7 +323,7 @@ async def test_user_file_transfer_requires_explicit_intent_and_live_write_bindin
         await service.require_remote_user_file_request(
             host_user_id="user-1", project_id="project-1", source_id="source-1",
             source_session_id="session-1", request_id="transfer",
-            device_fingerprint_hash="different-device", now=2_002,
+            stable_device_fingerprint_hash="different-device", now=2_002,
         )
 
 
@@ -1004,6 +1071,7 @@ async def test_team_heartbeat_membership_failure_revokes_session_and_offlines_so
         directus_service=directus,
         user_id="host-1",
         device_fingerprint_hash="device-1",
+        stable_device_fingerprint_hash="stable-device-1",
         payload=payload,
     )
     assert websocket.messages[-1]["type"] == "project_remote_access_registered"
@@ -1045,7 +1113,7 @@ async def test_team_rest_request_route_uses_team_context_and_requester_identity(
     token = "requester-refresh-token"
     token_hash = ProjectRemoteAccessService._hash_identity(token)
     cache.values["user_tokens:requester-1"] = {
-        token_hash: {"connection_hash": "a" * 64}
+        token_hash: {"device_hash": "b" * 64, "connection_hash": "a" * 64}
     }
     response = await create_project_remote_access_request(
         project_id="project-1",
@@ -1070,7 +1138,7 @@ async def test_team_rest_request_route_uses_team_context_and_requester_identity(
     assert response["routing_identity"]["context_type"] == "team"
     context_hash = service._hash_identity("team-1")
     assert response["routing_identity"]["requester_device_fingerprint_hash"] == service._hash_identity(
-        f"{context_hash}:{'a' * 64}"
+        f"{context_hash}:{'b' * 64}"
     )
     assert cache.published[-1][1]["payload"]["requesting_client_id"] == "request-client"
 
@@ -1105,7 +1173,7 @@ async def test_team_request_revokes_stale_host_before_delivery_and_marks_sources
     directus.team.inactive_users.add("host-1")
     token = "requester-refresh-token"
     cache.values["user_tokens:requester-1"] = {
-        service._hash_identity(token): {"connection_hash": "a" * 64}
+        service._hash_identity(token): {"device_hash": "b" * 64, "connection_hash": "a" * 64}
     }
 
     with pytest.raises(Exception, match="source_offline"):

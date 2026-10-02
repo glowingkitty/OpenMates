@@ -2415,6 +2415,9 @@ async def websocket_endpoint(
     encryption_service: EncryptionService = websocket.app.state.encryption_service # <-- Get EncryptionService
     user_id = auth_data["user_id"]
     device_fingerprint_hash = auth_data["device_fingerprint_hash"]
+    stable_device_fingerprint_hash = auth_data.get("stable_device_fingerprint_hash")
+    if not isinstance(stable_device_fingerprint_hash, str) or not stable_device_fingerprint_hash:
+        stable_device_fingerprint_hash = device_fingerprint_hash
     user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
     raw_capabilities = websocket.query_params.get("client_capabilities", "")
     connection_capabilities = {item.strip() for item in raw_capabilities.split(",") if item.strip()}
@@ -3592,6 +3595,7 @@ async def websocket_endpoint(
                     directus_service=directus_service,
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
+                    stable_device_fingerprint_hash=stable_device_fingerprint_hash,
                     payload=payload,
                     user_otel_attrs=user_otel_attrs,
                 )

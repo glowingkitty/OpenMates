@@ -113,6 +113,8 @@ def test_signed_ws_cache_link_is_enrolled_in_durable_authority_before_admission(
 
     result = asyncio.run(auth_ws.get_current_user_ws(Socket()))
     assert result["user_id"] == "u1"
+    assert result["device_fingerprint_hash"] == "connection"
+    assert result["stable_device_fingerprint_hash"] == "known-device"
     assert result["session_expires_at"] == 4102444800
     enroll.assert_awaited_once_with(Socket.app.state.directus_service,
                                     Socket.app.state.cache_service, digest, "u1")
