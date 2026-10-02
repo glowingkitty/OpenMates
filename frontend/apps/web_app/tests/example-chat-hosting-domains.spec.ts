@@ -28,18 +28,13 @@ for (const [viewport, size] of [
 		]) {
 			expect(html).not.toContain(marker);
 		}
+		expect(html).toContain('Open this conversation in OpenMates');
+		expect(html).toContain('example-social-app-name-domain');
 
 		await page.setViewportSize(size);
-		await page.goto(`/example/${slug}`, { waitUntil: 'domcontentloaded' });
-		const openChat = page.getByRole('link', {
-			name: 'Open this conversation in OpenMates',
-			exact: true
-		});
-		await expect(openChat).toBeVisible();
-		const chatUrl = await openChat.getAttribute('href');
-		expect(chatUrl).toContain('example-social-app-name-domain');
-		const spaTarget = new URL(chatUrl, page.url());
-		await page.goto(getE2EDebugUrl(spaTarget.pathname + spaTarget.search + spaTarget.hash), {
+		// The SEO page redirects hydrated browsers immediately; the stable public
+		// conversation link is the SPA chat hash used by the example share dialog.
+		await page.goto(getE2EDebugUrl('/#chat-id=example-social-app-name-domain'), {
 			waitUntil: 'domcontentloaded'
 		});
 		const parents = page
@@ -57,12 +52,14 @@ for (const [viewport, size] of [
 			contentType: 'image/png'
 		});
 		const search = await openFullscreen(page, parent);
+		await expect(search.locator('.summary')).toContainText('40 checked');
 		await search.getByTestId('hosting-view-all').click();
+		await expect(search.getByTestId('hosting-view-all')).toHaveClass(/active/);
 		const domains = search.getByTestId('hosting-domain-grid').getByTestId('embed-preview');
-		// Each of this real conversation's four groups checked 40 domains.
-		await expect(domains).toHaveCount(40, { timeout: 30_000 });
+		// The complete checked pool is retained; each filter respects max_results.
+		await expect(domains).toHaveCount(10, { timeout: 30_000 });
 		await testInfo.attach(`hosting-example-${viewport}-checked`, {
-			body: await page.screenshot(),
+			body: await page.screenshot({ animations: 'disabled' }),
 			contentType: 'image/png'
 		});
 		await domains.first().click();
@@ -78,12 +75,13 @@ for (const [viewport, size] of [
 		expect(bounds.x).toBeGreaterThanOrEqual(-1);
 		expect(bounds.x + bounds.width).toBeLessThanOrEqual(size.width + 1);
 		await testInfo.attach(`hosting-example-${viewport}-domain`, {
-			body: await page.screenshot(),
+			body: await page.screenshot({ animations: 'disabled' }),
 			contentType: 'image/png'
 		});
-		await detail.getByTestId('embed-fullscreen-close').click();
+		await detail.getByTestId('hosting-domain-back').click();
 		await expect(detail).not.toBeVisible();
 		await expect(search).toBeVisible();
+		await expect(search.getByTestId('hosting-view-all')).toHaveClass(/active/);
 		await closeFullscreen(page, search);
 		await page.reload({ waitUntil: 'domcontentloaded' });
 		await expect(async () => expect(await parents.count()).toBeGreaterThan(0)).toPass({

@@ -22,22 +22,24 @@ scope:
     implementation.
   - Verify a real CLI chat recommends names for a social hub using actual domain checks, and prove grouped
     requests execute simultaneously within the shared provider concurrency limit.
+  - Publish the user-requested synthetic social-app naming example from a real CLI conversation and verify its public page.
   out:
   - Domain purchase, registration, transfer, renewal, DNS management or account authentication.
-  - Load testing, unbounded retries, production service changes or publishing user domain searches.
+  - Load testing, unbounded retries, production service changes or publishing unrelated user domain searches.
 planning_authority:
   task: TASK-2722
   session: b91c
   note: OpenMates Tasks owns live work status. Plan task records document approved dependencies and acceptance
     criteria.
 implementation_state:
-  subject_commit: 903653d514d9ffd72e27c9d477aaff778e63eebd
+  subject_commit: 1599854bf53080e7d028f51677bee834939f4048
 verification_subjects:
   rationale: The user required sequential delivery phases. Each evidence record retains its actual immutable tested source; a single shared subject commit would misrepresent earlier phase runs. Later changes receive focused checks for their affected behavior.
   programmatic: 92f889b33aa348ea8838605c11830141d526004d
   workflow: d5c33ef48d6545f977cf52aac70963cc6ff5ea2b
   web_components: c132a0d66d8752ff8333babb9505a42159388bb5
-  web_owner_chat: 903653d514d9ffd72e27c9d477aaff778e63eebd
+  web_owner_chat: 484182f71606faf5773da82d32cdb766bb6bfe23
+  published_example: 1599854bf53080e7d028f51677bee834939f4048
 approvals:
   specification:
     status: approved
@@ -148,7 +150,7 @@ acceptance_criteria:
   text: Parent and child web embeds render, filter and navigate already checked results with responsive
     quote and status details.
   required: true
-  status: pending
+  status: satisfied
   coverage_status: covered
   verification_scope: playwright
   verification_ids:
@@ -357,7 +359,24 @@ tests:
   green_phase:
     required: true
     expected: pass
-    evidence: {}
+    evidence:
+      status: passed
+      timestamp: '2026-10-02'
+      subject_commit: 484182f71606faf5773da82d32cdb766bb6bfe23
+      execution_environment: isolated_github_ci
+      harness_commit: 3ddb9701bfd2f2d142f354791ecee3f993d1972f
+      profile: e2e
+      ci_job: b09881051efbbe6253fa888508b5939c4a6d70c27313154797c0c01666c8da4e
+      command: python3 scripts/ci_coordinator.py submit --session b91c --source 484182f71606faf5773da82d32cdb766bb6bfe23 --spec skill-hosting-search-workflow.spec.ts --mode e2e
+      run_id: '36947900517'
+      run: https://github.com/glowingkitty/OpenMates/actions/runs/36947900517
+      artifacts:
+      - https://github.com/glowingkitty/OpenMates/actions/runs/36947900517/artifacts/11203186321
+      result: Both grouped Workflow execution and encrypted saved-chat phone/laptop domain rendering passed in 50.8 seconds, with zero skipped, flaky or unexpected cases; disposable cleanup was verified.
+      regression_fixes: The message visibility observer watches the containing chat message; single-chat embed retrieval uses the existing paginated helper instead of Directus's default 100-record cap. Focused regressions passed.
+      deployed_commit: 1599854bf53080e7d028f51677bee834939f4048
+      public_example: https://app.dev.openmates.org/#chat-id=example-social-app-name-domain
+      deployed_example_verification: Clean logged-out phone and laptop contexts rendered all four search parents, the 40-checked summary and bounded ten-result filters, opened child details, returned to the retained filter and reopened the chat after reload with no page errors.
   file: frontend/apps/web_app/tests/skill-hosting-search-workflow.spec.ts
   command: python3 scripts/ci_coordinator.py submit --session b91c --source <candidate> --spec skill-hosting-search-workflow.spec.ts
     --mode e2e
@@ -376,7 +395,16 @@ tests:
   green_phase:
     required: true
     expected: pass
-    evidence: {}
+    evidence:
+      status: passed
+      timestamp: '2026-10-02'
+      execution_environment: dev_server_real_inference
+      runtime_commit: 75824bac3633ba0855dcdfc8487d7e4822a2f4d9
+      reason: The requested real CLI naming conversation was inspected through complete owner graph reads; disposable SDK devices and credentials were cleaned up.
+      client_and_probe_source: 484182f71606faf5773da82d32cdb766bb6bfe23
+      result: Four encrypted parents and 160 checked children agree exactly across CLI, npm and pip; all 164 content/type comparisons and nested price tiers passed. The temporary API key was revoked.
+      receipt: docs/plans/hosting-search-domains/evidence/social-example-review-2026-10-02.md
+      focused_units: Parent-key inheritance, explicit child-key precedence and invalid-wrapper controls passed in both SDKs; four graph-probe units passed.
   execution_environment: dev_server_real_inference
   file: scripts/api_tests/test_hosting_embed_graph.py
 decisions:
@@ -476,7 +504,7 @@ tasks:
     shared_files: []
 - id: TASK-7677
   title: Implement and verify Hosting domain search web embeds
-  status: in_progress
+  status: done
   phase: working_tasks
   covers:
     scenarios:
@@ -505,6 +533,12 @@ tasks:
   - packages/openmates-python/tests/test_sdk.py
   - scripts/api_tests/test_hosting_embed_graph.py
   - scripts/api_tests/test_hosting_social_chat.py
+  - frontend/packages/openmates-cli/src/sdk.ts
+  - frontend/packages/openmates-cli/tests/sdk.test.ts
+  - frontend/apps/web_app/tests/example-chat-hosting-domains.spec.ts
+  - frontend/packages/ui/src/demo_chats/data/example_chats/social-app-name-domain-search.ts
+  - frontend/packages/ui/src/i18n/sources/example_chats/social_app_name_domain_search.yml
+  - frontend/packages/ui/src/demo_chats/exampleChatData.ts
   verification_ids:
   - T-HOSTING-COMPONENT
   - T-HOSTING-WEB
@@ -690,4 +724,4 @@ local_verification:
   child_hydration: Five Hosting data and retry cases passed; delayed children retain loaded siblings and respect cancellation and retry limits.
   sdk: Focused pip encrypted-embed decoding and graph-probe units passed; cleartext boundary, parity, documentation and test coverage audits passed.
   review: Both phase-three review findings are resolved; the final bounded recheck found no remaining actionable concern.
-  integration: REST/CLI/SDK, Workflow and four focused web component cases passed. Encrypted owner-chat rendering is in isolated CI; the webinar freeze has elapsed.
+  integration: REST/CLI/SDK, Workflow, four focused component cases and both encrypted owner-chat cases passed. The complete 164-embed live graph agrees across CLI/npm/pip. The real public example is deployed and its phone/laptop preview, filtering, detail, return and reload behavior passed.
