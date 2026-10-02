@@ -405,9 +405,14 @@ test.describe('Apps bare component previews', () => {
     await expect(page.getByTestId('apps-skill-context-details')).toHaveCount(0);
     await expect(page.getByTestId('apps-skill-chat-example')).toHaveCount(0);
     await expect(page.getByTestId('apps-skill-manual-intro')).toHaveCount(0);
-    const contextBox = await context.boundingBox();
-    const formBox = await form.boundingBox();
-    expect(contextBox!.y + contextBox!.height).toBeLessThanOrEqual(formBox!.y);
+    // Sample both rectangles in one frame: the fullscreen slide moves both
+    // elements while separate Playwright calls can observe different frames.
+    const contextToFormGap = await context.evaluate(element => {
+      const form = element.closest('[data-testid="apps-detail-card"]')?.querySelector('[data-testid="apps-skill-form"]');
+      if (!form) throw new Error('Skill form is missing beside its disclosure');
+      return form.getBoundingClientRect().top - element.getBoundingClientRect().bottom;
+    });
+    expect(contextToFormGap).toBeGreaterThanOrEqual(0);
     await expect(page.getByTestId('apps-hero-category')).toContainText('Web');
     await expect(page.getByTestId('apps-hero-providers')).toContainText('Brave');
     await expect(page.getByTestId('apps-use-skill')).toBeVisible();
@@ -555,3 +560,36 @@ test.describe('Apps bare component previews', () => {
     await expect(page.getByTestId('apps-next-page')).toBeDisabled();
   });
 });
+
+for (const theme of ['light', 'dark'] as const) {
+    // contract-test: supporting surface=gui.web assertions=settings-ui.composition.canonical-and-accessible
+    test(`selected SettingsTabs icon stays white in ${theme} theme after switching tabs`, async ({ page }, testInfo) => {
+        await page.goto(
+            `/dev/preview/settings/elements/SettingsTabs?theme=${theme}&background=%23dbeafe&width=640&chrome=0`
+        );
+        await waitForComponentPreview(page);
+
+        const overview = page.getByTestId('preview-settings-tab-overview');
+        const results = page.getByTestId('preview-settings-tab-results');
+        const overviewIcon = overview.locator('.tab-icon');
+        const resultsIcon = results.locator('.tab-icon');
+        await expect(overview).toHaveAttribute('aria-selected', 'true');
+        await expect(results).toHaveAttribute('aria-selected', 'false');
+        await expect(overviewIcon).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+        const inactiveColor = await resultsIcon.evaluate(element => getComputedStyle(element).backgroundColor);
+        expect(inactiveColor).not.toBe('rgb(255, 255, 255)');
+        await expect(overviewIcon).not.toHaveCSS('mask-image', 'none');
+
+        await results.click();
+        await expect(results).toHaveAttribute('aria-selected', 'true');
+        await expect(overview).toHaveAttribute('aria-selected', 'false');
+        await expect(resultsIcon).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+        await expect(overviewIcon).toHaveCSS('background-color', inactiveColor);
+        await expect(resultsIcon).not.toHaveCSS('mask-image', 'none');
+
+        await testInfo.attach(`settings-tabs-${theme}-selected`, {
+            body: await page.getByTestId('component-preview-canvas').screenshot({ animations: 'disabled' }),
+            contentType: 'image/png',
+        });
+    });
+}

@@ -214,6 +214,14 @@ test.describe('Apps workspace', () => {
       const profileBounds = await page.getByTestId('profile-container').boundingBox();
       expect(selectorBounds.x + selectorBounds.width).toBeLessThanOrEqual(loginBounds.x);
       expect(loginBounds.x + loginBounds.width).toBeLessThanOrEqual(profileBounds.x);
+      const appsUrl = page.url();
+      await login.click();
+      const signupLayer = page.locator('.apps-auth-layer');
+      await expect(signupLayer).toBeVisible();
+      // The signup icon artwork must not intercept the phone close control.
+      await signupLayer.getByRole('button', { name: 'Close', exact: true }).click();
+      await expect(signupLayer).toHaveCount(0);
+      expect(page.url()).toBe(appsUrl);
     }
     await page.setViewportSize({ width: 1440, height: 1000 });
 

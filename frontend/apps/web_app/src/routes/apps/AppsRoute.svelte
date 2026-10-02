@@ -79,7 +79,7 @@
   main { flex: 1; min-width: 0; min-height: 0; position: relative; }
   .settings-pane { grid-row: 2; grid-column: 2; min-height: 0; width: 0; overflow: hidden; }
   .apps-auth-layer { position: absolute; inset: 0; z-index: var(--z-index-modal,200); overflow: auto; background: var(--color-grey-0); }
-  .auth-close { position: absolute; top: var(--spacing-4); right: var(--spacing-4); z-index: 1; border: 0; border-radius: 50%; background: var(--color-grey-10); color: var(--color-font-primary); font-size: 1.5rem; width: 2.5rem; height: 2.5rem; cursor: pointer; }
+  .auth-close { position: absolute; top: var(--spacing-4); right: var(--spacing-4); z-index: var(--z-index-modal-above, 210); border: 0; border-radius: 50%; background: var(--color-grey-10); color: var(--color-font-primary); font-size: 1.5rem; width: 2.5rem; height: 2.5rem; cursor: pointer; }
   @media(min-width: 1101px) {
     .apps-route.settings-open { column-gap: 20px; }
     .settings-open .apps-route-body { padding-inline-end: 0; }
