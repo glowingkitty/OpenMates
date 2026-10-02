@@ -268,7 +268,15 @@ other authorized work proceeds without competing Xcode or Simulator processes.
 Before expensive archives, reconcile the latest dev inputs and run the focused
 lint, test-annotation and signing-input checks described in the release guide.
 Use existing installed tools so a lint command does not unexpectedly install
-packages or run generators while release inputs are frozen.
+packages or run generators while release inputs are frozen. Check upstream drift
+against all native and external release inputs, not only the owned patch. Keep
+the actual local source identity separate from the candidate and published SHA.
+
+The local helper limits both Xcode jobs and actual Swift WMO threads for iOS
+and universal macOS; an extra wrapper is unnecessary. On constrained Macs,
+validated completed archives allow cleanup of their own inactive derived-data
+folders between platforms. Preserve shared runtime caches until native checks
+finish, as clearing them can cause a costly Simulator cold start.
 
 Reuse source-bound receipts and the existing ExportOptions plist. Keep the source
 frozen during archive/upload; preserve and rebuild stale archives only when the
