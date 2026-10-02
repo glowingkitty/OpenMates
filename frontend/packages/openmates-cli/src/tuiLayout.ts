@@ -37,7 +37,9 @@ export function workspaceHint(state: TuiState): string {
   if (state.screen === "app") return "1–5 tabs   ↑/↓ choose   Enter open   Esc Apps   /search";
   if (state.screen === "app-skill") return "1–3 tabs   Enter use skill   Esc app   Ctrl+P actions";
   if (state.screen === "app-result") return "↑/↓ scroll   Esc saved results   Ctrl+P actions";
-  if (state.screen === "apps") return "↑/↓ choose   Enter open   /search   /browse Show all   Tab focus";
+  if (state.screen === "apps") return state.focus === "composer"
+    ? "Type /command   Shift+Tab apps   Ctrl+B sidebar"
+    : "←/→ app   Enter open   ↑/↓ scroll   /search   /browse Show all   Ctrl+B sidebar";
   if (state.screen === "projects" || state.screen === "tasks" || state.screen === "workflows" ) return "↑/↓ choose   Enter open   /search filter   Tab focus   Ctrl+P actions";
   if (state.screen === "interests") return "↑/↓ move   Space select   Enter continue   Esc back";
   if (state.screen === "examples") return "↑/↓ choose   Enter open   /search filter   Esc back";
@@ -105,7 +107,7 @@ export function renderWorkspaceFrame(state: TuiState, rawWidth: number, rawHeigh
     const markers=content.map((row,index)=>/(?:^|[│|])\s*[>›] /.test(lineText(row))?index:-1).filter((index)=>index>=0);
     const marker=state.screen==="workflow" ? markers.at(-1)??-1 : markers[0]??-1;
     let selectionEnd=marker;
-    if(["workflow","start","chats"].includes(state.screen)&&marker>=0){
+    if(["workflow","start","chats","apps"].includes(state.screen)&&marker>=0){
       const closing=content.findIndex((row,index)=>index>marker&&lineText(row).includes("╰"));
       selectionEnd=Math.min(marker+10,closing<0?marker:closing);
     }

@@ -58,7 +58,7 @@ const homeProofContract = {
 	],
 	assertions: [
 		{id: 'cli.tui.chat-carousel.open', checkpoint: 'chat-open', visual: 'Enter opens the fourth keyboard-selected preview with its encrypted draft restored, and its header has one solid color.', devices: [PROFILE]},
-		{id: 'cli.tui.chat-carousel.scroll', checkpoint: 'apps-scroll-top', visual: 'The Apps home returns to Daily Inspiration after scrolling to its bottom and back to the top, without snapping to the selected app.', devices: [PROFILE]},
+		{id: 'cli.tui.chat-carousel.scroll', checkpoint: 'apps-scroll-top', visual: 'The fitted Apps home preserves Daily Inspiration and the selected centered app when Home and End reach its viewport bounds.', devices: [PROFILE]},
 		{id: 'cli.tui.sidebar.toggle', checkpoint: 'sidebar-open', visual: 'Chats shows Daily Inspiration, a greeting, horizontal recent chat previews, and the opened sidebar.', devices: [PROFILE]},
 		{id: 'cli.tui.tasks-board', checkpoint: 'tasks-home', visual: 'The Tasks home shows Daily Inspiration and all five status columns with the seeded task.', devices: [PROFILE]},
 		{id: 'cli.tui.projects-home', checkpoint: 'projects-home', visual: 'The Projects home shows its greeting and the seeded Project card.', devices: [PROFILE]},
@@ -257,4 +257,21 @@ function requireIsolatedCliBuild(): string {
 }
 
 
-module.exports = {test, expect, email, password, otpKey, EXAMPLE_SLUG, detailProofContract, homeProofContract, recordInteractiveCli, captureProof, installRecorderDeps, seedEncryptedAppsResult, seedWorkspace, cleanupWorkspace, newFixture, requireIsolatedCliBuild, workflowApiUrl, createWorkflowCliHome, runWorkflowCliJson, skipWithoutCredentials};
+const centeredCarouselProofContract = {
+	id: 'cli-tui-centered-carousels-real-terminal',
+	title: 'Centered terminal chat and app carousels', surface: 'cli', devices: [PROFILE],
+	transcript: [
+		{id: 'centered-chats', text: 'The newest chat starts centered. Left and Right keep the chosen preview centered.', checkpoint: 'chat-fourth', devices: [PROFILE]},
+		{id: 'open-chat', text: 'Enter opens the chosen chat with its draft restored.', checkpoint: 'chat-open', devices: [PROFILE]},
+		{id: 'centered-apps', text: 'Apps uses the same centered carousel and keyboard controls. Enter opens the selected app.', checkpoint: 'app-open', devices: [PROFILE]}
+	],
+	assertions: [
+		{id: 'cli.tui.chat-carousel.centered', checkpoint: 'chat-fourth', visual: 'The newest chat starts horizontally centered, and the fourth keyboard-selected chat remains centered with neighboring previews visible.', devices: [PROFILE]},
+		{id: 'cli.tui.chat-carousel.open', checkpoint: 'chat-open', visual: 'Enter opens the fourth selected chat with its encrypted draft restored.', devices: [PROFILE]},
+		{id: 'cli.tui.apps-carousel.centered', checkpoint: 'app-third', visual: 'The first app starts horizontally centered, and Left/Right centers the third app with an App 3 of 6 counter.', devices: [PROFILE]},
+		{id: 'cli.tui.apps-carousel.open', checkpoint: 'app-open', visual: 'Enter opens the selected Health app and its Skills tab.', devices: [PROFILE]}
+	],
+	tutorial: {readingWordsPerSecond: 2.5, minimumHoldMs: 1200, maximumHoldMs: 5000}
+};
+
+module.exports = {test, expect, email, password, otpKey, EXAMPLE_SLUG, detailProofContract, homeProofContract, centeredCarouselProofContract, recordInteractiveCli, captureProof, installRecorderDeps, seedEncryptedAppsResult, seedWorkspace, cleanupWorkspace, newFixture, requireIsolatedCliBuild, workflowApiUrl, createWorkflowCliHome, runWorkflowCliJson, skipWithoutCredentials};

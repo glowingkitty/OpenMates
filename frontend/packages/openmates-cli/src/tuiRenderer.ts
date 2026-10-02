@@ -19,8 +19,9 @@ import { renderTaskBoard, renderTaskDetails, filterTasks, type TaskContext } fro
 import { renderWorkflowWorkspace, renderWorkflowPreviewCard, renderWorkflowIdentity } from "./tuiWorkflowWorkspace.js";
 import { renderWorkspaceFrame } from "./tuiLayout.js";
 import { cells, wrapCells, truncateCells, type TuiColorMode, type TuiLine } from "./tuiText.js";
+import { centeredCarouselText } from "./tuiCarousel.js";
 import { homeHeader, renderHomeChatCards } from "./tuiHome.js";
-import { visibleTuiApps, renderTuiAppsHome, renderTuiApp, renderTuiAppIdentity, renderTuiAppTabs, renderTuiAppsSkill, renderTuiAppsSkillIdentity, renderTuiAppsSkillTabs, renderTuiAppsResults, renderTuiAppsResult, renderTuiAppsWorkflows,
+import { homeTuiApps, renderTuiAppsHome, renderTuiApp, renderTuiAppIdentity, renderTuiAppTabs, renderTuiAppsSkill, renderTuiAppsSkillIdentity, renderTuiAppsSkillTabs, renderTuiAppsResults, renderTuiAppsResult, renderTuiAppsWorkflows,
   type TuiApp, type TuiAppsTab, type TuiAppsSkillTab, type TuiAppsSkillDetails, type TuiAppsResultsPage, type TuiAppsSavedResult, type TuiAppsPreparedRun, type TuiAppsWorkflowPage } from "./tuiAppsWorkspace.js";
 import { parseMessageSegments } from "./messageSegments.js";
 import { formatEmbedPreviewLines } from "./embedRenderers.js";
@@ -261,8 +262,9 @@ function renderBody(state: TuiState, width: number,height:number): TuiLine[] {
     case "chats":
       return renderHomeChatCards(state,width,height);
     case "apps": {
-      const apps=visibleTuiApps(state.apps,state.filter),visible=state.homeShowAll||state.filter?apps:apps.slice(0,Math.max(6,state.selectedIndex+1));
-      return [...homeHeader(state,width,height),...homeCards(renderTuiAppsHome(visible,{width:Math.min(width,88),selectedId:state.focus==="content"?apps[state.selectedIndex]?.id:undefined}),width,visible.map((app)=>APP_GRADIENTS[app.id]??PRIMARY_GRADIENT)),"Show all  ·  /search Search apps"];
+      const apps=homeTuiApps(state.apps,state.filter,state.homeShowAll);
+      return [...homeHeader(state,width,height),...renderTuiAppsHome(apps,{width,selectedIndex:state.selectedIndex,selectedId:state.focus==="content"?apps[state.selectedIndex]?.id:undefined}),"",
+        centeredCarouselText(`${state.homeShowAll?"/browse Featured apps":"/browse Show all"}  ·  /search Search apps`,width)];
     }
     case "app": {
       const app=state.activeApp;if(!app)return ["Loading app…"];

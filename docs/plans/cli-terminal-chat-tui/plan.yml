@@ -1089,3 +1089,13 @@ approved_terminal_navigation_followup:
     - "Manual keyboard and mouse-wheel scrolling respects viewport bounds and is not overridden by selection following. Full-width redraws preserve terminal row geometry over SSH."
   verification:
     - "Focused renderer, terminal input and navigation regressions; isolated CLI TUI keyboard coverage and updated real terminal homes proof."
+
+approved_centered_home_carousels_followup:
+  task: TASK-9081
+  approved_on: "2026-10-02"
+  user_goal: "Center the most recent chat like the web home when reliable, and use the same carousel UI logic for app cards."
+  requirements:
+    - "Both homes use one cell-based centered carousel; the first card starts centered, and Left/Right centers the selected card. Enter opens that exact chat or app."
+    - "Preserve solid colors, Unicode geometry, narrow terminals, sidebar resizing, filtering, and manual vertical scrolling. Apps keeps its featured catalog and Show all action."
+  verification:
+    - "Focused center/viewport/selection regressions and isolated keyboard plus real terminal proof, delivered before scoped dev publication."

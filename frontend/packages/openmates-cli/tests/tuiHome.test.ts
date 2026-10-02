@@ -4,7 +4,8 @@ import { test } from "node:test";
 import { createInitialTuiState, renderTuiFrame } from "../src/tuiRenderer.js";
 import { loadHomeData, workspaceInspirations } from "../src/tuiHome.js";
 import { handleWorkspaceCommand, handleWorkspaceKey, type WorkspaceContext } from "../src/tuiWorkspaceController.js";
-import { cells, stripAnsi } from "../src/tuiText.js";
+import { cells, lineText, sliceCells, stripAnsi } from "../src/tuiText.js";
+import { renderCardCarousel } from "../src/tuiCarousel.js";
 import type { TuiApp } from "../src/tuiAppsWorkspace.js";
 
 function context(state=createInitialTuiState(),client:Record<string,unknown>={}) {
@@ -152,4 +153,50 @@ test("home arrow scrolling and mouse wheel never change the selected chat or dra
   await handleWorkspaceKey(ctx,"",{name:"scrollup"});renderTuiFrame(state,80,18);assert.equal(state.scrollOffset,Math.max(0,bottom-4));
   assert.equal(state.selectedIndex,0);assert.equal(state.input,"Kept draft");
   await handleWorkspaceKey(ctx,"",{name:"home"});renderTuiFrame(state,80,18);assert.equal(state.scrollOffset,0);
+});
+
+// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity
+test("centered carousel preserves the selected card across bounds Unicode and resizing",()=>{
+  const cards=Array.from({length:8},(_,i)=>({title:`確認 🧪 ${i}`,description:"A wrapped description",footer:"Chat",background:"#4867cd"}));
+  for(const width of [1,4,24,73,120,160])for(const selected of [0,3,7]){
+    const rows=renderCardCarousel(cards,width,selected,true);
+    assert.ok(rows.every((row)=>cells(lineText(row))===width));
+    const spans=typeof rows[0]==="string"?[]:rows[0].spans!;
+    const active=spans.findIndex((span)=>span.bold);
+    assert.ok(active>=0);
+    assert.equal(spans.slice(0,active).reduce((n,span)=>n+cells(span.text),0),Math.floor((width-Math.min(width,36))/2));
+    assert.equal(cells(spans[active].text),Math.min(width,36));
+  }
+  assert.equal(sliceCells("a漢🧪z",2,4)," 🧪z");
+  assert.equal(sliceCells("a漢🧪z",1,3),"漢 ");
+  assert.equal(sliceCells("\x1b[31mA\x1b[0m",0,3),"A  ");
+});
+
+// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity,apps.discovery.public-catalog
+test("Apps uses centered horizontal selection Enter filtering and Show all with bounded scrolling",async()=>{
+  const state=createInitialTuiState();state.workspace="apps";state.screen="apps";state.focus="content";
+  state.apps=Array.from({length:8},(_,i)=>app(`app${i}`,`App ${i}`));
+  const {ctx}=context(state);ctx.terminal.height=18;
+  for(let i=0;i<12;i++)await handleWorkspaceKey(ctx,"",{name:"right"});
+  assert.equal(state.selectedIndex,5);
+  assert.match(stripAnsi(renderTuiFrame(state,120,32)),/› App 5[\s\S]*App 6 of 6/);
+  await handleWorkspaceCommand(ctx,"/browse");
+  for(let i=0;i<12;i++)await handleWorkspaceKey(ctx,"",{name:"right"});
+  assert.equal(state.selectedIndex,7);
+  for(const width of [24,73,120]){
+    const frame=stripAnsi(renderTuiFrame(state,width,32));
+    assert.match(frame,/App 8 of 8/);assert.ok(frame.split("\n").every((row)=>cells(row)===width));
+  }
+  state.input="Kept draft";
+  for(let i=0;i<30;i++){await handleWorkspaceKey(ctx,"",{name:"down"});renderTuiFrame(state,80,18);}
+  const bottom=state.scrollOffset;assert.ok(bottom>0);
+  await handleWorkspaceKey(ctx,"",{name:"up"});renderTuiFrame(state,80,18);assert.equal(state.scrollOffset,bottom-1);
+  assert.equal(state.selectedIndex,7);assert.equal(state.input,"Kept draft");
+  await handleWorkspaceKey(ctx,"",{name:"home"});renderTuiFrame(state,80,18);assert.equal(state.scrollOffset,0);
+  state.input="";await handleWorkspaceKey(ctx,"\r",{name:"return"});assert.equal(state.activeApp?.id,"app7");
+  state.screen="apps";state.focus="content";state.activeApp=null;
+  state.apps=Array.from({length:8},(_,i)=>app(`app${i}`,`App ${i}`));
+  await handleWorkspaceCommand(ctx,"/search App 2");
+  assert.match(stripAnsi(renderTuiFrame(state,120,32)),/› App 2[\s\S]*App 1 of 1/);
+  await handleWorkspaceKey(ctx,"\r",{name:"return"});assert.equal(state.activeApp?.id,"app2");
 });

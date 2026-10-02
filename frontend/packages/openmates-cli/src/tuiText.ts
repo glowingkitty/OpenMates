@@ -34,6 +34,21 @@ export function padCells(value: string, width: number): string {
   const trimmed = truncateCells(value, width);
   return trimmed + " ".repeat(Math.max(0, width - cells(trimmed)));
 }
+/** Crop a horizontal viewport without splitting wide graphemes or adding ellipses. */
+export function sliceCells(value: string, start: number, width: number): string {
+  start = Math.max(0, Math.floor(start)); width = Math.max(0, Math.floor(width));
+  const end = start + width;
+  let position = 0, result = "";
+  for (const { segment } of segments.segment(terminalText(value).replace(/\n/g, " "))) {
+    const size = graphemeWidth(segment), next = position + size;
+    if (next > start && position < end) {
+      result += position >= start && next <= end ? segment : " ".repeat(Math.min(end, next) - Math.max(start, position));
+    }
+    position = next;
+    if (position >= end) break;
+  }
+  return result + " ".repeat(Math.max(0, width - cells(result)));
+}
 export function wrapCells(value: string, width: number): string[] {
   width = Math.max(1, width);
   const result: string[] = [];

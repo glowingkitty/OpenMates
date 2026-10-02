@@ -7,6 +7,7 @@
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { lineText } from "../src/tuiText.js";
 import type { OpenMatesClient } from "../src/client.js";
 import {
   buildTuiAppsRunConfirmation, buildTuiAppsSkillForm, executeTuiAppsSkill,
@@ -33,9 +34,9 @@ test("catalog uses web categories and filters the selected visible app", async (
   } }) } as unknown as OpenMatesClient;
   const apps = await loadTuiApps(client);
   assert.deepEqual(visibleTuiApps(apps, "browse").map((app) => app.id), ["web"]);
-  const home = renderTuiAppsHome(apps, { width: 80, selectedId: "web", query: "browse" }).join("\n");
+  const home = renderTuiAppsHome(apps, { width: 80, selectedId: "web", query: "browse" }).map(lineText).join("\n");
   assert.ok(!home.startsWith("Apps\n"));
-  assert.match(home, /╭─+╮\n│ › Web/);
+  assert.match(home, /╭─+╮[\s\S]*│ › Web/);
   assert.match(home, /│ 1 skills · research/);
   const identity = renderTuiAppIdentity(apps[0]!, 80);
   assert.equal(identity[0]?.length, 80);

@@ -3,7 +3,8 @@ import type { ChatListItem, DailyInspiration, OpenMatesClient } from "./client.j
 import type { TuiState, TuiWorkspace } from "./tuiRenderer.js";
 import { getWorkspaceInspirations } from "../../workspaceInspirationDefaults.js";
 import { CATEGORY_GRADIENTS } from "../../chatCategoryTheme.js";
-import { cells, padCells, terminalText, truncateCells, wrapCells, type TuiSpan, type TuiLine } from "./tuiText.js";
+import { centeredCarouselText, renderCardCarousel } from "./tuiCarousel.js";
+import { terminalText, wrapCells, type TuiLine } from "./tuiText.js";
 
 const BLUE = {start: "#4867cd", end: "#5a85eb"};
 const prompts: Record<TuiWorkspace, string> = {
@@ -39,9 +40,7 @@ export async function loadHomeData(state: TuiState, client: OpenMatesClient, ren
   await Promise.all(work);
   if(current()){state.homeLoading=false;render();}
 }
-function centered(text:string,width:number):string {
-  const value=truncateCells(text,width);return " ".repeat(Math.max(0,Math.floor((width-cells(value))/2)))+value;
-}
+const centered = centeredCarouselText;
 export function homeHeader(state:TuiState,width:number,height:number):TuiLine[] {
   const inspiration=currentInspiration(state), rows=Math.max(4,Math.min(8,Math.floor(height/5))), result:TuiLine[]=[];
   const gradient=inspiration?.category && CATEGORY_GRADIENTS[inspiration.category] || CATEGORY_GRADIENTS.general_knowledge;
@@ -57,7 +56,7 @@ export function homeHeader(state:TuiState,width:number,height:number):TuiLine[] 
   result.push("");
   return result;
 }
-/** Fixed-width previews share one horizontal viewport, including a peek at the next card. */
+/** The newest chat and keyboard-selected previews share the web home's center position. */
 export function renderHomeChatCards(state:TuiState,width:number,height:number):TuiLine[] {
   const chats=homeChatItems(state), result=homeHeader(state,width,height);
   if(!chats.length){
@@ -66,32 +65,10 @@ export function renderHomeChatCards(state:TuiState,width:number,height:number):T
   }
   result.push(centered(state.signedIn ? "Continue where you left off" : "Explore example chats",width),"");
   const selected=Math.max(0,Math.min(chats.length-1,state.selectedIndex));
-  const cardWidth=Math.min(width,36), inner=Math.max(1,cardWidth-4), stride=cardWidth+2;
-  const slots=Math.max(1,Math.floor((width+2)/stride));
-  const first=Math.max(0,selected-slots+1);
-  const cards=chats.slice(first,first+slots+1).map((chat,index)=>{
-    const active=first+index===selected && state.focus==="content";
-    const title=wrapCells(`${active?"› ":""}${chat.title||"Untitled chat"}`,inner).slice(0,2);
-    const summary=wrapCells(chat.summary||"Continue this conversation",inner).slice(0,2);
-    while(title.length<2)title.push("");while(summary.length<2)summary.push("");
-    const rows=cardWidth<4 ? [truncateCells(chat.title||"Untitled chat",cardWidth)] : [
-      `╭${"─".repeat(cardWidth-2)}╮`,
-      ...title.map((line)=>`│ ${padCells(line,inner)} │`),
-      ...summary.map((line)=>`│ ${padCells(line,inner)} │`),
-      `│ ${padCells(chat.category?.replaceAll("_"," ")||"Chat",inner)} │`,
-      `╰${"─".repeat(cardWidth-2)}╯`,
-    ];
-    return {rows,background:(chat.category && CATEGORY_GRADIENTS[chat.category] || BLUE).start,active};
-  });
-  for(let row=0;row<cards[0].rows.length;row++){
-    const spans:TuiSpan[]=[];let remaining=width;
-    for(const card of cards){
-      if(!remaining)break;
-      const text=truncateCells(card.rows[row],remaining);spans.push({text,background:card.background,bold:card.active});remaining-=cells(text);
-      if(remaining){const gap=" ".repeat(Math.min(2,remaining));spans.push({text:gap});remaining-=gap.length;}
-    }
-    result.push({text:spans.map((span)=>span.text).join(""),spans});
-  }
+  result.push(...renderCardCarousel(chats.map((chat)=>({
+    title:chat.title||"Untitled chat",description:chat.summary||"Continue this conversation",
+    footer:chat.category?.replaceAll("_"," ")||"Chat",background:(chat.category && CATEGORY_GRADIENTS[chat.category] || BLUE).start,
+  })),width,selected,state.focus==="content"));
   result.push("",centered(`${selected>0?"‹":" "}  Chat ${selected+1} of ${chats.length}  ${selected<chats.length-1?"›":" "}`,width),
     centered("←/→ choose chat  ·  Enter open  ·  Tab write",width),"",
     centered("/search Search chats  ·  Ctrl+N New chat",width));

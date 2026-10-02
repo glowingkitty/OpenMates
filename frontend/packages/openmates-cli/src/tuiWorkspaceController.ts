@@ -13,7 +13,7 @@ import { paletteActions, TUI_ACTIONS } from "./tuiActions.js";
 import { eraseGrapheme, moveGraphemeCursor, terminalText } from "./tuiText.js";
 import { formatEmbedPreviewLines } from "./embedRenderers.js";
 import { currentInspiration, homeChatItems, isWorkspaceHome, loadHomeData, workspaceInspirations } from "./tuiHome.js";
-import { loadTuiApps, visibleTuiApps, loadTuiAppsSkill, buildTuiAppsSkillForm, prepareTuiAppsSkillRun, buildTuiAppsRunConfirmation, executeTuiAppsSkill, loadTuiAppsResults, loadTuiAppsResult, loadTuiAppsWorkflows } from "./tuiAppsWorkspace.js";
+import { loadTuiApps, homeTuiApps, loadTuiAppsSkill, buildTuiAppsSkillForm, prepareTuiAppsSkillRun, buildTuiAppsRunConfirmation, executeTuiAppsSkill, loadTuiAppsResults, loadTuiAppsResult, loadTuiAppsWorkflows } from "./tuiAppsWorkspace.js";
 
 export type WorkspaceContext = {
   state: TuiState; client: OpenMatesClient; terminal: TuiTerminal; render: () => void;
@@ -315,8 +315,8 @@ export async function handleWorkspaceKey(context: WorkspaceContext, chunk: strin
   if (key.ctrl && key.name === "n") { await handleWorkspaceCommand(context,"/new"); return true; }
   if(key.ctrl && key.name==="o" && isWorkspaceHome(state)){state.focus="inspiration";state.scrollOffset=0;render();return true;}
   if (state.workflowEdit) return false;
-  const chatHome=state.screen==="start"||state.screen==="chats";
-  if (["pageup","pagedown","home","end","scrollup","scrolldown"].includes(key.name ?? "") || (chatHome || state.screen==="project"&&state.projectTab==="overview") && ["up","down"].includes(key.name??"") && ["composer","content"].includes(state.focus) && !state.input.startsWith("/")) {
+  const chatHome=state.screen==="start"||state.screen==="chats", carouselHome=chatHome||state.screen==="apps";
+  if (["pageup","pagedown","home","end","scrollup","scrolldown"].includes(key.name ?? "") || (carouselHome || state.screen==="project"&&state.projectTab==="overview") && ["up","down"].includes(key.name??"") && ["composer","content"].includes(state.focus) && !state.input.startsWith("/")) {
     const bottom=state.screen==="chat";
     state.followSelection=false;
     if(key.name==="home")state.scrollOffset=bottom?10000:0;
@@ -351,8 +351,9 @@ export async function handleWorkspaceKey(context: WorkspaceContext, chunk: strin
     } else if(key.name==="return")await context.command("/inspiration");
     render();return true;
   }
-  if(chatHome&&state.focus==="content"&&(key.name==="left"||key.name==="right")){
-    state.selectedIndex=Math.max(0,Math.min(Math.max(0,homeChatItems(state).length-1),state.selectedIndex+(key.name==="left"?-1:1)));
+  if(carouselHome&&state.focus==="content"&&(key.name==="left"||key.name==="right")){
+    const count=chatHome?homeChatItems(state).length:homeTuiApps(state.apps,state.filter,state.homeShowAll).length;
+    state.selectedIndex=Math.max(0,Math.min(Math.max(0,count-1),state.selectedIndex+(key.name==="left"?-1:1)));
     state.followSelection=true;render();return true;
   }
   // Typing from the home previews starts a draft; Enter still opens the selected card.
@@ -390,10 +391,10 @@ export async function handleWorkspaceKey(context: WorkspaceContext, chunk: strin
     }
     const resultsTab=state.screen==="app"?state.appTab==="embeds":state.screen==="app-skill"&&state.appSkillTab==="embeds";
     const workflowsTab=state.screen==="app"?state.appTab==="workflows":state.screen==="app-skill"&&state.appSkillTab==="workflows";
-    const count=state.screen==="apps"?visibleTuiApps(state.apps,state.filter).length:resultsTab?state.appResults.items.length:workflowsTab?state.appWorkflows.items.length:state.activeApp?.skills.length??0;
+    const count=state.screen==="apps"?homeTuiApps(state.apps,state.filter,state.homeShowAll).length:resultsTab?state.appResults.items.length:workflowsTab?state.appWorkflows.items.length:state.activeApp?.skills.length??0;
     if(key.name==="up"||key.name==="down"){state.selectedIndex=Math.max(0,Math.min(count-1,state.selectedIndex+(key.name==="up"?-1:1)));render();return true;}
     if(key.name==="return"){
-      if(state.screen==="apps"){const app=visibleTuiApps(state.apps,state.filter)[state.selectedIndex];if(app)await context.command(`/app ${app.id}`);}
+      if(state.screen==="apps"){const app=homeTuiApps(state.apps,state.filter,state.homeShowAll)[state.selectedIndex];if(app)await context.command(`/app ${app.id}`);}
       else if(resultsTab){const result=state.appResults.items[state.selectedIndex];if(result)await context.command(`/app-result ${result.embedId}`);}
       else if(workflowsTab){const workflow=state.appWorkflows.items[state.selectedIndex];if(workflow)await context.command(`/workflow ${workflow.id}`);}
       else if(state.screen==="app-skill")await context.command("/app-run");

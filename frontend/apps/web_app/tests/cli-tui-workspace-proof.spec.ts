@@ -52,7 +52,8 @@ test('records the real terminal Chats, Tasks, Projects, Workflows, and Apps home
 		expect(recording.segment('chat-open', 'chat-fourth')).toMatch(/Plan a weekend|Review a project|Learn a concept|Organize a trip|Write a story/);
 		expect(recording.segment('scroll-top', 'scroll-bottom')).toContain('DAILY INSPIRATION');
 		expect(recording.segment('apps-scroll-bottom', 'apps-home')).toContain('Show all');
-		expect(recording.segment('apps-scroll-bottom', 'apps-home')).not.toContain('DAILY INSPIRATION');
+		expect(recording.segment('apps-scroll-bottom', 'apps-home')).toContain('DAILY INSPIRATION');
+		expect(recording.segment('apps-scroll-bottom', 'apps-home')).toContain('App 1 of 6');
 		expect(recording.segment('apps-scroll-top', 'apps-scroll-bottom')).toContain('DAILY INSPIRATION');
 		expect(recording.segment('tasks-home', 'tasks-command')).toContain(fixture.taskTitle);
 		expect(recording.segment('tasks-home', 'tasks-command')).toContain('DAILY INSPIRATION');

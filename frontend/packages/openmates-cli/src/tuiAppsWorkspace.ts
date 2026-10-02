@@ -12,7 +12,9 @@ import type { OpenMatesClient } from "./client.js";
 import { decryptBytesWithAesGcm, decryptWithAesGcmCombined, encryptBytesWithAesGcm, encryptWithAesGcmCombined } from "./crypto.js";
 import { formatEmbedPreviewLines } from "./embedRenderers.js";
 import { formValue, type TuiForm } from "./tuiForms.js";
-import { cells, padCells, terminalText, truncateCells, wrapCells } from "./tuiText.js";
+import { cells, padCells, terminalText, truncateCells, wrapCells, type TuiLine } from "./tuiText.js";
+import { centeredCarouselText, renderCardCarousel } from "./tuiCarousel.js";
+import { APP_GRADIENTS, PRIMARY_GRADIENT } from "../../appGradientTheme.js";
 import {
   getSkillPath, prepareSkillInput, resolveSkillSchema, schemaForPath, setSkillPath,
   skillLeafPaths, validateSkillInput, type SkillSchema,
@@ -92,16 +94,23 @@ export function visibleTuiApps(apps: TuiApp[], query = ""): TuiApp[] {
   return apps.filter((app) => words.every((word) => `${app.name} ${app.description} ${app.category} ${app.skills.map((skill) => skill.name).join(" ")}`.toLocaleLowerCase().includes(word)));
 }
 
-export function renderTuiAppsHome(apps: TuiApp[], options: { width: number; selectedId?: string; query?: string }): string[] {
+/** Keep the featured home, full catalog, filtering and Enter targets in agreement. */
+export function homeTuiApps(apps: TuiApp[], query = "", showAll = false): TuiApp[] {
+  const visible = visibleTuiApps(apps, query);
+  return showAll || query ? visible : visible.slice(0, HOME_APP_ORDER.length);
+}
+
+export function renderTuiAppsHome(apps: TuiApp[], options: { width: number; selectedId?: string; selectedIndex?: number; query?: string }): TuiLine[] {
   const width = Math.max(1, options.width);
   const visible = visibleTuiApps(apps, options.query);
-  const lines: string[] = [];
-  if (!visible.length) lines.push(options.query ? "No matching apps." : "No apps available.");
-  for (const app of visible) {
-    lines.push(...cardLines(`${app.id === options.selectedId ? "›" : " "} ${app.name}`, app.description,
-      `${app.skills.length} skills${app.category ? ` · ${app.category.replaceAll("_", " ")}` : ""}`, width), "");
-  }
-  return lines;
+  if (!visible.length) return [centeredCarouselText(options.query ? "No matching apps." : "No apps available.", width)];
+  const selected = Math.max(0, Math.min(visible.length - 1, options.selectedIndex ?? visible.findIndex((app) => app.id === options.selectedId)));
+  return [...renderCardCarousel(visible.map((app) => ({ title: app.name, description: app.description,
+    footer: `${app.skills.length} skills${app.category ? ` · ${app.category.replaceAll("_", " ")}` : ""}`,
+    background: (APP_GRADIENTS[app.id] ?? PRIMARY_GRADIENT).start,
+  })), width, selected, options.selectedId !== undefined), "",
+  centeredCarouselText(`${selected > 0 ? "‹" : " "}  App ${selected + 1} of ${visible.length}  ${selected < visible.length - 1 ? "›" : " "}`, width),
+  centeredCarouselText("←/→ choose app  ·  Enter open  ·  Tab focus", width)];
 }
 
 function cardLines(title: string, description: string, footer: string, width: number): string[] {
