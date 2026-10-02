@@ -25,6 +25,18 @@ function findNodes(node: any, type: string): any[] {
 }
 
 describe("createAssistantRenderPlan", () => {
+  // contract-test: direct surface=gui.web assertions=hosting-domains.embeds.parent-child,hosting-domains.surface-parity
+  it("preserves Workflow delivery text and result references beside its provenance link", () => {
+    const refs = ["11111111-1111-4111-8111-111111111111", "22222222-2222-4222-8222-222222222222"];
+    const markdown = `Checked domains:\n\n\`\`\`embeds_results_view\nembeds: ${refs.join(", ")}\n\`\`\`\n\n[View workflow run](/workflows#workflow-id=33333333-3333-4333-8333-333333333333&workflow-tab=runs&run-id=44444444-4444-4444-8444-444444444444)`;
+    const plan = createAssistantRenderPlan(markdown, { phase: "final" });
+
+    expect(findNodes(plan.document, "text").map((node) => node.text)).toContain("Checked domains:");
+    const resultViews = findNodes(plan.document, "embed").filter((node) => node.attrs?.type === "embeds-map-view");
+    expect(resultViews).toHaveLength(1);
+    expect(resultViews[0].attrs.mapEmbedRefs).toEqual(refs);
+  });
+
   // contract-test: direct surface=gui.web assertions=chats.rendering.assistant-document-convergence,chats.rendering.inline-entity-interaction
   it("commits safe complete blocks with final embed semantics and keeps one mutable tail", () => {
     const markdown = [

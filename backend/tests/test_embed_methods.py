@@ -21,6 +21,32 @@ def _load_embed_methods_class():
     return module.EmbedMethods
 
 
+# contract-test: supporting surface=rest_api assertions=hosting-domains.embeds.parent-child,hosting-domains.surface-parity
+@pytest.mark.asyncio
+@pytest.mark.parametrize("embed_count", [101, 501])
+async def test_single_chat_embed_read_preserves_graph_beyond_default_row_limit(embed_count: int) -> None:
+    EmbedMethods = _load_embed_methods_class()
+    rows = [{"embed_id": f"domain-{index}", "encrypted_content": "opaque"}
+            for index in range(embed_count)]
+
+    async def get_items(collection: str, *, params: dict, no_cache: bool) -> list[dict]:
+        assert collection == "embeds"
+        assert no_cache is True
+        assert params.get("filter[hashed_chat_id][_in]", params.get("filter[hashed_chat_id][_eq]")) in (
+            ["target-chat-hash"], "target-chat-hash",
+        )
+        offset = params.get("offset", 0)
+        return rows[offset:offset + params.get("limit", 100)]
+
+    directus = SimpleNamespace(get_items=AsyncMock(side_effect=get_items))
+    result = await EmbedMethods(directus).get_embeds_by_hashed_chat_id("target-chat-hash")
+
+    assert result == rows
+    assert directus.get_items.await_count == (1 if embed_count < 500 else 2)
+    for call in directus.get_items.await_args_list:
+        assert call.kwargs["params"]["limit"] == 500
+
+
 # contract-test: direct surface=rest_api assertions=storage.files.reference-safe-single-copy
 @pytest.mark.asyncio
 async def test_delete_all_embeds_for_chat_keeps_project_referenced_embeds() -> None:

@@ -989,7 +989,11 @@
             }
         );
 
-        observer.observe(editorElement);
+        // A visible message may start with a tall Workflow provenance or thinking
+        // card that pushes its editor below the scrollport. Observe the message
+        // so its body initializes together with that visible leading content;
+        // rootMargin alone cannot expand an ancestor's clipped scrollport.
+        observer.observe(editorElement.closest('.chat-message') ?? editorElement);
 
         // Cleanup observer on component destroy
         return () => {

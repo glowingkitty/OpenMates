@@ -192,22 +192,10 @@ class EmbedMethods:
         Returns:
             List of embeds for the chat
         """
-        logger.debug(f"Fetching embeds for hashed_chat_id: {hashed_chat_id[:16]}...")
-        params = {
-            'filter[hashed_chat_id][_eq]': hashed_chat_id,
-            'fields': EMBED_ALL_FIELDS,
-            'sort': '-created_at'
-        }
-        try:
-            response = await self.directus_service.get_items('embeds', params=params, no_cache=True)
-            if response and isinstance(response, list):
-                logger.debug(f"Found {len(response)} embed(s) for chat")
-                return response
-            else:
-                return []
-        except Exception as e:
-            logger.error(f"Error fetching embeds by hashed_chat_id: {e}", exc_info=True)
-            return []
+        # Domain-search parents can reference more children than Directus's
+        # default 100-row response. Reuse the bounded paginated chat reader so
+        # shares and owner reads retain the complete encrypted embed graph.
+        return await self.get_embeds_by_hashed_chat_ids([hashed_chat_id])
 
     async def get_embeds_by_hashed_chat_ids(self, hashed_chat_ids: List[str]) -> List[Dict[str, Any]]:
         """
