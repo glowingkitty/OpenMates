@@ -329,7 +329,9 @@
         "components/image-result-fullscreen-proxy.spec.ts",
         "components/music-fullscreen-responsive.spec.ts",
         "components/workflow-send-delivery-status.spec.ts",
-        "components/workspace-home-responsive.spec.ts"
+        "components/workspace-home-responsive.spec.ts",
+        "components/workflow-choice-loop.spec.ts",
+        "components/workflow-chat-embed.spec.ts"
       ]
     },
     "synthetic_artifact": {
@@ -471,7 +473,8 @@
         "cli-workflows-schedule-real.spec.ts",
         "workflows-ready-run-tasks.spec.ts",
         "workflows-ui-contract.spec.ts",
-        "skill-hosting-search-workflow.spec.ts"
+        "skill-hosting-search-workflow.spec.ts",
+        "workflows-composition.spec.ts"
       ]
     },
     "credential_free_domains": {
