@@ -3887,10 +3887,10 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 									// Handle keyboard selection with modifiers
 									const isShift = e.shiftKey;
 									const isCmdOrCtrl = e.metaKey || e.ctrlKey;
-									
+
 									if ((selectMode || isShift || isCmdOrCtrl) && (e.key === 'Enter' || e.key === ' ')) {
 										e.preventDefault();
-										
+
 										// Shift+Space/Enter: Select range
 										if (isShift && lastSelectedChatId) {
 											const allChatsList = flattenedNavigableChats;
@@ -3905,7 +3905,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 
 												const startIndex = Math.min(lastIndex, currentIndex);
 												const endIndex = Math.max(lastIndex, currentIndex);
-												
+
 												for (let i = startIndex; i <= endIndex; i++) {
 													selectedChatIds.add(allChatsList[i].chat_id);
 												}
@@ -3914,7 +3914,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 												return;
 											}
 										}
-										
+
 										// Cmd/Ctrl+Space/Enter: Toggle selection
 										if (isCmdOrCtrl) {
 											if (!selectMode) {
@@ -3938,7 +3938,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 											selectedChatIds = new Set(selectedChatIds);
 											return;
 										}
-										
+
 										// Normal Space/Enter in select mode: toggle selection
 										if (selectMode) {
 											if (selectedChatIds.has(chat.chat_id)) {
@@ -3955,15 +3955,15 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 											return;
 										}
 									}
-									
+
 									// Fallback to normal keyboard navigation
 									handleKeyDown(e, chat);
 								}}
 								aria-current={selectedChatId === chat.chat_id ? 'page' : undefined}
 								aria-label={chat.title || $text('common.untitled_chat')}
 							>
-								<ChatComponent 
-									chat={chat} 
+								<ChatComponent
+									chat={chat}
 									activeChatId={selectedChatId}
 									selectMode={selectMode}
 									selectedChatIds={selectedChatIds}

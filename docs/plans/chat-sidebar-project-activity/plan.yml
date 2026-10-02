@@ -41,42 +41,49 @@ scenarios:
 acceptance_criteria:
 - id: AC-1
   scenario: S-1
-  text: Running descendants activate their parent and containing folders without duplicate
-    counts
+  text: Running descendants activate their parent and containing folders without duplicate counts
   required: true
-  status: pending
+  status: blocked
   coverage_status: covered
   verification_scope: related_frontend
   verification_ids:
   - T-UNIT
   - T-COMPONENT
+  - T-APPLE
+  - V-APPLE-LANDING
+  reason: Web/TUI evidence passed. Required native runtime verification is unavailable; no native
+    pass or waiver is claimed.
 - id: AC-2
   scenario: S-2
-  text: Breadcrumbs remain readable with reachable ancestors and flat rows at every
-    depth
+  text: Breadcrumbs remain readable with reachable ancestors and flat rows at every depth
   required: true
-  status: pending
+  status: blocked
   coverage_status: covered
   verification_scope: related_frontend
   verification_ids:
   - T-UNIT
   - T-COMPONENT
+  - T-APPLE
+  reason: Web/TUI evidence passed. Required native runtime verification is unavailable; no native
+    pass or waiver is claimed.
 - id: AC-3
   scenario: S-3
-  text: Chat grouping and add/move actions preserve encrypted membership and show
-    failures
+  text: Chat grouping and add/move actions preserve encrypted membership and show failures
   required: true
-  status: pending
-  coverage_status: covered
+  status: blocked
+  coverage_status: blocked
   verification_scope: related_frontend
   verification_ids:
   - T-FLOW
+  - T-LIVE-TITLE
+  - V-APPLE-ORGANIZE
+  reason: Web/TUI evidence passed. Required native runtime verification is unavailable; no native
+    pass or waiver is claimed.
 tests:
 - id: T-UNIT
   type: vitest
   file: frontend/packages/ui/src/utils/__tests__/chatActivity.test.ts
-  command: pnpm --filter @repo/ui exec vitest run src/utils/__tests__/chatActivity.test.ts
-    src/utils/__tests__/chatProjectNavigation.test.ts src/stores/__tests__/chatActivityStore.test.ts
+  command: Focused web Vitest, backend pytest, terminal/SDK Node unit checks
   assertions:
   - Parent activity and descendant membership
   covers:
@@ -89,7 +96,20 @@ tests:
   green_phase:
     required: true
     expected: The focused checks pass
-    evidence: {}
+    evidence:
+      status: passed
+      timestamp: '2026-10-02T21:27:50.678881+00:00'
+      command: Focused web Vitest (24 tests), TUI/SDK Node suite (94 tests), related backend
+        pytest deployment gate (58 tests) and final backend coverage (30 tests)
+      run_id: sidebar-local-focused-20261002
+      subject_commit: e98513dd1525ea222a2e6c199dddc12986b7625b
+      artifacts:
+      - test-results/sidebar-web-unit-source10.log
+      - test-results/sidebar-tui-sdk-source10.log
+      - test-results/sidebar-backend-deploy-gate.log
+      - test-results/sidebar-backend-final-coverage.log
+      summary: Activity privacy, account/team fences, recursive folder navigation, terminal
+        widths, encrypted membership ordering and title-only routing pass.
 - id: T-COMPONENT
   type: playwright
   file: frontend/apps/web_app/tests/components/chat-project-navigation.spec.ts
@@ -106,7 +126,21 @@ tests:
   green_phase:
     required: true
     expected: pass
-    evidence: {}
+    evidence:
+      status: passed
+      timestamp: '2026-10-02T21:27:50.678881+00:00'
+      command: python3 scripts/ci_coordinator.py submit --session 40f4 --source e98513dd1525ea222a2e6c199dddc12986b7625b
+        --spec components/chat-project-navigation.spec.ts --mode component --no-prepared-builds
+      run_id: '37065586652'
+      subject_commit: e98513dd1525ea222a2e6c199dddc12986b7625b
+      harness_commit: 530130dd68170ec71b9c12996cd979335df25488
+      profile: component
+      execution_environment: isolated_github_ci
+      artifacts:
+      - https://github.com/glowingkitty/OpenMates/actions/runs/37065586652
+      summary: Five tests passed, zero skips/flakes. Production chat icon replacement/completion,
+        280/325px flat navigation, full ancestor picker, failed picker selection and reduced
+        motion. Narrow screenshots reviewed.
   target: isolated runner preview
   execution_environment: isolated_github_ci
 - id: T-FLOW
@@ -124,14 +158,88 @@ tests:
   green_phase:
     required: true
     expected: pass
-    evidence: {}
+    evidence:
+      status: passed
+      timestamp: '2026-10-02T21:27:50.678881+00:00'
+      command: python3 scripts/ci_coordinator.py submit --session 40f4 --source e98513dd1525ea222a2e6c199dddc12986b7625b
+        --spec chat-sidebar-projects.spec.ts --mode e2e --no-prepared-builds
+      run_id: '37065591234'
+      subject_commit: e98513dd1525ea222a2e6c199dddc12986b7625b
+      harness_commit: 530130dd68170ec71b9c12996cd979335df25488
+      profile: e2e
+      execution_environment: isolated_github_ci
+      artifacts:
+      - https://github.com/glowingkitty/OpenMates/actions/runs/37065591234
+      summary: Full organization flow passed with zero skips/flakes using runner-local real
+        signup/crypto/TOTP and real encrypted Project APIs. Covers drag grouping/opening, four
+        nested folder levels, Add/Move/Create menus, hashed folder membership, global child
+        activity, landing link, folder wheels, idle restoration and disposable cleanup. AI naming
+        intercepted here; separate real dev inference passed. Sidebar screenshot reviewed.
   target: isolated disposable browser account
   execution_environment: isolated_github_ci
+- id: T-APPLE
+  type: unit
+  file: apple/OpenMatesUITests/HistoryWelcomeComponentUITests.swift
+  command: python3 scripts/apple_remote.py test-ios --only-testing OpenMatesTests/ChatSidebarActivityTests
+    --only-testing OpenMatesUITests/HistoryWelcomeComponentUITests/testNestedProjectNavigationKeepsRunningParentAboveFolders
+  assertions:
+  - Native build, running rows and nested breadcrumb interaction at 325px
+  covers:
+  - AC-1
+  - AC-2
+  red_phase:
+    required: false
+    expected: Source establishes missing behavior
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: blocked
+      timestamp: '2026-10-02T21:27:50.678881+00:00'
+      actor: Codex
+      reason: Configured Mac helper rejects build-ios and patch-snapshot as UNSUPPORTED_REMOTE_OPERATION.
+        No source transfer, native compile or UI run occurred. Static parity audit passes and
+        Xcode targets contain the new files. Existing fixture covers grouping/navigation only;
+        it does not prove authenticated mutations or the landing link.
+      next_action: Run registered Swift unit and UI tests once typed Mac build/source-transfer
+        operations are admitted; do not claim native runtime parity.
+      artifacts:
+      - test-results/sidebar-native-parity-audit-final.log
+      - test-results/sidebar-native-inventory-final.log
+- id: T-LIVE-TITLE
+  type: unit
+  file: scripts/verify_chat_sidebar_title_live.py
+  command: python3 scripts/verify_chat_sidebar_title_live.py --session 40f4 --slot 2
+  assertions:
+  - A real utility inference returns a valid title with only synthetic title data and closes
+    the test session
+  covers:
+  - AC-3
+  red_phase:
+    required: false
+    expected: General planner requests clarification for a naming action
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      timestamp: '2026-10-02T21:06:05.587443+00:00'
+      command: python3 scripts/verify_chat_sidebar_title_live.py --session 40f4 --slot 2
+      run_id: sidebar-live-title-20261002
+      subject_commit: e98513dd1525ea222a2e6c199dddc12986b7625b
+      deployment_reference: 530130dd68170ec71b9c12996cd979335df25488
+      target: https://api.dev.openmates.org
+      artifacts:
+      - test-results/sidebar-live-title.json
+      summary: Real inference returned an 18-character title. Synthetic titles only, no persisted
+        Project, account lane lease released and CLI session closed.
 tasks:
 - id: TASK-164
   title: Improve nested chat project navigation and running chat visibility
-  status: in_progress
-  phase: working_tasks
+  status: blocked
+  phase: blocked
   covers:
     scenarios:
     - S-1
@@ -143,21 +251,35 @@ tasks:
     - AC-3
   expected_files:
   - frontend/packages/ui/src/components/chats
-  - frontend/packages/cli/src
-  - frontend/apps/apple
+  - frontend/packages/ui/src/services/chatSyncService.ts
+  - frontend/packages/openmates-cli/src
+  - backend/core/api/app/routes
+  - apple
   verification_ids:
   - T-UNIT
   - T-COMPONENT
   - T-FLOW
+  - T-APPLE
+  - T-LIVE-TITLE
+  - V-APPLE-ORGANIZE
+  - V-APPLE-LANDING
   dependencies: []
-  blockers: []
+  blockers:
+  - Mac source transfer/build operations are unsupported; native organization and landing interaction
+    coverage remain incomplete.
   follow_up_tasks: []
   ownership:
     files:
     - frontend/packages/ui/src/components/chats
     shared_files: []
 implementation_state:
-  subject_commit: Candidate not frozen yet
+  subject_commit: e98513dd1525ea222a2e6c199dddc12986b7625b
+  backend_deployment: 530130dd68170ec71b9c12996cd979335df25488
+  client_deployment: 449ea5f81ff1be278b7ad016f9e31499cf690901
+  client_deployment_state: ready
+  native_publication: Not published; pending compile and runtime verification in session 40f4.
+  deployed_source_equivalence: All task web/TUI product source and tests in the CI candidate
+    match client deployment 449ea5f. Backend product source matches 530130d.
 approvals:
   specification:
     status: approved
@@ -189,16 +311,58 @@ decisions:
 attempts:
 - id: implementation
   task_id: TASK-164
-  outcome: planned
-  approach: Reuse encrypted Project APIs and concurrent WebSocket activity
+  outcome: blocked
+  approach: Web/TUI/backend implemented and published to dev. Focused local suites, isolated
+    component/browser CI and real title-only inference pass. Apple source remains in the task
+    workspace, uncompiled, with native organization/landing coverage gaps explicitly recorded.
   recorded_at: '2026-10-02'
 handoff:
   current_task_id: TASK-164
-  next_action: Finish integrations and focused verification
-  command: python3 scripts/sessions.py status
-  expected_outcome: Implemented and verified sidebar behavior
-  last_verified_commit: No immutable candidate verified yet
-  blocker: null
+  next_action: Restore typed Mac source-transfer/build capability, complete the native organization
+    and landing-link coverage, run Swift unit/UI checks, then publish verified Apple changes.
+  command: python3 scripts/apple_remote.py status
+  expected_outcome: Finish native verification and publication; web/TUI/backend are already
+    verified and deployed.
+  last_verified_commit: e98513dd1525ea222a2e6c199dddc12986b7625b (web/TUI component and full
+    browser CI; real dev title inference).
+  blocker:
+    code: external_dependency
+    reason: Mac helper does not admit source transfer or build; native compile and interaction
+      verification remain outstanding.
+    workspace: /home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-40f4
+    session: 40f4
 approved_by_user: true
-authorization: User explicitly ended questions and requested implementing and testing
-  the recommendation.
+authorization: User explicitly ended questions and requested implementing and testing the recommendation.
+verifications:
+- id: V-APPLE-ORGANIZE
+  kind: automated_test
+  phase: green
+  status: blocked
+  required_for_done: true
+  covers:
+  - AC-3
+  evidence:
+    status: blocked
+    timestamp: '2026-10-02T21:27:50.678881+00:00'
+    actor: Codex
+    reason: Native organization source is uncompiled. Current isolated UI fixture has no-op
+      creation/drop callbacks and non-UUID IDs, so it cannot prove Add/Move/Create, encrypted
+      membership persistence or opening the new Project.
+    next_action: Add and run authenticated native organization UI coverage after Mac source/build
+      capability returns; assert encrypted destination persistence before source removal and
+      that grouping opens the new Project.
+- id: V-APPLE-LANDING
+  kind: automated_test
+  phase: green
+  status: blocked
+  required_for_done: true
+  covers:
+  - AC-1
+  evidence:
+    status: blocked
+    timestamp: '2026-10-02T21:27:50.678881+00:00'
+    actor: Codex
+    reason: The native landing active-count callback is implemented but no native UI test drives
+      the link and verifies that search clears and running rows are revealed.
+    next_action: Add and run a native landing active-count interaction test against the real
+      shell after Mac source/build capability returns.

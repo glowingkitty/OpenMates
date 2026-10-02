@@ -2044,7 +2044,7 @@ class ChatCacheMixin:
                 if value:
                     result[chat_id] = value.decode("utf-8") if isinstance(value, bytes) else str(value)
         return result
-        
+
     async def get_chat_id_for_task(self, task_id: str) -> Optional[str]:
         """
         Get the chat ID associated with an active AI task.
