@@ -1669,7 +1669,12 @@ async def _async_process_ai_skill_ask_task(
                 plan_requested=user_overrides.plan_requested,
                 available_focus_modes=available_focus_modes,
             )
-            if plan_route.should_plan and plan_route.active_focus_id and not request_data.active_focus_id:
+            # Project focus takes precedence over automatic catalog planning.
+            project_focus_selected = bool(request_data.active_project_focus) or any(
+                focus.startswith("project-")
+                for focus in (preprocessing_result.relevant_focus_modes or [])
+            )
+            if plan_route.should_plan and plan_route.active_focus_id and not request_data.active_focus_id and not project_focus_selected:
                 request_data.active_focus_id = plan_route.active_focus_id
                 logger.info(
                     f"[Task ID: {task_id}] PLAN_ROUTING: Set active_focus_id='{plan_route.active_focus_id}' "
