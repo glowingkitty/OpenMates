@@ -117,7 +117,8 @@ Stream labels: `job="client-console"`, `level`, `user_email`, `server_env`, `sou
 ## Edge Cases
 
 - If IndexedDB is unavailable (e.g., private browsing), falls back to a volatile in-memory queue.
-- Backend proxy failure: entries remain in IndexedDB queue and are retried on next flush cycle.
+- Transient backend proxy failures retain queued entries for the next flush cycle.
+- Cookie-authenticated uploads rejected with 401 or 403 stop forwarding and discard authenticated queues. Session expiry stops uploads without sending a final batch; reload validates the restored session before restarting forwarding. Network errors and session-check 503 responses preserve offline access.
 
 ## Related Docs
 
