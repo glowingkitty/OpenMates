@@ -39,12 +39,80 @@ DEFAULT_MESSAGE_WINDOW_LIMIT = 30
 MAX_MESSAGE_WINDOW_LIMIT = 100
 
 
+@router.get("/chats/activity")
+async def get_chat_activity(request: Request, team_id: str | None = None,
+                            current_user: User = Depends(get_current_user)) -> dict[str, Any]:
+    """Reconnect census for all first-party clients; never return private chat metadata."""
+    directus = request.app.state.directus_service
+    if team_id:
+        try:
+            await directus.team.require_team_role(team_id, current_user.id, {"owner", "admin", "member", "viewer"})
+        except TeamPermissionError as exc:
+            raise HTTPException(status_code=403, detail="TEAM_PERMISSION_DENIED") from exc
+    try:
+        candidates = await directus.chat.get_chat_activity_candidates(current_user.id, team_id=team_id)
+        owned = {str(chat["id"]): chat for chat in candidates if chat.get("id")}
+        tasks = await request.app.state.cache_service.get_active_ai_tasks(list(owned))
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="Chat activity unavailable") from exc
+    ancestry: dict[str, dict[str, Any]] = {}
+    for chat_id, task_id in tasks.items():
+        next_id = chat_id
+        visited: set[str] = set()
+        while next_id in owned and next_id not in visited:
+            visited.add(next_id)
+            chat = owned[next_id]
+            parent = chat.get("parent_id") if chat.get("parent_id") in owned else None
+            ancestry[next_id] = {"chat_id": next_id, "parent_id": parent,
+                                 "is_sub_chat": bool(chat.get("is_sub_chat")), "team_id": team_id}
+            next_id = parent
+    return {"active_tasks": [{"chat_id": chat_id, "task_id": task_id} for chat_id, task_id in tasks.items() if chat_id in owned],
+            "chats": list(ancestry.values())}
+
+
 class ChatMoveRequest(BaseModel):
     team_id: str
     confirmed: bool
     encrypted_slug: str | None = Field(default=None, min_length=1)
     slug_lookup_hash: str | None = Field(default=None, pattern="^[0-9a-f]{64}$")
     moved_at: int | None = None
+
+
+class SidebarChatMetadataRequest(BaseModel):
+    chat_ids: list[str] = Field(min_length=1, max_length=100)
+
+
+@router.post("/chats/metadata/batch")
+async def sidebar_chat_metadata(body: SidebarChatMetadataRequest, request: Request,
+                                team_id: str | None = None,
+                                current_user: User = Depends(get_current_user)) -> dict[str, Any]:
+    """Hydrate saved folder/activity rows without fetching message transcripts."""
+    records = []
+    for chat_id in dict.fromkeys(body.chat_ids):
+        chat = await _require_chat_read_access(request, chat_id, team_id, current_user.id)
+        if not chat:
+            continue
+        if not team_id and chat.get("hashed_team_id"):
+            continue
+        record = _watch_chat_payload(chat)
+        for field in ("encrypted_category", "encrypted_icon", "title_v", "metadata_v", "is_hidden", "is_hidden_candidate"):
+            if field in chat:
+                record[field] = chat[field]
+        record["team_id"] = team_id
+        records.append(record)
+    if records:
+        wrappers = await request.app.state.directus_service.chat_key_wrapper.get_wrappers_by_hashed_chat_ids_batch(
+            [hashlib.sha256(record["id"].encode()).hexdigest() for record in records],
+            **({"hashed_team_id": hash_id(team_id)} if team_id else {"hashed_user_id": hashlib.sha256(current_user.id.encode()).hexdigest()}),
+        )
+        for record in records:
+            chat_hash = hashlib.sha256(record["id"].encode()).hexdigest()
+            scoped = [wrapper for wrapper in wrappers if wrapper.get("hashed_chat_id") == chat_hash]
+            record["chat_key_wrappers"] = scoped
+            context_key = next((wrapper.get("encrypted_chat_key") for wrapper in scoped if wrapper.get("key_type") == ("team" if team_id else "master")), None)
+            if team_id and context_key:
+                record["encrypted_chat_key"] = context_key
+    return {"chats": records}
 
 
 def _string_timestamp(value: Any) -> str | None:
@@ -54,6 +122,7 @@ def _string_timestamp(value: Any) -> str | None:
 def _watch_chat_payload(chat: dict[str, Any]) -> dict[str, Any]:
     return {
         "id": chat.get("id"),
+        "created_at": _string_timestamp(chat.get("created_at")),
         "encrypted_title": chat.get("encrypted_title"),
         "encrypted_slug": chat.get("encrypted_slug"),
         "slug_lookup_hash": chat.get("slug_lookup_hash"),
@@ -62,6 +131,8 @@ def _watch_chat_payload(chat: dict[str, Any]) -> dict[str, Any]:
         "encrypted_chat_key": chat.get("encrypted_chat_key"),
         "chat_key_wrappers": chat.get("chat_key_wrappers") or [],
         "pinned": chat.get("pinned", False),
+        "parent_id": chat.get("parent_id"),
+        "is_sub_chat": chat.get("is_sub_chat", False),
         "updated_at": _string_timestamp(chat.get("updated_at")),
         "last_message_at": _string_timestamp(chat.get("last_message_timestamp")),
     }

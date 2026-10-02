@@ -400,3 +400,10 @@ project_task_sync:
     given: Remote access is running for the OpenMates Project, which contains twelve Tasks.
     when: A Task title is edited in the web app. Later, the device disconnects while another Task is deleted, then reconnects.
     then: The title reaches the private cache without a model request. All current Tasks retain their full titles and latest activity. Reconnection removes the deleted Task; revoked Project access clears that cached scope.
+
+chat_organization_policy:
+  - id: chat-only-project-defers-file-policy
+    assertion_ids: [projects.files.write-policy-setup]
+    given: The user wants to group Launch headlines and Launch schedule without enabling file work.
+    when: They drag one chat onto the other.
+    then: The new Project opens with both chats and pending file permissions. File focus and writes stay unavailable until an explicit policy choice.

@@ -477,9 +477,13 @@ class ProjectMethods:
         user_id: str,
         payload: Dict[str, Any],
         team_id: str | None = None,
+        *,
+        allow_deferred_write_mode: bool = False,
     ) -> Optional[Dict[str, Any]]:
         existing = await self.get_project_settings(project_id, user_id, team_id=team_id)
-        if "write_mode" in payload and payload["write_mode"] not in {"apply_and_show", "always_ask"}:
+        if "write_mode" in payload and payload["write_mode"] not in {"apply_and_show", "always_ask"} and not (
+            allow_deferred_write_mode and not existing and payload["write_mode"] is None
+        ):
             logger.error("Rejected unsupported Project write mode")
             return None
         record = {
@@ -507,7 +511,9 @@ class ProjectMethods:
             return await self.directus_service.update_item("project_settings", existing["id"], record)
 
         if (
-            record.get("write_mode") not in {"apply_and_show", "always_ask"}
+            (record.get("write_mode") not in {"apply_and_show", "always_ask"} and not (
+                allow_deferred_write_mode and record.get("write_mode") is None
+            ))
             or not _is_sha256_hex(record.get("default_focus_id_hash"))
             or not record.get("encrypted_settings")
         ):
@@ -744,7 +750,7 @@ class ProjectMethods:
             {"hashed_project_id": {"_eq": hashed_project_id}, **_owner_filter(user_id, team_id)},
         )
 
-    async def list_items(self, project_id: str, user_id: str, team_id: str | None = None) -> List[Dict[str, Any]]:
+    async def list_items(self, project_id: str, user_id: str, team_id: str | None = None, *, item_type: str | None = None) -> List[Dict[str, Any]]:
         params = {
             "filter[hashed_project_id][_eq]": hash_id(project_id),
             "fields": ITEM_FIELDS,
@@ -752,6 +758,8 @@ class ProjectMethods:
             "limit": -1,
         }
         params.update(_owner_params(user_id, team_id))
+        if item_type is not None:
+            params["filter[item_type][_eq]"] = item_type
         response = await self.directus_service.get_items("project_items", params=params, no_cache=True)
         return response if isinstance(response, list) else []
 

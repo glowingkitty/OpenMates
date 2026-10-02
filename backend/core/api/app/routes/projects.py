@@ -7,13 +7,13 @@ import hashlib
 import logging
 import time
 import uuid
-from typing import Any, Dict, List, Literal, Optional
+from typing import Annotated, Any, Dict, List, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from starlette.concurrency import run_in_threadpool
 
-from backend.apps.ai.processing.workspace_ask_planner import WorkspaceAskPlanningError, run_project_ask_pipeline
+from backend.apps.ai.processing.workspace_ask_planner import WorkspaceAskPlanningError, run_chat_project_title, run_project_ask_pipeline
 from backend.core.api.app.models.user import User
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user, get_current_user_or_api_key
 from backend.core.api.app.services.feature_availability_guards import ensure_projects_enabled
@@ -222,12 +222,15 @@ class ProjectCreateRequest(BaseModel):
     updated_at: int
     last_opened_at: int
     key_wrappers: List[ProjectKeyWrapperRequest] = Field(default_factory=list)
-    write_mode: Literal["apply_and_show", "always_ask"]
+    write_mode: Optional[Literal["apply_and_show", "always_ask"]]
+    chat_organization_only: bool = False
     default_focus_id: str = Field(min_length=36, max_length=36)
     encrypted_settings: str = Field(min_length=1, max_length=350_000)
 
     @model_validator(mode="after")
     def require_encrypted_project_key(self) -> "ProjectCreateRequest":
+        if self.write_mode is None and not self.chat_organization_only:
+            raise ValueError("Choose a write policy before enabling Project file work")
         if not self.encrypted_project_key and not self.key_wrappers:
             raise ValueError("encrypted_project_key or key_wrappers is required")
         try:
@@ -258,6 +261,7 @@ class ProjectRestoreRequest(BaseModel):
 
 class ProjectAskPlanRequest(BaseModel):
     instruction: str = Field(min_length=1, max_length=20_000)
+    chat_titles: Optional[List[Annotated[str, Field(max_length=200)]]] = Field(default=None, min_length=1, max_length=8)
 
 
 class ProjectAskUpdateRequest(BaseModel):
@@ -466,8 +470,8 @@ class ProjectWriteApprovalRequest(BaseModel):
 def serialize_project_settings(settings: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     if not settings:
         return {
-            "write_mode": "apply_and_show",
-            "selection_required": False,
+            "write_mode": None,
+            "selection_required": True,
             "default_focus_id_hash": None,
             "encrypted_settings": None,
             "updated_at": None,
@@ -475,7 +479,7 @@ def serialize_project_settings(settings: Optional[Dict[str, Any]]) -> Dict[str, 
     stored_mode = settings.get("write_mode")
     write_mode = "apply_and_show" if stored_mode == "auto_approve_safe_writes" else stored_mode
     if write_mode not in {"apply_and_show", "always_ask"}:
-        write_mode = "apply_and_show"
+        write_mode = None
     return {
         "write_mode": write_mode,
         "selection_required": write_mode is None,
@@ -531,6 +535,7 @@ async def create_project(
 ) -> Dict[str, Any]:
     await _require_project_role(directus_service, team_id, current_user.id, TEAM_MUTATE_ROLES)
     payload = body.model_dump()
+    chat_organization_only = payload.pop("chat_organization_only")
     settings_payload = {
         "write_mode": payload.pop("write_mode"),
         "default_focus_id": payload.pop("default_focus_id"),
@@ -549,6 +554,7 @@ async def create_project(
         current_user.id,
         settings_payload,
         team_id=team_id,
+        **({"allow_deferred_write_mode": True} if chat_organization_only else {}),
     )
     if not settings:
         rolled_back = await directus_service.project.delete_project(
@@ -581,7 +587,7 @@ async def plan_project_ask_route(
     if secrets_manager is None:
         raise HTTPException(status_code=503, detail="Workspace ask inference is not configured")
     try:
-        result = await run_project_ask_pipeline(body.instruction, secrets_manager)
+        result = await run_chat_project_title(body.chat_titles, secrets_manager) if body.chat_titles is not None else await run_project_ask_pipeline(body.instruction, secrets_manager)
         return {"proposed_project": result.proposal.model_dump(), "inference_used": True, "processing": result.processing}
     except WorkspaceAskPlanningError as exc:
         raise HTTPException(status_code=502, detail=f"Workspace ask inference failed: {exc}") from exc
@@ -610,6 +616,7 @@ async def ask_projects(
     summary = ""
     if body.encrypted_create is not None:
         create_payload = body.encrypted_create.model_dump()
+        create_payload.pop("chat_organization_only", None)
         _require_team_project_wrapper(create_payload, team_id)
         try:
             created = await directus_service.project.create_project(current_user.id, create_payload, team_id=team_id)
@@ -1623,6 +1630,7 @@ async def list_items(
     request: Request,
     project_id: str,
     team_id: str | None = None,
+    chat_only: bool = False,
     current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
 ) -> Dict[str, Any]:
@@ -1630,7 +1638,11 @@ async def list_items(
     project = await directus_service.project.get_project(project_id, current_user.id, team_id=team_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-    folders, items = await _load_project_children(project_id, current_user.id, directus_service, team_id=team_id)
+    if chat_only:
+        folders = await directus_service.project.list_folders(project_id, current_user.id, team_id=team_id)
+        items = await directus_service.project.list_items(project_id, current_user.id, team_id=team_id, item_type="chat")
+    else:
+        folders, items = await _load_project_children(project_id, current_user.id, directus_service, team_id=team_id)
     return {"folders": folders, "items": items}
 
 

@@ -2021,7 +2021,7 @@ class ChatCacheMixin:
         client = await self.client
         if not client:
             return None
-        
+
         key = self._get_active_task_key(chat_id)
         try:
             task_id = await client.get(key)
@@ -2030,6 +2030,21 @@ class ChatCacheMixin:
             logger.error(f"Error getting active AI task for chat {chat_id}: {e}", exc_info=True)
             return None
 
+
+    async def get_active_ai_tasks(self, chat_ids: List[str]) -> Dict[str, str]:
+        """Batch active markers for already-authorized chat IDs, bounded per Redis read."""
+        client = await self.client
+        if not client:
+            raise RuntimeError("Chat activity cache unavailable")
+        result: Dict[str, str] = {}
+        for start in range(0, len(chat_ids), 500):
+            batch = chat_ids[start:start + 500]
+            values = await client.mget([self._get_active_task_key(chat_id) for chat_id in batch])
+            for chat_id, value in zip(batch, values):
+                if value:
+                    result[chat_id] = value.decode("utf-8") if isinstance(value, bytes) else str(value)
+        return result
+        
     async def get_chat_id_for_task(self, task_id: str) -> Optional[str]:
         """
         Get the chat ID associated with an active AI task.

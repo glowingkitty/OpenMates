@@ -222,6 +222,19 @@ class ChatMethods:
         self.directus_service = directus_service_instance
         # encryption_service and cache can be accessed via self.directus_service if needed
 
+    async def get_chat_activity_candidates(self, user_id: str, team_id: str | None = None) -> List[Dict[str, Any]]:
+        """Minimal owned IDs and ancestry for a client activity census; no ciphertext."""
+        params = {"fields": "id,parent_id,is_sub_chat", "limit": -1}
+        if team_id:
+            params["filter[hashed_team_id][_eq]"] = hashlib.sha256(team_id.encode()).hexdigest()
+        else:
+            params["filter[hashed_user_id][_eq]"] = hashlib.sha256(user_id.encode()).hexdigest()
+            params["filter[hashed_team_id][_null]"] = True
+        rows = await self.directus_service.get_items("chats", params=params, admin_required=True, no_cache=True)
+        if not isinstance(rows, list):
+            raise RuntimeError("Chat activity metadata unavailable")
+        return rows
+
     async def get_user_chat_count(self, user_id: str, team_id: str | None = None) -> int:
         """
         Returns the total number of chats for a user from Directus.

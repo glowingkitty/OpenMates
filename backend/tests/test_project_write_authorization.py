@@ -21,6 +21,7 @@ from backend.core.api.app.routes.projects import (  # noqa: E402
     activate_project_focus,
     create_project,
     get_project_settings,
+    serialize_project_settings,
     update_project_settings,
 )
 from backend.core.api.app.services.directus.project_methods import ProjectMethods, hash_id  # noqa: E402
@@ -35,6 +36,15 @@ from backend.core.api.app.services.project_write_authorization_service import ( 
 FOCUS_ID = "9f56b770-3903-46bb-b9ea-5d01d6bc995b"
 DIGEST_A = "a" * 64
 DIGEST_B = "b" * 64
+
+
+# contract-test: supporting surface=rest_api assertions=projects.files.write-policy-setup
+def test_deferred_project_policy_stays_unselected_in_response():
+    for settings in (None, {"write_mode": None}, {"write_mode": "invalid"}):
+        result = serialize_project_settings(settings)
+        assert result["write_mode"] is None
+        assert result["selection_required"] is True
+    assert serialize_project_settings({"write_mode": "auto_approve_safe_writes"})["write_mode"] == "apply_and_show"
 
 
 class MemoryCache:
@@ -104,6 +114,33 @@ def test_project_create_requires_explicit_policy_and_encrypted_default_focus() -
             updated_at=10,
             last_opened_at=10,
         )
+
+
+# contract-test: supporting surface=rest_api assertions=projects.files.write-policy-setup,projects.focus.default-owned
+def test_chat_organization_defers_policy_without_enabling_file_work() -> None:
+    values = dict(project_id="project-a", encrypted_project_key="cipher-key", encrypted_name="cipher-name",
+                  created_at=10, updated_at=10, last_opened_at=10, write_mode=None,
+                  default_focus_id=FOCUS_ID, encrypted_settings="cipher-settings")
+    with pytest.raises(ValidationError):
+        ProjectCreateRequest(**values)
+    project = ProjectCreateRequest(**values, chat_organization_only=True)
+    assert project.write_mode is None
+
+
+# contract-test: supporting surface=rest_api assertions=projects.files.write-policy-setup
+@pytest.mark.asyncio
+async def test_only_new_chat_organization_settings_allow_deferred_policy() -> None:
+    directus = SimpleNamespace(create_item=AsyncMock(return_value=(True, {"id": "settings"})), update_item=AsyncMock())
+    methods = ProjectMethods(directus)
+    methods.get_project_settings = AsyncMock(return_value=None)
+    payload = {"write_mode": None, "default_focus_id": FOCUS_ID, "encrypted_settings": "cipher", "updated_at": 1}
+    assert await methods.upsert_project_settings("project-a", "user-1", payload) is None
+    assert await methods.upsert_project_settings("project-a", "user-1", payload, allow_deferred_write_mode=True)
+    saved = directus.create_item.call_args.args[1]
+    assert saved["write_mode"] is None
+    methods.get_project_settings.return_value = {"id": "existing", "write_mode": "always_ask"}
+    assert await methods.upsert_project_settings("project-a", "user-1", payload, allow_deferred_write_mode=True) is None
+    directus.update_item.assert_not_called()
 
 
 async def activate(service: ProjectWriteAuthorizationService, *, chat_id: str = "chat-a", project_id: str = "project-a"):
@@ -342,8 +379,8 @@ async def test_settings_missing_state_and_explicit_setup_contract() -> None:
         directus_service=directus,
     )
     assert missing["settings"] == {
-        "write_mode": "apply_and_show",
-        "selection_required": False,
+        "write_mode": None,
+        "selection_required": True,
         "default_focus_id_hash": None,
         "encrypted_settings": None,
         "updated_at": None,

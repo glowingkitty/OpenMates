@@ -1,0 +1,204 @@
+schema_version: 2
+id: chat-sidebar-project-activity
+title: Nested chat project navigation and running chat visibility
+status: implementing
+goal: Improve the chat sidebar and how we highlight currently running chats.
+scope:
+  in:
+  - Nested project folders with flat rows and actual-name breadcrumbs
+  - Globally running parent entries and descendant folder wheels
+  - Landing active count opens the sidebar
+  - AI-named drag grouping and add/move context actions
+  - Relevant web, Apple and TUI support and tests
+  out:
+  - Production release
+  - Automatic file-access permission
+scenarios:
+- id: S-1
+  title: Running work remains visible
+  given:
+  - Multiple chats or subchats process concurrently
+  when:
+  - The user browses any folder or the landing page
+  then:
+  - Running parents appear globally first and each counts once
+- id: S-2
+  title: Navigate deeply nested folders
+  given:
+  - A project has multiple levels of folders
+  when:
+  - The user enters a deep folder
+  then:
+  - Full-width rows and the actual-name breadcrumb preserve readability
+- id: S-3
+  title: Organize chats
+  given:
+  - The user owns two chats
+  when:
+  - They drag together or use the project context actions
+  then:
+  - Encrypted project associations persist and new project titles come from AI
+acceptance_criteria:
+- id: AC-1
+  scenario: S-1
+  text: Running descendants activate their parent and containing folders without duplicate
+    counts
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: related_frontend
+  verification_ids:
+  - T-UNIT
+  - T-COMPONENT
+- id: AC-2
+  scenario: S-2
+  text: Breadcrumbs remain readable with reachable ancestors and flat rows at every
+    depth
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: related_frontend
+  verification_ids:
+  - T-UNIT
+  - T-COMPONENT
+- id: AC-3
+  scenario: S-3
+  text: Chat grouping and add/move actions preserve encrypted membership and show
+    failures
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: related_frontend
+  verification_ids:
+  - T-FLOW
+tests:
+- id: T-UNIT
+  type: vitest
+  file: frontend/packages/ui/src/utils/__tests__/chatActivity.test.ts
+  command: pnpm --filter @repo/ui exec vitest run src/utils/__tests__/chatActivity.test.ts
+    src/utils/__tests__/chatProjectNavigation.test.ts src/stores/__tests__/chatActivityStore.test.ts
+  assertions:
+  - Parent activity and descendant membership
+  covers:
+  - AC-1
+  - AC-2
+  red_phase:
+    required: false
+    expected: Existing source establishes the missing behavior
+    evidence: {}
+  green_phase:
+    required: true
+    expected: The focused checks pass
+    evidence: {}
+- id: T-COMPONENT
+  type: playwright
+  file: frontend/apps/web_app/tests/components/chat-project-navigation.spec.ts
+  command: Isolated component CI
+  assertions:
+  - Flat readable breadcrumbs, picker and wheels at narrow widths
+  covers:
+  - AC-1
+  - AC-2
+  red_phase:
+    required: false
+    expected: Existing source establishes the missing behavior
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+  target: isolated runner preview
+  execution_environment: isolated_github_ci
+- id: T-FLOW
+  type: playwright
+  file: frontend/apps/web_app/tests/chat-sidebar-projects.spec.ts
+  command: Isolated browser CI and disposable dev inference
+  assertions:
+  - Encrypted grouping and project membership
+  covers:
+  - AC-3
+  red_phase:
+    required: false
+    expected: Existing source establishes the missing behavior
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+  target: isolated disposable browser account
+  execution_environment: isolated_github_ci
+tasks:
+- id: TASK-164
+  title: Improve nested chat project navigation and running chat visibility
+  status: in_progress
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    - S-2
+    - S-3
+    acceptance_criteria:
+    - AC-1
+    - AC-2
+    - AC-3
+  expected_files:
+  - frontend/packages/ui/src/components/chats
+  - frontend/packages/cli/src
+  - frontend/apps/apple
+  verification_ids:
+  - T-UNIT
+  - T-COMPONENT
+  - T-FLOW
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - frontend/packages/ui/src/components/chats
+    shared_files: []
+implementation_state:
+  subject_commit: Candidate not frozen yet
+approvals:
+  specification:
+    status: approved
+    approved_at: '2026-10-02'
+  plan:
+    status: approved
+    approved_at: '2026-10-02'
+decisions:
+- id: user-authorization
+  status: active
+  decision: End questions and implement the recommended design
+  reason: User explicitly requested implementation and testing
+  decided_at: '2026-10-02'
+- id: grouped-count
+  status: active
+  decision: Count running parent entries once; show the running subchat count
+  reason: User accepted the grouped recommendation
+  decided_at: '2026-10-02'
+- id: deep-navigation
+  status: active
+  decision: Use actual project root name, middle ancestor overflow, and flat rows
+  reason: User requested readable nested navigation at limited widths
+  decided_at: '2026-10-02'
+- id: file-authority
+  status: active
+  decision: Chat organization defers file write policy selection
+  reason: Organizing chats must not grant file permissions
+  decided_at: '2026-10-02'
+attempts:
+- id: implementation
+  task_id: TASK-164
+  outcome: planned
+  approach: Reuse encrypted Project APIs and concurrent WebSocket activity
+  recorded_at: '2026-10-02'
+handoff:
+  current_task_id: TASK-164
+  next_action: Finish integrations and focused verification
+  command: python3 scripts/sessions.py status
+  expected_outcome: Implemented and verified sidebar behavior
+  last_verified_commit: No immutable candidate verified yet
+  blocker: null
+approved_by_user: true
+authorization: User explicitly ended questions and requested implementing and testing
+  the recommendation.
