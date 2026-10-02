@@ -2464,3 +2464,39 @@ builder.website_change_pending_limit:
   context: Website monitoring queue cannot accept more pending changes
   en: Too many changes are waiting for evaluation or delivery. The last successful version was kept.
   de: Zu viele Änderungen warten auf Auswertung oder Zustellung. Die letzte erfolgreiche Version wurde beibehalten.
+
+templates.website_changes_title:
+  context: Built-in website-change Workflow template title
+  en: Website changes
+  de: Website-Änderungen
+
+templates.website_changes_summary:
+  context: Website-change template card; the website and requirement are editable
+  en: New Congress articles from events.ccc.de, summarized with links
+  de: Neue Congress-Artikel auf events.ccc.de, zusammengefasst mit Links
+
+templates.website_changes_description:
+  context: Saved website-change template description and first-run explanation
+  en: Check events.ccc.de daily for new Chaos Communication Congress articles and summarize matching changes with links. Edit the website, requirement and schedule before enabling. The first successful read saves a starting point without sending a message.
+  de: Prüfe events.ccc.de täglich auf neue Artikel zum Chaos Communication Congress und fasse passende Änderungen mit Links zusammen. Passe Website, Bedingung und Zeitplan vor dem Aktivieren an. Das erste erfolgreiche Lesen speichert den Ausgangspunkt, ohne eine Nachricht zu senden.
+
+templates.website_changes_question:
+  context: Editable boolean question in the website-change template; preserve the Workflow output token
+  en: Do these website changes announce any new article about Chaos Communication Congress? {{steps.read.changes}}
+  de: Kündigen diese Website-Änderungen einen neuen Artikel zum Chaos Communication Congress an? {{steps.read.changes}}
+
+templates.website_changes_prompt:
+  context: Editable summary instruction; use only the diff and preserve all Workflow output tokens
+  en: |-
+    Summarize the new articles about Chaos Communication Congress announced in the website changes below. Include links to the relevant posts when present in these changes. Use only the supplied changes and website link.
+    Changes: {{steps.read.changes}}
+    Website: {{steps.read.source_url}}
+  de: |-
+    Fasse die neuen Artikel zum Chaos Communication Congress zusammen, die in den folgenden Website-Änderungen angekündigt werden. Nenne die Links zu den passenden Beiträgen, wenn sie in diesen Änderungen enthalten sind. Verwende nur die angegebenen Änderungen und den Website-Link.
+    Änderungen: {{steps.read.changes}}
+    Website: {{steps.read.source_url}}
+
+templates.website_changes_message_title:
+  context: Editable chat title for matching website-change notifications
+  en: Congress updates
+  de: Congress-Neuigkeiten

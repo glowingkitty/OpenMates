@@ -1,4 +1,5 @@
 import { dailyWeatherNewsGraph, weeklyEventsGraph } from "./workflowPreviewFixtures";
+import { websiteChangesGraph } from "./workflowTemplates";
 import { workflowApiRequest, type WorkflowGraph } from "../../stores/workflowWorkspaceStore";
 import type { Chat } from "../../types/chat";
 import type { Capability } from "./workflowBuilder";
@@ -473,6 +474,27 @@ function deliveryPreview(status?: string) {
 }
 
 export const variants = {
+  websiteTemplate: {
+    ...defaultProps,
+    graph: websiteChangesGraph({
+      question: "Do these website changes announce any new article about Chaos Communication Congress? {{steps.read.changes}}",
+      summaryPrompt: "Summarize the new Congress articles and include links to their posts. Changes: {{steps.read.changes}}\nWebsite: {{steps.read.source_url}}",
+      messageTitle: "Congress updates",
+    }),
+    capabilityFixtures: defaultProps.capabilityFixtures.map((capability) => capability.id !== "web.read" ? capability : {
+      ...capability,
+      metadata: { ...capability.metadata, input_schema: {
+        type: "object",
+        properties: { requests: { type: "array", items: {
+          type: "object",
+          properties: { url: { type: "string" }, only_main_content: { type: "boolean", default: true }, max_age: { type: "integer", "x-ui": { hidden: true } } },
+          required: ["url"],
+        } } },
+        required: ["requests"],
+      } },
+    }),
+  },
+
   deliveryMissingStatus: deliveryPreview(),
   deliveryPending: deliveryPreview('delivery_pending'),
   deliveryClaimed: deliveryPreview('claimed'),

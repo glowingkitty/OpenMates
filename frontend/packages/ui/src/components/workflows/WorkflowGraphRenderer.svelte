@@ -211,9 +211,16 @@
     }
     closeEditor();
   }
-  function edit(node: WorkflowNode): void {
+  async function edit(node: WorkflowNode): Promise<void> {
     if (busy || testStatus === 'processing') return;
     if (readOnly) { transitionNodeUpdate(() => { expandedReadOnly = expandedReadOnly === node.id ? null : node.id; }); return; }
+    // AI input migration needs declared outputs; an early click must not clear
+    // saved selections while the initial capability request is still loading.
+    if (isCheck(node) && node.config?.mode === 'ai' && !capabilities.length) {
+      const editingWorkflowId = workflowId;
+      await loadCapabilities();
+      if (loadError || workflowId !== editingWorkflowId) return;
+    }
     closeEditor(true);
     const editable: WorkflowNode = structuredClone($state.snapshot(node));
     recoverAskModel(editable);

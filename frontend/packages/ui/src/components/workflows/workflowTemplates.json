@@ -30,5 +30,97 @@
       ],
       "edges": [{ "from": "trigger", "to": "reminder" }]
     }
+  },
+  {
+    "id": "website-changes",
+    "title": "Website changes",
+    "summary": "New Congress articles from events.ccc.de, summarized with links",
+    "description": "Check events.ccc.de daily for new Chaos Communication Congress articles and summarize matching changes with links. Edit the website, requirement and schedule before enabling. The first successful read saves a starting point without sending a message.",
+    "category": "technology",
+    "icon": "globe",
+    "graph": {
+      "version": 2,
+      "trigger_node_id": "trigger",
+      "nodes": [
+        {
+          "id": "trigger",
+          "type": "schedule_trigger",
+          "config": {
+            "schedule": {
+              "timezone": "Etc/UTC",
+              "type": "daily",
+              "time": "09:00"
+            }
+          }
+        },
+        {
+          "id": "read",
+          "type": "app_skill_action",
+          "config": {
+            "app_id": "web",
+            "skill_id": "read",
+            "input": {
+              "requests": [
+                {
+                  "url": "https://events.ccc.de/",
+                  "only_main_content": true,
+                  "max_age": 0
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "check",
+          "type": "check",
+          "config": {
+            "mode": "ai",
+            "question": "Do these website changes announce any new article about Chaos Communication Congress? {{steps.read.changes}}",
+            "selected_inputs": [
+              "$nodes.read.output.changes"
+            ]
+          }
+        },
+        {
+          "id": "summary",
+          "type": "app_skill_action",
+          "config": {
+            "app_id": "ai",
+            "skill_id": "ask",
+            "input": {
+              "prompt": "Summarize the new articles about Chaos Communication Congress announced in the website changes below. Include links to the relevant posts when present in these changes. Use only the supplied changes and website link.\nChanges: {{steps.read.changes}}\nWebsite: {{steps.read.source_url}}",
+              "model": "auto"
+            }
+          }
+        },
+        {
+          "id": "message",
+          "type": "send_chat_message",
+          "config": {
+            "title": "Congress updates",
+            "message": "{{steps.summary.answer}}\n\n{{steps.read.source_url}}"
+          }
+        }
+      ],
+      "edges": [
+        {
+          "from": "trigger",
+          "to": "read"
+        },
+        {
+          "from": "read",
+          "to": "check"
+        },
+        {
+          "from": "check",
+          "to": "summary",
+          "branch": "true"
+        },
+        {
+          "from": "summary",
+          "to": "message"
+        }
+      ]
+    }
   }
 ]

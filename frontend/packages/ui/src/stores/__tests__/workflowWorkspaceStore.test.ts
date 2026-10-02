@@ -24,6 +24,18 @@ describe('workflowWorkspaceStore navigation cache', () => {
     workflowWorkspaceStore.reset();
   });
 
+  // contract-test: supporting surface=gui.web assertions=workflows-ui.website-change.composition
+  it('preserves a starter description and keeps creation disabled', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(json({ workflow: detail }));
+    await workflowWorkspaceStore.createWorkflow({
+      title: 'Website changes', description: 'The first read initializes without a message.',
+      graph: detail.graph, enabled: false, runContentRetention: 'last_5',
+    });
+    const request = JSON.parse(fetchMock.mock.calls[0][1]?.body as string);
+    expect(request.description).toBe('The first read initializes without a message.');
+    expect(request.enabled).toBe(false);
+  });
+
   // contract-test: supporting surface=gui.web assertions=workflows-ui.workspace.recommendation-led-composition
   it('treats a loaded empty workflow list as fresh', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(json({ workflows: [] }));

@@ -16,6 +16,27 @@ async function select(page: Page, id: string, name: string | RegExp): Promise<vo
 }
 
 test.describe('Workflow If editor', () => {
+  // contract-test: direct surface=gui.web assertions=workflows-ui.website-change.composition
+  test('renders the website starter with a diff-only condition and summary on the True branch', async ({ page }: { page: Page }) => {
+    await page.goto('/dev/preview/workflows/WorkflowGraphRenderer?variant=websiteTemplate&theme=light&width=900&chrome=0', { waitUntil: 'domcontentloaded' });
+    await waitForComponentPreview(page);
+    await expect(page.locator('[data-node-id]')).toHaveCount(5);
+    const check = page.locator('[data-node-id="check"]');
+    await check.getByTestId('workflow-node-summary').click();
+    await expect(check.getByTestId('workflow-check-source')).toContainText('AI confirms');
+    await expect(check.getByTestId('workflow-message-template')).toContainText('Chaos Communication Congress');
+    await expect(check.getByTestId('workflow-message-template').locator('.generic-mention')).toHaveAttribute('title', /Changes since last successful read$/);
+    await expect(check.getByTestId('workflow-website-change-guidance')).toContainText('without sending a message');
+    await expect(page.locator('.branch-label')).toHaveText(['If true', 'Else', 'If unsure']);
+    await check.getByRole('button', { name: 'Close', exact: true }).click();
+    const summary = page.locator('[data-node-id="summary"]');
+    await summary.getByTestId('workflow-node-summary').click();
+    const prompt = summary.getByTestId('workflow-message-template');
+    await expect(prompt.locator('.generic-mention').filter({ hasText: '@web.read.changes' })).toHaveAttribute('title', /Changes since last successful read$/);
+    await expect(prompt.locator('.generic-mention').filter({ hasText: '@web.read.source_url' })).toHaveAttribute('title', /Website link$/);
+    await expect(prompt.locator('.generic-mention').filter({ hasText: '@web.read.text' })).toHaveCount(0);
+    await summary.screenshot({ animations: 'disabled', path: test.info().outputPath('website-template-summary.png') });
+  });
   // contract-test: supporting surface=gui.web assertions=workflows-ui.website-change.composition,workflows.website-change.baseline
   test('explains a blocked website read in run detail', async ({ page }: { page: Page }) => {
     await page.goto('/dev/preview/workflows/WorkflowGraphRenderer?variant=websiteBlocked&theme=light&width=900&chrome=0', { waitUntil: 'domcontentloaded' });

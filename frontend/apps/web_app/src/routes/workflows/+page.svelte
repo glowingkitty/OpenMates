@@ -34,7 +34,7 @@
 		type ProjectCreationTarget
 	} from '@repo/ui';
 	import { text } from '@repo/ui';
-	import { workflowTemplates, workflowTemplateGraph } from '@repo/ui/components/workflows/workflowTemplates.ts';
+	import { workflowTemplates, workflowTemplateGraph, websiteChangesGraph } from '@repo/ui/components/workflows/workflowTemplates.ts';
 	import { sortWorkflowContinue, sortAllWorkflows, type WorkflowSortMode } from '@repo/ui/components/workflows/workflowHomeSorting';
 	import {
 		workflowIcon,
@@ -158,15 +158,15 @@
 		const sorted = sortWorkflowContinue(workflows, workflowClockMs);
 		return sorted.slice(0, 6);
 	});
-	let workflowTemplateItems: WorkflowContinueItem[] = workflowTemplates.map((template) => ({
+	let workflowTemplateItems = $derived<WorkflowContinueItem[]>(workflowTemplates.map((template) => ({
 		id: template.id,
-		title: template.title,
-		summary: template.summary,
+		title: template.id === 'website-changes' ? $text('workflows.templates.website_changes_title') : template.title,
+		summary: template.id === 'website-changes' ? $text('workflows.templates.website_changes_summary') : template.summary,
 		badge: 'Template',
 		category: template.category,
 		icon: template.icon,
 		source: 'example'
-	}));
+	})));
 	let recentWorkflowContinueItems = $derived<WorkflowContinueItem[]>(
 		recentWorkflows.map(workflowSummaryToContinueItem)
 	);
@@ -663,14 +663,19 @@
 
 	async function createWorkflowFromTemplate(item: WorkflowContinueItem): Promise<void> {
 		if (!canLoadWorkflows) return;
-		const graph = workflowTemplateGraph(item.id);
+		const graph = item.id === 'website-changes' ? websiteChangesGraph({
+			question: $text('workflows.templates.website_changes_question'),
+			summaryPrompt: $text('workflows.templates.website_changes_prompt'),
+			messageTitle: $text('workflows.templates.website_changes_message_title')
+		}) : workflowTemplateGraph(item.id);
 		if (!graph) return;
 		const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 		const trigger = graph.nodes.find((node) => node.id === graph.trigger_node_id);
 		if (trigger?.type === 'schedule_trigger' && timezone) {
 			trigger.config = { ...trigger.config, schedule: { ...(trigger.config?.schedule as Record<string, unknown>), timezone } };
 		}
-		await createWorkflow(item.title, graph, false);
+		const description = item.id === 'website-changes' ? $text('workflows.templates.website_changes_description') : workflowTemplates.find(template => template.id === item.id)?.description;
+		await createWorkflow(item.title, graph, false, description);
 	}
 
 	async function submitWorkflowInput(text: string = workflowInputText): Promise<void> {
@@ -1068,7 +1073,8 @@
 	async function createWorkflow(
 		title: string,
 		graph: WorkflowGraph,
-		enabled: boolean
+		enabled: boolean,
+		description?: string
 	): Promise<boolean> {
 		if (!canLoadWorkflows || saving) return false;
 		const workflowProjectTarget = projectWorkflowTarget;
@@ -1077,6 +1083,7 @@
 		try {
 			const workflow = await workflowWorkspaceStore.createWorkflow({
 				title,
+				description,
 				graph,
 				enabled,
 				runContentRetention
