@@ -71,15 +71,19 @@ export const GenericMentionNode = Node.create<GenericMentionNodeOptions>({
       },
       projectId: {
         default: null,
+        parseHTML: (element) => element.getAttribute("data-project-id"),
       },
       projectSourceId: {
         default: null,
+        parseHTML: (element) => element.getAttribute("data-project-source-id"),
       },
       projectPath: {
         default: null,
+        parseHTML: (element) => element.getAttribute("data-project-path"),
       },
       projectAccessMode: {
         default: null,
+        parseHTML: (element) => element.getAttribute("data-project-access-mode"),
       },
       colorStart: {
         default: null,
@@ -132,7 +136,9 @@ export const GenericMentionNode = Node.create<GenericMentionNodeOptions>({
         "data-display-name": HTMLAttributes.displayName,
         "data-mention-syntax": HTMLAttributes.mentionSyntax,
         "data-mention-id": HTMLAttributes.mentionId,
+        "data-project-id": HTMLAttributes.projectId,
         "data-project-source-id": HTMLAttributes.projectSourceId,
+        "data-project-path": HTMLAttributes.projectPath,
         "data-project-access-mode": HTMLAttributes.projectAccessMode,
         class: `generic-mention ${typeClass}`,
         style: style,

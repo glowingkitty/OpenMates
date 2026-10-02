@@ -66,6 +66,20 @@ describe("Project focus send preflight", () => {
       type: "doc",
       content: [{ type: "text", text: "@project:project-1:read_write" }],
     })).toBeNull();
+
+    expect(extractProjectFocusSendIntent({
+      type: "doc",
+      content: [{
+        type: "genericMention",
+        attrs: {
+          mentionType: "project",
+          mentionSyntax: "@project:project-rehydrated:read_write",
+        },
+      }],
+    })).toEqual({
+      projectId: "project-rehydrated",
+      source: "composer_project_mention",
+    });
   });
 
   // contract-test: direct surface=gui.web assertions=projects.files.chat-focus-required,focus-modes.project-write-gate

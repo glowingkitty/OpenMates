@@ -14,6 +14,12 @@ const PROJECT_MENTION_TYPES = new Set([
   "project_file",
 ]);
 
+const PROJECT_MENTION_PREFIXES: Record<string, string> = {
+  project: "@project:",
+  project_folder: "@project-folder:",
+  project_file: "@project-file:",
+};
+
 interface ComposerNode {
   type?: string;
   attrs?: Record<string, unknown>;
@@ -91,9 +97,20 @@ export function extractProjectFocusSendIntent(document: unknown): ProjectFocusSe
       node.type === "genericMention"
       && PROJECT_MENTION_TYPES.has(String(node.attrs?.mentionType ?? ""))
     ) {
-      const projectId = node.attrs?.projectId;
-      if (typeof projectId === "string" && projectId.trim()) {
-        projectIds.add(projectId.trim());
+      const directProjectId = node.attrs?.projectId;
+      if (typeof directProjectId === "string" && directProjectId.trim()) {
+        projectIds.add(directProjectId.trim());
+      } else {
+        // Draft HTML rehydration can retain the structured Project mention and
+        // canonical syntax while losing optional node-only attributes. Recover
+        // only from that structured node; ordinary plaintext remains untrusted.
+        const mentionType = String(node.attrs?.mentionType ?? "");
+        const prefix = PROJECT_MENTION_PREFIXES[mentionType];
+        const mentionSyntax = node.attrs?.mentionSyntax;
+        if (prefix && typeof mentionSyntax === "string" && mentionSyntax.startsWith(prefix)) {
+          const projectId = mentionSyntax.slice(prefix.length).split(":", 1)[0]?.trim();
+          if (projectId) projectIds.add(projectId);
+        }
       }
     }
     for (const child of node.content ?? []) visit(child);

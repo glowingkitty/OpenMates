@@ -13,6 +13,7 @@ const { randomUUID } = require('node:crypto');
 const { test, expect } = require('./helpers/cookie-audit');
 const {
   deleteActiveChat,
+  focusMessageEditor,
   loginToTestAccount,
   sendMessage,
   startNewChat,
@@ -77,7 +78,11 @@ function waitForFixtureEvent(
     const cleanup = () => {
       clearTimeout(timeout);
       processHandle.stdout.off('data', onData);
+      processHandle.stderr.off('data', onStderr);
       processHandle.off('exit', onExit);
+    };
+    const onStderr = (chunk: Buffer) => {
+      diagnostics = `${diagnostics}${chunk.toString()}`.slice(-32_000);
     };
     const onData = (chunk: Buffer) => {
       const text = chunk.toString();
@@ -106,6 +111,7 @@ function waitForFixtureEvent(
       reject(new Error(`Timed out waiting for ${eventName}: ${diagnostics}`));
     }, timeoutMs);
     processHandle.stdout.on('data', onData);
+    processHandle.stderr.on('data', onStderr);
     processHandle.once('exit', onExit);
   });
 }
@@ -150,14 +156,17 @@ async function sendWithProjectMention(
 ): Promise<void> {
   const editor = page.getByTestId('message-editor');
   await editor.click();
-  await page.keyboard.insertText(`@${projectName}`);
-  const dropdown = page.getByTestId('mention-dropdown');
-  await expect(dropdown).toBeVisible({ timeout: 15_000 });
-  const projectResult = dropdown
-    .locator('[data-testid="mention-result"][data-mention-type="project"]')
+  // A space ends mention search, so use the fixture's unique suffix to find
+  // multiword Project names through the same keystrokes a user emits.
+  const projectQuery = projectName.trim().split(/\s+/).at(-1);
+  expect(projectQuery).toBeTruthy();
+  await page.keyboard.type(`@${projectQuery}`);
+  const projectResult = page
+    .locator('.mention-dropdown .mention-result')
     .filter({ hasText: projectName })
+    .filter({ hasText: 'Project context' })
     .first();
-  await expect(projectResult).toBeVisible({ timeout: 15_000 });
+  await expect(projectResult).toBeVisible({ timeout: 30_000 });
   await projectResult.click();
   const accessChip = editor.getByTestId('project-access-chip');
   await expect(accessChip).toBeVisible();
@@ -165,6 +174,8 @@ async function sendWithProjectMention(
     await accessChip.click();
   }
   await expect(accessChip).toHaveAttribute('data-project-access-mode', accessMode);
+  await focusMessageEditor(editor);
+  await page.keyboard.press('End');
   await sendMessage(page, ` ${prompt}`, undefined, undefined, 'project-file', { preserveExistingContent: true });
 }
 
@@ -328,6 +339,7 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
   test('reads and updates the original remote file through the browser WebSocket executor', async ({ page }: { page: Page }) => {
     test.setTimeout(900_000);
     const fixtureStateDir = mkdtempSync(join(tmpdir(), 'openmates-browser-project-chat-'));
+    const fixtureDeviceIdentity = `cli:project-browser-test:${randomUUID()}`;
     chmodSync(fixtureStateDir, 0o700);
     runChecked('npm', ['run', 'build'], CLI_DIR);
     runChecked(
@@ -341,6 +353,7 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
         OPENMATES_TEST_ACCOUNT_PASSWORD: TEST_PASSWORD,
         OPENMATES_TEST_ACCOUNT_OTP_KEY: TEST_OTP_KEY,
         OPENMATES_TEST_ACCOUNT_SOURCE_SLOT: '',
+        OPENMATES_CLI_DEVICE_IDENTITY: fixtureDeviceIdentity,
       },
     );
     const marker = `remote-${randomUUID()}`;
@@ -361,6 +374,7 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
         env: {
           ...process.env,
           OPENMATES_STATE_DIR: fixtureStateDir,
+          OPENMATES_CLI_DEVICE_IDENTITY: fixtureDeviceIdentity,
           OPENMATES_REMOTE_HOST_SESSION: join(fixtureStateDir, 'session.json'),
         },
         stdio: ['ignore', 'pipe', 'pipe'],
@@ -422,8 +436,16 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
         await deleteActiveChat(page);
       }
       if (bridge.exitCode === null) {
+        const bridgeExit = new Promise<void>((resolvePromise) => {
+          const timeout = setTimeout(resolvePromise, 5000);
+          bridge.once('exit', () => {
+            clearTimeout(timeout);
+            resolvePromise();
+          });
+        });
         bridge.kill('SIGTERM');
-        await new Promise<void>((resolvePromise) => bridge.once('exit', () => resolvePromise()));
+        await bridgeExit;
+        if (bridge.exitCode === null) bridge.kill('SIGKILL');
       }
       rmSync(fixtureStateDir, { recursive: true, force: true });
     }

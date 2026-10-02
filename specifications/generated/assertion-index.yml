@@ -42215,18 +42215,18 @@ assertions:
       surface: gui.web
     - &id5174
       path: frontend/packages/ui/src/services/__tests__/projectFocusSendPreflight.test.ts
-      line: 72
+      line: 86
       name: rejects one send that ambiguously selects distinct Projects
       surface: gui.web
     - &id5175
       path: frontend/packages/ui/src/services/__tests__/projectFocusSendPreflight.test.ts
-      line: 89
+      line: 103
       name: activates the exact persisted chat and returns its durable Project pill
         identity
       surface: gui.web
     - &id5176
       path: frontend/packages/ui/src/services/__tests__/projectFocusSendPreflight.test.ts
-      line: 167
+      line: 181
       name: revokes Project authority before clearing the normal focus lifecycle
       surface: gui.web
     supporting_tests:
@@ -50121,7 +50121,7 @@ assertions:
       surface: cli
     - &id6140
       path: frontend/apps/web_app/tests/projects-chat-file-executor.spec.ts
-      line: 246
+      line: 257
       name: creates and updates an encrypted hosted file through explicit Project
         focus and approval
       surface: gui.web
@@ -50331,7 +50331,7 @@ assertions:
       surface: rest_api
     - &id6163
       path: frontend/apps/web_app/tests/projects-chat-file-executor.spec.ts
-      line: 328
+      line: 339
       name: reads and updates the original remote file through the browser WebSocket
         executor
       surface: gui.web
@@ -50791,13 +50791,13 @@ assertions:
       surface: cli
     - &id6206
       path: frontend/apps/web_app/tests/projects-chat-file-executor.spec.ts
-      line: 246
+      line: 257
       name: creates and updates an encrypted hosted file through explicit Project
         focus and approval
       surface: gui.web
     - &id6207
       path: frontend/apps/web_app/tests/projects-chat-file-executor.spec.ts
-      line: 328
+      line: 339
       name: reads and updates the original remote file through the browser WebSocket
         executor
       surface: gui.web
@@ -50876,13 +50876,13 @@ assertions:
       surface: cli
     - &id6214
       path: frontend/apps/web_app/tests/projects-chat-file-executor.spec.ts
-      line: 246
+      line: 257
       name: creates and updates an encrypted hosted file through explicit Project
         focus and approval
       surface: gui.web
     - &id6215
       path: frontend/apps/web_app/tests/projects-chat-file-executor.spec.ts
-      line: 328
+      line: 339
       name: reads and updates the original remote file through the browser WebSocket
         executor
       surface: gui.web
@@ -51216,13 +51216,13 @@ assertions:
       surface: rest_api
     - &id6259
       path: frontend/apps/web_app/tests/projects-chat-file-executor.spec.ts
-      line: 246
+      line: 257
       name: creates and updates an encrypted hosted file through explicit Project
         focus and approval
       surface: gui.web
     - &id6260
       path: frontend/apps/web_app/tests/projects-chat-file-executor.spec.ts
-      line: 328
+      line: 339
       name: reads and updates the original remote file through the browser WebSocket
         executor
       surface: gui.web
@@ -51565,13 +51565,13 @@ assertions:
       surface: cli
     - &id6292
       path: frontend/apps/web_app/tests/projects-chat-file-executor.spec.ts
-      line: 246
+      line: 257
       name: creates and updates an encrypted hosted file through explicit Project
         focus and approval
       surface: gui.web
     - &id6293
       path: frontend/apps/web_app/tests/projects-chat-file-executor.spec.ts
-      line: 328
+      line: 339
       name: reads and updates the original remote file through the browser WebSocket
         executor
       surface: gui.web
@@ -51618,18 +51618,18 @@ assertions:
       surface: gui.web
     - &id6305
       path: frontend/packages/ui/src/services/__tests__/projectFocusSendPreflight.test.ts
-      line: 72
+      line: 86
       name: rejects one send that ambiguously selects distinct Projects
       surface: gui.web
     - &id6306
       path: frontend/packages/ui/src/services/__tests__/projectFocusSendPreflight.test.ts
-      line: 89
+      line: 103
       name: activates the exact persisted chat and returns its durable Project pill
         identity
       surface: gui.web
     - &id6309
       path: frontend/packages/ui/src/services/__tests__/projectFocusSendPreflight.test.ts
-      line: 167
+      line: 181
       name: revokes Project authority before clearing the normal focus lifecycle
       surface: gui.web
     - &id6311
@@ -51682,17 +51682,17 @@ assertions:
       surface: gui.web
     - &id6307
       path: frontend/packages/ui/src/services/__tests__/projectFocusSendPreflight.test.ts
-      line: 132
+      line: 146
       name: cannot activate before the durable chat preflight acknowledgement
       surface: gui.web
     - &id6308
       path: frontend/packages/ui/src/services/__tests__/projectFocusSendPreflight.test.ts
-      line: 147
+      line: 161
       name: fails closed when encrypted Project settings have no usable default focus
       surface: gui.web
     - &id6310
       path: frontend/packages/ui/src/services/__tests__/projectFocusSendPreflight.test.ts
-      line: 187
+      line: 201
       name: does not show focus as off when Project authority revocation fails
       surface: gui.web
     tests:

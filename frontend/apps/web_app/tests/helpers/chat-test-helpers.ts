@@ -502,6 +502,27 @@ async function waitForLoginSuccessAfterSubmitWithDiagnostics(
 	}
 }
 
+async function submitOtpOrAwaitAutomaticLogin(
+	submitButton: any,
+	loginSuccess: Promise<boolean>,
+	log: (message: string) => void
+): Promise<boolean> {
+	if (await submitButton.isEnabled().catch(() => false)) {
+		try {
+			await submitButton.click({ timeout: 5000 });
+			log('Submitted login form.');
+		} catch {
+			// The six-digit OTP input can submit itself and disable/remove the
+			// button before Playwright completes the click action. The authenticated
+			// UI and login response remain the authoritative success signals.
+			log('Login submit button changed while OTP submission was in progress.');
+		}
+	} else {
+		log('OTP was submitted automatically; waiting for authenticated UI.');
+	}
+	return loginSuccess;
+}
+
 async function hasStoredEmailSalt(page: any): Promise<boolean> {
 	return page.evaluate(() => {
 		return Boolean(
@@ -766,19 +787,32 @@ async function loginToTestAccount(
 
 				const windowOffset = WINDOW_OFFSETS[attempt - 1];
 				const otpCode = generateTotp(TEST_OTP_KEY, windowOffset);
-				await otpInput.fill(otpCode);
+				// Filling the sixth digit can submit immediately, so subscribe before
+				// changing the input and retain the button click only as a fallback.
+				const loginSuccessPromise = waitForLoginSuccessAfterSubmitWithDiagnostics(page, authSignal, logCheckpoint, loginResponses);
+				try {
+					await otpInput.fill(otpCode, { timeout: 5000 });
+				} catch (error) {
+					// Successful auto-submit can remove the OTP field before Playwright's
+					// fill action settles. The auth response/UI signal decides the result.
+					if (await loginSuccessPromise) {
+						loginSuccess = true;
+						logCheckpoint('Login successful while the OTP field was auto-submitting.');
+						break;
+					}
+					throw error;
+				}
 				logCheckpoint(`Generated and entered OTP (attempt ${attempt}, window offset ${windowOffset}).`);
 				if (attempt === 1) {
 					await takeStepScreenshot(page, 'otp-entered');
 				}
 
-				await expect(submitLoginButton).toBeVisible();
-				const loginSuccessPromise = waitForLoginSuccessAfterSubmitWithDiagnostics(page, authSignal, logCheckpoint, loginResponses);
-				await submitLoginButton.click();
-				logCheckpoint('Submitted login form.');
-
 				try {
-					if (!(await loginSuccessPromise)) {
+					if (!(await submitOtpOrAwaitAutomaticLogin(
+						submitLoginButton,
+						loginSuccessPromise,
+						(message) => logCheckpoint(message)
+					))) {
 						throw new Error('Login success signal did not appear after OTP submit');
 					}
 					loginSuccess = true;
@@ -892,6 +926,9 @@ async function submitPasswordAndHandleOtp(
 			}
 
 			const otpCode = generateTotp(otpKey, WINDOW_OFFSETS[attempt - 1]);
+			// Filling the sixth digit can submit immediately, so subscribe before
+			// changing the input and retain the button click only as a fallback.
+			const loginSuccessPromise = waitForLoginSuccessAfterSubmit(page, authSignal);
 			if (attempt === 1 && options.pasteFormattedOtp) {
 				await page.evaluate((code: string) =>
 					navigator.clipboard.writeText(`${code.slice(0, 3)} ${code.slice(3)}`), otpCode);
@@ -900,16 +937,20 @@ async function submitPasswordAndHandleOtp(
 				await expect(otpInput).toHaveValue(otpCode);
 				await expect(submitBtn).toBeEnabled();
 			} else {
-				await otpInput.fill(otpCode);
+				try {
+					await otpInput.fill(otpCode, { timeout: 5000 });
+				} catch (error) {
+					if (await loginSuccessPromise) {
+						log('Login successful while the OTP field was auto-submitting.');
+						return;
+					}
+					throw error;
+				}
 			}
 			log(`OTP attempt ${attempt}, offset ${WINDOW_OFFSETS[attempt - 1]}.`);
 
-			await expect(submitBtn).toBeVisible();
-			const loginSuccessPromise = waitForLoginSuccessAfterSubmit(page, authSignal);
-			await submitBtn.click();
-
 			try {
-				if (!(await loginSuccessPromise)) {
+				if (!(await submitOtpOrAwaitAutomaticLogin(submitBtn, loginSuccessPromise, log))) {
 					throw new Error('Login success signal did not appear after OTP submit');
 				}
 				log('Login successful — OTP login success signal detected.');
@@ -1024,11 +1065,25 @@ async function startNewChat(
 		}
 	}).toPass({ timeout: 10000 });
 
-	const stableContextId = await messageInput.getAttribute('data-current-chat-id');
-	await page.waitForTimeout(2000);
+	let settledContextId = await messageInput.getAttribute('data-current-chat-id');
+	let stableSince = Date.now();
+	const stabilityDeadline = Date.now() + 15000;
+	while (Date.now() < stabilityDeadline) {
+		await page.waitForTimeout(250);
+		const currentContextId = await messageInput.getAttribute('data-current-chat-id');
+		if (currentContextId !== settledContextId) {
+			// New encrypted drafts can move from a transient shell UUID to either the
+			// new-chat sentinel or a persisted draft UUID. Wait for the final value.
+			settledContextId = currentContextId;
+			stableSince = Date.now();
+			continue;
+		}
+		if (Date.now() - stableSince >= 2500) break;
+	}
+	expect(Date.now() - stableSince).toBeGreaterThanOrEqual(2500);
 	await expect(async () => {
 		expect(page.url()).not.toMatch(/chat-id=/);
-		expect(await messageInput.getAttribute('data-current-chat-id')).toBe(stableContextId);
+		expect(await messageInput.getAttribute('data-current-chat-id')).toBe(settledContextId);
 	}).toPass({ timeout: 10000 });
 	logCheckpoint('Message input is stable in new chat context.');
 	logCheckpoint(`URL after attempting to start new chat: ${newUrl}`);
@@ -1087,9 +1142,13 @@ async function sendMessage(
 		.then(() => true)
 		.catch(() => false);
 	const retypeEditorMessage = async (reason: string): Promise<void> => {
-		await messageEditor.click();
-		await page.keyboard.press('Control+A');
-		await page.keyboard.press('Backspace');
+		await focusMessageEditor(messageEditor);
+		if (options.preserveExistingContent) {
+			await page.keyboard.press('End');
+		} else {
+			await page.keyboard.press('Control+A');
+			await page.keyboard.press('Backspace');
+		}
 		await page.keyboard.insertText(message);
 		if (!(await waitForEditorMessage(5000))) {
 			logCheckpoint(`Editor did not retain message after retype; diagnostics=${JSON.stringify({
@@ -1111,7 +1170,8 @@ async function sendMessage(
 		await retypeEditorMessage('Retyped message after editor did not retain initial input.');
 	};
 
-	await messageEditor.click();
+	await focusMessageEditor(messageEditor);
+	if (options.preserveExistingContent) await page.keyboard.press('End');
 	await page.keyboard.insertText(message);
 	logCheckpoint(`Typed message: "${message}"`);
 	await ensureEditorMessage();
