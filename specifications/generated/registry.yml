@@ -278,6 +278,13 @@ specifications:
     - sdks.pip
     - gui.web
     - gui.apple
+  feature.apple-local-model-lab:
+    version: 1
+    status: draft
+    path: features/apple-local-model-lab
+    fingerprint: fffd3bbbc39a1fff16d8592ffb8e65f8e67b0fc2b3b317689811e75b5002e7da
+    required_applies_to:
+    - gui.apple
   feature.apple-notifications:
     version: 1
     status: draft
@@ -3623,6 +3630,55 @@ assertions:
     - sdks.npm
     - sdks.pip
     - gui.web
+    - gui.apple
+  apple-local-model-lab.optional-downloads:
+    specification: feature.apple-local-model-lab@1
+    specification_id: feature.apple-local-model-lab
+    type: behavior
+    fingerprint: 3b812c8b7605ac1c3aa1183ce1948980a9646b5dd94f0587366e50228df1b00f
+    required_applies_to:
+    - gui.apple
+  apple-local-model-lab.local-execution:
+    specification: feature.apple-local-model-lab@1
+    specification_id: feature.apple-local-model-lab
+    type: behavior
+    fingerprint: 035a08555bccc37e915842d303893758f5f05faaf1217debcea62cc01ff878d3
+    required_applies_to:
+    - gui.apple
+  apple-local-model-lab.pii-spans:
+    specification: feature.apple-local-model-lab@1
+    specification_id: feature.apple-local-model-lab
+    type: invariant
+    fingerprint: ef9fd3dc52459c3f978abea3ef421c93ba94e50fd1c775af9557551119d9f1f0
+    required_applies_to:
+    - gui.apple
+  apple-local-model-lab.isolated-scope:
+    specification: feature.apple-local-model-lab@1
+    specification_id: feature.apple-local-model-lab
+    type: invariant
+    fingerprint: 4ec74c439b5de1df841348eef3c7fe3779a1b8cec4b711129f1ea0891c45aae9
+    required_applies_to:
+    - gui.apple
+  apple-local-model-lab.serialized-cancellation:
+    specification: feature.apple-local-model-lab@1
+    specification_id: feature.apple-local-model-lab
+    type: invariant
+    fingerprint: 8e3ae09068bada93dbe6bdc2f3f0f3720958b530532242e69030591c237941bb
+    required_applies_to:
+    - gui.apple
+  apple-local-model-lab.ephemeral-state:
+    specification: feature.apple-local-model-lab@1
+    specification_id: feature.apple-local-model-lab
+    type: invariant
+    fingerprint: 1c6dd9b7851112bcd59dbffd6f1171d7e2cc52866117bddc4606ab4a3f00d35c
+    required_applies_to:
+    - gui.apple
+  apple-local-model-lab.availability:
+    specification: feature.apple-local-model-lab@1
+    specification_id: feature.apple-local-model-lab
+    type: behavior
+    fingerprint: 4415ed4e7126552b87e3c0ac348987a1b25686c5e7940c7afd034da454aee56d
+    required_applies_to:
     - gui.apple
   apple-notifications.registration.lifecycle:
     specification: feature.apple-notifications@1

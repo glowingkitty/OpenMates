@@ -6,6 +6,96 @@ import XCTest
 final class ProjectsFilesParityUITests: XCTestCase {
     override func setUpWithError() throws { continueAfterFailure = false }
 
+    // contract-test: supporting surface=gui.apple assertions=projects.files.connected-embed-previews,projects.surface.semantic-parity
+    func testConnectedFolderUsesFilesEmbedFooterAndOpensItsContents() {
+        let app = launch(variant: "connectedSource")
+        waitForConnectedRoot(app, entry: "frontend")
+        let folder = app.buttons["project-remote-entry-frontend"]
+        reveal(folder, in: app)
+        let preview = folder.descendants(matching: .any)["project-folder-embed-preview"].firstMatch
+        XCTAssertTrue(preview.exists, "Connected folders must use the regular Files embed card")
+        XCTAssertEqual(preview.frame.height, 200, accuracy: 1)
+        XCTAssertLessThanOrEqual(preview.frame.width, 301)
+        XCTAssertGreaterThan(preview.frame.width, 250)
+        let title = folder.staticTexts["embed-basic-info-title"]
+        XCTAssertTrue(title.exists)
+        XCTAssertEqual(title.label, "frontend")
+        XCTAssertTrue(folder.staticTexts["1 file, 1 folder · 2.0 KiB in files"].exists)
+        XCTAssertTrue(folder.staticTexts["src"].exists)
+        XCTAssertTrue(folder.staticTexts["app.ts"].exists)
+        XCTAssertFalse(folder.staticTexts["project-folder-empty-summary"].exists,
+                       "Available child rows must replace the empty summary")
+        XCTAssertEqual(folder.staticTexts["src"].frame.minY, preview.frame.minY + 16, accuracy: 3)
+        XCTAssertEqual(folder.staticTexts["src"].frame.minX, preview.frame.minX + 62.4, accuracy: 3)
+        XCTAssertGreaterThan(title.frame.minY, preview.frame.minY + 130,
+                             "The Files gradient icon and label belong in the shared bottom info bar")
+        screenshot(app, "Connected folder Files embed preview")
+        XCTAssertTrue(folder.isHittable)
+        folder.tap()
+        XCTAssertTrue(app.staticTexts["frontend"].firstMatch.waitForExistence(timeout: 5))
+        let gone = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: folder)
+        XCTAssertEqual(XCTWaiter.wait(for: [gone], timeout: 5), .completed,
+                       "The root folder card must leave the current directory after opening")
+        let root = app.buttons["OpenMates repository"]
+        XCTAssertTrue(root.isHittable)
+        root.tap()
+        XCTAssertTrue(app.buttons["project-remote-entry-frontend"].waitForExistence(timeout: 5),
+                      "The same folder card must remain operable after returning to the root")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=projects.surface.semantic-parity
+    func testProjectHeaderActionsStayFixedAndOperableWhileFilesScroll() {
+        let app = launch(variant: "largeConnectedSource")
+        waitForConnectedRoot(app, entry: "needle-current.ts")
+        let actions = element(app, "project-header-actions")
+        let report = app.buttons["project-report-issue"]
+        let more = app.buttons["project-more-button"]
+        let close = app.buttons["project-close-button"]
+        XCTAssertTrue(actions.waitForExistence(timeout: 5))
+        let overlayStyle = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "value == %@", "banner-overlay"), object: actions)
+        XCTAssertEqual(XCTWaiter.wait(for: [overlayStyle], timeout: 5), .completed)
+        let positions = [report.frame.midY, more.frame.midY, close.frame.midY]
+        XCTAssertTrue(app.buttons["project-header-edit"].isHittable,
+                      "The initial banner must remain visible before testing its scroll transition.")
+        let scroll = element(app, "project-detail-scroll")
+        for _ in 0..<6 where (actions.value as? String) != "standard" { scroll.swipeUp() }
+        XCTAssertEqual(actions.value as? String, "standard")
+        for (index, button) in [report, more, close].enumerated() {
+            XCTAssertTrue(button.isHittable, "Project actions must remain visible above scrolled Files")
+            XCTAssertEqual(button.frame.midY, positions[index], accuracy: 2)
+            XCTAssertGreaterThanOrEqual(button.frame.minX, scroll.frame.minX)
+            XCTAssertLessThanOrEqual(button.frame.maxX, scroll.frame.maxX)
+        }
+        report.tap()
+        XCTAssertEqual(element(app, "dev-preview-local-action").label, "reported-project-preview-project")
+        more.tap()
+        let settings = app.buttons["project-menu-settings"]
+        XCTAssertTrue(settings.waitForExistence(timeout: 3))
+        XCTAssertTrue(settings.isHittable)
+        settings.tap()
+        XCTAssertEqual(element(app, "dev-preview-local-action").label, "opened-settings-preview-project")
+        screenshot(app, "Fixed Project header actions after Files scroll")
+        for _ in 0..<6 where (actions.value as? String) != "banner-overlay" { scroll.swipeDown() }
+        XCTAssertEqual(actions.value as? String, "banner-overlay")
+        XCTAssertTrue(close.isHittable)
+        close.tap()
+        XCTAssertTrue(app.buttons["project-card-preview-project"].waitForExistence(timeout: 5))
+        XCTAssertFalse(actions.exists)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=projects.access.explicit-context,projects.files.connected-embed-previews
+    func testOfflineConnectedSourceCannotOpenFileBrowser() {
+        let app = launch(variant: "offlineConnectedSource")
+        let source = app.buttons["project-source-source-preview"]
+        XCTAssertTrue(source.waitForExistence(timeout: 5))
+        reveal(source, in: app)
+        XCTAssertFalse(source.isEnabled, "Offline source actions match the disabled web card")
+        XCTAssertFalse(app.buttons["project-remote-entry-README.md"].exists)
+        XCTAssertFalse(app.buttons["project-remote-entry-frontend"].exists)
+        screenshot(app, "Offline connected source requires its source device")
+    }
+
     // contract-test: supporting surface=gui.apple assertions=projects.files.connected-embed-previews
     func testRootConfigurationFilesOpenTextAndBinaryKeepsOriginalDownload() {
         let app = launch(variant: "rootFiles")

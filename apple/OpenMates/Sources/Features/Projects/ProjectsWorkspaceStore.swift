@@ -72,6 +72,7 @@ final class ProjectsWorkspaceStore: ObservableObject {
 
     private let service: any ProjectsWorkspaceServing
     private let remoteClient: ProjectRemoteSourceClient
+    private let listSourceRoot: @MainActor (ProjectWorkspaceProject, ProjectWorkspaceSource, ProjectsWorkspaceFence) async throws -> ProjectRemoteDirectory
     private let uploadService: ProjectUploadService
     private let validateFence: @MainActor (ProjectsWorkspaceFence) async throws -> Void
     private var accountID: String?
@@ -80,6 +81,8 @@ final class ProjectsWorkspaceStore: ObservableObject {
     private var searchGeneration = UUID()
     private var remoteGeneration = UUID()
     private var downloadGeneration = UUID()
+    private var sourceGeneration = UUID()
+    private var sourceRefreshRequest: UUID?
     private var loadingEmbedPreviewIDs: [String: UUID] = [:]
     #if DEBUG
     private var previewVariant: String?
@@ -90,9 +93,13 @@ final class ProjectsWorkspaceStore: ObservableObject {
     init(service: any ProjectsWorkspaceServing = ProjectsWorkspaceService(),
          remoteClient: ProjectRemoteSourceClient = ProjectRemoteSourceClient(),
          uploadService: ProjectUploadService = ProjectUploadService(),
+         listSourceRoot: (@MainActor (ProjectWorkspaceProject, ProjectWorkspaceSource, ProjectsWorkspaceFence) async throws -> ProjectRemoteDirectory)? = nil,
          validateFence: @escaping @MainActor (ProjectsWorkspaceFence) async throws -> Void = { try await $0.check() }) {
         self.service = service
         self.remoteClient = remoteClient
+        self.listSourceRoot = listSourceRoot ?? { project, source, fence in
+            try await remoteClient.list(project: project, source: source, path: ".", maxEntries: 12, fence: fence)
+        }
         self.uploadService = uploadService
         self.validateFence = validateFence
     }
@@ -178,6 +185,8 @@ final class ProjectsWorkspaceStore: ObservableObject {
         let fence = ProjectsWorkspaceFence(accountID: accountID)
         isLoadingDetail = true
         readme = .loading
+        sourceGeneration = UUID()
+        let sourceRequest = sourceGeneration
         errorMessage = nil
         do {
             let contents = try await service.contents(project: project, fence: fence)
@@ -196,14 +205,16 @@ final class ProjectsWorkspaceStore: ObservableObject {
             Task { [weak self] in
                 guard let self else { return }
                 let loadedReadme = await self.loadReadme(project: project, contents: contents, fence: fence)
-                guard requestGeneration == self.generation, self.selectedProjectID == project.id else { return }
+                guard requestGeneration == self.generation, sourceRequest == self.sourceGeneration,
+                      self.selectedProjectID == project.id else { return }
                 guard (try? await self.validateFence(fence)) != nil,
-                      requestGeneration == self.generation, self.selectedProjectID == project.id else { return }
+                      requestGeneration == self.generation, sourceRequest == self.sourceGeneration,
+                      self.selectedProjectID == project.id else { return }
                 self.readme = loadedReadme
             }
             Task { [weak self] in
                 await self?.prefetchSourceRoots(project: project, sources: contents.sources,
-                                                fence: fence, generation: requestGeneration)
+                    fence: fence, generation: requestGeneration, sourceGeneration: sourceRequest)
             }
         } catch {
             guard requestGeneration == generation else { return }
@@ -211,6 +222,56 @@ final class ProjectsWorkspaceStore: ObservableObject {
             readme = .failed
         }
         if requestGeneration == generation { isLoadingDetail = false }
+    }
+
+    /// Web refreshes source presence every 15 seconds. A retained workspace
+    /// must recover when its encrypted source host reconnects, and discard
+    /// previews from a disconnected or replaced source session.
+    func refreshSourceStatus() async {
+        guard !isLoadingDetail, sourceRefreshRequest == nil,
+              let project = selectedProject, let accountID else { return }
+        let request = UUID()
+        sourceRefreshRequest = request
+        defer { if sourceRefreshRequest == request { sourceRefreshRequest = nil } }
+        let requestGeneration = generation
+        let previousSourceGeneration = sourceGeneration
+        let fence = ProjectsWorkspaceFence(accountID: accountID)
+        do {
+            let refreshed = try await service.listSources(project: project, fence: fence)
+            try Task.checkCancellation()
+            try await validateFence(fence)
+            guard requestGeneration == generation, previousSourceGeneration == sourceGeneration,
+                  selectedProjectID == project.id,
+                  sources != refreshed else { return }
+            sourceGeneration = UUID()
+            let sourceRequest = sourceGeneration
+            let changedIDs = Set(sources.filter { old in
+                !refreshed.contains(old)
+            }.map(\.id))
+            sourceRootPreviews = sourceRootPreviews.filter { !changedIDs.contains($0.key) }
+            if let activeRemoteSourceID, changedIDs.contains(activeRemoteSourceID) {
+                closeRemoteSource()
+            }
+            cancelSearch()
+            sources = refreshed
+            let contents = ProjectWorkspaceContents(folders: folders, items: items, sources: refreshed)
+            readme = .loading
+            Task { [weak self] in
+                guard let self else { return }
+                let loaded = await self.loadReadme(project: project, contents: contents, fence: fence)
+                guard (try? await self.validateFence(fence)) != nil,
+                      requestGeneration == self.generation, sourceRequest == self.sourceGeneration,
+                      self.selectedProjectID == project.id else { return }
+                self.readme = loaded
+            }
+            Task { [weak self] in
+                await self?.prefetchSourceRoots(project: project, sources: refreshed, fence: fence,
+                    generation: requestGeneration, sourceGeneration: sourceRequest)
+            }
+        } catch {
+            // A transient status failure preserves the last confirmed source
+            // state. It cannot establish that the source device is offline.
+        }
     }
 
     func cancelSearch() {
@@ -563,6 +624,7 @@ final class ProjectsWorkspaceStore: ObservableObject {
     }
 
     func openRemoteSource(_ sourceID: String) async {
+        guard sources.contains(where: { $0.id == sourceID && $0.status == "connected" }) else { return }
         clearRemoteDownload()
         remoteGeneration = UUID()
         activeRemoteSourceID = sourceID
@@ -804,6 +866,8 @@ final class ProjectsWorkspaceStore: ObservableObject {
     }
 
     private func clearDetail() {
+        sourceGeneration = UUID()
+        sourceRefreshRequest = nil
         folders = []
         items = []
         itemEmbedPreviews = [:]
@@ -866,13 +930,17 @@ final class ProjectsWorkspaceStore: ObservableObject {
 
     private func prefetchSourceRoots(project: ProjectWorkspaceProject,
                                      sources: [ProjectWorkspaceSource],
-                                     fence: ProjectsWorkspaceFence, generation requestGeneration: UUID) async {
+                                     fence: ProjectsWorkspaceFence, generation requestGeneration: UUID,
+                                     sourceGeneration sourceRequest: UUID) async {
         for source in sources.filter({ $0.status == "connected" && $0.capabilities.contains("read") }).prefix(3) {
-            guard requestGeneration == generation, selectedProjectID == project.id else { return }
-            guard let directory = try? await remoteClient.list(project: project, source: source,
-                                                               path: ".", maxEntries: 12, fence: fence),
-                  requestGeneration == generation, selectedProjectID == project.id,
-                  (try? await fence.check()) != nil else { continue }
+            guard requestGeneration == generation, sourceRequest == sourceGeneration,
+                  selectedProjectID == project.id else { return }
+            guard let directory = try? await listSourceRoot(project, source, fence),
+                  (try? await validateFence(fence)) != nil else { continue }
+            // The account check can suspend. Source presence or selection may
+            // change during it, so this is the final check before publication.
+            guard requestGeneration == generation, sourceRequest == sourceGeneration,
+                  selectedProjectID == project.id else { return }
             sourceRootPreviews[source.id] = Array(directory.entries.prefix(3))
         }
     }

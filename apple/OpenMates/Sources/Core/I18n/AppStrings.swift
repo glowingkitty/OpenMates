@@ -9,6 +9,86 @@ import Foundation
 
 @MainActor
 enum AppStrings {
+    // MARK: - Native-only local model lab
+    static var localLabKokoroInputLimits: String { L("settings.local_models.kokoro_input_limits") }
+    static var localLabVerifying: String { L("settings.local_models.verifying") }
+    static var localLabArchitectureUnavailable: String { L("settings.local_models.architecture_unavailable") }
+    static var localLabKokoroOsError: String { L("settings.local_models.kokoro_os_error") }
+    static var localLabPeakMemory: String { L("settings.local_models.peak_memory") }
+    static var localLabTitle: String { L("settings.local_models.title") }
+    static var localLabDescription: String { L("settings.local_models.description") }
+    static var localLabToggle: String { L("settings.local_models.toggle") }
+    static var localLabScope: String { L("settings.local_models.scope") }
+    static var localLabDownload: String { L("settings.local_models.download") }
+    static var localLabNotDownloaded: String { L("settings.local_models.not_downloaded") }
+    static var localLabReady: String { L("settings.local_models.ready") }
+    static var localLabDownloadFailed: String { L("settings.local_models.download_failed") }
+    static var localLabNotEnoughSpace: String { L("settings.local_models.not_enough_space") }
+    static var localLabRun: String { L("settings.local_models.run") }
+    static var localLabImportAudio: String { L("settings.local_models.import_audio") }
+    static var localLabRecord: String { L("settings.local_models.record") }
+    static var localLabStopRecording: String { L("settings.local_models.stop_recording") }
+    static var localLabSpeechInput: String { L("settings.local_models.speech_input") }
+    static var localLabPrivacyInput: String { L("settings.local_models.privacy_input") }
+    static var localLabInputPlaceholder: String { L("settings.local_models.input_placeholder") }
+    static var localLabPlay: String { L("settings.local_models.play") }
+    static var localLabStopPlayback: String { L("settings.local_models.stop_playback") }
+    static var localLabRunning: String { L("settings.local_models.running") }
+    static var localLabCancelling: String { L("settings.local_models.cancelling") }
+    static var localLabElapsed: String { L("settings.local_models.elapsed") }
+    static var localLabRtf: String { L("settings.local_models.rtf") }
+    static var localLabThermalNominal: String { L("settings.local_models.thermal_nominal") }
+    static var localLabThermalFair: String { L("settings.local_models.thermal_fair") }
+    static var localLabThermalSerious: String { L("settings.local_models.thermal_serious") }
+    static var localLabThermalCritical: String { L("settings.local_models.thermal_critical") }
+    static var localLabUnavailable: String { L("settings.local_models.unavailable") }
+    static var localLabResult: String { L("settings.local_models.result") }
+    static var localLabNoEntities: String { L("settings.local_models.no_entities") }
+    static var localLabAudioError: String { L("settings.local_models.audio_error") }
+    static var localLabMicrophoneError: String { L("settings.local_models.microphone_error") }
+    static var localLabRunError: String { L("settings.local_models.run_error") }
+    static var localLabPrivacyNote: String { L("settings.local_models.privacy_note") }
+    static var localLabWhisper: String { L("settings.local_models.whisper") }
+    static var localLabKokoro: String { L("settings.local_models.kokoro") }
+    static var localLabPrivacyFilter: String { L("settings.local_models.privacy_filter") }
+    static var localLabInstalledSize: String { L("settings.local_models.installed_size") }
+    static var localLabRevision: String { L("settings.local_models.revision") }
+    static var localLabWaveform: String { L("settings.local_models.waveform") }
+    static func localLabDownloading(percent: Int) -> String {
+        LocalizationManager.shared.text("settings.local_models.downloading", replacements: ["percent": String(percent)])
+    }
+    static func localLabAudioReady(seconds: String) -> String {
+        LocalizationManager.shared.text("settings.local_models.audio_ready", replacements: ["seconds": seconds])
+    }
+    static func localLabEnvironment(cores: Int, memory: String, thermal: String) -> String {
+        LocalizationManager.shared.text("settings.local_models.environment", replacements: ["cores": String(cores), "memory": memory, "thermal": thermal])
+    }
+    static func localLabEntity(label: String, start: Int, end: Int, score: String) -> String {
+        LocalizationManager.shared.text("settings.local_models.entity", replacements: ["label": label, "start": String(start), "end": String(end), "score": score])
+    }
+
+    /// Saved draft references use the web draftPreview.ts labels, localized here.
+    static func draftEmbedPreviewLabel(type: String) -> String {
+        let key: String
+        switch type {
+        case "image": key = "image"
+        case "audio", "audio-recording": key = "audio"
+        case "recording": key = "recording"
+        case "website", "web-website": key = "website"
+        case "video", "videos-video": key = "video"
+        case "location", "maps": key = "location"
+        case "pdf": key = "pdf"
+        case "file": key = "file"
+        case "book": key = "book"
+        case "code", "code-code", "code-code-group": key = "code"
+        case "", "embed": key = "embed"
+        default:
+            return "[" + type.replacingOccurrences(of: "-", with: " ")
+                .replacingOccurrences(of: "_", with: " ").capitalized + "]"
+        }
+        return "[" + L("chat.draft_embed_labels." + key) + "]"
+    }
+
     // MARK: - Common
     static var settings: String { L("common.settings") }
     static var cancel: String { L("common.cancel") }

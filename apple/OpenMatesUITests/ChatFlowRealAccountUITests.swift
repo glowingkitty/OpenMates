@@ -18,6 +18,159 @@ final class ChatFlowRealAccountUITests: XCTestCase {
         continueAfterFailure = false
     }
 
+    override func tearDownWithError() throws {
+        #if os(iOS)
+        XCUIDevice.shared.orientation = .portrait
+        #endif
+        try super.tearDownWithError()
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=tasks.lifecycle.visible,chats.surface.semantic-parity,sync.surface.semantic-parity
+    func testExistingPersonalTasksAndLargeCodeEmbedLoadReadOnly() throws {
+        guard let chatID = RealAccountTestCredentials.configurationValue(for: "OPENMATES_TEST_CODE_CHAT_ID"),
+              let embedID = RealAccountTestCredentials.configurationValue(for: "OPENMATES_TEST_CODE_EMBED_ID"),
+              let sourceLine = RealAccountTestCredentials.configurationValue(for: "OPENMATES_TEST_CODE_SOURCE_LINE"),
+              !chatID.isEmpty, !embedID.isEmpty, !sourceLine.isEmpty else {
+            throw XCTSkip("Configure the existing personal-account code chat, canonical embed and expected source line")
+        }
+        let credentials = try RealAccountTestCredentials.fromEnvironment()
+        RealAccountUITestSupport.installNotificationPermissionHandler(on: self)
+        let reuseAuthentication = RealAccountTestCredentials.configurationValue(for: "OPENMATES_TEST_REUSE_AUTH") == "1"
+        let app = RealAccountUITestSupport.launchApp(disableAuthCache: !reuseAuthentication,
+            extraArguments: (reuseAuthentication ? [] : ["--ui-test-open-login"]) + ["--ui-test-expose-chat-ids"])
+        if !reuseAuthentication { RealAccountUITestSupport.logIn(app: app, credentials: credentials) }
+        XCTAssertTrue(waitForInitialSyncComplete(in: app, timeout: 45))
+        #if os(iOS)
+        // Authenticate in the ordinary phone layout before verifying the wide
+        // workspace. A short landscape viewport places the email step below
+        // the initial login-method choices in the authentication scroll view.
+        XCUIDevice.shared.orientation = .landscapeLeft
+        #endif
+        guard app.windows.firstMatch.frame.width > 600 else {
+            throw XCTSkip("Run this large-card verification on iPad landscape or a wide macOS window")
+        }
+
+        func openWorkspace(_ name: String) {
+            let entry = app.descendants(matching: .any).matching(identifier: "\(name)-nav-link").firstMatch
+            if !entry.exists || !entry.isHittable {
+                let switcher = app.descendants(matching: .any).matching(identifier: "workspace-switcher").firstMatch
+                XCTAssertTrue(switcher.waitForExistence(timeout: 10))
+                switcher.tap()
+            }
+            XCTAssertTrue(entry.waitForExistence(timeout: 10))
+            entry.tap()
+        }
+
+        openWorkspace("tasks")
+        let board = app.descendants(matching: .any).matching(identifier: "task-board").firstMatch
+        XCTAssertTrue(board.waitForExistence(timeout: 45))
+        XCTAssertTrue(board.descendants(matching: .any).matching(identifier: "task-card").firstMatch.waitForExistence(timeout: 45),
+                      "The real account must render decrypted Task cards")
+        let boardScroll = app.scrollViews.matching(identifier: "task-board").firstMatch
+        XCTAssertTrue(boardScroll.exists)
+        func columnHeaderVisible(_ column: XCUIElement) -> Bool {
+            guard column.exists, !column.frame.isEmpty else { return false }
+            let viewport = board.frame.intersection(app.windows.firstMatch.frame)
+            return viewport.contains(CGPoint(x: column.frame.midX, y: column.frame.minY + 14))
+        }
+        for status in ["backlog", "todo", "in_progress", "blocked", "done"] {
+            let column = board.descendants(matching: .any).matching(identifier: "task-column-\(status)").firstMatch
+            for _ in 0..<6 {
+                if columnHeaderVisible(column) { break }
+                boardScroll.swipeLeft()
+            }
+            XCTAssertTrue(columnHeaderVisible(column), "Every lifecycle column must render in the board viewport")
+        }
+        let backlog = board.descendants(matching: .any).matching(identifier: "task-column-backlog").firstMatch
+        for _ in 0..<6 {
+            if columnHeaderVisible(backlog) { break }
+            boardScroll.swipeRight()
+        }
+        XCTAssertFalse(app.descendants(matching: .any).matching(identifier: "tasks-load-error").firstMatch.exists)
+        let tasksProof = XCTAttachment(screenshot: app.screenshot())
+        tasksProof.name = "Personal Tasks board loaded"
+        tasksProof.lifetime = .keepAlways
+        add(tasksProof)
+
+        openWorkspace("chats")
+        openChatsPanel(in: app)
+        let row = app.descendants(matching: .any).matching(NSPredicate(
+            format: "identifier == %@ AND value == %@", "chat-item-wrapper", "user-chat:\(chatID)"
+        )).firstMatch
+        if row.waitForExistence(timeout: 5) && row.isHittable {
+            row.tap()
+        } else {
+            guard let query = RealAccountTestCredentials.configurationValue(for: "OPENMATES_TEST_CODE_CHAT_QUERY"), !query.isEmpty else {
+                XCTFail("Configure a private title-search fallback for the existing code conversation")
+                return
+            }
+            let search = app.textFields.matching(NSPredicate(
+                format: "identifier == %@ OR placeholderValue == %@", "search-input", "Search"
+            )).firstMatch
+            if !search.exists {
+                let searchButton = app.buttons.matching(NSPredicate(
+                    format: "identifier == %@ OR label == %@", "search-button", "Search"
+                )).firstMatch
+                XCTAssertTrue(searchButton.waitForExistence(timeout: 10))
+                searchButton.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+            }
+            XCTAssertTrue(search.waitForExistence(timeout: 10))
+            search.tap()
+            if let value = search.value as? String, !value.isEmpty {
+                search.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: value.count))
+            }
+            search.typeText(query)
+            let result = app.buttons.matching(identifier: "search-chat-item").firstMatch
+            XCTAssertTrue(result.waitForExistence(timeout: 45), "The configured existing conversation must be searchable")
+            result.tap()
+        }
+        XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "chat-view-\(chatID)").firstMatch.waitForExistence(timeout: 20))
+        // A regular-width sidebar remains open after choosing a chat. Its own
+        // header supplies the close action; the menu button exists only closed.
+        let sidebarClose = app.buttons["chat-sidebar-close"]
+        if sidebarClose.exists && sidebarClose.isHittable { sidebarClose.tap() }
+        XCTAssertTrue(app.buttons["sidebar-toggle"].waitForExistence(timeout: 5))
+        let history = app.scrollViews.matching(identifier: "chat-history-container").firstMatch
+        XCTAssertTrue(history.waitForExistence(timeout: 20))
+        XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "message-assistant").firstMatch.waitForExistence(timeout: 20))
+        let toTop = app.buttons["scroll-to-top-button"]
+        if toTop.exists { toTop.tap() }
+        // Code cards contain their source accessibility children, so SwiftUI
+        // may expose the exact actionable wrapper as Other rather than Button.
+        let transcript = app.descendants(matching: .any).matching(identifier: "chat-view-\(chatID)").firstMatch
+        let preview = transcript.descendants(matching: .any)
+            .matching(identifier: "embed-preview-\(embedID)").firstMatch
+        for _ in 0..<12 {
+            if preview.exists && preview.isHittable { break }
+            history.swipeUp()
+        }
+        XCTAssertTrue(preview.exists && preview.isHittable, "The exact stored greeting.js card must hydrate inside the transcript viewport")
+        let largeSourceReady = NSPredicate { _, _ in
+            preview.exists && preview.isEnabled && preview.isHittable && (preview.value as? String) == "Ready" && preview.frame.height >= 400
+        }
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: largeSourceReady, object: nil)], timeout: 20), .completed,
+                       "The wide production card must show ready source in its large layout")
+        let largeProof = XCTAttachment(screenshot: app.screenshot())
+        largeProof.name = "Existing greeting.js large source card"
+        largeProof.lifetime = .keepAlways
+        add(largeProof)
+        preview.tap()
+
+        let header = app.descendants(matching: .any).matching(identifier: "embed-fullscreen-header").firstMatch
+        XCTAssertTrue(header.waitForExistence(timeout: 15))
+        XCTAssertEqual(header.value as? String, embedID, "The production card must open the canonical stored code embed")
+        XCTAssertEqual(app.staticTexts["embed-header-title"].firstMatch.label, "greeting.js")
+        XCTAssertTrue(app.staticTexts["embed-header-subtitle"].firstMatch.label.contains("JavaScript"))
+        let source = app.scrollViews.matching(identifier: "code-source-panel").firstMatch
+        XCTAssertTrue(source.waitForExistence(timeout: 15))
+        XCTAssertTrue(source.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", sourceLine)).firstMatch.waitForExistence(timeout: 10),
+                      "The opened code view must render the expected source line")
+        let sourceProof = XCTAttachment(screenshot: app.screenshot())
+        sourceProof.name = "Existing greeting.js opened source"
+        sourceProof.lifetime = .keepAlways
+        add(sourceProof)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity,chats.surface.semantic-parity
     func testExistingEncryptedChatsRestoreUserMessagesAndEmbedPreviews() throws {
         guard let configured = RealAccountTestCredentials.configurationValue(for: "OPENMATES_TEST_EMBED_CHAT_IDS") else {

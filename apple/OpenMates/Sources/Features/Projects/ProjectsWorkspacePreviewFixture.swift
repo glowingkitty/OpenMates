@@ -106,10 +106,11 @@ enum ProjectsWorkspacePreviewFixture {
         }
         let sourceKind = variant == "localFolderSource" ? "local_folder" : "local_git_repository"
         let hasSource = ["connectedSource", "localFolderSource", "multipleSources",
-            "largeConnectedSource", "legacyConnectedSource", "rootFiles", "truncatedConnectedSource"].contains(variant)
+            "largeConnectedSource", "legacyConnectedSource", "rootFiles", "truncatedConnectedSource", "offlineConnectedSource"].contains(variant)
         let source = ProjectWorkspaceSource(id: "source-preview", kind: sourceKind,
             name: "OpenMates repository", metadata: ["root": "/workspace/OpenMates"],
-            capabilities: ["read"], status: "connected", sessionID: nil, keyEpoch: nil)
+            capabilities: ["read"], status: variant == "offlineConnectedSource" ? "offline" : "connected",
+            sessionID: nil, keyEpoch: nil)
         var sources = hasSource ? [source] : []
         if variant == "multipleSources" {
             sources.append(ProjectWorkspaceSource(id: "source-second", kind: sourceKind,
@@ -137,13 +138,18 @@ enum ProjectsWorkspacePreviewFixture {
             remoteEntries = [entry("docs", kind: "directory"),
                 entry("README.md", kind: "file", size: 1024)]
         } else {
-            remoteEntries = [entry("frontend", kind: "directory", files: 1, folders: 1),
+            remoteEntries = [ProjectRemoteEntry(path: "frontend", kind: "directory", sizeBytes: nil,
+                childFileCount: 1, childFolderCount: 1, childSummaryTruncated: false,
+                children: [ProjectRemoteEntryChild(path: "frontend/src", kind: "directory"),
+                           ProjectRemoteEntryChild(path: "frontend/app.ts", kind: "file")],
+                childFileSizeBytes: 2048),
                 entry("README.md", kind: "file", size: 1024)]
         }
-        let readme: ProjectsWorkspaceStore.ReadmeState = variant == "readme"
+        let readme: ProjectsWorkspaceStore.ReadmeState = variant == "offlineConnectedSource" ? .unavailable : variant == "readme"
             ? .ready(ProjectWorkspaceReadme(markdown: "# OpenMates\n\nA private workspace for planning, research, and shipping useful work.\n\n## What we are building\n\n- Calm collaboration\n- Useful project context\n- Clear next steps",
                 truncated: false, origin: "stored")) : .empty
         let previews = sources.reduce(into: [String: [ProjectRemoteEntry]]()) { result, source in
+            guard source.status == "connected" else { return }
             result[source.id] = Array(remoteEntries.prefix(3))
         }
         return State(project: project, folders: folders, items: items,

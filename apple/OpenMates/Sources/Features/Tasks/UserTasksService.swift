@@ -1,5 +1,7 @@
 // Client-side encrypted Tasks service. Durable text remains ciphertext on /v1/user-tasks.
 // Matches the wire contract in frontend/packages/ui/src/services/userTaskService.ts.
+// Specification: specifications/features/tasks/specification.yml
+// Assertions: tasks.content.client-encrypted, tasks.assignment.identity-separated
 
 import CryptoKit
 import Foundation
@@ -211,18 +213,8 @@ final class UserTasksService {
         let masterKey = try await requireMasterKey(fence)
         let taskKey = try await requireTaskKey(task.record, masterKey: masterKey)
         let timestamp = Int(Date().timeIntervalSince1970)
-        var json: [String: Any] = ["version": try version(task.record), "updated_at": timestamp]
-        if let title = patch.title { json["encrypted_title"] = try ComposerEmbedCrypto.encryptContent(title, using: taskKey) }
-        if let description = patch.description { json["encrypted_description"] = try ComposerEmbedCrypto.encryptContent(description, using: taskKey) }
-        if let tags = patch.tags { json["encrypted_tags"] = try ComposerEmbedCrypto.encryptContent(jsonArray(tags), using: taskKey) }
-        if let status = patch.status { json["status"] = status.rawValue }
-        if let assignee = patch.assigneeType {
-            json["assignee_type"] = assignee.rawValue
-            json["assignee_identity"] = (patch.assigneeIdentity ?? (assignee == .openmates ? .openmates : nil))?.rawValue as Any? ?? NSNull()
-        }
+        var json = try updateBody(for: task.record, patch: patch, key: taskKey, timestamp: timestamp)
         if let projectIDs = patch.linkedProjectIDs {
-            json["encrypted_linked_project_ids"] = try ComposerEmbedCrypto.encryptContent(jsonArray(projectIDs), using: taskKey)
-            json["linked_project_ids"] = projectIDs
             guard let wrapped = task.record.encryptedTaskKey, !wrapped.isEmpty else {
                 throw UserTasksError.taskKeyUnavailable
             }
@@ -230,9 +222,6 @@ final class UserTasksService {
                 encryptedTaskKey: wrapped, timestamp: timestamp,
                 chatID: task.primaryChatId, projectIDs: projectIDs, teamID: teamID, fence: fence)
         }
-        if patch.clearDueAt { json["due_at"] = NSNull() }
-        else if let dueAt = patch.dueAt { json["due_at"] = dueAt }
-        if let priority = patch.priority { json["priority"] = priority }
         let response: TaskResponse = try await requestJSON(.patch,
             path: UserTasksPaths.scoped(UserTasksPaths.task(task.id), teamID: teamID), body: json, fence: fence)
         try await fence.check()
@@ -240,6 +229,31 @@ final class UserTasksService {
             throw UserTasksError.taskKeyUnavailable
         }
         return opened
+    }
+
+    // Build the production PATCH payload before adding asynchronously opened
+    // Project wrappers. Content edits must not rewrite the existing assignment.
+    func updateBody(for record: EncryptedUserTaskRecord, patch: UserTaskUpdateInput,
+                    key taskKey: SymmetricKey, timestamp: Int) throws -> [String: Any] {
+        var json: [String: Any] = ["version": try version(record), "updated_at": timestamp]
+        if let title = patch.title { json["encrypted_title"] = try ComposerEmbedCrypto.encryptContent(title, using: taskKey) }
+        if let description = patch.description { json["encrypted_description"] = try ComposerEmbedCrypto.encryptContent(description, using: taskKey) }
+        if let tags = patch.tags { json["encrypted_tags"] = try ComposerEmbedCrypto.encryptContent(jsonArray(tags), using: taskKey) }
+        if let status = patch.status { json["status"] = status.rawValue }
+        if let assignee = patch.assigneeType,
+           assignee != record.assigneeType || (patch.assigneeIdentity != nil && patch.assigneeIdentity != record.assigneeIdentity) {
+            guard patch.assigneeIdentity != .legacyOpenCode else { throw UserTasksError.invalidResponse }
+            json["assignee_type"] = assignee.rawValue
+            json["assignee_identity"] = (patch.assigneeIdentity ?? (assignee == .openmates ? .openmates : nil))?.rawValue as Any? ?? NSNull()
+        }
+        if let projectIDs = patch.linkedProjectIDs {
+            json["encrypted_linked_project_ids"] = try ComposerEmbedCrypto.encryptContent(jsonArray(projectIDs), using: taskKey)
+            json["linked_project_ids"] = projectIDs
+        }
+        if patch.clearDueAt { json["due_at"] = NSNull() }
+        else if let dueAt = patch.dueAt { json["due_at"] = dueAt }
+        if let priority = patch.priority { json["priority"] = priority }
+        return json
     }
 
     func action(_ name: String, task: UserTaskItem, teamID: String? = nil,

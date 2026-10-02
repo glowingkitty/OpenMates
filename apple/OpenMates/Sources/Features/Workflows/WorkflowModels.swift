@@ -3,8 +3,92 @@
 // They intentionally keep graph/config payloads as AnyCodable so Apple can
 // render and forward V1 workflows without narrowing app-skill schemas too early.
 // Spec: docs/specs/workflows-v1/spec.yml
+// Web source: frontend/packages/ui/src/components/workflows/WorkflowSchemaFields.svelte
+//             frontend/packages/ui/src/components/workflows/workflowBuilder.ts
+// Specification: specifications/features/workflows/specification.yml
+// Assertions: workflows.actions.skill-contract, workflows.control.typed-data
 
 import Foundation
+
+/// Presents the single request authored by an app-action node without exposing
+/// the skill API's batch envelope. Existing saved entries remain editable rather
+/// than being silently truncated when a workflow is opened or saved.
+struct WorkflowRequestInputProjection {
+    let outerSchema: [String: Any]
+    let requestSchema: [String: Any]
+    let requests: [Any]
+    private let input: [String: Any]
+
+    init?(schema: [String: Any], input: [String: Any]) {
+        guard var properties = schema["properties"] as? [String: Any],
+              let envelope = properties["requests"] as? [String: Any],
+              envelope["type"] as? String == "array",
+              let items = envelope["items"] as? [String: Any],
+              items["type"] as? String == "object" || items["properties"] is [String: Any]
+        else { return nil }
+        self.input = input
+        requestSchema = items
+        let stored = input["requests"] as? [Any] ?? []
+        requests = stored.isEmpty ? [Self.schemaDefault(items)] : stored
+        properties.removeValue(forKey: "requests")
+        var outer = schema
+        outer["properties"] = properties
+        outer["required"] = (schema["required"] as? [String] ?? []).filter { $0 != "requests" }
+        outerSchema = outer
+    }
+
+    func replacingRequest(at index: Int, with request: [String: Any]) -> [String: Any] {
+        guard requests.indices.contains(index) else { return input }
+        var nextRequests = requests
+        nextRequests[index] = request
+        var next = input
+        next["requests"] = nextRequests
+        return next
+    }
+
+    static func displayType(_ schema: [String: Any]) -> String {
+        let ui = schema["x-ui"] as? [String: Any] ?? [:]
+        if ui["control"] as? String == "location" { return "location" }
+        switch schema["format"] as? String {
+        case "date": return "date"
+        case "time": return "time"
+        case "uri", "url": return "url"
+        default: break
+        }
+        switch schema["type"] as? String {
+        case "integer": return "number"
+        case "array": return "list"
+        case "string", nil: return "text"
+        case let type?: return type
+        }
+    }
+
+    private static func schemaDefault(_ schema: [String: Any]) -> Any {
+        if let value = schema["default"] { return value }
+        switch schema["type"] as? String {
+        case "object":
+            let properties = schema["properties"] as? [String: [String: Any]] ?? [:]
+            let required = Set(schema["required"] as? [String] ?? [])
+            var result = properties.filter { required.contains($0.key) || $0.value["default"] != nil }
+                .mapValues(schemaDefault)
+            let ui = schema["x-ui"] as? [String: Any] ?? [:]
+            if ui["control"] as? String == "date-range", ui["default"] as? String == "today" {
+                result[ui["start_field"] as? String ?? "start_date"] = ["$date": "today", "format": "date"]
+                result[ui["end_field"] as? String ?? "end_date"] = ["$date": "today", "format": "date"]
+                if (properties["days"]?["x-ui"] as? [String: Any])?["hidden"] as? Bool == true {
+                    result.removeValue(forKey: "days")
+                }
+            }
+            return result
+        case "array":
+            let items = schema["items"] as? [String: Any] ?? [:]
+            return items["type"] as? String == "object" ? [schemaDefault(items)] : []
+        case "boolean": return false
+        case "number", "integer": return schema["minimum"] ?? 0
+        default: return ""
+        }
+    }
+}
 
 enum WorkflowNodeType: String, Codable, Sendable {
     case scheduleTrigger = "schedule_trigger"

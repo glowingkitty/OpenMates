@@ -51,6 +51,7 @@ extension EnvironmentValues {
 
 struct AppleCodeEmbedContent: Equatable {
     let code: String
+    let hasSourcePayload: Bool
     let language: String
     let filename: String?
     let lineCount: Int
@@ -58,6 +59,9 @@ struct AppleCodeEmbedContent: Equatable {
     init(data: [String: AnyCodable]?) {
         let root = data ?? [:]
         let resolved = Self.contentDictionary(in: root)
+        hasSourcePayload = [resolved, root].contains { dictionary in
+            ["code", "code_content", "content"].contains { dictionary[$0]?.value is String }
+        }
         let rawCode = Self.string(resolved, keys: ["code", "code_content"])
             ?? Self.string(root, keys: ["code", "code_content"])
             ?? Self.contentString(in: resolved)
@@ -176,6 +180,28 @@ struct AppleCodeEmbedContent: Equatable {
         guard !code.isEmpty else { return 0 }
         let content = code.hasSuffix("\n") ? String(code.dropLast()) : code
         return content.isEmpty ? 0 : content.components(separatedBy: "\n").count
+    }
+}
+
+enum AppleCodeEmbedPreviewState: Equatable {
+    case source
+    case processing
+    case empty
+
+    init(content: AppleCodeEmbedContent, status: EmbedStatus) {
+        if !content.code.isEmpty {
+            self = .source
+        } else {
+            self = status == .processing ? .processing : .empty
+        }
+    }
+
+    var accessibilityIdentifier: String {
+        switch self {
+        case .source: "code-embed-source-preview"
+        case .processing: "code-embed-processing"
+        case .empty: "code-embed-empty"
+        }
     }
 }
 
@@ -318,6 +344,7 @@ struct CodeEmbedRenderer: View {
     var codeRunViewModel: CodeRunViewModel?
     var isLargePreview = false
     @StateObject private var savedOutputs = CodeEmbedOwnerOutputs()
+    @State private var sourceViewportWidth: CGFloat = 0
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     private var content: AppleCodeEmbedContent { AppleCodeEmbedContent(data: data) }
@@ -326,6 +353,9 @@ struct CodeEmbedRenderer: View {
     private var language: String { content.language }
     private var filename: String? { content.filename }
     private var lineCount: Int { content.lineCount }
+    private var previewState: AppleCodeEmbedPreviewState {
+        AppleCodeEmbedPreviewState(content: content, status: embed?.status ?? .finished)
+    }
 
     var body: some View {
         switch mode {
@@ -341,7 +371,7 @@ struct CodeEmbedRenderer: View {
                         .background(Color.grey100)
                         .clipShape(RoundedRectangle(cornerRadius: .radius3))
                         .accessibilityIdentifier("code-run-output-preview")
-                } else if code.isEmpty {
+                } else if previewState == .processing {
                     VStack(spacing: .spacing4) {
                         Circle()
                             .fill(LinearGradient.primary)
@@ -351,6 +381,11 @@ struct CodeEmbedRenderer: View {
                             .foregroundStyle(Color.fontSecondary)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if previewState == .empty {
+                    Icon("coding", size: 48)
+                        .foregroundStyle(Color.fontTertiary)
+                        .opacity(0.3)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     CodeLinesView(
                         code: previewCode,
@@ -365,7 +400,7 @@ struct CodeEmbedRenderer: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .accessibilityIdentifier(savedOutputPreview != nil ? "code-run-output-preview" : (code.isEmpty ? "code-embed-processing" : "code-embed-source-preview"))
+            .accessibilityIdentifier(savedOutputPreview != nil ? "code-run-output-preview" : previewState.accessibilityIdentifier)
             .task(id: embedId) {
                 guard recipientMediaContext == nil, let chatId, !chatId.isEmpty else { return }
                 #if DEBUG
@@ -437,12 +472,16 @@ struct CodeEmbedRenderer: View {
                 showsLineNumbers: true,
                 fontSize: isSplit ? 13 : 15,
                 clipsLongLines: false,
-                gutterWidth: isSplit ? 40 : 40
+                gutterWidth: 40
             )
                 .padding(.top, .spacing6)
                 .padding(.bottom, .spacing8)
                 .padding(.trailing, .spacing4)
+                // Match the web's width: 100% code-lines-container while
+                // permitting intrinsic long-line overflow horizontally.
+                .frame(minWidth: sourceViewportWidth, alignment: .topLeading)
         }
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { sourceViewportWidth = $0 }
         .background(Color.grey10)
         .accessibilityIdentifier("code-source-panel")
     }
@@ -1396,6 +1435,7 @@ private struct CodeLinesView: View {
 }
 
 private struct HighlightedCodeLine: View {
+    @Environment(\.colorScheme) private var colorScheme
     let line: String
     let language: String
     let fontSize: CGFloat
@@ -1418,7 +1458,7 @@ private struct HighlightedCodeLine: View {
 
     private var attributedLine: AttributedString {
         var result = AttributedString()
-        for token in CodeSyntaxHighlighter.tokens(for: line, language: language) {
+        for token in CodeSyntaxHighlighter.tokens(for: line, language: language, colorScheme: colorScheme) {
             var chunk = AttributedString(token.text)
             chunk.foregroundColor = token.color
             result += chunk
@@ -1427,13 +1467,19 @@ private struct HighlightedCodeLine: View {
     }
 }
 
-private enum CodeSyntaxHighlighter {
+struct CodeSyntaxHighlighter {
+    private let colors: SyntaxColor
+
     struct Token {
         let text: String
         let color: Color
     }
 
-    static func tokens(for line: String, language: String) -> [Token] {
+    static func tokens(for line: String, language: String, colorScheme: ColorScheme = .dark) -> [Token] {
+        CodeSyntaxHighlighter(colors: SyntaxColor(colorScheme: colorScheme)).tokenize(line, language: language)
+    }
+
+    private func tokenize(_ line: String, language: String) -> [Token] {
         if isHTMLLike(language) {
             return htmlTokens(for: line)
         }
@@ -1443,7 +1489,7 @@ private enum CodeSyntaxHighlighter {
         return genericTokens(for: line)
     }
 
-    private static func genericTokens(for line: String) -> [Token] {
+    private func genericTokens(for line: String) -> [Token] {
         var tokens: [Token] = []
         var index = line.startIndex
         while index < line.endIndex {
@@ -1455,29 +1501,29 @@ private enum CodeSyntaxHighlighter {
                     index = line.index(after: index)
                 }
                 if index < line.endIndex { index = line.index(after: index) }
-                tokens.append(Token(text: String(line[start..<index]), color: SyntaxColor.string))
+                tokens.append(Token(text: String(line[start..<index]), color: colors.string))
             } else if line[index].isNumber {
                 let start = index
                 while index < line.endIndex, line[index].isNumber {
                     index = line.index(after: index)
                 }
-                tokens.append(Token(text: String(line[start..<index]), color: SyntaxColor.number))
+                tokens.append(Token(text: String(line[start..<index]), color: colors.number))
             } else {
                 let start = index
                 index = line.index(after: index)
-                tokens.append(Token(text: String(line[start..<index]), color: SyntaxColor.base))
+                tokens.append(Token(text: String(line[start..<index]), color: colors.base))
             }
         }
-        return tokens.isEmpty ? [Token(text: line, color: SyntaxColor.base)] : tokens
+        return tokens.isEmpty ? [Token(text: line, color: colors.base)] : tokens
     }
 
-    private static func htmlTokens(for line: String) -> [Token] {
+    private func htmlTokens(for line: String) -> [Token] {
         var tokens: [Token] = []
         var index = line.startIndex
         while index < line.endIndex {
-            if line[index...].hasPrefix("<!--"),
-               let end = line[index...].range(of: "-->")?.upperBound {
-                tokens.append(Token(text: String(line[index..<end]), color: SyntaxColor.comment))
+            if line[index...].hasPrefix("<!--") {
+                let end = line[index...].range(of: "-->")?.upperBound ?? line.endIndex
+                tokens.append(Token(text: String(line[index..<end]), color: colors.comment))
                 index = end
             } else if line[index] == "<",
                       let end = line[index...].firstIndex(of: ">") {
@@ -1485,16 +1531,18 @@ private enum CodeSyntaxHighlighter {
                 index = line.index(after: end)
             } else {
                 let start = index
+                // A clipped tag or literal '<' must still consume source text.
+                index = line.index(after: index)
                 while index < line.endIndex, line[index] != "<" {
                     index = line.index(after: index)
                 }
-                tokens.append(Token(text: String(line[start..<index]), color: SyntaxColor.base))
+                tokens.append(Token(text: String(line[start..<index]), color: colors.base))
             }
         }
-        return tokens.isEmpty ? [Token(text: line, color: SyntaxColor.base)] : tokens
+        return tokens.isEmpty ? [Token(text: line, color: colors.base)] : tokens
     }
 
-    private static func appendHTMLTagTokens(_ tag: String, to tokens: inout [Token]) {
+    private func appendHTMLTagTokens(_ tag: String, to tokens: inout [Token]) {
         let delimiters = CharacterSet(charactersIn: "</>=")
         var current = ""
         var inString: Character?
@@ -1503,7 +1551,7 @@ private enum CodeSyntaxHighlighter {
             if let quote = inString {
                 current.append(char)
                 if char == quote {
-                    tokens.append(Token(text: current, color: SyntaxColor.string))
+                    tokens.append(Token(text: current, color: colors.string))
                     current = ""
                     inString = nil
                 }
@@ -1514,43 +1562,43 @@ private enum CodeSyntaxHighlighter {
             } else if delimiters.contains(scalar) {
                 flushHTMLWord(current, to: &tokens)
                 current = ""
-                tokens.append(Token(text: String(char), color: SyntaxColor.punctuation))
+                tokens.append(Token(text: String(char), color: colors.punctuation))
             } else if CharacterSet.whitespaces.contains(scalar) {
                 flushHTMLWord(current, to: &tokens)
                 current = ""
-                tokens.append(Token(text: String(char), color: SyntaxColor.base))
+                tokens.append(Token(text: String(char), color: colors.base))
             } else {
                 current.append(char)
             }
         }
         if !current.isEmpty {
             if inString != nil {
-                tokens.append(Token(text: current, color: SyntaxColor.string))
+                tokens.append(Token(text: current, color: colors.string))
             } else {
                 flushHTMLWord(current, to: &tokens)
             }
         }
     }
 
-    private static func flushHTMLWord(_ text: String, to tokens: inout [Token]) {
+    private func flushHTMLWord(_ text: String, to tokens: inout [Token]) {
         guard !text.isEmpty else { return }
         if text.hasPrefix("!") || text.lowercased() == "doctype" {
-            tokens.append(Token(text: text, color: SyntaxColor.meta))
+            tokens.append(Token(text: text, color: colors.meta))
         } else if text.first?.isLetter == true {
-            let color = tokens.last?.text == "<" || tokens.last?.text == "/" ? SyntaxColor.name : SyntaxColor.attribute
+            let color = tokens.last?.text == "<" || tokens.last?.text == "/" ? colors.name : colors.attribute
             tokens.append(Token(text: text, color: color))
         } else {
-            tokens.append(Token(text: text, color: SyntaxColor.base))
+            tokens.append(Token(text: text, color: colors.base))
         }
     }
 
-    private static func cssTokens(for line: String) -> [Token] {
+    private func cssTokens(for line: String) -> [Token] {
         var tokens: [Token] = []
         var index = line.startIndex
         while index < line.endIndex {
             if line[index...].hasPrefix("/*"),
                let end = line[index...].range(of: "*/")?.upperBound {
-                tokens.append(Token(text: String(line[index..<end]), color: SyntaxColor.comment))
+                tokens.append(Token(text: String(line[index..<end]), color: colors.comment))
                 index = end
             } else if line[index] == "#" {
                 let start = index
@@ -1558,7 +1606,7 @@ private enum CodeSyntaxHighlighter {
                 while index < line.endIndex, line[index].isHexDigit {
                     index = line.index(after: index)
                 }
-                tokens.append(Token(text: String(line[start..<index]), color: SyntaxColor.number))
+                tokens.append(Token(text: String(line[start..<index]), color: colors.number))
             } else if line[index] == "\"" || line[index] == "'" {
                 let quote = line[index]
                 let start = index
@@ -1567,13 +1615,13 @@ private enum CodeSyntaxHighlighter {
                     index = line.index(after: index)
                 }
                 if index < line.endIndex { index = line.index(after: index) }
-                tokens.append(Token(text: String(line[start..<index]), color: SyntaxColor.string))
+                tokens.append(Token(text: String(line[start..<index]), color: colors.string))
             } else if line[index].isNumber {
                 let start = index
                 while index < line.endIndex, line[index].isNumber || line[index] == "." || line[index] == "%" {
                     index = line.index(after: index)
                 }
-                tokens.append(Token(text: String(line[start..<index]), color: SyntaxColor.number))
+                tokens.append(Token(text: String(line[start..<index]), color: colors.number))
             } else if line[index].isLetter || line[index] == "-" {
                 let start = index
                 while index < line.endIndex, line[index].isLetter || line[index].isNumber || line[index] == "-" || line[index] == "_" {
@@ -1581,33 +1629,41 @@ private enum CodeSyntaxHighlighter {
                 }
                 let word = String(line[start..<index])
                 let next = line[index...].first { !$0.isWhitespace }
-                tokens.append(Token(text: word, color: next == ":" ? SyntaxColor.attribute : SyntaxColor.name))
+                tokens.append(Token(text: word, color: next == ":" ? colors.attribute : colors.name))
             } else {
-                tokens.append(Token(text: String(line[index]), color: SyntaxColor.base))
+                tokens.append(Token(text: String(line[index]), color: colors.base))
                 index = line.index(after: index)
             }
         }
-        return tokens.isEmpty ? [Token(text: line, color: SyntaxColor.base)] : tokens
+        return tokens.isEmpty ? [Token(text: line, color: colors.base)] : tokens
     }
 
-    private static func isHTMLLike(_ language: String) -> Bool {
+    private func isHTMLLike(_ language: String) -> Bool {
         ["html", "htm", "xml", "svg", "svelte"].contains(language.lowercased())
     }
 
-    private static func isCSSLike(_ language: String) -> Bool {
+    private func isCSSLike(_ language: String) -> Bool {
         ["css", "scss", "sass", "less"].contains(language.lowercased())
     }
 }
 
-private enum SyntaxColor {
-    static let base = Color.grey100
-    static let punctuation = Color(hex: 0x79C0FF)
-    static let name = Color(hex: 0x7EE787)
-    static let attribute = Color(hex: 0x79C0FF)
-    static let string = Color(hex: 0xA5D6FF)
-    static let number = Color(hex: 0xD2A8FF)
-    static let meta = Color(hex: 0x79C0FF)
-    static let comment = Color(hex: 0x8B949E)
+/// The web preview's explicit GitHub light overrides and existing GitHub dark
+/// palette. These are syntax theme values, not application design tokens.
+private struct SyntaxColor {
+    let colorScheme: ColorScheme
+
+    private func color(light: UInt32, dark: UInt32) -> Color {
+        Color(hex: colorScheme == .light ? light : dark)
+    }
+
+    var base: Color { colorScheme == .light ? Color(hex: 0x24292E) : Color.grey100 }
+    var punctuation: Color { color(light: 0x24292E, dark: 0x79C0FF) }
+    var name: Color { color(light: 0xB31D28, dark: 0x7EE787) }
+    var attribute: Color { color(light: 0x005CC5, dark: 0x79C0FF) }
+    var string: Color { color(light: 0x032F62, dark: 0xA5D6FF) }
+    var number: Color { color(light: 0x005CC5, dark: 0xD2A8FF) }
+    var meta: Color { color(light: 0x005CC5, dark: 0x79C0FF) }
+    var comment: Color { color(light: 0x6A737D, dark: 0x8B949E) }
 }
 
 private struct CodePreviewPane: View {

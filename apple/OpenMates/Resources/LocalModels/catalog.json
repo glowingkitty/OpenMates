@@ -1,0 +1,486 @@
+{
+  "models": [
+    {
+      "id": "whisper",
+      "revision": "0f63a7800b00dd0226abd051b906c246e1907482",
+      "estimatedSizeBytes": 629481698,
+      "files": [
+        {
+          "path": "AudioEncoder.mlmodelc/analytics/coremldata.bin",
+          "url": "https://huggingface.co/argmaxinc/whisperkit-coreml/resolve/0f63a7800b00dd0226abd051b906c246e1907482/openai_whisper-large-v3-v20240930_626MB/AudioEncoder.mlmodelc/analytics/coremldata.bin",
+          "sha256": "56793886ab1adb9ca8a4e335efbe8af6640f40d958ab2d29c3ad2d7d6f712e95",
+          "sizeBytes": 243
+        },
+        {
+          "path": "AudioEncoder.mlmodelc/coremldata.bin",
+          "url": "https://huggingface.co/argmaxinc/whisperkit-coreml/resolve/0f63a7800b00dd0226abd051b906c246e1907482/openai_whisper-large-v3-v20240930_626MB/AudioEncoder.mlmodelc/coremldata.bin",
+          "sha256": "ffa9eb76e8e9d9be75a4d527e5249e61d67fd43081c5aa110fd24efa6c8c5ea3",
+          "sizeBytes": 348
+        },
+        {
+          "path": "AudioEncoder.mlmodelc/metadata.json",
+          "url": "https://huggingface.co/argmaxinc/whisperkit-coreml/resolve/0f63a7800b00dd0226abd051b906c246e1907482/openai_whisper-large-v3-v20240930_626MB/AudioEncoder.mlmodelc/metadata.json",
+          "sha256": "a87a3375afe79e88e27af30247e234e706b98679dedfd1b021a74f7ee108c669",
+          "sizeBytes": 1922
+        },
+        {
+          "path": "AudioEncoder.mlmodelc/model.mil",
+          "url": "https://huggingface.co/argmaxinc/whisperkit-coreml/resolve/0f63a7800b00dd0226abd051b906c246e1907482/openai_whisper-large-v3-v20240930_626MB/AudioEncoder.mlmodelc/model.mil",
+          "sha256": "3cec2580fb07b12a88087f0e1586c6ba2982980eb36499561e1ffca2b0950442",
+          "sizeBytes": 934263
+        },
+        {
+          "path": "AudioEncoder.mlmodelc/weights/weight.bin",
+          "url": "https://huggingface.co/argmaxinc/whisperkit-coreml/resolve/0f63a7800b00dd0226abd051b906c246e1907482/openai_whisper-large-v3-v20240930_626MB/AudioEncoder.mlmodelc/weights/weight.bin",
+          "sha256": "e4740fa28ed65907af754af893dfce98473fafb84dd8d718ad346985fe7678c1",
+          "sizeBytes": 421968768
+        },
+        {
+          "path": "MelSpectrogram.mlmodelc/analytics/coremldata.bin",
+          "url": "https://huggingface.co/argmaxinc/whisperkit-coreml/resolve/0f63a7800b00dd0226abd051b906c246e1907482/openai_whisper-large-v3-v20240930_626MB/MelSpectrogram.mlmodelc/analytics/coremldata.bin",
+          "sha256": "c5be419f8622083ac7046306400643539f0e7577c843448c36defc090d41e7ce",
+          "sizeBytes": 243
+        },
+        {
+          "path": "MelSpectrogram.mlmodelc/coremldata.bin",
+          "url": "https://huggingface.co/argmaxinc/whisperkit-coreml/resolve/0f63a7800b00dd0226abd051b906c246e1907482/openai_whisper-large-v3-v20240930_626MB/MelSpectrogram.mlmodelc/coremldata.bin",
+          "sha256": "2bfc12cffc2e45e039c7a18f384f09adffb72c182fcd93f9413d405d1a6c1130",
+          "sizeBytes": 329
+        },
+        {
+          "path": "MelSpectrogram.mlmodelc/metadata.json",
+          "url": "https://huggingface.co/argmaxinc/whisperkit-coreml/resolve/0f63a7800b00dd0226abd051b906c246e1907482/openai_whisper-large-v3-v20240930_626MB/MelSpectrogram.mlmodelc/metadata.json",
+          "sha256": "2bc552e09a6f124d9e6c178dd1a6979e010206acb26308b2224887c9dcbeb35f",
+          "sizeBytes": 1850
+        },
+        {
+          "path": "MelSpectrogram.mlmodelc/model.mil",
+          "url": "https://huggingface.co/argmaxinc/whisperkit-coreml/resolve/0f63a7800b00dd0226abd051b906c246e1907482/openai_whisper-large-v3-v20240930_626MB/MelSpectrogram.mlmodelc/model.mil",
+          "sha256": "c270b95b5f81d7f7d0b8a3e8f991d4e5812a37cad29349868a35b91f3a6a4463",
+          "sizeBytes": 10143
+        },
+        {
+          "path": "MelSpectrogram.mlmodelc/weights/weight.bin",
+          "url": "https://huggingface.co/argmaxinc/whisperkit-coreml/resolve/0f63a7800b00dd0226abd051b906c246e1907482/openai_whisper-large-v3-v20240930_626MB/MelSpectrogram.mlmodelc/weights/weight.bin",
+          "sha256": "009d9fb8f6b589accfa08cebf1c712ef07c3405229ce3cfb3a57ee033c9d8a49",
+          "sizeBytes": 373376
+        },
+        {
+          "path": "TextDecoder.mlmodelc/analytics/coremldata.bin",
+          "url": "https://huggingface.co/argmaxinc/whisperkit-coreml/resolve/0f63a7800b00dd0226abd051b906c246e1907482/openai_whisper-large-v3-v20240930_626MB/TextDecoder.mlmodelc/analytics/coremldata.bin",
+          "sha256": "3913b8c9716b284a917cf3744f4d415f2a05e2b910594a14c6cc10092284d3f8",
+          "sizeBytes": 243
+        },
+        {
+          "path": "TextDecoder.mlmodelc/coremldata.bin",
+          "url": "https://huggingface.co/argmaxinc/whisperkit-coreml/resolve/0f63a7800b00dd0226abd051b906c246e1907482/openai_whisper-large-v3-v20240930_626MB/TextDecoder.mlmodelc/coremldata.bin",
+          "sha256": "3faabaf66930e66956d8291d0ff485fb382496e30a91a7185548b9b898ce90a9",
+          "sizeBytes": 633
+        },
+        {
+          "path": "TextDecoder.mlmodelc/metadata.json",
+          "url": "https://huggingface.co/argmaxinc/whisperkit-coreml/resolve/0f63a7800b00dd0226abd051b906c246e1907482/openai_whisper-large-v3-v20240930_626MB/TextDecoder.mlmodelc/metadata.json",
+          "sha256": "994f6030d7b1a8be999940444c3cf5d6a57d40ddd4423cf1d1fc93520aa1b052",
+          "sizeBytes": 4924
+        },
+        {
+          "path": "TextDecoder.mlmodelc/model.mil",
+          "url": "https://huggingface.co/argmaxinc/whisperkit-coreml/resolve/0f63a7800b00dd0226abd051b906c246e1907482/openai_whisper-large-v3-v20240930_626MB/TextDecoder.mlmodelc/model.mil",
+          "sha256": "dbe833be9e64348c95b7fa598d0ae4309a91aedce4e82fa500a714b0e4b5d754",
+          "sizeBytes": 217177
+        },
+        {
+          "path": "TextDecoder.mlmodelc/weights/weight.bin",
+          "url": "https://huggingface.co/argmaxinc/whisperkit-coreml/resolve/0f63a7800b00dd0226abd051b906c246e1907482/openai_whisper-large-v3-v20240930_626MB/TextDecoder.mlmodelc/weights/weight.bin",
+          "sha256": "d69700903d518ada33170ab77faaaf464496fb9ff65752c6d5a6109aa2fb02db",
+          "sizeBytes": 203199860
+        },
+        {
+          "path": "config.json",
+          "url": "https://huggingface.co/argmaxinc/whisperkit-coreml/resolve/0f63a7800b00dd0226abd051b906c246e1907482/openai_whisper-large-v3-v20240930_626MB/config.json",
+          "sha256": "f01d83dd891791d6f12421c05d3ed8ebbe70866f10d6c9a7a7e80b558ce5a0f1",
+          "sizeBytes": 1149
+        },
+        {
+          "path": "generation_config.json",
+          "url": "https://huggingface.co/argmaxinc/whisperkit-coreml/resolve/0f63a7800b00dd0226abd051b906c246e1907482/openai_whisper-large-v3-v20240930_626MB/generation_config.json",
+          "sha256": "7fbb053a023be11fbeccd8421811610308143daa93d9617c52aab4a0fa1491c6",
+          "sizeBytes": 2767
+        },
+        {
+          "path": "tokenizer/tokenizer.json",
+          "url": "https://huggingface.co/openai/whisper-large-v3/resolve/06f233fe06e710322aca913c1bc4249a0d71fce1/tokenizer.json",
+          "sha256": "6d8cbd7cd0d8d5815e478dac67b85a26bbe77c1f5e0c6d76d1ce2abc0e5f21ca",
+          "sizeBytes": 2480617
+        },
+        {
+          "path": "tokenizer/tokenizer_config.json",
+          "url": "https://huggingface.co/openai/whisper-large-v3/resolve/06f233fe06e710322aca913c1bc4249a0d71fce1/tokenizer_config.json",
+          "sha256": "844b642c73a91359722f47b35705f7174686df33d252695d8572cf9ac03a6389",
+          "sizeBytes": 282843
+        }
+      ],
+      "license": "MIT",
+      "attribution": "OpenAI Whisper; Argmax WhisperKit CoreML conversion",
+      "licenseURL": "https://github.com/openai/whisper/blob/main/LICENSE",
+      "sourceURL": "https://huggingface.co/argmaxinc/whisperkit-coreml",
+      "tokenizerRevision": "06f233fe06e710322aca913c1bc4249a0d71fce1",
+      "runtimeNotes": "CoreML bundles are at model root. Explicit tokenizer files are in tokenizer/. Disable runtime downloads."
+    },
+    {
+      "id": "kokoro",
+      "revision": "006395f65025af251858b1ab0a7178a6a1e73f9f",
+      "estimatedSizeBytes": 94821034,
+      "files": [
+        {
+          "path": "ANE/KokoroAlbert.mlmodelc/analytics/coremldata.bin",
+          "url": "https://huggingface.co/FluidInference/kokoro-82m-coreml/resolve/006395f65025af251858b1ab0a7178a6a1e73f9f/ANE/KokoroAlbert.mlmodelc/analytics/coremldata.bin",
+          "sha256": "14a61873d8759a38b79c93f9021ae865f408f56301209a0168dbfc2283265ccd",
+          "sizeBytes": 243
+        },
+        {
+          "path": "ANE/KokoroAlbert.mlmodelc/coremldata.bin",
+          "url": "https://huggingface.co/FluidInference/kokoro-82m-coreml/resolve/006395f65025af251858b1ab0a7178a6a1e73f9f/ANE/KokoroAlbert.mlmodelc/coremldata.bin",
+          "sha256": "70b6d2f8429229f6800dda9480341669f7ac0eabf05a82934d8632ab2b4b63a6",
+          "sizeBytes": 433
+        },
+        {
+          "path": "ANE/KokoroAlbert.mlmodelc/metadata.json",
+          "url": "https://huggingface.co/FluidInference/kokoro-82m-coreml/resolve/006395f65025af251858b1ab0a7178a6a1e73f9f/ANE/KokoroAlbert.mlmodelc/metadata.json",
+          "sha256": "fe1d005481f646707a948267ac089dfb2cd2ccea7d5827a14c28587eb4c89930",
+          "sizeBytes": 2480
+        },
+        {
+          "path": "ANE/KokoroAlbert.mlmodelc/model.mil",
+          "url": "https://huggingface.co/FluidInference/kokoro-82m-coreml/resolve/006395f65025af251858b1ab0a7178a6a1e73f9f/ANE/KokoroAlbert.mlmodelc/model.mil",
+          "sha256": "2038154d06a20e399a8ae35ec5c9242702cb23db8dd24dde7679cd53708e4eae",
+          "sizeBytes": 101485
+        },
+        {
+          "path": "ANE/KokoroAlbert.mlmodelc/weights/weight.bin",
+          "url": "https://huggingface.co/FluidInference/kokoro-82m-coreml/resolve/006395f65025af251858b1ab0a7178a6a1e73f9f/ANE/KokoroAlbert.mlmodelc/weights/weight.bin",
+          "sha256": "36089a39359b800d3e2c60e5e8ac9217d8f2d1010a8b9273192290e621f1fabc",
+          "sizeBytes": 5718848
+        },
+        {
+          "path": "ANE/KokoroAlignment.mlmodelc/analytics/coremldata.bin",
+          "url": "https://huggingface.co/FluidInference/kokoro-82m-coreml/resolve/006395f65025af251858b1ab0a7178a6a1e73f9f/ANE/KokoroAlignment.mlmodelc/analytics/coremldata.bin",
+          "sha256": "f6074d1039a9151d0f97dc6ec9ee0cd9c7b865f1af646d718ab38b659fa84f3f",
+          "sizeBytes": 243
+        },
+        {
+          "path": "ANE/KokoroAlignment.mlmodelc/coremldata.bin",
+          "url": "https://huggingface.co/FluidInference/kokoro-82m-coreml/resolve/006395f65025af251858b1ab0a7178a6a1e73f9f/ANE/KokoroAlignment.mlmodelc/coremldata.bin",
+          "sha256": "9a0fb4a536f665a052914d7f17b0e6ac80a3614f702e4be87ac0302c1143a4ea",
+          "sizeBytes": 484
+        },
+        {
+          "path": "ANE/KokoroAlignment.mlmodelc/metadata.json",
+          "url": "https://huggingface.co/FluidInference/kokoro-82m-coreml/resolve/006395f65025af251858b1ab0a7178a6a1e73f9f/ANE/KokoroAlignment.mlmodelc/metadata.json",
+          "sha256": "6f610d23b9f93c7f1a968d6a861efa99725a191de696bf1c3be334ead39b7f00",
+          "sizeBytes": 3021
+        },
+        {
+          "path": "ANE/KokoroAlignment.mlmodelc/model.mil",
+          "url": "https://huggingface.co/FluidInference/kokoro-82m-coreml/resolve/006395f65025af251858b1ab0a7178a6a1e73f9f/ANE/KokoroAlignment.mlmodelc/model.mil",
+          "sha256": "eb3a618bda0cdf95cdffab586ef5c76333d0d0a1dcb881190b3ef414f3421b3e",
+          "sizeBytes": 8194
+        },
+        {
+          "path": "ANE/KokoroAlignment.mlmodelc/weights/weight.bin",
+          "url": "https://huggingface.co/FluidInference/kokoro-82m-coreml/resolve/006395f65025af251858b1ab0a7178a6a1e73f9f/ANE/KokoroAlignment.mlmodelc/weights/weight.bin",
+          "sha256": "2e7d69128b59d615fc3d3cf85637a687235fc086b1eb136359adb11a61615f6b",
+          "sizeBytes": 4128
+        },
+        {
+          "path": "ANE/KokoroNoise_v2.mlmodelc/analytics/coremldata.bin",
+          "url": "https://huggingface.co/FluidInference/kokoro-82m-coreml/resolve/006395f65025af251858b1ab0a7178a6a1e73f9f/ANE/KokoroNoise_v2.mlmodelc/analytics/coremldata.bin",
+          "sha256": "53af6bf61482f6002bdb6e3a62f30774cde6e96411aebd888222a34b369f3d04",
+          "sizeBytes": 243
+        },
+        {
+          "path": "ANE/KokoroNoise_v2.mlmodelc/coremldata.bin",
+          "url": "https://huggingface.co/FluidInference/kokoro-82m-coreml/resolve/006395f65025af251858b1ab0a7178a6a1e73f9f/ANE/KokoroNoise_v2.mlmodelc/coremldata.bin",
+          "sha256": "9911047f924b41f8b92811c32c50b7c718bd7b0c14842b3bc1b66b9ffe341a19",
+          "sizeBytes": 440
+        },
+        {
+          "path": "ANE/KokoroNoise_v2.mlmodelc/metadata.json",
+          "url": "https://huggingface.co/FluidInference/kokoro-82m-coreml/resolve/006395f65025af251858b1ab0a7178a6a1e73f9f/ANE/KokoroNoise_v2.mlmodelc/metadata.json",
+          "sha256": "eb3102217532d952479c6f1b04d26d7ac4cdbc59875b6a23e8aae86e5e02c2bc",
+          "sizeBytes": 3020
+        },
+        {
+          "path": "ANE/KokoroNoise_v2.mlmodelc/model.mil",
+          "url": "https://huggingface.co/FluidInference/kokoro-82m-coreml/resolve/006395f65025af251858b1ab0a7178a6a1e73f9f/ANE/KokoroNoise_v2.mlmodelc/model.mil",
+          "sha256": "60233949d896f15ef38aea19afda558935d7569fa77a3ca4babddd3ffe845a36",
+          "sizeBytes": 93152
+        },
+        {
+          "path": "ANE/KokoroNoise_v2.mlmodelc/weights/weight.bin",
+          "url": "https://huggingface.co/FluidInference/kokoro-82m-coreml/resolve/006395f65025af251858b1ab0a7178a6a1e73f9f/ANE/KokoroNoise_v2.mlmodelc/weights/weight.bin",
+          "sha256": "1102fc2d31dfcfe3de3978a4c78b65202ff8b0a4d55a9304213bd4e8bda66bc2",
+          "sizeBytes": 4580160
+        },
+        {
+          "path": "ANE/KokoroPostAlbert.mlmodelc/analytics/coremldata.bin",
+          "url": "https://huggingface.co/FluidInference/kokoro-82m-coreml/resolve/006395f65025af251858b1ab0a7178a6a1e73f9f/ANE/KokoroPostAlbert.mlmodelc/analytics/coremldata.bin",
+          "sha256": "6640044c875505382edbc361cdd56f3f1c30f082953e0f9473a31ae3f71e6c43",
+          "sizeBytes": 243
+        },
+        {
+          "path": "ANE/KokoroPostAlbert.mlmodelc/coremldata.bin",
+          "url": "https://huggingface.co/FluidInference/kokoro-82m-coreml/resolve/006395f65025af251858b1ab0a7178a6a1e73f9f/ANE/KokoroPostAlbert.mlmodelc/coremldata.bin",
+          "sha256": "86de3ab0c1e8c6f8842b57bc24695a5099590c49b864e3fa2737b1fb5b15ba3b",
+          "sizeBytes": 556
+        },
+        {
+          "path": "ANE/KokoroPostAlbert.mlmodelc/metadata.json",
+          "url": "https://huggingface.co/FluidInference/kokoro-82m-coreml/resolve/006395f65025af251858b1ab0a7178a6a1e73f9f/ANE/KokoroPostAlbert.mlmodelc/metadata.json",
+          "sha256": "2e3be1af412a76e340120a01cd04a502666371ada86b1fdaf5a622896e0bf979",
+          "sizeBytes": 4171
+        },
+        {
+          "path": "ANE/KokoroPostAlbert.mlmodelc/model.mil",
+          "url": "https://huggingface.co/FluidInference/kokoro-82m-coreml/resolve/006395f65025af251858b1ab0a7178a6a1e73f9f/ANE/KokoroPostAlbert.mlmodelc/model.mil",
+          "sha256": "450b73a3b179e1702e7b2210bad008eac20d58b2d6076e3c2de76290a66e5fef",
+          "sizeBytes": 60047
+        },
+        {
+          "path": "ANE/KokoroPostAlbert.mlmodelc/weights/weight.bin",
+          "url": "https://huggingface.co/FluidInference/kokoro-82m-coreml/resolve/006395f65025af251858b1ab0a7178a6a1e73f9f/ANE/KokoroPostAlbert.mlmodelc/weights/weight.bin",
+          "sha256": "e4f300a23cc2e05d38680d9fc94681cc722d445076d1d248f83255122ba091c8",
+          "sizeBytes": 13806464
+        },
+        {
+          "path": "ANE/KokoroProsody_v2.mlmodelc/analytics/coremldata.bin",
+          "url": "https://huggingface.co/FluidInference/kokoro-82m-coreml/resolve/006395f65025af251858b1ab0a7178a6a1e73f9f/ANE/KokoroProsody_v2.mlmodelc/analytics/coremldata.bin",
+          "sha256": "804d7d2e9a8fed345cedb57da61bd27fdd95db22a070cfa7d42ccd4f8e80a443",
+          "sizeBytes": 243
+        },
+        {
+          "path": "ANE/KokoroProsody_v2.mlmodelc/coremldata.bin",
+          "url": "https://huggingface.co/FluidInference/kokoro-82m-coreml/resolve/006395f65025af251858b1ab0a7178a6a1e73f9f/ANE/KokoroProsody_v2.mlmodelc/coremldata.bin",
+          "sha256": "db8776a4896f690fd254cdb68a4551c168411c9b3fb98219630215bc3c357986",
+          "sizeBytes": 421
+        },
+        {
+          "path": "ANE/KokoroProsody_v2.mlmodelc/model.mil",
+          "url": "https://huggingface.co/FluidInference/kokoro-82m-coreml/resolve/006395f65025af251858b1ab0a7178a6a1e73f9f/ANE/KokoroProsody_v2.mlmodelc/model.mil",
+          "sha256": "e6acad9f44d70b1dba0aea6a5d25ee4edf68fe8f2933399ee81f70ace61cbc8b",
+          "sizeBytes": 73353
+        },
+        {
+          "path": "ANE/KokoroProsody_v2.mlmodelc/weights/weight.bin",
+          "url": "https://huggingface.co/FluidInference/kokoro-82m-coreml/resolve/006395f65025af251858b1ab0a7178a6a1e73f9f/ANE/KokoroProsody_v2.mlmodelc/weights/weight.bin",
+          "sha256": "70eea4cd2523992fa1fea840e31ab6f4fdd69c1598e220985a2ae6ea5da1e944",
+          "sizeBytes": 8513664
+        },
+        {
+          "path": "ANE/KokoroTail_v2.mlmodelc/analytics/coremldata.bin",
+          "url": "https://huggingface.co/FluidInference/kokoro-82m-coreml/resolve/006395f65025af251858b1ab0a7178a6a1e73f9f/ANE/KokoroTail_v2.mlmodelc/analytics/coremldata.bin",
+          "sha256": "a06e4b91c2b8a8be3ff701558a5f1f6484921f948202663fe6df78f248d42222",
+          "sizeBytes": 243
+        },
+        {
+          "path": "ANE/KokoroTail_v2.mlmodelc/coremldata.bin",
+          "url": "https://huggingface.co/FluidInference/kokoro-82m-coreml/resolve/006395f65025af251858b1ab0a7178a6a1e73f9f/ANE/KokoroTail_v2.mlmodelc/coremldata.bin",
+          "sha256": "527271f6df56cc308a5f89374c92108aef7b837ab15f0ba4900d555588dbd905",
+          "sizeBytes": 392
+        },
+        {
+          "path": "ANE/KokoroTail_v2.mlmodelc/metadata.json",
+          "url": "https://huggingface.co/FluidInference/kokoro-82m-coreml/resolve/006395f65025af251858b1ab0a7178a6a1e73f9f/ANE/KokoroTail_v2.mlmodelc/metadata.json",
+          "sha256": "7708ecc145eecf8e3ef5ef8979ea7a4f77d04c8da787454c6d9190e5300fc50b",
+          "sizeBytes": 1872
+        },
+        {
+          "path": "ANE/KokoroTail_v2.mlmodelc/model.mil",
+          "url": "https://huggingface.co/FluidInference/kokoro-82m-coreml/resolve/006395f65025af251858b1ab0a7178a6a1e73f9f/ANE/KokoroTail_v2.mlmodelc/model.mil",
+          "sha256": "b0b8fd573bac76ba7eb85730eeb25538fc7f1c666ecbf939fd4b3a4ad4495ad7",
+          "sizeBytes": 7014
+        },
+        {
+          "path": "ANE/KokoroTail_v2.mlmodelc/weights/weight.bin",
+          "url": "https://huggingface.co/FluidInference/kokoro-82m-coreml/resolve/006395f65025af251858b1ab0a7178a6a1e73f9f/ANE/KokoroTail_v2.mlmodelc/weights/weight.bin",
+          "sha256": "8ede31ec20df7d86a124287ac12d13507651e2a693e9d4f35f0e7f92cba422c7",
+          "sizeBytes": 81088
+        },
+        {
+          "path": "ANE/KokoroVocoder.mlmodelc/analytics/coremldata.bin",
+          "url": "https://huggingface.co/FluidInference/kokoro-82m-coreml/resolve/006395f65025af251858b1ab0a7178a6a1e73f9f/ANE/KokoroVocoder.mlmodelc/analytics/coremldata.bin",
+          "sha256": "1cc4f1e6436597c6d458a845570d9d0ace458813ff90f225d08e0e713496b463",
+          "sizeBytes": 243
+        },
+        {
+          "path": "ANE/KokoroVocoder.mlmodelc/coremldata.bin",
+          "url": "https://huggingface.co/FluidInference/kokoro-82m-coreml/resolve/006395f65025af251858b1ab0a7178a6a1e73f9f/ANE/KokoroVocoder.mlmodelc/coremldata.bin",
+          "sha256": "71bac80d2f2f077fefc0d66cdc39c0faaa96540b3a6149093ef29de01b1f8764",
+          "sizeBytes": 626
+        },
+        {
+          "path": "ANE/KokoroVocoder.mlmodelc/metadata.json",
+          "url": "https://huggingface.co/FluidInference/kokoro-82m-coreml/resolve/006395f65025af251858b1ab0a7178a6a1e73f9f/ANE/KokoroVocoder.mlmodelc/metadata.json",
+          "sha256": "a8e768f151225a52476d35f6ab90805ae00f1f78b83be4ca21327029c800c183",
+          "sizeBytes": 4331
+        },
+        {
+          "path": "ANE/KokoroVocoder.mlmodelc/model.mil",
+          "url": "https://huggingface.co/FluidInference/kokoro-82m-coreml/resolve/006395f65025af251858b1ab0a7178a6a1e73f9f/ANE/KokoroVocoder.mlmodelc/model.mil",
+          "sha256": "52f2febec45094e78a5948a3a47f023be8fc57cfd48cc99e8d4c358a13674ef2",
+          "sizeBytes": 309000
+        },
+        {
+          "path": "ANE/KokoroVocoder.mlmodelc/weights/weight.bin",
+          "url": "https://huggingface.co/FluidInference/kokoro-82m-coreml/resolve/006395f65025af251858b1ab0a7178a6a1e73f9f/ANE/KokoroVocoder.mlmodelc/weights/weight.bin",
+          "sha256": "6d1f96eb50218ab687b12d6d862d2ae854c12b7165c3cd9b6b5cef261ef02ff1",
+          "sizeBytes": 48889920
+        },
+        {
+          "path": "ANE/LICENSE",
+          "url": "https://huggingface.co/FluidInference/kokoro-82m-coreml/resolve/006395f65025af251858b1ab0a7178a6a1e73f9f/ANE/LICENSE",
+          "sha256": "f29080b0389b53eb15c81fd882c3c71dcbf92b99c5d94ea51df9d7d877fd9fe4",
+          "sizeBytes": 11339
+        },
+        {
+          "path": "ANE/af_heart.bin",
+          "url": "https://huggingface.co/FluidInference/kokoro-82m-coreml/resolve/006395f65025af251858b1ab0a7178a6a1e73f9f/ANE/af_heart.bin",
+          "sha256": "d583ccff3cdca2f7fae535cb998ac07e9fcb90f09737b9a41fa2734ec44a8f0b",
+          "sizeBytes": 522240
+        },
+        {
+          "path": "ANE/vocab.json",
+          "url": "https://huggingface.co/FluidInference/kokoro-82m-coreml/resolve/006395f65025af251858b1ab0a7178a6a1e73f9f/ANE/vocab.json",
+          "sha256": "8d65b0188b77eafc60751dac42bbac7ab5f5685074af44db91d1877b42dc1d7c",
+          "sizeBytes": 1416
+        },
+        {
+          "path": "G2PDecoder.mlmodelc/analytics/coremldata.bin",
+          "url": "https://huggingface.co/FluidInference/kokoro-82m-coreml/resolve/006395f65025af251858b1ab0a7178a6a1e73f9f/G2PDecoder.mlmodelc/analytics/coremldata.bin",
+          "sha256": "dbf1767747fdc188222d467a45b04608b396c76c71db3abb18a5fb3680ef9827",
+          "sizeBytes": 243
+        },
+        {
+          "path": "G2PDecoder.mlmodelc/coremldata.bin",
+          "url": "https://huggingface.co/FluidInference/kokoro-82m-coreml/resolve/006395f65025af251858b1ab0a7178a6a1e73f9f/G2PDecoder.mlmodelc/coremldata.bin",
+          "sha256": "607e960f19b4d9a30317a5a11869fcce84b300a909fcab2cc756c0d98e2dacd9",
+          "sizeBytes": 545
+        },
+        {
+          "path": "G2PDecoder.mlmodelc/metadata.json",
+          "url": "https://huggingface.co/FluidInference/kokoro-82m-coreml/resolve/006395f65025af251858b1ab0a7178a6a1e73f9f/G2PDecoder.mlmodelc/metadata.json",
+          "sha256": "e54e98484fd60d26f22fd3c4e7fe87b0d92a5d2de1f958cc3c4bb36d4ae06a44",
+          "sizeBytes": 3064
+        },
+        {
+          "path": "G2PDecoder.mlmodelc/model.mil",
+          "url": "https://huggingface.co/FluidInference/kokoro-82m-coreml/resolve/006395f65025af251858b1ab0a7178a6a1e73f9f/G2PDecoder.mlmodelc/model.mil",
+          "sha256": "fe647c598e0d9454d360b8ee49a59ae57ca147fc5330863ba84ccb90dce482ad",
+          "sizeBytes": 19737
+        },
+        {
+          "path": "G2PDecoder.mlmodelc/weights/weight.bin",
+          "url": "https://huggingface.co/FluidInference/kokoro-82m-coreml/resolve/006395f65025af251858b1ab0a7178a6a1e73f9f/G2PDecoder.mlmodelc/weights/weight.bin",
+          "sha256": "cbaeb4e743359f607ab161af0c6d8a817462fdaec622ee788ef8ef952c5f8214",
+          "sizeBytes": 828030
+        },
+        {
+          "path": "G2PEncoder.mlmodelc/analytics/coremldata.bin",
+          "url": "https://huggingface.co/FluidInference/kokoro-82m-coreml/resolve/006395f65025af251858b1ab0a7178a6a1e73f9f/G2PEncoder.mlmodelc/analytics/coremldata.bin",
+          "sha256": "cf7fbd7e7a65529b2d2bf3941e458a0ab6dff7a298bf48e205a1727c81c26a99",
+          "sizeBytes": 243
+        },
+        {
+          "path": "G2PEncoder.mlmodelc/coremldata.bin",
+          "url": "https://huggingface.co/FluidInference/kokoro-82m-coreml/resolve/006395f65025af251858b1ab0a7178a6a1e73f9f/G2PEncoder.mlmodelc/coremldata.bin",
+          "sha256": "0f14d46ca9fd06c68b4717294575b2b99449e67d40b7a2c56f926bf05cd90b11",
+          "sizeBytes": 398
+        },
+        {
+          "path": "G2PEncoder.mlmodelc/metadata.json",
+          "url": "https://huggingface.co/FluidInference/kokoro-82m-coreml/resolve/006395f65025af251858b1ab0a7178a6a1e73f9f/G2PEncoder.mlmodelc/metadata.json",
+          "sha256": "c8e0cfd7f494ac1b3662ff8f1914b2b45f79ffb2791724cdc0576981996732e1",
+          "sizeBytes": 2034
+        },
+        {
+          "path": "G2PEncoder.mlmodelc/model.mil",
+          "url": "https://huggingface.co/FluidInference/kokoro-82m-coreml/resolve/006395f65025af251858b1ab0a7178a6a1e73f9f/G2PEncoder.mlmodelc/model.mil",
+          "sha256": "8c617e569f37286b056dad800d862dc145be9a95fa9ed43857bb646ba199d7da",
+          "sizeBytes": 20392
+        },
+        {
+          "path": "G2PEncoder.mlmodelc/weights/weight.bin",
+          "url": "https://huggingface.co/FluidInference/kokoro-82m-coreml/resolve/006395f65025af251858b1ab0a7178a6a1e73f9f/G2PEncoder.mlmodelc/weights/weight.bin",
+          "sha256": "6926bcd2827d21fec82839487b987e06f85fd8a6a5bb896bc4f6062461d014ec",
+          "sizeBytes": 694592
+        },
+        {
+          "path": "g2p_vocab.json",
+          "url": "https://huggingface.co/FluidInference/kokoro-82m-coreml/resolve/006395f65025af251858b1ab0a7178a6a1e73f9f/g2p_vocab.json",
+          "sha256": "295ed64b86c2820cd665b0602ae50c6947c0e82ac643082873e0be87dca282ce",
+          "sizeBytes": 1665
+        },
+        {
+          "path": "us_lexicon_cache.json",
+          "url": "https://huggingface.co/FluidInference/kokoro-82m-coreml/resolve/006395f65025af251858b1ab0a7178a6a1e73f9f/us_lexicon_cache.json",
+          "sha256": "6b36ba313202227d6914ad32cd684a0304bd2757e9ec4158ea7bc36ec40e224e",
+          "sizeBytes": 10444631
+        }
+      ],
+      "license": "Apache-2.0",
+      "attribution": "hexgrad Kokoro-82M; FluidInference and laishere CoreML conversion; Misaki-derived English lexicon and BART G2P",
+      "licenseURL": "https://huggingface.co/FluidInference/kokoro-82m-coreml/blob/006395f65025af251858b1ab0a7178a6a1e73f9f/ANE/LICENSE",
+      "sourceURL": "https://huggingface.co/FluidInference/kokoro-82m-coreml",
+      "runtimeNotes": "ANE/ contains seven required compiled bundles and af_heart. English G2P and lexicon at root require explicit offline loader paths; default FluidAudio G2P ignores a supplied ANE directory."
+    },
+    {
+      "id": "privacyFilter",
+      "revision": "1104f279561344d697ef360d1bbc854acaa1a75d",
+      "estimatedSizeBytes": 1269572251,
+      "files": [
+        {
+          "path": "config.json",
+          "url": "https://huggingface.co/openai/privacy-filter/resolve/7ffa9a043d54d1be65afb281eddf0ffbe629385b/config.json",
+          "sha256": "b2b26a4a4a000639ad30b0c264adbefe365bdb567fbd7bb27303b8c438375bd1",
+          "sizeBytes": 3039
+        },
+        {
+          "path": "model.pte",
+          "url": "https://huggingface.co/software-mansion/react-native-executorch-privacy-filter-openai/resolve/1104f279561344d697ef360d1bbc854acaa1a75d/xnnpack/privacy_filter_openai_xnnpack_8da4w.pte",
+          "sha256": "afe0d622225538aa0d96afad41badf47d5c8624c3fd8bb948a5bc45099c480ff",
+          "sizeBytes": 1241699460
+        },
+        {
+          "path": "runtime_config.json",
+          "url": "https://huggingface.co/software-mansion/react-native-executorch-privacy-filter-openai/resolve/1104f279561344d697ef360d1bbc854acaa1a75d/xnnpack/config.json",
+          "sha256": "d0b8c8f268b5f6d5d445951a6f54eaee6de411fec0fbaabaeee3ab7b8ef13605",
+          "sizeBytes": 972
+        },
+        {
+          "path": "tokenizer.json",
+          "url": "https://huggingface.co/software-mansion/react-native-executorch-privacy-filter-openai/resolve/1104f279561344d697ef360d1bbc854acaa1a75d/tokenizer.json",
+          "sha256": "0614fe83cadab421296e664e1f48f4261fa8fef6e03e63bb75c20f38e37d07d3",
+          "sizeBytes": 27868174
+        },
+        {
+          "path": "tokenizer_config.json",
+          "url": "https://huggingface.co/software-mansion/react-native-executorch-privacy-filter-openai/resolve/1104f279561344d697ef360d1bbc854acaa1a75d/tokenizer_config.json",
+          "sha256": "6c14af9ce1a284d3c3c5146b26efe4cd589c68e1dd4e9d94455606ec911ba774",
+          "sizeBytes": 234
+        },
+        {
+          "path": "viterbi_calibration.json",
+          "url": "https://huggingface.co/software-mansion/react-native-executorch-privacy-filter-openai/resolve/1104f279561344d697ef360d1bbc854acaa1a75d/viterbi_calibration.json",
+          "sha256": "bbc8611ef08a55ed72d64856cbbbb9a91db8dfa881f0a92e2afbad6e4bbc775a",
+          "sizeBytes": 372
+        }
+      ],
+      "license": "Apache-2.0",
+      "attribution": "OpenAI Privacy Filter; Software Mansion ExecuTorch XNNPACK conversion",
+      "licenseURL": "https://github.com/openai/privacy-filter/blob/main/LICENSE",
+      "sourceURL": "https://huggingface.co/software-mansion/react-native-executorch-privacy-filter-openai",
+      "upstreamRevision": "7ffa9a043d54d1be65afb281eddf0ffbe629385b",
+      "runtimeNotes": "CPU XNNPACK 8da4w export is model.pte. config.json is official OpenAI id2label/config; runtime_config.json is the export configuration. Tokenizer and Viterbi calibration are colocated."
+    }
+  ]
+}

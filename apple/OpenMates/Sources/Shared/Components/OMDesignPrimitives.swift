@@ -3,6 +3,12 @@
 // Never use Form, List, Toggle, Picker, NavigationStack, etc. in product UI — use these instead.
 // Specification: specifications/features/message-input/specification.yml
 // Assertion: message-input.layout.responsive-parity
+// Specification: specifications/features/projects/specification.yml
+// Assertions: projects.surface.semantic-parity
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.surface.semantic-parity
+// Specification: specifications/features/workflows-ui/specification.yml
+// Assertions: workflows-ui.detail.stable-visual-header
 //
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/settings/elements/SettingsItem.svelte
@@ -13,12 +19,87 @@
 //          frontend/packages/ui/src/components/settings/elements/SettingsPageContainer.svelte
 //          frontend/packages/ui/src/components/Toggle.svelte
 //          frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+//          frontend/packages/ui/src/components/HeaderActionMenu.svelte
+//          frontend/packages/ui/src/components/projects/ProjectWorkspaceHeader.svelte
 // CSS:     frontend/packages/ui/src/components/enter_message/MessageInput.styles.css
 // CSS:     Toggle: 52x32 track, 24px thumb, grey-30 off / primary gradient on
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
 
 import SwiftUI
+
+/// Active-chat floating control, shared by fixed Project and Workflow actions.
+/// Its host determines whether the control currently intersects the banner.
+struct NativeHeaderActionPill: View {
+    let icon: String
+    let label: String
+    var showsLabel = false
+    let overlapsHeader: Bool
+    let accessibilityIdentifier: String
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: .spacing2) {
+                ZStack {
+                    Icon(icon, size: 22).foregroundStyle(LinearGradient.primary)
+                        .opacity(overlapsHeader ? 0 : 1)
+                    Icon(icon, size: 22).foregroundStyle(.white)
+                        .opacity(overlapsHeader ? 1 : 0)
+                }
+                if showsLabel {
+                    Text(label).font(.omSmall.weight(.semibold))
+                        .foregroundStyle(overlapsHeader ? Color.white : Color.grey100)
+                }
+            }
+            .padding(.horizontal, showsLabel ? .spacing4 : 0)
+            .frame(minWidth: 44, minHeight: 44)
+            .background(overlapsHeader ? Color.white.opacity(0.2) : Color.grey10)
+            .clipShape(Capsule())
+            .shadow(color: .black.opacity(0.18), radius: 12, x: 0, y: 4)
+            .accessibilityHidden(true)
+        }
+        .buttonStyle(.plain)
+        .help(Text(label))
+        .accessibilityLabel(label)
+        .accessibilityIdentifier(accessibilityIdentifier)
+    }
+}
+
+/// Active-chat overflow action; banner overlap is optional for existing hosts.
+struct NativeHeaderMenuActionPill: View {
+    let icon: String
+    let label: String
+    var overlapsHeader = false
+    let accessibilityIdentifier: String
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: .spacing3) {
+                ZStack {
+                    Icon(icon, size: 20).foregroundStyle(LinearGradient.primary)
+                        .opacity(overlapsHeader ? 0 : 1)
+                    Icon(icon, size: 20).foregroundStyle(.white)
+                        .opacity(overlapsHeader ? 1 : 0)
+                }
+                Text(label)
+                    .font(.omSmall.weight(.semibold))
+                    .foregroundStyle(overlapsHeader ? Color.white : Color.grey100)
+                    .multilineTextAlignment(.leading)
+            }
+            .padding(.horizontal, .spacing4)
+            .frame(minHeight: 40, alignment: .leading)
+            .contentShape(Rectangle())
+            .background(overlapsHeader ? Color.white.opacity(0.2) : Color.grey10)
+            .clipShape(Capsule())
+            .shadow(color: .black.opacity(0.18), radius: 8, x: 0, y: 4)
+            .fixedSize(horizontal: true, vertical: false)
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier(accessibilityIdentifier)
+    }
+}
 
 private struct OMSettingsScrollOffsetPreferenceKey: PreferenceKey {
     static var defaultValue: CGFloat { 0 }

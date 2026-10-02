@@ -1,10 +1,21 @@
 import SwiftUI
 
+// Web chrome: frontend/packages/ui/src/components/chats/Chats.svelte .chats-topbar.
 // Web reference: ProjectsPage.svelte's `variant === 'sidebar'` surface.
 struct ProjectsSidebarView: View {
     @ObservedObject var store: ProjectsWorkspaceStore
     var onClose: () -> Void
     var onOpenProject: (String) -> Void
+
+    @State private var searchQuery = ""
+    @State private var showsSearch = false
+
+    private var visibleProjects: [ProjectWorkspaceProject] {
+        let query = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        return query.isEmpty ? store.projects : store.projects.filter {
+            $0.name.localizedCaseInsensitiveContains(query) || $0.description.localizedCaseInsensitiveContains(query)
+        }
+    }
 
     @State private var newName = ""
     @State private var policyName = ""
@@ -13,20 +24,12 @@ struct ProjectsSidebarView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                Spacer()
-                Button(action: onClose) {
-                    Icon("close", size: 19)
-                        .frame(width: 44, height: 44)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(AppStrings.projectSidebarClose)
-                .accessibilityIdentifier("projects-sidebar-close")
+            WorkspaceSidebarHeader(onSearch: { showsSearch.toggle(); if !showsSearch { searchQuery = "" } },
+                onClose: onClose, searchIdentifier: "projects-sidebar-search",
+                closeIdentifier: "projects-sidebar-close", topBarIdentifier: "projects-sidebar-topbar")
+            if showsSearch {
+                WorkspaceSidebarSearchField(query: $searchQuery, identifier: "projects-sidebar-search-input")
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .background(Color.grey20)
-            .overlay(alignment: .bottom) { Color.grey30.frame(height: 1) }
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
@@ -57,9 +60,12 @@ struct ProjectsSidebarView: View {
                                 }
                             }
                         }
+                    } else if visibleProjects.isEmpty {
+                        Text(AppStrings.searchNoResults).font(.omSmall).foregroundStyle(Color.fontSecondary)
+                            .accessibilityIdentifier("projects-sidebar-no-matches")
                     } else {
                         LazyVStack(spacing: 8) {
-                            ForEach(store.projects) { project in
+                            ForEach(visibleProjects) { project in
                                 Button {
                                     Task {
                                         await store.selectProject(project.id)

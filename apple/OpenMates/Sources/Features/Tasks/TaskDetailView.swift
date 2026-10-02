@@ -5,7 +5,7 @@ import SwiftUI
 //             frontend/packages/ui/src/components/tasks/TaskDetailContent.svelte
 //             frontend/packages/ui/src/components/tasks/TaskActivity.svelte
 // Specification: specifications/features/tasks/specification.yml
-// Assertions: tasks.detail.embed-responsive, tasks.activity.single-final-section
+// Assertions: tasks.detail.embed-responsive, tasks.activity.single-final-section, tasks.assignment.identity-separated
 struct TaskDetailView: View {
     @ObservedObject var store: TasksWorkspaceStore
     let task: UserTaskItem
@@ -489,7 +489,8 @@ struct TaskDetailView: View {
     private func save() {
         let patch = UserTaskUpdateInput(title: title, description: description,
                                         tags: tags.split(separator: ",").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) },
-                                        status: status, assigneeType: assignee,
+                                        status: status,
+                                        assigneeType: assignee == current.assigneeType ? nil : assignee,
                                         dueAt: hasDueDate ? Int(dueDate.timeIntervalSince1970) : nil,
                                         clearDueAt: !hasDueDate && current.dueAt != nil)
         editing = false

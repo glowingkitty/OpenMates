@@ -1,8 +1,13 @@
 // Native Workflow home, sidebar, editor, versions and run history.
 // Web source: frontend/apps/web_app/src/routes/workflows/+page.svelte
 //             frontend/packages/ui/src/components/workspace/WorkflowSidebar.svelte
+//             frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte
+// CSS: +page.svelte .workflow-management, .workflow-detail, #tabpanel-template
 // Specification: specifications/features/workflows/specification.yml
 // Assertions: workflows.mvp.list, workflows.mvp.editor, workflows.mvp.run-history
+// Specification: specifications/features/workflows-ui/specification.yml
+// Assertions: workflows-ui.detail.stable-visual-header, workflows-ui.detail.shared-template-runs-tabs,
+//             workflows-ui.template.centered-in-place-editor
 
 import SwiftUI
 
@@ -28,7 +33,8 @@ struct WorkflowWorkspaceView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .task {
-            guard !ProcessInfo.processInfo.arguments.contains("--ui-test-workflows-fixture") else { return }
+            guard !ProcessInfo.processInfo.arguments.contains("--ui-test-workflows-fixture"),
+                  !ProcessInfo.processInfo.arguments.contains("--ui-test-workspace-sidebar-fixture") else { return }
             await store.load()
         }
         .background(Color.grey0)
@@ -39,56 +45,80 @@ struct WorkflowWorkspaceView: View {
 
 struct WorkflowSidebarView: View {
     @ObservedObject var store: WorkflowStore
+    var onClose: () -> Void = {}
+    @State private var searchQuery = ""
+    @State private var showsSearch = false
+
+    private var visibleWorkflows: [WorkflowSummary] {
+        let query = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        return query.isEmpty ? store.workflows : store.workflows.filter {
+            $0.title.localizedCaseInsensitiveContains(query)
+                || ($0.description ?? "").localizedCaseInsensitiveContains(query)
+                || ($0.triggerSummary ?? "").localizedCaseInsensitiveContains(query)
+        }
+    }
+
     let onSelect: (WorkflowSummary) -> Void
 
     var body: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: .spacing5) {
-                HStack {
-                    Text(AppStrings.workflows)
-                        .font(.omSmall.weight(.heavy))
-                        .textCase(.uppercase)
-                        .tracking(1.1)
-                    Spacer()
-                    Text("\(store.workflows.count)")
-                        .font(.omSmall)
-                        .frame(minWidth: 29, minHeight: 29)
-                        .background(Color.grey10, in: Circle())
-                }
-                .foregroundStyle(Color.fontSecondary)
+        VStack(spacing: 0) {
+            WorkspaceSidebarHeader(onSearch: { showsSearch.toggle(); if !showsSearch { searchQuery = "" } },
+                onClose: onClose, searchIdentifier: "workflows-sidebar-search",
+                closeIdentifier: "workflows-sidebar-close", topBarIdentifier: "workflows-sidebar-topbar")
+            if showsSearch {
+                WorkspaceSidebarSearchField(query: $searchQuery, identifier: "workflows-sidebar-search-input")
+            }
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: .spacing5) {
+                    HStack {
+                        Text(AppStrings.workflows)
+                            .font(.omSmall.weight(.heavy))
+                            .textCase(.uppercase)
+                            .tracking(1.1)
+                        Spacer()
+                        Text("\(visibleWorkflows.count)")
+                            .font(.omSmall)
+                            .frame(minWidth: 29, minHeight: 29)
+                            .background(Color.grey10, in: Circle())
+                    }
+                    .foregroundStyle(Color.fontSecondary)
 
-                if store.isLoading && store.workflows.isEmpty {
-                    Text(AppStrings.workflowSidebarLoading)
-                        .font(.omSmall)
-                        .foregroundStyle(Color.fontSecondary)
-                } else if store.workflows.isEmpty {
-                    Text(AppStrings.workflowSidebarEmpty)
-                        .font(.omSmall)
-                        .foregroundStyle(Color.fontSecondary)
-                } else {
-                    ForEach(store.workflows) { workflow in
-                        Button { onSelect(workflow) } label: {
-                            VStack(alignment: .leading, spacing: .spacing2) {
-                                Text(workflow.title)
-                                    .font(.omSmall.weight(.semibold))
-                                    .foregroundStyle(Color.fontPrimary)
-                                    .lineLimit(1)
-                                Text("\(workflow.enabled ? AppStrings.enabled : AppStrings.workflowBuilder(.draft)) · \(workflow.triggerSummary ?? AppStrings.workflowSidebarManual)")
-                                    .font(.omSmall)
-                                    .foregroundStyle(Color.fontSecondary)
+                    if store.isLoading && store.workflows.isEmpty {
+                        Text(AppStrings.workflowSidebarLoading)
+                            .font(.omSmall)
+                            .foregroundStyle(Color.fontSecondary)
+                    } else if store.workflows.isEmpty {
+                        Text(AppStrings.workflowSidebarEmpty)
+                            .font(.omSmall)
+                            .foregroundStyle(Color.fontSecondary)
+                    } else if visibleWorkflows.isEmpty {
+                        Text(AppStrings.searchNoResults).font(.omSmall).foregroundStyle(Color.fontSecondary)
+                            .accessibilityIdentifier("workflows-sidebar-no-matches")
+                    } else {
+                        ForEach(visibleWorkflows) { workflow in
+                            Button { onSelect(workflow) } label: {
+                                VStack(alignment: .leading, spacing: .spacing2) {
+                                    Text(workflow.title)
+                                        .font(.omSmall.weight(.semibold))
+                                        .foregroundStyle(Color.fontPrimary)
+                                        .lineLimit(1)
+                                    Text("\(workflow.enabled ? AppStrings.enabled : AppStrings.workflowBuilder(.draft)) · \(workflow.triggerSummary ?? AppStrings.workflowSidebarManual)")
+                                        .font(.omSmall)
+                                        .foregroundStyle(Color.fontSecondary)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.spacing4)
+                                .background(Color.grey10, in: RoundedRectangle(cornerRadius: .radius8))
                             }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.spacing4)
-                            .background(Color.grey10, in: RoundedRectangle(cornerRadius: .radius8))
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("workflow-sidebar-row")
                         }
-                        .buttonStyle(.plain)
-                        .accessibilityIdentifier("workflow-sidebar-row")
                     }
                 }
+                .padding(.spacing6)
             }
-            .padding(.spacing6)
         }
-        .background(Color.grey0)
+        .background(Color.grey20)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("workflows-sidebar")
     }
@@ -109,6 +139,7 @@ private struct WorkflowEditorView: View {
     @State private var showSharingSoon = false
     @State private var showingVoiceInput = false
     @State private var revealedEditorId: String?
+    @State private var headerBounds: CGRect = .zero
 
     private var canActivate: Bool {
         !workflow.graph.triggerNodeId.isEmpty && workflow.graph.nodes.count > 1
@@ -123,19 +154,16 @@ private struct WorkflowEditorView: View {
                 WorkflowDetailHeader(
                     title: workflow.title, description: workflow.description,
                     category: workflow.category ?? "general_knowledge", icon: workflow.icon ?? "",
-                    enabled: workflow.enabled, canEnable: canActivate, canRun: canActivate,
+                    enabled: workflow.enabled, canEnable: canActivate,
                     createdAt: workflow.createdAt, nextRunAt: workflow.nextRunAt,
                     saving: store.isLoading, tab: $tab,
                     onUpdateIdentity: { title, description in
                         await store.save(title: title, description: description, graph: workflow.graph)
                     },
                     onToggleEnabled: { Task { await store.setEnabled(!workflow.enabled) } },
-                    onRun: { Task { await store.runSelected(); tab = .runs } },
-                    onDelete: { confirmDelete = true },
-                    onBack: { store.clearSelection() },
-                    onShare: { showSharingSoon = true },
-                    onReportIssue: onReportIssue
+                    onBannerBoundsChange: { headerBounds = $0 }
                 )
+                .zIndex(1) // Tabs overlap the template panel's rounded top surface.
                 .confirmationDialog(AppStrings.workflowBuilder(.delete_workflow), isPresented: $confirmDelete) {
                     Button(AppStrings.workflowBuilder(.delete_workflow), role: .destructive) {
                         Task { await store.deleteSelected() }
@@ -143,6 +171,7 @@ private struct WorkflowEditorView: View {
                 }
 
                 if tab == .template {
+                    VStack(spacing: 0) {
                     VStack(spacing: .spacing4) {
                         WorkflowAIAuthoringStatusView(authoring: authoring, workflowId: workflow.id) {
                             Task { await store.undoInstruction() }
@@ -191,10 +220,17 @@ private struct WorkflowEditorView: View {
                         )
 
                     }
-                    .frame(maxWidth: 960)
-                    .frame(maxWidth: .infinity)
                     .accessibilityElement(children: .contain)
                     .accessibilityIdentifier("workflow-editor")
+                    }
+                    .padding(.top, .spacing20)
+                    // Web #tabpanel-template: mobile 100%-1rem; wide 100%-4rem, capped at 60rem.
+                    .frame(maxWidth: min(960, max(0, viewport.size.width - (viewport.size.width <= 730 ? .spacing8 : .spacing32))))
+                    .background(Color.grey0, in: RoundedRectangle(cornerRadius: .spacing16))
+                    .accessibilityElement(children: .contain)
+                    .accessibilityIdentifier("workflow-template-panel")
+                    .frame(maxWidth: .infinity)
+                    .padding(.bottom, .spacing16)
                 } else {
                     WorkflowRunTimelineView(
                         workflow: workflow, runs: store.runs, detail: store.selectedRunDetail,
@@ -213,7 +249,10 @@ private struct WorkflowEditorView: View {
                     }
                 }
             }
+            .frame(minHeight: viewport.size.height, alignment: .top)
+            .background(Color.grey10)
         }
+        .background(Color.grey10)
         .coordinateSpace(name: WorkflowEditorScrollTarget.coordinateSpace)
         .onPreferenceChange(WorkflowEditorScrollTargetKey.self) { target in
             revealEditor(target, viewportHeight: viewport.size.height, using: scrollProxy)
@@ -221,11 +260,30 @@ private struct WorkflowEditorView: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("workflow-management")
         }
+        .overlay(alignment: .top) {
+            WorkflowDetailActions(
+                title: workflow.title, tab: tab, canRun: canActivate, saving: store.isLoading,
+                viewportWidth: viewport.size.width, headerBounds: headerBounds,
+                onRun: { Task { await store.runSelected(); tab = .runs } },
+                onDelete: { confirmDelete = true }, onBack: { store.clearSelection() },
+                onShare: { showSharingSoon = true }, onReportIssue: onReportIssue
+            )
+            .padding(.horizontal, 15) // WorkflowDetailPage .header-toolbar margin.
+            .padding(.top, 15) // WorkflowDetailPage sticky toolbar top.
+        }
+        .coordinateSpace(name: WorkflowDetailViewport.coordinateSpace)
+        .clipShape(RoundedRectangle(cornerRadius: viewport.size.width <= 730 ? .spacing12 : .spacing16))
+        .overlay {
+            RoundedRectangle(cornerRadius: viewport.size.width <= 730 ? .spacing12 : .spacing16)
+                .stroke(Color.grey20, lineWidth: 1)
+                .allowsHitTesting(false)
+        }
         }
         // Keep the actual scroll viewport separate from the composer. Its
         // measured height now excludes the dock, including for editor reveal.
             if tab == .template { dockedComposer }
         }
+        .background(Color.grey10)
         .task {
             guard !ProcessInfo.processInfo.arguments.contains("--ui-test-workflows-fixture") else { return }
             await store.loadCapabilities()

@@ -127,6 +127,53 @@ final class WorkflowsParityUITests: XCTestCase {
         XCTAssertEqual(summaries.count, initialCount, "Close must restore the compact summary.")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=workflows-ui.detail.stable-visual-header,workflows-ui.detail.shared-template-runs-tabs,workflows-ui.template.centered-in-place-editor
+    func testWorkflowActionPillsStayFixedAndChangeSurfaceWhenBannerScrollsAway() throws {
+        let app = launchWorkflowFixture("editor")
+        let scroll = app.scrollViews["workflow-management"]
+        XCTAssertTrue(scroll.waitForExistence(timeout: 8))
+        let toolbar = app.descendants(matching: .any)["workflow-header-toolbar"]
+        XCTAssertTrue(toolbar.waitForExistence(timeout: 5))
+        let initialOverlay = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "value == %@", "banner-overlay"), object: toolbar
+        )
+        XCTAssertEqual(XCTWaiter.wait(for: [initialOverlay], timeout: 5), .completed)
+        let report = app.buttons["workflow-report-issue"]
+        let more = app.buttons["workflow-detail-actions"]
+        let close = app.buttons["workflow-detail-back"]
+        XCTAssertTrue(report.isHittable); XCTAssertTrue(more.isHittable); XCTAssertTrue(close.isHittable)
+        let fixedY = more.frame.minY
+        XCTAssertEqual(fixedY, scroll.frame.minY + 15, accuracy: 2,
+                       "The shared action pills must use the web toolbar's fixed top inset.")
+        let panel = app.descendants(matching: .any)["workflow-template-panel"]
+        XCTAssertTrue(panel.exists, "The template graph must have its own rounded surface inside the detail container.")
+        XCTAssertGreaterThan(panel.frame.minX, scroll.frame.minX)
+        XCTAssertLessThan(panel.frame.maxX, scroll.frame.maxX)
+        attachScreenshot("Workflow shared chat action pills over gradient header and template container")
+
+        for _ in 0..<8 where toolbar.value as? String != "standard" { scroll.swipeUp() }
+        let standard = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "value == %@", "standard"), object: toolbar
+        )
+        XCTAssertEqual(XCTWaiter.wait(for: [standard], timeout: 5), .completed,
+                       "Leaving the gradient must restore the standard shared chat action surface.")
+        let banner = app.descendants(matching: .any)["workspace-detail-header"]
+        XCTAssertLessThan(banner.frame.maxY, more.frame.minY,
+                          "The style transition must follow the actual banner leaving the fixed actions.")
+        XCTAssertEqual(more.frame.minY, fixedY, accuracy: 1)
+        XCTAssertTrue(report.isHittable); XCTAssertTrue(more.isHittable); XCTAssertTrue(close.isHittable)
+        more.tap()
+        let delete = app.buttons["delete-workflow"]
+        XCTAssertTrue(delete.waitForExistence(timeout: 5))
+        XCTAssertTrue(delete.isHittable, "More must still expose actionable menu pills after scrolling the header away.")
+        XCTAssertTrue(app.buttons["run-workflow"].isHittable)
+        attachScreenshot("Workflow fixed actions and More menu after header scroll")
+        more.tap()
+        close.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["workflow-input-composer"].waitForExistence(timeout: 5),
+                      "The fixed Close control must return to the workflow home after scrolling.")
+    }
+
     // contract-test: supporting surface=gui.apple assertions=workflows-ui.template.centered-in-place-editor,workflows-ui.template.explicit-guarded-save,workflows.control.typed-data
     func testExpandedNodeMatrixMatchesRenderedWebFieldComposition() throws {
         let app = launchWorkflowFixture("editor-all-nodes")
@@ -222,6 +269,35 @@ final class WorkflowsParityUITests: XCTestCase {
             XCTAssertTrue(close.isHittable); close.tap()
             XCTAssertTrue(summary.exists, "Close must restore \(name)'s compact node.")
         }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=workflows.actions.skill-contract,workflows-ui.template.centered-in-place-editor
+    func testAppActionShowsOneEditableRequestWithoutTransportArrayHeading() throws {
+        let app = launchWorkflowFixture("editor")
+        let scroll = app.scrollViews["workflow-management"]
+        XCTAssertTrue(scroll.waitForExistence(timeout: 8))
+        let news = app.buttons.matching(identifier: "workflow-node-summary")
+            .matching(NSPredicate(format: "label CONTAINS[c] %@", "News")).firstMatch
+        XCTAssertTrue(news.exists)
+        for _ in 0..<12 where !news.isHittable { scroll.swipeUp() }
+        XCTAssertTrue(news.isHittable)
+        news.tap()
+
+        let query = app.textFields["workflow-input-news-request-0-query"]
+        XCTAssertTrue(query.waitForExistence(timeout: 5))
+        for _ in 0..<8 where !query.isHittable { scroll.swipeUp() }
+        XCTAssertTrue(query.isHittable, "The request's real Query field must be visible and editable.")
+        XCTAssertEqual(query.value as? String, "Germany news")
+        XCTAssertEqual(app.textFields.matching(NSPredicate(format: "identifier CONTAINS %@ AND identifier ENDSWITH %@", "-request-", "-query")).count, 1)
+        XCTAssertFalse(app.staticTexts.matching(NSPredicate(format: "label MATCHES[c] %@", "Requests ?\\*?")).firstMatch.exists)
+        XCTAssertFalse(app.staticTexts["Request 1"].exists,
+                       "A single request must expose its fields without a batch heading.")
+        XCTAssertFalse(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "workflows.builder.output_type_")).firstMatch.exists)
+        query.tap()
+        query.typeText(" updated")
+        XCTAssertEqual(query.value as? String, "Germany news updated")
+        XCTAssertTrue(app.buttons["workflow-node-save"].isEnabled)
+        attachScreenshot("Workflow app action single request fields")
     }
 
     // contract-test: supporting surface=gui.apple assertions=workflows-ui.template.centered-in-place-editor,workflows-ui.template.explicit-guarded-save

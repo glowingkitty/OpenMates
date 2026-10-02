@@ -16,6 +16,7 @@
 //          frontend/packages/ui/src/components/interactive_questions/InteractiveQuestionContainer.svelte
 // TypeScript: frontend/packages/ui/src/components/enter_message/utils/markdownParser.ts
 //             frontend/packages/ui/src/components/enter_message/extensions/MarkdownExtensions.ts
+//             frontend/packages/ui/src/message_parsing/parse_message.ts
 // CSS:     ChatEmbedPreview.svelte <style>
 //          SourceQuoteBlock.svelte .source-quote-block, .source-quote-text,
 //            .source-quote-badge
@@ -595,6 +596,29 @@ struct MarkdownEmbedReference: Equatable {
     let value: String
     let isRef: Bool
     let isLargePreview: Bool
+    var type: String? = nil
+}
+
+enum AppleStandaloneEmbedPreviewPresentation {
+    // Web parse_message.ts promotes standalone assistant embeds and non-code
+    // groups. App skill cards, inline images, focus activation, user cards and
+    // code groups retain their regular layout. Explicit [!] references keep
+    // their existing large-preview intent, including search result citations.
+    static func usesLargePreview(explicit: Bool, isUserMessage: Bool, embedTypes: [String]) -> Bool {
+        if explicit { return true }
+        guard !isUserMessage, !embedTypes.isEmpty else { return false }
+        return embedTypes.allSatisfy { rawType in
+            let baseType = rawType.hasSuffix("-group") ? String(rawType.dropLast(6)) : rawType
+            guard !baseType.hasPrefix("app:"),
+                  !["app_skill_use", "app-skill-use", "focus-mode-activation"].contains(baseType),
+                  let type = EmbedType.normalized(rawValue: baseType), type != .image else { return false }
+            return type != .codeCode || (embedTypes.count == 1 && !rawType.hasSuffix("-group"))
+        }
+    }
+
+    static func variant(containerWidth: CGFloat) -> EmbedPreviewCardVariant {
+        containerWidth > 400 ? .large : .compact
+    }
 }
 
 struct MarkdownParsedBlock {
@@ -876,13 +900,13 @@ enum MarkdownParser {
         }
         guard let data = trimmed.data(using: .utf8),
               let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              object["type"] is String,
+              let type = object["type"] as? String,
               let embedId = object["embed_id"] as? String,
               !embedId.isEmpty else {
             return nil
         }
         let isLargePreview = object["large_preview"] as? Bool ?? object["is_large_preview"] as? Bool ?? false
-        return MarkdownEmbedReference(value: embedId, isRef: false, isLargePreview: isLargePreview)
+        return MarkdownEmbedReference(value: embedId, isRef: false, isLargePreview: isLargePreview, type: type)
     }
 
     private static func parseTableRow(_ line: String) -> [String] {
@@ -1074,7 +1098,9 @@ struct RichMarkdownView: View {
     private func resolvedEmbedGroup(_ embeds: [EmbedRecord], isLargePreview: Bool) -> some View {
         let visibleEmbeds = embeds.filter { !hiddenEmbedIds.contains($0.id) }
         if !visibleEmbeds.isEmpty {
-            if isLargePreview {
+            if AppleStandaloneEmbedPreviewPresentation.usesLargePreview(
+                explicit: isLargePreview, isUserMessage: isUserMessage, embedTypes: visibleEmbeds.map { $0.isAppSkillUse ? "app-skill-use" : $0.type }
+            ) {
                 LargeEmbedPreviewCarousel(embeds: visibleEmbeds, allEmbedRecords: allEmbedRecords) { embed in
                     onEmbedTap?(embed)
                 }
@@ -1146,23 +1172,7 @@ struct RichMarkdownView: View {
             DemoRichGroupView(kind: kind, onOpenPublicChat: onOpenPublicChat)
 
         case .embedGroup(let references):
-            let embeds = references
-                .compactMap(resolveEmbed)
-                .filter { !hiddenEmbedIds.contains($0.id) }
-            if !embeds.isEmpty {
-                if references.first?.isLargePreview == true {
-                    LargeEmbedPreviewCarousel(embeds: embeds, allEmbedRecords: allEmbedRecords) { embed in
-                        onEmbedTap?(embed)
-                    }
-                } else {
-                    let groups = EmbedGrouper.groupForInlineDisplay(embeds)
-                    ForEach(groups) { group in
-                        GroupedEmbedView(group: group, allEmbedRecords: allEmbedRecords) { embed in
-                            onEmbedTap?(embed)
-                        }
-                    }
-                }
-            }
+            resolvedEmbedGroup(references.compactMap(resolveEmbed), isLargePreview: references.first?.isLargePreview == true)
 
         case .resultsView(let descriptor):
             resultsView(descriptor)
@@ -2397,6 +2407,27 @@ private struct AppleInteractiveQuestionCard: View {
         _comment = State(initialValue: "")
     }
 
+    private var questionBadgeColors: (foreground: Color, background: Color) {
+        switch payload.type {
+        case "input": return (Color(hex: 0x7950F2), Color(hex: 0xF3F0FF))
+        case "slider": return (Color(hex: 0xD6336C), Color(hex: 0xFFF0F6))
+        case "swipe": return (Color(hex: 0x0CA678), Color(hex: 0xE8F7F5))
+        case "rating": return (Color(hex: 0xF08C00), Color(hex: 0xFFF9DB))
+        default: return (Color(hex: 0x228BE6), Color(hex: 0xE7F5FF))
+        }
+    }
+
+    private var questionTypeLabel: String {
+        switch payload.type {
+        case "choice": return "Choice"
+        case "input": return "Form"
+        case "slider": return "Scale"
+        case "swipe": return "Swipe Decision"
+        case "rating": return "Rating"
+        default: return payload.type
+        }
+    }
+
     private var title: String {
         if let question = payload.question, !question.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             return question
@@ -2447,40 +2478,44 @@ private struct AppleInteractiveQuestionCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: .spacing4) {
+        VStack(alignment: .leading, spacing: .spacing12) {
+            Text(questionTypeLabel)
+                .font(.omTiny).fontWeight(.bold)
+                .tracking(0.5)
+                .textCase(.uppercase)
+                // Web type-badge colors have no generated token counterpart.
+                // InteractiveQuestionContainer.svelte: .*-badge.
+                .foregroundStyle(questionBadgeColors.foreground)
+                .padding(.horizontal, .spacing8)
+                .padding(.vertical, .spacing1)
+                .background(questionBadgeColors.background)
+                .clipShape(Capsule())
             Text(title)
-                .font(.omP)
-                .fontWeight(.semibold)
-                .foregroundStyle(Color.fontPrimary)
+                .font(.omH4)
+                .fontWeight(.bold)
+                .foregroundStyle(Color.fontTertiary)
 
             if onSubmit != nil {
                 interactiveControls
-                submitButton
+                questionFooter
             } else if !rows.isEmpty {
-                VStack(alignment: .leading, spacing: .spacing2) {
+                VStack(alignment: .leading, spacing: .spacing8) {
                     ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
-                        HStack(alignment: .top, spacing: .spacing2) {
-                            Circle()
-                                .fill(Color.buttonPrimary)
-                                .frame(width: 6, height: 6)
-                                .padding(.top, 7)
-                            Text(row)
-                                .font(.omSmall)
-                                .foregroundStyle(Color.fontSecondary)
-                        }
+                        answerButton(text: row, isSelected: false, action: {})
+                            .disabled(true)
                     }
                 }
             }
         }
-        .padding(.spacing5)
+        .padding(.spacing12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.grey10)
         .overlay(
-            RoundedRectangle(cornerRadius: .radius4)
+            RoundedRectangle(cornerRadius: .radius5)
                 .stroke(Color.grey20, lineWidth: 1)
         )
-        .clipShape(RoundedRectangle(cornerRadius: .radius4))
-        .accessibilityElement(children: .combine)
+        .clipShape(RoundedRectangle(cornerRadius: .radius5))
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("interactive-question-card")
     }
 
@@ -2488,7 +2523,7 @@ private struct AppleInteractiveQuestionCard: View {
     private var interactiveControls: some View {
         switch payload.type {
         case "choice":
-            VStack(alignment: .leading, spacing: .spacing2) {
+            VStack(alignment: .leading, spacing: .spacing8) {
                 ForEach(payload.options ?? []) { option in
                     VStack(alignment: .leading, spacing: .spacing2) {
                         answerButton(
@@ -2585,6 +2620,36 @@ private struct AppleInteractiveQuestionCard: View {
         }
     }
 
+    private var questionFooter: some View {
+        HStack(spacing: .spacing12) {
+            Spacer(minLength: 0)
+            Button {
+                selectedOptionIds = []
+                customAnswer = ""
+                inputValues = [:]
+                sliderValue = payload.defaultValue ?? payload.sliderLowerBound
+                swipeValues = [:]
+                rating = 0
+                comment = ""
+            } label: {
+                Text(AppStrings.sketchClear)
+                    .font(.omSmall).fontWeight(.semibold)
+                    .foregroundStyle(Color.fontPrimary)
+                    .padding(.horizontal, .spacing16)
+                    .frame(minHeight: 41)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: .radius8)
+                            .stroke(Color.grey40, lineWidth: 1)
+                    }
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("interactive-question-clear")
+            submitButton
+        }
+        .padding(.top, .spacing12)
+        .overlay(alignment: .top) { Rectangle().fill(Color.grey20).frame(height: 1) }
+    }
+
     private var submitButton: some View {
         Button {
             onSubmit?(payload.responseContent(response: responsePayload()))
@@ -2592,41 +2657,66 @@ private struct AppleInteractiveQuestionCard: View {
             Text(AppStrings.sendAction)
                 .font(.omSmall)
                 .fontWeight(.semibold)
-                .foregroundStyle(Color.fontButton)
-                .padding(.horizontal, .spacing6)
-                .padding(.vertical, .spacing3)
-                .background(Color.buttonPrimary)
+                .foregroundStyle(canSubmit ? Color.fontButton : Color.grey50)
+                .padding(.horizontal, .spacing16)
+                .frame(minHeight: 41)
+                .background {
+                    if canSubmit { LinearGradient.primary } else { Color.grey30 }
+                }
                 .clipShape(RoundedRectangle(cornerRadius: .radius8))
         }
         .buttonStyle(.plain)
         .disabled(!canSubmit)
-        .opacity(canSubmit ? 1 : 0.6)
         .accessibilityIdentifier("interactive-question-submit")
     }
 
     private func answerButton(text: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            HStack(spacing: .spacing3) {
-                if isSelected {
-                    Icon("select", size: 14)
-                        .foregroundStyle(Color.buttonPrimary)
-                } else {
-                    Circle()
-                        .stroke(Color.grey40, lineWidth: 1.5)
-                        .frame(width: 14, height: 14)
-                }
+            HStack(alignment: .top, spacing: .spacing12) {
+                choiceIndicator(isSelected: isSelected)
+                    .frame(width: 18, height: 20)
+                    .padding(.top, 2)
                 Text(text)
-                    .font(.omSmall)
+                    .font(.omP)
                     .foregroundStyle(Color.fontPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 0)
             }
-            .padding(.horizontal, .spacing4)
-            .padding(.vertical, .spacing3)
-            .background(isSelected ? Color.grey20 : Color.grey0)
-            .clipShape(RoundedRectangle(cornerRadius: .radius4))
+            .padding(.horizontal, .spacing12)
+            .padding(.vertical, .spacing8)
+            .background(isSelected ? Color.grey0 : Color.grey10)
+            .clipShape(RoundedRectangle(cornerRadius: .radius8))
+            .overlay {
+                RoundedRectangle(cornerRadius: .radius8)
+                    .stroke(isSelected ? Color.grey40 : Color.grey20, lineWidth: 1)
+            }
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("interactive-question-option")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    @ViewBuilder
+    private func choiceIndicator(isSelected: Bool) -> some View {
+        if payload.multiple == true {
+            RoundedRectangle(cornerRadius: .radius1)
+                .fill(Color.clear)
+                .background {
+                    if isSelected { LinearGradient.primary.clipShape(RoundedRectangle(cornerRadius: .radius1)) }
+                }
+                .overlay {
+                    RoundedRectangle(cornerRadius: .radius1).stroke(Color.grey40, lineWidth: 2)
+                    if isSelected { Icon("check", size: 14).foregroundStyle(Color.fontButton) }
+                }
+                .frame(width: 18, height: 18)
+        } else {
+            Circle()
+                .stroke(Color.grey40, lineWidth: 2)
+                .overlay {
+                    if isSelected { Circle().fill(LinearGradient.primary).frame(width: 10, height: 10) }
+                }
+                .frame(width: 18, height: 18)
+        }
     }
 
     private func swipeButton(cardId: String, value: String, label: String) -> some View {
@@ -2683,7 +2773,6 @@ private struct AppleInteractiveQuestionCard: View {
 
 private struct LargeEmbedPreviewCarousel: View {
     private enum Constants {
-        static let expandedThreshold: CGFloat = 400
         static let compactArrowHeight: CGFloat = 200
         static let expandedArrowHeight: CGFloat = 400
     }
@@ -2697,7 +2786,7 @@ private struct LargeEmbedPreviewCarousel: View {
 
     private var hasMultiple: Bool { embeds.count > 1 }
     private var variant: EmbedPreviewCardVariant {
-        containerWidth > Constants.expandedThreshold ? .large : .compact
+        AppleStandaloneEmbedPreviewPresentation.variant(containerWidth: containerWidth)
     }
     private var arrowHeight: CGFloat {
         variant == .large ? Constants.expandedArrowHeight : Constants.compactArrowHeight
@@ -2719,6 +2808,7 @@ private struct LargeEmbedPreviewCarousel: View {
                         onEmbedTap(selectedEmbed)
                     }
                     .frame(maxWidth: .infinity)
+                    .accessibilityIdentifier("embed-preview-\(selectedEmbed.id)")
                 }
 
                 if hasMultiple {
@@ -3579,10 +3669,11 @@ private struct WikiInlineChip: View {
     }
 
     private var chipContent: some View {
-        HStack(spacing: 3) {
+        HStack(alignment: .top, spacing: 3) {
             Circle()
                 .fill(LinearGradient.appStudy)
                 .frame(width: 20, height: 20)
+                .alignmentGuide(.top) { $0[.top] - 2.4 }
                 .overlay {
                     Icon("study", size: 10)
                         .foregroundStyle(Color.fontButton)
@@ -3669,10 +3760,11 @@ private struct EmbedInlineChip: View {
     }
 
     private var chipContent: some View {
-        HStack(spacing: 3) {
+        HStack(alignment: .top, spacing: 3) {
             Circle()
                 .fill(AppIconView.gradient(forAppId: appId))
                 .frame(width: 20, height: 20)
+                .alignmentGuide(.top) { $0[.top] - 2.4 }
                 .overlay {
                     Icon(AppIconView.iconName(forAppId: appId), size: 10)
                         .foregroundStyle(Color.fontButton)
@@ -3709,6 +3801,8 @@ private struct MarkdownLinkChip: View {
     @Environment(\.openURL) private var openURL
     @State private var isHovering = false
 
+    static let internalBadgeIconName = "ai"
+
     var body: some View {
         if let destinationURL {
             Button {
@@ -3724,23 +3818,26 @@ private struct MarkdownLinkChip: View {
             .accessibilityElement(children: .combine)
             .help(Text(displayText))
             .accessibilityLabel(displayText)
+            .accessibilityValue(isInternal ? Self.internalBadgeIconName : "")
         } else {
             chipContent
                 .fixedSize(horizontal: false, vertical: true)
                 .opacity(isHovering ? 0.82 : 1)
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel(displayText)
+            .accessibilityValue(isInternal ? Self.internalBadgeIconName : "")
         }
     }
 
     private var chipContent: some View {
-        HStack(spacing: 3) {
+        HStack(alignment: .top, spacing: 3) {
             if isInternal {
                 Circle()
                     .fill(LinearGradient.appOpenmates)
                     .frame(width: 20, height: 20)
+                .alignmentGuide(.top) { $0[.top] - 2.4 }
                     .overlay {
-                        Icon("openmates", size: 10)
+                        Icon(Self.internalBadgeIconName, size: 10)
                             .foregroundStyle(Color.fontButton)
                     }
             }

@@ -197,6 +197,7 @@ import XCTest
         XCTAssertTrue(response.success)
         XCTAssertEqual(response.tfaRequired, true)
         XCTAssertNil(response.user)
+        XCTAssertFalse(response.hasAcceptedPasswordIdentity)
     }
 
     // contract-test: supporting surface=gui.apple assertions=auth.lookup.anti-enumeration,auth.login.method-convergence
@@ -206,6 +207,13 @@ import XCTest
         XCTAssertEqual(actual.tfaRequired, omitted.tfaRequired)
         XCTAssertNil(actual.user)
         XCTAssertNil(omitted.user)
+        XCTAssertTrue(actual.hasAcceptedPasswordIdentity)
+        XCTAssertFalse(omitted.hasAcceptedPasswordIdentity)
+        for identity in [#"{}"#, #"{"id":""}"#] {
+            let empty = try loginResponse("{\"success\":true,\"tfa_required\":true,\"user\":\(identity)}")
+            XCTAssertNil(empty.user)
+            XCTAssertFalse(empty.hasAcceptedPasswordIdentity)
+        }
     }
 
     // contract-test: supporting surface=gui.apple assertions=auth.login.method-convergence,auth.session.authoritative-enforcement
@@ -223,28 +231,133 @@ import XCTest
 
     // contract-test: supporting surface=gui.apple assertions=auth.lookup.anti-enumeration,auth.login.method-convergence
     func testProductionPasswordLoginRoutesDocumentedDecoyToTFAWithoutAuthenticating() async throws {
+        try await withPasswordTransport { auth, transport in
+            let initialState = auth.state
+            let initialValidationState = auth.sessionValidationState
+            do {
+                try await fixturePasswordLogin(auth)
+                XCTFail("Pre-TFA response must not complete login")
+            } catch AuthError.tfaRequired {}
+            XCTAssertEqual(transport.loginVersions, [2, 1])
+            XCTAssertNil(auth.currentUser)
+            XCTAssertNil(auth.webSocketToken)
+            XCTAssertEqual(auth.state, initialState)
+            XCTAssertEqual(auth.sessionValidationState, initialValidationState)
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=auth.lookup.anti-enumeration,auth.login.method-convergence
+    func testDecoyV2FallsBackToLegacyForTFAAndCompletedServerLogin() async throws {
+        try await withPasswordTransport { auth, transport in
+            transport.legacyTFAHasIdentity = true
+            do {
+                try await fixturePasswordLogin(auth)
+                XCTFail("Legacy TFA must challenge before login")
+            } catch AuthError.tfaRequired {}
+            XCTAssertEqual(transport.loginVersions, [2, 1])
+            XCTAssertNil(auth.currentUser)
+            do {
+                try await fixturePasswordLogin(auth, tfaCode: "123456")
+                XCTFail("Fixture intentionally omits the key wrapper")
+            } catch AuthError.missingAuthData {}
+            // Reaching key unwrap proves the completed legacy server response was
+            // accepted, without saving keys or publishing a synthetic account.
+            XCTAssertEqual(transport.loginVersions, [2, 1, 2, 1])
+            XCTAssertEqual(transport.legacyTFACodes, ["123456"])
+            XCTAssertNil(auth.currentUser)
+            XCTAssertNil(auth.webSocketToken)
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=auth.login.method-convergence,auth.session.authoritative-enforcement
+    func testLegitimateV2TFAKeepsV2WithoutPublishingProfileOrFallingBack() async throws {
+        try await withPasswordTransport { auth, transport in
+            transport.v2Payload = PasswordTFAURLProtocol.realTFA
+            do {
+                try await fixturePasswordLogin(auth)
+                XCTFail("Real v2 TFA must challenge before login")
+            } catch AuthError.tfaRequired {}
+            XCTAssertEqual(transport.loginVersions, [2])
+            XCTAssertNil(auth.currentUser)
+            XCTAssertNil(auth.webSocketToken)
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=auth.login.method-convergence,auth.session.authoritative-enforcement
+    func testCompletedV2ServerLoginDoesNotFallBack() async throws {
+        try await withPasswordTransport { auth, transport in
+            transport.v2Payload = PasswordTFAURLProtocol.completedLogin
+            do {
+                try await fixturePasswordLogin(auth)
+                XCTFail("Fixture intentionally omits the key wrapper")
+            } catch AuthError.missingAuthData {}
+            XCTAssertEqual(transport.loginVersions, [2])
+            XCTAssertNil(auth.currentUser)
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=auth.login.method-convergence,auth.session.authoritative-enforcement
+    func testV2CredentialRejectionsClearProofMarkersBeforeLegacyFallback() async throws {
+        for status in [401, 403] {
+            for failsChallenge in [true, false] {
+                try await withPasswordTransport { auth, transport in
+                    if failsChallenge { transport.challengeStatus = status }
+                    else { transport.loginStatus = status }
+                    transport.legacyTFAHasIdentity = true
+                    do {
+                        try await fixturePasswordLogin(auth)
+                        XCTFail("Rejected v2 credentials must fall back to a legacy TFA challenge")
+                    } catch AuthError.tfaRequired {}
+                    XCTAssertEqual(transport.loginVersions, failsChallenge ? [1] : [2, 1])
+                    XCTAssertNil(auth.currentUser)
+                    XCTAssertNil(auth.webSocketToken)
+                }
+            }
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=auth.login.method-convergence,auth.session.authoritative-enforcement
+    func testV2RateLimitAndServiceErrorsNeverFallBack() async throws {
+        for status in [429, 500, 503] {
+            for failsChallenge in [true, false] {
+                try await withPasswordTransport { auth, transport in
+                    if failsChallenge { transport.challengeStatus = status }
+                    else { transport.loginStatus = status }
+                    do {
+                        try await fixturePasswordLogin(auth)
+                        XCTFail("HTTP failure must propagate")
+                    } catch APIError.httpError(let actualStatus, _) {
+                        XCTAssertEqual(actualStatus, status)
+                    }
+                    XCTAssertEqual(transport.loginVersions, failsChallenge ? [] : [2])
+                    XCTAssertNil(auth.currentUser)
+                }
+            }
+        }
+    }
+
+    private func fixturePasswordLogin(_ auth: AuthManager, tfaCode: String? = nil) async throws {
+        try await auth.loginWithPassword(email: "fixture@example.test", password: "FixturePassword1!",
+            userEmailSalt: Data((0..<16).map(UInt8.init)).base64EncodedString(), tfaCode: tfaCode)
+    }
+
+    private func withPasswordTransport(
+        _ operation: (AuthManager, PasswordTFAURLProtocol.Fixture) async throws -> Void
+    ) async throws {
         let originalProfile = ServerConfiguration.current
         ServerConfiguration.current = ServerProfile.custom(domain: "password-tfa-fixture.example").endpointConfiguration
+        let fixture = PasswordTFAURLProtocol.Fixture()
+        PasswordTFAURLProtocol.setFixture(fixture)
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [PasswordTFAURLProtocol.self]
         let session = URLSession(configuration: configuration)
         defer {
             session.invalidateAndCancel()
+            PasswordTFAURLProtocol.setFixture(nil)
             ServerConfiguration.current = originalProfile
         }
         let api = APIClient(session: session, cookieStorage: try XCTUnwrap(configuration.httpCookieStorage))
-        let auth = AuthManager(api: api, profileCacheWriter: { _ in })
-        let initialState = auth.state
-        let initialValidationState = auth.sessionValidationState
-        do {
-            try await auth.loginWithPassword(email: "fixture@example.test", password: "FixturePassword1!",
-                userEmailSalt: Data((0..<16).map(UInt8.init)).base64EncodedString())
-            XCTFail("Pre-TFA response must not complete login")
-        } catch AuthError.tfaRequired {}
-        XCTAssertNil(auth.currentUser)
-        XCTAssertNil(auth.webSocketToken)
-        XCTAssertEqual(auth.state, initialState)
-        XCTAssertEqual(auth.sessionValidationState, initialValidationState)
+        try await operation(AuthManager(api: api, profileCacheWriter: { _ in }), fixture)
     }
 
     private func loginResponse(_ payload: String) throws -> LoginResponse {
@@ -268,26 +381,90 @@ import XCTest
 // Deterministic transport for the real password challenge/login path. This
 // protocol intercepts every request; it cannot contact a reserved or live account.
 private final class PasswordTFAURLProtocol: URLProtocol, @unchecked Sendable {
+    static let decoyTFA = #"{"success":true,"message":"2FA required","tfa_required":true,"user":{"id":null,"username":"","tfa_enabled":true}}"#
+    static let realTFA = #"{"success":true,"tfa_required":true,"user":{"id":"fixture-account","username":"","tfa_enabled":true}}"#
+    static let completedLogin = #"{"success":true,"tfa_required":false,"user":{"id":"fixture-account","username":"Fixture"}}"#
+
+    final class Fixture: @unchecked Sendable {
+        private let lock = NSLock()
+        var v2Payload = PasswordTFAURLProtocol.decoyTFA
+        var legacyTFAHasIdentity = false
+        var challengeStatus = 200
+        var loginStatus = 200
+        private var versions: [Int] = []
+        private var codes: [String] = []
+        var loginVersions: [Int] { lock.lock(); defer { lock.unlock() }; return versions }
+        var legacyTFACodes: [String] { lock.lock(); defer { lock.unlock() }; return codes }
+
+        func loginPayload(_ body: [String: Any]) -> String {
+            lock.lock(); defer { lock.unlock() }
+            let version = body["credential_version"] as? Int ?? 1
+            versions.append(version)
+            if version == 2 { return v2Payload }
+            XCTAssertNil(body["challenge_id"])
+            XCTAssertNil(body["password_proof"])
+            XCTAssertNotNil(body["lookup_hash"] as? String)
+            if let code = body["tfa_code"] as? String {
+                codes.append(code)
+                XCTAssertEqual(body["code_type"] as? String, "otp")
+                return PasswordTFAURLProtocol.completedLogin
+            }
+            return legacyTFAHasIdentity ? PasswordTFAURLProtocol.realTFA : PasswordTFAURLProtocol.decoyTFA
+        }
+    }
+
+    private static let fixtureLock = NSLock()
+    nonisolated(unsafe) private static var fixture: Fixture?
+    static func setFixture(_ fixture: Fixture?) { fixtureLock.withLock { Self.fixture = fixture } }
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func startLoading() {
+        guard let fixture = Self.fixtureLock.withLock({ Self.fixture }) else {
+            client?.urlProtocol(self, didFailWithError: URLError(.unsupportedURL))
+            return
+        }
         let payload: Data
+        let status: Int
         switch request.url?.path {
         case "/v1/auth/password-v2/challenge":
+            status = fixture.challengeStatus
             payload = try! JSONSerialization.data(withJSONObject: ["challenge_id": "fixture-challenge",
                 "nonce": Data(repeating: 0, count: 32).base64URLEncodedString(), "expires_in": 120])
         case "/v1/auth/login":
-            payload = Data(#"{"success":true,"message":"2FA required","tfa_required":true,"user":{"id":null,"username":"","tfa_enabled":true}}"#.utf8)
+            guard let bodyData = requestBody(),
+                  let body = (try? JSONSerialization.jsonObject(with: bodyData)) as? [String: Any] else {
+                XCTFail("Password request must contain its encoded login body")
+                client?.urlProtocol(self, didFailWithError: URLError(.cannotParseResponse))
+                return
+            }
+            status = (body["credential_version"] as? Int) == 2 ? fixture.loginStatus : 200
+            payload = Data(fixture.loginPayload(body).utf8)
         default:
             XCTFail("Unexpected password-flow endpoint")
             client?.urlProtocol(self, didFailWithError: URLError(.unsupportedURL))
             return
         }
-        let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil,
+        let response = HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: nil,
             headerFields: ["Content-Type": "application/json"])!
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: payload)
         client?.urlProtocolDidFinishLoading(self)
     }
     override func stopLoading() {}
+
+    private func requestBody() -> Data? {
+        if let body = request.httpBody { return body }
+        guard let stream = request.httpBodyStream else { return nil }
+        stream.open()
+        defer { stream.close() }
+        var body = Data()
+        var buffer = [UInt8](repeating: 0, count: 4096)
+        while stream.hasBytesAvailable {
+            let count = stream.read(&buffer, maxLength: buffer.count)
+            if count < 0 { return nil }
+            if count == 0 { break }
+            body.append(contentsOf: buffer.prefix(count))
+        }
+        return body
+    }
 }

@@ -6,10 +6,129 @@
 
 import XCTest
 import Combine
+import CryptoKit
 @testable import OpenMates
 
 @MainActor
 final class ChatWindowLoadingTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=chats.rendering.assistant-document-convergence,code-run.surface-parity
+    func testCanonicalCodeReferenceHydratesEncryptedSourceWithoutInventingHTMLMetadata() async throws {
+        try await assertCanonicalCodeRecordHydrates(includeMetadata: true, convertFromSnakeCase: false)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.persistence.client-encrypted,chats.rendering.assistant-document-convergence,code-run.surface-parity
+    func testSavedCodeRecordHydratesCanonicalEmbedIDWithDistinctDatabaseUUID() async throws {
+        for convertFromSnakeCase in [false, true] {
+            try await assertCanonicalCodeRecordHydrates(includeMetadata: false, convertFromSnakeCase: convertFromSnakeCase)
+        }
+    }
+
+    private func assertCanonicalCodeRecordHydrates(includeMetadata: Bool, convertFromSnakeCase: Bool) async throws {
+        let chatId = UUID().uuidString.lowercased()
+        let embedId = UUID().uuidString.lowercased()
+        let databaseId = UUID().uuidString.lowercased()
+        let reference = Message(id: "code-message", chatId: chatId, role: .assistant,
+            content: "```json\n{\"type\":\"code\",\"embed_id\":\"\(embedId)\"}\n```",
+            encryptedContent: nil, createdAt: "2026-01-01T00:00:00Z", updatedAt: nil,
+            appId: "code", isStreaming: false, embedRefs: nil)
+        let parsed = PublicChatContent.attachEmbeds(to: [reference])
+        let shell = try XCTUnwrap(parsed.records[embedId])
+        XCTAssertNil(shell.rawData?["filename"], "A reference cannot invent index.html")
+        XCTAssertNil(shell.rawData?["language"], "A reference cannot invent HTML")
+        XCTAssertTrue(ChatViewModel.embedRecordRequiresHydration(shell))
+        let emptyFile = EmbedRecord(id: "empty-file", type: "code-code", status: .finished,
+            data: .raw(["filename": AnyCodable("empty.js"), "code": AnyCodable("")]),
+            parentEmbedId: nil, appId: "code", skillId: nil, embedIds: nil, createdAt: nil)
+        XCTAssertFalse(ChatViewModel.embedRecordRequiresHydration(emptyFile), "A saved zero-byte file is complete")
+
+        let chatKey = SymmetricKey(size: .bits256)
+        let embedKey = SymmetricKey(size: .bits256)
+        ChatKeyManager.shared.setKey(chatKey, for: chatId)
+        defer {
+            ChatKeyManager.shared.removeKey(for: chatId)
+            EmbedKeyManager.shared.removeKeys(for: chatId)
+        }
+        let sealedKey = try AES.GCM.seal(embedKey.withUnsafeBytes { Data($0) }, using: chatKey)
+        let wrappedKey = try XCTUnwrap(sealedKey.combined).base64EncodedString()
+        let source = "export const ready = \"hello\";"
+        XCTAssertEqual(source.utf8.count, 29)
+        let content = String(decoding: try JSONSerialization.data(withJSONObject: [
+            "type": "code", "filename": "greeting.js", "language": "javascript", "code": source,
+            "status": "finished", "line_count": 1
+        ]), as: UTF8.self)
+        let encryptedContent = try await CryptoManager.shared.encryptContent(content, key: embedKey)
+        // Metadata and ciphertext can arrive together without encrypted_type.
+        // The metadata must not make decryptEmbeds skip the encrypted source.
+        var wire: [String: Any] = [
+            "id": databaseId, "embed_id": embedId, "status": "finished", "version_number": 8,
+            "encrypted_content": encryptedContent, "hashed_chat_id": ChatKeyWrapperRecord.hashedChatId(for: chatId)
+        ]
+        if includeMetadata {
+            wire["type"] = "code"
+            wire["data"] = ["filename": "greeting.js", "language": "javascript"]
+        } else {
+            wire["encrypted_type"] = try await CryptoManager.shared.encryptContent("code", key: embedKey)
+        }
+        let decoder = JSONDecoder()
+        if convertFromSnakeCase { decoder.keyDecodingStrategy = .convertFromSnakeCase }
+        let stored = try decoder.decode(EmbedRecord.self, from: JSONSerialization.data(withJSONObject: wire))
+        XCTAssertEqual(stored.id, embedId)
+        XCTAssertNotEqual(stored.id, databaseId)
+        XCTAssertEqual(EmbedRecord.relatedRecords(referencedIds: [embedId], from: [stored], context: "codeIdentityTest").map(\.id),
+            [embedId], "The saved row must match its message reference before decryption")
+        let key = EmbedKeyRecord(hashedEmbedId: ChatKeyWrapperRecord.hashedChatId(for: embedId),
+            keyType: "chat", hashedChatId: ChatKeyWrapperRecord.hashedChatId(for: chatId), encryptedEmbedKey: wrappedKey)
+        XCTAssertEqual(key.hashedEmbedId, ChatKeyWrapperRecord.hashedChatId(for: stored.id),
+            "The record identity and wrapper lookup must hash the same canonical embed ID")
+        XCTAssertNotEqual(key.hashedEmbedId, ChatKeyWrapperRecord.hashedChatId(for: databaseId))
+        var requests = 0
+        let model = ChatViewModel(contentBatchFetcher: { id in
+            requests += 1
+            return ChatContentBatchPayload(messagesByChatId: [id: []], versionsByChatId: [:], embeds: [stored],
+                embedKeys: [key], chatKeyWrappers: [], codeRunOutputs: nil)
+        })
+        model.seedIsolatedHistory(chat: makeChat(id: chatId, title: "Code", updatedAt: reference.createdAt, messagesV: 1),
+            messages: parsed.messages, embeds: [shell])
+        await model.retryVisibleEmbedHydration()
+        let hydrated = try XCTUnwrap(model.embedRecords[embedId])
+        XCTAssertEqual(hydrated.type, "code-code", "The backend code alias must reach the native code renderer")
+        let rendered = AppleCodeEmbedContent(data: hydrated.rawData)
+        XCTAssertEqual(rendered.code, source)
+        XCTAssertEqual(rendered.filename, "greeting.js")
+        XCTAssertEqual(rendered.language, "javascript")
+        XCTAssertEqual(rendered.lineCount, 1)
+        XCTAssertEqual(hydrated.status, .finished)
+        XCTAssertEqual(hydrated.versionNumber, 8)
+        XCTAssertEqual(AppleCodeEmbedPreviewState(content: rendered, status: hydrated.status), .source)
+        XCTAssertFalse(ChatViewModel.embedRecordRequiresHydration(hydrated))
+        XCTAssertEqual(PublicChatContent.mergingHydratedRecords(existing: model.embedRecords, inline: parsed.records)[embedId]?.rawData,
+            hydrated.rawData, "Reparsing a canonical reference must retain decrypted source")
+        await model.retryVisibleEmbedHydration()
+        XCTAssertEqual(requests, 1)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.rendering.assistant-document-convergence,code-run.surface-parity
+    func testMissingCodeRecordDoesNotManufactureSourceOrHTMLFilename() async throws {
+        let reference = Message(id: "missing-code-message", chatId: "missing-code-chat", role: .assistant,
+            content: "```json\n{\"type\":\"code\",\"embed_id\":\"missing-code-ref\"}\n```",
+            encryptedContent: nil, createdAt: "2026-01-01T00:00:00Z", updatedAt: nil,
+            appId: "code", isStreaming: false, embedRefs: nil)
+        let parsed = PublicChatContent.attachEmbeds(to: [reference])
+        let model = ChatViewModel(contentBatchFetcher: { id in
+            ChatContentBatchPayload(messagesByChatId: [id: []], versionsByChatId: [:], embeds: [],
+                embedKeys: [], chatKeyWrappers: [], codeRunOutputs: nil)
+        })
+        model.seedIsolatedHistory(chat: makeChat(id: reference.chatId, title: "Code", updatedAt: reference.createdAt, messagesV: 1),
+            messages: parsed.messages, embeds: Array(parsed.records.values))
+        await model.retryVisibleEmbedHydration()
+        let shell = try XCTUnwrap(model.embedRecords["missing-code-ref"])
+        let content = AppleCodeEmbedContent(data: shell.rawData)
+        XCTAssertTrue(content.code.isEmpty)
+        XCTAssertNil(content.filename)
+        XCTAssertEqual(content.language, "")
+        XCTAssertEqual(AppleCodeEmbedPreviewState(content: content, status: shell.status), .empty)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testCanonicalSheetReferenceHydratesFullTableAndSurvivesReparse() async throws {
         let reference = Message(id: "sheet-message", chatId: "sheet-chat", role: .assistant,

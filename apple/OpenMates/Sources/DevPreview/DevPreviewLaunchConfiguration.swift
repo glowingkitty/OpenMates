@@ -133,7 +133,7 @@ enum DevPreviewComponentRegistry {
         case .tasks:
             return .init(component: component, webComponentPath: "tasks/TasksPage", nativeRendererNames: ["TasksWorkspaceView", "TaskDetailView", "PlanDetailView", "TasksSidebarView"], variants: ["default", "plans", "supplementary-load-failure", "task-load-failure"], hostSupport: .componentHost)
         case .projects:
-            return .init(component: component, webComponentPath: "projects/ProjectsPage", nativeRendererNames: ["ProjectsWorkspaceView", "ProjectsSidebarView"], variants: ["default", "landing", "folders", "readme", "tasks", "connectedSource", "localFolderSource", "multipleSources", "largeConnectedSource", "legacyConnectedSource", "rootFiles", "truncatedConnectedSource", "sidebar"], hostSupport: .componentHost)
+            return .init(component: component, webComponentPath: "projects/ProjectsPage", nativeRendererNames: ["ProjectsWorkspaceView", "ProjectsSidebarView"], variants: ["default", "landing", "folders", "readme", "tasks", "connectedSource", "localFolderSource", "multipleSources", "largeConnectedSource", "legacyConnectedSource", "rootFiles", "truncatedConnectedSource", "offlineConnectedSource", "sidebar"], hostSupport: .componentHost)
         case .notification:
             return .init(component: component, webComponentPath: "Notification", nativeRendererNames: ["InAppNotificationCard"], variants: ["default", "connection", "progress", "stack"], hostSupport: .componentHost)
         case .sharedRecipient:

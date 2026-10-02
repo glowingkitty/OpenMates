@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "version": "1.5.0",
+  "upstream_revision": "56cc93a96d5fb8d21554ec5f00fbad5a5b228bc4",
+  "upstream_source_release_revision": "f7140a46ff38e919c557d45b102d3ff26097c8c9",
+  "license": {
+    "path": "LICENSE-ExecuTorch.txt",
+    "url": "https://raw.githubusercontent.com/pytorch/executorch/f7140a46ff38e919c557d45b102d3ff26097c8c9/LICENSE",
+    "sha256": "c58707ea5d5c0ee17af7e16f1377e4d31ad1533492ab0bf9b87ebd9f718f9e7b"
+  },
+  "frameworks": [
+    "Accelerate",
+    "CoreGraphics",
+    "CoreImage",
+    "CoreVideo",
+    "Foundation"
+  ],
+  "libraries": [
+    "c++"
+  ],
+  "artifacts": [
+    {
+      "name": "executorch",
+      "url": "https://ossci-ios.s3.amazonaws.com/executorch/executorch-1.5.0.zip",
+      "sha256": "3a861b6f6afd4264033a592309564932d96af758042b5c75574069fc0893313f",
+      "slice_libraries": {
+        "iphoneos": "libexecutorch_ios.a",
+        "iphonesimulator": "libexecutorch_simulator.a",
+        "macosx": "libexecutorch_macos.a"
+      }
+    },
+    {
+      "name": "backend_xnnpack",
+      "url": "https://ossci-ios.s3.amazonaws.com/executorch/backend_xnnpack-1.5.0.zip",
+      "sha256": "df8de2e5fd8134446a10c1e6ad2170d6d3f99658244ce8d6dab977307474009b",
+      "slice_libraries": {
+        "iphoneos": "libbackend_xnnpack_ios.a",
+        "iphonesimulator": "libbackend_xnnpack_simulator.a",
+        "macosx": "libbackend_xnnpack_macos.a"
+      }
+    },
+    {
+      "name": "kernels_optimized",
+      "url": "https://ossci-ios.s3.amazonaws.com/executorch/kernels_optimized-1.5.0.zip",
+      "sha256": "57016af23701a3d1a05883a9ed882e30e86c2365bafcc638be6d6754e9e943fe",
+      "slice_libraries": {
+        "iphoneos": "libkernels_optimized_ios.a",
+        "iphonesimulator": "libkernels_optimized_simulator.a",
+        "macosx": "libkernels_optimized_macos.a"
+      }
+    },
+    {
+      "name": "kernels_quantized",
+      "url": "https://ossci-ios.s3.amazonaws.com/executorch/kernels_quantized-1.5.0.zip",
+      "sha256": "a4f5ad856cd3ff4bac7ccead48b7f681784990b178a11911be9d6d77a88ed82a",
+      "slice_libraries": {
+        "iphoneos": "libkernels_quantized_ios.a",
+        "iphonesimulator": "libkernels_quantized_simulator.a",
+        "macosx": "libkernels_quantized_macos.a"
+      }
+    },
+    {
+      "name": "kernels_torchao",
+      "url": "https://ossci-ios.s3.amazonaws.com/executorch/kernels_torchao-1.5.0.zip",
+      "sha256": "d2d43016d5d9803446b2d57eef0585c3978f421235ec7a91e81c5e998b1b8294",
+      "slice_libraries": {
+        "iphoneos": "libkernels_torchao_ios.a",
+        "iphonesimulator": "libkernels_torchao_simulator.a",
+        "macosx": "libkernels_torchao_macos.a"
+      }
+    },
+    {
+      "name": "threadpool",
+      "url": "https://ossci-ios.s3.amazonaws.com/executorch/threadpool-1.5.0.zip",
+      "sha256": "e036395eadd549dba201e5a9660976cabf978d54e8972d5c37d799d3859e5f4f",
+      "slice_libraries": {
+        "iphoneos": "libthreadpool_ios.a",
+        "iphonesimulator": "libthreadpool_simulator.a",
+        "macosx": "libthreadpool_macos.a"
+      }
+    }
+  ]
+}

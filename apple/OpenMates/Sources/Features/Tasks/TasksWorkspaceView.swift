@@ -3,6 +3,7 @@ import SwiftUI
 /// The central Tasks surface follows TasksPage.svelte and TaskBoard.svelte. The
 /// shell retains `store`; this view does not own account or team state.
 // Web source: frontend/packages/ui/src/components/tasks/TasksPage.svelte
+//             frontend/packages/ui/src/components/chats/Chats.svelte (.chats-topbar)
 //             frontend/packages/ui/src/components/tasks/TaskBoard.svelte
 //             frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
 // Specification: specifications/features/tasks/specification.yml
@@ -920,40 +921,58 @@ extension UserTaskStatus {
 /// A compact status and recent-item rail for the app shell on wider screens.
 struct TasksSidebarView: View {
     @ObservedObject var store: TasksWorkspaceStore
+    var onClose: () -> Void = {}
+    @State private var showsSearch = false
     var onOpenTask: (String) -> Void = { _ in }
     var onOpenPlan: (String) -> Void = { _ in }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
-                Text(AppStrings.tasks).font(.omH2).fontWeight(.bold)
-                ForEach(UserTaskStatus.allCases) { status in
-                    HStack(spacing: 8) {
-                        Circle().fill(status.accent).frame(width: 8, height: 8)
-                        Text(status.localizedTitle).font(.omP)
-                        Spacer()
-                        let count = store.boardItems.filter { $0.status == status }.count
-                            + store.plans.filter { $0.status.boardColumn == status }.count
-                        Text("\(count)").font(.omXs).foregroundStyle(Color.fontSecondary)
-                    }
-                    .padding(.vertical, 5)
-                }
-                Divider()
-                ForEach(store.boardItems.prefix(8)) { item in
-                    Button(item.title) {
-                        switch item {
-                        case .task: onOpenTask(item.id)
-                        case .workflowRun: store.openWorkflowRun(item.id)
-                        }
-                    }
-                        .font(.omSmall).lineLimit(2).buttonStyle(.plain)
-                }
-                ForEach(store.plans.prefix(4)) { plan in
-                    Button(plan.title) { onOpenPlan(plan.id) }
-                        .font(.omSmall).lineLimit(2).buttonStyle(.plain)
-                }
+        let items = store.visibleBoardItems
+        let plans = store.visiblePlans
+        VStack(spacing: 0) {
+            WorkspaceSidebarHeader(onSearch: { showsSearch.toggle(); if !showsSearch { store.searchText = "" } },
+                onClose: onClose, searchIdentifier: "tasks-sidebar-search",
+                closeIdentifier: "tasks-sidebar-close", topBarIdentifier: "tasks-sidebar-topbar")
+            if showsSearch {
+                WorkspaceSidebarSearchField(query: $store.searchText, identifier: "tasks-sidebar-search-input")
             }
-            .padding(16)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    Text(AppStrings.tasks).font(.omH2).fontWeight(.bold)
+                    ForEach(UserTaskStatus.allCases) { status in
+                        HStack(spacing: 8) {
+                            Circle().fill(status.accent).frame(width: 8, height: 8)
+                            Text(status.localizedTitle).font(.omP)
+                            Spacer()
+                            let count = items.filter { $0.status == status }.count
+                                + plans.filter { $0.status.boardColumn == status }.count
+                            Text("\(count)").font(.omXs).foregroundStyle(Color.fontSecondary)
+                        }
+                        .padding(.vertical, 5)
+                    }
+                    Divider()
+                    if !store.searchText.isEmpty && items.isEmpty && plans.isEmpty {
+                        Text(AppStrings.tasksNoMatches).font(.omSmall).foregroundStyle(Color.fontSecondary)
+                            .accessibilityIdentifier("tasks-sidebar-no-matches")
+                    }
+                    ForEach(items.prefix(8)) { item in
+                        Button(item.title) {
+                            switch item {
+                            case .task: onOpenTask(item.id)
+                            case .workflowRun: store.openWorkflowRun(item.id)
+                            }
+                        }
+                            .font(.omSmall).lineLimit(2).buttonStyle(.plain)
+                            .accessibilityIdentifier("task-sidebar-row-\(item.id)")
+                    }
+                    ForEach(plans.prefix(4)) { plan in
+                        Button(plan.title) { onOpenPlan(plan.id) }
+                            .font(.omSmall).lineLimit(2).buttonStyle(.plain)
+                            .accessibilityIdentifier("plan-sidebar-row-\(plan.id)")
+                    }
+                }
+                .padding(16)
+            }
         }
         .background(Color.grey20)
         .accessibilityIdentifier("tasks-sidebar")

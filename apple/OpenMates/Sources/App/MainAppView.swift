@@ -21,6 +21,7 @@
 
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/apps/web_app/src/routes/+page.svelte  (top-level layout)
+//          frontend/packages/ui/src/components/chats/Chats.svelte (shared sidebar header)
 //          frontend/packages/ui/src/components/ChatHistory.svelte (sidebar)
 //          frontend/packages/ui/src/components/Header.svelte (top nav)
 //          frontend/packages/ui/src/components/ActiveChat.svelte (new-chat welcome)
@@ -612,6 +613,13 @@ struct MainAppView: View {
                 isChatsPanelOpen = fixture == "sidebar"
                 workflowStore.showFixture(fixture)
             }
+            #if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("--ui-test-workspace-sidebar-fixture") {
+                tasksStore.installPreview()
+                projectsStore.installPreview(variant: "landing")
+                workflowStore.showFixture("home")
+            }
+            #endif
         }
         .onDisappear {
             ProjectWorkspaceReviewRuntime.shared.deactivate(ownerID: windowRuntimeID)
@@ -2473,10 +2481,14 @@ struct MainAppView: View {
         }
     }
 
+    private func closeWorkspaceSidebar() {
+        withAnimation(.easeInOut(duration: 0.24)) { isChatsPanelOpen = false }
+    }
+
     @ViewBuilder
     private var chatsPanel: some View {
         if selectedWorkspace == .workflows {
-            WorkflowSidebarView(store: workflowStore) { workflow in
+            WorkflowSidebarView(store: workflowStore, onClose: closeWorkspaceSidebar) { workflow in
                 Task { await workflowStore.select(workflow) }
                 if isCompactShell {
                     withAnimation(.easeInOut(duration: 0.2)) { isChatsPanelOpen = false }
@@ -2484,9 +2496,9 @@ struct MainAppView: View {
             }
         } else if selectedWorkspace == .projects {
             ProjectsSidebarView(store: projectsStore,
-                onClose: { isChatsPanelOpen = false }, onOpenProject: openWorkspaceProject)
+                onClose: closeWorkspaceSidebar, onOpenProject: openWorkspaceProject)
         } else if selectedWorkspace == .tasks {
-            TasksSidebarView(store: tasksStore,
+            TasksSidebarView(store: tasksStore, onClose: closeWorkspaceSidebar,
                 onOpenTask: { openWorkspaceTasks(taskID: $0) },
                 onOpenPlan: { openWorkspaceTasks(planID: $0) })
         } else {

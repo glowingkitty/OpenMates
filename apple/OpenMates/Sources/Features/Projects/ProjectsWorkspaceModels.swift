@@ -1,3 +1,6 @@
+// Web source: frontend/packages/ui/src/services/projectService.ts
+// Specification: specifications/features/projects/specification.yml
+// Assertions: projects.access.explicit-context, projects.files.no-server-decryption-authority
 import CryptoKit
 import Foundation
 
@@ -119,7 +122,7 @@ struct ProjectWorkspaceItem: Identifiable {
     }
 }
 
-struct ProjectWorkspaceSource: Identifiable {
+struct ProjectWorkspaceSource: Identifiable, Equatable {
     let id: String
     let kind: String
     let name: String

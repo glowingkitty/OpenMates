@@ -21,6 +21,9 @@ struct WorkflowSchemaInputView: View {
     let onChange: ([String: Any]) -> Void
     var path = "input"
     var timezone = TimeZone.current.identifier
+    var unwrapRequestEnvelope = true
+    var advancedExpansion: Binding<Bool>?
+    var showAdvancedToggle = true
 
     @State private var showAdvanced = false
     @State private var selectedLocationKey: String?
@@ -68,7 +71,67 @@ struct WorkflowSchemaInputView: View {
 
     private var advancedKeys: [String] { fieldKeys.filter { !basicKeys.contains($0) } }
 
+    private var advancedIsExpanded: Bool { advancedExpansion?.wrappedValue ?? showAdvanced }
+
+    @ViewBuilder
     var body: some View {
+        if unwrapRequestEnvelope,
+           let projection = WorkflowRequestInputProjection(schema: schema, input: value) {
+            VStack(alignment: .leading, spacing: .spacing4) {
+                if appId != "events" { outerFields(projection) }
+                ForEach(projection.requests.indices, id: \.self) { index in
+                    VStack(alignment: .leading, spacing: .spacing4) {
+                        if projection.requests.count > 1 {
+                            Text(WorkflowValueView.displayLabel("request") + " \(index + 1)")
+                                .font(.omSmall).foregroundStyle(Color.fontSecondary)
+                        }
+                        WorkflowSchemaInputView(
+                            schema: projection.requestSchema,
+                            value: projection.requests[index] as? [String: Any] ?? [:],
+                            appId: appId,
+                            onChange: { onChange(projection.replacingRequest(at: index, with: $0)) },
+                            path: "\(path)-request-\(index)", timezone: timezone,
+                            unwrapRequestEnvelope: false,
+                            advancedExpansion: appId == "events" ? $showAdvanced : nil,
+                            showAdvancedToggle: appId != "events"
+                        )
+                    }
+                }
+                if appId == "events" {
+                    outerFields(projection)
+                    advancedButton
+                }
+            }
+        } else {
+            objectFields
+        }
+    }
+
+    private func outerFields(_ projection: WorkflowRequestInputProjection) -> some View {
+        WorkflowSchemaInputView(
+            schema: projection.outerSchema, value: value, appId: appId,
+            onChange: onChange, path: "\(path)-outer", timezone: timezone,
+            unwrapRequestEnvelope: false,
+            advancedExpansion: appId == "events" ? $showAdvanced : nil,
+            showAdvancedToggle: appId != "events"
+        )
+    }
+
+    private var advancedButton: some View {
+        Button {
+            if let advancedExpansion { advancedExpansion.wrappedValue.toggle() }
+            else { showAdvanced.toggle() }
+        } label: {
+            Text(AppStrings.workflowBuilder(advancedIsExpanded ? .show_basic_fields : .show_all_fields))
+                .font(.omSmall)
+                .foregroundStyle(Color.fontSecondary)
+        }
+        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity)
+        .accessibilityIdentifier("workflow-show-all-fields")
+    }
+
+    private var objectFields: some View {
         VStack(alignment: .leading, spacing: .spacing4) {
             ForEach(basicKeys, id: \.self) { key in field(key) }
             if let (start, end) = dateRangeKeys {
@@ -86,17 +149,8 @@ struct WorkflowSchemaInputView: View {
                 )
             }
             if !advancedKeys.isEmpty {
-                Button {
-                    showAdvanced.toggle()
-                } label: {
-                    Text(AppStrings.workflowBuilder(showAdvanced ? .show_basic_fields : .show_all_fields))
-                        .font(.omSmall)
-                        .foregroundStyle(Color.fontSecondary)
-                }
-                .buttonStyle(.plain)
-                .frame(maxWidth: .infinity)
-                .accessibilityIdentifier("workflow-show-all-fields")
-                if showAdvanced {
+                if showAdvancedToggle { advancedButton }
+                if advancedIsExpanded {
                     ForEach(advancedKeys, id: \.self) { key in field(key) }
                 }
             }
@@ -123,7 +177,7 @@ struct WorkflowSchemaInputView: View {
             let metadata = spec["x-ui"] as? [String: Any] ?? [:]
             VStack(alignment: .leading, spacing: .spacing2) {
                 if kind != "boolean" {
-                    Text(AppStrings.localized("workflows.builder.output_type_" + (kind == "integer" ? "number" : kind == "string" ? "text" : kind)))
+                    Text(AppStrings.localized("workflows.builder.output_type_" + WorkflowRequestInputProjection.displayType(spec)))
                         .font(.omSmall.weight(.semibold)).foregroundStyle(Color.fontButton)
                         .padding(.horizontal, .spacing3).padding(.vertical, .spacing2)
                         .background(LinearGradient.primary, in: RoundedRectangle(cornerRadius: 4))
@@ -176,7 +230,8 @@ struct WorkflowSchemaInputView: View {
                     WorkflowSchemaInputView(
                         schema: spec, value: value[key] as? [String: Any] ?? [:],
                         appId: appId, onChange: { change(key, to: $0) },
-                        path: "\(path)-\(key)", timezone: timezone
+                        path: "\(path)-\(key)", timezone: timezone,
+                        unwrapRequestEnvelope: false
                     )
                 } else if kind == "array", let items = spec["items"] as? [String: Any],
                           items["type"] as? String == "object" {
@@ -208,7 +263,8 @@ struct WorkflowSchemaInputView: View {
                         var nextRows = rows
                         nextRows[index] = changed
                         change(key, to: nextRows)
-                    }, path: "\(path)-\(key)-\(index)", timezone: timezone
+                    }, path: "\(path)-\(key)-\(index)", timezone: timezone,
+                    unwrapRequestEnvelope: false
                 )
             }
         }

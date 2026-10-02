@@ -609,6 +609,7 @@ struct WorkflowGraphView: View {
             } else if !schema.isEmpty {
                 WorkflowSchemaInputView(schema: schema, value: input, appId: appId,
                                         onChange: { draftConfig["input"] = AnyCodable($0) },
+                                        path: node.id,
                                         timezone: dictionary(draftConfig["schedule"])["timezone"] as? String ?? TimeZone.current.identifier)
             } else {
                 ForEach(input.keys.sorted(), id: \.self) { key in

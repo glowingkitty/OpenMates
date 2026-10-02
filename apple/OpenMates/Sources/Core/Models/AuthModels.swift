@@ -101,6 +101,21 @@ struct LoginResponse: Decodable {
     let deviceVerificationType: String?
     let wsToken: String?
     let pairExpiresAt: Int?
+    // Retain only proof of a real password identity, never its pre-TFA profile.
+    private let passwordIdentityAccepted: Bool
+    var hasAcceptedPasswordIdentity: Bool { passwordIdentityAccepted }
+
+    init(success: Bool, tfaRequired: Bool?, user: UserProfile?, needsDeviceVerification: Bool?,
+         deviceVerificationType: String?, wsToken: String?, pairExpiresAt: Int?) {
+        self.success = success
+        self.tfaRequired = tfaRequired
+        self.user = user
+        self.needsDeviceVerification = needsDeviceVerification
+        self.deviceVerificationType = deviceVerificationType
+        self.wsToken = wsToken
+        self.pairExpiresAt = pairExpiresAt
+        passwordIdentityAccepted = user.map { !$0.id.isEmpty } ?? false
+    }
 }
 
 // Backend pre-TFA responses include an anti-enumeration placeholder whose id
@@ -116,8 +131,15 @@ extension LoginResponse {
         success = try values.decode(Bool.self, forKey: .success)
         let requiresTFA = try values.decodeIfPresent(Bool.self, forKey: .tfaRequired)
         tfaRequired = requiresTFA
-        if requiresTFA == true { user = nil }
-        else { user = try values.decodeIfPresent(UserProfile.self, forKey: .user) }
+        if requiresTFA == true {
+            struct PasswordIdentity: Decodable { let id: String? }
+            let identity = try values.decodeIfPresent(PasswordIdentity.self, forKey: .user)
+            passwordIdentityAccepted = identity?.id.map { !$0.isEmpty } ?? false
+            user = nil
+        } else {
+            user = try values.decodeIfPresent(UserProfile.self, forKey: .user)
+            passwordIdentityAccepted = user.map { !$0.id.isEmpty } ?? false
+        }
         needsDeviceVerification = try values.decodeIfPresent(Bool.self, forKey: .needsDeviceVerification)
         deviceVerificationType = try values.decodeIfPresent(String.self, forKey: .deviceVerificationType)
         wsToken = try values.decodeIfPresent(String.self, forKey: .wsToken)

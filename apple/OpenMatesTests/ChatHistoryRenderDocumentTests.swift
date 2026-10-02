@@ -13,6 +13,122 @@ import XCTest
 @MainActor
 final class ChatHistoryRenderDocumentTests: XCTestCase {
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testBareAssistantCodeReferenceUsesLargePreviewBeforeAndAfterHydrationExtraction() throws {
+        let embedID = UUID().uuidString.lowercased()
+        let content = "```json\n{\"type\":\"code\",\"embed_id\":\"\(embedID)\"}\n```"
+        let message = Message(id: UUID().uuidString, chatId: UUID().uuidString, role: .assistant,
+                              content: content, encryptedContent: nil, createdAt: "2026-01-01T00:00:00Z",
+                              updatedAt: nil, appId: nil, isStreaming: false, embedRefs: nil)
+        let original = try XCTUnwrap(message.renderDocumentForDisplay)
+        let originalRef = try XCTUnwrap(original.blocks.first?.embedReferences.first)
+        XCTAssertEqual(originalRef.id, embedID)
+        XCTAssertEqual(originalRef.type, "code", "The bare fence must retain its wire type without hydration")
+        XCTAssertFalse(originalRef.isLargePreview, "Automatic sizing needs no invented serialized flag")
+        XCTAssertTrue(AppleStandaloneEmbedPreviewPresentation.usesLargePreview(explicit: originalRef.isLargePreview,
+            isUserMessage: false, embedTypes: [try XCTUnwrap(originalRef.type)]))
+
+        let extracted = PublicChatContent.attachEmbeds(to: [message])
+        let attachedMessage = try XCTUnwrap(extracted.messages.first)
+        XCTAssertTrue(attachedMessage.content?.contains("[[embed:\(embedID)]]") == true)
+        let document = try XCTUnwrap(attachedMessage.renderDocumentForDisplay)
+        let restored = try JSONDecoder().decode(ChatHistoryRenderDocument.self,
+            from: JSONEncoder().encode(document))
+        let attachedRef = try XCTUnwrap(restored.blocks.first?.embedReferences.first)
+        XCTAssertEqual(attachedRef.id, embedID)
+        XCTAssertEqual(attachedRef.type, "code-code")
+        XCTAssertTrue(AppleStandaloneEmbedPreviewPresentation.usesLargePreview(explicit: attachedRef.isLargePreview,
+            isUserMessage: restored.identity.role == .user, embedTypes: [try XCTUnwrap(attachedRef.type)]),
+            "Replacing the JSON fence with a hydrated placeholder must keep the web default")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testCodeLargePreviewPolicyKeepsUserCardsAndCodeGroupsCompact() {
+        for wireType in ["code", "code-code"] {
+            XCTAssertTrue(AppleStandaloneEmbedPreviewPresentation.usesLargePreview(explicit: false,
+                isUserMessage: false, embedTypes: [wireType]))
+            XCTAssertFalse(AppleStandaloneEmbedPreviewPresentation.usesLargePreview(explicit: false,
+                isUserMessage: true, embedTypes: [wireType]))
+            XCTAssertFalse(AppleStandaloneEmbedPreviewPresentation.usesLargePreview(explicit: false,
+                isUserMessage: false, embedTypes: [wireType, wireType]))
+        }
+        XCTAssertFalse(AppleStandaloneEmbedPreviewPresentation.usesLargePreview(explicit: false,
+            isUserMessage: false, embedTypes: ["app_skill_use"]))
+        XCTAssertFalse(AppleStandaloneEmbedPreviewPresentation.usesLargePreview(explicit: false,
+            isUserMessage: false, embedTypes: []))
+        XCTAssertTrue(AppleStandaloneEmbedPreviewPresentation.usesLargePreview(explicit: true,
+            isUserMessage: true, embedTypes: ["code-code"]))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testStandaloneAssistantPreviewPolicyCoversSupportedDirectEmbedsAndRegularGroups() {
+        for type in EmbedType.allCases where !type.rawValue.hasPrefix("app:") {
+            let eligible = type != .image && type != .focusModeActivation
+            XCTAssertEqual(AppleStandaloneEmbedPreviewPresentation.usesLargePreview(explicit: false,
+                isUserMessage: false, embedTypes: [type.rawValue]), eligible, type.rawValue)
+            XCTAssertFalse(AppleStandaloneEmbedPreviewPresentation.usesLargePreview(explicit: false,
+                isUserMessage: true, embedTypes: [type.rawValue]), type.rawValue)
+            XCTAssertEqual(AppleStandaloneEmbedPreviewPresentation.usesLargePreview(explicit: false,
+                isUserMessage: false, embedTypes: [type.rawValue, type.rawValue]),
+                eligible && type != .codeCode, type.rawValue)
+        }
+        for type in ["app_skill_use", "app-skill-use", "app-skill-use-group", "app:web:search", "image", "images-image", "focus-mode-activation", "unknown"] {
+            XCTAssertFalse(AppleStandaloneEmbedPreviewPresentation.usesLargePreview(explicit: false,
+                isUserMessage: false, embedTypes: [type]), type)
+        }
+        XCTAssertTrue(AppleStandaloneEmbedPreviewPresentation.usesLargePreview(explicit: false,
+            isUserMessage: false, embedTypes: ["sheets-sheet-group"]))
+        XCTAssertFalse(AppleStandaloneEmbedPreviewPresentation.usesLargePreview(explicit: false,
+            isUserMessage: false, embedTypes: ["code-code-group"]))
+        XCTAssertFalse(AppleStandaloneEmbedPreviewPresentation.usesLargePreview(explicit: false,
+            isUserMessage: false, embedTypes: ["app-skill-use", "web-website"]),
+            "Grouped app skill cards and their children retain the compact group surface")
+        XCTAssertEqual(AppleStandaloneEmbedPreviewPresentation.variant(containerWidth: 399), .compact)
+        XCTAssertEqual(AppleStandaloneEmbedPreviewPresentation.variant(containerWidth: 400), .compact)
+        XCTAssertEqual(AppleStandaloneEmbedPreviewPresentation.variant(containerWidth: 401), .large)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.rendering.assistant-document-convergence,chats.surface.semantic-parity
+    func testSheetStandaloneSelectionSurvivesStreamingCompletionAndHistoryRestoration() throws {
+        // Streaming hides protocol JSON and displays its extracted placeholder.
+        // Leading prose makes the embed's position independent of block zero.
+        let content = "Comparison\n\n[[embed:sheet-synthetic]]"
+        let refs = [EmbedRef(id: "sheet-synthetic", type: "sheets-sheet", status: "finished", data: nil)]
+        let identity = ProgressiveMarkdownIdentity(scopeID: "scope-synthetic", chatID: "chat-synthetic", messageID: "message-synthetic")
+        var projection = ProgressiveMarkdownRenderProjection()
+        for isStreaming in [true, false] {
+            projection.update(.init(identity: identity, content: content, isStreaming: isStreaming, sequence: nil, embedRefs: refs))
+            let reference = try XCTUnwrap(projection.blocks.flatMap { $0.document.embedReferences }.first)
+            XCTAssertEqual(reference.id, "sheet-synthetic")
+            XCTAssertEqual(reference.type, "sheets-sheet")
+            XCTAssertTrue(AppleStandaloneEmbedPreviewPresentation.usesLargePreview(explicit: reference.isLargePreview,
+                isUserMessage: false, embedTypes: [try XCTUnwrap(reference.type)]))
+        }
+        let message = Message(id: identity.messageID, chatId: identity.chatID, role: .assistant,
+            content: content, encryptedContent: nil, createdAt: "2026-01-01T00:00:00Z", updatedAt: nil,
+            appId: nil, isStreaming: false, embedRefs: refs)
+        let original = try XCTUnwrap(message.renderDocumentForDisplay)
+        let restored = try JSONDecoder().decode(ChatHistoryRenderDocument.self,
+            from: JSONEncoder().encode(original))
+        let reference = try XCTUnwrap(restored.blocks.flatMap(\.embedReferences).first)
+        XCTAssertEqual(reference.id, "sheet-synthetic")
+        XCTAssertEqual(reference.type, "sheets-sheet")
+        XCTAssertTrue(AppleStandaloneEmbedPreviewPresentation.usesLargePreview(explicit: reference.isLargePreview,
+            isUserMessage: restored.identity.role == .user, embedTypes: [try XCTUnwrap(reference.type)]))
+        XCTAssertEqual(restored.blocks, projection.blocks.map(\.document))
+
+        let wireMessage = Message(id: identity.messageID, chatId: identity.chatID, role: .assistant,
+            content: "Comparison\n\n```json\n{\"type\":\"sheet\",\"embed_id\":\"sheet-synthetic\"}\n```",
+            encryptedContent: nil, createdAt: "2026-01-01T00:00:00Z", updatedAt: nil,
+            appId: nil, isStreaming: false, embedRefs: nil)
+        let wireDocument = try XCTUnwrap(wireMessage.renderDocumentForDisplay)
+        let wireReference = try XCTUnwrap(wireDocument.blocks.flatMap(\.embedReferences).first)
+        XCTAssertEqual(wireReference.id, "sheet-synthetic")
+        XCTAssertEqual(wireReference.type, "sheet")
+        XCTAssertTrue(AppleStandaloneEmbedPreviewPresentation.usesLargePreview(explicit: wireReference.isLargePreview,
+            isUserMessage: false, embedTypes: [try XCTUnwrap(wireReference.type)]))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testResultsMapCameraFitsBerlinMarkersAtCityScaleAndRetainsSingleLocationScale() throws {
         let berlin = [CLLocationCoordinate2D(latitude: 52.5219, longitude: 13.4132),
                       CLLocationCoordinate2D(latitude: 52.5163, longitude: 13.3777),

@@ -426,7 +426,7 @@ private struct DevComponentPreviewCanvas: View {
                 ProjectsWorkspaceView(store: projectsFixtureStore,
                     tasksStore: projectTasksFixtureStore,
                     previewInitialTab: ["folders", "connectedSource", "localFolderSource",
-                        "multipleSources", "largeConnectedSource", "legacyConnectedSource", "rootFiles", "truncatedConnectedSource"]
+                        "multipleSources", "largeConnectedSource", "legacyConnectedSource", "rootFiles", "truncatedConnectedSource", "offlineConnectedSource"]
                         .contains(configuration.variant) ? .files
                         : configuration.variant == "tasks" ? .tasks : .overview,
                     onOpenChat: { lastAction = "opened-chat-\($0)" },

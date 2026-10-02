@@ -495,8 +495,9 @@ final class AuthManager: ObservableObject {
             request.challengeId = challenge.challengeId
             request.passwordProof = try keys.proof(purpose: "login", nonce: nonce)
             let v2Response = try await send(request)
-            if v2Response.success || v2Response.tfaRequired == true ||
-                v2Response.needsDeviceVerification == true || signupProof != nil {
+            // Anti-enumeration decoys report success/TFA without a real identity.
+            // Match the web's acceptance gate before deciding against legacy login.
+            if (v2Response.success && v2Response.hasAcceptedPasswordIdentity) || signupProof != nil {
                 response = v2Response
             } else {
                 request.credentialVersion = nil
@@ -510,10 +511,16 @@ final class AuthManager: ObservableObject {
             // must reject this fallback for any record already upgraded to v2.
             guard signupProof == nil, case .httpError(let status, _) = error,
                   status == 401 || status == 403 else { throw error }
+            request.credentialVersion = nil
+            request.challengeId = nil
+            request.passwordProof = nil
             request.lookupHash = await crypto.hashKey(password, salt: saltData)
             response = try await send(request)
         } catch let error as PairOpaqueError {
             guard signupProof == nil else { throw error }
+            request.credentialVersion = nil
+            request.challengeId = nil
+            request.passwordProof = nil
             request.lookupHash = await crypto.hashKey(password, salt: saltData)
             response = try await send(request)
         }

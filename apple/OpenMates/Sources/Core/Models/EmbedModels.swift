@@ -247,9 +247,11 @@ struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let legacyContainer = try decoder.container(keyedBy: LegacyCodingKeys.self)
-        let decodedId = try container.decodeIfPresent(String.self, forKey: .id)
+        // Directus has its own row UUID. Message references and key wrappers
+        // address the canonical embed_id, which can differ from that row ID.
+        let decodedId = try container.decodeIfPresent(String.self, forKey: .embedId)
             ?? (try legacyContainer.decodeIfPresent(String.self, forKey: .embedId))
-            ?? (try container.decode(String.self, forKey: .embedId))
+            ?? (try container.decode(String.self, forKey: .id))
         let decodedParentEmbedId = try container.decodeIfPresent(String.self, forKey: .parentEmbedId)
             ?? (try legacyContainer.decodeIfPresent(String.self, forKey: .parentEmbedId))
         let decodedAppId = try container.decodeIfPresent(String.self, forKey: .appId)
@@ -330,7 +332,11 @@ struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
             raw["embed_ids"] = raw["embed_ids"] ?? Self.normalizeEmbedIds(decodedEmbedIds)
             data = .raw(raw.mapValues { AnyCodable($0) })
         } else {
-            type = decodedType ?? Self.inferredType(appId: decodedAppId, skillId: decodedSkillId)
+            type = Self.normalizedType(
+                decodedType ?? Self.inferredType(appId: decodedAppId, skillId: decodedSkillId),
+                appId: decodedAppId,
+                skillId: decodedSkillId
+            )
             data = nil
         }
         embedIds = decodedEmbedIds
@@ -443,6 +449,7 @@ struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
     }
 
     private static func normalizedType(_ rawType: String, appId: String?, skillId: String?) -> String {
+        if rawType == "code" { return EmbedType.codeCode.rawValue }
         if rawType == "sheet" { return EmbedType.sheetsSheet.rawValue }
         if rawType == "appointment" { return EmbedType.healthAppointment.rawValue }
         switch rawType {
@@ -937,6 +944,7 @@ enum EmbedType: String, CaseIterable {
     case workflowsSearch = "app:workflows:search"
 
     static func normalized(rawValue: String) -> EmbedType? {
+        if rawValue == "code" { return .codeCode }
         if rawValue == "sheet" { return .sheetsSheet }
         if rawValue == "appointment" { return .healthAppointment }
         switch rawValue {

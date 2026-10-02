@@ -1052,6 +1052,55 @@ final class EmbedRenderingParityUITests: XCTestCase {
     }
 
     // contract-test: direct surface=gui.apple assertions=code-run.surface-parity
+    func testCodePreviewProcessingAndErrorMatchPersistedStatus() {
+        for (variant, expectedIdentifier, unexpectedIdentifier) in [
+            ("processing", "code-embed-processing", "code-embed-empty"),
+            ("error", "code-embed-empty", "code-embed-processing")
+        ] {
+            let app = XCUIApplication()
+            app.launchArguments = ["--dev-preview", "embeds", "--dev-preview-app", "code",
+                "--embed-registry-key", "code-code", "--embed-surface", "preview", "--embed-variant", variant]
+            app.launch()
+            let preview = app.descendants(matching: .any)[expectedIdentifier].firstMatch
+            XCTAssertTrue(preview.waitForExistence(timeout: 8), "Code \(variant) preview did not reflect its saved status")
+            XCTAssertFalse(app.descendants(matching: .any)[unexpectedIdentifier].exists)
+            XCTAssertFalse(app.descendants(matching: .any)["code-embed-source-preview"].exists,
+                "An empty record must never manufacture source")
+            attachScreenshot(name: "Code \(variant) preview status")
+            app.terminate()
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=code-run.surface-parity
+    func testShortCodeLinesStartAtLeadingGutterInBothThemes() {
+        for theme in ["light", "dark"] {
+            let app = XCUIApplication()
+            app.launchArguments = ["--dev-preview", "embeds", "--dev-preview-app", "code",
+                "--embed-registry-key", "code-code", "--embed-surface", "fullscreen",
+                "--embed-variant", "longCode", "--dev-preview-theme", theme]
+            app.launch()
+            let panel = app.descendants(matching: .any)["code-source-panel"].firstMatch
+            XCTAssertTrue(panel.waitForExistence(timeout: 8))
+            let header = app.descendants(matching: .any)["embed-fullscreen-header"].firstMatch
+            let fullscreen = app.descendants(matching: .any)["embed-fullscreen-scroll"].firstMatch
+            XCTAssertTrue(header.exists && fullscreen.exists)
+            XCTAssertEqual(header.frame.minY, fullscreen.frame.minY, accuracy: 1,
+                           "The CTA reserve belongs below the banner, not in a blank top strip")
+            let firstLine = panel.staticTexts.matching(NSPredicate(format: "label == %@", "line_1 = \"content for line 1\"")).firstMatch
+            XCTAssertTrue(firstLine.waitForExistence(timeout: 3))
+            // The fixture's widest line is 33 characters: narrower than the
+            // phone source viewport. A horizontal ScrollView must not center it.
+            XCTAssertLessThanOrEqual(firstLine.frame.minX, panel.frame.minX + 64)
+            XCTAssertGreaterThanOrEqual(firstLine.frame.minX, panel.frame.minX + 40)
+            let gutter = panel.staticTexts.matching(NSPredicate(format: "label == %@", "1")).firstMatch
+            XCTAssertTrue(gutter.exists)
+            XCTAssertLessThanOrEqual(gutter.frame.maxX, panel.frame.minX + 41)
+            attachScreenshot(name: "Code leading gutter \(theme)")
+            app.terminate()
+        }
+    }
+
+    // contract-test: direct surface=gui.apple assertions=code-run.surface-parity
     func testFinishedIndexHTMLRendersSourceInPreviewAndFullscreen() throws {
         let app = XCUIApplication()
         app.launchArguments = ["--dev-preview", "embeds", "--dev-preview-app", "code",

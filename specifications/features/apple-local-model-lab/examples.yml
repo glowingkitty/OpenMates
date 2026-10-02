@@ -1,0 +1,59 @@
+schema_version: 1
+specification: feature.apple-local-model-lab@1
+downloads:
+- id: verified-download-and-offline-reopen
+  given: No laboratory models are installed.
+  when: The user downloads Whisper, then reopens the lab with network access disabled.
+  then: Only Whisper becomes ready after its files verify; the other models remain optional and Whisper
+    restores from disk without a network request.
+- id: corrupt-or-cancelled-download
+  given: A model download is in progress.
+  when: A file fails its checksum or the user cancels.
+  then: The lab never offers a ready model from partial files, removes partial assets and offers a fresh
+    retry.
+execution:
+- id: offline-disposable-audio-and-text
+  given: The three models are installed on a supported device and the user enables local laboratory tests
+    before disconnecting the network.
+  when: The user tests a disposable recording, an English sentence and a disposable name/address example
+    in turn.
+  then: The lab shows local transcription, playable speech and personal-data spans with device measurements;
+    no input reaches a server and no credits are charged.
+spans:
+- id: unicode-and-window-seam
+  given: Disposable text contains a German name after an emoji and an entity crossing a model window boundary.
+  when: Privacy Filter decodes the token windows.
+  then: The name and crossing entity are highlighted coherently without splitting an emoji or Unicode
+    character.
+- id: failure-is-not-clean
+  given: Privacy Filter receives invalid model output or its run is cancelled.
+  when: The operation finishes.
+  then: The lab shows a sanitized failure or cancellation and never presents that operation as a successful
+    no-entity scan.
+scope:
+- id: lab-switch-only
+  given: The account uses its existing chat speech and personal-data provider settings.
+  when: The user opens Developers Local models lab and toggles its local-model switch.
+  then: Only laboratory tests are enabled; the production chat settings and provider/billing behavior
+    retain their existing values.
+cancellation:
+- id: cancel-during-native-operation
+  given: Whisper is transcribing a disposable recording.
+  when: The user cancels and tries to start Kokoro before Whisper finishes unloading.
+  then: No result is retained and no second test starts until the active operation and unload finish.
+ephemeral:
+- id: exit-with-active-import
+  given: A lab test is reading its own copy of an imported recording and private test text is entered.
+  when: The user leaves the laboratory before the native operation returns.
+  then: Visible inputs and results clear immediately, late results remain absent, and the copy is removed
+    after the operation finishes; the original recording and installed models remain.
+availability:
+- id: unsupported-intel
+  given: The user opens the laboratory on an Intel Mac.
+  when: The model controls are displayed.
+  then: A localized unsupported-hardware reason is visible and download/run controls are disabled.
+- id: kokoro-on-os27
+  given: The user opens the lab on an Apple silicon device running OS 27 or later.
+  when: The Kokoro controls are displayed.
+  then: Kokoro shows its upstream crash restriction and cannot download or run; Whisper and Privacy Filter
+    are evaluated independently.

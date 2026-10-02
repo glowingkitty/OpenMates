@@ -8,6 +8,7 @@
 
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
+//          frontend/packages/ui/src/components/enter_message/extensions/Embed.ts
 //          frontend/packages/ui/src/components/embeds/BasicInfosBar.svelte
 //          frontend/packages/ui/src/components/embeds/images/ImageEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/audio/RecordingEmbedPreview.svelte
@@ -50,6 +51,7 @@ struct AppleComposerEmbedPreview: View {
     private let localPreviewImage: Image?
     let actions: AppleComposerEmbedActions
     let showsActions: Bool
+    @State private var showsRemovalAction = false
 
     init(
         descriptor: AppleComposerPreviewDescriptor,
@@ -125,12 +127,36 @@ struct AppleComposerEmbedPreview: View {
             } else {
                 composerSummaryPreview
             }
-            if showsActions && !isImagePreview {
-                actionBar
-                    .padding(.spacing4)
+            if showsActions && lifecycle == .error && !showsRemovalAction {
+                previewAction(icon: "refresh", label: AppStrings.retry) {
+                    actions.onRetry(node.id)
+                }
+                .padding(.spacing4)
+            }
+            if showsRemovalAction {
+                Button {
+                    showsRemovalAction = false
+                    actions.onRemove(node.id)
+                } label: {
+                    Text(AppStrings.remove)
+                        .font(.omSmall)
+                        .foregroundStyle(Color.fontPrimary)
+                        .padding(.horizontal, .spacing8)
+                        .padding(.vertical, .spacing6)
+                        .background(Color.grey10)
+                        .clipShape(RoundedRectangle(cornerRadius: .radius8))
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("native-composer-preview-action-close")
+                .padding(.spacing4)
             }
         }
         .frame(width: AppleComposerPreviewMetrics.width, height: AppleComposerPreviewMetrics.height)
+        // The editor also removes selected atoms with Backspace. A deliberate
+        // long press exposes removal without adding controls to the idle card.
+        .onLongPressGesture {
+            if showsActions { showsRemovalAction.toggle() }
+        }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("native-composer-preview-\(descriptor.embedType)-\(lifecycle.rawValue)")
         .accessibilityValue(node.contentRef == nil ? "local-preview-no-durable-id" : "durable-preview")
@@ -187,29 +213,6 @@ struct AppleComposerEmbedPreview: View {
         default:
             summaryPreview
         }
-    }
-
-    private var actionBar: some View {
-        HStack(spacing: .spacing2) {
-            if lifecycle == .finished {
-                previewAction(icon: "visible", label: openLabel) {
-                    actions.onOpen(node.id)
-                }
-            }
-            if lifecycle == .error {
-                previewAction(icon: "refresh", label: AppStrings.retry) {
-                    actions.onRetry(node.id)
-                }
-            }
-            previewAction(icon: "close", label: AppStrings.remove) {
-                actions.onRemove(node.id)
-            }
-        }
-    }
-
-    private var isImagePreview: Bool {
-        if case .image = descriptor.family { return true }
-        return false
     }
 
     private func previewAction(

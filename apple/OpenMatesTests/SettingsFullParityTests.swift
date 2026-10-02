@@ -54,6 +54,16 @@ final class SettingsFullParityTests: XCTestCase {
         XCTAssertFalse(SettingsDeepLinkRoute("apps/web/skills/search").hasNativeChild)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=apple-local-model-lab.local-execution,apple-local-model-lab.isolated-scope
+    func testLocalModelLabIsExplicitNativeOnlyAuthenticatedRoute() {
+        let route = SettingsDeepLinkRoute("developers/local-models")
+        XCTAssertTrue(route.hasNativeChild)
+        XCTAssertFalse(route.canOpen(authenticated: false, admin: false))
+        XCTAssertTrue(route.canOpen(authenticated: true, admin: false))
+        XCTAssertEqual(SettingsRouteInventory.nativeOnlyRoutes, ["developers/local-models"])
+        XCTAssertFalse(SettingsRouteInventory.coveredWebBaseRoutes.contains(route.path))
+    }
+
     // contract-test: supporting surface=gui.apple assertions=settings-ui.shell.lifecycle-and-routing
     func testProjectSettingsDeepLinkRoutesStayWithinSelectedTeamAndReloadScope() {
         let personal = SettingsProjectsRoute(teamID: nil)
@@ -122,7 +132,7 @@ final class SettingsFullParityTests: XCTestCase {
         XCTAssertTrue(SettingsRouteInventory.nativeRoutes.contains("billing"))
         XCTAssertTrue(SettingsRouteInventory.nativeRoutes.contains("server"))
         XCTAssertTrue(SettingsRouteInventory.nativeRoutes.contains("account/security/recovery-key"))
-        XCTAssertEqual(SettingsRouteInventory.webBaseRoutes.subtracting(SettingsRouteInventory.intentionallyExcludedWebRoutes), SettingsRouteInventory.nativeRoutes)
+        XCTAssertEqual(SettingsRouteInventory.webBaseRoutes.subtracting(SettingsRouteInventory.intentionallyExcludedWebRoutes), SettingsRouteInventory.nativeRoutes.subtracting(SettingsRouteInventory.nativeOnlyRoutes))
     }
 
     // contract-test: supporting surface=gui.apple assertions=settings-ui.composition.canonical-and-accessible,settings-ui.parity.web-apple-shell

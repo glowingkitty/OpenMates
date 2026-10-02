@@ -2314,25 +2314,12 @@ struct ChatView: View {
 
     private var chatMoreTrigger: some View {
         let label = LocalizationManager.shared.text("common.more_actions")
-        return ZStack {
-            Icon("more", size: 22).foregroundStyle(LinearGradient.primary)
-                .opacity(chatHeaderActionsOverlapBanner ? 0 : 1)
-                .accessibilityHidden(true)
-            Icon("more", size: 22).foregroundStyle(.white)
-                .opacity(chatHeaderActionsOverlapBanner ? 1 : 0)
-                .accessibilityHidden(true)
+        return NativeHeaderActionPill(icon: "more", label: label,
+            overlapsHeader: chatHeaderActionsOverlapBanner,
+            accessibilityIdentifier: "chat-more-button") {
+            chatHeaderMoreOpen.toggle()
         }
-        .frame(width: 44, height: 44)
-        .background(chatHeaderActionsOverlapBanner ? Color.white.opacity(0.2) : Color.grey10)
-        .clipShape(Circle())
-        .shadow(color: .black.opacity(0.18), radius: 12, x: 0, y: 4)
         .contentShape(Circle())
-        .onTapGesture { chatHeaderMoreOpen.toggle() }
-        .accessibilityElement()
-        .accessibilityLabel(label)
-        .accessibilityIdentifier("chat-more-button")
-        .accessibilityAddTraits(.isButton)
-        .accessibilityAction { chatHeaderMoreOpen.toggle() }
     }
 
     private func chatFloatingAction(
@@ -2342,30 +2329,9 @@ struct ChatView: View {
         showsLabel: Bool = false,
         action: @escaping () -> Void
     ) -> some View {
-        Button(action: action) {
-            HStack(spacing: .spacing2) {
-                ZStack {
-                    Icon(icon, size: 22).foregroundStyle(LinearGradient.primary)
-                        .opacity(chatHeaderActionsOverlapBanner ? 0 : 1)
-                    Icon(icon, size: 22).foregroundStyle(.white)
-                        .opacity(chatHeaderActionsOverlapBanner ? 1 : 0)
-                }
-                if showsLabel {
-                    Text(label).font(.omSmall.weight(.semibold))
-                        .foregroundStyle(chatHeaderActionsOverlapBanner ? Color.white : Color.grey100)
-                }
-            }
-            .padding(.horizontal, showsLabel ? .spacing4 : 0)
-            .frame(minWidth: 44, minHeight: 44)
-            .background(chatHeaderActionsOverlapBanner ? Color.white.opacity(0.2) : Color.grey10)
-            .clipShape(Capsule())
-            .shadow(color: .black.opacity(0.18), radius: 12, x: 0, y: 4)
-            .accessibilityHidden(true)
-        }
-        .buttonStyle(.plain)
-        .help(Text(label))
-        .accessibilityLabel(label)
-        .accessibilityIdentifier(accessibilityIdentifier ?? "chat-floating-action-\(icon)")
+        NativeHeaderActionPill(icon: icon, label: label, showsLabel: showsLabel,
+            overlapsHeader: chatHeaderActionsOverlapBanner,
+            accessibilityIdentifier: accessibilityIdentifier ?? "chat-floating-action-\(icon)", action: action)
     }
 
     private func chatFloatingMenuAction(
@@ -2374,24 +2340,8 @@ struct ChatView: View {
         identifier: String,
         action: @escaping () -> Void
     ) -> some View {
-        Button(action: action) {
-            HStack(spacing: .spacing3) {
-                Icon(icon, size: 20).foregroundStyle(LinearGradient.primary)
-                Text(label)
-                    .font(.omSmall.weight(.semibold))
-                    .foregroundStyle(Color.grey100)
-                    .multilineTextAlignment(.leading)
-            }
-            .padding(.horizontal, .spacing4)
-            .frame(minHeight: 40, alignment: .leading)
-            .contentShape(Rectangle())
-            .background(Color.grey10)
-            .clipShape(Capsule())
-            .shadow(color: .black.opacity(0.18), radius: 8, x: 0, y: 4)
-            .fixedSize(horizontal: true, vertical: false)
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier(identifier)
+        NativeHeaderMenuActionPill(icon: icon, label: label,
+            accessibilityIdentifier: identifier, action: action)
     }
 
     // MARK: - Streaming banner

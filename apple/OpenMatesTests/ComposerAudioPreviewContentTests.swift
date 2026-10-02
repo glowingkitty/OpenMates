@@ -88,3 +88,34 @@ final class ComposerAudioPreviewContentTests: XCTestCase {
         )
     }
 }
+
+@MainActor
+final class ChatDraftPreviewFormattingTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=message-input.drafts.preview-persistence
+    func testSerializedAndTruncatedAudioReferencesBecomeReadableWithoutLosingText() {
+        let source = "Before ```json\n{\"type\":\"audio\",\"embed_id\":\"synthetic-audio\"}\n``` after"
+        XCTAssertEqual(ChatDraftPreviewFormatter.format(source), "Before [Audio] after")
+        XCTAssertEqual(ChatDraftPreviewFormatter.format("```json\n{\"type\":\"audio\",\"embed_id\":\"synthetic"), "[Audio]")
+        XCTAssertEqual(ChatDraftPreviewFormatter.format("{\"type\":\"image\",\"embed_id\":\"synthetic"), "[Image]")
+        XCTAssertEqual(ChatDraftPreviewFormatter.format("Before {\"embed_id\":\"synthetic\",\"type\":\"image\"} after"), "Before [Image] after")
+        XCTAssertEqual(ChatDraftPreviewFormatter.format("Read [report](embed:synthetic) please"), "Read [Embed] please")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.drafts.preview-persistence
+    func testStructuredDocumentsPreserveTextAndEmbedOrderIncludingLocalAttachments() {
+        let tiptap = #"{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Before "},{"type":"embed","attrs":{"type":"audio"}},{"type":"text","text":" after"}]},{"type":"paragraph","content":[{"type":"embed","attrs":{"type":"image"}},{"type":"text","text":" describe it"}]}]}"#
+        XCTAssertEqual(ChatDraftPreviewFormatter.format(tiptap), "Before [Audio] after [Image] describe it")
+        let native = #"{"version":1,"nodes":[{"kind":"text","source":"Before "},{"kind":"embed","embedType":"audio-recording"},{"kind":"text","source":" after"},{"kind":"hardBreak"},{"kind":"mention","displayLabel":"@Synthetic"}]}"#
+        XCTAssertEqual(ChatDraftPreviewFormatter.format(native), "Before [Audio] after @Synthetic")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.drafts.preview-persistence
+    func testOrdinaryTextAndJSONRemainVisible() {
+        XCTAssertEqual(ChatDraftPreviewFormatter.format("  An ordinary\n draft [Audio]  "), "An ordinary draft [Audio]")
+        let ordinaryJSON = #"{"type":"audio","message":"Discuss this JSON"}"#
+        XCTAssertEqual(ChatDraftPreviewFormatter.format(ordinaryJSON), ordinaryJSON)
+        XCTAssertEqual(ChatDraftPreviewFormatter.format("Please explain {\"count\":2} today"), "Please explain {\"count\":2} today")
+        XCTAssertEqual(ChatDraftPreviewFormatter.format(nil), "")
+        XCTAssertEqual(ChatDraftPreviewFormatter.format(" \n "), "")
+    }
+}

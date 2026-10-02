@@ -1,0 +1,246 @@
+title:
+  context: Apple-only local model lab title
+  en: "Local models lab"
+  de: "Lokales Modelllabor"
+  verified_by_human: []
+description:
+  context: Apple-only local model lab description
+  en: "Optional on-device experiments. Download models once, then test without a network connection. No credits are charged."
+  de: "Optionale Tests auf diesem Gerät. Modelle einmal herunterladen, dann ohne Netzwerk testen. Es werden keine Credits berechnet."
+  verified_by_human: []
+toggle:
+  context: Apple-only local model lab toggle
+  en: "Use local models in this lab"
+  de: "Lokale Modelle in diesem Labor verwenden"
+  verified_by_human: []
+scope:
+  context: Apple-only local model lab scope
+  en: "This switch enables only the tests below. Chat speech recognition, speech playback and personal-data protection keep their current providers and settings."
+  de: "Dieser Schalter aktiviert nur die Tests unten. Spracherkennung, Sprachausgabe und Datenschutz im Chat behalten ihre bisherigen Anbieter und Einstellungen."
+  verified_by_human: []
+download:
+  context: Apple-only local model lab download
+  en: "Download"
+  de: "Herunterladen"
+  verified_by_human: []
+not_downloaded:
+  context: Apple-only local model lab not downloaded
+  en: "Not downloaded"
+  de: "Nicht heruntergeladen"
+  verified_by_human: []
+ready:
+  context: Apple-only local model lab ready
+  en: "Ready for offline tests"
+  de: "Bereit für Offline-Tests"
+  verified_by_human: []
+downloading:
+  context: Apple-only local model lab downloading
+  en: "Downloading {percent}%"
+  de: "Wird heruntergeladen: {percent}%"
+  verified_by_human: []
+download_failed:
+  context: Apple-only local model lab download failed
+  en: "Download failed. Retry when your connection and free storage are available."
+  de: "Download fehlgeschlagen. Bei verfügbarer Verbindung und freiem Speicher erneut versuchen."
+  verified_by_human: []
+run:
+  context: Apple-only local model lab run
+  en: "Run local test"
+  de: "Lokalen Test starten"
+  verified_by_human: []
+import_audio:
+  context: Apple-only local model lab import audio
+  en: "Import audio file"
+  de: "Audiodatei importieren"
+  verified_by_human: []
+record:
+  context: Apple-only local model lab record
+  en: "Record microphone"
+  de: "Mikrofon aufnehmen"
+  verified_by_human: []
+stop_recording:
+  context: Apple-only local model lab stop recording
+  en: "Stop recording"
+  de: "Aufnahme beenden"
+  verified_by_human: []
+audio_ready:
+  context: Apple-only local model lab audio ready
+  en: "Audio ready: {seconds} seconds"
+  de: "Audio bereit: {seconds} Sekunden"
+  verified_by_human: []
+speech_input:
+  context: Apple-only local model lab speech input
+  en: "English text to speak"
+  de: "Englischer Text für Sprachausgabe"
+  verified_by_human: []
+privacy_input:
+  context: Apple-only local model lab privacy input
+  en: "Text to inspect for personal data"
+  de: "Text auf personenbezogene Daten prüfen"
+  verified_by_human: []
+input_placeholder:
+  context: Apple-only local model lab input placeholder
+  en: "Enter disposable test text"
+  de: "Temporären Testtext eingeben"
+  verified_by_human: []
+play:
+  context: Apple-only local model lab play
+  en: "Play generated speech"
+  de: "Erzeugte Sprache abspielen"
+  verified_by_human: []
+stop_playback:
+  context: Apple-only local model lab stop playback
+  en: "Stop playback"
+  de: "Wiedergabe stoppen"
+  verified_by_human: []
+running:
+  context: Apple-only local model lab running
+  en: "Running locally…"
+  de: "Lokaler Test läuft …"
+  verified_by_human: []
+cancelling:
+  context: Apple-only local model lab cancelling
+  en: "Cancelling and unloading…"
+  de: "Abbrechen und Entladen …"
+  verified_by_human: []
+elapsed:
+  context: Apple-only local model lab elapsed
+  en: "Elapsed time"
+  de: "Verstrichene Zeit"
+  verified_by_human: []
+rtf:
+  context: Apple-only local model lab rtf
+  en: "Real-time factor"
+  de: "Echtzeitfaktor"
+  verified_by_human: []
+environment:
+  context: Apple-only local model lab environment
+  en: "{cores} CPU cores · {memory} device memory · thermal state: {thermal}"
+  de: "{cores} CPU-Kerne · {memory} Gerätespeicher · thermischer Zustand: {thermal}"
+  verified_by_human: []
+thermal_nominal:
+  context: Apple-only local model lab thermal nominal
+  en: "normal"
+  de: "normal"
+  verified_by_human: []
+thermal_fair:
+  context: Apple-only local model lab thermal fair
+  en: "warm"
+  de: "warm"
+  verified_by_human: []
+thermal_serious:
+  context: Apple-only local model lab thermal serious
+  en: "hot"
+  de: "heiß"
+  verified_by_human: []
+thermal_critical:
+  context: Apple-only local model lab thermal critical
+  en: "critical"
+  de: "kritisch"
+  verified_by_human: []
+unavailable:
+  context: Apple-only local model lab unavailable
+  en: "Unavailable"
+  de: "Nicht verfügbar"
+  verified_by_human: []
+result:
+  context: Apple-only local model lab result
+  en: "Local test result"
+  de: "Lokales Testergebnis"
+  verified_by_human: []
+no_entities:
+  context: Apple-only local model lab no entities
+  en: "No entities detected. This experimental result does not prove the text is safe."
+  de: "Keine Entitäten erkannt. Dieses experimentelle Ergebnis beweist nicht, dass der Text unbedenklich ist."
+  verified_by_human: []
+audio_error:
+  context: Apple-only local model lab audio error
+  en: "The audio file could not be read, recorded or played. Choose a supported audio file and try again."
+  de: "Die Audiodatei konnte nicht gelesen, aufgenommen oder abgespielt werden. Eine unterstützte Audiodatei auswählen und erneut versuchen."
+  verified_by_human: []
+microphone_error:
+  context: Apple-only local model lab microphone error
+  en: "Microphone access is required to record a test. You can also import an audio file."
+  de: "Für eine Testaufnahme ist Mikrofonzugriff erforderlich. Alternativ eine Audiodatei importieren."
+  verified_by_human: []
+run_error:
+  context: Apple-only local model lab run error
+  en: "The local test failed. Check that the model download is complete and this device supports its runtime. No cloud fallback was used."
+  de: "Der lokale Test ist fehlgeschlagen. Download und Gerätekompatibilität prüfen. Es wurde kein Cloud-Fallback verwendet."
+  verified_by_human: []
+privacy_note:
+  context: Apple-only local model lab privacy note
+  en: "Inputs, recordings and generated output are temporary and cleared when you leave this page. Installed models remain until removed. Run one model at a time; cancellation waits for the active native operation to finish."
+  de: "Eingaben, Aufnahmen und Ergebnisse sind temporär und werden beim Verlassen dieser Seite gelöscht. Installierte Modelle bleiben bis zum Entfernen erhalten. Nur ein Modell gleichzeitig testen; Abbrechen wartet auf das Ende der aktiven nativen Operation."
+  verified_by_human: []
+whisper:
+  context: Apple-only local model lab whisper
+  en: "WhisperKit large-v3 turbo · speech to text"
+  de: "WhisperKit large-v3 turbo · Sprache zu Text"
+  verified_by_human: []
+kokoro:
+  context: Apple-only local model lab kokoro
+  en: "Kokoro · English text to speech"
+  de: "Kokoro · englische Sprachausgabe"
+  verified_by_human: []
+privacy_filter:
+  context: Apple-only local model lab privacy filter
+  en: "OpenAI Privacy Filter · personal data"
+  de: "OpenAI Privacy Filter · personenbezogene Daten"
+  verified_by_human: []
+entity:
+  context: Apple-only local model lab entity
+  en: "{label} · {start}–{end} · confidence {score}"
+  de: "{label} · {start}–{end} · Konfidenz {score}"
+  verified_by_human: []
+installed_size:
+  context: Apple-only local model lab installed size
+  en: "Download size"
+  de: "Downloadgröße"
+  verified_by_human: []
+revision:
+  context: Apple-only local model lab revision
+  en: "Revision"
+  de: "Revision"
+  verified_by_human: []
+waveform:
+  context: Apple-only local model lab waveform
+  en: "Generated audio waveform"
+  de: "Wellenform der erzeugten Audiodatei"
+  verified_by_human: []
+cancelled:
+  context: Local model lab cancelled download status
+  en: Download cancelled
+  de: Download abgebrochen
+  verified_by_human: []
+not_enough_space:
+  context: Local model lab insufficient free storage status
+  en: Not enough free storage for this model
+  de: Nicht genug freier Speicher für dieses Modell
+  verified_by_human: []
+kokoro_os_error:
+  context: Kokoro upstream native runtime crashes on iOS and macOS 27, so the test is blocked
+  en: Kokoro is currently unavailable on iOS and macOS 27 or later because its upstream runtime can crash. Try another model or an earlier supported OS.
+  de: Kokoro ist unter iOS und macOS 27 oder neuer derzeit nicht verfügbar, da die zugrunde liegende Laufzeit abstürzen kann. Ein anderes Modell oder eine frühere unterstützte Betriebssystemversion verwenden.
+  verified_by_human: []
+peak_memory:
+  context: Whole app lifetime peak resident memory, not isolated model memory
+  en: App peak resident memory
+  de: Maximaler residenter App-Speicher
+  verified_by_human: []
+verifying:
+  context: Offline integrity verification of previously installed local model files
+  en: Verifying installed files locally…
+  de: Installierte Dateien werden lokal geprüft …
+  verified_by_human: []
+kokoro_input_limits:
+  context: Experimental English speech frontend limitation; not the full upstream normalization pipeline
+  en: Use short, simple English text. Spell out decimals, currency amounts and times in words. Unsupported formats and foreign characters are rejected. This lab does not include the full upstream text normalization pipeline.
+  de: Kurzen, einfachen englischen Text verwenden. Dezimalzahlen, Geldbeträge und Uhrzeiten in Worten ausschreiben. Nicht unterstützte Formate und fremdsprachige Zeichen werden abgelehnt. Dieses Labor enthält nicht die vollständige Textnormalisierung des Ursprungsprojekts.
+  verified_by_human: []
+
+architecture_unavailable:
+  context: The optional lab runtimes require arm64 iPhone, iPad or Mac and exclude Intel and Watch
+  en: "These local models require an iPhone, iPad or Apple silicon Mac. Intel Macs and Apple Watch are unsupported; downloads and tests are disabled."
+  de: "Diese lokalen Modelle benötigen ein iPhone, iPad oder einen Mac mit Apple-Chip. Intel-Macs und Apple Watch werden nicht unterstützt; Downloads und Tests sind deaktiviert."
+  verified_by_human: []

@@ -1522,7 +1522,7 @@ struct EmbedFullscreenHeader: View {
             }
         }
         .frame(width: viewportWidth, height: headerFrameHeight,
-               alignment: contentUnderlapsCTA ? .top : .center)
+               alignment: .top) // CTA reserves space below; never center the banner into that reserve.
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("embed-fullscreen-header")
         .accessibilityValue(embed.id)

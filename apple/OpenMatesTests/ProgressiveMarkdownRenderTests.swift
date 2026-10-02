@@ -1,6 +1,7 @@
 // Synthetic cumulative snapshots exercise the same parser and semantic document
 // used by production history, without network/account fixtures or timing budgets.
 import XCTest
+import SwiftUI
 @testable import OpenMates
 
 @MainActor
@@ -232,6 +233,93 @@ final class ProgressiveMarkdownRenderTests: XCTestCase {
 }
 
 final class CodeEmbedContentParityTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=code-run.surface-parity
+    func testSyntaxPaletteUsesWebLightColorsAndPreservesDarkColorsWithoutChangingSource() {
+        let source = "<main class=\"preview\">Ready</main><!-- note -->"
+        let light = CodeSyntaxHighlighter.tokens(for: source, language: "html", colorScheme: .light)
+        let dark = CodeSyntaxHighlighter.tokens(for: source, language: "html", colorScheme: .dark)
+        XCTAssertEqual(light.map(\.text).joined(), source)
+        XCTAssertEqual(dark.map(\.text), light.map(\.text))
+        let expectedColors: [(String, UInt32, UInt32)] = [
+            ("main", 0xB31D28, 0x7EE787),
+            ("class", 0x005CC5, 0x79C0FF),
+            ("\"preview\"", 0x032F62, 0xA5D6FF),
+            ("<!-- note -->", 0x6A737D, 0x8B949E)
+        ]
+        for (text, lightHex, darkHex) in expectedColors {
+            XCTAssertEqual(light.first { $0.text == text }?.color, Color(hex: lightHex))
+            XCTAssertEqual(dark.first { $0.text == text }?.color, Color(hex: darkHex))
+        }
+        XCTAssertEqual(light.first { $0.text == "Ready" }?.color, Color(hex: 0x24292E))
+        for (language, source) in [("python", "print(\"Hello\", 42)"), ("css", "color: \"blue\"; 42")] {
+            let tokens = CodeSyntaxHighlighter.tokens(for: source, language: language, colorScheme: .light)
+            XCTAssertEqual(tokens.map(\.text).joined(), source)
+            XCTAssertEqual(tokens.first { $0.text == "42" }?.color, Color(hex: 0x005CC5))
+            XCTAssertEqual(tokens.first { $0.text.hasPrefix("\"") }?.color, Color(hex: 0x032F62))
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=code-run.surface-parity
+    func testHTMLHighlightingPreservesIncompleteTagsAndLiteralLessThan() {
+        for source in ["<", "<main", "text <main class=\"preview", "1 < 2", "<<", "é < 🌍"] {
+            assertHTMLTokensPreserve(source)
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=code-run.surface-parity
+    func testHTMLHighlightingPreservesIncompleteComments() {
+        for source in ["<!--", "<!-- unfinished", "before <!-- unfinished > <main>", "<!-- 🌍"] {
+            assertHTMLTokensPreserve(source)
+        }
+        let complete = CodeSyntaxHighlighter.tokens(for: "<!-- complete -->", language: "html")
+        let incomplete = CodeSyntaxHighlighter.tokens(for: "<!-- incomplete", language: "html")
+        XCTAssertEqual(incomplete.count, 1)
+        XCTAssertEqual(incomplete.first?.color, complete.first?.color)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=code-run.surface-parity
+    func testFinishedIndexHTMLAndEveryClippedPrefixPreserveSource() {
+        let source = """
+        <!doctype html>
+        <html lang="en">
+        <head><title>OpenMates preview</title></head>
+        <body>
+          <main><h1>Rendered index.html</h1></main>
+        </body>
+        </html>
+        """
+        for line in source.components(separatedBy: "\n") {
+            for length in 0...line.count {
+                assertHTMLTokensPreserve(String(line.prefix(length)))
+            }
+        }
+        let tagTokens = CodeSyntaxHighlighter.tokens(for: "<html lang=\"en\">", language: "html")
+        XCTAssertEqual(tagTokens.map(\.text), ["<", "html", " ", "lang", "=", "\"en\"", ">"])
+    }
+
+    private func assertHTMLTokensPreserve(_ source: String, file: StaticString = #filePath, line: UInt = #line) {
+        let tokens = CodeSyntaxHighlighter.tokens(for: source, language: "html")
+        XCTAssertEqual(tokens.map(\.text).joined(), source, file: file, line: line)
+        if !source.isEmpty {
+            XCTAssertTrue(tokens.allSatisfy { !$0.text.isEmpty }, file: file, line: line)
+            XCTAssertLessThanOrEqual(tokens.count, source.count, file: file, line: line)
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=code-run.surface-parity
+    func testEmptyCodePreviewFollowsPersistedStatusAndAvailableSourceWinsDuringStreaming() {
+        let empty = AppleCodeEmbedContent(data: ["filename": AnyCodable("index.html"), "language": AnyCodable("html")])
+        XCTAssertEqual(AppleCodeEmbedPreviewState(content: empty, status: .processing), .processing)
+        for status in [EmbedStatus.finished, .error, .cancelled] {
+            let state = AppleCodeEmbedPreviewState(content: empty, status: status)
+            XCTAssertEqual(state, .empty)
+            XCTAssertEqual(state.accessibilityIdentifier, "code-embed-empty")
+        }
+        let source = AppleCodeEmbedContent(data: ["code": AnyCodable("const ready = true;")])
+        XCTAssertEqual(AppleCodeEmbedPreviewState(content: source, status: .processing), .source,
+            "The web renders available source before checking processing status")
+    }
+
     // contract-test: direct surface=gui.apple assertions=code-run.surface-parity
     func testFinishedIndexHTMLResolvesFromNestedDecodedPayload() {
         let data: [String: AnyCodable] = [

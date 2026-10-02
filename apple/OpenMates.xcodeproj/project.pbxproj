@@ -115,6 +115,7 @@
 		16BE79E63B2D5D7B24C5AF56 /* ComposerDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = 418BCFF12662EAC600D212EA /* ComposerDocument.swift */; };
 		16EBC2F21361C74E4DAE573E /* AppStrings+RemotionVideo.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8A8565F06292CD46114CB27 /* AppStrings+RemotionVideo.swift */; };
 		171964FD41D4581032B204C0 /* ShareEmbedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1ACC16BD136C5B405EAD56B3 /* ShareEmbedView.swift */; };
+		1767F9324F669CAED271617A /* LocalModelStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5D3EA06580D22195BD7F922 /* LocalModelStoreTests.swift */; };
 		1775A20D7A36475FF81C47D1 /* WorkflowChatDestinationPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD2BC2E01754F83EBC99BFCF /* WorkflowChatDestinationPicker.swift */; };
 		1793F7F35E1453CC0398DB08 /* GradientTokens.generated.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF423F38119E3CCD235AB43B /* GradientTokens.generated.swift */; };
 		17CE14354B3AA7A13632B13E /* PairLoginRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D7A90C37C325390A2C0E002 /* PairLoginRuntime.swift */; };
@@ -158,6 +159,7 @@
 		20551DA04FC28D266F6CD4A3 /* SyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98992EDB5FA05BD8C6770810 /* SyncManager.swift */; };
 		20E1E4156A3D7B78FE408865 /* SettingsExportAccountView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29D5F13E53FCA68AB0F4E146 /* SettingsExportAccountView.swift */; };
 		213A022EEFBC11D34D7FB5DA /* WatchChatLayoutUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F9E1AA49B72E17E43C0D66B /* WatchChatLayoutUITests.swift */; };
+		214B9876504BB73B19B441DA /* LocalPrivacyFilterRuntimeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0ED5203AC3847B28B2A9CB4 /* LocalPrivacyFilterRuntimeTests.swift */; };
 		214C04C2DC12B83485E4C1C1 /* ReportIssueView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F5C1DCEC899C0A6F6DC2139 /* ReportIssueView.swift */; };
 		217FAE36C93971A51738758B /* AccessibilityModifiers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03D3A7D2378D0282470FB1BD /* AccessibilityModifiers.swift */; };
 		21899DCD5EA905B6A180A122 /* ImagesSearchEmbedRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10E4F0D8583B6A6B1E504AEB /* ImagesSearchEmbedRenderer.swift */; };
@@ -233,6 +235,7 @@
 		3286FECE291EE93D6CE3AFC5 /* AssistantSpeechAudioPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EA9084541275EDA83AC8E66 /* AssistantSpeechAudioPlayer.swift */; };
 		3303A6BDAB346A45699AF9EA /* WorkflowTemplateShareView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60A025EA5F3B67D2BB02D6CE /* WorkflowTemplateShareView.swift */; };
 		335C3E5E5159395F678D8752 /* NativeDiagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3B5EBE7BCE8EF800B3E21E3 /* NativeDiagnostics.swift */; };
+		338A7AB5A16C9280407BCBB7 /* FluidAudio in Frameworks */ = {isa = PBXBuildFile; productRef = 1FC863AC7CE003B0FE462CC2 /* FluidAudio */; };
 		3394683B9EBA91F9DB394E3B /* IncognitoMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AB1F8D4C2E6AC6EA12932C5 /* IncognitoMode.swift */; };
 		3398B7B19BD308C8153A4993 /* PasswordLoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 151F47FC0A1C13A3A3FC3ABF /* PasswordLoginView.swift */; };
 		33ACA61324C9F75D2737DD4A /* WebSocketReconnectTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEC188E78550BABBCBD19A6B /* WebSocketReconnectTests.swift */; };
@@ -242,7 +245,9 @@
 		35A7F5D25CFF153AD5A7DC6E /* DailyInspirationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB531014DF91F38A7DD04A2B /* DailyInspirationView.swift */; };
 		35B9CDF6D0E833A80F59C6BE /* Fonts in Resources */ = {isa = PBXBuildFile; fileRef = 82F8B920FCEFE49C520D05ED /* Fonts */; };
 		363FF3AFB0BF607190B85E5D /* SettingsDeveloperFull.swift in Sources */ = {isa = PBXBuildFile; fileRef = F16169650AA4ED3466883E26 /* SettingsDeveloperFull.swift */; };
+		364098B0602B18298E2BC526 /* LocalModelStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7C6F12488EBB80AC594B459 /* LocalModelStore.swift */; };
 		365EF6F15CD915021803A876 /* SettingsTeamsController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C0BCD6C1532D7CB63A98AE7 /* SettingsTeamsController.swift */; };
+		3667D14DA3D6513C70AAF756 /* catalog.json in Resources */ = {isa = PBXBuildFile; fileRef = C79663BF1B847F616EB0A2CB /* catalog.json */; };
 		3668EA8515FDDAED33A00F9C /* ChatManagementSharingParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85A13DD90C140BD67A31F7CB /* ChatManagementSharingParityTests.swift */; };
 		36AEFE4EA7B99C4FA9F0E6A9 /* WatchChatRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE57873D02BD642C646EF779 /* WatchChatRuntime.swift */; };
 		376C7E79C6CF92DD53495BFD /* ComposerAttachmentActionRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = F28139E3914FCBECB0D0E552 /* ComposerAttachmentActionRow.swift */; };
@@ -380,6 +385,7 @@
 		555AD52BB0EB143F00E3B872 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF7ECFDB350FFF2DF2E494E9 /* APIClient.swift */; };
 		5563223C6F6C95254CB0DAC3 /* CodeRunOutputSyncTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 159C49E82A183D6E01A495BD /* CodeRunOutputSyncTests.swift */; };
 		556D73BAE9AFC464335F2D18 /* NativeSignupPasskeyPlatform.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAA3023F66BA2CA764DFA5B4 /* NativeSignupPasskeyPlatform.swift */; };
+		5577523D5BC5AB9C57CFBF47 /* WhisperKit in Frameworks */ = {isa = PBXBuildFile; productRef = F3D14EBA5C9A2EF6D4093B35 /* WhisperKit */; };
 		55A5191AF7E81A1B3329FE23 /* NotificationBanners.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8CE5605C33C752A2F0375B4 /* NotificationBanners.swift */; };
 		55B14280A5245B7470D35980 /* NativeSignupPasskeyRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54B8B2FED5475B6E26A9E568 /* NativeSignupPasskeyRuntime.swift */; };
 		56246E2D0B6DE35F48F1C848 /* ComposerSearchSuggestionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9E6F51404637FC0EFC12D7D /* ComposerSearchSuggestionTests.swift */; };
@@ -423,6 +429,7 @@
 		60711DF48A5D896D10043246 /* WatchChatRuntimeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACC238E7F92C5861DDD0F65 /* WatchChatRuntimeTests.swift */; };
 		60A3718F535E9016A4667365 /* PublicImageLoaderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6B7AD0E117079E37D0B8604 /* PublicImageLoaderTests.swift */; };
 		61872FB1CB0489DA34EF5EF5 /* ImageEmbedRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F8A1C85BF2BCAB833E8CE8B /* ImageEmbedRenderer.swift */; };
+		6198EBB50E04115BC472016B /* LocalPrivacyFilterRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9F1CC5E81CD6B4A2E651DA5 /* LocalPrivacyFilterRuntime.swift */; };
 		621AF1C4CA3102F4CE6E3692 /* MailEmbedModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7187BA643F292541759A84DD /* MailEmbedModel.swift */; };
 		62551C9057B4C346B711D337 /* ChatViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3412EEBE24FFF156E7B2A8C1 /* ChatViewModel.swift */; };
 		629B8659DB38588C49690F42 /* MailDraftTextSelectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48CB20AEA422D138D592AFB0 /* MailDraftTextSelectionTests.swift */; };
@@ -502,6 +509,7 @@
 		73D3BE78AC847D38EF244556 /* SettingsModesParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59C96E12DE5B7CC558B948F7 /* SettingsModesParityUITests.swift */; };
 		73E9D42A5528C2EE9E54110F /* TravelStayEmbedRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B558E5DD685B2D8C35220A88 /* TravelStayEmbedRenderer.swift */; };
 		73F940616BE7EFB4044B82FB /* TravelConnectionActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1174AAE4BCD236846AABC13 /* TravelConnectionActions.swift */; };
+		74608AA27DF37B72CD87DB4C /* SettingsLocalModelsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31CE928C0FA1CCD9F65C45A3 /* SettingsLocalModelsView.swift */; };
 		7468E467BA4F1AB321A8D805 /* MentionDropdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3A31A97FBD9511AB31FB452 /* MentionDropdownView.swift */; };
 		7494FFB680B36D61FA3B5132 /* ChatStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DE92EBE49EBADF171CDC2D6 /* ChatStore.swift */; };
 		74D6DF7836FDA2CF94150CCB /* RecipientMediaContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = A821B2B2D30D3DFE6C3F0250 /* RecipientMediaContext.swift */; };
@@ -602,6 +610,7 @@
 		87C50D97F362FC3F4D3C1C1B /* PasskeyRegistrationCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FC79F58F5C6C86C2426B423 /* PasskeyRegistrationCoordinator.swift */; };
 		87F85E3C720EC548B5284FFD /* ComposerSubmitPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B609EC451249DCE059E1154 /* ComposerSubmitPolicy.swift */; };
 		881434DC9F50D8F3EFEF78A5 /* TeamWorkspaceContextSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C1A8D88F4291CCBD57777F5 /* TeamWorkspaceContextSelector.swift */; };
+		8867DD287DD80ED9749CFF94 /* LocalModelLabController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64855A6D76420045F5C99A99 /* LocalModelLabController.swift */; };
 		88898674C155DE423E1A5AE0 /* PairOpaque.swift in Sources */ = {isa = PBXBuildFile; fileRef = 246F4C2A26DA9B614498BA12 /* PairOpaque.swift */; };
 		88923DFE92A96AF8D50B9372 /* BackgroundChatSender.swift in Sources */ = {isa = PBXBuildFile; fileRef = 224ACCD58377D1F4497661CC /* BackgroundChatSender.swift */; };
 		88D0B7E555F7804F6D15A3EC /* DraftSyncCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = C66C23B526EC6B259322B975 /* DraftSyncCoordinator.swift */; };
@@ -635,6 +644,7 @@
 		8F941603B3A31048A0DA3684 /* NewsSearchIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B253C12A63973342BE09E43 /* NewsSearchIntent.swift */; };
 		8FA318E6601F9CA338295CBA /* WorkflowStepTestController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4B50AEA403A75E24E8D7634 /* WorkflowStepTestController.swift */; };
 		8FA6268495B5B1E09A681544 /* NativeModelDisabledPreferencesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DA60156F07EDD61EC944B2A /* NativeModelDisabledPreferencesTests.swift */; };
+		8FAEF17635772CE142FCB64D /* LocalModelLabUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE294BB6B1943C2D9F78E8C2 /* LocalModelLabUITests.swift */; };
 		90236F2068521FD249287250 /* NativeComposerMentionPIITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD2AD4F1831AD8EE3515A52B /* NativeComposerMentionPIITests.swift */; };
 		904B5E9DC63A0799F6489909 /* AskOpenMatesIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8BC54065D77EBA3C59EC9A1 /* AskOpenMatesIntent.swift */; };
 		905BDE52EFA3D9944CB40F09 /* ComposerMentionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99A2979173F3BCB6C4F33244 /* ComposerMentionService.swift */; };
@@ -695,6 +705,7 @@
 		9DF8C29EB060011231E57E17 /* WatchEmbedPreviewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC5E4A957F9AE9A6797B3F3A /* WatchEmbedPreviewTests.swift */; };
 		9E1424BC183C65CDDF8B4351 /* PendingAssistantResponseQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01411E08A584F06C95DAF312 /* PendingAssistantResponseQueue.swift */; };
 		9E3D53C806AC84E7C6D77CC7 /* HandoffManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A66F9209C32CC2A77C5A966 /* HandoffManager.swift */; };
+		9EAF1F5F96ADD848B0695700 /* LocalSpeechRuntimes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FD818A90F4244B834A66C6E /* LocalSpeechRuntimes.swift */; };
 		9EC55C3F233D5365D8DDCB0F /* SketchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D30972234787FA636DCD445 /* SketchView.swift */; };
 		9ED07BC1E1949E9980D15B59 /* SettingsMemoryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88BDBEA36DEAE8564EC5DDA6 /* SettingsMemoryService.swift */; };
 		9F5D77BAE9D871236879ED9D /* message-input.json in Resources */ = {isa = PBXBuildFile; fileRef = AADC58296E44FD1C80CB9776 /* message-input.json */; };
@@ -817,6 +828,7 @@
 		BECB6778FD8DFDA4E44B8CD6 /* DevSidebarComponentFixture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 467518A5E064D4638E194B6F /* DevSidebarComponentFixture.swift */; };
 		BEE6DD6E5B324D1A39B907BA /* MermaidDiagramParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A6D874AAE24755A4EB96BA0 /* MermaidDiagramParityTests.swift */; };
 		BF10AA6C2690F2F43065261A /* ChatSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5BA736F1076696470428E815 /* ChatSettingsView.swift */; };
+		BF13D74420C04485800F73F4 /* LICENSE-ExecuTorch.txt in Resources */ = {isa = PBXBuildFile; fileRef = 428300BFCC2F8DD3EC6ABC7C /* LICENSE-ExecuTorch.txt */; };
 		BF431A5C468E74A92BECB10E /* DevAuthFormFixture.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCA4555AA7378D2D77D2EB61 /* DevAuthFormFixture.swift */; };
 		BFC706BAB0D8289DE246DBE1 /* SketchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D30972234787FA636DCD445 /* SketchView.swift */; };
 		BFF5F1043B188152F42034C3 /* NativeComposerSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3D3F78CCB9E4674F3A30521 /* NativeComposerSession.swift */; };
@@ -836,11 +848,13 @@
 		C218646BFFC43B29842FD394 /* SpeechIcons.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2C669A530EB6253E4BC11A4E /* SpeechIcons.xcassets */; };
 		C2576D73B9D4E4037F1CC0CF /* StoreManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB4E2729220B8D34925067AC /* StoreManager.swift */; };
 		C27D967883C43631CD011733 /* SharedLinkBrowserView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF545C171E2A13FC8C42A1FA /* SharedLinkBrowserView.swift */; };
+		C27E81B8CD8878EFAD894177 /* LocalPrivacyFilterRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9F1CC5E81CD6B4A2E651DA5 /* LocalPrivacyFilterRuntime.swift */; };
 		C3BD0C8A25D731CB15B88972 /* MindMapRenderingParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D93FC888462243D3C77BD37 /* MindMapRenderingParityUITests.swift */; };
 		C49B2AAE5E1F1ACF805B29D3 /* ProgressiveMessagePreviewUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0868D709AB56AF28B2CF8289 /* ProgressiveMessagePreviewUITests.swift */; };
 		C4BF4569CD3CB73C0CC71B47 /* HistoryWelcomeComponentUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6D687493DC6BBDBEF38C3CF /* HistoryWelcomeComponentUITests.swift */; };
 		C52CC71EAC0594F9413850A6 /* ReadLastResponseIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFE391E71C783F60B2510FDB /* ReadLastResponseIntent.swift */; };
 		C52FB3F10AAE4FDF2F268F9F /* MailEmbedParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E926EAB96946C5AB2FBCFCA /* MailEmbedParityUITests.swift */; };
+		C59876776C4DD1EAAC8790EA /* Tokenizers in Frameworks */ = {isa = PBXBuildFile; productRef = 8076AD6C63D8EBD5B5FC170A /* Tokenizers */; };
 		C6791CA6F4B89674EB840D18 /* WorkflowRunTimelineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FFA150F4AE800532B378856 /* WorkflowRunTimelineView.swift */; };
 		C6BC44B5B21DB39B71C6A0F5 /* PairOpaque.swift in Sources */ = {isa = PBXBuildFile; fileRef = 246F4C2A26DA9B614498BA12 /* PairOpaque.swift */; };
 		C7014D9D14CFDB0BA2B9B6E1 /* CopyMessageFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBD2AB394167FF4F53E2CEE2 /* CopyMessageFormatter.swift */; };
@@ -867,6 +881,7 @@
 		CCB5B8394774A2F1EAF18DCE /* SettingsMemoriesFull.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C7C463F57142CA4C0101AEC /* SettingsMemoriesFull.swift */; };
 		CCB605DC45A69B81B1E22074 /* WatchPushLifecycle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6304CA1589F7D88C498F868E /* WatchPushLifecycle.swift */; };
 		CCC21AFD9D628D61A56F6061 /* WatchPhoneOpenPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DE35A1421A506F81FEFC469 /* WatchPhoneOpenPayload.swift */; };
+		CCF213A66BEE92CBD75E8488 /* LICENSE-ExecuTorch.txt in Resources */ = {isa = PBXBuildFile; fileRef = 428300BFCC2F8DD3EC6ABC7C /* LICENSE-ExecuTorch.txt */; };
 		CD757B871DBFDFD7BE772D9D /* ExternalLinkDeliveryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81E24BB0DD7893BCCDC2BFE5 /* ExternalLinkDeliveryTests.swift */; };
 		CDBC587A7FAFB4AF5A602F07 /* NativeDiagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3B5EBE7BCE8EF800B3E21E3 /* NativeDiagnostics.swift */; };
 		CDD25FE301893B04CA99E565 /* RemotionVideoCreateRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C8D0BD18C09F87C54E50B4F /* RemotionVideoCreateRenderer.swift */; };
@@ -887,9 +902,11 @@
 		D02C464DD8BC7CB2FE2BFE20 /* SettingsHidePersonalDataView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E252A864D82EEB91D4238F96 /* SettingsHidePersonalDataView.swift */; };
 		D047BC879891542630491293 /* example_chats in Resources */ = {isa = PBXBuildFile; fileRef = BCCE9F33637FB27298BDC4F6 /* example_chats */; };
 		D0E0495C44536598CB9913CA /* IncognitoMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AB1F8D4C2E6AC6EA12932C5 /* IncognitoMode.swift */; };
+		D0EEB23C6D55D06B9AFE19AC /* FluidAudio in Frameworks */ = {isa = PBXBuildFile; productRef = 840D58FC326DEE572A6FAFFB /* FluidAudio */; };
 		D0F1F8A6853F83F0FA50A6D6 /* WatchTaskEditingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E752658456FF3E53823A466A /* WatchTaskEditingTests.swift */; };
 		D14972057B12884045513203 /* CodeRenderers.swift in Sources */ = {isa = PBXBuildFile; fileRef = A98F02DE4068A8C68591A0FA /* CodeRenderers.swift */; };
 		D22CD04F90F7943F25E940B8 /* SettingsSupportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C87E0BEC94AF08492EF7D83B /* SettingsSupportView.swift */; };
+		D2466090307D15FD6077396B /* SettingsLocalModelsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31CE928C0FA1CCD9F65C45A3 /* SettingsLocalModelsView.swift */; };
 		D247634B90D6BF8BB2259D72 /* HandoffManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A66F9209C32CC2A77C5A966 /* HandoffManager.swift */; };
 		D271A1BD7661638C8B677477 /* Videos in Resources */ = {isa = PBXBuildFile; fileRef = A3D659F1B78E1144399039B3 /* Videos */; };
 		D28496BC291A569EA6AD7667 /* AuthModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB7F8B81401F93E43A5A56A9 /* AuthModels.swift */; };
@@ -933,7 +950,9 @@
 		DD26A49438933FC88A097561 /* ChatPaginationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D82141164C0949C2F8C28C00 /* ChatPaginationView.swift */; };
 		DE6639A8E6A028498D8F5E69 /* ChatModelPreferenceServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A06BD0C2DC87AB8A5435D140 /* ChatModelPreferenceServiceTests.swift */; };
 		DEB0BA9A77B5DCABC72063A6 /* ChatHeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 760FA964BE9BF6149840588B /* ChatHeaderView.swift */; };
+		DEB3869DBFBAFC7DFF2B60A1 /* LocalModelStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7C6F12488EBB80AC594B459 /* LocalModelStore.swift */; };
 		DEBAB8BA1D158378EBCA348E /* WatchTaskViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AE8231ECCCDD21A6CAFE233 /* WatchTaskViews.swift */; };
+		DEBF5FBB849EF7AE6CD63214 /* LocalModelLabController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64855A6D76420045F5C99A99 /* LocalModelLabController.swift */; };
 		DEDB4186E8650C19066E01A9 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF07A6CD7D7E667A7CD32708 /* RootView.swift */; };
 		DEDF31BA718E7B2DEC767497 /* AuthModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB7F8B81401F93E43A5A56A9 /* AuthModels.swift */; };
 		DF65BB17598F07BE7F223CBE /* WorkflowSchemaInputView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2DE4768578A41098E6848DA /* WorkflowSchemaInputView.swift */; };
@@ -958,6 +977,7 @@
 		E21017F539E13CDEFA6DCD44 /* WorkflowHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7463A8590523AAF28F430E74 /* WorkflowHomeView.swift */; };
 		E2A0996D3898A13C251690EC /* NativeModelCatalogTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA3064E0AF17B0BDD681EC9C /* NativeModelCatalogTests.swift */; };
 		E2B960DAD0E7CBE03D8E3A15 /* WebReadEmbedRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EA827453D223C32754F59ED /* WebReadEmbedRenderer.swift */; };
+		E2EA590D3CE53B41E92C5786 /* InteractiveQuestionCardParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E262ECE5572D8B5206DD92E6 /* InteractiveQuestionCardParityUITests.swift */; };
 		E344C95290AB25F441ABF719 /* PendingAssistantResponseQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01411E08A584F06C95DAF312 /* PendingAssistantResponseQueue.swift */; };
 		E34F5321D0570E739486C2CA /* TodaysInspirationIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = A95C65A43B6B49192FB561A5 /* TodaysInspirationIntent.swift */; };
 		E36E93C5B48D23D4CE1B7FDD /* SearchDomainRenderers.swift in Sources */ = {isa = PBXBuildFile; fileRef = C33806E8A24E5E5D76A8ADE3 /* SearchDomainRenderers.swift */; };
@@ -974,6 +994,7 @@
 		E628B3A1F3BF0C7F6F112E67 /* BackupCodeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D0A3666B289807C129F1570 /* BackupCodeView.swift */; };
 		E6A14911BF39625B4F4FC347 /* SettingsFullParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C0500D2E11FF0C03094D448 /* SettingsFullParityUITests.swift */; };
 		E6D29BDE00562ACC919337FA /* TravelStayEmbedRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B558E5DD685B2D8C35220A88 /* TravelStayEmbedRenderer.swift */; };
+		E6D8082D9AD0EAB99601DC03 /* LocalSpeechRuntimes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FD818A90F4244B834A66C6E /* LocalSpeechRuntimes.swift */; };
 		E73346551237F0719ED33BFA /* EmbedBasicInfoBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 473BBCB35F21B98B24DB2DDB /* EmbedBasicInfoBar.swift */; };
 		E79708B93D573C6763D16FB9 /* WebsiteEmbedRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E05C3A6F1F4FC2424F578D /* WebsiteEmbedRenderer.swift */; };
 		E7DB8D336D0F3BD36A827207 /* DevComponentPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7524EC1771868BE09562CC7E /* DevComponentPreviewView.swift */; };
@@ -986,6 +1007,8 @@
 		E8ADF70A42F36C09B76000B5 /* AuthError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CCBCDCD1566933277833B65 /* AuthError.swift */; };
 		E8BC34E16A5926058F3E135F /* TasksWorkspaceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC25428AD14CBB0D03A1BB71 /* TasksWorkspaceTests.swift */; };
 		E8FA43A48EBFF0AE7CECC07A /* ChatSidebarContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9CB5B28A6306FA695289D62 /* ChatSidebarContent.swift */; };
+		E90589CA4640C7C4FBF4603B /* catalog.json in Resources */ = {isa = PBXBuildFile; fileRef = C79663BF1B847F616EB0A2CB /* catalog.json */; };
+		E92B7F1166A5A201E793466E /* Tokenizers in Frameworks */ = {isa = PBXBuildFile; productRef = 7CE479E1DBE01C64E32B1112 /* Tokenizers */; };
 		E9482B6404204B55781235D6 /* WatchLocalization.swift in Sources */ = {isa = PBXBuildFile; fileRef = D54D25F128C420DD1FF21BE8 /* WatchLocalization.swift */; };
 		E99405AC28B4859B1D018E86 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FE6DBCEBC7DAAC8948FF861 /* SettingsView.swift */; };
 		E9B456508F9BA84F01B68691 /* EmbedWireFormatTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA2529A349283903685194DB /* EmbedWireFormatTests.swift */; };
@@ -1052,6 +1075,7 @@
 		F4F011D36819568E0E1FB953 /* SkillApplicationParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A364D86EB709BB96F3D47203 /* SkillApplicationParityTests.swift */; };
 		F504B3C573CDB991CA373831 /* NativeComposerPasteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BCDDB15A2FDAF172D333ADA /* NativeComposerPasteTests.swift */; };
 		F52479AE35A85825B3D45788 /* ServerConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41D2695F0FC7E6379A31DF9F /* ServerConfiguration.swift */; };
+		F54477ADD7793E38A3A4DAE1 /* LocalModelLabControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C96F8ABE0262722B40156BD7 /* LocalModelLabControllerTests.swift */; };
 		F54C5867FFF29C8C746D859F /* ProjectHostedPathPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 140DA0063DBB28A7CCDB7378 /* ProjectHostedPathPolicy.swift */; };
 		F5B4E4779709E27F8F60009C /* DevComposerSearchPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C42025E942C817477CF887F /* DevComposerSearchPreview.swift */; };
 		F5D1D2DFB9153D4B4A6AD2D0 /* SharedChatRecipientUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF3507DA43F315F49738F441 /* SharedChatRecipientUITests.swift */; };
@@ -1094,6 +1118,7 @@
 		FDF2F216BD4BFA3837BD72C2 /* DraftService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD2F1CD833F2B5BFF432DF0E /* DraftService.swift */; };
 		FE5CB67265C8BC7C35BF0D25 /* MiscRenderers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F57B730049713E7560BD28C /* MiscRenderers.swift */; };
 		FEA21E61F455CEF92B62A451 /* NativeAssistantSpeechTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BF995AEFC4B6686D66B9790 /* NativeAssistantSpeechTests.swift */; };
+		FEB45B30F304E6C592B89571 /* WhisperKit in Frameworks */ = {isa = PBXBuildFile; productRef = 7564D45440F8E2EDF2ED4FCB /* WhisperKit */; };
 		FEC980E61666FDFED3910396 /* MapsEmbedModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7B7D7AB4B9C9DC428F25EDC /* MapsEmbedModel.swift */; };
 		FECF1A4F693B7D7738A860FE /* DevProgressiveMessageFixture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89886A2E26F058C155A56D7C /* DevProgressiveMessageFixture.swift */; };
 		FFAEE59DC1793F004A51703B /* ReminderIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7AFAB5B15DBE142EAF38139 /* ReminderIntents.swift */; };
@@ -1305,6 +1330,7 @@
 		30288A60654394643A370BFB /* OpenMatesWidget.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = OpenMatesWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		3097B5CA5DCA16BB86C4AADF /* OfflineStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineStore.swift; sourceTree = "<group>"; };
 		3098424CAA7116A6667AD61D /* S3MediaClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = S3MediaClient.swift; sourceTree = "<group>"; };
+		31CE928C0FA1CCD9F65C45A3 /* SettingsLocalModelsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsLocalModelsView.swift; sourceTree = "<group>"; };
 		31F57539EE2FDEC183CA879D /* PIIDetectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PIIDetectionView.swift; sourceTree = "<group>"; };
 		32D45621D85EC1039AAFFD98 /* WorkflowStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkflowStore.swift; sourceTree = "<group>"; };
 		32DE9BDBC4BF5722C68391E2 /* NativeComposerSessionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeComposerSessionTests.swift; sourceTree = "<group>"; };
@@ -1355,6 +1381,7 @@
 		41EBFB4B72DFB093F385CB54 /* RealAccountUITestSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealAccountUITestSupport.swift; sourceTree = "<group>"; };
 		41F9380996A6D16F2CB99050 /* SharedChatRecipientView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedChatRecipientView.swift; sourceTree = "<group>"; };
 		422EB7EDB8DB231B6E89866C /* SettingsModesParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsModesParityTests.swift; sourceTree = "<group>"; };
+		428300BFCC2F8DD3EC6ABC7C /* LICENSE-ExecuTorch.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "LICENSE-ExecuTorch.txt"; sourceTree = "<group>"; };
 		429ACCF240F254960E3EDA72 /* WatchTasksUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchTasksUITests.swift; sourceTree = "<group>"; };
 		42B0DA17EBD4BA4B3D494608 /* WatchChatViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchChatViews.swift; sourceTree = "<group>"; };
 		43661910FEF1D57A49B0BEE9 /* SharedChatRecipientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedChatRecipientTests.swift; sourceTree = "<group>"; };
@@ -1389,6 +1416,7 @@
 		4F7D20F3DF4C8B0BC5AD94FB /* SettingsMemoryViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsMemoryViews.swift; sourceTree = "<group>"; };
 		4F80B6F956BB42559FA03419 /* WorkspacePaneMetrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspacePaneMetrics.swift; sourceTree = "<group>"; };
 		4F948FA22832F2125A11D5CF /* ChatModelPreferenceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatModelPreferenceService.swift; sourceTree = "<group>"; };
+		4FD818A90F4244B834A66C6E /* LocalSpeechRuntimes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalSpeechRuntimes.swift; sourceTree = "<group>"; };
 		50826BC7A9753643CB205C57 /* FontRegistration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FontRegistration.swift; sourceTree = "<group>"; };
 		5173B9BE383BB724102AA571 /* Tokens.generated.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tokens.generated.swift; sourceTree = "<group>"; };
 		519FED8C39DBBB320D40ED44 /* MessageInputAttachmentUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageInputAttachmentUITests.swift; sourceTree = "<group>"; };
@@ -1437,6 +1465,7 @@
 		6304CA1589F7D88C498F868E /* WatchPushLifecycle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchPushLifecycle.swift; sourceTree = "<group>"; };
 		634FA7B40167F343AC652F36 /* UserPlansService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserPlansService.swift; sourceTree = "<group>"; };
 		6359544CCAA460015B66AA37 /* NativeModelCatalogRuntime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeModelCatalogRuntime.swift; sourceTree = "<group>"; };
+		64855A6D76420045F5C99A99 /* LocalModelLabController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalModelLabController.swift; sourceTree = "<group>"; };
 		649F06774727FF8F3BCDDF64 /* ChatListRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatListRow.swift; sourceTree = "<group>"; };
 		654F391B2489DD9D653293A4 /* ComposerSpeechHostView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerSpeechHostView.swift; sourceTree = "<group>"; };
 		66F44FCACE06614B36F82BB4 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -1670,6 +1699,7 @@
 		BEC188E78550BABBCBD19A6B /* WebSocketReconnectTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebSocketReconnectTests.swift; sourceTree = "<group>"; };
 		C008B0A450A56052483236E8 /* NativeComposerEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeComposerEditorView.swift; sourceTree = "<group>"; };
 		C085AAB1B7660B7EB15B8A54 /* VoiceRecordingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceRecordingView.swift; sourceTree = "<group>"; };
+		C0ED5203AC3847B28B2A9CB4 /* LocalPrivacyFilterRuntimeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalPrivacyFilterRuntimeTests.swift; sourceTree = "<group>"; };
 		C1174AAE4BCD236846AABC13 /* TravelConnectionActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TravelConnectionActions.swift; sourceTree = "<group>"; };
 		C1452F1AF8F1844B820FFF8A /* ProjectRemoteCommandCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectRemoteCommandCoordinator.swift; sourceTree = "<group>"; };
 		C18BF59E840B8B31615EBB98 /* ChatSettingsShareSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSettingsShareSection.swift; sourceTree = "<group>"; };
@@ -1684,6 +1714,7 @@
 		C39A911BB9208FA2A0BF4682 /* PlaceRenderers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceRenderers.swift; sourceTree = "<group>"; };
 		C3A31A97FBD9511AB31FB452 /* MentionDropdownView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MentionDropdownView.swift; sourceTree = "<group>"; };
 		C3CC3B28FE775C91DF22E566 /* BackgroundChatSenderParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundChatSenderParityTests.swift; sourceTree = "<group>"; };
+		C5D3EA06580D22195BD7F922 /* LocalModelStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalModelStoreTests.swift; sourceTree = "<group>"; };
 		C5EBBF5FD0EA2A3D0ECB440F /* OpenMatesWatchUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OpenMatesWatchUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		C64FA9A357D1EF7F3A2F44AC /* ChatCompletionRecoveryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatCompletionRecoveryTests.swift; sourceTree = "<group>"; };
 		C66C23B526EC6B259322B975 /* DraftSyncCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DraftSyncCoordinator.swift; sourceTree = "<group>"; };
@@ -1694,6 +1725,7 @@
 		C708AC69D73BAEA90973809E /* CrossClientChatSyncUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrossClientChatSyncUITests.swift; sourceTree = "<group>"; };
 		C72AFBA9A59E6F7E39BBE383 /* NewsSearchEmbedRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewsSearchEmbedRenderer.swift; sourceTree = "<group>"; };
 		C75C8ECE57894904D2596562 /* modelsMetadata.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = modelsMetadata.json; sourceTree = "<group>"; };
+		C79663BF1B847F616EB0A2CB /* catalog.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = catalog.json; sourceTree = "<group>"; };
 		C7B7D7AB4B9C9DC428F25EDC /* MapsEmbedModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapsEmbedModel.swift; sourceTree = "<group>"; };
 		C7B9185652D95F2EB21AFDC0 /* WorkflowAIAuthoringService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkflowAIAuthoringService.swift; sourceTree = "<group>"; };
 		C7DFBC3D2D8AFBC4367D6CB5 /* ChatShareView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatShareView.swift; sourceTree = "<group>"; };
@@ -1701,6 +1733,7 @@
 		C87E0BEC94AF08492EF7D83B /* SettingsSupportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsSupportView.swift; sourceTree = "<group>"; };
 		C8DB895D9F887486B1F182F1 /* ProjectUploadService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectUploadService.swift; sourceTree = "<group>"; };
 		C93B617CEA7F159625AFF05C /* WorkflowDetailHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkflowDetailHeader.swift; sourceTree = "<group>"; };
+		C96F8ABE0262722B40156BD7 /* LocalModelLabControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalModelLabControllerTests.swift; sourceTree = "<group>"; };
 		C9CB5B28A6306FA695289D62 /* ChatSidebarContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSidebarContent.swift; sourceTree = "<group>"; };
 		C9CF6B1D5DCF5BED2843D83F /* EventsSearchEmbedRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventsSearchEmbedRenderer.swift; sourceTree = "<group>"; };
 		CA3E3EE0717AACBAC428E3A9 /* TypographyTokens.generated.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TypographyTokens.generated.swift; sourceTree = "<group>"; };
@@ -1744,6 +1777,7 @@
 		D82141164C0949C2F8C28C00 /* ChatPaginationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatPaginationView.swift; sourceTree = "<group>"; };
 		D9474C22C936DE031B5170DE /* ComponentTokens.generated.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComponentTokens.generated.swift; sourceTree = "<group>"; };
 		D94EF7B38303F9B3F4246E07 /* ReminderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderView.swift; sourceTree = "<group>"; };
+		D9F1CC5E81CD6B4A2E651DA5 /* LocalPrivacyFilterRuntime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalPrivacyFilterRuntime.swift; sourceTree = "<group>"; };
 		DA1453F7D41CC45E32C1884B /* MainAppLayoutParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainAppLayoutParityTests.swift; sourceTree = "<group>"; };
 		DA6F04B41F4BE1CD391A0E69 /* OpenMatesUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = OpenMatesUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		DB03275320AE573452F949A0 /* PasskeyLoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasskeyLoginView.swift; sourceTree = "<group>"; };
@@ -1765,6 +1799,7 @@
 		E0EF7DDBA6C719D8C80D36CD /* AuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthManager.swift; sourceTree = "<group>"; };
 		E1105B28E09C2321661B50CC /* MemoryIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryIntents.swift; sourceTree = "<group>"; };
 		E252A864D82EEB91D4238F96 /* SettingsHidePersonalDataView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsHidePersonalDataView.swift; sourceTree = "<group>"; };
+		E262ECE5572D8B5206DD92E6 /* InteractiveQuestionCardParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractiveQuestionCardParityUITests.swift; sourceTree = "<group>"; };
 		E2CB97AE2A2F3CD4D7234008 /* ChatSettingsStrings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSettingsStrings.swift; sourceTree = "<group>"; };
 		E2CC88691B73B13A85BA4C97 /* SettingsBillingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsBillingView.swift; sourceTree = "<group>"; };
 		E2FA6BB9E7044F16952CD975 /* UnreadMessagesStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnreadMessagesStore.swift; sourceTree = "<group>"; };
@@ -1816,6 +1851,7 @@
 		F4E74225703774E716163A14 /* ChatSidebarDisplayPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSidebarDisplayPolicy.swift; sourceTree = "<group>"; };
 		F61CC249BFCF2A003EBAEE92 /* NativeComposerModelDetails.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeComposerModelDetails.swift; sourceTree = "<group>"; };
 		F6CB5437A52229FDFD795C30 /* OpenMatesMacUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OpenMatesMacUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		F7C6F12488EBB80AC594B459 /* LocalModelStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalModelStore.swift; sourceTree = "<group>"; };
 		F88FAB07DECD954240DE2747 /* SignupFlowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignupFlowView.swift; sourceTree = "<group>"; };
 		F8A8565F06292CD46114CB27 /* AppStrings+RemotionVideo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppStrings+RemotionVideo.swift"; sourceTree = "<group>"; };
 		F8E187BDD70987100625DDF5 /* SharedChatRecipientLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedChatRecipientLink.swift; sourceTree = "<group>"; };
@@ -1833,6 +1869,7 @@
 		FD5EA4C03A70321F697B4818 /* WatchWorkflowDetailUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchWorkflowDetailUITests.swift; sourceTree = "<group>"; };
 		FDECA9A898120DD5CC2FB5D2 /* SharedChatRecipientPlanningSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedChatRecipientPlanningSnapshot.swift; sourceTree = "<group>"; };
 		FDEEF9A6C4C829834AF3727B /* AppDeepLinkRoutingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDeepLinkRoutingTests.swift; sourceTree = "<group>"; };
+		FE294BB6B1943C2D9F78E8C2 /* LocalModelLabUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalModelLabUITests.swift; sourceTree = "<group>"; };
 		FE765B352CC9D6E140D4AE02 /* TasksWorkspaceStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TasksWorkspaceStore.swift; sourceTree = "<group>"; };
 		FF03076E02BB5007091A77C8 /* WebSearchContractParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebSearchContractParityTests.swift; sourceTree = "<group>"; };
 		FF423F38119E3CCD235AB43B /* GradientTokens.generated.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GradientTokens.generated.swift; sourceTree = "<group>"; };
@@ -1848,6 +1885,9 @@
 				EF9796B34DEAC83207D39C35 /* Sodium in Frameworks */,
 				519769E02CF18468B1085F8F /* Yams in Frameworks */,
 				0F5CE62AE811556F86AC1776 /* ZIPFoundation in Frameworks */,
+				FEB45B30F304E6C592B89571 /* WhisperKit in Frameworks */,
+				D0EEB23C6D55D06B9AFE19AC /* FluidAudio in Frameworks */,
+				C59876776C4DD1EAAC8790EA /* Tokenizers in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1859,6 +1899,9 @@
 				AF907A2C68F4D6A7C2CE59F2 /* Sodium in Frameworks */,
 				937081E5E80DC495B77CDF59 /* Yams in Frameworks */,
 				64A4CB12763BC193FE3B5727 /* ZIPFoundation in Frameworks */,
+				5577523D5BC5AB9C57CFBF47 /* WhisperKit in Frameworks */,
+				338A7AB5A16C9280407BCBB7 /* FluidAudio in Frameworks */,
+				E92B7F1166A5A201E793466E /* Tokenizers in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2057,7 +2100,9 @@
 				2ED0610A1F4AB6B5EB28B20C /* EmbedRenderingParityUITests.swift */,
 				C6D687493DC6BBDBEF38C3CF /* HistoryWelcomeComponentUITests.swift */,
 				4A4C697328B436371E7E078A /* Info.plist */,
+				E262ECE5572D8B5206DD92E6 /* InteractiveQuestionCardParityUITests.swift */,
 				60151B4DE1A7C1B1AAFF36D2 /* LandingOnboardingParityUITests.swift */,
+				FE294BB6B1943C2D9F78E8C2 /* LocalModelLabUITests.swift */,
 				45792B20CEC49951DA87CF6F /* MacMenuBarQuickCaptureUITests.swift */,
 				4E926EAB96946C5AB2FBCFCA /* MailEmbedParityUITests.swift */,
 				5F2AB527FF4C011652A756B3 /* MapsEmbedParityUITests.swift */,
@@ -2197,6 +2242,9 @@
 				81E24BB0DD7893BCCDC2BFE5 /* ExternalLinkDeliveryTests.swift */,
 				CE99B1F557823E870553122D /* Info.plist */,
 				5636248802FB74EE1A6CFA27 /* InteractiveQuestionsParityTests.swift */,
+				C96F8ABE0262722B40156BD7 /* LocalModelLabControllerTests.swift */,
+				C5D3EA06580D22195BD7F922 /* LocalModelStoreTests.swift */,
+				C0ED5203AC3847B28B2A9CB4 /* LocalPrivacyFilterRuntimeTests.swift */,
 				48CB20AEA422D138D592AFB0 /* MailDraftTextSelectionTests.swift */,
 				0684F402F58CD296CD28DC0E /* MailEmbedModelTests.swift */,
 				DA1453F7D41CC45E32C1884B /* MainAppLayoutParityTests.swift */,
@@ -2305,6 +2353,14 @@
 				CFE6DC4E6E577CC4E8695932 /* Views */,
 			);
 			path = Settings;
+			sourceTree = "<group>";
+		};
+		57AF248FD9762AD8A3924279 /* LocalModelBridge */ = {
+			isa = PBXGroup;
+			children = (
+				428300BFCC2F8DD3EC6ABC7C /* LICENSE-ExecuTorch.txt */,
+			);
+			path = LocalModelBridge;
 			sourceTree = "<group>";
 		};
 		591DAEAFFE1DDE5F697BFE27 /* static */ = {
@@ -2597,6 +2653,7 @@
 			isa = PBXGroup;
 			children = (
 				659C089C700458A048CE5F6F /* agent-6dc7 */,
+				57AF248FD9762AD8A3924279 /* LocalModelBridge */,
 				65C3B253848F893F8C17738F /* OpenMates */,
 				B304D79C2F549AE155263A51 /* OpenMatesMacUITests */,
 				FAD56277F16556FCCEA84656 /* OpenMatesNotificationService */,
@@ -2629,6 +2686,17 @@
 			path = swift;
 			sourceTree = "<group>";
 		};
+		9752CA570D340C5B57D914D2 /* LocalModels */ = {
+			isa = PBXGroup;
+			children = (
+				64855A6D76420045F5C99A99 /* LocalModelLabController.swift */,
+				F7C6F12488EBB80AC594B459 /* LocalModelStore.swift */,
+				D9F1CC5E81CD6B4A2E651DA5 /* LocalPrivacyFilterRuntime.swift */,
+				4FD818A90F4244B834A66C6E /* LocalSpeechRuntimes.swift */,
+			);
+			path = LocalModels;
+			sourceTree = "<group>";
+		};
 		9D29EB0C84DEC00146F6738B /* OpenMatesWatch */ = {
 			isa = PBXGroup;
 			children = (
@@ -2645,6 +2713,7 @@
 				4E2FD35C6CEBA066BD355C75 /* Diagnostics */,
 				CE71C13D38D011E9E3B0F1B2 /* I18n */,
 				FAE9B1783D1676F513A95FB4 /* Intents */,
+				9752CA570D340C5B57D914D2 /* LocalModels */,
 				C285A6C7CD48C01946345989 /* Models */,
 				303D64CA583C4C5F67E2A480 /* Networking */,
 				18D6176BD737B8E261C829A7 /* Persistence */,
@@ -2783,6 +2852,7 @@
 				E252A864D82EEB91D4238F96 /* SettingsHidePersonalDataView.swift */,
 				1ED5938F5E29D96C36EBF8FD /* SettingsIncognitoInfoView.swift */,
 				D0EBE0A546E926F9E263BFE8 /* SettingsLearningModeView.swift */,
+				31CE928C0FA1CCD9F65C45A3 /* SettingsLocalModelsView.swift */,
 				1590D8670281FDF56C8F2860 /* SettingsLogsView.swift */,
 				18F626DBB5DC4CFCA1A618E7 /* SettingsMatesView.swift */,
 				4C7C463F57142CA4C0101AEC /* SettingsMemoriesFull.swift */,
@@ -2812,6 +2882,7 @@
 				C75C8ECE57894904D2596562 /* modelsMetadata.json */,
 				2C669A530EB6253E4BC11A4E /* SpeechIcons.xcassets */,
 				A3D659F1B78E1144399039B3 /* Videos */,
+				F50D7A73B4D9D10EC901F7A4 /* LocalModels */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -3031,6 +3102,14 @@
 			path = OpenMatesShareExtensionMacOS;
 			sourceTree = "<group>";
 		};
+		F50D7A73B4D9D10EC901F7A4 /* LocalModels */ = {
+			isa = PBXGroup;
+			children = (
+				C79663BF1B847F616EB0A2CB /* catalog.json */,
+			);
+			path = LocalModels;
+			sourceTree = "<group>";
+		};
 		F7AD581B7A2724E99501E1F4 /* Skills */ = {
 			isa = PBXGroup;
 			children = (
@@ -3137,6 +3216,7 @@
 			buildConfigurationList = 7C45214DD39498742E9FEF0E /* Build configuration list for PBXNativeTarget "OpenMates_iOS" */;
 			buildPhases = (
 				C62FE0A54F16EF223C471BBC /* Build PairOpaqueBridge */,
+				442848EA0C8E45B8CC4B4482 /* Prepare LocalModelBridge */,
 				830E7D0E116B4B5F89080C48 /* Sources */,
 				B4B0CAA1635A0D7801CFC6A2 /* Resources */,
 				90DC7917B175D3B5F3EF4AFE /* Frameworks */,
@@ -3157,6 +3237,9 @@
 				5BE212FF9CDD57F36E71C2AD /* Sodium */,
 				E6A99673B154FFBE3DDEBF0A /* Yams */,
 				E7965903F17A77D22BF70FC8 /* ZIPFoundation */,
+				F3D14EBA5C9A2EF6D4093B35 /* WhisperKit */,
+				1FC863AC7CE003B0FE462CC2 /* FluidAudio */,
+				7CE479E1DBE01C64E32B1112 /* Tokenizers */,
 			);
 			productName = OpenMates_iOS;
 			productReference = BE1031D79B03616FF9E0E7F7 /* OpenMates.app */;
@@ -3290,6 +3373,7 @@
 			buildConfigurationList = C8D6826FABAA4321C0AEF0B0 /* Build configuration list for PBXNativeTarget "OpenMates_macOS" */;
 			buildPhases = (
 				88D99DDC60BCCF9ACC2AC0D9 /* Build PairOpaqueBridge */,
+				F97B249945B1DD6FB20C46A8 /* Prepare LocalModelBridge */,
 				591446FAB19B231024F85B8C /* Sources */,
 				D76DD5C267E59E845677EED4 /* Resources */,
 				3A36B0EF5F72B71EB5E2C352 /* Frameworks */,
@@ -3306,6 +3390,9 @@
 				8B4AF5F43CBEC477CC0AFBED /* Sodium */,
 				BBF89B51577DF3BD84AC0B0C /* Yams */,
 				0D7110E813D19160CAAB9438 /* ZIPFoundation */,
+				7564D45440F8E2EDF2ED4FCB /* WhisperKit */,
+				840D58FC326DEE572A6FAFFB /* FluidAudio */,
+				8076AD6C63D8EBD5B5FC170A /* Tokenizers */,
 			);
 			productName = OpenMates_macOS;
 			productReference = 6B67074848688485A446BC5C /* OpenMates.app */;
@@ -3416,8 +3503,11 @@
 			mainGroup = 8EB4113AA0C6F3AF17639778;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
+				1F843FEDA07B90F3DC8D19AF /* XCRemoteSwiftPackageReference "FluidAudio" */,
 				9F629A6D9D36C641EE6F558A /* XCRemoteSwiftPackageReference "lucide-icons-swift" */,
 				F31F79F7B843A5405C05829E /* XCRemoteSwiftPackageReference "swift-sodium" */,
+				9B1BDAA9C80997394068F25F /* XCRemoteSwiftPackageReference "swift-tokenizers" */,
+				9D399ADA66CE184E44B88E21 /* XCRemoteSwiftPackageReference "argmax-oss-swift" */,
 				BAA27C29955546ED1390EF00 /* XCRemoteSwiftPackageReference "Yams" */,
 				D8BEAD0407808ED6CCF61EBF /* XCRemoteSwiftPackageReference "ZIPFoundation" */,
 			);
@@ -3460,10 +3550,12 @@
 				07ABEFFB73121C2176EF9B11 /* BrandAssets.xcassets in Resources */,
 				7675A0D015804E636ECA75FD /* Fonts in Resources */,
 				3F87340E06C00BEA2D01F2FB /* Icons.xcassets in Resources */,
+				BF13D74420C04485800F73F4 /* LICENSE-ExecuTorch.txt in Resources */,
 				7C3177649C7D023D9AB59532 /* MermaidRuntime in Resources */,
 				C218646BFFC43B29842FD394 /* SpeechIcons.xcassets in Resources */,
 				6CB6A43B33E73A8305CF731E /* Videos in Resources */,
 				8060A2D4BAFB39CDFD067F5A /* assistant-speech-pending.wav in Resources */,
+				3667D14DA3D6513C70AAF756 /* catalog.json in Resources */,
 				D047BC879891542630491293 /* example_chats in Resources */,
 				D9FB7C2C7EE9768AE4180CC1 /* i18n in Resources */,
 				CDDB6BB7ECDCC12354C1E118 /* Mates in Resources */,
@@ -3479,10 +3571,12 @@
 				4F673E3973B25734C1677E9F /* BrandAssets.xcassets in Resources */,
 				62CC43487382E796C443CCE1 /* Fonts in Resources */,
 				FD7F5AD436C786B50A2044AD /* Icons.xcassets in Resources */,
+				CCF213A66BEE92CBD75E8488 /* LICENSE-ExecuTorch.txt in Resources */,
 				0F32856F0E15B176D6AE6E96 /* MermaidRuntime in Resources */,
 				56B43CA011E5471E26D3D0A6 /* SpeechIcons.xcassets in Resources */,
 				D271A1BD7661638C8B677477 /* Videos in Resources */,
 				04A9CE5C155FFD9BF450B308 /* assistant-speech-pending.wav in Resources */,
+				E90589CA4640C7C4FBF4603B /* catalog.json in Resources */,
 				35A097ADA7E9E04A37B2185F /* example_chats in Resources */,
 				C009FE9D797740CDE63CD990 /* i18n in Resources */,
 				F5D99558429B180B1436D2D5 /* Mates in Resources */,
@@ -3506,6 +3600,25 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
+		442848EA0C8E45B8CC4B4482 /* Prepare LocalModelBridge */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Prepare LocalModelBridge";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "python3 \"${PROJECT_DIR}/LocalModelBridge/prepare.py\"";
+		};
 		4E0EE6B99ACA757614590DBF /* Build PairOpaqueBridge */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
@@ -3562,6 +3675,25 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "\"${PROJECT_DIR}/PairOpaqueBridge/build-apple.sh\"";
+		};
+		F97B249945B1DD6FB20C46A8 /* Prepare LocalModelBridge */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Prepare LocalModelBridge";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "python3 \"${PROJECT_DIR}/LocalModelBridge/prepare.py\"";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -3756,6 +3888,10 @@
 				300707B1BAC8B4FE232B4215 /* KeyboardShortcuts.swift in Sources */,
 				84DCDDF835C4F9179D9CE800 /* KeychainHelper.swift in Sources */,
 				72F9B7571741D2C27526FE02 /* LegalChatView.swift in Sources */,
+				8867DD287DD80ED9749CFF94 /* LocalModelLabController.swift in Sources */,
+				364098B0602B18298E2BC526 /* LocalModelStore.swift in Sources */,
+				C27E81B8CD8878EFAD894177 /* LocalPrivacyFilterRuntime.swift in Sources */,
+				E6D8082D9AD0EAB99601DC03 /* LocalSpeechRuntimes.swift in Sources */,
 				2A418706A4FC57920CB6DBC6 /* LocalizationManager.swift in Sources */,
 				1B240BC3DA0217022ED7BF78 /* LocalizedText.swift in Sources */,
 				305951E830554436B073D486 /* MailDraftText.swift in Sources */,
@@ -3885,6 +4021,7 @@
 				DD05C56256EF1B375FF04CC4 /* SettingsHidePersonalDataView.swift in Sources */,
 				DFCEBCE4565A07FC1B635D33 /* SettingsIncognitoInfoView.swift in Sources */,
 				DB0F6054B9F63540AE5F6A50 /* SettingsLearningModeView.swift in Sources */,
+				74608AA27DF37B72CD87DB4C /* SettingsLocalModelsView.swift in Sources */,
 				E10BCE73CD91C5A9F0797A74 /* SettingsLogsView.swift in Sources */,
 				2DE7FA10431C56F2D7CDE898 /* SettingsMatesView.swift in Sources */,
 				99687DEFC4FF7390CDBC2387 /* SettingsMemoriesFull.swift in Sources */,
@@ -4032,7 +4169,9 @@
 				684524B1757D6DA9EEA3CD93 /* DevSignupRuntimeUITests.swift in Sources */,
 				51D240B035F711EAE019F529 /* EmbedRenderingParityUITests.swift in Sources */,
 				C4BF4569CD3CB73C0CC71B47 /* HistoryWelcomeComponentUITests.swift in Sources */,
+				E2EA590D3CE53B41E92C5786 /* InteractiveQuestionCardParityUITests.swift in Sources */,
 				50C19CC4DB37F69659CC6425 /* LandingOnboardingParityUITests.swift in Sources */,
+				8FAEF17635772CE142FCB64D /* LocalModelLabUITests.swift in Sources */,
 				0552776ECFC9D1C439C780BD /* MacMenuBarQuickCaptureUITests.swift in Sources */,
 				C52FB3F10AAE4FDF2F268F9F /* MailEmbedParityUITests.swift in Sources */,
 				C11B2E73962926AC5F6180A5 /* MapsEmbedParityUITests.swift in Sources */,
@@ -4281,6 +4420,10 @@
 				B3B3A69B522B8F1E1E281E13 /* KeyboardShortcuts.swift in Sources */,
 				4CF8C72E14448F32BF1767C0 /* KeychainHelper.swift in Sources */,
 				EC8B79427F4CA4DFF447895B /* LegalChatView.swift in Sources */,
+				DEBF5FBB849EF7AE6CD63214 /* LocalModelLabController.swift in Sources */,
+				DEB3869DBFBAFC7DFF2B60A1 /* LocalModelStore.swift in Sources */,
+				6198EBB50E04115BC472016B /* LocalPrivacyFilterRuntime.swift in Sources */,
+				9EAF1F5F96ADD848B0695700 /* LocalSpeechRuntimes.swift in Sources */,
 				1FA19091FE83A2DB15A461BD /* LocalizationManager.swift in Sources */,
 				EBE3DE10B87776E4FAD3DF03 /* LocalizedText.swift in Sources */,
 				A7578144CB342F888A4D52E1 /* MailDraftText.swift in Sources */,
@@ -4410,6 +4553,7 @@
 				D02C464DD8BC7CB2FE2BFE20 /* SettingsHidePersonalDataView.swift in Sources */,
 				8685DC828E2CE573C2032001 /* SettingsIncognitoInfoView.swift in Sources */,
 				76B486CF0B4D6FEE66BC4DFC /* SettingsLearningModeView.swift in Sources */,
+				D2466090307D15FD6077396B /* SettingsLocalModelsView.swift in Sources */,
 				0007B5C7FCB6FC85F1DD7107 /* SettingsLogsView.swift in Sources */,
 				946B914E1E6CDFACB2C0A829 /* SettingsMatesView.swift in Sources */,
 				CCB5B8394774A2F1EAF18DCE /* SettingsMemoriesFull.swift in Sources */,
@@ -4602,6 +4746,9 @@
 				E9B456508F9BA84F01B68691 /* EmbedWireFormatTests.swift in Sources */,
 				CD757B871DBFDFD7BE772D9D /* ExternalLinkDeliveryTests.swift in Sources */,
 				B8C2A01F475378828A1E6106 /* InteractiveQuestionsParityTests.swift in Sources */,
+				F54477ADD7793E38A3A4DAE1 /* LocalModelLabControllerTests.swift in Sources */,
+				1767F9324F669CAED271617A /* LocalModelStoreTests.swift in Sources */,
+				214B9876504BB73B19B441DA /* LocalPrivacyFilterRuntimeTests.swift in Sources */,
 				629B8659DB38588C49690F42 /* MailDraftTextSelectionTests.swift in Sources */,
 				7D17CB36CA3E241FA4A6DE74 /* MailEmbedModelTests.swift in Sources */,
 				13FEF258F42806923B2C3835 /* MainAppLayoutParityTests.swift in Sources */,
@@ -4747,6 +4894,9 @@
 				CODE_SIGN_ENTITLEMENTS = OpenMates/Resources/OpenMatesPasskey.entitlements;
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = OpenMates/Resources/OpenMatesMacOS.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				"HEADER_SEARCH_PATHS[sdk=iphoneos*][arch=arm64]" = "$(inherited) \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/executorch.xcframework/ios-arm64/Headers\"";
+				"HEADER_SEARCH_PATHS[sdk=iphonesimulator*][arch=arm64]" = "$(inherited) \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/executorch.xcframework/ios-arm64-simulator/Headers\"";
+				"HEADER_SEARCH_PATHS[sdk=macosx*][arch=arm64]" = "$(inherited) \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/executorch.xcframework/macos-arm64/Headers\"";
 				INFOPLIST_FILE = OpenMates/Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -4755,9 +4905,15 @@
 				LIBRARY_SEARCH_PATHS = "$(inherited) $(DERIVED_FILE_DIR)/PairOpaque";
 				OPENMATES_DEV_WEBCREDENTIALS = "webcredentials:app.dev.openmates.org";
 				OTHER_LDFLAGS = "$(inherited) -lopenmates_pair_opaque";
+				"OTHER_LDFLAGS[sdk=iphoneos*][arch=arm64]" = "$(inherited) -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/executorch.xcframework/ios-arm64/libexecutorch_ios.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/backend_xnnpack.xcframework/ios-arm64/libbackend_xnnpack_ios.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/kernels_optimized.xcframework/ios-arm64/libkernels_optimized_ios.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/kernels_quantized.xcframework/ios-arm64/libkernels_quantized_ios.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/kernels_torchao.xcframework/ios-arm64/libkernels_torchao_ios.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/threadpool.xcframework/ios-arm64/libthreadpool_ios.a\" -framework Accelerate -framework CoreGraphics -framework CoreImage -framework CoreVideo -framework Foundation -lc++";
+				"OTHER_LDFLAGS[sdk=iphonesimulator*][arch=arm64]" = "$(inherited) -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/executorch.xcframework/ios-arm64-simulator/libexecutorch_simulator.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/backend_xnnpack.xcframework/ios-arm64-simulator/libbackend_xnnpack_simulator.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/kernels_optimized.xcframework/ios-arm64-simulator/libkernels_optimized_simulator.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/kernels_quantized.xcframework/ios-arm64-simulator/libkernels_quantized_simulator.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/kernels_torchao.xcframework/ios-arm64-simulator/libkernels_torchao_simulator.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/threadpool.xcframework/ios-arm64-simulator/libthreadpool_simulator.a\" -framework Accelerate -framework CoreGraphics -framework CoreImage -framework CoreVideo -framework Foundation -lc++";
+				"OTHER_LDFLAGS[sdk=macosx*][arch=arm64]" = "$(inherited) -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/executorch.xcframework/macos-arm64/libexecutorch_macos.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/backend_xnnpack.xcframework/macos-arm64/libbackend_xnnpack_macos.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/kernels_optimized.xcframework/macos-arm64/libkernels_optimized_macos.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/kernels_quantized.xcframework/macos-arm64/libkernels_quantized_macos.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/kernels_torchao.xcframework/macos-arm64/libkernels_torchao_macos.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/threadpool.xcframework/macos-arm64/libthreadpool_macos.a\" -framework Accelerate -framework CoreGraphics -framework CoreImage -framework CoreVideo -framework Foundation -lc++";
 				PRODUCT_BUNDLE_IDENTIFIER = org.openmates.app;
 				PRODUCT_NAME = OpenMates;
 				SDKROOT = iphoneos;
+				"SWIFT_INCLUDE_PATHS[sdk=iphoneos*][arch=arm64]" = "$(inherited) \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/Modules\" \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/executorch.xcframework/ios-arm64/Headers\"";
+				"SWIFT_INCLUDE_PATHS[sdk=iphonesimulator*][arch=arm64]" = "$(inherited) \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/Modules\" \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/executorch.xcframework/ios-arm64-simulator/Headers\"";
+				"SWIFT_INCLUDE_PATHS[sdk=macosx*][arch=arm64]" = "$(inherited) \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/Modules\" \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/executorch.xcframework/macos-arm64/Headers\"";
 				SWIFT_OPTIMIZATION_LEVEL = "-Owholemodule";
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -4771,6 +4927,9 @@
 				CODE_SIGN_ENTITLEMENTS = OpenMates/Resources/OpenMatesPasskey.entitlements;
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = OpenMates/Resources/OpenMatesMacOS.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				"HEADER_SEARCH_PATHS[sdk=iphoneos*][arch=arm64]" = "$(inherited) \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/executorch.xcframework/ios-arm64/Headers\"";
+				"HEADER_SEARCH_PATHS[sdk=iphonesimulator*][arch=arm64]" = "$(inherited) \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/executorch.xcframework/ios-arm64-simulator/Headers\"";
+				"HEADER_SEARCH_PATHS[sdk=macosx*][arch=arm64]" = "$(inherited) \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/executorch.xcframework/macos-arm64/Headers\"";
 				INFOPLIST_FILE = OpenMates/Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -4779,11 +4938,17 @@
 				LIBRARY_SEARCH_PATHS = "$(inherited) $(DERIVED_FILE_DIR)/PairOpaque";
 				OPENMATES_DEV_WEBCREDENTIALS = "webcredentials:app.dev.openmates.org";
 				OTHER_LDFLAGS = "$(inherited) -lopenmates_pair_opaque";
+				"OTHER_LDFLAGS[sdk=iphoneos*][arch=arm64]" = "$(inherited) -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/executorch.xcframework/ios-arm64/libexecutorch_ios.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/backend_xnnpack.xcframework/ios-arm64/libbackend_xnnpack_ios.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/kernels_optimized.xcframework/ios-arm64/libkernels_optimized_ios.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/kernels_quantized.xcframework/ios-arm64/libkernels_quantized_ios.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/kernels_torchao.xcframework/ios-arm64/libkernels_torchao_ios.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/threadpool.xcframework/ios-arm64/libthreadpool_ios.a\" -framework Accelerate -framework CoreGraphics -framework CoreImage -framework CoreVideo -framework Foundation -lc++";
+				"OTHER_LDFLAGS[sdk=iphonesimulator*][arch=arm64]" = "$(inherited) -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/executorch.xcframework/ios-arm64-simulator/libexecutorch_simulator.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/backend_xnnpack.xcframework/ios-arm64-simulator/libbackend_xnnpack_simulator.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/kernels_optimized.xcframework/ios-arm64-simulator/libkernels_optimized_simulator.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/kernels_quantized.xcframework/ios-arm64-simulator/libkernels_quantized_simulator.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/kernels_torchao.xcframework/ios-arm64-simulator/libkernels_torchao_simulator.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/threadpool.xcframework/ios-arm64-simulator/libthreadpool_simulator.a\" -framework Accelerate -framework CoreGraphics -framework CoreImage -framework CoreVideo -framework Foundation -lc++";
+				"OTHER_LDFLAGS[sdk=macosx*][arch=arm64]" = "$(inherited) -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/executorch.xcframework/macos-arm64/libexecutorch_macos.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/backend_xnnpack.xcframework/macos-arm64/libbackend_xnnpack_macos.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/kernels_optimized.xcframework/macos-arm64/libkernels_optimized_macos.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/kernels_quantized.xcframework/macos-arm64/libkernels_quantized_macos.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/kernels_torchao.xcframework/macos-arm64/libkernels_torchao_macos.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/threadpool.xcframework/macos-arm64/libthreadpool_macos.a\" -framework Accelerate -framework CoreGraphics -framework CoreImage -framework CoreVideo -framework Foundation -lc++";
 				PRODUCT_BUNDLE_IDENTIFIER = org.openmates.app;
 				PRODUCT_NAME = OpenMates;
 				SDKROOT = iphoneos;
 				STOREKIT_CONFIGURATION = OpenMates/Resources/OpenMates.storekit;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				"SWIFT_INCLUDE_PATHS[sdk=iphoneos*][arch=arm64]" = "$(inherited) \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/Modules\" \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/executorch.xcframework/ios-arm64/Headers\"";
+				"SWIFT_INCLUDE_PATHS[sdk=iphonesimulator*][arch=arm64]" = "$(inherited) \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/Modules\" \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/executorch.xcframework/ios-arm64-simulator/Headers\"";
+				"SWIFT_INCLUDE_PATHS[sdk=macosx*][arch=arm64]" = "$(inherited) \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/Modules\" \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/executorch.xcframework/macos-arm64/Headers\"";
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
@@ -4982,6 +5147,9 @@
 				CODE_SIGN_ENTITLEMENTS = OpenMates/Resources/OpenMatesPasskey.entitlements;
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = OpenMates/Resources/OpenMatesMacOS.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
+				"HEADER_SEARCH_PATHS[sdk=iphoneos*][arch=arm64]" = "$(inherited) \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/executorch.xcframework/ios-arm64/Headers\"";
+				"HEADER_SEARCH_PATHS[sdk=iphonesimulator*][arch=arm64]" = "$(inherited) \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/executorch.xcframework/ios-arm64-simulator/Headers\"";
+				"HEADER_SEARCH_PATHS[sdk=macosx*][arch=arm64]" = "$(inherited) \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/executorch.xcframework/macos-arm64/Headers\"";
 				INFOPLIST_FILE = OpenMates/Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -4990,9 +5158,15 @@
 				LIBRARY_SEARCH_PATHS = "$(inherited) $(DERIVED_FILE_DIR)/PairOpaque";
 				OPENMATES_DEV_WEBCREDENTIALS = "webcredentials:app.dev.openmates.org";
 				OTHER_LDFLAGS = "$(inherited) -lopenmates_pair_opaque";
+				"OTHER_LDFLAGS[sdk=iphoneos*][arch=arm64]" = "$(inherited) -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/executorch.xcframework/ios-arm64/libexecutorch_ios.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/backend_xnnpack.xcframework/ios-arm64/libbackend_xnnpack_ios.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/kernels_optimized.xcframework/ios-arm64/libkernels_optimized_ios.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/kernels_quantized.xcframework/ios-arm64/libkernels_quantized_ios.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/kernels_torchao.xcframework/ios-arm64/libkernels_torchao_ios.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/threadpool.xcframework/ios-arm64/libthreadpool_ios.a\" -framework Accelerate -framework CoreGraphics -framework CoreImage -framework CoreVideo -framework Foundation -lc++";
+				"OTHER_LDFLAGS[sdk=iphonesimulator*][arch=arm64]" = "$(inherited) -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/executorch.xcframework/ios-arm64-simulator/libexecutorch_simulator.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/backend_xnnpack.xcframework/ios-arm64-simulator/libbackend_xnnpack_simulator.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/kernels_optimized.xcframework/ios-arm64-simulator/libkernels_optimized_simulator.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/kernels_quantized.xcframework/ios-arm64-simulator/libkernels_quantized_simulator.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/kernels_torchao.xcframework/ios-arm64-simulator/libkernels_torchao_simulator.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/threadpool.xcframework/ios-arm64-simulator/libthreadpool_simulator.a\" -framework Accelerate -framework CoreGraphics -framework CoreImage -framework CoreVideo -framework Foundation -lc++";
+				"OTHER_LDFLAGS[sdk=macosx*][arch=arm64]" = "$(inherited) -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/executorch.xcframework/macos-arm64/libexecutorch_macos.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/backend_xnnpack.xcframework/macos-arm64/libbackend_xnnpack_macos.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/kernels_optimized.xcframework/macos-arm64/libkernels_optimized_macos.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/kernels_quantized.xcframework/macos-arm64/libkernels_quantized_macos.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/kernels_torchao.xcframework/macos-arm64/libkernels_torchao_macos.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/threadpool.xcframework/macos-arm64/libthreadpool_macos.a\" -framework Accelerate -framework CoreGraphics -framework CoreImage -framework CoreVideo -framework Foundation -lc++";
 				PRODUCT_BUNDLE_IDENTIFIER = org.openmates.app;
 				PRODUCT_NAME = OpenMates;
 				SDKROOT = macosx;
+				"SWIFT_INCLUDE_PATHS[sdk=iphoneos*][arch=arm64]" = "$(inherited) \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/Modules\" \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/executorch.xcframework/ios-arm64/Headers\"";
+				"SWIFT_INCLUDE_PATHS[sdk=iphonesimulator*][arch=arm64]" = "$(inherited) \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/Modules\" \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/executorch.xcframework/ios-arm64-simulator/Headers\"";
+				"SWIFT_INCLUDE_PATHS[sdk=macosx*][arch=arm64]" = "$(inherited) \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/Modules\" \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/executorch.xcframework/macos-arm64/Headers\"";
 				SWIFT_OPTIMIZATION_LEVEL = "-Owholemodule";
 			};
 			name = Release;
@@ -5019,6 +5193,9 @@
 				CODE_SIGN_ENTITLEMENTS = OpenMates/Resources/OpenMatesPasskey.entitlements;
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = OpenMates/Resources/OpenMatesMacOS.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
+				"HEADER_SEARCH_PATHS[sdk=iphoneos*][arch=arm64]" = "$(inherited) \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/executorch.xcframework/ios-arm64/Headers\"";
+				"HEADER_SEARCH_PATHS[sdk=iphonesimulator*][arch=arm64]" = "$(inherited) \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/executorch.xcframework/ios-arm64-simulator/Headers\"";
+				"HEADER_SEARCH_PATHS[sdk=macosx*][arch=arm64]" = "$(inherited) \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/executorch.xcframework/macos-arm64/Headers\"";
 				INFOPLIST_FILE = OpenMates/Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -5027,11 +5204,17 @@
 				LIBRARY_SEARCH_PATHS = "$(inherited) $(DERIVED_FILE_DIR)/PairOpaque";
 				OPENMATES_DEV_WEBCREDENTIALS = "webcredentials:app.dev.openmates.org";
 				OTHER_LDFLAGS = "$(inherited) -lopenmates_pair_opaque";
+				"OTHER_LDFLAGS[sdk=iphoneos*][arch=arm64]" = "$(inherited) -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/executorch.xcframework/ios-arm64/libexecutorch_ios.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/backend_xnnpack.xcframework/ios-arm64/libbackend_xnnpack_ios.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/kernels_optimized.xcframework/ios-arm64/libkernels_optimized_ios.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/kernels_quantized.xcframework/ios-arm64/libkernels_quantized_ios.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/kernels_torchao.xcframework/ios-arm64/libkernels_torchao_ios.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/threadpool.xcframework/ios-arm64/libthreadpool_ios.a\" -framework Accelerate -framework CoreGraphics -framework CoreImage -framework CoreVideo -framework Foundation -lc++";
+				"OTHER_LDFLAGS[sdk=iphonesimulator*][arch=arm64]" = "$(inherited) -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/executorch.xcframework/ios-arm64-simulator/libexecutorch_simulator.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/backend_xnnpack.xcframework/ios-arm64-simulator/libbackend_xnnpack_simulator.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/kernels_optimized.xcframework/ios-arm64-simulator/libkernels_optimized_simulator.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/kernels_quantized.xcframework/ios-arm64-simulator/libkernels_quantized_simulator.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/kernels_torchao.xcframework/ios-arm64-simulator/libkernels_torchao_simulator.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/threadpool.xcframework/ios-arm64-simulator/libthreadpool_simulator.a\" -framework Accelerate -framework CoreGraphics -framework CoreImage -framework CoreVideo -framework Foundation -lc++";
+				"OTHER_LDFLAGS[sdk=macosx*][arch=arm64]" = "$(inherited) -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/executorch.xcframework/macos-arm64/libexecutorch_macos.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/backend_xnnpack.xcframework/macos-arm64/libbackend_xnnpack_macos.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/kernels_optimized.xcframework/macos-arm64/libkernels_optimized_macos.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/kernels_quantized.xcframework/macos-arm64/libkernels_quantized_macos.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/kernels_torchao.xcframework/macos-arm64/libkernels_torchao_macos.a\" -Xlinker -force_load -Xlinker \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/threadpool.xcframework/macos-arm64/libthreadpool_macos.a\" -framework Accelerate -framework CoreGraphics -framework CoreImage -framework CoreVideo -framework Foundation -lc++";
 				PRODUCT_BUNDLE_IDENTIFIER = org.openmates.app;
 				PRODUCT_NAME = OpenMates;
 				SDKROOT = macosx;
 				STOREKIT_CONFIGURATION = OpenMates/Resources/OpenMates.storekit;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				"SWIFT_INCLUDE_PATHS[sdk=iphoneos*][arch=arm64]" = "$(inherited) \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/Modules\" \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/executorch.xcframework/ios-arm64/Headers\"";
+				"SWIFT_INCLUDE_PATHS[sdk=iphonesimulator*][arch=arm64]" = "$(inherited) \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/Modules\" \"$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/executorch.xcframework/ios-arm64-simulator/Headers\"";
+				"SWIFT_INCLUDE_PATHS[sdk=macosx*][arch=arm64]" = "$(inherited) \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/Modules\" \"$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/executorch.xcframework/macos-arm64/Headers\"";
 			};
 			name = Debug;
 		};
@@ -5148,6 +5331,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				"HEADER_SEARCH_PATHS[sdk=iphoneos*][arch=arm64]" = "$(inherited) \"$(CONFIGURATION_TEMP_DIR)/OpenMates_iOS.build/DerivedSources/LocalModelBridge/iphoneos/executorch.xcframework/ios-arm64/Headers\"";
+				"HEADER_SEARCH_PATHS[sdk=iphonesimulator*][arch=arm64]" = "$(inherited) \"$(CONFIGURATION_TEMP_DIR)/OpenMates_iOS.build/DerivedSources/LocalModelBridge/iphonesimulator/executorch.xcframework/ios-arm64-simulator/Headers\"";
 				INFOPLIST_FILE = OpenMatesTests/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -5157,6 +5342,8 @@
 				PRODUCT_BUNDLE_IDENTIFIER = org.openmates.app.tests;
 				PRODUCT_NAME = OpenMatesTests;
 				SDKROOT = iphoneos;
+				"SWIFT_INCLUDE_PATHS[sdk=iphoneos*][arch=arm64]" = "$(inherited) \"$(CONFIGURATION_TEMP_DIR)/OpenMates_iOS.build/DerivedSources/LocalModelBridge/iphoneos/Modules\" \"$(CONFIGURATION_TEMP_DIR)/OpenMates_iOS.build/DerivedSources/LocalModelBridge/iphoneos/executorch.xcframework/ios-arm64/Headers\"";
+				"SWIFT_INCLUDE_PATHS[sdk=iphonesimulator*][arch=arm64]" = "$(inherited) \"$(CONFIGURATION_TEMP_DIR)/OpenMates_iOS.build/DerivedSources/LocalModelBridge/iphonesimulator/Modules\" \"$(CONFIGURATION_TEMP_DIR)/OpenMates_iOS.build/DerivedSources/LocalModelBridge/iphonesimulator/executorch.xcframework/ios-arm64-simulator/Headers\"";
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/OpenMates.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/OpenMates";
@@ -5218,6 +5405,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				"HEADER_SEARCH_PATHS[sdk=iphoneos*][arch=arm64]" = "$(inherited) \"$(CONFIGURATION_TEMP_DIR)/OpenMates_iOS.build/DerivedSources/LocalModelBridge/iphoneos/executorch.xcframework/ios-arm64/Headers\"";
+				"HEADER_SEARCH_PATHS[sdk=iphonesimulator*][arch=arm64]" = "$(inherited) \"$(CONFIGURATION_TEMP_DIR)/OpenMates_iOS.build/DerivedSources/LocalModelBridge/iphonesimulator/executorch.xcframework/ios-arm64-simulator/Headers\"";
 				INFOPLIST_FILE = OpenMatesTests/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -5227,6 +5416,8 @@
 				PRODUCT_BUNDLE_IDENTIFIER = org.openmates.app.tests;
 				PRODUCT_NAME = OpenMatesTests;
 				SDKROOT = iphoneos;
+				"SWIFT_INCLUDE_PATHS[sdk=iphoneos*][arch=arm64]" = "$(inherited) \"$(CONFIGURATION_TEMP_DIR)/OpenMates_iOS.build/DerivedSources/LocalModelBridge/iphoneos/Modules\" \"$(CONFIGURATION_TEMP_DIR)/OpenMates_iOS.build/DerivedSources/LocalModelBridge/iphoneos/executorch.xcframework/ios-arm64/Headers\"";
+				"SWIFT_INCLUDE_PATHS[sdk=iphonesimulator*][arch=arm64]" = "$(inherited) \"$(CONFIGURATION_TEMP_DIR)/OpenMates_iOS.build/DerivedSources/LocalModelBridge/iphonesimulator/Modules\" \"$(CONFIGURATION_TEMP_DIR)/OpenMates_iOS.build/DerivedSources/LocalModelBridge/iphonesimulator/executorch.xcframework/ios-arm64-simulator/Headers\"";
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/OpenMates.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/OpenMates";
@@ -5410,6 +5601,32 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		1F843FEDA07B90F3DC8D19AF /* XCRemoteSwiftPackageReference "FluidAudio" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/FluidInference/FluidAudio.git";
+			requirement = {
+				kind = revision;
+				revision = 0b1f46289fe27d95b5e66ad8be46e64f5ee02ae7;
+			};
+			traits = (
+			);
+		};
+		9B1BDAA9C80997394068F25F /* XCRemoteSwiftPackageReference "swift-tokenizers" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/DePasqualeOrg/swift-tokenizers.git";
+			requirement = {
+				kind = exactVersion;
+				version = 0.5.0;
+			};
+		};
+		9D399ADA66CE184E44B88E21 /* XCRemoteSwiftPackageReference "argmax-oss-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/argmaxinc/argmax-oss-swift.git";
+			requirement = {
+				kind = revision;
+				revision = 1e2a163736dfa5a198e637ae44c114e1c6d5cc2d;
+			};
+		};
 		9F629A6D9D36C641EE6F558A /* XCRemoteSwiftPackageReference "lucide-icons-swift" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/JakubMazur/lucide-icons-swift.git";
@@ -5450,6 +5667,11 @@
 			package = D8BEAD0407808ED6CCF61EBF /* XCRemoteSwiftPackageReference "ZIPFoundation" */;
 			productName = ZIPFoundation;
 		};
+		1FC863AC7CE003B0FE462CC2 /* FluidAudio */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1F843FEDA07B90F3DC8D19AF /* XCRemoteSwiftPackageReference "FluidAudio" */;
+			productName = FluidAudio;
+		};
 		47F26F17E3084624A8B0C927 /* LucideIcons */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 9F629A6D9D36C641EE6F558A /* XCRemoteSwiftPackageReference "lucide-icons-swift" */;
@@ -5459,6 +5681,26 @@
 			isa = XCSwiftPackageProductDependency;
 			package = F31F79F7B843A5405C05829E /* XCRemoteSwiftPackageReference "swift-sodium" */;
 			productName = Sodium;
+		};
+		7564D45440F8E2EDF2ED4FCB /* WhisperKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9D399ADA66CE184E44B88E21 /* XCRemoteSwiftPackageReference "argmax-oss-swift" */;
+			productName = WhisperKit;
+		};
+		7CE479E1DBE01C64E32B1112 /* Tokenizers */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9B1BDAA9C80997394068F25F /* XCRemoteSwiftPackageReference "swift-tokenizers" */;
+			productName = Tokenizers;
+		};
+		8076AD6C63D8EBD5B5FC170A /* Tokenizers */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9B1BDAA9C80997394068F25F /* XCRemoteSwiftPackageReference "swift-tokenizers" */;
+			productName = Tokenizers;
+		};
+		840D58FC326DEE572A6FAFFB /* FluidAudio */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1F843FEDA07B90F3DC8D19AF /* XCRemoteSwiftPackageReference "FluidAudio" */;
+			productName = FluidAudio;
 		};
 		8B4AF5F43CBEC477CC0AFBED /* Sodium */ = {
 			isa = XCSwiftPackageProductDependency;
@@ -5484,6 +5726,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = D8BEAD0407808ED6CCF61EBF /* XCRemoteSwiftPackageReference "ZIPFoundation" */;
 			productName = ZIPFoundation;
+		};
+		F3D14EBA5C9A2EF6D4093B35 /* WhisperKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9D399ADA66CE184E44B88E21 /* XCRemoteSwiftPackageReference "argmax-oss-swift" */;
+			productName = WhisperKit;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

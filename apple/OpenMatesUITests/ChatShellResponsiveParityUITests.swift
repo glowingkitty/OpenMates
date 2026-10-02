@@ -10,6 +10,83 @@ final class ChatShellResponsiveParityUITests: XCTestCase {
         continueAfterFailure = false
     }
 
+    // contract-test: supporting surface=gui.apple assertions=workspace-shell.nav.released-surfaces-visible,chats.layout.responsive-history
+    func testEveryWorkspaceSidebarSharesSearchAndClosesFromItsOwnHeader() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-disable-auth-cache", "--ui-test-shell-metrics",
+                               "--ui-test-show-workspace-tabs", "--ui-test-workspace-sidebar-fixture"]
+        app.launchEnvironment["UI_TEST_SHELL_METRICS"] = "1"
+        app.launch()
+        let metrics = app.staticTexts
+            .containing(NSPredicate(format: "label CONTAINS %@", "shell-width="))
+            .firstMatch
+        XCTAssertTrue(metrics.waitForExistence(timeout: 12))
+
+        let workspaces = [
+            ("tasks", "task-sidebar-row-preview-todo", "Design 3D model"),
+            ("projects", "project-sidebar-card-preview-project", "OpenMates"),
+            ("workflows", "workflow-sidebar-row", "Weekly AI events")
+        ]
+        for (workspace, rowIdentifier, query) in workspaces {
+            let tab = app.buttons["\(workspace)-nav-link"]
+            if !tab.isHittable { app.buttons["workspace-switcher"].tap() }
+            XCTAssertTrue(tab.waitForExistence(timeout: 5))
+            tab.tap()
+            app.buttons["sidebar-toggle"].tap()
+            _ = try waitForMetric("chat-panel-open", equals: true, in: metrics)
+            let close = app.buttons["\(workspace)-sidebar-close"]
+            XCTAssertTrue(close.waitForExistence(timeout: 5))
+            try waitForVisibleSidebarControl(close, in: app)
+            let search = app.buttons["\(workspace)-sidebar-search"]
+            try waitForVisibleSidebarControl(search, in: app)
+            XCTAssertTrue(app.buttons[rowIdentifier].firstMatch.exists)
+            search.tap()
+            let input = app.textFields["\(workspace)-sidebar-search-input"]
+            XCTAssertTrue(input.waitForExistence(timeout: 5))
+            try waitForVisibleSidebarControl(input, in: app)
+            input.tap()
+            input.typeText(query)
+            XCTAssertTrue(app.buttons[rowIdentifier].firstMatch.waitForExistence(timeout: 5))
+            if workspace == "tasks" {
+                XCTAssertTrue(app.buttons["task-sidebar-row-preview-backlog-1"].waitForNonExistence(timeout: 5))
+                XCTAssertTrue(app.buttons["plan-sidebar-row-preview-plan-draft"].waitForNonExistence(timeout: 5))
+            }
+            // Toggle search off to clear the query, then prove unmatched search
+            // hides records rather than exposing unrelated cached items.
+            search.tap()
+            XCTAssertTrue(input.waitForNonExistence(timeout: 5), "Closing workspace search clears its input")
+            try waitForVisibleSidebarControl(search, in: app)
+            search.tap()
+            XCTAssertTrue(input.waitForExistence(timeout: 5))
+            try waitForVisibleSidebarControl(input, in: app)
+            input.tap()
+            input.typeText("no matching workspace record")
+            XCTAssertTrue(app.descendants(matching: .any)["\(workspace)-sidebar-no-matches"].firstMatch
+                .waitForExistence(timeout: 5))
+            XCTAssertTrue(app.buttons[rowIdentifier].firstMatch.waitForNonExistence(timeout: 5))
+            try waitForVisibleSidebarControl(close, in: app)
+            close.tap()
+            _ = try waitForMetric("chat-panel-open", equals: false, in: metrics)
+            XCTAssertTrue(app.buttons["sidebar-toggle"].waitForExistence(timeout: 5))
+        }
+        let chatsTab = app.buttons["chats-nav-link"]
+        if !chatsTab.isHittable { app.buttons["workspace-switcher"].tap() }
+        chatsTab.tap()
+        app.buttons["sidebar-toggle"].tap()
+        let chatSearch = app.buttons["search-button"]
+        try waitForVisibleSidebarControl(chatSearch, in: app)
+        chatSearch.tap()
+        let chatSearchInput = app.textFields["search-input"]
+        XCTAssertTrue(chatSearchInput.waitForExistence(timeout: 5))
+        try waitForVisibleSidebarControl(chatSearchInput, in: app)
+        app.buttons["search-close-button"].tap()
+        XCTAssertTrue(chatSearchInput.waitForNonExistence(timeout: 5))
+        let chatClose = app.buttons["chat-sidebar-close"]
+        try waitForVisibleSidebarControl(chatClose, in: app)
+        chatClose.tap()
+        _ = try waitForMetric("chat-panel-open", equals: false, in: metrics)
+    }
+
     // contract-test: direct surface=gui.apple assertions=chats.layout.responsive-history
     func testShellSidebarToggleMatchesViewportMode() throws {
         let app = XCUIApplication()
@@ -142,6 +219,17 @@ final class ChatShellResponsiveParityUITests: XCTestCase {
         point.tap()
         XCTAssertTrue(backdrop.waitForNonExistence(timeout: 3))
         XCTAssertTrue(settings.isHittable)
+    }
+
+    private func waitForVisibleSidebarControl(_ element: XCUIElement, in app: XCUIApplication) throws {
+        // Shell state changes before the rail's slide animation has settled.
+        // Require the production control to be on screen before interacting.
+        let visible = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            element.exists && element.isHittable && element.frame.minX >= 0 &&
+                app.windows.firstMatch.frame.contains(element.frame)
+        }, object: element)
+        XCTAssertEqual(XCTWaiter.wait(for: [visible], timeout: 5), .completed,
+                       "Expected visible sidebar control \(element.identifier)")
     }
 
     private func waitForMetric(_ key: String, equals expected: Bool, in element: XCUIElement) throws -> String {

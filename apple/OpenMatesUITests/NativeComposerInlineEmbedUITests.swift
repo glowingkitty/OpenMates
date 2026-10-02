@@ -24,10 +24,10 @@ final class NativeComposerInlineEmbedUITests: XCTestCase {
         let remove = app.buttons["native-composer-preview-action-close"].firstMatch
         XCTAssertTrue(play.waitForExistence(timeout: 5), "Failed recording must expose local playback: \(app.debugDescription)")
         XCTAssertTrue(retry.waitForExistence(timeout: 5), "Missing recording retry control: \(app.debugDescription)")
-        XCTAssertTrue(remove.waitForExistence(timeout: 5), "Missing recording removal control: \(app.debugDescription)")
+        XCTAssertFalse(remove.exists, "The failed card must not display a permanent close overlay")
+        XCTAssertFalse(app.buttons["native-composer-preview-action-visible"].exists)
         XCTAssertTrue(play.isHittable)
         XCTAssertTrue(retry.isHittable)
-        XCTAssertTrue(remove.isHittable)
         let screenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         screenshot.name = "Retained failed audio attachment with retry"
         screenshot.lifetime = .keepAlways
@@ -39,6 +39,18 @@ final class NativeComposerInlineEmbedUITests: XCTestCase {
         expectation(for: NSPredicate(format: "label == %@", "audio-retry-finished"), evaluatedWith: action)
         waitForExpectations(timeout: 5)
         XCTAssertFalse(retry.exists)
+        // Retry replaces the attachment's hosted preview. Resolve its finished
+        // card, which owns the long-press action, after that lifecycle change.
+        let finishedRecording = app.descendants(matching: .any)["native-composer-preview-recording-finished"].firstMatch
+        XCTAssertTrue(finishedRecording.waitForExistence(timeout: 5), "Retry must finish the recording card: \(app.debugDescription)")
+        XCTAssertTrue(finishedRecording.isHittable)
+        let retriedScreenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        retriedScreenshot.name = "Retried recording before card removal"
+        retriedScreenshot.lifetime = .keepAlways
+        add(retriedScreenshot)
+        finishedRecording.press(forDuration: 1.1)
+        XCTAssertTrue(remove.waitForExistence(timeout: 3), "Long press must expose the retried card's removal control: \(app.debugDescription)")
+        XCTAssertTrue(remove.isHittable)
         remove.tap()
         expectation(for: NSPredicate(format: "label == %@", "audio-removed"), evaluatedWith: action)
         waitForExpectations(timeout: 5)

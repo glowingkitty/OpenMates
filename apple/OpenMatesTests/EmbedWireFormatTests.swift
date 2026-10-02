@@ -33,7 +33,7 @@ final class EmbedWireFormatTests: XCTestCase {
         }
         func table() -> UICollectionView? {
             descendants(of: host.view).compactMap { $0 as? UICollectionView }
-                .first { $0.accessibilityIdentifier == "sheet-fullscreen-collection" }
+                .first { $0.accessibilityIdentifier == "sheet-fullscreen-table" }
         }
         let mounted = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
             MainActor.assumeIsolated {
@@ -259,6 +259,47 @@ final class EmbedWireFormatTests: XCTestCase {
         let tokenGradient = try XCTUnwrap(Mirror(reflecting: token).descendant("gradient") as? Gradient)
         XCTAssertEqual(badgeGradient.stops, tokenGradient.stops)
         XCTAssertEqual(AppIconView.iconName(forAppId: "sheets"), "sheets")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.rendering.assistant-document-convergence
+    func testCanonicalEmbedIDPrecedesStorageRowIDAndLocalRecordsRetainIDFallback() throws {
+        let databaseID = UUID().uuidString.lowercased()
+        let canonicalID = UUID().uuidString.lowercased()
+        for convertFromSnakeCase in [false, true] {
+            let decoder = JSONDecoder()
+            if convertFromSnakeCase { decoder.keyDecodingStrategy = .convertFromSnakeCase }
+            let stored = try decoder.decode(EmbedRecord.self, from: JSONSerialization.data(withJSONObject: [
+                "id": databaseID, "embed_id": canonicalID, "status": "finished", "version_number": 8,
+                "encrypted_type": "synthetic-type-ciphertext", "encrypted_content": "synthetic-content-ciphertext"
+            ]))
+            XCTAssertEqual(stored.id, canonicalID)
+            XCTAssertEqual(stored.status, .finished)
+            XCTAssertEqual(stored.versionNumber, 8)
+            XCTAssertEqual(EmbedRecord.relatedRecords(referencedIds: [canonicalID], from: [stored], context: "wireIdentity").map(\.id),
+                [canonicalID])
+            XCTAssertTrue(EmbedRecord.relatedRecords(referencedIds: [databaseID], from: [stored], context: "wireIdentity").isEmpty)
+            let local = try decoder.decode(EmbedRecord.self, from: JSONSerialization.data(withJSONObject: [
+                "id": canonicalID, "type": "code-code", "status": "finished"
+            ]))
+            XCTAssertEqual(local.id, canonicalID)
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.rendering.assistant-document-convergence
+    func testBackendCodeAliasRoutesDecryptedSourceToCodeRendererAndKeepsProcessingStatus() throws {
+        let row = #"{"embed_id":"synthetic-code","type":"code","status":"processing","encrypted_content":"ciphertext"}"#
+        let record = try JSONDecoder().decode(EmbedRecord.self, from: Data(row.utf8))
+        XCTAssertEqual(record.type, "code-code")
+        XCTAssertEqual(EmbedType.normalized(rawValue: "code"), .codeCode)
+        XCTAssertEqual(EmbedType.normalized(rawValue: record.type), .codeCode)
+        XCTAssertEqual(record.status, .processing)
+        let decrypted = record.decryptedCopy(
+            content: #"{"type":"code","filename":"main.py","language":"python","code":"print('ready')"}"#,
+            type: "code")
+        XCTAssertEqual(decrypted.type, "code-code")
+        XCTAssertEqual(decrypted.status, .processing, "Hydration must not manufacture a finished server status")
+        XCTAssertEqual(AppleCodeEmbedContent(data: decrypted.rawData).code, "print('ready')")
+        XCTAssertEqual(AppleCodeEmbedContent(data: decrypted.rawData).filename, "main.py")
     }
 
     // contract-test: supporting surface=gui.apple assertions=chats.rendering.assistant-document-convergence

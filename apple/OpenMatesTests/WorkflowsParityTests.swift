@@ -7,6 +7,79 @@ import XCTest
 @testable import OpenMates
 
 final class WorkflowsParityTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=workflows.actions.skill-contract,workflows.control.typed-data
+    func testAppActionSingleRequestFieldsRoundTripWithoutExposingBatchEnvelope() throws {
+        let node = try JSONDecoder().decode(WorkflowNode.self, from: Data(#"{"id":"news","type":"app_skill_action","config":{"app_id":"news","skill_id":"search","input":{"requests":[{"query":"Germany news","count":6,"retained_option":"keep"}],"provider":"example"}}}"#.utf8))
+        let input = try XCTUnwrap(node.config["input"]?.value as? [String: Any])
+        let projection = try XCTUnwrap(WorkflowRequestInputProjection(schema: requestInputSchema, input: input))
+        XCTAssertEqual(projection.requests.count, 1)
+        XCTAssertNil((projection.outerSchema["properties"] as? [String: Any])?["requests"])
+        XCTAssertFalse((projection.outerSchema["required"] as? [String] ?? []).contains("requests"))
+        XCTAssertEqual((projection.requestSchema["required"] as? [String]), ["query"])
+        var request = try XCTUnwrap(projection.requests.first as? [String: Any])
+        XCTAssertEqual(request["query"] as? String, "Germany news")
+        request["query"] = "Berlin news"
+        var changedConfig = node.config
+        changedConfig["input"] = AnyCodable(projection.replacingRequest(at: 0, with: request))
+        let changed = WorkflowNode(id: node.id, type: node.type, title: node.title,
+                                   config: changedConfig, inputMapping: node.inputMapping, ui: node.ui)
+        let saved = try JSONDecoder().decode(WorkflowNode.self, from: JSONEncoder().encode(changed))
+        let savedInput = try XCTUnwrap(saved.config["input"]?.value as? [String: Any])
+        let savedRequests = try XCTUnwrap(savedInput["requests"] as? [[String: Any]])
+        XCTAssertEqual(savedRequests.count, 1)
+        XCTAssertEqual(savedRequests[0]["query"] as? String, "Berlin news")
+        XCTAssertEqual(savedRequests[0]["count"] as? Int, 6)
+        XCTAssertEqual(savedRequests[0]["retained_option"] as? String, "keep")
+        XCTAssertEqual(savedInput["provider"] as? String, "example")
+        XCTAssertNil(savedInput["query"], "The displayed request fields must keep the skill transport wrapper.")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=workflows.actions.skill-contract
+    func testMissingOrEmptyAppRequestDefaultsToOneEditableRequest() throws {
+        let inputs: [[String: Any]] = [[:], ["requests": []]]
+        for input in inputs {
+            let projection = try XCTUnwrap(WorkflowRequestInputProjection(schema: requestInputSchema, input: input))
+            XCTAssertEqual(projection.requests.count, 1)
+            let request = try XCTUnwrap(projection.requests[0] as? [String: Any])
+            XCTAssertEqual(request["query"] as? String, "")
+            XCTAssertEqual(request["count"] as? Int, 6)
+            let changed = projection.replacingRequest(at: 0, with: ["query": "Berlin news", "count": 6])
+            XCTAssertEqual((changed["requests"] as? [[String: Any]])?.count, 1)
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=workflows.actions.skill-contract,workflows.control.typed-data
+    func testEditingOneSavedRequestPreservesOtherEntriesAndOuterFields() throws {
+        let input: [String: Any] = ["requests": [["query": "first"], ["query": "second"]], "provider": "example"]
+        let projection = try XCTUnwrap(WorkflowRequestInputProjection(schema: requestInputSchema, input: input))
+        let changed = projection.replacingRequest(at: 0, with: ["query": "edited"])
+        let requests = try XCTUnwrap(changed["requests"] as? [[String: Any]])
+        XCTAssertEqual(requests.count, 2, "Opening an existing workflow must never discard saved requests.")
+        XCTAssertEqual(requests[1]["query"] as? String, "second")
+        XCTAssertEqual(changed["provider"] as? String, "example")
+        XCTAssertNil(WorkflowRequestInputProjection(schema: ["properties": ["query": ["type": "string"]]], input: ["query": "plain"]))
+        XCTAssertNil(WorkflowRequestInputProjection(schema: ["properties": ["requests": ["type": "array", "items": ["type": "string"]]]], input: [:]))
+    }
+
+    @MainActor
+    // contract-test: supporting surface=gui.apple assertions=workflows.actions.skill-contract
+    func testInputTypeLabelsUseRegisteredWebListAndSemanticKeys() {
+        XCTAssertEqual(WorkflowRequestInputProjection.displayType(["type": "array"]), "list")
+        XCTAssertEqual(WorkflowRequestInputProjection.displayType(["type": "integer"]), "number")
+        XCTAssertEqual(WorkflowRequestInputProjection.displayType(["type": "string", "format": "date"]), "date")
+        XCTAssertEqual(WorkflowRequestInputProjection.displayType(["type": "string", "format": "uri"]), "url")
+        XCTAssertEqual(WorkflowRequestInputProjection.displayType(["type": "string", "x-ui": ["control": "location"]]), "location")
+        XCTAssertNotEqual(AppStrings.localized("workflows.builder.output_type_list"), "workflows.builder.output_type_list")
+    }
+
+    private var requestInputSchema: [String: Any] {
+        ["type": "object", "required": ["requests"], "properties": [
+            "requests": ["type": "array", "items": ["type": "object", "required": ["query"], "properties": [
+                "query": ["type": "string"], "count": ["type": "integer", "default": 6]
+            ]]], "provider": ["type": "string"]
+        ]]
+    }
+
     // contract-test: supporting surface=gui.apple assertions=workflows-ui.mvp.ask-ai
     func testAskAIHintsUseWebRequestShapeAndDecodeBlockedVerdict() throws {
         let request = WorkflowAskAIHintsRequest(

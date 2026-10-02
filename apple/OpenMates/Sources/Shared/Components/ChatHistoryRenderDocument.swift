@@ -227,7 +227,7 @@ struct ChatHistoryRenderBlock: Codable, Equatable, Identifiable, Sendable {
     ) -> ChatHistoryEmbedReference {
         ChatHistoryEmbedReference(
             id: reference.value,
-            type: embedRefsById[reference.value]?.type,
+            type: embedRefsById[reference.value]?.type ?? reference.type,
             isReference: reference.isRef,
             isLargePreview: reference.isLargePreview
         )

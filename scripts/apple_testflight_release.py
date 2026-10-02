@@ -39,6 +39,8 @@ SOURCE_INPUTS = (
     "package.json",
     "pnpm-lock.yaml",
     "apple/project.yml",
+    "apple/LocalModelBridge",
+    "frontend/packages/chatCategoryTheme.ts",
     "apple/OpenMates.xcodeproj",
     "apple/OpenMates",
     "apple/OpenMatesShared",

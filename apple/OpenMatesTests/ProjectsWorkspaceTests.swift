@@ -4,6 +4,66 @@ import XCTest
 
 @MainActor
 final class ProjectsWorkspaceTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=projects.files.connected-embed-previews,projects.surface.semantic-parity
+    func testRemoteFolderDTORetainsChildrenAndSizesWithLegacyCompatibility() throws {
+        let legacy = try ProjectRemoteEntry.decode(["path": "src", "kind": "directory"])
+        XCTAssertTrue(legacy.children.isEmpty)
+        XCTAssertNil(legacy.childFileSizeBytes)
+        XCTAssertNil(legacy.childFileCount)
+        XCTAssertFalse(legacy.childSummaryTruncated)
+        let populated = try ProjectRemoteEntry.decode([
+            "path": "frontend", "kind": "directory", "childFileCount": 1,
+            "childFolderCount": 1, "childFileSizeBytes": 2048,
+            "children": [["path": "frontend/src", "kind": "directory"],
+                         ["path": "frontend/app.ts", "kind": "file"]]])
+        XCTAssertEqual(populated.children.map(\.name), ["src", "app.ts"])
+        XCTAssertEqual(populated.children.map(\.kind), ["directory", "file"])
+        XCTAssertEqual(populated.childFileSizeBytes, 2048)
+        XCTAssertEqual(populated.childFileCount, 1)
+        XCTAssertEqual(populated.childFolderCount, 1)
+        XCTAssertEqual(ProjectFolderPreviewPolicy.remoteStatus(populated), "1 file, 1 folder · 2.0 KiB in files")
+        XCTAssertNil(ProjectFolderPreviewPolicy.remoteMoreText(populated))
+        let limited = try ProjectRemoteEntry.decode([
+            "path": "src", "kind": "directory", "childFileCount": 3,
+            "childFolderCount": 0, "childFileSizeBytes": 1024, "childSummaryTruncated": true,
+            "children": [["path": "src/app.ts", "kind": "file"]]])
+        XCTAssertEqual(ProjectFolderPreviewPolicy.remoteStatus(limited), "At least 3 files · at least 1.0 KiB in files")
+        XCTAssertEqual(ProjectFolderPreviewPolicy.remoteMoreText(limited), "More files & folders")
+        XCTAssertEqual(ProjectFolderPreviewPolicy.fileSize(32), "32 B")
+        XCTAssertEqual(ProjectFolderPreviewPolicy.fileSize(1048576), "1.0 MiB")
+        XCTAssertThrowsError(try ProjectRemoteEntry.decode([
+            "path": "src", "kind": "directory", "children": [["path": "../private", "kind": "file"]]]))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=projects.files.connected-embed-previews,projects.surface.semantic-parity
+    func testFolderPreviewUsesRegularEmbedDimensionsAndAccurateSummaryStates() {
+        XCTAssertEqual(ProjectFolderPreviewPolicy.width, 300)
+        XCTAssertEqual(ProjectFolderPreviewPolicy.height, 200)
+        XCTAssertEqual(ProjectFolderPreviewPolicy.cornerRadius, 30)
+        XCTAssertEqual(ProjectFolderPreviewPolicy.visibleRowLimit, 3)
+        XCTAssertEqual(ProjectFolderPreviewPolicy.fileCount(1), "1 file")
+        XCTAssertEqual(ProjectFolderPreviewPolicy.fileCount(3), "3 files")
+        func entry(files: Int?, folders: Int?, truncated: Bool = false) -> ProjectRemoteEntry {
+            ProjectRemoteEntry(path: "src", kind: "directory", sizeBytes: nil,
+                childFileCount: files, childFolderCount: folders, childSummaryTruncated: truncated)
+        }
+        let unavailable = entry(files: nil, folders: nil)
+        XCTAssertEqual(ProjectFolderPreviewPolicy.remoteStatus(unavailable), "Contents unavailable")
+        XCTAssertEqual(ProjectFolderPreviewPolicy.remoteEmptyText(unavailable), "Open to view contents")
+        let empty = entry(files: 0, folders: 0)
+        XCTAssertEqual(ProjectFolderPreviewPolicy.remoteStatus(empty), "0 files")
+        XCTAssertEqual(ProjectFolderPreviewPolicy.remoteEmptyText(empty), "Empty folder")
+        XCTAssertNil(ProjectFolderPreviewPolicy.remoteMoreText(empty))
+        let populated = entry(files: 1, folders: 1)
+        XCTAssertEqual(ProjectFolderPreviewPolicy.remoteStatus(populated), "1 file, 1 folder")
+        XCTAssertEqual(ProjectFolderPreviewPolicy.remoteEmptyText(populated), "Open to view contents")
+        XCTAssertEqual(ProjectFolderPreviewPolicy.remoteMoreText(populated), "+ 2 more files & folders")
+        let limited = entry(files: 2, folders: 3, truncated: true)
+        XCTAssertEqual(ProjectFolderPreviewPolicy.remoteStatus(limited), "At least 2 files, 3 folders")
+        XCTAssertEqual(ProjectFolderPreviewPolicy.remoteEmptyText(limited), "Preview limited")
+        XCTAssertEqual(ProjectFolderPreviewPolicy.remoteMoreText(limited), "More files & folders")
+    }
+
     // contract-test: supporting surface=gui.apple assertions=projects.access.explicit-context,projects.files.no-server-decryption-authority
     func testRemoteResultRoutesPersonalAndTeamContextBeforeQuery() throws {
         let personal = ProjectRemoteSourceClient.resultPath(projectID: "project/a", sourceID: "source b",
@@ -64,6 +124,117 @@ final class ProjectsWorkspaceTests: XCTestCase {
     private func readmeSource(_ id: String, status: String = "connected") -> ProjectWorkspaceSource {
         ProjectWorkspaceSource(id: id, kind: "remote_folder", name: "Source", metadata: [:],
             capabilities: ["read"], status: status, sessionID: "source-session", keyEpoch: 1)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=projects.access.explicit-context,projects.files.connected-embed-previews
+    func testSourceRefreshRecoversPresenceAndClosesDisconnectedBrowser() async {
+        let service = ProjectsWorkspaceMockService()
+        let project = makeProject(id: "source-project", name: "Project")
+        func source(_ status: String, session: String?) -> ProjectWorkspaceSource {
+            ProjectWorkspaceSource(id: "source", kind: "local_git_repository", name: "Source",
+                metadata: [:], capabilities: [], status: status, sessionID: session, keyEpoch: session == nil ? nil : 1)
+        }
+        service.listResult = [project]
+        service.contentsResult = ProjectWorkspaceContents(folders: [], items: [],
+            sources: [source("offline", session: nil)])
+        let store = ProjectsWorkspaceStore(service: service, validateFence: { _ in })
+        await store.load(accountId: "account-a")
+        await store.selectProject(project.id)
+        await store.openRemoteSource("source")
+        XCTAssertNil(store.activeRemoteSourceID, "An offline source cannot open a browser")
+
+        service.sourcesResult = [source("connected", session: "session-one")]
+        await store.refreshSourceStatus()
+        XCTAssertEqual(store.sources.first?.status, "connected")
+        XCTAssertEqual(store.sources.first?.sessionID, "session-one")
+        await store.openRemoteSource("source")
+        XCTAssertEqual(store.activeRemoteSourceID, "source")
+        service.sourcesResult = [source("connected", session: "session-two")]
+        await store.refreshSourceStatus()
+        XCTAssertNil(store.activeRemoteSourceID, "A replacement binding cannot retain the previous browser")
+
+        await store.openRemoteSource("source")
+        service.sourcesResult = [source("offline", session: nil)]
+        await store.refreshSourceStatus()
+        XCTAssertEqual(store.sources.first?.status, "offline")
+        XCTAssertNil(store.activeRemoteSourceID)
+        XCTAssertTrue(store.remoteEntries.isEmpty)
+        XCTAssertTrue(store.remoteFilePreviews.isEmpty)
+        XCTAssertNil(store.remoteEmbed)
+        XCTAssertNil(store.remoteDownloadURL)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=projects.access.explicit-context
+    func testLateSourceRefreshCannotPublishAfterAccountReset() async {
+        let service = ProjectsWorkspaceMockService()
+        let project = makeProject(id: "source-project", name: "Project")
+        service.listResult = [project]
+        service.contentsResult = ProjectWorkspaceContents(folders: [], items: [], sources: [])
+        let store = ProjectsWorkspaceStore(service: service, validateFence: { _ in })
+        await store.load(accountId: "account-a")
+        await store.selectProject(project.id)
+        service.suspendSources = true
+        let refresh = Task { await store.refreshSourceStatus() }
+        for _ in 0..<100 where service.sourcesContinuation == nil { await Task.yield() }
+        XCTAssertNotNil(service.sourcesContinuation)
+        store.reset(accountId: "account-b")
+        service.sourcesContinuation?.resume(returning: [readmeSource("old-source")])
+        service.sourcesContinuation = nil
+        await refresh.value
+        XCTAssertTrue(store.sources.isEmpty)
+        XCTAssertNil(store.selectedProjectID)
+        XCTAssertTrue(store.sourceRootPreviews.isEmpty)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=projects.access.explicit-context,projects.files.connected-embed-previews
+    func testSourceDisconnectDuringFinalFenceCheckCannotReviveRootPreview() async {
+        let service = ProjectsWorkspaceMockService()
+        let project = makeProject(id: "source-project", name: "Project")
+        service.listResult = [project]
+        let readme = ProjectWorkspaceItem(id: "stored-readme", kind: "embed", targetID: "readme-target",
+            name: "README.md", metadata: [:], folderHash: nil, position: 0, createdAt: 1)
+        service.storedFileResult = ["code": "# Public fixture"]
+        service.contentsResult = ProjectWorkspaceContents(folders: [], items: [readme],
+            sources: [readmeSource("source")])
+        var rootContinuation: CheckedContinuation<ProjectRemoteDirectory, Never>?
+        var fenceContinuation: CheckedContinuation<Void, Never>?
+        var suspendNextFence = false
+        var fenceReturned = false
+        let store = ProjectsWorkspaceStore(service: service, listSourceRoot: { _, _, _ in
+            await withCheckedContinuation { rootContinuation = $0 }
+        }, validateFence: { _ in
+            if suspendNextFence {
+                suspendNextFence = false
+                await withCheckedContinuation { fenceContinuation = $0 }
+                fenceReturned = true
+            }
+        })
+        await store.load(accountId: "account-a")
+        await store.selectProject(project.id)
+        for _ in 0..<100 {
+            if rootContinuation != nil, case .ready = store.readme { break }
+            await Task.yield()
+        }
+        guard let rootContinuation else { return XCTFail("The bounded root read must be suspended") }
+        guard case .ready = store.readme else {
+            rootContinuation.resume(returning: ProjectRemoteDirectory(entries: [], omitted: 0,
+                excluded: 0, nextCursor: nil))
+            return XCTFail("README discovery must finish before suspending the root's final fence")
+        }
+        suspendNextFence = true
+        rootContinuation.resume(returning: ProjectRemoteDirectory(
+            entries: [remoteEntry("old-session.ts")], omitted: 0, excluded: 0, nextCursor: nil))
+        for _ in 0..<100 where fenceContinuation == nil { await Task.yield() }
+        guard let fenceContinuation else { return XCTFail("The final publication fence must suspend") }
+        service.sourcesResult = [readmeSource("source", status: "offline")]
+        await store.refreshSourceStatus()
+        XCTAssertEqual(store.sources.first?.status, "offline")
+        fenceContinuation.resume()
+        for _ in 0..<100 where !fenceReturned { await Task.yield() }
+        for _ in 0..<20 { await Task.yield() }
+        XCTAssertTrue(fenceReturned)
+        XCTAssertTrue(store.sourceRootPreviews.isEmpty,
+                      "A late account check cannot restore previews from the disconnected binding")
     }
 
     // contract-test: supporting surface=gui.apple assertions=projects.surface.semantic-parity
@@ -624,10 +795,14 @@ private final class ProjectsWorkspaceMockService: ProjectsWorkspaceServing {
     var listResult: [ProjectWorkspaceProject]?
     var suspendContents = false
     var contentsResult: ProjectWorkspaceContents?
+    var sourcesResult: [ProjectWorkspaceSource]?
+    var suspendSources = false
+    var sourcesContinuation: CheckedContinuation<[ProjectWorkspaceSource], Never>?
     var listContinuation: CheckedContinuation<[ProjectWorkspaceProject], Never>?
     var contentsContinuation: CheckedContinuation<ProjectWorkspaceContents, Never>?
     var embedContinuation: CheckedContinuation<EmbedRecord, Never>?
     var suspendStoredFile = false
+    var storedFileResult: [String: Any]?
     var storedFileContinuation: CheckedContinuation<[String: Any], Never>?
 
     func finishList(with projects: [ProjectWorkspaceProject]) {
@@ -656,6 +831,11 @@ private final class ProjectsWorkspaceMockService: ProjectsWorkspaceServing {
         return await withCheckedContinuation { contentsContinuation = $0 }
     }
 
+    func listSources(project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws -> [ProjectWorkspaceSource] {
+        if suspendSources { return await withCheckedContinuation { sourcesContinuation = $0 } }
+        return sourcesResult ?? contentsResult?.sources ?? []
+    }
+
     func settings(project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws -> ProjectWorkspaceSettings {
         ProjectWorkspaceSettings(writeMode: .applyAndShow, selectionRequired: false,
             focusID: nil, focusInstruction: nil)
@@ -680,6 +860,7 @@ private final class ProjectsWorkspaceMockService: ProjectsWorkspaceServing {
     func deleteProject(_ project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws { throw ProjectsWorkspaceError.invalidContext }
     func readStoredFile(_ item: ProjectWorkspaceItem, project: ProjectWorkspaceProject,
                         fence: ProjectsWorkspaceFence) async throws -> [String: Any] {
+        if let storedFileResult { return storedFileResult }
         guard suspendStoredFile else { throw ProjectsWorkspaceError.invalidContext }
         return await withCheckedContinuation { storedFileContinuation = $0 }
     }

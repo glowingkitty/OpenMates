@@ -1,0 +1,116 @@
+schema_version: 1
+id: feature.apple-local-model-lab
+version: 1
+status: draft
+title: Apple optional local model laboratory
+summary: An explicitly enabled native settings laboratory evaluates three separately downloaded local
+  models without changing production chat processing.
+scope:
+  includes:
+  - Native iPhone, iPad and Mac laboratory for Whisper transcription, English Kokoro speech and OpenAI
+    Privacy Filter.
+  - Verified optional assets, local results, cancellation, private ephemeral state and visible device
+    measurements.
+  excludes:
+  - Production chat or billing routing changes, cloud fallback and bundled or automatic weight downloads.
+  - German Kokoro, Watch or Intel inference, and guarantees of accuracy, latency, battery use or physical-device
+    reliability.
+relationships:
+  related_specifications:
+  - feature.settings-ui
+  - feature.pii-protection
+  - feature.assistant-response-speech
+assertions:
+- id: apple-local-model-lab.optional-downloads
+  type: behavior
+  must: Each of Whisper, English Kokoro and OpenAI Privacy Filter is an independent optional download
+    with visible progress, cancellation, retry and removal. Weights are absent from the application bundle
+    and never downloaded automatically. Assets use immutable revision URLs and per-file size and SHA-256
+    validation; incomplete or corrupt assets never become ready. Reopening verifies installed assets without
+    network access.
+  depends_on:
+  - examples.downloads
+- id: apple-local-model-lab.local-execution
+  type: behavior
+  must: After explicit laboratory opt-in and verified installation, supported devices run audio transcription,
+    English speech synthesis with playable output, and contextual personal-data detection locally. Tests
+    show elapsed time, audio real-time factor where applicable, process peak memory and device/thermal
+    information. Inputs and outputs are never submitted to a server, no inference credits are charged,
+    and failures never select a cloud fallback.
+  depends_on:
+  - examples.execution
+- id: apple-local-model-lab.pii-spans
+  type: invariant
+  must: Privacy Filter produces calibrated contextual spans using one constrained decode over overlapping
+    token windows. Entity spans remain coherent at window seams and map outward across UTF-8 fragments
+    into valid UTF-16 highlighting boundaries. Invalid model output or cancellation cannot be reported
+    as a successful clean-text result. A no-entity result is visibly experimental and does not claim the
+    text is safe.
+  depends_on:
+  - examples.spans
+- id: apple-local-model-lab.isolated-scope
+  type: invariant
+  must: Settings Developers exposes a native Local models lab page with an explicit switch confined to
+    the laboratory. The laboratory does not change chat transcription, assistant speech, production personal-data
+    replacement, provider preferences or billing behavior.
+  depends_on:
+  - examples.scope
+- id: apple-local-model-lab.serialized-cancellation
+  type: invariant
+  must: Only one model test runs at a time. Cancellation suppresses results and keeps the controller busy
+    until the active native operation completes and its resources unload; a second test cannot start during
+    cancellation or unloading.
+  depends_on:
+  - examples.cancellation
+- id: apple-local-model-lab.ephemeral-state
+  type: invariant
+  must: Text, test results and lab-owned recordings or imported audio copies are temporary. Page exit
+    clears visible inputs and results immediately, suppresses late completion, and removes private temporary
+    files after any active operation has finished. The imported original and installed model assets are
+    preserved. Logs and displayed errors omit private input/output text and raw runtime diagnostics.
+  depends_on:
+  - examples.ephemeral
+- id: apple-local-model-lab.availability
+  type: behavior
+  must: Before model installation or testing, the laboratory shows a localized reason and disables download
+    and run controls on unsupported hardware or OS. Intel Macs and Apple Watch do not run these adapters.
+    Kokoro is unavailable on OS major version 27 and later until its upstream native failure is resolved;
+    the other models remain separately available on supported hardware.
+  depends_on:
+  - examples.availability
+applies_to:
+  rest_api:
+    required: false
+  cli:
+    required: false
+  sdks:
+    required: false
+    implementations:
+      npm:
+        required: false
+      pip:
+        required: false
+  gui:
+    required: true
+    implementations:
+      web:
+        required: false
+      apple:
+        required: true
+examples:
+  file: examples.yml
+  required_groups:
+  - downloads
+  - execution
+  - spans
+  - scope
+  - cancellation
+  - ephemeral
+  - availability
+approval_source:
+  scope: 'Direct user instruction: lets implement as optional downloads, to keep the app size small. go
+    ahead with the three models/plan with the separate testing app sub page'
+  current_instruction: The user explicitly requested deployed testing of this implementation; prepare
+    its scoped integration and an actual Specification draft for root review.
+  specification_approval: Backfilled from the direct user-approved optional-download laboratory Plan.
+    Root checked assertion/examples preserve that scope; no separate fingerprint-review event is claimed.

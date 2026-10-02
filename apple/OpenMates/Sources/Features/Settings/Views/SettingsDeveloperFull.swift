@@ -21,7 +21,7 @@ struct SettingsDeveloperView: View {
 
     init(deepLinkPath: String? = nil) {
         let routes: [String: Destination] = ["api-keys": .apiKeys, "api-keys/create": .apiKeys,
-            "devices": .devices, "webhooks": .webhooks]
+            "devices": .devices, "webhooks": .webhooks, "local-models": .localModels]
         _destination = State(initialValue: routes[deepLinkPath ?? ""])
     }
 
@@ -43,6 +43,7 @@ struct SettingsDeveloperView: View {
                     developerRow(.apiKeys, title: AppStrings.apiKeys, icon: "key")
                     developerRow(.devices, title: AppStrings.devices, icon: "devices")
                     developerRow(.webhooks, title: AppStrings.webhooks, icon: "link")
+                    developerRow(.localModels, title: AppStrings.localLabTitle, icon: "devices")
                 }
             }
             .accessibilityIdentifier("settings-developers-page")
@@ -56,13 +57,14 @@ struct SettingsDeveloperView: View {
     }
 
     private enum Destination {
-        case apiKeys, devices, webhooks
+        case apiKeys, devices, webhooks, localModels
 
         var identifier: String {
             switch self {
             case .apiKeys: return "settings-developers-api-keys-row"
             case .devices: return "settings-developers-devices-row"
             case .webhooks: return "settings-developers-webhooks-row"
+            case .localModels: return "settings-developers-local-models-row"
             }
         }
 
@@ -71,6 +73,7 @@ struct SettingsDeveloperView: View {
             case .apiKeys: SettingsAPIKeysView()
             case .devices: SettingsDevicesView()
             case .webhooks: SettingsWebhooksView()
+            case .localModels: SettingsLocalModelsView()
             }
         }
     }

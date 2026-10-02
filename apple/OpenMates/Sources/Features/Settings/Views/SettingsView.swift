@@ -199,6 +199,7 @@ enum SettingsRouteInventory {
         "developers/api-keys/create",
         "developers/devices",
         "developers/webhooks",
+        "developers/local-models",
         "newsletter",
         "support",
         "support/one-time",
@@ -221,8 +222,10 @@ enum SettingsRouteInventory {
     // from Memories discovery, with its Memories filter selected.
     static let intentionallyExcludedWebRoutes: Set<String> = ["apps"]
 
+    static let nativeOnlyRoutes: Set<String> = ["developers/local-models"]
+
     static var coveredWebBaseRoutes: Set<String> {
-        nativeRoutes
+        nativeRoutes.subtracting(nativeOnlyRoutes)
     }
 }
 
@@ -292,7 +295,7 @@ struct SettingsDeepLinkRoute: Equatable {
                 "hide-personal-data/add-address", "hide-personal-data/add-birthday", "hide-personal-data/add-custom",
                 "auto-deletion/chats", "share-debug-logs"],
             "notifications": ["chat", "backup"],
-            "developers": ["api-keys", "api-keys/create", "devices", "webhooks"],
+            "developers": ["api-keys", "api-keys/create", "devices", "webhooks", "local-models"],
             "server": ["software-update", "stats", "gift-cards", "free-testing-credits", "anonymous-free-usage", "tests"],
             "support": ["one-time", "monthly"],
             "shared": ["share", "tip"],

@@ -4,6 +4,71 @@ import XCTest
 
 @MainActor
 final class TasksWorkspaceTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=tasks.assignment.identity-separated,tasks.content.client-encrypted
+    func testTaskContentUpdateBodyPreservesHistoricalAndCodexAssignment() throws {
+        let service = UserTasksService()
+        let key = SymmetricKey(size: .bits256)
+        for identity: UserTaskAssigneeIdentity in [.legacyOpenCode, .codex] {
+            var fixture = serverTaskFixture()
+            fixture["assignee_identity"] = identity.rawValue
+            let record: EncryptedUserTaskRecord = try decodeFixture(fixture)
+            // The detail editor omits an unchanged assignment. The service also
+            // protects callers that include the existing external_ai type.
+            for assigneeType: UserTaskAssigneeType? in [nil, .externalAI] {
+                let body = try service.updateBody(for: record,
+                    patch: UserTaskUpdateInput(title: "Edited title", description: "Edited description",
+                                               assigneeType: assigneeType),
+                    key: key, timestamp: 1_788_883_201)
+                XCTAssertNil(body["assignee_type"])
+                XCTAssertNil(body["assignee_identity"])
+                XCTAssertEqual(body["version"] as? Int, record.version)
+                let title = try XCTUnwrap(body["encrypted_title"] as? String)
+                let description = try XCTUnwrap(body["encrypted_description"] as? String)
+                XCTAssertNotEqual(title, "Edited title")
+                XCTAssertEqual(try ComposerEmbedCrypto.decryptContent(title, using: key), "Edited title")
+                XCTAssertEqual(try ComposerEmbedCrypto.decryptContent(description, using: key), "Edited description")
+            }
+            let reassigned = try service.updateBody(for: record,
+                patch: UserTaskUpdateInput(assigneeType: .user), key: key, timestamp: 1_788_883_201)
+            XCTAssertEqual(reassigned["assignee_type"] as? String, "user")
+            XCTAssertTrue(reassigned["assignee_identity"] is NSNull)
+        }
+        let codex: EncryptedUserTaskRecord = try decodeFixture(serverTaskFixture())
+        XCTAssertThrowsError(try service.updateBody(for: codex,
+            patch: UserTaskUpdateInput(assigneeType: .externalAI, assigneeIdentity: .legacyOpenCode),
+            key: key, timestamp: 1_788_883_201), "Historical attribution must never enable a new OpenCode assignment")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=tasks.lifecycle.visible,tasks.content.client-encrypted
+    func testRetainedTaskBoardDecodesHistoricalAssignmentAndBlockerMetadata() throws {
+        struct Board: Decodable { let tasks: [TaskBoardRecord] }
+        // The personal dev board retained these values after the supported
+        // assignment list changed. Keep content synthetic and exercise the two
+        // fields independently so fixing one cannot hide the next load failure.
+        var historicalAssignment = serverTaskFixture()
+        historicalAssignment["assignee_identity"] = "opencode"
+        var historicalBlocker = serverTaskFixture()
+        historicalBlocker["status"] = "blocked"
+        historicalBlocker["blocked_reason_code"] = "missing_execution_context"
+        let board: Board = try decodeFixture(["tasks": [historicalAssignment, historicalBlocker]])
+        guard case .task(let assigned) = board.tasks[0].value,
+              case .task(let blocked) = board.tasks[1].value else {
+            return XCTFail("Historical metadata must remain an encrypted Task record")
+        }
+        XCTAssertEqual(assigned.assigneeIdentity, .legacyOpenCode)
+        XCTAssertEqual(assigned.assigneeIdentity?.title, "OpenCode")
+        XCTAssertEqual(assigned.encryptedTitle, "synthetic-ciphertext")
+        XCTAssertEqual(blocked.status, .blocked)
+        XCTAssertEqual(blocked.blockedReasonCode, .legacyMissingExecutionContext)
+
+        for field in ["assignee_identity", "blocked_reason_code"] {
+            var incompatible = serverTaskFixture()
+            incompatible[field] = "future_unknown_value"
+            XCTAssertThrowsError(try decodeFixture(incompatible) as EncryptedUserTaskRecord,
+                                 "Read compatibility is limited to known historical metadata")
+        }
+    }
+
     // contract-test: supporting surface=gui.apple assertions=tasks.content.client-encrypted,tasks.workflow-projections.read-only
     func testServerTaskBoardDecodesEncryptedTasksAndWorkflowProjectionsWithoutRelaxingTypes() throws {
         struct Board: Decodable { let tasks: [TaskBoardRecord] }

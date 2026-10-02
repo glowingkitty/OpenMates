@@ -4,6 +4,12 @@
 import CryptoKit
 import Foundation
 
+struct ProjectRemoteEntryChild {
+    let path: String
+    let kind: String
+    var name: String { path.split(separator: "/").last.map(String.init) ?? path }
+}
+
 struct ProjectRemoteEntry: Identifiable {
     let path: String
     let kind: String
@@ -11,8 +17,44 @@ struct ProjectRemoteEntry: Identifiable {
     let childFileCount: Int?
     let childFolderCount: Int?
     let childSummaryTruncated: Bool
+    let children: [ProjectRemoteEntryChild]
+    let childFileSizeBytes: Int?
     var id: String { path }
     var name: String { path.split(separator: "/").last.map(String.init) ?? path }
+
+    init(path: String, kind: String, sizeBytes: Int?, childFileCount: Int?,
+         childFolderCount: Int?, childSummaryTruncated: Bool,
+         children: [ProjectRemoteEntryChild] = [], childFileSizeBytes: Int? = nil) {
+        self.path = path
+        self.kind = kind
+        self.sizeBytes = sizeBytes
+        self.childFileCount = childFileCount
+        self.childFolderCount = childFolderCount
+        self.childSummaryTruncated = childSummaryTruncated
+        self.children = children
+        self.childFileSizeBytes = childFileSizeBytes
+    }
+
+    /// Retain the web list DTO's optional folder summary without changing the
+    /// connected source request, version fence or response authority.
+    static func decode(_ row: [String: Any]) throws -> ProjectRemoteEntry {
+        guard let path = row["path"] as? String, ProjectWorkspacePath.normalized(path) != nil,
+              let kind = row["kind"] as? String, kind == "file" || kind == "directory" else {
+            throw ProjectsWorkspaceError.invalidResponse
+        }
+        let children = try (row["children"] as? [[String: Any]] ?? []).map { child -> ProjectRemoteEntryChild in
+            guard let childPath = child["path"] as? String, ProjectWorkspacePath.normalized(childPath) != nil,
+                  let childKind = child["kind"] as? String, childKind == "file" || childKind == "directory" else {
+                throw ProjectsWorkspaceError.invalidResponse
+            }
+            return ProjectRemoteEntryChild(path: childPath, kind: childKind)
+        }
+        return ProjectRemoteEntry(path: path, kind: kind, sizeBytes: row["sizeBytes"] as? Int,
+            childFileCount: row["childFileCount"] as? Int,
+            childFolderCount: row["childFolderCount"] as? Int,
+            childSummaryTruncated: row["childSummaryTruncated"] as? Bool ?? false,
+            children: children, childFileSizeBytes: row["childFileSizeBytes"] as? Int)
+    }
 }
 
 struct ProjectRemoteDirectory {
@@ -185,17 +227,7 @@ final class ProjectRemoteSourceClient {
               let omitted = result["omitted"] as? Int, omitted >= 0 else {
             throw ProjectsWorkspaceError.invalidResponse
         }
-        let entries = try rows.map { row -> ProjectRemoteEntry in
-            guard let path = row["path"] as? String, ProjectWorkspacePath.normalized(path) != nil,
-                  let kind = row["kind"] as? String, kind == "file" || kind == "directory" else {
-                throw ProjectsWorkspaceError.invalidResponse
-            }
-            return ProjectRemoteEntry(path: path, kind: kind,
-                sizeBytes: row["sizeBytes"] as? Int,
-                childFileCount: row["childFileCount"] as? Int,
-                childFolderCount: row["childFolderCount"] as? Int,
-                childSummaryTruncated: row["childSummaryTruncated"] as? Bool ?? false)
-        }
+        let entries = try rows.map(ProjectRemoteEntry.decode)
         return ProjectRemoteDirectory(entries: entries, omitted: omitted,
             excluded: result["excluded"] as? Int ?? 0, nextCursor: result["nextCursor"] as? String)
     }

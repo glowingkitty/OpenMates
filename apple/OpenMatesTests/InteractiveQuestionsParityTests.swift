@@ -7,6 +7,7 @@ import XCTest
 @testable import OpenMates
 
 final class InteractiveQuestionsParityTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testValidChoiceQuestionParsesAsInteractiveQuestionBlock() {
         let markdown = """
         ```interactive_question
@@ -33,6 +34,7 @@ final class InteractiveQuestionsParityTests: XCTestCase {
         XCTAssertEqual(payload.options?.first?.text, "items[::2]")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testChoiceQuestionParsesEmbedReferences() throws {
         let markdown = """
         ```interactive_question
@@ -57,6 +59,7 @@ final class InteractiveQuestionsParityTests: XCTestCase {
     }
 
     @MainActor
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testChoiceResponseIncludesSelectedEmbedReferences() throws {
         let json = """
         {
@@ -85,6 +88,7 @@ final class InteractiveQuestionsParityTests: XCTestCase {
         XCTAssertFalse(content.contains("function robustImplementation"))
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testInputQuestionWithoutTitleParsesAsInteractiveQuestionBlock() {
         let markdown = """
         ```interactive_question
@@ -109,6 +113,7 @@ final class InteractiveQuestionsParityTests: XCTestCase {
         XCTAssertEqual(payload.fields?.first?.label, "Topic")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testMalformedQuestionParsesAsFallbackBlock() {
         let markdown = """
         ```interactive_question
@@ -128,6 +133,7 @@ final class InteractiveQuestionsParityTests: XCTestCase {
         }
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testInteractiveResponseProtocolParsesAsHiddenBlock() {
         let markdown = """
         items[::2]
@@ -155,6 +161,7 @@ final class InteractiveQuestionsParityTests: XCTestCase {
     }
 
     @MainActor
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testChoiceResponseFormatsAnswerTextAndHiddenProtocol() throws {
         let json = """
         {
@@ -184,6 +191,7 @@ final class InteractiveQuestionsParityTests: XCTestCase {
     }
 
     @MainActor
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testCustomChoiceResponseFormatsTypedAnswerTextAndHiddenProtocol() throws {
         let json = """
         {
@@ -212,5 +220,40 @@ final class InteractiveQuestionsParityTests: XCTestCase {
 
         XCTAssertTrue(content.hasPrefix("Let users type a custom response\n\n```interactive_response"))
         XCTAssertTrue(content.contains("\"custom_answer\" : \"Let users type a custom response\""))
+    }
+}
+
+// Action links in assistant follow-ups must remain tappable inline links,
+// including encoded question punctuation and non-Latin prompt content.
+final class AssistantFollowUpLinkParityTests: XCTestCase {
+    @MainActor
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testMessageActionLinksPreserveTheirPromptAndVisibleLabel() throws {
+        let links = [
+            ("Explain the golden ratio", "/#message=Explain%20the%20golden%20ratio%3F", "Explain the golden ratio?"),
+            ("Show a visual example", "/#message=Show%20a%20visual%20example%20of%20%CF%86", "Show a visual example of φ"),
+            ("Explore architecture", "/#message=Explore%20architecture%20%26%20design", "Explore architecture & design")
+        ]
+        let markdown = links.map { "[\($0.0)](\($0.1))" }.joined(separator: "\n")
+        let tokens = InlineMarkdownTokenizer.parse(markdown)
+        let parsed = tokens.compactMap { token -> (String, String, Bool)? in
+            guard case .link(let label, let url, let internalLink, _) = token else { return nil }
+            return (label, url, internalLink)
+        }
+        XCTAssertEqual(parsed.count, links.count)
+        for (actual, expected) in zip(parsed, links) {
+            XCTAssertEqual(actual.0, expected.0)
+            // The tokenizer decodes its target once; compare against explicit
+            // prompt text, then exercise the production draft-import handler.
+            XCTAssertEqual(actual.1, "/#message=\(expected.2)")
+            XCTAssertTrue(actual.2)
+            let fragment = String(actual.1.dropFirst(2))
+            let url = try XCTUnwrap(URL(string:
+                "https://\(ServerConfiguration.current.selectedDomain)/#\(fragment)"))
+            let handler = DeepLinkHandler()
+            handler.handle(url: url)
+            XCTAssertEqual(handler.pendingMessageText, expected.2,
+                "Action-link prompts must retain punctuation, Unicode and ampersands when imported")
+        }
     }
 }

@@ -48,7 +48,7 @@ struct ChatSidebarContent<SearchContent: View>: View {
             if showSearch {
                 searchContent()
             } else {
-                topBar
+                WorkspaceSidebarHeader(onSearch: actions.search, onClose: actions.close)
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 0) {
                         hiddenButton
@@ -72,24 +72,6 @@ struct ChatSidebarContent<SearchContent: View>: View {
         .background(Color.grey20)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("chat-history-panel")
-    }
-    private var topBar: some View {
-        HStack(spacing: 12) {
-            Button(action: actions.search) {
-                Icon("search", size: 25).foregroundStyle(LinearGradient.primary).frame(width: 25, height: 25)
-            }.buttonStyle(.plain).accessibilityIdentifier("search-button")
-                .help(Text(AppStrings.search)).accessibilityLabel(AppStrings.search)
-            Spacer()
-            Button(action: actions.close) {
-                Icon("close", size: 25).foregroundStyle(LinearGradient.primary).frame(width: 25, height: 25)
-            }.buttonStyle(.plain).accessibilityIdentifier("chat-sidebar-close")
-                .help(Text(AppStrings.close)).accessibilityLabel(AppStrings.close)
-        }
-        .frame(height: 32).padding(.horizontal, 20).padding(.vertical, 16)
-        .background(Color.grey20)
-        .padding(.bottom, 1)
-        .overlay(alignment: .bottom) { Rectangle().fill(Color.grey30).frame(height: 1) }
-        .accessibilityElement(children: .contain).accessibilityIdentifier("chat-sidebar-topbar")
     }
     private var hiddenButton: some View {
         Button(action: actions.showHidden) {
@@ -143,5 +125,54 @@ private struct ChatSidebarRowButton: View {
             .onHover { hovering = $0 }
             .onLongPressGesture { onShowActions?() }
             .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+}
+
+// Shared workspace navigator chrome. Web: chats/Chats.svelte .chats-topbar.
+// Workspace lists supply their own search action and always close the shell rail.
+struct WorkspaceSidebarHeader: View {
+    let onSearch: () -> Void
+    let onClose: () -> Void
+    var searchIdentifier = "search-button"
+    var closeIdentifier = "chat-sidebar-close"
+    var topBarIdentifier = "chat-sidebar-topbar"
+    var body: some View {
+        HStack(spacing: 12) {
+            Button(action: onSearch) {
+                Icon("search", size: 25).foregroundStyle(LinearGradient.primary).frame(width: 25, height: 25)
+            }.buttonStyle(.plain).accessibilityIdentifier(searchIdentifier)
+                .help(Text(AppStrings.search)).accessibilityLabel(AppStrings.search)
+            Spacer()
+            Button(action: onClose) {
+                Icon("close", size: 25).foregroundStyle(LinearGradient.primary).frame(width: 25, height: 25)
+            }.buttonStyle(.plain).accessibilityIdentifier(closeIdentifier)
+                .help(Text(AppStrings.close)).accessibilityLabel(AppStrings.close)
+        }
+        .frame(height: 32).padding(.horizontal, 20).padding(.vertical, 16)
+        .background(Color.grey20)
+        .padding(.bottom, 1)
+        .overlay(alignment: .bottom) { Rectangle().fill(Color.grey30).frame(height: 1) }
+        .accessibilityElement(children: .contain).accessibilityIdentifier(topBarIdentifier)
+    }
+}
+
+// Searches loaded workspace metadata only; no query leaves the device.
+struct WorkspaceSidebarSearchField: View {
+    @Binding var query: String
+    let identifier: String
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        TextField(AppStrings.search, text: $query)
+            .textFieldStyle(OMTextFieldStyle())
+            .autocorrectionDisabled()
+            #if os(iOS)
+            .textInputAutocapitalization(.never)
+            #endif
+            .focused($focused)
+            .accessibilityIdentifier(identifier)
+            .padding(.horizontal, .spacing4)
+            .padding(.vertical, .spacing3)
+            .onAppear { focused = true }
     }
 }

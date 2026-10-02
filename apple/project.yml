@@ -41,6 +41,17 @@ packages:
     url: https://github.com/weichsel/ZIPFoundation.git
     from: 0.9.19
 
+  WhisperKit:
+    url: https://github.com/argmaxinc/argmax-oss-swift.git
+    revision: 1e2a163736dfa5a198e637ae44c114e1c6d5cc2d
+  FluidAudio:
+    url: https://github.com/FluidInference/FluidAudio.git
+    revision: 0b1f46289fe27d95b5e66ad8be46e64f5ee02ae7
+    traits: []
+  Tokenizers:
+    url: https://github.com/DePasqualeOrg/swift-tokenizers.git
+    exactVersion: 0.5.0
+
 targets:
   OpenMates:
     type: application
@@ -48,6 +59,9 @@ targets:
     preBuildScripts:
       - name: Build PairOpaqueBridge
         script: '"${PROJECT_DIR}/PairOpaqueBridge/build-apple.sh"'
+        basedOnDependencyAnalysis: false
+      - name: Prepare LocalModelBridge
+        script: 'python3 "${PROJECT_DIR}/LocalModelBridge/prepare.py"'
         basedOnDependencyAnalysis: false
     sources:
       - path: OpenMates/Sources
@@ -94,6 +108,10 @@ targets:
         buildPhase: resources
       - path: ../frontend/apps/web_app/static/audio/assistant-speech-pending.wav
         buildPhase: resources
+      - path: OpenMates/Resources/LocalModels/catalog.json
+        buildPhase: resources
+      - path: LocalModelBridge/LICENSE-ExecuTorch.txt
+        buildPhase: resources
       - path: OpenMates/Resources/modelsMetadata.json
         buildPhase: resources
       - path: ../frontend/packages/ui/src/tokens/generated/swift/Assets.xcassets
@@ -104,6 +122,16 @@ targets:
       base:
         LIBRARY_SEARCH_PATHS: "$(inherited) $(DERIVED_FILE_DIR)/PairOpaque"
         OTHER_LDFLAGS: "$(inherited) -lopenmates_pair_opaque"
+        # Private arm64 platform directories avoid SwiftPM module-map collisions.
+        "HEADER_SEARCH_PATHS[sdk=iphoneos*][arch=arm64]": '$(inherited) "$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/executorch.xcframework/ios-arm64/Headers"'
+        "SWIFT_INCLUDE_PATHS[sdk=iphoneos*][arch=arm64]": '$(inherited) "$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/Modules" "$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/executorch.xcframework/ios-arm64/Headers"'
+        "OTHER_LDFLAGS[sdk=iphoneos*][arch=arm64]": '$(inherited) -Xlinker -force_load -Xlinker "$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/executorch.xcframework/ios-arm64/libexecutorch_ios.a" -Xlinker -force_load -Xlinker "$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/backend_xnnpack.xcframework/ios-arm64/libbackend_xnnpack_ios.a" -Xlinker -force_load -Xlinker "$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/kernels_optimized.xcframework/ios-arm64/libkernels_optimized_ios.a" -Xlinker -force_load -Xlinker "$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/kernels_quantized.xcframework/ios-arm64/libkernels_quantized_ios.a" -Xlinker -force_load -Xlinker "$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/kernels_torchao.xcframework/ios-arm64/libkernels_torchao_ios.a" -Xlinker -force_load -Xlinker "$(DERIVED_FILE_DIR)/LocalModelBridge/iphoneos/threadpool.xcframework/ios-arm64/libthreadpool_ios.a" -framework Accelerate -framework CoreGraphics -framework CoreImage -framework CoreVideo -framework Foundation -lc++'
+        "HEADER_SEARCH_PATHS[sdk=iphonesimulator*][arch=arm64]": '$(inherited) "$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/executorch.xcframework/ios-arm64-simulator/Headers"'
+        "SWIFT_INCLUDE_PATHS[sdk=iphonesimulator*][arch=arm64]": '$(inherited) "$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/Modules" "$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/executorch.xcframework/ios-arm64-simulator/Headers"'
+        "OTHER_LDFLAGS[sdk=iphonesimulator*][arch=arm64]": '$(inherited) -Xlinker -force_load -Xlinker "$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/executorch.xcframework/ios-arm64-simulator/libexecutorch_simulator.a" -Xlinker -force_load -Xlinker "$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/backend_xnnpack.xcframework/ios-arm64-simulator/libbackend_xnnpack_simulator.a" -Xlinker -force_load -Xlinker "$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/kernels_optimized.xcframework/ios-arm64-simulator/libkernels_optimized_simulator.a" -Xlinker -force_load -Xlinker "$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/kernels_quantized.xcframework/ios-arm64-simulator/libkernels_quantized_simulator.a" -Xlinker -force_load -Xlinker "$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/kernels_torchao.xcframework/ios-arm64-simulator/libkernels_torchao_simulator.a" -Xlinker -force_load -Xlinker "$(DERIVED_FILE_DIR)/LocalModelBridge/iphonesimulator/threadpool.xcframework/ios-arm64-simulator/libthreadpool_simulator.a" -framework Accelerate -framework CoreGraphics -framework CoreImage -framework CoreVideo -framework Foundation -lc++'
+        "HEADER_SEARCH_PATHS[sdk=macosx*][arch=arm64]": '$(inherited) "$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/executorch.xcframework/macos-arm64/Headers"'
+        "SWIFT_INCLUDE_PATHS[sdk=macosx*][arch=arm64]": '$(inherited) "$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/Modules" "$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/executorch.xcframework/macos-arm64/Headers"'
+        "OTHER_LDFLAGS[sdk=macosx*][arch=arm64]": '$(inherited) -Xlinker -force_load -Xlinker "$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/executorch.xcframework/macos-arm64/libexecutorch_macos.a" -Xlinker -force_load -Xlinker "$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/backend_xnnpack.xcframework/macos-arm64/libbackend_xnnpack_macos.a" -Xlinker -force_load -Xlinker "$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/kernels_optimized.xcframework/macos-arm64/libkernels_optimized_macos.a" -Xlinker -force_load -Xlinker "$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/kernels_quantized.xcframework/macos-arm64/libkernels_quantized_macos.a" -Xlinker -force_load -Xlinker "$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/kernels_torchao.xcframework/macos-arm64/libkernels_torchao_macos.a" -Xlinker -force_load -Xlinker "$(DERIVED_FILE_DIR)/LocalModelBridge/macosx/threadpool.xcframework/macos-arm64/libthreadpool_macos.a" -framework Accelerate -framework CoreGraphics -framework CoreImage -framework CoreVideo -framework Foundation -lc++'
         INFOPLIST_FILE: OpenMates/Resources/Info.plist
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         PRODUCT_BUNDLE_IDENTIFIER: org.openmates.app
@@ -177,6 +205,12 @@ targets:
       - package: Sodium
       - package: Yams
       - package: ZIPFoundation
+      - package: WhisperKit
+        product: WhisperKit
+      - package: FluidAudio
+        product: FluidAudio
+      - package: Tokenizers
+        product: Tokenizers
       - target: OpenMatesShareExtension
         platforms: [iOS]
       - target: OpenMatesShareExtension_macOS
@@ -474,6 +508,14 @@ targets:
         INFOPLIST_FILE: OpenMatesTests/Info.plist
         PRODUCT_BUNDLE_IDENTIFIER: org.openmates.app.tests
         PRODUCT_NAME: OpenMatesTests
+        # Hosted tests deserialize OpenMates' transitive ExecuTorch module. The
+        # explicit app dependency prepares these private directories before tests.
+        # Reuse the app's overlay/headers without copying a shared module map or
+        # registering/linking the six static archives a second time.
+        "HEADER_SEARCH_PATHS[sdk=iphoneos*][arch=arm64]": '$(inherited) "$(CONFIGURATION_TEMP_DIR)/OpenMates_iOS.build/DerivedSources/LocalModelBridge/iphoneos/executorch.xcframework/ios-arm64/Headers"'
+        "SWIFT_INCLUDE_PATHS[sdk=iphoneos*][arch=arm64]": '$(inherited) "$(CONFIGURATION_TEMP_DIR)/OpenMates_iOS.build/DerivedSources/LocalModelBridge/iphoneos/Modules" "$(CONFIGURATION_TEMP_DIR)/OpenMates_iOS.build/DerivedSources/LocalModelBridge/iphoneos/executorch.xcframework/ios-arm64/Headers"'
+        "HEADER_SEARCH_PATHS[sdk=iphonesimulator*][arch=arm64]": '$(inherited) "$(CONFIGURATION_TEMP_DIR)/OpenMates_iOS.build/DerivedSources/LocalModelBridge/iphonesimulator/executorch.xcframework/ios-arm64-simulator/Headers"'
+        "SWIFT_INCLUDE_PATHS[sdk=iphonesimulator*][arch=arm64]": '$(inherited) "$(CONFIGURATION_TEMP_DIR)/OpenMates_iOS.build/DerivedSources/LocalModelBridge/iphonesimulator/Modules" "$(CONFIGURATION_TEMP_DIR)/OpenMates_iOS.build/DerivedSources/LocalModelBridge/iphonesimulator/executorch.xcframework/ios-arm64-simulator/Headers"'
         TEST_HOST: $(BUILT_PRODUCTS_DIR)/OpenMates.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/OpenMates
         BUNDLE_LOADER: $(TEST_HOST)
         SWIFT_VERSION: "6.0"

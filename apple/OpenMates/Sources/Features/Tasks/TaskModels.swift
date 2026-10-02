@@ -1,5 +1,7 @@
 // Native Tasks models. Wire fields mirror userTaskService.ts and /v1/user-tasks.
 // Encrypted content is kept in memory only after the account master key unlocks it.
+// Specification: specifications/features/tasks/specification.yml
+// Assertions: tasks.content.client-encrypted, tasks.lifecycle.visible
 
 import Foundation
 
@@ -24,8 +26,17 @@ enum UserTaskAssigneeType: String, Codable, Sendable {
 
 enum UserTaskAssigneeIdentity: String, Codable, Sendable {
     case openmates, codex
+    // Retained records predate the retirement of OpenCode assignment. Read and
+    // display their attribution without exposing it as a new assignment choice.
+    case legacyOpenCode = "opencode"
 
-    var title: String { self == .codex ? "Codex" : "OpenMates" }
+    var title: String {
+        switch self {
+        case .openmates: "OpenMates"
+        case .codex: "Codex"
+        case .legacyOpenCode: "OpenCode"
+        }
+    }
 }
 
 enum UserTaskBlockedReason: String, Codable, Sendable {
@@ -36,6 +47,8 @@ enum UserTaskBlockedReason: String, Codable, Sendable {
     case externalDependency = "external_dependency"
     case environmentUnavailable = "environment_unavailable"
     case verificationFailed = "verification_failed"
+    // Older execution admission stored this metadata on blocked Tasks.
+    case legacyMissingExecutionContext = "missing_execution_context"
     case other
 }
 

@@ -128,17 +128,11 @@ final class ChatNavigationParityUITests: XCTestCase {
         preview.tap()
         let fullscreen = app.descendants(matching: .any)["embed-fullscreen-header"].firstMatch
         XCTAssertTrue(fullscreen.waitForExistence(timeout: 8))
-        app.buttons["sidebar-toggle"].tap()
-        let next = app.buttons.matching(NSPredicate(format: "label == %@", "Newer Chat")).firstMatch
-        XCTAssertTrue(next.waitForExistence(timeout: 5))
-        next.tap()
-        try assertHeaderTitle("Newer Chat", in: app)
+        try selectSidebarChat("Newer Chat", in: app)
         let closed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: fullscreen)
         XCTAssertEqual(XCTWaiter.wait(for: [closed], timeout: 5), .completed)
         XCTAssertFalse(app.keyboards.firstMatch.exists)
-        app.buttons["sidebar-toggle"].tap()
-        app.buttons.matching(NSPredicate(format: "label == %@", "Current Chat")).firstMatch.tap()
-        try assertHeaderTitle("Current Chat", in: app)
+        try selectSidebarChat("Current Chat", in: app)
         XCTAssertTrue(preview.waitForExistence(timeout: 8), "Original persisted embed remains in the transcript")
         XCTAssertFalse(fullscreen.exists, "Returning to a chat does not restore a dismissed overlay")
     }
@@ -150,19 +144,56 @@ final class ChatNavigationParityUITests: XCTestCase {
         app.launch()
         try assertHeaderTitle("Current Chat", in: app)
         XCTAssertTrue(app.descendants(matching: .any)["sheet-preview-table"].waitForExistence(timeout: 10))
-        app.descendants(matching: .any)["embed-preview-ui-test-sheet-reference"].firstMatch.tap()
+        let preview = app.descendants(matching: .any)["embed-preview-ui-test-sheet-reference"].firstMatch
+        if app.windows.firstMatch.frame.width >= 600 {
+            XCTAssertGreaterThan(preview.frame.width, 400,
+                "A standalone assistant Sheet must use its large preview in a wide transcript")
+            let screenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+            screenshot.name = "Persisted standalone assistant Sheet uses large preview"
+            screenshot.lifetime = .keepAlways
+            add(screenshot)
+        }
+        preview.tap()
         XCTAssertTrue(app.descendants(matching: .any)["sheet-fullscreen-table"].waitForExistence(timeout: 8))
         try assertSheetFullscreenValue("Saved Row A", in: app)
         try assertSheetFullscreenValue("Saved Row B", in: app)
-        app.buttons["sidebar-toggle"].tap()
-        app.buttons.matching(NSPredicate(format: "label == %@", "Newer Chat")).firstMatch.tap()
-        try assertHeaderTitle("Newer Chat", in: app)
-        app.buttons["sidebar-toggle"].tap()
-        app.buttons.matching(NSPredicate(format: "label == %@", "Current Chat")).firstMatch.tap()
-        try assertHeaderTitle("Current Chat", in: app)
+        try selectSidebarChat("Newer Chat", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["sheet-fullscreen-table"].firstMatch
+            .waitForNonExistence(timeout: 5), "Changing chats dismisses the previous Sheet fullscreen")
+        try selectSidebarChat("Current Chat", in: app)
         XCTAssertTrue(app.descendants(matching: .any)["sheet-preview-table"].waitForExistence(timeout: 8))
         app.descendants(matching: .any)["embed-preview-ui-test-sheet-reference"].firstMatch.tap()
         try assertSheetFullscreenValue("Saved Row B", in: app)
+    }
+
+    private func selectSidebarChat(_ title: String, in app: XCUIApplication) throws {
+        let close = app.buttons["chat-sidebar-close"]
+        if !close.exists {
+            let open = app.buttons["sidebar-toggle"]
+            XCTAssertTrue(open.waitForExistence(timeout: 5))
+            XCTAssertTrue(open.isHittable)
+            open.tap()
+        }
+        // The sidebar stays open after selection on regular-width viewports.
+        // Wait for its animated rail to reach the screen before choosing a row.
+        let row = app.buttons.matching(NSPredicate(format: "label == %@", title)).firstMatch
+        let visible = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            row.exists && row.isHittable && row.frame.minX >= 0 &&
+                app.windows.firstMatch.frame.contains(row.frame)
+        }, object: row)
+        XCTAssertEqual(XCTWaiter.wait(for: [visible], timeout: 5), .completed,
+                       "Expected visible sidebar chat \(title)")
+        row.tap()
+        try assertHeaderTitle(title, in: app)
+        // Close through the sidebar's production header when selection retains it.
+        // Compact selection closes the drawer itself and restores the menu button.
+        let navigationSettled = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            (close.exists && close.isHittable && close.frame.minX >= 0) ||
+                app.buttons["sidebar-toggle"].isHittable
+        }, object: app)
+        XCTAssertEqual(XCTWaiter.wait(for: [navigationSettled], timeout: 5), .completed)
+        if close.exists && close.isHittable && close.frame.minX >= 0 { close.tap() }
+        XCTAssertTrue(app.buttons["sidebar-toggle"].waitForExistence(timeout: 5))
     }
 
     private func assertHeaderTitle(_ expected: String, in app: XCUIApplication) throws {

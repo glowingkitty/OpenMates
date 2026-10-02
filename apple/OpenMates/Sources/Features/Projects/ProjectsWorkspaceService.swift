@@ -1,3 +1,6 @@
+// Web source: frontend/packages/ui/src/services/projectService.ts
+// Specification: specifications/features/projects/specification.yml
+// Assertions: projects.access.explicit-context, projects.files.no-server-decryption-authority
 import CryptoKit
 import Foundation
 
@@ -25,6 +28,7 @@ struct ProjectsWorkspaceFence {
 @MainActor
 protocol ProjectsWorkspaceServing {
     func listProjects(accountID: String, teamID: String?) async throws -> [ProjectWorkspaceProject]
+    func listSources(project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws -> [ProjectWorkspaceSource]
     func contents(project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws -> ProjectWorkspaceContents
     func settings(project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws -> ProjectWorkspaceSettings
     func createProject(name: String, writeMode: ProjectWorkspaceWriteMode, fence: ProjectsWorkspaceFence, teamID: String?) async throws -> ProjectWorkspaceProject
@@ -181,16 +185,31 @@ final class ProjectsWorkspaceService: ProjectsWorkspaceServing {
                 targetID: targetID, name: name, metadata: detail, folderHash: record.hashedFolderId,
                 position: record.position, createdAt: record.createdAt))
         }
-        var projectSources: [ProjectWorkspaceSource] = []
-        for record in sourceResponse.sources {
-            projectSources.append(ProjectWorkspaceSource(id: record.sourceId, kind: record.sourceType,
+        let projectSources = try await openSources(sourceResponse.sources, project: project)
+        try await fence.check()
+        return ProjectWorkspaceContents(folders: folders, items: items, sources: projectSources)
+    }
+
+    func listSources(project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws -> [ProjectWorkspaceSource] {
+        try await fence.check()
+        let response: SourcesResponse = try await APIClient.shared.request(.get,
+            path: projectRoute(project, suffix: "/sources"), serverProfile: fence.serverProfile,
+            expectedAccountID: fence.accountID, expectedScope: fence.scope)
+        let sources = try await openSources(response.sources, project: project)
+        try await fence.check()
+        return sources
+    }
+
+    private func openSources(_ records: [ProjectWorkspaceSourceRecord], project: ProjectWorkspaceProject) async throws -> [ProjectWorkspaceSource] {
+        var sources: [ProjectWorkspaceSource] = []
+        for record in records {
+            sources.append(ProjectWorkspaceSource(id: record.sourceId, kind: record.sourceType,
                 name: try await decryptOptional(record.encryptedDisplayName, key: project.key),
                 metadata: try await metadata(record.encryptedMetadata, key: project.key),
                 capabilities: record.capabilities, status: record.status,
                 sessionID: record.sourceSessionId, keyEpoch: record.keyEpoch))
         }
-        try await fence.check()
-        return ProjectWorkspaceContents(folders: folders, items: items, sources: projectSources)
+        return sources
     }
 
     func settings(project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws -> ProjectWorkspaceSettings {

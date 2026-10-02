@@ -214,7 +214,9 @@ struct EmbedPreviewCard: View {
                     type: embedType?.displayName ?? embed.type,
                     title: statusTitle
                 )
-                .accessibilityElement(children: embedType == .mindmapsMindmap || (embed.status == .finished &&
+                // Code exposes its source/processing/empty renderer state in
+                // every status, while retaining the outer actionable card.
+                .accessibilityElement(children: embedType == .codeCode || embedType == .mindmapsMindmap || (embed.status == .finished &&
                     (embedType == .maps || embedType == .mapsPlace || embedType == .webSearch || embedType == .newsSearch || (embedType == .webWebsite && appId == "news") || embedType == .imagesSearch || embedType == .sheetsSheet || (embed.isAppSkillUse && appId == "web"))) ? .contain : .combine)
                 .accessibilityValue(statusAccessibilityValue)
             }
@@ -399,9 +401,9 @@ struct EmbedPreviewCard: View {
                 )
                 .padding(.horizontal, .spacing10)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            } else if embed.status == .processing && embedType != .mindmapsMindmap {
+            } else if embed.status == .processing && embedType != .mindmapsMindmap && embedType != .codeCode {
                 processingView
-            } else if embed.status == .error {
+            } else if embed.status == .error && embedType != .codeCode {
                 errorView
             } else if embed.status == .cancelled {
                 cancelledView

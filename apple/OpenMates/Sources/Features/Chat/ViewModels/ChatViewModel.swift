@@ -1196,7 +1196,9 @@ final class ChatViewModel: ObservableObject {
                 allRecords[existing.id] = existing
                 continue
             }
-            guard embed.rawData == nil || embed.encryptedType != nil else {
+            let hasEmptyCodeMetadata = EmbedType.normalized(rawValue: embed.type) == .codeCode
+                && AppleCodeEmbedContent(data: embed.rawData).code.isEmpty
+            guard Self.embedRecordRequiresHydration(embed) || embed.encryptedType != nil || hasEmptyCodeMetadata else {
                 decryptedEmbeds.append(embed)
                 continue
             }
@@ -2528,6 +2530,14 @@ final class ChatViewModel: ObservableObject {
     /// A reference/metadata row is not the content it points to. Finished sheets
     /// can have dimensions and a title before their actual markdown is available.
     static func embedRecordRequiresHydration(_ record: EmbedRecord) -> Bool {
+        if case .code = record.data {
+            return false
+        }
+        if EmbedType.normalized(rawValue: record.type) == .codeCode {
+            // A code reference may include a language, filename or line count.
+            // Those fields describe the file; only source completes hydration.
+            return !AppleCodeEmbedContent(data: record.rawData).hasSourcePayload
+        }
         if case .sheet(let sheet) = record.data {
             return sheet.markdown?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false
         }
@@ -4139,15 +4149,12 @@ enum PublicChatContent {
                     embedIds: embedIds(from: object["embed_ids"] ?? object["child_embed_ids"])
                 )
             } else if type == "code", let embedId = object["embed_id"] as? String {
-                var codeData = object
-                if codeData["language"] == nil { codeData["language"] = "html" }
-                if codeData["filename"] == nil { codeData["filename"] = "index.html" }
                 record = embedRecord(
                     id: embedId,
                     type: "code-code",
                     appId: "code",
                     skillId: nil,
-                    data: codeData,
+                    data: object,
                     parentEmbedId: object["parent_embed_id"] as? String,
                     embedIds: nil
                 )
