@@ -25,6 +25,8 @@ class AskSkillRequest(BaseModel):
     is_incognito: bool = Field(default=False, description="Whether this is an incognito chat. Incognito chats skip persistence and post-processing.")
     mate_id: Optional[str] = Field(default=None, description="The ID of the Mate to use. If None, AI will select.")
     active_focus_id: Optional[str] = Field(default=None, description="The ID of the currently active focus, if any.")
+    project_focus_candidates: List[Dict[str, Any]] = Field(default_factory=list, max_length=40, description="Transient client-decrypted Project names for ownership-filtered routing; never consent or file contents.")
+    project_access_declined: bool = Field(default=False, description="Internal continuation guard preventing another Project consent request in the same turn.")
     current_project: Optional[Dict[str, Any]] = Field(default=None, description="Server-derived current Project routing metadata for this chat.")
     active_project_focus: Optional[Dict[str, Any]] = Field(default=None, description="Server-authoritative transient Project focus, including its full instruction.")
     user_preferences: Optional[Dict[str, Any]] = Field(default_factory=dict, description="User-specific preferences.")

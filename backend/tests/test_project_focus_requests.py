@@ -13,6 +13,20 @@ PROJECT = "11111111-1111-4111-8111-111111111111"
 REQUEST = "22222222-2222-4222-8222-222222222222"
 
 
+# contract-test: supporting surface=gui.web assertions=projects.focus.inferred-consent
+def test_web_dispatch_preserves_project_routing_metadata():
+    from backend.core.api.app.schemas.ai_skill_schemas import AskSkillRequest as WebRequest
+    from backend.apps.ai.skills.ask_skill import AskSkillRequest as AIRequest
+
+    routed = WebRequest(
+        chat_id="chat", message_id="message", user_id="user", user_id_hash="hash",
+        message_history=[], project_focus_candidates=[{"project_id": PROJECT, "name": "Garden notes"}],
+    )
+    inference = AIRequest(**routed.model_dump())
+    assert inference.project_focus_candidates == [{"project_id": PROJECT, "name": "Garden notes"}]
+    assert inference.active_project_focus is None
+
+
 @pytest.fixture(autouse=True)
 def isolated_continuation_import(monkeypatch, request):
     continuation = request.getfixturevalue("async_skill_continuation")

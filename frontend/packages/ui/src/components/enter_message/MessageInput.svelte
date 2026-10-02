@@ -612,6 +612,17 @@
 
     function syncTextOnlyDomToEditorBeforeDraftSave(editor: Editor): boolean {
         if (editor.isDestroyed || isDraftPreview || editorHasEmbedContent(editor)) return false;
+        // Mention chips include labels/buttons absent from getText(). Treating
+        // that intentional difference as DOM drift destroys structured consent.
+        let hasStructuredInline = false;
+        editor.state.doc.descendants((node) => {
+            if (node.isInline && node.isAtom && !node.isText && node.type.name !== 'hardBreak') {
+                hasStructuredInline = true;
+                return false;
+            }
+            return !hasStructuredInline;
+        });
+        if (hasStructuredInline) return false;
         const dom = editor.view.dom;
         const domText = ((dom instanceof HTMLElement ? dom.innerText : dom.textContent) ?? '').replace(/\u00a0/g, ' ');
         const editorText = editor.getText().replace(/\u00a0/g, ' ');

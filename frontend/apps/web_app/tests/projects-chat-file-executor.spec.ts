@@ -137,9 +137,14 @@ async function createProject(page: Page, name: string, writeMode: 'always_ask' |
 }
 
 async function deleteProject(page: Page, projectId: string): Promise<void> {
-  // Cleanup must not hide the original failure behind a composer overlay.
-  const response = await page.request.delete(`${API_BASE_URL}/v1/projects/${projectId}`, { timeout: 30_000 });
-  expect(response.ok(), 'disposable hosted Project cleanup').toBe(true);
+  // Use the browser's authenticated fetch and CSRF context; bound cleanup so
+  // a failed composer cannot conceal the actual assertion behind an overlay.
+  const status = await page.evaluate(async ({ apiBaseUrl, targetId }) => {
+    const response = await fetch(`${apiBaseUrl}/v1/projects/${targetId}`, { method: 'DELETE', credentials: 'include' });
+    return response.status;
+  }, { apiBaseUrl: API_BASE_URL, targetId: projectId });
+  expect(status, 'disposable hosted Project cleanup').toBeGreaterThanOrEqual(200);
+  expect(status, 'disposable hosted Project cleanup').toBeLessThan(300);
 }
 
 async function sendWithProjectMention(
@@ -291,8 +296,10 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
       );
       chatUrl = page.url();
       await expectProjectFocusPill(page, projectName);
+      console.log('Hosted Project proof: explicit mention activated the named focus.');
       await approvePendingWrite(page, path, marker);
       await waitForTurnCompletion(page);
+      console.log('Hosted Project proof: first encrypted file revision applied.');
 
       await page.reload({ waitUntil: 'domcontentloaded' });
       await waitForChatReady(page);
@@ -317,10 +324,12 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
         return (await response.json()).focus;
       }, { apiBaseUrl: API_BASE_URL, chatId: await currentChatId(page) });
       expect(beforeConsent).toBeNull();
+      console.log('Hosted Project proof: natural-language request waits without Project authority.');
       await page.getByTestId('project-focus-grant').click();
       await expectProjectFocusPill(page, projectName);
       await approvePendingWrite(page, path, 'updated');
       await waitForTurnCompletion(page);
+      console.log('Hosted Project proof: consent resumed the chat and applied the exact update.');
       await deactivateProjectFocusAndVerify(page, projectId);
 
       // Opening the Project through the historical mention must leave focus off.
@@ -339,6 +348,7 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
       await expect(overlay.getByTestId('embed-version-timeline')).toBeVisible({ timeout: 30_000 });
       await expect(overlay.getByTestId('version-dot-2')).toBeVisible();
       await closeFullscreen(page, overlay);
+      console.log('Hosted Project proof: historical mention opened the Project and both revisions.');
 
       await page.goto(chatUrl!, { waitUntil: 'domcontentloaded' });
       await waitForChatReady(page);
