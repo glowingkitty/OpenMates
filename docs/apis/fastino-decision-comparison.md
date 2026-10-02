@@ -66,13 +66,8 @@ Classification confidence is a winning-label score rather than the complete cali
 
 Retain Jev for current preprocessing, safety, search ranking and workflows. GLiDE’s higher published benchmark score did not produce a measured quality gain on these labeled controls, while it exceeded the latency budget and increased costs. Hosted GLiNER-Decide is a real cheaper option for narrow English classification, but this comparison does not support replacing the existing arbitrary-context decisions. A future experiment could evaluate a bespoke small classifier or local/fine-tuned Decide separately; it would need its own held-out corpus and compatibility design.
 
-## Reproduce and inspect
+## Archived experiment
 
-```bash
-docker exec api python /app/backend/scripts/benchmark_decision_models.py --models jev glide --repeats 1 --area preprocessing --area postprocessing --area workflow_preselection --area search_ranking_scale
-docker exec api python /app/backend/scripts/benchmark_decision_models.py --repeats 1 --area preprocessing_core --area request_safety --area prompt_injection --area workflow_check --area workflow_authoring --area search_ranking --output /app/test-results/decision-benchmark-native
-```
-
-Synthetic raw receipts on dev: `test-results/decision-benchmark-2894/`. Reusable script: `backend/scripts/benchmark_decision_models.py`; labeled cases: `backend/scripts/decision_benchmark_cases.py`.
+The temporary Fastino benchmark harness, fixtures and tests were removed after the decision to retain Jev. This report and the synthetic raw receipts on dev at `test-results/decision-benchmark-2894/` preserve the measured results. Event specialist routing and additional workflow planning paths were identified but not benchmarked before the experiment was stopped.
 
 Sources: [Fastino live model catalog](https://api.fastino.ai/v1/base-models), [Fastino pricing](https://docs.fastino.ai/pricing), [Fastino static catalog](https://docs.fastino.ai/concepts/models), [OpenRouter Jev](https://openrouter.ai/typesafe/jev-1.13), [GLiDE announcement](https://fastino.ai/blog/introducing-glide-the-first-thinking-decision-model), [GLiNER-Decide announcement](https://fastino.ai/blog/gliner-2-5-decide-open-weight-decision-model), [GLiDE migration contract](https://docs.fastino.ai/inference/systemone), [hosted GLiNER contract](https://docs.fastino.ai/inference/chat-completions), [GLiNER-Decide model card](https://huggingface.co/fastino/GLiNER2.5-Decide).
