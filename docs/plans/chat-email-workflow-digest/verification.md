@@ -1,10 +1,40 @@
 # Verification receipt — notification emails
 
 Workspace `agent-02ea`, session `02ea`, Task `TASK-7066`. The user lifted the webinar
-runtime/web rollout hold on 2026-10-01. Only the CI fixture manifest is published
-(`917620e9256b1d66b00a668716dc04c93528d7b9`, `0d01454022ee08d85bf71aaa4a693e52fe303162`,
-`ae98e2482e98763828e49fa7a12a729900ecbcc2`); product rollout and dev migration
-remain pending the required product checks. Production rollout is outside scope.
+runtime/web rollout hold on 2026-10-01. Product implementation is published to dev
+as `ae48ac9fd6ce231375c1568c87a60e777c33d413`, from reviewed candidate
+`aefbf566a15d3d3f66cef91c70f5c31bcd52b9dc` over base
+`5e1b804cfba98dffaa19afce22c553d8751af1aa`. Its product source is unchanged from
+the passing Team candidate `e1a390283f`; the final delta contains verification
+documents only. Web readiness, compatible backend activation and packaged setup
+migration completed on dev on 2026-10-02. Production rollout is outside scope.
+Task `TASK-7066` is blocked on the remaining verification environment/scope gaps.
+
+## Dev activation and migration
+
+Web readiness succeeded for `ae48ac9fd6ce231375c1568c87a60e777c33d413`.
+Coordinated restart `docker-c0525424` rebuilt CMS and the compatible API/worker/
+scheduler cohort. Source-coherence expansion included 17 services, all running;
+API and CMS configured health checks passed. Their backend source generation is
+`a6d41dd62b6f1401870095e5f29578f6e0175b2b`. Packaged `cms-setup` operation
+`docker-231aec75` completed successfully after the compatible code was active.
+No notification SQL was run separately. Post-migration health checks passed.
+
+The read-only aggregate check at 2026-10-02 03:23:40 UTC recorded 414 accounts,
+413 master-enabled accounts (up from 15), zero explicit-opt-out/global-block
+violations, and unchanged effective backup/webhook counts of 15 each. The exact
+global unsubscribe remained disabled. PostgreSQL defaults now enable master,
+chat and Workflow email, with previews and the unrelated categories off;
+explicit choice provenance starts as an empty object. Real dev data had no
+identifiable explicit/category opt-outs; isolated migration fixtures prove those
+cases and repeat-application behavior.
+
+Protected local receipts: `tmp/notification-verification/dev-product-deploy.txt`,
+`dev-web-readiness.txt`, `dev-backend-activation.txt`, `dev-runtime-generation.json`,
+`dev-cms-setup-migration.txt`, `dev-post-migration-invariants.{txt,json}`,
+`dev-post-migration-defaults.txt`, and `dev-post-migration-health.json` in the same
+verification directory. Only aggregate counts and service metadata were exposed;
+no account identities, addresses or ciphertext were printed.
 
 ## Focused checks
 
@@ -43,8 +73,12 @@ Materialized Specification and Python preflight passed. Temporary materialized
 Svelte validation lacked prepared dependencies. Isolated runner preparation
 [36949443772](https://github.com/glowingkitty/OpenMates/actions/runs/36949443772)
 subsequently built the final web source `258922ecb7` successfully; this is build
-evidence, separate from the pending Team product verdict and native execution. The 16-file deployment
-unit gate passes against the materialized integrated source. Independent source
+evidence, separate from the final Team product pass and unexecuted native checks. The earlier 16-file materialized unit gate passed. Final normal deployment
+gates passed against the reviewed integration: Specification, scoped lint, locale
+build/validation, SDK cleartext boundary, and the 25-file Python test gate.
+The advisory test mapper reported four unmapped files and a broad related-spec
+list; focused product checks are recorded below, and no test gate was bypassed.
+Receipt: `tmp/notification-verification/dev-product-deploy.txt`. Independent source
 review found no remaining material issues. Added Watch XCTest/UI assertions are unexecuted.
 The settings contract audit found 12 pre-existing CSS/test-ID violations and no
 new callback/privacy-sync violation. Unrelated baseline typecheck errors were not repaired.
@@ -203,8 +237,9 @@ were performed. A bounded unrelated login fix awaits user authorization.
   verification inbox, which is unavailable. Existing personal/E2E state is not borrowed.
 - **Signed-in email-link navigation:** populated Personal chat, settings, and exact
   Workflow-run navigation passed. Team context/navigation passed on `e1a390283f`.
-- **Dev integration/migration: pending required product checks.** Runtime activation
-  must preserve the overlapping delivery-confirmation implementation.
+- **Dev integration/migration: completed.** The source preserves the overlapping
+  delivery-confirmation implementation. Live inference, external mail and native
+  behavior remain unverified; runtime health does not prove those outcomes.
 
 Legacy master-off values have no provenance. The authorized clean transition may
 enable a deliberate master opt-out never separately recorded; identifiable explicit
@@ -233,8 +268,8 @@ accounts, zero explicit-opt-out/global-block violations, and 15 effectively enab
 accounts in each unrelated backup/webhook category. The post-migration check must
 keep those unrelated category counts at or below 15 and all opt-out/block violations
 at zero. Receipts: `tmp/notification-verification/dev-pre-migration-invariants.txt`
-and `tmp/notification-verification/post-migration-invariants.sql`. This is a
-pre-migration baseline, not evidence that runtime setup has executed.
+and `tmp/notification-verification/post-migration-invariants.sql`. The later
+post-migration receipt above verifies those invariants after packaged setup.
 
 The production upgrade requires installing the released CLI with the
 `coreSetupGate` capability before its first core rollout. The supported updater

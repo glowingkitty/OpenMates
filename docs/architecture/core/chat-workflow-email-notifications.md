@@ -137,5 +137,11 @@ no controlled mailbox is configured, and the user deferred mailbox setup. Native
 runtime verification also requires a Mac build; source audits alone do not prove
 Apple lifecycle behavior on a device.
 
+Dev activation and packaged migration completed on 2026-10-02: 413 of 414
+accounts are enabled, the exact global unsubscribe remains disabled, and unrelated
+category counts did not increase. Production rollout still requires the released
+setup-gate CLI described above. Runtime health is separate from external mail,
+live-inference and Apple device verification.
+
 Current verification and rollout evidence is recorded in
 `docs/plans/chat-email-workflow-digest/verification.md`.
