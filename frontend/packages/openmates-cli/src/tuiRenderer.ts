@@ -97,6 +97,7 @@ export type TuiState = {
   screen: TuiScreen;
   input: string;
   scrollOffset: number;
+  followSelection: boolean;
   selectedIndex: number;
   selectedInterests: string[];
   examples: ExampleChatListItem[];
@@ -140,7 +141,7 @@ export function createInitialTuiState(): TuiState {
     apps:[],activeApp:null,activeAppSkill:null,appTab:"skills",appSkillTab:"overview",appResults:{items:[],hasMore:false,offset:0},
     appWorkflows:{items:[],hasMore:false,offset:0},activeAppResult:null,appPreparedRun:null,
     workspace: "chats", sidebarOpen: false, sidebarIndex: 0, navigationIndex: 0,
-    focus: "composer", signedIn: false, form: null, paletteOpen: false,
+    focus: "content", signedIn: false, form: null, paletteOpen: false,
     paletteQuery: "", paletteIndex: 0, filter: "", taskStatusFilter: "",
     taskContext: null, recentChats: [], activeChatId: null, activeChat: null,
     headerState: "new", headerError: null, followUpSuggestions: [], drafts: {}, routeVersion: 0, inputCursor: null, aiTaskId: null,
@@ -150,6 +151,7 @@ export function createInitialTuiState(): TuiState {
     screen: "start",
     input: "",
     scrollOffset: 0,
+    followSelection: false,
     selectedIndex: 0,
     selectedInterests: [],
     examples: [],
@@ -233,7 +235,7 @@ export function renderTuiFrame(state: TuiState, width: number, height: number, o
   return renderWorkspaceFrame(state, width, height, renderBody(state, bodyWidth,height), { ...options,stickyRows, headerRows: state.screen === "chat" || state.screen === "example" ? renderChatHeader(state, bodyWidth).length : undefined });
 }
 
-function coloredHero(lines:string[],rows:number,gradient=PRIMARY_GRADIENT):TuiLine[]{return lines.map((text,index)=>index<rows?{text,gradient,row:index,rows}:text);}
+function coloredHero(lines:string[],rows:number,gradient=PRIMARY_GRADIENT):TuiLine[]{return lines.map((text,index)=>index<rows?{text,background:gradient.start}:text);}
 const blueHero=(lines:string[],rows:number)=>coloredHero(lines,rows);
 /** Keep each stacked home card centered and independently colored. */
 function homeCards(lines:string[],width:number,gradients:Array<{start:string;end:string}>):TuiLine[] {
@@ -241,7 +243,7 @@ function homeCards(lines:string[],width:number,gradients:Array<{start:string;end
   for(const line of lines){if(line===""){if(groups.at(-1)!.length)groups.push([]);}else groups.at(-1)!.push(line);}
   return groups.filter((group)=>group.length).flatMap((group,index)=>{
     const cardWidth=Math.min(width,Math.max(...group.map(cells))),inset=Math.max(0,Math.floor((width-cardWidth)/2));
-    return [...group.map((text,row)=>({text,gradient:gradients[index]??PRIMARY_GRADIENT,inset,row,rows:group.length})),""];
+    return [...group.map((text)=>({text,background:(gradients[index]??PRIMARY_GRADIENT).start,inset})),""];
   });
 }
 function renderBody(state: TuiState, width: number,height:number): TuiLine[] {

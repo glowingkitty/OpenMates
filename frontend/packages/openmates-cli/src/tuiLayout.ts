@@ -2,12 +2,12 @@
 import type { TuiState } from "./tuiRenderer.js";
 import { CATEGORY_GRADIENTS } from "../../chatCategoryTheme.js";
 import { paletteActions } from "./tuiActions.js";
-import { foreground, gradientLine, lineText, padCells, terminalText, truncateCells, wrapCells, type TuiColorMode, type TuiLine } from "./tuiText.js";
+import { backgroundLine, cells, foreground, lineText, padCells, terminalText, truncateCells, wrapCells, type TuiColorMode, type TuiLine } from "./tuiText.js";
 
 export const WORKSPACES = ["chats", "apps", "projects", "workflows", "tasks"] as const;
-export const DEFAULT_CHAT_GRADIENT = { start: "#4867cd", end: "#5a85eb" };
-export function chatGradient(category: string | null | undefined) {
-  return category && CATEGORY_GRADIENTS[category] || DEFAULT_CHAT_GRADIENT;
+export const DEFAULT_CHAT_BACKGROUND = "#4867cd";
+export function chatBackground(category: string | null | undefined) {
+  return category && CATEGORY_GRADIENTS[category]?.start || DEFAULT_CHAT_BACKGROUND;
 }
 
 export function sidebarLines(state: TuiState): string[] {
@@ -27,6 +27,9 @@ export function workspaceHint(state: TuiState): string {
   if (state.focus === "navigation") return "←/→ workspace   Enter open   Tab focus   Ctrl+B sidebar";
   if (state.focus === "inspiration") return "←/→ inspiration   Enter explore   Tab focus";
   if (state.focus === "sidebar") return "↑/↓ choose   Enter open   Ctrl+B close   Tab focus";
+  if (state.screen === "start" || state.screen === "chats") return state.focus === "composer"
+    ? "Enter send   Shift+Tab chats   Ctrl+N new   Ctrl+B sidebar"
+    : "←/→ chat   Enter open   Tab write   ↑/↓ scroll   Ctrl+B sidebar";
   if (state.workflowEdit) return "Enter save title   Esc cancel edit";
   if (state.screen === "workflow") return "g template   r runs   ↑/↓ select   Enter expand   e title   E config   x run   c cancel";
   if (state.screen === "task") return "e edit   m status   a activity   s start   d done   b block   Esc back";
@@ -35,7 +38,7 @@ export function workspaceHint(state: TuiState): string {
   if (state.screen === "app-skill") return "1–3 tabs   Enter use skill   Esc app   Ctrl+P actions";
   if (state.screen === "app-result") return "↑/↓ scroll   Esc saved results   Ctrl+P actions";
   if (state.screen === "apps") return "↑/↓ choose   Enter open   /search   /browse Show all   Tab focus";
-  if (state.screen === "projects" || state.screen === "tasks" || state.screen === "workflows" || state.screen === "chats") return "↑/↓ choose   Enter open   /search filter   Tab focus   Ctrl+P actions";
+  if (state.screen === "projects" || state.screen === "tasks" || state.screen === "workflows" ) return "↑/↓ choose   Enter open   /search filter   Tab focus   Ctrl+P actions";
   if (state.screen === "interests") return "↑/↓ move   Space select   Enter continue   Esc back";
   if (state.screen === "examples") return "↑/↓ choose   Enter open   /search filter   Esc back";
   return "Enter send   Alt+Enter newline   Ctrl+B sidebar   Ctrl+P actions   @ attach";
@@ -98,20 +101,23 @@ export function renderWorkspaceFrame(state: TuiState, rawWidth: number, rawHeigh
     // Keep the focused form field visible without changing transcript scroll.
     const marker = content.findIndex((row) => lineText(row).startsWith("> "));
     start = marker >= bodyHeight ? Math.max(0, marker - bodyHeight + 3) : 0;
-  } else if (["start", "tasks", "projects", "project", "chats", "examples", "workflow", "workflows", "apps", "app", "app-skill"].includes(state.screen) && state.focus === "content") {
+  } else if (state.followSelection && ["start", "tasks", "projects", "project", "chats", "examples", "workflow", "workflows", "apps", "app", "app-skill"].includes(state.screen) && state.focus === "content") {
     const markers=content.map((row,index)=>/(?:^|[│|])\s*[>›] /.test(lineText(row))?index:-1).filter((index)=>index>=0);
     const marker=state.screen==="workflow" ? markers.at(-1)??-1 : markers[0]??-1;
     let selectionEnd=marker;
-    if(state.screen==="workflow"&&marker>=0){
+    if(["workflow","start","chats"].includes(state.screen)&&marker>=0){
       const closing=content.findIndex((row,index)=>index>marker&&lineText(row).includes("╰"));
       selectionEnd=Math.min(marker+10,closing<0?marker:closing);
     }
-    if (selectionEnd >= start + viewportHeight) start = Math.min(maxStart, selectionEnd - viewportHeight + 2);
+    if (selectionEnd >= start + viewportHeight) start = Math.min(maxStart, selectionEnd - viewportHeight + 1);
     if (marker >= 0 && marker < start) start = marker;
   }
+  // Store the actual viewport, so End or repeated scrolling cannot accumulate overshoot.
+  if(!overlay&&!sidebarOverlay)state.scrollOffset=state.screen==="chat"?maxStart-start:start;
+  state.followSelection=false;
   const heroRows = options.headerRows ?? 0;
   const category = state.screen === "example" ? state.activeExample?.chat.category : state.activeChat?.category;
-  const gradient = chatGradient(category);
+  const background = chatBackground(category);
   const allSide = sidebarLines(state);
   const sideMarker = allSide.findIndex((row) => row.startsWith("> "));
   const sideStart = Math.max(0, sideMarker - bodyHeight + 3);
@@ -126,10 +132,18 @@ export function renderWorkspaceFrame(state: TuiState, rawWidth: number, rawHeigh
     if (style && !overlay && !sidebarOverlay) {
       const inset=Math.max(0,Math.min(Math.floor(contentWidth/2)-1,style.inset??0));
       const span=Math.max(1,contentWidth-2*inset);
-      rendered=" ".repeat(inset)+(style.gradient ? gradientLine(raw,span,style.gradient,mode,style.row??0,style.rows??1)
+      if(style.spans){
+        let remaining=span;rendered="";
+        for(const part of style.spans){
+          const text=truncateCells(terminalText(part.text).replace(/\n/g," "),remaining),size=cells(text);
+          rendered+=part.background?backgroundLine(text,size,part.background,mode,part.bold):text;
+          remaining-=size;if(!remaining)break;
+        }
+        rendered=" ".repeat(inset)+rendered+" ".repeat(remaining+inset);
+      }else rendered=" ".repeat(inset)+(style.background ? backgroundLine(raw,span,style.background,mode,style.bold)
         :foreground(padCells(raw,span),style.color??"#e6e6e6",mode,style.bold))+" ".repeat(inset);
     }
-    else if (!overlay && !sidebarOverlay && index < heroRows) rendered = gradientLine(raw, contentWidth, gradient, mode, index, heroRows);
+    else if (!overlay && !sidebarOverlay && index < heroRows) rendered = backgroundLine(raw, contentWidth, background, mode);
     else if (raw.startsWith("> ") || raw.includes("›")) rendered = foreground(rendered, "#ff553b", mode, true);
     else if (/^(You|Sophia|Tasks|Projects|Workflows|Recent chats|Suggestions|Actions)$/.test(raw)) rendered = foreground(rendered, "#5a85eb", mode, true);
     if (sidebarWidth) rendered = foreground(padCells(side[i] ?? "", sidebarWidth - 2), "#cfcfcf", mode) + `${vertical} ` + rendered;

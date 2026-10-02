@@ -1078,3 +1078,14 @@ approved_rendered_web_refinement:
       - "test-results/proof-videos/8a64/rendered-web-homes-4c1d67f3-correction-1: canonical 12-frame review passes; 10.567 seconds at 1280x720."
       - "test-results/proof-videos/8a64/rendered-web-details-42c647ba: canonical 12-frame review passes; 22.5 seconds at 1280x720."
     legacy_plan_status: "Plan YAML validates. Whole-plan completion verifier remains partial for historical v1 red/green evidence (self-update, anonymous example continuation and docs) outside this approved refinement; the original Plan is not marked verified or complete."
+
+approved_terminal_navigation_followup:
+  task: TASK-8290
+  approved_on: "2026-10-02"
+  user_goal: "Reliable scrolling, obvious chat opening, solid backgrounds and headers, and a horizontal keyboard-navigable chat preview carousel matching the web home."
+  requirements:
+    - "Chats home defaults to preview focus; Left/Right choose the horizontal preview and Enter opens that exact chat. Tab reaches the composer; typing starts a draft."
+    - "Show a selected-card marker, position counter, visible controls and responsive fixed-width previews. Preserve category colors using one solid color per card/header/inspiration."
+    - "Manual keyboard and mouse-wheel scrolling respects viewport bounds and is not overridden by selection following. Full-width redraws preserve terminal row geometry over SSH."
+  verification:
+    - "Focused renderer, terminal input and navigation regressions; isolated CLI TUI keyboard coverage and updated real terminal homes proof."

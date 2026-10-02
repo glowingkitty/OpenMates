@@ -10,6 +10,7 @@ commands and injected binaries so no account data or external API is required.
 from __future__ import annotations
 
 import importlib.util
+import json
 from pathlib import Path
 import sys
 
@@ -391,3 +392,10 @@ def test_timeout_finalizes_video_and_keeps_failure_verdict(tmp_path, monkeypatch
     )
     assert result["exit_status"] == 124 and "ffmpeg" in finalized
     assert paths["manifest"].is_file() and result["video_sha256"]
+
+@pytest.mark.parametrize("key", ["ctrl+o", "ctrl+u", "shift+Tab", "Home", "End", "Page_Up", "Page_Down"])
+def test_workspace_navigation_keys_are_recordable(tmp_path, key):
+    module = load_module()
+    path = tmp_path / "navigation.json"
+    path.write_text(json.dumps({"steps": [{"name": "navigate", "key": key}]}))
+    assert module.load_input_plan(path)[0]["key"] == key

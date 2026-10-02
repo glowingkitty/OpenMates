@@ -526,7 +526,7 @@ async function moveSelectionOrScroll(params: { state: TuiState; client: OpenMate
     state.selectedWorkflowNodeIndex = clamp(state.selectedWorkflowNodeIndex + direction, 0, Math.max(0, nodeCount - 1));
     return;
   }
-  state.scrollOffset = Math.max(0, state.scrollOffset - direction);
+  state.scrollOffset = Math.max(0, state.scrollOffset + direction * (state.screen === "chat" ? -1 : 1));
 }
 
 function toggleSelectedWorkflowNode(state: TuiState): void {

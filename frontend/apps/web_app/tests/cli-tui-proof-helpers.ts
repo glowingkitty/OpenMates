@@ -49,14 +49,17 @@ const homeProofContract = {
 	surface: 'cli',
 	devices: [PROFILE],
 	transcript: [
-		{id: 'chats', text: 'Chats opens with Daily Inspiration, a personal greeting, stacked recent chats, and a sidebar revealed by Ctrl+B.', checkpoint: 'sidebar-open', devices: [PROFILE]},
+		{id: 'chats', text: 'Chats opens with Daily Inspiration, a personal greeting, horizontal keyboard-selected recent chats, and a sidebar revealed by Ctrl+B.', checkpoint: 'sidebar-open', devices: [PROFILE]},
+		{id: 'chat-navigation', text: 'Left and Right move through horizontal previews, Enter opens the chosen chat, and Home and End scroll the page reliably.', checkpoint: 'chat-open', devices: [PROFILE]},
 		{id: 'tasks', text: 'Tasks keeps the inspiration banner above a five-status board with the seeded task.', checkpoint: 'tasks-home', devices: [PROFILE]},
 		{id: 'projects', text: 'Projects shows its greeting and a card for the seeded Project.', checkpoint: 'projects-home', devices: [PROFILE]},
 		{id: 'workflows', text: 'Workflows shows the inspiration banner and the saved workflow card.', checkpoint: 'workflows-home', devices: [PROFILE]},
 		{id: 'apps', text: 'Apps opens to its greeting and a browsable catalog of app cards.', checkpoint: 'apps-home', devices: [PROFILE]}
 	],
 	assertions: [
-		{id: 'cli.tui.sidebar.toggle', checkpoint: 'sidebar-open', visual: 'Chats shows Daily Inspiration, a greeting, stacked recent chat cards, and the opened sidebar.', devices: [PROFILE]},
+		{id: 'cli.tui.chat-carousel.open', checkpoint: 'chat-open', visual: 'Enter opens the fourth keyboard-selected preview with its encrypted draft restored, and its header has one solid color.', devices: [PROFILE]},
+		{id: 'cli.tui.chat-carousel.scroll', checkpoint: 'apps-scroll-top', visual: 'The Apps home returns to Daily Inspiration after scrolling to its bottom and back to the top, without snapping to the selected app.', devices: [PROFILE]},
+		{id: 'cli.tui.sidebar.toggle', checkpoint: 'sidebar-open', visual: 'Chats shows Daily Inspiration, a greeting, horizontal recent chat previews, and the opened sidebar.', devices: [PROFILE]},
 		{id: 'cli.tui.tasks-board', checkpoint: 'tasks-home', visual: 'The Tasks home shows Daily Inspiration and all five status columns with the seeded task.', devices: [PROFILE]},
 		{id: 'cli.tui.projects-home', checkpoint: 'projects-home', visual: 'The Projects home shows its greeting and the seeded Project card.', devices: [PROFILE]},
 		{id: 'cli.tui.workflows-home', checkpoint: 'workflows-home', visual: 'The Workflows home shows its greeting and the saved workflow card.', devices: [PROFILE]},
@@ -218,7 +221,7 @@ async function seedWorkspace(page: Page, apiUrl: string, home: string, fixture: 
 	fixture.workflowId = workflow.id;
 	expect(workflow.enabled).toBe(false);
 	if (withRecentChats) {
-		for (const label of ['Plan a weekend', 'Review a project', 'Learn a concept']) {
+		for (const label of ['Plan a weekend', 'Review a project', 'Learn a concept', 'Organize a trip', 'Write a story']) {
 			const draft = await runWorkflowCliJson(apiUrl, home, ['drafts', 'create', label], 'seed encrypted recent chat');
 			fixture.draftIds.push(draft.chatId);
 			expect(draft.markdown).toBe(label);

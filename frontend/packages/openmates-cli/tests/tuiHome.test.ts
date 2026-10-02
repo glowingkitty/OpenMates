@@ -17,18 +17,20 @@ const chat=(i:number)=>({id:`chat-${i}`,shortId:`C${i}`,title:`Conversation ${i}
 const app=(id:string,name:string):TuiApp=>({id,name,description:`${name} description`,category:"general_knowledge",skills:[],focusModes:[],settingsMemories:[]});
 
 // contract-test: supporting surface=cli assertions=cli.surface.semantic-parity
-test("authenticated default home loads inspiration username and vertically stacked resumable chats",async()=>{
+test("authenticated default home loads inspiration username and horizontal keyboard-selected chats",async()=>{
   const state=createInitialTuiState();state.signedIn=true;
   await loadHomeData(state,{getDailyInspirations:async()=>[inspiration],whoAmI:async()=>({username:"Alex"}),listChats:async()=>({chats:[chat(1),chat(2),chat(3),chat(4)]})} as never,()=>{});
   const frame=stripAnsi(renderTuiFrame(state,120,40,{colorMode:"truecolor"}));
   assert.ok(frame.indexOf("DAILY INSPIRATION")<frame.indexOf("Hey Alex!"));
   assert.ok(frame.indexOf("Hey Alex!")<frame.indexOf("Continue where you left off"));
   const first=frame.split("\n").findIndex((line)=>line.includes("Conversation 1")),second=frame.split("\n").findIndex((line)=>line.includes("Conversation 2"));
-  assert.ok(first>=0&&second>first);
+  assert.ok(first>=0&&second===first);
+  assert.match(frame,/› Conversation 1/);assert.match(frame,/Enter open/);
   assert.equal(state.sidebarOpen,false);
-  state.focus="content";state.selectedIndex=3;
-  assert.match(renderTuiFrame(state,120,24),/› Conversation 4/);
   const {ctx}=context(state,{getChatMessages:async(id:string)=>({chat:chat(Number(id.slice(5))),messages:[]})});
+  for(let i=0;i<3;i++)await handleWorkspaceKey(ctx,"",{name:"right"});
+  assert.equal(state.selectedIndex,3);
+  assert.match(renderTuiFrame(state,120,24),/› Conversation 4/);
   await handleWorkspaceKey(ctx,"\r",{name:"return"});assert.equal(state.activeChatId,"chat-4");
 });
 
@@ -119,4 +121,35 @@ test("workspace homes retain exact cell geometry with colors Unicode and a sideb
     const rows=renderTuiFrame(state,width,28,{colorMode:"truecolor"}).split("\n");
     assert.equal(rows.length,28);assert.ok(rows.every((row)=>cells(row)===width),`${workspace} width=${width} sidebar=${sidebar}: ${rows.map(cells)}`);
   }
+});
+
+// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity
+test("carousel bounds, filtering, draft cursor and viewport resizing preserve the chosen chat",async()=>{
+  const state=createInitialTuiState();state.signedIn=true;state.recentChats=Array.from({length:8},(_,i)=>({...chat(i),title:`確認 🧪 Conversation ${i}`}));
+  const {ctx}=context(state);
+  for(let i=0;i<20;i++)await handleWorkspaceKey(ctx,"",{name:"right"});assert.equal(state.selectedIndex,7);
+  for(const width of [24,73,120]){
+    const frame=renderTuiFrame(state,width,32,{colorMode:"truecolor"});
+    assert.ok(frame.split("\n").every((row)=>cells(row)===width));
+    assert.match(stripAnsi(frame),width===24?/Conver[\s\S]*sation 7/:/Conversation 7/);assert.match(stripAnsi(frame),/Chat 8 of 8/);
+  }
+  await handleWorkspaceKey(ctx,"",{name:"tab"});assert.equal(state.focus,"composer");
+  await handleWorkspaceKey(ctx,"draft",{name:"paste"});
+  await handleWorkspaceKey(ctx,"",{name:"left"});assert.equal(state.inputCursor,4);assert.equal(state.selectedIndex,7);
+  await handleWorkspaceKey(ctx,"",{name:"tab",shift:true});assert.equal(state.focus,"content");
+  for(let i=0;i<20;i++)await handleWorkspaceKey(ctx,"",{name:"left"});assert.equal(state.selectedIndex,0);assert.equal(state.input,"draft");
+  await handleWorkspaceCommand(ctx,"/search Conversation 5");
+  assert.match(renderTuiFrame(state,120,32),/› 確認 🧪 Conversation 5/);assert.equal(state.selectedIndex,0);
+});
+
+// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity
+test("home arrow scrolling and mouse wheel never change the selected chat or draft",async()=>{
+  const state=createInitialTuiState();state.signedIn=true;state.recentChats=[chat(1),chat(2)];state.input="Kept draft";
+  const {ctx}=context(state);ctx.terminal.height=18;
+  for(let i=0;i<30;i++){await handleWorkspaceKey(ctx,"",{name:"down"});renderTuiFrame(state,80,18);}
+  const bottom=state.scrollOffset;assert.ok(bottom>0);
+  await handleWorkspaceKey(ctx,"",{name:"up"});renderTuiFrame(state,80,18);assert.equal(state.scrollOffset,bottom-1);
+  await handleWorkspaceKey(ctx,"",{name:"scrollup"});renderTuiFrame(state,80,18);assert.equal(state.scrollOffset,Math.max(0,bottom-4));
+  assert.equal(state.selectedIndex,0);assert.equal(state.input,"Kept draft");
+  await handleWorkspaceKey(ctx,"",{name:"home"});renderTuiFrame(state,80,18);assert.equal(state.scrollOffset,0);
 });

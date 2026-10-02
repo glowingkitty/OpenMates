@@ -28,7 +28,7 @@ export function rememberDraft(state: TuiState): void {
 export function route(state: TuiState, workspace: TuiWorkspace, screen: TuiScreen): number {
   if (state.input) rememberDraft(state);
   state.workspace = workspace; state.screen = screen;
-  state.navigationIndex = WORKSPACES.indexOf(workspace); state.focus = workspace === "chats" && screen !== "chats" ? "composer" : "content";
+  state.navigationIndex = WORKSPACES.indexOf(workspace); state.focus = workspace === "chats" && !["start","chats"].includes(screen) ? "composer" : "content";
   state.input = ""; state.inputCursor = null; state.filter = ""; state.scrollOffset = 0; state.selectedIndex = 0;
   state.sidebarIndex = 0;
   state.homeShowAll = false;
@@ -145,7 +145,7 @@ export async function handleWorkspaceCommand(context: WorkspaceContext, command:
       if(request===state.routeVersion)state.activeAppResult=result;render();return true;
     }
     case "/new": case "/clear": newChat(state); state.selectedProjectId = null; render(); return true;
-    case "/sidebar": state.sidebarOpen = !state.sidebarOpen; state.focus = state.sidebarOpen ? "sidebar" : state.workspace === "chats" ? "composer" : "content"; render(); if (state.sidebarOpen) await recent(context); return true;
+    case "/sidebar": state.sidebarOpen = !state.sidebarOpen; state.focus = state.sidebarOpen ? "sidebar" : state.workspace === "chats" && !["start","chats"].includes(state.screen) ? "composer" : "content"; render(); if (state.sidebarOpen) await recent(context); return true;
     case "/chats": route(state, "chats", "chats"); await recent(context); render(); return true;
     case "/chat": if (!arg) return handleWorkspaceCommand(context, "/chats"); await openSavedChat(context, arg); return true;
     case "/projects": {
@@ -315,15 +315,21 @@ export async function handleWorkspaceKey(context: WorkspaceContext, chunk: strin
   if (key.ctrl && key.name === "n") { await handleWorkspaceCommand(context,"/new"); return true; }
   if(key.ctrl && key.name==="o" && isWorkspaceHome(state)){state.focus="inspiration";state.scrollOffset=0;render();return true;}
   if (state.workflowEdit) return false;
-  if (["pageup","pagedown","home","end"].includes(key.name ?? "")) {
+  const chatHome=state.screen==="start"||state.screen==="chats";
+  if (["pageup","pagedown","home","end","scrollup","scrolldown"].includes(key.name ?? "") || (chatHome || state.screen==="project"&&state.projectTab==="overview") && ["up","down"].includes(key.name??"") && ["composer","content"].includes(state.focus) && !state.input.startsWith("/")) {
     const bottom=state.screen==="chat";
+    state.followSelection=false;
     if(key.name==="home")state.scrollOffset=bottom?10000:0;
     else if(key.name==="end")state.scrollOffset=bottom?0:10000;
-    else state.scrollOffset=Math.max(0,state.scrollOffset+(key.name==="pageup"?-1:1)*(bottom?-10:10));
+    else {
+      const direction=["pageup","scrollup","up"].includes(key.name??"")?-1:1;
+      const step=key.name?.startsWith("page")?Math.max(1,(context.terminal.height??24)-9):key.name?.startsWith("scroll")?3:1;
+      state.scrollOffset=Math.max(0,state.scrollOffset+direction*(bottom?-step:step));
+    }
     render();return true;
   }
   if (key.name === "escape") {
-    if (state.focus === "sidebar") { state.sidebarOpen = false; state.focus = state.workspace === "chats" ? "composer" : "content"; }
+    if (state.focus === "sidebar") { state.sidebarOpen = false; state.focus = chatHome ? "content" : state.workspace === "chats" ? "composer" : "content"; }
     else if (state.screen === "task") {state.screen = state.workspace === "projects" ? "project" : "tasks"; state.focus = "content"; state.scrollOffset = 0;}
     else if (state.screen === "workflow") {state.screen = "workflows"; state.focus = "content"; state.scrollOffset = 0;}
     else if (state.screen === "project") {state.screen = "projects"; state.focus = "content"; state.scrollOffset = 0;}
@@ -336,7 +342,7 @@ export async function handleWorkspaceKey(context: WorkspaceContext, chunk: strin
   }
   if (key.name === "tab") {
     if (state.input.startsWith("/")) {const choices = TUI_ACTIONS.filter((a) => a.command.startsWith(state.input)); if (choices.length) state.input = choices[state.paletteIndex % choices.length].command + " ";}
-    else {const focuses = ["composer",...(isWorkspaceHome(state)?["inspiration"]:[]),"content",...(state.sidebarOpen?["sidebar"]:[]),"navigation"] as TuiState["focus"][]; state.focus = focuses[(focuses.indexOf(state.focus) + (key.shift ? -1 : 1) + focuses.length) % focuses.length];}
+    else {const focuses = ["content","composer",...(isWorkspaceHome(state)?["inspiration"]:[]),...(state.sidebarOpen?["sidebar"]:[]),"navigation"] as TuiState["focus"][]; state.focus = focuses[(focuses.indexOf(state.focus) + (key.shift ? -1 : 1) + focuses.length) % focuses.length];}
     render(); return true;
   }
   if(state.focus==="inspiration"){
@@ -345,6 +351,13 @@ export async function handleWorkspaceKey(context: WorkspaceContext, chunk: strin
     } else if(key.name==="return")await context.command("/inspiration");
     render();return true;
   }
+  if(chatHome&&state.focus==="content"&&(key.name==="left"||key.name==="right")){
+    state.selectedIndex=Math.max(0,Math.min(Math.max(0,homeChatItems(state).length-1),state.selectedIndex+(key.name==="left"?-1:1)));
+    state.followSelection=true;render();return true;
+  }
+  // Typing from the home previews starts a draft; Enter still opens the selected card.
+  if(chatHome&&state.focus==="content"&&!key.ctrl&&!key.meta&&chunk&&chunk>=" "&&key.name!=="return")state.focus="composer";
+  if(state.focus==="content"&&(["up","down","return"].includes(key.name??"")||state.screen==="workflow"&&["g","r","e","E","x","c"].includes(chunk)))state.followSelection=true;
   if (state.focus === "navigation") {
     if (key.name === "left" || key.name === "right") state.navigationIndex = (state.navigationIndex + (key.name === "left" ? -1 : 1) + WORKSPACES.length) % WORKSPACES.length;
     else if (key.name === "return") await context.command(`/${WORKSPACES[state.navigationIndex]}`);

@@ -35,9 +35,11 @@ export class TuiTerminal {
   private readonly keyInput = new PassThrough();
   private readonly decoder = new StringDecoder("utf8");
   private pendingInput = "";
+  private pendingMouse = "";
   private paste = false;
   private pasteText = "";
   private inputTimer: NodeJS.Timeout | null = null;
+  private mouseTimer: NodeJS.Timeout | null = null;
   private readonly rawInput = (chunk: Buffer | string) => this.receiveInput(typeof chunk === "string" ? chunk : this.decoder.write(chunk));
   private readonly input: NodeJS.ReadStream;
   private readonly output: NodeJS.WriteStream;
@@ -79,6 +81,7 @@ export class TuiTerminal {
     this.output.write("\x1b[?1049h");
     this.output.write("\x1b[?25l");
     this.output.write("\x1b[?2004h");
+    this.output.write("\x1b[?1000h\x1b[?1006h");
     this.output.write("\x1b[2J\x1b[H");
   }
 
@@ -101,8 +104,10 @@ export class TuiTerminal {
     this.input.off("data", this.rawInput);
     if (this.resizeHandler) this.output.off("resize", this.resizeHandler);
     if (this.inputTimer) clearTimeout(this.inputTimer);
+    if (this.mouseTimer) clearTimeout(this.mouseTimer);
+    this.mouseTimer = null;
     this.inputTimer = null;
-    this.pendingInput = ""; this.paste = false; this.pasteText = "";
+    this.pendingInput = ""; this.pendingMouse = ""; this.paste = false; this.pasteText = "";
     this.output.write("\x1b[?25h");
     this.output.write("\x1b[?2004l");
     this.output.write("\x1b[?1000l\x1b[?1006l");
@@ -124,6 +129,7 @@ export class TuiTerminal {
       this.output.write("\x1b[?1049h");
       this.output.write("\x1b[?25l");
       this.output.write("\x1b[?2004h");
+      this.output.write("\x1b[?1000h\x1b[?1006h");
       this.output.write("\x1b[2J\x1b[H");
       }
     }
@@ -143,9 +149,12 @@ export class TuiTerminal {
 
   render(frame: string): void {
     if (!this.active || this.suspended) return;
-    this.output.write("\x1b[H");
-    this.output.write(frame);
-    this.output.write("\x1b[J");
+    // Address each row explicitly: SSH/PTY newline modes and delayed autowrap
+    // must not shift a full-width frame or erase its final border cell.
+    const rows=frame.split("\n").slice(0,this.height);
+    const body=rows.map((row,index)=>`\x1b[${index+1};1H\x1b[2K${row}`).join("");
+    const tail=rows.length<this.height?`\x1b[${rows.length+1};1H\x1b[J`:"";
+    this.output.write(`\x1b[?2026h${body}${tail}\x1b[?2026l`);
   }
 
   private receiveInput(text: string): void {
@@ -159,7 +168,7 @@ export class TuiTerminal {
       if (this.paste) {
         this.pasteText = (this.pasteText + before).slice(0, 131072);
         this.keyHandler?.(this.pasteText, { name: "paste" }); this.pasteText = "";
-      } else this.keyInput.write(before);
+      } else this.dispatchInput(before);
       this.paste = !this.paste;
       this.pendingInput = this.pendingInput.slice(found + marker.length);
       this.receiveInput(""); return;
@@ -169,8 +178,42 @@ export class TuiTerminal {
     const ready = this.pendingInput.slice(0, this.pendingInput.length - trailing);
     this.pendingInput = trailing ? this.pendingInput.slice(-trailing) : "";
     if (this.paste) this.pasteText = (this.pasteText + ready).slice(0, 131072);
-    else if (ready) this.keyInput.write(ready);
-    if (trailing && !this.paste) this.inputTimer = setTimeout(() => {this.keyInput.write(this.pendingInput);this.pendingInput="";this.inputTimer=null;}, 30);
+    else if (ready) this.dispatchInput(ready);
+    if (trailing && !this.paste) this.inputTimer = setTimeout(() => {this.dispatchInput(this.pendingInput);this.pendingInput="";this.inputTimer=null;}, 30);
+  }
+
+  /** Consume SGR mouse reports without letting clicks become composer text. */
+  private dispatchInput(text:string):void {
+    if(this.mouseTimer)clearTimeout(this.mouseTimer);this.mouseTimer=null;
+    const input=this.pendingMouse+text;this.pendingMouse="";
+    let offset=0;
+    while(offset<input.length){
+      const start=input.indexOf("\x1b[<",offset);
+      if(start<0){
+        const rest=input.slice(offset),prefix=rest.endsWith("\x1b[")?"\x1b[":rest.endsWith("\x1b")?"\x1b":"";
+        this.keyInput.write(prefix?rest.slice(0,-prefix.length):rest);
+        if(prefix){
+          this.pendingMouse=prefix;
+          this.mouseTimer=setTimeout(()=>{
+            const pending=this.pendingMouse;this.pendingMouse="";this.mouseTimer=null;
+            if(pending==="\x1b")this.keyHandler?.("\x1b",{name:"escape",sequence:pending});
+            else this.keyInput.write(pending);
+          },500);
+        }
+        break;
+      }
+      this.keyInput.write(input.slice(offset,start));
+      // eslint-disable-next-line no-control-regex -- Parse terminal SGR mouse protocol bytes.
+      const rest=input.slice(start),report=/^\x1b\[<(\d+);(\d+);(\d+)([mM])/.exec(rest);
+      if(!report){
+        // eslint-disable-next-line no-control-regex -- Retain a fragmented SGR mouse report.
+        if(rest.length<128&&/^\x1b\[<[\d;]*$/.test(rest)){this.pendingMouse=rest;break;}
+        this.keyInput.write(rest.slice(0,3));offset=start+3;continue;
+      }
+      const button=Number(report[1]);
+      if(report[4]==="M"&&(button&64)&&((button&3)===0||(button&3)===1))this.keyHandler?.("",{name:(button&3)===0?"scrollup":"scrolldown",sequence:report[0]});
+      offset=start+report[0].length;
+    }
   }
 
   private removeListeners(): void {
@@ -180,7 +223,9 @@ export class TuiTerminal {
     }
     this.input.off("data", this.rawInput);
     if (this.inputTimer) clearTimeout(this.inputTimer);
-    this.inputTimer = null; this.pendingInput = ""; this.paste = false; this.pasteText = "";
+    if (this.mouseTimer) clearTimeout(this.mouseTimer);
+    this.mouseTimer = null;
+    this.inputTimer = null; this.pendingInput = ""; this.pendingMouse = ""; this.paste = false; this.pasteText = "";
     if (this.resizeHandler) {
       this.output.off("resize", this.resizeHandler);
       this.resizeHandler = null;

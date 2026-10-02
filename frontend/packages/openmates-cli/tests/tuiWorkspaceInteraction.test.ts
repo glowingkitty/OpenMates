@@ -257,3 +257,16 @@ test("signed-out attachment failure keeps draft and never sends", async () => {
   terminal.press("\u0003", {ctrl:true,name:"c"});
   await run;
 });
+
+// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity
+test("ordinary detail views scroll down and immediately reverse at their bounds",async()=>{
+  const terminal=new FakeTerminal();terminal.height=18;
+  const {client}=fakeClient();const run=runTui(client as never,terminal as never);
+  await tick();terminal.type("/help");terminal.enterKey();await tick();
+  const top=terminal.latest().split("\n")[3];
+  terminal.press("",{name:"down"});await tick();assert.notEqual(terminal.latest().split("\n")[3],top);
+  terminal.press("",{name:"up"});await tick();assert.equal(terminal.latest().split("\n")[3],top);
+  terminal.press("",{name:"end"});await tick();const end=terminal.latest();
+  terminal.press("",{name:"up"});await tick();assert.notEqual(terminal.latest(),end);
+  terminal.press("\u0003",{ctrl:true,name:"c"});await run;
+});

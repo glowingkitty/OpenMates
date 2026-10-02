@@ -61,15 +61,15 @@ export function moveGraphemeCursor(value: string, cursor: number, direction: -1 
 }
 
 export type TuiColorMode = "none" | "ansi16" | "ansi256" | "truecolor";
+export type TuiSpan = { text: string; background?: string; bold?: boolean };
 /** Trusted rendering metadata, kept separate from untrusted terminal text. */
 export type TuiLine = string | {
   text: string;
-  gradient?: { start: string; end: string };
+  background?: string;
+  spans?: TuiSpan[];
   color?: string;
   bold?: boolean;
   inset?: number;
-  row?: number;
-  rows?: number;
 };
 export const lineText = (line: TuiLine): string => typeof line === "string" ? line : line.text;
 const rgb = (hex: string): number[] => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
@@ -87,16 +87,9 @@ function colorSequence(color: number[], mode: TuiColorMode, background: boolean)
 export function foreground(value: string, color: string, mode: TuiColorMode, bold = false): string {
   return mode === "none" ? value : `${bold ? "\x1b[1m" : ""}${colorSequence(rgb(color), mode, false)}${value}\x1b[0m`;
 }
-export function gradientLine(value: string, width: number, colors: {start: string; end: string}, mode: TuiColorMode, row = 0, rows = 1): string {
+export function backgroundLine(value: string, width: number, color: string, mode: TuiColorMode, bold = false): string {
   const line = padCells(value, width);
   if (mode === "none") return line;
-  const start = rgb(colors.start), end = rgb(colors.end);
-  let output = mode === "ansi16" ? "\x1b[97m" : colorSequence([255,255,255], mode, false);
-  let column = 0;
-  for (const { segment } of segments.segment(line)) {
-    const ratio = (column / Math.max(1, width - 1) + row / Math.max(1, rows - 1)) / 2;
-    output += colorSequence(start.map((v, i) => Math.round(v + (end[i] - v) * ratio)), mode, true) + segment;
-    column += graphemeWidth(segment);
-  }
-  return output + "\x1b[0m";
+  const white = mode === "ansi16" ? "\x1b[97m" : colorSequence([255,255,255], mode, false);
+  return `${bold ? "\x1b[1m" : ""}${white}${colorSequence(rgb(color), mode, true)}${line}\x1b[0m`;
 }

@@ -75125,59 +75125,59 @@ assertions:
       line: 262
       name: moves supported workspace resources to a team with confirmation metadata
       surface: cli
-    - &id9224
+    - &id9227
       path: frontend/packages/openmates-cli/tests/tuiWorkflowInteraction.test.ts
       line: 212
       name: ignores a historical graph response after leaving the workspace
       surface: cli
-    - &id9235
+    - &id9239
       path: frontend/packages/openmates-cli/tests/work-recovery.test.ts
       line: 29
       name: validates typed pointerless Plan projections
       surface: cli
-    - &id9236
+    - &id9240
       path: frontend/packages/openmates-cli/tests/work-recovery.test.ts
       line: 36
       name: rejects ciphertext and cyclic dependencies
       surface: cli
-    - &id9237
+    - &id9241
       path: frontend/packages/openmates-cli/tests/work-recovery.test.ts
       line: 47
       name: ignores server-generated metadata during semantic comparison
       surface: cli
-    - &id9239
+    - &id9243
       path: frontend/packages/openmates-cli/tests/workflows.test.ts
       line: 111
       name: creates a disabled blank workflow draft
       surface: cli
-    - &id9241
+    - &id9245
       path: frontend/packages/openmates-cli/tests/workflows.test.ts
       line: 150
       name: creates, lists, and updates workflows through typed endpoints
       surface: cli
-    - &id9242
+    - &id9246
       path: frontend/packages/openmates-cli/tests/workflows.test.ts
       line: 212
       name: runs workflows and reads run history
       surface: cli
-    - &id9243
+    - &id9247
       path: frontend/packages/openmates-cli/tests/workflows.test.ts
       line: 243
       name: validates, creates, updates YAML, step-tests, and responds to waiting
         runs
       surface: cli
-    - &id9244
+    - &id9248
       path: frontend/packages/openmates-cli/tests/workflows.test.ts
       line: 293
       name: manages client-encrypted workflow template projection and sharing contracts
       surface: cli
-    - &id9245
+    - &id9249
       path: frontend/packages/openmates-cli/tests/workflows.test.ts
       line: 353
       name: retrieves, revokes, restores, and completes workflow template sharing
         bindings
       surface: cli
-    - &id9246
+    - &id9250
       path: frontend/packages/openmates-cli/tests/workflows.test.ts
       line: 390
       name: manages durable workflow input sessions
@@ -75229,86 +75229,108 @@ assertions:
     - &id9221
       path: frontend/packages/openmates-cli/tests/tuiHome.test.ts
       line: 20
-      name: authenticated default home loads inspiration username and vertically stacked
-        resumable chats
+      name: authenticated default home loads inspiration username and horizontal keyboard-selected
+        chats
       surface: cli
     - &id9222
+      path: frontend/packages/openmates-cli/tests/tuiHome.test.ts
+      line: 127
+      name: carousel bounds, filtering, draft cursor and viewport resizing preserve
+        the chosen chat
+      surface: cli
+    - &id9223
+      path: frontend/packages/openmates-cli/tests/tuiHome.test.ts
+      line: 146
+      name: home arrow scrolling and mouse wheel never change the selected chat or
+        draft
+      surface: cli
+    - &id9224
+      path: frontend/packages/openmates-cli/tests/tuiLayout.test.ts
+      line: 63
+      name: manual paging is not overridden by selection and overshoot reverses immediately
+      surface: cli
+    - &id9225
       path: frontend/packages/openmates-cli/tests/tuiTasksWorkspace.test.ts
       line: 91
       name: forms carry the stable task ID and validate destructive confirmation
       surface: cli
-    - &id9223
+    - &id9226
       path: frontend/packages/openmates-cli/tests/tuiTasksWorkspace.test.ts
       line: 109
       name: reorder submits versioned position and returns the matching decrypted
         task
       surface: cli
-    - &id9225
+    - &id9228
       path: frontend/packages/openmates-cli/tests/tuiWorkspaceInteraction.test.ts
       line: 22
       name: guest replies update category header and mate without a saved-account
         lookup
       surface: cli
-    - &id9226
+    - &id9229
       path: frontend/packages/openmates-cli/tests/tuiWorkspaceInteraction.test.ts
       line: 32
       name: session loss clears decrypted chat state before the next frame
       surface: cli
-    - &id9227
+    - &id9230
       path: frontend/packages/openmates-cli/tests/tuiWorkspaceInteraction.test.ts
       line: 93
       name: chat viewer presence starts with the TUI and clears on workspace navigation
         and exit
       surface: cli
-    - &id9228
+    - &id9231
       path: frontend/packages/openmates-cli/tests/tuiWorkspaceInteraction.test.ts
       line: 117
       name: a reply finishing after workspace navigation does not restore the old
         chat viewer
       surface: cli
-    - &id9229
+    - &id9232
       path: frontend/packages/openmates-cli/tests/tuiWorkspaceInteraction.test.ts
       line: 135
       name: first send shows pending header, then metadata; second send reuses chat
         ID
       surface: cli
-    - &id9230
+    - &id9233
       path: frontend/packages/openmates-cli/tests/tuiWorkspaceInteraction.test.ts
       line: 160
       name: draft survives Ctrl+P Tasks and Ctrl+N returns to the new chat draft
       surface: cli
-    - &id9231
+    - &id9234
       path: frontend/packages/openmates-cli/tests/tuiWorkspaceInteraction.test.ts
       line: 180
       name: Unicode cursor edits one grapheme and multiline paste does not send
       surface: cli
-    - &id9232
+    - &id9235
       path: frontend/packages/openmates-cli/tests/tuiWorkspaceInteraction.test.ts
       line: 201
       name: /chat reopens saved content and late fetch cannot replace Ctrl+N new chat
       surface: cli
-    - &id9233
+    - &id9236
       path: frontend/packages/openmates-cli/tests/tuiWorkspaceInteraction.test.ts
       line: 228
       name: Tasks select A, Escape, then select B opens edit and delete forms bound
         to B
       surface: cli
-    - &id9234
+    - &id9237
       path: frontend/packages/openmates-cli/tests/tuiWorkspaceInteraction.test.ts
       line: 246
       name: signed-out attachment failure keeps draft and never sends
       surface: cli
     - &id9238
+      path: frontend/packages/openmates-cli/tests/tuiWorkspaceInteraction.test.ts
+      line: 262
+      name: ordinary detail views scroll down and immediately reverse at their bounds
+      surface: cli
+    - &id9242
       path: frontend/packages/openmates-cli/tests/workflow-chat-delivery.test.ts
       line: 39
       name: CLI encrypts selected results and persists before fenced acknowledgement
       surface: cli
-    - &id9240
+    - &id9244
       path: frontend/packages/openmates-cli/tests/workflows.test.ts
       line: 128
       name: formats workflow child embeds for CLI output
       surface: cli
-    - &id9247
+    - &id9251
       path: frontend/packages/openmates-cli/tests/workflows.test.ts
       line: 481
       name: requires a CLI session before workflow calls
@@ -75374,6 +75396,10 @@ assertions:
     - *id9245
     - *id9246
     - *id9247
+    - *id9248
+    - *id9249
+    - *id9250
+    - *id9251
     surfaces:
       rest_api:
         direct_tests:
@@ -75405,17 +75431,17 @@ assertions:
         - *id9213
         - *id9214
         - *id9215
-        - *id9224
-        - *id9235
-        - *id9236
-        - *id9237
+        - *id9227
         - *id9239
+        - *id9240
         - *id9241
-        - *id9242
         - *id9243
-        - *id9244
         - *id9245
         - *id9246
+        - *id9247
+        - *id9248
+        - *id9249
+        - *id9250
         supporting_tests:
         - *id9205
         - *id9210
@@ -75428,9 +75454,9 @@ assertions:
         - *id9221
         - *id9222
         - *id9223
+        - *id9224
         - *id9225
         - *id9226
-        - *id9227
         - *id9228
         - *id9229
         - *id9230
@@ -75438,9 +75464,13 @@ assertions:
         - *id9232
         - *id9233
         - *id9234
+        - *id9235
+        - *id9236
+        - *id9237
         - *id9238
-        - *id9240
-        - *id9247
+        - *id9242
+        - *id9244
+        - *id9251
     current_direct_proof: false
   cli.work-structure.complete:
     specification: surface.cli@1
@@ -75470,145 +75500,95 @@ assertions:
     specification: surface.cli@1
     fingerprint: 430086b5da4b73d2357b44aa0e2a8220185c39927e10b2730b7189e20b19d75d
     direct_tests:
-    - &id9249
+    - &id9253
       path: frontend/packages/openmates-cli/tests/keychain.test.ts
       line: 33
       name: new storage never claims machine-ID encryption
       surface: cli
-    - &id9250
+    - &id9254
       path: frontend/packages/openmates-cli/tests/keychain.test.ts
       line: 44
       name: preserves an existing keyring record when the keyring cannot write
       surface: cli
-    - &id9251
+    - &id9255
       path: frontend/packages/openmates-cli/tests/storage.test.ts
       line: 382
       name: reports keyring or permission-restricted host file truthfully
       surface: cli
-    - &id9252
+    - &id9256
       path: frontend/packages/openmates-cli/tests/storage.test.ts
       line: 409
       name: does not overwrite an unavailable existing keyring session
       surface: cli
     supporting_tests:
-    - &id9248
+    - &id9252
       path: frontend/packages/openmates-cli/tests/keychain.test.ts
       line: 23
       name: storeMasterKey returns a result with a valid type
       surface: cli
     tests:
-    - *id9248
-    - *id9249
-    - *id9250
-    - *id9251
     - *id9252
+    - *id9253
+    - *id9254
+    - *id9255
+    - *id9256
     surfaces:
       cli:
         direct_tests:
-        - *id9249
-        - *id9250
-        - *id9251
-        - *id9252
+        - *id9253
+        - *id9254
+        - *id9255
+        - *id9256
         supporting_tests:
-        - *id9248
+        - *id9252
     current_direct_proof: false
   cli.pairing.expiry-upgrade:
     specification: surface.cli@1
     fingerprint: 70a201873fb998ed4ea71f07f4856fcdd57eba5bf6dafd7062e51dd6e8f9c693
     direct_tests: []
     supporting_tests:
-    - &id9253
+    - &id9257
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 439
       name: stops using an in-memory paired session after its absolute deadline
       surface: cli
-    - &id9254
+    - &id9258
       path: frontend/packages/openmates-cli/tests/storage.test.ts
       line: 136
       name: persists an absolute paired deadline and removes credentials after it
         passes
       surface: cli
-    - &id9255
+    - &id9259
       path: frontend/packages/openmates-cli/tests/storage.test.ts
       line: 148
       name: does not extend a paired deadline during a refresh save
       surface: cli
     tests:
-    - *id9253
-    - *id9254
-    - *id9255
-    surfaces:
-      cli:
-        direct_tests: []
-        supporting_tests:
-        - *id9253
-        - *id9254
-        - *id9255
-    current_direct_proof: false
-  cli.generated-files.cwd-default:
-    specification: surface.cli@1
-    fingerprint: 6fbfd15db159553ee47d1704a0dd3ce03af4f8a946277e56f425bce3430d25ec
-    direct_tests: []
-    supporting_tests:
-    - &id9256
-      path: frontend/packages/openmates-cli/tests/generatedFiles.test.ts
-      line: 18
-      name: JSON is URL-only unless an explicit destination requests a download
-      surface: cli
-    - &id9257
-      path: frontend/packages/openmates-cli/tests/generatedFiles.test.ts
-      line: 28
-      name: shared discovery saves full-quality artifacts and ignores search links
-      surface: cli
-    tests:
-    - *id9256
     - *id9257
-    surfaces:
-      cli:
-        direct_tests: []
-        supporting_tests:
-        - *id9256
-        - *id9257
-    current_direct_proof: false
-  cli.generated-files.destination:
-    specification: surface.cli@1
-    fingerprint: 5da1d99b5dffe4cd8ece5077fbf4d3e0054d19e887ddf44a0ca0a2b6c5c4091a
-    direct_tests: []
-    supporting_tests:
-    - &id9258
-      path: frontend/packages/openmates-cli/tests/generatedFiles.test.ts
-      line: 18
-      name: JSON is URL-only unless an explicit destination requests a download
-      surface: cli
-    - &id9259
-      path: frontend/packages/openmates-cli/tests/generatedFiles.test.ts
-      line: 39
-      name: automatic names preserve files; explicit names atomically replace them
-      surface: cli
-    tests:
     - *id9258
     - *id9259
     surfaces:
       cli:
         direct_tests: []
         supporting_tests:
+        - *id9257
         - *id9258
         - *id9259
     current_direct_proof: false
-  cli.generated-files.safe-visible:
+  cli.generated-files.cwd-default:
     specification: surface.cli@1
-    fingerprint: b7ad013b65958d9322535408e48e7c8bcdf4e3dd2e93288bd1c8258d693c2070
+    fingerprint: 6fbfd15db159553ee47d1704a0dd3ce03af4f8a946277e56f425bce3430d25ec
     direct_tests: []
     supporting_tests:
     - &id9260
-      path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3463
-      name: retrieves Code Run completion through polling when streaming is unavailable
+      path: frontend/packages/openmates-cli/tests/generatedFiles.test.ts
+      line: 18
+      name: JSON is URL-only unless an explicit destination requests a download
       surface: cli
     - &id9261
       path: frontend/packages/openmates-cli/tests/generatedFiles.test.ts
-      line: 39
-      name: automatic names preserve files; explicit names atomically replace them
+      line: 28
+      name: shared discovery saves full-quality artifacts and ignores search links
       surface: cli
     tests:
     - *id9260
@@ -75619,6 +75599,56 @@ assertions:
         supporting_tests:
         - *id9260
         - *id9261
+    current_direct_proof: false
+  cli.generated-files.destination:
+    specification: surface.cli@1
+    fingerprint: 5da1d99b5dffe4cd8ece5077fbf4d3e0054d19e887ddf44a0ca0a2b6c5c4091a
+    direct_tests: []
+    supporting_tests:
+    - &id9262
+      path: frontend/packages/openmates-cli/tests/generatedFiles.test.ts
+      line: 18
+      name: JSON is URL-only unless an explicit destination requests a download
+      surface: cli
+    - &id9263
+      path: frontend/packages/openmates-cli/tests/generatedFiles.test.ts
+      line: 39
+      name: automatic names preserve files; explicit names atomically replace them
+      surface: cli
+    tests:
+    - *id9262
+    - *id9263
+    surfaces:
+      cli:
+        direct_tests: []
+        supporting_tests:
+        - *id9262
+        - *id9263
+    current_direct_proof: false
+  cli.generated-files.safe-visible:
+    specification: surface.cli@1
+    fingerprint: b7ad013b65958d9322535408e48e7c8bcdf4e3dd2e93288bd1c8258d693c2070
+    direct_tests: []
+    supporting_tests:
+    - &id9264
+      path: frontend/packages/openmates-cli/tests/cli.test.ts
+      line: 3463
+      name: retrieves Code Run completion through polling when streaming is unavailable
+      surface: cli
+    - &id9265
+      path: frontend/packages/openmates-cli/tests/generatedFiles.test.ts
+      line: 39
+      name: automatic names preserve files; explicit names atomically replace them
+      surface: cli
+    tests:
+    - *id9264
+    - *id9265
+    surfaces:
+      cli:
+        direct_tests: []
+        supporting_tests:
+        - *id9264
+        - *id9265
     current_direct_proof: false
   cli.generated-files.help:
     specification: surface.cli@1
@@ -75632,197 +75662,193 @@ assertions:
     specification: surface.sdk@1
     fingerprint: 06401c5ddd86cc77bb7f3add63444f558a284f00bb82cd7ed77c19ae2c68507e
     direct_tests:
-    - &id9262
+    - &id9266
       path: backend/tests/test_account_export_security.py
       line: 30
       name: test_account_export_api_key_access_requires_approved_device_and_export_scope
       surface: rest_api
-    - &id9264
+    - &id9268
       path: backend/tests/test_account_import_security.py
       line: 41
       name: test_account_import_api_key_access_requires_import_scope
       surface: rest_api
-    - &id9265
+    - &id9269
       path: backend/tests/test_account_import_security.py
       line: 67
       name: test_account_import_api_key_access_requires_approved_device
       surface: rest_api
-    - &id9268
+    - &id9272
       path: backend/tests/test_api_key_scopes.py
       line: 29
       name: test_full_access_default_allows_chat_and_any_skill
       surface: rest_api
-    - &id9269
+    - &id9273
       path: backend/tests/test_api_key_scopes.py
       line: 40
       name: test_direct_app_skill_dispatch_rejects_unselected_ai_ask_scope
       surface: rest_api
-    - &id9270
+    - &id9274
       path: backend/tests/test_api_key_scopes.py
       line: 60
       name: test_openai_ai_dispatch_rejects_unselected_ai_ask_scope
       surface: rest_api
-    - &id9271
+    - &id9275
       path: backend/tests/test_api_key_scopes.py
       line: 79
       name: test_app_skill_scope_can_allow_one_skill_only
       surface: rest_api
-    - &id9272
+    - &id9276
       path: backend/tests/test_api_key_scopes.py
       line: 100
       name: test_chat_scopes_are_enforced_independently
       surface: rest_api
-    - &id9273
+    - &id9277
       path: backend/tests/test_api_key_scopes.py
       line: 119
       name: test_scope_payload_validation_accepts_canonical_scopes_and_rejects_unknown_values
       surface: rest_api
-    - &id9274
+    - &id9278
       path: backend/tests/test_api_key_scopes.py
       line: 141
       name: test_scope_payload_validation_deduplicates_selected_values
       surface: rest_api
-    - &id9275
+    - &id9279
       path: backend/tests/test_api_key_scopes.py
       line: 171
       name: test_one_period_credit_budget_blocks_when_request_would_exceed_limit
       surface: rest_api
-    - &id9276
+    - &id9280
       path: backend/tests/test_api_key_scopes.py
       line: 184
       name: test_multiple_credit_periods_are_rejected
       surface: rest_api
-    - &id9277
+    - &id9281
       path: backend/tests/test_api_key_scopes.py
       line: 199
       name: test_owned_api_key_device_verification_uses_device_owner_hash
       surface: rest_api
-    - &id9278
+    - &id9282
       path: backend/tests/test_api_key_scopes.py
       line: 212
       name: test_owned_api_key_device_verification_rejects_other_users
       surface: rest_api
-    - &id9279
+    - &id9283
       path: backend/tests/test_api_key_scopes.py
       line: 224
       name: test_api_key_device_dedupe_prefers_approved_duplicate
       surface: rest_api
-    - &id9280
+    - &id9284
       path: backend/tests/test_api_key_scopes.py
       line: 282
       name: test_approve_api_key_device_invalidates_injected_cache
       surface: rest_api
-    - &id9284
+    - &id9288
       path: backend/tests/test_workflows_routes_security.py
       line: 63
       name: test_limited_workflow_api_keys_need_read_write_and_execute_scopes
       surface: rest_api
-    - &id9285
+    - &id9289
       path: backend/tests/test_workflows_routes_security.py
       line: 82
       name: test_user_task_and_plan_content_routes_reject_developer_api_keys
       surface: rest_api
-    - &id9286
+    - &id9290
       path: backend/tests/test_workflows_routes_security.py
       line: 118
       name: test_approved_api_key_device_can_use_encrypted_task_and_plan_routes_with_scopes
       surface: rest_api
-    - &id9287
+    - &id9291
       path: backend/tests/test_workflows_routes_security.py
       line: 147
       name: test_approved_api_key_device_project_crud_requires_project_scopes
       surface: rest_api
-    - &id9288
+    - &id9292
       path: backend/tests/test_workflows_routes_security.py
       line: 173
       name: test_create_only_product_scopes_do_not_grant_read_or_modify_access
       surface: rest_api
-    - &id9289
+    - &id9293
       path: backend/tests/test_workflows_routes_security.py
       line: 218
       name: test_full_access_approved_device_bypasses_supported_product_scope_checks
       surface: rest_api
-    - &id9290
+    - &id9294
       path: backend/tests/test_workflows_routes_security.py
       line: 235
       name: test_unmapped_api_key_routes_fail_closed_except_app_routes
       surface: rest_api
-    - &id9292
+    - &id9296
       path: backend/tests/test_workflows_routes_security.py
       line: 354
       name: test_ask_step_stream_uses_owner_scoped_workflow_and_emits_saved_run
       surface: rest_api
     supporting_tests:
-    - &id9263
+    - &id9267
       path: backend/tests/test_account_import_security.py
       line: 26
       name: test_account_import_routes_have_explicit_slowapi_limits
       surface: rest_api
-    - &id9266
+    - &id9270
       path: backend/tests/test_account_import_security.py
       line: 83
       name: test_account_import_plaintext_and_completion_payloads_are_size_limited
       surface: rest_api
-    - &id9267
+    - &id9271
       path: backend/tests/test_account_import_security.py
       line: 101
       name: test_plaintext_scan_route_does_not_write_client_chats_to_request_state
       surface: rest_api
-    - &id9281
+    - &id9285
       path: backend/tests/test_sdk_chat_recovery.py
       line: 115
       name: test_api_key_or_device_revocation_between_claim_and_persist_is_rejected
       surface: rest_api
-    - &id9282
+    - &id9286
       path: backend/tests/test_sdk_chat_recovery.py
       line: 139
       name: test_claim_rejects_missing_saved_chat_scope
       surface: rest_api
-    - &id9283
+    - &id9287
       path: backend/tests/test_workflows_routes_security.py
       line: 26
       name: test_workflow_routes_have_explicit_slowapi_limits
       surface: rest_api
-    - &id9291
+    - &id9295
       path: backend/tests/test_workflows_routes_security.py
       line: 258
       name: test_project_remote_source_routes_remain_session_only
       surface: rest_api
-    - &id9293
+    - &id9297
       path: frontend/apps/web_app/tests/api-key-scopes-settings.spec.ts
       line: 85
       name: switches from full access to independent scope toggles
       surface: gui.web
-    - &id9294
+    - &id9298
       path: frontend/apps/web_app/tests/api-keys-flow.spec.ts
       line: 405
       name: creates an API key, verifies format, and deletes it
       surface: gui.web
-    - &id9295
+    - &id9299
       path: frontend/apps/web_app/tests/api-keys-flow.spec.ts
       line: 519
       name: create button is disabled when API key name is empty
       surface: gui.web
-    - &id9296
+    - &id9300
       path: frontend/apps/web_app/tests/api-keys-flow.spec.ts
       line: 615
       name: creates a limited API key with individual scope toggles
       surface: gui.web
-    - &id9297
+    - &id9301
       path: frontend/apps/web_app/tests/api-keys-flow.spec.ts
       line: 757
       name: creates API key, verifies device approval flow, and saves working key
       surface: gui.web
-    - &id9298
+    - &id9302
       path: frontend/apps/web_app/tests/api-keys-flow.spec.ts
       line: 969
       name: shows limit warning and disabled create button when 5 API keys exist
       surface: gui.web
     tests:
-    - *id9262
-    - *id9263
-    - *id9264
-    - *id9265
     - *id9266
     - *id9267
     - *id9268
@@ -75856,16 +75882,16 @@ assertions:
     - *id9296
     - *id9297
     - *id9298
+    - *id9299
+    - *id9300
+    - *id9301
+    - *id9302
     surfaces:
       rest_api:
         direct_tests:
-        - *id9262
-        - *id9264
-        - *id9265
+        - *id9266
         - *id9268
         - *id9269
-        - *id9270
-        - *id9271
         - *id9272
         - *id9273
         - *id9274
@@ -75875,124 +75901,124 @@ assertions:
         - *id9278
         - *id9279
         - *id9280
-        - *id9284
-        - *id9285
-        - *id9286
-        - *id9287
-        - *id9288
-        - *id9289
-        - *id9290
-        - *id9292
-        supporting_tests:
-        - *id9263
-        - *id9266
-        - *id9267
         - *id9281
         - *id9282
         - *id9283
+        - *id9284
+        - *id9288
+        - *id9289
+        - *id9290
         - *id9291
+        - *id9292
+        - *id9293
+        - *id9294
+        - *id9296
+        supporting_tests:
+        - *id9267
+        - *id9270
+        - *id9271
+        - *id9285
+        - *id9286
+        - *id9287
+        - *id9295
       gui.web:
         direct_tests: []
         supporting_tests:
-        - *id9293
-        - *id9294
-        - *id9295
-        - *id9296
         - *id9297
         - *id9298
+        - *id9299
+        - *id9300
+        - *id9301
+        - *id9302
     current_direct_proof: false
   sdk.encryption.local-only:
     specification: surface.sdk@1
     fingerprint: ceef05fbcbd968d06fd076d15893102a7c3ede31baca500763ce682c8d86aac3
     direct_tests:
-    - &id9299
+    - &id9303
       path: backend/tests/test_sdk_session.py
       line: 29
       name: test_sdk_session_returns_api_key_wrapper_without_plaintext_master_key
       surface: rest_api
-    - &id9300
+    - &id9304
       path: frontend/packages/openmates-cli/tests/key-wrappers.test.ts
       line: 46
       name: decrypts loaded chats using master wrapper rows before row-level fallback
       surface: sdks.npm
-    - &id9301
+    - &id9305
       path: frontend/packages/openmates-cli/tests/sdk-projects.test.ts
       line: 89
       name: provides explicit Personal and Team encrypted CRUD without live file methods
       surface: sdks.npm
-    - &id9302
+    - &id9306
       path: frontend/packages/openmates-cli/tests/sdk-projects.test.ts
       line: 170
       name: links and unlinks embeds, chats, and workflows as OpenMates-only Project
         items
       surface: sdks.npm
-    - &id9303
+    - &id9307
       path: frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
       line: 101
       name: manages workflows through the shared API contract
       surface: sdks.npm
-    - &id9304
+    - &id9308
       path: frontend/packages/openmates-cli/tests/sdk.test.ts
       line: 932
       name: lazily unwraps API-key session material and decrypts listed chat metadata
       surface: sdks.npm
-    - &id9305
+    - &id9309
       path: frontend/packages/openmates-cli/tests/sdk.test.ts
       line: 976
       name: searches decrypted chat metadata locally without a server plaintext search
         endpoint
       surface: sdks.npm
-    - &id9306
+    - &id9310
       path: frontend/packages/openmates-cli/tests/sdk.test.ts
       line: 1024
       name: resolves encrypted saved chat slugs locally before loading a chat
       surface: sdks.npm
-    - &id9307
+    - &id9311
       path: packages/openmates-python/tests/test_key_wrappers.py
       line: 29
       name: test_pip_sdk_decrypts_chat_with_master_wrapper_before_row_key
       surface: sdks.pip
-    - &id9308
+    - &id9312
       path: packages/openmates-python/tests/test_plans.py
       line: 278
       name: test_pip_sdk_plan_show_resolves_encrypted_slug_from_raw_list
       surface: sdks.pip
-    - &id9309
+    - &id9313
       path: packages/openmates-python/tests/test_projects.py
       line: 51
       name: test_pip_sdk_project_links_are_openmates_only
       surface: sdks.pip
-    - &id9310
+    - &id9314
       path: packages/openmates-python/tests/test_projects.py
       line: 156
       name: test_pip_sdk_projects_explicit_personal_and_team_crud
       surface: sdks.pip
-    - &id9311
+    - &id9315
       path: packages/openmates-python/tests/test_sdk.py
       line: 961
       name: test_workflow_workspace_methods_match_npm_sdk_contract
       surface: sdks.pip
-    - &id9312
+    - &id9316
       path: packages/openmates-python/tests/test_sdk.py
       line: 1556
       name: test_lazily_unwraps_api_key_session_and_decrypts_chat_metadata
       surface: sdks.pip
-    - &id9313
+    - &id9317
       path: packages/openmates-python/tests/test_sdk.py
       line: 1608
       name: test_searches_decrypted_chat_metadata_locally
       surface: sdks.pip
-    - &id9314
+    - &id9318
       path: packages/openmates-python/tests/test_workflows.py
       line: 59
       name: test_pip_sdk_workflow_methods_use_shared_workflows_api
       surface: sdks.pip
     supporting_tests: []
     tests:
-    - *id9299
-    - *id9300
-    - *id9301
-    - *id9302
     - *id9303
     - *id9304
     - *id9305
@@ -76005,569 +76031,569 @@ assertions:
     - *id9312
     - *id9313
     - *id9314
+    - *id9315
+    - *id9316
+    - *id9317
+    - *id9318
     surfaces:
       rest_api:
         direct_tests:
-        - *id9299
+        - *id9303
         supporting_tests: []
       sdks.npm:
         direct_tests:
-        - *id9300
-        - *id9301
-        - *id9302
-        - *id9303
         - *id9304
         - *id9305
         - *id9306
-        supporting_tests: []
-      sdks.pip:
-        direct_tests:
         - *id9307
         - *id9308
         - *id9309
         - *id9310
+        supporting_tests: []
+      sdks.pip:
+        direct_tests:
         - *id9311
         - *id9312
         - *id9313
         - *id9314
+        - *id9315
+        - *id9316
+        - *id9317
+        - *id9318
         supporting_tests: []
     current_direct_proof: false
   sdk.auth.credential-separation:
     specification: surface.sdk@1
     fingerprint: 961e6a99722f98c7ff03cc03d8473ca1d6c90e766963383fcc081bc0f6a930a6
     direct_tests:
-    - &id9315
+    - &id9319
       path: backend/tests/test_sdk_session.py
       line: 29
       name: test_sdk_session_returns_api_key_wrapper_without_plaintext_master_key
       surface: rest_api
-    - &id9316
+    - &id9320
       path: frontend/packages/openmates-cli/tests/crypto.test.ts
       line: 346
       name: creates web-compatible API key material without exposing plaintext fields
       surface: cli
-    - &id9317
+    - &id9321
       path: frontend/packages/openmates-cli/tests/key-wrappers.test.ts
       line: 46
       name: decrypts loaded chats using master wrapper rows before row-level fallback
       surface: sdks.npm
-    - &id9318
+    - &id9322
       path: frontend/packages/openmates-cli/tests/sdk-credential-separation.test.ts
       line: 10
       name: sends only the bearer and cannot unwrap the account key with that bearer
       surface: sdks.npm
-    - &id9319
+    - &id9323
       path: packages/openmates-python/tests/test_key_wrappers.py
       line: 29
       name: test_pip_sdk_decrypts_chat_with_master_wrapper_before_row_key
       surface: sdks.pip
-    - &id9320
+    - &id9324
       path: packages/openmates-python/tests/test_sdk_credential_separation.py
       line: 13
       name: test_python_sdk_sends_bearer_only_and_bearer_cannot_unwrap
       surface: sdks.pip
     supporting_tests: []
     tests:
-    - *id9315
-    - *id9316
-    - *id9317
-    - *id9318
     - *id9319
     - *id9320
+    - *id9321
+    - *id9322
+    - *id9323
+    - *id9324
     surfaces:
       rest_api:
         direct_tests:
-        - *id9315
+        - *id9319
         supporting_tests: []
       cli:
         direct_tests:
-        - *id9316
+        - *id9320
         supporting_tests: []
       sdks.npm:
         direct_tests:
-        - *id9317
-        - *id9318
+        - *id9321
+        - *id9322
         supporting_tests: []
       sdks.pip:
         direct_tests:
-        - *id9319
-        - *id9320
+        - *id9323
+        - *id9324
         supporting_tests: []
     current_direct_proof: false
   sdk.auth.limited-resource-keys:
     specification: surface.sdk@1
     fingerprint: 54ee06ea572dcaa5ff370b33b2e7f219b5a7ddb91d30e6b3fa490ad0b886a2cd
     direct_tests:
-    - &id9321
+    - &id9325
       path: backend/tests/test_sdk_session.py
       line: 76
       name: test_limited_sdk_session_never_exports_account_master_wrapper
       surface: rest_api
-    - &id9322
+    - &id9326
       path: backend/tests/test_sdk_session.py
       line: 102
       name: test_limited_sdk_session_returns_only_still_owned_project_grants
       surface: rest_api
-    - &id9323
+    - &id9327
       path: backend/tests/test_sdk_session.py
       line: 137
       name: test_project_grant_creation_rejects_foreign_resource_and_root_scope
       surface: rest_api
-    - &id9324
+    - &id9328
       path: frontend/packages/openmates-cli/tests/sdk-projects.test.ts
       line: 54
       name: decrypts only selected personal Projects with a limited key
       surface: sdks.npm
-    - &id9325
+    - &id9329
       path: packages/openmates-python/tests/test_projects.py
       line: 25
       name: test_limited_pip_project_key_grant_cannot_decrypt_unrelated_project
       surface: sdks.pip
     supporting_tests: []
     tests:
-    - *id9321
-    - *id9322
-    - *id9323
-    - *id9324
     - *id9325
+    - *id9326
+    - *id9327
+    - *id9328
+    - *id9329
     surfaces:
       rest_api:
         direct_tests:
-        - *id9321
-        - *id9322
-        - *id9323
+        - *id9325
+        - *id9326
+        - *id9327
         supporting_tests: []
       sdks.npm:
         direct_tests:
-        - *id9324
+        - *id9328
         supporting_tests: []
       sdks.pip:
         direct_tests:
-        - *id9325
+        - *id9329
         supporting_tests: []
     current_direct_proof: false
   sdk.auth.legacy-key-migration:
     specification: surface.sdk@1
     fingerprint: 3c7c28ddef81a1933f48d2441a96050c6398085cd6dc07ea9c84fd6a19326ad1
     direct_tests:
-    - &id9326
+    - &id9330
       path: frontend/packages/openmates-cli/tests/sdk-credential-separation.test.ts
       line: 40
       name: returns a typed first-party verification exclusion for key management
       surface: sdks.npm
-    - &id9327
+    - &id9331
       path: packages/openmates-python/tests/test_sdk_credential_separation.py
       line: 39
       name: test_python_sdk_key_management_requires_first_party_verification
       surface: sdks.pip
     supporting_tests: []
     tests:
-    - *id9326
-    - *id9327
+    - *id9330
+    - *id9331
     surfaces:
       sdks.npm:
         direct_tests:
-        - *id9326
+        - *id9330
         supporting_tests: []
       sdks.pip:
         direct_tests:
-        - *id9327
+        - *id9331
         supporting_tests: []
     current_direct_proof: false
   sdk.surface.semantic-parity:
     specification: surface.sdk@1
     fingerprint: 668b71ac41e948eae198e5727ce290759b4c548b75efea3c2d77552a802ff0ee
     direct_tests:
-    - &id9376
+    - &id9380
       path: frontend/packages/openmates-cli/tests/sdk-credential-separation.test.ts
       line: 40
       name: returns a typed first-party verification exclusion for key management
       surface: sdks.npm
-    - &id9377
+    - &id9381
       path: frontend/packages/openmates-cli/tests/sdk-projects.test.ts
       line: 89
       name: provides explicit Personal and Team encrypted CRUD without live file methods
       surface: sdks.npm
-    - &id9378
+    - &id9382
       path: frontend/packages/openmates-cli/tests/sdk-projects.test.ts
       line: 170
       name: links and unlinks embeds, chats, and workflows as OpenMates-only Project
         items
       surface: sdks.npm
-    - &id9379
+    - &id9383
       path: frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
       line: 101
       name: manages workflows through the shared API contract
       surface: sdks.npm
-    - &id9381
+    - &id9385
       path: frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
       line: 390
       name: manages workflow template sharing transport through the shared API contract
       surface: sdks.npm
-    - &id9382
+    - &id9386
       path: frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
       line: 436
       name: manages durable workflow input sessions
       surface: sdks.npm
-    - &id9384
+    - &id9388
       path: frontend/packages/openmates-cli/tests/sdk.test.ts
       line: 932
       name: lazily unwraps API-key session material and decrypts listed chat metadata
       surface: sdks.npm
-    - &id9385
+    - &id9389
       path: frontend/packages/openmates-cli/tests/sdk.test.ts
       line: 976
       name: searches decrypted chat metadata locally without a server plaintext search
         endpoint
       surface: sdks.npm
-    - &id9386
+    - &id9390
       path: frontend/packages/openmates-cli/tests/sdk.test.ts
       line: 1024
       name: resolves encrypted saved chat slugs locally before loading a chat
       surface: sdks.npm
-    - &id9387
+    - &id9391
       path: frontend/packages/openmates-cli/tests/workflows-real-sdk-dev.test.ts
       line: 20
       name: creates a blank draft and runs it only after it becomes ready
       surface: sdks.npm
-    - &id9390
+    - &id9394
       path: packages/openmates-python/tests/test_projects.py
       line: 51
       name: test_pip_sdk_project_links_are_openmates_only
       surface: sdks.pip
-    - &id9391
+    - &id9395
       path: packages/openmates-python/tests/test_projects.py
       line: 156
       name: test_pip_sdk_projects_explicit_personal_and_team_crud
       surface: sdks.pip
-    - &id9392
+    - &id9396
       path: packages/openmates-python/tests/test_sdk.py
       line: 961
       name: test_workflow_workspace_methods_match_npm_sdk_contract
       surface: sdks.pip
-    - &id9393
+    - &id9397
       path: packages/openmates-python/tests/test_sdk.py
       line: 1556
       name: test_lazily_unwraps_api_key_session_and_decrypts_chat_metadata
       surface: sdks.pip
-    - &id9394
+    - &id9398
       path: packages/openmates-python/tests/test_sdk.py
       line: 1608
       name: test_searches_decrypted_chat_metadata_locally
       surface: sdks.pip
-    - &id9395
+    - &id9399
       path: packages/openmates-python/tests/test_sdk_credential_separation.py
       line: 39
       name: test_python_sdk_key_management_requires_first_party_verification
       surface: sdks.pip
-    - &id9396
+    - &id9400
       path: packages/openmates-python/tests/test_work_control.py
       line: 9
       name: test_pip_work_control_facades_exclude_plan_approval
       surface: sdks.pip
-    - &id9397
+    - &id9401
       path: packages/openmates-python/tests/test_workflows.py
       line: 59
       name: test_pip_sdk_workflow_methods_use_shared_workflows_api
       surface: sdks.pip
-    - &id9399
+    - &id9403
       path: packages/openmates-python/tests/test_workflows.py
       line: 271
       name: test_pip_sdk_workflow_template_sharing_transport_uses_shared_api
       surface: sdks.pip
-    - &id9402
+    - &id9406
       path: packages/openmates-python/tests/test_workflows_real_dev.py
       line: 24
       name: test_pip_sdk_real_dev_workflow_execution
       surface: sdks.pip
     supporting_tests:
-    - &id9328
+    - &id9332
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 252
       name: shares original PII only with an explicit opt-in
       surface: sdks.npm
-    - &id9329
+    - &id9333
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 275
       name: keeps authentication capability discovery out of payment routes
       surface: sdks.npm
-    - &id9330
+    - &id9334
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 453
       name: manages application preview lifecycle through authenticated embed preview
         endpoints
       surface: sdks.npm
-    - &id9331
+    - &id9335
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 515
       name: uses the persisted session API URL when no override is set
       surface: sdks.npm
-    - &id9332
+    - &id9336
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 521
       name: routes deterministic Project CRUD, children, source removal, and remote
         requests through one explicit context
       surface: sdks.npm
-    - &id9333
+    - &id9337
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 588
       name: keeps explicit API URL overrides higher priority than the persisted session
       surface: sdks.npm
-    - &id9334
+    - &id9338
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 594
       name: uses installed self-host server API when no override or session exists
       surface: sdks.npm
-    - &id9335
+    - &id9339
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 610
       name: persists rotated auth cookies and ws tokens after whoami
       surface: sdks.npm
-    - &id9336
+    - &id9340
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 700
       name: purges local private data when session refresh is explicitly invalid
       surface: sdks.npm
-    - &id9337
+    - &id9341
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 736
       name: uses destructive local purge for manual logout
       surface: sdks.npm
-    - &id9338
+    - &id9342
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 770
       name: uses destructive local purge after account deletion
       surface: sdks.npm
-    - &id9339
+    - &id9343
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 804
       name: returns the current rotated cookie jar for upload authentication
       surface: sdks.npm
-    - &id9340
+    - &id9344
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 833
       name: includes session_id when refreshing the WebSocket token
       surface: sdks.npm
-    - &id9341
+    - &id9345
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 864
       name: creates API keys through the audited typed path while generic settings
         POST stays blocked
       surface: sdks.npm
-    - &id9342
+    - &id9346
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 910
       name: lists API keys with decrypted display fields and pending device counts
       surface: sdks.npm
-    - &id9343
+    - &id9347
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 947
       name: sends stable CLI API-key device headers for app-skill execution
       surface: sdks.npm
-    - &id9344
+    - &id9348
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 978
       name: rejects app-skill responses that carry skill-level errors
       surface: sdks.npm
-    - &id9345
+    - &id9349
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 1006
       name: uses action-code and TOTP endpoints for destructive CLI step-up
       surface: sdks.npm
-    - &id9346
+    - &id9350
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 1042
       name: keeps polling app-skill tasks after transient task status failures
       surface: sdks.npm
-    - &id9347
+    - &id9351
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 1087
       name: persists pending AI responses during CLI sync
       surface: sdks.npm
-    - &id9348
+    - &id9352
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 1177
       name: refreshes exact chat messages before showing a selected chat
       surface: sdks.npm
-    - &id9349
+    - &id9353
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 1263
       name: persists passive task update jobs advertised during CLI reconnect sync
       surface: sdks.npm
-    - &id9350
+    - &id9354
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 1416
       name: skips passive task update jobs that do not include source chat context
       surface: sdks.npm
-    - &id9351
+    - &id9355
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 1499
       name: skips passive task update jobs already leased by another device
       surface: sdks.npm
-    - &id9352
+    - &id9356
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 1666
       name: uses the same deterministic parent embed key across version updates
       surface: sdks.npm
-    - &id9353
+    - &id9357
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 1741
       name: rejects token or plaintext identity fields in the chat-visible directory
       surface: sdks.npm
-    - &id9354
+    - &id9358
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 1758
       name: builds token-broker requests without putting refresh tokens in chat payloads
       surface: sdks.npm
-    - &id9355
+    - &id9359
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 1791
       name: posts connected-account cancel requests without token refs
       surface: sdks.npm
-    - &id9356
+    - &id9360
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 1826
       name: posts connected-account undo requests with only the opaque turn token
         ref
       surface: sdks.npm
-    - &id9357
+    - &id9361
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 1935
       name: builds the request artifact without approving memory content
       surface: sdks.npm
-    - &id9358
+    - &id9362
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 1961
       name: builds an included response artifact only for explicit approval
       surface: sdks.npm
-    - &id9359
+    - &id9363
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 1987
       name: builds encrypted task event system messages without plaintext leakage
       surface: sdks.npm
-    - &id9360
+    - &id9364
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 2015
       name: builds task update job persist payloads with only encrypted task content
       surface: sdks.npm
-    - &id9361
+    - &id9365
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 2092
       name: keeps task update jobs only when the current response emitted a matching
         event
       surface: sdks.npm
-    - &id9362
+    - &id9366
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 2149
       name: detects explicit Tasks app-skill messages
       surface: sdks.npm
-    - &id9363
+    - &id9367
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 2172
       name: stops before inference when saved-chat preflight requires a client update
       surface: sdks.npm
-    - &id9364
+    - &id9368
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 2232
       name: waits for preflight ack and keeps durable transaction content encrypted
       surface: sdks.npm
-    - &id9365
+    - &id9369
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 2518
       name: 'persists terminal recovery embeds including missing children: ${missingChild}'
       surface: sdks.npm
-    - &id9366
+    - &id9370
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 2871
       name: returns after confirmation for saved team messages that do not mention
         OpenMates
       surface: sdks.npm
-    - &id9367
+    - &id9371
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 2976
       name: preserves only assistant categories in inference history
       surface: sdks.npm
-    - &id9368
+    - &id9372
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 3008
       name: can include known Learning Mode context without changing incognito state
       surface: sdks.npm
-    - &id9369
+    - &id9373
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 3088
       name: sends current message history with incognito messages
       surface: sdks.npm
-    - &id9370
+    - &id9374
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 3166
       name: prepends provided benchmark history before the current incognito message
       surface: sdks.npm
-    - &id9371
+    - &id9375
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 3238
       name: encrypts child first-message metadata with the parent chat key
       surface: sdks.npm
-    - &id9372
+    - &id9376
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 3280
       name: builds approval and cancellation payloads only from explicit decisions
       surface: sdks.npm
-    - &id9373
+    - &id9377
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 3314
       name: forces a message refresh when cached metadata has no local messages
       surface: sdks.npm
-    - &id9374
+    - &id9378
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 3325
       name: caps the cached messages version to the local message count
       surface: sdks.npm
-    - &id9375
+    - &id9379
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 3336
       name: keeps the cached messages version when it matches the local message count
       surface: sdks.npm
-    - &id9380
+    - &id9384
       path: frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
       line: 294
       name: exposes workflow app-skill child embeds and server-side search results
       surface: sdks.npm
-    - &id9383
+    - &id9387
       path: frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
       line: 503
       name: previews unsaved messages and deletes run-owned history through owner
         workflow routes
       surface: sdks.npm
-    - &id9388
+    - &id9392
       path: frontend/packages/openmates-cli/tests/workspace-history.test.ts
       line: 83
       name: uses global and namespace-specific history endpoints
       surface: sdks.npm
-    - &id9389
+    - &id9393
       path: frontend/packages/openmates-cli/tests/workspace-history.test.ts
       line: 137
       name: uses namespace-specific ask endpoints
       surface: sdks.npm
-    - &id9398
+    - &id9402
       path: packages/openmates-python/tests/test_workflows.py
       line: 264
       name: test_pip_sdk_workflows_require_api_key
       surface: sdks.pip
-    - &id9400
+    - &id9404
       path: packages/openmates-python/tests/test_workflows.py
       line: 330
       name: test_pip_sdk_workflow_delete_requires_confirmation
       surface: sdks.pip
-    - &id9401
+    - &id9405
       path: packages/openmates-python/tests/test_workflows.py
       line: 337
       name: test_pip_sdk_workflow_template_import_rejects_malformed_response
       surface: sdks.pip
     tests:
-    - *id9328
-    - *id9329
-    - *id9330
-    - *id9331
     - *id9332
     - *id9333
     - *id9334
@@ -76639,24 +76665,24 @@ assertions:
     - *id9400
     - *id9401
     - *id9402
+    - *id9403
+    - *id9404
+    - *id9405
+    - *id9406
     surfaces:
       sdks.npm:
         direct_tests:
-        - *id9376
-        - *id9377
-        - *id9378
-        - *id9379
+        - *id9380
         - *id9381
         - *id9382
-        - *id9384
+        - *id9383
         - *id9385
         - *id9386
-        - *id9387
+        - *id9388
+        - *id9389
+        - *id9390
+        - *id9391
         supporting_tests:
-        - *id9328
-        - *id9329
-        - *id9330
-        - *id9331
         - *id9332
         - *id9333
         - *id9334
@@ -76701,24 +76727,28 @@ assertions:
         - *id9373
         - *id9374
         - *id9375
-        - *id9380
-        - *id9383
-        - *id9388
-        - *id9389
-      sdks.pip:
-        direct_tests:
-        - *id9390
-        - *id9391
+        - *id9376
+        - *id9377
+        - *id9378
+        - *id9379
+        - *id9384
+        - *id9387
         - *id9392
         - *id9393
+      sdks.pip:
+        direct_tests:
         - *id9394
         - *id9395
         - *id9396
         - *id9397
-        - *id9399
-        - *id9402
-        supporting_tests:
         - *id9398
+        - *id9399
         - *id9400
         - *id9401
+        - *id9403
+        - *id9406
+        supporting_tests:
+        - *id9402
+        - *id9404
+        - *id9405
     current_direct_proof: false
