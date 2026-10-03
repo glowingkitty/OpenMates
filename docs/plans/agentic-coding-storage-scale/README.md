@@ -116,6 +116,21 @@ The approved storage Specification validates. The Plan now explicitly uses the r
 
 ## Implementation evidence — 2026-10-03
 
+### Weekly storage billing extension
+
+The user added weekly credit billing for excess S3 storage and approved deletion
+of unpaid data after four weekly warnings. [billing-extension.md](billing-extension.md)
+records the exact personal allowance/rate, logical-byte metering, immutable weekly
+settlement, delivered-warning timeline, final payment check, protected expiration,
+and legal-copy work. TASK-9893 owns this additional outcome. Team payer policy is
+awaiting the user's answer; no new archive charge or real-user deletion is enabled.
+
+The privacy/terms audit found missing storage-price and unpaid-retention disclosures
+and an unsupported user-retrievable 60-day export-backup claim. The legal sources
+and canonical privacy mirror are being corrected with focused rendering and
+translation checks. Four-warning and expanded-billing claims must match the
+implementation activated at release.
+
 Plan conformance is **partial**. The implementation remains in progress; no full-capacity result, production activation, real-user pruning, or historical audit cleanup is claimed.
 
 ### Implemented candidate foundation
@@ -149,6 +164,10 @@ Selected unit run `37145080690` used the same product source with harness `a7978
 
 The corrected Team embed and native metadata nodes passed 1/1 each on candidate `c1c1c25413460c7cba6b5bd7e6a37a885ef0e2eb`, harness `8f25249ce752252c7d70e7bd84b12e75f99be633`, runs `37146141022` and `37146143162`. Its selected unit run `37146145424` passed the repaired IndexedDB journal case, CLI embed durability 3/3 and CLI command surface 4/4. Two timing tests encountered the test loader's source-import rewrite; their test-only built-module URL correction passed 6/6 locally with that loader. The sender suite still stops during import; standard stack diagnostics are being added before another mock change. New c1 E2E preparation passed on trusted harness `4f2710ceeec0d8f15adb2bb68f4bed6cc7425c10` (run `37146315929`); its four browser consumers have no terminal success yet.
 
+The exact selected sender diagnostic then captured the import cycle: `projectChatPreviewService` and `assistantSpeechController` register with an undefined `chatSyncService` before any test case collects (run `37147798687`, c1 product / c8e961 diagnostic harness). A test-only EventTarget mock now isolates that incidental singleton. No production change or weakened assertion was needed. Only the sender and timing test files require their focused rerun; the successful journal and embed durability receipts remain separate.
+
+Fresh c1 / 4f2710 browser receipts passed shared bounded history 1/1 (run `37147221439`) and startup 4/5 (run `37147224365`). Startup's remaining case selected the separately seeded one-message shared chat on a timestamp tie; the helper now requires at least four persisted messages before trimming, preserving the exact four-message assertion. The processing browser's first case passed a signed encrypted turn, canonical assistant persistence and reload (run `37147218720`), but the second case stopped at an empty editor before saving its code attachment or running the PostgreSQL/S3 workload. It now uses the existing verified editor-focus helper and adds a typed-prefix assertion. Recovery is still pending. These remaining changes are test-only and require focused reruns; no capacity or PostgreSQL/S3 workload success is claimed.
+
 Source-28 processing and recovery consumers then failed during isolated recovery-epoch activation, before any browser workload (`results=[]`). Their receipt excluded the private child-process exception, so a sanitized function/line/exception-class diagnostic and probe construction check are being added before a focused rerun. Neither run proves processing or recovery behavior.
 
 Product changes remain in reviewed private candidates. Only the approved Specification, Plan, Apple handoff and scoped CI tooling have been published to dev. No shared API/schema activation, Apple implementation, real-user archive cutover or pruning has occurred. The Mac chat can pull the published contract documents now and must pull the actual backend implementation commit when announced.
@@ -165,4 +184,103 @@ All archive actor switches default off. Targeted correctness/read/replication/ro
 
 The current four-worker CI runner cannot prove 500 simultaneous executions. The 1000-heavy-user-day/500-execution benchmark needs suitable isolated hardware. Five hundred client connections are not evidence of five hundred active executions. No operator rollout, restore, ownership transfer, or real-user deletion command has run.
 
+The warm PostgreSQL budget still needs a separate artifact inventory. A current
+encrypted head and up to 32 recent encrypted versions are retained **per artifact**;
+that per-artifact window does not bound the total payload across new, low-churn
+files. For illustration only, 200 new heads per day would create 200 × days
+heads before any deletion or eligible whole-graph archival. Their actual
+ciphertext size, metadata/index growth, and reachability determine the SQL
+cost. P-7 must measure current-head bytes, recent-version bytes, warm transcript
+bytes, cold S3 bytes, and row/index growth separately. Whole-graph copy and
+head-removal eligibility have not been verified for this workload, so this
+example is not a measured growth rate or a claim of permanent retention.
+
 See [rollout.md](rollout.md) for exact-source receipts, pause, verification, and rollback procedures. The linked Tasks remain the work-status authority.
+
+Source `410b0c510f8aa25b4fc28cc6c4b27b5a183f034c` / trusted harness `c8e961da9281a85667208d05b446d03f7964d4a2` passed all five startup cases (run `37149906271`). Its pilot passed the signed encrypted turn and saved-code upload/preflight/canonical-message checks, but failed the visible artifact reference after reload (run `37149903865`); the PostgreSQL/S3 workload did not execute. The sender encrypted original message text rather than the final artifact-reference content; that product fix is being verified.
+
+Scoped source `9e6aa906580ad1af66a914e2c353738964558246` includes the child-completion fixture, signed durable-save-failure fixture, bounded recovery-ACK diagnostics, scoped Node WebCrypto sender-test setup, and regenerated assertion metadata. Four pure fixture checks pass. Recovery and selected sender CI are submitted with the capacity Task as sole monitor; no successful recovery or full-capacity result is claimed from submission. This source excludes the in-progress billing and legal extension.
+
+Trusted selector tooling is published on dev as
+`5a8873c71ada4202ed13cc030f03a47598530b15` (four tool paths only), with 28 focused
+runner/coverage checks and deployment gates passing. Source
+`b1502a02feda56b5b1bd34ff961ff8c59c00f5be` uses that harness and adds canonical
+artifact-reference encryption, secret-key-derived retry-stable artifact IDs,
+exact client-encrypted preflight journals, and versioned ACK cleanup. Its selected
+UI tests passed 18/18 across five suites (run `37153512068`). Signed artifact reload
+and independent processing/PostgreSQL/S3 pilot runs are submitted, not passed.
+
+Recovery source `9e6aa906580ad1af66a914e2c353738964558246` / c8e961 passed two of
+four cases (run `37152181694`): sealed checkpoint recovery and pausing synthesis
+when durable child prompt save fails. Child assistant/summary publication still
+failed, and embed recovery reached a canonical head ACK but canonical diff reads
+returned 409. Both remaining defects are under bounded investigation. These
+results are incomplete recovery evidence and do not authorize archive pruning.
+
+The additional weekly-billing candidate includes a private-source-bound isolated
+metering probe and separate OFF/ON REST specs for actual upload/page bytes, logical
+key deduplication, Team attribution, conflicting metadata, and owner isolation.
+Its unit, translation, and static checks pass. The actual PostgreSQL/S3 probe,
+weekly-ledger integration, settings component preview, and new billing contract
+review remain pending; new archive charges and protected expiration remain off.
+
+
+Recovery candidate `0ab9a791042d3544cde0bfc5250b690feb53e6c5` / trusted harness
+`4240242427e88ec0c0dcbc4d27e44b80083d5e0d` carries the narrow initial-child
+inference-identity fix and initial-version `snapshot_required` recovery handling,
+with supporting tests and bounded private failure diagnostics. Relevant backend,
+UI classifier, and four-case recovery checks are submitted; submission does not
+establish a pass.
+
+The independent b150 pilot (run `37154455456`) passed its signed encrypted
+browser turn, then failed in probe service initialization before any PostgreSQL/S3
+transaction. The probe is being changed to the existing narrow runtime-service
+initializer. The b150 saved-code bundle check (run `37154452517`) passed its
+preflight and canonical head/key checks but failed the rendered artifact after
+reload. The local IndexedDB ciphertext still contained the original fenced
+Markdown and its synced status prevented canonical hydration from replacing it;
+exact local/canonical ciphertext reconciliation is being fixed. Neither failed
+run establishes storage capacity or permits source pruning.
+
+
+The coordinator retrieved successful focused receipts for 0ab9/424: backend
+`test_stream_consumer_recovery.py` (run `37155522319`) and UI
+`recoveryEmbedSource.test.ts` (run `37155525057`). The recovery E2E remains
+pending. The saved-code reload correction now reconciles the exact canonical
+ciphertext into the optimistic local row before dispatch; its selected unit and
+existing signed browser checks require a new source-bound run.
+
+A source audit confirms the scheduled chat archival path copies message segments
+only. Artifact current heads do not move through that sweep. The separate dormant
+whole-chat graph archive has no product caller, omits `embed_diffs`, and lacks
+Project/cross-chat reference checks before removing an embed row; the Project
+reader still requires that row. It must not be enabled to solve artifact warm
+capacity. The newest 32 version-number positions are a normal-writer window,
+not a demonstrated account-wide byte budget. An archive-aware artifact-head
+reader and verified ownership/reference handoff are required before this
+remaining SQL-growth limitation can be claimed resolved.
+
+
+Billing warning evidence has a separate unresolved delivery gate. The current
+email ledger marks HTTP-accepted provider submissions as sent, without retaining
+message IDs or correlating recipient delivery/bounce events. Its notice ACK is
+not proof of the proposed four delivered warnings; new expiry remains disabled.
+The billing review defines the required stronger behavior, while the candidate
+still needs that receipt implementation and integrated proof.
+
+
+Trusted archive failure diagnostics are published as dev
+`827d2708abe7ab88dbbf7abaf0bebb7d28278ab9` (two tool paths only). Candidate
+`2166be4ed05cff8df75563bbfc896793c93bd010` uses that harness, includes the
+non-Celery archive-probe initializer and exact optimistic user-ciphertext
+reconciliation, and preserves billing@5. Selected sender, signed bundle, and
+independent PostgreSQL/S3 pilot checks are submitted, not passed. The separate
+0ab9 recovery run remains in progress without an unchanged rerun. No new billing
+code, archive reader activation, payload pruning, or real-user deletion was
+published in these tooling commits.
+
+Tooling provenance correction: the canonical owning assertions are
+`storage.background.complete-sealed-recovery` for the 4240242 recovery diagnostic
+change and `storage.validation.synthetic-capacity` for the 827d270 probe diagnostic
+change. Their shorthand commit trailers used noncanonical assertion names; the
+infrastructure tests and source-bound product evidence remain separately traced.

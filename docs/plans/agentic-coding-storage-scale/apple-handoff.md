@@ -83,3 +83,74 @@ Return: Task/workspace, deployed dev commit, owned paths, platform/build/test re
 ## Activation dependency
 
 Keep the backend's strict parent/key writer enforcement and archive rollout inactive on shared services until the supported native sender is verified and the release/compatibility policy is settled. All archive worker switches default off; real pruning additionally requires supported-reader receipts, the 24-hour source buffer, full zero-inference capacity/lifecycle tests, and per-unit safety fences. The current small CI runner cannot prove 500 simultaneous executions. No Apple receipt or full-scale capacity result has been claimed.
+
+
+## Additional sender and storage-billing requirements
+
+These corrections are in the reviewed Linux candidate and still require its
+source-bound CI and coordinated backend/web release. Pull the implementation
+commit when it is announced; the Mac chat keeps ownership of native changes.
+
+### Saved message references and uncertain ACKs
+
+- Extracted code/table references must be present in the **canonical encrypted
+  user message**, as well as the message supplied to inference. Encrypting the
+  original editor markdown while only inference receives the artifact reference
+  loses that reference after reload.
+- Preserve each extracted artifact ID and its exact encrypted bundle across
+  retry/restart. Retaining random IDs is acceptable. If deriving IDs, use a secret
+  chat-key HMAC with domain separation; a public plaintext SHA mapping exposes a
+  guessing oracle.
+- Before dispatch, retain the exact turn ID, encrypted user message, commitment,
+  wrappers, and preflight identity in client-encrypted retry storage. An uncertain
+  ACK cannot generate another turn ID or another ciphertext under the committed
+  message ID. Bind the journal to account, chat, message, key and final content.
+- For AI turns, a generic legacy `chat_message_confirmed` status may precede turn
+  acceptance. The web candidate clears its exact preflight journal only for the
+  matching chat/message and committed `new_messages_v == expected_messages_v + 1`.
+  Native must likewise distinguish a canonical accepted receipt from an earlier
+  metadata status, and preserve pending data when the proof is absent. Keep the
+  existing separate ordinary-Team preflight path compatible.
+- Reconcile the optimistic local encrypted message to the exact canonical
+  artifact-reference ciphertext before dispatch. A synced local status must not
+  preserve original editor fences while rejecting canonical hydration on reload.
+- Add tests for saved code after reload, exact replay after lost ACK/restart,
+  legacy/stale/cross-chat ACK rejection, and no retry-journal resurrection when
+  a later sync write replaces the message row.
+
+### Weekly storage settings
+
+The additional `feature.billing@6` contract is awaiting user review. This section
+is a proposed API handoff, not authorization to activate native billing behavior
+before that review and the matching backend release.
+
+`GET /v1/settings/storage` keeps `total_bytes`, `free_bytes`, weekly price, and
+legacy uploaded-file breakdown. The candidate additionally returns:
+
+| Field | Native handling |
+| --- | --- |
+| `logical_s3_bytes` | Optional on older APIs; included in authoritative personal `total_bytes` only under the active billing policy. |
+| `metering_categories` | Optional map of additional billable category bytes; display positive recognized entries as storage, not as uploaded-file counts. |
+| `metering_source_version`, `metering_policy_version` | Preserve for consistency/debugging; do not show raw internal identifiers as category names. |
+
+Recognized category labels:
+
+| API key | User label |
+| --- | --- |
+| `chat_pages` | Saved chat history |
+| `chat_oversized` | Large chat messages |
+| `cold_chat_graphs` | Older chat archives |
+| `embed_versions` | Artifact history |
+| `sealed_recovery` | Outputs waiting to sync |
+
+`total_bytes` remains authoritative. Legacy `breakdown` and `total_files` describe
+uploaded/generated files; archive pages are not additional uploaded files.
+Example native fixture: 256 MiB uploaded files plus logical categories of 128,
+64, 32, 16 and 8 MiB gives 504 MiB total. Also test an older API response with no
+new fields. Personal pricing stays 1 GiB free and 3 credits per started excess
+GiB per week. New logical-S3 charging defaults off in the backend; Team payer and
+allowance remain pending approval, so native must not invent a Team storage bill.
+
+The four-warning notices and final-payment/reference-safe expiry workflow must
+be released with matching policy and backend behavior. Do not add native
+expiration actions or assume the inactive archive-billing rollout is enabled.
