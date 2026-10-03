@@ -24,6 +24,20 @@ def _load_bound_runner(monkeypatch):
     return runner
 
 
+def test_capacity_runner_uses_reserved_cli_slot_for_distinct_synthetic_accounts(monkeypatch) -> None:
+    runner = _load_bound_runner(monkeypatch)
+    with pytest.raises(RuntimeError, match="reserved auth-account slot"):
+        runner.provision_account(100, identity_index=2, cli_slot=100)
+    tree = ast.parse(Path(runner.__file__).read_text())
+    workload = next(node for node in tree.body
+                    if isinstance(node, ast.FunctionDef) and node.name == "run_storage_capacity")
+    calls = [node for node in ast.walk(workload) if isinstance(node, ast.Call)
+             and isinstance(node.func, ast.Name) and node.func.id == "provision_account"]
+    assert len(calls) == 1
+    assert ast.literal_eval(next(keyword.value for keyword in calls[0].keywords
+                                 if keyword.arg == "cli_slot")) == 14
+
+
 def test_capacity_profile_uses_private_network_storage_and_replay_only() -> None:
     profile = compose_profile("candidate-sha", storage_capacity=True, capacity_concurrency=2,
                               account_emails=["ci-one@example.com"])

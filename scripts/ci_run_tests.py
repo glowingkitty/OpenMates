@@ -439,8 +439,11 @@ def pace_signup():
     _last_signup_started = time.monotonic()
 
 
-def provision_account(slot: int, *, identity_index: int) -> dict:
-    """Use real client crypto/auth; only receipt of the private email code is local."""
+def provision_account(slot: int, *, identity_index: int, cli_slot: int | None = None) -> dict:
+    """Use real client crypto/auth; keep the fixture identity separate from CLI slot labels."""
+    cli_slot = slot if cli_slot is None else cli_slot
+    if cli_slot not in (14, 15, 16, 17, 18, 19, 20):
+        raise RuntimeError("CLI provisioning requires a reserved auth-account slot")
     pace_signup()
     profile = json.loads(COMPOSE_PATH.read_text())
     token = cms_admin_token(profile)
@@ -467,7 +470,7 @@ def provision_account(slot: int, *, identity_index: int) -> dict:
         "e2e",
         "provision-auth-accounts",
         "--slot",
-        str(slot),
+        str(cli_slot),
         "--artifact",
         str(artifact),
         "--email",
@@ -528,7 +531,7 @@ def provision_account(slot: int, *, identity_index: int) -> dict:
         for line in artifact.read_text().splitlines()
         if line and not line.startswith("#")
     )
-    prefix = f"OPENMATES_TEST_ACCOUNT_{slot}_"
+    prefix = f"OPENMATES_TEST_ACCOUNT_{cli_slot}_"
     mapped = {
         key.replace(prefix, "OPENMATES_TEST_ACCOUNT_"): value
         for key, value in values.items()
@@ -993,7 +996,7 @@ def run_storage_capacity(*, identity_start: int, full: bool) -> dict:
         raise RuntimeError("Unsupported capacity rate profile")
     states = []
     for index in range(users):
-        account = provision_account(100 + index, identity_index=identity_start + index)
+        account = provision_account(100 + index, identity_index=identity_start + index, cli_slot=14)
         states.append({"state_dir": account["OPENMATES_STATE_DIR"], "allowlisted": True})
     states_path = private / "capacity-states.json"
     states_path.write_text(json.dumps(states), encoding="utf-8")
