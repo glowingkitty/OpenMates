@@ -145,6 +145,7 @@ def test_accountability_runner_executes_node_spec_without_browser_or_accounts(tm
     monkeypatch.setattr(runner, "provision_account", lambda *args, **kwargs: pytest.fail("account created"))
     monkeypatch.setattr(runner, "prepare_storage_accountability_selector", lambda: {"E2E_STORAGE_ACCOUNTABILITY": "1"})
     monkeypatch.setattr(runner, "cleanup_storage_accountability_selector", lambda: calls.append("cleanup"))
+    monkeypatch.setattr(runner, "retain_storage_accountability_private_evidence", lambda: [])
 
     def run(command, **kwargs):
         calls.append("spec")
@@ -177,6 +178,7 @@ def test_accountability_runner_keeps_spec_and_cleanup_failures_separate(tmp_path
     monkeypatch.setattr(runner.subprocess, "Popen", lambda *args, **kwargs: pytest.fail("browser started"))
     monkeypatch.setattr(runner, "prepare_storage_accountability_selector", lambda: {"E2E_STORAGE_ACCOUNTABILITY": "1"})
     monkeypatch.setattr(runner, "cleanup_storage_accountability_selector", lambda: (_ for _ in ()).throw(RuntimeError("private-token")))
+    monkeypatch.setattr(runner, "retain_storage_accountability_private_evidence", lambda: [])
 
     def run(command, **kwargs):
         (results / "ci-spec-0.json").write_text(json.dumps({"stats": {"expected": 1, "unexpected": 0,
@@ -190,3 +192,39 @@ def test_accountability_runner_keeps_spec_and_cleanup_failures_separate(tmp_path
     assert outcome[1]["suite"] == "storage-accountability-cleanup"
     assert outcome[1]["exit_code"] == 1
     assert "private-token" not in json.dumps(outcome)
+
+
+def test_accountability_private_artifact_copies_exact_receipt_and_bounded_stderr(tmp_path, monkeypatch):
+    runner = _runner(monkeypatch)
+    private = tmp_path / "accountability"
+    private.mkdir(mode=0o700)
+    monkeypatch.setattr(runner, "COMPOSE_PATH", tmp_path / "compose.json")
+    receipt = private / "receipt.json"
+    receipt.write_bytes(b'{"schema":"storage-accountability-receipt-v1"}')
+    receipt.chmod(0o600)
+    stderr = private / "prove.stderr.log"
+    stderr.write_bytes(b"x" * 120_000 + b"last-private-error")
+    stderr.chmod(0o600)
+    copied = runner.retain_storage_accountability_private_evidence()
+    assert copied == ["receipt.retained.json", "prove.stderr.retained.log"]
+    retained_receipt = private / "receipt.retained.json"
+    retained_stderr = private / "prove.stderr.retained.log"
+    assert retained_receipt.read_bytes() == receipt.read_bytes()
+    assert retained_stderr.stat().st_size == 100_000
+    assert retained_stderr.read_bytes().endswith(b"last-private-error")
+    assert all(path.stat().st_mode & 0o777 == 0o600 for path in (retained_receipt, retained_stderr))
+    with pytest.raises(FileExistsError):
+        runner.retain_storage_accountability_private_evidence()
+
+
+def test_accountability_private_artifact_rejects_oversized_receipt(tmp_path, monkeypatch):
+    runner = _runner(monkeypatch)
+    private = tmp_path / "accountability"
+    private.mkdir(mode=0o700)
+    monkeypatch.setattr(runner, "COMPOSE_PATH", tmp_path / "compose.json")
+    receipt = private / "receipt.json"
+    receipt.write_bytes(b"x" * (16 * 1024 + 1))
+    receipt.chmod(0o600)
+    with pytest.raises(RuntimeError, match="exceeds its bound"):
+        runner.retain_storage_accountability_private_evidence()
+    assert not (private / "receipt.retained.json").exists()

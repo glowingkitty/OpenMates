@@ -711,6 +711,42 @@ def cleanup_storage_accountability_selector() -> None:
         raise RuntimeError("Accountability cleanup failed; private diagnostics retained") from None
 
 
+def retain_storage_accountability_private_evidence() -> list[str]:
+    """Copy only bounded private probe evidence into exact CI artifact paths."""
+    private = COMPOSE_PATH.parent / "accountability"
+    if not private.is_dir() or private.is_symlink() or private.stat().st_mode & 0o777 != 0o700:
+        raise RuntimeError("Accountability evidence requires its private directory")
+    copied: list[str] = []
+    for source_name, destination_name, maximum in (
+        ("receipt.json", "receipt.retained.json", 16 * 1024),
+        ("prove.stderr.log", "prove.stderr.retained.log", 100_000),
+        ("cleanup.stderr.log", "cleanup.stderr.retained.log", 100_000),
+    ):
+        source = private / source_name
+        if source.is_symlink():
+            raise RuntimeError("Accountability private evidence cannot be a symlink")
+        if not source.exists():
+            continue
+        if not source.is_file() or source.stat().st_mode & 0o777 != 0o600:
+            raise RuntimeError("Accountability private evidence has invalid permissions")
+        size = source.stat().st_size
+        if source_name == "receipt.json" and size > maximum:
+            raise RuntimeError("Accountability private receipt exceeds its bound")
+        with source.open("rb") as input_file:
+            if size > maximum:
+                input_file.seek(size - maximum)
+            payload = input_file.read(maximum + 1)
+        if len(payload) > maximum:
+            raise RuntimeError("Accountability private evidence exceeded its copy bound")
+        destination = private / destination_name
+        descriptor = os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+        with os.fdopen(descriptor, "wb") as output:
+            os.fchmod(output.fileno(), 0o600)
+            output.write(payload)
+        copied.append(destination_name)
+    return copied
+
+
 def run_e2e(
     specs: list[str],
     *,
@@ -858,6 +894,7 @@ def run_e2e(
                     RESULTS / f"ci-spec-{index}.json"
                 )
                 accountability_cleanup_error = None
+                accountability_retention_error = None
                 try:
                     result = subprocess.run(
                         [
@@ -881,6 +918,10 @@ def run_e2e(
                             cleanup_storage_accountability_selector()
                         except (OSError, RuntimeError, subprocess.SubprocessError, ValueError) as exc:
                             accountability_cleanup_error = type(exc).__name__
+                        try:
+                            retain_storage_accountability_private_evidence()
+                        except (OSError, RuntimeError, ValueError) as exc:
+                            accountability_retention_error = type(exc).__name__
                 report_path = RESULTS / f"ci-spec-{index}.json"
                 report = (
                     json.loads(report_path.read_text()) if report_path.is_file() else {}
@@ -906,6 +947,9 @@ def run_e2e(
                 if accountability_cleanup_error:
                     results.append({"suite": "storage-accountability-cleanup", "exit_code": 1,
                                     "failure": accountability_cleanup_error})
+                if accountability_retention_error:
+                    results.append({"suite": "storage-accountability-private-evidence", "exit_code": 1,
+                                    "failure": accountability_retention_error})
                 if spec_result["exit_code"] and not (artifact or component or accountability_only):
                     if name == "storage-recovery-replay.spec.ts":
                         try:

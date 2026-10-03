@@ -457,6 +457,9 @@ jobs:
             subject/test-results/ci-pytest.json
             subject/test-results/ci-unit-*
             subject/test-results/ci-private/capacity-failure-rows.jsonl
+            subject/test-results/ci-private/accountability/receipt.retained.json
+            subject/test-results/ci-private/accountability/prove.stderr.retained.log
+            subject/test-results/ci-private/accountability/cleanup.stderr.retained.log
             subject/test-results/ci-visual-smoke/
             subject/test-results/ci-web.log
             subject/frontend/apps/web_app/test-results/
