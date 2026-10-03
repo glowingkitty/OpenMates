@@ -1,13 +1,15 @@
 schema_version: 1
 id: architecture.storage-lifecycle
-version: 1
+version: 2
 status: draft
-title: Regional And Cold Storage Lifecycle
+title: Regional And Tiered Storage Lifecycle
 summary: >
   OpenMates keeps encrypted personal and Team resources available across
-  configurable Hetzner Object Storage regions, moves eligible inactive resource
-  graphs to bounded cold archives without hiding them, restores hot write state
-  only when mutation requires it, and makes deletion authoritative across every
+  configurable Hetzner Object Storage regions, bounds Redis working contexts and
+  PostgreSQL chat payloads, and archives eligible history in independently readable
+  encrypted pages. Small metadata indexes keep chats and artifact history
+  discoverable; authorized clients fetch content on demand. Migration preserves
+  durable ciphertext, shared references, and authoritative deletion across every
   replica and archive generation.
 
 scope:
@@ -16,16 +18,21 @@ scope:
     - One active write region, asynchronous durable replication, health-gated regional failover, reconciliation, and failback.
     - Personal and Team chats, messages, embeds, uploads, Projects, Tasks, Plans, Workflow definitions, and Workflow runs.
     - Type-specific hot/cold eligibility, atomic resource-graph archives, lightweight hot indexes, bounded cold metadata pagination, and archive-aware reads.
+    - Bounded recent main-chat storage, active subchat working contexts, incremental compression archives, and prompt archival of durably completed subchat transcripts.
+    - AI working-context cache policy distinct from the encrypted startup sync cache governed by architecture.sync.
+    - Durable client-only sealed recovery for every required output of authorized unattended agent work after capable clients disconnect.
+    - Independently readable message pages and separation of artifact version metadata from older encrypted snapshots and diffs.
     - Existing public/shared and Team authorization checks before cold content is returned.
     - Mutation-time hot promotion, reference-safe file retention, replicated deletion tombstones, and global hard purge.
     - Persistent, resumable Account Export jobs with bounded streaming or multipart output that never requires a complete account in browser, CLI, or API memory.
     - Bucket inventory, checksums, replication lag, deletion completion, orphan detection, and visible operational failure state.
     - Temporary buffer/review media upload fallback without cross-region replication.
+    - Architecture capacity verification with synthetic model outputs and real isolated processing and storage, with zero real inference requests.
   excludes:
     - A custom media.openmates.org domain, CDN origin failover, or initial replication of openmates-product-media.
     - Cross-provider disaster recovery outside Hetzner.
     - Replication of transient reverse-search images, test artifacts, or other short-lived response media unless a later contract opts them in.
-    - Automatic retention changes for Directus revisions, activity records, or test-control data.
+    - Automatic deletion of historical Directus revisions, activity records, or test-control data; operational tracking configuration is planned separately from user artifact history.
     - Server-side plaintext decryption of client-encrypted personal or Team content.
 
 models:
@@ -94,7 +101,14 @@ models:
     child_graph:
       type: encrypted_bounded_archive
       required: true
-      constraints: {atomic_with_owner_resource: true, large_file_bytes_duplicated: false}
+      constraints: {atomic_with_declared_archive_unit: true, large_file_bytes_duplicated: false}
+    archive_unit:
+      type: enum
+      values: [resource_graph, chat_message_segment, subchat_transcript, embed_version_segment]
+      default: resource_graph
+    page_index:
+      type: authorized_bounded_page_index
+      constraints: {exact_coverage: true, independent_reads: true, plaintext_private_content: forbidden}
     state:
       type: enum
       values: [preparing, cold, promoting, hot, tombstoned]
@@ -103,7 +117,7 @@ models:
   ColdEligibility:
     chat:
       type: policy
-      constraints: {inactive_days: 28, pinned: forbidden, public_or_shared: forbidden, processing_task: forbidden}
+      constraints: {inactive_days: 30, pin_exempts_history_limits: false, share_exempts_history_limits: false, archive_aware_share_access_required: true, processing_task: forbidden}
     task:
       type: policy
       constraints: {terminal_days: 30, active: forbidden}
@@ -135,6 +149,123 @@ models:
       type: enum
       values: [hot, cold, merged]
       required: true
+
+  ChatWarmPolicy:
+    recent_main_chats:
+      type: integer
+      default: 10
+    messages_per_chat:
+      type: integer
+      default: 100
+    encrypted_message_bytes_per_chat:
+      type: integer
+      default: 2097152
+      constraints: {includes_message_body_and_thinking: true, excludes_separate_artifact_payloads: true}
+    inactive_days:
+      type: integer
+      default: 30
+    retention_boundary:
+      type: policy
+      constraints: {first_reached_limit_applies: true, compression_may_archive_earlier: true, metadata_retained: true, unsafe_eviction: forbidden}
+
+  AIWorkingCachePolicy:
+    recent_main_chats:
+      type: integer
+      default: 3
+    active_subchat_contexts:
+      type: separately_bounded_working_set
+      constraints: {main_chat_slots_consumed: false, explicit_byte_and_execution_limits: true}
+    pending_persistence:
+      type: durability_guard
+      constraints: {completion_is_not_persistence_ack: true, eviction_of_only_unpersisted_copy: forbidden}
+
+  BackgroundRecoveryPolicy:
+    execution:
+      type: admitted_authorized_work
+      constraints: {client_disconnect_alone_pauses_work: false, existing_budget_and_user_gates_preserved: true}
+    required_outputs:
+      type: typed_sealed_recovery_records
+      constraints: {messages_and_child_transcripts: covered, embeds_and_diffs: covered, summaries_and_compression_checkpoints: covered, client_only_durable_decryption: true}
+    persistence:
+      type: durable_ciphertext_and_bounded_metadata
+      constraints: {redis_as_only_copy: forbidden, plaintext_or_raw_keys: forbidden, stable_identity_and_version_fences: true}
+    finalization:
+      type: authorized_client_recovery
+      constraints: {normal_client_ciphertext_persistence_ack_required: true, duplicate_records: forbidden, archive_eligibility_requires_canonical_readability: true}
+    retention:
+      type: sole_durable_output_guard
+      constraints: {lease_or_cache_expiry_deletes_only_saved_output: forbidden, preserve_ciphertext_and_recovery_locator_until: canonical_persistence_ack_or_authorized_deletion}
+
+  InitialArchiveRollout:
+    postgres_rollback_copy_hours:
+      type: integer
+      default: 24
+    observation_start:
+      type: verified_archive_reader_activation
+      constraints: {applies_to_declared_initial_migration_payloads: true}
+    pruning:
+      type: verified_generation_fenced_handoff
+      constraints: {elapsed_time_alone_sufficient: false, client_read_and_rollback_checks_required: true, canonical_persistence_ack_required: true, regional_durability_required: true, explicit_deletion_bypasses_buffer: true, steady_state_archival_delay: false}
+
+  StorageCapacityWorkload:
+    heavy_daily_active_users:
+      type: integer
+      default: 1000
+    simultaneous_agent_executions:
+      type: integer
+      default: 500
+      constraints: {main_and_subchat_executions_combined: true}
+    representative_heavy_user_day:
+      type: synthetic_workload
+      constraints: {agent_rounds: 500, new_embeds: 200, file_versions_or_diffs: 1000, user_quota: false}
+    inference:
+      type: deterministic_provider_simulation
+      constraints: {real_inference_requests: 0, cache_miss_fallback: forbidden, paid_fixture_recording: forbidden, real_canary: forbidden}
+
+  MessageArchivePage:
+    covered_messages:
+      type: stable_ordered_message_id_range
+      required: true
+      constraints: {timestamp_ties_disambiguated: true, duplicate_or_missing_coverage: forbidden}
+    storage_locator:
+      type: opaque_page_locator
+      required: true
+      constraints: {generation_and_checksum_bound: true, independent_decompression: true}
+    bounds:
+      type: count_and_byte_limits
+      required: true
+      constraints: {whole_history_for_ordinary_interactive_reads: forbidden, explicit_export_uses_bounded_iteration: true, oversized_payloads_separately_addressable: true, individual_payload_read_and_cache_budgets_required: true, silent_content_truncation: forbidden}
+
+  ArchiveReadTarget:
+    percentile:
+      type: integer
+      default: 95
+    uncached_page_milliseconds:
+      type: integer
+      default: 1000
+    measurement:
+      type: request_to_decrypted_page_ready
+      constraints: {includes_authorization_storage_transfer_and_client_decryption: true, reference_device_and_network_documented: true, agreed_concurrent_load: true, initial_payload_cache_hit: false, failures_reported: true}
+
+  ArtifactVersionIndex:
+    identity:
+      type: embed_id_and_version_number
+      required: true
+    created_at:
+      type: timestamp
+      required: true
+    content_locator:
+      type: authorized_warm_or_archive_locator
+      required: true
+    reconstruction:
+      type: nearest_encrypted_snapshot_and_bounded_patch_range
+      nullable: true
+      constraints: {server_plaintext_decryption: forbidden, historical_links_stable: true}
+    archive_readiness:
+      type: enum
+      values: [pending_snapshot, ready]
+      required: true
+      constraints: {pruning_without_bounded_reconstruction: forbidden}
 
   DeletionTombstone:
     resource_id_hash:
@@ -192,15 +323,67 @@ assertions:
     depends_on: [models.StorageRegionPolicy, models.ReplicatedObject, examples.region_replication]
   - id: storage.cold.atomic-eligible-graphs
     type: invariant
-    must: Cold migration snapshots and verifies one complete owner-scoped resource graph before deleting its hot content rows; type-specific eligibility keeps pinned, public/shared, processing, active, enabled, scheduled, or dependency-active resources hot, and Personal and Team resources use the same lifecycle rules without weakening their existing authorization or encryption contracts.
-    depends_on: [models.ColdArchiveManifest, models.ColdEligibility, examples.archive_eligibility]
+    must: Cold migration declares a complete owner-scoped archive unit, which may be a resource graph or a sealed message or version segment, verifies its durable ciphertext, required references, checksums, and regional durability before atomically publishing its index, and only then removes the matching unchanged PostgreSQL payloads. Failure or concurrent mutation retains the previous readable authority. Whole-resource eligibility continues to protect processing, active, enabled, scheduled, or dependency-active resources; eligible sealed history may move separately from a live resource. Pinning or sharing a chat does not exempt its history from the limits, and Personal, Team, and share authorization and encryption remain enforced.
+    depends_on: [models.ColdArchiveManifest, models.ColdEligibility, examples.archive_unit_safety]
+  - id: storage.rollout.verified-24-hour-buffer
+    type: invariant
+    must: Initial migration cohorts may serve verified S3 reads after required correctness, authorization, decryption, compatibility, regional durability, and rollback checks pass, while retaining authoritative PostgreSQL source payloads for at least 24 hours after verified reads are enabled for those payloads. Removing redundant PostgreSQL payloads also requires current matching generations, canonical persistence acknowledgements, complete references, and no unresolved integrity failure; elapsed time alone never permits pruning. Failed or changed units retain their readable authority and can roll back to PostgreSQL. This initial rollout buffer does not delay normal steady-state archival or override explicit deletion, which immediately hides the resource and purges its retained copies under the existing deletion contract.
+    depends_on: [models.InitialArchiveRollout, models.ColdArchiveManifest, models.DeletionTombstone, examples.initial_rollout]
+  - id: storage.cold.pin-share-neutral
+    type: behavior
+    must: Pinned and public/shared chats follow the same count, byte, inactivity, and page-loading history policy as ordinary chats. Pin state and encrypted listing metadata remain discoverable in PostgreSQL, and sharing preserves the current authorized visibility and revocation semantics. Shared-chat payload pruning is enabled only after archive-aware readers and permission checks are verified; a missing capability temporarily defers pruning rather than hiding a chat or weakening its access controls.
+    depends_on: [models.ColdEligibility, models.ChatWarmPolicy, examples.pin_share_policy]
+  - id: storage.cache.main-and-active-subchats
+    type: invariant
+    must: The AI working cache reserves its three recent-chat slots for main chats and maintains a separately bounded set of currently running subchat contexts and required embeds. A child does not displace its parent merely by starting or producing output. Working sets have explicit byte and execution bounds, and eviction or archival never treats a Vault-encrypted working copy as proof that client-encrypted durable persistence succeeded.
+    depends_on: [models.AIWorkingCachePolicy, examples.working_cache]
+  - id: storage.background.complete-sealed-recovery
+    type: invariant
+    must: Closing all capable clients does not by itself stop already authorized agent work within its admitted budget and existing user gates. Every required completed output, including child transcript messages, embeds, diffs, summaries, and compression checkpoints, must have a verified durable client-only sealed recovery path outside Redis before it is treated as safely saved. Missing recovery capability or failed durable persistence pauses further dependent work without discarding pending output. A returning authorized client recovers and finalizes normal encrypted records with stable identities and version fencing before acknowledging canonical persistence or enabling normal transcript archival. Sealed recovery protects saved outputs but does not grant the server decryption authority to restart inference after working-context loss.
+    depends_on: [models.BackgroundRecoveryPolicy, examples.background_recovery]
+  - id: storage.background.saved-output-retention
+    type: invariant
+    must: Expiry of a recovery job lease, retry window, or Redis working context never deletes the only durable copy of a saved unattended output. Its client-only sealed payload and authorized recovery locator remain available, using cold storage where appropriate, until normal client-encrypted persistence is acknowledged or authorized deletion applies. Client finalization verifies the canonical replacement and references before recovery copies are removed; explicit deletion covers pending recovery payloads and their replicas. This preserves recovery data without granting the server authority to decrypt it for resumed inference.
+    depends_on: [models.BackgroundRecoveryPolicy, models.DeletionTombstone, examples.background_retention]
+  - id: storage.validation.synthetic-capacity
+    type: invariant
+    must: The first architecture acceptance workload represents 1000 heavy daily active users and 500 simultaneous main/subchat executions, with a representative heavy user-day of 500 agent rounds, 200 new embeds, and 1000 file versions or diffs. Deterministic synthetic or existing approved replay outputs replace every model and external inference dependency, including routing, compression, and embeddings; real inference requests, paid fixture recording, canaries, and cache-miss fallback are forbidden for this architecture verification. Missing simulation coverage fails before dispatch, provider network access is blocked, and run evidence proves zero real inference calls. Tests exercise the actual isolated processing, encryption, recovery, persistence, and archive paths under concurrent reads and writes; direct row seeding alone is not processing evidence. Results report payload sizes, pacing, burst load, environment, resource usage, latency, and integrity, and these targets never imply an unmeasured capacity claim or user quota.
+    depends_on: [models.StorageCapacityWorkload, examples.synthetic_capacity]
+  - id: storage.warm.bounded-chat-tail
+    type: behavior
+    must: The initial policy retains message payloads for up to ten recent eligible main chats, bounded per chat by the latest 100 messages or 2 MiB of stored encrypted message content, whichever limit is reached first. Compression-covered history may archive sooner, and 30 days of inactivity makes remaining eligible transcript pages cold. Encrypted titles and summaries, chat relationships, authorized key references, and archive indexes stay discoverable in PostgreSQL. Limits govern safe archival rather than deleting user history or evicting unfinished or unpersisted work; protected-resource exceptions remain explicit.
+    depends_on: [models.ChatWarmPolicy, models.ColdEligibility, examples.warm_chat_limits]
+  - id: storage.compression.incremental-archive
+    type: behavior
+    must: After the encrypted compression checkpoint and covered original messages are durably acknowledged, each compression archives only newly covered messages using stable identities and ordering. The latest encrypted summary and uncompressed recent tail remain readily available, while earlier messages can be revealed on demand without changing the AI compression boundary. A logical checkpoint may span multiple independent archive pages and does not require rewriting previous archived prefixes.
+    depends_on: [models.ColdArchiveManifest, models.MessageArchivePage, examples.compression_segments]
+  - id: storage.subchats.durable-before-archive
+    type: invariant
+    must: Running subchats use bounded working context plus durable client-encrypted transcript storage or verified sealed recovery pending client finalization. Completed subchat transcripts become eligible for prompt normal archival after the final result is delivered and all required canonical encrypted transcript, key, and result persistence is acknowledged. PostgreSQL retains discoverable encrypted metadata and result references, parent relationships, completion state, and archive indexes. Any child result still needed for parent synthesis remains in the parent's bounded authorized working context until consumption is acknowledged; archival does not make server-unreadable ciphertext its only usable input. Browsing a completed child reads the requested pages without restoring its entire transcript, and AI completion alone never authorizes eviction of pending persistence.
+    depends_on: [models.AIWorkingCachePolicy, models.BackgroundRecoveryPolicy, models.MessageArchivePage, examples.subchat_archive]
+  - id: storage.cold.independent-message-pages
+    type: behavior
+    must: Opening an archived chat or subchat and scrolling across a compression boundary fetches only the nearby bounded message pages needed for display. The index locates pages without downloading earlier transcript content; each page is independently decompressible, and optional bounded adjacent-page prefetch does not grow into whole-history loading. Separately addressed large messages and artifacts have explicit read and cache byte budgets, using independently authenticated chunks or another supported bounded read path when full buffering exceeds the budget. Content is never silently truncated; incompatible legacy payloads retain their authoritative copies until a compatible bounded reader exists. Stable cursor ordering prevents gaps and duplicates across PostgreSQL and S3 boundaries.
+    depends_on: [models.MessageArchivePage, examples.message_page_reads]
+  - id: storage.cold.uncached-page-responsiveness
+    type: behavior
+    must: The initial acceptance target for ordinary bounded archived message pages is at most one second for the 95th percentile of first-time uncached page opens under the agreed workload and documented reference network and device conditions. Measurement includes authorization, object retrieval and transfer, client decryption, and readiness of the requested page for display or use; it does not stop at response headers or count a warm payload-cache hit as a cold read. Bounded adjacent-page prefetch and local caching support smooth subsequent scrolling. Timeouts and failed reads are reported as failures, and separately addressed oversized payloads retain their explicit loading path rather than inflating or disguising an ordinary page.
+    depends_on: [models.ArchiveReadTarget, models.MessageArchivePage, models.StorageCapacityWorkload, examples.archive_read_latency]
+  - id: storage.versions.metadata-and-payload
+    type: behavior
+    must: Artifact history lists and graphs read bounded PostgreSQL metadata pages containing version identity, edit time, and required relationships without transferring encrypted snapshots or patches. Current artifact contents and a bounded recent history stay readily available through their appropriate storage tier; older encrypted snapshots and diffs remain retrievable from S3 when a version is selected. Archiving a creating chat does not retire an artifact still referenced by a Project, another chat, or retained history.
+    depends_on: [models.ArtifactVersionIndex, examples.version_index_reads]
+  - id: storage.versions.bounded-reconstruction
+    type: invariant
+    must: Selecting an archived artifact version uses a nearby encrypted snapshot and a bounded patch range rather than requiring replay from the original version as history grows. A currently write-authorized, snapshot-capable client publishes encrypted snapshots with version fencing and idempotency under the existing embed-key contract; read-only principals cannot publish them and the server does not gain plaintext access. Legacy histories without bounded reconstruction remain pending and retain their required payloads. Archive rollout preserves existing version identities, restore behavior, atomic publication receipts, and every required reconstruction dependency before removing database payloads.
+    depends_on: [models.ArtifactVersionIndex, examples.version_reconstruction]
   - id: storage.cold.discoverable-bounded
     type: behavior
     must: Archiving never hides an authorized resource from its complete list view; clients receive recent hot metadata first and can request bounded cursor pages of older cold metadata through Show more or equivalent pagination until complete, without loading all account or Team content and without treating a partial page as deletion authority.
     depends_on: [models.ColdListPage, models.ColdArchiveManifest, examples.cold_discovery]
   - id: storage.cold.shared-team-authorized
     type: security
-    must: Cold reads enforce the current hot owner, Team membership, role, share, revocation, key-wrapper, and visibility state before returning ciphertext; creating a share from cold state is a mutation that promotes the complete graph first, existing shared/public resources stay hot, and revoked or removed principals receive no cold metadata or content.
+    must: Cold reads enforce the current PostgreSQL owner, Team membership, role, share, revocation, key-wrapper, and visibility state before returning ciphertext. Creating or changing a chat share updates its authorization and required key references through a fenced mutation without requiring the complete archived transcript to be restored to PostgreSQL. Non-chat resources retain their existing mutation-promotion rules. Revoked or removed principals cannot obtain further cold metadata or content through archive reads.
     depends_on: [models.ColdArchiveManifest.owner_context, examples.shared_team_access]
   - id: storage.cold.rehydrate-on-mutation
     type: behavior
@@ -262,4 +445,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [region_replication, archive_eligibility, cold_discovery, shared_team_access, rehydration, deletion, account_export, media_scope, integrity]
+  required_groups: [region_replication, archive_eligibility, cold_discovery, shared_team_access, pin_share_policy, rehydration, deletion, account_export, media_scope, integrity, archive_unit_safety, initial_rollout, working_cache, background_recovery, background_retention, synthetic_capacity, warm_chat_limits, compression_segments, subchat_archive, message_page_reads, archive_read_latency, version_index_reads, version_reconstruction]

@@ -17,7 +17,7 @@ When the canonical checkout is clean and on `dev`:
 git pull --ff-only origin dev
 ```
 
-Preserve the Mac chat's existing changes and follow its session integration workflow for a dirty or detached task worktree. Read this handoff, the storage Plan, and `specifications/architecture/storage-lifecycle/specification.yml` when the backend changes reach dev. This handoff is published before the storage backend: its candidate `56bac1387c2c99309235033d70f3de53ddb31580` is under CI, not a published branch. Pull again after the backend chat announces its development commit.
+Preserve the Mac chat's existing changes and follow its session integration workflow for a dirty or detached task worktree. Read this handoff, the storage Plan, and `specifications/architecture/storage-lifecycle/specification.yml` when the backend changes reach dev. The approved Specification and Plan can be published before the storage backend. Backend implementation is in private CI candidates and is not yet a deployed development API. Pull again after the backend chat announces its actual development commit.
 
 ## 1. Repair the live AI embed writer first
 
@@ -38,6 +38,14 @@ Use the web sender in `frontend/packages/ui/src/services/embedSenders.ts` and it
 Update the existing native ordering and deduplication assertions rather than weakening them. Add focused cases for head timeout/failure (no wrappers sent), digest mismatch, failed/partial wrapper counts, disconnect/retry, and duplicate finalized delivery. Update `ChatEmbedRecordingTransport` to emit realistic digest/count receipts.
 
 Composer, background, and Watch attachments use bundled `chat_message_added.encrypted_embeds`; their server path writes the head before wrappers. Preserve those clients while checking their failure/acknowledgement behavior. The backend chat owns any server-side bundled persistence repair. Main-app `ChatViewModel` currently skips a persistable embed with missing content; fail the send instead of silently omitting a required attachment. Background and Watch builders already throw on missing required encryption inputs. Preserve the original encrypted bundle for retries of the same message identity so rebuilding encryption with a fresh nonce cannot mutate a partially persisted attempt. Verify that already stored references and actual artifact edits retain their intended behavior.
+
+### Preserve existing file references
+
+For saved-message attachment preparation, use the new metadata-only `POST /v1/embeds/chats/{chat_id}/references/availability` once its backend is available. Send `{"embed_ids":["<id>"]}` in batches of at most 20 (4 KiB request, 8 KiB response); Team scope is the `team_id` query parameter. Response `results` entries classify each ID as `ready`, `missing`, or `unusable`. Validate one result per requested ID and fail on unavailable/malformed responses.
+
+A fresh `ready` reference needs no new head. A `missing` ID requires a complete new encrypted bundle. An authorized `unusable` reference must stop the send rather than overwrite its head. Personal references can use their owner's master wrapper across owned chats; Team references need the authorized target-chat wrapper and live Team access. For a partially saved message, replay its retained original encrypted bundle even if the probe now reports `ready`: its immutable preflight and ciphertext identity must remain the same.
+
+Do not fetch full ciphertext merely to probe availability. Exact embed GET and key continuation may legitimately return a readable head whose `hashed_chat_id` belongs to a different source chat. Use target-scoped wrappers and current permissions; do not reject solely on that origin hash. Add owner cross-chat reuse, Team wrapper/revocation, missing required content, and closed-app retry coverage.
 
 ## 2. Complete native readers and unattended recovery compatibility
 

@@ -66,10 +66,10 @@ specifications:
     required_applies_to:
     - cli
   architecture.storage-lifecycle:
-    version: 1
+    version: 2
     status: draft
     path: architecture/storage-lifecycle
-    fingerprint: f9c3e8af18a72c9af91c02b6ba19e38d6956d10a3ff622f35500214e8f0e5722
+    fingerprint: 4787bd3c975408e61542722b51c6980243f87377e00619f7573770a86f705e19
     required_applies_to:
     - rest_api
     - cli
@@ -1305,7 +1305,7 @@ assertions:
     required_applies_to:
     - cli
   storage.regions.configurable-redundancy:
-    specification: architecture.storage-lifecycle@1
+    specification: architecture.storage-lifecycle@2
     specification_id: architecture.storage-lifecycle
     type: invariant
     fingerprint: 6a1e1f9c537cc5e13b0ea8968eb2912451d6bb2cef940634bb46ea014d10abf3
@@ -1317,7 +1317,7 @@ assertions:
     - gui.web
     - gui.apple
   storage.replication.active-write-durable-outbox:
-    specification: architecture.storage-lifecycle@1
+    specification: architecture.storage-lifecycle@2
     specification_id: architecture.storage-lifecycle
     type: behavior
     fingerprint: df1d44e2302008e5879e35d1f697c08794fec941a1ce5f3baa65bc5828a63d81
@@ -1329,7 +1329,7 @@ assertions:
     - gui.web
     - gui.apple
   storage.failover.health-reconciled:
-    specification: architecture.storage-lifecycle@1
+    specification: architecture.storage-lifecycle@2
     specification_id: architecture.storage-lifecycle
     type: invariant
     fingerprint: c93bbea164eecff72d7f429df7b6a48ae43b1295d5240817b50f2ffa90b1f6df
@@ -1341,10 +1341,166 @@ assertions:
     - gui.web
     - gui.apple
   storage.cold.atomic-eligible-graphs:
-    specification: architecture.storage-lifecycle@1
+    specification: architecture.storage-lifecycle@2
     specification_id: architecture.storage-lifecycle
     type: invariant
-    fingerprint: d11ee9f82e621368a0d289b310fd762512203276af94f5c96279945c65e3ecf8
+    fingerprint: a58a082551859185e31ea3c98556bf10d78af56272b8d9de4733b34655b6c694
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  storage.rollout.verified-24-hour-buffer:
+    specification: architecture.storage-lifecycle@2
+    specification_id: architecture.storage-lifecycle
+    type: invariant
+    fingerprint: e906b8c49e0c5c471faa2361bb109f619491f74900445c952e5761e6c9254ae1
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  storage.cold.pin-share-neutral:
+    specification: architecture.storage-lifecycle@2
+    specification_id: architecture.storage-lifecycle
+    type: behavior
+    fingerprint: 4220e275327e18c5a0a401ffaadc2b7513aa873aaccdbc18f02a99aa03e2e5a0
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  storage.cache.main-and-active-subchats:
+    specification: architecture.storage-lifecycle@2
+    specification_id: architecture.storage-lifecycle
+    type: invariant
+    fingerprint: cdf4ad9bfb5a0219e2797e8c1c7ac0b592cea328e5bb82a9a532e406824440c7
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  storage.background.complete-sealed-recovery:
+    specification: architecture.storage-lifecycle@2
+    specification_id: architecture.storage-lifecycle
+    type: invariant
+    fingerprint: ace9c6e180a38a5b77fc8cfc4999482a0fa20cdfccc5ec48ff42c7e10d9954dc
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  storage.background.saved-output-retention:
+    specification: architecture.storage-lifecycle@2
+    specification_id: architecture.storage-lifecycle
+    type: invariant
+    fingerprint: 98d680ceafa1594a58921a157cde67455690b9a9fd5fbf2fc30b4b129ab6e268
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  storage.validation.synthetic-capacity:
+    specification: architecture.storage-lifecycle@2
+    specification_id: architecture.storage-lifecycle
+    type: invariant
+    fingerprint: 8b22a88122749e19d7b1f90d6d93c97b0c8e8127d50eed58bad3cab5d3faf021
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  storage.warm.bounded-chat-tail:
+    specification: architecture.storage-lifecycle@2
+    specification_id: architecture.storage-lifecycle
+    type: behavior
+    fingerprint: 1d56661b1ee3c444bc93a0f50b60d5a491cb0d439af1fb9e0f5feac113a1a6f9
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  storage.compression.incremental-archive:
+    specification: architecture.storage-lifecycle@2
+    specification_id: architecture.storage-lifecycle
+    type: behavior
+    fingerprint: 5b8940e0e4adc9b7f2131f81d8e338c7a197348bc712834f5d4c8f5c881a743b
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  storage.subchats.durable-before-archive:
+    specification: architecture.storage-lifecycle@2
+    specification_id: architecture.storage-lifecycle
+    type: invariant
+    fingerprint: 3e064db50f5384112df9fac61c59ee4783267b8635fa1859e3e01acae2eba7ea
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  storage.cold.independent-message-pages:
+    specification: architecture.storage-lifecycle@2
+    specification_id: architecture.storage-lifecycle
+    type: behavior
+    fingerprint: 2526a977bd622a152f5dc939b10f575194d0d945d9c405bb225785b9bac574d7
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  storage.cold.uncached-page-responsiveness:
+    specification: architecture.storage-lifecycle@2
+    specification_id: architecture.storage-lifecycle
+    type: behavior
+    fingerprint: 99750c9378daacbe917f0a5c48685b6d2db8985eac9ebeb7e5809ce311aa9b29
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  storage.versions.metadata-and-payload:
+    specification: architecture.storage-lifecycle@2
+    specification_id: architecture.storage-lifecycle
+    type: behavior
+    fingerprint: e846919b23574a2c83203fcf88d048ede31e9c36ceb44b1e14101ba9f5c3978e
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  storage.versions.bounded-reconstruction:
+    specification: architecture.storage-lifecycle@2
+    specification_id: architecture.storage-lifecycle
+    type: invariant
+    fingerprint: dd508cfe1752b5ea6a5b87e475ca2f4e373f659e35dcd8bf976a7413e81f98ef
     required_applies_to:
     - rest_api
     - cli
@@ -1353,10 +1509,10 @@ assertions:
     - gui.web
     - gui.apple
   storage.cold.discoverable-bounded:
-    specification: architecture.storage-lifecycle@1
+    specification: architecture.storage-lifecycle@2
     specification_id: architecture.storage-lifecycle
     type: behavior
-    fingerprint: d397f6965894ea42b647ed0068568933ae6b0c13c39ffc242fff63f467490d00
+    fingerprint: 18a6f7899f418fd4a04e3917baa82eb20c0476a81969dd04e88f18fdd1f4fd8c
     required_applies_to:
     - rest_api
     - cli
@@ -1365,10 +1521,10 @@ assertions:
     - gui.web
     - gui.apple
   storage.cold.shared-team-authorized:
-    specification: architecture.storage-lifecycle@1
+    specification: architecture.storage-lifecycle@2
     specification_id: architecture.storage-lifecycle
     type: security
-    fingerprint: 86be81d8aa3fe50365544c7af20842dfca9b8c885301175d0236679eb234e50b
+    fingerprint: 0299c83e60a2c241cec92bf3460fea6bd2cc86bb15272e3035b501336ac13c50
     required_applies_to:
     - rest_api
     - cli
@@ -1377,10 +1533,10 @@ assertions:
     - gui.web
     - gui.apple
   storage.cold.rehydrate-on-mutation:
-    specification: architecture.storage-lifecycle@1
+    specification: architecture.storage-lifecycle@2
     specification_id: architecture.storage-lifecycle
     type: behavior
-    fingerprint: bacdc5584371297c0f53ed093ca69ef59552095311fda2b10e0e29faa22260c3
+    fingerprint: 0e3302bcbcd1c63a93d8e994663752e48f92131aa8994149b112f84b9033028d
     required_applies_to:
     - rest_api
     - cli
@@ -1389,10 +1545,10 @@ assertions:
     - gui.web
     - gui.apple
   storage.files.reference-safe-single-copy:
-    specification: architecture.storage-lifecycle@1
+    specification: architecture.storage-lifecycle@2
     specification_id: architecture.storage-lifecycle
     type: invariant
-    fingerprint: 165b127e5b5b521b3c1b68869599bf0fcc38d7ece182ba63014bb4f000da0bcc
+    fingerprint: ad7654f6520ff73d2555eb29ecb7dec23f7e303b1b89624c855a02405ab094ad
     required_applies_to:
     - rest_api
     - cli
@@ -1401,7 +1557,7 @@ assertions:
     - gui.web
     - gui.apple
   storage.deletion.global-authoritative:
-    specification: architecture.storage-lifecycle@1
+    specification: architecture.storage-lifecycle@2
     specification_id: architecture.storage-lifecycle
     type: privacy
     fingerprint: 545dc6e2e74d94c9d4cdc4787f7ff98a831f1aa706abf224f03cf31da5feb9c6
@@ -1413,7 +1569,7 @@ assertions:
     - gui.web
     - gui.apple
   storage.retention.system-generation-only:
-    specification: architecture.storage-lifecycle@1
+    specification: architecture.storage-lifecycle@2
     specification_id: architecture.storage-lifecycle
     type: privacy
     fingerprint: ed7d044251dd42c08cb5927e85dc9e5e313dcb07b8c62bdc5465d72702ab11d5
@@ -1425,7 +1581,7 @@ assertions:
     - gui.web
     - gui.apple
   storage.export.persisted-bounded-complete:
-    specification: architecture.storage-lifecycle@1
+    specification: architecture.storage-lifecycle@2
     specification_id: architecture.storage-lifecycle
     type: behavior
     fingerprint: cde5069ff48699362bf8c0061a39871dbc3b9b2f00929ccbdeaf78defb9e23aa
@@ -1437,10 +1593,10 @@ assertions:
     - gui.web
     - gui.apple
   storage.privacy.ciphertext-boundary:
-    specification: architecture.storage-lifecycle@1
+    specification: architecture.storage-lifecycle@2
     specification_id: architecture.storage-lifecycle
     type: privacy
-    fingerprint: 7cf57c87805d91ab6c53dca02d5bc508a2a43223141e1248b03afd6467dcf496
+    fingerprint: 1986f79a8054a8a9b3627e09abccdf6cadca85e2d1af458cb1bf8e1e9948bd4d
     required_applies_to:
     - rest_api
     - cli
@@ -1449,7 +1605,7 @@ assertions:
     - gui.web
     - gui.apple
   storage.media.explicit-exceptions:
-    specification: architecture.storage-lifecycle@1
+    specification: architecture.storage-lifecycle@2
     specification_id: architecture.storage-lifecycle
     type: invariant
     fingerprint: 508c957f728c2dbe0e42eb88560f2b1138a7c06ab092a7e98d1bd78d1068642e
@@ -1461,7 +1617,7 @@ assertions:
     - gui.web
     - gui.apple
   storage.integrity.observable-reconcilable:
-    specification: architecture.storage-lifecycle@1
+    specification: architecture.storage-lifecycle@2
     specification_id: architecture.storage-lifecycle
     type: failure
     fingerprint: 6bda5609caa41648605cf814c5d4be58348896bce43277e9d6775e9e2191a3ea
@@ -1473,10 +1629,10 @@ assertions:
     - gui.web
     - gui.apple
   storage.surface.semantic-parity:
-    specification: architecture.storage-lifecycle@1
+    specification: architecture.storage-lifecycle@2
     specification_id: architecture.storage-lifecycle
     type: parity
-    fingerprint: 58c888be09539e17dbc33318553286ee0a652feea94b76151aceb79d4f1ff196
+    fingerprint: 83cefac50c256927c2bf668f9bfebd867143ff00f399858b8caa261820837958
     required_applies_to:
     - rest_api
     - cli

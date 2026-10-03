@@ -39,6 +39,73 @@ APP = "http://localhost:5173"
 SIGNUP_INTERVAL_SECONDS = 15
 FIXTURE_CREDITS = 1000
 _last_signup_started = None
+CAPACITY_EPOCH_SPECS = frozenset({
+    "storage-capacity-replay.spec.ts",
+    "storage-capacity-target.spec.ts",
+    "storage-recovery-replay.spec.ts",
+})
+
+VITEST_TARGET_ROOTS = {
+    "ui": ("frontend", "packages", "ui", "src"),
+    "web_app": ("frontend", "apps", "web_app", "src"),
+    "openmates-cli": ("frontend", "packages", "openmates-cli", "tests"),
+}
+
+
+def validate_vitest_targets(raw: object, *, root: Path = ROOT) -> dict[str, list[str]]:
+    """Admit existing exact unit files in the three trusted frontend packages."""
+    if not isinstance(raw, list) or len(raw) > 30:
+        raise ValueError("Vitest selection must be a bounded list of exact test paths")
+    selected: dict[str, list[str]] = {name: [] for name in VITEST_TARGET_ROOTS}
+    for target in raw:
+        if not isinstance(target, str) or not target or "\\" in target:
+            raise ValueError("Vitest selection contains an invalid test path")
+        path = Path(target)
+        if path.is_absolute() or any(part in ("", ".", "..") for part in path.parts):
+            raise ValueError("Vitest selection contains path traversal")
+        group = next((name for name, prefix in VITEST_TARGET_ROOTS.items()
+                      if path.parts[:len(prefix)] == prefix and len(path.parts) > len(prefix)), None)
+        if group is None or not re.fullmatch(r"[A-Za-z0-9_.-]+\.test\.tsx?", path.name):
+            raise ValueError("Vitest selection contains an unsupported test kind")
+        if group == "openmates-cli" and not path.name.endswith(".test.ts"):
+            raise ValueError("Vitest selection contains an unsupported test kind")
+        candidate = root / path
+        if not candidate.is_file() or not candidate.resolve().is_relative_to(root.resolve()):
+            raise ValueError("Vitest selection must name an existing repository test file")
+        if target not in selected[group]:
+            selected[group].append(target)
+    return selected
+
+
+def run_selected_vitest(selection: dict[str, list[str]]) -> list[dict]:
+    """Run selected UI/web Vitest files and CLI node:test files in package cwd."""
+    results: list[dict] = []
+    if selection["ui"] or selection["web_app"]:
+        subprocess.run(["pnpm", "exec", "svelte-kit", "sync"], cwd=WEB, check=True)
+    for group, directory in (("ui", ROOT / "frontend/packages/ui"), ("web_app", WEB)):
+        targets = selection[group]
+        if not targets:
+            continue
+        relative = [str(Path(target).relative_to(directory.relative_to(ROOT))) for target in targets]
+        result = subprocess.run(
+            ["pnpm", "exec", "vitest", "run", *relative, "--reporter=json",
+             "--outputFile=" + str(RESULTS / f"ci-unit-{group}.json")],
+            cwd=directory, timeout=300,
+        )
+        results.append({"suite": str(directory.relative_to(ROOT)), "exit_code": result.returncode,
+                        "selected_tests": targets, "selection_mode": "focused"})
+    if selection["openmates-cli"]:
+        cli = ROOT / "frontend/packages/openmates-cli"
+        relative = [str(Path(target).relative_to(cli.relative_to(ROOT)))
+                    for target in selection["openmates-cli"]]
+        with (RESULTS / "ci-unit-cli-selected.log").open("w") as output:
+            result = subprocess.run(
+                ["node", "--test", "--experimental-strip-types", "--loader", "./tests/loader.mjs",
+                 *relative], cwd=cli, stdout=output, stderr=subprocess.STDOUT, timeout=300,
+            )
+        results.append({"suite": "cli-selected", "exit_code": result.returncode,
+                        "selected_tests": selection["openmates-cli"], "selection_mode": "focused"})
+    return results
 
 
 
@@ -254,6 +321,87 @@ def provision_startup_sync_chats(account: dict) -> None:
     summary = json.loads(result.stdout)
     if summary.get("chats") != 22 or summary.get("messages") != 32:
         raise RuntimeError("Encrypted startup chat fixture has the wrong bounded shape")
+
+
+def activate_isolated_recovery_epoch() -> dict:
+    """Activate v1 only inside the disposable signed recovery replay stack."""
+    require_runner()
+    profile = json.loads(COMPOSE_PATH.read_text())
+    api_env = profile["services"]["api"]["environment"]
+    expected = {
+        "OPENMATES_CI_ISOLATED": "1",
+        "OPENMATES_STORAGE_CAPACITY_FIXTURES": "true",
+        "MOCK_EXTERNAL_APIS": "true",
+        "SERVER_ENVIRONMENT": "development",
+        "S3_ENDPOINT_URL": "http://storage.ci.test:9000",
+        "CMS_URL": "http://cms:8055",
+        "VAULT_URL": "http://vault:8200",
+    }
+    if any(api_env.get(key) != value for key, value in expected.items()):
+        raise RuntimeError("Recovery epoch fixture requires the exact isolated capacity profile")
+    program = """
+import asyncio
+import json
+import os
+from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+from backend.core.api.app.services.chat_recovery_cutover import ChatRecoveryCutoverController
+from backend.core.api.app.tasks.base_task import BaseServiceTask
+
+async def main():
+    if (os.getenv('OPENMATES_CI_ISOLATED') != '1'
+            or os.getenv('OPENMATES_STORAGE_CAPACITY_FIXTURES') != 'true'
+            or os.getenv('OPENMATES_CI_RECOVERY_EPOCH_FIXTURE') != '1'
+            or os.getenv('S3_ENDPOINT_URL') != 'http://storage.ci.test:9000'
+            or os.getenv('SERVER_ENVIRONMENT', 'production') in ('production', 'prod')):
+        raise RuntimeError('Recovery epoch activation requires disposable isolated fixtures')
+    task = BaseServiceTask()
+    await task.initialize_services()
+    try:
+        service = ChatRecoveryService(task.directus_service)
+        state = await service.execute('get_cutover_state', {'protocol_version': 1})
+        if state.get('protocol_epoch') != 0 or state.get('legacy_in_flight') != 0 or state.get('sends_paused'):
+            raise RuntimeError('Recovery fixture cutover state is not a fresh idle epoch zero')
+        paused = False
+        try:
+            await service.execute('set_sends_paused', {'protocol_version': 1, 'sends_paused': True})
+            paused = True
+            activated = await service.execute(
+                'activate_protocol_epoch', {'protocol_version': 1, 'target_epoch': 1},
+            )
+            if activated.get('protocol_epoch') != 1 or activated.get('activated') is not True:
+                raise RuntimeError('Recovery fixture epoch one was not activated')
+        finally:
+            if paused:
+                await service.execute('set_sends_paused', {'protocol_version': 1, 'sends_paused': False})
+        controller = ChatRecoveryCutoverController(task.cache_service, task.directus_service)
+        final = await controller.get_state(authoritative=True)
+        cached = await controller.get_state()
+        if (final.get('protocol_epoch') != 1 or final.get('sends_paused')
+                or cached.get('protocol_epoch') != 1 or cached.get('sends_paused')):
+            raise RuntimeError('Recovery fixture epoch one is not open for sends')
+    finally:
+        await task.cleanup_services()
+    print(json.dumps({'protocol_epoch': 1, 'sends_paused': False, 'legacy_in_flight': 0}))
+
+asyncio.run(main())
+"""
+    try:
+        result = compose(
+            "exec", "-T", "-e", "OPENMATES_CI_RECOVERY_EPOCH_FIXTURE=1",
+            "api", "python", "-c", program, capture=True, timeout=60,
+        )
+    except subprocess.CalledProcessError as exc:
+        (RESULTS / "ci-private" / "recovery-epoch.stderr.log").write_text(
+            (exc.stderr or "")[-100_000:], encoding="utf-8",
+        )
+        raise RuntimeError("Disposable recovery epoch activation failed") from None
+    try:
+        receipt = json.loads(result.stdout.splitlines()[-1])
+    except (IndexError, json.JSONDecodeError) as exc:
+        raise RuntimeError("Disposable recovery epoch activation omitted its receipt") from exc
+    if receipt != {"protocol_epoch": 1, "sends_paused": False, "legacy_in_flight": 0}:
+        raise RuntimeError("Disposable recovery epoch activation was incomplete")
+    return receipt
 
 
 def pace_signup():
@@ -546,13 +694,14 @@ def run_e2e(
             for index, name in enumerate(specs):
                 source = (WEB / "tests" / name).read_text()
                 env = {**os.environ, "PLAYWRIGHT_TEST_API_URL": API}
+                recovery_epoch_receipt = None
                 if not (component or artifact):
                     profile = json.loads(COMPOSE_PATH.read_text())
                     if "mailpit" in profile["services"]:
                         env["OPENMATES_CI_MAILPIT_URL"] = "http://127.0.0.1:8025"
                         env["OPENMATES_CI_MAIL_TEST_ADDRESS"] = "ci-inbox@example.com"
                         env["SIGNUP_TEST_EMAIL_DOMAINS"] = profile["services"]["api"]["environment"]["SIGNUP_TEST_EMAIL_DOMAINS"]
-                if name in {"storage-capacity-replay.spec.ts", "storage-capacity-target.spec.ts", "storage-recovery-replay.spec.ts"}:
+                if name in CAPACITY_EPOCH_SPECS:
                     env["E2E_STORAGE_CAPACITY"] = "1"
                     env["E2E_STORAGE_CAPACITY_TARGET"] = "1" if name == "storage-capacity-target.spec.ts" else "0"
                 local_signup_assertion = not (component or artifact) and name == "signup-skip-2fa-flow.spec.ts" and "mailpit" in profile["services"]
@@ -565,6 +714,8 @@ def run_e2e(
                     if "OPENMATES_TEST_ACCOUNT_API_KEY" in source and not local_signup_assertion:
                         primary["OPENMATES_TEST_ACCOUNT_API_KEY"] = provision_api_key(primary)
                     secondary = provision_account(15, identity_index=2 * index + 1)
+                    if name in CAPACITY_EPOCH_SPECS:
+                        recovery_epoch_receipt = activate_isolated_recovery_epoch()
                     env.update(primary)
                     if local_signup_assertion:
                         # The backend and browser share only this runner-generated
@@ -603,6 +754,8 @@ def run_e2e(
                     account_evidence["credits_per_identity"] = FIXTURE_CREDITS
                     account_evidence["credits_provisioning"] = "real-signup-invite-gift-acceptance"
                     account_evidence["api_key_provisioned"] = "OPENMATES_TEST_ACCOUNT_API_KEY" in primary
+                    if recovery_epoch_receipt is not None:
+                        account_evidence["recovery_protocol_epoch"] = recovery_epoch_receipt["protocol_epoch"]
                 env["PLAYWRIGHT_JSON_OUTPUT_NAME"] = str(
                     RESULTS / f"ci-spec-{index}.json"
                 )
@@ -698,15 +851,29 @@ def run_storage_capacity(*, identity_start: int, full: bool) -> dict:
         (cli / "dist/capacity-helpers" / name).is_file() for name in ("crypto.js", "objectSlugs.js")
     ):
         raise RuntimeError("Failed to build test-only CLI crypto helpers")
-    archive_probe = compose(
-        "exec", "-T", "api", "python", "/app/scripts/storage_archive_integration.py",
-        capture=True, timeout=300,
-    )
-    if archive_probe.returncode:
-        (private / "capacity-archive-probe.stderr.log").write_text(
-            archive_probe.stderr[-200_000:], encoding="utf-8",
+    try:
+        archive_probe = compose(
+            "exec", "-T", "api", "python", "/app/scripts/storage_archive_integration.py",
+            capture=True, timeout=300,
         )
-        raise RuntimeError("Disposable archive DB/S3 transaction probe failed")
+    except subprocess.CalledProcessError as exc:
+        # compose(check=True) raises before the returncode branch below. Keep
+        # the full traceback private and publish only source location/type.
+        stderr = exc.stderr if isinstance(exc.stderr, str) else ""
+        (private / "capacity-archive-probe.stderr.log").write_text(
+            stderr[-200_000:], encoding="utf-8",
+        )
+        frames = re.findall(
+            r'File "/app/scripts/storage_archive_integration[.]py", line ([0-9]+), in ([A-Za-z_][A-Za-z_0-9]*)',
+            stderr,
+        )
+        line, function = frames[-1] if frames else ("unknown", "unknown")
+        terminal = stderr.strip().splitlines()[-1] if stderr.strip() else ""
+        error_type_match = re.match(r"([A-Za-z_][A-Za-z_0-9.]*)(?::|$)", terminal)
+        error_type = error_type_match.group(1) if error_type_match else "unknown"
+        raise RuntimeError(
+            f"Disposable archive DB/S3 transaction probe failed at {function}:{line} ({error_type})"
+        ) from None
     try:
         archive_probe_receipt = json.loads(archive_probe.stdout.splitlines()[-1])
     except (IndexError, json.JSONDecodeError) as exc:
@@ -951,6 +1118,10 @@ def main():
                 results.append(
                     {"suite": "python-sdk-accounts", "exit_code": sdk.returncode}
                 )
+        elif mode == "vitest" and any((selection := validate_vitest_targets(
+            json.loads(os.environ.get("CI_SPECS_JSON", "[]")), root=ROOT
+        )).values()):
+            results.extend(run_selected_vitest(selection))
         elif mode == "vitest":
             subprocess.run(["pnpm", "exec", "svelte-kit", "sync"], cwd=WEB, check=True)
             for directory in [ROOT / "frontend/packages/ui", WEB]:

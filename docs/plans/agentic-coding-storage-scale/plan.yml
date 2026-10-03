@@ -1,0 +1,392 @@
+profile: lightweight
+id: agentic-coding-storage-scale
+title: Bounded Storage For Agentic Coding Scale
+status: implementing
+
+goal: >-
+  what i care about is having a proper reliable efficient and scalable solution that is still reasonable to implement in terms of effort and minimal migration risk.
+
+task_authority:
+  task_id: TASK-2774
+  task_uuid: 23997ec8-3141-4123-9049-d35020abe970
+  note: OpenMates Tasks owns status and dependencies; this Plan does not duplicate that ledger.
+
+specifications:
+  primary:
+    - architecture.storage-lifecycle
+  inherited:
+    - architecture.sync
+    - feature.chats
+    - feature.teams
+    - feature.projects
+    - feature.tasks
+    - feature.plans
+    - feature.workflows
+  preserved_contracts:
+    - Existing regional replication and reconciliation semantics.
+    - Immediate global deletion with purge from every enabled region.
+    - At most seven days of rollback for superseded system-generated archive generations only.
+    - Reference-safe shared files and complete authorized exports.
+    - Current owner and Team authorization, revocation, and client-encryption boundaries.
+  review_state: >-
+    Both rounds of five design questions are answered. The user approved the
+    reviewed Plan and authorized implementation on 2026-10-03. Specification
+    approval is recorded in session 2f80 against the review fingerprint below.
+  review_fingerprint: 4787bd3c975408e61542722b51c6980243f87377e00619f7573770a86f705e19
+  user_confirmation: "Ok sounds good. Plan approved - go ahead and implement as planned"
+
+implementation_task_refs:
+  tracking: TASK-7570
+  bounded_queries: TASK-1887
+  archive_and_lifecycle: TASK-5795
+  unattended_recovery: TASK-5419
+  artifact_history: TASK-5243
+  zero_inference_capacity: TASK-7213
+  note: These are references only; OpenMates Tasks owns all status and dependencies.
+
+scope:
+  in:
+    - Bound the live Redis/Dragonfly working set, PostgreSQL message payloads, cold chat pages, and embed version payloads.
+    - Reuse PostgreSQL, Directus, existing regional S3 support, and private upload paths during the low-risk migration.
+    - Keep encrypted metadata sufficient to list and route every chat while moving eligible ciphertext payloads to S3.
+    - Make recovery, startup sync, scrollback, subchat context, compression, version history, deletion, and export use bounded readers.
+    - Selectively disable generic Directus revision/activity tracking where it has no audit purpose while preserving product version history such as embed_diffs.
+    - Measure migration safety and target workloads of hundreds of messages, embeds, and diffs per user per day.
+  out:
+    - Removing PostgreSQL or Directus in this project.
+    - Removing the Directus API layer; that is a later, separate project because product UI does not depend on it.
+    - Destructive cleanup of existing Directus revision/activity history without a separately approved exact scope.
+    - Changing the inherited replication, deletion, authorization, export, reference, or encryption contracts.
+
+baseline:
+  measured_on: "2026-09-25"
+  environment: development
+  rollout_context: The user reports few current users. Acceptance tests still target the agreed future scale; passive observation of current traffic is insufficient migration evidence.
+  observations:
+    - PostgreSQL is 6.54 GiB; directus_revisions is 4.53 GiB (69%) and directus_activity is 469 MiB (7%). These totals include more than agentic coding data.
+    - No cold manifests exist in development despite a whole-graph cold archive implementation.
+    - The current archive collects a complete graph, creates repeated gzip parts, deletes individual hot rows, omits embed_diffs and commits, and promotes the whole graph for mutation.
+    - Current embed version listing includes encrypted payloads without explicit pagination, so provider defaults can truncate long histories; reconstruction starts from a single original snapshot.
+    - Recovery and sync paths still request full history, child contexts compete for three recent-chat LRU slots, and offline pending writes lack a complete durability fence.
+    - Existing regional S3, private object upload, replication, checksum, tombstone, authorization, and reference tracking are reusable foundations.
+    - Existing signed TEST_LIVE_MOCK runs full orchestration through cached LLM/HTTP boundaries and fails on cache misses; raw HTTP guards and per-task real-provider counters already exist. The faster mock_replay event path skips preprocessing/compression/main processing and cannot alone prove processing capacity.
+    - Follow-up source audit on 2026-10-01 found client-public-key sealed recovery for final assistant text with a seven-day recovery lifetime; child dispatch lacks that recovery context, and the schema-1 sealed terminal payload does not cover child transcripts, separate embeds/diffs, or compression checkpoints.
+
+decisions:
+  - id: D-1
+    decision: Keep PostgreSQL and Directus for the initial implementation; consider removing the Directus API layer only as a separate later project.
+  - id: D-2
+    decision: Selectively reduce generic Directus revision/activity tracking after an inventory proves that a collection has no audit purpose; preserve embed_diffs and other intentional product history.
+  - id: D-3
+    decision: Keep three recent main chats plus bounded active child contexts in Redis/Dragonfly, and protect durable pending writes from eviction. Redis AI context is Vault-encrypted cache data and remains distinct from durable client-key ciphertext.
+  - id: D-4
+    decision: Keep up to ten recent eligible main chats in PostgreSQL, with up to 100 messages or 2 MiB of encrypted message bytes per chat, whichever is reached first. Archive after 30 days of inactivity or sooner when a compression checkpoint covers the prefix. These are agreed initial configurable defaults; changes require measured justification and a recorded decision.
+  - id: D-5
+    decision: Keep encrypted titles, summaries, and routing indexes for all chats in PostgreSQL. Never archive active work or new writes until the durability and archive fences prove it is safe.
+  - id: D-6
+    decision: Archive a finished subchat promptly after its final result is delivered and every client-encrypted persistence acknowledgement has arrived.
+  - id: D-7
+    decision: Each compression checkpoint archives only newly covered message IDs into one logical segment made of small, independently compressed pages. Start benchmarking at 10-20 messages and 128-256 KiB of serialized ciphertext per page before container compression; final page size and physical object packing are provisional.
+  - id: D-8
+    decision: Scrollback reads indexed pages and never downloads a 300-message gzip graph. Store large payloads separately from message pages.
+  - id: D-9
+    decision: PostgreSQL keeps the current artifact head and a bounded recent version window. Older encrypted versions and diffs move to S3 while paginated PostgreSQL metadata preserves timestamps and the version graph for complete discovery.
+  - id: D-10
+    decision: Reconstruct an old artifact from the nearest encrypted periodic snapshot plus bounded patches, all decrypted by the client. Snapshot cadence and the recent PostgreSQL window remain provisional because the server cannot decrypt content to create snapshots.
+  - id: D-11
+    decision: Current shared files follow their references independently of chat age.
+  - id: D-12
+    decided_at: "2026-10-01"
+    decision: Pinned and public/shared chats follow the same bounded history policy as ordinary chats. Pinning preserves placement, and sharing preserves authorized visibility. Enable shared-chat pruning only after archive-aware reads, permissions, revocation, and client compatibility are verified; until then defer pruning without a permanent exemption.
+  - id: D-13
+    decided_at: "2026-10-01"
+    decision: Already authorized agent work may continue after all clients close, within its admitted budget, only while every required output is durably sealed to a client public key outside Redis for later recovery. Required outputs include child transcript messages, embeds and diffs, summaries, and compression checkpoints as well as final assistant text. Pause further work if any required output cannot be saved safely. On return, an authorized client validates and decrypts the sealed output, persists normal client-encrypted records, acknowledges them, and then normal archival applies. Sealed client-only ciphertext does not enable server inference restart after AI working-cache loss; no Vault-readable durable history substitute is authorized.
+  - id: D-14
+    decided_at: "2026-10-01"
+    decision: First architecture acceptance target is 1000 heavy daily active users and 500 simultaneous main/subchat executions, with a representative heavy user-day of 500 agent rounds, 200 new embeds, and 1000 file versions/diffs. These are test workloads, not quotas or demonstrated production capacity.
+  - id: D-15
+    decided_at: "2026-10-01"
+    user_constraint: under no circumstances can we do that many real inference requests just for testing the architecture - we need a way without real inference requests to test the processing.
+    decision: Architecture processing and capacity verification makes zero real inference requests. Use generated deterministic provider responses or existing approved replay fixtures, block provider network access, remove live inference credentials, and fail on missing simulation coverage. No paid fixture creation, recording, real canary, embeddings, routing, or compression inference is allowed in this verification scope.
+  - id: D-16
+    decided_at: "2026-10-01"
+    decision: Initial archived-message-page target is at most one second at the 95th percentile for first-time uncached opens under the accepted load and documented reference network/device. Measure authorization through transfer, decryption, and requested-page readiness; report warmed reads, oversized payloads, and failures separately. Use bounded adjacent-page prefetch and local caching for subsequent scrolling.
+  - id: D-17
+    decided_at: "2026-10-01"
+    decision: For the initial small cohort, enable verified S3 reads after targeted zero-inference safety and client tests, then retain PostgreSQL source copies for a 24-hour rollback buffer after cutover. Prune only after the buffer and all per-unit durability, replication, authorized-read, acknowledgement, compatibility, generation/write-fence, and rollback checks pass. A failure pauses pruning and triggers the tested rollback path. Explicit deletion remains immediate. This buffer does not delay steady-state compression, subchat archival, or prompt processing; the separate seven-day rule applies only to superseded archive generations.
+
+architecture:
+  tiers:
+    redis_dragonfly:
+      purpose: Short-lived server-readable AI context and coordination cache.
+      bounds: Three recent main chats plus bounded active child contexts; embed byte budgets remain to be measured.
+      safety: Durable pending writes and active work cannot be evicted as if they were disposable cache entries.
+    postgresql_directus:
+      purpose: Authoritative metadata, current heads, bounded hot ciphertext, archive/version indexes, fences, and outbox state.
+      bounds: Agreed initial defaults for eligible main chats are ten recent chats and, per chat, 100 messages or 2 MiB encrypted bytes, whichever comes first.
+      safety: All-chat encrypted titles, summaries, routing indexes, authorization, graph metadata, and current shared-file references remain queryable.
+    regional_s3:
+      purpose: Immutable encrypted message pages, large payloads, old artifact versions/diffs, encrypted snapshots, and verified replicated generations.
+      bounds: Indexed and paginated reads fetch only requested pages or a bounded reconstruction chain.
+      safety: Existing multi-region verification, deletion tombstones, generation rollback, authorization, export, and reference semantics apply.
+  encryption_boundary: >-
+    The AI working cache and client-encrypted durable storage are separate data
+    classes. PostgreSQL or S3 ciphertext alone cannot refill a server-readable AI
+    context; a capable authorized client or separately approved delegation is
+    required. Client-public-key sealed unattended-output recovery is durable but
+    likewise cannot restart AI inference after working-cache loss without client-supplied
+    context. Startup sync
+    caches remain governed by architecture.sync.
+
+implementation_phases:
+  - id: P-1
+    name: Inventory and policy baseline
+    changes:
+      - Measure row counts, payload bytes, ages, revision/activity sources, Redis working-set bytes, archive candidates, and representative user/day rates without reading plaintext.
+      - Decide collection by collection which Directus revision/activity events serve a real audit purpose; keep intentional embed history separate.
+      - Apply the selected tracking configuration through schema setup, measure revision growth and write overhead, and retain historical records until separately authorized cleanup.
+      - Define dashboards and migration counters before changing retention.
+    source_paths:
+      - backend/core/directus/schemas
+      - backend/core/directus/setup/setup_schemas.py
+      - backend/core/directus/extensions/embed-version-transaction
+      - backend/core/api/app/services/cache_chat_mixin.py
+      - backend/core/api/app/services/operational_monitoring.py
+    exit_evidence:
+      - Reproducible size/cardinality baseline, selective tracking matrix, and rollback thresholds.
+
+  - id: P-2
+    name: Bounded query contracts and indexes
+    changes:
+      - Add stable cursor pagination and byte/count budgets to messages, archive metadata, embed version metadata, recovery, and sync.
+      - Replace identifier-list materialization used for counts with bounded aggregate queries and remove unbounded message/embed recovery fetches.
+      - Return metadata separately from payloads and add supporting owner/chat/time/version indexes.
+      - Preserve duplicate suppression and deterministic ordering across hot/cold boundaries.
+    source_paths:
+      - backend/core/api/app/routes/sync_api.py
+      - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+      - backend/core/api/app/routes/handlers/websocket_handlers/sync_message_hydration.py
+      - backend/core/api/app/routes/embeds_api.py
+      - backend/core/api/app/services/directus/chat_methods.py
+      - backend/core/api/app/services/directus/embed_methods.py
+      - backend/core/api/app/services/embed_diff_service.py
+      - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+      - frontend/packages/ui/src/services/embedDiffStore.ts
+      - frontend/packages/openmates-cli/src/client.ts
+    exit_evidence:
+      - Duplicate and reordered pages converge once, and every supported client can read the new format before archive eviction is enabled.
+
+  - id: P-3
+    name: Indexed page writer, reader, and safety fences
+    changes:
+      - Replace whole-graph repeated gzip payloads with an indexed logical segment containing small independently compressed immutable pages and separately referenced large payloads.
+      - Read large payloads with explicit transfer and cache byte budgets using authenticated chunk/range streaming or bounded-size admission; preserve full content without truncation. Keep legacy payloads in PostgreSQL until a compatible bounded reader is verified.
+      - Add durable archive work/outbox state, generation and graph fences, checksum/part manifests, and replication verification.
+      - Keep chat share authority and key references in PostgreSQL; create or change shares with fenced metadata updates and bounded archive reads, without requiring whole-transcript promotion.
+      - Copy and verify first; do not delete or prune PostgreSQL payloads in this phase.
+    source_paths:
+      - backend/core/api/app/services/cold_archive_service.py
+      - backend/core/api/app/services/storage_reference_service.py
+      - backend/core/directus/schemas/cold_archive_manifests.yml
+      - backend/core/directus/schemas/cold_archive_parts.yml
+      - backend/core/api/app/services/s3
+    exit_evidence:
+      - Readers detect missing/corrupt/reordered parts, writers resume idempotently, and a failed S3 or database write leaves the hot graph authoritative.
+
+  - id: P-4
+    name: Compression, child context, and recent-chat policies
+    changes:
+      - Archive only newly checkpoint-covered message IDs and prevent overlap or gaps between logical segments.
+      - On a new message in a cold chat, append through a fenced bounded hot tail and current metadata rather than restoring the whole archived graph.
+      - Give active child contexts a separate bounded budget so they do not displace the three recent main chats.
+      - Enforce PostgreSQL count/byte/age bounds while protecting active chats, new writes, durable pending writes, and client persistence acknowledgements.
+      - Apply the same history limits to pinned and shared chats, preserving pin placement and gating shared-chat pruning on verified archive-aware authorization and revocation.
+      - Archive finished subchats only after final delivery and all required client-encrypted persistence acknowledgements.
+      - Extend the existing X25519/AES-GCM client-public-key sealed final-response recovery path with versioned records for every required unattended output, including child transcript messages, embeds/diffs, summaries, and compression checkpoints; propagate recovery identity and public keys into child dispatch.
+      - Keep small indexed and fenced pending-recovery metadata in PostgreSQL, put large sealed payloads in existing regional S3, and use Redis only for working context; keep pending client finalization distinct from ordinary archive eligibility.
+      - Save each required sealed output durably outside Redis before admitting dependent work; pause further work if safe persistence fails, while keeping execution inside its admitted budget and preserving idempotent recovery across retries.
+      - Retain each sealed payload and durable recovery locator until its canonical client-encrypted persistence acknowledgement or authorized deletion; recovery job-lease or working-cache expiry cannot remove the only durable output. Large payloads may move to S3 while clients are offline without granting server decryption authority.
+      - On client return, validate and decrypt recovered outputs, persist normal client-encrypted records, acknowledge each durable result, and only then apply ordinary archive eligibility and pruning fences.
+      - Resolve per-output schema, child key/identity provisioning, recovery budgets, and safe cache-loss behavior within this phase; never assume automatic server inference restart from sealed output alone.
+    source_paths:
+      - backend/core/api/app/routes/handlers/websocket_handlers/chat_compression_checkpoint_handler.py
+      - backend/core/api/app/routes/handlers/websocket_handlers/chat_recovery_job_handlers.py
+      - backend/core/api/app/services/chat_recovery_service.py
+      - backend/core/api/app/routes/handlers/websocket_handlers/chat_turn_preflight_handler.py
+      - backend/core/api/app/routes/handlers/websocket_handlers/chat_recovery_job_handlers.py
+      - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+      - backend/apps/ai/sub_chat_orchestration.py
+      - backend/apps/ai/processing/main_processor.py
+      - backend/core/api/app/services/cache_chat_mixin.py
+      - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
+      - frontend/packages/ui/src/utils/chatCompletionRecovery.ts
+      - frontend/packages/ui/src/services/db/messageOperations.ts
+    exit_evidence:
+      - Already authorized unattended work stays within budget and saves every required output as durable client-key-sealed recovery outside Redis, or pauses safely. Restart recovers saved output for client finalization; client-only ciphertext is never used to claim server inference restart. Concurrent checkpoint/write/archive races preserve every message once, and main/child contexts obey separate measured budgets.
+
+  - id: P-5
+    name: Artifact version archive and client snapshots
+    changes:
+      - Paginate the complete version graph as PostgreSQL metadata while retaining only the current head and a measured recent payload window there.
+      - Store older encrypted snapshots/diffs in regional S3 and reconstruct from the nearest client-created encrypted snapshot plus bounded patches.
+      - Negotiate client capabilities so unsupported clients remain on the old read path and cannot trigger eviction.
+    source_paths:
+      - backend/core/api/app/routes/embeds_api.py
+      - backend/core/api/app/routes/handlers/websocket_handlers/store_embed_diff_handler.py
+      - backend/core/api/app/services/embed_diff_service.py
+      - backend/core/directus/schemas/embed_diffs.yml
+      - backend/core/directus/extensions/embed-version-transaction
+      - frontend/packages/ui/src/services/embedDiffStore.ts
+      - frontend/packages/openmates-cli/src/client.ts
+    exit_evidence:
+      - Version 101 and a thousand-edit artifact are discoverable and reconstruct with a bounded payload chain and no server plaintext.
+
+  - id: P-6
+    name: Canary copy, verified reads, then payload pruning
+    changes:
+      - Backfill a small cohort by copying, checksumming, replicating, and reading through the new path while PostgreSQL remains authoritative.
+      - Enable verified S3 reads for the initial small cohort after targeted zero-inference safety, recovery, failure, and client-read tests; retain PostgreSQL source copies for 24 hours after cutover as a rollback buffer.
+      - Compare graph/page manifests and client results, pause automatically on mismatch, and throttle by database and object-store load.
+      - Before the first real-data prune, require P-7 zero-inference load, lifecycle, and client-path checks as well as every supported reader's compatibility, per-unit durable-copy and canonical-persistence acknowledgements, generation/write fences, and tested rollback. Pause pruning and use the rollback path on failure; explicit deletion purges immediately. Keep the separate seven-day superseded-generation rule.
+    source_paths:
+      - backend/core/api/app/tasks/user_cache_tasks.py
+      - backend/core/api/app/tasks/persistence_tasks.py
+      - backend/core/api/app/services/cold_archive_service.py
+      - backend/core/api/app/services/storage_management.py
+    exit_evidence:
+      - Copy, verify, read, restore, and rollback drills meet the agreed thresholds; the 24-hour buffer and P-7 gates precede the first real-data prune.
+
+  - id: P-7
+    name: Scale, lifecycle, and user-path verification
+    dependency: Complete zero-inference safety and capacity gates before P-6 first real-data pruning; initial S3 reader canary may run before this phase.
+    changes:
+      - Reuse signed TEST_LIVE_MOCK in replay-only mode, caching_llm_wrapper, caching_http_transport, raw HTTP guards, and the credential-free isolated CI stack; add generated multi-turn fixtures and a mass-concurrency driver. Aggregate per-task receipts into run-wide zero-provider-call evidence and enforce a network boundary independently of Python wrappers.
+      - Build a deterministic provider simulator for scripted streaming responses, child dispatch, tool outcomes, summaries, and compression; intercept only external dependencies while actual processing, scheduling, encryption, persistence, and archive code runs.
+      - Use real isolated PostgreSQL/Directus, Dragonfly, and S3-compatible storage with dedicated synthetic users and keys. Seed aged histories for index/cardinality checks, then exercise ongoing writes and reads through the actual application paths; row seeding alone does not establish processing capacity.
+      - Block all real inference at both dispatch and network boundaries, omit live inference credentials, and report attempted/blocked/real provider calls. Missing fixtures abort the run and are authored synthetically; no recording or paid fallback is permitted.
+      - Represent 1000 heavy user-days and ramp to 500 simultaneous main/subchat executions with realistic payload distributions, stream chunking, thinking content, slow producers, long histories, version chains, concurrent readers, and background archival. Preserve actual encryption so artificial plaintext compression cannot inflate capacity claims.
+      - Separate paced steady-load and burst tests from accelerated volume/backfill runs; report rate, duration, payload distribution, hardware, network assumptions, latency, queue lag, memory, database/WAL growth, and object operations for each. Simulated inference measures infrastructure behavior and not reasoning quality or real model latency.
+      - Benchmark staged loading, compression ratios, page sizing, reconstruction, and migration at the target daily workload.
+      - Gate ordinary uncached archive-page reads on p95 at most 1000 milliseconds through client decryption and page readiness, using declared hardware/network and disabled initial client/application payload caches. Measure prefetched/warm reads and failure cases separately.
+      - Verify global deletion, Team revocation, shared references, complete exports, and seven-day superseded-generation cleanup through inherited contracts.
+      - Verify web, CLI, SDK, and Apple scroll/decrypt behavior before broad rollout.
+      - Resolve benchmark knobs from measured results: page size begins at 10-20 messages and 128-256 KiB before compression; snapshot cadence, recent artifact payload window, and Redis global byte budgets are engineering choices in their owning phases, not new user-approval gates.
+    source_paths:
+      - backend/shared/testing/mock_context.py
+      - backend/apps/ai/testing/caching_llm_wrapper.py
+      - backend/shared/testing/caching_http_transport.py
+      - backend/apps/ai/testing/mock_replay.py
+      - backend/apps/ai/tasks/ask_skill_task.py
+      - scripts/ci_run_tests.py
+      - docs/architecture/live-mock-testing.md
+      - docs/architecture/isolated-github-tests.md
+      - backend/tests/test_cold_chat_archive_service.py
+      - backend/tests/test_cold_archive_pagination.py
+      - backend/tests/test_cold_archive_authorization.py
+      - backend/tests/test_account_deletion_storage_lifecycle.py
+      - backend/tests/test_account_export_streaming_storage.py
+      - backend/tests/test_embed_version_routes.py
+      - backend/tests/test_phased_sync_handler.py
+      - frontend/apps/web_app/tests/long-chat-history.spec.ts
+      - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+      - frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
+    exit_evidence:
+      - Required implementation checks pass in isolated CI or the explicitly appropriate environment, with measured rollback and load evidence recorded.
+      - Zero real inference calls, a proven fail-before-dispatch case, full-path synthetic processing evidence, and paced versus accelerated load reports for the agreed target.
+
+required_implementation_checks:
+  synthetic_capacity:
+    - The architecture workload represents 1000 heavy daily users, 500 simultaneous main/subchat executions, and the agreed per-user-day output volumes; report actual measured throughput and headroom rather than assuming the target was met.
+    - Scripted/replayed providers cover routing, model streams, compression, embeddings where invoked, and external skill outcomes. A missing response fails before dispatch, with no live recording, real canary, or external inference fallback.
+    - Provider network access is blocked and live inference credentials are absent. Positive runs record zero real requests; a deliberate uncovered request verifies that the guard stops it without reaching any provider.
+    - Real application processing, test-client cryptography, database/cache/object-storage I/O, cold-page reads, version reconstruction, and disconnected-client recovery are exercised in the isolated CI stack using disposable identities and storage prefixes.
+    - Seeded scale data and accelerated time/volume tests are labeled separately from sustained traffic. Verify ciphertext readability, expected version content, stable identities, and reference completeness against an independent generated outcome ledger.
+  pagination_and_reads:
+    - Duplicate, reordered, retried, and boundary-crossing hot/cold pages produce stable ordering without omission or duplication.
+    - Missing parts, wrong checksums, truncated pages, unavailable regions, and oversized individual messages fail visibly and recoverably.
+    - Large payload reads obey measured transfer/cache byte budgets, authenticate streamed chunks or enforce bounded-size admission, and return complete content; legacy formats defer PostgreSQL pruning until a compatible bounded reader exists.
+    - UI scrollback incrementally fetches and client-decrypts bounded pages without downloading a whole long chat.
+    - At the agreed workload, first-time uncached ordinary archive pages meet p95 at most one second including authorization, transfer, decryption, and display readiness on the documented reference setup. Fast headers or warmed payloads cannot stand in for this measurement; timeouts and failures remain explicit.
+  write_and_archive_safety:
+    - Concurrent new write, compression checkpoint, archive, promotion, and deletion races never prune unacknowledged or uncovered data.
+    - A new cold-chat message uses a fenced bounded hot tail without whole-graph promotion; retries preserve order and exactly one durable message.
+    - Database failure, S3 failure, replication lag, process restart, and manifest failure preserve an authoritative readable copy.
+    - Offline client pending writes persist across restart and are fenced from eviction until acknowledged durably.
+    - Every required unattended output, including child transcript messages, embeds/diffs, summaries, and compression checkpoints, is durably sealed outside Redis before dependent work continues; a failed or unavailable save pauses further work without claiming a Redis-only copy is durable.
+    - Pending recovery metadata stays small, indexed, and fenced in PostgreSQL while large sealed payloads use existing regional S3; normal archive eligibility waits for client finalization and acknowledgement.
+    - A recovery job lease or working-cache expiry never deletes the only durable sealed output; retain payload and locator until canonical client-encrypted persistence acknowledgement or authorized deletion, including while clients remain offline.
+    - Recovery survives process restart with versioned, idempotent records; an authorized client validates, decrypts, persists normal client-encrypted records, and acknowledges before archival or pruning. Client-only saved ciphertext does not restart AI inference after working-cache loss.
+    - Child recovery identity, public-key provisioning, per-output versions, and execution budgets are resolved in P-4; the current seven-day final-response expiry is not adopted as user-data retention by default.
+    - Archiving a completed child's transcript preserves its parent's bounded synthesis input until consumption is acknowledged.
+  authorization_and_lifecycle:
+    - Personal, multi-user Team, shared-link/reference, role revocation, and archive promotion paths recheck current authorization.
+    - Explicit chat/account deletion purges active and superseded generations from all enabled regions; shared files remain until their final reference is deleted.
+    - Exports remain authorized, complete, bounded, and encrypted under existing contracts.
+    - Pinned 5000-message chats retain their placement with bounded PostgreSQL tails; shared histories remain readable and subsequent archive requests fail after share or membership revocation.
+    - Creating or changing a chat share does not require whole-transcript promotion; unsupported shared readers defer pruning until compatibility is proven.
+  version_history:
+    - Version 101+ paginates correctly and a thousand-edit history reconstructs from a bounded nearest snapshot plus patches.
+    - Current heads remain independent of chat age and server code never needs plaintext to create or apply a snapshot.
+    - Snapshot publication rechecks write permission and expected version; read-only principals cannot publish, and legacy histories wait for safe reconstruction before pruning.
+  rollout_and_compatibility:
+    - Every supported reader understands the indexed format before archive eviction or PostgreSQL payload pruning is enabled.
+    - Canary copy/verify/read precedes pruning; load throttles, pause conditions, rollback, and observability are exercised.
+    - Initial-cohort PostgreSQL source copies remain for 24 hours after verified S3-read cutover. P-7 zero-inference checks and all per-unit safety gates precede first real-data pruning; failures pause pruning and invoke tested rollback. Explicit deletion remains immediate, while superseded generations retain their separate seven-day limit.
+    - Staged-load latency, database/S3 load, compression/page-size distribution, and restore time are measured at hundreds of messages/embeds/diffs per user per day.
+
+open_questions:
+  - id: Q-1
+    topic: Pinned and shared eligibility
+    status: answered
+    answered_at: "2026-10-01"
+    answer: A — same bounded history policy for pinned and shared chats, with verified archive-aware authorization before shared payload pruning.
+    question: Should pinned chats receive the same paging and payload caps, and when may shared chats become archive eligible?
+    recommendation: Apply the same limits; pinning preserves placement and sharing preserves authorized access.
+  - id: Q-2
+    topic: Authorized agent work without a capable client
+    status: answered
+    answered_at: "2026-10-01"
+    answer: A — already authorized agent work continues after all clients close within budget only while every required output is durably sealed outside Redis for client recovery; otherwise pause further work.
+    question: Should admitted agent work continue after all capable clients disconnect, with every required output durably sealed for later client recovery, or pause until a client reconnects?
+    recommendation: Extend the existing client-public-key sealed recovery protocol to every required output before allowing that unattended work; pause safely when durable coverage or required capabilities are unavailable. Keep working Vault ciphertext separate from sealed recovery, and do not claim automatic inference restart from client-only ciphertext.
+    unresolved_details: Recovery retention, child key/identity provisioning, per-output schema, snapshot publication, budget/admission limits, and safe resume after working-cache loss require explicit design; the current seven-day recovery expiry is not an approved archival retention choice.
+  - id: Q-3
+    topic: First implementation load-test scale
+    status: answered
+    answered_at: "2026-10-01"
+    answer: A, with the explicit requirement that architecture processing be tested without real inference requests.
+    question: What scale should the first implementation be load-tested against?
+    recommendation: Use the accepted 1000-user/500-execution target, generated encrypted workloads, deterministic provider simulation, representative bursts, continued archival, and history reads; prove zero real inference calls.
+  - id: Q-4
+    topic: Archived-page responsiveness
+    status: answered
+    answered_at: "2026-10-01"
+    answer: A — one second for 95% of first-time uncached archive page opens is sufficient for the initial implementation.
+    question: Should first-time uncached archive pages target at most one second at the 95th percentile, or a stricter 300 milliseconds, under the agreed load and documented reference network/device conditions?
+    recommendation: One second for the first uncached page, with bounded adjacent-page prefetch and local caching to make ordinary scrolling immediate when data is ready. The stricter target may require more prewarming, cache memory, or regional infrastructure and must be measured rather than assumed.
+  - id: Q-5
+    topic: Rollout checkpoint window
+    status: answered
+    answered_at: "2026-10-01"
+    answer: A — retain verified PostgreSQL source copies for 24 hours after initial-cohort S3-read cutover, then prune only after every safety gate passes.
+    question: Given few current users, should the initial rollout keep verified PostgreSQL rollback copies for 24 hours after enabling S3 reads, or permit pruning as soon as all required verification gates pass?
+    recommendation: Enable the new reader after targeted correctness, authorization, replication, client-read, and rollback checks; retain PostgreSQL rollback copies for 24 hours before verified pruning. Sparse traffic makes a fixed seven-day wait weak evidence. The buffer affects redundant source-copy removal only.
+    invariants: Every migrated unit still requires verified durable ciphertext, compatible authorized/decrypting readers, canonical persistence acknowledgements, current generation/write fences, and a tested rollback before pruning; elapsed time alone never suffices. Explicit deletion bypasses migration retention. This rollout-only window neither slows steady-state archival nor changes superseded-generation or pending-recovery retention.
+
+documentation_maintenance:
+  after_each_answer:
+    - Update architecture.storage-lifecycle and its examples with the newly decided behavior.
+    - Update the matching decision, phase, required checks, and open-question status in this Plan and the readable README.
+    - Preserve the user's exact words where they materially define intent and record provisional values as provisional.
+  final_review:
+    - Revalidate specification examples and generated indexes.
+    - Perform an exact specification and Plan review after all five answers; record approval/fingerprint only if the user actually gives it.
+    - Keep OpenMates Tasks as the work-status and dependency ledger, with TASK-2774 tracking the overall outcome.
+
+document_checks:
+  specification_validation: passed
+  yaml_and_source_paths: passed
+  plan_validator: >-
+    Passes with the supported lightweight profile. OpenMates Tasks owns status
+    and dependencies. Structural validation does not prove runtime conformance;
+    implementation evidence and outstanding rollout gates are recorded in README.md.
