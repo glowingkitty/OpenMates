@@ -4,7 +4,7 @@ import type {ProofStep} from './cli-tui-proof-helpers';
 const {test, expect, email, password, otpKey, centeredCarouselProofContract, captureProof, installRecorderDeps, seedWorkspace, cleanupWorkspace, newFixture, requireIsolatedCliBuild, workflowApiUrl, createWorkflowCliHome, skipWithoutCredentials} = require('./cli-tui-proof-helpers');
 
 // contract-test: direct surface=cli assertions=cli.surface.semantic-parity,apps.discovery.public-catalog
-test('records centered chat and app previews with keyboard-selected opening', async ({page}: {page: any}, testInfo: any) => {
+test('records centered chat and app containers without an outer terminal border', async ({page}: {page: any}, testInfo: any) => {
 	test.setTimeout(240_000);
 	skipWithoutCredentials(test, email, password, otpKey);
 	const candidateCli = requireIsolatedCliBuild();
@@ -18,6 +18,8 @@ test('records centered chat and app previews with keyboard-selected opening', as
 			{name: 'chat-third', key: 'Right', wait_for: 'Chat 3 of 5', hold_ms: 300},
 			{name: 'chat-fourth', key: 'Right', wait_for: 'Chat 4 of 5', hold_ms: 1000},
 			{name: 'chat-open', key: 'Return', wait_for: 'Draft', hold_ms: 1000},
+			{name: 'chat-sidebar', key: 'ctrl+b', wait_for: '+ New chat', hold_ms: 600},
+			{name: 'chat-sidebar-close', key: 'ctrl+b', hold_ms: 500},
 			{name: 'clear-proof-draft', key: 'ctrl+u'},
 			{name: 'apps-command', text: '/apps'},
 			{name: 'apps-home', key: 'Return', wait_for: 'App 1 of 6', hold_ms: 1000},
@@ -38,6 +40,25 @@ test('records centered chat and app previews with keyboard-selected opening', as
 		expect(recording.segment('app-third', 'app-second')).toContain('Health');
 		expect(recording.segment('app-open', 'app-third')).toContain('APP  /  HEALTH');
 		expect(recording.segment('app-open', 'app-third')).toContain('[Skills]');
+		const chatRows = recording.frame('chat-open'), appRows = recording.frame('app-open');
+		const input = chatRows.find((row: string) => /^\s+╭─+╮\s+$/.test(row));
+		expect(input).toBeTruthy();
+		const left = input.indexOf('╭'), right = input.length - input.indexOf('╮') - 1;
+		expect(left).toBeGreaterThan(2);
+		expect(Math.abs(left - right)).toBeLessThanOrEqual(1);
+		expect(input.indexOf('╮') - left + 1).toBe(100);
+		expect(chatRows.find((row: string) => row.includes('What would you like to work on?')).indexOf('What')).toBe(left + 2);
+		expect(appRows.find((row: string) => row.includes('APP WORKSPACE')).indexOf('╭')).toBe(left);
+		expect(appRows.find((row: string) => row.includes('[Skills]')).indexOf('1 [Skills]')).toBe(left + 1);
+		for (const checkpoint of ['initial-centered', 'chat-open', 'chat-sidebar', 'app-open']) {
+			const rows = recording.frame(checkpoint);
+			expect(rows.every((row: string) => row.startsWith(' ') && row.endsWith(' '))).toBe(true);
+			if (checkpoint === 'chat-sidebar') {
+				const border = rows.find((row: string) => /^\s+╭─+╮\s+$/.test(row));
+				expect(border.indexOf('╭')).toBeGreaterThan(left);
+				expect(rows.join('\n')).toContain('+ New chat');
+			}
+		}
 		await recording.attest();
 	} finally {
 		await cleanupWorkspace(apiUrl, home, fixture);

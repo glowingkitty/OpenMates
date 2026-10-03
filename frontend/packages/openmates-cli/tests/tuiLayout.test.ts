@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { CATEGORY_GRADIENTS } from "../../chatCategoryTheme.js";
 import { chatBackground, DEFAULT_CHAT_BACKGROUND, renderWorkspaceFrame } from "../src/tuiLayout.js";
-import { createInitialTuiState } from "../src/tuiRenderer.js";
+import { createInitialTuiState, renderTuiFrame } from "../src/tuiRenderer.js";
+import { handleWorkspaceKey, type WorkspaceContext } from "../src/tuiWorkspaceController.js";
 import { cells, stripAnsi } from "../src/tuiText.js";
 
 test("sidebar starts closed at wide and narrow widths", () => {
@@ -74,4 +75,94 @@ test("manual paging is not overridden by selection and overshoot reverses immedi
   assert.doesNotMatch(renderWorkspaceFrame(state,90,18,body),/Selected project/);
   state.screen="chat";state.scrollOffset=10000;renderWorkspaceFrame(state,90,18,body);
   const top=state.scrollOffset;state.scrollOffset--;renderWorkspaceFrame(state,90,18,body);assert.equal(state.scrollOffset,top-1);
+});
+
+// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity
+test("wide chat header and composer share centered containers without an outer frame", () => {
+  const state = createInitialTuiState();
+  state.screen = "chat";
+  state.activeChat = {id: "chat", title: "Centered chat", category: "software_development"} as typeof state.activeChat;
+  state.messages = [{role: "user", content: "A message in the centered column"}];
+  const frame = renderTuiFrame(state, 160, 24, {colorMode: "truecolor"});
+  const rows = stripAnsi(frame).split("\n");
+  const inputTop = rows.find((row) => /^\s+╭─+╮\s+$/.test(row))!;
+  assert.equal(inputTop.indexOf("╭"), 30);
+  assert.equal(inputTop.indexOf("╮"), 129);
+  const header = frame.split("\n").find((row) => row.includes("Centered chat") && row.includes("\x1b[48;2;"))!;
+  // eslint-disable-next-line no-control-regex -- Inspect the painted header bounds.
+  const painted = /\x1b\[48;2;[\d;]+m([^\x1b]*)/.exec(header)!;
+  assert.equal(cells(painted[1]), 100);
+  assert.equal(cells(stripAnsi(header.slice(0, painted.index))), 30);
+  assert.equal(rows.find((row) => row.includes("A message in the centered column"))!.indexOf("A message"), 30);
+  assert.ok(rows.every((row) => row.startsWith(" ") && row.endsWith(" ") && cells(row) === 160));
+  assert.equal(rows.length, 24);
+  assert.match(frame, /Enter send/);
+});
+
+// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity
+test("app identity tabs and composer align within the same centered main pane with a sidebar", () => {
+  const state = createInitialTuiState();
+  state.workspace = "apps"; state.screen = "app";
+  state.activeApp = {id: "health", name: "Health", description: "Improve your health", category: "personal", skills: [], focusModes: [], settingsMemories: []};
+  state.focus = "composer";
+  for (const sidebar of [false, true]) {
+    state.sidebarOpen = sidebar;
+    const rows = stripAnsi(renderTuiFrame(state, 200, 32, {colorMode: "ansi256"})).split("\n");
+    const header = rows.find((row) => row.includes("APP WORKSPACE"))!;
+    const tabs = rows.find((row) => row.includes("[Skills]"))!;
+    const inputTop = rows.find((row) => /^\s+╭─+╮\s+$/.test(row))!;
+    const left = header.indexOf("╭"), right = 200 - header.indexOf("╮") - 1;
+    assert.ok(Math.abs(left - (sidebar ? 27 : 0) - right) <= 1);
+    assert.equal(inputTop.indexOf("╭"), left);
+    assert.equal(tabs.indexOf("1 [Skills]"), left + 1);
+    assert.ok(rows.every((row) => cells(row) === 200 && row.startsWith(" ") && row.endsWith(" ")));
+    assert.equal(rows.length, 32);
+  }
+});
+
+// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity
+test("borderless frame and wrapped composer stay bounded through small terminals and Unicode", () => {
+  for (const width of [1, 2, 4, 5, 6, 24, 72, 120, 160]) for (const ascii of [false, true]) {
+    const state = createInitialTuiState();
+    state.screen = "chat";
+    state.input = `${"漢字 🧪 ".repeat(24)}Draft ends here`;
+    const frame = renderTuiFrame(state, width, 24, {colorMode: "truecolor", ascii});
+    const rows = stripAnsi(frame).split("\n");
+    assert.equal(rows.length, 24);
+    assert.ok(rows.every((row) => cells(row) === width), `${width}: ${rows.map(cells)}`);
+    if (width >= 24) {
+      assert.match(stripAnsi(frame).replace(/[\s│|>]/g, ""), /Draftendshere/);
+      assert.ok(rows.every((row) => row.startsWith(" ") && row.endsWith(" ")));
+    }
+  }
+});
+
+// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity
+test("sidebar sizing keeps the active workspace visible in the navigation header", () => {
+  const state = createInitialTuiState();
+  state.workspace = "tasks"; state.screen = "tasks"; state.sidebarOpen = true;
+  const nav = stripAnsi(renderTuiFrame(state, 112, 24)).split("\n")[0];
+  assert.match(nav, /OpenMates {2}\[Tasks\] {2}Sidebar open/);
+  assert.doesNotMatch(nav, /…/);
+});
+
+// contract-test: supporting surface=cli assertions=tasks.lifecycle.visible,cli.surface.semantic-parity
+test("centered task boards keep every column keyboard reachable at large terminal widths", async () => {
+  for (const width of [96, 112, 160, 220]) {
+    for (const sidebarOpen of [false, true]) {
+      const state = createInitialTuiState();
+      state.workspace = "tasks"; state.screen = "tasks"; state.focus = "content";
+      state.sidebarOpen = sidebarOpen; state.taskStatusFilter = "todo";
+      const context = {state, terminal: {width}, client: {}, render: () => {}, command: async () => {}, send: async () => {}} as unknown as WorkspaceContext;
+      await handleWorkspaceKey(context, "", {name: "left"});
+      for (const [status, label] of [["backlog", "Backlog"], ["todo", "Todo"], ["in_progress", "In progress"], ["blocked", "Blocked"], ["done", "Done"]]) {
+        assert.equal(state.taskStatusFilter, status, `width ${width}, sidebar ${sidebarOpen}`);
+        assert.ok(renderTuiFrame(state, width, 40).includes(`${label} (`));
+        await handleWorkspaceKey(context, "", {name: "right"});
+      }
+      assert.equal(state.taskStatusFilter, "backlog");
+      await handleWorkspaceKey(context, "", {name: "left"});
+      assert.equal(state.taskStatusFilter, "done");
+    }
+  }
 });

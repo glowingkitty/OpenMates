@@ -7,6 +7,17 @@ import { backgroundLine, cells, foreground, lineText, padCells, terminalText, tr
 
 export const WORKSPACES = ["chats", "apps", "projects", "workflows", "tasks"] as const;
 export const DEFAULT_CHAT_BACKGROUND = "#4867cd";
+// A terminal-sized counterpart to the web app's centered content containers.
+export const CONTENT_MAX_COLUMNS = 100;
+export function workspaceGeometry(state: TuiState, rawWidth: number) {
+  const width = Math.max(1, Math.floor(rawWidth));
+  const gutter = Math.min(2, Math.floor((width - 1) / 2));
+  const sidebarWidth = state.sidebarOpen && width >= 90 && !state.form && !state.paletteOpen ? 27 : 0;
+  const paneWidth = Math.max(1, width - gutter * 2 - sidebarWidth);
+  const contentWidth = Math.min(CONTENT_MAX_COLUMNS, paneWidth);
+  const inset = Math.floor((paneWidth - contentWidth) / 2);
+  return { width, gutter, sidebarWidth, paneWidth, contentWidth, inset };
+}
 export function chatBackground(category: string | null | undefined) {
   return category && CATEGORY_GRADIENTS[category]?.start || DEFAULT_CHAT_BACKGROUND;
 }
@@ -69,29 +80,25 @@ function overlayLines(state: TuiState, width: number, height: number): string[] 
 }
 
 export function renderWorkspaceFrame(state: TuiState, rawWidth: number, rawHeight: number, body: TuiLine[], options: {colorMode?: TuiColorMode; ascii?: boolean; headerRows?: number; stickyRows?:number} = {}): string {
-  const width = Math.max(1, Math.floor(rawWidth)), height = Math.max(1, Math.floor(rawHeight));
+  const { gutter, sidebarWidth, paneWidth, contentWidth, inset } = workspaceGeometry(state, rawWidth);
+  const height = Math.max(1, Math.floor(rawHeight));
   const mode = options.colorMode ?? "none";
   const ascii = options.ascii ?? false;
-  const inner = Math.max(1, width - 4);
   const line = ascii ? "-" : "─", vertical = ascii ? "|" : "│";
-  const border = (left: string, right: string) => left + line.repeat(Math.max(0, width - 2)) + right;
-  const top = border(ascii ? "+" : "╭", ascii ? "+" : "╮");
-  const bottom = border(ascii ? "+" : "╰", ascii ? "+" : "╯");
-  const divider = border(ascii ? "+" : "├", ascii ? "+" : "┤");
-  const box = (text: string, style?: string) => `${vertical} ${style ?? padCells(text, inner)} ${vertical}`;
+  const place = (rendered: string, side = " ".repeat(sidebarWidth)) =>
+    " ".repeat(gutter) + side + " ".repeat(inset) + rendered + " ".repeat(paneWidth - inset - contentWidth + gutter);
   const labels = WORKSPACES.map((w, i) => state.workspace === w ? `[${titleCase(w)}]` : state.focus === "navigation" && i === state.navigationIndex ? `>${titleCase(w)}<` : titleCase(w)).join("  ");
   const title = state.activeChat?.title && state.workspace === "chats" ? ` · ${state.activeChat.title}` : "";
-  const nav = width >= 90 ? `OpenMates  ${labels}${title}` : `OpenMates  [${titleCase(state.workspace)}]  ${state.sidebarOpen ? "Sidebar open" : "Ctrl+B sidebar"}${title}`;
-  const inputLines = state.input.split("\n");
+  const nav = contentWidth >= 90 ? `OpenMates  ${labels}${title}` : `OpenMates  [${titleCase(state.workspace)}]  ${state.sidebarOpen ? "Sidebar open" : "Ctrl+B sidebar"}${title}`;
+  const inputWidth = Math.max(1, contentWidth - 6);
+  const inputLines = state.input.split("\n").flatMap((text) => wrapCells(text, inputWidth));
   const showComposer = state.workspace !== "apps" || state.focus === "composer" || Boolean(state.input);
   const composerRows = showComposer ? Math.min(3, Math.max(1, inputLines.length)) : 0;
-  const bodyHeight = Math.max(1, height - 5 - (showComposer ? 1+composerRows : 0));
+  const bodyHeight = Math.max(1, height - 2 - (showComposer ? composerRows + 3 : 1));
   const overlay = state.form || state.paletteOpen;
   const sidebar = state.sidebarOpen && !overlay;
-  const sidebarWidth = sidebar && width >= 90 ? 27 : 0;
-  const contentWidth = Math.max(1, inner - sidebarWidth);
   const sidebarOverlay = sidebar && !sidebarWidth;
-  let content = overlay ? overlayLines(state, inner, bodyHeight) : sidebarOverlay ? sidebarLines(state) : body;
+  let content = overlay ? overlayLines(state, contentWidth, bodyHeight) : sidebarOverlay ? sidebarLines(state) : body;
   const stickyCount=!overlay&&!sidebarOverlay?Math.min(options.stickyRows??0,Math.max(0,bodyHeight-8)):0;
   const fixed=content.slice(0,stickyCount);content=content.slice(stickyCount);
   const viewportHeight=bodyHeight-stickyCount;
@@ -151,19 +158,30 @@ export function renderWorkspaceFrame(state: TuiState, rawWidth: number, rawHeigh
     else if (!overlay && !sidebarOverlay && index < heroRows) rendered = backgroundLine(raw, contentWidth, background, mode);
     else if (raw.startsWith("> ") || raw.includes("›")) rendered = foreground(rendered, "#ff553b", mode, true);
     else if (/^(You|Sophia|Tasks|Projects|Workflows|Recent chats|Suggestions|Actions)$/.test(raw)) rendered = foreground(rendered, "#5a85eb", mode, true);
-    if (sidebarWidth) rendered = foreground(padCells(side[i] ?? "", sidebarWidth - 2), "#cfcfcf", mode) + `${vertical} ` + rendered;
-    rows.push(box("", rendered));
+    const sidebarRow = sidebarWidth ? foreground(padCells(side[i] ?? "", sidebarWidth - 2), "#cfcfcf", mode) + `${vertical} ` : undefined;
+    rows.push(place(rendered, sidebarRow));
   }
   const placeholder = state.screen === "example" ? "Continue from this example, or ask your own question..."
     : state.workspace === "chats" ? state.screen === "chat" ? "Ask a follow-up, use @file, or type /help" : "Ask anything..."
     : state.workspace === "projects" ? "Name a new project  ·  /search to browse"
     : state.workspace === "workflows" ? "Describe new workflow  ·  /search to browse"
     : state.workspace === "tasks" ? "Add or update tasks  ·  /search to browse" : "Search apps or type / for actions";
-  const composer = showComposer ? inputLines.slice(-composerRows).map((text, i) => box(`${i ? "  " : "> "}${text || (!state.input ? placeholder : "")}`)) : [];
   const hint = state.status && state.screen !== "status" ? `${state.status}  ·  ${workspaceHint(state)}` : workspaceHint(state);
-  const frame = [top, box("", foreground(padCells(nav, inner), "#cfcfcf", mode, true)), divider, ...rows, ...(showComposer?[divider,...composer]:[]), box("", foreground(padCells(hint, inner), state.focus === "composer" ? "#a0a0a0" : "#ff553b", mode)), bottom];
+  const hintColor = state.focus === "composer" ? "#a0a0a0" : "#ff553b";
+  const composer: string[] = [];
+  if (showComposer) {
+    const inputRows = inputLines.slice(-composerRows).map((text, i) => `${i ? "  " : "> "}${text || (!state.input ? placeholder : "")}`);
+    if (contentWidth < 6) composer.push(...inputRows.map((text) => place(padCells(text, contentWidth))), place(foreground(padCells(hint, contentWidth), hintColor, mode)), place(" ".repeat(contentWidth)), place(" ".repeat(contentWidth)));
+    else {
+      const edge = (left: string, right: string) => place(foreground(left + line.repeat(contentWidth - 2) + right, "#6b6b6b", mode));
+      const inputRow = (text: string, color?: string) => place(foreground(vertical, "#6b6b6b", mode) + " " + foreground(padCells(text, contentWidth - 4), color ?? "#e6e6e6", mode) + " " + foreground(vertical, "#6b6b6b", mode));
+      composer.push(edge(ascii ? "+" : "╭", ascii ? "+" : "╮"), ...inputRows.map((text) => inputRow(text)), inputRow(hint, hintColor), edge(ascii ? "+" : "╰", ascii ? "+" : "╯"));
+    }
+  }
+  const frame = [place(foreground(padCells(nav, contentWidth), "#cfcfcf", mode, true)), place(" ".repeat(contentWidth)), ...rows,
+    ...(showComposer ? composer : [place(foreground(padCells(hint, contentWidth), hintColor, mode))])];
   // Even tiny terminals are bounded by their actual dimensions.
-  return frame.slice(0, height).map((row) => width < 5 ? truncateCells(row, width) : row).join("\n");
+  return frame.slice(0, height).join("\n");
 }
 
 function titleCase(value: string) { return value.charAt(0).toUpperCase() + value.slice(1); }

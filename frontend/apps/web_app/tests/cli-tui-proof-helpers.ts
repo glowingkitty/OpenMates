@@ -135,6 +135,15 @@ async function captureProof(apiUrl: string, home: string, candidateCli: string, 
 	};
 	const through = (name: string) => plain(transcriptBytes.subarray(0, checkpoint(name).transcript_offset).toString('utf8'));
 	const segment = (name: string, prior: string) => plain(transcriptBytes.subarray(checkpoint(prior).transcript_offset, checkpoint(name).transcript_offset).toString('utf8'));
+	const frame = (name: string): string[] => {
+		const output = transcriptBytes.subarray(0, checkpoint(name).transcript_offset).toString('utf8');
+		const end = output.lastIndexOf('\x1b[?2026l'), start = output.lastIndexOf('\x1b[?2026h', end);
+		if (start < 0 || end < start) throw new Error(`No complete terminal frame at ${name}`);
+		// eslint-disable-next-line no-control-regex -- Inspect actual synchronized terminal row writes.
+		const rows = [...output.slice(start + 8, end).matchAll(/\x1b\[(\d+);1H\x1b\[2K([\s\S]*?)(?=\x1b\[\d+;1H|$)/g)];
+		if (!rows.length) throw new Error(`No terminal rows at ${name}`);
+		return rows.map((row) => plain(row[2]));
+	};
 	expect(manifest.capture_kind).toBe('real_terminal_screen');
 	expect(manifest.reconstructed).toBe(false);
 	expect(manifest.exit_status).toBe(0);
@@ -143,7 +152,7 @@ async function captureProof(apiUrl: string, home: string, candidateCli: string, 
 	expect(manifest.input_plan_sha256).toBe(sha256(inputPlan));
 	expect(checkpoints.size).toBe(steps.length);
 	return {
-		manifest, transcript, through, segment,
+		manifest, transcript, through, segment, frame,
 		async attest() {
 			const assertions = contract.assertions.map((assertion) => ({id: assertion.id, status: 'passed', at_ms: checkpoint(assertion.checkpoint).at_ms}));
 			const timeline = {
@@ -258,18 +267,19 @@ function requireIsolatedCliBuild(): string {
 
 
 const centeredCarouselProofContract = {
-	id: 'cli-tui-centered-carousels-real-terminal',
-	title: 'Centered terminal chat and app carousels', surface: 'cli', devices: [PROFILE],
+	id: 'cli-tui-centered-layout-real-terminal',
+	title: 'Centered terminal content and carousels', surface: 'cli', devices: [PROFILE],
 	transcript: [
-		{id: 'centered-chats', text: 'The newest chat starts centered. Left and Right keep the chosen preview centered.', checkpoint: 'chat-fourth', devices: [PROFILE]},
-		{id: 'open-chat', text: 'Enter opens the chosen chat with its draft restored.', checkpoint: 'chat-open', devices: [PROFILE]},
-		{id: 'centered-apps', text: 'Apps uses the same centered carousel and keyboard controls. Enter opens the selected app.', checkpoint: 'app-open', devices: [PROFILE]}
+		{id: 'centered-chats', text: 'The newest chat starts centered, with no outer terminal border.', checkpoint: 'chat-fourth', devices: [PROFILE]},
+		{id: 'open-chat', text: 'The chosen chat opens with centered header and input containers.', checkpoint: 'chat-open', devices: [PROFILE]},
+		{id: 'centered-apps', text: 'Apps uses the same carousel controls and centered page margins.', checkpoint: 'app-open', devices: [PROFILE]}
 	],
 	assertions: [
 		{id: 'cli.tui.chat-carousel.centered', checkpoint: 'chat-fourth', visual: 'The newest chat starts horizontally centered, and the fourth keyboard-selected chat remains centered with neighboring previews visible.', devices: [PROFILE]},
 		{id: 'cli.tui.chat-carousel.open', checkpoint: 'chat-open', visual: 'Enter opens the fourth selected chat with its encrypted draft restored.', devices: [PROFILE]},
 		{id: 'cli.tui.apps-carousel.centered', checkpoint: 'app-third', visual: 'The first app starts horizontally centered, and Left/Right centers the third app with an App 3 of 6 counter.', devices: [PROFILE]},
-		{id: 'cli.tui.apps-carousel.open', checkpoint: 'app-open', visual: 'Enter opens the selected Health app and its Skills tab.', devices: [PROFILE]}
+		{id: 'cli.tui.apps-carousel.open', checkpoint: 'app-open', visual: 'Enter opens the selected Health app and its Skills tab.', devices: [PROFILE]},
+		{id: 'cli.tui.centered-content', checkpoint: 'app-open', visual: 'The open chat header and message input share a centered container; the app page uses the same side margins, and the outer terminal border is absent.', devices: [PROFILE]}
 	],
 	tutorial: {readingWordsPerSecond: 2.5, minimumHoldMs: 1200, maximumHoldMs: 5000}
 };

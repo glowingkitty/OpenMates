@@ -1099,3 +1099,13 @@ approved_centered_home_carousels_followup:
     - "Preserve solid colors, Unicode geometry, narrow terminals, sidebar resizing, filtering, and manual vertical scrolling. Apps keeps its featured catalog and Show all action."
   verification:
     - "Focused center/viewport/selection regressions and isolated keyboard plus real terminal proof, delivered before scoped dev publication."
+
+approved_centered_content_followup:
+  task: TASK-4295
+  approved_on: "2026-10-02"
+  user_goal: "Center the chat header and message input containers on large terminals, give the app page matching side margins, and remove the white outer TUI border."
+  requirements:
+    - "Use a shared bounded content column centered within the main pane, including when the sidebar is open; narrow terminals retain their available width."
+    - "Remove the outer terminal frame while retaining component card/tab borders and a centered message input container. Preserve solid colors, Unicode geometry, scrolling and keyboard navigation."
+  verification:
+    - "Focused layout, wrapping and sidebar regressions plus isolated keyboard and real terminal proof with actual output geometry assertions, delivered before scoped dev publication."

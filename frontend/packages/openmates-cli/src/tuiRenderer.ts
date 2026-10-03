@@ -17,7 +17,7 @@ import type { TuiProject, TuiProjectFile } from "./tuiProjectsWorkspace.js";
 import { renderProjectList, renderProjectDetail, renderProjectIdentity, renderProjectTabs, filteredProjectFiles } from "./tuiProjectsWorkspace.js";
 import { renderTaskBoard, renderTaskDetails, filterTasks, type TaskContext } from "./tuiTasksWorkspace.js";
 import { renderWorkflowWorkspace, renderWorkflowPreviewCard, renderWorkflowIdentity } from "./tuiWorkflowWorkspace.js";
-import { renderWorkspaceFrame } from "./tuiLayout.js";
+import { renderWorkspaceFrame, workspaceGeometry } from "./tuiLayout.js";
 import { cells, wrapCells, truncateCells, type TuiColorMode, type TuiLine } from "./tuiText.js";
 import { centeredCarouselText } from "./tuiCarousel.js";
 import { homeHeader, renderHomeChatCards } from "./tuiHome.js";
@@ -238,8 +238,7 @@ export function rankExamples(
 }
 
 export function renderTuiFrame(state: TuiState, width: number, height: number, options: { colorMode?: TuiColorMode; ascii?: boolean } = {}): string {
-  const sidebarWidth = state.sidebarOpen && width >= 90 ? 27 : 0;
-  const bodyWidth = Math.max(1, width - 4 - sidebarWidth);
+  const bodyWidth = workspaceGeometry(state, width).contentWidth;
   const stickyRows=state.screen==="project"&&state.activeProject?renderProjectIdentity(state.activeProject,{width:bodyWidth}).length+renderProjectTabs(state.projectTab,bodyWidth).length:
     state.screen==="app"&&state.activeApp?renderTuiAppIdentity(state.activeApp,bodyWidth).length+renderTuiAppTabs(state.appTab,bodyWidth).length:
     state.screen==="app-skill"&&state.activeAppSkill?renderTuiAppsSkillIdentity(state.activeAppSkill,bodyWidth).length+renderTuiAppsSkillTabs(state.appSkillTab,bodyWidth).length:

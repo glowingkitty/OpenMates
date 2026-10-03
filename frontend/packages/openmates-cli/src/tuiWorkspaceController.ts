@@ -8,7 +8,7 @@ import { loadTuiProjects, loadTuiProject, loadTuiProjectFiles, readTuiProjectFil
 import { buildWorkflowNodeForm, submitWorkflowNodeForm } from "./tuiWorkflowWorkspace.js";
 import { decryptUserTasks, TASK_STATUSES } from "./tasksCli.js";
 import { formValue } from "./tuiForms.js";
-import { WORKSPACES } from "./tuiLayout.js";
+import { WORKSPACES, workspaceGeometry } from "./tuiLayout.js";
 import { tuiChatSidebarRows, refreshTuiChatSidebar, placeTuiChats, createTuiChatProject } from './tuiChatSidebar.js';
 import { encryptWithAesGcmCombined } from './crypto.js';
 import { paletteActions, TUI_ACTIONS } from "./tuiActions.js";
@@ -489,7 +489,7 @@ export async function handleWorkspaceKey(context: WorkspaceContext, chunk: strin
     }
   }
   if (state.focus === "content" && (state.screen === "task" || state.screen === "tasks")) {
-    if(state.screen==="tasks"&&(key.name==="left"||key.name==="right")&&context.terminal.width-(state.sidebarOpen&&context.terminal.width>=90?27:0)-4<110){
+    if(state.screen==="tasks"&&(key.name==="left"||key.name==="right")&&workspaceGeometry(state,context.terminal.width).contentWidth<110){
       const selected=selectedTask(state),current=TASK_STATUSES.indexOf((state.taskStatusFilter||selected?.status||"todo") as UserTaskStatus);
       state.taskStatusFilter=TASK_STATUSES[(current+(key.name==="left"?-1:1)+TASK_STATUSES.length)%TASK_STATUSES.length];state.selectedIndex=0;state.scrollOffset=0;render();return true;
     }
