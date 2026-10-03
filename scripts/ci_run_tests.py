@@ -570,7 +570,7 @@ def run_e2e(
                         # The backend and browser share only this runner-generated
                         # assertion secret; no live or SDK key is needed here.
                         env["OPENMATES_TEST_ACCOUNT_API_KEY"] = profile["services"]["api"]["environment"]["OPENMATES_TEST_ACCOUNT_API_KEY"]
-                    if name == "shared-chat-open.spec.ts":
+                    if name in {"shared-chat-open.spec.ts", "shared-chat-bounded-history.spec.ts", "startup-sync-contract.spec.ts"}:
                         env["OPENMATES_CI_SHARED_CHAT_URL"] = provision_shared_archive(primary)
                     if name == "startup-sync-contract.spec.ts":
                         provision_startup_sync_chats(primary)
