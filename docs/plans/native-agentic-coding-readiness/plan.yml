@@ -4,7 +4,7 @@ title: 'Agentic coding implementation: project file access first'
 status: implementing
 goal: Implement CLI and chat read/write access to remote and OpenMates-stored Project files, then web
   Project browsing and editing, then address Tasks, Specifications, and Plans gaps.
-revision: r71
+revision: r72
 conversation: codex:01a0caf0-76d6-7e73-86d1-c7c759db3cf4
 workspace_session: '8c51'
 approved_by_user: true
@@ -87,6 +87,7 @@ offline_privacy_evaluation_2026_10_03:
   report: docs/architecture/privacy/offline-pii-evaluation-2026-10-03.md
   evidence: docs/architecture/privacy/evaluations/2026-10-03/manifest.json
   next: User review of the measured implementation strategy before activating a model in Project-file privacy processing.
+  performance_followup: User questioned the impact of scanning every device input during ordinary coding. Recommend selective semantic scanning for short messages on capable clients, optional documents and explicitly sensitive Project excerpts; keep ordinary code reads, searches and terminal events deterministic by default. Twenty uncached 4096-token reads imply about 109 seconds of sequential scan work. Caching helps unchanged files but invalidates on edits. This is a recommendation, not approval to activate or silently bypass a model-required policy.
 publication_checkpoint_2026_10_02:
   deployed: Privacy c50516eb30e8d6f3a74e73e4c4cdca3f2fb531d7 and backend Task/browser recovery 9a203f628f97f8dd17b76d424c87976bebaf1e51 are on dev; the refreshed backend services are healthy and the web deployment is Ready.
   remaining_patch: The final bounded CLI claim helper, its three checks, safe hosted-proof diagnostics and r70 overview/checkpoints passed integration lint, Specification, translation and SDK boundary checks.

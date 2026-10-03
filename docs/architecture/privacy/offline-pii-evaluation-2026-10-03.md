@@ -8,6 +8,11 @@ slow on its older ARM CPU for routine file processing. Keep deterministic patter
 and configured private values, and add semantic detection with explicit safeguards
 for coding content. This evaluation does **not** activate a model in the product.
 
+The user's follow-up emphasizes total chat latency. The recommended scope is
+therefore selective: short user messages on capable local clients, optional
+document scans, and explicit sensitive-Project/excerpt scans. Do not put this model
+on every ordinary source-file read, search result or terminal-output event.
+
 ## What was actually tested
 
 OpenAI Privacy Filter is a local token classifier with eight categories: person,
@@ -188,8 +193,39 @@ serialized local worker and a bounded request queue.
 
 ## Recommended integration
 
+### Where the latency is acceptable
+
+| Content | Recommended default | Reason |
+| --- | --- | --- |
+| Short user message on a capable client with a warm worker | Suitable first model pilot | Approximately 0.09–0.33 seconds for 64–256 tokens on four cores |
+| User document | Optional semantic scan with progress | A document with 8,192 tokens took 16.2 seconds; longer documents can add substantial delay |
+| Ordinary code reads/search/terminal output | Existing deterministic detector and configured private values | Scanning every event would repeatedly delay each agent iteration |
+| Project with an explicitly selected stronger privacy policy | Model scan on bounded content actually being sent, cached by digest | Accept additional latency explicitly; do not silently weaken the selected policy |
+
+For example, 20 uncached 4,096-token file reads would add about **109 seconds of
+scan work** if processed sequentially at the measured four-core latency. This is
+an arithmetic estimate, not an additional 20-file benchmark. Caching helps with
+unchanged files, but edits invalidate that cache; it does not make large-file
+semantic scanning free during an active coding loop.
+
+Keep the worker warm and serialized, scan only material about to cross the
+client/model boundary, and cache by content plus settings/model version. Streaming
+terminal output should keep its existing deterministic path; an optional model
+scan can consume a complete bounded excerpt rather than every line/event.
+Do not silently send unscanned text because a scan exceeds its latency budget:
+the user-selected policy determines whether to wait/retry or explicitly use the
+deterministic-only mode.
+
+This Linux benchmark does not validate a browser/mobile runtime. Short-message
+inference is a recommendation for capable authorized local executors; uploading
+plaintext to the OpenMates server to obtain these CPU timings would violate the
+existing client-side privacy boundary.
+
+### How it connects to existing privacy handling
+
 1. Keep regex, validators and exact configured-secret matching as the mandatory
-   fast layer. Add the local model as an opt-in semantic layer, initially for
+   fast layer for all outgoing content. Add the local model selectively as above,
+   initially for
    names, addresses and contextual secrets. Let neither layer remove detections
    from the other. Existing user category settings must govern the combined result.
 2. Pass original client-local text to classification, merge ranges, and generate
@@ -208,8 +244,8 @@ serialized local worker and a bounded request queue.
    model-required scan succeeded; explicitly expose retry or deterministic-only
    policy before forwarding content.
 5. Cache scan results locally by content digest, model version and privacy-settings
-   version. Scan content once before remote search/read/proposal output is sent to
-   the server. Use overlap-aware bounded windows for long files and complete output
+   version. In model-enabled contexts, scan content once before remote
+   search/read/proposal output is sent to the server. Use overlap-aware bounded windows for long files and complete output
    chunks; arbitrary disjoint chunks can split a sensitive value. Large-file work
    should use the existing asynchronous job/progress mechanism.
 6. Keep inference on the machine that already owns decrypted content. Remote
