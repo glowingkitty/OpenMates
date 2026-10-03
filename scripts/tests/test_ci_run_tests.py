@@ -10,6 +10,7 @@ See docs/architecture/isolated-github-tests.md.
 import json
 import sys
 from types import SimpleNamespace
+import pytest
 from scripts import ci_environment
 
 
@@ -58,6 +59,52 @@ def test_focused_pytest_runs_only_exact_targets(tmp_path, monkeypatch):
         "failed_tests": [],
         "failure": "pytest failed; inspect ci-pytest.json",
     }]
+
+
+@pytest.mark.parametrize(
+    ("targets", "expects_sdk_install"),
+    [
+        (["backend/tests/test_one.py::test_one", "backend/tests/test_two.py"], False),
+        (["packages/openmates-python/tests/test_sdk.py::test_one"], True),
+        (["backend/tests/test_one.py", "packages/openmates-python/tests/test_sdk.py"], True),
+        ([], True),
+    ],
+)
+def test_pytest_install_omits_sdk_only_for_focused_backend_targets(
+    tmp_path, monkeypatch, targets, expects_sdk_install,
+):
+    monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
+    from scripts import ci_run_tests as runner
+
+    for target in targets:
+        test_file = tmp_path / target.partition("::")[0]
+        test_file.parent.mkdir(parents=True, exist_ok=True)
+        test_file.write_text("def test_one(): pass\n")
+    monkeypatch.setattr(runner, "ROOT", tmp_path)
+    monkeypatch.setattr(runner, "RESULTS", tmp_path / "test-results")
+    monkeypatch.setattr(runner, "require_runner", lambda: None)
+    monkeypatch.setattr(runner.time, "sleep", lambda _: None)
+    monkeypatch.setenv("CI_TEST_MODE", "pytest")
+    monkeypatch.setenv("CI_SPECS_JSON", json.dumps(targets))
+    monkeypatch.setenv("GITHUB_RUN_ID", "8")
+    calls = []
+    monkeypatch.setattr(
+        runner.subprocess,
+        "run",
+        lambda command, **kwargs: calls.append(command) or SimpleNamespace(returncode=0),
+    )
+    monkeypatch.setattr(runner.subprocess, "check_output", lambda *a, **k: "b" * 40)
+
+    assert runner.main() == 0
+    pip_command = next(command for command in calls if "pip" in command)
+    assert "backend/requirements-dev.txt" in pip_command
+    assert "backend/core/api/requirements.txt" in pip_command
+    assert ("packages/openmates-python" in pip_command) is expects_sdk_install
+    first_pytest_command = next(command for command in calls if "pytest" in command)
+    if targets:
+        assert all(target in first_pytest_command for target in targets)
+    else:
+        assert "backend/tests" in first_pytest_command
 
 
 def test_pytest_target_validation_rejects_options_and_traversal():

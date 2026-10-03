@@ -878,19 +878,23 @@ def main():
             selection = validate_pytest_targets(
                 json.loads(os.environ.get("CI_SPECS_JSON", "[]")), root=ROOT
             )
+            install_command = [
+                sys.executable,
+                "-m",
+                "pip",
+                "install",
+                "-r",
+                "backend/requirements-dev.txt",
+                "-r",
+                "backend/core/api/requirements.txt",
+            ]
+            # Backend-only focused tests do not import the Python SDK. Its
+            # separate TOON pin conflicts with the backend's declared Git
+            # dependency when both are resolved in one pip transaction.
+            if not (selection and all(target.startswith("backend/tests/") for target in selection)):
+                install_command.extend(["-e", "packages/openmates-python"])
             subprocess.run(
-                [
-                    sys.executable,
-                    "-m",
-                    "pip",
-                    "install",
-                    "-r",
-                    "backend/requirements-dev.txt",
-                    "-r",
-                    "backend/core/api/requirements.txt",
-                    "-e",
-                    "packages/openmates-python",
-                ],
+                install_command,
                 cwd=ROOT,
                 check=True,
             )
