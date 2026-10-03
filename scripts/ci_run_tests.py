@@ -923,6 +923,21 @@ def capture_recovery_ai_diagnostics(report: dict, index: int) -> list[dict[str, 
     return summaries
 
 
+def sanitize_archive_probe_failure(stderr: str) -> str:
+    """Expose the innermost application frame and exception class, never values."""
+    frames = re.findall(
+        r'File "/app/[^"\n]+", line ([0-9]{1,6}), in ([A-Za-z_][A-Za-z_0-9]{0,79})',
+        stderr,
+    )
+    line, function = frames[-1] if frames else ("unknown", "unknown")
+    terminal = stderr.strip().splitlines()[-1] if stderr.strip() else ""
+    error_type_match = re.match(
+        r"([A-Za-z_][A-Za-z_0-9.]{0,75}(?:Error|Exception))(?::|$)", terminal
+    )
+    error_type = error_type_match.group(1) if error_type_match else "unknown"
+    return f"Disposable archive DB/S3 transaction probe failed at {function}:{line} ({error_type})"
+
+
 def run_storage_capacity(*, identity_start: int, full: bool) -> dict:
     """Run a small pilot or explicit full target on the disposable isolated stack."""
     private = RESULTS / "ci-private"
@@ -955,17 +970,7 @@ def run_storage_capacity(*, identity_start: int, full: bool) -> dict:
         (private / "capacity-archive-probe.stderr.log").write_text(
             stderr[-200_000:], encoding="utf-8",
         )
-        frames = re.findall(
-            r'File "/app/scripts/storage_archive_integration[.]py", line ([0-9]+), in ([A-Za-z_][A-Za-z_0-9]*)',
-            stderr,
-        )
-        line, function = frames[-1] if frames else ("unknown", "unknown")
-        terminal = stderr.strip().splitlines()[-1] if stderr.strip() else ""
-        error_type_match = re.match(r"([A-Za-z_][A-Za-z_0-9.]*)(?::|$)", terminal)
-        error_type = error_type_match.group(1) if error_type_match else "unknown"
-        raise RuntimeError(
-            f"Disposable archive DB/S3 transaction probe failed at {function}:{line} ({error_type})"
-        ) from None
+        raise RuntimeError(sanitize_archive_probe_failure(stderr)) from None
     try:
         archive_probe_receipt = json.loads(archive_probe.stdout.splitlines()[-1])
     except (IndexError, json.JSONDecodeError) as exc:

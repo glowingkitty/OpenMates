@@ -153,6 +153,21 @@ def test_saved_bundle_selector_is_signed_but_cannot_gate_the_capacity_workload(m
     assert replay in runner.CAPACITY_WORKLOAD_SPECS
 
 
+def test_archive_probe_reports_inner_application_frame_without_private_values(monkeypatch) -> None:
+    runner = _load_bound_runner(monkeypatch)
+    stderr = (
+        '  File "/app/scripts/storage_archive_integration.py", line 591, in probe\n'
+        '  File "/app/backend/core/api/app/tasks/base_task.py", line 261, in initialize_core_services\n'
+        'AttributeError: private-account-token-value\n'
+    )
+    public = runner.sanitize_archive_probe_failure(stderr)
+    assert public == (
+        'Disposable archive DB/S3 transaction probe failed at '
+        'initialize_core_services:261 (AttributeError)'
+    )
+    assert 'private-account-token-value' not in public
+
+
 def _runner_with_frontend_files(tmp_path, monkeypatch):
     runner = _load_bound_runner(monkeypatch)
     targets = [
