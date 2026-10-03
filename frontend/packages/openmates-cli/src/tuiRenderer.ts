@@ -1,3 +1,4 @@
+import { ENHANCED_ANONYMIZATION_LABEL } from "./privacyModel.js";
 /*
  * OpenMates CLI TUI pure renderer.
  *
@@ -66,6 +67,8 @@ export type TuiState = {
   navigationIndex: number;
   focus: TuiFocus;
   signedIn: boolean;
+  privacyOffer: boolean;
+  privacyInstalling: boolean;
   form: TuiForm | null;
   paletteOpen: boolean;
   paletteQuery: string;
@@ -153,7 +156,7 @@ export function createInitialTuiState(): TuiState {
     apps:[],activeApp:null,activeAppSkill:null,appTab:"skills",appSkillTab:"overview",appResults:{items:[],hasMore:false,offset:0},
     appWorkflows:{items:[],hasMore:false,offset:0},activeAppResult:null,appPreparedRun:null,
     workspace: "chats", sidebarOpen: false, sidebarIndex: 0, navigationIndex: 0,
-    focus: "content", signedIn: false, form: null, paletteOpen: false,
+    focus: "content", signedIn: false, privacyOffer: false, privacyInstalling: false, form: null, paletteOpen: false,
     paletteQuery: "", paletteIndex: 0, filter: "", taskStatusFilter: "",
     taskContext: null, recentChats: [], runningChatIds: [], activityChats: [], sidebarLinkedChats: [], activityFrame: 0,
     chatSidebarProjects: [], chatSidebarLoadVersion: 0, chatActivityLoadVersion: 0, chatSidebarLocation: null, chatSidebarAncestors: false, chatProjectOperation: null, chatProjectBusy: false,
@@ -260,6 +263,14 @@ function homeCards(lines:string[],width:number,gradients:Array<{start:string;end
   });
 }
 function renderBody(state: TuiState, width: number,height:number): TuiLine[] {
+  const offer = state.privacyOffer ? [ENHANCED_ANONYMIZATION_LABEL,
+    "Detect names and addresses locally, alongside existing detection.",
+    "Download: about 1.6 GB · RAM when active: about 2 GB.",
+    "[F6: Download and enable] [F7: Maybe later]",
+    "Or /privacy install · /privacy later", ""] : [];
+  return [...offer.flatMap((line) => wrap(line, width)), ...renderScreenBody(state, width, height)];
+}
+function renderScreenBody(state: TuiState, width: number,height:number): TuiLine[] {
   switch (state.screen) {
     case "help":
       return renderHelp(width);

@@ -10,6 +10,7 @@ export type PreparedTuiMessage = {
   message: string;
   preparedEmbeds: PreparedEmbed[];
   displayNames: string[];
+  piiMappings?: Array<{ placeholder: string; original: string; type: string }>;
 };
 
 const isExplicitPath = (token: string): boolean =>
@@ -96,6 +97,7 @@ export async function prepareTuiMessage(client: OpenMatesClient, message: string
 
   return {
     message: removePathMentions(message, paths) + formatEmbedsForMessage(result.embeds),
+    piiMappings: redactor.getMappings().map((m) => ({ ...m })),
     preparedEmbeds: result.embeds.map((file) => file.embed),
     displayNames: result.embeds.map((file) => file.displayName),
   };

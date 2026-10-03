@@ -53,7 +53,7 @@ concurrency:
 
 jobs:
   build-test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     permissions:
       contents: read
     steps:
@@ -68,6 +68,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Package offline privacy runtime (no model download or inference)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y cmake g++-aarch64-linux-gnu
+          python3 frontend/packages/openmates-cli/scripts/build-privacy-runtime.py --cross
+
       - name: Build CLI
         run: pnpm --filter openmates build
 
@@ -79,6 +85,13 @@ jobs:
 
       - name: Check product/CLI version alignment
         run: node scripts/prepare_cli_publish_version.mjs --channel=check
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openmates-privacy-runtime
+          path: frontend/packages/openmates-cli/fixtures/privacy-runtime/linux-arm64/
+          if-no-files-found: error
+          retention-days: 1
 
       - uses: actions/upload-artifact@v4
         with:
@@ -109,6 +122,14 @@ jobs:
         with:
           name: openmates-cli-dist
           path: frontend/packages/openmates-cli/dist
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: openmates-privacy-runtime
+          path: frontend/packages/openmates-cli/fixtures/privacy-runtime/linux-arm64
+
+      - name: Restore native executable permission
+        run: chmod +x frontend/packages/openmates-cli/fixtures/privacy-runtime/linux-arm64/openmates-pii-worker
 
       - name: Bump prerelease version
         id: dev-version

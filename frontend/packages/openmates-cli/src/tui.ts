@@ -1,3 +1,5 @@
+import { claimPrivacyOffer } from "./privacyModel.js";
+import { runPrivacyCommand } from "./privacyCommands.js";
 /*
  * OpenMates CLI interactive terminal chat UI.
  *
@@ -102,6 +104,7 @@ export async function runTui(
     });
   });
   render();
+  if (state.signedIn) void claimPrivacyOffer().then((show) => { if (!closed) { state.privacyOffer = show; render(); } }).catch(() => {});
   void loadHomeData(state,client,render);
   void refreshActivity();
   if (state.signedIn && typeof client.observeChatActivity === 'function') {
@@ -128,6 +131,12 @@ async function handleKey(params: {
   if (key.ctrl && key.name === "c") {
     finish({ action: "exit" });
     return;
+  }
+  if (state.privacyOffer && key.name === "f7") { state.privacyOffer = false; render(); return; }
+  if (state.privacyOffer && key.name === "f6") {
+    const draft = state.input, cursor = state.inputCursor;
+    await handleCommand({ command: "/privacy install", state, client, terminal, render, finish });
+    state.input = draft; state.inputCursor = cursor; rememberDraft(state); render(); return;
   }
   const context: WorkspaceContext = {
     state, client, terminal, render,
@@ -311,6 +320,24 @@ async function handleCommand(params: {
   const arg = parts.join(" ");
   rememberDraft(state);
   state.input = ""; state.inputCursor = null;
+  if (name === "/privacy") {
+    const action = parts[0] ?? "status";
+    if (action === "later") { state.privacyOffer = false; render(); return; }
+    if (state.privacyInstalling) { state.status = "Offline model installation is already running."; render(); return; }
+    const documents = parts[1] === "documents";
+    const project = parts[1] === "project" ? parts[2] ?? state.selectedProjectId ?? undefined : undefined;
+    if (parts[1] === "project" && !project) throw new Error("Open a Project first, or use /privacy enable project FULL_PROJECT_ID.");
+    if (action === "remove" && parts[1] !== "confirm") { state.status = "Remove the offline model for all profiles? Use /privacy remove confirm to proceed."; render(); return; }
+    const install = action === "install" || action === "update";
+    state.privacyOffer = false; state.privacyInstalling = install;
+    let lastProgress = 0;
+    const operation = runPrivacyCommand(action, { yes: install || action === "remove" && parts[1] === "confirm", documents, project,
+      progress: (done, total) => { if (Date.now() - lastProgress > 1000) { state.status = `Offline model download: ${Math.floor(done * 100 / total)}%`; lastProgress = Date.now(); render(); } },
+    }).then((result) => { state.status = result; }).catch((error) => { state.status = error instanceof Error ? error.message : String(error); })
+      .finally(() => { state.privacyInstalling = false; render(); });
+    if (!install) await operation;
+    render(); return;
+  }
   if (name === "/exit" || name === "/quit") {
     finish({ action: "exit" });
     return;
@@ -380,6 +407,7 @@ async function handleCommand(params: {
     });
     Object.assign(state, createInitialTuiState(), {routeVersion:state.routeVersion+1,homeLoadVersion:state.homeLoadVersion+1, signedIn:client.hasSession(),status:"Login successful."});
     hydrateExamples(state);
+    void claimPrivacyOffer().then((show) => { state.privacyOffer = show; render(); }).catch(() => {});
     void loadHomeData(state,client,render);
     render();
     return;
@@ -442,7 +470,12 @@ async function sendTuiMessage(params: {
   state.screen = "chat";
   state.aiTaskId = null;
   state.status = prepared.displayNames.length ? `Attached: ${prepared.displayNames.join(", ")}` : null;
-  state.messages.push({ role: "user", content: prepared.message, embedIds: prepared.preparedEmbeds.map((embed) => embed.embedId) });
+  const userMessage = { role: "user" as const, content: prepared.message, embedIds: prepared.preparedEmbeds.map((embed) => embed.embedId) };
+  state.messages.push(userMessage);
+  const privacyCallbacks = {
+    onPrivacyPrepared: (safe: string) => { userMessage.content = safe; render(); },
+    onPrivacyProgress: (done: number, total: number) => { if (state.messages === messages) { state.status = `Offline personal-data scan: ${Math.floor(done * 100 / total)}%`; render(); } },
+  };
   const assistantMessage = { role: "assistant" as const, content: "", title: "Sophia" };
   state.messages.push(assistantMessage);
   render();
@@ -450,6 +483,7 @@ async function sendTuiMessage(params: {
     if (!client.hasSession()) {
       const result = await client.sendAnonymousMessage({
         message: prepared.message,
+        ...privacyCallbacks,
         messageHistory: anonymousHistory,
       });
       assistantMessage.content = result.assistant;
@@ -463,6 +497,8 @@ async function sendTuiMessage(params: {
       const result = await client.sendMessage({
         message: prepared.message,
         interactiveHuman: true,
+        ...privacyCallbacks,
+        piiMappings: prepared.piiMappings,
         chatId: existingChatId ?? undefined,
         newChatId: existingChatId ? undefined : chatId,
         projectId: state.selectedProjectId ?? undefined,

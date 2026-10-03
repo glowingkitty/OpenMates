@@ -1,3 +1,4 @@
+import { PII_TYPE_TO_CATEGORY, type PIIType } from "../../ui/src/components/enter_message/services/piiDetectionService.js";
 // frontend/packages/openmates-cli/src/outputRedactor.ts
 /**
  * @file CLI terminal output redactor — scans all output for secrets and
@@ -47,6 +48,8 @@ const PERSONAL_DATA_ITEM_TYPE = "personal_data_entry";
 export class OutputRedactor {
   private scanner: SecretScanner;
   private initialized = false;
+  private privacyEnabled = true;
+  private disabledCategories = new Set<string>();
   /** Session-scoped mappings for restoration (accumulated across all redactions) */
   private sessionMappings: Map<string, SecretMapping> = new Map();
 
@@ -66,6 +69,9 @@ export class OutputRedactor {
    * @param memories Pre-fetched decrypted memory entries (from client.listMemories())
    */
   initializeFromMemories(memories: DecryptedMemoryEntry[]): void {
+    const settings = memories.find((m) => m.app_id === "privacy" && m.item_type === "pii_detection_settings")?.data as { masterEnabled?: boolean; categories?: Record<string, boolean> } | undefined;
+    this.privacyEnabled = settings?.masterEnabled !== false;
+    this.disabledCategories = new Set(Object.entries(settings?.categories ?? {}).filter(([, enabled]) => enabled === false).map(([key]) => key));
     // Extract personal data entries (app_id="privacy", item_type="personal_data_entry")
     const personalEntries = memories.filter(
       (m) =>
@@ -120,30 +126,23 @@ export class OutputRedactor {
    * @param text Text to scan
    * @returns Redacted text with placeholders
    */
-  redact(text: string): string {
-    if (!text || !this.initialized) return text;
-
-    const result = this.scanner.redact(text);
-
-    // Store mappings for this session (for potential restoration later)
-    for (const mapping of result.mappings) {
-      this.sessionMappings.set(mapping.placeholder, mapping);
-    }
-
-    return result.redacted;
-  }
+  redact(text: string): string { return this.redactWithMappings(text).redacted; }
 
   /**
    * Redact and return both redacted text and mappings.
    * Used when we need to store mappings alongside message data.
    */
   redactWithMappings(text: string): RedactResult {
-    if (!text || !this.initialized) {
+    if (!text || !this.initialized || !this.privacyEnabled) {
       return { redacted: text, mappings: [] };
     }
 
     const result = this.scanner.redact(text);
-
+    const excluded = result.mappings.filter((m) => this.disabledCategories.has(PII_TYPE_TO_CATEGORY[m.type as PIIType] ?? ""));
+    if (excluded.length) {
+      result.redacted = this.scanner.restore(result.redacted, excluded);
+      result.mappings = result.mappings.filter((m) => !excluded.includes(m));
+    }
     for (const mapping of result.mappings) {
       this.sessionMappings.set(mapping.placeholder, mapping);
     }
@@ -159,6 +158,9 @@ export class OutputRedactor {
     if (!text || this.sessionMappings.size === 0) return text;
     return this.scanner.restore(text, Array.from(this.sessionMappings.values()));
   }
+
+  /** Mappings accumulated while preparing attachments and this message. */
+  getMappings(): SecretMapping[] { return Array.from(this.sessionMappings.values()); }
 
   /** Whether the redactor has been initialized with personal data */
   get isInitialized(): boolean {

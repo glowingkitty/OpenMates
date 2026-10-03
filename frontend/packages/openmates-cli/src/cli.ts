@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { runPrivacyCommand, PRIVACY_HELP } from "./privacyCommands.js";
 import { taskMutationStore, type TaskMutation } from "./taskMutationDelivery.js";
 /*
  * OpenMates CLI command entry.
@@ -476,10 +477,23 @@ async function main(): Promise<void> {
       printConnectAccountHelp();
       return;
     }
+    if (command === "privacy") { process.stdout.write(PRIVACY_HELP); return; }
     printHelp();
     return;
   }
 
+  if (command === "privacy") {
+    let lastProgress = 0;
+    const output = await runPrivacyCommand(parsed.flags.help ? "help" : subcommand, {
+      yes: parsed.flags.yes === true, json: parsed.flags.json === true,
+      downloadOnly: parsed.flags["download-only"] === true,
+      modelFile: typeof parsed.flags["model-file"] === "string" ? parsed.flags["model-file"] : undefined,
+      documents: parsed.flags.documents === true,
+      project: typeof parsed.flags.project === "string" ? parsed.flags.project : undefined,
+      progress: (done, total) => { if (Date.now() - lastProgress > 1000) { process.stderr.write(`Offline model download: ${Math.floor(done * 100 / total)}%\n`); lastProgress = Date.now(); } },
+    });
+    process.stdout.write(output + "\n"); return;
+  }
   // Server and docs commands don't need login
   if (command === "server") {
     await handleServer(client, subcommand, rest, parsed.flags);
@@ -12199,6 +12213,8 @@ async function sendMessageStreaming(
     try {
       result = await client.sendAnonymousMessage({
         message: finalMessage,
+        piiDetection: params.piiDetection !== false,
+        onPrivacyProgress: (done, total) => { if (done < total) process.stderr.write(`Offline personal-data scan: ${Math.floor(done * 100 / total)}%\n`); },
         learningMode: params.anonymousLearningMode,
       });
     } finally {
@@ -12242,7 +12258,9 @@ async function sendMessageStreaming(
     responseTimeoutMs: params.responseTimeoutMs,
     memorySnapshot,
     preparedEmbeds: preparedEmbeds.length > 0 ? preparedEmbeds : undefined,
-    piiMappings: piiResult.mappings.map((mapping) => ({
+    piiDetection: params.piiDetection !== false,
+    onPrivacyProgress: (done, total) => { if (done < total) process.stderr.write(`Offline personal-data scan: ${Math.floor(done * 100 / total)}%\n`); },
+    piiMappings: [...(redactor?.getMappings() ?? []), ...piiResult.mappings].map((mapping) => ({
       placeholder: mapping.placeholder,
       original: mapping.original,
       type: mapping.type,
@@ -14539,6 +14557,8 @@ Options for 'new', 'send', and 'incognito':
   --auto-approve-memories  Explicitly approve server-requested memory categories.
                             Memories are never approved by default.
                             Use only for trusted non-interactive runs.
+  privacy                 Optional offline personal-data anonymization; use privacy help.
+
   --no-pii-detection       Send the message exactly as typed. By default, the CLI
                             replaces detected PII with placeholders before send.
 

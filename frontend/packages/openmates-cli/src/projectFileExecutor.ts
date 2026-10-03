@@ -1,3 +1,4 @@
+import { scanEnhancedText, privacyDetectionOptions } from "./privacyScan.js";
 /** Saved-chat Project executor. Decryption and patch application stay on this client. */
 import { randomUUID, createHash } from "node:crypto";
 import { mkdir, readFile, writeFile, rename } from "node:fs/promises";
@@ -120,18 +121,12 @@ export function registerCliProjectFileExecutor(options: {
           const path = join(directory, filename);
           const history = await options.client.getChatMessages(options.chatId, context);
           const memories = options.memories ?? [];
-          const settings = memories.find((entry) => entry.app_id === "privacy" && entry.item_type === "pii_detection_settings")?.data as { masterEnabled?: boolean; categories?: Record<string, boolean> } | undefined;
+          const detection = privacyDetectionOptions(memories);
           return loadProjectFilePrivacy({
             chatId: job.chat_id, projectId: job.project_id, key: options.chatKey,
             mappings: [...history.messages.flatMap((message) => message.piiMappings ?? []), ...(options.piiMappings ?? [])],
-            enabled: settings?.masterEnabled,
-            detection: {
-              disabledCategories: new Set(Object.entries(settings?.categories ?? {}).filter(([, enabled]) => !enabled).map(([key]) => key)),
-              personalDataEntries: memories.filter((entry) => entry.app_id === "privacy" && entry.item_type === "personal_data_entry").flatMap((entry) => {
-                const data = entry.data as { enabled?: boolean; textToHide?: string; replaceWith?: string; addressLines?: Record<string, string> };
-                return data.enabled && data.textToHide && data.replaceWith ? [{ id: entry.id, textToHide: data.textToHide, replaceWith: data.replaceWith, additionalTexts: Object.values(data.addressLines ?? {}) }] : [];
-              }),
-            },
+            ...detection,
+            detectEnhanced: (text) => scanEnhancedText(text, { kind: "project", projectId: job.project_id }, detection.detection.disabledCategories),
             read: async () => {
               try { return await readFile(path, "utf8"); }
               catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") return null; throw error; }

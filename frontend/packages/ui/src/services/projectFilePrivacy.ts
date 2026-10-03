@@ -10,6 +10,10 @@ export interface ProjectFilePrivacyOptions {
   mappings?: PIIMappingGeneric[];
   /** Persist ciphertext locally before exposing any new token to the server/model. */
   save: (mappings: PIIMappingGeneric[]) => Promise<void>;
+  /** Optional local semantic classifier, supplied only by capable clients. */
+  detectEnhanced?: (text: string) => Promise<Array<{ start: number; end: number; type?: string }>>;
+  /** Already-prepared CLI messages contain genuine tokens from these mappings. */
+  preserveMappedTokens?: boolean;
 }
 
 function fail(code: string): never { throw Object.assign(new Error(code), { code }); }
@@ -93,14 +97,15 @@ export class ProjectFilePrivacy {
     return placeholder;
   }
 
-  redactText(text: string): string {
+  redactText(text: string, enhanced: Array<{ start: number; end: number; type?: string }> = []): string {
     const ranges: Array<{ start: number; end: number; type?: string }> = [];
     // Input here is original file/proposal text. Shield literal token spellings
     // that collide with known mappings; one-pass restoration preserves them.
     const tokens = Array.from(text.matchAll(TOKEN)).map((match) => ({ start: match.index!, end: match.index! + match[0].length }));
     for (const range of tokens) {
       const literal = text.slice(range.start, range.end);
-      if (this.values.has(literal) || GENERATED_TOKEN.test(literal) || legacyToken(literal)) ranges.push(range);
+      if (!(this.options.preserveMappedTokens && this.values.has(literal))
+          && (this.values.has(literal) || GENERATED_TOKEN.test(literal) || legacyToken(literal))) ranges.push(range);
     }
     const overlaps = (start: number, end: number) => [...tokens, ...ranges].some((r) => start < r.end && end > r.start);
     // Known values are matched exactly, so restoration preserves original case.
@@ -116,6 +121,18 @@ export class ProjectFilePrivacy {
       for (const match of detectPII(text, this.options.detection)) {
         if (!overlaps(match.startIndex, match.endIndex)) ranges.push({ start: match.startIndex, end: match.endIndex, type: match.type });
       }
+      for (const range of enhanced) {
+        if (!Number.isInteger(range.start) || !Number.isInteger(range.end) || range.start < 0 || range.end <= range.start || range.end > text.length) fail("pii_invalid_semantic_range");
+        // Preserve deterministic precedence without losing the uncovered suffix
+        // of a broader semantic match (e.g. configured first name + surname).
+        let fragments = [{ ...range }];
+        for (const shield of [...tokens, ...ranges]) fragments = fragments.flatMap((part) => {
+          if (part.start >= shield.end || part.end <= shield.start) return [part];
+          return [part.start < shield.start ? { ...part, end: shield.start } : null,
+            part.end > shield.end ? { ...part, start: shield.end } : null].filter((part): part is typeof range => part !== null);
+        });
+        ranges.push(...fragments);
+      }
     }
     let cursor = 0;
     let result = "";
@@ -130,17 +147,20 @@ export class ProjectFilePrivacy {
   }
 
   async redactResult(value: unknown): Promise<unknown> {
-    const visit = (item: unknown): unknown => {
-      if (typeof item === "string") return this.redactText(item);
-      if (Array.isArray(item)) return item.map(visit);
-      if (item && typeof item === "object") return Object.fromEntries(Object.entries(item).map(([key, child]) => {
+    const visit = async (item: unknown): Promise<unknown> => {
+      if (typeof item === "string") return this.redactText(item, this.options.enabled !== false && this.options.detectEnhanced ? await this.options.detectEnhanced(item) : []);
+      if (Array.isArray(item)) { const result = []; for (const child of item) result.push(await visit(child)); return result; }
+      if (item && typeof item === "object") {
+        const result: Record<string, unknown> = {};
+        for (const [key, child] of Object.entries(item)) {
         // These are protocol commitments, not content. Preserve their exact bytes.
-        if (["expected_base", "content_hash", "proposal_commitment"].includes(key)) return [key, child];
-        return [key, visit(child)];
-      }));
+          result[key] = ["expected_base", "content_hash", "proposal_commitment"].includes(key) ? child : await visit(child);
+        }
+        return result;
+      }
       return item;
     };
-    const result = visit(value);
+    const result = await visit(value);
     const save = this.savePending.catch(() => {}).then(() => this.options.save([...Array.from(this.values.values()), ...this.conflicts]));
     this.savePending = save;
     await save;

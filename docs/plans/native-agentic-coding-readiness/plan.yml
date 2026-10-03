@@ -4,7 +4,7 @@ title: 'Agentic coding implementation: project file access first'
 status: implementing
 goal: Implement CLI and chat read/write access to remote and OpenMates-stored Project files, then web
   Project browsing and editing, then address Tasks, Specifications, and Plans gaps.
-revision: r75
+revision: r77
 conversation: codex:01a0caf0-76d6-7e73-86d1-c7c759db3cf4
 workspace_session: '8c51'
 approved_by_user: true
@@ -106,9 +106,9 @@ enhanced_cli_pii_proposal_2026_10_03:
   task: TASK-4569
   feature_label: Enhanced personal data anonymization (offline AI model)
   naming_decision: User specified this exact product-facing label on 2026-10-03; use it in the TUI installation offer and privacy settings.
-  state: awaiting_scan_scope_decision
-  approval: Installation/discovery choice approved on 2026-10-03; scanning defaults, failure behavior and full implementation remain under discussion.
-  authorization: Remove GLiNER and plan optional local OpenAI detector installation and integration. No model activation or CLI behavior change requested yet.
+  state: implemented_verifying_publication
+  approval: User approved the one-time TUI offer, exact label, messages automatic and documents/Projects opt-in; explicitly instructed implementation on 2026-10-03.
+  authorization: Implement the approved optional offline OpenAI detector lifecycle and CLI/TUI integration. No automatic model installation or activation for existing profiles.
   context:
     existing_specification: feature.pii-protection@1 preserves local placeholder and owner-only restoration semantics; an amendment is needed for the optional model lifecycle and new semantic categories after the design is agreed.
     inspected_current_dev:
@@ -140,16 +140,22 @@ enhanced_cli_pii_proposal_2026_10_03:
     state: Report not_installed, downloading, installed_disabled, loading, ready, unsupported and failed independently; installation does not mean a running worker.
   integration_recommendation:
     fast_layer: Existing deterministic patterns, configured values, category choices and current-send exclusions remain the baseline.
-    proposed_initial_scope: Enhanced short CLI/TUI user messages. Optional explicit document scans and sensitive-Project excerpts follow; ordinary code reads, search results and terminal events remain deterministic by default. Exact defaults are a separate decision round.
+    approved_initial_scope: Enhanced CLI/TUI messages automatically when enabled; document attachment text and each Project opt in separately. Ordinary code/search/terminal content stays deterministic by default.
     boundary: Scan only content about to leave the authorized client. This CLI slice does not offload unredacted browser/native user messages to a remote machine or OpenMates server.
     mappings: Validate native UTF-8 ranges and convert them to TypeScript string offsets; merge with existing detections without removing deterministic matches. Preserve encrypted mappings, original CR/LF and exact local file restoration. Keep UUIDs, hashes and placeholder tokens protected from coding false positives.
     performance: Bound input, queue and CPU use; scan long text with overlap and progress. Cache only range decisions by content digest plus detector/settings version, scoped per profile; invalidate on edits. Keep plaintext out of persistent model caches and logs.
-    failure: Display unavailable or failed enhanced detection. A stronger policy cannot silently downgrade to deterministic-only; retry or a visible user-selected policy change is required. Default and failure semantics remain to be agreed.
+    failure: Display unavailable or failed enhanced detection. A stronger policy cannot silently downgrade to deterministic-only; retry or a visible user-selected policy change is required. User approved these defaults and instructed implementation.
   proposed_sequence:
-  - Agree installation/discovery experience, then scanning defaults and failure behavior one question per round.
-  - Amend the PII Specification with agreed lifecycle, category and concrete edge-case requirements.
+  - Installation, scanning defaults and failure handling are approved; implement without repeating clarification.
+  - Preserve feature.pii-protection@1 assertions; implementation adds an optional detector without redesigning placeholder categories, encrypted mapping authority or reveal semantics.
   - Verify and unify deterministic CLI/TUI message redaction and mappings, then implement integrated installer/status, packaged worker and optional semantic integration at that same send boundary.
   - Verify focused lifecycle/placeholder cases with deterministic worker fixtures in isolated CI; real model inference runs only on dev using synthetic data and a separate disposable Project.
+  implementation_checkpoint:
+    implemented: Native worker packaging, verified resumable installer, explicit lifecycle/settings commands, one-time nonblocking TUI offer, shared CLI/TUI message boundary, and opt-in attachment/Project text scanning.
+    verification: 22 focused checks pass; native self-test confirms socket syscalls denied. Real Q8 inference in isolated state detects synthetic name/address/email and restores exact CRLF bytes; document/Project opt-ins and disposable README edit pass. Cold scan including verification/loading was 3256 ms.
+    isolated_ci: Lifecycle check passed without retries, skips or real AI inference; run 37119460496, source 76df2c57d81cc58f824d1119da5e46fc826c5ca5. Native package inclusion/integrity checks also pass locally.
+    remaining: Scoped publication and npm runtime packaging delivery. The final follow-up mapping reuse change passes the focused local suite; the lifecycle test exercises unchanged command paths.
+    references: [docs/architecture/privacy/cli-enhanced-anonymization.md, frontend/apps/web_app/tests/cli-privacy.spec.ts, frontend/packages/openmates-cli/tests/privacy.test.ts]
   question_1:
     topic: Automatic installation versus one-time TUI offer plus explicit command.
     recommendation: One-time non-blocking TUI offer plus openmates privacy install; no unsolicited large download.
@@ -161,7 +167,7 @@ enhanced_cli_pii_proposal_2026_10_03:
     - A typed message mentioning colleague Niamh receives enhanced scanning before send.
     - An ordinary source-file read, ripgrep result or npm test output uses the fast deterministic path by default.
     - A customer-notes document or sensitive Project can explicitly request enhanced scanning before its content is sent; long text shows progress rather than being silently truncated or downgraded.
-    answer: pending
+    answer: Approved on 2026-10-03; implement this scope with visible progress and no silent downgrade.
 publication_checkpoint_2026_10_02:
   deployed: Privacy c50516eb30e8d6f3a74e73e4c4cdca3f2fb531d7 and backend Task/browser recovery 9a203f628f97f8dd17b76d424c87976bebaf1e51 are on dev; the refreshed backend services are healthy and the web deployment is Ready.
   remaining_patch: The final bounded CLI claim helper, its three checks, safe hosted-proof diagnostics and r70 overview/checkpoints passed integration lint, Specification, translation and SDK boundary checks.

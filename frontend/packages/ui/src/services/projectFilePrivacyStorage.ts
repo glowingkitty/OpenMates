@@ -11,6 +11,7 @@ export async function loadProjectFilePrivacy(options: {
   mappings: PIIMappingGeneric[];
   detection?: ProjectFilePrivacyOptions["detection"];
   enabled?: boolean;
+  detectEnhanced?: ProjectFilePrivacyOptions["detectEnhanced"];
   read: () => Promise<string | null>;
   write: (ciphertext: string) => Promise<void>;
   encrypt: (text: string, key: Uint8Array) => Promise<string>;
@@ -27,6 +28,7 @@ export async function loadProjectFilePrivacy(options: {
     } catch { throw Object.assign(new Error(), { code: "pii_mapping_unavailable" }); }
   }
   return new ProjectFilePrivacy({
+    detectEnhanced: options.detectEnhanced,
     mappings: [...mappings, ...options.mappings], detection: options.detection, enabled: options.enabled,
     save: async (current) => {
       const plaintext = JSON.stringify({ chat_id: options.chatId, project_id: options.projectId, mappings: current });

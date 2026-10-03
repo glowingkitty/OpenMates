@@ -1,3 +1,4 @@
+import { prepareCliMessagePrivacy } from "./privacyScan.js";
 /*
  * OpenMates CLI SDK client.
  *
@@ -3873,6 +3874,9 @@ export class OpenMatesClient {
     message: string;
     learningMode?: LearningModeContext;
     messageHistory?: BenchmarkHistoryMessage[];
+    piiDetection?: boolean;
+    onPrivacyPrepared?: (message: string) => void;
+    onPrivacyProgress?: (done: number, total: number) => void;
   }): Promise<{
     status: "completed";
     chatId: string;
@@ -3896,6 +3900,13 @@ export class OpenMatesClient {
     /** Prompt-budget metrics surfaced by the backend when available. */
     promptBudget: AiResponsePromptBudget | null;
   }> {
+    const safe = params.piiDetection === false ? { message: params.message, mappings: [] } : await prepareCliMessagePrivacy(params.message, [], [], { kind: "message" }, params.onPrivacyProgress);
+    params.onPrivacyPrepared?.(safe.message);
+    const safeHistory = [];
+    for (const message of params.messageHistory ?? []) {
+      const prepared = params.piiDetection === false ? { message: message.content, mappings: [] } : await prepareCliMessagePrivacy(message.content, [], safe.mappings, { kind: "message" }, params.onPrivacyProgress);
+      safe.mappings = prepared.mappings; safeHistory.push({ ...message, content: prepared.message });
+    }
     const availability = await this.getAnonymousFreeUsageStatus();
     if (!availability.active) {
       throw new Error(availability.cta ?? "Create an account to keep using OpenMates.");
@@ -3912,8 +3923,8 @@ export class OpenMatesClient {
       anonymous_id: anonymousId,
       client_chat_id: chatId,
       client_message_id: messageId,
-      plaintext_message: params.message,
-      message_history: (params.messageHistory ?? []).map((message) => ({
+      plaintext_message: safe.message,
+      message_history: safeHistory.map((message) => ({
         role: message.role,
         content: message.content,
         created_at: message.created_at,
@@ -6905,6 +6916,9 @@ export class OpenMatesClient {
     encryptedEmbeds?: EncryptedEmbed[];
     /** Prepared embeds to encrypt after the real chat/message IDs are known. */
     preparedEmbeds?: PreparedEmbed[];
+    piiDetection?: boolean;
+    onPrivacyProgress?: (done: number, total: number) => void;
+    onPrivacyPrepared?: (message: string) => void;
     /** Placeholder-to-original PII mappings created before sending the user message. */
     piiMappings?: Array<{ placeholder: string; original: string; type: string }>;
     /** Redacted connected-account directory for AI-visible account selection. */
@@ -7004,7 +7018,7 @@ export class OpenMatesClient {
     }
     const shouldWaitForAi = shouldWaitForTeamAi(finalMessage, teamId);
 
-    let availableMemories: DecryptedMemoryEntry[] = [];
+    let availableMemories: DecryptedMemoryEntry[] = params.memorySnapshot ?? [];
     let memoryCountsLoaded = false;
     let memoryMetadataKeys: string[] = [];
     if (!params.incognito) {
@@ -7026,6 +7040,28 @@ export class OpenMatesClient {
       }
     }
 
+    const savedPrivacyHistory = !params.incognito && params.chatId
+      ? await this.getChatMessages(chatId, teamId ? { teamId } : { personal: true }) : null;
+    let piiMappings = [...(savedPrivacyHistory?.messages.flatMap((message) => (message.piiMappings ?? []).map((mapping) => ({ ...mapping, type: mapping.type ?? "OTHER" }))) ?? []), ...(params.piiMappings ?? [])];
+    if (params.piiDetection !== false) {
+      const prepared = await prepareCliMessagePrivacy(finalMessage, availableMemories, piiMappings, { kind: "message" }, params.onPrivacyProgress);
+      finalMessage = prepared.message; piiMappings = prepared.mappings;
+      // Model-visible text fields only. Embed IDs, protocol metadata and binary
+      // uploads are never treated as semantic text or sent to the local model.
+      for (const embed of params.preparedEmbeds ?? []) {
+        if (!["code-code", "docs-doc", "sheets-sheet"].includes(embed.type)) continue;
+        const decoded = toonDecode(embed.content) as Record<string, unknown>;
+        for (const field of ["code", "html", "table", "text"]) if (typeof decoded[field] === "string") {
+          const value = await prepareCliMessagePrivacy(decoded[field] as string, availableMemories, piiMappings, { kind: "document" }, params.onPrivacyProgress);
+          decoded[field] = value.message; piiMappings = value.mappings;
+        }
+        embed.content = toonEncodeContent(decoded);
+        const content = decoded.code ?? decoded.table ?? decoded.html ?? decoded.text;
+        if (typeof content === "string") { embed.contentHash = createHash("sha256").update(content).digest("hex"); embed.textLengthChars = content.length; }
+      }
+    }
+    params.onPrivacyPrepared?.(finalMessage);
+
     const explicitTasksAppSkill = messageExplicitlyRequestsTasksAppSkill(finalMessage);
     const taskUpdateJobsEnabled = params.taskUpdateJobs !== false && !explicitTasksAppSkill;
     const { ws, ownerId } = await this.openWsClient({
@@ -7045,10 +7081,7 @@ export class OpenMatesClient {
     const isNewChat = !params.chatId;
     let messageHistoryForRequest = params.messageHistory;
     if (!params.incognito && !isNewChat && !messageHistoryForRequest) {
-      const { messages } = await this.getChatMessages(
-        chatId,
-        teamId ? { teamId } : { personal: true },
-      );
+      const { messages } = savedPrivacyHistory!;
       messageHistoryForRequest = messages.map((message) => ({
         message_id: message.id,
         chat_id: chatId,
@@ -7076,7 +7109,6 @@ export class OpenMatesClient {
       : [];
     assertNoConnectedAccountSecretLeak(connectedAccountTokenRefs);
 
-    const piiMappings = params.piiMappings ?? [];
 
     // Saved chats must resolve their immutable raw key before constructing the
     // inference request because preflight commits the matching encrypted row.
