@@ -98,6 +98,9 @@ def run_selected_vitest(selection: dict[str, list[str]]) -> list[dict]:
         cli = ROOT / "frontend/packages/openmates-cli"
         relative = [str(Path(target).relative_to(cli.relative_to(ROOT)))
                     for target in selection["openmates-cli"]]
+        # The provisioning contract invokes dist/cli.js as a subprocess. Build
+        # only the selected CLI package before its node:test files run.
+        subprocess.run(["pnpm", "run", "build"], cwd=cli, check=True, timeout=300)
         with (RESULTS / "ci-unit-cli-selected.log").open("w") as output:
             result = subprocess.run(
                 ["node", "--test", "--experimental-strip-types", "--loader", "./tests/loader.mjs",

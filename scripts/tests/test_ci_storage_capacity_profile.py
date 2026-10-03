@@ -123,8 +123,10 @@ def test_focused_vitest_runs_only_exact_package_targets(tmp_path, monkeypatch) -
     assert calls[1][1] == tmp_path / "frontend/packages/ui"
     assert calls[2][0][:5] == ["pnpm", "exec", "vitest", "run", "src/lib/selected.test.ts"]
     assert calls[2][1] == tmp_path / "frontend/apps/web_app"
-    assert calls[3][0][-1] == "tests/embedCreatorDurability.test.ts"
+    assert calls[3][0] == ["pnpm", "run", "build"]
     assert calls[3][1] == tmp_path / "frontend/packages/openmates-cli"
+    assert calls[4][0][-1] == "tests/embedCreatorDurability.test.ts"
+    assert calls[4][1] == tmp_path / "frontend/packages/openmates-cli"
     assert not any("account-import.test.ts" in command for command, _ in calls)
     receipt = json.loads((runner.RESULTS / "ci-results.json").read_text())
     assert receipt["success"] is True
