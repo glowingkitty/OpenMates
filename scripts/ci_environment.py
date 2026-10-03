@@ -26,6 +26,7 @@ STORAGE_CAPACITY_SPECS = frozenset({
     "storage-capacity-target.spec.ts",
     "storage-recovery-replay.spec.ts",
 })
+ACCOUNTABILITY_SPEC = "storage-accountability-integration.spec.ts"
 CAPACITY_WORKLOAD_SPECS = frozenset({
     "storage-capacity-replay.spec.ts", "storage-capacity-target.spec.ts",
 })
@@ -140,16 +141,19 @@ def compose_profile(
     mail_capture: bool = False,
     credential_overrides: dict[str, str] | None = None,
     storage_capacity: bool = False,
+    storage_accountability: bool = False,
     capacity_concurrency: int = 2,
 ) -> dict:
     """Return an independent profile; never interpolate the operator environment."""
     ai_fixtures = ai_fixtures or public_provider or storage_capacity
     object_storage = object_storage or uploads or storage_capacity
+    if storage_accountability and (ai_fixtures or object_storage or uploads or public_provider or workflows):
+        raise ValueError("Storage accountability requires its standalone zero-provider profile")
     if storage_capacity and public_provider:
         raise ValueError("Storage capacity cannot enable public-provider proxy")
     if storage_capacity and not 1 <= capacity_concurrency <= 500:
         raise ValueError("Capacity worker concurrency must be 1..500")
-    isolate_backend = ai_fixtures or object_storage or offline_preview or mail_capture
+    isolate_backend = ai_fixtures or object_storage or offline_preview or mail_capture or storage_accountability
     if workflows and isolate_backend:
         raise ValueError("Credential-free weather workflows require a separate batch from offline replay/storage")
     credentials = {
@@ -226,6 +230,8 @@ def compose_profile(
     ]
     if storage_capacity:
         source_mounts.append(f"{SOURCE}/test-results/ci-private/capacity-receipts:/app/capacity-receipts")
+    if storage_accountability:
+        source_mounts.append(f"{SOURCE}/test-results/ci-private/accountability:/app/ci-accountability")
     api = {
         "build": {"context": SOURCE, "dockerfile": "backend/core/api/Dockerfile"},
         "image": "openmates-ci-api:local",
@@ -447,6 +453,12 @@ def compose_profile(
             "depends_on": {"clamav": {"condition": "service_healthy"}, "object-storage": {"condition": "service_healthy"}, "vault-init": {"condition": "service_completed_successfully"}, "api": {"condition": "service_healthy"}},
             "healthcheck": {"test": ["CMD", "curl", "-f", "http://localhost:8000/health"], "interval": "5s", "timeout": "5s", "retries": 30},
         }
+    if storage_accountability:
+        api["environment"].update(
+            CI="true", OPENMATES_CI_ISOLATED="1",
+            OPENMATES_CI_STORAGE_ACCOUNTABILITY="1",
+            DB_HOST="cms-database", DB_DATABASE="openmates", DB_USER="openmates",
+        )
     if ai_fixtures:
         # The real status API must advertise the installed replay engine; no
         # fake provider key or browser response interception is needed.
@@ -671,6 +683,9 @@ def main():
             from ci_visual_smoke import validate_targets
             validate_targets(selected)
         storage_capacity = bool(STORAGE_CAPACITY_SPECS.intersection(selected))
+        storage_accountability = ACCOUNTABILITY_SPEC in selected
+        if storage_accountability and selected != [ACCOUNTABILITY_SPEC]:
+            raise RuntimeError("Storage accountability requires its exact standalone selector")
         capacity_target = "storage-capacity-target.spec.ts" in selected
         if capacity_target and "storage-capacity-replay.spec.ts" in selected:
             raise RuntimeError("Capacity pilot and target require separate isolated batches")
@@ -678,7 +693,7 @@ def main():
         capacity_users = int(os.environ.get("CI_STORAGE_CAPACITY_USERS", "1000" if capacity_target else "2")) if capacity_workload else 0
         if capacity_workload and not 1 <= capacity_users <= 1000:
             raise RuntimeError("Capacity user count must be 1..1000")
-        account_count = 2 * len(selected) + capacity_users
+        account_count = 0 if storage_accountability else 2 * len(selected) + capacity_users
         account_emails = [] if offline_preview else [f"ci-{secrets.token_hex(16)}@example.com" for _ in range(account_count)]
         storage_specs = set(manifest["groups"].get("object_storage", {}).get("specs", []))
         upload_specs = set(manifest["groups"].get("uploads", {}).get("specs", []))
@@ -695,7 +710,7 @@ def main():
             for relative in ("backend/core/api/app/services/s3/service.py", "backend/upload/services/s3_upload.py"):
                 if "S3_ENDPOINT_URL" not in (Path(SOURCE) / relative).read_text():
                     raise RuntimeError("Candidate lacks isolated storage endpoint support; publish reviewed current-base integration before testing")
-        data = compose_profile(source, ai_fixtures=bool(fixture_specs.intersection(selected)), object_storage=needs_storage, uploads=needs_uploads, public_provider=needs_public_provider, workflows=needs_workflows, account_emails=account_emails, offline_preview=offline_preview, mail_capture=bool(mail_specs.intersection(selected)), storage_capacity=storage_capacity, capacity_concurrency=min(4, int(os.environ.get("CI_STORAGE_CAPACITY_CONCURRENCY", "500" if capacity_target else "2"))))
+        data = compose_profile(source, ai_fixtures=bool(fixture_specs.intersection(selected)), object_storage=needs_storage, uploads=needs_uploads, public_provider=needs_public_provider, workflows=needs_workflows, account_emails=account_emails, offline_preview=offline_preview, mail_capture=bool(mail_specs.intersection(selected)), storage_capacity=storage_capacity, storage_accountability=storage_accountability, capacity_concurrency=min(4, int(os.environ.get("CI_STORAGE_CAPACITY_CONCURRENCY", "500" if capacity_target else "2"))))
         if os.environ.get("GITHUB_OUTPUT"):
             with Path(os.environ["GITHUB_OUTPUT"]).open("a") as output:
                 output.write(f"uploads={'true' if needs_uploads else 'false'}\n")
@@ -706,6 +721,12 @@ def main():
         COMPOSE_PATH.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         if storage_capacity:
             (COMPOSE_PATH.parent / "capacity-receipts").mkdir(parents=True, exist_ok=True, mode=0o700)
+        if storage_accountability:
+            private = COMPOSE_PATH.parent / "accountability"
+            private.mkdir(parents=True, exist_ok=True, mode=0o700)
+            if private.is_symlink():
+                raise RuntimeError("Accountability fixture directory must not be a symlink")
+            private.chmod(0o700)
         COMPOSE_PATH.write_text(json.dumps(data))
         COMPOSE_PATH.chmod(0o600)
         evidence = {

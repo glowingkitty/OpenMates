@@ -463,6 +463,13 @@
         "storage-recovery-replay.spec.ts"
       ]
     },
+    "storage_accountability_integration": {
+      "execution": "e2e",
+      "enabling_work": "Run the actual Directus create/update audit probe for five storage metadata collections in one fresh internal-network CMS/API stack. The selected Node test invokes the source-bound API-container transaction and checks exact audit absence and product row changes; no browser, AI fixture, object store, or user account is required.",
+      "specs": [
+        "storage-accountability-integration.spec.ts"
+      ]
+    },
     "selfhost_installer": {
       "execution": "selfhost",
       "enabling_work": "Run original source-mode and image-mode installation checks, fresh signup and admin promotion on the GitHub runner, inside the same four-job queue. No provider keys or shared accounts. Verify cleanup and exact image/source evidence.",

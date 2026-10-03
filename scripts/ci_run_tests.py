@@ -23,6 +23,7 @@ import subprocess
 import sys
 import time
 import urllib.request
+import uuid
 from datetime import datetime, timedelta, timezone
 
 from ci_environment import COMPOSE_PATH, SOURCE, compose, require_runner
@@ -49,6 +50,7 @@ CAPACITY_EPOCH_SPECS = frozenset({
 CAPACITY_WORKLOAD_SPECS = frozenset({
     "storage-capacity-replay.spec.ts", "storage-capacity-target.spec.ts",
 })
+ACCOUNTABILITY_SPEC = "storage-accountability-integration.spec.ts"
 
 VITEST_TARGET_ROOTS = {
     "ui": ("frontend", "packages", "ui", "src"),
@@ -645,6 +647,70 @@ def verify_artifact_profile(specs: list[str]):
     verify_shared_dev_rejected()
 
 
+def prepare_storage_accountability_selector() -> dict[str, str]:
+    """Write one source-bound selector for the exact account-free Directus probe."""
+    require_runner()
+    profile = json.loads(COMPOSE_PATH.read_text())
+    services = profile.get("services", {})
+    api = services.get("api", {}).get("environment", {})
+    source = api.get("BUILD_COMMIT_SHA", "")
+    if (api.get("OPENMATES_CI_ISOLATED") != "1"
+            or api.get("OPENMATES_CI_STORAGE_ACCOUNTABILITY") != "1"
+            or api.get("SERVER_ENVIRONMENT") != "development"
+            or api.get("DATABASE_ADMIN_EMAIL") != "runtime@example.com"
+            or tuple(api.get(name) for name in ("DB_HOST", "DB_DATABASE", "DB_USER"))
+                != ("cms-database", "openmates", "openmates")
+            or not re.fullmatch(r"[0-9a-f]{40}", source)
+            or profile.get("networks", {}).get("default", {}).get("internal") is not True
+            or any(name in services for name in ("ai-worker", "object-storage", "uploads"))):
+        raise RuntimeError("Accountability probe requires the exact isolated zero-provider profile")
+    private = COMPOSE_PATH.parent / "accountability"
+    if not private.is_dir() or private.is_symlink():
+        raise RuntimeError("Accountability private selector mount is missing")
+    private.chmod(0o700)
+    selector = {"schema": "storage-accountability-selector-v1", "source_commit": source,
+                "fixture_prefix": "ci-accountability/" + str(uuid.uuid4())}
+    payload = json.dumps(selector, separators=(",", ":")).encode("utf-8")
+    if len(payload) > 4096:
+        raise RuntimeError("Accountability selector exceeds its private bound")
+    path = private / "selector.json"
+    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    with os.fdopen(descriptor, "wb") as output:
+        os.fchmod(output.fileno(), 0o600)
+        output.write(payload)
+    return {
+        "E2E_STORAGE_ACCOUNTABILITY": "1",
+        "E2E_STORAGE_ACCOUNTABILITY_SOURCE_COMMIT": source,
+        "E2E_STORAGE_ACCOUNTABILITY_COMPOSE_FILE": str(COMPOSE_PATH),
+        "E2E_STORAGE_ACCOUNTABILITY_SELECTOR_FILE": "/app/ci-accountability/selector.json",
+        "E2E_STORAGE_ACCOUNTABILITY_RECEIPT_FILE": "/app/ci-accountability/receipt.json",
+        "E2E_STORAGE_ACCOUNTABILITY_PRIVATE_DIR": str(private),
+    }
+
+
+def cleanup_storage_accountability_selector() -> None:
+    """Run idempotent exact-fixture cleanup even after a test process failure."""
+    private = COMPOSE_PATH.parent / "accountability"
+    selector = private / "selector.json"
+    if not selector.is_file() or selector.is_symlink():
+        raise RuntimeError("Accountability cleanup requires its private selector")
+    command = (
+        "exec", "-T", "api", "python",
+        "/app/backend/scripts/storage_accountability_integration.py", "cleanup",
+        "--selector-file", "/app/ci-accountability/selector.json",
+    )
+    try:
+        compose(*command, capture=True, timeout=120)
+    except subprocess.CalledProcessError as exc:
+        stderr = exc.stderr if isinstance(exc.stderr, str) else ""
+        path = private / "cleanup.stderr.log"
+        descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+        with os.fdopen(descriptor, "wb") as output:
+            os.fchmod(output.fileno(), 0o600)
+            output.write(stderr.encode("utf-8")[-100_000:])
+        raise RuntimeError("Accountability cleanup failed; private diagnostics retained") from None
+
+
 def run_e2e(
     specs: list[str],
     *,
@@ -655,6 +721,9 @@ def run_e2e(
 ):
     if not specs:
         raise ValueError("An explicit nonempty spec batch is required")
+    accountability_only = specs == [ACCOUNTABILITY_SPEC] and not (artifact or component or visual_smoke)
+    if ACCOUNTABILITY_SPEC in specs and not accountability_only:
+        raise ValueError("Accountability probe requires its exact standalone E2E selector")
     if visual_smoke:
         from ci_visual_smoke import validate_targets
         validate_targets(specs)
@@ -696,11 +765,11 @@ def run_e2e(
                 stderr=log,
             )
         else:
-            app_server = None if artifact else subprocess.Popen(
+            app_server = None if artifact or accountability_only else subprocess.Popen(
                 ["pnpm", "exec", "vite", "preview", "--host", "127.0.0.1", "--port", "5174", "--strictPort"],
                 cwd=WEB, stdout=log, stderr=log,
             )
-            child = None if artifact else subprocess.Popen(
+            child = None if artifact or accountability_only else subprocess.Popen(
                 [
                     sys.executable,
                     str(Path(__file__).with_name("ci_static_web.py")),
@@ -732,10 +801,12 @@ def run_e2e(
                     env["E2E_STORAGE_CAPACITY"] = "1"
                     env["E2E_STORAGE_CAPACITY_TARGET"] = "1" if name == "storage-capacity-target.spec.ts" else "0"
                 local_signup_assertion = not (component or artifact) and name == "signup-skip-2fa-flow.spec.ts" and "mailpit" in profile["services"]
-                account_free = component or artifact or (
+                account_free = component or artifact or name == ACCOUNTABILITY_SPEC or (
                     "// playwright-account: not_required reason=isolated_component_preview"
                     in source
                 )
+                if name == ACCOUNTABILITY_SPEC:
+                    env.update(prepare_storage_accountability_selector())
                 if not account_free:
                     primary = provision_account(14, identity_index=2 * index)
                     if "OPENMATES_TEST_ACCOUNT_API_KEY" in source and not local_signup_assertion:
@@ -786,22 +857,30 @@ def run_e2e(
                 env["PLAYWRIGHT_JSON_OUTPUT_NAME"] = str(
                     RESULTS / f"ci-spec-{index}.json"
                 )
-                result = subprocess.run(
-                    [
-                        "pnpm",
-                        "exec",
-                        "playwright",
-                        "test",
-                        "tests/" + name,
-                        "--workers=1",
-                        "--reporter=json",
-                        "--output",
-                        f"test-results/ci-{index}",
-                    ],
-                    cwd=WEB,
-                    env=env,
-                    timeout=1200,
-                )
+                accountability_cleanup_error = None
+                try:
+                    result = subprocess.run(
+                        [
+                            "pnpm",
+                            "exec",
+                            "playwright",
+                            "test",
+                            "tests/" + name,
+                            "--workers=1",
+                            "--reporter=json",
+                            "--output",
+                            f"test-results/ci-{index}",
+                        ],
+                        cwd=WEB,
+                        env=env,
+                        timeout=1200,
+                    )
+                finally:
+                    if name == ACCOUNTABILITY_SPEC:
+                        try:
+                            cleanup_storage_accountability_selector()
+                        except (OSError, RuntimeError, subprocess.SubprocessError, ValueError) as exc:
+                            accountability_cleanup_error = type(exc).__name__
                 report_path = RESULTS / f"ci-spec-{index}.json"
                 report = (
                     json.loads(report_path.read_text()) if report_path.is_file() else {}
@@ -823,19 +902,23 @@ def run_e2e(
                                   else None if executed else "No tests executed; skipped coverage is not a pass"),
                     }
                 )
-                if results[-1]["exit_code"] and not (artifact or component):
+                spec_result = results[-1]
+                if accountability_cleanup_error:
+                    results.append({"suite": "storage-accountability-cleanup", "exit_code": 1,
+                                    "failure": accountability_cleanup_error})
+                if spec_result["exit_code"] and not (artifact or component or accountability_only):
                     if name == "storage-recovery-replay.spec.ts":
                         try:
-                            results[-1]["recovery_ai_trace"] = capture_recovery_ai_diagnostics(
+                            spec_result["recovery_ai_trace"] = capture_recovery_ai_diagnostics(
                                 report, index
                             )
                         except (OSError, RuntimeError, subprocess.SubprocessError, ValueError) as exc:
-                            results[-1]["recovery_ai_trace_error"] = type(exc).__name__
+                            spec_result["recovery_ai_trace_error"] = type(exc).__name__
                     try:
                         capture_failed_spec_diagnostics(index)
                     except (RuntimeError, subprocess.TimeoutExpired) as exc:
-                        results[-1]["diagnostic_error"] = str(exc)
-                if name in CAPACITY_WORKLOAD_SPECS and results[-1]["exit_code"] == 0:
+                        spec_result["diagnostic_error"] = str(exc)
+                if name in CAPACITY_WORKLOAD_SPECS and spec_result["exit_code"] == 0:
                     try:
                         results.append(run_storage_capacity(identity_start=2 * len(specs),
                                                             full=name == "storage-capacity-target.spec.ts"))

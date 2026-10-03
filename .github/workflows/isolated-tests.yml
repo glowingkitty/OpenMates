@@ -361,7 +361,7 @@ jobs:
       - name: Build local web app
         if: >-
           inputs.mode == 'prepare' ||
-          ((inputs.mode == 'e2e' || inputs.mode == 'visual-smoke') && steps.artifacts.outputs.web != 'true')
+          ((inputs.mode == 'e2e' && !contains(inputs.specs_json, 'storage-accountability-integration.spec.ts') || inputs.mode == 'visual-smoke') && steps.artifacts.outputs.web != 'true')
         env:
           OPENMATES_CI_PRECOMPRESS: '0'
         run: |
@@ -408,7 +408,7 @@ jobs:
           python3 ../tooling/scripts/ci_environment.py start
           python3 ../tooling/scripts/ci_environment.py verify
       - name: Install browser
-        if: inputs.mode == 'component' || inputs.mode == 'e2e' || inputs.mode == 'artifact' || inputs.mode == 'visual-smoke'
+        if: inputs.mode == 'component' || (inputs.mode == 'e2e' && !contains(inputs.specs_json, 'storage-accountability-integration.spec.ts')) || inputs.mode == 'artifact' || inputs.mode == 'visual-smoke'
         working-directory: subject/frontend/apps/web_app
         run: |
           npx playwright install --with-deps chromium
