@@ -171,8 +171,14 @@ def test_focused_vitest_runs_only_exact_package_targets(tmp_path, monkeypatch) -
     assert calls[0][0] == ["pnpm", "exec", "svelte-kit", "sync"]
     assert calls[1][0][:5] == ["pnpm", "exec", "vitest", "run",
                                "src/services/__tests__/sendersChatMessagesProtocol.test.ts"]
+    assert calls[1][0].count("--reporter=default") == 1
+    assert calls[1][0].count("--reporter=json") == 1
+    assert "--outputFile.json=" + str(tmp_path / "test-results/ci-unit-ui.json") in calls[1][0]
     assert calls[1][1] == tmp_path / "frontend/packages/ui"
     assert calls[2][0][:5] == ["pnpm", "exec", "vitest", "run", "src/lib/selected.test.ts"]
+    assert calls[2][0].count("--reporter=default") == 1
+    assert calls[2][0].count("--reporter=json") == 1
+    assert "--outputFile.json=" + str(tmp_path / "test-results/ci-unit-web_app.json") in calls[2][0]
     assert calls[2][1] == tmp_path / "frontend/apps/web_app"
     assert calls[3][0] == ["pnpm", "run", "build"]
     assert calls[3][1] == tmp_path / "frontend/packages/openmates-cli"

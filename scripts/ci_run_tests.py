@@ -87,11 +87,15 @@ def run_selected_vitest(selection: dict[str, list[str]]) -> list[dict]:
         if not targets:
             continue
         relative = [str(Path(target).relative_to(directory.relative_to(ROOT))) for target in targets]
-        result = subprocess.run(
-            ["pnpm", "exec", "vitest", "run", *relative, "--reporter=json",
-             "--outputFile=" + str(RESULTS / f"ci-unit-{group}.json")],
-            cwd=directory, timeout=300,
-        )
+        # Keep a readable collection stack alongside the structured receipt.
+        # JSON alone reduces import failures to a message without a module line.
+        with (RESULTS / f"ci-unit-{group}-selected.log").open("w") as output:
+            result = subprocess.run(
+                ["pnpm", "exec", "vitest", "run", *relative,
+                 "--reporter=default", "--reporter=json",
+                 "--outputFile.json=" + str(RESULTS / f"ci-unit-{group}.json")],
+                cwd=directory, stdout=output, stderr=subprocess.STDOUT, timeout=300,
+            )
         results.append({"suite": str(directory.relative_to(ROOT)), "exit_code": result.returncode,
                         "selected_tests": targets, "selection_mode": "focused"})
     if selection["openmates-cli"]:

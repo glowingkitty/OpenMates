@@ -58,6 +58,20 @@ The writer fix alone is not an Apple storage compatibility receipt. Audit and im
 
 The three recent main chats and active-child budgets apply to the **server Redis working set**. They do not instruct the native client to discard local chat history or pending writes. PostgreSQL retains all-chat encrypted metadata; cold transcript pages contain about 20 messages/256 KiB initially, with large bodies fetched separately.
 
+
+### Native crypto can start before API activation
+
+The shared `backend/tests/fixtures/chat_recovery_output_v2.json` is published independently of the running API. Its private key and ciphertext are synthetic test material. Use it for a CryptoKit compatibility test now; it does not indicate that the development API emits v2 output yet. Its expected plaintext is `{"content":"sealed child output"}`.
+
+For that v2 envelope, keep the existing X25519 / HKDF-SHA256 / AES-GCM primitives:
+
+1. Decode canonical unpadded base64url fields. `epk` is a 32-byte raw X25519 public key, `nonce` is 12 bytes, and `ciphertext` includes the final 16-byte GCM tag.
+2. Construct AAD as UTF-8 `OMCR2`, then the seven strings `owner_id`, `root_chat_id`, `target_chat_id`, `turn_id`, `record_id`, `subject_id`, `output_kind`, in that order. Each string has a four-byte unsigned big-endian UTF-8 byte length before its bytes. UUID strings must use canonical lowercase encoding. Append `key_version`, then `output_version`, each as a positive four-byte unsigned big-endian integer.
+3. Derive a 32-byte symmetric key from the X25519 shared secret using HKDF-SHA256, salt `SHA256(UTF8("openmates:chat-recovery-envelope:v1"))`, and info `SHA256(AAD)`. The v2 envelope deliberately retains that existing salt; the authenticated identity has the v2 prefix.
+4. Decrypt AES-GCM with that key, nonce and exact AAD. Require envelope version 2 for this reader. Reject identity changes and authentication failures rather than treating them as legacy final-text output.
+
+The backend source in `backend/shared/python_utils/chat_completion_recovery.py` and web/CLI readers become the implementation reference when the backend commit reaches dev. The publication check verified the fixture plaintext, exact AAD construction and failure after a version-identity change, with no inference or real account data.
+
 ## 3. Verification and return handoff
 
 Keep existing Specification/test metadata; add the storage assertion IDs actually proved. Relevant assertions include `storage.background.complete-sealed-recovery`, `storage.background.saved-output-retention`, `storage.cold.independent-message-pages`, `storage.versions.bounded-reconstruction`, `storage.privacy.ciphertext-boundary`, and `storage.surface.semantic-parity`. Preserve the existing `chats.persistence.client-encrypted` metadata for the live writer tests. Regenerate Specification artifacts through the repository workflow.
