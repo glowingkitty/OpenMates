@@ -1,0 +1,50 @@
+{
+  "profile": "float32",
+  "threads": 4,
+  "tasks": {
+    "privacy": {
+      "sensitive_information": "Contains private names, residential addresses, personal contact or financial details, passwords or secret credentials.",
+      "ordinary_content": "Public facts or ordinary code, documentation, identifiers and technical output without private personal information or secrets."
+    }
+  },
+  "network_isolation": "linux-seccomp-socket-denied",
+  "torch": "2.8.0+cpu",
+  "parameter_count": 486444053,
+  "gate_load_seconds": 12.740955358371139,
+  "quantize_seconds": 0,
+  "rss_imported_bytes": 319287296,
+  "rss_gate_loaded_bytes": 2385027072,
+  "rss_gate_load_peak_bytes": 4330295296,
+  "quality": [],
+  "long": [],
+  "boundary": {
+    "name_start": 933,
+    "name_end": 945,
+    "first_window_end": 938,
+    "windows": [
+      {
+        "start": 0,
+        "end": 938,
+        "prediction": {
+          "label": "ordinary_content",
+          "confidence": 0.7081640362739563
+        },
+        "seconds": 3.1334929997101426
+      },
+      {
+        "start": 811,
+        "end": 999,
+        "prediction": {
+          "label": "sensitive_information",
+          "confidence": 0.6352789998054504
+        },
+        "seconds": 1.227899550460279
+      }
+    ],
+    "route_strict": true,
+    "route_conservative_080": true,
+    "gate_seconds": 4.361392550170422
+  },
+  "total_seconds": 21.225635094568133,
+  "rss_os_peak_bytes": 4330295296
+}
