@@ -516,6 +516,8 @@ export interface CachedNewChatSuggestion {
 export interface SyncCache {
   /** Timestamp of last successful sync */
   syncedAt: number;
+  /** Local freshness of individually saved/refreshed drafts, including known deletions. */
+  draftSyncedAt?: Record<string, number>;
   /** Total chat count as reported by the server */
   totalChatCount: number;
   /** Number of chats loaded (may be less than total if paginated) */

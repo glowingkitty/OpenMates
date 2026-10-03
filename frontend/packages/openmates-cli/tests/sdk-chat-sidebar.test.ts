@@ -123,6 +123,8 @@ test('saving a draft before the first list still syncs the complete chat census'
       persistPendingTaskUpdateJobs: async () => new Set(),
     });
     await client.saveDraft({ chatId: 'draft', markdown: 'Finish the release' });
+    assert.equal((await client.getDraft('draft'))?.markdown, 'Finish the release');
+    assert.equal(connections, 1, 'A recent targeted draft read needs no complete sync');
     const { chats } = await client.listChats();
     assert.equal(connections, 2, 'The draft connection cannot substitute for the full sync');
     assert.deepEqual(new Set(chats.map(chat => chat.id)), new Set(['draft', 'server-chat']));
@@ -151,6 +153,38 @@ test('editing a draft does not extend the freshness of an existing chat census',
     await client.saveDraft({ chatId: 'existing', markdown: 'Updated plan' });
     assert.equal(loadSyncCache()?.syncedAt, syncedAt);
     Object.assign(client, { openWsClient: async () => { throw new Error('full census sync requested'); } });
+    assert.equal((await client.getDraft('existing'))?.markdown, 'Updated plan');
+    await assert.rejects(client.listChats(), /full census sync requested/);
+    const cache = loadSyncCache();
+    assert.ok(cache);
+    cache.draftSyncedAt = { existing: Date.now() - 600_000 };
+    saveSyncCache(cache);
+    await assert.rejects(client.getDraft('existing'), /full census sync requested/);
+  } finally {
+    if (previousStateDir === undefined) delete process.env.OPENMATES_STATE_DIR;
+    else process.env.OPENMATES_STATE_DIR = previousStateDir;
+    rmSync(stateDir, { recursive: true, force: true });
+  }
+});
+
+// contract-test: supporting surface=cli assertions=chat-navigation.draft-only.addressable,chat-navigation.open.local-first-coherent
+test('clearing a new draft remembers its deletion without marking the chat census fresh', async () => {
+  const previousStateDir = process.env.OPENMATES_STATE_DIR;
+  const stateDir = mkdtempSync(join(tmpdir(), 'openmates-sidebar-draft-delete-'));
+  process.env.OPENMATES_STATE_DIR = stateDir;
+  try {
+    const { client } = fixture();
+    Object.assign(client, { openWsClient: async () => ({ ws: {
+      waitForMessage: async () => ({ payload: { chat_id: 'draft', draft_v: 1 } }),
+      sendAsync: async () => {}, close: () => {},
+    } }) });
+    await client.saveDraft({ chatId: 'draft', markdown: 'Private draft' });
+    await client.clearDraft('draft');
+    assert.equal(loadSyncCache()?.syncedAt, 0);
+    assert.equal(loadSyncCache()?.chats.length, 0, 'The empty draft shell is removed');
+    Object.assign(client, { openWsClient: async () => { throw new Error('full census sync requested'); } });
+    assert.equal(await client.getDraft('draft'), null);
+    await assert.rejects(client.getDraft('another-chat'), /full census sync requested/);
     await assert.rejects(client.listChats(), /full census sync requested/);
   } finally {
     if (previousStateDir === undefined) delete process.env.OPENMATES_STATE_DIR;

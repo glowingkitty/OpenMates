@@ -5718,6 +5718,7 @@ export class OpenMatesClient {
           delete cachedChat.details.encrypted_draft_md;
           delete cachedChat.details.encrypted_draft_preview;
           cachedChat.details.draft_v = 0;
+          this.markDraftCacheFresh(cache, chatId);
           saveSyncCache(cache);
         }
         return null;
@@ -5742,7 +5743,17 @@ export class OpenMatesClient {
         messages: [],
       });
     }
-    const cache = await this.ensureSynced(forceRefresh);
+    // A targeted draft save/refresh is independent of the complete chat census.
+    // Reuse its authoritative result (including deletion) for the normal cache
+    // TTL without making listChats/listDrafts skip their first complete sync.
+    this.requireSession();
+    const draftCache = this.resolveTeamContext() === null ? loadSyncCache() : null;
+    const draftSyncedAt = draftCache?.draftSyncedAt?.[chatId];
+    if (typeof draftSyncedAt === "number" && Date.now() - draftSyncedAt < 300_000) {
+      const chat = draftCache?.chats.find((entry) => String(entry.details.id ?? "") === chatId);
+      return chat ? this.decryptCachedDraft(chat) : null;
+    }
+    const cache = await this.ensureSynced(false);
     const chat = cache.chats.find((entry) => String(entry.details.id ?? "") === chatId);
     return chat ? this.decryptCachedDraft(chat) : null;
   }
@@ -5793,6 +5804,7 @@ export class OpenMatesClient {
       delete chat.details.encrypted_draft_md;
       delete chat.details.encrypted_draft_preview;
       chat.details.draft_v = 0;
+      this.markDraftCacheFresh(cache, chatId);
       if (chat.messages.length === 0 && !chat.details.encrypted_chat_key) {
         cache.chats = cache.chats.filter((entry) => entry !== chat);
       }
@@ -5832,6 +5844,7 @@ export class OpenMatesClient {
           delete chat.details.encrypted_draft_md;
           delete chat.details.encrypted_draft_preview;
           chat.details.draft_v = 0;
+          if (cache) this.markDraftCacheFresh(cache, chatId);
         }
       }
       if (cache) saveSyncCache(cache);
@@ -5858,10 +5871,15 @@ export class OpenMatesClient {
     chat.details.encrypted_draft_md = draft.encryptedDraftMd;
     chat.details.encrypted_draft_preview = draft.encryptedDraftPreview;
     chat.details.draft_v = draft.draftV;
+    this.markDraftCacheFresh(cache, draft.chatId);
     // A draft update does not refresh the chat census. In particular, a new
     // draft-only cache must still perform its first full sync before listing.
     cache.loadedChatCount = cache.chats.length;
     saveSyncCache(cache);
+  }
+
+  private markDraftCacheFresh(cache: SyncCache, chatId: string): void {
+    cache.draftSyncedAt = { ...cache.draftSyncedAt, [chatId]: Date.now() };
   }
 
   private async decryptCachedDraft(chat: CachedChat): Promise<DecryptedDraft | null> {
