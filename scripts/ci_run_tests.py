@@ -23,6 +23,7 @@ import subprocess
 import sys
 import time
 import urllib.request
+from datetime import datetime, timedelta, timezone
 
 from ci_environment import COMPOSE_PATH, SOURCE, compose, require_runner
 try:
@@ -820,6 +821,13 @@ def run_e2e(
                     }
                 )
                 if results[-1]["exit_code"] and not (artifact or component):
+                    if name == "storage-recovery-replay.spec.ts":
+                        try:
+                            results[-1]["recovery_ai_trace"] = capture_recovery_ai_diagnostics(
+                                report, index
+                            )
+                        except (OSError, RuntimeError, subprocess.SubprocessError, ValueError) as exc:
+                            results[-1]["recovery_ai_trace_error"] = type(exc).__name__
                     try:
                         capture_failed_spec_diagnostics(index)
                     except (RuntimeError, subprocess.TimeoutExpired) as exc:
@@ -852,6 +860,67 @@ def capture_failed_spec_diagnostics(index):
     )
     if result.returncode:
         raise RuntimeError("Failed to retain bounded per-spec stack diagnostics")
+
+
+def capture_recovery_ai_diagnostics(report: dict, index: int) -> list[dict[str, object]]:
+    """Retain only failed recovery cases' AI logs; expose stack locations alone."""
+    private = RESULTS / "ci-private"
+    private.mkdir(parents=True, exist_ok=True, mode=0o700)
+    if private.is_symlink():
+        raise RuntimeError("Recovery diagnostics require the runner-private directory")
+    private.chmod(0o700)
+    summaries: list[dict[str, object]] = []
+    for suite in report.get("suites", []):
+        for spec in suite.get("specs", []):
+            for test in spec.get("tests", []):
+                for result in test.get("results", []):
+                    if result.get("status") != "failed":
+                        continue
+                    if len(summaries) >= 8:
+                        return summaries
+                    start_text = result.get("startTime", "")
+                    duration = result.get("duration")
+                    try:
+                        start = datetime.fromisoformat(start_text.replace("Z", "+00:00"))
+                        if (start.tzinfo is None or start.utcoffset() != timedelta(0)
+                                or type(duration) is not int or not 0 <= duration <= 600_000):
+                            raise ValueError("invalid failed-case window")
+                    except (AttributeError, TypeError, ValueError):
+                        summaries.append({"exception_class": "ValueError", "function": "none", "line": 0})
+                        continue
+                    since = (start - timedelta(seconds=2)).astimezone(timezone.utc).isoformat()
+                    until = (start + timedelta(milliseconds=duration, seconds=5)).astimezone(timezone.utc).isoformat()
+                    filename = private / f"recovery-ai-spec-{index}-result-{len(summaries)}.log"
+                    try:
+                        completed = compose(
+                            "logs", "--no-color", "--since", since, "--until", until,
+                            "--tail", "2000", "ai-worker", capture=True, timeout=90,
+                        )
+                        output = completed.stdout if isinstance(completed.stdout, str) else ""
+                    except subprocess.CalledProcessError as exc:
+                        output = exc.stderr if isinstance(exc.stderr, str) else ""
+                    # Full fixture diagnostics remain private and bounded on both axes.
+                    lines = output.splitlines()[-2000:]
+                    bounded = "\n".join(lines).encode("utf-8")[-200_000:]
+                    descriptor = os.open(filename, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+                    with os.fdopen(descriptor, "wb") as output:
+                        os.fchmod(output.fileno(), 0o600)
+                        output.write(bounded)
+                    frames = re.findall(
+                        r'File "[^"\n]+", line ([0-9]{1,6}), in ([A-Za-z_][A-Za-z_0-9]{0,79})',
+                        bounded.decode("utf-8", "replace"),
+                    )
+                    classes = re.findall(
+                        r'(?m)(?:^|[\s|])([A-Za-z_][A-Za-z_0-9.]{0,75}(?:Error|Exception))(?::|\s*$)',
+                        bounded.decode("utf-8", "replace"),
+                    )
+                    line, function = frames[-1] if frames else ("0", "none")
+                    summaries.append({
+                        "exception_class": classes[-1] if classes else "none",
+                        "function": function,
+                        "line": int(line),
+                    })
+    return summaries
 
 
 def run_storage_capacity(*, identity_start: int, full: bool) -> dict:
