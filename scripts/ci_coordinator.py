@@ -290,11 +290,14 @@ class Queue:
                 from ci_visual_smoke import validate_targets
             validate_targets(specs)
         for spec in ([] if mode in ("visual-smoke", "pytest") else specs):
-            if (
-                not re.fullmatch(r"[A-Za-z0-9_./-]+\.spec\.ts", spec)
-                or ".." in spec
-                or spec.startswith("/")
-            ):
+            if mode == "vitest":
+                allowed = bool(
+                    re.fullmatch(r"frontend/(?:packages/ui|apps/web_app)/src/[A-Za-z0-9_./-]+\.test\.tsx?", spec)
+                    or re.fullmatch(r"frontend/packages/openmates-cli/tests/[A-Za-z0-9_./-]+\.test\.ts", spec)
+                )
+            else:
+                allowed = bool(re.fullmatch(r"[A-Za-z0-9_./-]+\.spec\.ts", spec))
+            if not allowed or ".." in spec or spec.startswith("/"):
                 raise ValueError("Invalid spec path")
         if mode in ("component", "e2e", "artifact") and not specs:
             raise ValueError("Browser requests require explicit specs")

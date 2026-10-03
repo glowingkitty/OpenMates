@@ -83,6 +83,31 @@ def test_component_submission_is_one_spec_per_github_job(tmp_path):
     ]
 
 
+def test_focused_vitest_submission_admits_only_unit_paths(tmp_path):
+    import json
+    import pytest
+
+    queue = Queue(tmp_path / "queue.db")
+    targets = [
+        "frontend/packages/ui/src/services/db/__tests__/messageEmbedBundleJournal.test.ts",
+        "frontend/apps/web_app/src/lib/selected.test.tsx",
+        "frontend/packages/openmates-cli/tests/embedCreatorDurability.test.ts",
+    ]
+    jobs = enqueue_submission(queue, "owner", "a" * 40, targets, "vitest")
+    assert len(jobs) == 1
+    assert json.loads(jobs[0]["specs"]) == sorted(targets)
+    for rejected in (
+        "frontend/apps/web_app/tests/storage-capacity-replay.spec.ts",
+        "frontend/packages/openmates-cli/tests/unsupported.test.tsx",
+        "frontend/packages/ui/src/../../outside.test.ts",
+        "/frontend/packages/ui/src/absolute.test.ts",
+    ):
+        with pytest.raises(ValueError, match="Invalid spec path"):
+            queue.enqueue("owner", "a" * 40, [rejected], "vitest")
+    with pytest.raises(ValueError, match="Invalid spec path"):
+        queue.enqueue("owner", "a" * 40, [targets[0]], "e2e")
+
+
 def test_four_slots_and_completion_release(tmp_path, monkeypatch):
     monkeypatch.setattr("scripts.ci_coordinator.time.sleep", lambda _: None)
     q = Queue(tmp_path / "queue.db", max_active=4, lightweight_reserve=0)
