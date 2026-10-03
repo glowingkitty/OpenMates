@@ -1024,6 +1024,38 @@ def sanitize_archive_probe_failure(stderr: str) -> str:
     return f"Disposable archive DB/S3 transaction probe failed at {function}:{line} ({error_type})"
 
 
+def retain_capacity_failure_rows(results_path: Path, private: Path) -> int:
+    """Keep only bounded worker failures in an explicitly private CI artifact."""
+    if not results_path.is_file() or results_path.is_symlink():
+        return 0
+    rows = []
+    with results_path.open(encoding="utf-8") as source:
+        for line in source:
+            if len(rows) >= 20:
+                break
+            if len(line) > 4096:
+                continue
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if not isinstance(row, dict) or row.get("kind") != "failure":
+                continue
+            rows.append({name: str(row.get(name, ""))[:200] for name in
+                         ("phase", "error_class", "source_location", "reason")})
+    if not rows:
+        return 0
+    if not private.is_dir() or private.is_symlink():
+        raise RuntimeError("Capacity private diagnostic directory is unavailable")
+    destination = private / "capacity-failure-rows.jsonl"
+    descriptor = os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    with os.fdopen(descriptor, "w", encoding="utf-8") as output:
+        os.fchmod(output.fileno(), 0o600)
+        for row in rows:
+            output.write(json.dumps(row, separators=(",", ":")) + "\n")
+    return len(rows)
+
+
 def run_storage_capacity(*, identity_start: int, full: bool) -> dict:
     """Run a small pilot or explicit full target on the disposable isolated stack."""
     private = RESULTS / "ci-private"
@@ -1111,12 +1143,14 @@ def run_storage_capacity(*, identity_start: int, full: bool) -> dict:
                "--client-command", "node", "scripts/storage_capacity_client.mjs"]
     result = subprocess.run(run_cmd, cwd=ROOT, env=run_env, capture_output=True, text=True)
     (private / "capacity-run.stderr.log").write_text(result.stderr[-200_000:], encoding="utf-8")
+    private_failure_rows = retain_capacity_failure_rows(results_path, private)
     metrics_after = _capacity_runtime_metrics()
     try:
         report = json.loads(result.stdout.splitlines()[-1])
     except (IndexError, json.JSONDecodeError):
         report = {"passed": False, "failure": "capacity run failed before a complete report"}
     report["infrastructure"] = _capacity_metric_delta(metrics_before, metrics_after)
+    report["private_failure_rows_retained"] = private_failure_rows
     if full and report["infrastructure"].get("object_store_operations") is None:
         report["passed"] = False
         report["target_achieved"] = False
