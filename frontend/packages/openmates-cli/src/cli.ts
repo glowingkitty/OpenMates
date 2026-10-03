@@ -12213,6 +12213,7 @@ async function sendMessageStreaming(
     try {
       result = await client.sendAnonymousMessage({
         message: finalMessage,
+        piiMappings: piiResult.mappings,
         piiDetection: params.piiDetection !== false,
         onPrivacyProgress: (done, total) => { if (done < total) process.stderr.write(`Offline personal-data scan: ${Math.floor(done * 100 / total)}%\n`); },
         learningMode: params.anonymousLearningMode,

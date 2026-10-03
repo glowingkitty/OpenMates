@@ -3875,6 +3875,7 @@ export class OpenMatesClient {
     learningMode?: LearningModeContext;
     messageHistory?: BenchmarkHistoryMessage[];
     piiDetection?: boolean;
+    piiMappings?: Array<{ placeholder: string; original: string; type: string }>;
     onPrivacyPrepared?: (message: string) => void;
     onPrivacyProgress?: (done: number, total: number) => void;
   }): Promise<{
@@ -3900,7 +3901,7 @@ export class OpenMatesClient {
     /** Prompt-budget metrics surfaced by the backend when available. */
     promptBudget: AiResponsePromptBudget | null;
   }> {
-    const safe = params.piiDetection === false ? { message: params.message, mappings: [] } : await prepareCliMessagePrivacy(params.message, [], [], { kind: "message" }, params.onPrivacyProgress);
+    const safe = params.piiDetection === false ? { message: params.message, mappings: [] } : await prepareCliMessagePrivacy(params.message, [], params.piiMappings ?? [], { kind: "message" }, params.onPrivacyProgress);
     params.onPrivacyPrepared?.(safe.message);
     const safeHistory = [];
     for (const message of params.messageHistory ?? []) {

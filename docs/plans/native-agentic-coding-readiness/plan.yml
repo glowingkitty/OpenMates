@@ -4,7 +4,7 @@ title: 'Agentic coding implementation: project file access first'
 status: implementing
 goal: Implement CLI and chat read/write access to remote and OpenMates-stored Project files, then web
   Project browsing and editing, then address Tasks, Specifications, and Plans gaps.
-revision: r77
+revision: r78
 conversation: codex:01a0caf0-76d6-7e73-86d1-c7c759db3cf4
 workspace_session: '8c51'
 approved_by_user: true
@@ -154,7 +154,9 @@ enhanced_cli_pii_proposal_2026_10_03:
     implemented: Native worker packaging, verified resumable installer, explicit lifecycle/settings commands, one-time nonblocking TUI offer, shared CLI/TUI message boundary, and opt-in attachment/Project text scanning.
     verification: 22 focused checks pass; native self-test confirms socket syscalls denied. Real Q8 inference in isolated state detects synthetic name/address/email and restores exact CRLF bytes; document/Project opt-ins and disposable README edit pass. Cold scan including verification/loading was 3256 ms.
     isolated_ci: Lifecycle check passed without retries, skips or real AI inference; run 37119460496, source 76df2c57d81cc58f824d1119da5e46fc826c5ca5. Native package inclusion/integrity checks also pass locally.
-    remaining: Scoped publication and npm runtime packaging delivery. The final follow-up mapping reuse change passes the focused local suite; the lifecycle test exercises unchanged command paths.
+    publication: Implementation deployed on dev in 2cba8048cd37cd4536a1d7b0b032cc0c334dcda5; integration lint, Specification, translation and SDK cleartext gates passed.
+    release_repair: npm run 37120286425 built the ARM64 native runtime successfully, but caught anonymous sends wrapping already-prepared legacy placeholders twice. Pass their existing owner-local mappings into the shared boundary; preserve exact legacy placeholder text without weakening the assertion.
+    remaining: Publish the bounded anonymous mapping handoff fix and verify npm delivery. The follow-up mapping reuse change passes the focused local suite; lifecycle CI covers unchanged command paths.
     references: [docs/architecture/privacy/cli-enhanced-anonymization.md, frontend/apps/web_app/tests/cli-privacy.spec.ts, frontend/packages/openmates-cli/tests/privacy.test.ts]
   question_1:
     topic: Automatic installation versus one-time TUI offer plus explicit command.
