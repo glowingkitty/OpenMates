@@ -97,6 +97,33 @@ async function withServer(
 }
 
 describe("OpenMates SDK workflows", () => {
+  // contract-test: direct surface=sdks.npm assertions=workflows.chat.embedded-lifecycle,workflows.chat.invocation,workflows.chat.result-return
+  it("runs once with chat routing and saves a disabled reusable copy", async () => {
+    const workflowId = "22222222-2222-4222-8222-222222222222";
+    const graph = minimalGraph();
+    await withServer(
+      (request) => {
+        if (request.url === "/v1/workflows/run-once") return { workflow: { id: workflowId, title: "One-time", status: "disabled", enabled: false, lifecycle: "chat_embed", graph }, run: { id: "run-once", workflow_id: workflowId, status: "queued" } };
+        if (request.url === `/v1/workflows/${workflowId}/run`) return { run: { id: "run-2", workflow_id: workflowId, status: "queued" } };
+        if (request.url === `/v1/workflows/${workflowId}/save-as-reusable`) return { workflow: { id: "wf-copy", title: "Copy", status: "disabled", enabled: false, lifecycle: "persisted", graph } };
+        throw new Error(`Unexpected request ${request.method} ${request.url}`);
+      },
+      async (apiUrl, seen) => {
+        const client = new OpenMates({ apiKey: "x", apiUrl });
+        const routing = { sourceChatId: CHAT_ID, messageDestinationOverrides: { send: CHAT_ID }, returnOutputs: { forecast: { ref: "$nodes.trigger.output.forecast", type: "string" as const } } };
+        const once = await client.workflows.runOnce({ title: "One-time", graph, idempotencyKey: "stable-once", input: { dry: true }, ...routing });
+        const run = await client.workflows.run(workflowId, { idempotencyKey: "stable-run", ...routing });
+        const copy = await client.workflows.saveAsReusable(workflowId, { idempotencyKey: "stable-copy" });
+        assert.equal(once.workflow.lifecycle, "chat_embed");
+        assert.equal(once.run.id, "run-once");
+        assert.equal(run.id, "run-2");
+        assert.equal(copy.enabled, false);
+        assert.notEqual(copy.id, once.workflow.id);
+        assert.deepEqual(seen[0]?.body, { title: "One-time", graph, input: { dry: true }, source_chat_id: CHAT_ID, message_destination_overrides: { send: CHAT_ID }, return_outputs: { forecast: { ref: "$nodes.trigger.output.forecast", type: "string" } } });
+        assert.deepEqual(seen[1]?.body, { mode: "manual", input: {}, source_chat_id: CHAT_ID, message_destination_overrides: { send: CHAT_ID }, return_outputs: { forecast: { ref: "$nodes.trigger.output.forecast", type: "string" } } });
+      },
+    );
+  });
   // contract-test: direct surface=sdks.npm assertions=workflows.activation.reachable-side-effect,workflows.surface.semantic-parity,workflows-ui.identity.automatic-category-icon,sdk.encryption.local-only,sdk.surface.semantic-parity
   it("manages workflows through the shared API contract", async () => {
     const graph = minimalGraph();

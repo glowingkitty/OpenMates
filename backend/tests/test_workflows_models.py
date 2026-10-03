@@ -32,6 +32,17 @@ from backend.core.api.app.utils.encryption import EncryptionService
 from backend.tests.workflow_test_utils import workflow_service
 
 
+@pytest.fixture
+def filesystem_capabilities(monkeypatch: pytest.MonkeyPatch) -> None:
+    from backend.core.api.app.services.workflow_capability_registry import (
+        WorkflowCapabilityRegistry,
+        _FilesystemWorkflowMetadataRegistry,
+    )
+
+    registry = _FilesystemWorkflowMetadataRegistry()
+    monkeypatch.setattr(WorkflowCapabilityRegistry, "_registry", lambda self: registry)
+
+
 class FakeDirectusResponse:
     def __init__(self, status_code: int, data: Any = None) -> None:
         self.status_code = status_code
@@ -399,6 +410,7 @@ def test_directus_workflow_repository_lists_runtime_accepted_run_without_record_
             "content_storage": None,
             "content_expires_at": None,
             "encrypted_content_ref": None,
+            "encrypted_invocation_ref": None,
             "encrypted_content_checksum": None,
             "cancellation_requested_at": None,
             "cancelled_at": None,
@@ -627,7 +639,7 @@ def test_manual_runs_validate_required_start_input_schema() -> None:
 
 
 # contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract,workflows.mvp.steps
-def test_capabilities_include_safe_v1_app_skills_and_disabled_custom_code() -> None:
+def test_capabilities_include_safe_v1_app_skills_and_disabled_custom_code(filesystem_capabilities: None) -> None:
     service = workflow_service()
     capabilities = {item.id: item for item in service.capabilities()}
 
@@ -637,10 +649,18 @@ def test_capabilities_include_safe_v1_app_skills_and_disabled_custom_code() -> N
     assert capabilities["events.search"].enabled is True
     assert capabilities["ai.ask"].enabled is True
     assert capabilities["custom_code"].enabled is False
+    assert capabilities["for_each"].enabled is True
+    assert capabilities["for_each"].metadata["items_type"] == "typed_array_reference"
+    options = capabilities["check.ai.options"]
+    assert options.enabled is True
+    assert options.metadata["node_type"] == "check"
+    assert options.metadata["selection_modes"] == ["single", "multiple"]
+    assert "selected_options" in options.metadata["outputs"]
+    assert "matched" not in options.metadata["outputs"]
 
 
 # contract-test: supporting surface=rest_api assertions=workflows.access.boundaries
-def test_capabilities_include_owner_scoped_persisted_workflows_only() -> None:
+def test_capabilities_include_owner_scoped_persisted_workflows_only(filesystem_capabilities: None) -> None:
     service = workflow_service()
     persisted = service.create_workflow("alice", "Weekly AI news", rain_graph())
     service.create_workflow("alice", "Temporary chat workflow", rain_graph(), lifecycle="temporary")

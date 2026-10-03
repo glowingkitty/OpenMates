@@ -9,10 +9,12 @@
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 from types import ModuleType, SimpleNamespace
 from typing import Any
 
 import pytest
+import yaml
 from fastapi import HTTPException
 
 pytest.importorskip("redis.asyncio", reason="apps_api imports backend service dependencies")
@@ -38,6 +40,7 @@ sys.modules.setdefault("slowapi.util", slowapi_util_module)
 from backend.core.api.app.routes import apps_api  # noqa: E402
 from backend.core.api.app.services import skill_registry  # noqa: E402
 from backend.shared.python_utils.app_skill_output_safety import is_central_app_skill_dispatch  # noqa: E402
+from backend.shared.python_schemas.app_metadata_schemas import AppYAML  # noqa: E402
 
 
 class FakeRegistry:
@@ -226,4 +229,27 @@ async def test_call_app_skill_blocks_internal_skills_before_dispatch(
         )
 
     assert exc_info.value.status_code == 403
+    assert registry.calls == []
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.access.boundaries,workflows.chat.invocation
+@pytest.mark.anyio
+async def test_chat_workflow_skills_deny_generic_rest_before_dispatch(monkeypatch: pytest.MonkeyPatch) -> None:
+    config_path = Path(__file__).resolve().parents[1] / "apps" / "workflows" / "app.yml"
+    metadata = AppYAML.model_validate(yaml.safe_load(config_path.read_text(encoding="utf-8")))
+    registry = FakeRegistry(skills=metadata.skills)
+    monkeypatch.setattr(skill_registry, "get_global_registry", lambda: registry)
+
+    for skill_id, body in (
+        ("run", {"workflow_id": "wf-1", "chat_id": "spoofed-chat",
+                 "message_destination_overrides": {"send": "spoofed-chat"}}),
+        ("create-or-modify", {"instruction": "Run now", "execution_mode": "run_once",
+                              "chat_id": "spoofed-chat", "message_id": "spoofed-message"}),
+    ):
+        with pytest.raises(HTTPException) as exc_info:
+            await apps_api.call_app_skill(
+                "workflows", skill_id, body, {},
+                {"user_id": "user-1", "api_key_hash": "key-hash", "device_hash": None},
+            )
+        assert exc_info.value.status_code == 403
     assert registry.calls == []

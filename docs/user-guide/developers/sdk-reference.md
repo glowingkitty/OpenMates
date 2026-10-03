@@ -392,9 +392,11 @@ Run `python3 scripts/generate_sdk_reference.py --check` to verify this file is c
 | `om.workflows.restore()` | `om.workflows.restore()` | `id, entry_id, state` | `id, entry_id, state` | `object` |
 | `om.workflows.revokeShortUrl()` | `om.workflows.revoke_short_url()` | `token` | `token` | `object` |
 | `om.workflows.revokeTemplateProjection()` | `om.workflows.revoke_template_projection()` | `id` | `id` | `object` |
-| `om.workflows.run()` | `om.workflows.run()` | `id, idempotency_key, mode, input` | `id, idempotency_key, mode, input` | `object` |
+| `om.workflows.run()` | `om.workflows.run()` | `id, input` | `id, idempotency_key, mode, input, source_chat_id, message_destination_overrides, return_outputs` | `object` |
 | `om.workflows.runDetail()` | `om.workflows.run_detail()` | `id, run_id` | `id, run_id` | `object` |
+| `om.workflows.runOnce()` | `om.workflows.run_once()` | `input` | `title, graph, idempotency_key, source_chat_id, input, message_destination_overrides, return_outputs` | `object` |
 | `om.workflows.runs()` | `om.workflows.runs()` | `id` | `id` | `list` |
+| `om.workflows.saveAsReusable()` | `om.workflows.save_as_reusable()` | `id, idempotency_key` | `id, idempotency_key` | `object` |
 | `om.workflows.startInput()` | `om.workflows.start_input()` | `input` | `text, input_type, audio_ref, selected_workflow_id, selected_project_id` | `object` |
 | `om.workflows.stepTest()` | `om.workflows.step_test()` | `id, step_id, input, confirmed, node, upstream_outputs` | `id, step_id, input, confirmed, node, upstream_outputs` | `object` |
 | `om.workflows.stopInput()` | `om.workflows.stop_input()` | `session_id` | `session_id` | `object` |

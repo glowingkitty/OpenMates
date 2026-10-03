@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.workflows-ui
-version: 7
+version: 8
 status: draft
 title: Workflows Web UI
 summary: >
@@ -26,6 +26,22 @@ scope:
     - Workflow sharing management in the web UI. A future implementation belongs in the regular settings Share menu; existing runtime and CLI sharing APIs are unchanged.
 
 models:
+  WorkflowOptionsCheckAuthoring:
+    controls:
+      type: shared_multiline_variable_composer_with_option_rows
+      constraints: {result_types: [boolean, options], selection_modes: [single, multiple], minimum_options: 2, maximum_options: 10, stable_ids_on_rename_and_reorder: true, deletion_dependency_warning: required}
+    outcomes:
+      type: option_branch_labels_and_test_selection
+      constraints: {unsure_visible: true, no_match_multiple_only: true, selected_outcomes_readable: true, raw_provider_output: forbidden}
+  WorkflowForEachAuthoring:
+    source_and_body:
+      type: typed_list_picker_and_nested_body_canvas
+      constraints: {accessible_lists_only: true, scoped_item_and_index_pills: true, progress_and_iteration_detail: true, limits_visible: true, nested_loops: forbidden}
+  WorkflowChatOwnedAuthoring:
+    embed:
+      type: inspectable_encrypted_workflow_snapshot
+      constraints: {full_definition_available: true, run_link_available: true, save_as_reusable: true, seven_day_expiry: false, library_hidden_until_saved: true}
+
   WorkflowVisualLanguage:
     outer_surface:
       type: layered_workspace_surface
@@ -91,10 +107,10 @@ models:
       required: true
       constraints: {sources: [earlier_app_nodes, ai_confirms], gradient_app_identity: true, operator_icons: true, incompatible_variables_hidden: true, exact_rule_inferred_from_app_source: true}
     ai_judgment:
-      type: bounded_boolean_question_builder
+      type: bounded_boolean_or_option_selection_builder
       required: true
       constraints:
-        visible_fields: [authored_true_false_question_with_inserted_earlier_values]
+        visible_fields: [result_type, authored_instruction_with_inserted_earlier_values, option_rows, selection_mode]
         selected_value_preview: required
         advanced_provider_or_prompt_controls: forbidden
         outcomes: [if_true, if_false, unsure]
@@ -573,7 +589,7 @@ assertions:
   - id: workflows-ui.if-editor.authored-conditions
     type: behavior
     must: >
-      The expanded If editor uses the supplied blue header, a large If title and a translated Next step backlink whose text hides in a narrow container; the delete action sits farther left. Its controls reuse the rich SettingsDropdown with source app gradients and operator icons. The first source choice is an earlier app node or the AI confirms option: choosing an app opens Exact rule directly, without a separate Exact rule choice, then a compatible scalar field, compatible operator, and typed Number, Text or Boolean literal or compatible field from another earlier app node; list entry projections are not offered. AI confirms opens the authored AI judgment with the shared left-aligned source and field picker plus the same blue @partial highlighting, filtering and full colored-token replacement as Ask AI. The author writes a true/false question; invalid questions show actionable errors on Save and Test. If true, If false and Unsure remain visible outcomes, and no provider call occurs while typing or choosing values.
+      The expanded If editor uses the supplied blue header, a large If title and a translated Next step backlink whose text hides in a narrow container; the delete action sits farther left. Its controls reuse the rich SettingsDropdown with source app gradients and operator icons. The first source choice is an earlier app node or the AI confirms option: choosing an app opens Exact rule directly, without a separate Exact rule choice, then a compatible scalar field, compatible operator, and typed Number, Text or Boolean literal or compatible field from another earlier app node; list entry projections are not offered. AI confirms opens the authored AI judgment with the shared left-aligned source and field picker plus the same blue @partial highlighting, filtering and full colored-token replacement as Ask AI. Boolean output asks a true/false question; Multiple choice offers stable option rows and an Only one or Allow multiple selection control. Invalid configurations show actionable errors on Save and Test. If true, If false and Unsure remain visible outcomes, and no provider call occurs while typing or choosing values.
     depends_on: [models.WorkflowCheckAuthoring]
   - id: workflows-ui.schedule.preview
     type: behavior
@@ -598,6 +614,22 @@ assertions:
       unavailable rather than broken navigation.
     depends_on:
     - examples.run_deletion
+
+  - id: workflows-ui.check.options
+    type: behavior
+    must: >
+      The AI Check reuses the multiline variable composer from Ask AI and Send message. Choosing Multiple choice shows option label/optional-description rows and a clear Only one versus Allow multiple control. Rename/reorder preserve IDs and connected branches; deleting an option with dependent actions/references warns before removal. Show a branch per option, Unsure, and No match only for multiple. Test visibly reports selected options or uncertainty; switching output modes cannot silently discard connected work.
+    depends_on: [models.WorkflowOptionsCheckAuthoring, examples.option_check]
+  - id: workflows-ui.for-each
+    type: behavior
+    must: >
+      Offer For each when an accessible typed list exists. Its source picker shows valid lists, its visually nested body uses the supported workflow steps and scoped item/index variable chips, and its controls expose bounds. Runs show item progress and inspectable repeated executions under their graph node; empty input and limit failures are readable.
+    depends_on: [models.WorkflowForEachAuthoring, examples.for_each]
+  - id: workflows-ui.chat-owned
+    type: behavior
+    must: >
+      A one-time Workflow appears as an inspectable chat embed with its definition, run state and Save as reusable. It remains available with the chat without an automatic seven-day definition timer. Saving opens a disabled regular Workflow copy, keeping the original run and snapshot in the chat. Caller routing is a per-run choice and does not edit saved destinations.
+    depends_on: [models.WorkflowChatOwnedAuthoring, examples.chat_owned]
 
 applies_to:
   rest_api:
@@ -625,7 +657,7 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [visual_language, route_motion_contract, workflow_identity, workspace_start, workspace_start_layout, workflow_continue_priority, workflow_library_templates, detail_header, detail_header_contract, detail_tabs, template_editing, template_step_selector, node_card_contract, unsaved_navigation, version_history, version_selector_contract, run_history, responsive_accessibility, mvp_authoring, ask_ai_authoring, schedule_preview, message_budget, run_deletion, workflow_file_export, workflow_project_import, workflow_composer_import]
+  required_groups: [visual_language, route_motion_contract, workflow_identity, workspace_start, workspace_start_layout, workflow_continue_priority, workflow_library_templates, detail_header, detail_header_contract, detail_tabs, template_editing, template_step_selector, node_card_contract, unsaved_navigation, version_history, version_selector_contract, run_history, responsive_accessibility, mvp_authoring, ask_ai_authoring, schedule_preview, message_budget, run_deletion, workflow_file_export, workflow_project_import, workflow_composer_import, option_check, for_each, chat_owned]
 
 approval:
   source: User-approved Figma/PDF workflow v1 plan, Codex task 01a09f95-3e12-71d1-9243-6a3668c57d4b
@@ -651,3 +683,9 @@ approval:
     valid executable saved Workflow and always runs the saved definition.
     Workflow open and close now match the fullscreen-embed route motion, and
     graph nodes are slightly larger with a visible bottom chevron.
+
+implementation_amendment:
+  source: User instruction in Codex chat 01a0fd61-e139-7be2-b05a-77b54bf7acfe
+  date: '2026-10-02'
+  approval_basis: Explicit approval of the presented design and instruction to implement; this records the accepted scope without an additional approval round.
+  deferred: [jev_workflow_relevance_preprocessing, start_ai_chat, apple_native_implementation_until_web_confirmation]

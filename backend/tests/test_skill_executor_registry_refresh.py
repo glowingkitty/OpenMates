@@ -141,3 +141,28 @@ async def test_execute_skill_does_not_redispatch_after_output_safety_failure(mon
             {"location": "Berlin"},
         )
     ]
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.chat.invocation
+@pytest.mark.anyio
+@pytest.mark.parametrize('arguments', [
+    {'instruction': 'run this once'},
+    {'requests': [{'instruction': 'first'}, {'instruction': 'second'}]},
+])
+async def test_workflow_dispatch_keeps_authoritative_chat_context(monkeypatch, arguments) -> None:
+    captured = []
+
+    async def fake_execute(app_id, skill_id, args, timeout, chat_id, message_id, user_id, *rest, **kwargs):
+        captured.append((args, chat_id, message_id, user_id))
+        return {'success': True}
+
+    monkeypatch.setattr(skill_executor, 'execute_skill', fake_execute)
+    await skill_executor.execute_skill_with_multiple_requests(
+        'workflows', 'create_or_modify',
+        {**arguments, '_chat_id': 'other-chat', '_message_id': 'other-message',
+         '_user_id': 'other-owner', '_cache_service': {'fake': True}},
+        chat_id='caller-chat', message_id='caller-message', user_id='caller-owner',
+    )
+    assert len(captured) == 1
+    assert captured[0][1:] == ('caller-chat', 'caller-message', 'caller-owner')
+    assert not any(key.startswith('_') for key in captured[0][0])

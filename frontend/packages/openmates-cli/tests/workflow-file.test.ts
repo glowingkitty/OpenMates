@@ -43,6 +43,32 @@ test("node remapping preserves authored variable names", () => {
   assert.deepEqual(document.workflow.graph.ui_layout, { step_1: { x: 4, message: "Authored layout key" } });
 });
 
+// contract-test: supporting surface=cli assertions=workflows.portability.definition-roundtrip,workflows.portability.private-content-boundary,workflows.control.choice-check,workflows.control.for-each
+test("portable export preserves option IDs and rewrites for-each item references", () => {
+  const document = buildWorkflowFile({ title: "Review results", graph: {
+    version: 1, trigger_node_id: null,
+    nodes: [
+      { id: "source-private", type: "app_skill_action", config: { app_id: "search", skill_id: "web", input: {} } },
+      { id: "check-private", type: "check", config: { mode: "ai", result_type: "options", selection_mode: "multiple", options: [{ id: "accept", label: "Accept" }, { id: "reject", label: "Reject" }] } },
+      { id: "loop-private", type: "for_each", config: { items: "$nodes.source-private.results", max_items: 5 } },
+      { id: "body-private", type: "send_chat_message", config: { message: "Item {{items.loop-private.item.title}} at {{items.loop-private.index}}" }, input_mapping: { title: "$items.loop-private.item.title" } },
+    ],
+    edges: [
+      { from: "check-private", to: "loop-private", branch: "option:accept" },
+      { from: "loop-private", to: "body-private", branch: "body" },
+      { from: "loop-private", to: "source-private" },
+    ],
+  } });
+  const graph = document.workflow.graph;
+  assert.equal(graph.nodes[1].config?.options instanceof Array && (graph.nodes[1].config.options as Array<{ id: string }>)[0].id, "accept");
+  assert.equal(graph.nodes[2].config?.items, "$nodes.step_1.results");
+  assert.equal(graph.nodes[3].config?.message, "Item {{items.step_3.item.title}} at {{items.step_3.index}}");
+  assert.equal(graph.nodes[3].input_mapping?.title, "$items.step_3.item.title");
+  assert.deepEqual(graph.edges.map((edge) => edge.branch), ["option:accept", "body", undefined]);
+  assert.deepEqual(validateWorkflowFile(document), document);
+  assert.doesNotMatch(JSON.stringify(document), /private/);
+});
+
 // contract-test: supporting surface=cli assertions=workflows.portability.definition-roundtrip
 test("manual and blank saved drafts are portable", () => {
   const result = buildWorkflowFile({ title: "Draft", graph: { version: 2, trigger_node_id: null, nodes: [], edges: [] } });

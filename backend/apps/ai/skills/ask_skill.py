@@ -188,6 +188,7 @@ class OpenAICompletionRequest(BaseModel):
     apps_enabled: Optional[bool] = Field(default=True, description="Whether to enable app skills (tools).")
     allowed_apps: Optional[List[str]] = Field(default=None, description="List of app IDs to allow. If None, all apps are allowed.")
     workflow_ai: bool = Field(default=False, description="Isolated Workflow Ask AI request without app tools or AI routing.")
+    workflow_budget: Optional[Dict[str, Any]] = Field(default=None, description="Signed internal Workflow credit allowance.")
     workflow_presentation_sources: List[str] = Field(default_factory=list, description="Known upstream skill IDs for presentation only.")
     mate_id: Optional[str] = Field(default=None, description="ID of the Mate to use. If None, AI will select.")
     provider: Optional[str] = Field(default=None, description="Preferred provider (e.g., 'openai', 'cerebras', 'anthropic').")
@@ -479,6 +480,12 @@ class AskSkill(BaseSkill):
             user_id = "openai-api-user"  # Fallback for internal calls without API key context
             logger.info("[TRANSFORM] Using synthetic user_id (no API authentication context)")
         user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
+        workflow_credit_allowance = None
+        if openai_request.workflow_budget is not None:
+            from backend.core.api.app.services.workflow_app_skill_adapter import verify_workflow_ai_budget
+            workflow_credit_allowance = verify_workflow_ai_budget(user_id, openai_request.workflow_budget)
+            if not openai_request.workflow_ai or workflow_credit_allowance is None:
+                raise ValueError("Invalid internal Workflow credit allowance")
 
         # Extract API key and device hashes if available
         api_key_hash = openai_request.ctx_api_key_hash
@@ -536,6 +543,8 @@ class AskSkill(BaseSkill):
                 "apps_enabled": openai_request.apps_enabled,
                 "allowed_apps": openai_request.allowed_apps,
                 "workflow_ai": openai_request.workflow_ai,
+                "workflow_credit_allowance": workflow_credit_allowance,
+                "workflow_budget": openai_request.workflow_budget if workflow_credit_allowance is not None else None,
                 "workflow_presentation_sources": openai_request.workflow_presentation_sources,
             }
         )

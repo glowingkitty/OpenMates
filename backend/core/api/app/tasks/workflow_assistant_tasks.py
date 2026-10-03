@@ -22,6 +22,24 @@ from backend.core.api.app.tasks.celery_config import app
 logger = logging.getLogger(__name__)
 
 
+def _enqueue_accepted_workflow_run(
+    workflow_id: str,
+    owner_user_id: str,
+    run_id: str,
+    version_id: str,
+    trigger_type: str,
+    input_payload: dict[str, Any],
+    invocation: dict[str, Any] | None = None,
+) -> None:
+    from backend.core.api.app.tasks.workflow_tasks import run_workflow_task
+
+    args = (workflow_id, owner_user_id, run_id, version_id, trigger_type, input_payload)
+    if invocation is None:
+        run_workflow_task.delay(*args)
+    else:
+        run_workflow_task.delay(*args, invocation)
+
+
 def expire_workflow_assistant_proposals(now: int | None = None) -> dict[str, Any]:
     service = WorkflowAssistantService(
         WorkflowService(repository=DirectusWorkflowRepository()),
@@ -71,23 +89,11 @@ def execute_workflow_assistant_countdown_task(
         async def run() -> dict[str, Any]:
             await self.initialize_services()
 
-            def enqueue_accepted_run(
-                workflow_id: str,
-                owner_user_id: str,
-                run_id: str,
-                version_id: str,
-                trigger_type: str,
-                input_payload: dict[str, Any],
-            ) -> None:
-                from backend.core.api.app.tasks.workflow_tasks import run_workflow_task
-
-                run_workflow_task.delay(workflow_id, owner_user_id, run_id, version_id, trigger_type, input_payload)
-
             return await execute_workflow_assistant_countdown(
                 user_id,
                 proposal_id,
                 runtime_service=WorkflowRuntimeService(self.directus_service),
-                enqueue_accepted_run=enqueue_accepted_run,
+                enqueue_accepted_run=_enqueue_accepted_workflow_run,
             )
 
         return asyncio.run(run())

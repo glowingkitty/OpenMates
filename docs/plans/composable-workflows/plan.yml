@@ -1,0 +1,300 @@
+# Keep actual immutable sources for each focused suite and later regression fix.
+schema_version: 1
+id: composable-workflows
+title: Multiple-choice checks, bounded iteration and chat-owned workflow runs
+status: verified
+goal: >
+  Implement the agreed multiple-choice AI Checks, bounded For each and chat-triggered
+  one-time or existing Workflow runs across backend, CLI, SDKs and web. Store one-time
+  definitions in encrypted chat embeds, allow saving a regular reusable copy, and
+  return selected results to the initiating chat. Defer Jev relevance preprocessing,
+  Start AI chat and Apple implementation until their separately agreed follow-up.
+approved_by_user: true
+scope:
+  in:
+    - Exactly-one/all-that-apply AI Checks, stable option branches and reliable Unsure behavior.
+    - Sequential typed-list iteration with scoped item/index, bounds, cancellation and retry reuse.
+    - Chat-owned encrypted definitions, caller invocation/routing, bounded output returns and saved copies.
+    - REST, CLI, npm/Python SDK and web semantic parity with focused coverage and scoped dev deployment.
+  out:
+    - Jev workflow relevance selection/preprocessing (separate chat).
+    - Start AI chat; revisit only after testing and the user's confirmation of this implementation.
+    - Apple implementation; hand off to a Mac chat after web acceptance.
+    - Nested/unbounded loops, general code, human-input pauses and unrelated legacy repairs.
+scenarios:
+  - id: S-1
+    title: Reliable option selections execute the intended actions
+    given: [A Check has stable options and selected earlier input values.]
+    when: [It runs in exactly-one or all-that-apply mode.]
+    then: [Selected branches execute in authored order followed by shared continuation once; uncertain required judgments execute only Unsure.]
+  - id: S-2
+    title: A bounded list body resumes safely
+    given: [A typed list feeds a sequential For each body.]
+    when: [It completes, fails, is cancelled or resumes after partial work.]
+    then: [Scope and limits hold; completed effects and charges are reused and empty input continues once.]
+  - id: S-3
+    title: A chat-owned workflow remains inspectable and can become reusable
+    given: [A chat creates a one-time workflow or invokes an existing one.]
+    when: [The owner inspects results, overrides Send destinations, saves a copy or deletes the source chat.]
+    then: [Only explicit bounded results return, saved graphs remain unchanged, copies are independent, and chat-owned runs are fenced on deletion.]
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Option validation, one-request evaluation, ordered branch execution and legacy boolean behavior are covered.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-BACKEND, T-CLIENTS, T-UI]
+  - id: AC-2
+    scenario: S-2
+    text: Typed scope, empty/oversized lists, limits, cancellation and retry-safe iteration are covered.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-BACKEND, T-CLIENTS, T-UI, T-E2E]
+  - id: AC-3
+    scenario: S-3
+    text: Chat ownership, encryption, one-time runs, idempotent conversion, caller returns and deletion cleanup are covered across clients.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: plan
+    verification_ids: [T-BACKEND, T-CLIENTS, T-UI, T-E2E]
+tests:
+  - id: T-BACKEND
+    type: pytest
+    file: backend/tests/test_workflow_options_and_for_each_contracts.py
+    command: python -m pytest backend/tests/test_workflow_options_and_for_each_contracts.py backend/tests/test_workflow_choice_for_each_runtime.py backend/tests/test_workflow_chat_invocation.py -q
+    assertions: [Structural/typed validation, option evaluation, scoped runtime and owner lifecycle semantics.]
+    covers: [AC-1, AC-2, AC-3]
+    red_phase: {required: false, expected: not_required, evidence: {reason: New approved feature; focused new regression coverage is required.}}
+    green_phase:
+      required: true
+      expected: passed
+      evidence:
+        status: passed
+        timestamp: '2026-10-02'
+        command: >
+          /home/superdev/projects/OpenMates/.venv/bin/python -m pytest
+          backend/tests/test_main_processor_invalid_tool_calls.py backend/tests/test_skill_executor_registry_refresh.py
+          backend/apps/ai/tests/test_ask_skill_task.py backend/tests/test_stream_consumer_publish_coalescing.py
+          backend/tests/test_stream_consumer_recovery.py backend/tests/test_workflows_models.py
+          backend/tests/test_workflows_routes_security.py backend/tests/test_workflow_action_adapter.py
+          backend/tests/test_workflow_app_skill_adapter.py backend/tests/test_workflow_authoring_compiler.py
+          backend/tests/test_workflow_runner.py backend/tests/test_workflow_template_expressions.py
+          backend/tests/test_persistence_tasks.py backend/tests/test_app_skill_rest_context.py
+          backend/tests/test_workflow_ai_credit_budget.py backend/tests/test_workflow_chat_delivery.py
+          backend/tests/test_workflow_chat_invocation.py backend/tests/test_workflow_choice_for_each_runtime.py
+          backend/tests/test_workflow_options_and_for_each_contracts.py backend/tests/test_workflow_runtime_python_transactions.py -q
+        run_id: f13e-final-callback-backend-unit-gate-20261002
+        subject_commit: 0c16602e0a3fed9e43c07be78570529c44453c1d
+        execution_environment: local_focused_unit_tests
+        result: 366 relevant checks passed, including the restored queued-run redispatch, immutable encrypted invocation handoff, production caller persistence, typed projections, strict defaults, loop/budget/policy paths and definition-before-effects ordering. Earlier isolated CI suites cover unchanged runtime boundaries; lifecycle CI verifies the final production paths against its real isolated stack.
+        additional_runs:
+          - {run_id: '37059033748', subject_commit: 8ccfb3ea47521517b95ccb7ae5296f3279c76c5b, artifact_id: '11249767294'}
+          - {run_id: '37058555705', subject_commit: b166f5e8ff235253b22ad3646b7aff84e6721b1a, artifact_id: '11249496799'}
+          - {run_id: '37057436687', subject_commit: c024cb32b624c5899d54c701ef4d104a2688bb22, artifact_id: '11249126012'}
+          - {run_id: '37045623568', subject_commit: 13266fce86eaa8c734a585e1494e2f2527260e14, artifact_id: '11244810133'}
+        supplemental_ci_setup_failure:
+          run_id: '37065468385'
+          subject_commit: 3edce57bc4faaebcffa76749739f99341c6074c2
+          artifact_id: '11252183228'
+          reason: No tests started; untouched backend Git dependency now resolves toon-format 1.0.0 while the Python SDK requires 0.9.0b1. No dependency repair or test weakening is included in this scope.
+  - id: T-CLIENTS
+    type: unit
+    file: frontend/packages/openmates-cli/tests/workflows.test.ts
+    command: npm run test:unit:workflows && npm run test:unit:sdk-workflows
+    assertions: [CLI/npm/Python client contracts and portable graph round trips.]
+    covers: [AC-1, AC-2, AC-3]
+    red_phase: {required: false, expected: not_required, evidence: {reason: New feature.}}
+    green_phase:
+      required: true
+      expected: passed
+      evidence:
+        status: passed
+        timestamp: '2026-10-02'
+        command: npm run test:unit:workflows && npm run test:unit:sdk-workflows
+        run_id: f13e-sdk-focused-20261002
+        subject_commit: 13266fce86eaa8c734a585e1494e2f2527260e14
+        result: 18 CLI/client and 6 npm SDK checks passed; YAML 1, contextual help 4, Python workflow methods 1, schema generation and ESM/DTS build also passed.
+        python_command: PYTHONPATH=packages/openmates-python python -m pytest -q packages/openmates-python/tests/test_workflows.py -k workflow_methods_use_shared_workflows_api
+        additional_result: Hidden chat-owned full-ID lookup regressions passed 19 workflow/client checks plus 1 compiled CLI check; ESM and DTS build passed on product source e2de5afed3e6cd18ed51dd1fefaecfb50780fc14. Title and slug lookup remains unchanged and API ownership enforcement is preserved.
+        additional_commands: [npm run test:unit:workflows, npm run build]
+  - id: T-UI
+    type: playwright
+    file: frontend/apps/web_app/tests/components/workflow-choice-loop.spec.ts
+    command: python3 scripts/ci_coordinator.py submit --session f13e --source SOURCE --mode component --no-prepared-builds --spec components/workflow-choice-loop.spec.ts
+    target: isolated_component_preview
+    execution_environment: isolated_github_ci
+    assertions: [Visible option controls and safe branch editing, For each scope, chat embed inspection and save behavior.]
+    covers: [AC-1, AC-2, AC-3]
+    red_phase: {required: false, expected: not_required, evidence: {reason: New feature.}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        timestamp: '2026-10-02'
+        command: python3 scripts/ci_coordinator.py result a7691b447fabc033dcdfc312789a4e4bfc56257b4844aeb2f47425044b21fb16
+        run_id: '37046395288'
+        subject_commit: 035ae0afeb68fa8d12022deeff21a531bb37c76c
+        execution_environment: isolated_github_ci
+        harness_commit: 6cac0678519f84ef70049266851c022ee220cef6
+        profile: isolated_component_preview
+        artifacts: [https://github.com/glowingkitty/OpenMates/actions/runs/37046395288/artifacts/11244307126]
+        result: 3 choice/loop checks passed; existing Check editor 6 and chat-owned embed 2 passed on the identical UI implementation in source 13266fce86eaa8c734a585e1494e2f2527260e14.
+        additional_runs: ['37045610393', '37045605071']
+  - id: T-E2E
+    type: playwright
+    file: frontend/apps/web_app/tests/workflows-composition.spec.ts
+    command: python3 scripts/ci_coordinator.py submit --session f13e --source SOURCE --mode e2e --spec workflows-composition.spec.ts
+    target: isolated_product_runtime
+    execution_environment: isolated_github_ci
+    assertions: [Deterministic first-party workflow composition and chat-owned lifecycle across REST and CLI.]
+    covers: [AC-2, AC-3]
+    red_phase: {required: false, expected: not_required, evidence: {reason: New feature.}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        timestamp: '2026-10-02'
+        command: python3 scripts/ci_coordinator.py result 3c42b2442c6a5ab37e49fd3119f3aeb0e944c26434a7eb2d72fee5e51cfc96fe
+        run_id: '37078624407'
+        subject_commit: 8241a3d8a8783bee4c4d662ac47a1a595c388009
+        execution_environment: isolated_github_ci
+        harness_commit: b73ba44c4e7787301d13211938e4c6765bc0bba5
+        artifacts: [https://github.com/glowingkitty/OpenMates/actions/runs/37078624407/artifacts/11257638751]
+        result: Complete lifecycle, CLI capability discovery and immediate accepted-run retry passed; one expected case, zero skipped, unexpected or flaky. Cleanup verified zero remaining containers and volumes with private account files removed.
+        prior_pass:
+          run_id: '37073756072'
+          subject_commit: e55ea3fe0e52f29e5f8efeead52c14bc4381f50d
+          artifact_id: '11256009609'
+          result: Complete lifecycle passed without skips or retries before queued-recovery follow-up.
+
+verification_provenance:
+  final_product_source: 0c16602e0a3fed9e43c07be78570529c44453c1d
+  verification_sources:
+    backend_initial: 13266fce86eaa8c734a585e1494e2f2527260e14
+    backend_admission_and_runner: c024cb32b624c5899d54c701ef4d104a2688bb22
+    backend_typed_returns_and_rest_policy: b166f5e8ff235253b22ad3646b7aff84e6721b1a
+    backend_final_single_root_compatibility: 8ccfb3ea47521517b95ccb7ae5296f3279c76c5b
+    components: 035ae0afeb68fa8d12022deeff21a531bb37c76c
+    clients_hidden_definition_lookup: e2de5afed3e6cd18ed51dd1fefaecfb50780fc14
+    backend_production_caller_delivery: 3edce57bc4faaebcffa76749739f99341c6074c2
+    backend_queued_recovery_and_valid_fixtures: 4eb531e72e4b6b17db5f99510ab9ba21cf3abd26
+    backend_final_control_discovery: 8241a3d8a8783bee4c4d662ac47a1a595c388009
+    backend_production_assistant_callback: 0c16602e0a3fed9e43c07be78570529c44453c1d
+    lifecycle: 8241a3d8a8783bee4c4d662ac47a1a595c388009
+  provenance: Initial UI product code is unchanged in later sources. Backend follow-ups correct caller admission/runtime validation, tighten projection types and chat-only REST policy, then restore single-root compatibility. Subsequent changes fix CLI/client inspection of hidden definitions by full UUID and the production caller-result persistence branch with stable expiry. Focused suites cover each changed boundary; lifecycle CI verifies source 8241a3d8a8783bee4c4d662ac47a1a595c388009. The later assistant task callback has direct production-callback unit coverage on source 0c16602e0a3fed9e43c07be78570529c44453c1d and leaves lifecycle REST/CLI paths unchanged. Each receipt retains its actual source and harness.
+  post_verification_cleanup: Deployment lint found E402 in the capability registry. Moved its existing runtime-values import above the new constants without changing behavior; Ruff and 48 focused capability metadata/registry planner tests passed locally. The broader gate exposed obsolete fixtures and a queued-retry regression. Fixtures now satisfy unchanged schedule/effect rules and assert encrypted invocation metadata. Restored queued acceptance redispatch in REST and assistant paths; 69 focused backend checks and Ruff passed. The lifecycle immediate retry passed on the corrected source in run 37078624407.
+  capability_discovery: Final audit found unused control metadata. The REST capability list now includes For each and the option Check variant with accurate outputs; CLI discovery is asserted in the lifecycle test. Editor and authoring behavior are unchanged.
+  assistant_production_callback: Final review identified a six-argument Celery callback mismatch. Its real enqueue callback now preserves the legacy form and forwards optional invocation. The accepted-true/false assistant test invokes this production callback with only Celery delay mocked. Twenty-two focused assistant checks and the full 366-check backend gate passed locally. This task-only correction leaves the REST/CLI paths exercised by lifecycle source 8241a3d8a8783bee4c4d662ac47a1a595c388009 unchanged.
+  supplemental_legacy_test_failure:
+    command: python -m pytest backend/tests/test_workflow_chat_invocation.py backend/tests/test_workflow_assistant_countdown.py backend/tests/test_workflow_assistant_and_events.py -q
+    result: 32 passed; four cases in the untouched legacy assistant/event suite failed during graph creation on pre-existing invalid enabled trigger fixtures, before the tested callback. Event activation is outside this scope; no assertions are weakened or product readiness guards bypassed.
+  ci_registration_commit: af84c98ed7c995e263efd1f899b8b748dc78d4c4
+  ci_registration_reason: The isolated harness reads its published profile registry. Publish only the three feature-test registrations before rerunning the unchanged lifecycle candidate; no runtime product code was included.
+approvals:
+  specification:
+    status: approved
+    approved_at: '2026-10-02'
+    reason: The user explicitly approved the presented semantic design and instructed implementation; bundle amendments transcribe that scope, with no claim of a separate PDF review.
+  plan:
+    status: approved
+    approved_at: '2026-10-02'
+    reason: User said go ahead and implement as suggested, with chat-embed storage and Start AI chat deferred.
+decisions:
+  - id: D-1
+    status: active
+    decision: Chat-owned definitions have no seven-day expiry; normal run-content retention still applies.
+    reason: The user prefers an encrypted embed that belongs to its chat, with Save as reusable creating an independent copy.
+    decided_at: '2026-10-02'
+  - id: D-2
+    status: active
+    decision: Start AI chat remains deferred and reminder Task TASK-333 depends on implementation and subsequent user confirmation.
+    reason: Explicit user instruction to reevaluate later; Apple work and Jev relevance preprocessing are separately deferred.
+    decided_at: '2026-10-02'
+# Task state and dependencies live in OpenMates Tasks. This record only binds the
+# legacy executable-plan validator to the single aggregate outcome.
+tasks:
+  - id: TASK-247
+    title: Implement composable workflow checks, iteration and chat-owned runs
+    status: in_progress
+    phase: working_tasks
+    covers: {scenarios: [S-1, S-2, S-3], acceptance_criteria: [AC-1, AC-2, AC-3]}
+    expected_files: [backend/core/api/app/services/workflow_runner.py, frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte]
+    verification_ids: [T-BACKEND, T-CLIENTS, T-UI, T-E2E]
+    dependencies: []
+    blockers: []
+    follow_up_tasks: [TASK-333]
+    ownership: {files: [backend/core/api/app/services/workflow_runner.py, frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte], shared_files: []}
+attempts:
+  - id: A-1
+    task_id: TASK-247
+    outcome: planned
+    approach: Implement independent contracts/runtime/chat/web/SDK work, validate focused evidence, then deploy scoped dev diff.
+    recorded_at: '2026-10-02'
+  - id: A-2
+    task_id: TASK-247
+    outcome: blocked
+    approach: Run deterministic composition in isolated product CI.
+    reason: Both initial runs stopped at seed setup with queued workflows. Artifact worker logs proved that the pinned published harness lacked the candidate-only workflow queue classification; neither run exercised the new behavior.
+    recorded_at: '2026-10-02'
+  - id: A-3
+    task_id: TASK-247
+    outcome: blocked
+    approach: Publish the scoped CI registrations, then rerun the same immutable lifecycle source against the updated harness.
+    reason: The seed workflow completed; one-time admission then returned HTTP 400 because its repeated input validator did not honor explicit caller output returns. The actual E2E graph reproduces the readiness error.
+    recorded_at: '2026-10-02'
+  - id: A-4
+    task_id: TASK-247
+    outcome: blocked
+    approach: Propagate the validated explicit output projection through REST/assistant admission and runner input validation; verify strict defaults, required inputs and retry recovery before rerunning lifecycle CI.
+    reason: Admission passed in run 37058917890; CLI run-show then searched the reusable library, which correctly excludes chat-owned definitions, and failed to resolve the accepted workflow UUID.
+    recorded_at: '2026-10-02'
+  - id: A-5
+    task_id: TASK-247
+    outcome: blocked
+    approach: Resolve owned workflow UUIDs directly for inspection and run details while preserving reusable-library name lookup; cover the hidden-definition path and rerun the lifecycle case.
+    reason: Run 37062677654 completed the three-item loop, idempotent retry, hidden-library assertion and visible definition delivery. The explicit processed result was absent from the caller chat after the bounded wait.
+    recorded_at: '2026-10-02'
+  - id: A-6
+    task_id: TASK-247
+    outcome: blocked
+    approach: Trace the terminal caller-return path from completion through queueing and client persistence; fix its concrete delivery failure with focused regressions and retain the lifecycle output assertion.
+    reason: The persisted invocation round-trip was correct. The production caller-delivery branch lacked its run_in_threadpool import and raised NameError before enqueue; retry expiry also needs the durable terminal timestamp for stable uncertain-ACK identity.
+    recorded_at: '2026-10-02'
+  - id: A-7
+    task_id: TASK-247
+    outcome: blocked
+    approach: Rerun the unchanged corrected caller-delivery source on a fresh isolated runner.
+    reason: Run 37066501523 was cancelled after more than 17 minutes installing browser dependencies, before any lifecycle assertion. Logs confirm slow Ubuntu package downloads; coordinator cleanup evidence verifies zero remaining containers and volumes.
+    recorded_at: '2026-10-02'
+  - id: A-8
+    task_id: TASK-247
+    outcome: completed
+    approach: Use the existing ordinary CLI helper for chat deletion and retain the deletion and independent-copy assertions.
+    reason: Run 37070916129 exposed only an incorrect JSON test helper for successful chat deletion. Corrected helper usage; run 37073756072 passed the complete lifecycle with no skips or retries, including removal and independent-copy survival. Product code is unchanged.
+    recorded_at: '2026-10-02'
+  - id: A-9
+    task_id: TASK-247
+    outcome: completed
+    approach: Correct legacy fixtures without weakening assertions, restore redispatch of already accepted queued runs, and verify the immediate retry in isolated lifecycle CI.
+    reason: Deployment gates found seven legacy test failures. Updated fixtures exposed the actual queued retry regression; REST and assistant recovery now dispatch the pinned accepted run, guarded by immutable invocation matching and worker claim semantics. Sixty-nine focused checks passed locally.
+    recorded_at: '2026-10-02'
+  - id: A-10
+    task_id: TASK-247
+    outcome: completed
+    approach: Publish the existing control capability metadata through REST and CLI, then verify discovery and queued recovery together in the final lifecycle case.
+    reason: Read-only final audit identified a discovery gap. The earlier preparation was cancelled before lifecycle assertions; run 37078624407 passed For each and option metadata discovery together with queued recovery.
+    recorded_at: '2026-10-02'
+handoff:
+  current_task_id: TASK-247
+  next_action: Publish the verified implementation to dev, refresh its coordinated runtime and check both live Jev selection modes. User web acceptance then precedes deferred native/chat actions.
+  command: python3 scripts/sessions.py deploy --session f13e
+  expected_outcome: Reviewed and testable web/CLI implementation; user acceptance precedes deferred native/chat actions.
+  last_verified_commit: 8241a3d8a8783bee4c4d662ac47a1a595c388009
+  blocker: null

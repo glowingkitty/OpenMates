@@ -151,6 +151,6 @@ test.describe('Workflow If editor', () => {
     await page.getByTestId('workflow-node-expanded').screenshot({ animations:'disabled', path:test.info().outputPath('if-ai-confirms-phone.png') });
     await page.getByRole('button', { name:'Next step', exact:true }).click();
     await expect(page.getByTestId('workflow-step-menu')).toBeVisible();
-    await expect(page.getByTestId('workflow-step-menu').locator('.choice')).toHaveText(['Use app','Ask AI','Add check','Send message']);
+    await expect(page.getByTestId('workflow-step-menu').locator('.choice')).toHaveText(['Use app','Ask AI','Add check','For each','Send message']);
   });
 });

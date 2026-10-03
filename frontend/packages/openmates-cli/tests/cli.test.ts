@@ -1449,6 +1449,46 @@ describe("workflow run wait delivery acknowledgement", () => {
 });
 
 describe("workflows command", () => {
+  // contract-test: direct surface=cli assertions=workflows.chat.embedded-lifecycle,workflows.chat.invocation
+  it("inspects and saves a chat-owned workflow by full ID while library search stays hidden", async () => {
+    const workflowId = "64138e71-85e2-5cd0-b840-7769da30532c";
+    const tempHome = mkdtempSync(join(tmpdir(), "openmates-chat-workflow-"));
+    const stateDir = join(tempHome, ".openmates");
+    mkdirSync(stateDir, { recursive: true });
+    const requests: string[] = [];
+    const workflow = { id: workflowId, title: "Chat workflow", lifecycle: "chat_embed", status: "disabled", enabled: false, current_version_id: "version-1", created_at: 1, updated_at: 1, graph: { version: 1, trigger_node_id: null, nodes: [], edges: [] } };
+    const server = createServer(async (request, response) => {
+      const url = request.url ?? "";
+      requests.push(`${request.method} ${url}`);
+      if (url === "/v1/workflows" && request.method === "GET") writeJson(response, { workflows: [] });
+      else if (url === `/v1/workflows/${workflowId}` && request.method === "GET") writeJson(response, { workflow });
+      else if (url === `/v1/workflows/${workflowId}/runs/run-1` && request.method === "GET") writeJson(response, { run: { id: "run-1", workflow_id: workflowId, version_id: "version-1", trigger_type: "manual", status: "completed" } });
+      else if (url === `/v1/workflows/${workflowId}/save-as-reusable` && request.method === "POST") {
+        assert.equal(request.headers["idempotency-key"], "stable-copy");
+        writeJson(response, { workflow: { ...workflow, id: "wf-copy", lifecycle: "persisted" } });
+      } else writeJsonStatus(response, 404, { error: "Unexpected request" });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    const apiUrl = `http://127.0.0.1:${address.port}`;
+    writeFileSync(join(stateDir, "session.json"), JSON.stringify({
+      apiUrl, sessionId: "session-1", wsToken: "ws-token", cookies: { auth_refresh_token: "refresh-token" },
+      masterKeyExportedB64: Buffer.alloc(32).toString("base64"), hashedEmail: "hashed-email", userEmailSalt: "salt",
+      createdAt: Date.now(), authorizerDeviceName: "test-device", autoLogoutMinutes: null,
+    }));
+    try {
+      const env = { HOME: tempHome, USERPROFILE: tempHome };
+      assert.equal(JSON.parse(await runCliAsync(["workflows", "run-show", workflowId, "run-1", "--json", "--api-url", apiUrl], env)).id, "run-1");
+      assert.equal(JSON.parse(await runCliAsync(["workflows", "show", workflowId, "--json", "--api-url", apiUrl], env)).id, workflowId);
+      assert.equal(JSON.parse(await runCliAsync(["workflows", "save-as-reusable", workflowId, "--idempotency-key", "stable-copy", "--json", "--api-url", apiUrl], env)).id, "wf-copy");
+      assert.equal(requests.includes("GET /v1/workflows"), false, "full IDs must bypass reusable-library lookup");
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+      rmSync(tempHome, { recursive: true, force: true });
+    }
+  });
   it("is listed in global help and prints contextual help", () => {
     assert.match(runCli(["help"]), /openmates workflows \[--help\]/);
     const output = runCli(["workflows", "--help"]);
@@ -1460,6 +1500,10 @@ describe("workflows command", () => {
     assert.match(output, /openmates workflows input <text>/);
     assert.match(output, /openmates workflows input-follow-up <session-id> <text>/);
     assert.match(output, /openmates workflows run <workflow-id>/);
+    assert.match(output, /openmates workflows run-once/);
+    assert.match(output, /openmates workflows save-as-reusable/);
+    assert.match(output, /--source-chat <id>/);
+    assert.match(output, /--return-outputs/);
     assert.match(output, /--wait waits up to three minutes for this run and its selected chat deliveries/);
   });
 

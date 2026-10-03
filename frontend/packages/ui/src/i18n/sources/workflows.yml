@@ -1568,6 +1568,176 @@ builder.if_unsure:
   en: "If unsure"
   verified_by_human: []
 
+builder.check_result:
+  context: AI Check result type field
+  en: "Result"
+  verified_by_human: []
+
+builder.check_result_boolean:
+  context: AI Check boolean result type
+  en: "True or False"
+  verified_by_human: []
+
+builder.check_result_options:
+  context: AI Check choice result type
+  en: "Multiple choice"
+  verified_by_human: []
+
+builder.check_selection_mode:
+  context: AI Check choice selection field
+  en: "Select"
+  verified_by_human: []
+
+builder.check_select_one:
+  context: AI Check single selection
+  en: "Exactly one"
+  verified_by_human: []
+
+builder.check_select_multiple:
+  context: AI Check multiple selection
+  en: "All that apply"
+  verified_by_human: []
+
+builder.check_option_name:
+  context: AI Check option label
+  en: "Option name"
+  verified_by_human: []
+
+builder.check_option_description:
+  context: AI Check optional guidance on when to select the option
+  en: "Select when (optional)"
+  verified_by_human: []
+
+builder.add_option:
+  context: AI Check add option action
+  en: "Add option"
+  verified_by_human: []
+
+builder.remove_option:
+  context: AI Check remove option action
+  en: "Remove option"
+  verified_by_human: []
+
+builder.if_no_match:
+  context: AI Check multiple choice no match branch
+  en: "If none match"
+  verified_by_human: []
+
+builder.selected:
+  context: AI Check selected result
+  en: "Selected"
+  verified_by_human: []
+
+builder.no_match:
+  context: AI Check no match result
+  en: "No match"
+  verified_by_human: []
+
+builder.ai_check_options_guidance:
+  context: AI Check multiple choice question guidance
+  en: "Choose from the named options using earlier results. A variable alone is enough; an instruction is optional. Unsure is used when evidence is missing."
+  verified_by_human: []
+
+builder.branch_mapping_required:
+  context: Prevent losing populated branches while editing a check or loop
+  en: "This branch contains steps. Move or remove those steps before changing its result or deleting it."
+  verified_by_human: []
+
+builder.for_each:
+  context: Workflow loop step name
+  en: "For each"
+  verified_by_human: []
+
+builder.for_each_items:
+  context: Workflow loop array source
+  en: "List to process"
+  verified_by_human: []
+
+builder.for_each_max_items:
+  context: Workflow loop maximum item count
+  en: "Maximum items"
+  verified_by_human: []
+
+builder.for_each_advanced_limits:
+  context: Workflow loop advanced limits disclosure
+  en: "Advanced limits"
+  verified_by_human: []
+
+builder.for_each_duration:
+  context: Workflow loop maximum total duration
+  en: "Total time limit (seconds)"
+  verified_by_human: []
+
+builder.for_each_credits:
+  context: Workflow loop credit budget
+  en: "Credit limit"
+  verified_by_human: []
+
+builder.for_each_timeout:
+  context: Workflow loop timeout for one item
+  en: "Time limit per item (seconds)"
+  verified_by_human: []
+
+builder.for_each_limits:
+  context: Workflow loop safety limits
+  en: "Processes items one at a time. Defaults: 100 items, 300 seconds, 100 credits and 60 seconds per item."
+  verified_by_human: []
+
+builder.for_each_array_required:
+  context: Workflow loop invalid array source
+  en: "Choose an earlier list and a maximum of 1 to 100 items."
+  verified_by_human: []
+
+builder.for_each_body:
+  context: Workflow loop body label
+  en: "For each item"
+  verified_by_human: []
+
+builder.this_item:
+  context: Workflow loop item variable source
+  en: "This item"
+  verified_by_human: []
+
+builder.start_input:
+  context: Typed workflow start input variable source
+  en: "Start input"
+  verified_by_human: []
+
+builder.item_number:
+  context: Workflow loop run item progress label
+  en: "Item"
+  verified_by_human: []
+
+builder.chat_actions:
+  context: Chat workflow embed action group label
+  en: "Workflow actions"
+  verified_by_human: []
+
+builder.chat_open_workflow:
+  context: Open workflow from chat embed
+  en: "Open workflow"
+  verified_by_human: []
+
+builder.chat_save_reusable:
+  context: Save chat workflow as a new reusable copy
+  en: "Save as reusable"
+  verified_by_human: []
+
+builder.chat_open_saved_copy:
+  context: Open reusable copy from chat embed
+  en: "Open saved copy"
+  verified_by_human: []
+
+builder.chat_snapshot_note:
+  context: Chat workflow embed when live detail is unavailable
+  en: "Showing the workflow saved with this chat. Open the Workflows workspace to edit it."
+  verified_by_human: []
+
+builder.chat_copy_failed:
+  context: Saving a reusable chat workflow copy failed
+  en: "Could not save this workflow."
+  verified_by_human: []
+
 builder.if:
   context: Workflow progressive builder control
   en: "If"

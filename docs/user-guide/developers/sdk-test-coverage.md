@@ -262,7 +262,9 @@ Run `python3 scripts/audit_sdk_test_coverage.py` to verify this file is current 
 | `workflows` | `om.workflows.revokeTemplateProjection()` | `om.workflows.revoke_template_projection()` | direct | direct |
 | `workflows` | `om.workflows.run()` | `om.workflows.run()` | direct | direct |
 | `workflows` | `om.workflows.runDetail()` | `om.workflows.run_detail()` | direct | direct |
+| `workflows` | `om.workflows.runOnce()` | `om.workflows.run_once()` | direct | direct |
 | `workflows` | `om.workflows.runs()` | `om.workflows.runs()` | direct | direct |
+| `workflows` | `om.workflows.saveAsReusable()` | `om.workflows.save_as_reusable()` | direct | direct |
 | `workflows` | `om.workflows.startInput()` | `om.workflows.start_input()` | direct | direct |
 | `workflows` | `om.workflows.stepTest()` | `om.workflows.step_test()` | direct | direct |
 | `workflows` | `om.workflows.stopInput()` | `om.workflows.stop_input()` | direct | direct |

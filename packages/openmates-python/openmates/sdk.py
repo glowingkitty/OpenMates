@@ -5054,6 +5054,72 @@ class OpenMatesWorkflows:
     def keep(self, workflow_id: str) -> dict[str, Any]:
         return self._decrypt_slug(_workflow_resource_request(self._client, "POST", workflow_id, "/keep", {}).get("workflow", {}))
 
+    def save_as_reusable(self, workflow_id: str, *, idempotency_key: str) -> dict[str, Any]:
+        if not idempotency_key.strip():
+            raise OpenMatesConfigError("Workflow save-as-reusable requires a stable idempotency_key")
+        response = _workflow_resource_request(
+            self._client,
+            "POST",
+            workflow_id,
+            "/save-as-reusable",
+            {},
+            extra_headers={"Idempotency-Key": idempotency_key},
+        )
+        workflow = response.get("workflow")
+        if not isinstance(workflow, dict):
+            raise OpenMatesApiError(500, {"detail": "Workflow response missing workflow"})
+        return self._decrypt_slug(workflow)
+
+    def _run_routing(
+        self,
+        *,
+        source_chat_id: str | None,
+        message_destination_overrides: dict[str, str] | None,
+        return_outputs: dict[str, dict[str, str]] | None,
+    ) -> dict[str, Any]:
+        routing: dict[str, Any] = {}
+        if source_chat_id is not None:
+            routing["source_chat_id"] = _resolve_chat_id(self._client, source_chat_id)
+        if message_destination_overrides is not None:
+            routing["message_destination_overrides"] = {
+                node_id: _resolve_chat_id(self._client, chat_id)
+                for node_id, chat_id in message_destination_overrides.items()
+            }
+        if return_outputs is not None:
+            routing["return_outputs"] = return_outputs
+        return routing
+
+    def run_once(
+        self,
+        *,
+        title: str,
+        graph: dict[str, Any],
+        idempotency_key: str,
+        source_chat_id: str,
+        input_data: dict[str, Any] | None = None,
+        message_destination_overrides: dict[str, str] | None = None,
+        return_outputs: dict[str, dict[str, str]] | None = None,
+    ) -> dict[str, Any]:
+        if not idempotency_key.strip():
+            raise OpenMatesConfigError("Workflow run-once requires a stable idempotency_key")
+        response = self._client._post(
+            "/v1/workflows/run-once",
+            {
+                "title": title,
+                "graph": graph,
+                "input": input_data or {},
+                **self._run_routing(
+                    source_chat_id=source_chat_id,
+                    message_destination_overrides=message_destination_overrides,
+                    return_outputs=return_outputs,
+                ),
+            },
+            extra_headers={"Idempotency-Key": idempotency_key},
+        )
+        if not isinstance(response.get("workflow"), dict) or not isinstance(response.get("run"), dict):
+            raise OpenMatesApiError(500, {"detail": "Workflow run-once response missing workflow or run"})
+        return {**response, "workflow": self._decrypt_slug(response["workflow"])}
+
     def run(
         self,
         workflow_id: str,
@@ -5061,6 +5127,9 @@ class OpenMatesWorkflows:
         idempotency_key: str,
         mode: str = "manual",
         input_data: dict[str, Any] | None = None,
+        source_chat_id: str | None = None,
+        message_destination_overrides: dict[str, str] | None = None,
+        return_outputs: dict[str, dict[str, str]] | None = None,
     ) -> dict[str, Any]:
         if not idempotency_key.strip():
             raise OpenMatesConfigError("Workflow run requires a stable idempotency_key")
@@ -5069,7 +5138,15 @@ class OpenMatesWorkflows:
             "POST",
             workflow_id,
             "/run",
-            {"mode": mode, "input": input_data or {}},
+            {
+                "mode": mode,
+                "input": input_data or {},
+                **self._run_routing(
+                    source_chat_id=source_chat_id,
+                    message_destination_overrides=message_destination_overrides,
+                    return_outputs=return_outputs,
+                ),
+            },
             extra_headers={"Idempotency-Key": idempotency_key},
         ).get("run", {})
 

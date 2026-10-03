@@ -60,6 +60,7 @@ class WorkflowRunContentStorage(str, Enum):
 class WorkflowLifecycle(str, Enum):
     PERSISTED = "persisted"
     TEMPORARY = "temporary"
+    CHAT_EMBED = "chat_embed"
 
 
 class WorkflowAssistantProposalAction(str, Enum):
@@ -108,6 +109,7 @@ class WorkflowNodeType(str, Enum):
     CHECK = "check"
     SEND_CHAT_MESSAGE = "send_chat_message"
     REPEAT = "repeat"
+    FOR_EACH = "for_each"
     CREATE_CHAT_REPORT = "create_chat_report"
     START_NEW_CHAT = "start_new_chat"
     SEND_NOTIFICATION = "send_notification"
@@ -140,6 +142,7 @@ EXECUTABLE_NODE_TYPES = {
     WorkflowNodeType.CHECK,
     WorkflowNodeType.SEND_CHAT_MESSAGE,
     WorkflowNodeType.REPEAT,
+    WorkflowNodeType.FOR_EACH,
     WorkflowNodeType.CREATE_CHAT_REPORT,
     WorkflowNodeType.START_NEW_CHAT,
     WorkflowNodeType.SEND_NOTIFICATION,
@@ -277,6 +280,9 @@ class WorkflowNodeRun(BaseModel):
     run_id: str
     workflow_id: str
     node_id: str
+    graph_node_id: str | None = None
+    loop_id: str | None = None
+    iteration_index: int | None = None
     node_type: WorkflowNodeType
     status: WorkflowNodeRunStatus
     started_at: int | None = None
@@ -360,6 +366,9 @@ def validate_workflow_graph(graph: WorkflowGraph) -> None:
         raise WorkflowValidationError("trigger_node_id must point to the only trigger node")
 
     for node in graph.nodes:
+        if graph.version < 2 and (node.type == WorkflowNodeType.FOR_EACH or
+                                  node.type == WorkflowNodeType.CHECK and node.config.get("result_type") == "options"):
+            raise WorkflowValidationError("Option Checks and For each require a typed V2 workflow graph")
         if node.type in DISABLED_FUTURE_NODE_TYPES:
             raise WorkflowValidationError(f"Node type {node.type.value} is represented for future UI only and cannot run in V1")
         if node.type not in EXECUTABLE_NODE_TYPES:
@@ -386,10 +395,23 @@ def _validate_builder_graph(graph: WorkflowGraph, nodes_by_id: dict[str, Workflo
         if key in edge_keys:
             raise WorkflowValidationError("Each node branch may have only one next step")
         edge_keys.add(key)
-        if edge.branch and nodes_by_id[edge.from_node].type != WorkflowNodeType.CHECK:
-            raise WorkflowValidationError("Only Check steps may have branches")
-        if edge.branch not in {None, "yes", "no", "true", "false", "unsure", "default"}:
-            raise WorkflowValidationError("Check branches must be true, false, unsure or default")
+        source = nodes_by_id[edge.from_node]
+        if edge.branch and source.type not in {WorkflowNodeType.CHECK, WorkflowNodeType.FOR_EACH}:
+            raise WorkflowValidationError("Only Check and For each steps may have branches")
+        if source.type == WorkflowNodeType.FOR_EACH:
+            if edge.branch not in {None, "body"}:
+                raise WorkflowValidationError("For each edges must use body or a shared continuation")
+        elif source.type == WorkflowNodeType.CHECK:
+            if edge.branch not in {None, "yes", "no", "true", "false", "unsure", "default", "no_match"} and not (isinstance(edge.branch, str) and edge.branch.startswith("option:") and edge.branch[7:] in {option["id"] for option in source.config.get("options", []) if isinstance(option, dict) and isinstance(option.get("id"), str)}):
+                raise WorkflowValidationError("Check branch is not declared by its configuration")
+            if edge.branch in {"no_match"} and (source.config.get("result_type") != "options" or source.config.get("selection_mode") != "multiple"):
+                raise WorkflowValidationError("Only a multiple-option AI Check may have a no_match branch")
+            if isinstance(edge.branch, str) and edge.branch.startswith("option:") and source.config.get("result_type") != "options":
+                raise WorkflowValidationError("Option branches require an option AI Check")
+            if source.config.get("result_type") == "options" and edge.branch in {"yes", "no", "true", "false"}:
+                raise WorkflowValidationError("Option AI Check cannot use Boolean branches")
+        elif edge.branch is not None:
+            raise WorkflowValidationError("Only Check and For each steps may have branches")
         if edge.branch == "unsure" and nodes_by_id[edge.from_node].config.get("mode", "exact") != "ai":
             raise WorkflowValidationError("Only an AI Check may have an Unsure branch")
         predecessors[edge.to_node].add(edge.from_node)
@@ -406,6 +428,40 @@ def _validate_builder_graph(graph: WorkflowGraph, nodes_by_id: dict[str, Workflo
                 pending.append(child)
     if len(ancestors) != len(nodes_by_id):
         raise WorkflowValidationError("Workflow steps cannot contain cycles")
+    def descendants(start: str | None) -> set[str]:
+        seen: set[str] = set()
+        pending_descendants = [start] if start is not None else []
+        while pending_descendants:
+            candidate = pending_descendants.pop()
+            if candidate in seen:
+                continue
+            seen.add(candidate)
+            pending_descendants.extend(successors[candidate])
+        return seen
+    loop_scopes: dict[str, set[str]] = {}
+    for loop in (node for node in graph.nodes if node.type == WorkflowNodeType.FOR_EACH):
+        loop_edges = [edge for edge in graph.edges if edge.from_node == loop.id]
+        body = next((edge.to_node for edge in loop_edges if edge.branch == "body"), None)
+        continuation = next((edge.to_node for edge in loop_edges if edge.branch is None), None)
+        shared = descendants(continuation)
+        scope: set[str] = set()
+        frontier = [body] if body is not None else []
+        while frontier:
+            candidate = frontier.pop()
+            if candidate in shared:
+                raise WorkflowValidationError(f"Step {loop.id}: body cannot converge into its shared continuation")
+            if candidate in scope:
+                continue
+            if nodes_by_id[candidate].type == WorkflowNodeType.FOR_EACH:
+                raise WorkflowValidationError("Nested For each steps are unavailable")
+            if nodes_by_id[candidate].type not in {WorkflowNodeType.APP_SKILL_ACTION, WorkflowNodeType.CHECK,
+                                                   WorkflowNodeType.SEND_CHAT_MESSAGE, WorkflowNodeType.END}:
+                raise WorkflowValidationError(f"Step {loop.id}: body contains an unsupported step")
+            scope.add(candidate)
+            frontier.extend(successors[candidate])
+        if any(parent != loop.id and parent not in scope for candidate in scope for parent in predecessors[candidate]):
+            raise WorkflowValidationError(f"Step {loop.id}: body must be scoped to the loop")
+        loop_scopes[loop.id] = scope
     def references(value: Any):
         if isinstance(value, str):
             yield from re.findall(r"\$nodes\.([A-Za-z0-9_-]+)\.", value)
@@ -422,6 +478,8 @@ def _validate_builder_graph(graph: WorkflowGraph, nodes_by_id: dict[str, Workflo
             continue
         outgoing = [edge for edge in graph.edges if edge.from_node == check.id]
         continuation = next((edge.to_node for edge in outgoing if edge.branch in {None, "default"}), None)
+        shared = descendants(continuation)
+        local_scopes: list[set[str]] = []
         for edge in outgoing:
             if edge.branch in {None, "default"}:
                 continue
@@ -429,17 +487,29 @@ def _validate_builder_graph(graph: WorkflowGraph, nodes_by_id: dict[str, Workflo
             pending_branch = [edge.to_node]
             while pending_branch:
                 candidate = pending_branch.pop()
-                if candidate == continuation or candidate in scope:
+                if candidate in shared:
+                    if candidate != continuation and check.config.get("result_type") == "options":
+                        raise WorkflowValidationError(f"Step {check.id}: option branch cannot skip into shared continuation")
+                    continue
+                if candidate in scope:
                     continue
                 scope.add(candidate)
                 pending_branch.extend(successors[candidate])
             branch_scopes.append(scope)
+            if check.config.get("result_type") == "options":
+                if any(scope & prior for prior in local_scopes):
+                    raise WorkflowValidationError(f"Step {check.id}: option branches cannot converge before shared continuation")
+                local_scopes.append(scope)
     for node in graph.nodes:
         for source in references([node.config, node.input_mapping]):
-            if any(source in scope and node.id not in scope for scope in branch_scopes):
+            if any(source in scope and node.id not in scope for scope in [*branch_scopes, *loop_scopes.values()]):
                 raise WorkflowValidationError(f"Step {node.id} references branch-local output: {source}")
             if source not in ancestors[node.id]:
                 raise WorkflowValidationError(f"Step {node.id} references an unavailable upstream step: {source}")
+        for loop_id in re.findall(r"\$items\.([A-Za-z0-9_-]+)\.|\{\{\s*items\.([A-Za-z0-9_-]+)\.", str([node.config, node.input_mapping])):
+            scoped_id = loop_id[0] or loop_id[1]
+            if node.id not in loop_scopes.get(scoped_id, set()):
+                raise WorkflowValidationError(f"Step {node.id} references item outside For each body: {scoped_id}")
 
 
 def validate_workflow_composition_refs(
@@ -473,6 +543,12 @@ def validate_workflow_composition_refs(
     def output_source(value: Any, node_id: str) -> str | None:
         if not isinstance(value, str):
             return None
+        item = re.fullmatch(r"\$items\.([A-Za-z0-9_-]+)\.(?:index|item(?:\.[A-Za-z0-9_.-]+)?)", value)
+        if item:
+            loop = nodes.get(item.group(1))
+            source = str(loop.config.get("items") or "") if loop and loop.type == WorkflowNodeType.FOR_EACH else ""
+            match = re.fullmatch(r"\$nodes\.([A-Za-z0-9_-]+)\.output\.[A-Za-z0-9_.-]+", source)
+            return match.group(1) if match and match.group(1) in action_ancestors(node_id) else None
         match = re.fullmatch(r"\$nodes\.([A-Za-z0-9_-]+)\.output\.[A-Za-z0-9_.-]+", value)
         if not match:
             return None
@@ -493,6 +569,11 @@ def validate_workflow_composition_refs(
         earlier_actions = action_ancestors(node.id)
         if not earlier_actions:
             continue
+        if (node.type == WorkflowNodeType.CHECK and node.config.get("mode") == "ai"
+                and node.config.get("result_type") == "options"):
+            # Option checks may classify explicit caller data or rely on a
+            # meaningful instruction; typed visibility is checked at readiness.
+            continue
         if node.type == WorkflowNodeType.SEND_CHAT_MESSAGE:
             text = str(node.config.get("message") or "")
         elif node.type == WorkflowNodeType.CHECK and node.config.get("mode") == "ai":
@@ -507,6 +588,10 @@ def validate_workflow_composition_refs(
                 text,
             )
         }
+        for loop_id in re.findall(r"\{\{\s*items\.([A-Za-z0-9_-]+)\.(?:item|index)", text):
+            source = output_source(f"$items.{loop_id}.item", node.id)
+            if source:
+                visible_sources.add(source)
         if allow_data_dependencies and node.type == WorkflowNodeType.CHECK:
             selected = node.config.get("selected_inputs") or []
             if any(output_source(reference, node.id) is None for reference in selected):
@@ -538,6 +623,7 @@ def validate_workflow_composition_refs(
 def validate_workflow_readiness(
     graph: WorkflowGraph, *, require_schedule: bool = False,
     capability_registry: WorkflowCapabilityRegistry | None = None,
+    allow_return_outputs: bool = False,
 ) -> None:
     """Require a runnable path; only scheduled activation requires a trigger."""
     if require_schedule and not any(
@@ -574,13 +660,14 @@ def validate_workflow_readiness(
                 reachable.add(next_node_id)
                 pending.append(next_node_id)
 
-    if not any(nodes_by_id[node_id].type in QUALIFYING_WORKFLOW_EFFECT_TYPES for node_id in reachable):
+    if not allow_return_outputs and not any(nodes_by_id[node_id].type in QUALIFYING_WORKFLOW_EFFECT_TYPES for node_id in reachable):
         raise WorkflowValidationError("Workflow readiness requires a reachable qualifying effect")
 
 
 
 def _validate_builder_execution_inputs(
     graph: WorkflowGraph, *, capability_registry: WorkflowCapabilityRegistry | None = None,
+    return_outputs: dict[str, dict[str, str]] | None = None,
 ) -> None:
     """Preflight the bounded authoring contract before any charged skill dispatch.
 
@@ -593,8 +680,10 @@ def _validate_builder_execution_inputs(
     registry = capability_registry or WorkflowCapabilityRegistry()
     outputs: dict[str, dict[str, Any]] = {}
     inputs: dict[str, dict[str, Any]] = {}
+    graph_node_types = {node.id: node.type for node in graph.nodes}
+    loop_item_schemas: dict[str, dict[str, Any]] = {}
     modern_types = {WorkflowNodeType.SCHEDULE_TRIGGER, WorkflowNodeType.MANUAL_TRIGGER,
-                    WorkflowNodeType.APP_SKILL_ACTION, WorkflowNodeType.CHECK,
+                    WorkflowNodeType.APP_SKILL_ACTION, WorkflowNodeType.CHECK, WorkflowNodeType.FOR_EACH,
                     WorkflowNodeType.SEND_CHAT_MESSAGE, WorkflowNodeType.END}
     for node in graph.nodes:
         if node.type not in modern_types:
@@ -611,7 +700,22 @@ def _validate_builder_execution_inputs(
             inputs[node.id], outputs[node.id] = input_schema, output_schema
         elif node.type == WorkflowNodeType.CHECK:
             matched_type: str | list[str] = ["boolean", "null"] if node.config.get("mode", "exact") == "ai" else "boolean"
-            outputs[node.id] = {"type": "object", "properties": {"matched": {"type": matched_type}, "branch": {"type": "string"}}}
+            properties: dict[str, Any] = {"branch": {"type": "string"}}
+            if node.config.get("result_type") == "options":
+                properties.update({"selected_options": {"type": "array", "items": {"type": "string"}},
+                                   "selected_labels": {"type": "array", "items": {"type": "string"}},
+                                   "selected_count": {"type": "integer"},
+                                   "matches": {"type": "object", "properties": {
+                                       option["id"]: {"type": "boolean"} for option in node.config["options"]}},
+                                   "decision": {"type": "string", "enum": ["selected", "no_match", "unsure"]}})
+            else:
+                properties["matched"] = {"type": matched_type}
+            outputs[node.id] = {"type": "object", "properties": properties}
+        elif node.type == WorkflowNodeType.FOR_EACH:
+            outputs[node.id] = {"type": "object", "properties": {
+                "item_count": {"type": "integer"}, "completed_count": {"type": "integer"},
+                "results": {"type": "array", "items": {"type": "object", "properties": {
+                    "index": {"type": "integer"}, "outputs": {"type": "object", "additionalProperties": True}}}}}}
         elif node.type in {WorkflowNodeType.SCHEDULE_TRIGGER, WorkflowNodeType.MANUAL_TRIGGER}:
             outputs[node.id] = {"type": "object", "properties": {"triggered": {"type": "boolean"}, "trigger": {"type": "string"}}}
         elif node.type == WorkflowNodeType.SEND_CHAT_MESSAGE:
@@ -664,6 +768,22 @@ def _validate_builder_execution_inputs(
         return projected_path_schema(child, fields[1:])
 
     def path_schema(path: str, label: str) -> dict[str, Any]:
+        if path.startswith("$items.") or path.startswith("items."):
+            parts = path.lstrip("$").split(".")
+            if len(parts) < 3 or parts[1] not in outputs or graph_node_types.get(parts[1]) != WorkflowNodeType.FOR_EACH:
+                raise WorkflowValidationError(f"{label}: For each item reference has no declared loop")
+            loop_id = parts[1]
+            if parts[2] == "index" and len(parts) == 3:
+                return {"type": "integer"}
+            if parts[2] != "item":
+                raise WorkflowValidationError(f"{label}: For each item path is invalid")
+            item_schema = loop_item_schemas.get(loop_id)
+            if not isinstance(item_schema, dict):
+                raise WorkflowValidationError(f"{label}: For each items are not a typed list")
+            projected = projected_path_schema(item_schema, parts[3:])
+            if projected is None:
+                raise WorkflowValidationError(f"{label}: For each item field is undeclared")
+            return projected
         if path.startswith("$nodes."):
             parts = path[len("$nodes."):].split(".")
             if len(parts) < 2 or parts[1] != "output":
@@ -695,6 +815,13 @@ def _validate_builder_execution_inputs(
             raise WorkflowValidationError(f"{label}: output {path} is not declared by its app skill")
         return projected
 
+    for loop in (node for node in graph.nodes if node.type == WorkflowNodeType.FOR_EACH):
+        item_source = loop.config["items"]
+        schema = path_schema(item_source, f"Step {loop.id}.items")
+        if types(schema) != {"array"} or not isinstance(schema.get("items"), dict) or not types(schema["items"]):
+            raise WorkflowValidationError(f"Step {loop.id}: items must reference a typed earlier list")
+        loop_item_schemas[loop.id] = schema["items"]
+
     def value_schema(value: Any, label: str) -> dict[str, Any]:
         if isinstance(value, dict) and "$date" in value:
             try:
@@ -702,7 +829,7 @@ def _validate_builder_execution_inputs(
             except (ValueError, TypeError) as exc:
                 raise WorkflowValidationError(f"{label}: {exc}") from exc
             return {"type": "string"}
-        if isinstance(value, str) and value.startswith("$nodes."):
+        if isinstance(value, str) and value.startswith(("$nodes.", "$items.", "trigger.")):
             return path_schema(value, label)
         if isinstance(value, str) and ("{{" in value or "}}" in value):
             matches = list(re.finditer(r"\{\{\s*([^{}]+?)\s*\}\}", value))
@@ -728,7 +855,7 @@ def _validate_builder_execution_inputs(
         expected = types(schema)
         if not compatible(types(actual), expected):
             raise WorkflowValidationError(f"{label}: expected {'/'.join(sorted(expected)) or 'a declared type'}, got {'/'.join(sorted(types(actual)))}")
-        dynamic = isinstance(value, dict) and "$date" in value or isinstance(value, str) and (value.startswith("$nodes.") or "{{" in value)
+        dynamic = isinstance(value, dict) and "$date" in value or isinstance(value, str) and (value.startswith(("$nodes.", "$items.", "trigger.")) or "{{" in value)
         if dynamic:
             if not assignable(actual, schema):
                 raise WorkflowValidationError(f"{label}: selected output does not provide the required typed app input fields")
@@ -805,8 +932,24 @@ def _validate_builder_execution_inputs(
             if node.config.get("mode", "exact") == "ai":
                 for index, reference in enumerate(node.config["selected_inputs"]):
                     value_schema(reference, f"{label}.selected_inputs[{index}]")
+                question = node.config.get("question", "")
+                refs = list(re.finditer(r"\{\{\s*([^{}]+?)\s*\}\}", question))
+                if len(refs) > 24 or "{{" in re.sub(r"\{\{[^{}]+\}\}", "", question) or "}}" in re.sub(r"\{\{[^{}]+\}\}", "", question):
+                    raise WorkflowValidationError(f"{label}.question: invalid or excessive references")
+                for match in refs:
+                    path = match.group(1).strip()
+                    if path.startswith("steps."):
+                        parts = path.split(".")
+                        path = f"$nodes.{parts[1]}.output" + ("." + ".".join(parts[2:]) if len(parts) > 2 else "")
+                    elif path.startswith("items."):
+                        path = "$" + path
+                    if path not in node.config["selected_inputs"]:
+                        raise WorkflowValidationError(f"{label}.question: reference must be visible in selected inputs")
+                    value_schema(match.group(0), f"{label}.question")
             else:
                 validate_predicate(node.config["predicate"], label)
+        elif node.type == WorkflowNodeType.FOR_EACH:
+            value_schema(node.config["items"], f"{label}.items")
         elif node.type == WorkflowNodeType.SEND_CHAT_MESSAGE:
             if not node.config.get("chat_id") and not str(node.config.get("title") or "").strip():
                 raise WorkflowValidationError(f"{label}: enter a title for the new chat")
@@ -834,6 +977,18 @@ def _validate_builder_execution_inputs(
                 WorkflowSchedulerService.initial_next_run_at_from_schedule(node.config, now=0)
             except (ValueError, TypeError, KeyError) as exc:
                 raise WorkflowValidationError(f"{label}: invalid schedule: {exc}") from exc
+
+    for name, selected in (return_outputs or {}).items():
+        declared = selected["type"]
+        actual = types(path_schema(selected["ref"], f"Returned output {name}")) - {"null"}
+        if not actual or any(kind != declared and not (kind == "integer" and declared == "number") for kind in actual):
+            raise WorkflowValidationError(f"Returned output {name}: selected type does not match its declared output")
+
+
+def validate_workflow_return_output_types(graph: WorkflowGraph, selected: dict[str, dict[str, str]]) -> None:
+    """Use the builder's output contracts for caller result paths and types."""
+    if selected:
+        _validate_builder_execution_inputs(graph, return_outputs=selected)
 
 def build_workflow_template_share_payload(workflow: WorkflowDetail) -> WorkflowTemplateSharePayload:
     """Build a template-only share payload without runtime grants or run state."""
@@ -895,11 +1050,15 @@ def _template_node_config(node: WorkflowNode) -> dict[str, Any]:
         return safe_config
     if node.type in {WorkflowNodeType.DECISION, WorkflowNodeType.CHECK}:
         if node.type == WorkflowNodeType.CHECK and config.get("mode", "exact") == "ai":
-            return {
+            exported = {
                 "mode": "ai",
-                "question": config.get("question"),
+                "question": config.get("question", ""),
                 "selected_inputs": list(config.get("selected_inputs") or []),
             }
+            if config.get("result_type") == "options":
+                exported.update(result_type="options", selection_mode=config.get("selection_mode"),
+                                options=config.get("options"))
+            return exported
         return {"mode": "exact", "predicate": config.get("predicate")}
     if node.type == WorkflowNodeType.SEND_CHAT_MESSAGE:
         return {key: config[key] for key in ("title", "message", "blocks") if key in config}
@@ -909,6 +1068,8 @@ def _template_node_config(node: WorkflowNode) -> dict[str, Any]:
             for key in ("max_iterations", "max_duration_seconds", "max_credits", "per_iteration_timeout_seconds")
             if key in config
         }
+    if node.type == WorkflowNodeType.FOR_EACH:
+        return {key: config[key] for key in ("items", "max_items", "max_duration_seconds", "max_credits", "per_item_timeout_seconds") if key in config}
     if node.type in {WorkflowNodeType.CREATE_CHAT_REPORT, WorkflowNodeType.START_NEW_CHAT}:
         return {key: config[key] for key in ("title", "prompt", "template", "initial_message") if key in config}
     if node.type in {WorkflowNodeType.SEND_NOTIFICATION, WorkflowNodeType.SEND_EMAIL_NOTIFICATION}:
@@ -1005,16 +1166,45 @@ def _validate_node_config(node: WorkflowNode) -> None:
         if mode not in {"exact", "ai"}:
             raise WorkflowValidationError("Check mode must be exact or ai")
         if mode == "ai":
-            question = node.config.get("question")
+            result_type = node.config.get("result_type", "boolean")
+            if result_type not in {"boolean", "options"}:
+                raise WorkflowValidationError("AI Check result type must be boolean or options")
+            question = node.config.get("question", "")
             selected_inputs = node.config.get("selected_inputs")
-            if not isinstance(question, str) or not question.strip() or len(question) > 4_000:
-                raise WorkflowValidationError("AI Check requires one bounded yes-or-no question")
+            if not isinstance(question, str) or len(question) > 4_000:
+                raise WorkflowValidationError("AI Check requires one bounded question")
             if not isinstance(selected_inputs, list) or len(selected_inputs) > 24:
                 raise WorkflowValidationError("AI Check accepts up to 24 earlier values")
-            if any(not isinstance(reference, str) or not reference.startswith("$nodes.") for reference in selected_inputs):
+            if any(not isinstance(reference, str) or not reference.startswith(("$nodes.", "$items.", "trigger.")) for reference in selected_inputs):
                 raise WorkflowValidationError("AI Check selected inputs must be earlier Workflow output references")
             if len(selected_inputs) != len(set(selected_inputs)):
                 raise WorkflowValidationError("AI Check selected inputs must be unique")
+            if result_type == "options":
+                if not selected_inputs and not re.search(r"\w", question):
+                    raise WorkflowValidationError("Option AI Check requires selected inputs or a meaningful instruction")
+                options = node.config.get("options")
+                if node.config.get("selection_mode") not in {"single", "multiple"}:
+                    raise WorkflowValidationError("Option AI Check requires single or multiple selection mode")
+                if not isinstance(options, list) or not 2 <= len(options) <= 10:
+                    raise WorkflowValidationError("Option AI Check requires two to ten options")
+                ids: set[str] = set()
+                for option in options:
+                    if not isinstance(option, dict) or set(option) - {"id", "label", "description"}:
+                        raise WorkflowValidationError("Option AI Check options require id and label")
+                    option_id, label = option.get("id"), option.get("label")
+                    if not isinstance(option_id, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", option_id) or option_id in ids:
+                        raise WorkflowValidationError("Option AI Check requires unique stable option IDs")
+                    if not isinstance(label, str) or not label.strip() or len(label) > 200:
+                        raise WorkflowValidationError("Option AI Check option labels must be bounded text")
+                    description = option.get("description")
+                    if description is not None and (not isinstance(description, str) or len(description) > 500):
+                        raise WorkflowValidationError("Option AI Check descriptions must be bounded text")
+                    ids.add(option_id)
+            else:
+                if not question.strip():
+                    raise WorkflowValidationError("Boolean AI Check requires a question")
+                if "options" in node.config or "selection_mode" in node.config:
+                    raise WorkflowValidationError("Boolean AI Check cannot declare options")
         else:
             predicate = node.config.get("predicate")
             if not isinstance(predicate, dict):
@@ -1047,6 +1237,17 @@ def _validate_node_config(node: WorkflowNode) -> None:
             value = node.config.get(key)
             if not isinstance(value, int) or value <= 0:
                 raise WorkflowValidationError(f"Repeat nodes require positive integer {key}")
+    elif node.type == WorkflowNodeType.FOR_EACH:
+        items = node.config.get("items")
+        if not isinstance(items, str) or not (re.fullmatch(r"\$nodes\.[A-Za-z0-9_-]+\.output(?:\.[A-Za-z0-9_-]+)+", items)
+                                              or re.fullmatch(r"trigger\.[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*", items)):
+            raise WorkflowValidationError("For each items must reference a typed earlier list")
+        bounds = {"max_items": (1, 100, 100), "max_duration_seconds": (1, 3600, 300),
+                  "max_credits": (1, 1000, 100), "per_item_timeout_seconds": (1, 3600, 60)}
+        for key, (minimum, maximum, default) in bounds.items():
+            value = node.config.setdefault(key, default)
+            if isinstance(value, bool) or not isinstance(value, int) or not minimum <= value <= maximum:
+                raise WorkflowValidationError(f"For each {key} must be between {minimum} and {maximum}")
     elif node.type == WorkflowNodeType.WAIT:
         seconds = node.config.get("seconds")
         until = node.config.get("until")
@@ -1068,9 +1269,12 @@ def _validate_node_config(node: WorkflowNode) -> None:
         _validate_event_trigger_config(node.config)
 
 
-def validate_manual_run_input(graph: WorkflowGraph, input_payload: dict[str, Any] | None) -> None:
+def validate_manual_run_input(
+    graph: WorkflowGraph, input_payload: dict[str, Any] | None,
+    *, allow_return_outputs: bool = False,
+) -> None:
     """Validate run-now input against the trigger's required start input schema."""
-    validate_workflow_readiness(graph)
+    validate_workflow_readiness(graph, allow_return_outputs=allow_return_outputs)
     trigger = next((node for node in graph.nodes if node.id == graph.trigger_node_id), None)
     if trigger is None:
         return

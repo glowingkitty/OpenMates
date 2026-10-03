@@ -140,6 +140,8 @@ import type {
   WorkflowRunContentRetention,
   WorkflowRunCancellationResult,
   WorkflowRunDetail,
+  WorkflowRunOptions,
+  WorkflowRunOnceOptions,
   WorkflowSummary,
   ProjectItemRecord,
   ProjectRecord,
@@ -4896,15 +4898,50 @@ export class OpenMatesWorkflows {
     return this.decryptWorkflowSlug(response.workflow);
   }
 
+  async saveAsReusable(workflowId: string, options: { idempotencyKey: string }): Promise<WorkflowDetail> {
+    if (!options.idempotencyKey.trim()) throw new OpenMatesConfigError("Workflow save-as-reusable requires a stable idempotencyKey");
+    const resolvedWorkflowId = await this.resolveId(workflowId);
+    const response = await this.client.request<{ workflow?: WorkflowDetail }>(
+      `/v1/workflows/${encodeURIComponent(resolvedWorkflowId)}/save-as-reusable`,
+      {}, undefined, { "Idempotency-Key": options.idempotencyKey },
+    );
+    if (!response.workflow) throw new OpenMatesApiError(500, { detail: "Workflow response missing workflow" });
+    return this.decryptWorkflowSlug(response.workflow);
+  }
+
+  private async runRouting(params: WorkflowRunOptions | WorkflowRunOnceOptions): Promise<Record<string, unknown>> {
+    const routing: Record<string, unknown> = {};
+    if (params.sourceChatId !== undefined) routing.source_chat_id = await resolveSdkChatId(this.client, params.sourceChatId);
+    if (params.messageDestinationOverrides !== undefined) {
+      routing.message_destination_overrides = Object.fromEntries(await Promise.all(
+        Object.entries(params.messageDestinationOverrides).map(async ([nodeId, chatId]) => [nodeId, await resolveSdkChatId(this.client, chatId)]),
+      ));
+    }
+    if (params.returnOutputs !== undefined) routing.return_outputs = params.returnOutputs;
+    return routing;
+  }
+
+  async runOnce(params: WorkflowRunOnceOptions): Promise<{ workflow: WorkflowDetail; run: WorkflowRunDetail }> {
+    if (!params.idempotencyKey.trim()) throw new OpenMatesConfigError("Workflow run-once requires a stable idempotencyKey");
+    const response = await this.client.request<{ workflow?: WorkflowDetail; run?: WorkflowRunDetail }>(
+      "/v1/workflows/run-once",
+      { title: params.title, graph: params.graph, input: params.input ?? {}, ...await this.runRouting(params) },
+      undefined, { "Idempotency-Key": params.idempotencyKey },
+    );
+    if (!response.workflow || !response.run) throw new OpenMatesApiError(500, { detail: "Workflow run-once response missing workflow or run" });
+    return { workflow: await this.decryptWorkflowSlug(response.workflow), run: response.run };
+  }
+
   async run(
     workflowId: string,
-    params: { idempotencyKey: string; mode?: "manual" | "test"; input?: Record<string, unknown> },
+    params: WorkflowRunOptions,
   ): Promise<WorkflowRunDetail> {
     if (!params.idempotencyKey.trim()) throw new OpenMatesConfigError("Workflow run requires a stable idempotencyKey");
     const resolvedWorkflowId = await this.resolveId(workflowId);
     const response = await this.client.request<{ run?: WorkflowRunDetail }>(`/v1/workflows/${encodeURIComponent(resolvedWorkflowId)}/run`, {
       mode: params.mode ?? "manual",
       input: params.input ?? {},
+      ...await this.runRouting(params),
     }, undefined, { "Idempotency-Key": params.idempotencyKey });
     if (!response.run) throw new OpenMatesApiError(500, { detail: "Workflow response missing run" });
     return response.run;

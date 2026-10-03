@@ -14,12 +14,19 @@ import { workflowAuthoringSchema } from "../src/generated/workflowAuthoringSchem
 
 
 describe("Workflow YAML authoring schema", () => {
+  // contract-test: supporting surface=cli assertions=workflows.control.choice-check,workflows.control.for-each
   it("exposes the approved YAML action and control forms", () => {
     assert.deepEqual(workflowAuthoringSchema.triggers, ["manual", "schedule"]);
     assert.ok(workflowAuthoringSchema.stepForms.includes("use_app_skill"));
     assert.ok(workflowAuthoringSchema.stepForms.includes("send_chat_message"));
     assert.ok(workflowAuthoringSchema.stepForms.includes("ask_for_user_input"));
     assert.ok(workflowAuthoringSchema.stepForms.includes("for_every"));
+    assert.ok(workflowAuthoringSchema.stepForms.includes("for_each"));
+    assert.deepEqual(workflowAuthoringSchema.checkResultTypes, ["boolean", "options"]);
+    assert.deepEqual(workflowAuthoringSchema.checkSelectionModes, ["single", "multiple"]);
+    assert.equal(workflowAuthoringSchema.checkMaxOptions, 10);
+    assert.equal(workflowAuthoringSchema.forEachMaxItems, 100);
+    assert.deepEqual(workflowAuthoringSchema.forEachDefaults, { max_items: 100, max_duration_seconds: 300, max_credits: 100, per_item_timeout_seconds: 60 });
     assert.ok(workflowAuthoringSchema.stepForms.includes("repeat_until"));
     assert.ok(workflowAuthoringSchema.stepForms.includes("wait"));
     assert.ok(workflowAuthoringSchema.stepForms.includes("if"));

@@ -21,7 +21,7 @@ from starlette.concurrency import run_in_threadpool
 
 from backend.core.api.app.services.workflow_action_adapter import WorkflowActionAdapter, WorkflowActionExecutionError
 from backend.core.api.app.services.workflow_app_skill_adapter import WorkflowAppSkillAdapter, WorkflowSkillBillingError
-from backend.core.api.app.services.workflow_ai_service import WorkflowAiService, render_bounded_ask_ai_prompt, is_website_diff_reference, _bounded_runtime_inputs
+from backend.core.api.app.services.workflow_ai_service import WorkflowAiService, render_bounded_ask_ai_prompt, is_website_diff_reference, _bounded_runtime_inputs, _bounded_value
 from backend.core.api.app.services.workflow_result_selection import prepare_ask_destinations, prepare_ask_preview, sanitize_workflow_ai_answer, selected_context
 from backend.core.api.app.services.workflow_models import (
     WorkflowDetail,
@@ -67,8 +67,8 @@ class WorkflowRunner:
         input_payload: dict[str, Any] | None = None,
         run_id: str | None = None,
         version_id: str | None = None,
+        invocation: dict[str, Any] | None = None,
     ) -> WorkflowRunDetail:
-        self.workflow_service.validate_manual_run_input(workflow, input_payload)
         if trigger_type in {"manual", "test"} and (run_id is None or version_id is None):
             raise ValueError("Manual and test workflow runs must be accepted before execution")
         if run_id is not None and not version_id:
@@ -77,6 +77,7 @@ class WorkflowRunner:
         run_id = run_id or str(uuid.uuid4())
         version_id = version_id or workflow.current_version_id
         reusable_ai_outputs: dict[str, tuple[dict[str, Any], int]] = {}
+        previous_run: WorkflowRunDetail | None = None
         if accepted_run:
             try:
                 previous = await run_in_threadpool(
@@ -86,10 +87,11 @@ class WorkflowRunner:
                     user_id,
                     vault_key_id,
                 )
+                previous_run = previous
                 reusable_ai_outputs = {
                     item.node_id: (dict(item.output_summary), item.credit_cost)
                     for item in previous.node_runs
-                    if item.status == WorkflowNodeRunStatus.COMPLETED
+                    if item.status == WorkflowNodeRunStatus.COMPLETED and not item.loop_id
                     and (
                         (
                             item.node_type == WorkflowNodeType.CHECK
@@ -103,17 +105,53 @@ class WorkflowRunner:
                         )
                     )
                 }
+                if any(node.type.value == "for_each" for node in workflow.graph.nodes):
+                    reusable_ai_outputs.update({
+                        item.node_id: (dict(item.output_summary), item.credit_cost)
+                        for item in previous.node_runs
+                        if item.status == WorkflowNodeRunStatus.COMPLETED
+                        and not item.loop_id and item.node_type.value != "for_each"
+                    })
             except Exception:
                 # A newly accepted run may not have a readable content checkpoint yet.
                 reusable_ai_outputs = {}
         started_at = int(time.time())
         active_deadline = time.monotonic() + WORKFLOW_ACTIVE_RUN_TIMEOUT_SECONDS
         trigger_node = next((n for n in workflow.graph.nodes if n.id == workflow.graph.trigger_node_id), None)
-        context: dict[str, Any] = {"trigger": input_payload or {}, "nodes": {}, "workflow": {
+        website_execution_plan = website_plan(workflow.graph)
+        option_check_ids = {item.id for item in workflow.graph.nodes
+                            if item.type == WorkflowNodeType.CHECK and item.config.get("result_type") == "options"}
+        for read_id in list(website_execution_plan):
+            website_execution_plan[read_id]["consumers"] = [
+                consumer for consumer in website_execution_plan[read_id]["consumers"]
+                if consumer["node_id"] not in option_check_ids
+                and all(gate["node_id"] not in option_check_ids for gate in consumer.get("gates", []))
+            ]
+            if not website_execution_plan[read_id]["consumers"]:
+                del website_execution_plan[read_id]
+        if invocation is None and previous_run is not None:
+            invocation = previous_run.output_summary.get("workflow", {}).get("invocation")
+        if isinstance(invocation, dict) and invocation.get("return_outputs"):
+            self.workflow_service.validate_manual_run_input(
+                workflow, input_payload, allow_return_outputs=True,
+            )
+        else:
+            self.workflow_service.validate_manual_run_input(workflow, input_payload)
+        context: dict[str, Any] = {"trigger": input_payload or {}, "nodes": {}, "items": {}, "workflow": {
             "workflow_id": workflow.id, "run_id": run_id, "started_at": started_at,
-            "version_id": version_id, "vault_key_id": vault_key_id, "website_plan": website_plan(workflow.graph),
+            "version_id": version_id, "vault_key_id": vault_key_id, "website_plan": website_execution_plan,
+            "invocation": invocation or {},
             "timezone": ((trigger_node.config.get("schedule") or {}).get("timezone") or trigger_node.config.get("timezone") or "UTC") if trigger_node else "UTC",
         }}
+        if previous_run is not None:
+            previous_loops = previous_run.output_summary.get("workflow", {}).get("loops") or {}
+            context["workflow"]["loops"] = json.loads(json.dumps(previous_loops))
+            for loop_state in context["workflow"]["loops"].values():
+                # Replay completed occurrences into this attempt; their stable IDs
+                # prevent provider calls, side effects, and additional debits.
+                loop_state["cursor"] = 0
+                loop_state["results"] = []
+                loop_state["accepted_selection"] = []
         node_runs: list[WorkflowNodeRun] = []
 
         nodes_by_id = {node.id: node for node in workflow.graph.nodes}
@@ -126,20 +164,35 @@ class WorkflowRunner:
         current_node_id: str | None = workflow.graph.trigger_node_id or (roots[0] if len(roots) == 1 else None)
         if current_node_id is None:
             raise ValueError("Workflow requires a single executable starting step")
-        continuations: list[str] = []
+        # A continuation belongs to the option fanout depth where it was
+        # created. Inner single-selection Checks must finish their own
+        # continuation before the enclosing multi-selection advances.
+        continuations: list[tuple[str, int]] = []
+        option_branches: list[dict[str, Any]] = []
         visited_count = 0
         max_nodes = int(workflow.graph.limits.get("max_nodes", max(len(workflow.graph.nodes), 1) * 2))
 
         while current_node_id is not None:
+            if option_branches and current_node_id == option_branches[-1]["continuation"]:
+                pending = option_branches[-1]["remaining"]
+                if pending:
+                    current_node_id = pending.pop(0)
+                else:
+                    option_branches.pop()
+            if current_node_id is None:
+                break
             if accepted_run and await run_in_threadpool(self.workflow_service.is_run_cancellation_requested, workflow.id, run_id, user_id):
                 return await self._save_cancelled_run(run_id, workflow.id, version_id, trigger_type, started_at, node_runs, context, user_id, vault_key_id)
             visited_count += 1
             if visited_count > max_nodes:
                 raise ValueError("Workflow execution exceeded max_nodes")
-            if continuations and current_node_id == continuations[-1]:
+            if continuations and current_node_id == continuations[-1][0]:
                 continuations.pop()
             node = nodes_by_id[current_node_id]
             context["workflow"]["node_id"] = node.id
+            context["workflow"]["graph_node_id"] = node.id
+            context["workflow"].pop("loop_id", None)
+            context["workflow"].pop("iteration_index", None)
             # Persist a checkpoint before executing a side effect or making a reservation.
             progress = WorkflowRunDetail(id=run_id, workflow_id=workflow.id, version_id=version_id,
                 trigger_type=trigger_type, status=WorkflowRunStatus.RUNNING, started_at=started_at,
@@ -191,18 +244,26 @@ class WorkflowRunner:
                     output_summary=reusable_output,
                     credit_cost=reusable_credit_cost,
                 )
+            elif node.type.value == "for_each":
+                node_run = await self._run_for_each(
+                    workflow, node, context, node_runs, previous_run, outgoing_edges,
+                    user_id, vault_key_id, trigger_type, started_at, version_id,
+                    active_deadline, accepted_run,
+                )
             else:
                 node_run = await self._run_node(
                     run_id, workflow.id, node, context, user_id,
                     timeout_seconds=min(WORKFLOW_NODE_TIMEOUT_SECONDS, max(0, active_deadline - time.monotonic())),
                 )
             node_runs.append(node_run)
+            if node_run.output_summary.get("cancelled"):
+                return await self._save_cancelled_run(run_id, workflow.id, version_id, trigger_type, started_at, node_runs, context, user_id, vault_key_id)
             active_event = context["workflow"].get("website_active")
             if active_event and node_run.status == WorkflowNodeRunStatus.COMPLETED:
                 is_check = node.type == WorkflowNodeType.CHECK
                 is_summary = node.type == WorkflowNodeType.APP_SKILL_ACTION and node.config.get("app_id") == "ai" and node.config.get("skill_id") == "ask"
                 matched = node_run.output_summary.get("matched")
-                if (is_check and matched is not None) or is_summary:
+                if (is_check and matched is not None and node.config.get("result_type", "boolean") == "boolean") or is_summary:
                     consume = is_check and (matched is False or
                         (matched is True and not active_event["targets"] and active_event["node_id"] == node.id))
                     if active_event.get("outputs", {}).get(node.id) != node_run.output_summary:
@@ -223,6 +284,7 @@ class WorkflowRunner:
                 return await self._save_cancelled_run(run_id, workflow.id, version_id, trigger_type, started_at, node_runs, context, user_id, vault_key_id)
             if node_run.status == WorkflowNodeRunStatus.FAILED:
                 await self._release_undelivered_prepared(context, node_runs, user_id)
+                context["returned_outputs"] = {"status": "failed", "values": {}}
                 run = WorkflowRunDetail(
                     id=run_id,
                     workflow_id=workflow.id,
@@ -252,13 +314,33 @@ class WorkflowRunner:
                 )
                 return await run_in_threadpool(self.workflow_service.save_run, user_id, run, vault_key_id)
             next_node_id = self._next_node_id(node, node_run.output_summary, outgoing_edges)
+            pushed_option_fanout = False
+            if node.type == WorkflowNodeType.CHECK and node.config.get("result_type") == "options" and node_run.output_summary.get("outcome") == "selected":
+                selected = node_run.output_summary.get("selected_options") or []
+                branches = [edge.to_node for selected_id in selected for edge in outgoing_edges.get(node.id, [])
+                            if edge.branch == f"option:{selected_id}"]
+                continuation = next((edge.to_node for edge in outgoing_edges.get(node.id, []) if edge.branch in {None, "default"}), None)
+                if branches:
+                    if len(branches) > 1:
+                        option_branches.append({"continuation": continuation, "remaining": branches[1:]})
+                        pushed_option_fanout = True
+                    next_node_id = branches[0]
             if node.type.value in {"check", "decision"}:
                 continuation = next((edge.to_node for edge in outgoing_edges.get(node.id, []) if edge.branch in {None, "default"}), None)
-                if continuation and next_node_id != continuation:
-                    continuations.append(continuation)
-            current_node_id = next_node_id or (continuations.pop() if continuations else None)
+                if continuation and next_node_id != continuation and not pushed_option_fanout:
+                    continuations.append((continuation, len(option_branches)))
+            if next_node_id is None and continuations and continuations[-1][1] == len(option_branches):
+                next_node_id = continuations.pop()[0]
+            if next_node_id is None and option_branches:
+                pending = option_branches[-1]["remaining"]
+                if pending:
+                    next_node_id = pending.pop(0)
+                else:
+                    next_node_id = option_branches.pop()["continuation"]
+            current_node_id = next_node_id or (continuations.pop()[0] if continuations else None)
 
         await self._release_undelivered_prepared(context, node_runs, user_id)
+        context["returned_outputs"] = _project_returned_outputs(context)
         run = WorkflowRunDetail(
             id=run_id,
             workflow_id=workflow.id,
@@ -348,6 +430,7 @@ class WorkflowRunner:
     ) -> WorkflowRunDetail:
         """Finish cooperatively after a checkpoint without changing a started call."""
         await self._release_undelivered_prepared(context, node_runs, user_id)
+        context["returned_outputs"] = {"status": "cancelled", "values": {}}
         now = int(time.time())
         run = WorkflowRunDetail(
             id=run_id,
@@ -390,6 +473,163 @@ class WorkflowRunner:
                 await run_in_threadpool(history.release, delivery_id,
                                         context["workflow"]["workflow_id"], user_id)
 
+    async def _run_for_each(
+        self, workflow: WorkflowDetail, node: WorkflowNode, context: dict[str, Any],
+        node_runs: list[WorkflowNodeRun], previous_run: WorkflowRunDetail | None,
+        outgoing_edges: dict[str, list[Any]], user_id: str, vault_key_id: str | None,
+        trigger_type: str, started_at: int, version_id: str,
+        active_deadline: float, accepted_run: bool,
+    ) -> WorkflowNodeRun:
+        """Run a flat body sequentially, checkpointing each item's completed actions."""
+        run_id = context["workflow"]["run_id"]
+        loop_state = context["workflow"].setdefault("loops", {}).get(node.id)
+        try:
+            if loop_state is None:
+                items = _resolve_template(node.config["items"], context)
+                if not isinstance(items, list):
+                    raise WorkflowActionExecutionError("WORKFLOW_FOR_EACH_INPUT", "For-each items must be an array")
+                max_items = min(int(node.config.get("max_items", 100)), 100)
+                if len(items) > max_items:
+                    raise WorkflowActionExecutionError("WORKFLOW_FOR_EACH_LIMIT", "For-each item count exceeds its limit")
+                # The source is snapshotted before the first body action and saved encrypted.
+                loop_state = {"source_snapshot": json.loads(json.dumps(items)), "cursor": 0,
+                              "results": [], "accepted_selection": [], "started_at": time.time()}
+                context["workflow"]["loops"][node.id] = loop_state
+            else:
+                items = loop_state["source_snapshot"]
+            loop_started_at = float(loop_state.setdefault("started_at", time.time()))
+            body = next((edge.to_node for edge in outgoing_edges.get(node.id, []) if edge.branch == "body"), None)
+            continuation = next((edge.to_node for edge in outgoing_edges.get(node.id, [])
+                                 if edge.branch in {None, "default"}), None)
+            max_duration = min(int(node.config.get("max_duration_seconds", 300)), 3600)
+            per_item_timeout = int(node.config.get("per_item_timeout_seconds", 60))
+            max_credits = int(node.config.get("max_credits", 100))
+            previous_items = {item.node_id: item for item in (previous_run.node_runs if previous_run else [])
+                              if item.loop_id == node.id and item.status == WorkflowNodeRunStatus.COMPLETED}
+            nodes_by_id = {item.id: item for item in workflow.graph.nodes}
+
+            async def checkpoint() -> None:
+                progress = WorkflowRunDetail(
+                    id=run_id, workflow_id=workflow.id, version_id=version_id,
+                    trigger_type=trigger_type, status=WorkflowRunStatus.RUNNING,
+                    started_at=started_at, cost_summary=_workflow_cost_summary(node_runs),
+                    node_runs=node_runs, output_summary=context,
+                )
+                await run_in_threadpool(self.workflow_service.save_run, user_id, progress, vault_key_id)
+
+            for index, item in enumerate(items):
+                if index < int(loop_state.get("cursor", 0)):
+                    continue
+                if time.time() - loop_started_at > max_duration or time.monotonic() >= active_deadline:
+                    raise WorkflowActionExecutionError("WORKFLOW_FOR_EACH_DURATION", "For-each duration limit reached")
+                context["items"][node.id] = {"item": item, "index": index}
+                item_started = time.monotonic()
+                item_outputs: dict[str, Any] = {}
+
+                async def walk(start: str | None, branch_tag: str = "body", stop: str | None = None) -> bool:
+                    current = start
+                    count = 0
+                    while current is not None and current != continuation and current != stop:
+                        count += 1
+                        if count > len(nodes_by_id) or current == node.id:
+                            raise WorkflowActionExecutionError("WORKFLOW_FOR_EACH_GRAPH", "For-each body is cyclic")
+                        if time.monotonic() - item_started >= per_item_timeout:
+                            raise WorkflowActionExecutionError("WORKFLOW_FOR_EACH_ITEM_TIMEOUT", "For-each item timed out")
+                        if time.time() - loop_started_at >= max_duration or time.monotonic() >= active_deadline:
+                            raise WorkflowActionExecutionError("WORKFLOW_FOR_EACH_DURATION", "For-each duration limit reached")
+                        if accepted_run and await run_in_threadpool(self.workflow_service.is_run_cancellation_requested, workflow.id, run_id, user_id):
+                            return False
+                        child = nodes_by_id[current]
+                        if child.type.value == "for_each":
+                            raise WorkflowActionExecutionError("WORKFLOW_FOR_EACH_NESTED", "Nested For-each is unsupported")
+                        might_bill = child.type == WorkflowNodeType.APP_SKILL_ACTION or (
+                            child.type == WorkflowNodeType.CHECK and child.config.get("mode") == "ai")
+                        if might_bill and sum(item.credit_cost for item in node_runs if item.loop_id == node.id) >= max_credits:
+                            raise WorkflowActionExecutionError("WORKFLOW_FOR_EACH_CREDITS", "For-each credit limit reached")
+                        identity = f"{node.id}:{index}:{child.id}:{branch_tag}"
+                        remaining_credits = max_credits - sum(
+                            item.credit_cost for item in node_runs if item.loop_id == node.id)
+                        context["workflow"].update(node_id=identity, graph_node_id=child.id,
+                                                   loop_id=node.id, iteration_index=index,
+                                                   loop_credit_remaining=remaining_credits)
+                        await checkpoint()
+                        previous_child = previous_items.get(identity)
+                        if previous_child is not None:
+                            child_run = previous_child.model_copy(deep=True)
+                        else:
+                            child_run = await self._run_node(
+                                run_id, workflow.id, child, context, user_id,
+                                timeout_seconds=min(WORKFLOW_NODE_TIMEOUT_SECONDS,
+                                    per_item_timeout - (time.monotonic() - item_started),
+                                    max_duration - (time.time() - loop_started_at),
+                                    active_deadline - time.monotonic()),
+                                instance_id=identity, loop_id=node.id, iteration_index=index,
+                            )
+                        node_runs.append(child_run)
+                        item_outputs[child.id] = child_run.output_summary
+                        if child.type == WorkflowNodeType.CHECK and child.config.get("result_type") == "options":
+                            loop_state["accepted_selection"].append({
+                                "index": index, "node_id": child.id,
+                                "outcome": child_run.output_summary.get("outcome"),
+                                "selected_options": child_run.output_summary.get("selected_options") or [],
+                            })
+                        context["nodes"][child.id] = {"output": child_run.output_summary,
+                            "status": child_run.status.value, "app_id": child.config.get("app_id"),
+                            "skill_id": child.config.get("skill_id")}
+                        await checkpoint()
+                        if child_run.status == WorkflowNodeRunStatus.FAILED:
+                            raise WorkflowActionExecutionError(child_run.error_code or "WORKFLOW_FOR_EACH_BODY",
+                                                               child_run.error_summary or "For-each body step failed")
+                        if sum(item.credit_cost for item in node_runs if item.loop_id == node.id) > max_credits:
+                            raise WorkflowActionExecutionError("WORKFLOW_FOR_EACH_CREDITS", "For-each credit limit reached")
+                        if child_run.output_summary.get("wait_for_user_input"):
+                            raise WorkflowActionExecutionError("WORKFLOW_FOR_EACH_WAIT", "For-each body cannot wait for user input")
+                        if child.type.value in {"check", "decision"}:
+                            branch_targets = []
+                            if child.type == WorkflowNodeType.CHECK and child.config.get("result_type") == "options" and child_run.output_summary.get("outcome") == "selected":
+                                selected = child_run.output_summary.get("selected_options") or []
+                                branch_targets = [(edge.to_node, f"{branch_tag}:option:{option_id}")
+                                    for option_id in selected for edge in outgoing_edges.get(child.id, [])
+                                    if edge.branch == f"option:{option_id}"]
+                            else:
+                                target = self._next_node_id(child, child_run.output_summary, outgoing_edges)
+                                shared = next((edge.to_node for edge in outgoing_edges.get(child.id, [])
+                                               if edge.branch in {None, "default"}), None)
+                                if target and target != shared:
+                                    branch_targets = [(target, f"{branch_tag}:{child_run.output_summary.get('branch')}")]
+                            shared = next((edge.to_node for edge in outgoing_edges.get(child.id, [])
+                                           if edge.branch in {None, "default"}), None)
+                            for target, tag in branch_targets:
+                                if not await walk(target, tag, shared):
+                                    return False
+                            current = shared
+                        else:
+                            current = self._next_node_id(child, child_run.output_summary, outgoing_edges)
+                    return True
+
+                if body and not await walk(body):
+                    return WorkflowNodeRun(id=str(uuid.uuid4()), run_id=run_id, workflow_id=workflow.id,
+                        node_id=node.id, node_type=node.type, status=WorkflowNodeRunStatus.COMPLETED,
+                        started_at=started_at, finished_at=int(time.time()),
+                        output_summary={"cancelled": True})
+                loop_state["results"].append({"index": index, "outputs": item_outputs})
+                loop_state["cursor"] = index + 1
+                await checkpoint()
+            context["items"].pop(node.id, None)
+            context["workflow"].pop("loop_id", None)
+            context["workflow"].pop("iteration_index", None)
+            context["workflow"].pop("loop_credit_remaining", None)
+            return WorkflowNodeRun(id=str(uuid.uuid5(uuid.NAMESPACE_URL, f"workflow:{run_id}:{node.id}:node-run")),
+                run_id=run_id, workflow_id=workflow.id, node_id=node.id, node_type=node.type,
+                status=WorkflowNodeRunStatus.COMPLETED, started_at=started_at,
+                finished_at=int(time.time()), output_summary={"item_count": len(items),
+                    "completed_count": loop_state["cursor"], "results": loop_state["results"]})
+        except Exception as exc:
+            return WorkflowNodeRun(id=str(uuid.uuid4()), run_id=run_id, workflow_id=workflow.id,
+                node_id=node.id, node_type=node.type, status=WorkflowNodeRunStatus.FAILED,
+                started_at=started_at, finished_at=int(time.time()),
+                error_code=getattr(exc, "code", exc.__class__.__name__), error_summary=str(exc))
+
     def _next_node_id(self, node: WorkflowNode, output: dict[str, Any], outgoing_edges: dict[str, list[Any]]) -> str | None:
         candidates = outgoing_edges.get(node.id, [])
         if not candidates:
@@ -413,6 +653,9 @@ class WorkflowRunner:
         context: dict[str, Any],
         user_id: str,
         timeout_seconds: float = WORKFLOW_NODE_TIMEOUT_SECONDS,
+        instance_id: str | None = None,
+        loop_id: str | None = None,
+        iteration_index: int | None = None,
     ) -> WorkflowNodeRun:
         started_at = int(time.time())
         try:
@@ -421,10 +664,13 @@ class WorkflowRunner:
             if not isinstance(credit_cost, int) or credit_cost < 0:
                 raise WorkflowSkillBillingError("WORKFLOW_BILLING_INVALID_RECEIPT", "Workflow billing receipt is invalid")
             return WorkflowNodeRun(
-                id=str(uuid.uuid4()),
+                id=str(uuid.uuid5(uuid.NAMESPACE_URL, f"workflow:{run_id}:{instance_id}:node-run")) if instance_id else str(uuid.uuid4()),
                 run_id=run_id,
                 workflow_id=workflow_id,
-                node_id=node.id,
+                node_id=instance_id or node.id,
+                graph_node_id=node.id if instance_id else None,
+                loop_id=loop_id,
+                iteration_index=iteration_index,
                 node_type=node.type,
                 status=WorkflowNodeRunStatus.SKIPPED if output.get("skipped") else WorkflowNodeRunStatus.COMPLETED,
                 started_at=started_at,
@@ -437,7 +683,9 @@ class WorkflowRunner:
         except TimeoutError:
             return WorkflowNodeRun(
                 id=str(uuid.uuid4()), run_id=run_id, workflow_id=workflow_id,
-                node_id=node.id, node_type=node.type, status=WorkflowNodeRunStatus.FAILED,
+                node_id=instance_id or node.id, graph_node_id=node.id if instance_id else None,
+                loop_id=loop_id, iteration_index=iteration_index,
+                node_type=node.type, status=WorkflowNodeRunStatus.FAILED,
                 started_at=started_at, finished_at=int(time.time()),
                 error_code="WORKFLOW_NODE_TIMEOUT", error_summary="Workflow step timed out",
                 input_summary=node.input_mapping,
@@ -447,7 +695,9 @@ class WorkflowRunner:
                 id=str(uuid.uuid4()),
                 run_id=run_id,
                 workflow_id=workflow_id,
-                node_id=node.id,
+                node_id=instance_id or node.id,
+                graph_node_id=node.id if instance_id else None,
+                loop_id=loop_id, iteration_index=iteration_index,
                 node_type=node.type,
                 status=WorkflowNodeRunStatus.FAILED,
                 started_at=started_at,
@@ -461,7 +711,9 @@ class WorkflowRunner:
                 id=str(uuid.uuid4()),
                 run_id=run_id,
                 workflow_id=workflow_id,
-                node_id=node.id,
+                node_id=instance_id or node.id,
+                graph_node_id=node.id if instance_id else None,
+                loop_id=loop_id, iteration_index=iteration_index,
                 node_type=node.type,
                 status=WorkflowNodeRunStatus.FAILED,
                 started_at=started_at,
@@ -476,7 +728,9 @@ class WorkflowRunner:
                 id=str(uuid.uuid4()),
                 run_id=run_id,
                 workflow_id=workflow_id,
-                node_id=node.id,
+                node_id=instance_id or node.id,
+                graph_node_id=node.id if instance_id else None,
+                loop_id=loop_id, iteration_index=iteration_index,
                 node_type=node.type,
                 status=WorkflowNodeRunStatus.FAILED,
                 started_at=started_at,
@@ -538,22 +792,63 @@ class WorkflowRunner:
                     for reference in node.config["selected_inputs"]
                 ]
                 _bounded_runtime_inputs(selected_inputs)
-                if not await self.ai_service.preflight_check_evaluation(node.config["question"], selected_inputs):
+                options_mode = node.config.get("result_type", "boolean") == "options"
+                check_question = str(node.config.get("question") or "")
+                if options_mode:
+                    preflight_ok = await self.ai_service.preflight_options_check_evaluation(
+                        check_question, selected_inputs, node.config["options"],
+                        node.config.get("selection_mode", "single"),
+                    )
+                else:
+                    preflight_ok = await self.ai_service.preflight_check_evaluation(check_question, selected_inputs)
+                if not preflight_ok:
                     raise WorkflowSkillBillingError(
                         "WORKFLOW_AI_CHECK_UNAVAILABLE", "AI Check could not start",
                     )
                 credit_cost = await _charge_workflow_ai_check(
-                    user_id=user_id, context=context, node_id=node.id,
+                    user_id=user_id, context=context, node_id=execution.get("node_id") or node.id,
                 )
                 try:
-                    result = await self.ai_service.evaluate_check(
-                        question=node.config["question"], selected_inputs=selected_inputs,
-                    )
+                    if options_mode:
+                        result = await self.ai_service.evaluate_options_check(
+                            question=check_question, selected_inputs=selected_inputs,
+                            options=node.config["options"], selection_mode=node.config.get("selection_mode", "single"),
+                        )
+                    else:
+                        result = await self.ai_service.evaluate_check(
+                            question=check_question, selected_inputs=selected_inputs,
+                        )
                 except Exception as exc:
                     raise WorkflowSkillBillingError(
                         "WORKFLOW_AI_CHECK_UNAVAILABLE", "AI Check could not complete",
                         credit_cost=credit_cost,
                     ) from exc
+                if options_mode:
+                    option_ids = [item["id"] for item in node.config["options"]]
+                    chosen = list(result.selected_options)
+                    selection_mode = node.config.get("selection_mode", "single")
+                    invalid_selection = (
+                        (result.outcome == "selected" and (
+                            not chosen or any(item not in option_ids for item in chosen)
+                            or (selection_mode == "single" and len(chosen) != 1)))
+                        or (selection_mode == "single" and result.outcome == "no_match")
+                        or result.outcome not in {"selected", "no_match", "unsure"}
+                    )
+                    if invalid_selection:
+                        chosen = []
+                        outcome = "unsure"
+                    else:
+                        outcome = result.outcome
+                    chosen = [item for item in option_ids if item in chosen] if outcome == "selected" else []
+                    labels = [item["label"] for item in node.config["options"] if item["id"] in chosen]
+                    return {"decision": outcome, "outcome": outcome,
+                            "branch": f"option:{chosen[0]}" if chosen else outcome,
+                            "selected_options": chosen, "selected_labels": labels,
+                            "selected_count": len(chosen),
+                            "matches": {item: item in chosen for item in option_ids},
+                            "question": check_question, "projected_inputs": selected_inputs,
+                            "decision_path": result.decision_path, "unsure_reason": result.unsure_reason,
+                            "_workflow_credit_cost": credit_cost}
                 if not result.question_valid:
                     raise WorkflowSkillBillingError(
                         "WORKFLOW_AI_CHECK_NOT_BOOLEAN", "WORKFLOW_AI_CHECK_NOT_BOOLEAN",
@@ -563,7 +858,7 @@ class WorkflowRunner:
                 return {
                     "matched": matched,
                     "branch": result.outcome,
-                    "question": node.config["question"],
+                    "question": check_question,
                     "projected_inputs": selected_inputs,
                     "confidence_band": result.confidence_band,
                     "decision_path": result.decision_path,
@@ -633,7 +928,8 @@ class WorkflowRunner:
                             user_id=user_id,
                             billing_context={"workflow_id": context["workflow"].get("workflow_id"),
                                              "run_id": context["workflow"].get("run_id"),
-                                             "node_id": f"{node.id}:{send_id}", "source": "workflow"},
+                                             "node_id": f"{context['workflow'].get('node_id') or node.id}:{send_id}", "source": "workflow",
+                                             **_loop_credit_context(context["workflow"])},
                         )
                         if result.get("error") or not isinstance(result.get("answer"), str):
                             raise WorkflowActionExecutionError("WORKFLOW_SKILL_FAILED", "Ask AI could not complete this destination")
@@ -679,8 +975,9 @@ class WorkflowRunner:
                 billing_context={
                     "workflow_id": execution.get("workflow_id"),
                     "run_id": execution.get("run_id"),
-                    "node_id": node.id,
+                    "node_id": execution.get("node_id") or node.id,
                     "source": "workflow_test",
+                    **_loop_credit_context(execution),
                 },
                 on_snapshot=preview_snapshot,
             )
@@ -709,8 +1006,9 @@ class WorkflowRunner:
                 billing_context={
                     "workflow_id": execution.get("workflow_id"),
                     "run_id": execution.get("run_id"),
-                    "node_id": node.id,
+                    "node_id": execution.get("node_id") or node.id,
                     "source": "workflow_test" if execution.get("step_test") else "workflow",
+                    **_loop_credit_context(execution),
                 },
             )
             if website_options:
@@ -760,6 +1058,45 @@ def _evaluate_predicate(predicate: dict[str, Any], context: dict[str, Any]) -> b
 def _workflow_cost_summary(node_runs: list[WorkflowNodeRun]) -> dict[str, int]:
     credits = sum(node.credit_cost for node in node_runs)
     return {"credits": credits} if credits > 0 else {}
+
+
+def _loop_credit_context(execution: dict[str, Any]) -> dict[str, int]:
+    allowance = execution.get("loop_credit_remaining")
+    return {"max_credits_remaining": allowance} if execution.get("loop_id") is not None and isinstance(allowance, int) else {}
+
+
+def _project_returned_outputs(context: dict[str, Any]) -> dict[str, Any]:
+    """Expose only caller-selected typed values from the encrypted run payload."""
+    requested = (context.get("workflow", {}).get("invocation") or {}).get("return_outputs") or {}
+    if not isinstance(requested, dict):
+        return {"status": "completed", "values": {}}
+    values: dict[str, dict[str, Any]] = {}
+    for name, spec in list(requested.items())[:12]:
+        if not isinstance(name, str) or not isinstance(spec, dict):
+            continue
+        ref, declared = spec.get("ref"), spec.get("type")
+        if not isinstance(ref, str) or not ref.startswith("$nodes.") or declared not in {
+            "string", "number", "integer", "boolean", "object", "array",
+        }:
+            continue
+        value = _resolve_template(ref, context)
+        actual_type = (
+            "boolean" if isinstance(value, bool) else
+            "integer" if isinstance(value, int) else
+            "number" if isinstance(value, float) else
+            "string" if isinstance(value, str) else
+            "object" if isinstance(value, dict) else
+            "array" if isinstance(value, list) else None
+        )
+        if value is None or not (actual_type == declared or declared == "number" and actual_type == "integer"):
+            values[name] = {"ref": ref, "type": declared, "error": "unavailable_or_type_mismatch"}
+            continue
+        bounded = _bounded_value(value, depth=0)
+        if len(json.dumps(bounded, ensure_ascii=False, separators=(",", ":"))) > 24_000:
+            values[name] = {"ref": ref, "type": declared, "error": "value_too_large"}
+            continue
+        values[name] = {"ref": ref, "type": declared, "value": bounded}
+    return {"status": "completed", "values": values}
 
 
 async def _precheck_workflow_ai_check(user_id: str) -> None:

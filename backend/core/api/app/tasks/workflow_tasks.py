@@ -23,6 +23,7 @@ from backend.core.api.app.services.workflow_runtime_service import WorkflowRunti
 from backend.core.api.app.services.workflow_scheduler_service import WorkflowSchedulerService
 from backend.core.api.app.services.workflow_service import DirectusWorkflowRepository, WorkflowService
 from backend.core.api.app.services.workflow_input_service import DirectusWorkflowInputRepository, WorkflowInputService
+from backend.core.api.app.services.workflow_models import WorkflowRunStatus
 from backend.core.api.app.services.workflow_service import _hash_owner_id
 from backend.core.api.app.tasks.base_task import BaseServiceTask
 from backend.core.api.app.tasks.celery_config import app, broker_url
@@ -42,6 +43,10 @@ _SCHEDULED_DISPATCH_LOCK_PREFIX = "workflow-scheduled-dispatch:"
 _SCHEDULED_EXECUTION_LOCK_PREFIX = "workflow-scheduled-execution:"
 WORKFLOW_QUEUED_TIMEOUT_SECONDS = 300
 WORKFLOW_WAIT_DEFAULT_TIMEOUT_SECONDS = 24 * 60 * 60
+
+
+class WorkflowCallerDeliveryPending(RuntimeError):
+    """A terminal run is durable, but its caller notification needs another attempt."""
 
 
 class WorkflowServiceTask(BaseServiceTask):
@@ -122,6 +127,7 @@ async def run_workflow_now(
     version_id: str,
     trigger_type: str,
     input_payload: dict[str, Any],
+    invocation: dict[str, Any] | None = None,
     *,
     workflow_service: WorkflowService | None = None,
     runtime_service: WorkflowRuntimeService | None = None,
@@ -139,6 +145,7 @@ async def run_workflow_now(
             "workflow_id": workflow_id,
             "run_id": run_id,
             "hashed_user_id": service.repository.workflow_owner_hash(user_id),
+            "reclaim_after_seconds": WORKFLOW_ACTIVE_RUN_TIMEOUT_SECONDS + 60,
         },
     )
     claimed_run_id = started.get("run_id")
@@ -152,11 +159,40 @@ async def run_workflow_now(
         raise RuntimeError("Workflow runtime start returned invalid started state")
     if (claimed_run_id, claimed_workflow_id, claimed_version_id) != (run_id, workflow_id, version_id):
         raise RuntimeError("Workflow runtime start did not match the accepted run")
-    if not started_flag:
-        return {"id": run_id, "workflow_id": workflow_id, "version_id": version_id, "status": status}
+    if not started_flag and status in {"running", "queued", "cancellation_requested"}:
+        return {"id": run_id, "workflow_id": workflow_id, "version_id": version_id,
+                "status": status}
     vault_key_id = service.resolve_user_vault_key_id(user_id)
+    durable_invocation = await asyncio.to_thread(
+        service.load_run_invocation, workflow_id, run_id, user_id, vault_key_id,
+    ) if hasattr(service, "load_run_invocation") else None
+    accepted_invocation = durable_invocation or invocation or {}
+    if not started_flag:
+        if status in {"completed", "failed", "cancelled"} and accepted_invocation.get("source_chat_id"):
+            previous = await asyncio.to_thread(service.get_run, workflow_id, run_id, user_id, vault_key_id)
+            adapter = WorkflowRunner(service, app_skill_adapter=app_skill_adapter).action_adapter
+            deliver = getattr(adapter, "deliver_caller_result", None)
+            if not callable(deliver):
+                raise WorkflowCallerDeliveryPending("Workflow caller delivery is unavailable")
+            try:
+                await deliver(previous, user_id, accepted_invocation)
+            except Exception as exc:
+                raise WorkflowCallerDeliveryPending("Workflow caller delivery could not complete") from exc
+        return {"id": run_id, "workflow_id": workflow_id, "version_id": version_id, "status": status}
     workflow = await asyncio.to_thread(service.get_workflow_version, workflow_id, user_id, version_id, vault_key_id)
-    run = await WorkflowRunner(service, app_skill_adapter=app_skill_adapter).run_workflow(
+    runner = WorkflowRunner(service, app_skill_adapter=app_skill_adapter)
+    if accepted_invocation.get("source_chat_id"):
+        # Persist the chat-owned definition before any workflow effects. Its
+        # delivery outlives result retention and uses a stable per-workflow ID.
+        accepted_run = await asyncio.to_thread(service.get_run, workflow_id, run_id, user_id, vault_key_id)
+        deliver_definition = getattr(runner.action_adapter, "deliver_chat_definition", None)
+        if not callable(deliver_definition):
+            raise WorkflowCallerDeliveryPending("Workflow definition delivery is unavailable")
+        try:
+            await deliver_definition(accepted_run, user_id, accepted_invocation)
+        except Exception as exc:
+            raise WorkflowCallerDeliveryPending("Workflow definition delivery could not complete") from exc
+    run = await runner.run_workflow(
         workflow,
         user_id,
         vault_key_id=vault_key_id,
@@ -164,7 +200,18 @@ async def run_workflow_now(
         input_payload=input_payload,
         run_id=run_id,
         version_id=version_id,
+        invocation=accepted_invocation,
     )
+    if accepted_invocation.get("source_chat_id") and run.status in {
+        WorkflowRunStatus.COMPLETED, WorkflowRunStatus.FAILED, WorkflowRunStatus.CANCELLED,
+    }:
+        deliver = getattr(runner.action_adapter, "deliver_caller_result", None)
+        if not callable(deliver):
+            raise WorkflowCallerDeliveryPending("Workflow caller delivery is unavailable")
+        try:
+            await deliver(run, user_id, accepted_invocation)
+        except Exception as exc:
+            raise WorkflowCallerDeliveryPending("Workflow caller delivery could not complete") from exc
     return run.model_dump(mode="json")
 
 
@@ -377,6 +424,7 @@ def run_workflow_task(
     version_id: str,
     trigger_type: str,
     input_payload: dict[str, Any],
+    invocation: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     try:
         async def operation() -> dict[str, Any]:
@@ -387,6 +435,7 @@ def run_workflow_task(
                 version_id,
                 trigger_type,
                 input_payload,
+                invocation,
                 runtime_service=WorkflowRuntimeService(self.directus_service),
                 app_skill_adapter=WorkflowAppSkillAdapter(
                     secrets_manager=self.secrets_manager,
@@ -394,7 +443,12 @@ def run_workflow_task(
                 ),
             )
 
-        return asyncio.run(_run_with_workflow_services(self, operation))
+        result = asyncio.run(_run_with_workflow_services(self, operation))
+        if result.get("status") in {"running", "queued", "cancellation_requested"}:
+            raise self.retry(countdown=60, max_retries=40)
+        return result
+    except WorkflowCallerDeliveryPending as exc:
+        raise self.retry(exc=exc, countdown=60, max_retries=40) from exc
     except Exception as exc:
         logger.error("Workflow run task failed: %s", exc, exc_info=True)
         raise

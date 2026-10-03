@@ -27,7 +27,9 @@ from backend.core.api.app.services.workflow_models import (
     WorkflowLifecycle,
     WorkflowNodeType,
 )
-from backend.core.api.app.services.workflow_service import WorkflowNotFoundError, WorkflowService
+from backend.core.api.app.services.workflow_service import (
+    WorkflowNotFoundError, WorkflowService, validate_workflow_return_outputs,
+)
 
 
 WORKFLOW_ASSISTANT_PROPOSAL_TTL_SECONDS = 15 * 60
@@ -391,13 +393,20 @@ class WorkflowAssistantService:
         user_id: str,
         workflow_id: str,
         input_payload: dict[str, Any] | None = None,
+        invocation: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         workflow = self.workflow_service.get_workflow(workflow_id, user_id)
-        self.workflow_service.validate_manual_run_input(workflow, input_payload)
+        if invocation is not None and not isinstance(invocation, dict):
+            raise ValueError("Invalid workflow invocation")
+        returned_outputs = (invocation or {}).get("return_outputs", {})
+        validate_workflow_return_outputs(workflow.graph, returned_outputs)
+        self.workflow_service.validate_manual_run_input(
+            workflow, input_payload, allow_return_outputs=bool(returned_outputs),
+        )
         proposal = self._create_proposal(
             user_id,
             WorkflowAssistantProposalAction.RUN,
-            {"workflow_id": workflow_id, "input": input_payload or {}},
+            {"workflow_id": workflow_id, "input": input_payload or {}, "invocation": invocation or {}},
             workflow_id=workflow_id,
             title=workflow.title,
             graph=workflow.graph.model_dump(mode="json", by_alias=True),
@@ -676,7 +685,30 @@ class WorkflowAssistantService:
             if runtime_service is None or enqueue_accepted_run is None:
                 raise RuntimeError("Assistant run execution requires runtime acceptance and dispatch services")
             workflow = self.workflow_service.get_workflow(payload["workflow_id"], user_id)
-            self.workflow_service.validate_manual_run_input(workflow, payload.get("input"))
+            invocation = payload.get("invocation") or {}
+            invocation_ref = None
+            invocation_hash = None
+            if invocation:
+                import hashlib
+                import json
+                from types import SimpleNamespace
+                from backend.core.api.app.routes.workflows import WorkflowRunRequest, _validated_invocation
+                run_body = WorkflowRunRequest(
+                    input=payload.get("input") or {},
+                    source_chat_id=invocation.get("source_chat_id"),
+                    message_destination_overrides=invocation.get("message_destination_overrides") or {},
+                    return_outputs=invocation.get("return_outputs") or {},
+                )
+                invocation = await _validated_invocation(
+                    SimpleNamespace(state=SimpleNamespace(auth_source="session")),
+                    run_body, workflow.graph, user_id, runtime_service._directus,
+                )
+            self.workflow_service.validate_manual_run_input(
+                workflow, payload.get("input"), allow_return_outputs=bool(invocation.get("return_outputs")),
+            )
+            if invocation:
+                invocation_hash = hashlib.sha256(json.dumps(invocation, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode()).hexdigest()
+                invocation_ref = self.workflow_service.save_run_invocation_blob(user_id, invocation)
             accepted = await runtime_service.execute(
                 "accept_manual_run",
                 {
@@ -684,14 +716,20 @@ class WorkflowAssistantService:
                     "hashed_user_id": self.workflow_service.repository.workflow_owner_hash(user_id),
                     "trigger_type": "manual",
                     "idempotency_key": proposal["proposal_id"],
+                    **({"encrypted_invocation_ref": invocation_ref, "invocation_hash": invocation_hash} if invocation_ref else {}),
                 },
             )
             run_id = accepted.get("run_id")
             version_id = accepted.get("version_id")
             if not isinstance(run_id, str) or not run_id or not isinstance(version_id, str) or not version_id:
                 raise RuntimeError("Workflow runtime acceptance returned invalid run metadata")
+            if not accepted.get("accepted") and invocation_ref:
+                self.workflow_service.repository.delete_encrypted_blob(invocation_ref)
             if accepted.get("status") == "queued":
-                enqueue_accepted_run(workflow.id, user_id, run_id, version_id, "manual", payload.get("input") or {})
+                if invocation:
+                    enqueue_accepted_run(workflow.id, user_id, run_id, version_id, "manual", payload.get("input") or {}, invocation)
+                else:
+                    enqueue_accepted_run(workflow.id, user_id, run_id, version_id, "manual", payload.get("input") or {})
             return run_id
         raise ValueError("Unsupported workflow proposal action")
 

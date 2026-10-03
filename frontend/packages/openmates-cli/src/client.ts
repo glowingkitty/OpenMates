@@ -665,6 +665,7 @@ export type WorkflowNodeType =
   | "event_trigger"
   | "wait"
   | "repeat"
+  | "for_each"
   | "create_chat_report"
   | "send_notification"
   | "send_email_notification"
@@ -699,7 +700,32 @@ export interface WorkflowGraph {
 
 export type WorkflowRunContentRetention = "last_5" | "none";
 export type WorkflowRunContentStorage = "durable" | "ephemeral" | "deleted";
-export type WorkflowLifecycle = "persisted" | "temporary";
+export type WorkflowLifecycle = "persisted" | "temporary" | "chat_embed";
+
+export interface WorkflowRunRouting {
+  sourceChatId?: string;
+  messageDestinationOverrides?: Record<string, string>;
+  returnOutputs?: Record<string, WorkflowReturnedOutputReference>;
+}
+
+export interface WorkflowReturnedOutputReference {
+  ref: string;
+  type: "string" | "number" | "integer" | "boolean" | "object" | "array";
+}
+
+export interface WorkflowRunOptions extends WorkflowRunRouting {
+  idempotencyKey: string;
+  mode?: "manual" | "test";
+  input?: Record<string, unknown>;
+}
+
+export interface WorkflowRunOnceOptions extends WorkflowRunRouting {
+  title: string;
+  graph: WorkflowGraph;
+  idempotencyKey: string;
+  sourceChatId: string;
+  input?: Record<string, unknown>;
+}
 
 export interface WorkflowAuthoringWarning {
   code: string;
@@ -9438,6 +9464,9 @@ export class OpenMatesClient {
   }
 
   async resolveWorkflowId(query: string, options: TeamContextOptions = {}): Promise<string | undefined> {
+    // An owned chat definition is deliberately omitted from library search.
+    // Its full ID can still be sent to an ownership-checked workflow route.
+    if (CANONICAL_UUID_PATTERN.test(query)) return query;
     const workflows = await this.listWorkflows(options);
     const exactId = workflows.find((workflow) => workflow.id === query);
     if (exactId) return exactId.id;
@@ -9550,6 +9579,42 @@ export class OpenMatesClient {
     return this.decryptWorkflowSlug(response.data.workflow, { personal: true });
   }
 
+  async saveWorkflowAsReusable(workflowId: string, options: { idempotencyKey: string }): Promise<WorkflowDetail> {
+    this.requireSession();
+    if (!options.idempotencyKey.trim()) throw new Error("Workflow save-as-reusable requires a stable idempotencyKey");
+    const response = await this.http.post<{ workflow?: WorkflowDetail }>(
+      `/v1/workflows/${encodeURIComponent(workflowId)}/save-as-reusable`,
+      {},
+      { ...this.getCliRequestHeaders(), "Idempotency-Key": options.idempotencyKey },
+    );
+    if (!response.ok || !response.data.workflow) throw new Error(`Workflow save-as-reusable failed with HTTP ${response.status}`);
+    return this.decryptWorkflowSlug(response.data.workflow, { personal: true });
+  }
+
+  private async workflowRunRouting(params: WorkflowRunRouting): Promise<Record<string, unknown>> {
+    const routing: Record<string, unknown> = {};
+    if (params.sourceChatId !== undefined) routing.source_chat_id = await this.resolveRequiredChatId(params.sourceChatId, { personal: true });
+    if (params.messageDestinationOverrides !== undefined) {
+      routing.message_destination_overrides = Object.fromEntries(await Promise.all(
+        Object.entries(params.messageDestinationOverrides).map(async ([nodeId, chatId]) => [nodeId, await this.resolveRequiredChatId(chatId, { personal: true })]),
+      ));
+    }
+    if (params.returnOutputs !== undefined) routing.return_outputs = params.returnOutputs;
+    return routing;
+  }
+
+  async runWorkflowOnce(params: WorkflowRunOnceOptions): Promise<{ workflow: WorkflowDetail; run: WorkflowRunDetail }> {
+    this.requireSession();
+    if (!params.idempotencyKey.trim()) throw new Error("Workflow run-once requires a stable idempotencyKey");
+    const response = await this.http.post<{ workflow?: WorkflowDetail; run?: WorkflowRunDetail }>(
+      "/v1/workflows/run-once",
+      { title: params.title, graph: params.graph, input: params.input ?? {}, ...await this.workflowRunRouting(params) },
+      { ...this.getCliRequestHeaders(), "Idempotency-Key": params.idempotencyKey },
+    );
+    if (!response.ok || !response.data.workflow || !response.data.run) throw new Error(`Workflow run-once failed with HTTP ${response.status}`);
+    return { workflow: await this.decryptWorkflowSlug(response.data.workflow, { personal: true }), run: response.data.run };
+  }
+
   async enableWorkflow(workflowId: string): Promise<WorkflowDetail> {
     return this.setWorkflowEnabled(workflowId, true);
   }
@@ -9560,7 +9625,7 @@ export class OpenMatesClient {
 
   async runWorkflow(
     workflowId: string,
-    params: { idempotencyKey: string; mode?: "manual" | "test"; input?: Record<string, unknown> },
+    params: WorkflowRunOptions,
   ): Promise<WorkflowRunDetail> {
     this.requireSession();
     if (!params.idempotencyKey.trim()) {
@@ -9568,7 +9633,7 @@ export class OpenMatesClient {
     }
     const response = await this.http.post<{ run?: WorkflowRunDetail }>(
       `/v1/workflows/${encodeURIComponent(workflowId)}/run`,
-      { mode: params.mode ?? "manual", input: params.input ?? {} },
+      { mode: params.mode ?? "manual", input: params.input ?? {}, ...await this.workflowRunRouting(params) },
       { ...this.getCliRequestHeaders(), "Idempotency-Key": params.idempotencyKey },
     );
     if (!response.ok || !response.data.run) {

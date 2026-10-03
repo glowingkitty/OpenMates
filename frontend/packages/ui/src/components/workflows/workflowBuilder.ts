@@ -124,6 +124,15 @@ export const label = (value: string): string =>
   value.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 export const isCheck = (node: WorkflowNode): boolean =>
   ["check", "decision"].includes(node.type);
+export type CheckOption = { id: string; label: string; description?: string };
+export function checkOptions(node: WorkflowNode): CheckOption[] {
+  const raw = node.config?.options;
+  return Array.isArray(raw) ? raw.filter((option): option is CheckOption =>
+    typeof option?.id === "string" && typeof option?.label === "string") : [];
+}
+export function isOptionsCheck(node: WorkflowNode): boolean {
+  return isCheck(node) && node.config?.mode === "ai" && node.config?.result_type === "options";
+}
 export const isTrigger = (node: WorkflowNode): boolean =>
   node.type.endsWith("_trigger");
 export const isMessage = (node: WorkflowNode): boolean =>
@@ -134,6 +143,28 @@ export const isAskAi = (node: WorkflowNode): boolean =>
   node.type === "app_skill_action" &&
   node.config?.app_id === "ai" &&
   node.config?.skill_id === "ask";
+
+/** A loop item exists only along paths that entered the body branch. */
+export function bodyLoopForNode(graph: WorkflowGraph, nodeId: string, insertion?: Insertion | null): WorkflowNode | undefined {
+  const existing = graph.nodes.some(node => node.id === nodeId);
+  for (const loop of graph.nodes.filter(node => node.type === "for_each")) {
+    if (!existing && insertion?.after === loop.id && insertion.branch === "body") return loop;
+    const target = existing ? nodeId : insertion?.after;
+    if (!target || target === loop.id) continue;
+    const visited = new Set<string>();
+    const inBody = (id: string): boolean => {
+      if (visited.has(id)) return false;
+      visited.add(id);
+      const incoming = graph.edges.filter(edge => edge.to === id);
+      const valid = incoming.length > 0 && incoming.every(edge =>
+        edge.from === loop.id ? edge.branch === "body" : inBody(edge.from));
+      visited.delete(id);
+      return valid;
+    };
+    if (inBody(target)) return loop;
+  }
+  return undefined;
+}
 export const capabilityFor = (
   node: WorkflowNode,
   capabilities: Capability[],
@@ -214,36 +245,74 @@ export function outputsBefore(
   capabilities: Capability[],
   insertion?: Insertion | null,
 ): Output[] {
-  const ancestors = new Set<string>();
-  const visit = (id: string) => {
-    for (const edge of graph.edges.filter((edge) => edge.to === id))
-      if (!ancestors.has(edge.from)) {
-        ancestors.add(edge.from);
-        visit(edge.from);
-      }
+  const memo = new Map<string, Set<string>>();
+  const walking = new Set<string>();
+  const mandatoryAncestors = (id: string): Set<string> => {
+    if (memo.has(id)) return memo.get(id)!;
+    if (walking.has(id)) return new Set();
+    walking.add(id);
+    const incoming = graph.edges.filter(edge => edge.to === id);
+    const sources = incoming.map(edge => mandatoryAncestors(edge.from));
+    const shared = sources.length ? new Set([...sources[0]].filter(source => sources.every(path => path.has(source)))) : new Set<string>();
+    shared.add(id);
+    memo.set(id, shared);
+    walking.delete(id);
+    return shared;
   };
-  if (graph.nodes.some((node) => node.id === nodeId)) visit(nodeId);
-  else if (insertion?.after) {
-    ancestors.add(insertion.after);
-    visit(insertion.after);
-  }
-  return graph.nodes
+  const existing = graph.nodes.some(node => node.id === nodeId);
+  const ancestors = existing ? mandatoryAncestors(nodeId) : insertion?.after ? mandatoryAncestors(insertion.after) : new Set<string>();
+  if (existing) ancestors.delete(nodeId);
+  const available = graph.nodes
     .filter((node) => ancestors.has(node.id))
     .flatMap((node) => {
-      const properties = isCheck(node)
-        ? { matched: { type: "boolean", title: "Check matched" } }
-        : (capabilityFor(node, capabilities)?.metadata.output_schema
-            ?.properties ?? {});
+      const properties: Record<string, Schema> = isTrigger(node)
+        ? (record(node.config?.required_start_input_schema).properties as Record<string, Schema> | undefined ?? {})
+        : isOptionsCheck(node)
+        ? {
+            matched: { type: "boolean", title: "Check matched" },
+            branch: { type: "string", title: "Branch" },
+            decision: { type: "string", title: "Decision" },
+            selected_options: { type: "array", title: "Selected option IDs", items: { type: "string" } },
+            selected_labels: { type: "array", title: "Selected labels", items: { type: "string" } },
+            selected_count: { type: "integer", title: "Selected count" },
+            matches: { type: "object", title: "Matches", properties: Object.fromEntries(checkOptions(node).map(option => [option.id, { type: "boolean", title: option.label }])) },
+          }
+        : isCheck(node)
+          ? { matched: { type: "boolean", title: "Check matched" } }
+          : node.type === "for_each"
+            ? {
+                item_count: { type: "integer", title: "Item count" },
+                completed_count: { type: "integer", title: "Completed count" },
+                results: { type: "array", title: "Results", items: { type: "object" } },
+              }
+            : (capabilityFor(node, capabilities)?.metadata.output_schema
+                ?.properties ?? {});
       return declaredOutputs(
         node.id,
-        node.title || label(String(node.config?.app_id ?? node.type)),
+        isTrigger(node) ? "Start input" : node.title || label(String(node.config?.app_id ?? node.type)),
         properties,
+        isTrigger(node) ? 'trigger' : `$nodes.${node.id}.output`,
       ).map(output => ({
         ...output,
         appId: String(node.config?.app_id ?? (node.type === 'app_skill_action' ? '' : 'ai')),
         skillId: String(node.config?.skill_id ?? ''),
       }));
     });
+  const loop = bodyLoopForNode(graph, nodeId, insertion);
+  if (!loop) return available;
+  const items = String(loop.config?.items ?? "");
+  const array = available.find(output => output.reference === items)?.schema;
+  const item = array?.items ?? { type: "object" };
+  const prefix = `$items.${loop.id}.item`;
+  return [...available.filter(output => output.nodeId !== loop.id), {
+    reference: prefix, nodeId: loop.id, label: "This item", schema: item,
+  }, ...declaredOutputs(loop.id, "This item", item.properties ?? {}, prefix), {
+    reference: `$items.${loop.id}.index`, nodeId: loop.id, label: "This item · Index", schema: { type: "integer", "x-ui": { basic: true } },
+  }];
+}
+
+export function arrayOutputsBefore(graph: WorkflowGraph, nodeId: string, capabilities: Capability[], insertion?: Insertion | null): Output[] {
+  return outputsBefore(graph, nodeId, capabilities, insertion).filter(output => output.schema.type === "array" && !output.listProjection);
 }
 
 /** Insert in one explicit branch/continuation, preserving all other edges. */

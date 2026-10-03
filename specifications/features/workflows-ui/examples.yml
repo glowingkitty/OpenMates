@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.workflows-ui@7
+specification: feature.workflows-ui@8
 workflow_file_export:
 - id: more-exports-current-saved-workflow
   assertion_ids: [workflows-ui.files.more-export]
@@ -546,3 +546,25 @@ workflow_library_templates:
   given: Bob is on the Workflows start screen with no Workflows of his own.
   when: He opens Show templates and selects a built-in planning template.
   then: A new disabled Workflow opens in Template for his review. Browsing alone creates nothing; selection performs no run or schedule activation, and the new Workflow is reachable through Show my workflows and Continue where you left off.
+
+option_check:
+- id: option-editor
+  given: Alice chooses Multiple choice in an AI Check.
+  when: She adds options and chooses Allow multiple.
+  then: Option branches and Unsure are visible, No match appears, and Test marks selected options.
+- id: stable-rename
+  given: A connected option is renamed and reordered.
+  when: Alice saves.
+  then: The same branch actions remain connected to its stable ID.
+
+for_each:
+- id: nested-body
+  given: An earlier action exposes an accessible typed result list.
+  when: Alice adds For each.
+  then: She sees its list source, scoped item/index chips, body steps and limits.
+
+chat_owned:
+- id: inspect-and-save
+  given: A chat creates a one-time Workflow.
+  when: Alice opens its embed and chooses Save as reusable.
+  then: The full graph is inspectable and a disabled regular copy opens without moving the chat run.

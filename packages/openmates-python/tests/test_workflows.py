@@ -55,7 +55,7 @@ def assert_public_workflow_slug(workflow, slug):
     assert "slug_lookup_hash" not in workflow
 
 
-# contract-test: direct surface=sdks.pip assertions=workflows.activation.reachable-side-effect,workflows.surface.semantic-parity,workflows-ui.identity.automatic-category-icon,sdk.encryption.local-only,sdk.surface.semantic-parity
+# contract-test: direct surface=sdks.pip assertions=workflows.activation.reachable-side-effect,workflows.surface.semantic-parity,workflows-ui.identity.automatic-category-icon,sdk.encryption.local-only,sdk.surface.semantic-parity,workflows.chat.embedded-lifecycle,workflows.chat.invocation,workflows.chat.result-return
 def test_pip_sdk_workflow_methods_use_shared_workflows_api(monkeypatch):
     requests_seen = []
     graph = minimal_graph()
@@ -129,6 +129,11 @@ def test_pip_sdk_workflow_methods_use_shared_workflows_api(monkeypatch):
         if url.endswith("/v1/workflows/yaml"):
             assert json == {"source": "title: Morning\n"}
             return FakeResponse({"workflow": {"id": "wf-yaml", "title": "Morning", "graph": graph, **encrypted_slug_fields}, "validation": {"draft_valid": True, "enable_ready": True, "diagnostics": []}, "warnings": [{"code": "WORKFLOW_AI_VALIDATION_UNVERIFIED", "message": "AI validation could not be completed."}]})
+        if url.endswith("/v1/workflows/run-once"):
+            assert headers["Idempotency-Key"] == "stable-once-1"
+            return FakeResponse({"workflow": {"id": "wf-once", "title": "One-time", "graph": graph, **encrypted_slug_fields}, "run": {"id": "run-once", "workflow_id": "wf-once", "status": "queued"}})
+        if url.endswith("/v1/workflows/wf-1/save-as-reusable"):
+            return FakeResponse({"workflow": {"id": "wf-copy", "title": "Morning copy", "enabled": False, "graph": graph, **encrypted_slug_fields}})
         if url.endswith("/v1/workflows/wf-1/yaml"):
             assert json == {"source": "title: Updated\n"}
             return FakeResponse({"workflow": {"id": "wf-1", "title": "Updated", "graph": graph, **encrypted_slug_fields}, "validation": {"draft_valid": True, "enable_ready": True, "diagnostics": []}, "warnings": [{"code": "WORKFLOW_AI_VALIDATION_UNVERIFIED", "message": "AI validation could not be completed."}]})
@@ -202,6 +207,12 @@ def test_pip_sdk_workflow_methods_use_shared_workflows_api(monkeypatch):
     enabled_workflow = client.workflows.enable("wf-1")
     disabled_workflow = client.workflows.disable("wf-1")
     kept_workflow = client.workflows.keep("wf-1")
+    copied_workflow = client.workflows.save_as_reusable("wf-1", idempotency_key="stable-copy-1")
+    once = client.workflows.run_once(
+        title="One-time", graph=graph, idempotency_key="stable-once-1", source_chat_id=CHAT_ID,
+        input_data={"dry": True}, message_destination_overrides={"send": CHAT_ID},
+        return_outputs={"forecast": {"ref": "$nodes.trigger.output.forecast", "type": "string"}},
+    )
     assert created_from_yaml["id"] == "wf-yaml"
     assert created_from_yaml_response["warnings"][0]["code"] == "WORKFLOW_AI_VALIDATION_UNVERIFIED"
     assert updated_from_yaml["title"] == "Updated"
@@ -209,6 +220,8 @@ def test_pip_sdk_workflow_methods_use_shared_workflows_api(monkeypatch):
     assert blank_workflow["graph"]["trigger_node_id"] is None
     assert blank_workflow["graph"]["nodes"] == []
     assert created_workflow["id"] == "wf-1"
+    assert copied_workflow["id"] == "wf-copy" and copied_workflow["enabled"] is False
+    assert once["workflow"]["id"] == "wf-once" and once["run"]["id"] == "run-once"
     assert created_workflow["authoring_warnings"][0]["code"] == "WORKFLOW_AI_VALIDATION_UNVERIFIED"
     assert fetched_workflow["id"] == "wf-1"
     assert updated_workflow["id"] == "wf-1"
@@ -219,6 +232,7 @@ def test_pip_sdk_workflow_methods_use_shared_workflows_api(monkeypatch):
     for workflow in [created_from_yaml, updated_from_yaml, blank_workflow, created_workflow, fetched_workflow, updated_workflow, enabled_workflow, disabled_workflow, kept_workflow]:
         assert_public_workflow_slug(workflow, "morning")
     assert client.workflows.run("wf-1", idempotency_key="stable-run-1", mode="test", input_data={"dry": True})["id"] == "run-1"
+    assert client.workflows.run("wf-1", idempotency_key="stable-run-1", source_chat_id=CHAT_ID, message_destination_overrides={"send": CHAT_ID}, return_outputs={"forecast": {"ref": "$nodes.trigger.output.forecast", "type": "string"}})["id"] == "run-1"
     assert client.workflows.runs("wf-1")[0]["id"] == "run-1"
     assert client.workflows.run_detail("wf-1", "run-1")["node_runs"][0]["output_summary"]["forecast"] == "rain"
     assert client.workflows.step_test("wf-1", "math", input_data={"expression": "2 + 2"}, confirmed=True)["trigger_type"] == "step_test"
@@ -256,6 +270,9 @@ def test_pip_sdk_workflow_methods_use_shared_workflows_api(monkeypatch):
     assert isinstance(workflow_create["json"].get("slug_lookup_hash"), str)
     assert "slug" not in workflow_create["json"]
     assert {"method": "POST", "url": "https://api.openmates.org/v1/workflows/wf-1/run", "json": {"mode": "test", "input": {"dry": True}}} in requests_seen
+    assert {"method": "POST", "url": "https://api.openmates.org/v1/workflows/wf-1/run", "json": {"mode": "manual", "input": {}, "source_chat_id": CHAT_ID, "message_destination_overrides": {"send": CHAT_ID}, "return_outputs": {"forecast": {"ref": "$nodes.trigger.output.forecast", "type": "string"}}}} in requests_seen
+    once_request = next(request for request in requests_seen if request["url"].endswith("/v1/workflows/run-once"))
+    assert once_request["json"] == {"title": "One-time", "graph": graph, "input": {"dry": True}, "source_chat_id": CHAT_ID, "message_destination_overrides": {"send": CHAT_ID}, "return_outputs": {"forecast": {"ref": "$nodes.trigger.output.forecast", "type": "string"}}}
     assert {"method": "PUT", "url": "https://api.openmates.org/v1/workflows/wf-1/template-projection", "json": {"template_id": "tpl-1", "source_version": 2, "ciphertext": "opaque-ciphertext", "ciphertext_checksum": "sha256:abc", "owner_wrapped_key": "wrapped-key", "projection_schema_version": 1}} in requests_seen
     assert {"method": "DELETE", "url": "https://api.openmates.org/v1/workflows/wf-1", "json": None} in requests_seen
 

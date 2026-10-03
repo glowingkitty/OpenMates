@@ -15,7 +15,7 @@ export function outputCanonicalName(output: TokenOutput): string | null {
 }
 
 export function outputTemplateSyntax(reference: string): string {
-  return `{{${reference.replace(/^\$nodes\./, 'steps.').replace('.output.', '.')}}}`;
+  return `{{${reference.replace(/^\$nodes\./, 'steps.').replace(/^\$items\./, 'items.').replace('.output.', '.')}}}`;
 }
 
 export function outputToken(output: TokenOutput): JSONContent {
@@ -27,7 +27,7 @@ export function outputToken(output: TokenOutput): JSONContent {
 
 function parsedToken(expression: string, outputs: TokenOutput[]): JSONContent {
   const path = expression.trim();
-  const reference = path.startsWith('steps.') ? path.replace(/^steps\.([^.]+)\./, '$nodes.$1.output.') : path;
+  const reference = path.startsWith('steps.') ? path.replace(/^steps\.([^.]+)\./, '$nodes.$1.output.') : path.startsWith('items.') ? `$${path}` : path;
   const known = outputs.find(output => output.reference === reference);
   if (known) return outputToken(known);
   const parts = reference.match(/^\$nodes\.([^.]+)\.output\.(.+)$/);

@@ -45,6 +45,7 @@ import {
   type WorkflowInputSessionResult,
   type WorkflowRunDetail,
   type WorkflowRunContentRetention,
+  type WorkflowReturnedOutputReference,
   type WorkflowSummary,
   type ProjectRecord,
   type ProjectReadApprovalRequest,
@@ -1853,6 +1854,9 @@ async function requiredResolvedWorkflowId(
   flags: Record<string, string | boolean>,
   _action: string,
 ): Promise<string> {
+  // Chat-owned definitions are addressable by ID but absent from the reusable
+  // library list. The API checks ownership on the requested resource.
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(target)) return target;
   const workflow = await tryResolveWorkflow(client, target, flags);
   if (!workflow) throw new Error(`Workflow '${target}' not found.`);
   return workflow.id;
@@ -7239,6 +7243,52 @@ async function handleWorkflows(
     return;
   }
 
+  if (subcommand === "save-as-reusable") {
+    const workflowId = rest[0] ? await requiredResolvedWorkflowId(client, rest[0], flags, "save-as-reusable") : undefined;
+    if (!workflowId) throw new Error("Missing workflow ID. Example: openmates workflows save-as-reusable <id>");
+    const idempotencyKey = typeof flags["idempotency-key"] === "string" ? flags["idempotency-key"] : "";
+    if (!idempotencyKey) throw new Error("Missing --idempotency-key for workflow save-as-reusable.");
+    const workflow = await client.saveWorkflowAsReusable(workflowId, { idempotencyKey });
+    if (flags.json === true) printJson(workflow);
+    else printWorkflowDetail(workflow);
+    return;
+  }
+
+  const runRouting = () => ({
+    ...(typeof flags["source-chat"] === "string" ? { sourceChatId: flags["source-chat"] } : {}),
+    ...(typeof flags["message-destination-overrides"] === "string" ? { messageDestinationOverrides: parseJsonFlag<Record<string, string>>(flags["message-destination-overrides"], "--message-destination-overrides") } : {}),
+    ...(typeof flags["return-outputs"] === "string" ? { returnOutputs: parseJsonFlag<Record<string, WorkflowReturnedOutputReference>>(flags["return-outputs"], "--return-outputs") } : {}),
+  });
+
+  if (subcommand === "run-once") {
+    const titleFlag = typeof flags.title === "string" ? flags.title.trim() : "";
+    const graphFlag = typeof flags.graph === "string" ? flags.graph : "";
+    const fileFlag = typeof flags.file === "string" ? flags.file : "";
+    if (Boolean(graphFlag) === Boolean(fileFlag)) throw new Error("Specify exactly one of --graph JSON or --file definition.workflow.yml for run-once.");
+    let graph: WorkflowGraph;
+    let title = titleFlag;
+    if (fileFlag) {
+      assertWorkflowFilePath(fileFlag);
+      if (statSync(fileFlag).size > WORKFLOW_FILE_MAX_BYTES) throw new Error("Workflow file exceeds the size limit.");
+      const yaml = parseYamlDocument(readFileSync(fileFlag, "utf8"), { uniqueKeys: true, strict: true });
+      if (yaml.errors.length > 0) throw new Error(`Invalid workflow YAML: ${yaml.errors[0].message}`);
+      const document = validateWorkflowFile(yaml.toJS({ maxAliasCount: 20 }));
+      graph = document.workflow.graph as WorkflowGraph;
+      title ||= document.workflow.title;
+    } else graph = parseJsonFlag<WorkflowGraph>(graphFlag, "--graph");
+    if (!title) throw new Error("Missing --title for workflow run-once.");
+    const idempotencyKey = typeof flags["idempotency-key"] === "string" ? flags["idempotency-key"] : "";
+    if (!idempotencyKey) throw new Error("Missing --idempotency-key for workflow run-once.");
+    const sourceChatId = flags["source-chat"];
+    if (typeof sourceChatId !== "string" || !sourceChatId) throw new Error("Missing --source-chat for workflow run-once.");
+    const input = typeof flags.input === "string" ? parseJsonFlag<Record<string, unknown>>(flags.input, "--input") : {};
+    const result = await client.runWorkflowOnce({ title, graph, idempotencyKey, input, ...runRouting(), sourceChatId });
+    if (flags.wait === true) result.run = await waitForWorkflowRun(client, result.workflow.id, result.run);
+    if (flags.json === true) printJson(result);
+    else { printWorkflowDetail(result.workflow); printWorkflowRun(result.run); }
+    return;
+  }
+
   if (subcommand === "run") {
     const workflowId = rest[0] ? await requiredResolvedWorkflowId(client, rest[0], flags, "run") : undefined;
     if (!workflowId) throw new Error("Missing workflow ID. Example: openmates workflows run <id>");
@@ -7246,7 +7296,7 @@ async function handleWorkflows(
     if (!idempotencyKey) throw new Error("Missing --idempotency-key. Reuse this stable key when retrying the same workflow run.");
     const mode = flags.mode === "test" ? "test" : "manual";
     const input = typeof flags.input === "string" ? parseJsonFlag<Record<string, unknown>>(flags.input, "--input") : {};
-    let run = await client.runWorkflow(workflowId, { idempotencyKey, mode, input });
+    let run = await client.runWorkflow(workflowId, { idempotencyKey, mode, input, ...runRouting() });
     if (flags.wait === true) {
       run = await waitForWorkflowRun(client, workflowId, run);
     }
@@ -14898,7 +14948,9 @@ function printWorkflowsHelp(): void {
   openmates workflows show <workflow-id> [--json]
   openmates workflows enable <workflow-id> [--json]
   openmates workflows disable <workflow-id> [--json]
-  openmates workflows run <workflow-id> --idempotency-key <stable-key> [--mode manual|test] [--input '<json>'] [--wait] [--json]
+  openmates workflows run <workflow-id> --idempotency-key <stable-key> [--mode manual|test] [--input '<json>'] [--source-chat <id>] [--message-destination-overrides '<json>'] [--return-outputs '<json>'] [--wait] [--json]
+  openmates workflows run-once (--title <title> --graph '<json>' | --file definition.workflow.yml) --source-chat <id> --idempotency-key <stable-key> [--input '<json>'] [--message-destination-overrides '<json>'] [--return-outputs '<json>'] [--wait] [--json]
+  openmates workflows save-as-reusable <workflow-id> --idempotency-key <stable-key> [--json]
   openmates workflows runs <workflow-id> [--json]
   openmates workflows run-show <workflow-id> <run-id> [--json]
   openmates workflows run-cancel <workflow-id> <run-id> [--json]
@@ -14913,6 +14965,9 @@ Workflows run on the OpenMates server, not in this terminal process. The CLI
 uses your paired session and shows the same workflow/run records as web, SDKs,
 and Apple clients.
 Export writes a saved workflow's portable authoring graph to .workflow.yml.
+Run-once keeps its definition with the source chat. Save-as-reusable creates a new disabled workflow.
+--message-destination-overrides maps Send step IDs to owned chat IDs.
+--return-outputs maps result names to {"ref":"$nodes.<step>.output.<field>","type":"string"}.
 Run history and account bindings are excluded. Import creates a disabled workflow;
 review and complete its bindings before enabling it.
 Import creates a Personal Workflow. In an active Team context, pass --personal

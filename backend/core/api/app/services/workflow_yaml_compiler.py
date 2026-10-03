@@ -48,6 +48,7 @@ ALLOWED_CHAT_STEP_FIELDS = {"id", "send_chat_message"}
 ALLOWED_ASK_USER_STEP_FIELDS = {"id", "ask_for_user_input"}
 ALLOWED_WAIT_STEP_FIELDS = {"id", "wait"}
 ALLOWED_FOR_EVERY_STEP_FIELDS = {"id", "for_every"}
+ALLOWED_FOR_EACH_STEP_FIELDS = {"id", "for_each"}
 ALLOWED_REPEAT_UNTIL_STEP_FIELDS = {"id", "repeat_until"}
 ALLOWED_IF_STEP_FIELDS = {"id", "if", "if_true", "if_false"}
 SUPPORTED_STEP_FORMS = {
@@ -58,6 +59,7 @@ SUPPORTED_STEP_FORMS = {
     "ask_for_user_input",
     "wait",
     "for_every",
+    "for_each",
     "repeat_until",
     "if",
 }
@@ -182,7 +184,7 @@ def validate_workflow_yaml(source: str, capability_registry: Any | None = None) 
         )
 
     try:
-        validate_workflow_composition_refs(graph)
+        validate_workflow_composition_refs(graph, allow_data_dependencies=True)
     except ValueError as error:
         return WorkflowYamlValidationResult(
             draft_valid=False,
@@ -314,12 +316,13 @@ def _validate_steps(value: Any, path: str, step_ids: set[str], *, allow_empty: b
         form = forms[0]
         allowed_fields = {
             "use_app_skill": ALLOWED_APP_SKILL_STEP_FIELDS,
-            "check": {"id", "check"},
+            "check": {"id", "check", "option_branches", "no_match", "unsure", "yes", "no"},
             "send_notification": ALLOWED_NOTIFICATION_STEP_FIELDS,
             "send_chat_message": ALLOWED_CHAT_STEP_FIELDS,
             "ask_for_user_input": ALLOWED_ASK_USER_STEP_FIELDS,
             "wait": ALLOWED_WAIT_STEP_FIELDS,
             "for_every": ALLOWED_FOR_EVERY_STEP_FIELDS,
+            "for_each": ALLOWED_FOR_EACH_STEP_FIELDS,
             "repeat_until": ALLOWED_REPEAT_UNTIL_STEP_FIELDS,
             "if": ALLOWED_IF_STEP_FIELDS,
         }[form]
@@ -329,6 +332,26 @@ def _validate_steps(value: Any, path: str, step_ids: set[str], *, allow_empty: b
         elif form == "check":
             if not isinstance(step.get("check"), dict):
                 diagnostics.append(WorkflowYamlDiagnostic("FIELD_TYPE", f"{step_path}.check", "check must be a structured predicate"))
+            elif step["check"].get("mode") == "ai":
+                check = step["check"]
+                diagnostics.extend(_unknown_field_diagnostics(check, {"mode", "question", "selected_inputs", "result_type", "selection_mode", "options"}, f"{step_path}.check"))
+                question = check.get("question", "")
+                if not isinstance(question, str) or (check.get("result_type", "boolean") != "options" and not question.strip()):
+                    diagnostics.append(WorkflowYamlDiagnostic("FIELD_REQUIRED", f"{step_path}.check.question", "Boolean AI Check requires a question"))
+                if not isinstance(check.get("selected_inputs"), list):
+                    diagnostics.append(WorkflowYamlDiagnostic("FIELD_TYPE", f"{step_path}.check.selected_inputs", "selected_inputs must be a list"))
+                option_branches = step.get("option_branches", {})
+                if not isinstance(option_branches, dict):
+                    diagnostics.append(WorkflowYamlDiagnostic("FIELD_TYPE", f"{step_path}.option_branches", "option_branches must be a mapping"))
+                    option_branches = {}
+                option_ids = {option.get("id") for option in check.get("options", []) if isinstance(option, dict)} if isinstance(check.get("options"), list) else set()
+                for branch_name, children in option_branches.items():
+                    if branch_name not in option_ids:
+                        diagnostics.append(WorkflowYamlDiagnostic("OPTION_BRANCH_UNKNOWN", f"{step_path}.option_branches.{branch_name}", "option branch must name a declared option"))
+                    diagnostics.extend(_validate_steps(children, f"{step_path}.option_branches.{branch_name}", step_ids, allow_empty=True))
+                for branch_name in ("no_match", "unsure", "yes", "no"):
+                    if branch_name in step:
+                        diagnostics.extend(_validate_steps(step[branch_name], f"{step_path}.{branch_name}", step_ids, allow_empty=True))
         elif form == "send_notification":
             diagnostics.extend(_validate_notification_step(step, step_path, step_id))
         elif form == "send_chat_message":
@@ -337,6 +360,8 @@ def _validate_steps(value: Any, path: str, step_ids: set[str], *, allow_empty: b
             diagnostics.extend(_validate_ask_user_step(step, step_path, step_id))
         elif form == "wait":
             diagnostics.extend(_validate_wait_step(step, step_path, step_id))
+        elif form == "for_each":
+            diagnostics.extend(_validate_for_each_step(step, step_path, step_id, step_ids))
         elif form in {"for_every", "repeat_until"}:
             diagnostics.extend(_validate_repeat_step(step, step_path, step_id, step_ids, form))
         else:
@@ -444,6 +469,20 @@ def _validate_repeat_step(step: dict[str, Any], path: str, step_id: Any, step_id
     return diagnostics
 
 
+def _validate_for_each_step(step: dict[str, Any], path: str, step_id: Any, step_ids: set[str]) -> list[WorkflowYamlDiagnostic]:
+    value = step.get("for_each")
+    if not isinstance(value, dict):
+        return [WorkflowYamlDiagnostic("FIELD_TYPE", f"{path}.for_each", "for_each must be a mapping")]
+    diagnostics = _unknown_field_diagnostics(value, {"items", "do", "max_items", "max_duration_seconds", "max_credits", "per_item_timeout_seconds"}, f"{path}.for_each")
+    if not isinstance(value.get("items"), str) or not value["items"].startswith(("$nodes.", "trigger.")):
+        diagnostics.append(WorkflowYamlDiagnostic("FIELD_TYPE", f"{path}.for_each.items", "items must reference an earlier typed list"))
+    if not isinstance(value.get("do"), list):
+        diagnostics.append(WorkflowYamlDiagnostic("FIELD_REQUIRED", f"{path}.for_each.do", "do must be a step list"))
+    else:
+        diagnostics.extend(_validate_steps(value["do"], f"{path}.for_each.do", step_ids, allow_empty=True))
+    return diagnostics
+
+
 def _validate_enable_readiness(document: dict[str, Any], capability_registry: Any | None = None) -> list[WorkflowYamlDiagnostic]:
     diagnostics: list[WorkflowYamlDiagnostic] = []
     registry = capability_registry or WorkflowCapabilityRegistry()
@@ -510,6 +549,8 @@ def _walk_steps(steps: list[dict[str, Any]], path: str):
             yield from _walk_steps(step.get("if_false", []), f"{step_path}.if_false")
         if isinstance(step.get("for_every"), dict):
             yield from _walk_steps(step["for_every"].get("do", []), f"{step_path}.for_every.do")
+        if isinstance(step.get("for_each"), dict):
+            yield from _walk_steps(step["for_each"].get("do", []), f"{step_path}.for_each.do")
         if isinstance(step.get("repeat_until"), dict):
             yield from _walk_steps(step["repeat_until"].get("do", []), f"{step_path}.repeat_until.do")
 
@@ -520,7 +561,7 @@ def _compile_graph(document: dict[str, Any]) -> WorkflowGraph:
     edges: list[WorkflowEdge] = []
     _compile_steps(document["steps"], [(trigger.id, None)] if trigger else [], nodes, edges)
     return WorkflowGraph(
-        version=2 if all(node.type in {WorkflowNodeType.SCHEDULE_TRIGGER, WorkflowNodeType.MANUAL_TRIGGER, WorkflowNodeType.APP_SKILL_ACTION, WorkflowNodeType.CHECK, WorkflowNodeType.SEND_CHAT_MESSAGE} for node in nodes) else AUTHORING_VERSION,
+        version=2 if all(node.type in {WorkflowNodeType.SCHEDULE_TRIGGER, WorkflowNodeType.MANUAL_TRIGGER, WorkflowNodeType.APP_SKILL_ACTION, WorkflowNodeType.CHECK, WorkflowNodeType.FOR_EACH, WorkflowNodeType.SEND_CHAT_MESSAGE} for node in nodes) else AUTHORING_VERSION,
         trigger_node_id=trigger.id if trigger else None,
         nodes=nodes,
         edges=edges,
@@ -549,6 +590,19 @@ def _compile_steps(
         nodes.append(node)
         for source_id, branch in previous:
             edges.append(WorkflowEdge(**{"from": source_id, "to": node.id, "branch": branch}))
+        if "for_each" in step:
+            if step["for_each"]["do"]:
+                _compile_steps(step["for_each"]["do"], [(node.id, "body")], nodes, edges)
+            previous = [(node.id, None)]
+            continue
+        if "check" in step and step["check"].get("mode") == "ai":
+            for option_id, branch_steps in (step.get("option_branches") or {}).items():
+                _compile_steps(branch_steps, [(node.id, f"option:{option_id}")], nodes, edges)
+            for branch_name in ("no_match", "unsure", "yes", "no"):
+                if step.get(branch_name):
+                    _compile_steps(step[branch_name], [(node.id, branch_name)], nodes, edges)
+            previous = [(node.id, None)]
+            continue
         if "if" not in step:
             previous = [(node.id, None)]
             continue
@@ -567,7 +621,8 @@ def _compile_step_node(step: dict[str, Any]) -> WorkflowNode:
             config={"app_id": app_id, "skill_id": skill_id, "input": dict(step.get("input", {}))},
         )
     if "check" in step:
-        return WorkflowNode(id=step["id"], type=WorkflowNodeType.CHECK, config={"predicate": _normalize_predicate(dict(step["check"]))})
+        config = dict(step["check"])
+        return WorkflowNode(id=step["id"], type=WorkflowNodeType.CHECK, config=config if config.get("mode") == "ai" else {"predicate": _normalize_predicate(config)})
     if "send_notification" in step:
         return WorkflowNode(id=step["id"], type=WorkflowNodeType.SEND_NOTIFICATION, config=dict(step["send_notification"]))
     if "send_chat_message" in step:
@@ -584,6 +639,9 @@ def _compile_step_node(step: dict[str, Any]) -> WorkflowNode:
         config.setdefault("max_credits", 100)
         config.setdefault("per_iteration_timeout_seconds", 60)
         return WorkflowNode(id=step["id"], type=WorkflowNodeType.REPEAT, config=config)
+    if "for_each" in step:
+        config = {key: value for key, value in step["for_each"].items() if key != "do"}
+        return WorkflowNode(id=step["id"], type=WorkflowNodeType.FOR_EACH, config=config)
     if "repeat_until" in step:
         config = dict(step["repeat_until"])
         config.setdefault("mode", "repeat_until")

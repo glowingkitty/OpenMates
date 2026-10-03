@@ -11,7 +11,9 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 import hashlib
+import hmac
 import json
+import os
 from typing import Any, Awaitable, Callable
 from datetime import datetime, timedelta
 import uuid
@@ -143,6 +145,9 @@ class WorkflowAppSkillAdapter:
         )
         metadata = registry.get_metadata(app_id) if hasattr(registry, "get_metadata") else None
         _require_workflow_runtime_safe(app_id, skill_id, metadata)
+        remaining = _workflow_credit_allowance(billing_context)
+        if remaining is not None and (app_id, skill_id) == (AI_APP_ID, AI_ASK_SKILL_ID):
+            skill_request["workflow_budget"] = sign_workflow_ai_budget(user_id, billing_context, remaining)
         if billing_context and (app_id, skill_id) != (AI_APP_ID, AI_ASK_SKILL_ID):
             _workflow_usage_source(billing_context)
             _workflow_billing_identity(
@@ -157,6 +162,7 @@ class WorkflowAppSkillAdapter:
                 request=skill_request,
                 user_id=user_id,
                 metadata=metadata,
+                max_credits_remaining=remaining,
             )
         with central_app_skill_dispatch():
             raw_output = await registry.dispatch_skill(app_id, skill_id, skill_request)
@@ -245,12 +251,16 @@ class WorkflowAppSkillAdapter:
         """Consume the real ai.ask stream, then return one sanitized billed result."""
         from fastapi.responses import StreamingResponse
 
+        remaining = _workflow_credit_allowance(billing_context)
+
         registry = self.registry
         if registry is None:
             from backend.core.api.app.services.skill_registry import get_global_registry
             registry = get_global_registry()
         await self._validate_ask_model(request.get("model"))
         skill_request = _prepare_workflow_skill_request("ai", "ask", request, user_id)
+        if remaining is not None:
+            skill_request["workflow_budget"] = sign_workflow_ai_budget(user_id, billing_context, remaining)
         skill_request["stream"] = True
         with central_app_skill_dispatch():
             response = await registry.dispatch_skill("ai", "ask", skill_request)
@@ -370,6 +380,49 @@ def _workflow_usage_source(billing_context: dict[str, Any]) -> str:
     return str(source)
 
 
+def _workflow_credit_allowance(billing_context: dict[str, Any] | None) -> int | None:
+    if not billing_context or "max_credits_remaining" not in billing_context:
+        return None
+    value = billing_context["max_credits_remaining"]
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise WorkflowSkillBillingError("WORKFLOW_BILLING_INVALID_CONTEXT", "Workflow credit allowance is invalid")
+    return value
+
+
+def sign_workflow_ai_budget(
+    user_id: str | None, billing_context: dict[str, Any] | None, credits: int,
+) -> dict[str, Any]:
+    """Bind an internal Ask AI allowance to its owner and workflow occurrence."""
+    secret = os.getenv("INTERNAL_API_SHARED_TOKEN")
+    if not secret or not user_id or not billing_context or credits <= 0:
+        raise WorkflowSkillBillingError("WORKFLOW_FOR_EACH_CREDITS", "Ask AI credit allowance is unavailable")
+    payload = {"user_id": user_id, "workflow_id": billing_context.get("workflow_id"),
+               "run_id": billing_context.get("run_id"), "node_id": billing_context.get("node_id"),
+               "max_credits": credits}
+    if not all(isinstance(payload[key], str) and payload[key] for key in ("workflow_id", "run_id", "node_id")):
+        raise WorkflowSkillBillingError("WORKFLOW_BILLING_INVALID_CONTEXT", "Workflow billing context is invalid")
+    material = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    payload["signature"] = hmac.new(secret.encode(), material.encode(), hashlib.sha256).hexdigest()
+    return payload
+
+
+def verify_workflow_ai_budget(user_id: str, payload: Any) -> int | None:
+    if not isinstance(payload, dict) or set(payload) != {
+        "user_id", "workflow_id", "run_id", "node_id", "max_credits", "signature",
+    } or payload.get("user_id") != user_id:
+        return None
+    credits = payload.get("max_credits")
+    if isinstance(credits, bool) or not isinstance(credits, int) or credits <= 0 or credits > 1000:
+        return None
+    secret = os.getenv("INTERNAL_API_SHARED_TOKEN")
+    if not secret:
+        return None
+    material = json.dumps({key: payload[key] for key in payload if key != "signature"},
+                          sort_keys=True, separators=(",", ":"))
+    expected = hmac.new(secret.encode(), material.encode(), hashlib.sha256).hexdigest()
+    return credits if hmac.compare_digest(expected, str(payload["signature"])) else None
+
+
 def _workflow_billing_identity(
     *,
     app_id: str,
@@ -424,6 +477,7 @@ async def _precheck_workflow_skill_billing(
     request: dict[str, Any],
     user_id: str | None,
     metadata: Any,
+    max_credits_remaining: int | None = None,
 ) -> None:
     if not user_id or metadata is None or _find_skill_definition(metadata, skill_id) is None:
         raise WorkflowSkillBillingError("WORKFLOW_BILLING_UNAVAILABLE", "Workflow skill billing is unavailable")
@@ -437,10 +491,20 @@ async def _precheck_workflow_skill_billing(
         input_data=request,
         app_id=app_id,
     )
+    required_credits = max(reserved_credits, estimated_credits)
+    if max_credits_remaining is not None:
+        if (app_id, skill_id) in apps_api.VARIABLE_RESULT_BILLING_SKILLS and reserved_credits <= 0:
+            raise WorkflowSkillBillingError(
+                "WORKFLOW_FOR_EACH_UNBOUNDED_COST", "Workflow skill has no bounded credit reservation",
+            )
+        if required_credits > max_credits_remaining:
+            raise WorkflowSkillBillingError(
+                "WORKFLOW_FOR_EACH_CREDITS", "For-each credit limit would be exceeded",
+            )
     try:
         await ensure_credit_headroom(
             user_id=user_id,
-            estimated_credits=max(reserved_credits, estimated_credits),
+            estimated_credits=required_credits,
             operation_name=f"workflow skill {app_id}.{skill_id}",
             log_prefix="[WorkflowBilling]",
         )
@@ -488,6 +552,12 @@ async def _charge_workflow_skill_result(
         ]
     else:
         charge_items = result_charge_items
+
+    remaining = _workflow_credit_allowance(billing_context)
+    if remaining is not None and (credits_charged > remaining or sum(max(0, credits) for _, credits in charge_items) > remaining):
+        raise WorkflowSkillBillingError(
+            "WORKFLOW_FOR_EACH_CREDITS", "For-each credit limit would be exceeded",
+        )
 
     skill_definition = _find_skill_definition(metadata, skill_id)
     if skill_definition is None:

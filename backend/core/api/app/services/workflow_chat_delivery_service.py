@@ -32,6 +32,9 @@ class WorkflowChatDeliveryVaultCipher(Protocol):
         """Return Vault ciphertext for a pending delivery payload."""
 
 
+CHAT_DEFINITION_NODE_ID = "__chat_definition__"
+
+
 class WorkflowChatDeliveryError(RuntimeError):
     """Base error for the isolated delivery state machine."""
 
@@ -73,7 +76,7 @@ class WorkflowChatDelivery:
     owner_id: str = field(repr=False)
     encrypted_payload: str = field(repr=False)
     created_at: int
-    expires_at: int
+    expires_at: int | None
     owner_hash: str | None = field(default=None, repr=False)
     status: str = "delivery_pending"
     claim: WorkflowChatDeliveryClaim | None = None
@@ -160,7 +163,7 @@ class DirectusWorkflowChatDeliveryRepository:
 
     def save_delivery(self, delivery: WorkflowChatDelivery) -> WorkflowChatDelivery:
         payload = self._record_from_delivery(delivery)
-        if delivery.workflow_id and delivery.run_id:
+        if delivery.workflow_id and (delivery.run_id or delivery.node_id == CHAT_DEFINITION_NODE_ID):
             from backend.core.api.app.services.workflow_delivery_history import runtime_transaction
             result = runtime_transaction(self, action="save_delivery", workflow_id=delivery.workflow_id,
                                          run_id=delivery.run_id, hashed_user_id="user_sha256:" + payload["hashed_user_id"], delivery=payload)
@@ -240,7 +243,7 @@ class DirectusWorkflowChatDeliveryRepository:
             owner_id=owner_id,
             encrypted_payload=str(item["encrypted_payload"]),
             created_at=int(item["created_at"]),
-            expires_at=int(item["expires_at"]),
+            expires_at=int(item["expires_at"]) if item.get("expires_at") is not None else None,
             owner_hash=str(item.get("hashed_user_id") or ""),
             status=str(item.get("status") or "delivery_pending"),
             claim_generation=int(item.get("claim_generation") or 0),
@@ -344,7 +347,7 @@ class WorkflowChatDeliveryService:
         self._delivery_history = delivery_history
 
     def create_delivery(
-        self, *, owner_id: str, title: str, message: str, expires_at: int,
+        self, *, owner_id: str, title: str, message: str, expires_at: int | None,
         chat_id: str | None = None, delivery_id: str | None = None,
         message_id: str | None = None, workflow_id: str | None = None,
         run_id: str | None = None, node_id: str | None = None,
@@ -362,7 +365,7 @@ class WorkflowChatDeliveryService:
             workflow_id=workflow_id, run_id=run_id, node_id=node_id)
 
     def create_encrypted_delivery(
-        self, *, owner_id: str, encrypted_payload: str, expires_at: int,
+        self, *, owner_id: str, encrypted_payload: str, expires_at: int | None,
         chat_id: str | None = None, delivery_id: str | None = None,
         message_id: str | None = None, workflow_id: str | None = None,
         run_id: str | None = None, node_id: str | None = None,
@@ -370,7 +373,10 @@ class WorkflowChatDeliveryService:
         if not owner_id or not encrypted_payload:
             raise ValueError("owner_id and encrypted_payload are required")
         now = self._now()
-        if expires_at <= now:
+        is_definition = bool(workflow_id and not run_id and node_id == CHAT_DEFINITION_NODE_ID and chat_id)
+        if (expires_at is None) != is_definition:
+            raise ValueError("Only chat-owned definition deliveries may have no expiry")
+        if expires_at is not None and expires_at <= now:
             raise ValueError("expires_at must be in the future")
         delivery = WorkflowChatDelivery(delivery_id=delivery_id or str(uuid.uuid4()),
             chat_id=chat_id or str(uuid.uuid4()), message_id=message_id or str(uuid.uuid4()),
@@ -379,7 +385,9 @@ class WorkflowChatDeliveryService:
         with self._lock:
             existing = self._repository.get_delivery(delivery.delivery_id, owner_id)
             if existing:
-                if existing.workflow_id != workflow_id or existing.run_id != run_id or existing.node_id != node_id:
+                if (existing.workflow_id != workflow_id or existing.run_id != run_id
+                        or existing.node_id != node_id or existing.chat_id != delivery.chat_id
+                        or existing.expires_at != expires_at):
                     raise WorkflowChatDeliveryStateError("Delivery identity conflicts with existing delivery")
                 return self._snapshot(existing)
             delivery = self._repository.save_delivery(delivery)
@@ -391,7 +399,8 @@ class WorkflowChatDeliveryService:
             deliveries = self._repository.list_pending_for_owner(owner_id, limit=limit)
             result: list[WorkflowChatDelivery] = []
             for delivery in deliveries:
-                if delivery.status == "claimed" and not delivery.run_id:
+                if (delivery.status == "claimed" and not delivery.run_id
+                        and delivery.node_id != CHAT_DEFINITION_NODE_ID):
                     continue
                 if self._expire_if_due(delivery):
                     self._repository.save_delivery(delivery)
@@ -501,7 +510,7 @@ class WorkflowChatDeliveryService:
                 raise WorkflowChatDeliveryStateError("Client ciphertext must be persisted before acknowledgement")
             delivery.status = "acknowledged"
             delivery.acknowledged_at = self._now()
-            if delivery.run_id:
+            if delivery.run_id or delivery.node_id == CHAT_DEFINITION_NODE_ID:
                 delivery.encrypted_payload = ""
             if delivery.run_id and self._delivery_history is not None:
                 self._delivery_history.acknowledge_in_memory(delivery)
@@ -521,8 +530,13 @@ class WorkflowChatDeliveryService:
             delivery = self._require_owner_delivery(delivery_id, owner_id)
             self._require_current_claim(delivery, claim)
             self._require_claim_device(delivery, device_id)
-            if not delivery.run_id or delivery.client_persistence is not None:
+            if not (delivery.run_id or delivery.node_id == CHAT_DEFINITION_NODE_ID) or delivery.client_persistence is not None:
                 raise WorkflowChatDeliveryStateError("Persisted or legacy delivery cannot be failed")
+            if delivery.node_id == CHAT_DEFINITION_NODE_ID:
+                # A bad client ciphertext must not erase the only definition
+                # copy for a retained chat. A fresh owner device can claim it.
+                self._clear_claim(delivery)
+                return self._snapshot(self._repository.save_delivery(delivery))
             delivery.status = "failed"
             delivery.encrypted_payload = ""
             delivery = self._repository.save_delivery(delivery)
@@ -536,13 +550,13 @@ class WorkflowChatDeliveryService:
             delivery = self._require_owner_delivery(delivery_id, owner_id)
             if delivery.status == "cancelled":
                 return self._snapshot(delivery)
-            if delivery.status == "acknowledged" or (delivery.run_id and delivery.client_persistence is not None):
+            if delivery.status == "acknowledged" or ((delivery.run_id or delivery.node_id == CHAT_DEFINITION_NODE_ID) and delivery.client_persistence is not None):
                 raise WorkflowChatDeliveryStateError("Persisted delivery cannot be cancelled; deleting its run forgets results")
             if delivery.status == "expired":
                 return self._snapshot(delivery)
             delivery.status = "cancelled"
             delivery.cancelled_at = self._now()
-            if delivery.run_id:
+            if delivery.run_id or delivery.node_id == CHAT_DEFINITION_NODE_ID:
                 delivery.encrypted_payload = ""
             if delivery.run_id and self._delivery_history is not None:
                 self._delivery_history.release(delivery.delivery_id, delivery.workflow_id, owner_id)
@@ -553,6 +567,8 @@ class WorkflowChatDeliveryService:
         """Terminally expire one unacknowledged owner delivery."""
         with self._lock:
             delivery = self._require_owner_delivery(delivery_id, owner_id)
+            if delivery.node_id == CHAT_DEFINITION_NODE_ID:
+                return self._snapshot(delivery)
             if delivery.status in {"acknowledged", "cancelled", "expired"} or (delivery.run_id and delivery.client_persistence is not None):
                 return self._snapshot(delivery)
             delivery.status = "expired"
@@ -587,7 +603,7 @@ class WorkflowChatDeliveryService:
     def _require_claimable(self, delivery: WorkflowChatDelivery) -> None:
         if delivery.status in self.TERMINAL_STATUSES:
             raise WorkflowChatDeliveryStateError(f"Delivery is {delivery.status}")
-        if delivery.client_persistence is not None and not delivery.run_id:
+        if delivery.client_persistence is not None and not (delivery.run_id or delivery.node_id == CHAT_DEFINITION_NODE_ID):
             raise WorkflowChatDeliveryStateError("Delivery ciphertext is already persisted")
 
     def _require_current_claim(self, delivery: WorkflowChatDelivery, claim: WorkflowChatDeliveryClaim) -> None:
@@ -606,7 +622,7 @@ class WorkflowChatDeliveryService:
             raise WorkflowChatDeliveryStaleClaimError("Delivery claim belongs to another device")
 
     def _expire_if_due(self, delivery: WorkflowChatDelivery) -> bool:
-        if delivery.status in self.TERMINAL_STATUSES or delivery.expires_at > self._now():
+        if delivery.status in self.TERMINAL_STATUSES or delivery.expires_at is None or delivery.expires_at > self._now():
             return False
         if delivery.run_id and delivery.client_persistence is not None:
             # Expire the temporary Vault payload, not the already committed result memory.

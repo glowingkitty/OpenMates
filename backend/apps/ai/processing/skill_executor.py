@@ -241,6 +241,10 @@ async def execute_skill(
 
     # Build the request body — same shape the old HTTP path used
     request_body = arguments.copy()
+    if app_id == "workflows":
+        # Workflow invocation context belongs to the authenticated caller.
+        # Generated tool arguments cannot supply internal identities/services.
+        request_body = {key: value for key, value in request_body.items() if not key.startswith("_")}
     if chat_id:
         request_body["_chat_id"] = chat_id
     if message_id:
@@ -462,9 +466,13 @@ async def execute_skill_with_multiple_requests(
     """
     # Extract metadata fields from arguments if present (they might have been added by caller)
     # Don't modify the original arguments dict - create a copy for processing
-    extracted_chat_id = arguments.get("_chat_id") or chat_id
-    extracted_message_id = arguments.get("_message_id") or message_id
-    extracted_user_id = arguments.get("_user_id") or user_id
+    if app_id == "workflows":
+        extracted_chat_id, extracted_message_id, extracted_user_id = chat_id, message_id, user_id
+        arguments = {key: value for key, value in arguments.items() if not key.startswith("_")}
+    else:
+        extracted_chat_id = arguments.get("_chat_id") or chat_id
+        extracted_message_id = arguments.get("_message_id") or message_id
+        extracted_user_id = arguments.get("_user_id") or user_id
     
     # Check if arguments contain multiple requests in the standard "requests" array format
     # Skills that support multiple requests expect them in a single call with {"requests": [...]}

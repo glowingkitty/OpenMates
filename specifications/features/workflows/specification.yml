@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.workflows
-version: 8
+version: 9
 status: draft
 title: Workflows
 summary: >
@@ -15,7 +15,7 @@ scope:
     - Manual execution readiness, optional single-schedule activation, deterministic control flow, visible costs, and run deletion.
     - Encrypted retained Workflow inputs, outputs, pending chat delivery, and indexed run-owned delivery fingerprints.
     - Date/time recurrence, new-result filtering before dependent AI, selected-result embeds, and typed inline chat templates.
-    - Bounded boolean AI Check decisions over explicitly selected earlier values, with one Jev decision call and an explicit Unsure outcome.
+    - Bounded boolean and single/multiple-choice AI Check decisions over explicitly selected earlier values, with one Jev decision call and an explicit Unsure outcome.
     - Tool-isolated Ask AI answers over explicit earlier Workflow values, with selected-result preview references and shared authoring validation across web, CLI and SDKs.
     - Workflow send_chat_message delivery for existing or newly routed owner chats.
     - Owner-device claim, encrypted persistence, acknowledgement, retry, expiry, cancellation, and reconnect semantics for chat delivery.
@@ -24,7 +24,7 @@ scope:
   excludes:
     - General Filter nodes, advanced recurrence, and new day/week/month budget forecasts and caps (deferred beyond this delivery).
     - Non-Workflow chat sends and normal chat inference.
-    - User-input pauses, general loops, Wait nodes, and custom code execution in this contract amendment.
+    - User-input pauses, nested or unbounded loops, Wait nodes, and custom code execution in this contract amendment.
     - Structured or multiple named Ask AI outputs and Ask AI-initiated app-skill calls.
     - V1 event/chat/webhook triggers, direct project writes, cross-provider duplicate detection, and comparison with manually saved project content.
     - Separate report, push, or email action nodes; normal chat notifications remain available.
@@ -35,6 +35,38 @@ scope:
     - File-based transfer of execution history, account authorization, or Workflow ownership to a Team.
 
 models:
+  WorkflowOptionsCheck:
+    configuration:
+      type: stable_option_definitions_and_bounded_explicit_inputs
+      constraints: {result_type: options, selection_modes: [single, multiple], minimum_options: 2, maximum_options: 10, optional_instruction: true, stable_option_ids: true}
+    result:
+      type: ordered_option_selection
+      constraints: {outputs: [selected_options, selected_labels, selected_count, matches, decision], single_exactly_one: true, multiple_zero_or_more: true, partial_uncertain_selection: forbidden}
+  WorkflowForEach:
+    source:
+      type: accessible_typed_array_reference
+      constraints: {snapshot_before_body: true, sibling_or_future_references: forbidden}
+    body:
+      type: sequential_scoped_graph
+      constraints: {nested_loops: forbidden, item_reference: '$items.<loop_id>.item', index_reference: '$items.<loop_id>.index', empty_body_allowed: true}
+    limits:
+      type: explicit_bounded_runtime_limits
+      constraints: {maximum_items: 100, silent_truncation: forbidden, duration_and_credit_limits: required, stop_on_failure: true}
+  WorkflowChatOwnedDefinition:
+    snapshot:
+      type: encrypted_chat_embed_definition
+      constraints: {lifecycle: chat_embed, seven_day_expiry: false, reusable_library_visibility: false, schedules: forbidden, enabled: false}
+    conversion:
+      type: new_owner_owned_reusable_workflow
+      constraints: {copy_current_saved_definition: true, enabled: false, transfer_run_history: false, independent_chat_lifetime: true}
+  WorkflowInvocation:
+    context:
+      type: encrypted_run_owned_invocation
+      constraints: {source_chat_owner_verified: true, destination_overrides_per_send_node: true, saved_graph_mutation: false}
+    returned_data:
+      type: bounded_explicit_output_projection
+      constraints: {whole_run_or_chat_context: forbidden, regular_chat_encryption: required, run_status_and_reference: included}
+
   PortableWorkflowFile:
     document:
       type: versioned_yaml_document
@@ -57,7 +89,7 @@ models:
     active_graph:
       type: executable_workflow_graph
       required: true
-      constraints: {automatic_trigger_optional: true, maximum_automatic_triggers: 1, automatic_trigger_kind: schedule_trigger, complete_forward_graph_required: true, reachable_send_message_required: true}
+      constraints: {automatic_trigger_optional: true, maximum_automatic_triggers: 1, automatic_trigger_kind: schedule_trigger, complete_forward_graph_required: true, reachable_send_message_or_explicit_caller_return_required: true}
     qualifying_side_effects:
       type: workflow_node_type_set
       values: [send_chat_message]
@@ -263,7 +295,7 @@ assertions:
 
   - id: workflows.mvp.steps
     type: behavior
-    must: Authoring offers Use app skill, Ask AI, Check and Send message, plus an optional time/date trigger. Ask AI uses the AI app's Ask capability internally but is not offered inside Use app. Check starts as an exact typed rule and can instead use bounded AI judgment for a boolean question over explicitly selected earlier values. Structured Ask AI outputs, code, pauses, loops, Wait and separate report/push/email actions remain out of scope for this contract amendment. Legacy definitions remain inspectable and are never silently rewritten; unsupported legacy actions require an explicit edit before new execution.
+    must: Authoring offers Use app skill, Ask AI, Check and Send message, plus an optional time/date trigger. Ask AI uses the AI app's Ask capability internally but is not offered inside Use app. Check starts as an exact typed rule and can instead use bounded AI judgment for a boolean or option selection over explicitly selected earlier values. Bounded For each is available over a typed list. Structured Ask AI outputs, code, pauses, nested loops, Wait and separate report/push/email actions remain out of scope for this contract amendment. Legacy definitions remain inspectable and are never silently rewritten; unsupported legacy actions require an explicit edit before new execution.
     depends_on:
     - examples.mvp_steps
   - id: workflows.schedule.recurrence
@@ -321,14 +353,14 @@ assertions:
   - id: workflows.control.ai-check
     type: behavior
     must: >
-      An AI Check answers one bounded authored true/false question using only the earlier typed values visibly inserted in its question; a static question is allowed when no earlier action exists. The author can inspect the exact projected values before testing or saving. The runtime minimizes and bounds those values, labels external text as untrusted data, excludes whole-run context, chat history, attachments, credentials and opaque access material, and never lets selected data change the authored question. One Jev call validates and evaluates the question for each Test or run, yielding If true, If false or Unsure. An invalid authored question shows an error on Save or Test; a genuinely uncertain or unavailable runtime decision follows Unsure without a second provider call. The author can configure the Unsure branch with the same supported steps as the true and false branches, or leave it empty to do nothing in that branch. An empty branch still resumes any shared continuation. Retained encrypted run detail shows the question, projected inputs, outcome, decision path and whether Unsure arose from uncertain judgment or evaluator failure, without raw provider responses. An accepted completed decision is reused across retries rather than re-inferred or charged twice.
+      A boolean AI Check answers one bounded authored true/false question using only the earlier typed values visibly inserted in its question; a static question is allowed when no earlier action exists. The author can inspect the exact projected values before testing or saving. The runtime minimizes and bounds those values, labels external text as untrusted data, excludes whole-run context, chat history, attachments, credentials and opaque access material, and never lets selected data change the authored question. One Jev call validates and evaluates the question for each Test or run, yielding If true, If false or Unsure. An invalid authored question shows an error on Save or Test; a genuinely uncertain or unavailable runtime decision follows Unsure without a second provider call. The author can configure the Unsure branch with the same supported steps as the true and false branches, or leave it empty to do nothing in that branch. An empty branch still resumes any shared continuation. Retained encrypted run detail shows the question, projected inputs, outcome, decision path and whether Unsure arose from uncertain judgment or evaluator failure, without raw provider responses. An accepted completed decision is reused across retries rather than re-inferred or charged twice.
     depends_on:
     - models.WorkflowAiCheck
     - examples.ai_check
   - id: workflows.ai-check.single-call-billing
     type: behavior
     must: >
-      An authoritative graph Save validates a new or changed AI judgment question with Jev and charges exactly one credit per dispatched Jev validation, including a rejected question or provider failure after dispatch; an unchanged question does not trigger another validation charge. Each Test or run uses one Jev call to validate and evaluate the boolean question together and charges one credit when dispatched, including an Unsure outcome or provider failure. Typing or selecting fields never calls a provider. Deterministic structural errors, missing Jev credentials or preparation failure before dispatch, and insufficient credits fail before provider work without a charge. Retries of the same owner-scoped logical validation or decision, including a rejection, use a distributed lock and never debit twice; transient provider unavailability is not cached as an accepted verdict for 24 hours. Invalid questions return clear Save or Test errors; runtime uncertainty retains the Unsure branch without a fallback call.
+      An authoritative graph Save validates a new or changed AI judgment configuration with Jev and charges exactly one credit per dispatched Jev validation, including a rejected question or provider failure after dispatch; an unchanged semantic Check configuration does not trigger another validation charge. Each Test or run uses one Jev call to validate and evaluate the boolean question together and charges one credit when dispatched, including an Unsure outcome or provider failure. Typing or selecting fields never calls a provider. Deterministic structural errors, missing Jev credentials or preparation failure before dispatch, and insufficient credits fail before provider work without a charge. Retries of the same owner-scoped logical validation or decision, including a rejection, use a distributed lock and never debit twice; transient provider unavailability is not cached as an accepted verdict for 24 hours. Invalid questions return clear Save or Test errors; runtime uncertainty retains the Unsure branch without a fallback call.
     depends_on: [models.WorkflowAiCheck]
   - id: workflows.ai-ask.execution
     type: behavior
@@ -443,6 +475,32 @@ assertions:
     must: A durable message with a lost acknowledgement is not an undelivered failure. Its run-owned selected-result reservations become non-expiring until acknowledgement recovery or explicit run deletion; ordinary delivery expiry and failed-run cleanup cannot forget already-persisted output. Recovery acknowledges existing ciphertext without generating a new chat or message key.
     depends_on: [examples.delivery_recovery]
 
+  - id: workflows.control.choice-check
+    type: behavior
+    must: >
+      Offer exactly-one and all-that-apply AI Checks over two to ten stable options. Single uses one Jev Choice evaluation; multiple uses independent option judgments in one Jev request. Missing, malformed or uncertain required judgments route the entire Check to Unsure before any selected branch runs. Selected branches run sequentially in authored option order, then shared continuation once. Only multiple mode offers No match; single none is Unsure. Preserve legacy boolean outputs, explicit input bounds, accepted-decision reuse and one dispatched-Check charge.
+    depends_on: [models.WorkflowOptionsCheck, examples.choice_check]
+  - id: workflows.control.for-each
+    type: behavior
+    must: >
+      For each snapshots an accessible typed list and executes its body sequentially with a scoped item and zero-based index. Enforce item, duration, per-item timeout and credit limits before further effects, reject oversized lists before the body rather than truncating, stop on failure and obey cancellation. Empty list or body continues once without body effects. Retry/resume reuse completed per-item executions and charges. Sibling, future, outside-body item references and nested loops are rejected.
+    depends_on: [models.WorkflowForEach, examples.for_each]
+  - id: workflows.chat.embedded-lifecycle
+    type: privacy
+    must: >
+      A one-time Workflow belongs to its initiating owner chat as an encrypted definition embed plus the minimal encrypted execution backing record. It has no automatic seven-day definition expiry, no schedule, and is excluded from the reusable library. Save as reusable creates a fresh disabled independent definition, without copying history. Chat deletion cancels/fences owned executions and removes their backing definitions; independently saved copies survive. Normal run-content retention still applies.
+    depends_on: [models.WorkflowChatOwnedDefinition, examples.chat_owned]
+  - id: workflows.chat.invocation
+    type: privacy
+    must: >
+      Authorized chats may run a saved Workflow or create-and-run a one-time definition with explicit typed start inputs. Capture initiating chat separately from current client navigation and owner-verify it and every selected Send destination. Per-invocation destination overrides are encrypted run state and never modify or export the saved graph. Existing six-second cancellation and idempotent admission semantics apply. Do not add workflow discovery preprocessing or Start AI chat in this release.
+    depends_on: [models.WorkflowInvocation, examples.invocation]
+  - id: workflows.chat.result-return
+    type: behavior
+    must: >
+      A caller may select bounded typed outputs to return with run identity and terminal status via normal encrypted owner-chat delivery. No complete run context is exposed implicitly. A graph with a validated explicit caller-return projection may execute without Send message; ordinary scheduled runs retain their reachable delivery requirement. Retries use stable returned-message identities.
+    depends_on: [models.WorkflowInvocation, examples.result_return]
+
 applies_to:
   rest_api:
     required: true
@@ -466,7 +524,7 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [activation_readiness, lifecycle, encrypted_retained_content, chat_delivery_private, chat_delivery_fencing, chat_delivery_encrypted_persistence, surface_parity, mvp_steps, schedule_recurrence, schedule_edges, skill_contract, filter, check, ai_check, ask_ai_execution, ask_ai_validation, typed_data, standard_message, selective_embeds, delivered_membership, delivery_reservations, delete_forgets, budgets, budget_notifications, access_boundaries, delivery_recovery, portable_definition, portable_privacy, portable_import, portable_cli]
+  required_groups: [activation_readiness, lifecycle, encrypted_retained_content, chat_delivery_private, chat_delivery_fencing, chat_delivery_encrypted_persistence, surface_parity, mvp_steps, schedule_recurrence, schedule_edges, skill_contract, filter, check, ai_check, ask_ai_execution, ask_ai_validation, typed_data, standard_message, selective_embeds, delivered_membership, delivery_reservations, delete_forgets, budgets, budget_notifications, access_boundaries, delivery_recovery, portable_definition, portable_privacy, portable_import, portable_cli, choice_check, for_each, chat_owned, invocation, result_return]
 
 approval:
   source: user-approved workflow v1 implementation plan, Codex task 01a09f95-3e12-71d1-9243-6a3668c57d4b
@@ -477,3 +535,9 @@ verification_order:
   - User explicitly authorized the connected global OpenMates CLI personal dev test account first; use its paired dev profile and dev API.
   - Verify workflow setup, execution and CLI-owned encrypted automatic chat creation before browser product verification.
   - Demo inputs are Berlin weather/events/apartments, Germany news, and maximum apartment price EUR 1200/month.
+
+implementation_amendment:
+  source: User instruction in Codex chat 01a0fd61-e139-7be2-b05a-77b54bf7acfe
+  date: '2026-10-02'
+  approval_basis: Explicit approval of the presented design and instruction to implement; this records the accepted scope without an additional approval round.
+  deferred: [jev_workflow_relevance_preprocessing, start_ai_chat, apple_native_implementation_until_web_confirmation]

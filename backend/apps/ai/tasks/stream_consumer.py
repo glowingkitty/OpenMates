@@ -3079,6 +3079,23 @@ async def _save_to_cache_and_publish(
     except Exception as e:
         logger.error(f"{log_prefix} Error saving to cache or publishing: {e}", exc_info=True)
 
+def _enforce_workflow_credit_allowance(request_data: AskSkillRequest, credits_charged: int) -> int:
+    """Keep final AI settlement inside the signed per-occurrence Workflow cap."""
+    preferences = request_data.user_preferences or {}
+    budget = preferences.get("workflow_budget") if preferences.get("workflow_ai") is True else None
+    if budget is None:
+        if preferences.get("workflow_credit_allowance") is not None:
+            raise RuntimeError("Workflow Ask AI credit allowance is unsigned")
+        return credits_charged
+    from backend.core.api.app.services.workflow_app_skill_adapter import verify_workflow_ai_budget
+    allowance = verify_workflow_ai_budget(request_data.user_id, budget)
+    if allowance is None or allowance != preferences.get("workflow_credit_allowance"):
+        raise RuntimeError("Workflow Ask AI credit allowance is invalid")
+    # Dispatch was quoted and token-limited. This guard handles provider usage
+    # drift without billing above the owner's signed per-occurrence allowance.
+    return min(credits_charged, allowance)
+
+
 async def _handle_normal_billing(
     usage: UsageMetadata,
     preprocessing_result: PreprocessingResult,
@@ -3255,6 +3272,7 @@ async def _handle_normal_billing(
         celery_config.config_manager.get_model_pricing,
         default_provider=usage_provider_name,
     )
+    credits_charged = _enforce_workflow_credit_allowance(request_data, credits_charged)
     charged_cost_usd = credits_charged * get_usd_per_credit()
     costs = {
         "real_cost_usd": real_cost_usd,

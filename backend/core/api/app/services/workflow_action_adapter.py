@@ -17,6 +17,7 @@ import time
 from typing import Any
 
 from backend.core.api.app.services.workflow_chat_delivery_service import (
+    CHAT_DEFINITION_NODE_ID,
     WorkflowChatDelivery,
     WorkflowChatDeliveryService,
 )
@@ -64,6 +65,127 @@ class WorkflowActionAdapter:
         self._celery_app = celery_app
         self._chat_delivery_service = chat_delivery_service
         self._chat_delivery_service_injected = chat_delivery_service is not None
+
+    async def deliver_chat_definition(self, run: Any, user_id: str, invocation: dict[str, Any]) -> dict[str, Any] | None:
+        """Queue the immutable graph for owner-device chat encryption until its chat is deleted."""
+        import uuid
+        from starlette.concurrency import run_in_threadpool
+        from backend.core.api.app.services.workflow_models import WorkflowLifecycle
+
+        source_chat_id = invocation.get("source_chat_id") if isinstance(invocation, dict) else None
+        if not isinstance(source_chat_id, str) or not source_chat_id or self._workflow_service is None:
+            return None
+        definition = await run_in_threadpool(
+            self._workflow_service.get_workflow_version, run.workflow_id, user_id, run.version_id)
+        if definition.lifecycle != WorkflowLifecycle.CHAT_EMBED or definition.source_chat_id != source_chat_id:
+            return None
+        cache_service = self._get_cache_service()
+        directus_service = self._get_directus_service(cache_service)
+        try:
+            if not await directus_service.chat.check_chat_ownership(source_chat_id, user_id):
+                return {"status": "source_chat_unavailable"}
+        finally:
+            await cache_service.close()
+            await directus_service.close()
+        delivery_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"openmates:workflow:{definition.id}:definition-delivery"))
+        message_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"openmates:workflow:{definition.id}:definition-message"))
+        embed_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"openmates:workflow:{definition.id}:definition"))
+        embed = {"embed_id": embed_id, "content_type": "workflows-workflow", "content": {
+            "workflow_id": definition.id, "title": definition.title,
+            "description": definition.description, "status": definition.status.value,
+            "enabled": definition.enabled, "lifecycle": definition.lifecycle.value,
+            "graph": definition.graph.model_dump(mode="json", by_alias=True),
+            "source_chat_id": definition.source_chat_id,
+            "trigger_summary": definition.trigger_summary, "created_at": definition.created_at,
+            "run_id": run.id,
+        }}
+        message = f"[!](embed:{embed_id})\n\n" + _with_run_link(
+            "One-time workflow definition", {"workflow": {"workflow_id": run.workflow_id, "run_id": run.id}})
+        delivery_service = self._get_chat_delivery_service()
+        if self._chat_delivery_service_injected:
+            delivery = delivery_service.create_delivery(
+                owner_id=user_id, title="Workflow definition", message=message, embeds=[embed],
+                expires_at=None, chat_id=source_chat_id, delivery_id=delivery_id,
+                message_id=message_id, workflow_id=definition.id, run_id=None,
+                node_id=CHAT_DEFINITION_NODE_ID,
+            )
+        else:
+            encrypted = await self._encrypt_chat_delivery_payload(
+                user_id=user_id, title="Workflow definition", message=message, embeds=[embed])
+            delivery = await run_in_threadpool(
+                delivery_service.create_encrypted_delivery,
+                owner_id=user_id, encrypted_payload=encrypted, expires_at=None,
+                chat_id=source_chat_id, delivery_id=delivery_id, message_id=message_id,
+                workflow_id=definition.id, run_id=None, node_id=CHAT_DEFINITION_NODE_ID,
+            )
+        if not self._chat_delivery_service_injected or self._cache_service_factory is not None:
+            await self._publish_workflow_chat_delivery_available(user_id=user_id, delivery=delivery)
+        return {"status": delivery.status, "delivery_id": delivery.delivery_id,
+                "chat_id": delivery.chat_id, "message_id": delivery.message_id}
+
+    async def deliver_caller_result(self, run: Any, user_id: str, invocation: dict[str, Any]) -> dict[str, Any] | None:
+        """Post one encrypted terminal status to the owner chat with stable IDs."""
+        import uuid
+        from starlette.concurrency import run_in_threadpool
+
+        source_chat_id = invocation.get("source_chat_id") if isinstance(invocation, dict) else None
+        if not isinstance(source_chat_id, str) or not source_chat_id:
+            return None
+        status = getattr(run.status, "value", run.status)
+        if status not in {"completed", "failed", "cancelled"}:
+            return None
+        await self.deliver_chat_definition(run, user_id, invocation)
+        cache_service = self._get_cache_service()
+        directus_service = self._get_directus_service(cache_service)
+        try:
+            if not await directus_service.chat.check_chat_ownership(source_chat_id, user_id):
+                return {"status": "source_chat_unavailable"}
+        finally:
+            await cache_service.close()
+            await directus_service.close()
+
+        outputs = (run.output_summary or {}).get("returned_outputs") if isinstance(run.output_summary, dict) else None
+        lines = [f"Workflow run {status}."]
+        if status == "completed" and isinstance(outputs, dict):
+            selected_values = outputs.get("values") if isinstance(outputs.get("values"), dict) else outputs
+            for name, value in list(selected_values.items())[:12]:
+                if not isinstance(name, str) or not name:
+                    continue
+                projected = value.get("value", value.get("error")) if isinstance(value, dict) else value
+                rendered = json.dumps(projected, ensure_ascii=False, sort_keys=True, default=str)
+                lines.append(f"{name}: {rendered[:2000]}")
+        elif status == "failed" and isinstance(run.error_summary, str) and run.error_summary:
+            lines.append(run.error_summary[:500])
+        message = _with_run_link("\n".join(lines)[:18_000], {"workflow": {"workflow_id": run.workflow_id, "run_id": run.id}})
+        delivery_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"openmates:workflow:{run.id}:caller-result"))
+        message_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"openmates:workflow:{run.id}:caller-message"))
+        terminal_at = next((timestamp for timestamp in (getattr(run, "finished_at", None), getattr(run, "started_at", None))
+                            if isinstance(timestamp, int) and timestamp > 0), int(time.time()))
+        expires_at = terminal_at + 7 * 86400
+        delivery_service = self._get_chat_delivery_service()
+        if self._chat_delivery_service_injected:
+            delivery = delivery_service.create_delivery(
+                owner_id=user_id, title="Workflow result", message=message,
+                embeds=[],
+                expires_at=expires_at, chat_id=source_chat_id,
+                delivery_id=delivery_id, message_id=message_id,
+                workflow_id=run.workflow_id, run_id=run.id, node_id="__caller_result__",
+            )
+        else:
+            encrypted = await self._encrypt_chat_delivery_payload(
+                user_id=user_id, title="Workflow result", message=message, embeds=[],
+            )
+            delivery = await run_in_threadpool(
+                delivery_service.create_encrypted_delivery,
+                owner_id=user_id, encrypted_payload=encrypted,
+                expires_at=expires_at, chat_id=source_chat_id,
+                delivery_id=delivery_id, message_id=message_id,
+                workflow_id=run.workflow_id, run_id=run.id, node_id="__caller_result__",
+            )
+        if not self._chat_delivery_service_injected or self._cache_service_factory is not None:
+            await self._publish_workflow_chat_delivery_available(user_id=user_id, delivery=delivery)
+        return {"status": delivery.status, "delivery_id": delivery.delivery_id,
+                "chat_id": delivery.chat_id, "message_id": delivery.message_id}
 
     async def preview_message(self, config: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
         """Render authored output selections without reservation, persistence or delivery."""
@@ -181,6 +303,12 @@ class WorkflowActionAdapter:
         workflow_id, run_id, node_id = (execution.get(key) for key in ("workflow_id", "run_id", "node_id"))
         if not all((workflow_id, run_id, node_id)) or execution.get("step_test"):
             raise WorkflowActionExecutionError("WORKFLOW_ACTION_INVALID_CONTEXT", "Message delivery requires a full workflow run")
+        # The runner supplies a stable execution id for each loop iteration, while
+        # overrides address the authored graph node. Never mutate the saved graph.
+        graph_node_id = execution.get("graph_node_id") or node_id
+        overrides = (execution.get("invocation") or {}).get("message_destination_overrides") or {}
+        if graph_node_id in overrides:
+            config = {**config, "chat_id": overrides[graph_node_id]}
         prepared = (execution.get("prepared") or {}).get(node_id)
         if prepared:
             if prepared.get("skip"):

@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.workflows@8
+specification: feature.workflows@9
 portable_definition:
 - id: cli-web-definition-roundtrip
   given: Alice has saved a Berlin weather Workflow whose Check reads the earlier weather result and whose Send message uses an input mapping and typed result references.
@@ -394,3 +394,45 @@ website_changes:
   given: "Alice and Bob watch the same URL in separate Workflows, and Alice has a pending update."
   when: "Alice tests a step, changes the watched URL, or deletes the run that owns its comparison state."
   then: "Bob is unaffected. The step test changes no baseline; a changed URL initializes silently; deletion forgets the owned state and prevents a late pending write."
+
+choice_check:
+- id: ordered-fanout
+  given: Alice defines Relax and Outdoors as all-that-apply options over selected event data.
+  when: Both options are reliably selected.
+  then: Relax executes then Outdoors in authored order; shared continuation executes once.
+- id: uncertain-option
+  given: One required option judgment is unavailable.
+  when: The Check executes.
+  then: Only Unsure runs; no partial option action is dispatched.
+- id: single-none
+  given: Alice requires exactly one option and none is reliable.
+  when: The Check executes.
+  then: Unsure runs; No match is offered only in multiple mode.
+
+for_each:
+- id: scoped-items
+  given: A prior skill has three results and a body using the scoped item.
+  when: The run executes and resumes after two completed items.
+  then: Only the unfinished item executes; continuation runs once.
+- id: oversized-list
+  given: A list exceeds the configured maximum.
+  when: For each starts.
+  then: It fails visibly before any body effect and never silently truncates.
+
+chat_owned:
+- id: save-independent-copy
+  given: A chat has a one-time Workflow embed.
+  when: Alice saves it as reusable and later deletes the chat.
+  then: The disabled saved copy survives; chat-owned execution is fenced and the definition is removed.
+
+invocation:
+- id: temporary-routing
+  given: A saved Workflow normally sends to a different owner chat.
+  when: Alice runs it from this chat with an explicit Send override.
+  then: This run sends to the caller; the saved destination and portable definition are unchanged.
+
+result_return:
+- id: return-without-send
+  given: A one-time graph declares a bounded typed return projection.
+  when: It completes without a Send node.
+  then: The initiating owner chat receives run identity, status and the selected values, without full run context.

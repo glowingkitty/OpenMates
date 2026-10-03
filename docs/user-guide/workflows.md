@@ -49,3 +49,25 @@ A **Send message** step stays pending until the encrypted chat message is persis
 ## Privacy
 
 Workflow titles, descriptions, category and icon identity, definitions, and retained run content follow the Workflow encryption and owner or team access boundary. Existing authorized REST, CLI, and SDK clients receive the same decrypted category and icon; stored Directus records do not contain plaintext identity metadata.
+
+## Multiple-choice AI Checks
+
+In an AI Check, choose **Multiple choice** to define the possible answers. Use the same variable editor as Ask AI and Send message to select the values to evaluate and add instructions when needed. Add two to ten options, with an optional description for each.
+
+Choose **Only one** when exactly one answer is required, or **All that apply** when several options may match. Each option has its own action branch. Selected branches run in the displayed option order, followed by the shared next step once. Multiple selection also offers **No match**. Both modes offer **Unsure** when the evidence or evaluator cannot support a reliable decision; partial selections do not trigger actions.
+
+Renaming or reordering an option keeps its actions connected. Removing an option or changing output modes requires resolving any connected actions or dependent values. Test shows the selected options and retained evaluation detail.
+
+## For each
+
+Choose **For each** when an earlier action or an explicitly declared workflow input provides a list. Select the list and add steps inside its body. Those steps can use the current **Item** and its zero-based **Index** through the variable picker.
+
+Items run one at a time. Configure the maximum item count, duration, per-item timeout and credit limit. A list above the item limit fails before the body starts, so no results are silently omitted. An empty list continues without body work. Failure or cancellation stops further items. Runs show progress and the separate executions for each item; nested loops are not available.
+
+## One-time workflows in chats
+
+A chat can create and run a one-time workflow, or run an existing workflow with supplied inputs. A one-time definition is retained as an encrypted workflow embed in that chat and can be opened for inspection. It stays with the chat without an automatic seven-day definition expiry. Run outputs still follow their normal retention setting.
+
+Choose **Save as reusable** to create a disabled regular workflow from that definition. Its history starts fresh; the original run stays in the chat. The saved copy remains independent if the source chat is deleted.
+
+A chat-triggered run can return selected outputs and its run status to the initiating chat. Individual Send message destinations can be overridden for that run without changing the saved workflow. Starting separate AI chats from a workflow is deferred until the current workflow features have been tested and confirmed.

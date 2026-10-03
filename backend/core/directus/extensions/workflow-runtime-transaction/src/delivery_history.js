@@ -54,6 +54,12 @@ export async function deliveryHistory(database, body, now, fail) {
       const existing = await trx('workflow_runs').where({...scope,run_id:body.run_id}).forUpdate().first();
       if (existing?.status === 'deleted') fail(409,'run_deleted');
       if (existing && ['completed','failed','cancelled'].includes(existing.status)) fail(409,'run_terminal');
+      if (existing?.encrypted_invocation_ref) {
+        if (row.encrypted_invocation_ref && row.encrypted_invocation_ref !== existing.encrypted_invocation_ref) fail(409,'run_invocation_conflict');
+        row.encrypted_invocation_ref = existing.encrypted_invocation_ref;
+        row.invocation_hash = existing.invocation_hash;
+        row.record_json = {...row.record_json, encrypted_invocation_ref: existing.encrypted_invocation_ref};
+      }
       // Preserve a concurrent cancellation checkpoint, even if the worker has an older snapshot.
       if (existing?.status === 'cancellation_requested' && row.status === 'running') {
         row.status = 'cancellation_requested';
@@ -71,8 +77,9 @@ export async function deliveryHistory(database, body, now, fail) {
       return {saved:true};
     }
     const runId = body.run_id || body.delivery?.run_id;
-    const run = await trx('workflow_runs').where({...scope,run_id:runId}).first();
-    if (!run || run.status === 'deleted') fail(409,'run_deleted');
+    const definitionDelivery = body.action === 'save_delivery' && body.delivery?.node_id === '__chat_definition__';
+    const run = runId ? await trx('workflow_runs').where({...scope,run_id:runId}).first() : null;
+    if (!definitionDelivery && (!run || run.status === 'deleted')) fail(409,'run_deleted');
     if (body.action === 'delete_run') {
       const refs = [run.encrypted_output_summary].filter(Boolean);
       const websiteRows = await trx('workflow_website_state').where({...scope,origin_run_id:runId});
@@ -85,7 +92,8 @@ export async function deliveryHistory(database, body, now, fail) {
       }
       await trx('workflow_delivery_history').where({...scope,run_id:runId}).del();
       // A scrubbed ID tombstone fences stale workers; it contains no result memory.
-      await trx('workflow_runs').where({id:run.id}).update({status:'deleted',record_json:null,encrypted_input:null,encrypted_output_summary:null,error_summary:null,cost_summary:null,content_available:false,content_storage:'deleted'});
+      if (run.encrypted_invocation_ref) refs.push(run.encrypted_invocation_ref);
+      await trx('workflow_runs').where({id:run.id}).update({status:'deleted',record_json:null,encrypted_input:null,encrypted_invocation_ref:null,invocation_hash:null,encrypted_output_summary:null,error_summary:null,cost_summary:null,content_available:false,content_storage:'deleted'});
       return {run_id:runId,status:'deleted',content_refs:refs};
     }
     if (body.action === 'reserve') {
@@ -123,6 +131,17 @@ export async function deliveryHistory(database, body, now, fail) {
       const d = body.delivery;
       const allowed = new Set(['delivery_id','hashed_user_id','workflow_id','run_id','node_id','chat_id','message_id','encrypted_payload','status','revision','claim_generation','claim_token_hash','claim_issued_at','claim_expires_at','claim_device_id','encrypted_chat_metadata','encrypted_message','client_persisted_at','acknowledged_at','cancelled_at','expired_at','created_at','expires_at']);
       if (!d || Object.keys(d).some(k=>!allowed.has(k)) || d.workflow_id !== body.workflow_id || d.hashed_user_id !== deliveryScope.hashed_user_id || d.run_id !== runId) fail(400,'invalid_delivery');
+      if (definitionDelivery) {
+        let record = workflow.record_json;
+        if (typeof record === 'string') { try { record = JSON.parse(record); } catch { fail(409,'definition_unavailable'); } }
+        const expectedDeliveryId = uuid5(`openmates:workflow:${body.workflow_id}:definition-delivery`);
+        const expectedMessageId = uuid5(`openmates:workflow:${body.workflow_id}:definition-message`);
+        const ownerChat = await trx('chats').where({id:d.chat_id,hashed_user_id:deliveryScope.hashed_user_id}).first();
+        if (!record || record.lifecycle !== 'chat_embed' || record.source_chat_id !== d.chat_id
+            || workflow.status === 'deleted' || !ownerChat || ownerChat.hashed_team_id
+            || runId !== null && runId !== undefined || d.expires_at !== null
+            || d.delivery_id !== expectedDeliveryId || d.message_id !== expectedMessageId) fail(409,'definition_unavailable');
+      } else if (!Number.isInteger(d.expires_at) || d.expires_at <= 0) fail(400,'invalid_delivery_expiry');
       const existing = await trx('workflow_chat_deliveries').where({...deliveryScope,delivery_id:d.delivery_id}).first();
       const websiteMembership = await trx('workflow_delivery_history').where({...scope,delivery_id:d.delivery_id,membership_kind:'website_change'}).first();
       // Already persisted owner ciphertext still needs its ACK. Unpersisted
@@ -142,7 +161,9 @@ export async function deliveryHistory(database, body, now, fail) {
         const embeds = message.embeds || [];
         if (!Array.isArray(embeds) || embeds.length > 500) fail(400,'invalid_client_embeds');
         const members = await trx('workflow_delivery_history').where({...scope,delivery_id:d.delivery_id});
-        const expected = new Set(members.filter(r=>r.membership_kind !== 'website_change').map(r=>uuid5(`${d.delivery_id}:embed:${r.fingerprint}`)));
+        const expected = definitionDelivery
+          ? new Set([uuid5(`openmates:workflow:${body.workflow_id}:definition`)])
+          : new Set(members.filter(r=>r.membership_kind !== 'website_change').map(r=>uuid5(`${d.delivery_id}:embed:${r.fingerprint}`)));
         if (embeds.length !== expected.size) fail(400,'selected_embeds_required');
         const sha = value=>createHash('sha256').update(value,'utf8').digest('hex');
         const hashChat = sha(d.chat_id);
@@ -179,7 +200,8 @@ export async function deliveryHistory(database, body, now, fail) {
         if (d.revision === 0 && d.status === 'delivery_pending') return {delivery:existing};
         if (Number(existing.revision || 0) !== d.revision) fail(409,'delivery_conflict');
         if (['acknowledged','cancelled','expired','failed'].includes(existing.status) && d.status !== existing.status) fail(409,'delivery_terminal');
-        if (d.chat_id !== existing.chat_id || d.message_id !== existing.message_id || d.node_id !== existing.node_id) fail(409,'delivery_identity_conflict');
+        if (d.chat_id !== existing.chat_id || d.message_id !== existing.message_id || d.node_id !== existing.node_id
+            || d.run_id !== existing.run_id || d.expires_at !== existing.expires_at) fail(409,'delivery_identity_conflict');
         if (d.status === 'acknowledged' && (!existing.client_persisted_at || d.claim_generation !== existing.claim_generation || d.claim_token_hash !== existing.claim_token_hash)) fail(409,'delivery_ack_not_persisted');
         if (d.status === 'failed' && (existing.status !== 'claimed' || existing.client_persisted_at || d.client_persisted_at || d.encrypted_payload !== '' ||
             d.claim_generation !== existing.claim_generation || d.claim_token_hash !== existing.claim_token_hash ||

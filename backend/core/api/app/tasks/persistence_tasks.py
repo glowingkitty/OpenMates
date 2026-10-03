@@ -1197,6 +1197,15 @@ async def _async_persist_delete_chat(
     try:
         await directus_service.ensure_auth_token()
 
+        # Stop chat-owned Workflow runs before removing their definition embeds.
+        # The synchronous repository uses its atomic cancellation/deletion fences;
+        # let a failure abort this task so Celery can safely retry the whole cleanup.
+        from backend.core.api.app.tasks.workflow_tasks import get_workflow_service
+
+        await asyncio.to_thread(
+            get_workflow_service().cleanup_chat_owned_workflows, user_id, chat_id
+        )
+
         # 1. Delete ALL drafts for this chat from Directus
         all_drafts_deleted_directus = await directus_service.chat.delete_all_drafts_for_chat(
             chat_id

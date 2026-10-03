@@ -51,7 +51,8 @@ def _ref_schema() -> dict[str, Any]:
 
 
 def _reference_schema() -> dict[str, Any]:
-    return _object({"ref": _ref_schema()})
+    return _object({"ref": {"anyOf": [_ref_schema(), _object({"loop": {"type": "string"}, "field": {"type": "string"}}),
+                                          _object({"trigger": {"type": "string"}})]}})
 
 
 def _date_schema() -> dict[str, Any]:
@@ -147,14 +148,30 @@ def build_authoring_schema(selection: WorkflowPreselection) -> dict[str, Any]:
     definitions["step_0"] = {"anyOf": base_variants}
     for depth in range(1, 4):
         children = {"type": "array", "items": {"$ref": f"#/$defs/step_{depth - 1}"}}
+        option = _object({"id": {"type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$"},
+                          "label": {"type": "string"}, "description": {"type": "string"}}, ["id", "label"])
+        option_branch = _object({"option_id": {"type": "string"}, "steps": children}, ["option_id", "steps"])
         check_name = f"check_{depth}"
         definitions[check_name] = _object({**common, "kind": {"type": "string", "enum": ["check"]},
                                            "mode": {"type": "string", "enum": ["exact", "ai"]},
                                            "predicate": predicate, "question": segments,
-                                           "selected_inputs": {"type": "array", "items": _ref_schema()},
+                                           "selected_inputs": {"type": "array", "items": _reference_schema()["properties"]["ref"]},
+                                           "result_type": {"type": "string", "enum": ["boolean", "options"]},
+                                           "selection_mode": {"type": "string", "enum": ["single", "multiple"]},
+                                           "options": {"type": "array", "items": option, "minItems": 2, "maxItems": 10},
+                                           "option_branches": {"type": "array", "items": option_branch},
+                                           "no_match": children,
                                            "yes": children, "no": children, "unsure": children},
                                           ["kind", "id", "mode", "yes", "no"])
-        definitions[f"step_{depth}"] = {"anyOf": [*base_variants, {"$ref": f"#/$defs/{check_name}"}]}
+        loop_name = f"for_each_{depth}"
+        definitions[loop_name] = _object({**common, "kind": {"type": "string", "enum": ["for_each"]},
+                                          "items": {"anyOf": [_ref_schema(), _object({"trigger": {"type": "string"}})]}, "body": children,
+                                          "max_items": {"type": "integer", "minimum": 1, "maximum": 100},
+                                          "max_duration_seconds": {"type": "integer", "minimum": 1, "maximum": 3600},
+                                          "max_credits": {"type": "integer", "minimum": 1, "maximum": 1000},
+                                          "per_item_timeout_seconds": {"type": "integer", "minimum": 1, "maximum": 3600}},
+                                         ["kind", "id", "items", "body"])
+        definitions[f"step_{depth}"] = {"anyOf": [*base_variants, {"$ref": f"#/$defs/{check_name}"}, {"$ref": f"#/$defs/{loop_name}"}]}
 
     schedule = _object({"type": {"type": "string", "enum": ["daily", "weekly", "hourly", "once", "manual"]},
                         "time": {"type": "string"}, "timezone": {"type": "string"},
@@ -175,6 +192,16 @@ def build_authoring_schema(selection: WorkflowPreselection) -> dict[str, Any]:
 
 
 def _reference(value: Any, known: set[str], label: str) -> str:
+    if isinstance(value, dict) and set(value) == {"trigger"}:
+        field = value["trigger"]
+        if not isinstance(field, str) or not _FIELD.fullmatch(field):
+            raise ValueError(f"{label}: trigger reference must name a declared input field")
+        return f"trigger.{field}"
+    if isinstance(value, dict) and set(value) == {"loop", "field"}:
+        loop, field = value["loop"], value["field"]
+        if not isinstance(loop, str) or loop not in known or not isinstance(field, str) or not (field == "index" or field == "item" or field.startswith("item.") and _FIELD.fullmatch(field[5:])):
+            raise ValueError(f"{label}: item reference must name an earlier For each and a declared item field")
+        return f"$items.{loop}.{field}"
     if not isinstance(value, dict) or set(value) != {"step", "field"}:
         raise ValueError(f"{label}: expected a typed step/field reference")
     step, field = value["step"], value["field"]
@@ -218,7 +245,8 @@ def _text(segments: Any, known: set[str], label: str) -> str:
         if set(segment) == {"text"} and isinstance(segment["text"], str):
             result.append(_value(segment["text"], known, label))
         elif set(segment) == {"ref"}:
-            result.append("{{ " + _reference(segment["ref"], known, label) + " }}")
+            reference = _reference(segment["ref"], known, label)
+            result.append("{{" + (reference[1:] if reference.startswith("$items.") else " " + reference + " ") + "}}")
         else:
             raise ValueError(f"{label}: text segments must contain text or a typed reference")
     return "".join(result)
@@ -586,9 +614,28 @@ def _compile_authoring(
                     if not isinstance(inputs, list):
                         raise ValueError("AI Check requires selected inputs")
                     selected_inputs = [_reference(ref, known, f"Step {node_id} selected input") for ref in inputs]
-                    config = {"mode": "ai", "question": _text(item.get("question"), known, f"Step {node_id} question"),
+                    config = {"mode": "ai", "question": _text(item.get("question", []), known, f"Step {node_id} question"),
                               "selected_inputs": selected_inputs}
+                    if item.get("result_type") == "options":
+                        config.update(result_type="options", selection_mode=item.get("selection_mode"), options=item.get("options"))
                 node = WorkflowNode(id=node_id, type=WorkflowNodeType.CHECK, config=config)
+            elif kind == "for_each":
+                authored_items = item.get("items")
+                if isinstance(authored_items, dict) and set(authored_items) == {"trigger"}:
+                    items_ref = _reference(authored_items, known, f"Step {node_id} items")
+                elif (isinstance(authored_items, dict) and set(authored_items) == {"step", "field"}
+                        and authored_items["step"] == trigger_id and isinstance(authored_items["field"], str)
+                        and _FIELD.fullmatch(authored_items["field"])):
+                    items_ref = f"trigger.{authored_items['field']}"
+                else:
+                    items_ref = _reference(authored_items, known, f"Step {node_id} items")
+                if not items_ref.startswith(("$nodes.", "trigger.")):
+                    raise ValueError("For each items must reference an earlier list output")
+                config = {"items": items_ref}
+                for key in ("max_items", "max_duration_seconds", "max_credits", "per_item_timeout_seconds"):
+                    if key in item:
+                        config[key] = item[key]
+                node = WorkflowNode(id=node_id, type=WorkflowNodeType.FOR_EACH, config=config)
             elif kind == "send":
                 prior_send = prior_nodes_by_id.get(node_id)
                 if "message" not in item:
@@ -630,7 +677,19 @@ def _compile_authoring(
             nodes.append(node)
             known.add(node_id)
             if kind == "check":
-                for branch in ("yes", "no", "unsure"):
+                branches = ("yes", "no", "unsure") if node.config.get("result_type") != "options" else ("no_match", "unsure")
+                if node.config.get("result_type") == "options":
+                    seen_options: set[str] = set()
+                    for branch_item in item.get("option_branches") or []:
+                        option_id = branch_item.get("option_id") if isinstance(branch_item, dict) else None
+                        if option_id not in {option["id"] for option in node.config["options"]} or option_id in seen_options:
+                            raise ValueError("Option branch must name one declared option")
+                        seen_options.add(option_id)
+                        compile_sequence(branch_item.get("steps") or [], (node_id, f"option:{option_id}"), depth + 1, known.copy(),
+                                         continuation_pending or position < len(items) - 1)
+                    if item.get("yes") or item.get("no"):
+                        raise ValueError("Option Check cannot use Boolean branches")
+                for branch in branches:
                     branch_items = item.get(branch) or []
                     if not isinstance(branch_items, list):
                         raise ValueError("Check branches must be step lists")
@@ -647,6 +706,15 @@ def _compile_authoring(
                         nodes.append(WorkflowNode(id=end_id, type=WorkflowNodeType.END))
                         edge(node_id, end_id, branch)
                 previous = (node_id, "default") if position < len(items) - 1 else None
+            elif kind == "for_each":
+                body = item.get("body")
+                if not isinstance(body, list):
+                    raise ValueError("For each body must be a step list")
+                if any(child.get("kind") == "for_each" for child in body if isinstance(child, dict)):
+                    raise ValueError("Nested For each steps are unavailable")
+                if body:
+                    compile_sequence(body, (node_id, "body"), depth + 1, known.copy())
+                previous = (node_id, None)
             elif kind == "end":
                 if position != len(items) - 1:
                     raise ValueError("End must finish its sequence")
@@ -734,9 +802,11 @@ def compile_authoring_preview(
 _FLAT_JSON_FIELDS = {
     "input_json": "input", "predicate_json": "predicate", "question_json": "question",
     "selected_inputs_json": "selected_inputs", "prompt_json": "prompt",
-    "message_json": "message", "blocks_json": "blocks",
+    "message_json": "message", "blocks_json": "blocks", "options_json": "options",
+    "items_json": "items", "body_json": "body",
 }
-_FLAT_NODE_FIELDS = {"kind", "id", "parent_check_id", "branch", "capability", "mode", "title",
+_FLAT_NODE_FIELDS = {"kind", "id", "parent_check_id", "parent_loop_id", "branch", "capability", "mode", "title",
+                     "result_type", "selection_mode", "max_items", "max_duration_seconds", "max_credits", "per_item_timeout_seconds",
                      *_FLAT_JSON_FIELDS}
 
 
@@ -884,6 +954,7 @@ class FlatAuthoringAccumulator:
             raise ValueError("Flat authoring header is missing")
         steps: list[dict[str, Any]] = []
         checks: dict[str, dict[str, Any]] = {}
+        loops: dict[str, dict[str, Any]] = {}
         seen: set[str] = set()
         for record in records:
             if not isinstance(record, dict) or not {"kind", "id"} <= set(record) or set(record) - _FLAT_NODE_FIELDS:
@@ -893,17 +964,35 @@ class FlatAuthoringAccumulator:
                 raise ValueError("Flat authoring node ID is invalid or repeated")
             seen.add(node_id)
             parent = record.get("parent_check_id")
+            parent_loop = record.get("parent_loop_id")
             branch = record.get("branch")
-            if parent is None:
+            if parent is not None and parent_loop is not None:
+                raise ValueError("Authoring node cannot have two control parents")
+            if parent_loop is not None:
+                if not isinstance(parent_loop, str) or parent_loop not in loops or branch not in {None, "body"}:
+                    raise ValueError("Body node must name an earlier For each")
+                destination = loops[parent_loop]["body"]
+            elif parent is None:
                 if branch not in (None, "default"):
                     raise ValueError("Root authoring node cannot use a Check branch")
                 destination = steps
             else:
-                if not isinstance(parent, str) or parent not in checks or branch not in {"yes", "no", "unsure"}:
+                if not isinstance(parent, str) or parent not in checks or not isinstance(branch, str):
                     raise ValueError("Branch node must name an earlier Check and branch")
-                destination = checks[parent][branch]
+                if branch.startswith("option:"):
+                    option_id = branch[7:]
+                    choices = checks[parent].get("option_branches") or []
+                    chosen = next((choice for choice in choices if choice["option_id"] == option_id), None)
+                    if chosen is None:
+                        raise ValueError("Option branch must name a declared Check option")
+                    destination = chosen["steps"]
+                elif branch in {"yes", "no", "unsure", "no_match"}:
+                    destination = checks[parent].setdefault(branch, [])
+                else:
+                    raise ValueError("Branch node must name a declared Check branch")
             item = {key: value for key, value in record.items()
-                    if key in {"kind", "id", "capability", "mode", "title"}}
+                    if key in {"kind", "id", "capability", "mode", "title", "result_type", "selection_mode",
+                               "max_items", "max_duration_seconds", "max_credits", "per_item_timeout_seconds"}}
             for transport_key, compact_key in _FLAT_JSON_FIELDS.items():
                 if transport_key in record:
                     encoded = record[transport_key]
@@ -915,7 +1004,13 @@ class FlatAuthoringAccumulator:
                         raise ValueError("Flat authoring JSON field is malformed") from exc
             if item["kind"] == "check":
                 item.update({"yes": [], "no": [], "unsure": []})
+                if item.get("result_type") == "options":
+                    item["option_branches"] = [{"option_id": option["id"], "steps": []}
+                                               for option in item.get("options") or []]
                 checks[node_id] = item
+            elif item["kind"] == "for_each":
+                item.setdefault("body", [])
+                loops[node_id] = item
             destination.append(item)
         return {**self.header, **({"steps": steps} if records or self.header.get("operation") != "update" else {})}
 

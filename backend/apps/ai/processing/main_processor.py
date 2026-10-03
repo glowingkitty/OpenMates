@@ -1993,6 +1993,47 @@ async def _fit_anonymous_output_token_limit(
     return fitted
 
 
+def _fit_workflow_output_token_limit(
+    *, model_id: str, system_prompt: str, message_history: List[Dict[str, Any]],
+    tools: Optional[List[Dict[str, Any]]], requested_output_token_limit: Optional[int],
+    request_data: AskSkillRequest,
+) -> Optional[int]:
+    """Bound a signed Workflow Ask AI call before contacting its model provider."""
+    preferences = request_data.user_preferences or {}
+    budget = preferences.get("workflow_budget") if preferences.get("workflow_ai") is True else None
+    if budget is not None:
+        from backend.core.api.app.services.workflow_app_skill_adapter import verify_workflow_ai_budget
+        allowance = verify_workflow_ai_budget(request_data.user_id, budget)
+        if allowance is None or allowance != preferences.get("workflow_credit_allowance"):
+            raise RuntimeError("Workflow Ask AI credit allowance is invalid")
+    else:
+        allowance = None
+        if preferences.get("workflow_credit_allowance") is not None:
+            raise RuntimeError("Workflow Ask AI credit allowance is unsigned")
+    if allowance is None:
+        return requested_output_token_limit
+    if isinstance(allowance, bool) or not isinstance(allowance, int) or allowance <= 0:
+        raise RuntimeError("Workflow Ask AI credit allowance is invalid")
+    if requested_output_token_limit is None:
+        if "/" not in model_id:
+            raise RuntimeError("Workflow Ask AI model has no bounded output limit")
+        provider_id, model_suffix = model_id.split("/", 1)
+        model_config = config_manager.get_model_pricing(provider_id, model_suffix) or {}
+        requested_output_token_limit = (model_config.get("features") or {}).get("max_output_tokens")
+    if not isinstance(requested_output_token_limit, int) or requested_output_token_limit <= 0:
+        raise RuntimeError("Workflow Ask AI model has no bounded output limit")
+    fitted = _max_affordable_ai_output_tokens(
+        model_id=model_id, system_prompt=system_prompt,
+        message_history=message_history, tools=tools,
+        requested_output_token_limit=requested_output_token_limit,
+        available_credits=allowance, input_envelope_tokens=512,
+        credit_rounding_headroom=1,
+    )
+    if fitted is None:
+        raise RuntimeError("Workflow Ask AI input exceeds its credit allowance")
+    return fitted
+
+
 async def _fit_parent_continuation_output_token_limit(
     *,
     model_id: str,
@@ -4357,6 +4398,10 @@ async def handle_main_processing(
     if preprocessing_results.selected_fallback_model_id:
         if preprocessing_results.selected_fallback_model_id not in models_to_try:
             models_to_try.append(preprocessing_results.selected_fallback_model_id)
+    if (request_data.user_preferences or {}).get("workflow_budget") is not None:
+        # A failed provider attempt may still consume tokens; one model keeps the
+        # quoted allowance bound to one provider call.
+        models_to_try = models_to_try[:1]
 
     # Track which model we're currently using (may change if we need to fallback)
     current_model_index = 0
@@ -4586,6 +4631,14 @@ async def handle_main_processing(
                     request_data=request_data,
                     directus_service=directus_service,
                     log_prefix=log_prefix,
+                )
+                current_output_token_limit = _fit_workflow_output_token_limit(
+                    model_id=current_model_id,
+                    system_prompt=iteration_system_prompt,
+                    message_history=current_message_history,
+                    tools=iteration_tools,
+                    requested_output_token_limit=current_output_token_limit,
+                    request_data=request_data,
                 )
                 current_output_token_limit = await _fit_anonymous_output_token_limit(
                     model_id=current_model_id,

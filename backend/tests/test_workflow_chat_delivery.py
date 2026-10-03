@@ -12,11 +12,67 @@ from __future__ import annotations
 import pytest
 
 from backend.core.api.app.services.workflow_chat_delivery_service import (
+    CHAT_DEFINITION_NODE_ID,
     DirectusWorkflowChatDeliveryRepository,
     WorkflowChatDeliveryStateError,
     WorkflowChatDeliveryStaleClaimError,
     WorkflowChatDeliveryService,
 )
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.chat.embedded-lifecycle,workflows.chat-delivery.claim-fenced
+def test_chat_definition_delivery_waits_for_owner_device_until_chat_deletion() -> None:
+    now = [100]
+    service = WorkflowChatDeliveryService(cipher=FakeVaultCipher(), clock=lambda: now[0])
+    with pytest.raises(ValueError, match="Only chat-owned"):
+        service.create_delivery(owner_id="alice", title="Definition", message="Graph", expires_at=None)
+    delivery = service.create_delivery(
+        owner_id="alice", title="Definition", message="Graph", expires_at=None,
+        workflow_id="workflow-1", chat_id="chat-1", node_id=CHAT_DEFINITION_NODE_ID,
+    )
+    now[0] += 8 * 86400
+    assert [item.delivery_id for item in service.list_pending_for_owner(owner_id="alice")] == [delivery.delivery_id]
+    first = service.claim_new_chat_delivery(delivery_id=delivery.delivery_id, owner_id="alice", device_id="phone")
+    retriable = service.fail_rejected_client_ciphertext(
+        delivery_id=delivery.delivery_id, owner_id="alice", claim=first, device_id="phone")
+    assert retriable.status == "delivery_pending"
+    assert retriable.encrypted_payload == delivery.encrypted_payload
+    second = service.claim_new_chat_delivery(delivery_id=delivery.delivery_id, owner_id="alice", device_id="laptop")
+    assert second.generation > first.generation
+    service.persist_client_ciphertext(delivery_id=delivery.delivery_id, owner_id="alice", claim=second,
+                                      encrypted_chat_metadata="chat-cipher", encrypted_message="message-cipher")
+    acked = service.acknowledge_delivery(delivery_id=delivery.delivery_id, owner_id="alice", claim=second)
+    assert acked.status == "acknowledged"
+    assert acked.encrypted_payload == ""
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.chat.embedded-lifecycle,workflows.chat-delivery.claim-fenced
+def test_chat_definition_expired_claim_is_rediscovered_and_reclaimed_after_disconnect() -> None:
+    now = [100]
+    service = WorkflowChatDeliveryService(cipher=FakeVaultCipher(), clock=lambda: now[0], claim_ttl_seconds=10)
+    definition = service.create_delivery(
+        owner_id="alice", title="Definition", message="[!](embed:workflow)", expires_at=None,
+        workflow_id="workflow-1", chat_id="chat-1", node_id=CHAT_DEFINITION_NODE_ID,
+    )
+    abandoned = service.claim_new_chat_delivery(
+        delivery_id=definition.delivery_id, owner_id="alice", device_id="phone")
+    now[0] += 8 * 86400
+    rediscovered = service.list_pending_for_owner(owner_id="alice")
+    assert [(item.delivery_id, item.status) for item in rediscovered] == [(definition.delivery_id, "claimed")]
+    assert rediscovered[0].claim_expires_at == abandoned.expires_at
+    recovered = service.claim_new_chat_delivery(
+        delivery_id=definition.delivery_id, owner_id="alice", device_id="laptop")
+    assert recovered.generation == abandoned.generation + 1
+    with pytest.raises(WorkflowChatDeliveryStaleClaimError):
+        service.persist_client_ciphertext(
+            delivery_id=definition.delivery_id, owner_id="alice", claim=abandoned,
+            encrypted_chat_metadata="old-chat", encrypted_message="old-message")
+    persisted = service.persist_client_ciphertext(
+        delivery_id=definition.delivery_id, owner_id="alice", claim=recovered,
+        encrypted_chat_metadata="new-chat", encrypted_message="new-message")
+    assert persisted.client_persistence is not None
+    assert service.acknowledge_delivery(
+        delivery_id=definition.delivery_id, owner_id="alice", claim=recovered).status == "acknowledged"
 
 
 class FakeVaultCipher:

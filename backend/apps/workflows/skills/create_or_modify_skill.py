@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 import asyncio
 from typing import Any
+from types import SimpleNamespace
 
 from pydantic import BaseModel, Field
 
@@ -26,6 +27,7 @@ class CreateOrModifyWorkflowResponse(BaseModel):
     skill_id: str = "create-or-modify"
     status: str = "finished"
     workflow: dict[str, Any] | None = None
+    run: dict[str, Any] | None = None
     workflows: list[dict[str, Any]] = Field(default_factory=list)
     results: list[dict[str, Any]] = Field(default_factory=list)
     result_count: int = 0
@@ -42,6 +44,10 @@ class CreateOrModifySkill(BaseSkill):
         title: str | None = None,
         graph: dict[str, Any] | None = None,
         workflow_id: str | None = None,
+        execution_mode: str = "saved",
+        input: dict[str, Any] | None = None,
+        message_destination_overrides: dict[str, str] | None = None,
+        return_outputs: dict[str, dict[str, str]] | None = None,
         workflows: list[dict[str, Any]] | None = None,
         user_id: str | None = None,
         chat_id: str | None = None,
@@ -52,10 +58,16 @@ class CreateOrModifySkill(BaseSkill):
         workflow_input_service: Any = None,
         workflow_assistant_service: Any = None,
         workflow_service: Any = None,
+        directus_service: Any = None,
+        workflow_runtime_service: Any = None,
         **kwargs: Any,
     ) -> CreateOrModifyWorkflowResponse:
         try:
             owner = require_user_id(user_id)
+            if execution_mode not in {"saved", "run_once"}:
+                raise ValueError("execution_mode must be saved or run_once")
+            if execution_mode == "run_once" and (not chat_id or not message_id or workflow_id):
+                raise ValueError("One-time chat execution requires the current chat and message, with no selected workflow")
             if instruction is not None:
                 if graph is not None or workflows is not None:
                     raise ValueError("Natural-language workflow authoring cannot include assistant-authored graphs")
@@ -69,7 +81,9 @@ class CreateOrModifySkill(BaseSkill):
                     selected_workflow_id=workflow_id, timezone=timezone or "UTC",
                     vault_key_id=user_vault_key_id, source_chat_id=chat_id,
                     optimistic_save=False,
-                    idempotency_key=f"chat:{chat_id}:{message_id}" if chat_id and message_id else None,
+                    idempotency_key=f"chat:{chat_id}:{message_id}:{execution_mode}" if chat_id and message_id else None,
+                    execution_mode=execution_mode,
+                    return_outputs=return_outputs,
                 )
                 if result.status == "needs_clarification":
                     return CreateOrModifyWorkflowResponse(
@@ -93,16 +107,49 @@ class CreateOrModifySkill(BaseSkill):
                     return CreateOrModifyWorkflowResponse(
                         success=False, status="error", error="Workflow input completed without a saved workflow.",
                     )
+                accepted_run = None
+                if execution_mode == "run_once":
+                    if len(workflow_dicts) != 1 or workflow_dicts[0].get("lifecycle") != "chat_embed":
+                        raise ValueError("One-time authoring did not create one chat-owned workflow")
+                    from backend.core.api.app.routes.workflows import WorkflowRunRequest, _accept_workflow_run
+                    from backend.core.api.app.services.workflow_runtime_service import WorkflowRuntimeService
+                    from backend.core.api.app.services.directus.directus import DirectusService
+                    workflow_model = saved[0]
+                    owned_directus = directus_service is None
+                    directus = directus_service or DirectusService()
+                    try:
+                        run_body = WorkflowRunRequest(
+                            input=input or {}, source_chat_id=chat_id,
+                            message_destination_overrides=message_destination_overrides or {},
+                            return_outputs=return_outputs or {},
+                        )
+                        request = SimpleNamespace(
+                            state=SimpleNamespace(auth_source="session"),
+                            headers={"Idempotency-Key": f"chat:{chat_id}:{message_id}:run_once"},
+                        )
+                        accepted_run = await _accept_workflow_run(
+                            workflow_model.id, run_body, request,
+                            SimpleNamespace(id=owner, vault_key_id=user_vault_key_id),
+                            service.workflow_service,
+                            workflow_runtime_service or WorkflowRuntimeService(directus),
+                            directus, workflow_model,
+                        )
+                    finally:
+                        if owned_directus:
+                            await directus.close()
                 return CreateOrModifyWorkflowResponse(
                     success=True, status="finished" if result.status == "executed" else "draft",
                     workflow=workflow_dicts[0],
+                    run=accepted_run,
                     workflows=workflow_dicts,
-                    results=[_workflow_embed_result(item) for item in workflow_dicts],
+                    results=[_workflow_embed_result(item, accepted_run) for item in workflow_dicts],
                     result_count=len(workflow_dicts),
                     message=result.message or getattr(result, "partial_warning", None),
                 )
             if workflows is not None:
                 raise ValueError("Workflow create-or-modify accepts exactly one workflow per skill call")
+            if execution_mode == "run_once":
+                raise ValueError("One-time chat execution requires a natural-language instruction")
             workflow_title = str(title or "").strip()
             if not workflow_title:
                 raise ValueError("Workflow create-or-modify requires a title")
@@ -127,7 +174,7 @@ class CreateOrModifySkill(BaseSkill):
             return CreateOrModifyWorkflowResponse(success=False, error=str(exc))
 
 
-def _workflow_embed_result(workflow: dict[str, Any]) -> dict[str, Any]:
+def _workflow_embed_result(workflow: dict[str, Any], run: dict[str, Any] | None = None) -> dict[str, Any]:
     return {
         "type": "workflow",
         "parent_app_skill_type": "app_skill_use",
@@ -135,4 +182,8 @@ def _workflow_embed_result(workflow: dict[str, Any]) -> dict[str, Any]:
         "title": workflow.get("title") or "",
         "status": workflow.get("status") or "draft",
         "source_chat_id": workflow.get("source_chat_id"),
+        "lifecycle": workflow.get("lifecycle", "persisted"),
+        "graph": workflow.get("graph"),
+        "run_id": run.get("id") if run else None,
+        "run": run,
     }

@@ -40,8 +40,9 @@ embed_types:
 instructions:
   - instruction: |
       **Workflow Skills**
-      - Use workflow skills when the user asks to create, keep, find, or run reusable automations.
-      - One-time chat-created automations use schedule-once and remain temporary for seven days unless kept.
+      - Use workflow skills when the user asks to create, keep, find, or run automations.
+      - For an immediate one-time chat run, call create-or-modify with execution_mode run_once. Its definition stays in the encrypted chat embed without a seven-day deadline.
+      - Legacy schedule-once automations remain temporary for seven days unless kept.
       - Recurring automations use schedule-recurring and create persisted workflows.
       - Running an existing workflow creates a pending countdown or approval state before execution.
 focuses:
@@ -91,11 +92,17 @@ skills:
     preprocessor_hint: >
       Save workflows from a complete natural-language instruction. Include all
       requested creations and edits in one call so they can be validated and
-      committed together. Never invent a WorkflowGraph in chat.
+      committed together. Use execution_mode run_once for one immediate chat-owned
+      workflow, with explicit input and result routes. Never invent a WorkflowGraph in chat.
     providers:
       - name: OpenMates
         no_api_key: true
     class_path: backend.apps.workflows.skills.create_or_modify_skill.CreateOrModifySkill
+    api_config:
+      expose_post: false
+    workflow:
+      available: false
+      unavailable_reason: WORKFLOW_RUNTIME_UNSUPPORTED
     tool_schema:
       type: object
       properties:
@@ -109,6 +116,27 @@ skills:
         workflow_id:
           type: string
           description: Owner-scoped selected workflow ID when the user explicitly chose one.
+        execution_mode:
+          type: string
+          enum: [saved, run_once]
+          description: Save a reusable workflow by default, or create and execute one chat-owned workflow now.
+        input:
+          type: object
+          description: Explicit start inputs for a run_once workflow.
+        message_destination_overrides:
+          type: object
+          additionalProperties:
+            type: string
+          description: Map selected Send node IDs to user-owned chat IDs for run_once.
+        return_outputs:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              ref: {type: string}
+              type: {type: string}
+            required: [ref, type]
+          description: Named typed node output references returned to the caller after run_once.
       required:
         - instruction
 
@@ -143,13 +171,17 @@ skills:
     name_translation_key: workflows.skills.run
     description_translation_key: workflows.skills.run.description
     icon_image: play.svg
-    internal: true
     preprocessor_hint: >
       Prepare an existing user-owned workflow to run from chat. Use this only after selecting a specific workflow.
     providers:
       - name: OpenMates
         no_api_key: true
     class_path: backend.apps.workflows.skills.run_skill.RunSkill
+    api_config:
+      expose_post: false
+    workflow:
+      available: false
+      unavailable_reason: WORKFLOW_RUNTIME_UNSUPPORTED
     tool_schema:
       type: object
       properties:
@@ -159,6 +191,20 @@ skills:
         input:
           type: object
           description: Required start input for the workflow, if any.
+        message_destination_overrides:
+          type: object
+          additionalProperties:
+            type: string
+          description: Route selected Send node IDs to owned chat IDs for this run.
+        return_outputs:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              ref: {type: string}
+              type: {type: string}
+            required: [ref, type]
+          description: Named typed node output references returned to the caller.
         high_risk:
           type: boolean
           description: Whether this workflow needs explicit approval before running.

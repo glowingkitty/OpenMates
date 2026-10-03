@@ -598,3 +598,55 @@ async def test_duplicate_ai_response_acknowledges_legacy_persistence(monkeypatch
         "acknowledge_legacy_persistence",
         {"protocol_version": 1, "task_identity": "message-123"},
     )
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.chat.embedded-lifecycle
+@pytest.mark.asyncio
+async def test_delete_chat_fences_workflows_before_deleting_chat_content(monkeypatch) -> None:
+    from backend.core.api.app.tasks import workflow_tasks
+
+    events = []
+    class FakeDirectus:
+        def __init__(self):
+            self.chat = SimpleNamespace(
+                delete_all_drafts_for_chat=AsyncMock(side_effect=lambda *_: events.append('drafts') or True),
+                delete_all_messages_for_chat=AsyncMock(side_effect=lambda *_: events.append('messages') or True),
+                persist_delete_chat=AsyncMock(side_effect=lambda *_: events.append('chat') or True),
+            )
+            self.embed = SimpleNamespace(delete_all_embeds_for_chat=AsyncMock(return_value=(True, [])))
+        async def ensure_auth_token(self):
+            return None
+
+    class FakeSecrets:
+        async def initialize(self):
+            raise RuntimeError('no test S3 transport')
+
+    def cleanup(user_id, chat_id):
+        assert (user_id, chat_id) == ('owner', 'source-chat')
+        events.append('workflow-fence')
+        return 1
+
+    monkeypatch.setattr(persistence_tasks, 'DirectusService', FakeDirectus)
+    monkeypatch.setattr(persistence_tasks, 'SecretsManager', FakeSecrets)
+    monkeypatch.setattr(workflow_tasks, 'get_workflow_service', lambda: SimpleNamespace(cleanup_chat_owned_workflows=cleanup))
+    await persistence_tasks._async_persist_delete_chat('owner', 'source-chat')
+    assert events == ['workflow-fence', 'drafts', 'messages', 'chat']
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.chat.embedded-lifecycle
+@pytest.mark.asyncio
+async def test_delete_chat_preserves_content_when_workflow_cleanup_fails(monkeypatch) -> None:
+    from backend.core.api.app.tasks import workflow_tasks
+
+    delete_drafts = AsyncMock()
+    fake_directus = SimpleNamespace(
+        ensure_auth_token=AsyncMock(),
+        chat=SimpleNamespace(delete_all_drafts_for_chat=delete_drafts),
+    )
+    def cleanup(*_args):
+        raise RuntimeError('workflow cancellation fence unavailable')
+    monkeypatch.setattr(persistence_tasks, 'DirectusService', lambda: fake_directus)
+    monkeypatch.setattr(workflow_tasks, 'get_workflow_service', lambda: SimpleNamespace(cleanup_chat_owned_workflows=cleanup))
+    with pytest.raises(RuntimeError, match='fence unavailable'):
+        await persistence_tasks._async_persist_delete_chat('owner', 'source-chat')
+    delete_drafts.assert_not_awaited()

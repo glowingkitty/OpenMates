@@ -19,6 +19,7 @@ export type WorkflowNodeType =
   | "check"
   | "send_chat_message"
   | "repeat"
+  | "for_each"
   | "create_chat_report"
   | "start_new_chat"
   | "send_notification"
@@ -51,6 +52,8 @@ export type WorkflowSummary = {
   icon?: string;
   status: string;
   enabled: boolean;
+  lifecycle?: "persisted" | "chat_embed" | "temporary";
+  source_chat_id?: string | null;
   trigger_summary?: string | null;
   next_run_at?: number | null;
   last_run_status?: string | null;
@@ -109,6 +112,9 @@ export type WorkflowNodeRun = {
   run_id: string;
   workflow_id: string;
   node_id: string;
+  graph_node_id?: string;
+  loop_id?: string | null;
+  iteration_index?: number | null;
   node_type: WorkflowNodeType;
   status: string;
   started_at?: number | null;
@@ -141,6 +147,15 @@ export type WorkflowRun = {
 };
 
 export type WorkflowRunDetail = WorkflowRun;
+
+export type WorkflowRunInvocation = {
+  mode?: "manual" | "test";
+  input?: Record<string, unknown>;
+  sourceChatId?: string;
+  messageDestinationOverrides?: Record<string, string>;
+  returnOutputs?: Record<string, Record<string, string>>;
+  idempotencyKey?: string;
+};
 
 export type WorkflowRequestInit = {
   method?: string;
@@ -266,6 +281,7 @@ function replaceWorkflow(
   workflows: WorkflowSummary[],
   workflow: WorkflowSummary,
 ): WorkflowSummary[] {
+  if (workflow.lifecycle === "chat_embed") return workflows.filter(item => item.id !== workflow.id);
   const existingIndex = workflows.findIndex((item) => item.id === workflow.id);
   if (existingIndex < 0) return [workflow, ...workflows];
   return workflows.map((item) => (item.id === workflow.id ? workflow : item));
@@ -320,6 +336,7 @@ export const workflowWorkspaceStore = {
     const requestPromise = workflowApiRequest<{ workflows: WorkflowSummary[] }>("/v1/workflows")
       .then((data) => {
         if (requestGeneration !== cacheGeneration) return get(store).workflows;
+        const reusable = data.workflows.filter(workflow => workflow.lifecycle !== "chat_embed");
         store.update((state) => {
           if (requestRevision !== cacheRevision) {
             return {
@@ -329,11 +346,11 @@ export const workflowWorkspaceStore = {
             };
           }
           const selectedWorkflowStillExists = state.selectedWorkflowId
-            ? data.workflows.some((workflow) => workflow.id === state.selectedWorkflowId)
+            ? reusable.some((workflow) => workflow.id === state.selectedWorkflowId) || state.selectedWorkflow?.lifecycle === "chat_embed"
             : true;
           return {
             ...state,
-            workflows: data.workflows,
+            workflows: reusable,
             selectedWorkflowId: selectedWorkflowStillExists ? state.selectedWorkflowId : null,
             selectedWorkflow: selectedWorkflowStillExists ? state.selectedWorkflow : null,
             runs: selectedWorkflowStillExists ? state.runs : [],
@@ -342,7 +359,7 @@ export const workflowWorkspaceStore = {
             lastLoadedAt: Date.now(),
           };
         });
-        return data.workflows;
+        return reusable;
       })
       .catch((error) => {
         if (requestGeneration !== cacheGeneration) throw error;
@@ -498,6 +515,17 @@ export const workflowWorkspaceStore = {
     return workflow;
   },
 
+  async saveAsReusableWorkflow(workflowId: string, idempotencyKey: string): Promise<WorkflowDetail> {
+    const requestGeneration = cacheGeneration;
+    const data = await workflowApiRequest<{ workflow: WorkflowDetail }>(
+      `/v1/workflows/${encodeURIComponent(workflowId)}/save-as-reusable`,
+      { method: "POST", body: JSON.stringify({ idempotency_key: idempotencyKey }) },
+    );
+    assertCurrentGeneration(requestGeneration);
+    this.upsertWorkflow(data.workflow);
+    return data.workflow;
+  },
+
   async importWorkflowFile(document: unknown): Promise<WorkflowDetail> {
     const requestGeneration = cacheGeneration;
     const data = await workflowApiRequest<{ workflow: WorkflowDetail }>("/v1/workflows/file-import", {
@@ -598,12 +626,16 @@ export const workflowWorkspaceStore = {
     });
   },
 
-  async runWorkflow(workflowId: string): Promise<WorkflowRun> {
+  async runWorkflow(workflowId: string, invocation: WorkflowRunInvocation = {}): Promise<WorkflowRun> {
     const requestGeneration = cacheGeneration;
     const data = await workflowApiRequest<{ run: WorkflowRun }>(`/v1/workflows/${encodeURIComponent(workflowId)}/run`, {
       method: "POST",
-      body: JSON.stringify({ mode: "test", input: {} }),
-      headers: { "Idempotency-Key": `${workflowId}-${crypto.randomUUID()}` },
+      body: JSON.stringify({ mode: invocation.mode ?? "test", input: invocation.input ?? {},
+        ...(invocation.sourceChatId ? { source_chat_id: invocation.sourceChatId } : {}),
+        ...(invocation.messageDestinationOverrides ? { message_destination_overrides: invocation.messageDestinationOverrides } : {}),
+        ...(invocation.returnOutputs ? { return_outputs: invocation.returnOutputs } : {}),
+      }),
+      headers: { "Idempotency-Key": invocation.idempotencyKey ?? `${workflowId}-${crypto.randomUUID()}` },
     });
     assertCurrentGeneration(requestGeneration);
     cacheRevision += 1;

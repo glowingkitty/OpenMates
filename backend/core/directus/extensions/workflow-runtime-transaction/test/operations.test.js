@@ -82,11 +82,13 @@ test('stale queued, running and human-wait runs finish atomically while due deli
   const run = (id, status, started, record = null) => ({ id, run_id: id, workflow_id: 'workflow-1', version_id: 'version-1',
     trigger_type: 'manual', hashed_user_id: OWNER, status, accepted_at: started, started_at: started, record_json: record });
   const database = fakeDatabase({workflow_runs: [
-    run('queued', 'queued', now - 301), run('running', 'running', now - 1801),
+    run('queued', 'queued', now - 301), run('running', 'running', now - 2041),
     run('waiting', 'waiting', now - 100, {id: 'waiting', workflow_id: 'workflow-1', wait_expires_at: now - 1}),
     run('fresh', 'running', now - 10),
   ], workflow_chat_deliveries: [{id:'delivery-row',delivery_id:'delivery-1',status:'delivery_pending',expires_at:now-1,
-    encrypted_payload:'ciphertext',revision:1}, {id:'run-delivery-row',delivery_id:'run-delivery',workflow_id:'workflow-1',
+    encrypted_payload:'ciphertext',revision:1}, {id:'definition-row',delivery_id:'definition-delivery',status:'delivery_pending',
+    node_id:'__chat_definition__',expires_at:null,encrypted_payload:'encrypted-definition',revision:1},
+    {id:'run-delivery-row',delivery_id:'run-delivery',workflow_id:'workflow-1',
     run_id:'running',hashed_user_id:OWNER,status:'delivery_pending',expires_at:now+1000,encrypted_payload:'ciphertext',revision:1}],
     workflow_delivery_history: [{id:'history-row',delivery_id:'delivery-1',status:'reserved'},
       {id:'run-history-row',delivery_id:'run-delivery',workflow_id:'workflow-1',run_id:'running',hashed_user_id:OWNER,status:'reserved'}]});
@@ -98,7 +100,9 @@ test('stale queued, running and human-wait runs finish atomically while due deli
   assert.equal(database.rows.workflow_runs.find(r=>r.run_id==='queued').record_json,null);
   assert.equal(database.rows.workflow_chat_deliveries[0].status,'expired');
   assert.equal(database.rows.workflow_chat_deliveries[0].encrypted_payload,'');
-  assert.equal(database.rows.workflow_chat_deliveries[1].status,'cancelled');
+  assert.equal(database.rows.workflow_chat_deliveries.find(d=>d.id==='definition-row').status,'delivery_pending');
+  assert.equal(database.rows.workflow_chat_deliveries.find(d=>d.id==='definition-row').encrypted_payload,'encrypted-definition');
+  assert.equal(database.rows.workflow_chat_deliveries.find(d=>d.id==='run-delivery-row').status,'cancelled');
   assert.equal(database.rows.workflow_delivery_history.length,0);
 });
 
@@ -305,6 +309,45 @@ test('manual acceptance creates one queued run pinned to the locked current immu
     accepted: false, run_id: accepted.run_id, workflow_id: 'workflow-1', version_id: 'version-1', status: 'queued',
   });
   assert.equal(database.rows.workflow_runs.length, 1);
+});
+
+// contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible,workflows.content.encrypted-retained
+test('manual acceptance pins only an owner-encrypted invocation ref and rejects a changed retry', async () => {
+  const ref = 'vault://workflows/workflow_run_invocation/12345678-1234-1234-1234-123456789abc';
+  const database = fakeDatabase({
+    workflows: [{ workflow_id: 'workflow-1', hashed_user_id: OWNER, current_version_id: 'version-1', status: 'disabled' }],
+    workflow_versions: [{ version_id: 'version-1', workflow_id: 'workflow-1', hashed_user_id: OWNER }],
+    workflow_encrypted_blobs: [{ ref, hashed_user_id: OWNER, kind: 'workflow_run_invocation' }],
+    workflow_runs: [],
+  });
+  const body = { protocol_version: 1, workflow_id: 'workflow-1', hashed_user_id: OWNER,
+    trigger_type: 'manual', idempotency_key: 'chat-call', encrypted_invocation_ref: ref, invocation_hash: 'b'.repeat(64) };
+  const first = await executeOperation(database, 'accept_manual_run', body, NOW);
+  assert.equal(first.accepted, true);
+  assert.equal(database.rows.workflow_runs[0].encrypted_invocation_ref, ref);
+  assert.equal(database.rows.workflow_runs[0].invocation_hash, 'b'.repeat(64));
+  const replay = await executeOperation(database, 'accept_manual_run', body, NOW);
+  assert.equal(replay.accepted, false);
+  await assert.rejects(executeOperation(database, 'accept_manual_run', {...body, invocation_hash: 'c'.repeat(64)}, NOW),
+    (error) => error instanceof WorkflowRuntimeError && error.code === 'run_invocation_conflict');
+  await assert.rejects(executeOperation(database, 'accept_manual_run', {...body, idempotency_key: 'new-call', hashed_user_id: 'c'.repeat(64)}, NOW),
+    (error) => error instanceof WorkflowRuntimeError && error.code === 'workflow_not_found');
+});
+
+// contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible
+test('a stale accepted manual run may be reclaimed once its worker lease has elapsed', async () => {
+  const current = Math.floor(NOW.getTime() / 1000);
+  const database = fakeDatabase({workflow_runs: [{id: 'row-1', run_id: 'run-1', workflow_id: 'workflow-1',
+    version_id: 'version-1', hashed_user_id: OWNER, trigger_type: 'manual', status: 'running',
+    accepted_at: current - 2000, started_at: current - 2000}]});
+  const body = {protocol_version: 1, workflow_id: 'workflow-1', run_id: 'run-1', hashed_user_id: OWNER};
+  const reclaimed = await executeOperation(database, 'start_accepted_run', body, NOW);
+  assert.equal(reclaimed.started, true);
+  assert.equal(reclaimed.recovered, true);
+  assert.equal(reclaimed.recovery_generation, 1);
+  const immediate = await executeOperation(database, 'start_accepted_run', body, NOW);
+  assert.equal(immediate.started, false);
+  assert.equal(immediate.status, 'running');
 });
 
 // contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible,workflows.surface.semantic-parity

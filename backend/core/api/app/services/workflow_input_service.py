@@ -23,7 +23,7 @@ from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError,
 
 from backend.core.api.app.services.workflow_input_security import redacted_event_summary, sanitize_workflow_input_text
 from backend.core.api.app.services.workflow_authoring_billing import WorkflowAuthoringBillingError
-from backend.core.api.app.services.workflow_models import WorkflowDetail, WorkflowGraph, validate_workflow_composition_refs, validate_workflow_readiness
+from backend.core.api.app.services.workflow_models import WorkflowDetail, WorkflowGraph, WorkflowLifecycle, validate_workflow_composition_refs, validate_workflow_readiness
 from backend.core.api.app.services.workflow_service import (
     DirectusWorkflowRepository,
     WorkflowNotFoundError,
@@ -678,7 +678,11 @@ class WorkflowInputService:
         on_event: Callable[[dict[str, Any]], None] | None = None,
         idempotency_key: str | None = None,
         source_chat_id: str | None = None,
+        execution_mode: Literal["saved", "run_once"] = "saved",
+        return_outputs: dict[str, dict[str, str]] | None = None,
     ) -> WorkflowInputSessionResult:
+        if execution_mode == "run_once" and not source_chat_id:
+            raise ValueError("One-time chat workflows require a source chat")
         started = time.perf_counter()
         resolved_vault_key_id = self._resolve_vault_key_id(user_id, vault_key_id)
         key_resolved_at = time.perf_counter()
@@ -703,6 +707,8 @@ class WorkflowInputService:
         )
         session["timezone"] = timezone
         session["source_chat_id"] = source_chat_id
+        session["execution_mode"] = execution_mode
+        session["return_outputs"] = return_outputs or {}
         session["_on_stream_event"] = on_event
         if on_event is not None:
             self._persist_session(session, resolved_vault_key_id)
@@ -1045,7 +1051,14 @@ class WorkflowInputService:
             self._emit_stream(session, {"type": "progress", "phase": "planning"})
             self._record_timing(session, "context_seconds", context_started)
             try:
-                plan = self.planner.plan(text=sanitized_text, context=context)
+                planning_text = sanitized_text
+                if session.get("execution_mode") == "run_once":
+                    planning_text = (
+                        "Execution mode: run exactly once now in this chat. Create one workflow "
+                        "with a manual trigger and no schedule. Preserve the requested actions "
+                        "and result routing.\n\n" + sanitized_text
+                    )
+                plan = self.planner.plan(text=planning_text, context=context)
             except Exception as exc:
                 if isinstance(exc, WorkflowAuthoringBillingError):
                     raise
@@ -1137,6 +1150,8 @@ class WorkflowInputService:
     ) -> WorkflowInputSessionResult:
         if session["status"] == "stopped":
             return self._result(session)
+        if session.get("execution_mode") == "run_once" and not isinstance(plan, (_CreateWorkflowPlan, _ClarificationPlan, _DraftPlan)):
+            raise ValueError("One-time chat execution requires a single new workflow")
         if isinstance(plan, _ClarificationPlan):
             session["status"] = "needs_clarification"
             session["message"] = plan.message
@@ -1388,7 +1403,11 @@ class WorkflowInputService:
         for assumption in plan.assumptions:
             self._append_event(session, "assumption", {"text_length": len(assumption)}, vault_key_id=vault_key_id)
         graph = plan.graph.model_dump(mode="json", by_alias=True)
-        validate_workflow_readiness(plan.graph, require_schedule=True)
+        run_once = session.get("execution_mode") == "run_once"
+        validate_workflow_readiness(
+            plan.graph, require_schedule=not run_once,
+            allow_return_outputs=run_once and bool(session.get("return_outputs")),
+        )
         validate_workflow_composition_refs(plan.graph, allow_data_dependencies=True)
         self._stream_draft_nodes(session, graph, vault_key_id)
         if session["status"] == "stopped":
@@ -1399,6 +1418,7 @@ class WorkflowInputService:
             plan.title,
             plan.graph,
             enabled=False,
+            lifecycle=WorkflowLifecycle.CHAT_EMBED if run_once else WorkflowLifecycle.PERSISTED,
             source="workflow_input",
             source_chat_id=session.get("source_chat_id"),
             created_by_assistant=True,
@@ -1569,6 +1589,7 @@ class WorkflowInputService:
             "projects": [],
             "selected_project_id": session.get("selected_project_id"),
             "timezone": session.get("timezone"),
+            "execution_mode": session.get("execution_mode", "saved"),
         }
         if getattr(self.planner, "atomic_authoring", False):
             # Private server-side billing identity. The planner passes only
@@ -1983,6 +2004,8 @@ def _session_private_state(session: dict[str, Any]) -> dict[str, Any]:
         "selected_project_id": session.get("selected_project_id"),
         "timezone": session.get("timezone"),
         "source_chat_id": session.get("source_chat_id"),
+        "execution_mode": session.get("execution_mode", "saved"),
+        "return_outputs": deepcopy(session.get("return_outputs") or {}),
         "authoring_metrics": deepcopy(session.get("authoring_metrics")),
         "draft_graph": deepcopy(session.get("draft_graph")),
         "workflow": workflow.model_dump(mode="json") if isinstance(workflow, WorkflowDetail) else deepcopy(workflow),

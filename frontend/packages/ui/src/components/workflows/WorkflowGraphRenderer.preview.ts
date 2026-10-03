@@ -474,6 +474,46 @@ function deliveryPreview(status?: string) {
 }
 
 export const variants = {
+  forEachStartInput: {
+    ...defaultProps,
+    workflowId: 'preview-workflow',
+    onSave: saveTestGraph,
+    graph: { version: 2, trigger_node_id: 'trigger', nodes: [{ id: 'trigger', type: 'manual_trigger', config: {
+      required_start_input_schema: { type: 'object', properties: { results: { type: 'array', items: { type: 'object', properties: { title: { type: 'string' } } } } }, required: ['results'] },
+    } }], edges: [] } as WorkflowGraph,
+  },
+  choiceCheck: {
+    ...defaultProps,
+    workflowId: 'preview-workflow',
+    onSave: saveTestGraph,
+    graph: {
+      version: 2, trigger_node_id: 'trigger',
+      nodes: [
+        { id: 'trigger', type: 'manual_trigger', config: {} },
+        { id: 'weather', type: 'app_skill_action', title: 'Forecast', config: { app_id: 'weather', skill_id: 'forecast', input: { location: 'Berlin' } } },
+        { id: 'rain', type: 'check', config: { mode: 'ai', result_type: 'options', selection_mode: 'multiple', question: '{{steps.weather.rain_probability}}', options: [{ id: 'bring_coat', label: 'Bring a coat' }, { id: 'take_umbrella', label: 'Take an umbrella' }] } },
+        { id: 'message', type: 'send_chat_message', config: { title: 'Weather note', message: '{{steps.weather.rain_probability}}' } },
+      ],
+      edges: [{ from: 'trigger', to: 'weather' }, { from: 'weather', to: 'rain' }, { from: 'rain', to: 'message', branch: 'option:bring_coat' }],
+    } as WorkflowGraph,
+  },
+  forEachBody: {
+    ...defaultProps,
+    workflowId: 'preview-workflow',
+    onSave: saveTestGraph,
+    capabilityFixtures: [...defaultProps.capabilityFixtures, eventsSearchCapability],
+    graph: {
+      version: 2, trigger_node_id: 'trigger',
+      nodes: [
+        { id: 'trigger', type: 'manual_trigger', config: {} },
+        { id: 'search', type: 'app_skill_action', title: 'Search events', config: { app_id: 'events', skill_id: 'search', input: { requests: [{ query: 'Events in Berlin' }] } } },
+        { id: 'loop', type: 'for_each', title: 'For each result', config: { items: '$nodes.search.output.results', max_items: 100, max_duration_seconds: 300, max_credits: 100, per_item_timeout_seconds: 60 } },
+        { id: 'message', type: 'send_chat_message', config: { title: 'Event item', message: '{{items.loop.item.title}}' } },
+        { id: 'after', type: 'send_chat_message', config: { title: 'Complete', message: '{{steps.search.results}}' } },
+      ],
+      edges: [{ from: 'trigger', to: 'search' }, { from: 'search', to: 'loop' }, { from: 'loop', to: 'message', branch: 'body' }, { from: 'loop', to: 'after' }],
+    } as WorkflowGraph,
+  },
   websiteTemplate: {
     ...defaultProps,
     graph: websiteChangesGraph({

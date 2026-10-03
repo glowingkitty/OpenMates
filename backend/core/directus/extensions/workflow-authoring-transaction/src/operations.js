@@ -393,19 +393,23 @@ async function updateLegacyHead(database, raw) {
   });
 }
 
-async function expireTemporary(database, raw) {
+async function expireTemporary(database, raw, chatOwned = false) {
   const body = object(raw);
   if (!OWNER_RE.test(string(body.owner_hash, 80))) fail(400, 'invalid_owner');
   const workflowId = string(body.workflow_id);
   const expected = integer(body.expected_version);
   const cutoff = integer(body.cutoff);
+  const sourceChatId = chatOwned ? string(body.source_chat_id) : null;
   return database.transaction(async (trx) => {
     const head = await trx(TABLES.heads).where({ workflow_id: workflowId }).forUpdate().first();
     if (!head || head.hashed_user_id !== body.owner_hash
         || (head.hashed_team_id || null) !== (body.hashed_team_id || null)
         || Number(head.version) !== expected) fail(409, 'head_conflict');
     const record = jsonValue(head.record_json);
-    if (!record || record.lifecycle !== 'temporary' || !Number.isSafeInteger(record.auto_delete_at)
+    if (chatOwned) {
+      if (!record || record.lifecycle !== 'chat_embed' || record.source_chat_id !== sourceChatId
+          || record.auto_delete_at !== null || record.enabled || head.hashed_team_id) fail(409, 'chat_purge_conflict');
+    } else if (!record || record.lifecycle !== 'temporary' || !Number.isSafeInteger(record.auto_delete_at)
         || record.auto_delete_at > cutoff) fail(409, 'expiration_conflict');
     const triggers = await trx(TABLES.triggers).where({ workflow_id: workflowId }).forUpdate();
     const runs = await trx('workflow_runs').where({ workflow_id: workflowId }).forUpdate();
@@ -416,6 +420,7 @@ async function expireTemporary(database, raw) {
     const refs = new Set();
     for (const field of ['encrypted_title_ref', 'encrypted_description_ref', 'encrypted_category_ref',
       'encrypted_icon_ref', 'encrypted_graph_ref']) if (record[field]) refs.add(record[field]);
+    if (chatOwned && head.encrypted_delivery_key_ref) refs.add(head.encrypted_delivery_key_ref);
     for (const version of record.versions || []) if (version.encrypted_graph_ref) refs.add(version.encrypted_graph_ref);
     for (const trigger of triggers) for (const field of ['encrypted_schedule_config_ref',
       'encrypted_event_predicate_ref', 'encrypted_webhook_config_ref', 'encrypted_required_start_input_schema_ref']) {
@@ -424,6 +429,9 @@ async function expireTemporary(database, raw) {
     for (const run of runs) {
       const runRecord = jsonValue(run.record_json) || {};
       if (runRecord.encrypted_content_ref) refs.add(runRecord.encrypted_content_ref);
+      if (chatOwned) for (const field of ['encrypted_input', 'encrypted_invocation_ref', 'encrypted_output_summary']) {
+        if (run[field]?.startsWith?.('vault://workflows/')) refs.add(run[field]);
+      }
     }
     for (const mutation of mutations) {
       if (mutation.encrypted_before_ref) refs.add(mutation.encrypted_before_ref);
@@ -445,11 +453,16 @@ async function expireTemporary(database, raw) {
       hashed_user_id: body.owner_hash }).delete();
     await trx(TABLES.triggers).where({ workflow_id: workflowId }).delete();
     await clearWebsiteState(trx,workflowId,body.owner_hash);
+    if (chatOwned) {
+      await trx('workflow_chat_deliveries').where({workflow_id:workflowId,
+        hashed_user_id:body.owner_hash.replace(/^user_sha256:/,'')}).delete();
+      await trx('workflow_delivery_history').where({workflow_id:workflowId,hashed_user_id:body.owner_hash}).delete();
+    }
     await trx('workflow_runs').where({ workflow_id: workflowId }).delete();
     await trx(TABLES.versions).where({ workflow_id: workflowId }).delete();
     await trx(TABLES.heads).where({ id: head.id }).delete();
     if (refs.size) await trx(TABLES.blobs).where({ hashed_user_id: body.owner_hash }).whereIn('ref', [...refs]).delete();
-    return { expired: true };
+    return chatOwned ? { purged: true } : { expired: true };
   });
 }
 
@@ -501,6 +514,7 @@ export async function executeAuthoring(database, path, body) {
   if (path === '/run-status') return updateRunStatus(database, body);
   if (path === '/legacy-head') return updateLegacyHead(database, body);
   if (path === '/expire-temporary') return expireTemporary(database, body);
+  if (path === '/purge-chat-embed') return expireTemporary(database, body, true);
   if (path === '/prune-mutations') return pruneMutationSnapshots(database, body);
   if (path === '/') return commit(database, body);
   fail(404, 'unknown_operation');

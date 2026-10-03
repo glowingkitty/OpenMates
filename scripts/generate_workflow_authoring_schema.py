@@ -31,9 +31,16 @@ def build_schema() -> dict[str, object]:
             "ask_for_user_input",
             "wait",
             "for_every",
+            "for_each",
             "repeat_until",
             "if",
         ],
+        "checkResultTypes": ["boolean", "options"],
+        "checkSelectionModes": ["single", "multiple"],
+        "checkMaxOptions": 10,
+        "forEachFields": ["items", "body", "max_items", "max_duration_seconds", "max_credits", "per_item_timeout_seconds"],
+        "forEachMaxItems": 100,
+        "forEachDefaults": {"max_items": 100, "max_duration_seconds": 300, "max_credits": 100, "per_item_timeout_seconds": 60},
         "retentionModes": ["last_5", "none"],
     }
 

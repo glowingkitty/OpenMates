@@ -20,6 +20,25 @@ import yaml
 from backend.core.api.app.services.workflow_models import WorkflowCapability
 from backend.core.api.app.services.workflow_runtime_values import resolve_workflow_runtime_values
 
+
+WORKFLOW_CONTROL_CAPABILITIES = (
+    WorkflowCapability(type="node", id="check.ai.options", title="AI Check: options", metadata={
+        "node_type": "check", "mode": "ai", "result_type": "options",
+        "selection_modes": ["single", "multiple"], "min_options": 2, "max_options": 10,
+        "branches": ["option:<id>", "no_match", "unsure"],
+        "outputs": ["selected_options", "selected_labels", "selected_count", "matches", "decision"],
+    }),
+    WorkflowCapability(type="node", id="for_each", title="For each", metadata={
+        "node_type": "for_each", "items_type": "typed_array_reference",
+        "max_items": {"default": 100, "minimum": 1, "maximum": 100},
+        "max_duration_seconds": {"default": 300, "minimum": 1, "maximum": 3600},
+        "max_credits": {"default": 100, "minimum": 1, "maximum": 1000},
+        "per_item_timeout_seconds": {"default": 60, "minimum": 1, "maximum": 3600},
+        "branches": ["body", "default"],
+        "outputs": ["item_count", "completed_count", "results"],
+        "nested": False,
+    }),
+)
 if TYPE_CHECKING:
     from backend.core.api.app.services.skill_registry import SkillRegistry
 
@@ -109,6 +128,10 @@ class WorkflowCapabilityRegistry:
             for skill in _value(app_metadata, "skills", default=[]):
                 capabilities.append(self._capability_for_skill(registry, app_id, skill))
         return capabilities
+
+    def list_control_capabilities(self) -> list[WorkflowCapability]:
+        """Describe bounded graph controls without mixing them into app-skill selection."""
+        return [capability.model_copy(deep=True) for capability in WORKFLOW_CONTROL_CAPABILITIES]
 
     def get_capability(self, capability_id: str) -> WorkflowCapability:
         """Resolve ``app.skill`` and retain a precise reason when it is unavailable."""

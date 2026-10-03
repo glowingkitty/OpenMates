@@ -35,6 +35,7 @@ class FakeDatabase {
     database.tables = Object.fromEntries([
       'workflows', 'workflow_versions', 'workflow_triggers', 'workflow_runs', 'workflow_encrypted_blobs',
       'workflow_input_mutations', 'workflow_authoring_operations', 'workflow_website_state', 'workflow_chat_deliveries',
+      'workflow_delivery_history',
     ].map((table) => [table, []]));
     database.transaction = (callback) => {
       const copy = structuredClone(database.tables);
@@ -185,6 +186,60 @@ test('temporary expiration deletes only the unchanged due workflow', async () =>
   assert.equal(db.tables.workflows.length, 0);
   assert.equal(db.tables.workflow_encrypted_blobs.length, 0);
   assert.equal(db.tables.workflow_input_mutations.length, 0);
+  assert.deepEqual(JSON.parse(db.tables.workflow_authoring_operations[0].outcomes_json), [
+    { workflow_id: workflowId, version: 1, after_ref: null, expired: true },
+  ]);
+});
+
+// contract-test: supporting surface=rest_api assertions=workflows.chat.embedded-lifecycle
+test('chat-owned purge removes private history and keeps an independent saved copy', async () => {
+  const db = new FakeDatabase();
+  const workflowId = '00000000-0000-4000-8000-000000000002';
+  const copyId = '00000000-0000-4000-8000-000000000003';
+  const body = createBody('chat-create', workflowId);
+  body.writes[0].record.lifecycle = 'chat_embed';
+  body.writes[0].record.source_chat_id = 'source-chat';
+  body.writes[0].record.auto_delete_at = null;
+  const snapshotRef = ref('chat-mutation-snapshot');
+  body.mutations[0].encrypted_after_ref = snapshotRef;
+  body.mutations[0].encrypted_after_checksum = checksum;
+  body.outcomes[0].after_ref = snapshotRef;
+  body.blobs.push({ ...body.blobs[0], ref: snapshotRef, kind: 'workflow_mutation' });
+  await executeAuthoring(db, '/', body);
+  await executeAuthoring(db, '/', createBody('saved-copy', copyId));
+  const inputRef = ref('chat-input');
+  const invocationRef = ref('chat-invocation');
+  const outputRef = ref('chat-output');
+  const deliveryKeyRef = ref('chat-delivery-identity-key');
+  db.tables.workflows.find((row) => row.workflow_id === workflowId).encrypted_delivery_key_ref = deliveryKeyRef;
+  for (const privateRef of [inputRef, invocationRef, outputRef, deliveryKeyRef]) {
+    db.tables.workflow_encrypted_blobs.push({ ...body.blobs[0], ref: privateRef,
+      hashed_user_id: OWNER });
+  }
+  db.tables.workflow_runs.push({ id: 'run-1', workflow_id: workflowId, hashed_user_id: OWNER,
+    encrypted_input: inputRef, encrypted_invocation_ref: invocationRef,
+    encrypted_output_summary: outputRef, record_json: '{}' });
+  db.tables.workflow_chat_deliveries.push({ id: 'delivery-1', workflow_id: workflowId,
+    hashed_user_id: OWNER.replace(/^user_sha256:/, ''), status: 'pending',
+    encrypted_payload: 'private', claim_generation: 0, revision: 0 });
+  db.tables.workflow_delivery_history.push({ id: 'history-1', workflow_id: workflowId,
+    hashed_user_id: OWNER });
+  const purge = { workflow_id: workflowId, owner_hash: OWNER, hashed_team_id: null,
+    expected_version: 1, source_chat_id: 'source-chat', cutoff: 100 };
+  await assert.rejects(executeAuthoring(db, '/purge-chat-embed', { ...purge,
+    source_chat_id: 'different-chat' }), (error) => error instanceof AuthoringError
+    && error.code === 'chat_purge_conflict');
+  await assert.rejects(executeAuthoring(db, '/purge-chat-embed', { ...purge,
+    owner_hash: `user_sha256:${'d'.repeat(64)}` }), (error) => error instanceof AuthoringError
+    && error.code === 'head_conflict');
+  assert.deepEqual(await executeAuthoring(db, '/purge-chat-embed', purge), { purged: true });
+  assert.deepEqual(db.tables.workflows.map((row) => row.workflow_id), [copyId]);
+  assert.equal(db.tables.workflow_runs.length, 0);
+  assert.equal(db.tables.workflow_chat_deliveries.length, 0);
+  assert.equal(db.tables.workflow_delivery_history.length, 0);
+  assert.equal(db.tables.workflow_input_mutations.length, 1);
+  assert.deepEqual(db.tables.workflow_encrypted_blobs.map((blob) => blob.ref).sort(),
+    [ref(`title-${copyId}`), ref(`graph-${copyId}`)].sort());
   assert.deepEqual(JSON.parse(db.tables.workflow_authoring_operations[0].outcomes_json), [
     { workflow_id: workflowId, version: 1, after_ref: null, expired: true },
   ]);
