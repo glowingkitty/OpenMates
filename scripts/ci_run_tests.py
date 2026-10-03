@@ -348,7 +348,8 @@ import json
 import os
 from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
 from backend.core.api.app.services.chat_recovery_cutover import ChatRecoveryCutoverController
-from backend.core.api.app.tasks.base_task import BaseServiceTask
+from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.services.directus import DirectusService
 
 async def main():
     if (os.getenv('OPENMATES_CI_ISOLATED') != '1'
@@ -357,10 +358,10 @@ async def main():
             or os.getenv('S3_ENDPOINT_URL') != 'http://storage.ci.test:9000'
             or os.getenv('SERVER_ENVIRONMENT', 'production') in ('production', 'prod')):
         raise RuntimeError('Recovery epoch activation requires disposable isolated fixtures')
-    task = BaseServiceTask()
-    await task.initialize_services()
+    cache = CacheService()
+    directus = DirectusService(cache_service=cache)
     try:
-        service = ChatRecoveryService(task.directus_service)
+        service = ChatRecoveryService(directus)
         state = await service.execute('get_cutover_state', {'protocol_version': 1})
         if state.get('protocol_epoch') != 0 or state.get('legacy_in_flight') != 0 or state.get('sends_paused'):
             raise RuntimeError('Recovery fixture cutover state is not a fresh idle epoch zero')
@@ -376,14 +377,15 @@ async def main():
         finally:
             if paused:
                 await service.execute('set_sends_paused', {'protocol_version': 1, 'sends_paused': False})
-        controller = ChatRecoveryCutoverController(task.cache_service, task.directus_service)
+        controller = ChatRecoveryCutoverController(cache, directus)
         final = await controller.get_state(authoritative=True)
         cached = await controller.get_state()
         if (final.get('protocol_epoch') != 1 or final.get('sends_paused')
                 or cached.get('protocol_epoch') != 1 or cached.get('sends_paused')):
             raise RuntimeError('Recovery fixture epoch one is not open for sends')
     finally:
-        await task.cleanup_services()
+        await directus.close()
+        await cache.close()
     print(json.dumps({'protocol_epoch': 1, 'sends_paused': False, 'legacy_in_flight': 0}))
 
 asyncio.run(main())
@@ -394,10 +396,20 @@ asyncio.run(main())
             "api", "python", "-c", program, capture=True, timeout=60,
         )
     except subprocess.CalledProcessError as exc:
+        stderr = exc.stderr if isinstance(exc.stderr, str) else ""
         (RESULTS / "ci-private" / "recovery-epoch.stderr.log").write_text(
-            (exc.stderr or "")[-100_000:], encoding="utf-8",
+            stderr[-100_000:], encoding="utf-8",
         )
-        raise RuntimeError("Disposable recovery epoch activation failed") from None
+        frames = re.findall(
+            r'File "<string>", line ([0-9]+), in ([A-Za-z_][A-Za-z_0-9]*)', stderr,
+        )
+        line, function = frames[-1] if frames else ("unknown", "unknown")
+        terminal = stderr.strip().splitlines()[-1] if stderr.strip() else ""
+        error_type_match = re.match(r"([A-Za-z_][A-Za-z_0-9.]*)(?::|$)", terminal)
+        error_type = error_type_match.group(1) if error_type_match else "unknown"
+        raise RuntimeError(
+            f"Disposable recovery epoch activation failed at {function}:{line} ({error_type})"
+        ) from None
     try:
         receipt = json.loads(result.stdout.splitlines()[-1])
     except (IndexError, json.JSONDecodeError) as exc:

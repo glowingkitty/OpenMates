@@ -4,6 +4,8 @@
 import pytest
 import json
 import importlib.util
+import ast
+import subprocess
 import sys
 from types import SimpleNamespace
 from pathlib import Path
@@ -70,6 +72,55 @@ def test_recovery_epoch_fixture_requires_exact_disposable_profile(tmp_path, monk
     with pytest.raises(RuntimeError, match="exact isolated capacity profile"):
         runner.activate_isolated_recovery_epoch()
     assert len(calls) == 1
+
+
+def test_recovery_epoch_child_program_compiles_and_uses_only_cutover_dependencies(monkeypatch) -> None:
+    runner = _load_bound_runner(monkeypatch)
+    tree = ast.parse(Path(runner.__file__).read_text())
+    function = next(node for node in tree.body
+                    if isinstance(node, ast.FunctionDef) and node.name == "activate_isolated_recovery_epoch")
+    literal = next(node.value for node in function.body if isinstance(node, ast.Assign)
+                   and any(isinstance(target, ast.Name) and target.id == "program" for target in node.targets))
+    program = ast.literal_eval(literal)
+    compile(program, "<recovery-epoch-fixture>", "exec")
+    child = ast.parse(program)
+    project_root = Path(runner.__file__).resolve().parents[1]
+    modules = {node.module for node in child.body if isinstance(node, ast.ImportFrom)}
+    for module in modules:
+        assert (project_root / (module.replace(".", "/") + ".py")).is_file() or (
+            project_root / module.replace(".", "/") / "__init__.py"
+        ).is_file(), module
+    assert "backend.core.api.app.tasks.base_task" not in modules
+    assert "backend.core.api.app.services.cache" in modules
+    assert "backend.core.api.app.services.directus" in modules
+    assert all(name in program for name in (
+        "get_cutover_state", "set_sends_paused", "activate_protocol_epoch",
+        "ChatRecoveryCutoverController(cache, directus)",
+    ))
+
+
+def test_recovery_epoch_failure_reports_only_child_location_and_class(tmp_path, monkeypatch) -> None:
+    runner = _load_bound_runner(monkeypatch)
+    profile = compose_profile(
+        "candidate-sha", storage_capacity=True, account_emails=["ci-one@example.com"],
+    )
+    compose_path = tmp_path / "compose.json"
+    compose_path.write_text(json.dumps(profile))
+    private = tmp_path / "ci-private"
+    private.mkdir()
+    monkeypatch.setattr(runner, "COMPOSE_PATH", compose_path)
+    monkeypatch.setattr(runner, "RESULTS", tmp_path)
+    monkeypatch.setattr(runner, "require_runner", lambda: None)
+    stderr = 'Traceback (most recent call last):\n  File "<string>", line 17, in main\nRuntimeError: private-token-value'
+
+    def failed_compose(*args, **kwargs):
+        raise subprocess.CalledProcessError(1, "docker compose exec", stderr=stderr)
+
+    monkeypatch.setattr(runner, "compose", failed_compose)
+    with pytest.raises(RuntimeError, match=r"failed at main:17 \(RuntimeError\)") as raised:
+        runner.activate_isolated_recovery_epoch()
+    assert "private-token-value" not in str(raised.value)
+    assert (private / "recovery-epoch.stderr.log").read_text() == stderr
 
 
 @pytest.mark.parametrize(
