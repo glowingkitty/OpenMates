@@ -82,7 +82,23 @@ Return: Task/workspace, deployed dev commit, owned paths, platform/build/test re
 
 ## Activation dependency
 
-Keep the backend's strict parent/key writer enforcement and archive rollout inactive on shared services until the supported native sender is verified and the release/compatibility policy is settled. All archive worker switches default off; real pruning additionally requires supported-reader receipts, the 24-hour source buffer, full zero-inference capacity/lifecycle tests, and per-unit safety fences. The current small CI runner cannot prove 500 simultaneous executions. No Apple receipt or full-scale capacity result has been claimed.
+Hold deployment of handlers requiring the new parent/key writer contract until
+the supported native sender is verified and the release/compatibility policy is
+settled. Turning archive switches off does not gate these writer checks. All
+archive worker switches default off; real pruning additionally requires
+supported-reader receipts, the 24-hour source buffer, full zero-inference
+capacity/lifecycle tests, and per-unit safety fences. The current small CI
+profile cannot prove 500 simultaneous executions. No Apple receipt or full-scale
+capacity result has been claimed.
+
+The source audit of candidate `b1cb1fe84b3b5f529e169985f2bf0c02da2dfc0f`
+also confirms that `protocol_version: 1` and recovery epoch 1 do **not** prove
+support for typed sealed-output replay: older Apple clients already send that
+preflight version. The release must identify an explicitly capable client or
+hold unsupported binaries from paths needing the new writer and recovery
+contracts. Code publication alone does not upgrade installed apps. Retained
+outputs must remain available until their canonical save acknowledgement or
+authorized deletion; matching privacy copy must change with that API behavior.
 
 
 ## Additional sender and storage-billing requirements

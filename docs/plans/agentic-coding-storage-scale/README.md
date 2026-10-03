@@ -182,7 +182,7 @@ Do not activate the strict key-parent writer enforcement or archive rollout on s
 
 All archive actor switches default off. Targeted correctness/read/replication/rollback checks precede S3 read cutover; PostgreSQL source copies then remain for 24 hours. Real pruning additionally requires all supported-reader receipts, full zero-inference lifecycle/load evidence, and every per-unit durability, authorization, acknowledgement, reference, and generation fence. Explicit authorized deletion keeps its separate immediate contract.
 
-The current four-worker CI runner cannot prove 500 simultaneous executions. The 1000-heavy-user-day/500-execution benchmark needs suitable isolated hardware. Five hundred client connections are not evidence of five hundred active executions. No operator rollout, restore, ownership transfer, or real-user deletion command has run.
+The current four-worker CI profile cannot prove 500 simultaneous executions. The 1000-heavy-user-day/500-execution benchmark needs a validated isolated capacity profile and measured resources. Five hundred client connections are not evidence of five hundred active executions. No operator rollout, restore, ownership transfer, or real-user deletion command has run.
 
 The warm PostgreSQL budget still needs a separate artifact inventory. A current
 encrypted head and up to 32 recent encrypted versions are retained **per artifact**;
@@ -284,3 +284,78 @@ Tooling provenance correction: the canonical owning assertions are
 change and `storage.validation.synthetic-capacity` for the 827d270 probe diagnostic
 change. Their shorthand commit trailers used noncanonical assertion names; the
 infrastructure tests and source-bound product evidence remain separately traced.
+
+
+Retrieved recovery result: 0ab9/424 passed all four selected browser cases in run
+`37156427523` (4 expected, 0 skipped/unexpected/flaky; epoch 1; isolated cleanup
+verified). This covers saved child output, canonical embed/diff replay, sealed
+compression checkpoint, and pausing synthesis after failed durable save. It does
+not prove all supported native readers or the full capacity target. Candidate
+2166/827 selected sender unit also passed 18/18 across three suites in run
+`37156429209`, including optimistic canonical-ciphertext reconciliation. Further
+restart auditing found retained artifact keys were only in memory; a durable-key
+and head-read fence plus an explicit dropped-preflight/restart browser case are
+being added before the next source-bound check.
+
+Full-target runner finding: four executions is a current profile configuration
+cap (`min(4, requested concurrency)`), not a measured host limit. This profile
+uses one 1536 MiB AI-worker container with Celery prefork on ubuntu-latest. The
+500-slot driver would queue behind those workers. A validated isolated capacity
+profile with measured simultaneous execution admission is needed; neither a
+claim that paid hardware is required nor a 500-execution pass is supported.
+
+
+Restart candidate `b1cb1fe84b3b5f529e169985f2bf0c02da2dfc0f` / trusted harness
+`f39ccd116be98a8e96744782025267cfb8877328` adds exact retained-key and encrypted
+head durability fences plus a signed browser case that drops the first preflight
+before server acceptance, reloads with only IndexedDB retained, and requires exact
+sealed replay and one canonical user row. Its selected sender unit and two-case
+bundle browser checks are submitted, not passed. It excludes all new billing and
+legal product changes and preserves the original billing@5 bundle.
+
+### Current verification work (2026-10-03)
+
+The b1cb/f39 selected sender run `37157950560` passed 19/19 tests across three
+suites. Its two signed browser cases failed in run `37158587629`: the normal
+case still fails the rendered artifact after reload, and the dropped-preflight
+case fails exact restart replay (0 passed, 2 unexpected, no skipped cases;
+isolated cleanup verified). A bounded source investigation is underway; these
+failures are not replaced by the unit pass. The older 2166 source's
+single-case run `37157330511` failed the post-reload artifact assertion; that
+source lacks b1cb's durable key/head fences and is not being rerun unchanged.
+
+The independent 2166/827 pilot `37157332886` passed its signed browser turn and
+returned from the PostgreSQL/S3 archive probe, then failed account provisioning:
+the runner passed logical slot 100 to a CLI accepting only reserved slots 14–20.
+The archive receipt was excluded from artifact retention, so no operation-count
+or complete archive-proof claim is made from that run. Trusted tooling
+`f1ace349b4d26e81b0812e1d91dfbb35856e9656` fixes the slot mapping while preserving
+unique disposable identities and retains only the sanitized archive receipt;
+22 focused profile tests passed. The corrected pilot is submitted on source
+`3280518849d4e25637324d497036a6ae85b51bc8` with the unchanged b1cb product patch.
+Submission is not a pass.
+
+Source inspection also confirms that each AI Celery task occupies one prefork
+child while running its own asyncio loop. A true 500-active-execution test needs
+at least 500 adequately sized worker slots across workers. The present profile
+has one 1536 MiB worker container and a four-slot clamp. The full workload adds
+500,000 rounds, 200,000 new embeds and 1,000,000 file versions; provisioning,
+builds and safety checks also consume the fixed 60-minute workflow window. A
+larger distributed profile, peak resource measurements and measured throughput
+are required before a full-target run; no host capacity is inferred here.
+
+The candidate now correlates storage-warning delivery receipts and preserves
+delayed-delivery clocks, with unconfirmed/unknown/bounced notices holding expiry.
+Exact-ID provider reads have a ten-second timeout and all two-minute warning-job
+scans share a 45-second budget. Focused billing/setup checks passed 38/38 and
+transaction checks 10/10; integrated delivery and protected-expiration proof is
+still absent. New billing and protected expiration remain disabled, and the
+exact billing specification review remains pending.
+
+A separate P-1 slice against public f1ace prepares selective tracking for five
+existing collections only (`chats`, `messages`, `embeds`, `embed_diffs`,
+`test_results`), without new archive/API contracts or historical audit deletion.
+Its focused setup/inventory/probe checks passed 26/26. A source-bound disposable
+Directus write/audit probe is prepared; the real probe, size baseline and measured
+write overhead remain pending. This source is separate from the b1cb/328 product
+candidate and must not inherit their unrelated receipts.
