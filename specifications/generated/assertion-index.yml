@@ -705,7 +705,7 @@ assertions:
     direct_tests:
     - &id086
       path: frontend/apps/web_app/tests/cli-external-output-safety.spec.ts
-      line: 23
+      line: 24
       name: REST web read preserves benign content and still requires authentication
       surface: rest_api
     supporting_tests:
@@ -777,18 +777,18 @@ assertions:
       surface: rest_api
     - &id137
       path: frontend/apps/web_app/tests/cli-external-output-safety.spec.ts
-      line: 23
+      line: 24
       name: REST web read preserves benign content and still requires authentication
       surface: rest_api
     - &id138
       path: frontend/apps/web_app/tests/cli-external-output-safety.spec.ts
-      line: 42
+      line: 43
       name: CLI web read preserves a benign multi-page batch with protection on and
         off
       surface: cli
     - &id139
       path: frontend/apps/web_app/tests/cli-external-output-safety.spec.ts
-      line: 75
+      line: 76
       name: CLI preserves original benign transcript ${video} with protection on and
         off
       surface: cli
@@ -1159,7 +1159,7 @@ assertions:
     direct_tests:
     - &id162
       path: frontend/apps/web_app/tests/cli-external-output-safety.spec.ts
-      line: 42
+      line: 43
       name: CLI web read preserves a benign multi-page batch with protection on and
         off
       surface: cli
@@ -1602,13 +1602,13 @@ assertions:
       surface: rest_api
     - &id227
       path: frontend/apps/web_app/tests/cli-external-output-safety.spec.ts
-      line: 42
+      line: 43
       name: CLI web read preserves a benign multi-page batch with protection on and
         off
       surface: cli
     - &id228
       path: frontend/apps/web_app/tests/cli-external-output-safety.spec.ts
-      line: 75
+      line: 76
       name: CLI preserves original benign transcript ${video} with protection on and
         off
       surface: cli
