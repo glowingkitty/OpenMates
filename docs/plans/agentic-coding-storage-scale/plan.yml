@@ -42,6 +42,7 @@ implementation_task_refs:
   unattended_recovery: TASK-5419
   artifact_history: TASK-5243
   zero_inference_capacity: TASK-7213
+  weekly_storage_billing: TASK-9893
   note: These are references only; OpenMates Tasks owns all status and dependencies.
 
 scope:
@@ -52,6 +53,7 @@ scope:
     - Make recovery, startup sync, scrollback, subchat context, compression, version history, deletion, and export use bounded readers.
     - Selectively disable generic Directus revision/activity tracking where it has no audit purpose while preserving product version history such as embed_diffs.
     - Measure migration safety and target workloads of hundreds of messages, embeds, and diffs per user per day.
+    - Meter customer S3 archives and versions, charge excess storage weekly in credits, and align public pricing and retention disclosures with the implemented billing policy.
   out:
     - Removing PostgreSQL or Directus in this project.
     - Removing the Directus API layer; that is a later, separate project because product UI does not depend on it.
@@ -294,6 +296,27 @@ implementation_phases:
       - Required implementation checks pass in isolated CI or the explicitly appropriate environment, with measured rollback and load evidence recorded.
       - Zero real inference calls, a proven fail-before-dispatch case, full-path synthetic processing evidence, and paced versus accelerated load reports for the agreed target.
 
+  - id: P-8
+    name: Weekly storage credits and accurate public disclosures
+    changes:
+      - Implement the user-requested extension documented in billing-extension.md; preserve the approved architecture.storage-lifecycle@2 fingerprint while the extension is refined.
+      - Reuse bounded metadata aggregates to meter logical customer objects once, preserving existing upload measurement and payer during the initial migration.
+      - Freeze weekly usage, amount, policy, payer, and charge identity; accept only authoritative full settlement as paid.
+      - Send four delivered weekly warnings, with a dated deadline and a final payment and reference check before any scoped expiration; operational errors never count as nonpayment.
+      - Keep Team payer policy pending the user's answer and keep new archive charges and expiry disabled until integrated evidence and disclosures are complete.
+      - Correct privacy and terms storage, deletion, price, and unsupported backup statements together with their translation sources and canonical privacy mirror.
+    source_paths:
+      - backend/core/api/app/tasks/storage_billing_tasks.py
+      - backend/core/api/app/services/billing_service.py
+      - backend/core/api/app/routes/settings.py
+      - backend/core/directus/schemas
+      - frontend/packages/ui/src/i18n/sources/legal
+      - frontend/packages/ui/src/legal
+      - shared/docs/privacy_policy.yml
+    exit_evidence:
+      - Immutable and idempotent weekly settlement, measured deduplicated usage, settings parity, delivered-warning timing, final-payment cancellation, outage safety, and reference-safe expiry are proven with disposable data and zero real inference.
+      - Legal rendering and translation checks pass, public claims match release behavior, and Team payer and precise expiration scope are settled before activation.
+
 required_implementation_checks:
   synthetic_capacity:
     - The architecture workload represents 1000 heavy daily users, 500 simultaneous main/subchat executions, and the agreed per-user-day output volumes; report actual measured throughput and headroom rather than assuming the target was met.
@@ -333,6 +356,18 @@ required_implementation_checks:
     - Canary copy/verify/read precedes pruning; load throttles, pause conditions, rollback, and observability are exercised.
     - Initial-cohort PostgreSQL source copies remain for 24 hours after verified S3-read cutover. P-7 zero-inference checks and all per-unit safety gates precede first real-data pruning; failures pause pruning and invoke tested rollback. Explicit deletion remains immediate, while superseded generations retain their separate seven-day limit.
     - Staged-load latency, database/S3 load, compression/page-size distribution, and restore time are measured at hundreds of messages/embeds/diffs per user per day.
+  post_deploy_live_smoke:
+    - Authorized by the user on 2026-10-03 as a separate normal-chat rollout check; the bulk architecture and capacity workload still makes zero real inference calls.
+    - After the scoped dev product deployment and explicit coordinated runtime activation, make exactly two user-initiated chat turns total, one through the CLI and one through the web app, with disposable test state and a short bounded response. Record downstream provider calls and credits separately; no load loop, child agent, fixture recording, or retry that can duplicate inference.
+    - Verify real response streaming/completion, exactly one canonical user and assistant message, readable persisted content, and reopening or reloading the conversation. Verify no new processing, sync, encryption or persistence errors in the corresponding dev logs.
+    - Record the exact deployed commit, runtime target and lease, client versions, result and cost; a failure holds further rollout and uses the tested rollback path. No production change or real-user data deletion is implied.
+  weekly_storage_billing:
+    - Preserve the personal 1 GiB allowance and 3 credits per started additional GiB per week; quote and debit use one authoritative policy.
+    - Repeated references and regional replicas do not multiply the customer bill; missing size or ambiguous owner pauses billing.
+    - A retry cannot change a frozen weekly amount or double-debit it; scheduled retry, partial settlement, and operational failure are not reported as paid.
+    - Four successfully delivered notices are at least seven days apart, expiration is no earlier than day 28 after the first, and current settlement and protected-reference checks precede deletion.
+    - Billing-disabled deployments do not charge, warn, or expire unpaid storage; new archive billing remains gated until metering and release evidence are complete.
+    - Rendered privacy and terms accurately explain enabled pricing, retention, encryption, and deletion; canonical privacy source and translations agree.
 
 open_questions:
   - id: Q-1

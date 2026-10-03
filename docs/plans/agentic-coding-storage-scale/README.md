@@ -359,3 +359,76 @@ Its focused setup/inventory/probe checks passed 26/26. A source-bound disposable
 Directus write/audit probe is prepared; the real probe, size baseline and measured
 write overhead remain pending. This source is separate from the b1cb/328 product
 candidate and must not inherit their unrelated receipts.
+
+### Retrieved PostgreSQL/S3 probe and remaining pilot failure
+
+Source `3280518849d4e25637324d497036a6ae85b51bc8`, trusted harness f1ace,
+job `2ba681fc` / run `37159670637` passed the signed browser case and actual
+disposable PostgreSQL/S3 archive probe. The retained receipt verifies 20 source
+messages, one reader-verified page and 20 pruned messages, including the 86,400
+second initial-cohort buffer, retained late writes, pending-recovery and source
+mutation fences, Team claim/read/prune, sparse SQL locators, deletion/reference
+races and idempotent concurrent pruning. Its SHA256 is
+`c58f9a958877ffc73665045e38b065f47d7eebe0495d15f39ee8bd2a2100923a`.
+This is disposable-data evidence; no real-user prune or supported-native proof
+is implied.
+
+The same job's processing pilot failed at the first scheduled artifact-version
+boundary: 16/60 rounds, 8/8 embeds, 0/8 versions and 0/2 child completions. It
+recorded zero real provider calls, no cold-page latency samples and no usable
+server-overlap proof. The private failure reason was not retained, so the
+report's `unknown result kind` is diagnostic loss rather than a proven product
+cause. Bounded private phase/class/location diagnostics are being prepared before
+another processing run. The accepted 500-active-execution target remains unrun.
+
+The separately published trusted P-1 profile is dev
+`5736266585e1c5d267e30feb73c2c7405cb87946` (five infrastructure paths;
+Specification/lint/test gates passed). The selective five-collection product
+slice and its reversible None-versus-all synthetic write comparison passed
+31 focused local checks. Actual Directus execution is pending. The comparison
+will report serialized audit JSON bytes and a small sample of elapsed times,
+not a production load or database-size measurement. Existing audit history is
+preserved.
+
+### Authorized live smoke after dev product deployment
+
+On 2026-10-03 the user explicitly authorized a small real-inference check after
+deployment: two user-initiated chat turns total, one CLI and one web. This is
+separate from the architecture and capacity workload, which still uses zero real
+inference. Use disposable test state, short bounded responses, the exact scoped
+dev commit and a coordinated runtime lease. Verify streaming and completion,
+exactly one canonical user/assistant pair, readable persisted content and reopen
+or reload. Inspect the matching processing/sync/encryption logs and record actual
+downstream provider calls and credits. There is no load loop, fixture recording
+or automatic inference retry. These smoke checks have not run yet.
+
+### Current candidate and selected unit result
+
+Original approved product candidate `0b81ced818dcbee7acbad4cc9c2ad71d1994466d`
+uses trusted dev `b5c7c0decb8b5ac36ad937a01e6c85b54f4001bc`, tree
+`81e609d534a45dee73e12f4732e30cb535a7f1d3`, resolved patch SHA256
+`15f352c0fc4d92147cba77cc5ec83d1c2a02a89960c08575d9103ab63be1d3aa`.
+It adds raw status-only updates preserving the canonical user ciphertext, indexed
+bounded pending-turn discovery, retry after real phased sync, exact committed
+ACK journal clearing, a real browser v31-to-v32 IndexedDB upgrade fixture, and
+private first-version pilot diagnostics. It preserves billing@5 and excludes
+new billing, legal and Apple product changes. Selected UI run `37162606370`
+passed 24/24 cases across five suites. The three signed bundle browser cases
+and diagnostic pilot remain under verification; the unchanged four-case
+recovery pass is separate source-specific evidence.
+
+The standalone selective-tracking slice is source
+`998c97f2011330825aff674e8ed4e38af75e80a1` on the same public base, with 14
+product/probe paths and resolved patch SHA256
+`49d8d70fb203c2a1e16f6d21ce82d500eb4ba0995829422f65731e90a36cbe46`.
+Its account-free Directus test is submitted. No P-1 runtime proof, full product
+deployment, live smoke, or real-data migration is claimed yet.
+
+P-1 run `37162463604` failed after backend startup: the first selected attempt
+failed the receipt validator, and its generic retry failed cleanup. The private
+receipt was not retained, so the exact first failing field is not proven. This
+is not a Directus tracking pass or measured write-overhead result. Receipt-field
+diagnostics and safe handling of the source-bound synthetic fixture are being
+prepared before another run. The legal draft now passes four rendered-copy tests
+and fresh 21-locale generation; source configuration and statutory duties are
+distinguished without changing runtime retention or deleting historical records.
