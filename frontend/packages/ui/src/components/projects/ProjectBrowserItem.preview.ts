@@ -1,4 +1,5 @@
 import type { ProjectItemViewModel } from '../../services/projectService';
+import { presentation } from './ProjectChatPreview.preview';
 
 /** A linked non-embed record renders without an authenticated embed resolver. */
 const item: ProjectItemViewModel = {
@@ -18,4 +19,6 @@ const item: ProjectItemViewModel = {
   },
 };
 
-export default { item, viewMode: 'list', onOpenFullscreen: () => {} };
+const fixture = { item, viewMode: 'tile', chatPresentation: presentation, onOpenFullscreen: () => {} };
+export default fixture;
+export const variants = { list: { ...fixture, viewMode: 'list' } };

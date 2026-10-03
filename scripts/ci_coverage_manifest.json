@@ -333,7 +333,8 @@
         "components/workspace-home-responsive.spec.ts",
         "components/workflow-choice-loop.spec.ts",
         "components/workflow-chat-embed.spec.ts",
-        "components/chat-project-navigation.spec.ts"
+        "components/chat-project-navigation.spec.ts",
+        "components/project-chat-previews.spec.ts"
       ]
     },
     "synthetic_artifact": {

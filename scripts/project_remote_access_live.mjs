@@ -191,7 +191,7 @@ function loadIsolatedClient(environmentKey) {
   const sessionPath = process.env[environmentKey];
   requireValue(sessionPath, `${environmentKey} is required; run the Python verifier to create isolated sessions`);
   const session = JSON.parse(readFileSync(sessionPath, "utf-8"));
-  requireValue(session.masterKeyStorage === "plaintext" && session.masterKeyExportedB64, "Isolated verifier session is invalid");
+  requireValue(["plaintext", "file"].includes(session.masterKeyStorage) && session.masterKeyExportedB64, "Isolated verifier session is invalid");
   return OpenMatesClient.load({ apiUrl, session });
 }
 

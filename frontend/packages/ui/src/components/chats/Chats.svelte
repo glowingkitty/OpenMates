@@ -3041,15 +3041,14 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 				console.warn(`[Chats] Chat ID ${queuedChatId} not found for selection after list update.`);
 			}
 		}
-		// If no specific chat was queued, try to maintain previous selection
-		else if (previouslySelectedChatId) {
+		// A refresh may finish after a new selection. Folder filters and bounded
+		// pages also omit valid active chats; only chatDeleted should deselect them.
+		else if (previouslySelectedChatId && selectedChatId === previouslySelectedChatId
+			&& activeChatStore.get() === previouslySelectedChatId) {
 			const stillExists = flattenedNavigableChats.some(c => c.chat_id === previouslySelectedChatId); // Corrected variable
 			if (stillExists) {
 				selectedChatId = previouslySelectedChatId; // Reselect if it still exists
 				setLastActiveChatIdForDisplay(previouslySelectedChatId);
-			} else {
-				selectedChatId = null; // Deselect if it no longer exists
-				dispatch('chatDeselected');
 			}
 		}
 		// Optional: Select the first chat if nothing is selected and the list is not empty

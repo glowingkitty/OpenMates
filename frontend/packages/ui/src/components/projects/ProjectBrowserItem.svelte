@@ -15,6 +15,8 @@
   import type { EmbedFullscreenDispatchDetail } from '../../services/embedFullscreenController';
   import { embedPreviewRegistry } from '../../services/embedPreviewRegistry';
   import { embedAvailabilityVersion } from '../../services/embedStore';
+  import ProjectChatPreview from './ProjectChatPreview.svelte';
+  import type { ProjectChatPresentation } from '../../services/projectChatPreviewService';
 
   interface ProjectBrowserResolvedEmbed {
     embedData: Record<string, unknown>;
@@ -27,12 +29,14 @@
     onOpenFullscreen,
     loadProjectEmbed,
     displayName = item.displayName,
+    chatPresentation,
   }: {
     item: ProjectItemViewModel;
     viewMode?: 'tile' | 'list';
     onOpenFullscreen: (detail: EmbedFullscreenDispatchDetail) => void;
     loadProjectEmbed?: (item: ProjectItemViewModel) => Promise<ProjectBrowserResolvedEmbed | null>;
     displayName?: string;
+    chatPresentation?: ProjectChatPresentation | null;
   } = $props();
 
   let previewComponent = $state<{ component: unknown; props: Record<string, unknown> } | null>(null);
@@ -164,7 +168,9 @@
   }
 </script>
 
-{#if item.item_type === 'workflow'}
+{#if item.item_type === 'chat'}
+  <ProjectChatPreview {item} {viewMode} presentation={chatPresentation} />
+{:else if item.item_type === 'workflow'}
   <a class="browser-item workflow-link" href={`/#workflow-id=${encodeURIComponent(item.target_id)}&workflow-tab=details`} data-testid="project-workflow-item" aria-label={`Open workflow ${displayName || item.target_id}`}>
     <span class="item-list-icon" data-app="files" aria-hidden="true"></span>
     <span class="browser-item-meta"><strong>{displayName || item.target_id}</strong><small>Workflow</small></span>
