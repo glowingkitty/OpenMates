@@ -20,6 +20,15 @@ import sys
 import time
 
 MIB = 1024**2
+STORAGE_CAPACITY_SPECS = frozenset({
+    "storage-capacity-replay.spec.ts",
+    "storage-message-embed-bundle.spec.ts",
+    "storage-capacity-target.spec.ts",
+    "storage-recovery-replay.spec.ts",
+})
+CAPACITY_WORKLOAD_SPECS = frozenset({
+    "storage-capacity-replay.spec.ts", "storage-capacity-target.spec.ts",
+})
 SOURCE = os.environ.get(
     "OPENMATES_CI_SOURCE_ROOT", str(Path(__file__).resolve().parent.parent)
 )
@@ -661,11 +670,11 @@ def main():
         if offline_preview:
             from ci_visual_smoke import validate_targets
             validate_targets(selected)
-        storage_capacity = bool({"storage-capacity-replay.spec.ts", "storage-capacity-target.spec.ts", "storage-recovery-replay.spec.ts"}.intersection(selected))
+        storage_capacity = bool(STORAGE_CAPACITY_SPECS.intersection(selected))
         capacity_target = "storage-capacity-target.spec.ts" in selected
         if capacity_target and "storage-capacity-replay.spec.ts" in selected:
             raise RuntimeError("Capacity pilot and target require separate isolated batches")
-        capacity_workload = bool({"storage-capacity-replay.spec.ts", "storage-capacity-target.spec.ts"}.intersection(selected))
+        capacity_workload = bool(CAPACITY_WORKLOAD_SPECS.intersection(selected))
         capacity_users = int(os.environ.get("CI_STORAGE_CAPACITY_USERS", "1000" if capacity_target else "2")) if capacity_workload else 0
         if capacity_workload and not 1 <= capacity_users <= 1000:
             raise RuntimeError("Capacity user count must be 1..1000")

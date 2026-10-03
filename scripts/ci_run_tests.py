@@ -41,8 +41,12 @@ FIXTURE_CREDITS = 1000
 _last_signup_started = None
 CAPACITY_EPOCH_SPECS = frozenset({
     "storage-capacity-replay.spec.ts",
+    "storage-message-embed-bundle.spec.ts",
     "storage-capacity-target.spec.ts",
     "storage-recovery-replay.spec.ts",
+})
+CAPACITY_WORKLOAD_SPECS = frozenset({
+    "storage-capacity-replay.spec.ts", "storage-capacity-target.spec.ts",
 })
 
 VITEST_TARGET_ROOTS = {
@@ -820,7 +824,7 @@ def run_e2e(
                         capture_failed_spec_diagnostics(index)
                     except (RuntimeError, subprocess.TimeoutExpired) as exc:
                         results[-1]["diagnostic_error"] = str(exc)
-                if name in {"storage-capacity-replay.spec.ts", "storage-capacity-target.spec.ts"} and results[-1]["exit_code"] == 0:
+                if name in CAPACITY_WORKLOAD_SPECS and results[-1]["exit_code"] == 0:
                     try:
                         results.append(run_storage_capacity(identity_start=2 * len(specs),
                                                             full=name == "storage-capacity-target.spec.ts"))

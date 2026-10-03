@@ -127,6 +127,7 @@ def test_recovery_epoch_failure_reports_only_child_location_and_class(tmp_path, 
     ("spec", "expected"),
     [
         ("storage-capacity-replay.spec.ts", True),
+        ("storage-message-embed-bundle.spec.ts", True),
         ("storage-capacity-target.spec.ts", True),
         ("storage-recovery-replay.spec.ts", True),
         ("startup-sync-contract.spec.ts", False),
@@ -136,6 +137,20 @@ def test_recovery_epoch_failure_reports_only_child_location_and_class(tmp_path, 
 def test_epoch_activation_selector_is_exact(spec, expected, monkeypatch) -> None:
     runner = _load_bound_runner(monkeypatch)
     assert (spec in runner.CAPACITY_EPOCH_SPECS) is expected
+
+
+def test_saved_bundle_selector_is_signed_but_cannot_gate_the_capacity_workload(monkeypatch) -> None:
+    runner = _load_bound_runner(monkeypatch)
+    bundle = "storage-message-embed-bundle.spec.ts"
+    replay = "storage-capacity-replay.spec.ts"
+    manifest = json.loads((Path(__file__).resolve().parents[1] / "ci_coverage_manifest.json").read_text())
+    assert bundle in manifest["groups"]["storage_capacity_replay"]["specs"]
+    assert bundle in ci_environment.STORAGE_CAPACITY_SPECS
+    assert bundle in runner.CAPACITY_EPOCH_SPECS
+    assert bundle not in ci_environment.CAPACITY_WORKLOAD_SPECS
+    assert bundle not in runner.CAPACITY_WORKLOAD_SPECS
+    assert replay in ci_environment.CAPACITY_WORKLOAD_SPECS
+    assert replay in runner.CAPACITY_WORKLOAD_SPECS
 
 
 def _runner_with_frontend_files(tmp_path, monkeypatch):

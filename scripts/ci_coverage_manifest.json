@@ -275,6 +275,8 @@
         "components/report-issue-confirmation.spec.ts",
         "components/settings-usage-overview.spec.ts",
         "components/embed-workspace.spec.ts",
+        "components/embed-version-timeline.spec.ts",
+        "components/shared-auxiliary-load-button.spec.ts",
         "components/hosting-domain-search.spec.ts",
         "components/composer-embed-suggestions.spec.ts",
         "components/new-chat-embed-suggestions.spec.ts",
@@ -456,6 +458,7 @@
       "enabling_work": "Run the dedicated signed synthetic full pipeline on isolated internal-network API, AI, PostgreSQL, and S3 with fresh allowlisted users. The pilot and target run actual client encryption, compression, Project versions, and archived page reads; provider credentials and fallback are forbidden.",
       "specs": [
         "storage-capacity-replay.spec.ts",
+        "storage-message-embed-bundle.spec.ts",
         "storage-capacity-target.spec.ts",
         "storage-recovery-replay.spec.ts"
       ]
