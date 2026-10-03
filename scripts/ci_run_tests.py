@@ -552,6 +552,9 @@ def run_e2e(
                         env["OPENMATES_CI_MAILPIT_URL"] = "http://127.0.0.1:8025"
                         env["OPENMATES_CI_MAIL_TEST_ADDRESS"] = "ci-inbox@example.com"
                         env["SIGNUP_TEST_EMAIL_DOMAINS"] = profile["services"]["api"]["environment"]["SIGNUP_TEST_EMAIL_DOMAINS"]
+                if name in {"storage-capacity-replay.spec.ts", "storage-capacity-target.spec.ts", "storage-recovery-replay.spec.ts"}:
+                    env["E2E_STORAGE_CAPACITY"] = "1"
+                    env["E2E_STORAGE_CAPACITY_TARGET"] = "1" if name == "storage-capacity-target.spec.ts" else "0"
                 local_signup_assertion = not (component or artifact) and name == "signup-skip-2fa-flow.spec.ts" and "mailpit" in profile["services"]
                 account_free = component or artifact or (
                     "// playwright-account: not_required reason=isolated_component_preview"
@@ -645,6 +648,13 @@ def run_e2e(
                         capture_failed_spec_diagnostics(index)
                     except (RuntimeError, subprocess.TimeoutExpired) as exc:
                         results[-1]["diagnostic_error"] = str(exc)
+                if name in {"storage-capacity-replay.spec.ts", "storage-capacity-target.spec.ts"} and results[-1]["exit_code"] == 0:
+                    try:
+                        results.append(run_storage_capacity(identity_start=2 * len(specs),
+                                                            full=name == "storage-capacity-target.spec.ts"))
+                    except Exception as exc:
+                        results.append({"suite": "storage-capacity", "exit_code": 1,
+                                        "failure": f"{type(exc).__name__}: {exc}"})
         finally:
             for process in (child, app_server):
                 if process is not None:
@@ -666,6 +676,158 @@ def capture_failed_spec_diagnostics(index):
     )
     if result.returncode:
         raise RuntimeError("Failed to retain bounded per-spec stack diagnostics")
+
+
+def run_storage_capacity(*, identity_start: int, full: bool) -> dict:
+    """Run a small pilot or explicit full target on the disposable isolated stack."""
+    private = RESULTS / "ci-private"
+    version_adapter = ROOT / "scripts/storage_capacity_version_adapter.mjs"
+    page_adapter = ROOT / "scripts/storage_capacity_page_adapter.mjs"
+    for adapter in (version_adapter, page_adapter):
+        if not adapter.is_file():
+            raise RuntimeError("Capacity output adapter missing before account provisioning")
+    cli = ROOT / "frontend/packages/openmates-cli"
+    if not (cli / "dist/index.js").is_file():
+        raise RuntimeError("Capacity run requires the isolated CLI build; submit CI with prepare_cli=true")
+    helper_build = subprocess.run(
+        ["pnpm", "exec", "tsup", "src/crypto.ts", "src/objectSlugs.ts",
+         "--format", "esm", "--out-dir", "dist/capacity-helpers"],
+        cwd=cli, capture_output=True, text=True,
+    )
+    if helper_build.returncode or not all(
+        (cli / "dist/capacity-helpers" / name).is_file() for name in ("crypto.js", "objectSlugs.js")
+    ):
+        raise RuntimeError("Failed to build test-only CLI crypto helpers")
+    archive_probe = compose(
+        "exec", "-T", "api", "python", "/app/scripts/storage_archive_integration.py",
+        capture=True, timeout=300,
+    )
+    if archive_probe.returncode:
+        (private / "capacity-archive-probe.stderr.log").write_text(
+            archive_probe.stderr[-200_000:], encoding="utf-8",
+        )
+        raise RuntimeError("Disposable archive DB/S3 transaction probe failed")
+    try:
+        archive_probe_receipt = json.loads(archive_probe.stdout.splitlines()[-1])
+    except (IndexError, json.JSONDecodeError) as exc:
+        raise RuntimeError("Disposable archive probe omitted a bounded JSON receipt") from exc
+    if archive_probe_receipt.get("passed") is not True:
+        raise RuntimeError("Disposable archive DB/S3 transaction probe was incomplete")
+    (RESULTS / "ci-storage-archive-probe.json").write_text(
+        json.dumps(archive_probe_receipt, indent=2), encoding="utf-8",
+    )
+    environment = json.loads((RESULTS / "ci-environment.json").read_text())
+    capacity = environment.get("storage_capacity") or {}
+    if capacity.get("provider_network") != "internal" or capacity.get("provider_credentials") != "absent":
+        raise RuntimeError("Capacity run lacks independent zero-inference network proof")
+    users = int(os.environ.get("CI_STORAGE_CAPACITY_USERS", "1000" if full else "2"))
+    concurrency = int(os.environ.get("CI_STORAGE_CAPACITY_CONCURRENCY", "500" if full else "2"))
+    if full and (users != 1000 or concurrency != 500):
+        raise RuntimeError("Full capacity mode requires 1000 users and 500 worker slots")
+    profile = os.environ.get("CI_STORAGE_CAPACITY_PROFILE", "accelerated")
+    if profile not in {"accelerated", "burst", "sustained"}:
+        raise RuntimeError("Unsupported capacity rate profile")
+    states = []
+    for index in range(users):
+        account = provision_account(100 + index, identity_index=identity_start + index)
+        states.append({"state_dir": account["OPENMATES_STATE_DIR"], "allowlisted": True})
+    states_path = private / "capacity-states.json"
+    states_path.write_text(json.dumps(states), encoding="utf-8")
+    states_path.chmod(0o600)
+    metrics_before = _capacity_runtime_metrics()
+    plan_path = private / "capacity-plan.json"
+    results_path = private / "capacity-results.jsonl"
+    report_path = RESULTS / "ci-storage-capacity.json"
+    plan_cmd = [sys.executable, "scripts/storage_capacity.py", "plan", "--plan", str(plan_path),
+                "--users", str(users), "--concurrency", str(concurrency), "--profile", profile]
+    if not full:
+        pilot_rounds = int(os.environ.get("CI_STORAGE_CAPACITY_PILOT_ROUNDS", "30"))
+        if not 2 <= pilot_rounds <= 100:
+            raise RuntimeError("Capacity pilot rounds must be 2..100")
+        pilot_artifacts = min(pilot_rounds, 4)
+        plan_cmd.extend(["--rounds", str(pilot_rounds), "--embeds", str(pilot_artifacts),
+                         "--versions", str(pilot_artifacts), "--round-bytes", "20000", "--pilot"])
+    subprocess.run(plan_cmd, cwd=ROOT, check=True, capture_output=True, text=True)
+    run_env = {**os.environ,
+               "OPENMATES_CAPACITY_STATES_JSON": str(states_path),
+               "OPENMATES_CAPACITY_VERSION_ADAPTER": str(version_adapter),
+               "OPENMATES_CAPACITY_PAGE_ADAPTER": str(page_adapter),
+               "OPENMATES_CAPACITY_API_URL": API,
+               "OPENMATES_CAPACITY_CLIENT_REPLAY": "1",
+               "OPENMATES_CAPACITY_NETWORK_DENY": "confirmed",
+               "OPENMATES_CAPACITY_NO_PROVIDER_CREDENTIALS": "confirmed"}
+    run_cmd = [sys.executable, "scripts/storage_capacity.py", "run", "--plan", str(plan_path),
+               "--results", str(results_path), "--receipts", str(private / "capacity-receipts"),
+               "--client-command", "node", "scripts/storage_capacity_client.mjs"]
+    result = subprocess.run(run_cmd, cwd=ROOT, env=run_env, capture_output=True, text=True)
+    (private / "capacity-run.stderr.log").write_text(result.stderr[-200_000:], encoding="utf-8")
+    metrics_after = _capacity_runtime_metrics()
+    try:
+        report = json.loads(result.stdout.splitlines()[-1])
+    except (IndexError, json.JSONDecodeError):
+        report = {"passed": False, "failure": "capacity run failed before a complete report"}
+    report["infrastructure"] = _capacity_metric_delta(metrics_before, metrics_after)
+    if full and report["infrastructure"].get("object_store_operations") is None:
+        report["passed"] = False
+        report["target_achieved"] = False
+        report.setdefault("failures", []).append("raw object-store operation counters unavailable")
+    report_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
+    return {"suite": "storage-capacity-target" if full else "storage-capacity-pilot",
+            "exit_code": 0 if result.returncode == 0 and report.get("passed") else 1, "report": report}
+
+
+def _capacity_runtime_metrics() -> dict:
+    """Snapshot objective isolated DB/WAL and object-store counters."""
+    import urllib.request
+
+    metrics: dict[str, object] = {}
+    try:
+        db = compose("exec", "-T", "cms-database", "psql", "-U", "openmates", "-d", "openmates",
+                     "-At", "-c", "select pg_database_size(current_database()), pg_current_wal_lsn()",
+                     capture=True, timeout=15).stdout.strip()
+        size, lsn = db.split("|", 1)
+        metrics["database_bytes"] = int(size)
+        high, low = lsn.split("/", 1)
+        metrics["wal_position_bytes"] = int(high, 16) * 2**32 + int(low, 16)
+    except (OSError, ValueError, subprocess.SubprocessError):
+        pass
+    try:
+        ai_container = compose("ps", "-q", "ai-worker", capture=True).stdout.strip()
+        if ai_container:
+            metrics["ai_worker_memory"] = subprocess.check_output(
+                ["docker", "stats", "--no-stream", "--format", "{{.MemUsage}}", ai_container],
+                text=True, timeout=10,
+            ).strip()
+    except (OSError, subprocess.SubprocessError):
+        pass
+    try:
+        with urllib.request.urlopen("http://127.0.0.1:9000/metrics", timeout=5) as response:
+            body = response.read(2_000_000).decode("utf-8", "replace")
+        operations = 0.0
+        matched = False
+        for line in body.splitlines():
+            if line.startswith("#") or not re.search(r"(?i)(s3|object).*(request|operation).*_total", line):
+                continue
+            try:
+                operations += float(line.rsplit(None, 1)[-1])
+                matched = True
+            except ValueError:
+                continue
+        if matched:
+            metrics["object_store_operations"] = operations
+    except (OSError, ValueError):
+        pass
+    return metrics
+
+
+def _capacity_metric_delta(before: dict, after: dict) -> dict:
+    report = {}
+    for key in ("database_bytes", "wal_position_bytes", "object_store_operations"):
+        old, new = before.get(key), after.get(key)
+        report[key] = new - old if isinstance(old, (int, float)) and isinstance(new, (int, float)) else None
+    report["ai_worker_memory_before"] = before.get("ai_worker_memory")
+    report["ai_worker_memory_after"] = after.get("ai_worker_memory")
+    return report
 
 
 def pytest_failures(report_path: Path) -> list[str]:

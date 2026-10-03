@@ -219,6 +219,7 @@
         "header-mobile-layout.spec.ts",
         "components/apps-workspace-preview.spec.ts",
         "components/header-mobile-layout-preview.spec.ts",
+        "components/embed-version-timeline.spec.ts",
         "components/apps-skill-form.spec.ts",
         "app-load-no-error-logs.spec.ts",
         "apple-chat-history-contracts.spec.ts",
@@ -446,6 +447,15 @@
         "skill-reminder-set.spec.ts",
         "skill-web-read.spec.ts",
         "skill-web-search.spec.ts"
+      ]
+    },
+    "storage_capacity_replay": {
+      "execution": "e2e",
+      "enabling_work": "Run the dedicated signed synthetic full pipeline on isolated internal-network API, AI, PostgreSQL, and S3 with fresh allowlisted users. The pilot and target run actual client encryption, compression, Project versions, and archived page reads; provider credentials and fallback are forbidden.",
+      "specs": [
+        "storage-capacity-replay.spec.ts",
+        "storage-capacity-target.spec.ts",
+        "storage-recovery-replay.spec.ts"
       ]
     },
     "selfhost_installer": {

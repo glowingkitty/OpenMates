@@ -130,10 +130,16 @@ def compose_profile(
     offline_preview: bool = False,
     mail_capture: bool = False,
     credential_overrides: dict[str, str] | None = None,
+    storage_capacity: bool = False,
+    capacity_concurrency: int = 2,
 ) -> dict:
     """Return an independent profile; never interpolate the operator environment."""
-    ai_fixtures = ai_fixtures or public_provider
-    object_storage = object_storage or uploads
+    ai_fixtures = ai_fixtures or public_provider or storage_capacity
+    object_storage = object_storage or uploads or storage_capacity
+    if storage_capacity and public_provider:
+        raise ValueError("Storage capacity cannot enable public-provider proxy")
+    if storage_capacity and not 1 <= capacity_concurrency <= 500:
+        raise ValueError("Capacity worker concurrency must be 1..500")
     isolate_backend = ai_fixtures or object_storage or offline_preview or mail_capture
     if workflows and isolate_backend:
         raise ValueError("Credential-free weather workflows require a separate batch from offline replay/storage")
@@ -191,6 +197,10 @@ def compose_profile(
         )
     if object_storage:
         common.update(S3_ENDPOINT_URL="http://storage.ci.test:9000", S3_REGIONS="nbg1")
+    if storage_capacity:
+        common.update(OPENMATES_CI_ISOLATED="1", OPENMATES_STORAGE_CAPACITY_FIXTURES="true",
+                      OPENMATES_CAPACITY_RECEIPT_ROOT="/app/capacity-receipts",
+                      CHAT_MESSAGE_ARCHIVE_COPY_ENABLED="1", CHAT_MESSAGE_ARCHIVE_READS_ENABLED="1")
     source_mounts = [
         f"{SOURCE}/backend:/app/backend:ro",
         f"{SOURCE}/shared:/shared:ro",
@@ -205,6 +215,8 @@ def compose_profile(
         "api-cache:/app/backend/apps/ai/testing/api_cache",
         "vault-tokens:/vault-data",
     ]
+    if storage_capacity:
+        source_mounts.append(f"{SOURCE}/test-results/ci-private/capacity-receipts:/app/capacity-receipts")
     api = {
         "build": {"context": SOURCE, "dockerfile": "backend/core/api/Dockerfile"},
         "image": "openmates-ci-api:local",
@@ -439,6 +451,9 @@ def compose_profile(
         ai_worker["command"] = [part.replace(f"--queues={QUEUES}", "--queues=app_ai") for part in worker["command"]]
         ai_worker["mem_limit"] = 1536 * MIB
         services["ai-worker"] = ai_worker
+        if storage_capacity:
+            ai_worker["command"] = [part.replace("--concurrency=1", f"--concurrency={capacity_concurrency}")
+                                    for part in ai_worker["command"]]
     if isolate_backend:
         api.pop("ports")
         services["cms"].pop("ports")
@@ -646,7 +661,16 @@ def main():
         if offline_preview:
             from ci_visual_smoke import validate_targets
             validate_targets(selected)
-        account_emails = [] if offline_preview else [f"ci-{secrets.token_hex(16)}@example.com" for _ in range(2 * len(selected))]
+        storage_capacity = bool({"storage-capacity-replay.spec.ts", "storage-capacity-target.spec.ts", "storage-recovery-replay.spec.ts"}.intersection(selected))
+        capacity_target = "storage-capacity-target.spec.ts" in selected
+        if capacity_target and "storage-capacity-replay.spec.ts" in selected:
+            raise RuntimeError("Capacity pilot and target require separate isolated batches")
+        capacity_workload = bool({"storage-capacity-replay.spec.ts", "storage-capacity-target.spec.ts"}.intersection(selected))
+        capacity_users = int(os.environ.get("CI_STORAGE_CAPACITY_USERS", "1000" if capacity_target else "2")) if capacity_workload else 0
+        if capacity_workload and not 1 <= capacity_users <= 1000:
+            raise RuntimeError("Capacity user count must be 1..1000")
+        account_count = 2 * len(selected) + capacity_users
+        account_emails = [] if offline_preview else [f"ci-{secrets.token_hex(16)}@example.com" for _ in range(account_count)]
         storage_specs = set(manifest["groups"].get("object_storage", {}).get("specs", []))
         upload_specs = set(manifest["groups"].get("uploads", {}).get("specs", []))
         needs_uploads = bool(upload_specs.intersection(selected))
@@ -657,12 +681,12 @@ def main():
         needs_workflows = bool(workflow_specs.intersection(selected))
         if needs_workflows and not set(selected).issubset(workflow_specs):
             raise RuntimeError("Credential-free weather workflows require their own batch")
-        needs_storage = bool(storage_specs.intersection(selected)) or needs_uploads
+        needs_storage = bool(storage_specs.intersection(selected)) or needs_uploads or storage_capacity
         if needs_storage:
             for relative in ("backend/core/api/app/services/s3/service.py", "backend/upload/services/s3_upload.py"):
                 if "S3_ENDPOINT_URL" not in (Path(SOURCE) / relative).read_text():
                     raise RuntimeError("Candidate lacks isolated storage endpoint support; publish reviewed current-base integration before testing")
-        data = compose_profile(source, ai_fixtures=bool(fixture_specs.intersection(selected)), object_storage=needs_storage, uploads=needs_uploads, public_provider=needs_public_provider, workflows=needs_workflows, account_emails=account_emails, offline_preview=offline_preview, mail_capture=bool(mail_specs.intersection(selected)))
+        data = compose_profile(source, ai_fixtures=bool(fixture_specs.intersection(selected)), object_storage=needs_storage, uploads=needs_uploads, public_provider=needs_public_provider, workflows=needs_workflows, account_emails=account_emails, offline_preview=offline_preview, mail_capture=bool(mail_specs.intersection(selected)), storage_capacity=storage_capacity, capacity_concurrency=min(4, int(os.environ.get("CI_STORAGE_CAPACITY_CONCURRENCY", "500" if capacity_target else "2"))))
         if os.environ.get("GITHUB_OUTPUT"):
             with Path(os.environ["GITHUB_OUTPUT"]).open("a") as output:
                 output.write(f"uploads={'true' if needs_uploads else 'false'}\n")
@@ -671,6 +695,8 @@ def main():
         for relative in ("backend/core/api/logs", "backend/apps/ai/testing/api_cache"):
             (Path(SOURCE) / relative).mkdir(parents=True, exist_ok=True)
         COMPOSE_PATH.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        if storage_capacity:
+            (COMPOSE_PATH.parent / "capacity-receipts").mkdir(parents=True, exist_ok=True, mode=0o700)
         COMPOSE_PATH.write_text(json.dumps(data))
         COMPOSE_PATH.chmod(0o600)
         evidence = {
@@ -743,12 +769,25 @@ def main():
             if network.get("Internal") is not True:
                 raise RuntimeError("Fixture AI profile must reject external network access")
             evidence["provider_egress"] = "rejected-internal-network"
+        if profile["services"]["api"]["environment"].get("OPENMATES_STORAGE_CAPACITY_FIXTURES") == "true":
+            forbidden = {"OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GOOGLE_API_KEY", "GEMINI_API_KEY", "OPENROUTER_API_KEY", "GROQ_API_KEY", "CEREBRAS_API_KEY", "TOGETHER_API_KEY"}
+            for name in ("api", "core-worker", "ai-worker"):
+                if forbidden.intersection(profile["services"][name]["environment"]):
+                    raise RuntimeError("Capacity profile contains provider credentials")
+            if evidence.get("provider_egress") != "rejected-internal-network":
+                raise RuntimeError("Capacity profile has no independent provider network block")
+            evidence["storage_capacity"] = {"provider_credentials": "absent", "provider_network": "internal", "fixture_mode": "replay-only"}
         for service in required:
             container = compose("ps", "-q", service, capture=True).stdout.strip()
             if not container:
                 raise RuntimeError("Required private service is missing: " + service)
             raw = subprocess.check_output(["docker", "inspect", container], text=True)
             info = json.loads(raw)[0]
+            if evidence.get("storage_capacity") and service in {"api", "core-worker", "ai-worker"}:
+                runtime_names = {entry.split("=", 1)[0] for entry in info["Config"].get("Env", [])}
+                forbidden = {"OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GOOGLE_API_KEY", "GEMINI_API_KEY", "OPENROUTER_API_KEY", "GROQ_API_KEY", "CEREBRAS_API_KEY", "TOGETHER_API_KEY"}
+                if runtime_names.intersection(forbidden):
+                    raise RuntimeError("Capacity container has live inference credentials")
             if (
                 info["Config"]["Labels"].get("org.openmates.source")
                 != evidence["source_commit"]
