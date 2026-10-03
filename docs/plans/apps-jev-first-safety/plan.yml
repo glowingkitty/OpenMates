@@ -1,0 +1,38 @@
+id: apps-jev-first-safety
+title: Jev-first Apps output safety
+status: implementing
+goal: Then focus on implementing the jev first safety scan to drastically speed up
+  that part - then give me a before and after comparison and recommended next steps
+  for further optimization.
+scope:
+  in:
+  - One bounded Jev decision for each selected external-text batch; preserve Unicode
+    cleanup, field selection and exact-span GPT fallback.
+  - Shared backend default path, relevant regression and live CLI/REST/web coverage.
+  - Scoped dev publication and real-inference before/after timing; explain local embed
+    staging and background saving.
+  out:
+  - Transcript caching
+  - Changes to encryption, retention defaults, credit authorization or safety opt-out
+    semantics
+  - Production changes
+decisions:
+- id: D-1
+  decision: Confidently safe Jev batches avoid generative verdict output. Flagged,
+    ambiguous, invalid and unavailable decisions use existing GPT exact-span classification.
+- id: D-2
+  decision: Jev has a short total deadline and no provider retry; preserve the existing
+    overall safety deadline and cancellation.
+- id: D-3
+  decision: Default web results remain locally encrypted and durably queued before
+    rendering, with remote saving in background.
+checks:
+- Focused local and isolated CI backend contract tests.
+- Versioned benign/adversarial corpus against baseline and candidate with real inference;
+  retain all errors/misses.
+- Matched sequential dev requests before and after, with separate safety/API/UI/save
+  timing and models.
+approval:
+  status: approved
+  source: User explicitly requested implementation and before/after comparison on
+    2026-10-03.

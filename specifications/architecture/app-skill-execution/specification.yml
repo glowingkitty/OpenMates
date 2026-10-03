@@ -67,7 +67,7 @@ models:
       type: array
       required: true
       items: identified_external_text_unit
-      constraints: {server_assigned_unique_ids: true, max_batch_text_chars: 50000, max_unit_chars: 4000, max_model_calls: 1, partition_order: source_order, source_context_preserved: true, silent_truncation: forbidden, oversized_input: return_cleaned_content_and_log_unscanned}
+      constraints: {server_assigned_unique_ids: true, max_batch_text_chars: 50000, max_unit_chars: 4000, max_model_calls: 2, max_decision_gate_calls: 1, max_exact_span_calls: 1, partition_order: source_order, source_context_preserved: true, silent_truncation: forbidden, oversized_input: return_cleaned_content_and_log_unscanned}
     decisions:
       type: array
       required: true
@@ -201,8 +201,8 @@ assertions:
     depends_on: [models.AppSkillOutputSafety, examples.output_safety]
   - id: app-skills.output.batch-equivalent
     type: security
-    must: One bounded semantic call returns a safe, injection, or uncertain decision for every server-assigned unit ID. Injection decisions require exact uniquely located quotes; deterministic application replaces only those spans with a fixed warning and preserves surrounding text and result structure. Safe and uncertain text remains unchanged after ASCII cleanup. Unknown, duplicate, missing, or invalid decisions invalidate the scan atomically and return cleaned input with an unscanned log. No model-authored replacement text, serialized-structure redaction, or additional model call is permitted.
-    depends_on: [models.SemanticScanBatch, examples.batch_outcomes]
+    must: One bounded Jev gate clears confidently safe batches without generative output. Otherwise one bounded GPT exact-span call returns a safe, injection, or uncertain decision for every server-assigned unit ID. Injection decisions require exact uniquely located quotes; deterministic application replaces only those spans with a fixed warning and preserves surrounding text and result structure. Safe and uncertain text remains unchanged after ASCII cleanup. Unknown, duplicate, missing, or invalid decisions invalidate the scan atomically and return cleaned input with an unscanned log. No model-authored replacement text, serialized-structure redaction, retry, or further model call is permitted.
+    depends_on: [models.SemanticScanBatch, examples.jev_first_safety]
   - id: app-skills.output.single-boundary
     type: security
     must: Protected dispatch surfaces share one logical safety boundary with complete policy-selected field coverage; skill-local and outer dispatch layers must not scan the same unchanged text twice. Any scan reuse is request-local, server-controlled, and bound to the exact text and active policy; external payload flags or ignored-field claims cannot authorize a bypass. No unscanned text may be appended after validation.

@@ -126,7 +126,7 @@ models:
       constraints: {flagged_text: replace_verified_spans_only, surrounding_content_and_result_structure: preserve, raw_flagged_text_in_warning: forbidden}
     scan_budget:
       type: bounded
-      constraints: {typical_single_query_semantic_calls: 1, automatic_retries: 0, field_rescans: 0, safety_deadline_seconds: 5, empty_text_calls: 0}
+      constraints: {typical_single_query_semantic_calls: 1, max_review_model_calls: 2, automatic_retries: 0, field_rescans: 0, safety_deadline_seconds: 5, empty_text_calls: 0}
 
   SearchSafetyBenchmark:
     workload:
@@ -174,8 +174,8 @@ assertions:
     depends_on: [models.WebSearchResult, models.SearchSafety, examples.successful_outputs, examples.safety_cases]
   - id: web-search.safety.single-pass
     type: invariant
-    must: With protection enabled, a nonempty response within the single-call input bound uses exactly one structured semantic model call, including when snippets are flagged. Skill and dispatch layers do not duplicate scans. Malformed, incomplete, unavailable, timed-out, or oversized scans return cleaned content and log an unscanned reason without retries, extra model calls, or user input. Empty selected text requires no model call. Input is never silently truncated or falsely reported as scanned.
-    depends_on: [models.SearchSafety, models.SearchSafetyBenchmark.workload, examples.safety_cases]
+    must: With protection enabled, a nonempty response within the batch input bound uses one bounded Jev decision gate. A confident safe decision preserves every selected passage without generative output. Flagged, ambiguous, invalid, unavailable, or timed-out gate decisions invoke at most one GPT exact-span classification, within the existing overall deadline. Skill and dispatch layers do not duplicate scans. Malformed, incomplete, unavailable, or timed-out exact-span classification and oversized input return cleaned content and log an unscanned reason without retries, further model calls, or user input. Empty selected text requires no model call. Input is never silently truncated or falsely reported as scanned.
+    depends_on: [models.SearchSafety, models.SearchSafetyBenchmark.workload, examples.jev_first_safety]
   - id: web-search.safety.quality-gate
     type: security
     must: Before completion, baseline and candidate run with real safety models against the same committed versioned benign/adversarial corpus containing literal inputs and exact expected replacements or omissions, including every mandatory safety example. Cases cover the observed AI-targeted phrase-insertion pattern, paraphrases, spoofed authority, exfiltration/tool-use instructions, cross-snippet instructions, and quoted legitimate API documentation. All mandatory attack cases must have their complete actionable directives neutralized and all mandatory benign cases preserved. Misses, false positives, technical failures, and model/prompt versions are reported; unmet gates block completion rather than authorizing weaker protection or a silent model switch.

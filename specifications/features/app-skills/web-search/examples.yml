@@ -170,7 +170,7 @@ safety_cases:
     given: The search provider succeeds but the semantic scanner returns no usable complete decision.
     when: The shared layer applies the single-scan failure policy.
     then: Search results are returned after ASCII cleanup, an unscanned status is logged, and there is no retry or question.
-    assertion_ids: [web-search.safety.single-pass, web-search.response.sanitized]
+    assertion_ids: [web-search.response.sanitized]
   - id: empty-and-large-responses
     variants:
       - {results: 0, expect_semantic_calls: 0}
@@ -189,3 +189,15 @@ performance_cases:
   - id: failed-attempt-is-not-fast-success
     given: {scan_failed_quickly: true}
     expect: {failure_count_incremented: true, counted_as_successful_latency_sample: false, acceptance_gate_passed: false}
+
+jev_first_safety:
+  - id: confident-safe-decision
+    given: A retrieved result contains ordinary public text and benign API documentation.
+    when: The single Jev decision confidently finds no injection in any selected passage.
+    then: All cleaned text is preserved, with no GPT classification call.
+    assertion_ids: [web-search.safety.single-pass]
+  - id: exact-span-review
+    given: Useful retrieved text surrounds an instruction to leak private messages.
+    when: Jev flags or cannot confidently clear the batch, and GPT identifies the exact offending text.
+    then: Only that text is replaced with a warning; both calls have no retry and stay within the overall deadline.
+    assertion_ids: [web-search.safety.single-pass]
