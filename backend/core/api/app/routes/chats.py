@@ -95,9 +95,18 @@ async def sidebar_chat_metadata(body: SidebarChatMetadataRequest, request: Reque
         if not team_id and chat.get("hashed_team_id"):
             continue
         record = _watch_chat_payload(chat)
-        for field in ("encrypted_category", "encrypted_icon", "title_v", "metadata_v", "is_hidden", "is_hidden_candidate"):
+        for field in ("encrypted_category", "encrypted_icon", "title_v", "metadata_v", "is_hidden", "is_hidden_candidate",
+                      "last_edited_overall_timestamp"):
             if field in chat:
                 record[field] = chat[field]
+        # Drafts are user-specific records, not fields of the shared chat row.
+        draft = await get_authoritative_user_draft(request.app.state.cache_service,
+                                                   request.app.state.directus_service,
+                                                   current_user.id, chat_id)
+        if draft:
+            encrypted_md, draft_v, encrypted_preview = draft
+            record.update(encrypted_draft_md=encrypted_md, encrypted_draft_preview=encrypted_preview,
+                          draft_v=int(draft_v))
         record["team_id"] = team_id
         records.append(record)
     if records:

@@ -1109,3 +1109,16 @@ approved_centered_content_followup:
     - "Remove the outer terminal frame while retaining component card/tab borders and a centered message input container. Preserve solid colors, Unicode geometry, scrolling and keyboard navigation."
   verification:
     - "Focused layout, wrapping and sidebar regressions plus isolated keyboard and real terminal proof with actual output geometry assertions, delivered before scoped dev publication."
+
+approved_chat_sidebar_parity_followup:
+  task: TASK-1442
+  approved_on: "2026-10-03"
+  user_goal: "Debug and test terminal chat sidebar sorting and Project subfolders against the web app, and fix additional concrete TUI bugs."
+  requirements:
+    - "Load chat Projects and immediate nested folders at startup; preserve API project/folder ordering and exclude archived Projects."
+    - "Reuse web pinned/draft/message ordering and calendar date buckets; retain saved draft previews, hidden-key privacy, and cached history beyond fifty chats."
+    - "Keyboard, wheel, Page Up/Down and Home/End navigate sidebar targets, skip section headings, and preserve the main chat scroll position."
+    - "Project search uses identical filtering for rendering and opening. Refresh preserves the selected Project tab and Files folder/source."
+  verification:
+    - "Focused encrypted metadata, startup, sorting, navigation, selection, Project search/refresh and geometry regressions."
+    - "Isolated browser/real terminal parity proof with populated encrypted chats and deep folders, plus the existing CLI keyboard check; deliver the reviewed terminal recording before scoped dev deployment."

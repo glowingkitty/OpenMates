@@ -200,3 +200,38 @@ test("Apps uses centered horizontal selection Enter filtering and Show all with 
   assert.match(stripAnsi(renderTuiFrame(state,120,32)),/› App 2[\s\S]*App 1 of 1/);
   await handleWorkspaceKey(ctx,"\r",{name:"return"});assert.equal(state.activeApp?.id,"app2");
 });
+
+// contract-test: supporting surface=cli assertions=chat-navigation.projects.nested-readable,chat-navigation.order.sidebar-header-match
+test('startup loads encrypted project folders and the complete cached chat history with the sidebar closed', async () => {
+  const {encryptWithAesGcmCombined}=await import('../src/crypto.js');
+  const key=new Uint8Array(32).fill(7),state=createInitialTuiState();state.signedIn=true;
+  const record={project_id:'project',encrypted_name:await encryptWithAesGcmCombined('Launch',key)};
+  let limit=0, sourceReads=0;
+  await loadHomeData(state,{
+    getActiveTeamId:()=>null,getMasterKeyBytes:()=>key,
+    listChats:async(n:number)=>{limit=n;return {chats:Array.from({length:65},(_,i)=>chat(i))};},
+    listProjects:async()=>[record],getProject:async()=>({project:record}),decryptProjectKey:async()=>key,
+    listProjectItems:async()=>({folders:[{folder_id:'docs',encrypted_name:await encryptWithAesGcmCombined('Docs',key)}],items:[]}),
+    listProjectSources:async()=>{sourceReads++;return [];},getSidebarChats:async()=>[],
+  } as never,()=>{});
+  assert.ok(limit>=65);assert.equal(state.recentChats.length,65);assert.equal(state.sidebarOpen,false);
+  assert.equal(state.chatSidebarProjects[0].name,'Launch');assert.equal(state.chatSidebarProjects[0].folders[0].name,'Docs');assert.equal(sourceReads,0);
+});
+
+// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity,chat-navigation.projects.nested-readable
+test('sidebar wheel page and edge navigation skip headings and preserve main scroll on wide and narrow terminals', async () => {
+  const {tuiChatSidebarRows}=await import('../src/tuiChatSidebar.js');
+  for(const width of [72,120]){
+    const state=createInitialTuiState();state.signedIn=true;state.sidebarOpen=true;state.focus='sidebar';state.scrollOffset=4;state.screen='chat';state.messages=Array.from({length:40},(_,i)=>({role:'assistant' as const,content:`Message ${i}`}));
+    state.recentChats=Array.from({length:65},(_,i)=>({...chat(i),updatedAt:Math.floor(Date.now()/1000)-i}));
+    const {ctx}=context(state);ctx.terminal.width=width;
+    await handleWorkspaceKey(ctx,'',{name:'scrolldown'});
+    assert.equal(tuiChatSidebarRows(state)[state.sidebarIndex].chatId,'chat-2');assert.equal(state.scrollOffset,4);
+    await handleWorkspaceKey(ctx,'',{name:'end'});
+    assert.equal(tuiChatSidebarRows(state)[state.sidebarIndex].chatId,'chat-64');
+    assert.match(renderTuiFrame(state,width,24),/> Conversation 64/);assert.equal(state.scrollOffset,4);
+    await handleWorkspaceKey(ctx,'',{name:'pageup'});assert.notEqual(tuiChatSidebarRows(state)[state.sidebarIndex].chatId,'chat-64');
+    await handleWorkspaceKey(ctx,'',{name:'home'});assert.equal(tuiChatSidebarRows(state)[state.sidebarIndex].kind,'new');
+    await handleWorkspaceKey(ctx,'',{name:'down'});assert.equal(tuiChatSidebarRows(state)[state.sidebarIndex].chatId,'chat-0');
+  }
+});

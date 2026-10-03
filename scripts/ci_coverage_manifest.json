@@ -31,6 +31,7 @@
         "cli-created-account-login.spec.ts",
         "cli-memories.spec.ts",
         "cli-pair-login.spec.ts",
+        "cli-tui-chat-sidebar-proof.spec.ts",
         "cli-tui-centered-carousels-proof.spec.ts",
         "cli-tui-workspace-proof.spec.ts",
         "cli-tui-workspace-details-proof.spec.ts",

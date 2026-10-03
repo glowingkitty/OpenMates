@@ -264,9 +264,14 @@ export async function readTuiProjectFile(client: OpenMatesClient, project: TuiPr
   return (result as Record<string, unknown>).truncated === true ? `${content}\n[Preview truncated]` : content;
 }
 
+export function filteredProjects(projects: TuiProject[], query = ''): TuiProject[] {
+  const term = query.trim().toLocaleLowerCase();
+  return projects.filter(project => !term || `${project.name} ${project.slug} ${project.description}`.toLocaleLowerCase().includes(term));
+}
+
 export function renderProjectList(projects: TuiProject[], options: { width: number; selectedId?: string; query?: string }): string[] {
   const query = options.query?.trim().toLocaleLowerCase() ?? "";
-  const matches = projects.filter((project) => !query || `${project.name} ${project.slug} ${project.description}`.toLocaleLowerCase().includes(query));
+  const matches = filteredProjects(projects, query);
   if (matches.length === 0) return [query ? "No matching Projects." : "No Projects yet. Press n to create one."];
   return matches.flatMap((project) => {
     const count = project.itemCount ?? project.items.length;

@@ -32,7 +32,7 @@ async def test_activity_contains_running_children_and_owned_ancestors_only():
 @pytest.mark.asyncio
 async def test_activity_unavailability_is_not_an_empty_snapshot():
     chat = SimpleNamespace(get_chat_activity_candidates=AsyncMock(side_effect=RuntimeError("unavailable")))
-    request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(directus_service=SimpleNamespace(chat=chat, chat_key_wrapper=SimpleNamespace(get_wrappers_by_hashed_chat_ids_batch=AsyncMock(return_value=[]))))))
+    request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(cache_service=SimpleNamespace(get_user_draft_from_cache=AsyncMock(return_value=None)), directus_service=SimpleNamespace(get_items=AsyncMock(return_value=[]), chat=chat, chat_key_wrapper=SimpleNamespace(get_wrappers_by_hashed_chat_ids_batch=AsyncMock(return_value=[]))))))
     with pytest.raises(HTTPException) as error:
         await get_chat_activity(request, current_user=SimpleNamespace(id="user-1"))
     assert error.value.status_code == 503
@@ -59,7 +59,7 @@ async def test_sidebar_hydrates_ciphertext_without_transcripts_or_cross_scope_da
         {"id": "owned", "encrypted_title": "cipher-title", "encrypted_chat_key": "cipher-key", "created_at": 1},
         {"id": "team-owned", "hashed_team_id": "team-hash"},
     ]))
-    request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(directus_service=SimpleNamespace(chat=chat, chat_key_wrapper=SimpleNamespace(get_wrappers_by_hashed_chat_ids_batch=AsyncMock(return_value=[]))))))
+    request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(cache_service=SimpleNamespace(get_user_draft_from_cache=AsyncMock(return_value=None)), directus_service=SimpleNamespace(get_items=AsyncMock(return_value=[]), chat=chat, chat_key_wrapper=SimpleNamespace(get_wrappers_by_hashed_chat_ids_batch=AsyncMock(return_value=[]))))))
     result = await sidebar_chat_metadata(SidebarChatMetadataRequest(chat_ids=["owned", "owned", "team-owned"]), request, current_user=SimpleNamespace(id="user-1"))
     assert [row["id"] for row in result["chats"]] == ["owned"]
     assert result["chats"][0]["encrypted_title"] == "cipher-title"
@@ -77,7 +77,34 @@ async def test_sidebar_team_metadata_uses_only_the_current_team_key_wrapper():
     directus = SimpleNamespace(chat=SimpleNamespace(get_chat_metadata=AsyncMock(return_value={
         'id': 'owned', 'hashed_team_id': team_hash, 'encrypted_chat_key': 'legacy-master-wrapped',
     })), team=SimpleNamespace(require_team_role=AsyncMock()), chat_key_wrapper=wrappers)
-    request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(directus_service=directus)))
+    directus.get_items = AsyncMock(return_value=[])
+    request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(directus_service=directus, cache_service=SimpleNamespace(get_user_draft_from_cache=AsyncMock(return_value=None)))))
     result = await sidebar_chat_metadata(SidebarChatMetadataRequest(chat_ids=['owned']), request, team_id='team-one', current_user=SimpleNamespace(id='user-1'))
     assert result['chats'][0]['encrypted_chat_key'] == 'team-wrapped'
     assert wrappers.get_wrappers_by_hashed_chat_ids_batch.call_args.kwargs == {'hashed_team_id': team_hash}
+
+# contract-test: supporting surface=rest_api assertions=chat-navigation.draft-only.addressable,chats.persistence.client-encrypted
+@pytest.mark.asyncio
+async def test_sidebar_includes_only_the_requesting_users_authoritative_encrypted_draft():
+    from hashlib import sha256
+    chat = SimpleNamespace(check_chat_ownership=AsyncMock(return_value=True), get_chat_metadata=AsyncMock(return_value={
+        'id': 'owned', 'last_edited_overall_timestamp': 100, 'updated_at': 200,
+    }))
+    cache = SimpleNamespace(get_user_draft_from_cache=AsyncMock(return_value=('cipher-markdown', 3, 'cipher-preview')))
+    directus = SimpleNamespace(chat=chat, get_items=AsyncMock(return_value=[]),
+        chat_key_wrapper=SimpleNamespace(get_wrappers_by_hashed_chat_ids_batch=AsyncMock(return_value=[])))
+    request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(directus_service=directus, cache_service=cache)))
+    result = await sidebar_chat_metadata(SidebarChatMetadataRequest(chat_ids=['owned']), request, current_user=SimpleNamespace(id='user-1'))
+    row = result['chats'][0]
+    assert row['encrypted_draft_md'] == 'cipher-markdown'
+    assert row['encrypted_draft_preview'] == 'cipher-preview'
+    assert row['draft_v'] == 3 and row['last_edited_overall_timestamp'] == 100
+    assert 'draft' not in row and 'messages' not in row
+    cache.get_user_draft_from_cache.assert_awaited_once_with(user_id='user-1', chat_id='owned')
+    assert directus.get_items.call_args.kwargs['params']['filter[hashed_user_id][_eq]'] == sha256(b'user-1').hexdigest()
+    chat.check_chat_ownership.return_value = False
+    cache.get_user_draft_from_cache.reset_mock()
+    with pytest.raises(HTTPException) as error:
+        await sidebar_chat_metadata(SidebarChatMetadataRequest(chat_ids=['foreign']), request, current_user=SimpleNamespace(id='user-1'))
+    assert error.value.status_code == 404
+    cache.get_user_draft_from_cache.assert_not_awaited()

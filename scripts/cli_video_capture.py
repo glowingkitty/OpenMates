@@ -28,7 +28,7 @@ TERMINAL_WIDTH = 1280
 TERMINAL_HEIGHT = 720
 DISPLAY_DEPTH = 24
 RESULT_HOLD_SECONDS = 3
-MAX_INPUT_STEPS = 48
+MAX_INPUT_STEPS = 64
 MAX_STEP_WAIT_MS = 30_000
 MAX_STEP_HOLD_MS = 5_000
 ALLOWED_KEYS = {"Return", "Escape", "Tab", "Up", "Down", "Left", "Right", "ctrl+b", "ctrl+s", "ctrl+c", "ctrl+o", "ctrl+u", "shift+Tab", "Home", "End", "Page_Up", "Page_Down"}
@@ -72,13 +72,14 @@ def load_input_plan(path: Path) -> list[dict[str, Any]]:
         raise CliCaptureError(f"Terminal input plan must contain 1–{MAX_INPUT_STEPS} steps")
     names: set[str] = set()
     for step in steps:
-        if not isinstance(step, dict) or set(step) - {"name", "text", "key", "wait_for", "wait_timeout_ms", "hold_ms"}:
+        if not isinstance(step, dict) or set(step) - {"name", "text", "key", "wheel", "wait_for", "wait_for_absent", "wait_timeout_ms", "hold_ms"}:
             raise CliCaptureError("Terminal input plan contains an invalid step")
         name = step.get("name")
         if not isinstance(name, str) or not re.fullmatch(r"[a-z][a-z0-9-]{0,63}", name) or name in names:
             raise CliCaptureError("Terminal input step names must be unique slugs")
         names.add(name)
-        if ("text" in step) == ("key" in step) and not ("wait_for" in step and "text" not in step and "key" not in step):
+        input_count = sum(field in step for field in ("text", "key", "wheel"))
+        if input_count != 1 and not (input_count == 0 and "wait_for" in step):
             raise CliCaptureError(f"Step {name} needs exactly one input, or only a wait_for marker")
         if "text" in step:
             value = step["text"]
@@ -88,13 +89,33 @@ def load_input_plan(path: Path) -> list[dict[str, Any]]:
                 raise CliCaptureError(f"Step {name} contains a secret-bearing flag")
         if "key" in step and (not isinstance(step["key"], str) or step["key"] not in ALLOWED_KEYS):
             raise CliCaptureError(f"Step {name} has unsupported key")
+        if "wheel" in step and step["wheel"] not in ("up", "down"):
+            raise CliCaptureError(f"Step {name} has unsupported wheel direction")
         if "wait_for" in step and (not isinstance(step["wait_for"], str) or not 1 <= len(step["wait_for"]) <= 120):
             raise CliCaptureError(f"Step {name} has invalid wait_for marker")
+        if "wait_for_absent" in step and ("wait_for" not in step or not isinstance(step["wait_for_absent"], str) or not 1 <= len(step["wait_for_absent"]) <= 120):
+            raise CliCaptureError(f"Step {name} has invalid wait_for_absent marker")
         for field, maximum, default in (("wait_timeout_ms", MAX_STEP_WAIT_MS, 10_000), ("hold_ms", MAX_STEP_HOLD_MS, 0)):
             value = step.get(field, default)
             if not isinstance(value, int) or isinstance(value, bool) or not 0 <= value <= maximum:
                 raise CliCaptureError(f"Step {name} has invalid {field}")
     return steps
+
+
+def input_step_ready(output: str, marker: str, absent_marker: str | None = None) -> bool:
+    """Check loading-state absence only in the latest complete TUI frame.
+
+    Historical output still contains earlier loading messages, and an unfinished
+    synchronized paint must never count as a ready screen.
+    """
+    if absent_marker is not None:
+        start = output.rfind("\x1b[?2026h")
+        end = output.rfind("\x1b[?2026l")
+        if start < 0 or end < start:
+            return False
+        output = output[start:end]
+    plain = ANSI_ESCAPE_RE.sub("", output).replace("\r", "")
+    return marker in plain and (absent_marker is None or absent_marker not in plain)
 
 
 def drive_terminal_inputs(
@@ -141,12 +162,21 @@ def drive_terminal_inputs(
         # The first readiness marker may have been rendered while the X window
         # was discovered and focused. Inputs and later markers must still see
         # only output produced after their step begins.
-        initial_readiness = index == 0 and "wait_for" in step and "text" not in step and "key" not in step
+        initial_readiness = index == 0 and "wait_for" in step and all(field not in step for field in ("text", "key", "wheel"))
         start_offset = 0 if initial_readiness else (transcript_path.stat().st_size if transcript_path.exists() else 0)
         if "text" in step:
             command = [xdotool, "type", "--clearmodifiers", "--delay", "15", "--", step["text"]]
         elif "key" in step:
             command = [xdotool, "key", "--clearmodifiers", step["key"]]
+        elif "wheel" in step:
+            # A real XTEST wheel event over the left sidebar is routed by the
+            # terminal to the CLI's scroll handler. Keep the pointer inside the
+            # sidebar rather than relying on the current pointer position.
+            move = subprocess.run([xdotool, "mousemove", "--window", window_id, "80", "360"],
+                                  env=process_env, capture_output=True, text=True, check=False, timeout=8)
+            if move.returncode != 0:
+                raise CliCaptureError(f"Terminal wheel pointer failed at {step['name']}: {move.stderr[-500:]}")
+            command = [xdotool, "click", "4" if step["wheel"] == "up" else "5"]
         else:
             command = None
         if command:
@@ -154,6 +184,7 @@ def drive_terminal_inputs(
             if sent.returncode != 0:
                 raise CliCaptureError(f"Terminal input {step['name']} failed: {sent.stderr[-500:]}")
         marker = step.get("wait_for")
+        absent_marker = step.get("wait_for_absent")
         if marker:
             stop_at = min(capture_deadline, time.monotonic() + step.get("wait_timeout_ms", 10_000) / 1000)
             while time.monotonic() < stop_at:
@@ -163,7 +194,7 @@ def drive_terminal_inputs(
                     with transcript_path.open("rb") as handle:
                         handle.seek(start_offset)
                         output = handle.read().decode("utf-8", errors="replace")
-                    if marker in ANSI_ESCAPE_RE.sub("", output).replace("\r", ""):
+                    if input_step_ready(output, marker, absent_marker):
                         break
                 time.sleep(0.05)
             else:
@@ -174,6 +205,7 @@ def drive_terminal_inputs(
             "at_ms": round((time.monotonic() - started_at) * 1000),
             "transcript_offset": transcript_path.stat().st_size if transcript_path.exists() else 0,
             "marker": marker,
+            **({"absent_marker": absent_marker} if absent_marker is not None else {}),
         })
     return checkpoints
 

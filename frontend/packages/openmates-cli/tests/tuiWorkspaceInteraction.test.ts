@@ -270,3 +270,25 @@ test("ordinary detail views scroll down and immediately reverse at their bounds"
   terminal.press("",{name:"up"});await tick();assert.notEqual(terminal.latest(),end);
   terminal.press("\u0003",{ctrl:true,name:"c"});await run;
 });
+
+// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity,projects.lifecycle.encrypted-crud
+test('a slug-only project search opens the visible card and refresh preserves its Files folder and Tasks tab', async () => {
+  const {createHash}=await import('node:crypto');const {encryptWithAesGcmCombined}=await import('../src/crypto.js');
+  const {renderTuiFrame}=await import('../src/tuiRenderer.js');
+  const key=new Uint8Array(32).fill(9),seal=(value:string)=>encryptWithAesGcmCombined(value,key);
+  const record={project_id:'project',encrypted_name:await seal('Launch'),encrypted_slug:await seal('secret-slug'),encrypted_description:await seal('Description')};
+  const client={getActiveTeamId:()=>null,getMasterKeyBytes:()=>key,getProject:async()=>({project:record}),decryptProjectKey:async()=>key,
+    listProjectItems:async()=>({folders:[{folder_id:'docs',encrypted_name:await seal('Docs')},{folder_id:'nested',hashed_parent_folder_id:createHash('sha256').update('docs').digest('hex'),encrypted_name:await seal('Nested')}],items:[]}),
+    listProjectSources:async()=>[],listUserTasks:async()=>[]};
+  const state=createInitialTuiState();state.signedIn=true;state.workspace='projects';state.screen='projects';state.focus='content';state.filter='secret-slug';
+  state.projects=[{id:'project',slug:'secret-slug',name:'Launch',description:'Description',items:[],files:[],folders:[],sources:[]}] as never;
+  const ctx={state,client,terminal:{width:120},render:()=>{},send:async()=>{},command:async(command:string)=>{await handleWorkspaceCommand(ctx as unknown as WorkspaceContext,command);}} as unknown as WorkspaceContext;
+  state.focus='composer';await handleWorkspaceCommand(ctx,'/search secret-slug');
+  assert.equal(state.focus,'content');
+  assert.match(renderTuiFrame(state,120,30),/>.*PROJECT/);
+  await handleWorkspaceKey(ctx,'\r',{name:'return'});assert.equal(state.activeProject?.id,'project');
+  state.projectTab='files';state.projectFolderId='docs';state.filter='Nested';state.scrollOffset=2;
+  await handleWorkspaceCommand(ctx,'/refresh');assert.equal(state.projectTab,'files');assert.equal(state.projectFolderId,'docs');assert.equal(state.filter,'Nested');assert.equal(state.scrollOffset,2);
+  assert.deepEqual(state.projectFiles.map(f=>f.name),['Nested']);
+  state.projectTab='tasks';await handleWorkspaceCommand(ctx,'/refresh');assert.equal(state.projectTab,'tasks');
+});

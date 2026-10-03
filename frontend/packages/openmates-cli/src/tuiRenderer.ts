@@ -14,7 +14,7 @@ import { APP_GRADIENTS, PRIMARY_GRADIENT } from "../../appGradientTheme.js";
 import { type DecryptedUserTask } from "./tasksCli.js";
 import type { TuiForm } from "./tuiForms.js";
 import type { TuiProject, TuiProjectFile } from "./tuiProjectsWorkspace.js";
-import { renderProjectList, renderProjectDetail, renderProjectIdentity, renderProjectTabs, filteredProjectFiles } from "./tuiProjectsWorkspace.js";
+import { renderProjectList, renderProjectDetail, renderProjectIdentity, renderProjectTabs, filteredProjects, filteredProjectFiles } from "./tuiProjectsWorkspace.js";
 import { renderTaskBoard, renderTaskDetails, filterTasks, type TaskContext } from "./tuiTasksWorkspace.js";
 import { renderWorkflowWorkspace, renderWorkflowPreviewCard, renderWorkflowIdentity } from "./tuiWorkflowWorkspace.js";
 import { renderWorkspaceFrame, workspaceGeometry } from "./tuiLayout.js";
@@ -79,6 +79,8 @@ export type TuiState = {
   sidebarLinkedChats: ChatListItem[];
   activityFrame: number;
   chatSidebarProjects: TuiProject[];
+  chatSidebarLoadVersion: number;
+  chatActivityLoadVersion: number;
   chatSidebarLocation: { projectId: string; folderId: string | null } | null;
   chatSidebarAncestors: boolean;
   chatProjectOperation: { chatIds: string[]; mode: 'add' | 'move' } | null;
@@ -154,7 +156,7 @@ export function createInitialTuiState(): TuiState {
     focus: "content", signedIn: false, form: null, paletteOpen: false,
     paletteQuery: "", paletteIndex: 0, filter: "", taskStatusFilter: "",
     taskContext: null, recentChats: [], runningChatIds: [], activityChats: [], sidebarLinkedChats: [], activityFrame: 0,
-    chatSidebarProjects: [], chatSidebarLocation: null, chatSidebarAncestors: false, chatProjectOperation: null, chatProjectBusy: false,
+    chatSidebarProjects: [], chatSidebarLoadVersion: 0, chatActivityLoadVersion: 0, chatSidebarLocation: null, chatSidebarAncestors: false, chatProjectOperation: null, chatProjectBusy: false,
     activeChatId: null, activeChat: null,
     headerState: "new", headerError: null, followUpSuggestions: [], drafts: {}, routeVersion: 0, inputCursor: null, aiTaskId: null,
     detailTitle: "", detailLines: [], projects: [], activeProject: null,
@@ -292,7 +294,7 @@ function renderBody(state: TuiState, width: number,height:number): TuiLine[] {
     }
     case "app-result": return state.activeAppResult ? renderTuiAppsResult(state.activeAppResult,width):["Loading saved result…"];
     case "projects":
-      return [...homeHeader(state,width,height),...homeCards(renderProjectList(state.projects, { width, selectedId: state.projects.filter((p) => `${p.name} ${p.description}`.toLowerCase().includes(state.filter.toLowerCase()))[state.selectedIndex]?.id, query: state.filter }),width,[])];
+      return [...homeHeader(state,width,height),...homeCards(renderProjectList(state.projects, { width, selectedId: filteredProjects(state.projects,state.filter)[state.selectedIndex]?.id, query: state.filter }),width,[])];
     case "project":
       return state.activeProject ? state.projectTab === "tasks"
         ? [...blueHero(renderProjectIdentity(state.activeProject,{width}),renderProjectIdentity(state.activeProject,{width}).length),...renderProjectTabs("tasks",width),"",...renderTaskBoard(state.tasks, { width, selectedTaskId: filterTasks(state.tasks, state.filter)[state.selectedIndex]?.taskId, query: state.filter })]

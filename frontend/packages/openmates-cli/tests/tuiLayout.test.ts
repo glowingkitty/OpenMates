@@ -5,6 +5,7 @@ import { CATEGORY_GRADIENTS } from "../../chatCategoryTheme.js";
 import { chatBackground, DEFAULT_CHAT_BACKGROUND, renderWorkspaceFrame } from "../src/tuiLayout.js";
 import { createInitialTuiState, renderTuiFrame } from "../src/tuiRenderer.js";
 import { handleWorkspaceKey, type WorkspaceContext } from "../src/tuiWorkspaceController.js";
+import { tuiChatSidebarRows } from "../src/tuiChatSidebar.js";
 import { cells, stripAnsi } from "../src/tuiText.js";
 
 test("sidebar starts closed at wide and narrow widths", () => {
@@ -34,7 +35,7 @@ test("long sidebars keep the keyboard selection visible at wide and narrow width
   state.recentChats = Array.from({length: 40}, (_, i) => ({id: `chat-${i}`, title: `Recent chat ${i + 1}`} as typeof state.recentChats[number]));
   state.sidebarOpen = true;
   state.focus = "sidebar";
-  state.sidebarIndex = 36;
+  state.sidebarIndex = tuiChatSidebarRows(state).findIndex(row => row.chatId === "chat-35");
   for (const [width, height] of [[48, 16], [112, 20]]) {
     const frame = renderWorkspaceFrame(state, width, height, ["Visible body"], {colorMode: "none"});
     assert.match(frame, /> Recent chat 36/);

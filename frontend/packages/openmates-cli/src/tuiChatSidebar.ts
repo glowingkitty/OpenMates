@@ -11,7 +11,9 @@ import { encryptWithAesGcmCombined } from './crypto.js';
 import { aggregateRunningChats, processingAncestorIds } from '../../ui/src/utils/chatActivity.js';
 import { projectBreadcrumbs, projectFolderChatIds, locationHasRunningChats, type SidebarProject } from '../../ui/src/utils/chatProjectNavigation.js';
 import { cells, truncateCells } from './tuiText.js';
-export type ChatSidebarRow = { kind: 'new' | 'chat' | 'project' | 'folder' | 'up' | 'path' | 'choose' | 'create';
+import { sortChats } from '../../ui/src/components/chats/utils/chatSortUtils.js';
+import { chatTimeGroupKey, CHAT_TIME_GROUPS } from '../../ui/src/utils/chatTimeGroups.js';
+export type ChatSidebarRow = { kind: 'section' | 'new' | 'chat' | 'project' | 'folder' | 'up' | 'path' | 'choose' | 'create';
   label: string; chatId?: string; projectId?: string; folderId?: string | null; running?: boolean };
 
 function rowKey(row: ChatSidebarRow): string {
@@ -24,15 +26,22 @@ export function updateTuiChatSidebar(state: TuiState, update: () => void): void 
   const rows = tuiChatSidebarRows(state);
   const index = selected ? rows.findIndex(row => rowKey(row) === rowKey(selected)) : -1;
   state.sidebarIndex = index >= 0 ? index : Math.max(0, Math.min(state.sidebarIndex, rows.length - 1));
+  if (rows[state.sidebarIndex]?.kind === 'section') moveTuiChatSidebarSelection(state, 0);
 }
 
 export function runningTuiChatGroups(state: TuiState): Array<{ chat: ChatListItem; activeSubChatCount: number }> {
   const chats = new Map([...state.recentChats, ...state.activityChats].map(chat => [chat.id, chat]));
-  return aggregateRunningChats([...chats.values()].map(chat => ({ chat_id: chat.id, parent_id: chat.parentId, is_hidden_candidate: chat.isHiddenCandidate })), new Set(state.runningChatIds))
+  return aggregateRunningChats([...chats.values()].map(chat => ({ chat_id: chat.id, parent_id: chat.parentId, is_hidden_candidate: chat.isHiddenCandidate || chat.isHidden })), new Set(state.runningChatIds))
     .map(group => ({ ...group, chat: chats.get(group.chat.chat_id)! }));
 }
+function sortTuiChats(chats: ChatListItem[], serverIds: string[]): ChatListItem[] {
+  const records = new Map(chats.map(chat => [chat.id, chat]));
+  return sortChats(chats.map(chat => ({chat_id: chat.id, pinned: chat.pinned,
+    encrypted_draft_md: chat.hasDraft ? 'saved' : null, last_edited_overall_timestamp: chat.updatedAt,
+    updated_at: chat.metadataUpdatedAt})) as Parameters<typeof sortChats>[0], serverIds).map(chat => records.get(chat.chat_id)!);
+}
 export function tuiSidebarProjects(state: TuiState): SidebarProject[] {
-  return state.chatSidebarProjects.map(project => ({ id: project.id, name: project.name,
+  return state.chatSidebarProjects.filter(project => !project.archived).map(project => ({ id: project.id, name: project.name,
     folders: project.folders.map(folder => ({ id: folder.id, name: folder.name,
       hash: createHash('sha256').update(folder.id).digest('hex'), parentHash: folder.parentHash ?? null })),
     chats: project.items.filter(item => item.type === 'chat').map(item => ({ id: item.id, chatId: item.targetId,
@@ -53,7 +62,7 @@ export function tuiChatBreadcrumb(state: TuiState, width = 23): string | null {
 }
 export function tuiChatSidebarRows(state: TuiState): ChatSidebarRow[] {
   const groups = runningTuiChatGroups(state);
-  const records = [...state.recentChats, ...state.activityChats].map(chat => ({ chat_id: chat.id, parent_id: chat.parentId, is_hidden_candidate: chat.isHiddenCandidate }));
+  const records = [...state.recentChats, ...state.activityChats].map(chat => ({ chat_id: chat.id, parent_id: chat.parentId, is_hidden_candidate: chat.isHiddenCandidate || chat.isHidden }));
   const running = processingAncestorIds(records, new Set(state.runningChatIds));
   const rows: ChatSidebarRow[] = groups.map(group => ({ kind: 'chat', chatId: group.chat.id, running: true,
     label: `${group.chat.title || 'Untitled chat'}${group.activeSubChatCount ? ` (${group.activeSubChatCount} ${group.activeSubChatCount === 1 ? 'subchat' : 'subchats'})` : ''}` }));
@@ -75,18 +84,46 @@ export function tuiChatSidebarRows(state: TuiState): ChatSidebarRow[] {
   } else rows.push(...projects.map(project => ({ kind: 'project' as const, label: project.name, projectId: project.id,
     running: locationHasRunningChats(project, null, running) })));
   const organized = new Set(projects.flatMap(project => project.chats.map(chat => chat.chatId)));
-  const candidates = new Map([...state.recentChats, ...state.sidebarLinkedChats].filter(chat => !chat.isHiddenCandidate).map(chat => [chat.id, { id: chat.id, title: chat.title, parentId: chat.parentId, isSubChat: chat.isSubChat }]));
+  // Sync records include drafts; minimal linked metadata must not overwrite them.
+  const combined = new Map([...state.sidebarLinkedChats, ...state.recentChats].map(chat => [chat.id, chat]));
+  const candidates = new Map([...combined.values()].filter(chat => !chat.isHiddenCandidate && !chat.isHidden).map(chat => [chat.id, chat]));
   if (contents && location) for (const item of state.chatSidebarProjects.find(project => project.id === location.projectId)?.items ?? []) {
     const verified = candidates.get(item.targetId);
     if (item.type === 'chat' && contents.has(item.targetId) && verified && !verified.title)
       candidates.set(item.targetId, { ...verified, title: item.name });
   }
-  if (!state.chatProjectOperation) rows.push(...[...candidates.values()].filter(chat => !running.has(chat.id) &&
-    (contents ? contents.has(chat.id) : !chat.parentId && !chat.isSubChat && !organized.has(chat.id))).map(chat => ({ kind: 'chat' as const, chatId: chat.id, label: chat.title || 'Untitled chat' })));
+  if (!state.chatProjectOperation) {
+    const chats = [...candidates.values()].filter(chat => !running.has(chat.id) &&
+      (contents ? contents.has(chat.id) : !chat.parentId && !chat.isSubChat && !organized.has(chat.id)));
+    const ordered = sortTuiChats(chats, state.recentChats.map(chat => chat.id));
+    const groups = new Map<string, ChatListItem[]>();
+    for (const chat of ordered) {
+      const key = chatTimeGroupKey(chat.updatedAt);
+      const group = groups.get(key) ?? [];
+      group.push(chat); groups.set(key, group);
+    }
+    const keys = [...CHAT_TIME_GROUPS.filter(key => groups.has(key)), ...[...groups.keys()].filter(key => !CHAT_TIME_GROUPS.some(standard => standard === key))];
+    for (const key of keys) {
+      const label = ({today: 'Today', yesterday: 'Yesterday', previous_7_days: 'Previous 7 days', previous_30_days: 'Previous 30 days'} as Record<string, string>)[key]
+        ?? new Date(Number(key.split('_')[1]), Number(key.split('_')[2]) - 1).toLocaleDateString('en', {month: 'long', year: 'numeric'});
+      rows.push({kind: 'section', label});
+      rows.push(...groups.get(key)!.map(chat => ({kind: 'chat' as const, chatId: chat.id,
+        label: `${chat.pinned ? '★ ' : ''}${chat.title || chat.draftPreview || 'Untitled chat'}${chat.hasDraft ? ' [Draft]' : ''}`})));
+    }
+  }
   return rows;
+}
+/** Headers are visual rows, never keyboard targets. Wheel follows the same model. */
+export function moveTuiChatSidebarSelection(state: TuiState, amount: number, edge?: 'first' | 'last'): void {
+  const rows = tuiChatSidebarRows(state), selectable = rows.map((row, index) => row.kind === 'section' ? -1 : index).filter(index => index >= 0);
+  const selected = Math.max(0, selectable.indexOf(state.sidebarIndex));
+  const next = edge === 'first' ? 0 : edge === 'last' ? selectable.length - 1 : Math.max(0, Math.min(selectable.length - 1, selected + amount));
+  state.sidebarIndex = selectable[next] ?? 0;
 }
 export async function refreshTuiChatSidebar(state: TuiState, client: OpenMatesClient, render: () => void, includeProjects = false): Promise<void> {
   if (!state.signedIn) return;
+  const activityRequest = ++state.chatActivityLoadVersion;
+  const projectRequest = includeProjects ? ++state.chatSidebarLoadVersion : state.chatSidebarLoadVersion;
   const team = typeof client.getActiveTeamId === 'function' ? client.getActiveTeamId() : null;
   const master = typeof client.getMasterKeyBytes === 'function' ? Buffer.from(client.getMasterKeyBytes()) : null;
   const current = () => state.signedIn && (typeof client.getActiveTeamId !== 'function' || client.getActiveTeamId() === team) &&
@@ -94,15 +131,15 @@ export async function refreshTuiChatSidebar(state: TuiState, client: OpenMatesCl
   if (typeof client.getChatActivity === 'function') {
     try {
       const activity = await client.getChatActivity();
-      if (current()) { updateTuiChatSidebar(state, () => { state.runningChatIds = activity.ids; state.activityChats = activity.chats; }); render(); }
+      if (current() && activityRequest === state.chatActivityLoadVersion) { updateTuiChatSidebar(state, () => { state.runningChatIds = activity.ids; state.activityChats = activity.chats; }); render(); }
     } catch { if (current()) { state.status = 'Running chat status unavailable.'; render(); } }
   }
   if (includeProjects && typeof client.listProjects === 'function') {
-    const summaries = await loadTuiProjects(client), projects: TuiProject[] = [];
+    const summaries = (await loadTuiProjects(client)).filter(project => !project.archived), projects: TuiProject[] = [];
     for (let start = 0; start < summaries.length; start += 4) projects.push(...await Promise.all(summaries.slice(start, start + 4).map(project => loadTuiProject(client, project.id, true))));
     const linkedIds = [...new Set(projects.flatMap(project => project.items.filter(item => item.type === 'chat').map(item => item.targetId)))];
     const linkedChats = typeof client.getSidebarChats === 'function' ? await client.getSidebarChats(linkedIds) : [];
-    if (current()) { updateTuiChatSidebar(state, () => { state.chatSidebarProjects = projects; state.sidebarLinkedChats = linkedChats; }); render(); }
+    if (current() && projectRequest === state.chatSidebarLoadVersion) { updateTuiChatSidebar(state, () => { state.chatSidebarProjects = projects; state.sidebarLinkedChats = linkedChats; }); render(); }
   }
 }
 

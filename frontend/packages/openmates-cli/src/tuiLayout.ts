@@ -26,7 +26,7 @@ export function sidebarLines(state: TuiState): string[] {
   const selected = (label: string, index: number) => `${state.focus === "sidebar" && state.sidebarIndex === index ? ">" : " "} ${label}`;
   switch (state.workspace) {
     case "chats": return [tuiChatBreadcrumb(state) ?? 'Chats', '',
-      ...tuiChatSidebarRows(state).map((row, index) => selected(`${row.running ? ['◴','◷','◶','◵'][state.activityFrame % 4] + ' ' : ''}${row.label}`, index)),
+      ...tuiChatSidebarRows(state).map((row, index) => row.kind === 'section' ? `  ${row.label}` : selected(`${row.running ? ['◴','◷','◶','◵'][state.activityFrame % 4] + ' ' : ['project', 'folder'].includes(row.kind) ? '▸ ' : ''}${row.label}`, index)),
       '', '/active  /chat-add-to-project'];
     case "projects": return ["Projects", "", ...state.projects.map((p, i) => selected(p.name, i)), "", "/project-create new"];
     case "tasks": return ["Tasks", "", ...state.tasks.map((t, i) => selected(`${t.shortId} ${t.title}`, i)), "", "/task-create new"];
@@ -130,7 +130,7 @@ export function renderWorkspaceFrame(state: TuiState, rawWidth: number, rawHeigh
   const heroRows = options.headerRows ?? 0;
   const category = state.screen === "example" ? state.activeExample?.chat.category : state.activeChat?.category;
   const background = chatBackground(category);
-  const allSide = sidebarLines(state);
+  const allSide = sidebarWidth ? sidebarLines(state) : [];
   const sideMarker = allSide.findIndex((row) => row.startsWith("> "));
   const sideStart = Math.max(0, sideMarker - bodyHeight + 3);
   const side = sideStart ? [allSide[0], "", ...allSide.slice(sideStart)] : allSide;

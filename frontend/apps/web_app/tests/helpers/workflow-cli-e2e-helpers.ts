@@ -269,6 +269,7 @@ function workflowApiUrl(): string {
 }
 
 module.exports = {
+	clearWorkflowCliSyncCache,
 	createWorkflowCliHome,
 	deleteWorkflowQuietly,
 	expectCliSuccess,

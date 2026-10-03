@@ -79,3 +79,47 @@ test('locked keys never expose rows, counts or saved project labels', () => {
   state.sidebarLinkedChats[0].isHiddenCandidate = false;
   assert.ok(tuiChatSidebarRows(state).some(row => row.label === 'Saved launch headlines'));
 });
+
+// contract-test: supporting surface=cli assertions=chat-navigation.order.sidebar-header-match,chat-navigation.draft-only.addressable
+test('date groups use web pin draft and message ordering and omit hidden or archived rows', () => {
+  const state = createInitialTuiState(), now = Math.floor(Date.now()/1000);
+  state.recentChats = [
+    {id:'newer',title:'Newest',updatedAt:now},
+    {id:'pinned',title:'Pinned',pinned:true,updatedAt:now-100},
+    {id:'draft',title:null,draftPreview:'Finish launch',hasDraft:true,updatedAt:now-50},
+    {id:'yesterday',title:'Yesterday',updatedAt:now-86400},
+    {id:'hidden',title:'Private',isHidden:true,updatedAt:now},
+  ] as never;
+  state.chatSidebarProjects = [{id:'archived',name:'Archive',archived:true,folders:[],items:[]}] as never;
+  assert.deepEqual(tuiChatSidebarRows(state).filter(r=>r.kind==='chat').map(r=>r.chatId),['pinned','draft','newer','yesterday']);
+  assert.deepEqual(tuiChatSidebarRows(state).filter(r=>r.kind==='section').map(r=>r.label),['Today','Yesterday']);
+  assert.match(tuiChatSidebarRows(state).find(r=>r.chatId==='draft')!.label,/Finish launch.*Draft/);
+  assert.ok(!tuiChatSidebarRows(state).some(r=>r.projectId==='archived'));
+  // A fresh locked record wins over a previously readable folder metadata row.
+  state.sidebarLinkedChats=[{id:'hidden',title:'Previously readable'}] as never;
+  assert.ok(!tuiChatSidebarRows(state).some(r=>r.chatId==='hidden'));
+});
+
+// contract-test: supporting surface=cli assertions=chat-navigation.projects.nested-readable
+test('root folders show immediate children only, and sorted metadata preserves the selected chat', () => {
+  const state=fixture();state.runningChatIds=[];state.chatSidebarLocation={projectId:'launch',folderId:null};
+  let rows=tuiChatSidebarRows(state);
+  assert.deepEqual(rows.filter(r=>r.kind==='folder').map(r=>r.label),['Marketing']);
+  assert.ok(!rows.some(r=>r.chatId==='older-chat'));
+  state.chatSidebarLocation.folderId='copy';state.sidebarIndex=tuiChatSidebarRows(state).findIndex(r=>r.chatId==='older-chat');
+  updateTuiChatSidebar(state,()=>{state.recentChats.push({id:'older-chat',title:'Updated title',updatedAt:Math.floor(Date.now()/1000)} as never);});
+  rows=tuiChatSidebarRows(state);assert.equal(rows[state.sidebarIndex].chatId,'older-chat');assert.equal(rows[state.sidebarIndex].label,'Updated title');
+});
+
+// contract-test: supporting surface=cli assertions=chat-navigation.order.sidebar-header-match
+test('shared web and terminal date buckets use calendar days across spring DST and accept seconds or milliseconds', async () => {
+  const {chatTimeGroupKey}=await import('../../ui/src/utils/chatTimeGroups.js');
+  const previous=process.env.TZ;process.env.TZ='America/New_York';
+  try {
+    const now=new Date(2026,2,9,12),yesterday=new Date(2026,2,8,12).getTime();
+    assert.equal(chatTimeGroupKey(yesterday,now),'yesterday');assert.equal(chatTimeGroupKey(yesterday/1000,now),'yesterday');
+    assert.equal(chatTimeGroupKey(new Date(2026,2,7,12).getTime(),now),'previous_7_days');
+    assert.equal(chatTimeGroupKey(new Date(2026,1,15,12).getTime(),now),'previous_30_days');
+    assert.equal(chatTimeGroupKey(NaN,now),'today');
+  } finally {if(previous===undefined)delete process.env.TZ;else process.env.TZ=previous;}
+});

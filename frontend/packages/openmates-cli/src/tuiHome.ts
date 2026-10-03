@@ -5,7 +5,7 @@ import { getWorkspaceInspirations } from "../../workspaceInspirationDefaults.js"
 import { CATEGORY_GRADIENTS } from "../../chatCategoryTheme.js";
 import { centeredCarouselText, renderCardCarousel } from "./tuiCarousel.js";
 import { terminalText, wrapCells, type TuiLine } from "./tuiText.js";
-import { runningTuiChatGroups } from './tuiChatSidebar.js';
+import { runningTuiChatGroups, refreshTuiChatSidebar, updateTuiChatSidebar } from './tuiChatSidebar.js';
 
 const BLUE = {start: "#4867cd", end: "#5a85eb"};
 const prompts: Record<TuiWorkspace, string> = {
@@ -14,7 +14,8 @@ const prompts: Record<TuiWorkspace, string> = {
 };
 export const isWorkspaceHome = (s: TuiState): boolean => ["start", "chats", "projects", "tasks", "workflows", "apps"].includes(s.screen);
 export function homeChatItems(state: TuiState): ChatListItem[] {
-  return (state.signedIn ? state.recentChats : state.examples).filter((c) => `${c.title} ${c.summary}`.toLowerCase().includes(state.filter.toLowerCase()));
+  const chats: ChatListItem[] = state.signedIn ? state.recentChats : state.examples;
+  return chats.filter(c => !c.isHiddenCandidate && !c.isHidden && `${c.title} ${c.draftPreview ?? ''} ${c.summary}`.toLowerCase().includes(state.filter.toLowerCase()));
 }
 export function workspaceInspirations(state: TuiState): DailyInspiration[] {
   const available = state.inspirations.filter((i) => (i.surface ?? "chats") === state.workspace);
@@ -37,7 +38,8 @@ export async function loadHomeData(state: TuiState, client: OpenMatesClient, ren
     }render();}
   }).catch(()=>{if(current())state.homeError="Daily inspiration is temporarily unavailable.";}));
   if(signedIn && typeof client.whoAmI === "function") work.push(client.whoAmI().then((user)=>{if(current()){state.username=typeof user.username==="string" ? terminalText(user.username):null;render();}}).catch(()=>{}));
-  if(signedIn && typeof client.listChats === "function") work.push(client.listChats(50,1).then((page)=>{if(current()){state.recentChats=page.chats;render();}}).catch(()=>{if(current())state.homeError="Saved chats could not be loaded. Use /refresh to retry.";}));
+  if(signedIn && typeof client.listChats === "function") work.push(client.listChats(Number.MAX_SAFE_INTEGER,1).then((page)=>{if(current()){updateTuiChatSidebar(state,()=>{state.recentChats=page.chats;});render();}}).catch(()=>{if(current())state.homeError="Saved chats could not be loaded. Use /refresh to retry.";}));
+  if(signedIn) work.push(refreshTuiChatSidebar(state,client,render,true).catch(()=>{if(current())state.homeError="Chat projects could not be loaded. Use /refresh to retry.";}));
   await Promise.all(work);
   if(current()){state.homeLoading=false;render();}
 }
@@ -69,7 +71,7 @@ export function renderHomeChatCards(state:TuiState,width:number,height:number):T
   result.push(centered(state.signedIn ? "Continue where you left off" : "Explore example chats",width),"");
   const selected=Math.max(0,Math.min(chats.length-1,state.selectedIndex));
   result.push(...renderCardCarousel(chats.map((chat)=>({
-    title:chat.title||"Untitled chat",description:chat.summary||"Continue this conversation",
+    title:chat.title||chat.draftPreview||"Untitled chat",description:chat.hasDraft?'Draft':chat.summary||"Continue this conversation",
     footer:chat.category?.replaceAll("_"," ")||"Chat",background:(chat.category && CATEGORY_GRADIENTS[chat.category] || BLUE).start,
   })),width,selected,state.focus==="content"));
   result.push("",centered(`${selected>0?"‹":" "}  Chat ${selected+1} of ${chats.length}  ${selected<chats.length-1?"›":" "}`,width),

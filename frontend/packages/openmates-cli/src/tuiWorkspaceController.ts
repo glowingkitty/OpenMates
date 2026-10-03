@@ -4,12 +4,12 @@ import { randomUUID } from "node:crypto";
 import type { TuiState, TuiScreen, TuiWorkspace } from "./tuiRenderer.js";
 import type { TuiTerminal, TerminalKey } from "./tuiTerminal.js";
 import { buildTaskForm, filterTasks, loadTaskContext, submitTaskForm } from "./tuiTasksWorkspace.js";
-import { loadTuiProjects, loadTuiProject, loadTuiProjectFiles, readTuiProjectFile, buildProjectForm, submitProjectForm, filteredProjectFiles, parentTuiProjectFolderId } from "./tuiProjectsWorkspace.js";
+import { loadTuiProjects, loadTuiProject, loadTuiProjectFiles, readTuiProjectFile, buildProjectForm, submitProjectForm, filteredProjects, filteredProjectFiles, parentTuiProjectFolderId } from "./tuiProjectsWorkspace.js";
 import { buildWorkflowNodeForm, submitWorkflowNodeForm } from "./tuiWorkflowWorkspace.js";
 import { decryptUserTasks, TASK_STATUSES } from "./tasksCli.js";
 import { formValue } from "./tuiForms.js";
 import { WORKSPACES, workspaceGeometry } from "./tuiLayout.js";
-import { tuiChatSidebarRows, refreshTuiChatSidebar, placeTuiChats, createTuiChatProject } from './tuiChatSidebar.js';
+import { tuiChatSidebarRows, refreshTuiChatSidebar, placeTuiChats, createTuiChatProject, moveTuiChatSidebarSelection, updateTuiChatSidebar } from './tuiChatSidebar.js';
 import { encryptWithAesGcmCombined } from './crypto.js';
 import { paletteActions, TUI_ACTIONS } from "./tuiActions.js";
 import { eraseGrapheme, moveGraphemeCursor, terminalText } from "./tuiText.js";
@@ -48,9 +48,9 @@ async function recent(context: WorkspaceContext): Promise<void> {
   const {state, client, render} = context;
   if (!state.signedIn || typeof client.listChats !== "function") return;
   const request=state.routeVersion,homeRequest=state.homeLoadVersion;
-  const chats=(await client.listChats(50, 1)).chats;
+  const chats=(await client.listChats(Number.MAX_SAFE_INTEGER, 1)).chats;
   if(request!==state.routeVersion||homeRequest!==state.homeLoadVersion||!state.signedIn)return;
-  state.recentChats = chats;
+  updateTuiChatSidebar(state, () => { state.recentChats = chats; });
   render();
   await refreshTuiChatSidebar(state, client, render, true);
 }
@@ -79,6 +79,23 @@ async function openProject(context: WorkspaceContext, id: string): Promise<void>
   const files = await loadTuiProjectFiles(client, project);
   if (state.routeVersion !== request) return;
   state.activeProject = project; state.projectFiles = files; state.projectTab = "overview"; state.projectPath = ""; state.projectFolderId = null; state.projectSourceId = null;
+  state.status = null; render();
+}
+async function refreshOpenProject(context: WorkspaceContext): Promise<void> {
+  const {state, client, render} = context, id = state.activeProject!.id;
+  const request = ++state.routeVersion;
+  const view = {tab: state.projectTab, folderId: state.projectFolderId, sourceId: state.projectSourceId,
+    path: state.projectPath, filter: state.filter, selectedIndex: state.selectedIndex, scrollOffset: state.scrollOffset};
+  state.status = 'Refreshing Project…'; render();
+  const project = await loadTuiProject(client, id);
+  if (request !== state.routeVersion || state.activeProject?.id !== id) return;
+  const files = await loadTuiProjectFiles(client, project, view.tab === 'files' ?
+    {folderId: view.folderId ?? undefined, sourceId: view.sourceId ?? undefined, path: view.sourceId ? view.path : undefined} : {});
+  const tasks = view.tab === 'tasks' ? await decryptUserTasks(await client.listUserTasks({projectId: id}), client.getMasterKeyBytes()) : state.tasks;
+  if (request !== state.routeVersion || state.activeProject?.id !== id) return;
+  state.activeProject = project; state.projectFiles = files; state.tasks = tasks;
+  state.projectTab = view.tab; state.projectFolderId = view.folderId; state.projectSourceId = view.sourceId; state.projectPath = view.path;
+  state.filter = view.filter; state.selectedIndex = view.selectedIndex; state.scrollOffset = view.scrollOffset;
   state.status = null; render();
 }
 async function openTask(context: WorkspaceContext, taskId: string): Promise<void> {
@@ -207,7 +224,7 @@ export async function handleWorkspaceCommand(context: WorkspaceContext, command:
       state.status = `Chat in Project: ${project.name}`; render(); return true;
     }
     case "/search": {
-      if (arg) { state.filter = arg; state.selectedIndex = 0; state.scrollOffset = 0; render(); }
+      if (arg) { state.filter = arg; state.selectedIndex = 0; state.scrollOffset = 0; state.focus = 'content'; render(); }
       else state.form = { kind: "workspace-search", title: `Search ${state.workspace}`, fields: [{name:"query", label:"Search", value:state.filter}], fieldIndex:0 };
       render(); return true;
     }
@@ -239,7 +256,7 @@ export async function handleWorkspaceCommand(context: WorkspaceContext, command:
         else {state.status=session.error??session.message??`Workflow creation: ${session.status}. /refresh to check again.`;if(["failed","cancelled"].includes(session.status))state.workflowInputSessionId=null;}
         render();
       }
-      else if (state.screen === "project" && state.activeProject) await openProject(context, state.activeProject.id);
+      else if (state.screen === "project" && state.activeProject) await refreshOpenProject(context);
       else if (state.screen === "task" && state.activeTask) await openTask(context, state.activeTask.taskId);
       else if (state.screen === "chat" && state.activeChatId) await openSavedChat(context, state.activeChatId);
       else {if(isWorkspaceHome(state))await loadHomeData(state,client,render);await context.command(`/${state.workspace}`);}
@@ -351,6 +368,17 @@ export async function handleWorkspaceKey(context: WorkspaceContext, chunk: strin
   if(key.ctrl && key.name==="o" && isWorkspaceHome(state)){state.focus="inspiration";state.scrollOffset=0;render();return true;}
   if (state.workflowEdit) return false;
   const chatHome=state.screen==="start"||state.screen==="chats", carouselHome=chatHome||state.screen==="apps";
+  if (state.focus === 'sidebar' && ['pageup','pagedown','home','end','scrollup','scrolldown'].includes(key.name ?? '')) {
+    const direction = ['pageup','scrollup'].includes(key.name ?? '') ? -1 : 1;
+    const step = key.name?.startsWith('page') ? Math.max(1,(context.terminal.height ?? 24)-9) : 3;
+    const edge = key.name === 'home' ? 'first' : key.name === 'end' ? 'last' : undefined;
+    if (state.workspace === 'chats') moveTuiChatSidebarSelection(state, direction * step, edge);
+    else {
+      const count = state.workspace === 'projects' ? state.projects.length : state.workspace === 'tasks' ? state.tasks.length : state.workspace === 'apps' ? state.apps.length : state.workflows.length;
+      state.sidebarIndex = edge === 'first' ? 0 : edge === 'last' ? Math.max(0,count-1) : Math.max(0,Math.min(Math.max(0,count-1),state.sidebarIndex + direction * step));
+    }
+    render(); return true;
+  }
   if (["pageup","pagedown","home","end","scrollup","scrolldown"].includes(key.name ?? "") || (carouselHome || state.screen==="project"&&state.projectTab==="overview") && ["up","down"].includes(key.name??"") && ["composer","content"].includes(state.focus) && !state.input.startsWith("/")) {
     const bottom=state.screen==="chat";
     state.followSelection=false;
@@ -405,7 +433,10 @@ export async function handleWorkspaceKey(context: WorkspaceContext, chunk: strin
   if (state.focus === "sidebar") {
     const chatRows = tuiChatSidebarRows(state);
     const count = state.workspace === "chats" ? chatRows.length : state.workspace === "projects" ? state.projects.length : state.workspace === "tasks" ? state.tasks.length : state.workspace==="apps"?state.apps.length:state.workflows.length;
-    if (key.name === "up" || key.name === "down") state.sidebarIndex = Math.max(0, Math.min(count - 1, state.sidebarIndex + (key.name === "up" ? -1 : 1)));
+    if (key.name === "up" || key.name === "down") {
+      if (state.workspace === 'chats') moveTuiChatSidebarSelection(state, key.name === 'up' ? -1 : 1);
+      else state.sidebarIndex = Math.max(0, Math.min(Math.max(0,count - 1), state.sidebarIndex + (key.name === 'up' ? -1 : 1)));
+    }
     else if (key.name === "return") {
       if (state.workspace === 'chats') {
         if (state.chatProjectBusy) return true;
@@ -500,13 +531,13 @@ export async function handleWorkspaceKey(context: WorkspaceContext, chunk: strin
   if (state.focus === "content" && state.screen === "workflow" && chunk === "t") {await context.command("/workflow-toggle");return true;}
   if (state.focus === "content" && (key.name === "up" || key.name === "down") && ["start","tasks","projects","project","chats"].includes(state.screen)) {
     const count=state.screen==="tasks"||state.screen==="project"&&state.projectTab==="tasks" ? filterTasks(state.tasks,state.filter,state.taskStatusFilter as UserTaskStatus||undefined).length
-      :state.screen==="projects"?state.projects.filter((p)=>`${p.name} ${p.description}`.toLowerCase().includes(state.filter.toLowerCase())).length
+      :state.screen==="projects"?filteredProjects(state.projects,state.filter).length
       :state.screen==="project"?filteredProjectFiles(state.projectFiles,state.filter).length:homeChatItems(state).length;
     state.selectedIndex=Math.max(0,Math.min(count-1,state.selectedIndex+(key.name==="up"?-1:1)));render();return true;
   }
   if (state.focus === "content" && key.name === "return") {
     if (state.screen === "tasks") {const task=filterTasks(state.tasks,state.filter,state.taskStatusFilter as UserTaskStatus||undefined)[state.selectedIndex];if(task)await openTask(context,task.taskId);return true;}
-    if (state.screen === "projects") {const project=state.projects.filter((p)=>`${p.name} ${p.description}`.toLowerCase().includes(state.filter.toLowerCase()))[state.selectedIndex];if(project)await openProject(context,project.id);return true;}
+    if (state.screen === "projects") {const project=filteredProjects(state.projects,state.filter)[state.selectedIndex];if(project)await openProject(context,project.id);return true;}
     if (state.screen === "chats"||state.screen==="start") {const chat=homeChatItems(state)[state.selectedIndex];if(chat){if(chat.source==="example")await context.command(`/example ${chat.slug||chat.id}`);else await openSavedChat(context,chat.id);}return true;}
   }
   if (state.focus === "composer") {

@@ -99,7 +99,7 @@ async function recordInteractiveCli(apiUrl: string, home: string, outputDir: str
 	});
 }
 
-export type ProofStep = {name: string; text?: string; key?: string; wait_for?: string; hold_ms?: number};
+export type ProofStep = {name: string; text?: string; key?: string; wheel?: 'up' | 'down'; wait_for?: string; wait_for_absent?: string; hold_ms?: number};
 type ProofContract = typeof detailProofContract | typeof homeProofContract;
 type CliCheckpoint = {name: string; at_ms: number; transcript_offset: number};
 type CliManifest = {

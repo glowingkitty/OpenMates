@@ -2304,6 +2304,11 @@ export interface ChatListItem {
   parentId?: string | null;
   isSubChat?: boolean;
   isHiddenCandidate?: boolean;
+  isHidden?: boolean;
+  pinned?: boolean;
+  hasDraft?: boolean;
+  draftPreview?: string | null;
+  metadataUpdatedAt?: number | null;
 }
 
 /** A single parameter extracted from the OpenAPI skill schema. */
@@ -5155,6 +5160,17 @@ export class OpenMatesClient {
     const d = cached.details;
     const id = String(d.id ?? "");
     const chatKeyBytes = await this.resolveChatKey(cache, cached, wrappingKey, teamId);
+    const hasDraft = typeof d.encrypted_draft_md === 'string' && d.encrypted_draft_md.length > 0;
+    // Draft-only chats are encrypted with the master key before a chat key exists.
+    // A present but unreadable chat key still marks a locked chat.
+    const locked = Boolean(d.encrypted_chat_key) && !chatKeyBytes;
+    let draftPreview: string | null = null;
+    if (!locked && hasDraft) {
+      const draftKey = this.getMasterKeyBytes();
+      const preview = typeof d.encrypted_draft_preview === 'string' ? await decryptWithAesGcmCombined(d.encrypted_draft_preview, draftKey) : null;
+      const markdown = !preview && typeof d.encrypted_draft_md === 'string' ? await decryptWithAesGcmCombined(d.encrypted_draft_md, draftKey) : null;
+      draftPreview = (preview || markdown)?.replace(/\s+/g, ' ').trim().slice(0, 200) || null;
+    }
 
     const title =
       typeof d.encrypted_title === "string" && chatKeyBytes
@@ -5191,7 +5207,12 @@ export class OpenMatesClient {
       mateName: category ? (MATE_NAMES[category] ?? null) : null,
       parentId: typeof d.parent_id === 'string' ? d.parent_id : null,
       isSubChat: d.is_sub_chat === true,
-      isHiddenCandidate: !chatKeyBytes,
+      isHiddenCandidate: locked || (!chatKeyBytes && !draftPreview),
+      isHidden: d.is_hidden === true,
+      pinned: d.pinned === true,
+      hasDraft,
+      draftPreview,
+      metadataUpdatedAt: normalizeUnixSeconds(Number(d.updated_at), 0),
     };
   }
 
@@ -5222,9 +5243,8 @@ export class OpenMatesClient {
         this.appendTeamQuery('/v1/chats/metadata/batch', options), { chat_ids: ids.slice(start, start + 100) }, this.getCliRequestHeaders());
       if (!response.ok) throw new Error(`Sidebar metadata unavailable: HTTP ${response.status}`);
       for (const details of response.data.chats) {
-        const timestamp = Number(details.updated_at);
         result.push(await this.decryptChatListItem({ details: { ...details,
-          last_edited_overall_timestamp: Number.isFinite(timestamp) ? timestamp : Date.parse(String(details.updated_at)) / 1000 }, messages: [] }, key, null, teamId));
+          last_edited_overall_timestamp: normalizeUnixSeconds(Number(details.last_edited_overall_timestamp ?? details.last_message_at ?? details.updated_at) || Date.parse(String(details.last_message_at ?? details.updated_at)) / 1000, 0) }, messages: [] }, key, null, teamId));
       }
     }
     if (!current()) throw new Error('Chat workspace changed');
@@ -5241,8 +5261,8 @@ export class OpenMatesClient {
 
   async listChats(limit = 10, page = 1, options: TeamContextOptions = {}): Promise<ChatListPage> {
     const teamId = this.resolveTeamContext(options);
+    const masterKey = Buffer.from(this.getMasterKeyBytes());
     const cache = await this.ensureSynced(false, [], options);
-    const masterKey = this.getMasterKeyBytes();
     const wrappingKey = await this.getChatWrappingKey(teamId, masterKey);
     const total = cache.chats.length;
     const offset = (page - 1) * limit;
@@ -5251,6 +5271,7 @@ export class OpenMatesClient {
     for (const chat of slice) {
       output.push(await this.decryptChatListItem(chat, wrappingKey, cache, teamId));
     }
+    if (!this.hasSession() || teamId !== this.resolveTeamContext(options) || !masterKey.equals(Buffer.from(this.getMasterKeyBytes()))) throw new Error('Chat workspace changed');
     return {
       chats: output,
       total,
@@ -5837,7 +5858,8 @@ export class OpenMatesClient {
     chat.details.encrypted_draft_md = draft.encryptedDraftMd;
     chat.details.encrypted_draft_preview = draft.encryptedDraftPreview;
     chat.details.draft_v = draft.draftV;
-    cache.syncedAt = Date.now();
+    // A draft update does not refresh the chat census. In particular, a new
+    // draft-only cache must still perform its first full sync before listing.
     cache.loadedChatCount = cache.chats.length;
     saveSyncCache(cache);
   }

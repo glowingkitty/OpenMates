@@ -159,6 +159,97 @@ def test_interactive_driver_uses_real_x_window_and_records_checkpoint_times(tmp_
     assert commands[2][-2:] == ["1280", "720"]
 
 
+def test_interactive_driver_wheels_over_sidebar_and_rejects_mixed_inputs(tmp_path: Path, monkeypatch) -> None:
+    from types import SimpleNamespace
+
+    module = load_module()
+    input_path = tmp_path / "wheel-plan.json"
+    input_path.write_text(json.dumps({"steps": [{"name": "sidebar-wheel", "wheel": "down", "wait_for": "selected"}]}), encoding="utf-8")
+    steps = module.load_input_plan(input_path)
+    transcript = tmp_path / "transcript.txt"
+    transcript.write_text("ready\n", encoding="utf-8")
+    commands: list[list[str]] = []
+
+    def fake_run(argv, **_kwargs):
+        commands.append(argv)
+        if "search" in argv:
+            return SimpleNamespace(returncode=0, stdout="42\n", stderr="")
+        if argv[1:3] == ["click", "5"]:
+            transcript.write_text("ready\nselected\n", encoding="utf-8")
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(module.subprocess, "run", fake_run)
+    monkeypatch.setattr(module.time, "sleep", lambda _seconds: None)
+    checkpoints = module.drive_terminal_inputs(
+        steps=steps, transcript_path=transcript, display=":91",
+        terminal=SimpleNamespace(poll=lambda: None), started_at=module.time.monotonic(),
+        xdotool_binary="xdotool",
+    )
+    assert [command[1] for command in commands][-2:] == ["mousemove", "click"]
+    assert commands[-2] == ["xdotool", "mousemove", "--window", "42", "80", "360"]
+    assert commands[-1] == ["xdotool", "click", "5"]
+    assert checkpoints[0]["marker"] == "selected"
+
+    input_path.write_text(json.dumps({"steps": [{"name": "mixed", "wheel": "down", "key": "Down"}]}), encoding="utf-8")
+    with pytest.raises(module.CliCaptureError, match="exactly one input"):
+        module.load_input_plan(input_path)
+    input_path.write_text(json.dumps({"steps": [{"name": "bad-wheel", "wheel": "left"}]}), encoding="utf-8")
+    with pytest.raises(module.CliCaptureError, match="unsupported wheel direction"):
+        module.load_input_plan(input_path)
+
+
+@pytest.mark.parametrize("output,ready", [
+    ("Files\n", False),
+    ("\x1b[?2026hFiles Refreshing Project…\x1b[?2026l", False),
+    ("\x1b[?2026hFiles Refreshing Project…\x1b[?2026l\x1b[?2026hFiles\x1b[?2026l", True),
+    ("\x1b[?2026hFiles\x1b[?2026l\x1b[?2026hFiles Refreshing Project…", False),
+    ("\x1b[?2026hFiles\x1b[?2026l\x1b[?2026hLoading another view\x1b[?2026l", False),
+])
+def test_loading_absence_requires_latest_complete_tui_frame(output: str, ready: bool) -> None:
+    module = load_module()
+    assert module.input_step_ready(output, "Files", "Refreshing Project…") is ready
+
+
+def test_interactive_driver_waits_until_loading_disappears(tmp_path: Path, monkeypatch) -> None:
+    from types import SimpleNamespace
+
+    module = load_module()
+    transcript = tmp_path / "transcript.txt"
+    transcript.write_text("initial\n", encoding="utf-8")
+    waits: list[float] = []
+
+    def fake_run(argv, **_kwargs):
+        if "search" in argv:
+            return SimpleNamespace(returncode=0, stdout="42\n", stderr="")
+        if "key" in argv:
+            with transcript.open("a", encoding="utf-8") as handle:
+                handle.write("\x1b[?2026hFiles Refreshing Project…\x1b[?2026l")
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    def settle(seconds):
+        waits.append(seconds)
+        with transcript.open("a", encoding="utf-8") as handle:
+            handle.write("\x1b[?2026hFiles / nested folder\x1b[?2026l")
+
+    monkeypatch.setattr(module.subprocess, "run", fake_run)
+    monkeypatch.setattr(module.time, "sleep", settle)
+    checkpoints = module.drive_terminal_inputs(
+        steps=[{"name": "refreshed", "key": "Return", "wait_for": "Files", "wait_for_absent": "Refreshing Project…"}],
+        transcript_path=transcript, display=":91", terminal=SimpleNamespace(poll=lambda: None),
+        started_at=module.time.monotonic(), xdotool_binary="xdotool",
+    )
+    assert 0.05 in waits
+    assert checkpoints[0]["absent_marker"] == "Refreshing Project…"
+    assert checkpoints[0]["transcript_offset"] == transcript.stat().st_size
+
+    input_path = tmp_path / "absent-plan.json"
+    input_path.write_text(json.dumps({"steps": [{"name": "refreshed", "key": "Return", "wait_for": "Files", "wait_for_absent": "Refreshing Project…"}]}), encoding="utf-8")
+    assert module.load_input_plan(input_path)[0]["wait_for_absent"] == "Refreshing Project…"
+    input_path.write_text(json.dumps({"steps": [{"name": "invalid", "key": "Return", "wait_for_absent": ""}]}), encoding="utf-8")
+    with pytest.raises(module.CliCaptureError, match="invalid wait_for_absent"):
+        module.load_input_plan(input_path)
+
+
 def test_interactive_driver_waits_for_mapped_pty_and_retries_focus(tmp_path: Path, monkeypatch) -> None:
     from types import SimpleNamespace
 
