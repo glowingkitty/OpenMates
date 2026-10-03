@@ -4,7 +4,7 @@ title: 'Agentic coding implementation: project file access first'
 status: implementing
 goal: Implement CLI and chat read/write access to remote and OpenMates-stored Project files, then web
   Project browsing and editing, then address Tasks, Specifications, and Plans gaps.
-revision: r78
+revision: r79
 conversation: codex:01a0caf0-76d6-7e73-86d1-c7c759db3cf4
 workspace_session: '8c51'
 approved_by_user: true
@@ -106,7 +106,7 @@ enhanced_cli_pii_proposal_2026_10_03:
   task: TASK-4569
   feature_label: Enhanced personal data anonymization (offline AI model)
   naming_decision: User specified this exact product-facing label on 2026-10-03; use it in the TUI installation offer and privacy settings.
-  state: implemented_verifying_publication
+  state: complete
   approval: User approved the one-time TUI offer, exact label, messages automatic and documents/Projects opt-in; explicitly instructed implementation on 2026-10-03.
   authorization: Implement the approved optional offline OpenAI detector lifecycle and CLI/TUI integration. No automatic model installation or activation for existing profiles.
   context:
@@ -156,7 +156,9 @@ enhanced_cli_pii_proposal_2026_10_03:
     isolated_ci: Lifecycle check passed without retries, skips or real AI inference; run 37119460496, source 76df2c57d81cc58f824d1119da5e46fc826c5ca5. Native package inclusion/integrity checks also pass locally.
     publication: Implementation deployed on dev in 2cba8048cd37cd4536a1d7b0b032cc0c334dcda5; integration lint, Specification, translation and SDK cleartext gates passed.
     release_repair: npm run 37120286425 built the ARM64 native runtime successfully, but caught anonymous sends wrapping already-prepared legacy placeholders twice. Pass their existing owner-local mappings into the shared boundary; preserve exact legacy placeholder text without weakening the assertion.
-    remaining: Publish the bounded anonymous mapping handoff fix and verify npm delivery. The follow-up mapping reuse change passes the focused local suite; lifecycle CI covers unchanged command paths.
+    completed_release: Anonymous mapping repair deployed in 79df9340f04f76974611b06bfa59b81e3fd3786c. Publish CLI run 37120880174 passed, including native ARM64 packaging and the existing full CLI checks; npm 0.27.0-alpha.11 is published and installed on this dev machine.
+    final_verification: Published runtime network-denial self-test and real offline name/address/email inference passed. Global privacy status remains not_installed, messages/documents off and worker stopped; no user model download or activation occurred. Vercel deployment of 79df934 is successful. Isolated installation test state was removed; benchmark artifacts and synthetic README are retained.
+    remaining: No work remains for TASK-4569. Additional OS/CPU targets and broader browser/native or terminal semantic scanning require separately scoped work; deterministic protection remains available there.
     references: [docs/architecture/privacy/cli-enhanced-anonymization.md, frontend/apps/web_app/tests/cli-privacy.spec.ts, frontend/packages/openmates-cli/tests/privacy.test.ts]
   question_1:
     topic: Automatic installation versus one-time TUI offer plus explicit command.
