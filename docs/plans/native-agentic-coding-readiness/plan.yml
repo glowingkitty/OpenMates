@@ -4,7 +4,7 @@ title: 'Agentic coding implementation: project file access first'
 status: implementing
 goal: Implement CLI and chat read/write access to remote and OpenMates-stored Project files, then web
   Project browsing and editing, then address Tasks, Specifications, and Plans gaps.
-revision: r69
+revision: r71
 conversation: codex:01a0caf0-76d6-7e73-86d1-c7c759db3cf4
 workspace_session: '8c51'
 approved_by_user: true
@@ -39,14 +39,12 @@ current_checkpoint_2026_10_02:
   remote_workspace: The retained validation Project README, nested tree and fullscreen code view pass.
     The updated global CLI runs in the existing openmates-remote Zellij session, terminal_5.
   open_issues:
-  - Deterministic file privacy is deployed. Remote fake-email/UUID edit and fullscreen pass; hosted create/update/read pass but final answer persistence hit version_conflict and is being repaired.
-  - Normal OS authorization is needed to install the terminal guard and verify one live command.
-  - The corrected dev proxy configuration needs its normal privileged on-disk update for reboot durability.
-  - Tasks execution/completion gaps, then Specifications and Plans execution, remain later work.
+  - TASK-6409 needs normal OS authorization to install the terminal guard, verify one live command and persist the corrected proxy configuration for reboot durability.
+  - Specifications and Plans execution remain the next architecture stage; their detailed order and design are not yet approved.
   handoff: The two retained Agentic Coding validation Projects below are available for manual testing.
 deterministic_privacy_checkpoint_2026_10_02:
   task: TASK-6182
-  deferred_model_review: {task: TASK-5996, due: '2026-10-16', status: backlog}
+  deferred_model_review: {task: TASK-5996, due: '2026-10-16', status: done, advanced_by_user: '2026-10-03'}
   implementation:
   - Browser and CLI Project file jobs use the same deterministic detector, encrypted custom entries and client-only restoration.
   - Read/search results and write-approval proposals are redacted before the server, model or injection checker sees them.
@@ -58,16 +56,44 @@ deterministic_privacy_checkpoint_2026_10_02:
   - File-generated mappings are local ciphertext, not a new cloud secret vault. Another device must re-read the file before using its tokens; missing or ambiguous mappings fail closed.
   - Multiline file reads keep original CR/LF boundaries. A legacy multiline message token inside a unified patch is rejected rather than corrupting hunk counts.
   - Guard installation and durable Caddy configuration still need normal OS authorization; sudo noninteractive authorization is unavailable.
-  deployed: c50516eb30e8d6f3a74e73e4c4cdca3f2fb531d7
-  live_evidence: Remote fake-email and UUID edit preserves exact bytes and original fullscreen content; no raw fake email crosses file-result messages. Hosted writes and redacted reads pass but second answer persistence conflicts.
+  deployed: {privacy: c50516eb30e8d6f3a74e73e4c4cdca3f2fb531d7, recovery: 9a203f628f97f8dd17b76d424c87976bebaf1e51}
+  live_evidence: Remote fake-email/UUID edit and fullscreen pass. Hosted encrypted create/update, approval, redacted read-back, reload, focus off, inferred consent, mention navigation and both fullscreen revisions pass with the fake email restored exactly. TASK-6182 is Done. No engineering file was edited by either chat test.
   recovery_repair: Version-conflict recovery now reads the authoritative persisted version from the existing authenticated encrypted message-window route, instead of waiting only for a higher optimistic local version. CAS, owner/Team authorization and lease checks remain enforced.
-  next: Verify the repaired hosted completion, then one unfinished-Task/resume smoke. Four version-refresh checks pass; the existing correlation suite cannot collect locally because the worktree lacks dompurify.
+  evidence_files: [/tmp/8c51-privacy-project-proofs.log, /tmp/8c51-hosted-project-diagnostic-proof.log]
+  final_verification: Four version-refresh checks pass; the existing correlation suite cannot collect locally because the worktree lacks dompurify. The deployed global CLI runs both retained sources in openmates-remote, terminal_5.
 task_completion_checkpoint_2026_10_02:
   task: TASK-3466
   observed_gap: The scheduled AI ask wrapper still automatically completed its Task when a turn ended, despite the main processor's explicit Task tools and deterministic queue guard.
   repair: Explicit Task completion remains the only Done transition. An unfinished owned running Task keeps its status and becomes awaiting_resume; moves, reassignment, blocked/done states and newer versions are preserved.
-  verification: Eight focused finalization checks pass locally. A disposable-Project real-inference smoke is next; pure unit checks do not need duplicate CI execution.
+  verification: >-
+    Eight focused finalization checks pass locally. The disposable-Project real-inference smoke passes on dev:
+    reply completion preserves in_progress/awaiting_resume, and an explicit chat instruction invokes completion
+    and persists Done. Created test Task/chat/Project and isolated CLI state are removed.
+    Pure unit checks do not need duplicate CI execution.
+  cli_recovery: A competing client can finish encrypted completion before the originating CLI claims it. Claims now correlate both job and request IDs and wait within the existing twenty-second bound on lease_conflict, observing TERMINAL rather than stealing or bypassing a live lease. Three targeted checks and CLI build pass.
+  evidence_file: /tmp/8c51-task-live-proof-claim-repair.log
+  terminal_blocker: TASK-6409 remains blocked on normal OS administrator authorization. Guard execution and reboot-durable proxy settings are not claimed verified.
   later_gaps: Plan context/Specification workflows require a fresh bounded audit; their remaining design is not silently inferred from the September proposal.
+offline_privacy_evaluation_2026_10_03:
+  task: TASK-5996
+  authorization: User advanced the deferred review to a real offline model evaluation on the current Linux dev server.
+  scope: Measure pinned OpenAI Privacy Filter CPU disk, memory and latency; evaluate synthetic names, addresses, credentials, emails, phones and coding false positives against the existing Project-file detector; recommend hardware and a hybrid integration strategy.
+  isolation: Standalone user-owned runtime and checkpoints; synthetic fixtures; bounded CPU and RSS; inference network connections disabled; no shared-service changes or private Project scanning.
+  product_change: None. Evaluation does not activate a model or change privacy, encryption or placeholder behavior.
+  state: evaluated
+  result: Native Q8 CPU processing uses about 1.87 GiB RAM and a 1.53 GiB checkpoint. Four cores scan 1024 tokens in 1.37 seconds and 4096 in 5.45 seconds; one-, two- and four-core profiles and two long-file boundary cases pass without network access.
+  quality: Fifty synthetic sensitive values in fifty-six cases. Reference and native model protect forty-eight values; adding existing configured-value matching protects forty-nine. Both model runtimes falsely flag four of twelve negative coding cases. Unknown bare credentials and the tested Arabic name need deterministic configured-value coverage.
+  recommendation: Opt-in persistent local native worker plus existing regex and configured private values, structural coding guards, overlap-aware windows and the existing reversible client-only encrypted mappings. Recommend four vCPU and eight GB RAM for a development VM; minimum sizing is an inference from process measurements rather than a separately tested small VM.
+  report: docs/architecture/privacy/offline-pii-evaluation-2026-10-03.md
+  evidence: docs/architecture/privacy/evaluations/2026-10-03/manifest.json
+  next: User review of the measured implementation strategy before activating a model in Project-file privacy processing.
+publication_checkpoint_2026_10_02:
+  deployed: Privacy c50516eb30e8d6f3a74e73e4c4cdca3f2fb531d7 and backend Task/browser recovery 9a203f628f97f8dd17b76d424c87976bebaf1e51 are on dev; the refreshed backend services are healthy and the web deployment is Ready.
+  remaining_patch: The final bounded CLI claim helper, its three checks, safe hosted-proof diagnostics and r70 overview/checkpoints passed integration lint, Specification, translation and SDK boundary checks.
+  reviewed_candidate: ae96aa14d5ba968d1a9a51db0ef4503f189c2a6e
+  blocker: Publication refused because active session f13e has unrelated tracked workflow edits in the canonical dev checkout. Those edits were preserved; no reset, stash, transfer or publication of another Task's changes was attempted.
+  recovery_files: [/tmp/8c51-final-claim-reviewed.patch, /tmp/8c51-final-claim-candidate.json]
+  next: Once the canonical workflow owner finishes its normal handoff, regenerate the reviewed candidate against current origin/dev including this checkpoint, then publish only the six recorded paths. Do not rerun passing model proofs without a new relevant change or failure.
 implementation_checkpoint_2026_09_23:
   completed_local_slices:
   - Project focus/role/write policy, setup/settings surfaces and exact approval checks.

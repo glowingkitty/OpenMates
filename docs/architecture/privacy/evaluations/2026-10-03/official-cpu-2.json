@@ -1,0 +1,2689 @@
+{
+  "threads": 2,
+  "context": 1024,
+  "network_disabled": true,
+  "torch": "2.8.0+cpu",
+  "import_seconds": 1.902795834466815,
+  "load_seconds": 6.102239931002259,
+  "rss_loaded_bytes": 3611426816,
+  "param_dtype": "torch.bfloat16",
+  "parameter_count": 1399486832,
+  "quality": [
+    {
+      "id": "name-support",
+      "seconds": 1.642057117074728,
+      "tokens": 13,
+      "spans": [
+        {
+          "label": "private_person",
+          "start": 13,
+          "end": 25,
+          "text": "Amina Okafor",
+          "placeholder": "<PRIVATE_PERSON>"
+        }
+      ],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "name-rare",
+      "seconds": 1.9457696815952659,
+      "tokens": 16,
+      "spans": [
+        {
+          "label": "private_person",
+          "start": 15,
+          "end": 29,
+          "text": "Xochitl Quispe",
+          "placeholder": "<PRIVATE_PERSON>"
+        }
+      ],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "name-first-only",
+      "seconds": 1.626757262274623,
+      "tokens": 13,
+      "spans": [
+        {
+          "label": "private_person",
+          "start": 13,
+          "end": 18,
+          "text": "Niamh",
+          "placeholder": "<PRIVATE_PERSON>"
+        }
+      ],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "name-initials",
+      "seconds": 2.0387317100539804,
+      "tokens": 17,
+      "spans": [
+        {
+          "label": "private_person",
+          "start": 16,
+          "end": 35,
+          "text": "Dr. J. M. Velasquez",
+          "placeholder": "<PRIVATE_PERSON>"
+        }
+      ],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "name-json",
+      "seconds": 1.7180949645116925,
+      "tokens": 14,
+      "spans": [
+        {
+          "label": "private_person",
+          "start": 18,
+          "end": 32,
+          "text": "Marta Kowalska",
+          "placeholder": "<PRIVATE_PERSON>"
+        }
+      ],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "name-code",
+      "seconds": 2.052942605689168,
+      "tokens": 17,
+      "spans": [
+        {
+          "label": "private_person",
+          "start": 30,
+          "end": 43,
+          "text": "Samira Haddad",
+          "placeholder": "<PRIVATE_PERSON>"
+        }
+      ],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "name-emoji",
+      "seconds": 1.8036045646294951,
+      "tokens": 15,
+      "spans": [
+        {
+          "label": "private_person",
+          "start": 26,
+          "end": 39,
+          "text": "Élodie Moreau",
+          "placeholder": "<PRIVATE_PERSON>"
+        }
+      ],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "name-german",
+      "seconds": 1.5547656444832683,
+      "tokens": 13,
+      "spans": [
+        {
+          "label": "private_person",
+          "start": 20,
+          "end": 32,
+          "text": "Annika Vogel",
+          "placeholder": "<PRIVATE_PERSON>"
+        }
+      ],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "name-japanese",
+      "seconds": 2.3781896997243166,
+      "tokens": 20,
+      "spans": [
+        {
+          "label": "private_person",
+          "start": 7,
+          "end": 11,
+          "text": "田中美咲",
+          "placeholder": "<PRIVATE_PERSON>"
+        }
+      ],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "name-arabic",
+      "seconds": 1.7150542410090566,
+      "tokens": 14,
+      "spans": [],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "address-us",
+      "seconds": 2.7769005419686437,
+      "tokens": 23,
+      "spans": [
+        {
+          "label": "private_address",
+          "start": 30,
+          "end": 73,
+          "text": "1847 Cedar Lane, Apt 3B, Portland, OR 97205",
+          "placeholder": "<PRIVATE_ADDRESS>"
+        }
+      ],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "address-uk",
+      "seconds": 1.9606728767976165,
+      "tokens": 16,
+      "spans": [
+        {
+          "label": "private_address",
+          "start": 19,
+          "end": 51,
+          "text": "42 Maple Avenue, Bristol BS1 4QA",
+          "placeholder": "<PRIVATE_ADDRESS>"
+        }
+      ],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "address-de",
+      "seconds": 1.7009959938004613,
+      "tokens": 14,
+      "spans": [
+        {
+          "label": "private_address",
+          "start": 24,
+          "end": 39,
+          "text": "Lindenstraße 27",
+          "placeholder": "<PRIVATE_ADDRESS>"
+        },
+        {
+          "label": "private_address",
+          "start": 41,
+          "end": 53,
+          "text": "10405 Berlin",
+          "placeholder": "<PRIVATE_ADDRESS>"
+        }
+      ],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "address-json",
+      "seconds": 1.7796046873554587,
+      "tokens": 15,
+      "spans": [
+        {
+          "label": "private_address",
+          "start": 20,
+          "end": 50,
+          "text": "19 Oak Road, Cambridge CB1 2AB",
+          "placeholder": "<PRIVATE_ADDRESS>"
+        }
+      ],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "address-multiline",
+      "seconds": 2.338093883357942,
+      "tokens": 20,
+      "spans": [
+        {
+          "label": "private_address",
+          "start": 27,
+          "end": 71,
+          "text": "27 Birch Street\nApartment 4\nDenver, CO 80203",
+          "placeholder": "<PRIVATE_ADDRESS>"
+        }
+      ],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "address-context-only",
+      "seconds": 1.5679356642067432,
+      "tokens": 13,
+      "spans": [
+        {
+          "label": "private_address",
+          "start": 7,
+          "end": 55,
+          "text": "in apartment 8 above the bakery on Willow Street",
+          "placeholder": "<PRIVATE_ADDRESS>"
+        }
+      ],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "email-simple",
+      "seconds": 1.5131676215678453,
+      "tokens": 12,
+      "spans": [
+        {
+          "label": "private_email",
+          "start": 24,
+          "end": 47,
+          "text": "nadia.silva@example.net",
+          "placeholder": "<PRIVATE_EMAIL>"
+        }
+      ],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "email-plus",
+      "seconds": 1.506536679342389,
+      "tokens": 12,
+      "spans": [
+        {
+          "label": "private_email",
+          "start": 20,
+          "end": 46,
+          "text": "jonah+invoices@example.org",
+          "placeholder": "<PRIVATE_EMAIL>"
+        }
+      ],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "email-json",
+      "seconds": 1.7458261689171195,
+      "tokens": 14,
+      "spans": [
+        {
+          "label": "private_email",
+          "start": 10,
+          "end": 34,
+          "text": "leila.hassan@example.net",
+          "placeholder": "<PRIVATE_EMAIL>"
+        }
+      ],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "email-unicode-context",
+      "seconds": 1.4996707746759057,
+      "tokens": 12,
+      "spans": [
+        {
+          "label": "private_email",
+          "start": 7,
+          "end": 28,
+          "text": "sara.chen@example.net",
+          "placeholder": "<PRIVATE_EMAIL>"
+        }
+      ],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "phone-us",
+      "seconds": 1.9253736790269613,
+      "tokens": 16,
+      "spans": [
+        {
+          "label": "private_phone",
+          "start": 18,
+          "end": 35,
+          "text": "+1 (202) 555-0147",
+          "placeholder": "<PRIVATE_PHONE>"
+        }
+      ],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "phone-uk",
+      "seconds": 1.6276087332516909,
+      "tokens": 13,
+      "spans": [
+        {
+          "label": "private_phone",
+          "start": 23,
+          "end": 38,
+          "text": "+44 7700 900123",
+          "placeholder": "<PRIVATE_PHONE>"
+        }
+      ],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "phone-de",
+      "seconds": 1.7563545741140842,
+      "tokens": 14,
+      "spans": [
+        {
+          "label": "private_phone",
+          "start": 27,
+          "end": 43,
+          "text": "+49 30 5550 1234",
+          "placeholder": "<PRIVATE_PHONE>"
+        }
+      ],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "phone-local",
+      "seconds": 1.8844203315675259,
+      "tokens": 15,
+      "spans": [
+        {
+          "label": "private_phone",
+          "start": 31,
+          "end": 44,
+          "text": "020 7946 0123",
+          "placeholder": "<PRIVATE_PHONE>"
+        }
+      ],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "secret-github",
+      "seconds": 4.9243427300825715,
+      "tokens": 41,
+      "spans": [
+        {
+          "label": "secret",
+          "start": 0,
+          "end": 53,
+          "text": {
+            "synthetic_parts": [
+              "GITHUB_TOKEN=",
+              "ghp",
+              "_V7sA3mQ9nK2rD8wL5bH1xT6cE4uF0jPzYqRi"
+            ]
+          },
+          "placeholder": "<SECRET>"
+        }
+      ],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "secret-openai",
+      "seconds": 18.02644383441657,
+      "tokens": 152,
+      "spans": [
+        {
+          "label": "secret",
+          "start": 15,
+          "end": 167,
+          "text": {
+            "synthetic_parts": [
+              "sk-",
+              "proj-A7b9C2d4E6f8G1h3J5k7L9m2N4p6Q8r1S3t5U7v9W2x4Y6z8A7b9C2d4E6f8G1h3J5k7L9m2N4p6Q8r1S3t5U7v9W2x4Y6z8A7b9C2d4E6f8G1h3J5k7L9m2N4p6Q8r1S3t5U7v9W2x4Y6z8"
+            ]
+          },
+          "placeholder": "<SECRET>"
+        }
+      ],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "secret-aws",
+      "seconds": 2.6833279337733984,
+      "tokens": 22,
+      "spans": [
+        {
+          "label": "secret",
+          "start": 14,
+          "end": 38,
+          "text": {
+            "synthetic_parts": [
+              "_ID=",
+              "AKI",
+              "AV7S3Q9M2N8R5D1KL"
+            ]
+          },
+          "placeholder": "<SECRET>"
+        }
+      ],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "secret-google",
+      "seconds": 4.77180605661124,
+      "tokens": 40,
+      "spans": [
+        {
+          "label": "secret",
+          "start": 19,
+          "end": 59,
+          "text": {
+            "synthetic_parts": [
+              "AIz",
+              "aSyB7mQ2nK9rD5wL3xT8cE1uF6jP4zY0aVhGs"
+            ]
+          },
+          "placeholder": "<SECRET>"
+        }
+      ],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "secret-stripe",
+      "seconds": 3.7515856940299273,
+      "tokens": 32,
+      "spans": [
+        {
+          "label": "secret",
+          "start": 0,
+          "end": 50,
+          "text": {
+            "synthetic_parts": [
+              "STRIPE_SECRET_KEY=",
+              "sk_",
+              "live_7sA3mQ9nK2rD8wL5bH1xT6cE"
+            ]
+          },
+          "placeholder": "<SECRET>"
+        }
+      ],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "secret-slack",
+      "seconds": 4.688990564085543,
+      "tokens": 40,
+      "spans": [
+        {
+          "label": "secret",
+          "start": 11,
+          "end": 67,
+          "text": {
+            "synthetic_parts": [
+              "=",
+              "xox",
+              "b-739284615012-928374650123-X7mQ2nK9rD5wL3xT8cE1uF6j"
+            ]
+          },
+          "placeholder": "<SECRET>"
+        }
+      ],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "secret-bearer",
+      "seconds": 4.654617244377732,
+      "tokens": 39,
+      "spans": [
+        {
+          "label": "secret",
+          "start": 15,
+          "end": 57,
+          "text": "Bearer 7sA3mQ9nK2rD8wL5bH1xT6cE4uF0jPzYqRi",
+          "placeholder": "<SECRET>"
+        }
+      ],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "secret-opaque-context",
+      "seconds": 3.937409928999841,
+      "tokens": 33,
+      "spans": [
+        {
+          "label": "secret",
+          "start": 50,
+          "end": 74,
+          "text": "R7m2Q9v4K1p8N5s3D6x0Z2w7",
+          "placeholder": "<SECRET>"
+        }
+      ],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "secret-passphrase",
+      "seconds": 1.8732570903375745,
+      "tokens": 15,
+      "spans": [
+        {
+          "label": "secret",
+          "start": 33,
+          "end": 59,
+          "text": "is copper-lantern-cedar-73",
+          "placeholder": "<SECRET>"
+        }
+      ],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "secret-json-unusual",
+      "seconds": 3.3800372928380966,
+      "tokens": 29,
+      "spans": [
+        {
+          "label": "account_number",
+          "start": 22,
+          "end": 46,
+          "text": "p8Q2k9R4d7M1n6V3x0Z5w8H2",
+          "placeholder": "<ACCOUNT_NUMBER>"
+        }
+      ],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "secret-assignment",
+      "seconds": 3.492463638074696,
+      "tokens": 30,
+      "spans": [
+        {
+          "label": "secret",
+          "start": 16,
+          "end": 40,
+          "text": "r7N2m9Q4v1K8p5S3d6X0z2W7",
+          "placeholder": "<SECRET>"
+        }
+      ],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "secret-bare-unknown",
+      "seconds": 2.8811492323875427,
+      "tokens": 24,
+      "spans": [],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "secret-split",
+      "seconds": 3.375228887423873,
+      "tokens": 29,
+      "spans": [
+        {
+          "label": "secret",
+          "start": 46,
+          "end": 54,
+          "text": "R7m2Q9v4",
+          "placeholder": "<SECRET>"
+        },
+        {
+          "label": "secret",
+          "start": 61,
+          "end": 69,
+          "text": "K1p8N5s3",
+          "placeholder": "<SECRET>"
+        }
+      ],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "account-iban",
+      "seconds": 1.8429174283519387,
+      "tokens": 15,
+      "spans": [
+        {
+          "label": "account_number",
+          "start": 24,
+          "end": 46,
+          "text": "DE89370400440532013000",
+          "placeholder": "<ACCOUNT_NUMBER>"
+        }
+      ],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "account-ssn",
+      "seconds": 1.662148430943489,
+      "tokens": 13,
+      "spans": [
+        {
+          "label": "account_number",
+          "start": 21,
+          "end": 32,
+          "text": "123-45-6789",
+          "placeholder": "<ACCOUNT_NUMBER>"
+        }
+      ],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "date-birth",
+      "seconds": 1.5460634361952543,
+      "tokens": 12,
+      "spans": [
+        {
+          "label": "private_date",
+          "start": 20,
+          "end": 36,
+          "text": "17 February 1992",
+          "placeholder": "<PRIVATE_DATE>"
+        }
+      ],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "url-private",
+      "seconds": 3.4499203795567155,
+      "tokens": 29,
+      "spans": [
+        {
+          "label": "private_url",
+          "start": 32,
+          "end": 84,
+          "text": "https://portal.example.net/customer/7sA3mQ9nK2rD8wL5",
+          "placeholder": "<PRIVATE_URL>"
+        }
+      ],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "configured-person",
+      "seconds": 2.1148567739874125,
+      "tokens": 17,
+      "spans": [
+        {
+          "label": "private_person",
+          "start": 17,
+          "end": 31,
+          "text": "Xochitl Quispe",
+          "placeholder": "<PRIVATE_PERSON>"
+        },
+        {
+          "label": "private_person",
+          "start": 56,
+          "end": 67,
+          "text": "Night Heron",
+          "placeholder": "<PRIVATE_PERSON>"
+        }
+      ],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "mixed-support",
+      "seconds": 4.587639817968011,
+      "tokens": 39,
+      "spans": [
+        {
+          "label": "private_person",
+          "start": 9,
+          "end": 21,
+          "text": "Amina Okafor",
+          "placeholder": "<PRIVATE_PERSON>"
+        },
+        {
+          "label": "private_address",
+          "start": 31,
+          "end": 63,
+          "text": "42 Maple Avenue, Bristol BS1 4QA",
+          "placeholder": "<PRIVATE_ADDRESS>"
+        },
+        {
+          "label": "private_email",
+          "start": 71,
+          "end": 95,
+          "text": "amina.okafor@example.net",
+          "placeholder": "<PRIVATE_EMAIL>"
+        },
+        {
+          "label": "private_phone",
+          "start": 104,
+          "end": 119,
+          "text": "+44 7700 900123",
+          "placeholder": "<PRIVATE_PHONE>"
+        }
+      ],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "mixed-log",
+      "seconds": 4.531089812517166,
+      "tokens": 38,
+      "spans": [
+        {
+          "label": "private_person",
+          "start": 30,
+          "end": 43,
+          "text": "Samira Haddad",
+          "placeholder": "<PRIVATE_PERSON>"
+        },
+        {
+          "label": "private_email",
+          "start": 45,
+          "end": 72,
+          "text": "samira.haddad@example.net);",
+          "placeholder": "<PRIVATE_EMAIL>"
+        },
+        {
+          "label": "account_number",
+          "start": 73,
+          "end": 117,
+          "text": "request=550e8400-e29b-41d4-a716-446655440000",
+          "placeholder": "<ACCOUNT_NUMBER>"
+        }
+      ],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "negative-uuid",
+      "seconds": 2.9123908998444676,
+      "tokens": 24,
+      "spans": [
+        {
+          "label": "secret",
+          "start": 19,
+          "end": 55,
+          "text": "550e8400-e29b-41d4-a716-446655440000",
+          "placeholder": "<SECRET>"
+        }
+      ],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "negative-hash",
+      "seconds": 5.402992904186249,
+      "tokens": 46,
+      "spans": [],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "negative-function",
+      "seconds": 1.9632848212495446,
+      "tokens": 16,
+      "spans": [],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "negative-public-name",
+      "seconds": 1.52788030449301,
+      "tokens": 12,
+      "spans": [],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "negative-library",
+      "seconds": 2.0246324138715863,
+      "tokens": 16,
+      "spans": [],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "negative-public-url",
+      "seconds": 1.9068333311006427,
+      "tokens": 15,
+      "spans": [],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "negative-version",
+      "seconds": 3.4829701837152243,
+      "tokens": 29,
+      "spans": [],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "negative-timestamp",
+      "seconds": 2.9206551127135754,
+      "tokens": 24,
+      "spans": [
+        {
+          "label": "private_date",
+          "start": 17,
+          "end": 37,
+          "text": "2026-10-03T12:34:56Z",
+          "placeholder": "<PRIVATE_DATE>"
+        }
+      ],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "negative-placeholders",
+      "seconds": 4.135629849508405,
+      "tokens": 36,
+      "spans": [
+        {
+          "label": "private_email",
+          "start": 7,
+          "end": 46,
+          "text": "OM_PII_A1B2C3D4E5F60718293A4B5C6D7E8F90",
+          "placeholder": "<PRIVATE_EMAIL>"
+        }
+      ],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "negative-counts",
+      "seconds": 2.941291717812419,
+      "tokens": 24,
+      "spans": [],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "negative-address-public",
+      "seconds": 2.1974099185317755,
+      "tokens": 18,
+      "spans": [],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "negative-branch",
+      "seconds": 4.216075686737895,
+      "tokens": 36,
+      "spans": [
+        {
+          "label": "private_date",
+          "start": 7,
+          "end": 25,
+          "text": "release/2026-10-03",
+          "placeholder": "<PRIVATE_DATE>"
+        },
+        {
+          "label": "account_number",
+          "start": 34,
+          "end": 74,
+          "text": "9a203f628f97f8dd17b76d424c87976bebaf1e51",
+          "placeholder": "<ACCOUNT_NUMBER>"
+        }
+      ],
+      "warning": null,
+      "source_unchanged": true
+    }
+  ],
+  "latency": [
+    {
+      "tokens": 64,
+      "seconds": [
+        7.699185188859701
+      ],
+      "median_seconds": 7.699185188859701,
+      "maximum_seconds": 7.699185188859701,
+      "rss_bytes": 3622047744
+    },
+    {
+      "tokens": 256,
+      "seconds": [
+        30.252575947903097
+      ],
+      "median_seconds": 30.252575947903097,
+      "maximum_seconds": 30.252575947903097,
+      "rss_bytes": 3622100992
+    },
+    {
+      "tokens": 1024,
+      "seconds": [
+        158.7765114447102
+      ],
+      "median_seconds": 158.7765114447102,
+      "maximum_seconds": 158.7765114447102,
+      "rss_bytes": 3598745600
+    }
+  ],
+  "first_inference_seconds": 1.642057117074728,
+  "quality_summary": {
+    "expected_values": 50,
+    "fully_hidden": 47,
+    "full_value_recall": 0.94,
+    "by_category": {
+      "private_person": {
+        "expected": 13,
+        "fully_hidden": 12,
+        "exact": 11,
+        "typed_full": 12
+      },
+      "private_address": {
+        "expected": 7,
+        "fully_hidden": 6,
+        "exact": 5,
+        "typed_full": 6
+      },
+      "private_email": {
+        "expected": 6,
+        "fully_hidden": 6,
+        "exact": 5,
+        "typed_full": 6
+      },
+      "private_phone": {
+        "expected": 5,
+        "fully_hidden": 5,
+        "exact": 5,
+        "typed_full": 5
+      },
+      "secret": {
+        "expected": 15,
+        "fully_hidden": 14,
+        "exact": 8,
+        "typed_full": 12
+      },
+      "account_number": {
+        "expected": 2,
+        "fully_hidden": 2,
+        "exact": 2,
+        "typed_full": 2
+      },
+      "private_date": {
+        "expected": 1,
+        "fully_hidden": 1,
+        "exact": 1,
+        "typed_full": 1
+      },
+      "private_url": {
+        "expected": 1,
+        "fully_hidden": 1,
+        "exact": 1,
+        "typed_full": 1
+      }
+    },
+    "values": [
+      {
+        "id": "name-support",
+        "label": "private_person",
+        "value": "Amina Okafor",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "name-rare",
+        "label": "private_person",
+        "value": "Xochitl Quispe",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "name-first-only",
+        "label": "private_person",
+        "value": "Niamh",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "name-initials",
+        "label": "private_person",
+        "value": "J. M. Velasquez",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": false,
+        "typed_full": true
+      },
+      {
+        "id": "name-json",
+        "label": "private_person",
+        "value": "Marta Kowalska",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "name-code",
+        "label": "private_person",
+        "value": "Samira Haddad",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "name-emoji",
+        "label": "private_person",
+        "value": "Élodie Moreau",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "name-german",
+        "label": "private_person",
+        "value": "Annika Vogel",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "name-japanese",
+        "label": "private_person",
+        "value": "田中美咲",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "name-arabic",
+        "label": "private_person",
+        "value": "ليلى منصور",
+        "fully_hidden": false,
+        "partial": false,
+        "exact": false,
+        "typed_full": false
+      },
+      {
+        "id": "address-us",
+        "label": "private_address",
+        "value": "1847 Cedar Lane, Apt 3B, Portland, OR 97205",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "address-uk",
+        "label": "private_address",
+        "value": "42 Maple Avenue, Bristol BS1 4QA",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "address-de",
+        "label": "private_address",
+        "value": "Lindenstraße 27, 10405 Berlin",
+        "fully_hidden": false,
+        "partial": true,
+        "exact": false,
+        "typed_full": false
+      },
+      {
+        "id": "address-json",
+        "label": "private_address",
+        "value": "19 Oak Road, Cambridge CB1 2AB",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "address-multiline",
+        "label": "private_address",
+        "value": "27 Birch Street\nApartment 4\nDenver, CO 80203",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "address-context-only",
+        "label": "private_address",
+        "value": "apartment 8 above the bakery on Willow Street",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": false,
+        "typed_full": true
+      },
+      {
+        "id": "email-simple",
+        "label": "private_email",
+        "value": "nadia.silva@example.net",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "email-plus",
+        "label": "private_email",
+        "value": "jonah+invoices@example.org",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "email-json",
+        "label": "private_email",
+        "value": "leila.hassan@example.net",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "email-unicode-context",
+        "label": "private_email",
+        "value": "sara.chen@example.net",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "phone-us",
+        "label": "private_phone",
+        "value": "+1 (202) 555-0147",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "phone-uk",
+        "label": "private_phone",
+        "value": "+44 7700 900123",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "phone-de",
+        "label": "private_phone",
+        "value": "+49 30 5550 1234",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "phone-local",
+        "label": "private_phone",
+        "value": "020 7946 0123",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "secret-github",
+        "label": "secret",
+        "value": {
+          "synthetic_parts": [
+            "ghp",
+            "_V7sA3mQ9nK2rD8wL5bH1xT6cE4uF0jPzYqRi"
+          ]
+        },
+        "fully_hidden": true,
+        "partial": false,
+        "exact": false,
+        "typed_full": true
+      },
+      {
+        "id": "secret-openai",
+        "label": "secret",
+        "value": {
+          "synthetic_parts": [
+            "sk-",
+            "proj-A7b9C2d4E6f8G1h3J5k7L9m2N4p6Q8r1S3t5U7v9W2x4Y6z8A7b9C2d4E6f8G1h3J5k7L9m2N4p6Q8r1S3t5U7v9W2x4Y6z8A7b9C2d4E6f8G1h3J5k7L9m2N4p6Q8r1S3t5U7v9W2x4Y6z8"
+          ]
+        },
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "secret-aws",
+        "label": "secret",
+        "value": {
+          "synthetic_parts": [
+            "AKI",
+            "AV7S3Q9M2N8R5D1KL"
+          ]
+        },
+        "fully_hidden": true,
+        "partial": false,
+        "exact": false,
+        "typed_full": true
+      },
+      {
+        "id": "secret-google",
+        "label": "secret",
+        "value": {
+          "synthetic_parts": [
+            "AIz",
+            "aSyB7mQ2nK9rD5wL3xT8cE1uF6jP4zY0aVhGs"
+          ]
+        },
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "secret-stripe",
+        "label": "secret",
+        "value": {
+          "synthetic_parts": [
+            "sk_",
+            "live_7sA3mQ9nK2rD8wL5bH1xT6cE"
+          ]
+        },
+        "fully_hidden": true,
+        "partial": false,
+        "exact": false,
+        "typed_full": true
+      },
+      {
+        "id": "secret-slack",
+        "label": "secret",
+        "value": {
+          "synthetic_parts": [
+            "xox",
+            "b-739284615012-928374650123-X7mQ2nK9rD5wL3xT8cE1uF6j"
+          ]
+        },
+        "fully_hidden": true,
+        "partial": false,
+        "exact": false,
+        "typed_full": true
+      },
+      {
+        "id": "secret-bearer",
+        "label": "secret",
+        "value": "7sA3mQ9nK2rD8wL5bH1xT6cE4uF0jPzYqRi",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": false,
+        "typed_full": true
+      },
+      {
+        "id": "secret-opaque-context",
+        "label": "secret",
+        "value": "R7m2Q9v4K1p8N5s3D6x0Z2w7",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "secret-passphrase",
+        "label": "secret",
+        "value": "copper-lantern-cedar-73",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": false,
+        "typed_full": true
+      },
+      {
+        "id": "secret-json-unusual",
+        "label": "secret",
+        "value": "p8Q2k9R4d7M1n6V3x0Z5w8H2",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": false
+      },
+      {
+        "id": "secret-assignment",
+        "label": "secret",
+        "value": "r7N2m9Q4v1K8p5S3d6X0z2W7",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "secret-bare-unknown",
+        "label": "secret",
+        "value": "p8Q2k9R4d7M1n6V3x0Z5w8H2",
+        "fully_hidden": false,
+        "partial": false,
+        "exact": false,
+        "typed_full": false
+      },
+      {
+        "id": "secret-split",
+        "label": "secret",
+        "value": "R7m2Q9v4",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "secret-split",
+        "label": "secret",
+        "value": "K1p8N5s3",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "account-iban",
+        "label": "account_number",
+        "value": "DE89370400440532013000",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "account-ssn",
+        "label": "account_number",
+        "value": "123-45-6789",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "date-birth",
+        "label": "private_date",
+        "value": "17 February 1992",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "url-private",
+        "label": "private_url",
+        "value": "https://portal.example.net/customer/7sA3mQ9nK2rD8wL5",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "configured-person",
+        "label": "private_person",
+        "value": "Xochitl Quispe",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "configured-person",
+        "label": "secret",
+        "value": "Night Heron",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": false
+      },
+      {
+        "id": "mixed-support",
+        "label": "private_person",
+        "value": "Amina Okafor",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "mixed-support",
+        "label": "private_address",
+        "value": "42 Maple Avenue, Bristol BS1 4QA",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "mixed-support",
+        "label": "private_email",
+        "value": "amina.okafor@example.net",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "mixed-support",
+        "label": "private_phone",
+        "value": "+44 7700 900123",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "mixed-log",
+        "label": "private_person",
+        "value": "Samira Haddad",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "mixed-log",
+        "label": "private_email",
+        "value": "samira.haddad@example.net",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": false,
+        "typed_full": true
+      }
+    ],
+    "negative_cases": 12,
+    "false_positive_cases": [
+      {
+        "id": "negative-uuid",
+        "spans": [
+          {
+            "label": "secret",
+            "start": 19,
+            "end": 55,
+            "text": "550e8400-e29b-41d4-a716-446655440000",
+            "placeholder": "<SECRET>"
+          }
+        ]
+      },
+      {
+        "id": "negative-timestamp",
+        "spans": [
+          {
+            "label": "private_date",
+            "start": 17,
+            "end": 37,
+            "text": "2026-10-03T12:34:56Z",
+            "placeholder": "<PRIVATE_DATE>"
+          }
+        ]
+      },
+      {
+        "id": "negative-placeholders",
+        "spans": [
+          {
+            "label": "private_email",
+            "start": 7,
+            "end": 46,
+            "text": "OM_PII_A1B2C3D4E5F60718293A4B5C6D7E8F90",
+            "placeholder": "<PRIVATE_EMAIL>"
+          }
+        ]
+      },
+      {
+        "id": "negative-branch",
+        "spans": [
+          {
+            "label": "private_date",
+            "start": 7,
+            "end": 25,
+            "text": "release/2026-10-03",
+            "placeholder": "<PRIVATE_DATE>"
+          },
+          {
+            "label": "account_number",
+            "start": 34,
+            "end": 74,
+            "text": "9a203f628f97f8dd17b76d424c87976bebaf1e51",
+            "placeholder": "<ACCOUNT_NUMBER>"
+          }
+        ]
+      }
+    ]
+  },
+  "baseline_summary": {
+    "expected_values": 50,
+    "fully_hidden": 20,
+    "full_value_recall": 0.4,
+    "by_category": {
+      "private_person": {
+        "expected": 13,
+        "fully_hidden": 0,
+        "exact": 0,
+        "typed_full": 0
+      },
+      "private_address": {
+        "expected": 7,
+        "fully_hidden": 0,
+        "exact": 0,
+        "typed_full": 0
+      },
+      "private_email": {
+        "expected": 6,
+        "fully_hidden": 6,
+        "exact": 6,
+        "typed_full": 0
+      },
+      "private_phone": {
+        "expected": 5,
+        "fully_hidden": 5,
+        "exact": 5,
+        "typed_full": 0
+      },
+      "secret": {
+        "expected": 15,
+        "fully_hidden": 8,
+        "exact": 5,
+        "typed_full": 0
+      },
+      "account_number": {
+        "expected": 2,
+        "fully_hidden": 1,
+        "exact": 1,
+        "typed_full": 0
+      },
+      "private_date": {
+        "expected": 1,
+        "fully_hidden": 0,
+        "exact": 0,
+        "typed_full": 0
+      },
+      "private_url": {
+        "expected": 1,
+        "fully_hidden": 0,
+        "exact": 0,
+        "typed_full": 0
+      }
+    },
+    "values": [
+      {
+        "id": "name-support",
+        "label": "private_person",
+        "value": "Amina Okafor",
+        "fully_hidden": false,
+        "partial": false,
+        "exact": false,
+        "typed_full": false
+      },
+      {
+        "id": "name-rare",
+        "label": "private_person",
+        "value": "Xochitl Quispe",
+        "fully_hidden": false,
+        "partial": false,
+        "exact": false,
+        "typed_full": false
+      },
+      {
+        "id": "name-first-only",
+        "label": "private_person",
+        "value": "Niamh",
+        "fully_hidden": false,
+        "partial": false,
+        "exact": false,
+        "typed_full": false
+      },
+      {
+        "id": "name-initials",
+        "label": "private_person",
+        "value": "J. M. Velasquez",
+        "fully_hidden": false,
+        "partial": false,
+        "exact": false,
+        "typed_full": false
+      },
+      {
+        "id": "name-json",
+        "label": "private_person",
+        "value": "Marta Kowalska",
+        "fully_hidden": false,
+        "partial": false,
+        "exact": false,
+        "typed_full": false
+      },
+      {
+        "id": "name-code",
+        "label": "private_person",
+        "value": "Samira Haddad",
+        "fully_hidden": false,
+        "partial": false,
+        "exact": false,
+        "typed_full": false
+      },
+      {
+        "id": "name-emoji",
+        "label": "private_person",
+        "value": "Élodie Moreau",
+        "fully_hidden": false,
+        "partial": false,
+        "exact": false,
+        "typed_full": false
+      },
+      {
+        "id": "name-german",
+        "label": "private_person",
+        "value": "Annika Vogel",
+        "fully_hidden": false,
+        "partial": false,
+        "exact": false,
+        "typed_full": false
+      },
+      {
+        "id": "name-japanese",
+        "label": "private_person",
+        "value": "田中美咲",
+        "fully_hidden": false,
+        "partial": false,
+        "exact": false,
+        "typed_full": false
+      },
+      {
+        "id": "name-arabic",
+        "label": "private_person",
+        "value": "ليلى منصور",
+        "fully_hidden": false,
+        "partial": false,
+        "exact": false,
+        "typed_full": false
+      },
+      {
+        "id": "address-us",
+        "label": "private_address",
+        "value": "1847 Cedar Lane, Apt 3B, Portland, OR 97205",
+        "fully_hidden": false,
+        "partial": false,
+        "exact": false,
+        "typed_full": false
+      },
+      {
+        "id": "address-uk",
+        "label": "private_address",
+        "value": "42 Maple Avenue, Bristol BS1 4QA",
+        "fully_hidden": false,
+        "partial": false,
+        "exact": false,
+        "typed_full": false
+      },
+      {
+        "id": "address-de",
+        "label": "private_address",
+        "value": "Lindenstraße 27, 10405 Berlin",
+        "fully_hidden": false,
+        "partial": false,
+        "exact": false,
+        "typed_full": false
+      },
+      {
+        "id": "address-json",
+        "label": "private_address",
+        "value": "19 Oak Road, Cambridge CB1 2AB",
+        "fully_hidden": false,
+        "partial": false,
+        "exact": false,
+        "typed_full": false
+      },
+      {
+        "id": "address-multiline",
+        "label": "private_address",
+        "value": "27 Birch Street\nApartment 4\nDenver, CO 80203",
+        "fully_hidden": false,
+        "partial": false,
+        "exact": false,
+        "typed_full": false
+      },
+      {
+        "id": "address-context-only",
+        "label": "private_address",
+        "value": "apartment 8 above the bakery on Willow Street",
+        "fully_hidden": false,
+        "partial": false,
+        "exact": false,
+        "typed_full": false
+      },
+      {
+        "id": "email-simple",
+        "label": "private_email",
+        "value": "nadia.silva@example.net",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": false
+      },
+      {
+        "id": "email-plus",
+        "label": "private_email",
+        "value": "jonah+invoices@example.org",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": false
+      },
+      {
+        "id": "email-json",
+        "label": "private_email",
+        "value": "leila.hassan@example.net",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": false
+      },
+      {
+        "id": "email-unicode-context",
+        "label": "private_email",
+        "value": "sara.chen@example.net",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": false
+      },
+      {
+        "id": "phone-us",
+        "label": "private_phone",
+        "value": "+1 (202) 555-0147",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": false
+      },
+      {
+        "id": "phone-uk",
+        "label": "private_phone",
+        "value": "+44 7700 900123",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": false
+      },
+      {
+        "id": "phone-de",
+        "label": "private_phone",
+        "value": "+49 30 5550 1234",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": false
+      },
+      {
+        "id": "phone-local",
+        "label": "private_phone",
+        "value": "020 7946 0123",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": false
+      },
+      {
+        "id": "secret-github",
+        "label": "secret",
+        "value": {
+          "synthetic_parts": [
+            "ghp",
+            "_V7sA3mQ9nK2rD8wL5bH1xT6cE4uF0jPzYqRi"
+          ]
+        },
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": false
+      },
+      {
+        "id": "secret-openai",
+        "label": "secret",
+        "value": {
+          "synthetic_parts": [
+            "sk-",
+            "proj-A7b9C2d4E6f8G1h3J5k7L9m2N4p6Q8r1S3t5U7v9W2x4Y6z8A7b9C2d4E6f8G1h3J5k7L9m2N4p6Q8r1S3t5U7v9W2x4Y6z8A7b9C2d4E6f8G1h3J5k7L9m2N4p6Q8r1S3t5U7v9W2x4Y6z8"
+          ]
+        },
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": false
+      },
+      {
+        "id": "secret-aws",
+        "label": "secret",
+        "value": {
+          "synthetic_parts": [
+            "AKI",
+            "AV7S3Q9M2N8R5D1KL"
+          ]
+        },
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": false
+      },
+      {
+        "id": "secret-google",
+        "label": "secret",
+        "value": {
+          "synthetic_parts": [
+            "AIz",
+            "aSyB7mQ2nK9rD5wL3xT8cE1uF6jP4zY0aVhGs"
+          ]
+        },
+        "fully_hidden": true,
+        "partial": false,
+        "exact": false,
+        "typed_full": false
+      },
+      {
+        "id": "secret-stripe",
+        "label": "secret",
+        "value": {
+          "synthetic_parts": [
+            "sk_",
+            "live_7sA3mQ9nK2rD8wL5bH1xT6cE"
+          ]
+        },
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": false
+      },
+      {
+        "id": "secret-slack",
+        "label": "secret",
+        "value": {
+          "synthetic_parts": [
+            "xox",
+            "b-739284615012-928374650123-X7mQ2nK9rD5wL3xT8cE1uF6j"
+          ]
+        },
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": false
+      },
+      {
+        "id": "secret-bearer",
+        "label": "secret",
+        "value": "7sA3mQ9nK2rD8wL5bH1xT6cE4uF0jPzYqRi",
+        "fully_hidden": false,
+        "partial": false,
+        "exact": false,
+        "typed_full": false
+      },
+      {
+        "id": "secret-opaque-context",
+        "label": "secret",
+        "value": "R7m2Q9v4K1p8N5s3D6x0Z2w7",
+        "fully_hidden": false,
+        "partial": false,
+        "exact": false,
+        "typed_full": false
+      },
+      {
+        "id": "secret-passphrase",
+        "label": "secret",
+        "value": "copper-lantern-cedar-73",
+        "fully_hidden": false,
+        "partial": false,
+        "exact": false,
+        "typed_full": false
+      },
+      {
+        "id": "secret-json-unusual",
+        "label": "secret",
+        "value": "p8Q2k9R4d7M1n6V3x0Z5w8H2",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": false,
+        "typed_full": false
+      },
+      {
+        "id": "secret-assignment",
+        "label": "secret",
+        "value": "r7N2m9Q4v1K8p5S3d6X0z2W7",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": false,
+        "typed_full": false
+      },
+      {
+        "id": "secret-bare-unknown",
+        "label": "secret",
+        "value": "p8Q2k9R4d7M1n6V3x0Z5w8H2",
+        "fully_hidden": false,
+        "partial": false,
+        "exact": false,
+        "typed_full": false
+      },
+      {
+        "id": "secret-split",
+        "label": "secret",
+        "value": "R7m2Q9v4",
+        "fully_hidden": false,
+        "partial": false,
+        "exact": false,
+        "typed_full": false
+      },
+      {
+        "id": "secret-split",
+        "label": "secret",
+        "value": "K1p8N5s3",
+        "fully_hidden": false,
+        "partial": false,
+        "exact": false,
+        "typed_full": false
+      },
+      {
+        "id": "account-iban",
+        "label": "account_number",
+        "value": "DE89370400440532013000",
+        "fully_hidden": false,
+        "partial": true,
+        "exact": false,
+        "typed_full": false
+      },
+      {
+        "id": "account-ssn",
+        "label": "account_number",
+        "value": "123-45-6789",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": false
+      },
+      {
+        "id": "date-birth",
+        "label": "private_date",
+        "value": "17 February 1992",
+        "fully_hidden": false,
+        "partial": false,
+        "exact": false,
+        "typed_full": false
+      },
+      {
+        "id": "url-private",
+        "label": "private_url",
+        "value": "https://portal.example.net/customer/7sA3mQ9nK2rD8wL5",
+        "fully_hidden": false,
+        "partial": false,
+        "exact": false,
+        "typed_full": false
+      },
+      {
+        "id": "configured-person",
+        "label": "private_person",
+        "value": "Xochitl Quispe",
+        "fully_hidden": false,
+        "partial": false,
+        "exact": false,
+        "typed_full": false
+      },
+      {
+        "id": "configured-person",
+        "label": "secret",
+        "value": "Night Heron",
+        "fully_hidden": false,
+        "partial": false,
+        "exact": false,
+        "typed_full": false
+      },
+      {
+        "id": "mixed-support",
+        "label": "private_person",
+        "value": "Amina Okafor",
+        "fully_hidden": false,
+        "partial": false,
+        "exact": false,
+        "typed_full": false
+      },
+      {
+        "id": "mixed-support",
+        "label": "private_address",
+        "value": "42 Maple Avenue, Bristol BS1 4QA",
+        "fully_hidden": false,
+        "partial": false,
+        "exact": false,
+        "typed_full": false
+      },
+      {
+        "id": "mixed-support",
+        "label": "private_email",
+        "value": "amina.okafor@example.net",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": false
+      },
+      {
+        "id": "mixed-support",
+        "label": "private_phone",
+        "value": "+44 7700 900123",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": false
+      },
+      {
+        "id": "mixed-log",
+        "label": "private_person",
+        "value": "Samira Haddad",
+        "fully_hidden": false,
+        "partial": false,
+        "exact": false,
+        "typed_full": false
+      },
+      {
+        "id": "mixed-log",
+        "label": "private_email",
+        "value": "samira.haddad@example.net",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": false
+      }
+    ],
+    "negative_cases": 12,
+    "false_positive_cases": []
+  },
+  "hybrid_summary": {
+    "expected_values": 50,
+    "fully_hidden": 47,
+    "full_value_recall": 0.94,
+    "by_category": {
+      "private_person": {
+        "expected": 13,
+        "fully_hidden": 12,
+        "exact": 11,
+        "typed_full": 12
+      },
+      "private_address": {
+        "expected": 7,
+        "fully_hidden": 6,
+        "exact": 5,
+        "typed_full": 6
+      },
+      "private_email": {
+        "expected": 6,
+        "fully_hidden": 6,
+        "exact": 6,
+        "typed_full": 6
+      },
+      "private_phone": {
+        "expected": 5,
+        "fully_hidden": 5,
+        "exact": 5,
+        "typed_full": 5
+      },
+      "secret": {
+        "expected": 15,
+        "fully_hidden": 14,
+        "exact": 12,
+        "typed_full": 12
+      },
+      "account_number": {
+        "expected": 2,
+        "fully_hidden": 2,
+        "exact": 2,
+        "typed_full": 2
+      },
+      "private_date": {
+        "expected": 1,
+        "fully_hidden": 1,
+        "exact": 1,
+        "typed_full": 1
+      },
+      "private_url": {
+        "expected": 1,
+        "fully_hidden": 1,
+        "exact": 1,
+        "typed_full": 1
+      }
+    },
+    "values": [
+      {
+        "id": "name-support",
+        "label": "private_person",
+        "value": "Amina Okafor",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "name-rare",
+        "label": "private_person",
+        "value": "Xochitl Quispe",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "name-first-only",
+        "label": "private_person",
+        "value": "Niamh",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "name-initials",
+        "label": "private_person",
+        "value": "J. M. Velasquez",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": false,
+        "typed_full": true
+      },
+      {
+        "id": "name-json",
+        "label": "private_person",
+        "value": "Marta Kowalska",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "name-code",
+        "label": "private_person",
+        "value": "Samira Haddad",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "name-emoji",
+        "label": "private_person",
+        "value": "Élodie Moreau",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "name-german",
+        "label": "private_person",
+        "value": "Annika Vogel",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "name-japanese",
+        "label": "private_person",
+        "value": "田中美咲",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "name-arabic",
+        "label": "private_person",
+        "value": "ليلى منصور",
+        "fully_hidden": false,
+        "partial": false,
+        "exact": false,
+        "typed_full": false
+      },
+      {
+        "id": "address-us",
+        "label": "private_address",
+        "value": "1847 Cedar Lane, Apt 3B, Portland, OR 97205",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "address-uk",
+        "label": "private_address",
+        "value": "42 Maple Avenue, Bristol BS1 4QA",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "address-de",
+        "label": "private_address",
+        "value": "Lindenstraße 27, 10405 Berlin",
+        "fully_hidden": false,
+        "partial": true,
+        "exact": false,
+        "typed_full": false
+      },
+      {
+        "id": "address-json",
+        "label": "private_address",
+        "value": "19 Oak Road, Cambridge CB1 2AB",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "address-multiline",
+        "label": "private_address",
+        "value": "27 Birch Street\nApartment 4\nDenver, CO 80203",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "address-context-only",
+        "label": "private_address",
+        "value": "apartment 8 above the bakery on Willow Street",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": false,
+        "typed_full": true
+      },
+      {
+        "id": "email-simple",
+        "label": "private_email",
+        "value": "nadia.silva@example.net",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "email-plus",
+        "label": "private_email",
+        "value": "jonah+invoices@example.org",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "email-json",
+        "label": "private_email",
+        "value": "leila.hassan@example.net",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "email-unicode-context",
+        "label": "private_email",
+        "value": "sara.chen@example.net",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "phone-us",
+        "label": "private_phone",
+        "value": "+1 (202) 555-0147",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "phone-uk",
+        "label": "private_phone",
+        "value": "+44 7700 900123",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "phone-de",
+        "label": "private_phone",
+        "value": "+49 30 5550 1234",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "phone-local",
+        "label": "private_phone",
+        "value": "020 7946 0123",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "secret-github",
+        "label": "secret",
+        "value": {
+          "synthetic_parts": [
+            "ghp",
+            "_V7sA3mQ9nK2rD8wL5bH1xT6cE4uF0jPzYqRi"
+          ]
+        },
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "secret-openai",
+        "label": "secret",
+        "value": {
+          "synthetic_parts": [
+            "sk-",
+            "proj-A7b9C2d4E6f8G1h3J5k7L9m2N4p6Q8r1S3t5U7v9W2x4Y6z8A7b9C2d4E6f8G1h3J5k7L9m2N4p6Q8r1S3t5U7v9W2x4Y6z8A7b9C2d4E6f8G1h3J5k7L9m2N4p6Q8r1S3t5U7v9W2x4Y6z8"
+          ]
+        },
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "secret-aws",
+        "label": "secret",
+        "value": {
+          "synthetic_parts": [
+            "AKI",
+            "AV7S3Q9M2N8R5D1KL"
+          ]
+        },
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "secret-google",
+        "label": "secret",
+        "value": {
+          "synthetic_parts": [
+            "AIz",
+            "aSyB7mQ2nK9rD5wL3xT8cE1uF6jP4zY0aVhGs"
+          ]
+        },
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "secret-stripe",
+        "label": "secret",
+        "value": {
+          "synthetic_parts": [
+            "sk_",
+            "live_7sA3mQ9nK2rD8wL5bH1xT6cE"
+          ]
+        },
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "secret-slack",
+        "label": "secret",
+        "value": {
+          "synthetic_parts": [
+            "xox",
+            "b-739284615012-928374650123-X7mQ2nK9rD5wL3xT8cE1uF6j"
+          ]
+        },
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "secret-bearer",
+        "label": "secret",
+        "value": "7sA3mQ9nK2rD8wL5bH1xT6cE4uF0jPzYqRi",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": false,
+        "typed_full": true
+      },
+      {
+        "id": "secret-opaque-context",
+        "label": "secret",
+        "value": "R7m2Q9v4K1p8N5s3D6x0Z2w7",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "secret-passphrase",
+        "label": "secret",
+        "value": "copper-lantern-cedar-73",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": false,
+        "typed_full": true
+      },
+      {
+        "id": "secret-json-unusual",
+        "label": "secret",
+        "value": "p8Q2k9R4d7M1n6V3x0Z5w8H2",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": false
+      },
+      {
+        "id": "secret-assignment",
+        "label": "secret",
+        "value": "r7N2m9Q4v1K8p5S3d6X0z2W7",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "secret-bare-unknown",
+        "label": "secret",
+        "value": "p8Q2k9R4d7M1n6V3x0Z5w8H2",
+        "fully_hidden": false,
+        "partial": false,
+        "exact": false,
+        "typed_full": false
+      },
+      {
+        "id": "secret-split",
+        "label": "secret",
+        "value": "R7m2Q9v4",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "secret-split",
+        "label": "secret",
+        "value": "K1p8N5s3",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "account-iban",
+        "label": "account_number",
+        "value": "DE89370400440532013000",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "account-ssn",
+        "label": "account_number",
+        "value": "123-45-6789",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "date-birth",
+        "label": "private_date",
+        "value": "17 February 1992",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "url-private",
+        "label": "private_url",
+        "value": "https://portal.example.net/customer/7sA3mQ9nK2rD8wL5",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "configured-person",
+        "label": "private_person",
+        "value": "Xochitl Quispe",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "configured-person",
+        "label": "secret",
+        "value": "Night Heron",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": false
+      },
+      {
+        "id": "mixed-support",
+        "label": "private_person",
+        "value": "Amina Okafor",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "mixed-support",
+        "label": "private_address",
+        "value": "42 Maple Avenue, Bristol BS1 4QA",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "mixed-support",
+        "label": "private_email",
+        "value": "amina.okafor@example.net",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "mixed-support",
+        "label": "private_phone",
+        "value": "+44 7700 900123",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "mixed-log",
+        "label": "private_person",
+        "value": "Samira Haddad",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "mixed-log",
+        "label": "private_email",
+        "value": "samira.haddad@example.net",
+        "fully_hidden": true,
+        "partial": false,
+        "exact": true,
+        "typed_full": true
+      }
+    ],
+    "negative_cases": 12,
+    "false_positive_cases": [
+      {
+        "id": "negative-uuid",
+        "spans": [
+          {
+            "label": "secret",
+            "start": 19,
+            "end": 55,
+            "text": "550e8400-e29b-41d4-a716-446655440000",
+            "placeholder": "<SECRET>"
+          }
+        ]
+      },
+      {
+        "id": "negative-timestamp",
+        "spans": [
+          {
+            "label": "private_date",
+            "start": 17,
+            "end": 37,
+            "text": "2026-10-03T12:34:56Z",
+            "placeholder": "<PRIVATE_DATE>"
+          }
+        ]
+      },
+      {
+        "id": "negative-placeholders",
+        "spans": [
+          {
+            "label": "private_email",
+            "start": 7,
+            "end": 46,
+            "text": "OM_PII_A1B2C3D4E5F60718293A4B5C6D7E8F90",
+            "placeholder": "<PRIVATE_EMAIL>"
+          }
+        ]
+      },
+      {
+        "id": "negative-branch",
+        "spans": [
+          {
+            "label": "private_date",
+            "start": 7,
+            "end": 25,
+            "text": "release/2026-10-03",
+            "placeholder": "<PRIVATE_DATE>"
+          },
+          {
+            "label": "account_number",
+            "start": 34,
+            "end": 74,
+            "text": "9a203f628f97f8dd17b76d424c87976bebaf1e51",
+            "placeholder": "<ACCOUNT_NUMBER>"
+          }
+        ]
+      }
+    ]
+  },
+  "rss_final_bytes": 3598745600,
+  "rss_sampled_peak_bytes": 4356247552,
+  "rss_os_peak_bytes": 4356177920,
+  "total_seconds": 366.7101450981572
+}

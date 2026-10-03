@@ -1,0 +1,89 @@
+{
+  "threads": 2,
+  "context": 1024,
+  "network_disabled": true,
+  "network_isolation": "linux-seccomp-socket-denied",
+  "backend": "official-pytorch-bf16",
+  "torch": "2.8.0+cpu",
+  "param_dtype": "torch.bfloat16",
+  "parameter_count": 1399486832,
+  "import_seconds": 2.009664840064943,
+  "load_seconds": 6.696800368838012,
+  "rss_loaded_bytes": 3612377088,
+  "quality": [],
+  "latency": [
+    {
+      "tokens": 64,
+      "seconds": [
+        7.237890405580401
+      ],
+      "median_seconds": 7.237890405580401,
+      "maximum_seconds": 7.237890405580401,
+      "rss_bytes": 3622432768
+    },
+    {
+      "tokens": 256,
+      "seconds": [
+        28.768930956721306
+      ],
+      "median_seconds": 28.768930956721306,
+      "maximum_seconds": 28.768930956721306,
+      "rss_bytes": 3622625280
+    }
+  ],
+  "first_inference_seconds": null,
+  "quality_summary": {
+    "expected_values": 0,
+    "fully_hidden": 0,
+    "content_hidden": 0,
+    "full_value_recall": null,
+    "by_category": {},
+    "values": [],
+    "negative_cases": 0,
+    "false_positive_cases": []
+  },
+  "baseline_summary": {
+    "expected_values": 0,
+    "fully_hidden": 0,
+    "content_hidden": 0,
+    "full_value_recall": null,
+    "by_category": {},
+    "values": [],
+    "negative_cases": 0,
+    "false_positive_cases": []
+  },
+  "hybrid_summary": {
+    "expected_values": 0,
+    "fully_hidden": 0,
+    "content_hidden": 0,
+    "full_value_recall": null,
+    "by_category": {},
+    "values": [],
+    "negative_cases": 0,
+    "false_positive_cases": []
+  },
+  "configured_baseline_summary": {
+    "expected_values": 0,
+    "fully_hidden": 0,
+    "content_hidden": 0,
+    "full_value_recall": null,
+    "by_category": {},
+    "values": [],
+    "negative_cases": 0,
+    "false_positive_cases": []
+  },
+  "configured_hybrid_summary": {
+    "expected_values": 0,
+    "fully_hidden": 0,
+    "content_hidden": 0,
+    "full_value_recall": null,
+    "by_category": {},
+    "values": [],
+    "negative_cases": 0,
+    "false_positive_cases": []
+  },
+  "rss_final_bytes": 3622625280,
+  "rss_sampled_peak_bytes": 4356550656,
+  "rss_os_peak_bytes": 4356333568,
+  "total_seconds": 44.72968691494316
+}

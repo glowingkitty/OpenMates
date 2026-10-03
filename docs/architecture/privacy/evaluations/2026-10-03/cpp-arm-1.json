@@ -1,0 +1,109 @@
+{
+  "threads": 1,
+  "context": 4096,
+  "network_disabled": true,
+  "network_isolation": "linux-seccomp-socket-denied",
+  "backend": "third-party-ggml-q8",
+  "threshold": 0.0,
+  "import_seconds": 0.030841439962387085,
+  "load_seconds": 1.694597652181983,
+  "rss_loaded_bytes": 1804120064,
+  "quality": [],
+  "latency": [
+    {
+      "tokens": 64,
+      "seconds": [
+        0.32604206446558237,
+        0.31777951307594776
+      ],
+      "median_seconds": 0.32191078877076507,
+      "maximum_seconds": 0.32604206446558237,
+      "rss_bytes": 1805529088
+    },
+    {
+      "tokens": 256,
+      "seconds": [
+        1.2615875732153654,
+        1.2531334208324552
+      ],
+      "median_seconds": 1.2573604970239103,
+      "maximum_seconds": 1.2615875732153654,
+      "rss_bytes": 1815293952
+    },
+    {
+      "tokens": 1024,
+      "seconds": [
+        5.3637874480336905,
+        5.430552790872753
+      ],
+      "median_seconds": 5.397170119453222,
+      "maximum_seconds": 5.430552790872753,
+      "rss_bytes": 1857888256
+    },
+    {
+      "tokens": 4096,
+      "seconds": [
+        21.105204130522907,
+        20.99422532133758
+      ],
+      "median_seconds": 21.049714725930244,
+      "maximum_seconds": 21.105204130522907,
+      "rss_bytes": 2010910720
+    }
+  ],
+  "first_inference_seconds": null,
+  "quality_summary": {
+    "expected_values": 0,
+    "fully_hidden": 0,
+    "content_hidden": 0,
+    "full_value_recall": null,
+    "by_category": {},
+    "values": [],
+    "negative_cases": 0,
+    "false_positive_cases": []
+  },
+  "baseline_summary": {
+    "expected_values": 0,
+    "fully_hidden": 0,
+    "content_hidden": 0,
+    "full_value_recall": null,
+    "by_category": {},
+    "values": [],
+    "negative_cases": 0,
+    "false_positive_cases": []
+  },
+  "hybrid_summary": {
+    "expected_values": 0,
+    "fully_hidden": 0,
+    "content_hidden": 0,
+    "full_value_recall": null,
+    "by_category": {},
+    "values": [],
+    "negative_cases": 0,
+    "false_positive_cases": []
+  },
+  "configured_baseline_summary": {
+    "expected_values": 0,
+    "fully_hidden": 0,
+    "content_hidden": 0,
+    "full_value_recall": null,
+    "by_category": {},
+    "values": [],
+    "negative_cases": 0,
+    "false_positive_cases": []
+  },
+  "configured_hybrid_summary": {
+    "expected_values": 0,
+    "fully_hidden": 0,
+    "content_hidden": 0,
+    "full_value_recall": null,
+    "by_category": {},
+    "values": [],
+    "negative_cases": 0,
+    "false_positive_cases": []
+  },
+  "rss_final_bytes": 2010910720,
+  "rss_sampled_peak_bytes": 2010910720,
+  "rss_os_peak_bytes": 2010730496,
+  "total_seconds": 57.79342905525118
+}

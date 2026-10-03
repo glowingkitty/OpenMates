@@ -1,0 +1,599 @@
+[
+  {
+    "id": "name-support",
+    "text": "Our customer Amina Okafor needs help resetting her account.",
+    "expected": [
+      [
+        "private_person",
+        "Amina Okafor"
+      ]
+    ]
+  },
+  {
+    "id": "name-rare",
+    "text": "The patient is Xochitl Quispe. Please update her intake record.",
+    "expected": [
+      [
+        "private_person",
+        "Xochitl Quispe"
+      ]
+    ]
+  },
+  {
+    "id": "name-first-only",
+    "text": "My colleague Niamh cannot sign in. Please help her.",
+    "expected": [
+      [
+        "private_person",
+        "Niamh"
+      ]
+    ]
+  },
+  {
+    "id": "name-initials",
+    "text": "The claimant is Dr. J. M. Velasquez, who lives nearby.",
+    "expected": [
+      [
+        "private_person",
+        "J. M. Velasquez"
+      ]
+    ]
+  },
+  {
+    "id": "name-json",
+    "text": "{\"customer_name\":\"Marta Kowalska\",\"status\":\"pending\"}",
+    "expected": [
+      [
+        "private_person",
+        "Marta Kowalska"
+      ]
+    ]
+  },
+  {
+    "id": "name-code",
+    "text": "const customer = { fullName: \"Samira Haddad\", active: true };",
+    "expected": [
+      [
+        "private_person",
+        "Samira Haddad"
+      ]
+    ]
+  },
+  {
+    "id": "name-emoji",
+    "text": "👋 Please help my customer Élodie Moreau reset her password.",
+    "expected": [
+      [
+        "private_person",
+        "Élodie Moreau"
+      ]
+    ]
+  },
+  {
+    "id": "name-german",
+    "text": "Unsere Kundin heißt Annika Vogel und braucht Hilfe beim Login.",
+    "expected": [
+      [
+        "private_person",
+        "Annika Vogel"
+      ]
+    ]
+  },
+  {
+    "id": "name-japanese",
+    "text": "お客様の名前は田中美咲です。アカウントを確認してください。",
+    "expected": [
+      [
+        "private_person",
+        "田中美咲"
+      ]
+    ]
+  },
+  {
+    "id": "name-arabic",
+    "text": "اسم العميلة ليلى منصور وتحتاج مساعدة في الحساب.",
+    "expected": [
+      [
+        "private_person",
+        "ليلى منصور"
+      ]
+    ]
+  },
+  {
+    "id": "address-us",
+    "text": "Ship my replacement laptop to 1847 Cedar Lane, Apt 3B, Portland, OR 97205.",
+    "expected": [
+      [
+        "private_address",
+        "1847 Cedar Lane, Apt 3B, Portland, OR 97205"
+      ]
+    ]
+  },
+  {
+    "id": "address-uk",
+    "text": "My home address is 42 Maple Avenue, Bristol BS1 4QA.",
+    "expected": [
+      [
+        "private_address",
+        "42 Maple Avenue, Bristol BS1 4QA"
+      ]
+    ]
+  },
+  {
+    "id": "address-de",
+    "text": "Meine Privatadresse ist Lindenstraße 27, 10405 Berlin.",
+    "expected": [
+      [
+        "private_address",
+        "Lindenstraße 27, 10405 Berlin"
+      ]
+    ]
+  },
+  {
+    "id": "address-json",
+    "text": "{\"shippingAddress\":\"19 Oak Road, Cambridge CB1 2AB\"}",
+    "expected": [
+      [
+        "private_address",
+        "19 Oak Road, Cambridge CB1 2AB"
+      ]
+    ]
+  },
+  {
+    "id": "address-multiline",
+    "text": "Please deliver to my home:\n27 Birch Street\nApartment 4\nDenver, CO 80203",
+    "expected": [
+      [
+        "private_address",
+        "27 Birch Street\nApartment 4\nDenver, CO 80203"
+      ]
+    ]
+  },
+  {
+    "id": "address-context-only",
+    "text": "I live in apartment 8 above the bakery on Willow Street.",
+    "expected": [
+      [
+        "private_address",
+        "apartment 8 above the bakery on Willow Street"
+      ]
+    ]
+  },
+  {
+    "id": "email-simple",
+    "text": "Contact the customer at nadia.silva@example.net.",
+    "expected": [
+      [
+        "private_email",
+        "nadia.silva@example.net"
+      ]
+    ]
+  },
+  {
+    "id": "email-plus",
+    "text": "Send the invoice to jonah+invoices@example.org.",
+    "expected": [
+      [
+        "private_email",
+        "jonah+invoices@example.org"
+      ]
+    ]
+  },
+  {
+    "id": "email-json",
+    "text": "{\"email\":\"leila.hassan@example.net\",\"verified\":true}",
+    "expected": [
+      [
+        "private_email",
+        "leila.hassan@example.net"
+      ]
+    ]
+  },
+  {
+    "id": "email-unicode-context",
+    "text": "客户的邮件是 sara.chen@example.net，请更新。",
+    "expected": [
+      [
+        "private_email",
+        "sara.chen@example.net"
+      ]
+    ]
+  },
+  {
+    "id": "phone-us",
+    "text": "Call my mobile at +1 (202) 555-0147 tomorrow.",
+    "expected": [
+      [
+        "private_phone",
+        "+1 (202) 555-0147"
+      ]
+    ]
+  },
+  {
+    "id": "phone-uk",
+    "text": "My telephone number is +44 7700 900123.",
+    "expected": [
+      [
+        "private_phone",
+        "+44 7700 900123"
+      ]
+    ]
+  },
+  {
+    "id": "phone-de",
+    "text": "Meine Telefonnummer lautet +49 30 5550 1234.",
+    "expected": [
+      [
+        "private_phone",
+        "+49 30 5550 1234"
+      ]
+    ]
+  },
+  {
+    "id": "phone-local",
+    "text": "The customer can be reached on 020 7946 0123.",
+    "expected": [
+      [
+        "private_phone",
+        "020 7946 0123"
+      ]
+    ]
+  },
+  {
+    "id": "secret-github",
+    "text": {
+      "synthetic_parts": [
+        "GITHUB_TOKEN=",
+        "ghp",
+        "_V7sA3mQ9nK2rD8wL5bH1xT6cE4uF0jPzYqRi"
+      ]
+    },
+    "expected": [
+      [
+        "secret",
+        {
+          "synthetic_parts": [
+            "ghp",
+            "_V7sA3mQ9nK2rD8wL5bH1xT6cE4uF0jPzYqRi"
+          ]
+        }
+      ]
+    ]
+  },
+  {
+    "id": "secret-openai",
+    "text": {
+      "synthetic_parts": [
+        "OPENAI_API_KEY=",
+        "sk-",
+        "proj-A7b9C2d4E6f8G1h3J5k7L9m2N4p6Q8r1S3t5U7v9W2x4Y6z8A7b9C2d4E6f8G1h3J5k7L9m2N4p6Q8r1S3t5U7v9W2x4Y6z8A7b9C2d4E6f8G1h3J5k7L9m2N4p6Q8r1S3t5U7v9W2x4Y6z8"
+      ]
+    },
+    "expected": [
+      [
+        "secret",
+        {
+          "synthetic_parts": [
+            "sk-",
+            "proj-A7b9C2d4E6f8G1h3J5k7L9m2N4p6Q8r1S3t5U7v9W2x4Y6z8A7b9C2d4E6f8G1h3J5k7L9m2N4p6Q8r1S3t5U7v9W2x4Y6z8A7b9C2d4E6f8G1h3J5k7L9m2N4p6Q8r1S3t5U7v9W2x4Y6z8"
+          ]
+        }
+      ]
+    ]
+  },
+  {
+    "id": "secret-aws",
+    "text": {
+      "synthetic_parts": [
+        "AWS_ACCESS_KEY_ID=",
+        "AKI",
+        "AV7S3Q9M2N8R5D1KL"
+      ]
+    },
+    "expected": [
+      [
+        "secret",
+        {
+          "synthetic_parts": [
+            "AKI",
+            "AV7S3Q9M2N8R5D1KL"
+          ]
+        }
+      ]
+    ]
+  },
+  {
+    "id": "secret-google",
+    "text": {
+      "synthetic_parts": [
+        "Set GOOGLE_API_KEY=",
+        "AIz",
+        "aSyB7mQ2nK9rD5wL3xT8cE1uF6jP4zY0aVhGs"
+      ]
+    },
+    "expected": [
+      [
+        "secret",
+        {
+          "synthetic_parts": [
+            "AIz",
+            "aSyB7mQ2nK9rD5wL3xT8cE1uF6jP4zY0aVhGs"
+          ]
+        }
+      ]
+    ]
+  },
+  {
+    "id": "secret-stripe",
+    "text": {
+      "synthetic_parts": [
+        "STRIPE_SECRET_KEY=",
+        "sk_",
+        "live_7sA3mQ9nK2rD8wL5bH1xT6cE"
+      ]
+    },
+    "expected": [
+      [
+        "secret",
+        {
+          "synthetic_parts": [
+            "sk_",
+            "live_7sA3mQ9nK2rD8wL5bH1xT6cE"
+          ]
+        }
+      ]
+    ]
+  },
+  {
+    "id": "secret-slack",
+    "text": {
+      "synthetic_parts": [
+        "SLACK_TOKEN=",
+        "xox",
+        "b-739284615012-928374650123-X7mQ2nK9rD5wL3xT8cE1uF6j"
+      ]
+    },
+    "expected": [
+      [
+        "secret",
+        {
+          "synthetic_parts": [
+            "xox",
+            "b-739284615012-928374650123-X7mQ2nK9rD5wL3xT8cE1uF6j"
+          ]
+        }
+      ]
+    ]
+  },
+  {
+    "id": "secret-bearer",
+    "text": "Authorization: Bearer 7sA3mQ9nK2rD8wL5bH1xT6cE4uF0jPzYqRi",
+    "expected": [
+      [
+        "secret",
+        "7sA3mQ9nK2rD8wL5bH1xT6cE4uF0jPzYqRi"
+      ]
+    ]
+  },
+  {
+    "id": "secret-opaque-context",
+    "text": "The access credential for our deployment robot is R7m2Q9v4K1p8N5s3D6x0Z2w7.",
+    "expected": [
+      [
+        "secret",
+        "R7m2Q9v4K1p8N5s3D6x0Z2w7"
+      ]
+    ]
+  },
+  {
+    "id": "secret-passphrase",
+    "text": "The production database password is copper-lantern-cedar-73.",
+    "expected": [
+      [
+        "secret",
+        "copper-lantern-cedar-73"
+      ]
+    ]
+  },
+  {
+    "id": "secret-json-unusual",
+    "text": "{\"serviceCredential\":\"p8Q2k9R4d7M1n6V3x0Z5w8H2\"}",
+    "expected": [
+      [
+        "secret",
+        "p8Q2k9R4d7M1n6V3x0Z5w8H2"
+      ]
+    ]
+  },
+  {
+    "id": "secret-assignment",
+    "text": "const apiKey = \"r7N2m9Q4v1K8p5S3d6X0z2W7\";",
+    "expected": [
+      [
+        "secret",
+        "r7N2m9Q4v1K8p5S3d6X0z2W7"
+      ]
+    ]
+  },
+  {
+    "id": "secret-bare-unknown",
+    "text": "p8Q2k9R4d7M1n6V3x0Z5w8H2",
+    "expected": [
+      [
+        "secret",
+        "p8Q2k9R4d7M1n6V3x0Z5w8H2"
+      ]
+    ],
+    "custom": [
+      "p8Q2k9R4d7M1n6V3x0Z5w8H2"
+    ]
+  },
+  {
+    "id": "secret-split",
+    "text": "Our deployment token is the concatenation of \"R7m2Q9v4\" and \"K1p8N5s3\".",
+    "expected": [
+      [
+        "secret",
+        "R7m2Q9v4"
+      ],
+      [
+        "secret",
+        "K1p8N5s3"
+      ]
+    ]
+  },
+  {
+    "id": "account-iban",
+    "text": "My bank account IBAN is DE89370400440532013000.",
+    "expected": [
+      [
+        "account_number",
+        "DE89370400440532013000"
+      ]
+    ]
+  },
+  {
+    "id": "account-ssn",
+    "text": "The applicant SSN is 123-45-6789.",
+    "expected": [
+      [
+        "account_number",
+        "123-45-6789"
+      ]
+    ]
+  },
+  {
+    "id": "date-birth",
+    "text": "My date of birth is 17 February 1992.",
+    "expected": [
+      [
+        "private_date",
+        "17 February 1992"
+      ]
+    ]
+  },
+  {
+    "id": "url-private",
+    "text": "Open the private dashboard link https://portal.example.net/customer/7sA3mQ9nK2rD8wL5.",
+    "expected": [
+      [
+        "private_url",
+        "https://portal.example.net/customer/7sA3mQ9nK2rD8wL5"
+      ]
+    ]
+  },
+  {
+    "id": "configured-person",
+    "text": "Our new customer Xochitl Quispe uses the internal badge Night Heron.",
+    "expected": [
+      [
+        "private_person",
+        "Xochitl Quispe"
+      ],
+      [
+        "secret",
+        "Night Heron"
+      ]
+    ],
+    "custom": [
+      "Xochitl Quispe",
+      "Night Heron"
+    ]
+  },
+  {
+    "id": "mixed-support",
+    "text": "Customer Amina Okafor lives at 42 Maple Avenue, Bristol BS1 4QA. Email amina.okafor@example.net or call +44 7700 900123.",
+    "expected": [
+      [
+        "private_person",
+        "Amina Okafor"
+      ],
+      [
+        "private_address",
+        "42 Maple Avenue, Bristol BS1 4QA"
+      ],
+      [
+        "private_email",
+        "amina.okafor@example.net"
+      ],
+      [
+        "private_phone",
+        "+44 7700 900123"
+      ]
+    ]
+  },
+  {
+    "id": "mixed-log",
+    "text": "ERROR login for account owner Samira Haddad (samira.haddad@example.net); request=550e8400-e29b-41d4-a716-446655440000",
+    "expected": [
+      [
+        "private_person",
+        "Samira Haddad"
+      ],
+      [
+        "private_email",
+        "samira.haddad@example.net"
+      ]
+    ]
+  },
+  {
+    "id": "negative-uuid",
+    "text": "const projectId = \"550e8400-e29b-41d4-a716-446655440000\";",
+    "expected": []
+  },
+  {
+    "id": "negative-hash",
+    "text": "sha256=9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+    "expected": []
+  },
+  {
+    "id": "negative-function",
+    "text": "function getUserName(user) { return user.displayName ?? \"Unknown\"; }",
+    "expected": []
+  },
+  {
+    "id": "negative-public-name",
+    "text": "The README discusses Alan Turing and the history of computing.",
+    "expected": []
+  },
+  {
+    "id": "negative-library",
+    "text": "Install React, Svelte, FastAPI and NumPy to run the demo.",
+    "expected": []
+  },
+  {
+    "id": "negative-public-url",
+    "text": "See the documentation at https://docs.python.org/3/library/json.html.",
+    "expected": []
+  },
+  {
+    "id": "negative-version",
+    "text": "Node.js v22.14.0, Python 3.12.3 and OpenMates 0.27.0 are installed.",
+    "expected": []
+  },
+  {
+    "id": "negative-timestamp",
+    "text": "Build started at 2026-10-03T12:34:56Z and exited with status 0.",
+    "expected": []
+  },
+  {
+    "id": "negative-placeholders",
+    "text": "email=[OM_PII_A1B2C3D4E5F60718293A4B5C6D7E8F90] token=<SECRET>",
+    "expected": []
+  },
+  {
+    "id": "negative-counts",
+    "text": "Rendered 200064 rows in 4096 batches. CPU threads: 16; timeout: 120000 ms.",
+    "expected": []
+  },
+  {
+    "id": "negative-address-public",
+    "text": "The Eiffel Tower is at Champ de Mars, 5 Avenue Anatole France, Paris.",
+    "expected": []
+  },
+  {
+    "id": "negative-branch",
+    "text": "Branch release/2026-10-03; commit 9a203f628f97f8dd17b76d424c87976bebaf1e51.",
+    "expected": []
+  }
+]
