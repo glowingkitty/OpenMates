@@ -1675,6 +1675,11 @@ async def _process_single_doctolib_request(
             exc,
             exc_info=True,
         )
+        # Keep discovery-stage blocks typed until the rotating-client retry
+        # classifies them. The public error remains generic after exhaustion.
+        # Availability failures are handled above and retain usable slots.
+        if isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code in (403, 429):
+            raise
         return request_id, [], "Doctolib is temporarily unavailable"
 
 
@@ -2367,22 +2372,28 @@ class SearchAppointmentsSkill(BaseSkill):
             last_error: Optional[str] = None
 
             for attempt in range(DOCTOLIB_MAX_RETRIES):
-                async with create_http_client("doctolib", **client_kwargs) as client:
-                    request_id, results, error = await _process_single_doctolib_request(client, req)
+                http_status: Optional[int] = None
+                try:
+                    async with create_http_client("doctolib", **client_kwargs) as client:
+                        request_id, results, error = await _process_single_doctolib_request(client, req)
+                except httpx.HTTPStatusError as exc:
+                    http_status = exc.response.status_code
+                    results, error = [], "Doctolib is temporarily unavailable"
 
                 if not error:
                     return request_id, results, None
                 last_error = error
 
-                is_retryable = any(code in error for code in ("403", "429"))
+                is_retryable = http_status in (403, 429)
                 if not is_retryable:
                     return request_id, results, error
 
                 logger.info(
-                    "[health:search_appointments] Retryable error on attempt %d/%d for request %s: %s",
-                    attempt + 1, DOCTOLIB_MAX_RETRIES, request_id, error[:80],
+                    "[health:search_appointments] HTTP %d on attempt %d/%d for request %s; rotating client",
+                    http_status, attempt + 1, DOCTOLIB_MAX_RETRIES, request_id,
                 )
-                await asyncio.sleep(DOCTOLIB_RETRY_DELAY_SECONDS)
+                if attempt + 1 < DOCTOLIB_MAX_RETRIES:
+                    await asyncio.sleep(DOCTOLIB_RETRY_DELAY_SECONDS)
 
             logger.warning(
                 "[health:search_appointments] All %d retries failed for request %s",

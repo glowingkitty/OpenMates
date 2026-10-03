@@ -112,6 +112,30 @@ export const musicGenerateMetadata: AppsSkillDetails = {
   anonymous_allowed: false,
 };
 
+/** Faithful request-shape excerpt from health.search_appointments in app.yml. */
+export const healthMetadata: AppsSkillDetails = {
+  ...metadata,
+  app_id: 'health', skill_id: 'search_appointments', slug: 'search-appointments', name: 'Search appointments',
+  input_schema: {
+    type: 'object', required: ['requests'], properties: {
+      requests: { type: 'array', 'x-ui': { basic: true }, items: { type: 'object', required: ['speciality', 'city'], properties: {
+        speciality: { type: 'string', 'x-ui': { basic: true } },
+        city: { type: 'string', 'x-ui': { basic: true, control: 'location', location_mode: 'city' } },
+        provider_platform: { type: 'string', enum: ['both', 'doctolib_de', 'jameda'], default: 'both', 'x-ui': { basic: false } },
+        insurance_sector: { type: 'string', enum: ['public', 'private'], 'x-ui': { basic: true } },
+        telehealth: { type: 'boolean', default: false, 'x-ui': { basic: false } },
+        language: { type: 'string', 'x-ui': { basic: false } },
+        days_ahead: { type: 'integer', enum: [1, 3, 7], default: 7, 'x-ui': { basic: true } },
+        max_doctors: { type: 'integer', minimum: 1, maximum: 30, default: 10, 'x-ui': { basic: false } },
+        visit_motive_category: { type: 'string', enum: ['general', 'checkup', 'vaccination', 'followup'], 'x-ui': { basic: false } },
+      } } },
+    },
+  },
+  primary_fields: ['requests[].speciality', 'requests[].city'],
+  defaults: { requests: [{ provider_platform: 'both', days_ahead: 7, max_doctors: 10, telehealth: false }] },
+  anonymous_allowed: false,
+};
+
 const dispatch = async (input: Record<string, unknown>) => {
   window.dispatchEvent(new CustomEvent('apps-skill-preview-submit', { detail: input }));
 };
@@ -129,4 +153,5 @@ export const variants = {
   stays: { metadata: staysMetadata, onSubmit: dispatch },
   audioGenerate: { metadata: audioGenerateMetadata, onSubmit: dispatch },
   musicGenerate: { metadata: musicGenerateMetadata, onSubmit: dispatch },
+  health: { metadata: healthMetadata, onSubmit: dispatch },
 };

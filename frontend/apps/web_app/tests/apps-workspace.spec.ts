@@ -982,4 +982,86 @@ test.describe('Apps workspace', () => {
     await expect(grid.getByTestId('embed-preview')).toHaveCount(25, { timeout: 30000 });
     await expect(grid).toContainText(`Fixture page 25 ${marker}`);
   });
+
+  // contract-test: direct surface=gui.web assertions=apps.forms.metadata-driven,apps.execution.direct-shared-contract,apps.results.web-retained-graph,apps.library.embeds-account-paginated
+  test('Health public-insurance search sends native filters and retains populated appointment views', async ({ page }: { page: any }) => {
+    test.setTimeout(120000);
+    expect(getTestAccount().email, 'CI must provide its existing authenticated test account').toBeTruthy();
+    await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+    await loginToTestAccount(page, () => {}, async () => {});
+    await page.route('**/v1/geocode/search?**', (route: any) => route.fulfill({ json: [{
+      lat: '52.52', lon: '13.405', name: 'Berlin', display_name: 'Berlin, Germany',
+      class: 'place', type: 'city', namedetails: { name: 'Berlin' },
+      address: { city: 'Berlin', country: 'Germany' },
+    }] }));
+    const marker = `apps-health-${Date.now()}`;
+    const names = [`Synthetic Practice ${marker}`, `Synthetic Doctor ${marker}`];
+    const appointments = names.map((name, index) => ({
+      type: 'appointment', name, speciality: 'Hautarzt', address: 'Synthetic Street, Berlin',
+      slot_datetime: new Date(Date.now() + (index + 1) * 86400000).toISOString(),
+      visit_motive: 'Allgemeine Sprechstunde', insurance: 'public', allows_new_patients: true,
+      provider_platform: 'Doctolib', practice_url: `https://example.test/appointments/${marker}/${index}`,
+      search_coverage: { Doctolib: 'success', Jameda: 'no_match' },
+    }));
+    let skillPosts = 0;
+    let nativeInput: Record<string, any> | undefined;
+    await page.route('**/v1/apps/health/skills/search_appointments', async (route: any) => {
+      skillPosts += 1;
+      nativeInput = route.request().postDataJSON();
+      return route.fulfill({ json: { success: true, data: { results: [{ id: '1', results: appointments }], error: null } } });
+    });
+    await page.goto(getE2EDebugUrl('/#apps/health/search-appointments'), { waitUntil: 'domcontentloaded' });
+    const form = page.getByTestId('apps-skill-form');
+    await expect(form).toBeVisible({ timeout: 30000 });
+    await form.getByRole('textbox', { name: /Speciality/i }).fill('dermatologist');
+    await form.getByTestId('workflow-node-location-picker').click();
+    await form.getByTestId('map-location-search-input').fill('Berlin');
+    await form.getByTestId('map-location-search-result').click();
+    await expect(form.getByTestId('apps-skill-settings-toggle')).toHaveAttribute('aria-expanded', 'false');
+    expect(skillPosts).toBe(0);
+    await form.getByTestId('map-location-select').click();
+    await expect(form.getByTestId('apps-skill-settings-toggle')).toHaveAttribute('aria-expanded', 'false');
+    expect(skillPosts).toBe(0);
+    await expect(form.getByTestId('workflow-node-location-picker')).toContainText('Berlin');
+    await form.getByTestId('apps-skill-settings-toggle').click();
+    await form.getByRole('combobox', { name: /Insurance Sector/i }).selectOption('public');
+    await form.getByTestId('apps-skill-settings-toggle').click();
+    await expect(form.getByTestId('apps-skill-relevance-criteria')).toHaveCount(0);
+    const finalSave = page.waitForResponse((response: any) => response.request().method() === 'POST'
+      && new URL(response.url()).pathname === '/v1/apps/workspace/results'
+      && response.request().postDataJSON()?.embeds?.length === 3);
+    await form.getByTestId('apps-skill-submit').click();
+    const inline = page.getByTestId('apps-inline-results-grid');
+    await expect(inline.getByTestId('embed-preview')).toHaveCount(2, { timeout: 30000 });
+    await expect(inline).toContainText(names[0]);
+    expect(nativeInput?.requests).toHaveLength(1);
+    expect(nativeInput?.requests[0]).toMatchObject({
+      speciality: 'dermatologist', city: 'Berlin', provider_platform: 'both',
+      insurance_sector: 'public', days_ahead: 7, max_doctors: 10, telehealth: false,
+    });
+    const saved = await finalSave;
+    expect(saved.ok()).toBe(true);
+    const body = saved.request().postDataJSON();
+    expect(JSON.stringify(body)).not.toContain(marker);
+    expect(skillPosts).toBe(1);
+    await inline.getByTestId('embed-preview').first().click();
+    const fullscreen = page.getByTestId('apps-result-fullscreen');
+    await expect(fullscreen.locator('.doctor-name')).toHaveText(names[0], { timeout: 30000 });
+    await fullscreen.getByTestId('embed-minimize').click();
+    await page.getByTestId('apps-tab-embeds').click();
+    const rootCard = page.getByTestId(`apps-result-open-${body.root_embed_id}`);
+    await expect(rootCard).toBeVisible({ timeout: 30000 });
+    for (const child of body.embeds.filter((item: any) => item.parent_embed_id === body.root_embed_id)) {
+      await expect(page.getByTestId(`apps-result-open-${child.embed_id}`)).toHaveCount(0);
+    }
+    await rootCard.getByTestId('embed-preview').click();
+    const children = fullscreen.getByTestId('search-template-grid').getByTestId('embed-preview');
+    await expect(children).toHaveCount(2, { timeout: 30000 });
+    await expect(fullscreen).toContainText(names[1]);
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(fullscreen.getByTestId('search-template-grid').getByTestId('embed-preview')).toHaveCount(2, { timeout: 30000 });
+    await expect(fullscreen).toContainText(names[0]);
+    expect(skillPosts).toBe(1);
+  });
+
 });

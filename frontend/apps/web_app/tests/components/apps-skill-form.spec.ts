@@ -284,3 +284,85 @@ test('Music shows its declared track price with the translated unit', async ({ p
   await expect(page.getByTestId('apps-skill-pricing')).toHaveText('120 credits per track');
   await expect(page.getByTestId('apps-skill-providers')).toContainText('Google');
 });
+
+// contract-test: direct surface=gui.web assertions=apps.forms.metadata-driven,apps.execution.direct-shared-contract
+test('Health city picker keeps settings closed and submits native filters only on Run skill', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.addInitScript(() => {
+    (window as typeof window & { __appsPreviewSubmissions?: unknown[] }).__appsPreviewSubmissions = [];
+    window.addEventListener('apps-skill-preview-submit', event => {
+      (window as typeof window & { __appsPreviewSubmissions?: unknown[] }).__appsPreviewSubmissions?.push((event as CustomEvent).detail);
+    });
+  });
+  let berlinSearches = 0;
+  let holdNextSearch = false;
+  let pendingSearchStarted = false;
+  let releaseSearch!: () => void;
+  let finishSearch!: () => void;
+  const searchGate = new Promise<void>(resolve => { releaseSearch = resolve; });
+  const searchFinished = new Promise<void>(resolve => { finishSearch = resolve; });
+  await page.route('**/v1/geocode/search?**', async route => {
+    const query = new URL(route.request().url()).searchParams.get('q');
+    if (query === 'Berlin') berlinSearches += 1;
+    const held = holdNextSearch;
+    if (held) {
+      holdNextSearch = false;
+      pendingSearchStarted = true;
+      await searchGate;
+    }
+    try {
+      return await route.fulfill({ json: query === 'Berlin' ? [{
+        lat: '52.52', lon: '13.405', name: 'Berlin', display_name: 'Berlin, Germany',
+        class: 'place', type: 'city', namedetails: { name: 'Berlin' },
+        address: { city: 'Berlin', country: 'Germany' },
+      }] : [] });
+    } finally {
+      if (held) finishSearch();
+    }
+  });
+  await page.goto(preview(760, 'health'));
+  await waitForComponentPreview(page);
+  const form = page.getByTestId('apps-skill-form');
+  const settingsToggle = form.getByTestId('apps-skill-settings-toggle');
+  const submissions = () => page.evaluate(() => (window as typeof window & { __appsPreviewSubmissions?: unknown[] }).__appsPreviewSubmissions);
+  const expectNoPickerSubmit = async () => {
+    await expect(settingsToggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(form.getByTestId('apps-skill-settings')).toHaveCount(0);
+    expect(await submissions()).toEqual([]);
+  };
+  await form.getByRole('textbox', { name: /Speciality/i }).fill('dermatologist');
+  await form.getByTestId('workflow-node-location-picker').click();
+  await expect(form.getByTestId('workflow-location-map')).toBeVisible();
+  await expectNoPickerSubmit();
+  await form.getByTestId('map-location-search-input').fill('Berlin');
+  await expect(form.getByTestId('map-location-search-result')).toContainText('Berlin');
+  expect(berlinSearches).toBeGreaterThan(0);
+  await expectNoPickerSubmit();
+  holdNextSearch = true;
+  await form.getByTestId('map-location-search-input').press('Enter');
+  await expect.poll(() => pendingSearchStarted).toBe(true);
+  await expect(form.getByTestId('map-location-search-result')).toContainText('Berlin');
+  await expectNoPickerSubmit();
+  await form.getByTestId('map-location-search-result').click();
+  await expect(form.getByTestId('map-location-select')).toBeEnabled();
+  await expectNoPickerSubmit();
+  releaseSearch();
+  await searchFinished;
+  await expect(form.getByTestId('map-location-search-result')).toHaveCount(0);
+  const selectedMap = test.info().outputPath('health-city-selection.png');
+  await form.screenshot({ path: selectedMap, animations: 'disabled' });
+  await test.info().attach('Health selected city', { path: selectedMap, contentType: 'image/png' });
+  await form.getByTestId('map-location-select').click();
+  await expect(form.getByTestId('workflow-node-location-picker')).toContainText('Berlin');
+  await expectNoPickerSubmit();
+
+  await settingsToggle.click();
+  await expect(form.getByTestId('apps-skill-settings')).toBeVisible();
+  await form.getByRole('combobox', { name: /Insurance Sector/i }).selectOption('public');
+  expect(await submissions()).toEqual([]);
+  await form.getByTestId('apps-skill-submit').click();
+  await expect.poll(submissions).toEqual([{ requests: [{
+    speciality: 'dermatologist', city: 'Berlin', provider_platform: 'both',
+    insurance_sector: 'public', days_ahead: 7, max_doctors: 10, telehealth: false,
+  }] }]);
+});
