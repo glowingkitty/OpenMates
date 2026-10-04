@@ -199,11 +199,29 @@ Required fields in **bold**. All others optional.
 | `verified_by_human` | bool | True if a human has reviewed this specific language file end-to-end. |
 | `source_hash` | string \| null | SHA-256 of the canonical `SKILL.md` at the time this localized file was generated. Used by the parity lint to detect stale translations. Always `null` on the canonical file. |
 
-### Reserved for a future session (not yet implemented)
+### Versioned phases
 
 | Field | Type | Purpose |
 |---|---|---|
-| `phases` | list\<object\> | Multi-phase workflow with gates. Each phase: `id`, `title`, `requires`, `completion` list, optional `allowed-skills` override. Reserved — do not populate yet; runtime contract is out of scope for the prototype session. |
+| `phases_version` | integer | Use `1` when defining phases. |
+| `phases` | list\<object\> | Ordered phases with stable `id`, `title`, `instructions` and nonempty `requirements`. Each requirement has `id`, `text` and optional `type: semantic` or `user_confirmation`. |
+
+The Markdown System prompt remains global. Project focus instruction text accepts
+the same YAML frontmatter. Jev evaluates requirements at completed user, tool-batch
+and assistant boundaries. Uncertain decisions retain the phase; user-confirmation
+gates require actual user input. Explicit requests can return to earlier phases.
+The five-question clarification default is instruction text that users may override.
+
+Only the current phase's full instructions and requirements enter the system
+prompt; other phases contribute IDs and titles. Bounded Jev evidence preserves
+assistant advice after search transport metadata and retains the beginning and
+end of long messages. Phase notices remain encrypted system history for UI links
+but are excluded from inference history. Detail pages show phases and requirements;
+active chat chrome stays unchanged.
+
+See [the implementation record](focus-mode-phases-proposal.md) and
+[the executable Plan](../../plans/focus-mode-phases/plan.yml) for verification and
+remaining Apple build evidence.
 
 ---
 
@@ -284,7 +302,7 @@ is auto-flipped to false until a human re-verifies.
 
 ---
 
-## Migration phases
+## Migration history and phased runtime
 
 ### Phase 1 — prototype (this session)
 
@@ -305,11 +323,12 @@ is auto-flipped to false until a human re-verifies.
 - Remove legacy `focus_modes/` and `app_focus_modes/` i18n source files
 - Ship parity lint
 
-### Phase 3 — phased workflows (separate design session)
+### Phase 3 — phased focus runtime
 
-- Design `phases:` runtime contract (`advance_phase`, `mark_requirement` tools, state persistence on chat)
-- Implement one multi-phase focus mode (candidate: `code/setup_infrastructure`)
-- Add UI for phase progress display
+- Versioned YAML definitions and Jev completion gates are implemented; no model-facing phase-switch tool is required.
+- Career insights pilots Understand → Confirm profile → Explore → Next steps.
+- Client-encrypted progress restores independently of linked system history; Redis uses short-lived compare-and-set state.
+- Web and Apple detail/history rendering is implemented. Real CLI/web inference and native runtime evidence are tracked in the Plan.
 
 ---
 

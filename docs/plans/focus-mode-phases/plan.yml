@@ -61,7 +61,7 @@ acceptance_criteria:
   text: Real dev CLI chat advances, restores phase state, honors skipping and batching questions, and
     returns on request.
   required: true
-  status: pending
+  status: satisfied
   coverage_status: covered
   verification_scope: cli
   verification_ids:
@@ -72,7 +72,7 @@ acceptance_criteria:
     real multi-message web conversations honor sequential questions, batching, skipping, confirmation
     and rewind.
   required: true
-  status: pending
+  status: satisfied
   coverage_status: covered
   verification_scope: playwright
   verification_ids:
@@ -104,14 +104,14 @@ tests:
     expected: pass
     evidence:
       status: passed
-      timestamp: '2026-10-04T12:18:01.669838+00:00'
-      command: pytest backend/tests/test_focus_phases.py backend/tests/test_focus_mode_routing.py backend/tests/test_main_processor_invalid_tool_calls.py
-      run_id: session-907d-runtime-fixes
-      subject_commit: 1aedbfdb4a72e8cb946cbe14a2c86870dfd889e7
-      artifact: /tmp/focus-transition-green-2.log
-      summary: 80 passed, including 29 phase cases; six processor integration cases first failed against
-        the previous implementation. Scoped lint and the deployment-required two-file pytest gate also
-        pass. The initial broader deployment suite passed 492 checks before these fixes.
+      timestamp: '2026-10-04T14:59:24.716195+00:00'
+      command: pytest backend/tests/test_focus_phases.py backend/tests/test_focus_phase_history.py backend/tests/test_plan_focus_routing.py
+        backend/tests/test_focus_mode_routing.py backend/tests/test_main_processor_invalid_tool_calls.py
+      run_id: session-907d-current-backend
+      subject_commit: 3d43c3d53c3600752a13e555391a141672f42979
+      artifact: /tmp/focus-live-907d/current-backend-checks.log
+      summary: 95 pass, including 32 phase tests and inference-only history regressions. Transport-prefix
+        evidence cases failed before repair; real Jev replay confirms the corrected gate.
   file: backend/tests/test_focus_phases.py
   command: pytest backend/tests/test_focus_phases.py
 - id: T-PHASE-2
@@ -129,14 +129,18 @@ tests:
     required: true
     expected: pass
     evidence:
-      status: pending
-      timestamp: '2026-10-04T13:57:20.960644+00:00'
+      status: passed
+      timestamp: '2026-10-04T14:59:24.716195+00:00'
       actor: Codex
-      reason: 'Seven-turn real CLI conversation passed clarification batching, skipping, confirmation
-        and research, but retained Explore after direction selection: expanded search data filled the
-        bounded Jev evidence before the assistant advice. Repair and full CLI/web reruns remain required.'
-      subject_commit: 6039c6fa5618c55e0a17441b83aa97395fc7c439
-      artifact: /tmp/focus-live-907d/evidence.json
+      command: python3 /tmp/focus-live-907d/runner.py 3d43c3d53c3600752a13e555391a141672f42979
+      run_id: session-907d-cli-eight-turns
+      subject_commit: 3d43c3d53c3600752a13e555391a141672f42979
+      artifact: /tmp/focus-live-907d/cli-eight-passed-evidence.json
+      summary: Eight real OpenMates CLI inference turns pass sequential clarification, batching, skipping,
+        profile correction without approval, explicit confirmation, researched directions, choice-based
+        advance, backward transition and encrypted restoration. No phase protocol JSON copied into replies.
+      reason: Observed eight real inference turns and the required client state/history checks on the
+        exact deployed runtime revision.
 - id: T-PHASE-3
   type: playwright
   covers:
@@ -152,17 +156,18 @@ tests:
     expected: pass
     evidence:
       status: passed
-      timestamp: '2026-10-04T12:23:36.179680+00:00'
-      command: ci_coordinator.py submit --session 907d --mode component --no-prepared-builds --spec components/focus-phases.spec.ts
-      run_id: '37201694266'
-      subject_commit: 1aedbfdb4a72e8cb946cbe14a2c86870dfd889e7
-      harness_commit: 1aedbfdb4a72e8cb946cbe14a2c86870dfd889e7
+      timestamp: '2026-10-04T15:05:13.417160+00:00'
+      command: ci_coordinator.py submit --session 907d --source 3d43c3d53c3600752a13e555391a141672f42979
+        --mode component --no-prepared-builds --spec components/focus-phases.spec.ts
+      run_id: '37211148109'
+      subject_commit: 3d43c3d53c3600752a13e555391a141672f42979
+      harness_commit: 3d43c3d53c3600752a13e555391a141672f42979
       profile: component
       execution_environment: isolated_github_ci
       artifacts:
-      - https://github.com/glowingkitty/OpenMates/actions/runs/37201694266
-      summary: All three phase notice/detail tests pass on the corrected runtime revision, without skips
-        or flaky results; unchanged appearance previously reviewed at laptop and phone widths.
+      - https://github.com/glowingkitty/OpenMates/actions/runs/37211148109
+      summary: Three phase notice/detail tests pass; zero skips, unexpected failures or flaky results
+        on the current runtime repair source.
   file: frontend/apps/web_app/tests/components/focus-phases.spec.ts
   command: ci_coordinator.py submit --suite playwright
   target: isolated preview
@@ -204,16 +209,22 @@ tests:
     required: true
     expected: pass
     evidence:
-      status: pending
-      timestamp: '2026-10-04T13:57:20.960680+00:00'
+      status: passed
+      timestamp: '2026-10-04T15:06:56.671863+00:00'
       actor: Codex
-      reason: 'Seven-turn real CLI conversation passed clarification batching, skipping, confirmation
-        and research, but retained Explore after direction selection: expanded search data filled the
-        bounded Jev evidence before the assistant advice. Repair and full CLI/web reruns remain required.'
-      subject_commit: 6039c6fa5618c55e0a17441b83aa97395fc7c439
+      command: FOCUS_LIVE_KIND=web python3 /tmp/focus-live-907d/runner.py 3d43c3d53c3600752a13e555391a141672f42979
+      run_id: session-907d-web-eight-turns
+      subject_commit: 3d43c3d53c3600752a13e555391a141672f42979
       artifact: /tmp/focus-live-907d/evidence.json
+      summary: Eight actual browser inference turns pass sequential questions with examples/recommendations,
+        batching, intake skip, corrections without approval, profile confirmation, direction choice and
+        rewind. Four linked phase notices survive reload; clicking a notice opens the four-phase details.
+        Active chat phase details stay hidden. Disposable chats removed. A first browser attempt timed
+        out on its second send; the diagnostic rerun passed without product changes or weaker assertions.
+      reason: Observed eight real inference turns and the required client state/history checks on the
+        exact deployed runtime revision.
 implementation_state:
-  subject_commit: 6039c6fa5618c55e0a17441b83aa97395fc7c439
+  subject_commit: 3d43c3d53c3600752a13e555391a141672f42979
 approvals:
   specification:
     status: approved
@@ -227,8 +238,8 @@ approvals:
 tasks:
 - id: TASK-6202
   title: Phased focus implementation surface
-  status: in_progress
-  phase: working_tasks
+  status: done
+  phase: complete
   covers:
     scenarios:
     - S-1
@@ -248,8 +259,8 @@ tasks:
     shared_files: []
 - id: TASK-4703
   title: Phased focus implementation surface
-  status: in_progress
-  phase: working_tasks
+  status: done
+  phase: complete
   covers:
     scenarios:
     - S-1
@@ -308,13 +319,13 @@ attempts:
     repair is underway.
   recorded_at: '2026-10-04'
 handoff:
-  current_task_id: TASK-6202
-  next_action: Finish and inspect the personal dev account eight-turn CLI and web real inference conversations;
-    then verify Apple on an admitted Mac runner.
-  command: python3 /tmp/focus-live-907d/runner.py 6039c6fa5618c55e0a17441b83aa97395fc7c439
-  expected_outcome: Real inference and native evidence meet all required criteria; Plan remains implementing
+  current_task_id: TASK-7858
+  next_action: Use an admitted Mac build/test runner for Apple compilation and phase detail/history rendering;
+    runtime, CLI and web criteria are satisfied.
+  command: python3 scripts/plan_verify.py docs/plans/focus-mode-phases/plan.yml --phase complete
+  expected_outcome: Only the required native build/rendering criterion remains. Plan stays implementing
     until that evidence exists.
-  last_verified_commit: 6039c6fa5618c55e0a17441b83aa97395fc7c439
+  last_verified_commit: 3d43c3d53c3600752a13e555391a141672f42979
   blocker:
     requires_user_input: true
     task_id: TASK-7858
@@ -322,9 +333,9 @@ handoff:
     requested_input: An admitted Mac build/test runner.
 verification_receipts:
   deployment:
-    commit: 1aedbfdb4a72e8cb946cbe14a2c86870dfd889e7
+    commit: 3d43c3d53c3600752a13e555391a141672f42979
     web_status: success
-    backend_status: All coordinated dev services running and healthy on the corrected revision
+    backend_status: Coordinated API and AI worker healthy on exact real-inference test revision
     nullable_phase_field: verified
   cli_transport:
     run_id: '37197389513'
@@ -349,9 +360,10 @@ verification_receipts:
     - Normal and recovery prompts both refresh for catalog and Project phase transitions.
   phase_component:
     state: success
-    source_commit: 1aedbfdb4a72e8cb946cbe14a2c86870dfd889e7
-    run_id: '37201694266'
-    url: https://github.com/glowingkitty/OpenMates/actions/runs/37201694266
+    source_commit: 3d43c3d53c3600752a13e555391a141672f42979
+    harness_commit: 3d43c3d53c3600752a13e555391a141672f42979
+    run_id: '37211148109'
+    url: https://github.com/glowingkitty/OpenMates/actions/runs/37211148109
     passed: 3
     skipped: 0
     flaky: 0
@@ -390,3 +402,37 @@ verification_receipts:
     assistant_evidence_character_limit: 4000
     summary: Real Jev replay of the expanded persisted history reproduced the gate failure; production
       projection repair preserves advice and advances correctly without lowering decision thresholds.
+  cli_real_inference:
+    status: passed
+    commit: 3d43c3d53c3600752a13e555391a141672f42979
+    turns: 8
+    artifact: /tmp/focus-live-907d/cli-eight-passed-evidence.json
+    phases:
+    - understand
+    - understand
+    - understand
+    - confirm_profile
+    - confirm_profile
+    - explore
+    - next_steps
+    - understand
+    cleanup: Only verifier-owned disposable chats removed.
+  web_real_inference:
+    status: passed
+    commit: 3d43c3d53c3600752a13e555391a141672f42979
+    turns: 8
+    artifact: /tmp/focus-live-907d/evidence.json
+    phases:
+    - understand
+    - understand
+    - understand
+    - confirm_profile
+    - confirm_profile
+    - explore
+    - next_steps
+    - understand
+    linked_history_notices: 4
+    detail_phase_count: 4
+    reload_restoration: true
+    cleanup: Only verifier-owned disposable chats removed.
+    prior_attempt: Second send timed out before inference; diagnostic rerun passed unchanged.

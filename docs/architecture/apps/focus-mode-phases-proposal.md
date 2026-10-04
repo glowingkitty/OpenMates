@@ -51,16 +51,24 @@ Career insights pilots Understand your situation → Confirm your career profile
 Explore career directions → Plan your next steps. The user may skip intake or
 profile confirmation explicitly; the assistant keeps assumptions visible.
 
-Implementation is deployed to dev. The focused backend suite has 80 passing
-checks, including 29 phase cases and six processor transition regressions.
-A further 27 restoration checks and six CLI transport cases pass after real
-personal-account usage exposed missing encrypted fields and competing completion
-claims. Isolated CI also passes three phase component tests and four settings
-browser tests. The real CLI conversation verified sequential questions, batching,
-skipping, profile correction, confirmation and actual web research across seven
-messages. Direction selection exposed an evidence-projection bug: expanded search
-transport data consumed Jev's bounded input before the assistant's career advice.
-That repair and complete CLI/web reruns remain in progress.
-Native build/test execution is unavailable: the remote helper rejects staging,
-build and test operations, and existing workflows have no macOS runner. The Plan
-remains implementing; source inspection does not establish native proof.
+Implementation is deployed to dev. The current focused backend suite passes 95
+checks. A further 27 restoration checks and six CLI transport cases passed after
+real personal-account usage exposed missing encrypted fields and competing
+completion claims. Isolated CI passes three phase component tests on the current
+runtime source and four settings browser tests.
+
+Both CLI and web completed eight real inference turns, testing sequential
+questions, batching, skipping, profile correction without approval, confirmation,
+direction selection and explicit rewind. The CLI also exercised actual web
+research; encrypted progress restored between CLI sends. Web rendered four linked
+phase notices, opened all four phase definitions from the link, and restored the
+notices after reload. Actual usage found and repaired explicit-focus routing,
+cache-warming fields, completion claim contention and search transport data
+starving bounded Jev evidence. Phase history protocol is excluded from inference
+while encrypted display records remain intact. One browser attempt timed out on
+its second send; the diagnostic rerun passed without changes or weaker checks.
+
+Native build/test execution remains unavailable: the configured remote helper
+rejects staging, build and test operations, and existing workflows have no macOS
+runner. Apple source and test changes are present, but native compilation and
+rendering proof are unexecuted. The Plan remains implementing for this criterion.
