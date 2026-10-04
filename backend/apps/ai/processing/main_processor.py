@@ -8624,6 +8624,12 @@ async def handle_main_processing(
                                         request_metadata_with_provider["provider"] = first_response["provider"]
                                     if "providers" in first_response:
                                         request_metadata_with_provider["providers"] = first_response["providers"]
+                                if app_id == "maps" and skill_id == "search":
+                                    # Each request can use a different provider. Preserve maps
+                                    # warnings and coverage on its parent, including zero hits.
+                                    for maps_key in ("provider", "warnings", "filter_summary", "coverage", "search_context"):
+                                        if maps_key in grouped_result:
+                                            request_metadata_with_provider[maps_key] = grouped_result[maps_key]
                                 
                                 # CRITICAL: Ensure query is present for UI rendering, even if request metadata is missing
                                 # Some LLMs omit "query" in requests array; fall back to grouped_result fields if needed.

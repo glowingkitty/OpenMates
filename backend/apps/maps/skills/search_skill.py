@@ -15,6 +15,10 @@ from pydantic import BaseModel, Field
 from celery import Celery  # For Celery type hinting
 
 from backend.apps.base_skill import BaseSkill
+from backend.apps.maps.skills.discovery import (
+    CATEGORIES, DiscoveryArea, DiscoveryCategory, DiscoveryRequest,
+    normalize_discovered_place, resolve_area,
+)
 from backend.shared.providers.google_maps.google_places import search_places
 from backend.shared.providers.geoapify.places import (
     GEOAPIFY_SOURCE_LABEL,
@@ -60,6 +64,8 @@ class MapSearchRequestItem(BaseModel):
         description="Text query string to search for places (e.g. 'restaurants in Berlin', 'museums near Times Square')."
     )
     pageSize: int = Field(default=10, ge=1, le=20, description="Number of results to return per request (max 20).")
+    categories: Optional[List[DiscoveryCategory]] = Field(default=None, min_length=1, max_length=6)
+    area: Optional[DiscoveryArea] = None
     relevance_criteria: Optional[str] = Field(
         default=None,
         max_length=1_000,
@@ -352,6 +358,9 @@ class SearchSkill(BaseSkill):
             filter_summary = metadata.get("filter_summary")
             if filter_summary:
                 group["filter_summary"] = filter_summary
+            for field in ("status", "provider", "search_context", "coverage"):
+                if field in metadata:
+                    group[field] = metadata[field]
             grouped_results.append(group)
 
         request_order = {req.get("id"): i for i, req in enumerate(requests)}
@@ -564,6 +573,8 @@ class SearchSkill(BaseSkill):
             return ["Geoapify OSM enrichment is rate limited; showing available Google Places results."]
         if "unavailable" in statuses:
             return ["Geoapify OSM enrichment is unavailable; showing Google Places results."]
+        if "quota_exhausted" in statuses or "quota_unavailable" in statuses:
+            return ["Geoapify OSM enrichment allowance is unavailable; showing Google Places results."]
         return []
 
     def _enrichment_satisfies_required(
@@ -590,6 +601,76 @@ class SearchSkill(BaseSkill):
             return any(item not in (None, False, "", "unknown", "no") for item in value.values())
         return True
     
+    async def _process_discovery_request(self, req, request_id, secrets_manager, cache_service):
+        metadata = {"provider": "Geoapify", "status": "invalid_request"}
+        try:
+            discovery = DiscoveryRequest.model_validate(req)
+            unsupported = [key for key in ("includedType", "locationBias", "minRating", "priceLevels") if req.get(key) is not None]
+            unsupported += [key for key in ("openNow", "includeReviews") if req.get(key)]
+            if unsupported:
+                raise ValueError("Category discovery does not support: " + ", ".join(unsupported))
+        except ValueError as exc:
+            # Pydantic errors can include supplied values; return only field paths/messages.
+            if hasattr(exc, "errors"):
+                message = "; ".join(f"{'.'.join(map(str, item['loc']))}: {item['msg']}" for item in exc.errors())
+            else:
+                message = str(exc)
+            return request_id, [], message, metadata
+        provider = GeoapifyPlacesProvider(secrets_manager=secrets_manager, cache_service=cache_service, timeout_seconds=5)
+        area = discovery.area
+        center = (area.latitude, area.longitude)
+        if area.name:
+            resolved = await provider.geocode_area(area.name, req.get("languageCode") or "en")
+            if resolved.status != "ok":
+                return request_id, [], resolved.error, {**metadata, "status": resolved.status}
+            center, error = resolve_area(resolved.places)
+            if error:
+                return request_id, [], error, {**metadata, "status": "area_unresolved"}
+        categories = sorted(set(discovery.categories))
+        size = max(1, min(20, int(req.get("pageSize") or 10)))
+        criteria = normalize_relevance_criteria(req.get("relevance_criteria"))
+        required = self._required_amenities_from_filters(req.get("amenityFilters"))
+        if req.get("osmEnrichment") == "required" and not required:
+            required = self._required_amenities_from_query(str(req.get("query") or ""))
+        lat, lon = center
+        response = await provider.search_places(
+            query="", categories=[CATEGORIES[item][0] for item in categories],
+            geo_filter=f"circle:{lon},{lat},{area.radiusMeters}", bias=f"proximity:{lon},{lat}",
+            limit=relevance_candidate_target(size, profile="maps") if criteria else size,
+            conditions=self._geoapify_conditions_for_required(required),
+        )
+        metadata.update(
+            status=response.status,
+            search_context={"categories": categories, "area": {"latitude": lat, "longitude": lon, "radiusMeters": area.radiusMeters}, "cache_hit": response.cache_hit},
+            coverage="OSM coverage varies. Missing amenities, access and opening hours are unknown.",
+        )
+        if response.status != "ok":
+            return request_id, [], response.error, metadata
+        previews = [normalize_discovered_place(item, categories, center) for item in response.places if isinstance(item, dict)]
+        previews = stable_deduplicate_candidates(
+            [item for item in previews if item and item["distance_meters"] <= area.radiusMeters],
+            key=lambda item: item["place_id"],
+        )
+        if required:
+            count = len(previews)
+            previews = [item for item in previews if self._enrichment_satisfies_required(item["osm_enrichment"], required)]
+            metadata["filter_summary"] = {"required": required, "candidate_count": count, "verified_count": len(previews), "status": "verified_results" if previews else "no_verified_results"}
+            if not previews:
+                metadata["warnings"] = ["No OSM-verified matches were found; try relaxing the amenity filter."]
+        if previews:
+            previews = await sanitize_long_text_fields_in_payload(
+                payload=previews, task_id=f"maps_discovery_{request_id}", secrets_manager=secrets_manager,
+                cache_service=cache_service,
+            )
+        if criteria and previews:
+            ranking = await rank_search_candidates(
+                candidates=previews, candidate_projections=previews,
+                relevance_criteria=criteria, search_parameters={"query": req["query"], **metadata["search_context"]},
+                profile="maps", secrets_manager=secrets_manager,
+            )
+            previews = ranking.candidates
+        return request_id, previews[:size], None, metadata
+
     async def _process_single_search_request(
         self,
         req: Dict[str, Any],
@@ -624,6 +705,10 @@ class SearchSkill(BaseSkill):
         search_query = req.get("query")
         if not search_query:
             return (request_id, [], "Missing 'query' parameter")
+        if req.get("categories") is not None:
+            return await self._process_discovery_request(req, request_id, secrets_manager, cache_service)
+        if req.get("area") is not None:
+            return request_id, [], "area requires discovery categories", {"status": "invalid_request"}
         
         # Extract request-specific parameters (with defaults from schema)
         requested_page_size = max(1, min(20, int(req.get("pageSize") or 10)))
@@ -921,7 +1006,8 @@ class SearchSkill(BaseSkill):
         )
         
         # Build response with errors using BaseSkill helper
-        response_provider = (
+        discovery_requests = [req for req in validated_requests if req.get("categories") is not None]
+        response_provider = "Geoapify" if len(discovery_requests) == len(validated_requests) and discovery_requests else (
             GEOAPIFY_COMBINED_PROVIDER_NAME
             if any(self._normalize_osm_enrichment_mode(req.get("osmEnrichment")) != "disabled" for req in validated_requests)
             else "Google Maps"

@@ -11,6 +11,7 @@ from typing import Any
 
 import httpx
 import pytest
+from fakeredis import FakeAsyncRedis
 
 from backend.shared.providers.geoapify.places import (
     GEOAPIFY_API_KEY_ENV_VAR,
@@ -37,6 +38,7 @@ class _FakeSecretsManager:
 
 class _MemoryCache:
     def __init__(self) -> None:
+        self.client = FakeAsyncRedis()
         self.values: dict[str, Any] = {}
         self.set_calls: list[tuple[str, Any, int | None]] = []
 
@@ -57,6 +59,7 @@ def _response(status_code: int, json_body: dict[str, Any]) -> httpx.Response:
     )
 
 
+# contract-test: infrastructure
 async def test_api_key_uses_vault_before_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv(GEOAPIFY_API_KEY_ENV_VAR, "env-key")
     provider = GeoapifyPlacesProvider(
@@ -66,6 +69,7 @@ async def test_api_key_uses_vault_before_environment(monkeypatch: pytest.MonkeyP
     assert await provider.get_api_key() == "vault-key"
 
 
+# contract-test: infrastructure
 async def test_api_key_falls_back_to_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv(GEOAPIFY_API_KEY_ENV_VAR, " env-key ")
     provider = GeoapifyPlacesProvider(secrets_manager=_FakeSecretsManager({}))
@@ -73,6 +77,7 @@ async def test_api_key_falls_back_to_environment(monkeypatch: pytest.MonkeyPatch
     assert await provider.get_api_key() == "env-key"
 
 
+# contract-test: supporting surface=rest_api assertions=maps-search.output.source-and-identity
 def test_place_details_normalization_source_labels_and_unknowns() -> None:
     normalized = normalize_place_details(
         {
@@ -110,6 +115,7 @@ def test_place_details_normalization_source_labels_and_unknowns() -> None:
     assert normalized["fields"]["dogs"]["value"] == "unknown"
 
 
+# contract-test: supporting surface=rest_api assertions=maps-search.compatibility.regular-search
 async def test_supported_conditions_are_forwarded_and_unsupported_are_not() -> None:
     captured_params: list[dict[str, Any]] = []
 
@@ -119,6 +125,7 @@ async def test_supported_conditions_are_forwarded_and_unsupported_are_not() -> N
 
     provider = GeoapifyPlacesProvider(
         secrets_manager=_FakeSecretsManager({(GEOAPIFY_SECRET_PATH, "api_key"): "geo-key"}),
+        cache_service=_MemoryCache(),
         http_get=fake_get,
     )
 
@@ -133,6 +140,7 @@ async def test_supported_conditions_are_forwarded_and_unsupported_are_not() -> N
     assert "air_conditioning" in result.unsupported_conditions
 
 
+# contract-test: supporting surface=rest_api assertions=maps-search.provider.budget-and-cache
 async def test_details_cache_key_excludes_private_context_and_sets_positive_ttl() -> None:
     cache = _MemoryCache()
 
@@ -172,12 +180,14 @@ async def test_details_cache_key_excludes_private_context_and_sets_positive_ttl(
     assert ttl == 30 * 24 * 60 * 60
 
 
+# contract-test: supporting surface=rest_api assertions=maps-search.provider.budget-and-cache
 async def test_provider_errors_return_typed_statuses() -> None:
     async def rate_limited_get(url: str, params: dict[str, Any], timeout: float) -> httpx.Response:
         return _response(429, {"message": "quota exceeded"})
 
     provider = GeoapifyPlacesProvider(
         secrets_manager=_FakeSecretsManager({(GEOAPIFY_SECRET_PATH, "api_key"): "geo-key"}),
+        cache_service=_MemoryCache(),
         http_get=rate_limited_get,
     )
 
@@ -187,6 +197,7 @@ async def test_provider_errors_return_typed_statuses() -> None:
     assert result.error
 
 
+# contract-test: supporting surface=rest_api assertions=maps-search.discovery.bounded-provider-routing
 async def test_missing_api_key_returns_not_configured(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv(GEOAPIFY_API_KEY_ENV_VAR, raising=False)
     provider = GeoapifyPlacesProvider(secrets_manager=_FakeSecretsManager({}))
@@ -195,3 +206,21 @@ async def test_missing_api_key_returns_not_configured(monkeypatch: pytest.Monkey
 
     assert result.status == "not_configured"
     assert result.places == []
+
+
+@pytest.mark.parametrize("payload", [{}, {"features": None}, {"features": {"not": "a list"}}, []])
+# contract-test: supporting surface=rest_api assertions=maps-search.provider.budget-and-cache
+async def test_malformed_success_is_unavailable_and_not_cached(payload):
+    cache = _MemoryCache()
+
+    async def fake_get(*args):
+        return _response(200, payload)
+
+    provider = GeoapifyPlacesProvider(
+        secrets_manager=_FakeSecretsManager({(GEOAPIFY_SECRET_PATH, "api_key"): "geo-key"}),
+        cache_service=cache, http_get=fake_get,
+    )
+    assert (await provider.search_places(query="", categories=["amenity.toilet"])).status == "unavailable"
+    assert (await provider.geocode_area("Berlin, Germany")).status == "unavailable"
+    assert (await provider.get_place_details(place_id="bad-place")).status == "unavailable"
+    assert cache.set_calls == []

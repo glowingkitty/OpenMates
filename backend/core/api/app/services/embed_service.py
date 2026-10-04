@@ -6744,6 +6744,10 @@ class EmbedService:
                     for key in ["country", "search_lang", "safesearch", "start_date", "end_date", "time_range", "location"]:
                         if key in safe_request_metadata:
                             parent_content[key] = safe_request_metadata[key]
+                    if app_id == "maps" and skill_id == "search":
+                        for key in ("warnings", "filter_summary", "coverage", "search_context"):
+                            if key in safe_request_metadata:
+                                parent_content[key] = safe_request_metadata[key]
                 if hosting_graph:
                     parent_content.update(EmbedService._hosting_parent_metadata(
                         hosting_group, embed_results, child_embed_ids, safe_request_metadata,

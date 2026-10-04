@@ -41,6 +41,28 @@ The Maps app searches for places around the world and returns detailed informati
 - Search by type: "Show me pharmacies near Times Square that are open now"
 - Compare options: "Find coffee shops and coworking spaces in Amsterdam"
 - Get specific details: "Search for museums in Paris"
+- Discover ruins: "Find ruins within 10 km of Potsdam, Germany"
+- Find outdoor places: "Show viewpoints and picnic sites within 5 km of Dresden"
+- Find facilities: "Find drinking water or toilets near Berlin Mitte"
+- Find campsites: "Show campsites within 20 km of Freiburg, Germany"
+
+These six discovery categories use OpenStreetMap via the existing Geoapify connection.
+Give a city or region and country, or coordinates. The default radius is 10 km and
+the maximum is 50 km. Combined categories match any of the selected types.
+An ambiguous area needs a more specific name or coordinates. This searches mapped
+ruins; it does not find every abandoned building or establish permission to enter.
+Ratings, current opening hours and other unmapped facts remain unknown.
+
+For a direct CLI search:
+
+```sh
+openmates apps maps search --input '{"requests":[{"query":"Ruins near Potsdam","categories":["ruins"],"area":{"name":"Potsdam, Germany","radiusMeters":10000},"pageSize":10}]}'
+```
+
+Discovery does not support the ordinary Google search rating, open-now, price or
+review filters. Searches and area lookups are cached; when the shared Geoapify
+allowance is unavailable, the search returns an explicit error. This uses the
+existing provider account and keeps the existing OpenMates credit pricing.
 
 ## Screenshots
 

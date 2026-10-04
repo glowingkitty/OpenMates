@@ -1,0 +1,32 @@
+id: maps-geoapify-discovery
+title: Geoapify map discovery
+status: implementing
+goal: >
+  Ok great plan. Implement and test, first via OpenMates cli, then web app
+  (see if the embed previews also render correctly), and once web app is
+  completed then also ensure apple app also matches web app version.
+approved_by_user: true
+approvals:
+  specification:
+    status: approved
+    basis: User approved the discussed categories, area, existing-provider, caching and quota design on 2026-10-04.
+  plan:
+    status: approved
+    basis: User explicitly requested implementation and CLI then web then Apple verification; a Mac agent handoff is permitted.
+scope:
+  in:
+    - Extend maps.search with ruins, viewpoints, drinking water, toilets, picnic sites and campsites using Geoapify categories and a bounded geographic area.
+    - Preserve regular Google search and grouped place embeds; disclose sources and missing data.
+    - Cache geocodes and category results; share an atomic daily credit and request-rate guard across Geoapify wrapper calls.
+    - Verify CLI responses, web parent/child previews, markers, links and empty/error states; then audit Apple and prepare a concrete Mac handoff if native verification is unavailable.
+  out:
+    - New subscriptions, servers, arbitrary OSM tags, abandoned lifecycle queries or nearby joins.
+    - Changing existing OpenMates credit pricing or promising unverified provider-account headroom.
+verification_order:
+  - Focused backend checks and isolated CI contract checks.
+  - Scoped dev deployment and disposable OpenMates CLI direct searches and AI-triggered discovery.
+  - Web component and chat checks with regular and Geoapify search results, screenshots when behavior is uncertain.
+  - Apple source parity audit and native verification or documented Mac agent instructions.
+task: TASK-4743
+specification: feature.app-skill.maps-search@1
+evidence: []

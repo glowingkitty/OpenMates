@@ -6,7 +6,7 @@
 
 provider_id: "geoapify"
 name: "Geoapify"
-description: "OpenStreetMap-backed Places and Place Details API for bounded Maps amenity enrichment."
+description: "OpenStreetMap-backed category discovery, geocoding and place amenities for Maps."
 logo_svg: "icons/maps.svg"
 region: "EU"
 privacy_policy: "https://www.geoapify.com/privacy-policy/" # verified 2026-07-30
@@ -31,6 +31,14 @@ rate_limits:
   free:
     credits_per_day: 3000
     places_limit_per_credit: 20
+    requests_per_second: 5
+  # Enforced atomically by the provider wrapper across maps and travel workers.
+  # External use of the same account is outside this counter; keep headroom.
+  shared_guard:
+    default_daily_credit_limit: 2500
+    hard_daily_credit_limit: 3000
+    configuration_env: GEOAPIFY_DAILY_CREDIT_LIMIT
+    cache_unavailable: fail_closed
   default_enrichment:
     places_requests_per_search_group: 1
     strict_place_details_per_search_group: 5
@@ -40,5 +48,7 @@ pricing:
   per_request_credits: 1
 
 cache:
+  places_ttl_hours: 24
+  geocode_ttl_days: 30
   positive_detail_ttl_days: 30
   no_match_ttl_days: 7

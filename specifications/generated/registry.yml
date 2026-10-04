@@ -231,6 +231,18 @@ specifications:
     - sdks.pip
     - gui.web
     - gui.apple
+  feature.app-skill.maps-search:
+    version: 1
+    status: draft
+    path: features/app-skills/maps-search
+    fingerprint: 0c67ae087d53f74ec33dced03ffb2e03bb68e4e1747ce28503ed601cbdc22399
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   feature.app-skill.news-search:
     version: 1
     status: draft
@@ -3356,6 +3368,66 @@ assertions:
     type: parity
     fingerprint: da5838f614da07fd1f9f07d2a710bdb2e0fafc6583877c62e9a6ee5f9484094d
     required_applies_to:
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  maps-search.discovery.bounded-provider-routing:
+    specification: feature.app-skill.maps-search@1
+    specification_id: feature.app-skill.maps-search
+    type: behavior
+    fingerprint: 2c3e473761be75def1b8e930e2d8210e23e5f2bd84fd948d5a788a71ec2058ce
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  maps-search.output.source-and-identity:
+    specification: feature.app-skill.maps-search@1
+    specification_id: feature.app-skill.maps-search
+    type: invariant
+    fingerprint: 99cd336721b179f066c584f102780d826271ea00b55e0343bdbb728da4ab727b
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  maps-search.provider.budget-and-cache:
+    specification: feature.app-skill.maps-search@1
+    specification_id: feature.app-skill.maps-search
+    type: behavior
+    fingerprint: bfbe3488a68b1e3729551939eb0328f1e9feded7e62cd9a0808edbaea5ff01e1
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  maps-search.compatibility.regular-search:
+    specification: feature.app-skill.maps-search@1
+    specification_id: feature.app-skill.maps-search
+    type: invariant
+    fingerprint: 1ab03a79ffe3040a9e3e6f089aaae9f92e46112124cbcaca64f87b7f756c980d
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  maps-search.gui.place-rendering:
+    specification: feature.app-skill.maps-search@1
+    specification_id: feature.app-skill.maps-search
+    type: parity
+    fingerprint: 57f7ec952b77ad9aa7baf3216560038148d7054920bc770adefaa93313b94dc0
+    required_applies_to:
+    - rest_api
     - cli
     - sdks.npm
     - sdks.pip

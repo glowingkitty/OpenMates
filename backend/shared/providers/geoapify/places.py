@@ -10,12 +10,15 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import logging
 import os
 from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable, Optional
 
 import httpx
+
+from backend.shared.providers.geoapify.budget import reserve_credit
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +28,7 @@ GEOAPIFY_API_KEY_ENV_VAR = "SECRET__GEOAPIFY__API_KEY"
 
 GEOAPIFY_PLACES_URL = "https://api.geoapify.com/v2/places"
 GEOAPIFY_PLACE_DETAILS_URL = "https://api.geoapify.com/v2/place-details"
+GEOAPIFY_GEOCODE_URL = "https://api.geoapify.com/v1/geocode/search"
 GEOAPIFY_SOURCE_LABEL = "OpenStreetMap via Geoapify"
 
 DEFAULT_TIMEOUT_SECONDS = 1.2
@@ -32,6 +36,8 @@ MAX_PLACES_LIMIT = 20
 DETAIL_POSITIVE_TTL_SECONDS = 30 * 24 * 60 * 60
 DETAIL_NO_MATCH_TTL_SECONDS = 7 * 24 * 60 * 60
 DETAIL_CACHE_VERSION = "v1"
+SEARCH_TTL_SECONDS = 24 * 60 * 60
+GEOCODE_TTL_SECONDS = 30 * 24 * 60 * 60
 
 SUPPORTED_PLACES_CONDITIONS = {
     "internet_access.free",
@@ -50,6 +56,7 @@ class GeoapifyPlacesSearchResult:
     places: list[dict[str, Any]] = field(default_factory=list)
     error: Optional[str] = None
     unsupported_conditions: list[str] = field(default_factory=list)
+    cache_hit: bool = False
 
 
 @dataclass(slots=True)
@@ -118,7 +125,7 @@ class GeoapifyPlacesProvider:
             "apiKey": api_key,
             "limit": max(1, min(int(limit or MAX_PLACES_LIMIT), MAX_PLACES_LIMIT)),
         }
-        if query:
+        if query and not categories:
             params["text"] = query
         if categories:
             params["categories"] = ",".join(categories)
@@ -129,6 +136,17 @@ class GeoapifyPlacesProvider:
         if supported_conditions:
             params["conditions"] = ",".join(supported_conditions)
 
+        cache_key = _request_cache_key("places", params)
+        cached = await self._cache_get(cache_key)
+        if isinstance(cached, dict) and isinstance(cached.get("features"), list):
+            return GeoapifyPlacesSearchResult(
+                status="ok", places=cached["features"],
+                unsupported_conditions=unsupported_conditions, cache_hit=True,
+            )
+        budget_status = await reserve_credit(self.cache_service, api_key)
+        if budget_status != "ok":
+            return GeoapifyPlacesSearchResult(status=budget_status, error=_budget_error(budget_status))
+
         try:
             response = await self._http_get(GEOAPIFY_PLACES_URL, params, self.timeout_seconds)
         except httpx.TimeoutException:
@@ -137,10 +155,10 @@ class GeoapifyPlacesProvider:
                 error="Geoapify Places request timed out",
                 unsupported_conditions=unsupported_conditions,
             )
-        except httpx.RequestError as exc:
+        except httpx.RequestError:
             return GeoapifyPlacesSearchResult(
                 status="unavailable",
-                error=f"Geoapify Places request failed: {exc}",
+                error="Geoapify Places request failed",
                 unsupported_conditions=unsupported_conditions,
             )
 
@@ -157,14 +175,51 @@ class GeoapifyPlacesProvider:
                 unsupported_conditions=unsupported_conditions,
             )
 
-        payload = response.json()
+        try:
+            payload = response.json()
+        except ValueError:
+            return GeoapifyPlacesSearchResult(status="unavailable", error="Invalid Geoapify response")
         features = payload.get("features") if isinstance(payload, dict) else None
-        places = features if isinstance(features, list) else []
+        if not isinstance(features, list):
+            return GeoapifyPlacesSearchResult(status="unavailable", error="Invalid Geoapify response")
+        places = features
+        await self._cache_set(cache_key, {"features": places}, SEARCH_TTL_SECONDS)
         return GeoapifyPlacesSearchResult(
             status="ok",
             places=places,
             unsupported_conditions=unsupported_conditions,
         )
+
+    async def geocode_area(self, name: str, language: str = "en") -> GeoapifyPlacesSearchResult:
+        """Resolve a named area; return two candidates so callers can reject ambiguity."""
+        api_key = await self.get_api_key()
+        if not api_key:
+            return GeoapifyPlacesSearchResult(status="not_configured", error="Geoapify API key is not configured")
+        params = {"apiKey": api_key, "text": name.strip(), "lang": language, "limit": 2, "type": "locality"}
+        key = _request_cache_key("geocode", params)
+        cached = await self._cache_get(key)
+        if isinstance(cached, dict) and isinstance(cached.get("features"), list):
+            return GeoapifyPlacesSearchResult(status="ok", places=cached["features"], cache_hit=True)
+        status = await reserve_credit(self.cache_service, api_key)
+        if status != "ok":
+            return GeoapifyPlacesSearchResult(status=status, error=_budget_error(status))
+        try:
+            response = await self._http_get(GEOAPIFY_GEOCODE_URL, params, self.timeout_seconds)
+            if response.status_code >= 400:
+                return GeoapifyPlacesSearchResult(
+                    status="rate_limited" if response.status_code == 429 else "unavailable",
+                    error=_safe_response_error(response),
+                )
+            payload = response.json()
+            places = payload.get("features") if isinstance(payload, dict) else None
+            if not isinstance(places, list):
+                raise ValueError("Invalid features")
+            await self._cache_set(key, {"features": places}, GEOCODE_TTL_SECONDS if places else 3600)
+            return GeoapifyPlacesSearchResult(status="ok", places=places)
+        except httpx.TimeoutException:
+            return GeoapifyPlacesSearchResult(status="timed_out", error="Geoapify area lookup timed out")
+        except (httpx.RequestError, ValueError, AttributeError):
+            return GeoapifyPlacesSearchResult(status="unavailable", error="Geoapify area lookup failed")
 
     async def get_place_details(
         self,
@@ -194,6 +249,12 @@ class GeoapifyPlacesProvider:
             )
 
         params = {"apiKey": api_key, "id": place_id, "features": "details"}
+        budget_status = await reserve_credit(self.cache_service, api_key)
+        if budget_status != "ok":
+            return GeoapifyPlaceDetailsResult(
+                status=budget_status, enrichment=build_status_enrichment(budget_status),
+                error=_budget_error(budget_status),
+            )
         try:
             response = await self._http_get(GEOAPIFY_PLACE_DETAILS_URL, params, self.timeout_seconds)
         except httpx.TimeoutException:
@@ -203,12 +264,12 @@ class GeoapifyPlacesProvider:
                 enrichment=enrichment,
                 error="Geoapify Place Details request timed out",
             )
-        except httpx.RequestError as exc:
+        except httpx.RequestError:
             enrichment = build_status_enrichment("unavailable")
             return GeoapifyPlaceDetailsResult(
                 status="unavailable",
                 enrichment=enrichment,
-                error=f"Geoapify Place Details request failed: {exc}",
+                error="Geoapify Place Details request failed",
             )
 
         if response.status_code == 429:
@@ -226,12 +287,19 @@ class GeoapifyPlacesProvider:
                 error=_safe_response_error(response),
             )
 
-        payload = response.json()
+        try:
+            payload = response.json()
+        except ValueError:
+            return GeoapifyPlaceDetailsResult(status="unavailable", enrichment=build_status_enrichment("unavailable"), error="Invalid Geoapify response")
         features = payload.get("features") if isinstance(payload, dict) else None
-        if not isinstance(features, list) or not features:
+        if not isinstance(features, list):
+            return GeoapifyPlaceDetailsResult(status="unavailable", enrichment=build_status_enrichment("unavailable"), error="Invalid Geoapify response")
+        if not features:
             enrichment = build_status_enrichment("no_match")
             await self._cache_set(cache_key, enrichment, DETAIL_NO_MATCH_TTL_SECONDS)
             return GeoapifyPlaceDetailsResult(status="no_match", enrichment=enrichment)
+        if not isinstance(features[0], dict):
+            return GeoapifyPlaceDetailsResult(status="unavailable", enrichment=build_status_enrichment("unavailable"), error="Invalid Geoapify response")
 
         enrichment = normalize_place_details(features[0])
         enrichment.setdefault("match", {})["cache_hit"] = False
@@ -346,15 +414,21 @@ def _details_cache_key(place_id: str) -> str:
 
 
 def _safe_response_error(response: httpx.Response) -> str:
-    try:
-        payload = response.json()
-        if isinstance(payload, dict):
-            message = payload.get("message") or payload.get("error")
-            if isinstance(message, str):
-                return f"Geoapify API error {response.status_code}: {message}"
-    except Exception:
-        pass
     return f"Geoapify API error {response.status_code}"
+
+
+def _request_cache_key(endpoint: str, params: dict[str, Any]) -> str:
+    # Hash all request parameters, including the key, without exposing them to Redis.
+    digest = hashlib.sha256(json.dumps(params, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    return f"geoapify:{endpoint}:v1:{digest}"
+
+
+def _budget_error(status: str) -> str:
+    return {
+        "quota_exhausted": "Geoapify daily search allowance is exhausted. Try again tomorrow.",
+        "quota_unavailable": "Geoapify quota checking is temporarily unavailable. Try again later.",
+        "rate_limited": "Geoapify is receiving too many requests. Try again shortly.",
+    }.get(status, "Geoapify search is temporarily unavailable")
 
 
 def _first_feature(payload: dict[str, Any]) -> dict[str, Any]:

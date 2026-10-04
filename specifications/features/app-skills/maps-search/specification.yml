@@ -1,0 +1,51 @@
+schema_version: 1
+id: feature.app-skill.maps-search
+version: 1
+status: draft
+title: Maps search and category discovery
+summary: Maps search keeps ordinary Google place searches and adds bounded, source-labelled Geoapify category discovery using the existing connection.
+inherits: [architecture.app-skill-execution@1]
+scope:
+  includes:
+    - Existing maps.search requests and direct category discovery for ruins, viewpoints, drinking water, toilets, picnic sites and campsites.
+    - Coordinate or named-area circles, grouped place results, cached provider requests, quota errors and first-party embed rendering.
+  excludes:
+    - Arbitrary abandoned or lifecycle tags, raw OSM querying, public Overpass, new providers and nearby joins.
+assertions:
+  - id: maps-search.discovery.bounded-provider-routing
+    type: behavior
+    must: A request with supported categories and an explicit bounded area searches Geoapify directly without calling Google; invalid categories, missing or ambiguous areas and unsupported Google-only filters return explicit errors without silently falling back.
+    depends_on: [examples.discovery, examples.invalid]
+  - id: maps-search.output.source-and-identity
+    type: invariant
+    must: Every discovered place has finite coordinates, a stable provider-prefixed identity, a readable name or explicitly derived label, category, distance and OpenStreetMap via Geoapify attribution; absent ratings, hours and amenities remain absent or unknown, and Geoapify identifiers are never used as Google place IDs.
+    depends_on: [examples.discovery]
+  - id: maps-search.provider.budget-and-cache
+    type: behavior
+    must: Cached searches and geocodes avoid provider calls; uncached Places, Geocoding and Place Details calls reserve shared credits atomically and enforce the free-plan request rate, returning explicit statuses when quota or its guard is unavailable rather than sending unaccounted requests.
+    depends_on: [examples.limits]
+  - id: maps-search.compatibility.regular-search
+    type: invariant
+    must: Requests without categories preserve ordinary Google place search, relevance ranking, grouped result IDs and enrichment semantics.
+    depends_on: [examples.regular]
+  - id: maps-search.gui.place-rendering
+    type: parity
+    must: Web and Apple search previews and place cards use the same provider, source, category and coordinate semantics; results render as cards and map markers, empty and quota states stay readable, and place links resolve using the correct provider or coordinates.
+    depends_on: [examples.discovery, examples.limits, examples.regular]
+applies_to:
+  rest_api: {required: true}
+  cli: {required: true}
+  sdks:
+    required: true
+    implementations:
+      npm: {required: true}
+      pip: {required: true}
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web: {required: true}
+      apple: {required: true}
+examples:
+  file: examples.yml
+  required_groups: [discovery, invalid, limits, regular]
