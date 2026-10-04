@@ -222,6 +222,7 @@
         "components/header-mobile-layout-preview.spec.ts",
         "components/embed-version-timeline.spec.ts",
         "components/shared-auxiliary-load-button.spec.ts",
+        "components/read-only-message-parsed-doc.spec.ts",
         "components/apps-skill-form.spec.ts",
         "app-load-no-error-logs.spec.ts",
         "apple-chat-history-contracts.spec.ts",

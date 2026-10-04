@@ -69,6 +69,10 @@ def test_component_marker_selects_lightweight_github_runtime():
 
     assert execution_mode("components/example.spec.ts", COMPONENT_MARKER) == "component"
     assert execution_mode("components/example.spec.ts", "// no marker") == "e2e"
+    allowed, held = partition(["components/read-only-message-parsed-doc.spec.ts"])
+    assert allowed == ["components/read-only-message-parsed-doc.spec.ts"]
+    assert held == {}
+    assert execution_mode(allowed[0], COMPONENT_MARKER) == "component"
 
 
 def test_all_existing_holds_have_concrete_dependency_and_next_action():
