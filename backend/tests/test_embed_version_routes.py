@@ -388,6 +388,19 @@ async def test_legacy_long_chain_remains_pending_without_client_snapshot():
             capability="bounded-v1",
         )
     assert exc_info.value.status_code == 409
+    # A sealed output can exist before its canonical version row. Absence is
+    # retryable by persisting that output; it must not demand a new snapshot.
+    for target, rows in ((102, directus.rows), (1, []), (2, directus.rows[:1])):
+        original_rows = directus.rows
+        directus.rows = rows
+        with pytest.raises(HTTPException) as missing:
+            await get_embed_version(
+                embed_id="embed-1", version_number=target, request=SimpleNamespace(),
+                current_user=SimpleNamespace(id=OWNER_ID), directus_service=directus,
+                capability="bounded-v1",
+            )
+        assert missing.value.status_code == 404
+        directus.rows = original_rows
     legacy = await get_embed_version(
         embed_id="embed-1", version_number=101, request=SimpleNamespace(),
         current_user=SimpleNamespace(id=OWNER_ID), directus_service=directus,
@@ -549,7 +562,7 @@ async def test_team_embed_window_rechecks_membership_and_exact_chat_scope():
         async def require_team_role(self, team_id, user_id, roles):
             visited.append((team_id, user_id))
             if team_id != "team-1":
-                raise embeds_api.TeamPermissionError("denied")
+                raise team_methods_stub.TeamPermissionError("denied")
 
     class Chat:
         async def get_chat_metadata(self, chat_id, admin_required=False):
@@ -610,30 +623,22 @@ async def test_embed_key_continuation_rechecks_chat_membership_and_exact_embed_s
 
 # contract-test: direct surface=rest_api assertions=storage.cold.discoverable-bounded,storage.cold.shared-team-authorized
 @pytest.mark.asyncio
-async def test_oversized_embed_exact_read_requires_checked_chat_and_returns_scoped_key_page(monkeypatch):
+async def test_oversized_embed_exact_read_requires_checked_chat_and_returns_scoped_key_page():
+    class Chat:
+        async def check_chat_ownership(self, chat_id, user_id):
+            return chat_id == "chat-1" and user_id == OWNER_ID
+
     class Embed:
         async def get_sync_embed_by_id(self, embed_id):
             return {"embed_id": embed_id, "hashed_chat_id": hashlib.sha256(b"chat-1").hexdigest(),
-                    "hashed_user_id": OWNER_HASH,
                     "encrypted_content": "opaque-large-ciphertext"} if embed_id == "embed-1" else None
 
-        async def get_sync_embed_key_window_for_page(self, chat_hash, owner_hash, hashes, **kwargs):
+        async def get_sync_embed_key_window_for_page(self, chat_hash, owner_hash, hashes):
             assert hashes == [hashlib.sha256(b"embed-1").hexdigest()]
             return {"embed_keys": [{"encrypted_embed_key": "wrapped"}],
                     "has_more_after": False, "end_cursor": "key-1", "oversized_key_id": None}
 
-    async def scope(chat_id, *_args, **_kwargs):
-        if chat_id != "chat-1":
-            raise HTTPException(status_code=404, detail="Chat not found")
-        return hashlib.sha256(b"chat-1").hexdigest(), OWNER_HASH, False, True
-
-    async def availability(ids, *_args, **_kwargs):
-        return [{"embed_id": value, "state": "ready" if value == "embed-1" else "missing"}
-                for value in ids]
-
-    monkeypatch.setattr(embeds_api, "_reference_target_scope", scope)
-    monkeypatch.setattr(embeds_api, "_reference_availability", availability)
-    directus = SimpleNamespace(embed=Embed())
+    directus = SimpleNamespace(chat=Chat(), embed=Embed())
     response = await get_chat_embed_by_id(
         chat_id="chat-1", embed_id="embed-1", request=SimpleNamespace(),
         current_user=SimpleNamespace(id=OWNER_ID), directus_service=directus,
@@ -758,254 +763,3 @@ async def test_revision_receipt_reconciles_exact_scope_without_returning_payload
     assert authorization_calls[0]["consume_approval"] is False
     assert "payload_digest" not in result
     assert "proposal_digest" not in result
-
-
-PERSONAL_CHAT = "11111111-1111-4111-8111-111111111111"
-SOURCE_CHAT = "22222222-2222-4222-8222-222222222222"
-TEAM_CHAT = "33333333-3333-4333-8333-333333333333"
-NEW_TEAM_CHAT = "44444444-4444-4444-8444-444444444444"
-NEW_PERSONAL_CHAT = "99999999-9999-4999-8999-999999999999"
-FOREIGN_CHAT = "55555555-5555-4555-8555-555555555555"
-
-
-class ReferenceDirectus:
-    def __init__(self):
-        self.fail_collection = None
-        self.team_role = "member"
-        self.chats = {
-            PERSONAL_CHAT: {"id": PERSONAL_CHAT, "hashed_user_id": OWNER_HASH,
-                            "hashed_team_id": None, "storage_state": "hot"},
-            TEAM_CHAT: {"id": TEAM_CHAT, "hashed_user_id": OWNER_HASH,
-                        "hashed_team_id": hashlib.sha256(b"team-1").hexdigest(),
-                        "storage_state": "hot"},
-            FOREIGN_CHAT: {"id": FOREIGN_CHAT,
-                           "hashed_user_id": hashlib.sha256(b"foreign-user").hexdigest(),
-                           "hashed_team_id": None, "storage_state": "hot"},
-        }
-        self.heads = {
-            "owned-1": self._head("owned-1", OWNER_HASH),
-            "owned-no-key": self._head("owned-no-key", OWNER_HASH),
-            "foreign-1": self._head("foreign-1", hashlib.sha256(b"foreign-user").hexdigest()),
-        }
-        self.keys = [
-            {"hashed_embed_id": hashlib.sha256(b"owned-1").hexdigest(),
-             "hashed_user_id": OWNER_HASH, "hashed_chat_id": None,
-             "key_type": "master", "encrypted_embed_key": "owner-master-wrap"},
-            {"hashed_embed_id": hashlib.sha256(b"foreign-1").hexdigest(),
-             "hashed_user_id": hashlib.sha256(b"foreign-user").hexdigest(),
-             "hashed_chat_id": hashlib.sha256(TEAM_CHAT.encode()).hexdigest(),
-             "key_type": "chat", "encrypted_embed_key": "team-chat-wrap"},
-        ]
-        self.team = SimpleNamespace(require_team_role=self.require_team_role)
-        self.chat = SimpleNamespace(
-            check_chat_ownership=self.check_chat_ownership,
-            get_chat_metadata=self.get_chat_metadata,
-        )
-        self.embed = SimpleNamespace(
-            get_sync_embed_by_id=self.get_sync_embed_by_id,
-            get_sync_embed_key_window_for_page=self.get_sync_embed_key_window_for_page,
-            validate_embed_ids_in_chat=self.validate_embed_ids_in_chat,
-        )
-
-    @staticmethod
-    def _head(embed_id, owner):
-        return {"embed_id": embed_id,
-                "hashed_embed_id": hashlib.sha256(embed_id.encode()).hexdigest(),
-                "hashed_user_id": owner,
-                "hashed_chat_id": hashlib.sha256(SOURCE_CHAT.encode()).hexdigest(),
-                "encrypted_type": "type-cipher", "encrypted_content": "content-cipher",
-                "status": "finished"}
-
-    async def require_team_role(self, team_id, user_id, roles):
-        if team_id != "team-1" or user_id != OWNER_ID or self.team_role not in roles:
-            raise embeds_api.TeamPermissionError("denied")
-        return {"role": self.team_role}
-
-    async def check_chat_ownership(self, chat_id, user_id):
-        return chat_id == PERSONAL_CHAT and user_id == OWNER_ID
-
-    async def get_chat_metadata(self, chat_id, admin_required=False):
-        return self.chats.get(chat_id)
-
-    async def validate_embed_ids_in_chat(self, _chat_hash, _embed_ids):
-        raise ValueError("Cross-chat source")
-
-    async def get_items(self, collection, params, *, no_cache, admin_required, raise_on_error):
-        assert no_cache and admin_required and raise_on_error
-        if collection == self.fail_collection:
-            raise RuntimeError("Directus unavailable")
-        if collection == "chats":
-            row = self.chats.get(params["filter"]["id"]["_eq"])
-            rows = [row] if row else []
-        elif collection == "embeds":
-            ids = params["filter"]["embed_id"]["_in"]
-            rows = [self.heads[value] for value in ids if value in self.heads]
-            if "encrypted_content" in params["filter"]:
-                rows = [row for row in rows if row.get("encrypted_content")
-                        and row.get("encrypted_type") and row.get("status") == "finished"]
-        elif collection == "embed_keys":
-            key_filter = params["filter"]
-            hashes = set(key_filter["hashed_embed_id"]["_in"])
-            rows = [key for key in self.keys if key["hashed_embed_id"] in hashes
-                    and key["encrypted_embed_key"]]
-            if "_or" in key_filter:
-                chat_hash = key_filter["_or"][0]["hashed_chat_id"]["_eq"]
-                actor_hash = key_filter["_or"][1]["hashed_user_id"]["_eq"]
-                rows = [key for key in rows if
-                        (key["key_type"] == "chat" and key["hashed_chat_id"] == chat_hash
-                         and key["hashed_user_id"] == actor_hash)
-                        or (key["key_type"] == "master" and key["hashed_user_id"] == actor_hash)]
-            else:
-                chat_hash = key_filter["hashed_chat_id"]["_eq"]
-                rows = [key for key in rows if key["key_type"] == "chat"
-                        and key["hashed_chat_id"] == chat_hash]
-        else:
-            raise AssertionError(collection)
-        fields = params["fields"].split(",")
-        assert "encrypted_content" not in fields and "encrypted_embed_key" not in fields
-        return [{field: row.get(field) for field in fields} for row in rows[:params["limit"]]]
-
-    async def get_sync_embed_by_id(self, embed_id):
-        return self.heads.get(embed_id)
-
-    async def get_sync_embed_key_window_for_page(self, chat_hash, owner_hash, hashes,
-                                                 include_master_keys=True, **_kwargs):
-        selected = [key for key in self.keys if key["hashed_embed_id"] in hashes
-                    and ((key["key_type"] == "chat" and key["hashed_chat_id"] == chat_hash)
-                         or (include_master_keys and key["key_type"] == "master"
-                             and key["hashed_user_id"] == owner_hash))]
-        return {"embed_keys": selected, "has_more_after": False,
-                "end_cursor": None, "oversized_key_id": None}
-
-
-reference_probe = getattr(embeds_api.get_embed_reference_availability, "__wrapped__",
-                          embeds_api.get_embed_reference_availability)
-
-
-# contract-test: direct surface=rest_api assertions=storage.cold.discoverable-bounded,storage.cold.shared-team-authorized
-@pytest.mark.asyncio
-async def test_reference_probe_personal_cross_chat_master_and_foreign_masking():
-    directus = ReferenceDirectus()
-    result = await reference_probe(
-        chat_id=PERSONAL_CHAT, request=SimpleNamespace(),
-        payload={"embed_ids": ["owned-1", "foreign-1", "owned-no-key", "absent"]},
-        current_user=SimpleNamespace(id=OWNER_ID), directus_service=directus,
-    )
-    assert result == {"results": [
-        {"embed_id": "owned-1", "state": "ready"},
-        {"embed_id": "foreign-1", "state": "missing"},
-        {"embed_id": "owned-no-key", "state": "unusable"},
-        {"embed_id": "absent", "state": "missing"},
-    ]}
-    assert "cipher" not in json.dumps(result)
-    new_chat = await reference_probe(
-        chat_id=NEW_PERSONAL_CHAT, request=SimpleNamespace(),
-        payload={"embed_ids": ["owned-1"]}, current_user=SimpleNamespace(id=OWNER_ID),
-        directus_service=directus,
-    )
-    assert new_chat["results"][0]["state"] == "ready"
-    with pytest.raises(HTTPException) as foreign:
-        await reference_probe(chat_id=FOREIGN_CHAT, request=SimpleNamespace(),
-            payload={"embed_ids": ["owned-1"]}, current_user=SimpleNamespace(id=OWNER_ID),
-            directus_service=directus)
-    assert foreign.value.status_code == 404
-
-
-# contract-test: direct surface=rest_api assertions=storage.cold.shared-team-authorized
-@pytest.mark.asyncio
-async def test_reference_probe_team_requires_live_chat_wrapper_and_role():
-    directus = ReferenceDirectus()
-    result = await reference_probe(
-        chat_id=TEAM_CHAT, team_id="team-1", request=SimpleNamespace(),
-        payload={"embed_ids": ["foreign-1", "owned-1", "owned-no-key"]},
-        current_user=SimpleNamespace(id=OWNER_ID), directus_service=directus,
-    )
-    assert [row["state"] for row in result["results"]] == ["ready", "unusable", "unusable"]
-    directus.keys.append({**directus.keys[1],
-                         "hashed_chat_id": hashlib.sha256(NEW_TEAM_CHAT.encode()).hexdigest()})
-    new_team = await reference_probe(
-        chat_id=NEW_TEAM_CHAT, team_id="team-1", request=SimpleNamespace(),
-        payload={"embed_ids": ["foreign-1"]}, current_user=SimpleNamespace(id=OWNER_ID),
-        directus_service=directus,
-    )
-    assert new_team["results"][0]["state"] == "missing"
-    directus.team_role = "viewer"
-    with pytest.raises(HTTPException) as revoked:
-        await reference_probe(chat_id=TEAM_CHAT, team_id="team-1", request=SimpleNamespace(),
-            payload={"embed_ids": ["foreign-1"]}, current_user=SimpleNamespace(id=OWNER_ID),
-            directus_service=directus)
-    assert revoked.value.status_code == 404
-
-
-# contract-test: direct surface=rest_api assertions=storage.cold.discoverable-bounded
-@pytest.mark.asyncio
-async def test_reference_probe_caps_ids_and_request_bytes():
-    directus = ReferenceDirectus()
-    for ids in (["x"] * 2, [str(number) for number in range(21)],
-                ["x" * 500 + str(number) for number in range(20)]):
-        with pytest.raises(HTTPException) as invalid:
-            await reference_probe(chat_id=PERSONAL_CHAT, request=SimpleNamespace(),
-                payload={"embed_ids": ids}, current_user=SimpleNamespace(id=OWNER_ID),
-                directus_service=directus)
-        assert invalid.value.status_code == 400
-
-
-# contract-test: direct surface=rest_api assertions=storage.cold.discoverable-bounded
-@pytest.mark.asyncio
-async def test_reference_probe_backend_failure_is_unavailable_not_missing():
-    directus = ReferenceDirectus()
-    directus.fail_collection = "embeds"
-    with pytest.raises(HTTPException) as unavailable:
-        await reference_probe(chat_id=PERSONAL_CHAT, request=SimpleNamespace(),
-            payload={"embed_ids": ["owned-1", "foreign-1"]},
-            current_user=SimpleNamespace(id=OWNER_ID), directus_service=directus)
-    assert unavailable.value.status_code == 503
-
-
-# contract-test: direct surface=rest_api assertions=storage.cold.discoverable-bounded,storage.cold.shared-team-authorized
-@pytest.mark.asyncio
-async def test_exact_embed_read_allows_authorized_cross_chat_and_rejects_missing_wrapper():
-    directus = ReferenceDirectus()
-    owned = await get_chat_embed_by_id(
-        chat_id=PERSONAL_CHAT, embed_id="owned-1", request=SimpleNamespace(),
-        current_user=SimpleNamespace(id=OWNER_ID), directus_service=directus,
-    )
-    assert owned["embed"]["encrypted_content"] == "content-cipher"
-    with pytest.raises(HTTPException) as no_key:
-        await get_chat_embed_by_id(chat_id=PERSONAL_CHAT, embed_id="owned-no-key",
-            request=SimpleNamespace(), current_user=SimpleNamespace(id=OWNER_ID),
-            directus_service=directus)
-    assert no_key.value.status_code == 404
-    shared = await get_chat_embed_by_id(chat_id=TEAM_CHAT, embed_id="foreign-1",
-        team_id="team-1", request=SimpleNamespace(),
-        current_user=SimpleNamespace(id=OWNER_ID), directus_service=directus)
-    assert shared["embed_keys"][0]["key_type"] == "chat"
-    directus.team_role = None
-    with pytest.raises(HTTPException) as revoked:
-        await get_chat_embed_by_id(chat_id=TEAM_CHAT, embed_id="foreign-1",
-            team_id="team-1", request=SimpleNamespace(),
-            current_user=SimpleNamespace(id=OWNER_ID), directus_service=directus)
-    assert revoked.value.status_code == 404
-
-
-# contract-test: direct surface=rest_api assertions=storage.cold.discoverable-bounded,storage.cold.shared-team-authorized
-@pytest.mark.asyncio
-async def test_cross_chat_key_continuation_uses_same_reference_scope():
-    directus = ReferenceDirectus()
-    personal = await get_chat_embed_key_window(
-        chat_id=PERSONAL_CHAT, embed_ids="owned-1", request=SimpleNamespace(),
-        current_user=SimpleNamespace(id=OWNER_ID), directus_service=directus,
-    )
-    assert personal["embed_keys"][0]["key_type"] == "master"
-    team = await get_chat_embed_key_window(
-        chat_id=TEAM_CHAT, embed_ids="foreign-1", team_id="team-1",
-        request=SimpleNamespace(), current_user=SimpleNamespace(id=OWNER_ID),
-        directus_service=directus,
-    )
-    assert team["embed_keys"][0]["key_type"] == "chat"
-    with pytest.raises(HTTPException) as absent:
-        await get_chat_embed_key_window(
-            chat_id=PERSONAL_CHAT, embed_ids="foreign-1", request=SimpleNamespace(),
-            current_user=SimpleNamespace(id=OWNER_ID), directus_service=directus,
-        )
-    assert absent.value.status_code == 404

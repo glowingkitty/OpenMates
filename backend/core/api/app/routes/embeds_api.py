@@ -102,145 +102,6 @@ async def _require_chat_embed_read(
         raise HTTPException(status_code=404, detail="Chat not found")
 
 
-_REFERENCE_PROBE_LIMIT = 20
-_REFERENCE_PROBE_REQUEST_BYTES = 4 * 1024
-_REFERENCE_PROBE_RESPONSE_BYTES = 8 * 1024
-
-
-async def _reference_target_scope(
-    chat_id: str, team_id: str | None, current_user: User,
-    directus_service: DirectusService, *, write_required: bool = True,
-) -> tuple[str, str, bool, bool]:
-    """Check one existing or not-yet-created destination without cache authority."""
-    if not re.fullmatch(r"[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}", chat_id):
-        raise HTTPException(status_code=404, detail="Chat not found")
-    actor_hash = _hash_value(current_user.id)
-    team_hash = _hash_value(team_id) if team_id else None
-    if team_id:
-        try:
-            await directus_service.team.require_team_role(
-                team_id, current_user.id,
-                {"owner", "admin", "member"} if write_required
-                else {"owner", "admin", "member", "viewer"},
-            )
-        except TeamPermissionError as exc:
-            raise HTTPException(status_code=404, detail="Chat not found") from exc
-        except Exception as exc:
-            raise HTTPException(status_code=503, detail="Reference authorization unavailable") from exc
-    try:
-        rows = await directus_service.get_items(
-            "chats", params={"filter": {"id": {"_eq": chat_id}},
-                             "fields": "id,hashed_user_id,hashed_team_id,storage_state", "limit": 2},
-            no_cache=True, admin_required=True, raise_on_error=True,
-        )
-    except Exception as exc:
-        raise HTTPException(status_code=503, detail="Reference authorization unavailable") from exc
-    if not isinstance(rows, list) or len(rows) > 1:
-        raise HTTPException(status_code=503, detail="Reference authorization unavailable")
-    if rows:
-        row = rows[0]
-        if (row.get("id") != chat_id or row.get("storage_state") == "deleting"
-                or (row.get("hashed_team_id") or None) != team_hash
-                or not team_hash and row.get("hashed_user_id") != actor_hash):
-            raise HTTPException(status_code=404, detail="Chat not found")
-    return _hash_value(chat_id), actor_hash, bool(team_id), bool(rows)
-
-
-async def _reference_availability(
-    embed_ids: list[str], chat_hash: str, actor_hash: str, is_team: bool,
-    directus_service: DirectusService, *, team_target_live: bool = True,
-) -> list[dict[str, str]]:
-    """Read bounded metadata only; mask foreign heads unless a Team chat key grants access."""
-    embed_filter = {"embed_id": {"_in": embed_ids}}
-    try:
-        heads = await directus_service.get_items(
-            "embeds", params={"filter": embed_filter,
-                              "fields": "embed_id,hashed_embed_id,hashed_user_id,hashed_chat_id,status",
-                              "limit": _REFERENCE_PROBE_LIMIT + 1},
-            no_cache=True, admin_required=True, raise_on_error=True,
-        )
-        ready_heads = await directus_service.get_items(
-            "embeds", params={"filter": {**embed_filter,
-                "encrypted_content": {"_nempty": True},
-                "encrypted_type": {"_nempty": True}, "status": {"_eq": "finished"}},
-                "fields": "embed_id", "limit": _REFERENCE_PROBE_LIMIT + 1},
-            no_cache=True, admin_required=True, raise_on_error=True,
-        )
-    except Exception as exc:
-        raise HTTPException(status_code=503, detail="Reference lookup unavailable") from exc
-    if (not isinstance(heads, list) or len(heads) > _REFERENCE_PROBE_LIMIT
-            or not isinstance(ready_heads, list) or len(ready_heads) > _REFERENCE_PROBE_LIMIT):
-        raise HTTPException(status_code=503, detail="Reference lookup unavailable")
-    by_id = {row.get("embed_id"): row for row in heads if isinstance(row, dict)}
-    if len(by_id) != len(heads):
-        raise HTTPException(status_code=503, detail="Reference lookup unavailable")
-    ready_ids = {row.get("embed_id") for row in ready_heads if isinstance(row, dict)}
-    hashes = [row.get("hashed_embed_id") or _hash_value(embed_id)
-              for embed_id, row in by_id.items() if embed_id in ready_ids]
-    keys: list[dict[str, Any]] = []
-    if hashes:
-        chat_key = {"key_type": {"_eq": "chat"}, "hashed_chat_id": {"_eq": chat_hash}}
-        if not is_team:
-            chat_key["hashed_user_id"] = {"_eq": actor_hash}
-        key_scope = chat_key if is_team else {"_or": [chat_key, {
-            "key_type": {"_eq": "master"}, "hashed_user_id": {"_eq": actor_hash},
-        }]}
-        try:
-            keys = await directus_service.get_items(
-                "embed_keys", params={"filter": {
-                    "hashed_embed_id": {"_in": hashes}, "encrypted_embed_key": {"_nempty": True},
-                    **key_scope,
-                }, "fields": "hashed_embed_id,hashed_user_id,hashed_chat_id,key_type",
-                    "limit": 2 * _REFERENCE_PROBE_LIMIT + 1},
-                no_cache=True, admin_required=True, raise_on_error=True,
-            )
-        except Exception as exc:
-            raise HTTPException(status_code=503, detail="Reference key lookup unavailable") from exc
-        if not isinstance(keys, list) or len(keys) > 2 * _REFERENCE_PROBE_LIMIT:
-            raise HTTPException(status_code=503, detail="Reference key lookup unavailable")
-    key_hashes = {row.get("hashed_embed_id") for row in keys if isinstance(row, dict)}
-    result: list[dict[str, str]] = []
-    for embed_id in embed_ids:
-        head = by_id.get(embed_id)
-        own_head = bool(head and head.get("hashed_user_id") == actor_hash)
-        embed_hash = (head.get("hashed_embed_id") or _hash_value(embed_id)) if head else None
-        can_read = bool(head and embed_id in ready_ids and embed_hash in key_hashes
-                        and (not is_team or team_target_live))
-        state = "ready" if can_read and (is_team or own_head) else "unusable" if own_head else "missing"
-        result.append({"embed_id": embed_id, "state": state})
-    return result
-
-
-@router.post("/chats/{chat_id}/references/availability")
-@limiter.limit("120/minute")
-async def get_embed_reference_availability(
-    chat_id: str,
-    request: Request,
-    payload: dict[str, Any] = Body(...),
-    team_id: str | None = None,
-    current_user: User = Depends(get_current_user_or_api_key),
-    directus_service: DirectusService = Depends(get_directus_service),
-):
-    """Tell a sender which references are readable without returning ciphertext."""
-    ids = payload.get("embed_ids") if isinstance(payload, dict) and set(payload) == {"embed_ids"} else None
-    if (not isinstance(ids, list) or not 1 <= len(ids) <= _REFERENCE_PROBE_LIMIT
-            or any(not isinstance(value, str) or not value
-                   or len(value.encode("utf-8")) > 512 for value in ids)
-            or len(set(ids)) != len(ids)
-            or len(json.dumps(payload, separators=(",", ":")).encode("utf-8")) > _REFERENCE_PROBE_REQUEST_BYTES):
-        raise HTTPException(status_code=400, detail="Invalid embed reference probe")
-    chat_hash, actor_hash, is_team, target_live = await _reference_target_scope(
-        chat_id, team_id, current_user, directus_service,
-    )
-    results = await _reference_availability(
-        ids, chat_hash, actor_hash, is_team, directus_service, team_target_live=target_live,
-    )
-    response = {"results": results}
-    if len(json.dumps(response, separators=(",", ":")).encode("utf-8")) > _REFERENCE_PROBE_RESPONSE_BYTES:
-        raise HTTPException(status_code=413, detail="Embed reference probe exceeds response limit")
-    return response
-
-
 @router.get("/chats/{chat_id}/window")
 @limiter.limit("120/minute")
 async def get_chat_embed_window(
@@ -292,7 +153,7 @@ async def get_chat_embed_key_window(
     after_key_id: str | None = None,
     key_id: str | None = None,
     team_id: str | None = None,
-    current_user: User = Depends(get_current_user_or_api_key),
+    current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
 ):
     """Continue wrappers for a checked embed page without exposing other chats' keys."""
@@ -305,19 +166,8 @@ async def get_chat_embed_key_window(
     hashed_chat_id = _hash_value(chat_id)
     try:
         hashes = await directus_service.embed.validate_embed_ids_in_chat(hashed_chat_id, selected)
-    except ValueError:
-        hashes = []
-    if not hashes:
-        scope_hash, actor_hash, is_team, target_live = await _reference_target_scope(
-            chat_id, team_id, current_user, directus_service, write_required=False,
-        )
-        states = await _reference_availability(
-            selected, scope_hash, actor_hash, is_team, directus_service,
-            team_target_live=target_live,
-        )
-        if any(item["state"] != "ready" for item in states):
-            raise HTTPException(status_code=404, detail="Embed page not found")
-        hashes = [_hash_value(value) for value in selected]
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail="Embed page not found") from exc
     if not hashes:
         raise HTTPException(status_code=404, detail="Embed page not found")
     if key_id:
@@ -343,28 +193,18 @@ async def get_chat_embed_by_id(
     embed_id: str,
     request: Request,
     team_id: str | None = None,
-    current_user: User = Depends(get_current_user_or_api_key),
+    current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
 ):
-    """Load ciphertext only after current chat and readable-wrapper checks."""
-    hashed_chat_id, actor_hash, is_team, target_live = await _reference_target_scope(
-        chat_id, team_id, current_user, directus_service, write_required=False,
-    )
-    states = await _reference_availability(
-        [embed_id], hashed_chat_id, actor_hash, is_team, directus_service,
-        team_target_live=target_live,
-    )
-    if states[0]["state"] != "ready":
-        raise HTTPException(status_code=404, detail="Embed not found")
+    """Load one oversized ciphertext embed through its checked chat scope."""
+    await _require_chat_embed_read(chat_id, team_id, current_user, directus_service)
     embed = await directus_service.embed.get_sync_embed_by_id(embed_id)
-    if not embed or (not is_team and embed.get("hashed_user_id") != actor_hash):
+    hashed_chat_id = _hash_value(chat_id)
+    if not embed or embed.get("hashed_chat_id") != hashed_chat_id:
         raise HTTPException(status_code=404, detail="Embed not found")
     key_page = await directus_service.embed.get_sync_embed_key_window_for_page(
-        hashed_chat_id, actor_hash, [_hash_value(embed_id)],
-        include_master_keys=not is_team,
+        hashed_chat_id, _hash_value(current_user.id), [_hash_value(embed_id)],
     )
-    if not key_page["embed_keys"] and not key_page["oversized_key_id"]:
-        raise HTTPException(status_code=404, detail="Embed not found")
     return {"embed": embed, "embed_keys": key_page["embed_keys"],
             "embed_keys_has_more_after": key_page["has_more_after"],
             "embed_keys_end_cursor": key_page["end_cursor"],
@@ -724,6 +564,10 @@ async def get_embed_version(
             directus_service, embed_id, hashed_user_id, max_version=version_number,
             limit=33, descending=True, include_payload=False,
         )
+        # Recovery must distinguish an absent target from an existing chain
+        # that needs a client snapshot before it can be reconstructed.
+        if not recent or recent[0].get("version_number") != version_number:
+            raise HTTPException(status_code=404, detail="Version not found")
         nearest = next((row["version_number"] for row in recent if _version_meta(row)["has_snapshot"]), None)
         if nearest is None:
             raise HTTPException(status_code=409, detail="snapshot_required")

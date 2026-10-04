@@ -6,33 +6,33 @@ This approved plan keeps the current PostgreSQL, Directus, Redis/Dragonfly, and 
 
 ## Latest verified change — 2026-10-04
 
-Live on development:
+The bounded storage, recovery, archive and artifact-version foundation is now
+published and active on development at commit
+`1e7b84c33ea33734ec53c85deda27b90aad3124d`. Existing high-write Directus
+tracking policies, filtered scalar message counts and all nine nonunique access
+indexes remain live; historical audit rows were retained.
 
-- Five high-write Directus tracking policies reduce future generic revisions and activity. Existing historical rows remain.
-- Nine PostgreSQL query indexes are installed and independently verified for exact definitions and ready/valid flags.
-- Commit `e1aa61e796d878bad05a42b954d3a3e8d99b3287` replaces message-ID downloads with a filtered scalar count and makes existing bounded window reads report database failures. Four new focused cases, one existing compatibility case, specification and lint gates pass. Coordinated operation `docker-9478fcad` restarted the API and dependent workers; all report healthy. This slice preserves successful client response shapes and requires no data migration. It does not implement the full bounded startup-sync cutover.
-- The published privacy correction distinguishes historical database records from current-record deletion and the separate backup lifecycle.
+The coordinated schema operation completed successfully in 361.35 seconds. The
+following coordinated restart, operation `docker-867b0631`, completed in 295.41
+seconds with all 17 services running and healthy. Independent catalog readback
+found all 17 recovery indexes present, unique where required, valid and ready.
+All seven archive and expanded-billing switches are off across all 17 services.
+The matching Vercel web deployment `2w3u56hwciegHBEV9p8N4CjtvCut` succeeded.
 
-The archive, new recovery writers and version cutover remain private. Actual
-PostgreSQL/S3 safety probes passed, and the saved-bundle browser gate passed3/3.
-Recovery/deletion run `37201164890` eventually passed all six cases, with two
-first-attempt acknowledgement timeouts; it is not a stable reliability pass.
-Source inspection found a recovery protocol field leaking into the embed
-transaction. Its narrow handler repair passes8 focused tests. The Docs fixture
-also required correct reconnect sequencing while retaining its exact
-prepublication seal and subsequent canonical acknowledgement checks.
-Candidate `bd7ea2bd5700a81903d32f0d3e372abfa93dd386` is queued for only Docs and
-recovery/deletion. Other completed evidence is retained with its actual source.
+Release evidence includes the exact 120-file backend gate with 1,408 passing
+tests and the focused recovery CI source `33e0f616`, whose two selected cases
+passed after one synthetic fixture setup retry. These results verify the scoped
+release paths; they are not the accepted full-scale capacity proof. Full P-7 is
+deferred and remains the first-real-prune gate. Native typed readers and writers,
+cross-client concurrency, reference-safe expanded-billing expiry and Team billing
+policy remain incomplete. Archive/prune and expanded billing remain disabled.
 
-The remaining release work is the receipt fix verification, reconciliation with
-current dev, and supported Apple/client compatibility before the writer cutover.
-After coordinated core deployment, run the two authorized real chat turns total:
-one CLI and one web. Neither has been spent on intermediate releases. The large
-zero-inference benchmark remains deferred under the user's publication priority
-and is still required before real-data pruning. Archive/prune and expanded
-weekly billing stay off. Reference-safe unpaid expiry and Team billing remain
-incomplete; no storage charges or real-user data migration are claimed.
-[Current progress](progress.md) records receipts and remaining gates.
+The final real canaries remain pending. After slot 10 proved absent, a CLI
+command on registered slot 4 exited with status 1 after its durable ledger
+dispatch; its server outcome is still being reconciled and no provider dispatch
+or successful canary is inferred. No retry has been sent. The web canary on
+registered slot 3 has not sent a user turn. Production is unchanged. [Current progress](progress.md) records the detailed
+receipts and remaining gates.
 
 ## Why this work exists
 

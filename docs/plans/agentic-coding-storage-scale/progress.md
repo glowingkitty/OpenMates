@@ -4,43 +4,42 @@ Snapshot: 2026-10-04. OpenMates Tasks owns work status and dependencies.
 
 ## Current release status
 
-- The five high-write Directus tracking policies are active and independently
-  verified; TASK-7570 is complete. All nine nonunique PostgreSQL indexes and
-  scalar chat message counts are also live. Historical audit rows are retained.
-- The main release includes bounded Redis contexts, PostgreSQL cursor readers,
-  encrypted S3 pages and version payloads, sealed unattended-output recovery,
-  pending-write journals, reference/deletion fences and the initial 24-hour
-  source-copy buffer. Publication is separate from CMS/schema and API/worker
-  activation; archive copy/read/prune and expanded billing switches remain off.
-- Focus-mode code and evidence are already published through `61cb0eea` and are
-  preserved. The focused recovery harness is public as `4559bc93`. Two final
-  canonical-receipt browser cases are selected from `d2903a48` under that trusted
-  harness; the final result is recorded below when retrieved. The already green
-  saved-bundle, detached Docs, exact-request rejection and PostgreSQL/S3 safety
-  proofs are retained without broad reruns.
-- The two missing development setup-container SQL mounts are repaired. Its
-  focused packaging regression identified exactly those missing mounts before
-  the repair and passes after it. Generated English/German locales retain all
-  105 published Apple widget/menu/activity values each; no public native
-  translation work is lost.
-- The user explicitly confirmed on 2026-10-04 that Apple has no testers besides
-  them and needs no backward compatibility for this dev rollout. Updated
-  native embed writers must use the matching canonical receipt contract;
-  unsupported writes fail closed. Full native typed-recovery/reader evidence
-  remains required before affected payload pruning. Production is unchanged.
-- The two authorized final live turns, one CLI and one web, run only after core
-  activation. No architecture/capacity run uses real inference. Full P-7 remains
-  deferred under the user's publication priority and is still a first-real-prune
-  gate; the small processing replay is not a capacity or latency pass.
-- Expanded billing and unpaid expiration remain disabled. The delivered-warning
-  clocks exist, but exact notified chargeable-object selection and invoice
-  closure are unresolved; aggregate invoices cannot safely select deletions.
-  Team payer/allowance remains unresolved. Current privacy disclosures describe
-  active behavior; no new charge or unpaid deletion is claimed.
+- Core development release
+  `1e7b84c33ea33734ec53c85deda27b90aad3124d` is public and active. It includes
+  the bounded storage, recovery, archive and artifact-version foundation.
+  Existing high-write Directus tracking policies, filtered scalar message counts
+  and nine nonunique access indexes remain live; historical audit rows remain.
+- The coordinated schema operation succeeded in 361.35 seconds. Coordinated
+  restart `docker-867b0631` then succeeded in 295.41 seconds with all 17 services
+  running and healthy. Independent catalog readback found 17/17 recovery indexes
+  present, unique where required, valid and ready. All seven archive and
+  expanded-billing switches are off across all 17 services.
+- Matching Vercel web deployment `2w3u56hwciegHBEV9p8N4CjtvCut` succeeded.
+  Production is unchanged.
+- The exact backend gate passed 1,408 tests across the inferred 120 files.
+  Focused recovery CI `33e0f616` passed both selected cases, with one synthetic
+  fixture setup retry. This is scoped release evidence, not a full-scale proof.
+- Full P-7 is deferred and remains the first-real-prune gate. Native typed
+  readers/writers and cross-client concurrency remain unverified. Expanded
+  billing's reference-safe expiry and Team policy remain incomplete and off.
+  Archive copy/read/prune remains off.
+- The user is the only Apple tester and waived development legacy compatibility.
+  This clears the dev legacy-client hold for the published core. Native ordinary
+  canonical writers must still implement capability-bound strict digest/source,
+  request/count receipts and head-before-keys, including Watch. Typed v2 must be
+  advertised only when its complete reader/persist/ACK flow is wired. Native
+  typed readers remain a pruning gate.
+- The final CLI and web canaries remain pending. Slot 10 was absent on dev. A
+  later CLI command on registered slot 4 exited with status 1 after durable
+  ledger dispatch; its server outcome is uncertain, it has not been retried, and
+  neither provider dispatch nor canary success is inferred. The web canary on
+  registered slot 3 has not sent a user turn.
 
 ## Earlier release and verification history
 
 ## Published to dev
+
+The entries in this section are historical checkpoints; the current active state above supersedes their release wording.
 
 Specification, Plan, Apple handoff, synthetic crypto fixture and scoped CI tooling.
 Latest trusted tooling: `4c0cf8b1b5e28bae3e5121a22f6179131a2ae1c8`.

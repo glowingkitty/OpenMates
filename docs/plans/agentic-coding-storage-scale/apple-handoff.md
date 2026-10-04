@@ -1,36 +1,40 @@
-# Immediate Mac action before the storage API cutover
+# Immediate Mac action for the active development storage API
 
-The public Apple audit now supplies the exact remaining writer gap. Reuse the
-Mac Task/workspace (audit Task 8137, session 6dc7); update dev through that
-workspace's coordinator workflow. The canonical receipt contract below is
-already published, so synthetic native tests can run before API activation.
+Development backend commit
+`1e7b84c33ea33734ec53c85deda27b90aad3124d` is now public and active. The user
+is the only Apple tester and does not require backward compatibility for this
+development rollout, so the legacy-client compatibility hold is cleared on dev.
+Production is unchanged. Do not use that decision to bypass capability checks or
+to claim native reader compatibility.
 
-1. Pair `canonical_embed_receipts_v1` advertisement in the WebSocket query with
-   `.requireCanonicalDigest` and exact wrapper-count validation for the matched
-   server profile. Reconnect must advertise again. Do not enable strict receipts
-   against an older production API, infer support from epoch 1, or advertise
-   `typed_recovery_outputs_v2` until its discovery/persist/ACK path is implemented.
-2. Main app: keep head first; accept only the exact request/embed IDs, lowercase
-   SHA-256 of the UTF-8 encrypted-content string, `canonical_source: head`, then
-   wrapper counts `created_count == requested_count == keys.count`,
-   `failed_count == 0`. Missing, malformed or mismatched fields leave the
-   original encrypted payload pending. Production currently uses
-   `.allowLegacyReceipt`; the published synthetic tests must exercise the strict
-   construction and capability advertisement together.
-3. Watch: change its canonical writer from keys-first to head, exact head
-   receipt, wrappers, exact count receipt. Retain byte-identical ciphertext and
-   wrappers on rejection/disconnect/retry, then advertise the canonical capability.
-   `client_capability_required` is update-required and never saved success.
-4. Run only focused synthetic native URL/order/digest/count/retry cases, including
-   no wrappers after head rejection and no pending retirement on capability
-   rejection; verify the affected iOS/macOS/Watch builds. Use zero inference.
-   Return the public commit, native results and supported installed-client rollout
-   plan. Existing added test source without execution is not this receipt.
+1. On every authenticated WebSocket connection and reconnect, advertise
+   `canonical_embed_receipts_v1` only when the ordinary canonical writer enforces
+   the complete strict contract. Never infer this capability from epoch or
+   protocol 1 and never accept it from an incoming event.
+2. Main app and Watch must write the canonical head first. Accept
+   `store_embed_confirmed` only for the exact `request_id` and `embed_id`, with
+   lowercase SHA-256 of the exact UTF-8 `encrypted_content` string in
+   `canonical_digest` and `canonical_source: "head"`. Then write wrappers and
+   accept `store_embed_keys_confirmed` only for the exact request with
+   `failed_count == 0` and `created_count == requested_count == keys.count`.
+   `client_capability_required`, absent fields and any mismatch remain pending.
+3. Preserve byte-identical ciphertext, wrapped keys and immutable saved-turn
+   preflight data across rejection, disconnect and retry. Serialize normal and
+   typed writes for the same embed and reuse verified canonical ciphertext; do
+   not create a second head or retire pending data before the exact receipt.
+4. Advertise `typed_recovery_outputs_v2` only after bounded discovery, exact get,
+   canonical persist/reread and typed ACK handling are fully wired. Ordinary
+   canonical capability does not imply typed capability. Typed recovery failures
+   must retain every pending record.
+5. Run zero-inference native fixtures covering main app and Watch head-before-keys,
+   exact digest/source/request/count validation, retry identity, same-embed
+   normal/typed serialization and capability rejection. Full typed readers,
+   archive readers and cross-client concurrency remain pruning gates.
 
-Typed recovery, archive readers and large version histories remain subsequent
-native/pruning gates. Do not bypass server capability guards for older clients.
-The backend cutover waits for the ordinary writer evidence and the installed
-client policy; it does not require the Mac to finish the full capacity benchmark.
+The active backend allows this native work against development now. The detailed
+payloads and fixtures below remain authoritative. Return the public Apple commit
+and focused iOS/macOS/Watch results; do not activate production behavior from
+this handoff.
 
 ---
 
@@ -53,7 +57,7 @@ When the canonical checkout is clean and on `dev`:
 git pull --ff-only origin dev
 ```
 
-Preserve the Mac chat's existing changes and follow its session integration workflow for a dirty or detached task worktree. Read this handoff, the storage Plan, and `specifications/architecture/storage-lifecycle/specification.yml` when the backend changes reach dev. The approved Specification and Plan can be published before the storage backend. Backend implementation is in private CI candidates and is not yet a deployed development API. Pull again after the backend chat announces its actual development commit.
+Preserve the Mac chat's existing changes and follow its session integration workflow for a dirty or detached task worktree. Read this handoff, the storage Plan, and `specifications/architecture/storage-lifecycle/specification.yml` when the backend changes reach dev. The approved Specification, Plan and backend implementation are published. Pull development commit `1e7b84c33ea33734ec53c85deda27b90aad3124d` or newer before implementing and verifying this contract.
 
 ## 1. Repair the live AI embed writer first
 
@@ -65,7 +69,7 @@ Implement this sequence:
 
 1. Preserve local client encryption, wrapped master/chat keys, generation/scope/deletion checks, owner PII separation, and offline/retry state.
 2. Register the matching receipt waiter before sending `store_embed`.
-3. Await `store_embed_confirmed` for the exact `request_id` and `embed_id`. Require `canonical_source == "head"`. The new backend adds `canonical_digest`: lowercase SHA-256 of the UTF-8 **encrypted_content string**, not decoded ciphertext or plaintext. Require the matching digest for the new storage path. Current dev receipts lack those fields: choose an explicit staged compatibility policy so a missing legacy receipt field cannot become evidence of new-path durability.
+3. Await `store_embed_confirmed` for the exact `request_id` and `embed_id`. Require `canonical_source == "head"`. The new backend adds `canonical_digest`: lowercase SHA-256 of the UTF-8 **encrypted_content string**, not decoded ciphertext or plaintext. Require the matching digest for the new storage path. The active development API supplies those fields. A missing field cannot become evidence of new-path durability.
 4. Only after that head receipt, send `store_embed_keys` and await `store_embed_keys_confirmed` with the exact `request_id`. Require `failed_count == 0`, `created_count == sent keys.count`, and `requested_count == sent keys.count` (normally two wrappers). Reject absent, malformed or partial counts.
 5. Mark the finalized payload processed only after both saves succeed. Preserve retry on timeout, disconnect, head failure, digest mismatch, or wrapper failure. Retries must preserve the original encrypted identity and must not let an older payload overwrite a newer one.
 
@@ -77,7 +81,7 @@ Composer, background, and Watch attachments use bundled `chat_message_added.encr
 
 ### Preserve existing file references
 
-For saved-message attachment preparation, use the new metadata-only `POST /v1/embeds/chats/{chat_id}/references/availability` once its backend is available. Send `{"embed_ids":["<id>"]}` in batches of at most 20 (4 KiB request, 8 KiB response); Team scope is the `team_id` query parameter. Response `results` entries classify each ID as `ready`, `missing`, or `unusable`. Validate one result per requested ID and fail on unavailable/malformed responses.
+For saved-message attachment preparation, use the new metadata-only `POST /v1/embeds/chats/{chat_id}/references/availability` against the active development backend. Send `{"embed_ids":["<id>"]}` in batches of at most 20 (4 KiB request, 8 KiB response); Team scope is the `team_id` query parameter. Response `results` entries classify each ID as `ready`, `missing`, or `unusable`. Validate one result per requested ID and fail on unavailable/malformed responses.
 
 A fresh `ready` reference needs no new head. A `missing` ID requires a complete new encrypted bundle. An authorized `unusable` reference must stop the send rather than overwrite its head. Personal references can use their owner's master wrapper across owned chats; Team references need the authorized target-chat wrapper and live Team access. For a partially saved message, replay its retained original encrypted bundle even if the probe now reports `ready`: its immutable preflight and ciphertext identity must remain the same.
 
