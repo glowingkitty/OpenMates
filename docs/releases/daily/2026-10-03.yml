@@ -1,0 +1,2420 @@
+schema_version: 1
+cadence: daily
+date: '2026-10-03'
+generated_at: '2026-10-04T00:20:22+00:00'
+range:
+  since: '2026-10-03T00:00:00+00:00'
+  until: '2026-10-04T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 37
+  section_counts:
+    features: 3
+    bug_fixes: 7
+    improvements: 1
+    docs: 11
+    tests: 15
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 9
+  dev_only_items: 37
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  - id: skill:openmates:get-docs
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: optional offline personal data anonymization in the CLI'
+    section: features
+    commits:
+    - 2cba8048c
+    authored_at: '2026-10-03T11:38:09+00:00'
+    changed_paths:
+    - .github/workflows/publish-cli.yml
+    - docs/architecture/privacy/cli-enhanced-anonymization.md
+    - docs/plans/native-agentic-coding-readiness/plan.yml
+    - frontend/apps/web_app/tests/cli-privacy.spec.ts
+    - frontend/packages/openmates-cli/fixtures/privacy-runtime/.gitignore
+    - frontend/packages/openmates-cli/fixtures/privacy-runtime/.npmignore
+    - frontend/packages/openmates-cli/native/privacy-worker.cpp
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/scripts/build-privacy-runtime.py
+    - frontend/packages/openmates-cli/scripts/check-privacy-package.mjs
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/outputRedactor.ts
+    - frontend/packages/openmates-cli/src/privacyCommands.ts
+    - frontend/packages/openmates-cli/src/privacyDaemon.ts
+    - frontend/packages/openmates-cli/src/privacyModel.ts
+    - frontend/packages/openmates-cli/src/privacyScan.ts
+    - frontend/packages/openmates-cli/src/privacyWorker.ts
+    - frontend/packages/openmates-cli/src/projectFileExecutor.ts
+    - frontend/packages/openmates-cli/src/tui.ts
+    - frontend/packages/openmates-cli/src/tuiAttachments.ts
+    - frontend/packages/openmates-cli/src/tuiRenderer.ts
+    - frontend/packages/openmates-cli/tests/privacy.test.ts
+    - frontend/packages/ui/src/services/projectFilePrivacy.ts
+    - frontend/packages/ui/src/services/projectFilePrivacyStorage.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:projects'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: render linked chats in Project folders'
+    section: features
+    commits:
+    - fee044d21
+    authored_at: '2026-10-03T03:41:41+00:00'
+    changed_paths:
+    - docs/plans/project-chat-previews/plan.yml
+    - frontend/apps/web_app/tests/chat-sidebar-projects.spec.ts
+    - frontend/apps/web_app/tests/components/project-chat-previews.spec.ts
+    - frontend/apps/web_app/tests/helpers/chat-hydration.ts
+    - frontend/apps/web_app/tests/helpers/project-remote-fixture.ts
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/components/projects/ProjectBrowserItem.preview.ts
+    - frontend/packages/ui/src/components/projects/ProjectBrowserItem.svelte
+    - frontend/packages/ui/src/components/projects/ProjectChatPreview.preview.ts
+    - frontend/packages/ui/src/components/projects/ProjectChatPreview.svelte
+    - frontend/packages/ui/src/components/projects/ProjectChatsSection.preview.ts
+    - frontend/packages/ui/src/components/projects/ProjectChatsSection.svelte
+    - frontend/packages/ui/src/components/projects/ProjectsPage.preview.ts
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspaceContinueCard.svelte
+    - frontend/packages/ui/src/services/__tests__/chatMetadataCacheInvalidation.test.ts
+    - frontend/packages/ui/src/services/__tests__/projectChatBrowser.test.ts
+    - frontend/packages/ui/src/services/__tests__/projectChatPreviewService.test.ts
+    - frontend/packages/ui/src/services/chatMetadataCache.ts
+    - frontend/packages/ui/src/services/projectChatBrowser.ts
+    - frontend/packages/ui/src/services/projectChatPreviewService.ts
+    - scripts/ci_coverage_manifest.json
+    - scripts/project_remote_access_live.mjs
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:projects'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: composable workflow checks and chat-owned runs'
+    section: features
+    commits:
+    - 4f550c256
+    authored_at: '2026-10-03T00:00:16+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/skill_executor.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/workflows/app.yml
+    - backend/apps/workflows/skills/chat_authoring_context.py
+    - backend/apps/workflows/skills/create_or_modify_skill.py
+    - backend/apps/workflows/skills/run_skill.py
+    - backend/core/api/app/routes/workflows.py
+    - backend/core/api/app/services/workflow_action_adapter.py
+    - backend/core/api/app/services/workflow_ai_service.py
+    - backend/core/api/app/services/workflow_app_skill_adapter.py
+    - backend/core/api/app/services/workflow_assistant_service.py
+    - backend/core/api/app/services/workflow_authoring_compiler.py
+    - backend/core/api/app/services/workflow_capability_registry.py
+    - backend/core/api/app/services/workflow_chat_delivery_service.py
+    - backend/core/api/app/services/workflow_input_service.py
+    - backend/core/api/app/services/workflow_models.py
+    - backend/core/api/app/services/workflow_runner.py
+    - backend/core/api/app/services/workflow_service.py
+    - backend/core/api/app/services/workflow_template_expressions.py
+    - backend/core/api/app/services/workflow_yaml_compiler.py
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/core/api/app/tasks/workflow_assistant_tasks.py
+    - backend/core/api/app/tasks/workflow_tasks.py
+    - backend/core/directus/extensions/workflow-authoring-transaction/src/index.js
+    - backend/core/directus/extensions/workflow-authoring-transaction/src/operations.js
+    - backend/core/directus/extensions/workflow-authoring-transaction/test/operations.test.js
+    - backend/core/directus/extensions/workflow-runtime-transaction/src/delivery_history.js
+    - backend/core/directus/extensions/workflow-runtime-transaction/src/operations.js
+    - backend/core/directus/extensions/workflow-runtime-transaction/test/delivery-history.test.js
+    - backend/core/directus/extensions/workflow-runtime-transaction/test/operations.test.js
+    - backend/core/directus/schemas/workflow_chat_deliveries.yml
+    - backend/core/directus/schemas/workflow_runs.yml
+    - backend/core/directus/schemas/workflows.yml
+    - backend/tests/test_app_skill_rest_context.py
+    - backend/tests/test_persistence_tasks.py
+    - backend/tests/test_skill_executor_registry_refresh.py
+    - backend/tests/test_workflow_ai_credit_budget.py
+    - backend/tests/test_workflow_app_skill_adapter.py
+    - backend/tests/test_workflow_chat_delivery.py
+    - backend/tests/test_workflow_chat_invocation.py
+    - backend/tests/test_workflow_choice_for_each_runtime.py
+    - backend/tests/test_workflow_options_and_for_each_contracts.py
+    - backend/tests/test_workflow_runtime_python_transactions.py
+    - backend/tests/test_workflows_models.py
+    - docs/plans/composable-workflows/plan.yml
+    - docs/user-guide/developers/sdk-reference.md
+    - docs/user-guide/developers/sdk-test-coverage.md
+    - docs/user-guide/workflows.md
+    - frontend/apps/web_app/tests/components/workflow-chat-embed.spec.ts
+    - frontend/apps/web_app/tests/components/workflow-check-editor.spec.ts
+    - frontend/apps/web_app/tests/components/workflow-choice-loop.spec.ts
+    - frontend/apps/web_app/tests/workflows-composition.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/generated/workflowAuthoringSchema.ts
+    - frontend/packages/openmates-cli/src/index.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
+    - frontend/packages/openmates-cli/tests/workflow-file.test.ts
+    - frontend/packages/openmates-cli/tests/workflows-yaml.test.ts
+    - frontend/packages/openmates-cli/tests/workflows.test.ts
+    - frontend/packages/ui/src/components/embeds/workflows/WorkflowEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/workflows/WorkflowEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/workflows/workflowEmbedData.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.preview.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+    - frontend/packages/ui/src/components/workflows/__tests__/workflowBuilder.test.ts
+    - frontend/packages/ui/src/components/workflows/__tests__/workflowMessageTokens.test.ts
+    - frontend/packages/ui/src/components/workflows/workflowBuilder.ts
+    - frontend/packages/ui/src/components/workflows/workflowMessageTokens.ts
+    - frontend/packages/ui/src/i18n/sources/workflows.yml
+    - frontend/packages/ui/src/stores/__tests__/workflowWorkspaceStore.test.ts
+    - frontend/packages/ui/src/stores/workflowWorkspaceStore.ts
+    - frontend/packages/workflowFile.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_workflows.py
+    - scripts/generate_workflow_authoring_schema.py
+    - specifications/features/workflows-ui/examples.yml
+    - specifications/features/workflows-ui/specification.yml
+    - specifications/features/workflows/examples.yml
+    - specifications/features/workflows/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:workflows
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/workflows/app.yml
+    - id: embed:workflows:create-or-modify
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:workflows
+      source: backend/apps/workflows/app.yml
+    - id: embed:workflows:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:workflows
+      source: backend/apps/workflows/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    - id: skill:workflows:run
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:workflows
+      source: backend/apps/workflows/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:workflows, embed:workflows:create-or-modify, embed:workflows:search,
+      platform:workflows, skill:ai:ask, skill:workflows:run'
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix(ci): isolate recovery cutover dependencies'
+    section: bug_fixes
+    commits:
+    - 4f2710cee
+    authored_at: '2026-10-03T18:57:31+00:00'
+    changed_paths:
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_storage_capacity_profile.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(ci): build CLI before selected unit checks'
+    section: bug_fixes
+    commits:
+    - 8f25249ce
+    authored_at: '2026-10-03T18:47:25+00:00'
+    changed_paths:
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_storage_capacity_profile.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve prepared anonymous PII placeholders'
+    section: bug_fixes
+    commits:
+    - 79df9340f
+    authored_at: '2026-10-03T11:49:29+00:00'
+    changed_paths:
+    - docs/plans/native-agentic-coding-readiness/plan.yml
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: separate targeted draft and chat census freshness'
+    section: bug_fixes
+    commits:
+    - ba497d718
+    authored_at: '2026-10-03T04:53:41+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-tui-workflows.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/storage.ts
+    - frontend/packages/openmates-cli/tests/draft-sync.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-chat-sidebar.test.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: align terminal chat sidebar with web navigation'
+    section: bug_fixes
+    commits:
+    - 4f85491b7
+    authored_at: '2026-10-03T04:12:19+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/chats.py
+    - backend/tests/test_chat_activity.py
+    - docs/plans/cli-terminal-chat-tui/plan.yml
+    - frontend/apps/web_app/tests/cli-tui-chat-sidebar-proof.spec.ts
+    - frontend/apps/web_app/tests/cli-tui-proof-helpers.ts
+    - frontend/apps/web_app/tests/cli-tui-workflows.spec.ts
+    - frontend/apps/web_app/tests/helpers/workflow-cli-e2e-helpers.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/tuiChatSidebar.ts
+    - frontend/packages/openmates-cli/src/tuiHome.ts
+    - frontend/packages/openmates-cli/src/tuiLayout.ts
+    - frontend/packages/openmates-cli/src/tuiProjectsWorkspace.ts
+    - frontend/packages/openmates-cli/src/tuiRenderer.ts
+    - frontend/packages/openmates-cli/src/tuiWorkspaceController.ts
+    - frontend/packages/openmates-cli/tests/sdk-chat-sidebar.test.ts
+    - frontend/packages/openmates-cli/tests/tuiChatSidebar.test.ts
+    - frontend/packages/openmates-cli/tests/tuiHome.test.ts
+    - frontend/packages/openmates-cli/tests/tuiLayout.test.ts
+    - frontend/packages/openmates-cli/tests/tuiWorkspaceInteraction.test.ts
+    - frontend/packages/ui/src/components/chats/utils/chatGroupUtils.ts
+    - frontend/packages/ui/src/utils/chatTimeGroups.ts
+    - scripts/ci_coverage_manifest.json
+    - scripts/cli_video_capture.py
+    - scripts/tests/test_cli_video_capture.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: recover Health discovery and prevent picker submission'
+    section: bug_fixes
+    commits:
+    - 296e7e142
+    authored_at: '2026-10-03T01:22:03+00:00'
+    changed_paths:
+    - backend/apps/health/skills/search_appointments_skill.py
+    - backend/tests/test_health_search_appointments_skill.py
+    - frontend/apps/web_app/tests/apps-workspace.spec.ts
+    - frontend/apps/web_app/tests/components/apps-skill-form.spec.ts
+    - frontend/packages/ui/src/components/apps/AppsSkillForm.preview.ts
+    - frontend/packages/ui/src/components/enter_message/MapsView.svelte
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:health
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/health/app.yml
+    - id: embed:health:search_appointments
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:health
+      source: backend/apps/health/app.yml
+    - id: skill:health:search_appointments
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:health
+      source: backend/apps/health/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:health, embed:health:search_appointments, skill:health:search_appointments'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: center terminal content and remove outer frame'
+    section: bug_fixes
+    commits:
+    - 862105eae
+    authored_at: '2026-10-03T01:01:21+00:00'
+    changed_paths:
+    - docs/plans/cli-terminal-chat-tui/plan.yml
+    - frontend/apps/web_app/tests/cli-tui-centered-carousels-proof.spec.ts
+    - frontend/apps/web_app/tests/cli-tui-proof-helpers.ts
+    - frontend/apps/web_app/tests/cli-tui-workspace-details-proof.spec.ts
+    - frontend/apps/web_app/tests/cli-tui-workspace-proof.spec.ts
+    - frontend/packages/openmates-cli/src/tuiLayout.ts
+    - frontend/packages/openmates-cli/src/tuiRenderer.ts
+    - frontend/packages/openmates-cli/src/tuiWorkspaceController.ts
+    - frontend/packages/openmates-cli/tests/tuiLayout.test.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements:
+  - title: 'perf: use Jev-first app output safety'
+    section: improvements
+    commits:
+    - dae1539e2
+    authored_at: '2026-10-03T11:52:43+00:00'
+    changed_paths:
+    - backend/shared/python_utils/structured_content_sanitization.py
+    - backend/tests/test_single_pass_output_safety.py
+    - backend/tests/test_structured_content_sanitization.py
+    - docs/plans/apps-jev-first-safety/plan.yml
+    - frontend/apps/web_app/tests/cli-external-output-safety.spec.ts
+    - specifications/architecture/app-skill-execution/examples.yml
+    - specifications/architecture/app-skill-execution/specification.yml
+    - specifications/features/app-skills/web-search/examples.yml
+    - specifications/features/app-skills/web-search/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  docs:
+  - title: 'docs: record storage progress and live smoke checks'
+    section: docs
+    commits:
+    - 7bd08f0ce
+    authored_at: '2026-10-03T23:53:17+00:00'
+    changed_paths:
+    - docs/plans/agentic-coding-storage-scale/README.md
+    - docs/plans/agentic-coding-storage-scale/legal-storage-review.md
+    - docs/plans/agentic-coding-storage-scale/plan.yml
+    - docs/plans/agentic-coding-storage-scale/progress.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: clarify bounded storage rollout and client handoff'
+    section: docs
+    commits:
+    - 8a0ec1968
+    authored_at: '2026-10-03T23:03:51+00:00'
+    changed_paths:
+    - docs/plans/agentic-coding-storage-scale/README.md
+    - docs/plans/agentic-coding-storage-scale/apple-handoff.md
+    - docs/plans/agentic-coding-storage-scale/billing-extension.md
+    - docs/plans/agentic-coding-storage-scale/legal-storage-review.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record storage readiness and native release gates'
+    section: docs
+    commits:
+    - f39ccd116
+    authored_at: '2026-10-03T21:52:43+00:00'
+    changed_paths:
+    - docs/plans/agentic-coding-storage-scale/README.md
+    - docs/plans/agentic-coding-storage-scale/apple-handoff.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: clarify native bundled attachment retry safety'
+    section: docs
+    commits:
+    - 09f2f948b
+    authored_at: '2026-10-03T17:14:18+00:00'
+    changed_paths:
+    - docs/plans/agentic-coding-storage-scale/apple-handoff.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: hand off Apple storage compatibility'
+    section: docs
+    commits:
+    - 73565e35e
+    authored_at: '2026-10-03T16:42:41+00:00'
+    changed_paths:
+    - docs/plans/agentic-coding-storage-scale/apple-handoff.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record offline anonymization delivery and verification'
+    section: docs
+    commits:
+    - 2e8d3cde0
+    authored_at: '2026-10-03T12:04:58+00:00'
+    changed_paths:
+    - docs/plans/native-agentic-coding-readiness/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record privacy model installation and naming decisions'
+    section: docs
+    commits:
+    - 43a040cae
+    authored_at: '2026-10-03T10:11:07+00:00'
+    changed_paths:
+    - docs/plans/native-agentic-coding-readiness/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: plan optional CLI privacy model installation'
+    section: docs
+    commits:
+    - 6db3cd2e3
+    authored_at: '2026-10-03T10:07:36+00:00'
+    changed_paths:
+    - docs/plans/native-agentic-coding-readiness/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: evaluate GLiNER privacy gating on CPU'
+    section: docs
+    commits:
+    - cea0e6637
+    authored_at: '2026-10-03T01:38:50+00:00'
+    changed_paths:
+    - docs/architecture/privacy/evaluations/2026-10-03-gliner-gate/boundary.json
+    - docs/architecture/privacy/evaluations/2026-10-03-gliner-gate/float32.json
+    - docs/architecture/privacy/evaluations/2026-10-03-gliner-gate/int8.json
+    - docs/architecture/privacy/evaluations/2026-10-03-gliner-gate/manifest.json
+    - docs/architecture/privacy/gliner-pii-gate-evaluation-2026-10-03.md
+    - docs/plans/native-agentic-coding-readiness/plan.yml
+    - scripts/privacy_gate_evaluation.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: recommend selective PII model scans to preserve coding latency'
+    section: docs
+    commits:
+    - 45a2997a6
+    authored_at: '2026-10-03T00:59:40+00:00'
+    changed_paths:
+    - docs/architecture/privacy/offline-pii-evaluation-2026-10-03.md
+    - docs/plans/native-agentic-coding-readiness/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: measure offline Privacy Filter feasibility on ARM dev server'
+    section: docs
+    commits:
+    - c59073af5
+    authored_at: '2026-10-03T00:57:21+00:00'
+    changed_paths:
+    - docs/architecture/privacy/evaluations/2026-10-03/boundary-baseline.json
+    - docs/architecture/privacy/evaluations/2026-10-03/boundary-fixtures.json
+    - docs/architecture/privacy/evaluations/2026-10-03/cpp-arm-1.json
+    - docs/architecture/privacy/evaluations/2026-10-03/cpp-arm-2.json
+    - docs/architecture/privacy/evaluations/2026-10-03/cpp-arm-4.json
+    - docs/architecture/privacy/evaluations/2026-10-03/cpp-arm-boundary.json
+    - docs/architecture/privacy/evaluations/2026-10-03/cpp-revisions.json
+    - docs/architecture/privacy/evaluations/2026-10-03/disk-measurements.json
+    - docs/architecture/privacy/evaluations/2026-10-03/environment.txt
+    - docs/architecture/privacy/evaluations/2026-10-03/manifest.json
+    - docs/architecture/privacy/evaluations/2026-10-03/official-clean-latency.json
+    - docs/architecture/privacy/evaluations/2026-10-03/official-cpu-2.json
+    - docs/architecture/privacy/evaluations/2026-10-03/quality-summary.json
+    - docs/architecture/privacy/evaluations/2026-10-03/regex-baseline.json
+    - docs/architecture/privacy/offline-pii-evaluation-2026-10-03.md
+    - docs/plans/native-agentic-coding-readiness/plan.yml
+    - scripts/fixtures/privacy-filter-synthetic.json
+    - scripts/privacy_filter_evaluation.py
+    - scripts/privacy_filter_regex_baseline.mjs
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test: retain private Directus comparison evidence'
+    section: tests
+    commits:
+    - d0dee04a6
+    authored_at: '2026-10-03T23:54:18+00:00'
+    changed_paths:
+    - .github/workflows/isolated-tests.yml
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_storage_accountability_profile.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: retain bounded storage pilot failure diagnostics'
+    section: tests
+    commits:
+    - b5c7c0dec
+    authored_at: '2026-10-03T23:34:28+00:00'
+    changed_paths:
+    - .github/workflows/isolated-tests.yml
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_storage_capacity_failure_rows.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: isolate Directus accountability verification'
+    section: tests
+    commits:
+    - '573626658'
+    authored_at: '2026-10-03T23:22:47+00:00'
+    changed_paths:
+    - .github/workflows/isolated-tests.yml
+    - scripts/ci_coverage_manifest.json
+    - scripts/ci_environment.py
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_storage_accountability_profile.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: retain isolated capacity probe receipts'
+    section: tests
+    commits:
+    - f1ace349b
+    authored_at: '2026-10-03T22:29:14+00:00'
+    changed_paths:
+    - .github/workflows/isolated-tests.yml
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_storage_capacity_profile.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: report sanitized inner archive probe failures'
+    section: tests
+    commits:
+    - 827d2708a
+    authored_at: '2026-10-03T21:44:17+00:00'
+    changed_paths:
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_storage_capacity_profile.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: retain bounded private recovery failure evidence'
+    section: tests
+    commits:
+    - '424024242'
+    authored_at: '2026-10-03T21:26:03+00:00'
+    changed_paths:
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_recovery_diagnostics.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: isolate artifact reload checks from storage replay'
+    section: tests
+    commits:
+    - 5a8873c71
+    authored_at: '2026-10-03T20:50:54+00:00'
+    changed_paths:
+    - scripts/ci_coverage_manifest.json
+    - scripts/ci_environment.py
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_storage_capacity_profile.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test(storage): publish Apple recovery fixture and unit diagnostics'
+    section: tests
+    commits:
+    - c8e961da9
+    authored_at: '2026-10-03T19:21:58+00:00'
+    changed_paths:
+    - backend/tests/fixtures/chat_recovery_output_v2.json
+    - docs/plans/agentic-coding-storage-scale/README.md
+    - docs/plans/agentic-coding-storage-scale/apple-handoff.md
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_storage_capacity_profile.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: admit exact selected frontend unit paths'
+    section: tests
+    commits:
+    - a797822c8
+    authored_at: '2026-10-03T18:34:53+00:00'
+    changed_paths:
+    - scripts/ci_coordinator.py
+    - scripts/tests/test_ci_coordinator.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: publish approved storage plan and isolated recovery harness'
+    section: tests
+    commits:
+    - 20cb6a714
+    authored_at: '2026-10-03T18:13:22+00:00'
+    changed_paths:
+    - docs/plans/agentic-coding-storage-scale/README.md
+    - docs/plans/agentic-coding-storage-scale/apple-handoff.md
+    - docs/plans/agentic-coding-storage-scale/plan.yml
+    - docs/plans/agentic-coding-storage-scale/rollout.md
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_storage_capacity_profile.py
+    - specifications/architecture/storage-lifecycle/examples.yml
+    - specifications/architecture/storage-lifecycle/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: isolate focused backend dependencies from Python SDK'
+    section: tests
+    commits:
+    - 3053414ea
+    authored_at: '2026-10-03T16:51:16+00:00'
+    changed_paths:
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_run_tests.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: provision bounded history fixtures'
+    section: tests
+    commits:
+    - 6f87b4739
+    authored_at: '2026-10-03T14:39:28+00:00'
+    changed_paths:
+    - scripts/ci_run_tests.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: classify bounded shared history checks'
+    section: tests
+    commits:
+    - 73d7d19f6
+    authored_at: '2026-10-03T13:12:36+00:00'
+    changed_paths:
+    - scripts/ci_coverage_manifest.json
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: enable isolated storage capacity profile'
+    section: tests
+    commits:
+    - 029888a31
+    authored_at: '2026-10-03T12:59:26+00:00'
+    changed_paths:
+    - scripts/ci_coverage_manifest.json
+    - scripts/ci_environment.py
+    - scripts/ci_run_tests.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: record Jev-first latency and retrieval parity'
+    section: tests
+    commits:
+    - 9be86a2a9
+    authored_at: '2026-10-03T12:28:46+00:00'
+    changed_paths:
+    - docs/plans/apps-jev-first-safety/measurement-2026-10-03.md
+    - docs/plans/apps-jev-first-safety/plan.yml
+    - frontend/apps/web_app/tests/cli-external-output-safety.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'test: retain private Directus comparison evidence'
+    commits:
+    - d0dee04a6
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record storage progress and live smoke checks'
+    commits:
+    - 7bd08f0ce
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: retain bounded storage pilot failure diagnostics'
+    commits:
+    - b5c7c0dec
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: isolate Directus accountability verification'
+    commits:
+    - '573626658'
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: clarify bounded storage rollout and client handoff'
+    commits:
+    - 8a0ec1968
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: retain isolated capacity probe receipts'
+    commits:
+    - f1ace349b
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record storage readiness and native release gates'
+    commits:
+    - f39ccd116
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: report sanitized inner archive probe failures'
+    commits:
+    - 827d2708a
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: retain bounded private recovery failure evidence'
+    commits:
+    - '424024242'
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: isolate artifact reload checks from storage replay'
+    commits:
+    - 5a8873c71
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test(storage): publish Apple recovery fixture and unit diagnostics'
+    commits:
+    - c8e961da9
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(ci): isolate recovery cutover dependencies'
+    commits:
+    - 4f2710cee
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(ci): build CLI before selected unit checks'
+    commits:
+    - 8f25249ce
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: admit exact selected frontend unit paths'
+    commits:
+    - a797822c8
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: publish approved storage plan and isolated recovery harness'
+    commits:
+    - 20cb6a714
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: clarify native bundled attachment retry safety'
+    commits:
+    - 09f2f948b
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: isolate focused backend dependencies from Python SDK'
+    commits:
+    - 3053414ea
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: hand off Apple storage compatibility'
+    commits:
+    - 73565e35e
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: provision bounded history fixtures'
+    commits:
+    - 6f87b4739
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: classify bounded shared history checks'
+    commits:
+    - 73d7d19f6
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: enable isolated storage capacity profile'
+    commits:
+    - 029888a31
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: record Jev-first latency and retrieval parity'
+    commits:
+    - 9be86a2a9
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record offline anonymization delivery and verification'
+    commits:
+    - 2e8d3cde0
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'perf: use Jev-first app output safety'
+    commits:
+    - dae1539e2
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: preserve prepared anonymous PII placeholders'
+    commits:
+    - 79df9340f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: optional offline personal data anonymization in the CLI'
+    commits:
+    - 2cba8048c
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'docs: record privacy model installation and naming decisions'
+    commits:
+    - 43a040cae
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: plan optional CLI privacy model installation'
+    commits:
+    - 6db3cd2e3
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: separate targeted draft and chat census freshness'
+    commits:
+    - ba497d718
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: align terminal chat sidebar with web navigation'
+    commits:
+    - 4f85491b7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: render linked chats in Project folders'
+    commits:
+    - fee044d21
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'docs: evaluate GLiNER privacy gating on CPU'
+    commits:
+    - cea0e6637
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: recover Health discovery and prevent picker submission'
+    commits:
+    - 296e7e142
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:health
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/health/app.yml
+    - id: embed:health:search_appointments
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:health
+      source: backend/apps/health/app.yml
+    - id: skill:health:search_appointments
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:health
+      source: backend/apps/health/app.yml
+  - title: 'fix: center terminal content and remove outer frame'
+    commits:
+    - 862105eae
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: recommend selective PII model scans to preserve coding latency'
+    commits:
+    - 45a2997a6
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: measure offline Privacy Filter feasibility on ARM dev server'
+    commits:
+    - c59073af5
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: composable workflow checks and chat-owned runs'
+    commits:
+    - 4f550c256
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:workflows
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/workflows/app.yml
+    - id: embed:workflows:create-or-modify
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:workflows
+      source: backend/apps/workflows/app.yml
+    - id: embed:workflows:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:workflows
+      source: backend/apps/workflows/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    - id: skill:workflows:run
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:workflows
+      source: backend/apps/workflows/app.yml
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'feat: render linked chats in Project folders'
+    commits:
+    - fee044d21
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'feat: composable workflow checks and chat-owned runs'
+    commits:
+    - 4f550c256
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:workflows
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/workflows/app.yml
+    - id: embed:workflows:create-or-modify
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:workflows
+      source: backend/apps/workflows/app.yml
+    - id: embed:workflows:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:workflows
+      source: backend/apps/workflows/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    - id: skill:workflows:run
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:workflows
+      source: backend/apps/workflows/app.yml
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'perf: use Jev-first app output safety'
+    commits:
+    - dae1539e2
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve prepared anonymous PII placeholders'
+    commits:
+    - 79df9340f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: optional offline personal data anonymization in the CLI'
+    commits:
+    - 2cba8048c
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: separate targeted draft and chat census freshness'
+    commits:
+    - ba497d718
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: align terminal chat sidebar with web navigation'
+    commits:
+    - 4f85491b7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: render linked chats in Project folders'
+    commits:
+    - fee044d21
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: recover Health discovery and prevent picker submission'
+    commits:
+    - 296e7e142
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:health
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/health/app.yml
+    - id: embed:health:search_appointments
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:health
+      source: backend/apps/health/app.yml
+    - id: skill:health:search_appointments
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:health
+      source: backend/apps/health/app.yml
+    newsletter_ready: false
+  - title: 'fix: center terminal content and remove outer frame'
+    commits:
+    - 862105eae
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: composable workflow checks and chat-owned runs'
+    commits:
+    - 4f550c256
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:workflows
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/workflows/app.yml
+    - id: embed:workflows:create-or-modify
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:workflows
+      source: backend/apps/workflows/app.yml
+    - id: embed:workflows:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:workflows
+      source: backend/apps/workflows/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    - id: skill:workflows:run
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:workflows
+      source: backend/apps/workflows/app.yml
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: d0dee04a6e69c2bade6bc4f89586b0cb69c33b98
+    short_sha: d0dee04a6
+    authored_at: '2026-10-03T23:54:18+00:00'
+    subject: 'test: retain private Directus comparison evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/isolated-tests.yml
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_storage_accountability_profile.py
+    related_feature_ids: []
+  - sha: 7bd08f0ce2709d076f6cb7c0b24e7ebb5d7431c2
+    short_sha: 7bd08f0ce
+    authored_at: '2026-10-03T23:53:17+00:00'
+    subject: 'docs: record storage progress and live smoke checks'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/agentic-coding-storage-scale/README.md
+    - docs/plans/agentic-coding-storage-scale/legal-storage-review.md
+    - docs/plans/agentic-coding-storage-scale/plan.yml
+    - docs/plans/agentic-coding-storage-scale/progress.md
+    related_feature_ids: []
+  - sha: b5c7c0decb8b5ac36ad937a01e6c85b54f4001bc
+    short_sha: b5c7c0dec
+    authored_at: '2026-10-03T23:34:28+00:00'
+    subject: 'test: retain bounded storage pilot failure diagnostics'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/isolated-tests.yml
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_storage_capacity_failure_rows.py
+    related_feature_ids: []
+  - sha: 5736266585e1c5d267e30feb73c2c7405cb87946
+    short_sha: '573626658'
+    authored_at: '2026-10-03T23:22:47+00:00'
+    subject: 'test: isolate Directus accountability verification'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/isolated-tests.yml
+    - scripts/ci_coverage_manifest.json
+    - scripts/ci_environment.py
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_storage_accountability_profile.py
+    related_feature_ids: []
+  - sha: 8a0ec19683c2d1fa23cea1f46e57913b3d259222
+    short_sha: 8a0ec1968
+    authored_at: '2026-10-03T23:03:51+00:00'
+    subject: 'docs: clarify bounded storage rollout and client handoff'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/agentic-coding-storage-scale/README.md
+    - docs/plans/agentic-coding-storage-scale/apple-handoff.md
+    - docs/plans/agentic-coding-storage-scale/billing-extension.md
+    - docs/plans/agentic-coding-storage-scale/legal-storage-review.md
+    related_feature_ids: []
+  - sha: f1ace349b4d26e81b0812e1d91dfbb35856e9656
+    short_sha: f1ace349b
+    authored_at: '2026-10-03T22:29:14+00:00'
+    subject: 'test: retain isolated capacity probe receipts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/isolated-tests.yml
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_storage_capacity_profile.py
+    related_feature_ids: []
+  - sha: f39ccd116be98a8e96744782025267cfb8877328
+    short_sha: f39ccd116
+    authored_at: '2026-10-03T21:52:43+00:00'
+    subject: 'docs: record storage readiness and native release gates'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/agentic-coding-storage-scale/README.md
+    - docs/plans/agentic-coding-storage-scale/apple-handoff.md
+    related_feature_ids: []
+  - sha: 827d2708abe7ab88dbbf7abaf0bebb7d28278ab9
+    short_sha: 827d2708a
+    authored_at: '2026-10-03T21:44:17+00:00'
+    subject: 'test: report sanitized inner archive probe failures'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_storage_capacity_profile.py
+    related_feature_ids: []
+  - sha: 4240242427e88ec0c0dcbc4d27e44b80083d5e0d
+    short_sha: '424024242'
+    authored_at: '2026-10-03T21:26:03+00:00'
+    subject: 'test: retain bounded private recovery failure evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_recovery_diagnostics.py
+    related_feature_ids: []
+  - sha: 5a8873c71ada4202ed13cc030f03a47598530b15
+    short_sha: 5a8873c71
+    authored_at: '2026-10-03T20:50:54+00:00'
+    subject: 'test: isolate artifact reload checks from storage replay'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_coverage_manifest.json
+    - scripts/ci_environment.py
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_storage_capacity_profile.py
+    related_feature_ids: []
+  - sha: c8e961da9281a85667208d05b446d03f7964d4a2
+    short_sha: c8e961da9
+    authored_at: '2026-10-03T19:21:58+00:00'
+    subject: 'test(storage): publish Apple recovery fixture and unit diagnostics'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/tests/fixtures/chat_recovery_output_v2.json
+    - docs/plans/agentic-coding-storage-scale/README.md
+    - docs/plans/agentic-coding-storage-scale/apple-handoff.md
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_storage_capacity_profile.py
+    related_feature_ids: []
+  - sha: 4f2710ceeec0d8f15adb2bb68f4bed6cc7425c10
+    short_sha: 4f2710cee
+    authored_at: '2026-10-03T18:57:31+00:00'
+    subject: 'fix(ci): isolate recovery cutover dependencies'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_storage_capacity_profile.py
+    related_feature_ids: []
+  - sha: 8f25249ce752252c7d70e7bd84b12e75f99be633
+    short_sha: 8f25249ce
+    authored_at: '2026-10-03T18:47:25+00:00'
+    subject: 'fix(ci): build CLI before selected unit checks'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_storage_capacity_profile.py
+    related_feature_ids: []
+  - sha: a797822c8f3d545b4d0a910e50fb9bcd16f8cce8
+    short_sha: a797822c8
+    authored_at: '2026-10-03T18:34:53+00:00'
+    subject: 'test: admit exact selected frontend unit paths'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_coordinator.py
+    - scripts/tests/test_ci_coordinator.py
+    related_feature_ids: []
+  - sha: 20cb6a714a1a801dfbc003def5e84c055140cc11
+    short_sha: 20cb6a714
+    authored_at: '2026-10-03T18:13:22+00:00'
+    subject: 'test: publish approved storage plan and isolated recovery harness'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/agentic-coding-storage-scale/README.md
+    - docs/plans/agentic-coding-storage-scale/apple-handoff.md
+    - docs/plans/agentic-coding-storage-scale/plan.yml
+    - docs/plans/agentic-coding-storage-scale/rollout.md
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_storage_capacity_profile.py
+    - specifications/architecture/storage-lifecycle/examples.yml
+    - specifications/architecture/storage-lifecycle/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids: []
+  - sha: 09f2f948b51f8d876301dda25c3864ca8e1cd2ec
+    short_sha: 09f2f948b
+    authored_at: '2026-10-03T17:14:18+00:00'
+    subject: 'docs: clarify native bundled attachment retry safety'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/agentic-coding-storage-scale/apple-handoff.md
+    related_feature_ids: []
+  - sha: 3053414ea2c50d4dfa0990e1211931fe09cf2b26
+    short_sha: 3053414ea
+    authored_at: '2026-10-03T16:51:16+00:00'
+    subject: 'test: isolate focused backend dependencies from Python SDK'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_run_tests.py
+    - scripts/tests/test_ci_run_tests.py
+    related_feature_ids: []
+  - sha: 73565e35e98de2e9e9868b17953deb0c58eaa90a
+    short_sha: 73565e35e
+    authored_at: '2026-10-03T16:42:41+00:00'
+    subject: 'docs: hand off Apple storage compatibility'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/agentic-coding-storage-scale/apple-handoff.md
+    related_feature_ids: []
+  - sha: 6f87b4739e9b73e12c2ab19a5e49636ade05fc9d
+    short_sha: 6f87b4739
+    authored_at: '2026-10-03T14:39:28+00:00'
+    subject: 'test: provision bounded history fixtures'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_run_tests.py
+    related_feature_ids: []
+  - sha: 73d7d19f68b8c7709cce733f3dc91af38f69a52c
+    short_sha: 73d7d19f6
+    authored_at: '2026-10-03T13:12:36+00:00'
+    subject: 'test: classify bounded shared history checks'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_coverage_manifest.json
+    related_feature_ids: []
+  - sha: 029888a3119502dc544db243aacf1a903463db5e
+    short_sha: 029888a31
+    authored_at: '2026-10-03T12:59:26+00:00'
+    subject: 'test: enable isolated storage capacity profile'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_coverage_manifest.json
+    - scripts/ci_environment.py
+    - scripts/ci_run_tests.py
+    related_feature_ids: []
+  - sha: 9be86a2a907cad4be22cdceaf199dc7e05cce916
+    short_sha: 9be86a2a9
+    authored_at: '2026-10-03T12:28:46+00:00'
+    subject: 'test: record Jev-first latency and retrieval parity'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/apps-jev-first-safety/measurement-2026-10-03.md
+    - docs/plans/apps-jev-first-safety/plan.yml
+    - frontend/apps/web_app/tests/cli-external-output-safety.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 2e8d3cde0ebdf05fb5d5ae97a4878e3ee3d2e155
+    short_sha: 2e8d3cde0
+    authored_at: '2026-10-03T12:04:58+00:00'
+    subject: 'docs: record offline anonymization delivery and verification'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/native-agentic-coding-readiness/plan.yml
+    related_feature_ids: []
+  - sha: dae1539e23644355996403e47a759a2b91b9fba0
+    short_sha: dae1539e2
+    authored_at: '2026-10-03T11:52:43+00:00'
+    subject: 'perf: use Jev-first app output safety'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/shared/python_utils/structured_content_sanitization.py
+    - backend/tests/test_single_pass_output_safety.py
+    - backend/tests/test_structured_content_sanitization.py
+    - docs/plans/apps-jev-first-safety/plan.yml
+    - frontend/apps/web_app/tests/cli-external-output-safety.spec.ts
+    - specifications/architecture/app-skill-execution/examples.yml
+    - specifications/architecture/app-skill-execution/specification.yml
+    - specifications/features/app-skills/web-search/examples.yml
+    - specifications/features/app-skills/web-search/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    related_feature_ids: []
+  - sha: 79df9340f04f76974611b06bfa59b81e3fd3786c
+    short_sha: 79df9340f
+    authored_at: '2026-10-03T11:49:29+00:00'
+    subject: 'fix: preserve prepared anonymous PII placeholders'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/native-agentic-coding-readiness/plan.yml
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    related_feature_ids: []
+  - sha: 2cba8048cd37cd4536a1d7b0b032cc0c334dcda5
+    short_sha: 2cba8048c
+    authored_at: '2026-10-03T11:38:09+00:00'
+    subject: 'feat: optional offline personal data anonymization in the CLI'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/publish-cli.yml
+    - docs/architecture/privacy/cli-enhanced-anonymization.md
+    - docs/plans/native-agentic-coding-readiness/plan.yml
+    - frontend/apps/web_app/tests/cli-privacy.spec.ts
+    - frontend/packages/openmates-cli/fixtures/privacy-runtime/.gitignore
+    - frontend/packages/openmates-cli/fixtures/privacy-runtime/.npmignore
+    - frontend/packages/openmates-cli/native/privacy-worker.cpp
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/scripts/build-privacy-runtime.py
+    - frontend/packages/openmates-cli/scripts/check-privacy-package.mjs
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/outputRedactor.ts
+    - frontend/packages/openmates-cli/src/privacyCommands.ts
+    - frontend/packages/openmates-cli/src/privacyDaemon.ts
+    - frontend/packages/openmates-cli/src/privacyModel.ts
+    - frontend/packages/openmates-cli/src/privacyScan.ts
+    - frontend/packages/openmates-cli/src/privacyWorker.ts
+    - frontend/packages/openmates-cli/src/projectFileExecutor.ts
+    - frontend/packages/openmates-cli/src/tui.ts
+    - frontend/packages/openmates-cli/src/tuiAttachments.ts
+    - frontend/packages/openmates-cli/src/tuiRenderer.ts
+    - frontend/packages/openmates-cli/tests/privacy.test.ts
+    - frontend/packages/ui/src/services/projectFilePrivacy.ts
+    - frontend/packages/ui/src/services/projectFilePrivacyStorage.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:projects
+  - sha: 43a040caee269586169f00bff3300d7ce4f66ae6
+    short_sha: 43a040cae
+    authored_at: '2026-10-03T10:11:07+00:00'
+    subject: 'docs: record privacy model installation and naming decisions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/native-agentic-coding-readiness/plan.yml
+    related_feature_ids: []
+  - sha: 6db3cd2e3bc245bd2dae358fc83a6b305c7b1769
+    short_sha: 6db3cd2e3
+    authored_at: '2026-10-03T10:07:36+00:00'
+    subject: 'docs: plan optional CLI privacy model installation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/native-agentic-coding-readiness/plan.yml
+    related_feature_ids: []
+  - sha: ba497d718b43db421152b7d4e1439c21ee9961ec
+    short_sha: ba497d718
+    authored_at: '2026-10-03T04:53:41+00:00'
+    subject: 'fix: separate targeted draft and chat census freshness'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-tui-workflows.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/storage.ts
+    - frontend/packages/openmates-cli/tests/draft-sync.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-chat-sidebar.test.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 4f85491b7b1e05cd1c057099716c0e15ea712246
+    short_sha: 4f85491b7
+    authored_at: '2026-10-03T04:12:19+00:00'
+    subject: 'fix: align terminal chat sidebar with web navigation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/chats.py
+    - backend/tests/test_chat_activity.py
+    - docs/plans/cli-terminal-chat-tui/plan.yml
+    - frontend/apps/web_app/tests/cli-tui-chat-sidebar-proof.spec.ts
+    - frontend/apps/web_app/tests/cli-tui-proof-helpers.ts
+    - frontend/apps/web_app/tests/cli-tui-workflows.spec.ts
+    - frontend/apps/web_app/tests/helpers/workflow-cli-e2e-helpers.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/tuiChatSidebar.ts
+    - frontend/packages/openmates-cli/src/tuiHome.ts
+    - frontend/packages/openmates-cli/src/tuiLayout.ts
+    - frontend/packages/openmates-cli/src/tuiProjectsWorkspace.ts
+    - frontend/packages/openmates-cli/src/tuiRenderer.ts
+    - frontend/packages/openmates-cli/src/tuiWorkspaceController.ts
+    - frontend/packages/openmates-cli/tests/sdk-chat-sidebar.test.ts
+    - frontend/packages/openmates-cli/tests/tuiChatSidebar.test.ts
+    - frontend/packages/openmates-cli/tests/tuiHome.test.ts
+    - frontend/packages/openmates-cli/tests/tuiLayout.test.ts
+    - frontend/packages/openmates-cli/tests/tuiWorkspaceInteraction.test.ts
+    - frontend/packages/ui/src/components/chats/utils/chatGroupUtils.ts
+    - frontend/packages/ui/src/utils/chatTimeGroups.ts
+    - scripts/ci_coverage_manifest.json
+    - scripts/cli_video_capture.py
+    - scripts/tests/test_cli_video_capture.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: fee044d21a4b4687c96d549fc800154b4d27fee2
+    short_sha: fee044d21
+    authored_at: '2026-10-03T03:41:41+00:00'
+    subject: 'feat: render linked chats in Project folders'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/project-chat-previews/plan.yml
+    - frontend/apps/web_app/tests/chat-sidebar-projects.spec.ts
+    - frontend/apps/web_app/tests/components/project-chat-previews.spec.ts
+    - frontend/apps/web_app/tests/helpers/chat-hydration.ts
+    - frontend/apps/web_app/tests/helpers/project-remote-fixture.ts
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/components/projects/ProjectBrowserItem.preview.ts
+    - frontend/packages/ui/src/components/projects/ProjectBrowserItem.svelte
+    - frontend/packages/ui/src/components/projects/ProjectChatPreview.preview.ts
+    - frontend/packages/ui/src/components/projects/ProjectChatPreview.svelte
+    - frontend/packages/ui/src/components/projects/ProjectChatsSection.preview.ts
+    - frontend/packages/ui/src/components/projects/ProjectChatsSection.svelte
+    - frontend/packages/ui/src/components/projects/ProjectsPage.preview.ts
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspaceContinueCard.svelte
+    - frontend/packages/ui/src/services/__tests__/chatMetadataCacheInvalidation.test.ts
+    - frontend/packages/ui/src/services/__tests__/projectChatBrowser.test.ts
+    - frontend/packages/ui/src/services/__tests__/projectChatPreviewService.test.ts
+    - frontend/packages/ui/src/services/chatMetadataCache.ts
+    - frontend/packages/ui/src/services/projectChatBrowser.ts
+    - frontend/packages/ui/src/services/projectChatPreviewService.ts
+    - scripts/ci_coverage_manifest.json
+    - scripts/project_remote_access_live.mjs
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:projects
+  - sha: cea0e6637f4335735258455fea2ea54a75270961
+    short_sha: cea0e6637
+    authored_at: '2026-10-03T01:38:50+00:00'
+    subject: 'docs: evaluate GLiNER privacy gating on CPU'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/privacy/evaluations/2026-10-03-gliner-gate/boundary.json
+    - docs/architecture/privacy/evaluations/2026-10-03-gliner-gate/float32.json
+    - docs/architecture/privacy/evaluations/2026-10-03-gliner-gate/int8.json
+    - docs/architecture/privacy/evaluations/2026-10-03-gliner-gate/manifest.json
+    - docs/architecture/privacy/gliner-pii-gate-evaluation-2026-10-03.md
+    - docs/plans/native-agentic-coding-readiness/plan.yml
+    - scripts/privacy_gate_evaluation.py
+    related_feature_ids: []
+  - sha: 296e7e1422a2119e3afd1aebd93254d8573a75ed
+    short_sha: 296e7e142
+    authored_at: '2026-10-03T01:22:03+00:00'
+    subject: 'fix: recover Health discovery and prevent picker submission'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/health/skills/search_appointments_skill.py
+    - backend/tests/test_health_search_appointments_skill.py
+    - frontend/apps/web_app/tests/apps-workspace.spec.ts
+    - frontend/apps/web_app/tests/components/apps-skill-form.spec.ts
+    - frontend/packages/ui/src/components/apps/AppsSkillForm.preview.ts
+    - frontend/packages/ui/src/components/enter_message/MapsView.svelte
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:health
+    - embed:health:search_appointments
+    - skill:health:search_appointments
+  - sha: 862105eae02bf6a2d1da9f8d87f04daad53c5d75
+    short_sha: 862105eae
+    authored_at: '2026-10-03T01:01:21+00:00'
+    subject: 'fix: center terminal content and remove outer frame'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/cli-terminal-chat-tui/plan.yml
+    - frontend/apps/web_app/tests/cli-tui-centered-carousels-proof.spec.ts
+    - frontend/apps/web_app/tests/cli-tui-proof-helpers.ts
+    - frontend/apps/web_app/tests/cli-tui-workspace-details-proof.spec.ts
+    - frontend/apps/web_app/tests/cli-tui-workspace-proof.spec.ts
+    - frontend/packages/openmates-cli/src/tuiLayout.ts
+    - frontend/packages/openmates-cli/src/tuiRenderer.ts
+    - frontend/packages/openmates-cli/src/tuiWorkspaceController.ts
+    - frontend/packages/openmates-cli/tests/tuiLayout.test.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 45a2997a6c927b17fc80c1a51c5502a3e2ed9906
+    short_sha: 45a2997a6
+    authored_at: '2026-10-03T00:59:40+00:00'
+    subject: 'docs: recommend selective PII model scans to preserve coding latency'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/privacy/offline-pii-evaluation-2026-10-03.md
+    - docs/plans/native-agentic-coding-readiness/plan.yml
+    related_feature_ids: []
+  - sha: c59073af510d91cabd0e4afd4f00468f042ae244
+    short_sha: c59073af5
+    authored_at: '2026-10-03T00:57:21+00:00'
+    subject: 'docs: measure offline Privacy Filter feasibility on ARM dev server'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/privacy/evaluations/2026-10-03/boundary-baseline.json
+    - docs/architecture/privacy/evaluations/2026-10-03/boundary-fixtures.json
+    - docs/architecture/privacy/evaluations/2026-10-03/cpp-arm-1.json
+    - docs/architecture/privacy/evaluations/2026-10-03/cpp-arm-2.json
+    - docs/architecture/privacy/evaluations/2026-10-03/cpp-arm-4.json
+    - docs/architecture/privacy/evaluations/2026-10-03/cpp-arm-boundary.json
+    - docs/architecture/privacy/evaluations/2026-10-03/cpp-revisions.json
+    - docs/architecture/privacy/evaluations/2026-10-03/disk-measurements.json
+    - docs/architecture/privacy/evaluations/2026-10-03/environment.txt
+    - docs/architecture/privacy/evaluations/2026-10-03/manifest.json
+    - docs/architecture/privacy/evaluations/2026-10-03/official-clean-latency.json
+    - docs/architecture/privacy/evaluations/2026-10-03/official-cpu-2.json
+    - docs/architecture/privacy/evaluations/2026-10-03/quality-summary.json
+    - docs/architecture/privacy/evaluations/2026-10-03/regex-baseline.json
+    - docs/architecture/privacy/offline-pii-evaluation-2026-10-03.md
+    - docs/plans/native-agentic-coding-readiness/plan.yml
+    - scripts/fixtures/privacy-filter-synthetic.json
+    - scripts/privacy_filter_evaluation.py
+    - scripts/privacy_filter_regex_baseline.mjs
+    related_feature_ids: []
+  - sha: 4f550c256015ce2942a9404ba592510470aa9933
+    short_sha: 4f550c256
+    authored_at: '2026-10-03T00:00:16+00:00'
+    subject: 'feat: composable workflow checks and chat-owned runs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/skill_executor.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/workflows/app.yml
+    - backend/apps/workflows/skills/chat_authoring_context.py
+    - backend/apps/workflows/skills/create_or_modify_skill.py
+    - backend/apps/workflows/skills/run_skill.py
+    - backend/core/api/app/routes/workflows.py
+    - backend/core/api/app/services/workflow_action_adapter.py
+    - backend/core/api/app/services/workflow_ai_service.py
+    - backend/core/api/app/services/workflow_app_skill_adapter.py
+    - backend/core/api/app/services/workflow_assistant_service.py
+    - backend/core/api/app/services/workflow_authoring_compiler.py
+    - backend/core/api/app/services/workflow_capability_registry.py
+    - backend/core/api/app/services/workflow_chat_delivery_service.py
+    - backend/core/api/app/services/workflow_input_service.py
+    - backend/core/api/app/services/workflow_models.py
+    - backend/core/api/app/services/workflow_runner.py
+    - backend/core/api/app/services/workflow_service.py
+    - backend/core/api/app/services/workflow_template_expressions.py
+    - backend/core/api/app/services/workflow_yaml_compiler.py
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/core/api/app/tasks/workflow_assistant_tasks.py
+    - backend/core/api/app/tasks/workflow_tasks.py
+    - backend/core/directus/extensions/workflow-authoring-transaction/src/index.js
+    - backend/core/directus/extensions/workflow-authoring-transaction/src/operations.js
+    - backend/core/directus/extensions/workflow-authoring-transaction/test/operations.test.js
+    - backend/core/directus/extensions/workflow-runtime-transaction/src/delivery_history.js
+    - backend/core/directus/extensions/workflow-runtime-transaction/src/operations.js
+    - backend/core/directus/extensions/workflow-runtime-transaction/test/delivery-history.test.js
+    - backend/core/directus/extensions/workflow-runtime-transaction/test/operations.test.js
+    - backend/core/directus/schemas/workflow_chat_deliveries.yml
+    - backend/core/directus/schemas/workflow_runs.yml
+    - backend/core/directus/schemas/workflows.yml
+    - backend/tests/test_app_skill_rest_context.py
+    - backend/tests/test_persistence_tasks.py
+    - backend/tests/test_skill_executor_registry_refresh.py
+    - backend/tests/test_workflow_ai_credit_budget.py
+    - backend/tests/test_workflow_app_skill_adapter.py
+    - backend/tests/test_workflow_chat_delivery.py
+    - backend/tests/test_workflow_chat_invocation.py
+    - backend/tests/test_workflow_choice_for_each_runtime.py
+    - backend/tests/test_workflow_options_and_for_each_contracts.py
+    - backend/tests/test_workflow_runtime_python_transactions.py
+    - backend/tests/test_workflows_models.py
+    - docs/plans/composable-workflows/plan.yml
+    - docs/user-guide/developers/sdk-reference.md
+    - docs/user-guide/developers/sdk-test-coverage.md
+    - docs/user-guide/workflows.md
+    - frontend/apps/web_app/tests/components/workflow-chat-embed.spec.ts
+    - frontend/apps/web_app/tests/components/workflow-check-editor.spec.ts
+    - frontend/apps/web_app/tests/components/workflow-choice-loop.spec.ts
+    - frontend/apps/web_app/tests/workflows-composition.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/generated/workflowAuthoringSchema.ts
+    - frontend/packages/openmates-cli/src/index.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
+    - frontend/packages/openmates-cli/tests/workflow-file.test.ts
+    - frontend/packages/openmates-cli/tests/workflows-yaml.test.ts
+    - frontend/packages/openmates-cli/tests/workflows.test.ts
+    - frontend/packages/ui/src/components/embeds/workflows/WorkflowEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/workflows/WorkflowEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/workflows/workflowEmbedData.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.preview.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+    - frontend/packages/ui/src/components/workflows/__tests__/workflowBuilder.test.ts
+    - frontend/packages/ui/src/components/workflows/__tests__/workflowMessageTokens.test.ts
+    - frontend/packages/ui/src/components/workflows/workflowBuilder.ts
+    - frontend/packages/ui/src/components/workflows/workflowMessageTokens.ts
+    - frontend/packages/ui/src/i18n/sources/workflows.yml
+    - frontend/packages/ui/src/stores/__tests__/workflowWorkspaceStore.test.ts
+    - frontend/packages/ui/src/stores/workflowWorkspaceStore.ts
+    - frontend/packages/workflowFile.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_workflows.py
+    - scripts/generate_workflow_authoring_schema.py
+    - specifications/features/workflows-ui/examples.yml
+    - specifications/features/workflows-ui/specification.yml
+    - specifications/features/workflows/examples.yml
+    - specifications/features/workflows/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+    - app:workflows
+    - embed:workflows:create-or-modify
+    - embed:workflows:search
+    - platform:workflows
+    - skill:ai:ask
+    - skill:workflows:run
+llm_summary:
+  overview: OpenMates focused on enhancing the CLI experience with offline privacy features and terminal UI refinements. Significant
+    progress was also made on the workflow engine to support composable checks and chat-owned runs, alongside internal preparations
+    for storage scaling and privacy model evaluations.
+  released_changes: []
+  bug_fixes:
+  - text: The terminal chat sidebar was aligned with web navigation patterns, and content centering was improved by removing
+      the outer frame.
+    evidence:
+      commits:
+      - 4f85491b7
+      - 862105eae
+    release_status: dev_only
+  - text: A synchronization issue between targeted drafts and chat census freshness was resolved.
+    evidence:
+      commits:
+      - ba497d718
+    release_status: dev_only
+  - text: The Health app's discovery features were recovered, and a bug preventing picker submission was fixed.
+    evidence:
+      commits:
+      - 296e7e142
+    release_status: dev_only
+  - text: CLI anonymization now preserves prepared PII placeholders.
+    evidence:
+      commits:
+      - 79df9340f
+    release_status: dev_only
+  unreleased_progress:
+  - text: OpenMates added optional offline personal data anonymization to the CLI, supported by a new privacy worker and scanning
+      logic.
+    evidence:
+      commits:
+      - 2cba8048c
+    release_status: dev_only
+  - text: The workflow engine now supports composable checks and chat-owned runs, enabling more complex automation patterns.
+    evidence:
+      commits:
+      - 4f550c256
+    release_status: dev_only
+  - text: Project folders gained the ability to render linked chat previews.
+    evidence:
+      commits:
+      - fee044d21
+    release_status: dev_only
+  - text: Performance improvements were made to app output safety using a Jev-first approach.
+    evidence:
+      commits:
+      - dae1539e2
+    release_status: dev_only
+  internal_progress:
+  - text: Extensive documentation and testing were added for the agentic coding storage scaling plan, including Apple-specific
+      handoff and recovery diagnostics.
+    evidence:
+      commits:
+      - 7bd08f0ce
+      - 8a0ec1968
+      - f39ccd116
+      - 20cb6a714
+      - c8e961da9
+    release_status: dev_only
+  - text: Privacy evaluations were conducted for GLiNER gating on CPU and offline filter feasibility on ARM servers.
+    evidence:
+      commits:
+      - cea0e6637
+      - c59073af5
+      - 45a2997a6
+    release_status: dev_only
+  - text: CI workflows were refined to isolate recovery cutover dependencies and build the CLI before unit checks.
+    evidence:
+      commits:
+      - 4f2710cee
+      - 8f25249ce
+      - '573626658'
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: Offline personal data anonymization in the CLI.
+      evidence:
+        commits:
+        - 2cba8048c
+      reason: Feature is currently dev_only and related to the disabled platform:projects feature.
+    - text: Composable workflow checks and chat-owned runs.
+      evidence:
+        commits:
+        - 4f550c256
+      reason: Feature is currently dev_only and related to the disabled platform:workflows feature.
+    rationale: No items are currently released to the main branch or marked ready for public communication. All user-facing
+      features are currently in development or gated by disabled feature flags.
+  social_video_recommendations:
+  - idea: Show the new offline CLI privacy scanning in action.
+    priority: medium
+    reason: Demonstrates the project's commitment to privacy and local-first developer tools.
+    evidence:
+      commits:
+      - 2cba8048c
+  - idea: Demonstrate the composable workflow builder and chat-owned runs.
+    priority: high
+    reason: Shows significant progress in automation capabilities.
+    evidence:
+      commits:
+      - 4f550c256
+  quality_notes:
+  - Heavy emphasis on storage reliability and recovery testing for upcoming scaling.
+  - Focus on offline privacy and local execution for CLI tools.
+  validation_warnings: []
