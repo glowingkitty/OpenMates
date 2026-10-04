@@ -3,6 +3,7 @@
 
 import importlib.util
 import json
+import os
 from pathlib import Path
 import re
 import subprocess
@@ -51,8 +52,12 @@ def test_accountability_profile_is_api_only_internal_with_exact_database_guard()
         "cms-database", "openmates", "openmates",
     )
     assert api["environment"]["DATABASE_ADMIN_EMAIL"] == "runtime@example.com"
+    assert api["environment"]["OPENMATES_CI_PRIVATE_HOST_UID"] == str(os.getuid())
+    assert api["environment"]["OPENMATES_CI_PRIVATE_HOST_GID"] == str(os.getgid())
     assert any(str(mount).endswith("/app/ci-accountability") for mount in api["volumes"])
     assert all("OPENMATES_CI_STORAGE_ACCOUNTABILITY" not in service.get("environment", {})
+               for name, service in services.items() if name != "api")
+    assert all("OPENMATES_CI_PRIVATE_HOST_UID" not in service.get("environment", {})
                for name, service in services.items() if name != "api")
 
 
@@ -60,6 +65,31 @@ def test_accountability_profile_is_api_only_internal_with_exact_database_guard()
 def test_accountability_profile_rejects_other_actors(conflict):
     with pytest.raises(ValueError, match="standalone zero-provider"):
         _environment().compose_profile(SOURCE, storage_accountability=True, **{conflict: True})
+
+
+def test_accountability_profile_rejects_root_host_owner(monkeypatch):
+    environment = _environment()
+    monkeypatch.setattr(environment.os, "getuid", lambda: 0)
+    with pytest.raises(ValueError, match="nonroot isolated runner owner"):
+        environment.compose_profile(SOURCE, storage_accountability=True)
+
+
+def test_accountability_profile_accepts_nonroot_owner_with_low_positive_gid(monkeypatch):
+    environment = _environment()
+    monkeypatch.setattr(environment.os, "getuid", lambda: 1001)
+    monkeypatch.setattr(environment.os, "getgid", lambda: 100)
+    profile = environment.compose_profile(SOURCE, storage_accountability=True)
+    api = profile["services"]["api"]["environment"]
+    assert api["OPENMATES_CI_PRIVATE_HOST_UID"] == "1001"
+    assert api["OPENMATES_CI_PRIVATE_HOST_GID"] == "100"
+
+
+def test_accountability_profile_rejects_root_host_group(monkeypatch):
+    environment = _environment()
+    monkeypatch.setattr(environment.os, "getuid", lambda: 1001)
+    monkeypatch.setattr(environment.os, "getgid", lambda: 0)
+    with pytest.raises(ValueError, match="nonroot isolated runner owner"):
+        environment.compose_profile(SOURCE, storage_accountability=True)
 
 
 def test_accountability_selector_is_private_source_bound_and_fails_closed(tmp_path, monkeypatch):
@@ -85,6 +115,12 @@ def test_accountability_selector_is_private_source_bound_and_fails_closed(tmp_pa
         runner.prepare_storage_accountability_selector()
     (private / "selector.json").unlink()
     profile["services"]["api"]["environment"]["DB_HOST"] = "other-database"
+    compose_path.write_text(json.dumps(profile))
+    with pytest.raises(RuntimeError, match="exact isolated zero-provider profile"):
+        runner.prepare_storage_accountability_selector()
+    assert not (private / "selector.json").exists()
+    profile["services"]["api"]["environment"]["DB_HOST"] = "cms-database"
+    profile["services"]["api"]["environment"]["OPENMATES_CI_PRIVATE_HOST_UID"] = "0"
     compose_path.write_text(json.dumps(profile))
     with pytest.raises(RuntimeError, match="exact isolated zero-provider profile"):
         runner.prepare_storage_accountability_selector()
@@ -196,6 +232,7 @@ def test_accountability_runner_keeps_spec_and_cleanup_failures_separate(tmp_path
 
 def test_accountability_private_artifact_copies_exact_receipt_and_bounded_stderr(tmp_path, monkeypatch):
     runner = _runner(monkeypatch)
+    monkeypatch.setattr(runner, "RESULTS", tmp_path)
     private = tmp_path / "accountability"
     private.mkdir(mode=0o700)
     monkeypatch.setattr(runner, "COMPOSE_PATH", tmp_path / "compose.json")
@@ -207,8 +244,8 @@ def test_accountability_private_artifact_copies_exact_receipt_and_bounded_stderr
     stderr.chmod(0o600)
     copied = runner.retain_storage_accountability_private_evidence()
     assert copied == ["receipt.retained.json", "prove.stderr.retained.log"]
-    retained_receipt = private / "receipt.retained.json"
-    retained_stderr = private / "prove.stderr.retained.log"
+    retained_receipt = tmp_path / "ci-accountability-private/receipt.retained.json"
+    retained_stderr = tmp_path / "ci-accountability-private/prove.stderr.retained.log"
     assert retained_receipt.read_bytes() == receipt.read_bytes()
     assert retained_stderr.stat().st_size == 100_000
     assert retained_stderr.read_bytes().endswith(b"last-private-error")
@@ -219,6 +256,7 @@ def test_accountability_private_artifact_copies_exact_receipt_and_bounded_stderr
 
 def test_accountability_private_artifact_rejects_oversized_receipt(tmp_path, monkeypatch):
     runner = _runner(monkeypatch)
+    monkeypatch.setattr(runner, "RESULTS", tmp_path)
     private = tmp_path / "accountability"
     private.mkdir(mode=0o700)
     monkeypatch.setattr(runner, "COMPOSE_PATH", tmp_path / "compose.json")
@@ -227,4 +265,4 @@ def test_accountability_private_artifact_rejects_oversized_receipt(tmp_path, mon
     receipt.chmod(0o600)
     with pytest.raises(RuntimeError, match="exceeds its bound"):
         runner.retain_storage_accountability_private_evidence()
-    assert not (private / "receipt.retained.json").exists()
+    assert not (tmp_path / "ci-accountability-private/receipt.retained.json").exists()

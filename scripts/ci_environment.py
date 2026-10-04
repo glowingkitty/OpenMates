@@ -149,6 +149,8 @@ def compose_profile(
     object_storage = object_storage or uploads or storage_capacity
     if storage_accountability and (ai_fixtures or object_storage or uploads or public_provider or workflows):
         raise ValueError("Storage accountability requires its standalone zero-provider profile")
+    if storage_accountability and (not 1000 <= os.getuid() <= 60000 or not 1 <= os.getgid() <= 60000):
+        raise ValueError("Storage accountability requires a nonroot isolated runner owner")
     if storage_capacity and public_provider:
         raise ValueError("Storage capacity cannot enable public-provider proxy")
     if storage_capacity and not 1 <= capacity_concurrency <= 500:
@@ -458,6 +460,8 @@ def compose_profile(
             CI="true", OPENMATES_CI_ISOLATED="1",
             OPENMATES_CI_STORAGE_ACCOUNTABILITY="1",
             DB_HOST="cms-database", DB_DATABASE="openmates", DB_USER="openmates",
+            OPENMATES_CI_PRIVATE_HOST_UID=str(os.getuid()),
+            OPENMATES_CI_PRIVATE_HOST_GID=str(os.getgid()),
         )
     if ai_fixtures:
         # The real status API must advertise the installed replay engine; no

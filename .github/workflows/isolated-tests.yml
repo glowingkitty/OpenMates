@@ -456,14 +456,22 @@ jobs:
             subject/test-results/ci-spec-*.json
             subject/test-results/ci-pytest.json
             subject/test-results/ci-unit-*
-            subject/test-results/ci-private/capacity-failure-rows.jsonl
-            subject/test-results/ci-private/accountability/receipt.retained.json
-            subject/test-results/ci-private/accountability/prove.stderr.retained.log
-            subject/test-results/ci-private/accountability/cleanup.stderr.retained.log
             subject/test-results/ci-visual-smoke/
             subject/test-results/ci-web.log
             subject/frontend/apps/web_app/test-results/
           if-no-files-found: error
+      - name: Retain exact private storage diagnostics after credential cleanup
+        if: always() && (contains(inputs.specs_json, 'storage-capacity-') || contains(inputs.specs_json, 'storage-accountability-integration.spec.ts'))
+        uses: actions/upload-artifact@v4
+        with:
+          name: isolated-storage-private-diagnostics
+          retention-days: 7
+          path: |
+            subject/test-results/ci-capacity-private/capacity-failure-rows.jsonl
+            subject/test-results/ci-accountability-private/receipt.retained.json
+            subject/test-results/ci-accountability-private/prove.stderr.retained.log
+            subject/test-results/ci-accountability-private/cleanup.stderr.retained.log
+          if-no-files-found: ignore
       - name: Retain original documentation screenshot output
         if: always() && contains(inputs.specs_json, 'docs-screenshot-generator.spec.ts')
         uses: actions/upload-artifact@v4

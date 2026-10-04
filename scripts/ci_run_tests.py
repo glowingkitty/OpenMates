@@ -654,8 +654,11 @@ def prepare_storage_accountability_selector() -> dict[str, str]:
     services = profile.get("services", {})
     api = services.get("api", {}).get("environment", {})
     source = api.get("BUILD_COMMIT_SHA", "")
-    if (api.get("OPENMATES_CI_ISOLATED") != "1"
+    if (api.get("CI") != "true"
+            or api.get("OPENMATES_CI_ISOLATED") != "1"
             or api.get("OPENMATES_CI_STORAGE_ACCOUNTABILITY") != "1"
+            or api.get("OPENMATES_CI_PRIVATE_HOST_UID") != str(os.getuid())
+            or api.get("OPENMATES_CI_PRIVATE_HOST_GID") != str(os.getgid())
             or api.get("SERVER_ENVIRONMENT") != "development"
             or api.get("DATABASE_ADMIN_EMAIL") != "runtime@example.com"
             or tuple(api.get(name) for name in ("DB_HOST", "DB_DATABASE", "DB_USER"))
@@ -667,6 +670,8 @@ def prepare_storage_accountability_selector() -> dict[str, str]:
     private = COMPOSE_PATH.parent / "accountability"
     if not private.is_dir() or private.is_symlink():
         raise RuntimeError("Accountability private selector mount is missing")
+    if private.stat().st_uid != os.getuid() or private.stat().st_gid != os.getgid():
+        raise RuntimeError("Accountability private selector mount has the wrong owner")
     private.chmod(0o700)
     selector = {"schema": "storage-accountability-selector-v1", "source_commit": source,
                 "fixture_prefix": "ci-accountability/" + str(uuid.uuid4())}
@@ -712,10 +717,11 @@ def cleanup_storage_accountability_selector() -> None:
 
 
 def retain_storage_accountability_private_evidence() -> list[str]:
-    """Copy only bounded private probe evidence into exact CI artifact paths."""
+    """Copy bounded probe evidence outside the disposable credential directory."""
     private = COMPOSE_PATH.parent / "accountability"
     if not private.is_dir() or private.is_symlink() or private.stat().st_mode & 0o777 != 0o700:
         raise RuntimeError("Accountability evidence requires its private directory")
+    retained = _private_evidence_dir("ci-accountability-private")
     copied: list[str] = []
     for source_name, destination_name, maximum in (
         ("receipt.json", "receipt.retained.json", 16 * 1024),
@@ -738,13 +744,26 @@ def retain_storage_accountability_private_evidence() -> list[str]:
             payload = input_file.read(maximum + 1)
         if len(payload) > maximum:
             raise RuntimeError("Accountability private evidence exceeded its copy bound")
-        destination = private / destination_name
+        destination = retained / destination_name
         descriptor = os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
         with os.fdopen(descriptor, "wb") as output:
             os.fchmod(output.fileno(), 0o600)
             output.write(payload)
         copied.append(destination_name)
     return copied
+
+
+def _private_evidence_dir(name: str) -> Path:
+    """Keep only exact diagnostic files through stack teardown, with 0700 access."""
+    if name not in {"ci-capacity-private", "ci-accountability-private"}:
+        raise ValueError("Unsupported private evidence directory")
+    destination = RESULTS / name
+    if destination.is_symlink():
+        raise RuntimeError("Private evidence directory cannot be a symlink")
+    destination.mkdir(mode=0o700, exist_ok=True)
+    if not destination.is_dir() or destination.stat().st_mode & 0o777 != 0o700:
+        raise RuntimeError("Private evidence directory has invalid permissions")
+    return destination
 
 
 def run_e2e(
@@ -1091,7 +1110,7 @@ def retain_capacity_failure_rows(results_path: Path, private: Path) -> int:
         return 0
     if not private.is_dir() or private.is_symlink():
         raise RuntimeError("Capacity private diagnostic directory is unavailable")
-    destination = private / "capacity-failure-rows.jsonl"
+    destination = _private_evidence_dir("ci-capacity-private") / "capacity-failure-rows.jsonl"
     descriptor = os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
     with os.fdopen(descriptor, "w", encoding="utf-8") as output:
         os.fchmod(output.fileno(), 0o600)
