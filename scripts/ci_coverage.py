@@ -16,6 +16,8 @@ CORE_SPECS = frozenset({
     # mocked public status data; neither needs provider credentials.
     "components/daily-test-digest.spec.ts",
     "status-page-daily-report.spec.ts",
+    # Logged-out static legal document rendering; no mail, accounts or inference.
+    "legal-history-retention.spec.ts",
     "a11y-keyboard-nav.spec.ts",
     "a11y-modal-dialogs.spec.ts",
     "a11y-pages.spec.ts",
