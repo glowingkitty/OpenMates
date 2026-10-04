@@ -511,6 +511,36 @@ def test_setup_command_runs_one_shot_service_through_shared_runtime(monkeypatch,
     assert any(event[0] == "status" and event[1] == "completed" for event in events)
 
 
+def test_accountability_setup_requires_exact_cms_service_before_operation(monkeypatch):
+    monkeypatch.setattr(sessions, "_docker_checkout_root", lambda _session: pytest.fail("operation began"))
+    for services in (["vault-setup"], ["cms-setup", "vault-setup"], ["cms-setup", "cms-setup"]):
+        args = argparse.Namespace(session="abcd", service=services, accountability_only=True,
+                                  timeout=1, poll=1, build=False)
+        with pytest.raises(RuntimeError, match="exactly one cms-setup"):
+            sessions.cmd_docker_run_setup(args)
+
+
+def test_accountability_setup_forces_fresh_image_and_fixed_command(monkeypatch, tmp_path):
+    checkout_root = tmp_path / "agent-abcd"
+    checkout_root.mkdir()
+    configure_runtime_checkout(monkeypatch, checkout_root)
+    events = []
+    monkeypatch.setattr(sessions, "available_docker_setup_services", lambda _root: {"cms-setup"})
+    monkeypatch.setattr(sessions, "request_docker_restart", lambda *_args: {"id": "op-1"})
+    monkeypatch.setattr(sessions, "_wait_and_acquire_session_lock", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(sessions, "wait_for_docker_test_leases", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(sessions, "_acquire_session_lock", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(sessions, "_release_session_lock", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(sessions, "update_docker_operation", lambda operation_id, status, **_kwargs: {"id": operation_id, "status": status})
+    monkeypatch.setattr(sessions, "_docker_compose_command", lambda *args, checkout_root: [str(checkout_root), *args])
+    monkeypatch.setattr(sessions, "_run_cmd_with_heartbeat", lambda command, *, cwd, **_kwargs: events.append(command) or (0, "", ""))
+    args = argparse.Namespace(session="abcd", service=["cms-setup"], accountability_only=True,
+                              timeout=1, poll=1, build=False)
+    sessions.cmd_docker_run_setup(args)
+    assert events == [[str(checkout_root), "run", "--rm", "--build", "cms-setup",
+                       "python", "setup_schemas.py", "--accountability-only"]]
+
+
 def test_persistent_restart_waits_for_runtime_operation_admission(monkeypatch, tmp_path):
     checkout_root = tmp_path / "agent-abcd"
     checkout_root.mkdir()

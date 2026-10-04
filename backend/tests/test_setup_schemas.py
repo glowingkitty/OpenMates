@@ -54,6 +54,162 @@ def load_setup_schemas_module():
     return importlib.import_module("backend.core.directus.setup.setup_schemas")
 
 
+def _accountability_schema_fixture(tmp_path, names):
+    for name in names:
+        (tmp_path / f"{name}.yml").write_text(
+            yaml.safe_dump({name: {"type": "collection", "meta": {"accountability": None}}}),
+            encoding="utf-8",
+        )
+
+
+def test_accountability_only_updates_existing_metadata_and_verifies_readback(monkeypatch, tmp_path) -> None:
+    setup = load_setup_schemas_module()
+    names = sorted(setup.REDUCED_ACCOUNTABILITY)
+    _accountability_schema_fixture(tmp_path, names)
+    state = {name: "all" for name in names}
+    events = []
+
+    def get(url, **kwargs):
+        assert kwargs["timeout"] == 15
+        name = url.rsplit("/", 1)[-1]
+        events.append(("get", name))
+        return FakeResponse(200, {"data": {"collection": name, "meta": {"accountability": state[name]}}})
+
+    def patch(url, **kwargs):
+        name = url.rsplit("/", 1)[-1]
+        assert kwargs["json"] == {"meta": {"accountability": None}}
+        events.append(("patch", name))
+        state[name] = None
+        return FakeResponse(200)
+
+    monkeypatch.setattr(setup, "SCHEMAS_DIR", str(tmp_path))
+    monkeypatch.setattr(setup, "wait_for_directus", lambda: events.append(("wait", None)))
+    monkeypatch.setattr(setup, "login", lambda: "test-token")
+    monkeypatch.setattr(setup.requests, "get", get)
+    monkeypatch.setattr(setup.requests, "patch", patch)
+    monkeypatch.setattr(setup.requests, "post", lambda *_args, **_kwargs: pytest.fail("item or schema creation"))
+
+    setup.reconcile_accountability_only()
+    first_patch = next(i for i, event in enumerate(events) if event[0] == "patch")
+    assert {name for action, name in events[:first_patch] if action == "get"} == set(names)
+    assert [name for action, name in events if action == "patch"] == names
+    assert all(value is None for value in state.values())
+    events.clear()
+    setup.reconcile_accountability_only()
+    assert not any(action == "patch" for action, _ in events)
+
+
+def test_accountability_only_resolves_multiple_reviewed_collections_in_one_file(monkeypatch, tmp_path) -> None:
+    setup = load_setup_schemas_module()
+    names = sorted(setup.REDUCED_ACCOUNTABILITY)
+    _accountability_schema_fixture(tmp_path, names)
+    bundled = {name: {"type": "collection", "meta": {"accountability": None}} for name in names[:2]}
+    for name in names[:2]:
+        (tmp_path / f"{name}.yml").unlink()
+    (tmp_path / "archive_collections.yml").write_text(yaml.safe_dump(bundled), encoding="utf-8")
+    calls = []
+    monkeypatch.setattr(setup, "SCHEMAS_DIR", str(tmp_path))
+    monkeypatch.setattr(setup, "wait_for_directus", lambda: None)
+    monkeypatch.setattr(setup, "login", lambda: "test-token")
+    monkeypatch.setattr(setup.requests, "get", lambda url, **_kwargs: FakeResponse(200, {
+        "data": {"collection": url.rsplit("/", 1)[-1], "meta": {"accountability": None}},
+    }))
+    monkeypatch.setattr(setup.requests, "patch", lambda *_args, **_kwargs: calls.append("patch"))
+    setup.reconcile_accountability_only()
+    assert calls == []
+
+
+def test_accountability_only_duplicate_reviewed_collection_fails_before_network(monkeypatch, tmp_path) -> None:
+    setup = load_setup_schemas_module()
+    names = sorted(setup.REDUCED_ACCOUNTABILITY)
+    _accountability_schema_fixture(tmp_path, names)
+    (tmp_path / "extra.yml").write_text(yaml.safe_dump({
+        names[0]: {"type": "collection", "meta": {"accountability": None}},
+    }), encoding="utf-8")
+    monkeypatch.setattr(setup, "SCHEMAS_DIR", str(tmp_path))
+    monkeypatch.setattr(setup, "wait_for_directus", lambda: pytest.fail("network before duplicate validation"))
+    with pytest.raises(RuntimeError, match="Duplicate reviewed accountability collection"):
+        setup.reconcile_accountability_only()
+
+    (tmp_path / "extra.yml").unlink()
+    (tmp_path / f"{names[0]}.yml").write_text(
+        f"{names[0]}:\n  meta:\n    accountability: null\n"
+        f"{names[0]}:\n  meta:\n    accountability: null\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(RuntimeError, match="Duplicate reviewed accountability collection"):
+        setup.reconcile_accountability_only()
+
+
+def test_accountability_only_missing_readback_field_fails_closed(monkeypatch, tmp_path) -> None:
+    setup = load_setup_schemas_module()
+    names = sorted(setup.REDUCED_ACCOUNTABILITY)
+    _accountability_schema_fixture(tmp_path, names)
+    reads = {name: 0 for name in names}
+    patches = []
+
+    def get(url, **_kwargs):
+        name = url.rsplit("/", 1)[-1]
+        reads[name] += 1
+        meta = {"accountability": "all"} if reads[name] == 1 else {}
+        return FakeResponse(200, {"data": {"collection": name, "meta": meta}})
+
+    monkeypatch.setattr(setup, "SCHEMAS_DIR", str(tmp_path))
+    monkeypatch.setattr(setup, "wait_for_directus", lambda: None)
+    monkeypatch.setattr(setup, "login", lambda: "test-token")
+    monkeypatch.setattr(setup.requests, "get", get)
+    monkeypatch.setattr(setup.requests, "patch", lambda url, **_kwargs: patches.append(url) or FakeResponse(200))
+    with pytest.raises(RuntimeError, match="metadata invalid"):
+        setup.reconcile_accountability_only()
+    assert len(patches) == 1
+
+
+def test_accountability_only_missing_schema_or_collection_fails_before_write(monkeypatch, tmp_path) -> None:
+    setup = load_setup_schemas_module()
+    names = sorted(setup.REDUCED_ACCOUNTABILITY)
+    _accountability_schema_fixture(tmp_path, names[:-1])
+    monkeypatch.setattr(setup, "SCHEMAS_DIR", str(tmp_path))
+    monkeypatch.setattr(setup, "wait_for_directus", lambda: pytest.fail("network before schema preflight"))
+    with pytest.raises(RuntimeError, match="schema missing"):
+        setup.reconcile_accountability_only()
+
+    _accountability_schema_fixture(tmp_path, names[-1:])
+    monkeypatch.setattr(setup, "wait_for_directus", lambda: None)
+    monkeypatch.setattr(setup, "login", lambda: "test-token")
+    def get(url, **_kwargs):
+        name = url.rsplit("/", 1)[-1]
+        return FakeResponse(404 if name == names[-1] else 200,
+                            {"data": {"collection": name, "meta": {"accountability": "all"}}})
+    monkeypatch.setattr(setup.requests, "get", get)
+    monkeypatch.setattr(setup.requests, "patch", lambda *_args, **_kwargs: pytest.fail("patch before full preflight"))
+    with pytest.raises(RuntimeError, match="HTTP 404"):
+        setup.reconcile_accountability_only()
+
+
+def test_accountability_only_rejects_unreviewed_schema_and_failed_readback(monkeypatch, tmp_path) -> None:
+    setup = load_setup_schemas_module()
+    names = sorted(setup.REDUCED_ACCOUNTABILITY)
+    _accountability_schema_fixture(tmp_path, names)
+    monkeypatch.setattr(setup, "SCHEMAS_DIR", str(tmp_path))
+    (tmp_path / f"{names[0]}.yml").write_text(
+        yaml.safe_dump({names[0]: {"type": "collection", "meta": {"accountability": "all"}}}),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(setup, "wait_for_directus", lambda: pytest.fail("network before schema validation"))
+    with pytest.raises(ValueError, match="Unreviewed"):
+        setup.reconcile_accountability_only()
+
+    _accountability_schema_fixture(tmp_path, names[:1])
+    monkeypatch.setattr(setup, "wait_for_directus", lambda: None)
+    monkeypatch.setattr(setup, "login", lambda: "test-token")
+    monkeypatch.setattr(setup.requests, "get", lambda url, **_kwargs: FakeResponse(200, {
+        "data": {"collection": url.rsplit("/", 1)[-1], "meta": {"accountability": "all"}},
+    }))
+    monkeypatch.setattr(setup.requests, "patch", lambda *_args, **_kwargs: FakeResponse(200))
+    with pytest.raises(RuntimeError, match="readback mismatch"):
+        setup.reconcile_accountability_only()
+
+
 def test_ci_fast_schema_setup_reduces_only_defensive_settle(monkeypatch) -> None:
     setup_schemas = load_setup_schemas_module()
     delays = []

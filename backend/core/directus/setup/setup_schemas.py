@@ -5,12 +5,13 @@ import secrets
 import requests
 import glob
 import hashlib
+import argparse
 from dotenv import load_dotenv
 try:
-    from backend.core.directus.setup.accountability_policy import configured_accountability
+    from backend.core.directus.setup.accountability_policy import configured_accountability, REDUCED_ACCOUNTABILITY
 except ModuleNotFoundError:
     # The setup image runs this file as a standalone script.
-    from accountability_policy import configured_accountability
+    from accountability_policy import configured_accountability, REDUCED_ACCOUNTABILITY
 
 # Load environment variables from .env file
 load_dotenv()
@@ -1801,8 +1802,95 @@ def setup_schemas():
         traceback.print_exc()
         exit(1)
 
+def reconcile_accountability_only() -> None:
+    """Reconcile only reviewed accountability metadata on existing collections.
+
+    This entry point deliberately bypasses schema creation, fields, permissions,
+    data migrations, and the normal setup lifecycle.
+    """
+    if not os.path.isdir(SCHEMAS_DIR):
+        raise RuntimeError("Accountability schema directory is missing")
+
+    # A schema file may define several collections (for example archive pages
+    # and segments). Resolve by declaration rather than by filename.
+    declarations = {}
+    schema_files = sorted(glob.glob(os.path.join(SCHEMAS_DIR, "*.yml"))
+                          + glob.glob(os.path.join(SCHEMAS_DIR, "*.yaml")))
+    if not schema_files:
+        raise RuntimeError("Accountability schema files are missing")
+    for path in schema_files:
+        with open(path, encoding="utf-8") as handle:
+            source = handle.read()
+        node = yaml.compose(source, Loader=yaml.SafeLoader)
+        if not isinstance(node, yaml.nodes.MappingNode):
+            raise RuntimeError(f"Accountability schema document invalid: {os.path.basename(path)}")
+        declared_here = set()
+        for key_node, _value_node in node.value:
+            name = key_node.value if isinstance(key_node, yaml.nodes.ScalarNode) else None
+            if name not in REDUCED_ACCOUNTABILITY:
+                continue
+            if name in declared_here:
+                raise RuntimeError(f"Duplicate reviewed accountability collection: {name}")
+            declared_here.add(name)
+        document = yaml.safe_load(source)
+        if not isinstance(document, dict):
+            raise RuntimeError(f"Accountability schema document invalid: {os.path.basename(path)}")
+        for name, collection in document.items():
+            if name not in REDUCED_ACCOUNTABILITY:
+                continue
+            if name in declarations:
+                raise RuntimeError(f"Duplicate reviewed accountability collection: {name}")
+            declarations[name] = collection
+
+    reviewed = {}
+    for name in sorted(REDUCED_ACCOUNTABILITY):
+        if name not in declarations:
+            raise RuntimeError(f"Accountability collection schema missing: {name}")
+        collection = declarations[name]
+        if not isinstance(collection, dict):
+            raise RuntimeError(f"Accountability collection schema invalid: {name}")
+        explicit, desired = configured_accountability(name, collection)
+        if not explicit or desired != REDUCED_ACCOUNTABILITY[name]:
+            raise RuntimeError(f"Accountability override missing or unreviewed: {name}")
+        reviewed[name] = desired
+
+    wait_for_directus()
+    token = login()
+    headers = {"Authorization": f"Bearer {token}"}
+
+    def read_metadata(name):
+        response = requests.get(f"{CMS_URL}/collections/{name}", headers=headers, timeout=15)
+        response.raise_for_status()
+        data = response.json().get("data")
+        if (not isinstance(data, dict) or data.get("collection") != name
+                or not isinstance(data.get("meta"), dict)
+                or "accountability" not in data["meta"]):
+            raise RuntimeError(f"Existing accountability collection metadata invalid: {name}")
+        return data["meta"]
+
+    # Preflight every target before the first write, including those already set.
+    current = {name: read_metadata(name) for name in reviewed}
+    for name, desired in reviewed.items():
+        if current[name].get("accountability") != desired:
+            response = requests.patch(
+                f"{CMS_URL}/collections/{name}",
+                json={"meta": {"accountability": desired}},
+                headers=headers,
+                timeout=15,
+            )
+            response.raise_for_status()
+        if read_metadata(name).get("accountability") != desired:
+            raise RuntimeError(f"Accountability readback mismatch: {name}")
+    print(f"Verified accountability metadata for {len(reviewed)} existing collections")
+
+
 if __name__ == "__main__":
-    if CI_PREPARED_SCHEMA:
+    parser = argparse.ArgumentParser(description="Directus schema setup")
+    parser.add_argument("--accountability-only", action="store_true")
+    options = parser.parse_args()
+    if options.accountability_only:
+        reconcile_accountability_only()
+    elif CI_PREPARED_SCHEMA:
         activate_prepared_schema()
     else:
         setup_schemas()

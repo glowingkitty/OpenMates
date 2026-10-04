@@ -9284,6 +9284,9 @@ def cmd_docker_restart(args: argparse.Namespace) -> None:
 def cmd_docker_run_setup(args: argparse.Namespace) -> None:
     """Drain dependent tests and run allowlisted one-shot setup services."""
     services = sorted(set(args.service))
+    accountability_only = getattr(args, "accountability_only", False)
+    if accountability_only and (services != ["cms-setup"] or len(args.service) != 1):
+        raise RuntimeError("--accountability-only requires exactly one cms-setup service")
     checkout_root = _docker_checkout_root(args.session)
     available = available_docker_setup_services(checkout_root)
     invalid = sorted(set(services) - available)
@@ -9340,9 +9343,11 @@ def cmd_docker_run_setup(args: argparse.Namespace) -> None:
 
         for service in services:
             compose_args = ["run", "--rm"]
-            if getattr(args, "build", False):
+            if getattr(args, "build", False) or accountability_only:
                 compose_args.append("--build")
             compose_args.append(service)
+            if accountability_only:
+                compose_args.extend(["python", "setup_schemas.py", "--accountability-only"])
             rc, stdout, stderr = _run_cmd_with_heartbeat(
                 _docker_compose_command(*compose_args, checkout_root=checkout_root),
                 cwd=str(checkout_root),
@@ -14029,6 +14034,11 @@ def main() -> None:
         "--build",
         action="store_true",
         help="Build the setup image before running the service",
+    )
+    p_docker_setup.add_argument(
+        "--accountability-only",
+        action="store_true",
+        help="Run only reviewed accountability metadata reconciliation; requires cms-setup",
     )
     p_docker_setup.add_argument(
         "--timeout",
