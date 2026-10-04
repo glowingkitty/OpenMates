@@ -1,3 +1,39 @@
+# Immediate Mac action before the storage API cutover
+
+The public Apple audit now supplies the exact remaining writer gap. Reuse the
+Mac Task/workspace (audit Task 8137, session 6dc7); update dev through that
+workspace's coordinator workflow. The canonical receipt contract below is
+already published, so synthetic native tests can run before API activation.
+
+1. Pair `canonical_embed_receipts_v1` advertisement in the WebSocket query with
+   `.requireCanonicalDigest` and exact wrapper-count validation for the matched
+   server profile. Reconnect must advertise again. Do not enable strict receipts
+   against an older production API, infer support from epoch 1, or advertise
+   `typed_recovery_outputs_v2` until its discovery/persist/ACK path is implemented.
+2. Main app: keep head first; accept only the exact request/embed IDs, lowercase
+   SHA-256 of the UTF-8 encrypted-content string, `canonical_source: head`, then
+   wrapper counts `created_count == requested_count == keys.count`,
+   `failed_count == 0`. Missing, malformed or mismatched fields leave the
+   original encrypted payload pending. Production currently uses
+   `.allowLegacyReceipt`; the published synthetic tests must exercise the strict
+   construction and capability advertisement together.
+3. Watch: change its canonical writer from keys-first to head, exact head
+   receipt, wrappers, exact count receipt. Retain byte-identical ciphertext and
+   wrappers on rejection/disconnect/retry, then advertise the canonical capability.
+   `client_capability_required` is update-required and never saved success.
+4. Run only focused synthetic native URL/order/digest/count/retry cases, including
+   no wrappers after head rejection and no pending retirement on capability
+   rejection; verify the affected iOS/macOS/Watch builds. Use zero inference.
+   Return the public commit, native results and supported installed-client rollout
+   plan. Existing added test source without execution is not this receipt.
+
+Typed recovery, archive readers and large version histories remain subsequent
+native/pruning gates. Do not bypass server capability guards for older clients.
+The backend cutover waits for the ordinary writer evidence and the installed
+client policy; it does not require the Mac to finish the full capacity benchmark.
+
+---
+
 # Apple storage compatibility handoff
 
 The user assigned Apple implementation and verification to the existing Mac chat on 2026-10-03. That chat owns Apple changes. The backend chat keeps session `2f80` and the backend/web/CLI storage work. No product Apple file has been changed by the backend chat. An interrupted, uncompiled proposal remains in ignored scratch and is excluded from its candidate.
@@ -23,7 +59,7 @@ Preserve the Mac chat's existing changes and follow its session integration work
 
 Production code: `apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift`, `ChatEmbedStreamCoordinator.encryptAndPersist`. Focused tests: `apple/OpenMatesTests/StreamingClientFanoutTests.swift`.
 
-The existing sequence sends `store_embed_keys`, accepts its request ID alone, then sends `store_embed`. The new database parent guard rejects wrappers when their canonical embed head does not exist. A confirmed event with `failed_count > 0` is a failed save, so the current native sequence can incorrectly mark an embed persisted without durable wrappers.
+The initial audit found wrappers sent before the head. The public 2026-10-03 Apple audit now confirms the main writer is head-first, while Watch still sends keys first. Main-app production still explicitly permits legacy receipts and advertises neither storage capability. The new database parent guard rejects wrappers when their canonical embed head does not exist. A confirmed event with `failed_count > 0` is a failed save, so the current native sequence can incorrectly mark an embed persisted without durable wrappers.
 
 Implement this sequence:
 
@@ -49,7 +85,7 @@ Do not fetch full ciphertext merely to probe availability. Exact embed GET and k
 
 ### Candidate WebSocket payloads
 
-Candidate `047ff025` accepts a comma-separated WebSocket query value such as
+The reviewed storage API candidate accepts a comma-separated WebSocket query value such as
 `client_capabilities=canonical_embed_receipts_v1,typed_recovery_outputs_v2`.
 Capabilities belong to that authenticated socket; reconnect with a new socket
 must advertise them again. Never copy a capability from an incoming event or
@@ -173,6 +209,14 @@ a second turn.
 Keep existing Specification/test metadata; add the storage assertion IDs actually proved. Relevant assertions include `storage.background.complete-sealed-recovery`, `storage.background.saved-output-retention`, `storage.cold.independent-message-pages`, `storage.versions.bounded-reconstruction`, `storage.privacy.ciphertext-boundary`, and `storage.surface.semantic-parity`. Preserve the existing `chats.persistence.client-encrypted` metadata for the live writer tests. Regenerate Specification artifacts through the repository workflow.
 
 Run `StreamingClientFanoutTests` with the installed Xcode on the Mac, then focused recovery, history-window, and version tests for changed behavior. Verify iOS and macOS compile; check Watch when shared inputs affect it. Use repository-local build artifacts and the Mac chat's coordinated native workflow. No real inference requests: use synthetic encrypted fixtures and the real isolated API/storage paths for integration evidence. Do not access/delete real account data for tests.
+
+Check child lifecycle routing using the actual backend completion frame:
+`sub_chat_completed` has `chat_id` equal to the child and `parent_id` equal to the
+parent whose stream receives it. Scope that event by `parent_id`; preserve the
+child ID in its payload. A synthetic native test must accept that frame for the
+active parent and reject a completion with an unrelated parent. The CLI pilot
+found and repaired precisely this mismatch; its old test incorrectly used the
+parent as `chat_id`.
 
 Use disposable native fixtures with unique account/chat/message/embed IDs and the
 backend test setup/cleanup path. Each integration case must inspect the

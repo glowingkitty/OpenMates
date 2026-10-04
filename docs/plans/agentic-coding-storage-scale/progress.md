@@ -619,3 +619,37 @@ and the live query improvement. Saved-bundle3/3, legal and actual database safet
 proof are not rerun for this field strip. Apple compatibility is still required
 before full writer activation. The full benchmark remains a future prune gate;
 both final real-inference CLI/web turns remain unused.
+
+
+## Publication focus: 2026-10-04 final checks
+
+- Public `e1aa61e7` replaces per-message count transfers with an uncached scalar
+  aggregate and makes bounded window failures explicit. Coordinated API/worker
+  restart `docker-9478fcad` completed; all affected services are healthy. These
+  query changes, the five tracking policies and nine PostgreSQL indexes are live.
+- Private source `bd7ea2bd` passed the real detached Docs worker browser case
+  first attempt (run 37205089797, one case, zero skips/retries). Its recovery
+  selection completed six cases (run 37205092599): four passed first attempt and
+  two passed on retry. Both receipts match harness `e1aa61e7` and verify cleanup.
+  The two exact-ACK timeouts remain an unresolved liveness issue, not a stable
+  recovery pass. No additional broad test selection is planned.
+- The Docs fixture now waits for completed recovery before navigating. Recovery
+  protocol metadata is removed before the ordinary embed database write; eight
+  focused authorization/receipt cases passed. That field fix does not explain
+  the remaining retry-only successes, whose failed-attempt API errors were not
+  retained. Investigate only those two boundaries before strict writer activation.
+- Final source reconciliation preserves the public focus fields, Apple Watch
+  metadata, scalar count/error handling and all unrelated dev changes. It remains
+  a private reviewed source until the critical recovery and native writer gates
+  clear. Additive schema publication is separable from strict writer activation.
+- The public Apple audit `docs/architecture/apple/storage-compatibility-2026-10-03.md`
+  confirms the main writer is head-first but production still permits legacy
+  receipts, advertises neither storage capability, and lacks typed recovery
+  wiring. Watch retains keys-first and weak receipts. Native synthetic receipt
+  tests can proceed now from the published contract; they need no API activation
+  or real inference. See the updated Apple handoff's immediate next action.
+- Full P-7 target-load processing is deferred under the publication priority; it
+  remains a prerequisite for real-data pruning. Archive/prune/expanded billing
+  flags remain OFF. Reference-safe unpaid expiry and Team billing remain open.
+  No real user data has been moved or deleted. The two final real CLI/web turns
+  remain unused and will follow the core API activation.

@@ -476,3 +476,15 @@ The repair must transfer only the exact newly created receipt to the guarded
 host runner identity, preserving mode 0600, exclusive creation, path checks,
 all product-history and audit assertions, and disposable-fixture cleanup.
 No product policy change is justified by this verification failure.
+
+
+### Current publication boundary (2026-10-04)
+
+Tracking reduction, nine query indexes and scalar message counts/bounded-window
+error reporting are published and active on dev. The detached Docs worker check
+now passes first attempt. Recovery completes its six selected cases with two
+retries; those exact-ACK timeouts and native canonical-writer compatibility still
+block strict API activation. Full target-load testing is deferred until before
+real-data pruning. Pruning and expanded billing are OFF; the two final live CLI/web
+turns remain reserved for the core cutover. See [progress.md](progress.md) and
+[apple-handoff.md](apple-handoff.md) for current evidence and the narrow Mac action.
