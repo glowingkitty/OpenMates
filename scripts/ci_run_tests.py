@@ -46,6 +46,7 @@ CAPACITY_EPOCH_SPECS = frozenset({
     "storage-message-embed-bundle.spec.ts",
     "storage-capacity-target.spec.ts",
     "storage-recovery-replay.spec.ts",
+    "storage-recovery-canonical-receipts.spec.ts",
     "storage-detached-producer.spec.ts",
 })
 CAPACITY_WORKLOAD_SPECS = frozenset({
@@ -1039,8 +1040,17 @@ def run_e2e(
                 if accountability_retention_error:
                     results.append({"suite": "storage-accountability-private-evidence", "exit_code": 1,
                                     "failure": accountability_retention_error})
+                # Playwright may exit successfully after a retry. Retain the first
+                # failed receipt attempt's bounded API window in that case too.
+                if name == "storage-recovery-canonical-receipts.spec.ts":
+                    try:
+                        spec_result["recovery_api_trace"] = capture_recovery_receipt_api_diagnostics(
+                            report, index
+                        )
+                    except (OSError, RuntimeError, subprocess.SubprocessError, ValueError) as exc:
+                        spec_result["recovery_api_trace_error"] = type(exc).__name__
                 if spec_result["exit_code"] and not (artifact or component or accountability_only):
-                    if name == "storage-recovery-replay.spec.ts":
+                    if name in {"storage-recovery-replay.spec.ts", "storage-recovery-canonical-receipts.spec.ts"}:
                         try:
                             spec_result["recovery_ai_trace"] = capture_recovery_ai_diagnostics(
                                 report, index
@@ -1138,6 +1148,67 @@ def capture_recovery_ai_diagnostics(report: dict, index: int) -> list[dict[str, 
                         "exception_class": classes[-1] if classes else "none",
                         "function": function,
                         "line": int(line),
+                    })
+    return summaries
+
+
+def capture_recovery_receipt_api_diagnostics(report: dict, index: int) -> list[dict[str, object]]:
+    """Retain bounded API logs for only the two failed canonical receipt cases."""
+    titles = {
+        "legacy connection preserves typed rows while completing the existing v1 final job",
+        "saved code embed and version diff replay with canonical ciphertext acknowledgements",
+    }
+    private = RESULTS / "ci-private"
+    private.mkdir(parents=True, exist_ok=True, mode=0o700)
+    if private.is_symlink():
+        raise RuntimeError("Recovery API diagnostics require the runner-private directory")
+    private.chmod(0o700)
+    summaries: list[dict[str, object]] = []
+    for suite in report.get("suites", []):
+        for spec in suite.get("specs", []):
+            if spec.get("title") not in titles:
+                continue
+            for test in spec.get("tests", []):
+                for result in test.get("results", []):
+                    if result.get("status") not in {"failed", "timedOut"}:
+                        continue
+                    if len(summaries) >= 4:
+                        return summaries
+                    start_text, duration = result.get("startTime", ""), result.get("duration")
+                    try:
+                        start = datetime.fromisoformat(start_text.replace("Z", "+00:00"))
+                        if (start.tzinfo is None or start.utcoffset() != timedelta(0)
+                                or type(duration) is not int or not 0 <= duration <= 600_000):
+                            raise ValueError("invalid failed-case window")
+                    except (AttributeError, TypeError, ValueError):
+                        summaries.append({"exception_class": "ValueError", "function": "none", "line": 0})
+                        continue
+                    since = (start - timedelta(seconds=2)).astimezone(timezone.utc).isoformat()
+                    until = (start + timedelta(milliseconds=duration, seconds=5)).astimezone(timezone.utc).isoformat()
+                    completed = compose(
+                        "logs", "--no-color", "--since", since, "--until", until,
+                        "--tail", "2000", "api", capture=True, timeout=90,
+                    )
+                    output = completed.stdout if isinstance(completed.stdout, str) else ""
+                    bounded = "\n".join(output.splitlines()[-2000:]).encode("utf-8")[-200_000:]
+                    filename = private / f"recovery-api-spec-{index}-result-{len(summaries)}.log"
+                    descriptor = os.open(filename, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+                    with os.fdopen(descriptor, "wb") as retained:
+                        os.fchmod(retained.fileno(), 0o600)
+                        retained.write(bounded)
+                    safe_text = bounded.decode("utf-8", "replace")
+                    frames = re.findall(
+                        r'File "[^"\n]+", line ([0-9]{1,6}), in ([A-Za-z_][A-Za-z_0-9]{0,79})',
+                        safe_text,
+                    )
+                    classes = re.findall(
+                        r'(?m)(?:^|[\s|])([A-Za-z_][A-Za-z_0-9.]{0,75}(?:Error|Exception))(?::|\s*$)',
+                        safe_text,
+                    )
+                    line, function = frames[-1] if frames else ("0", "none")
+                    summaries.append({
+                        "exception_class": classes[-1] if classes else "none",
+                        "function": function, "line": int(line),
                     })
     return summaries
 

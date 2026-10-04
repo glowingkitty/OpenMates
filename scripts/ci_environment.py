@@ -25,6 +25,7 @@ STORAGE_CAPACITY_SPECS = frozenset({
     "storage-message-embed-bundle.spec.ts",
     "storage-capacity-target.spec.ts",
     "storage-recovery-replay.spec.ts",
+    "storage-recovery-canonical-receipts.spec.ts",
     "storage-detached-producer.spec.ts",
 })
 ACCOUNTABILITY_SPEC = "storage-accountability-integration.spec.ts"
