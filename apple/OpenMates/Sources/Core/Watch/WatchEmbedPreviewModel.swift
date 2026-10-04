@@ -6,6 +6,7 @@
 
 import Foundation
 import CryptoKit
+import CoreFoundation
 
 enum WatchEmbedPreviewFamily: String, CaseIterable, Sendable {
     case website
@@ -34,6 +35,7 @@ enum WatchEmbedPreviewState: String, Sendable {
     case ready
     case processing
     case error
+    case unavailable
 }
 
 struct WatchEmbedContinuation: Equatable, Sendable {
@@ -97,9 +99,16 @@ enum WatchEmbedOpenConnectivityPayload {
     }
 }
 
+enum WatchEmbedPreviewVisual: Equatable, Sendable {
+    case symbol
+    case text([String])
+    case code([String])
+    case table(headers: [String], rows: [[String]], cellCount: Int?)
+}
+
 struct WatchEmbedPreviewModel: Equatable, Identifiable, Sendable {
     static let cardWidth: Double = 156
-    static let cardHeight: Double = 112
+    static let cardHeight: Double = 196
 
     let id: String
     let family: WatchEmbedPreviewFamily
@@ -110,6 +119,8 @@ struct WatchEmbedPreviewModel: Equatable, Identifiable, Sendable {
     let subtitle: String?
     let detail: String?
     let continuation: WatchEmbedContinuation
+    let visual: WatchEmbedPreviewVisual
+    var detailContent: WatchEmbedDetailContent = .empty
 
     var isSupported: Bool { family != .unsupported }
     var iconName: String {
@@ -123,6 +134,152 @@ struct WatchEmbedPreviewModel: Equatable, Identifiable, Sendable {
         case "photos": return "image"
         default: return appId
         }
+    }
+}
+
+/// Read-only projection reuses the same hydrated record as the preview. No
+/// detail plaintext or fetched binary is persisted by this view model.
+struct WatchEmbedDetailContent: Equatable, Sendable {
+    var text: String?
+    var isCode = false
+    var imageURL: URL?
+    var imageData: Data?
+    var tableHeaders: [String] = []
+    var tableRows: [[String]] = []
+    var latitude: Double?
+    var longitude: Double?
+    var children: [WatchEmbedPreviewModel] = []
+    static let empty = Self()
+
+    static func make(for embed: EmbedRecord, family: WatchEmbedPreviewFamily,
+                     allRecords: [String: EmbedRecord], chatId: String? = nil) -> Self {
+        let raw = embed.rawData ?? [:]
+        func string(_ keys: [String]) -> String? {
+            keys.lazy.compactMap { raw[$0]?.value as? String }
+                .first { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        }
+        var result = Self()
+        let keys: [String]
+        switch family {
+        case .code: keys = ["code", "content", "text"]; result.isCode = true
+        case .spreadsheet: keys = ["table", "markdown", "code", "content"]
+        case .document, .mindmap: keys = ["markdown", "content", "text", "description"]
+        case .audio, .audioRecording: keys = ["transcript", "transcription", "text", "content"]
+        case .mapPlace: keys = ["formattedAddress", "formatted_address", "address", "description"]
+        default: keys = ["description", "summary", "text", "content"]
+        }
+        result.text = string(keys)
+        if family == .spreadsheet, let text = result.text {
+            let lines = text.components(separatedBy: .newlines).filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty && $0.contains("|") }
+            func cells(_ line: String) -> [String] {
+                var value = line.trimmingCharacters(in: .whitespaces)
+                if value.hasPrefix("|") { value.removeFirst() }
+                if value.hasSuffix("|") { value.removeLast() }
+                return value.split(separator: "|", omittingEmptySubsequences: false).map { $0.trimmingCharacters(in: .whitespaces) }
+            }
+            if lines.count > 1, lines[1].contains("---") {
+                result.tableHeaders = cells(lines[0]); result.tableRows = lines.dropFirst(2).map(cells)
+            }
+        }
+        if let encoded = string(["thumbnail_base64", "thumbnail_data"]), encoded.utf8.count <= 700_000,
+           let data = Data(base64Encoded: encoded), data.count <= 512_000 { result.imageData = data }
+        // Same public thumbnail fields accepted by the iPhone image/map views.
+        if let value = string(["thumbnail_url", "thumbnail_original", "map_image_url", "mapImageUrl",
+                               "imageUrl", "image_url", "photo_url", "preview_url"] + (family == .image ? ["url", "src"] : [])),
+           let url = URL(string: value), ["https", "http"].contains(url.scheme?.lowercased() ?? ""),
+           url.host?.isEmpty == false, url.user == nil, url.password == nil {
+            result.imageURL = url
+        }
+        if family == .mapPlace {
+            let nested = (raw["location"]?.value as? [String: Any])?.mapValues(AnyCodable.init) ?? [:]
+            func number(_ data: [String: AnyCodable], _ keys: [String], _ bounds: ClosedRange<Double>) -> Double? {
+                for key in keys {
+                    guard let raw = data[key]?.value else { continue }
+                    if let value = raw as? NSNumber, CFGetTypeID(value) == CFBooleanGetTypeID() { continue }
+                    let value = (raw as? NSNumber)?.doubleValue ?? (raw as? String).flatMap(Double.init)
+                    if let value, value.isFinite, bounds.contains(value) { return value }
+                }
+                return nil
+            }
+            result.latitude = number(nested, ["latitude", "lat"], -90...90)
+                ?? number(raw, ["location_latitude", "location_lat", "latitude", "lat"], -90...90)
+            result.longitude = number(nested, ["longitude", "lon", "lng"], -180...180)
+                ?? number(raw, ["location_longitude", "location_lon", "location_lng", "longitude", "lon", "lng"], -180...180)
+        }
+        // A group opens its ordered child records; unresolved children remain
+        // explicit unavailable cards. Children do not recursively expand here.
+        result.children = embed.childEmbedIds.filter { $0 != embed.id }.map { id in
+            let record = allRecords[id] ?? EmbedRecord(id: id, type: "web-website", status: .finished,
+                data: nil, parentEmbedId: embed.id, appId: "web", skillId: nil, embedIds: nil, createdAt: nil)
+            return WatchEmbedPreviewMapper.makeModel(for: record, chatId: chatId)
+        }
+        return result
+    }
+}
+
+/// Preserve large-preview positions; inline citations remain readable links.
+/// Consecutive preview markers use the iPhone carousel ordering and group keys.
+struct WatchMessageRenderSegment: Equatable, Identifiable, Sendable {
+    enum Content: Equatable, Sendable { case markdown(String), embeds([WatchEmbedPreviewModel]) }
+    let id: Int
+    let content: Content
+}
+
+enum WatchMessageRenderProjection {
+    static func segments(message: WatchChatMessage, hydratedChildren: [EmbedRecord] = []) -> [WatchMessageRenderSegment] {
+        let refs = WatchMessageContentSanitizer.mergedEmbedRefs(content: message.content, provided: message.embedRefs)
+        let records = refs.map(WatchEmbedPreviewMapper.embedRecord(from:))
+        let lookup = EmbedRecord.dictionaryById(records + hydratedChildren, context: "watchMessageProjection") { _ in }
+        var aliases: [String: String] = [:]
+        for record in records {
+            aliases[record.id] = record.id
+            if let ref = record.rawData?["embed_ref"]?.value as? String { aliases[ref] = record.id }
+        }
+        var output: [WatchMessageRenderSegment.Content] = []
+        var seen = Set<String>()
+        var group: [WatchEmbedPreviewModel] = []
+        var groupKey: String?
+        func flushGroup() { if !group.isEmpty { output.append(.embeds(group)); group = []; groupKey = nil } }
+        func appendText(_ text: String) {
+            guard let display = WatchMessageContentSanitizer.displayText(content: text, embedRefs: refs),
+                  !display.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+            flushGroup(); output.append(.markdown(display))
+        }
+        func appendEmbed(_ refID: String) {
+            let id = aliases[refID] ?? refID
+            guard seen.insert(id).inserted else { return }
+            let record = lookup[id] ?? WatchEmbedPreviewMapper.embedRecord(from:
+                WatchEmbedRef(id: id, type: "web-website", status: "finished", data: nil))
+            let key = record.isAppSkillUse ? "app-skill-use" : record.type
+            if groupKey != nil && groupKey != key { flushGroup() }
+            groupKey = key
+            group.append(WatchEmbedPreviewMapper.makeModel(for: record, chatId: message.chatId, allEmbedRecords: lookup))
+        }
+        let source = message.content ?? ""
+        // Match embed JSON only; ordinary fenced code stays intact and its
+        // apparent embed markers must not become interactive previews.
+        let pattern = #"```(?:json_embed|json)\s*[\s\S]*?```|```[\s\S]*?```|~~~[\s\S]*?~~~|\[\[embed(?:ref)?:([^\]]+)\]\]|\[!\]\(embed:([^\)]+)\)"#
+        let regex = try? NSRegularExpression(pattern: pattern)
+        var cursor = source.startIndex
+        for match in regex?.matches(in: source, range: NSRange(source.startIndex..., in: source)) ?? [] {
+            guard let range = Range(match.range, in: source) else { continue }
+            let token = String(source[range])
+            let parsed = WatchMessageContentSanitizer.inlineEmbedRefs(content: token)
+            if let ref = parsed.first {
+                appendText(String(source[cursor..<range.lowerBound])); appendEmbed(ref.id)
+                cursor = range.upperBound
+            }
+        }
+        appendText(String(source[cursor...])); flushGroup()
+        let inlineIDs = WatchMessageContentSanitizer.inlineEmbedReferenceIds(content: message.content)
+        let childIDs = Set(records.flatMap(\.childEmbedIds))
+        for record in records where !seen.contains(record.id) && !childIDs.contains(record.id) {
+            let alias = record.rawData?["embed_ref"]?.value as? String
+            guard !inlineIDs.contains(record.id), alias.map(inlineIDs.contains) != true else { continue }
+            appendEmbed(record.id)
+        }
+        flushGroup()
+        return output.enumerated().map { WatchMessageRenderSegment(id: $0.offset, content: $0.element) }
     }
 }
 
@@ -140,7 +297,15 @@ enum WatchEmbedPreviewMapper {
     }
 
     static func embedRecord(from embedRef: WatchEmbedRef) -> EmbedRecord {
-        let raw = embedRef.data ?? [:]
+        var raw = embedRef.data ?? [:]
+        if let encoded = raw["content"]?.value as? String {
+            let decoded = EmbedRecord.parseContent(encoded).mapValues(AnyCodable.init)
+            if encoded.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("{")
+                || decoded["app_id"] != nil || decoded["embed_id"] != nil {
+                raw.removeValue(forKey: "content")
+            }
+            raw = decoded.merging(raw, uniquingKeysWith: { _, supplied in supplied })
+        }
         let embedType = EmbedType.normalized(rawValue: embedRef.type)
         let appId = string(raw, keys: ["app_id", "appId"]) ?? embedType?.appId
         let skillId = string(raw, keys: ["skill_id", "skillId"])
@@ -189,7 +354,9 @@ enum WatchEmbedPreviewMapper {
             title: state == .error ? content.errorTitle : content.title,
             subtitle: state == .error ? content.errorSubtitle : content.subtitle,
             detail: content.detail,
-            continuation: WatchEmbedContinuation(chatId: chatId, embedId: embed.id)
+            continuation: WatchEmbedContinuation(chatId: chatId, embedId: embed.id),
+            visual: visual(for: family, raw: raw, allEmbedRecords: allEmbedRecords, embed: embed),
+            detailContent: family == .unsupported || state == .error ? .empty : WatchEmbedDetailContent.make(for: embed, family: family, allRecords: allEmbedRecords, chatId: chatId)
         )
     }
 
@@ -208,6 +375,13 @@ enum WatchEmbedPreviewMapper {
     private static func state(for embed: EmbedRecord, family: WatchEmbedPreviewFamily) -> WatchEmbedPreviewState {
         if embed.status == .processing { return .processing }
         if embed.status == .error || embed.status == .cancelled || family == .unsupported { return .error }
+        let identification = Set(["type", "embed_id", "embedId", "embed_ref", "app_id", "appId", "skill_id", "skillId", "embed_ids", "embedIds", "parent_embed_id"])
+        let meaningful = (embed.rawData ?? [:]).contains { key, field in
+            guard !identification.contains(key), !(field.value is NSNull) else { return false }
+            if let text = field.value as? String { return !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            return true
+        }
+        if !meaningful { return .unavailable }
         return .ready
     }
 
@@ -217,6 +391,15 @@ enum WatchEmbedPreviewMapper {
            let skillId = embed.skillId ?? string(embed.rawData ?? [:], keys: ["skill_id"]),
            let inferred = EmbedType(rawValue: "app:\(appId):\(skillId)") {
             return family(for: inferred) ?? .unsupported
+        }
+        if embed.isAppSkillUse, let appID = embed.appId {
+            switch appID {
+            case "sheets": return .spreadsheet
+            case "docs": return .document
+            case "mindmaps": return .mindmap
+            default:
+                if EmbedType.allCases.contains(where: { $0.appId == appID }) { return .application }
+            }
         }
         guard let embedType else { return .unsupported }
         return family(for: embedType) ?? .unsupported
@@ -349,6 +532,62 @@ enum WatchEmbedPreviewMapper {
             errorTitle: family == .unsupported ? "Unsupported preview" : "Preview unavailable",
             errorSubtitle: embed.status == .processing ? nil : typeLabel
         )
+    }
+
+    /// Compact content only. Private asset URLs/keys are never promoted into
+    /// an unauthenticated image fetch or a rich native engine on the Watch.
+    private static func visual(for family: WatchEmbedPreviewFamily, raw: [String: AnyCodable],
+                               allEmbedRecords: [String: EmbedRecord], embed: EmbedRecord) -> WatchEmbedPreviewVisual {
+        if family == .spreadsheet,
+           let markdown = string(raw, keys: ["table", "code", "content", "markdown"]) {
+            let limited = String(markdown.prefix(65_536))
+            let lines = limited.components(separatedBy: .newlines)
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty && $0.contains("|") }
+            func cells(_ line: String) -> [String] {
+                var line = line.trimmingCharacters(in: .whitespacesAndNewlines)
+                if line.hasPrefix("|") { line.removeFirst() }
+                if line.hasSuffix("|") { line.removeLast() }
+                return line.split(separator: "|", omittingEmptySubsequences: false).prefix(2).map {
+                    cleanText(String($0).trimmingCharacters(in: .whitespacesAndNewlines)) ?? ""
+                }
+            }
+            if lines.count >= 2, lines[1].contains("---") {
+                let headers = cells(lines[0])
+                let rows = lines.dropFirst(2).prefix(3).map(cells)
+                let declaredRows = string(raw, keys: ["row_count", "rowCount", "rows"]).flatMap(Int.init)
+                let declaredColumns = string(raw, keys: ["col_count", "colCount", "cols"]).flatMap(Int.init)
+                let declaredCells = string(raw, keys: ["cell_count", "cellCount"]).flatMap(Int.init)
+                let count: Int?
+                if let declaredCells, declaredCells >= 0 { count = declaredCells }
+                else if let declaredRows, let declaredColumns, declaredRows >= 0, declaredColumns > 0,
+                        !declaredRows.multipliedReportingOverflow(by: declaredColumns).overflow {
+                    count = declaredRows * declaredColumns
+                } else if markdown.count <= 65_536 {
+                    var header = lines[0]
+                    if header.hasPrefix("|") { header.removeFirst() }
+                    if header.hasSuffix("|") { header.removeLast() }
+                    count = max(0, lines.count - 2) * header.split(separator: "|", omittingEmptySubsequences: false).count
+                } else { count = nil }
+                return .table(headers: headers, rows: rows, cellCount: count)
+            }
+        }
+        if family == .code, let code = string(raw, keys: ["code", "content"]) {
+            return .code(String(code.prefix(2048)).components(separatedBy: .newlines).prefix(4).map { String($0.prefix(96)) })
+        }
+        if family == .searchResults {
+            let embedded = (raw["preview_results"] ?? raw["results"])?.value as? [[String: Any]] ?? []
+            let titles = embedded.prefix(3).compactMap { item in
+                string(item.mapValues(AnyCodable.init), keys: ["title", "name", "description"])
+            }
+            let children = embed.childEmbedIds.prefix(3).compactMap { allEmbedRecords[$0] }
+                .compactMap { string($0.rawData ?? [:], keys: ["title", "name", "description"]) }
+            if !(titles + children).isEmpty { return .text(Array((titles + children).prefix(3))) }
+        }
+        if let text = string(raw, keys: ["description", "summary", "transcript", "transcription", "content", "text"]) {
+            return .text(String(text.prefix(512)).components(separatedBy: .newlines).prefix(3).map { String($0.prefix(160)) })
+        }
+        return .symbol
     }
 
     private static func string(_ raw: [String: AnyCodable], keys: [String]) -> String? {
@@ -494,15 +733,34 @@ enum WatchMessageContentSanitizer {
             ), location: match.range.location)
         }
 
+        let codeRanges = (try? NSRegularExpression(pattern: #"```[\s\S]*?```|~~~[\s\S]*?~~~"#))?
+            .matches(in: content, range: nsRange).map(\.range) ?? []
         for markerPattern in [#"\[\[embed(?:ref)?:([^\]]+)\]\]"#, #"\[!\]\(embed:([^\)]+)\)"#] {
             guard let markerRegex = try? NSRegularExpression(pattern: markerPattern) else { continue }
             for match in markerRegex.matches(in: content, range: nsRange) {
+                guard !codeRanges.contains(where: { NSIntersectionRange($0, match.range).length > 0 }) else { continue }
                 guard let idRange = Range(match.range(at: 1), in: content) else { continue }
                 appendFallbackRef(id: String(content[idRange]), location: match.range.location)
             }
         }
 
         return refsById.values.sorted { lhs, rhs in lhs.location < rhs.location }.map { $0.ref }
+    }
+
+    static func mergedEmbedRefs(content: String?, provided: [WatchEmbedRef]?) -> [WatchEmbedRef] {
+        var result = provided ?? []
+        var indices: [String: Int] = [:]
+        for (index, ref) in result.enumerated() { if indices[ref.id] == nil { indices[ref.id] = index } }
+        for parsed in inlineEmbedRefs(content: content) {
+            if let index = indices[parsed.id] {
+                let existing = result[index]
+                var fields = parsed.data ?? [:]
+                fields.merge(existing.data ?? [:], uniquingKeysWith: { _, supplied in supplied })
+                result[index] = WatchEmbedRef(id: existing.id, type: existing.type,
+                    status: existing.status ?? parsed.status, data: fields.isEmpty ? nil : fields)
+            } else { indices[parsed.id] = result.count; result.append(parsed) }
+        }
+        return result
     }
 
     private static func previewSafeInlineData(from object: [String: Any]) -> [String: AnyCodable] {
@@ -645,7 +903,7 @@ enum WatchMessageContentSanitizer {
 extension WatchChatMessage {
     var watchEmbedRecords: [EmbedRecord] {
         let inlineReferenceIds = WatchMessageContentSanitizer.inlineEmbedReferenceIds(content: content)
-        return (embedRefs ?? [])
+        return WatchMessageContentSanitizer.mergedEmbedRefs(content: content, provided: embedRefs)
             .filter { ref in
                 guard !inlineReferenceIds.contains(ref.id) else { return false }
                 guard let embedRef = ref.data?["embed_ref"]?.value as? String else { return true }
@@ -761,8 +1019,8 @@ enum WatchEmbedHydration {
         guard !fields.isEmpty else { throw WatchChatRuntimeError.historyUnavailable }
         fields["type"] = type
         fields["embed_id"] = embedID
-        if let embedIDs = payload["embed_ids"] { fields["embed_ids"] = embedIDs }
-        if let parentID = payload["parent_embed_id"] { fields["parent_embed_id"] = parentID }
+        if let embedIDs = payload["embed_ids"], !(embedIDs is NSNull) { fields["embed_ids"] = embedIDs }
+        if let parentID = payload["parent_embed_id"], !(parentID is NSNull) { fields["parent_embed_id"] = parentID }
         return WatchEmbedRef(id: embedID, type: type, status: payload["status"] as? String ?? "finished",
                              data: fields.mapValues(AnyCodable.init))
     }
@@ -804,4 +1062,14 @@ enum WatchEmbedHydration {
     private static func hash(_ value: String) -> String {
         SHA256.hash(data: Data(value.utf8)).map { String(format: "%02x", $0) }.joined()
     }
+}
+
+/// Persists only a bounded preference, never message text or account content.
+enum WatchTranscriptZoom {
+    static let minimum = -2
+    static let maximum = 5
+    static func adjust(_ level: Int, increase: Bool) -> Int {
+        min(maximum, max(minimum, level + (increase ? 1 : -1)))
+    }
+    static func scale(for level: Int) -> Double { pow(1.15, Double(min(maximum, max(minimum, level)))) }
 }

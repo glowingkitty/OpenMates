@@ -72,6 +72,9 @@ struct EmbedBasicInfoBar: View {
                         .frame(width: 26, height: 26)
                 }
                 .accessibilityHidden(true)
+                #if DEBUG
+                .background(EmbedPreviewGeometryProbe(name: "circle"))
+                #endif
 
             if showSkillIcon {
                 Icon(skillIconName, size: Constants.skillIconSize)
@@ -112,6 +115,8 @@ struct EmbedBasicInfoBar: View {
             }
         }
         .frame(height: Constants.height)
+        .fixedSize(horizontal: false, vertical: true)
+        .layoutPriority(1)
         .background(Color.grey30)
         .clipShape(RoundedRectangle(cornerRadius: Constants.cornerRadius))
     }

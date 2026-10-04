@@ -284,6 +284,11 @@ workspace_greeting: { context: "Projects workspace home greeting; {name} is the 
 workspace_name_prompt: { context: Project workspace home composer placeholder, en: "Name a new project", verified_by_human: [] }
 workspace_voice_input: { context: Project workspace home microphone button accessibility label, en: "Voice input", verified_by_human: [] }
 workspace_voice_unavailable: { context: Project workspace home microphone temporary notice, en: "Voice input for projects is coming soon.", verified_by_human: [] }
+workspace_readme_create_coming_soon:
+  context: Information notification when Create is pressed in the empty project README overview
+  en: Creating READMEs directly in OpenMates is coming soon.
+  de: Das Erstellen von READMEs direkt in OpenMates ist bald verfügbar.
+  verified_by_human: []
 workspace_inspiration_brief: { context: Default Project workspace inspiration, en: "Start every project with a short brief: goal, audience, deadline, and the first concrete next step.", verified_by_human: [] }
 workspace_inspiration_brief_title: { context: Default Project workspace inspiration title, en: "Write a Project Brief", verified_by_human: [] }
 workspace_inspiration_brief_feature_title: { context: Project workspace first inspiration feature card heading, en: "Project planning tip", verified_by_human: [] }

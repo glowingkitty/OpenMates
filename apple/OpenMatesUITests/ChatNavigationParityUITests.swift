@@ -114,6 +114,33 @@ final class ChatNavigationParityUITests: XCTestCase {
     }
 
     // contract-test: direct surface=gui.apple assertions=chat-navigation.open.local-first-coherent
+    func testContinuationShowsCachedIdentityWhileSelectedWindowLoads() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-authenticated-chat-navigation", "--ui-test-delayed-visible-window"]
+        app.launch()
+        try assertHeaderTitle("Current Chat", in: app)
+        let loading = app.descendants(matching: .any)["chat-initial-content-loading"].firstMatch
+        let loaded = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: loading)
+        XCTAssertEqual(XCTWaiter.wait(for: [loaded], timeout: 8), .completed)
+        app.buttons["chat-close-button"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["chat-workspace-welcome"].waitForExistence(timeout: 5))
+        let card = app.descendants(matching: .any).matching(NSPredicate(format: "identifier IN %@",
+            ["welcome-chat-card-ui-test-current-chat", "welcome-chat-compact-card-ui-test-current-chat"])).firstMatch
+        XCTAssertTrue(card.waitForExistence(timeout: 8))
+        card.tap()
+        XCTAssertTrue(loading.waitForExistence(timeout: 1), "The delay is in the selected content, not a welcome/new-chat shell")
+        let title = app.staticTexts["chat-header-title"].firstMatch
+        XCTAssertEqual(title.label, "Current Chat", "Cached decrypted identity must appear before the window finishes loading")
+        XCTAssertFalse(app.descendants(matching: .any)["chat-workspace-welcome"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["follow-up-suggestions"].exists)
+        XCTAssertFalse(app.keyboards.firstMatch.exists)
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == false"), object: loading)], timeout: 8), .completed)
+        XCTAssertTrue(app.descendants(matching: .any)["message-user"].firstMatch.exists)
+        XCTAssertEqual(title.label, "Current Chat")
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chat-navigation.open.local-first-coherent
     func testSelectingSidebarChatClosesPreviousFullscreenEmbedAndPreservesTranscript() throws {
         let app = XCUIApplication()
         app.launchArguments = ["--ui-test-authenticated-chat-navigation", "--ui-test-navigation-embed"]
@@ -153,7 +180,9 @@ final class ChatNavigationParityUITests: XCTestCase {
             screenshot.lifetime = .keepAlways
             add(screenshot)
         }
-        preview.tap()
+        let openButton = try NativeUITestElementResolution.requireVisible(
+            preview.buttons.matching(identifier: "embed-preview"), in: app)
+        openButton.tap()
         XCTAssertTrue(app.descendants(matching: .any)["sheet-fullscreen-table"].waitForExistence(timeout: 8))
         try assertSheetFullscreenValue("Saved Row A", in: app)
         try assertSheetFullscreenValue("Saved Row B", in: app)
@@ -162,38 +191,31 @@ final class ChatNavigationParityUITests: XCTestCase {
             .waitForNonExistence(timeout: 5), "Changing chats dismisses the previous Sheet fullscreen")
         try selectSidebarChat("Current Chat", in: app)
         XCTAssertTrue(app.descendants(matching: .any)["sheet-preview-table"].waitForExistence(timeout: 8))
-        app.descendants(matching: .any)["embed-preview-ui-test-sheet-reference"].firstMatch.tap()
+        let restoredPreview = app.descendants(matching: .any)["embed-preview-ui-test-sheet-reference"].firstMatch
+        try NativeUITestElementResolution.requireVisible(
+            restoredPreview.buttons.matching(identifier: "embed-preview"), in: app).tap()
         try assertSheetFullscreenValue("Saved Row B", in: app)
     }
 
     private func selectSidebarChat(_ title: String, in app: XCUIApplication) throws {
-        let close = app.buttons["chat-sidebar-close"]
-        if !close.exists {
-            let open = app.buttons["sidebar-toggle"]
-            XCTAssertTrue(open.waitForExistence(timeout: 5))
-            XCTAssertTrue(open.isHittable)
+        let closeQuery = app.buttons.matching(identifier: "chat-sidebar-close")
+        // Retained offscreen close controls can exist while the menu is closed.
+        if NativeUITestElementResolution.visible(closeQuery, in: app) == nil {
+            let open = try NativeUITestElementResolution.requireVisible(
+                app.buttons.matching(identifier: "sidebar-toggle"), in: app)
             open.tap()
         }
-        // The sidebar stays open after selection on regular-width viewports.
-        // Wait for its animated rail to reach the screen before choosing a row.
-        let row = app.buttons.matching(NSPredicate(format: "label == %@", title)).firstMatch
-        let visible = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
-            row.exists && row.isHittable && row.frame.minX >= 0 &&
-                app.windows.firstMatch.frame.contains(row.frame)
-        }, object: row)
-        XCTAssertEqual(XCTWaiter.wait(for: [visible], timeout: 5), .completed,
-                       "Expected visible sidebar chat \(title)")
+        let panel = try NativeUITestElementResolution.requireVisible(
+            app.descendants(matching: .any).matching(identifier: "chat-history-panel"),
+            in: app, actionable: false)
+        let row = try NativeUITestElementResolution.requireVisible(
+            panel.buttons.matching(NSPredicate(format: "label == %@", title)), in: app)
         row.tap()
         try assertHeaderTitle(title, in: app)
-        // Close through the sidebar's production header when selection retains it.
-        // Compact selection closes the drawer itself and restores the menu button.
-        let navigationSettled = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
-            (close.exists && close.isHittable && close.frame.minX >= 0) ||
-                app.buttons["sidebar-toggle"].isHittable
-        }, object: app)
-        XCTAssertEqual(XCTWaiter.wait(for: [navigationSettled], timeout: 5), .completed)
-        if close.exists && close.isHittable && close.frame.minX >= 0 { close.tap() }
-        XCTAssertTrue(app.buttons["sidebar-toggle"].waitForExistence(timeout: 5))
+        // Regular selection retains the sidebar; compact selection closes it.
+        if let close = NativeUITestElementResolution.visible(closeQuery, in: app) { close.tap() }
+        _ = try NativeUITestElementResolution.requireVisible(
+            app.buttons.matching(identifier: "sidebar-toggle"), in: app)
     }
 
     private func assertHeaderTitle(_ expected: String, in app: XCUIApplication) throws {

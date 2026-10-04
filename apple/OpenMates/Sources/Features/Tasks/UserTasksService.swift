@@ -1,7 +1,13 @@
+// Specification: specifications/features/apple-offline-workspaces/specification.yml
+// Assertions: apple-workspaces.offline-complete, apple-workspaces.local-first, apple-workspaces.isolation, apple-workspaces.maintenance
 // Client-side encrypted Tasks service. Durable text remains ciphertext on /v1/user-tasks.
 // Matches the wire contract in frontend/packages/ui/src/services/userTaskService.ts.
 // Specification: specifications/features/tasks/specification.yml
 // Assertions: tasks.content.client-encrypted, tasks.assignment.identity-separated
+// Specification: specifications/features/apple-task-board-interactions/specification.yml
+// Assertions: apple-task-board.drag-move, apple-task-board.edit
+// Specification: specifications/features/apple-tasks-widget/specification.yml
+// Assertions: apple-tasks-widget.private-cache
 
 import CryptoKit
 import Foundation
@@ -12,6 +18,7 @@ enum UserTasksError: LocalizedError {
     case taskKeyUnavailable
     case missingVersion
     case invalidResponse
+    case incompleteInventory
     case missingLinkedKey(String)
     case invalidActivity
     case unsupportedTeamMutation
@@ -23,10 +30,42 @@ enum UserTasksError: LocalizedError {
         case .taskKeyUnavailable: "This Task cannot be decrypted on this device."
         case .missingVersion: "The Task version is missing. Reload Tasks."
         case .invalidResponse: "The Task response could not be opened."
+        case .incompleteInventory: "The complete Task list is unavailable from this server."
         case .missingLinkedKey(let name): "The linked \(name) key is unavailable."
         case .invalidActivity: "This Task Activity entry could not be decrypted."
         case .unsupportedTeamMutation: "This action is not available for Team Tasks."
         }
+    }
+}
+
+/// The deployed legacy list is capped at 500 rows. Only a below-cap response
+/// without any paging fields can stand in for a complete inventory. Once a
+/// server advertises paging, every page must satisfy the strict receipt rules.
+@MainActor
+enum UserTasksInventory {
+    static func fetch(teamID: String?, request: (String) async throws -> Data) async throws -> Data {
+        var pages = NativeWorkspaceInventoryPages()
+        repeat {
+            try Task.checkCancellation()
+            var path = UserTasksPaths.base + "?paginate=true&limit=500"
+            if let cursor = pages.nextCursor { path += "&cursor=" + UserTasksPaths.escaped(cursor) }
+            let data = try await request(UserTasksPaths.scoped(path, teamID: teamID))
+            try Task.checkCancellation()
+            guard let envelope = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                throw UserTasksError.invalidResponse
+            }
+            if pages.nextCursor == nil && !envelope.keys.contains("complete")
+                && !envelope.keys.contains("next_cursor") {
+                guard let rows = envelope["tasks"] as? [[String: Any]] else { throw UserTasksError.invalidResponse }
+                guard rows.count < 500 else { throw UserTasksError.incompleteInventory }
+                var legacy = envelope
+                legacy["complete"] = true
+                try pages.append(JSONSerialization.data(withJSONObject: legacy), collection: "tasks", idKey: "task_id")
+            } else {
+                try pages.append(data, collection: "tasks", idKey: "task_id")
+            }
+        } while !pages.isComplete
+        return try pages.snapshot(collection: "tasks")
     }
 }
 
@@ -35,19 +74,39 @@ struct UserTasksAccountFence {
     let accountID: String
     let scope: UUID
     let serverProfile: ServerProfile
+    let widgetTeamEpoch: UInt64
+    let teamID: String?
+    private let teamContext: TeamWorkspaceContext
 
-    init(accountID: String) {
+    var requestTeamContext: APIRequestTeamContext {
+        .init(epoch: widgetTeamEpoch, teamID: teamID)
+    }
+
+    init(accountID: String, teamContext: TeamWorkspaceContext = .shared) {
+        self.teamContext = teamContext
+        self.teamID = teamContext.teamID
         self.accountID = accountID
         self.scope = OfflineStore.shared.scopeGeneration
         self.serverProfile = ServerProfile.current()
+        self.widgetTeamEpoch = teamContext.contextEpoch
+    }
+
+    func checkTeamContext() throws {
+        guard widgetTeamEpoch == teamContext.contextEpoch, teamID == teamContext.teamID else {
+            throw UserTasksError.accountChanged
+        }
     }
 
     func check() async throws {
+        try checkTeamContext()
         guard scope == OfflineStore.shared.scopeGeneration,
               serverProfile == ServerProfile.current(),
-              accountID == (await AuthManager.currentUserId()) else {
+              accountID == (await AuthManager.currentUserId()),
+              scope == OfflineStore.shared.scopeGeneration,
+              serverProfile == ServerProfile.current() else {
             throw UserTasksError.accountChanged
         }
+        try checkTeamContext()
     }
 }
 
@@ -127,15 +186,15 @@ enum UserTasksPaths {
 
 @MainActor
 final class UserTasksService {
-    private struct ListResponse: Decodable { let tasks: [TaskBoardRecord] }
-    private struct TaskResponse: Decodable { let task: EncryptedUserTaskRecord }
-    private struct DependencyResponse: Decodable { let dependencies: [UserTaskDependency] }
-    private struct ActivityResponse: Decodable {
+    private struct ListResponse: Decodable, Sendable { let tasks: [TaskBoardRecord] }
+    private struct TaskResponse: Decodable, Sendable { let task: EncryptedUserTaskRecord }
+    private struct DependencyResponse: Decodable, Sendable { let dependencies: [UserTaskDependency] }
+    private struct ActivityResponse: Decodable, Sendable {
         let entries: [UserTaskActivityRecord]
         let nextCursor: String?
     }
-    private struct ActivityEntryResponse: Decodable { let entry: UserTaskActivityRecord }
-    private struct ProposalResponse: Decodable { let proposedTasks: [UserTaskProposal] }
+    private struct ActivityEntryResponse: Decodable, Sendable { let entry: UserTaskActivityRecord }
+    private struct ProposalResponse: Decodable, Sendable { let proposedTasks: [UserTaskProposal] }
 
     private let api: APIClient
     private let projects: ProjectsWorkspaceServing
@@ -145,25 +204,123 @@ final class UserTasksService {
         self.projects = projects
     }
 
-    func listBoard(filters: UserTaskListFilters = .init(), fence: UserTasksAccountFence) async throws -> [TaskBoardItem] {
-        try await fence.check()
-        let response: ListResponse = try await api.request(.get, path: UserTasksPaths.list(filters),
-            serverProfile: fence.serverProfile,
-            expectedAccountID: fence.accountID, expectedScope: fence.scope)
-        try await fence.check()
+    private func openBoard(_ data: Data, filters: UserTaskListFilters,
+                           fence: UserTasksAccountFence, widgetOnlyIfMissing: Bool = false) async throws -> [TaskBoardItem] {
+        let response = try await NativeWorkspaceOfflineRuntime.decodeResponse(ListResponse.self, data: data)
         let masterKey = try await requireMasterKey(fence)
         var items: [TaskBoardItem] = []
+        var widgetTasks: [UserTaskItem] = []
         for record in response.tasks {
             try await fence.check()
             switch record.value {
             case .task(let encrypted):
-                if let item = try await open(encrypted, masterKey: masterKey) { items.append(.task(item)) }
+                if let item = try await open(encrypted, masterKey: masterKey) {
+                    widgetTasks.append(item)
+                    if (filters.status == nil || item.status == filters.status),
+                       (filters.chatID == nil || item.primaryChatId == filters.chatID),
+                       (filters.projectID == nil || item.linkedProjectIds.contains(filters.projectID!)) {
+                        items.append(.task(item))
+                    }
+                }
             case .workflowRun(let run):
-                items.append(.workflowRun(run))
+                if filters.projectID == nil, filters.chatID == nil,
+                   filters.status == nil || run.status == filters.status { items.append(.workflowRun(run)) }
             }
         }
         try await fence.check()
+        TasksWidgetBridge.publish(widgetTasks, fence: fence, teamID: filters.teamID, onlyIfMissing: widgetOnlyIfMissing)
         return items
+    }
+
+    func cachedBoard(filters: UserTaskListFilters = .init(), fence: UserTasksAccountFence) async throws -> [TaskBoardItem]? {
+        let scope = try await NativeWorkspaceOfflineRuntime.configure(accountID: fence.accountID, teamID: filters.teamID)
+        let path = NativeWorkspaceOfflineRuntime.inventoryPath(UserTasksPaths.base, teamID: filters.teamID)
+        guard let data = try await NativeWorkspaceOfflineRuntime.cached(namespace: "user-tasks", path: path, scope: scope) else { return nil }
+        return try await openBoard(data, filters: filters, fence: fence, widgetOnlyIfMissing: true)
+    }
+
+    func listBoard(filters: UserTaskListFilters = .init(), fence: UserTasksAccountFence) async throws -> [TaskBoardItem] {
+        try await fence.check()
+        let scope = try await NativeWorkspaceOfflineRuntime.configure(accountID: fence.accountID, teamID: filters.teamID)
+        let data = try await inventory(scope: scope)
+        return try await openBoard(data, filters: filters, fence: fence)
+    }
+
+    private func inventory(scope: NativeWorkspaceOfflineScope) async throws -> Data {
+        try await NativeWorkspaceOfflineRuntime.coalescedInventory(namespace: "user-tasks", scope: scope) {
+            try await self.fetchInventory(scope: scope)
+        }
+    }
+
+    private func fetchInventory(scope: NativeWorkspaceOfflineScope) async throws -> Data {
+        let cache = NativeWorkspaceOfflineCache.shared
+        let data = try await taskInventory(scope: scope)
+        try await NativeWorkspaceOfflineRuntime.check(scope)
+        let path = NativeWorkspaceOfflineRuntime.inventoryPath(UserTasksPaths.base, teamID: scope.teamID)
+        try await cache.retain(namespace: "user-tasks", path: path, data: data, scope: scope)
+        return data
+    }
+
+    private func taskInventory(scope: NativeWorkspaceOfflineScope) async throws -> Data {
+        let data = try await UserTasksInventory.fetch(teamID: scope.teamID) { path in
+            try await NativeWorkspaceOfflineRuntime.request(namespace: "user-tasks", path: path,
+                scope: scope, api: self.api, retain: false)
+        }
+        try await NativeWorkspaceOfflineRuntime.check(scope)
+        return data
+    }
+
+    func maintainOffline(scope: NativeWorkspaceOfflineScope) async throws {
+        let widgetFence = UserTasksAccountFence(accountID: scope.accountID)
+        let data = try await taskInventory(scope: scope)
+        let inventory = try await NativeWorkspaceOfflineRuntime.decodeResponse(ListResponse.self, data: data)
+        let cache = NativeWorkspaceOfflineCache.shared
+        let revision = try await cache.beginRefresh(namespace: "user-tasks", scope: scope)
+        let listPath = NativeWorkspaceOfflineRuntime.inventoryPath(UserTasksPaths.base, teamID: scope.teamID)
+        var responses = [listPath: data]
+        for item in inventory.tasks {
+            guard case .task(let record) = item.value else { continue }
+            // Team dependency creation/reads are outside the backend's supported
+            // Task model. Cache the supported personal dependency graph only.
+            if scope.teamID == nil {
+                let dependencies = UserTasksPaths.task(record.taskId) + "/dependencies"
+                let raw = try await NativeWorkspaceOfflineRuntime.request(namespace: "user-tasks", path: dependencies,
+                    scope: scope, api: api, retain: false)
+                _ = try await NativeWorkspaceOfflineRuntime.decodeResponse(DependencyResponse.self, data: raw)
+                responses[dependencies] = raw
+            }
+            var cursor: String?
+            var seen: Set<String> = []
+            repeat {
+                let path = UserTasksPaths.activity(record.taskId, teamID: scope.teamID, cursor: cursor)
+                let activity = try await NativeWorkspaceOfflineRuntime.request(namespace: "user-tasks", path: path,
+                    scope: scope, api: api, retain: false)
+                let page = try await NativeWorkspaceOfflineRuntime.decodeResponse(ActivityResponse.self, data: activity)
+                responses[path] = activity
+                if let next = page.nextCursor, !seen.insert(next).inserted { throw UserTasksError.invalidResponse }
+                cursor = page.nextCursor
+            } while cursor != nil
+        }
+        try await NativeWorkspaceOfflineRuntime.check(scope)
+        try await cache.commit(namespace: "user-tasks", responses: responses, scope: scope, revision: revision)
+        // The existing offline-maintenance inventory also refreshes the widget
+        // when the app opens without visiting Tasks. Publication remains fenced;
+        // unavailable title keys do not invalidate the encrypted offline cache.
+        _ = try? await openBoard(data, filters: .init(teamID: scope.teamID), fence: widgetFence)
+    }
+
+    private func localResponse<T: Decodable & Sendable>(_ type: T.Type, path: String, teamID: String?,
+                                             fence: UserTasksAccountFence) async throws -> T {
+        let scope = try await NativeWorkspaceOfflineRuntime.configure(accountID: fence.accountID, teamID: teamID)
+        let scopedPath = UserTasksPaths.scoped(path, teamID: path.contains("team_id=") ? nil : teamID)
+        let raw: Data
+        if let cached = try await NativeWorkspaceOfflineRuntime.cached(namespace: "user-tasks", path: scopedPath, scope: scope) {
+            raw = cached
+        } else {
+            raw = try await NativeWorkspaceOfflineRuntime.request(namespace: "user-tasks", path: scopedPath, scope: scope, api: api)
+        }
+        try await fence.check()
+        return try await NativeWorkspaceOfflineRuntime.decodeResponse(type, data: raw)
     }
 
     func create(_ input: UserTaskCreateInput, fence: UserTasksAccountFence) async throws -> UserTaskItem {
@@ -204,6 +361,8 @@ final class UserTasksService {
         guard let opened = try await open(response.task, masterKey: masterKey) else {
             throw UserTasksError.taskKeyUnavailable
         }
+        try await fence.check()
+        TasksWidgetBridge.upsert(opened, fence: fence, teamID: input.teamID)
         return opened
     }
 
@@ -228,6 +387,8 @@ final class UserTasksService {
         guard let opened = try await open(response.task, masterKey: masterKey) else {
             throw UserTasksError.taskKeyUnavailable
         }
+        try await fence.check()
+        TasksWidgetBridge.upsert(opened, fence: fence, teamID: teamID)
         return opened
     }
 
@@ -278,6 +439,8 @@ final class UserTasksService {
         guard let opened = try await open(response.task, masterKey: masterKey) else {
             throw UserTasksError.taskKeyUnavailable
         }
+        try await fence.check()
+        TasksWidgetBridge.upsert(opened, fence: fence, teamID: teamID)
         return opened
     }
 
@@ -285,9 +448,21 @@ final class UserTasksService {
               position: Int? = nil, teamID: String? = nil,
               fence: UserTasksAccountFence) async throws -> UserTaskItem {
         try await fence.check()
+        // Match TasksPage.persistMove: lifecycle metadata is updated before ordering.
+        var transitioned = task
+        if status == .done && task.status != .done {
+            transitioned = try await action("complete", task: task, teamID: teamID, fence: fence)
+        } else if status == .blocked && task.status != .blocked {
+            transitioned = try await action("block", task: task, teamID: teamID, fence: fence)
+        } else if task.status == .blocked && status != .blocked {
+            transitioned = try await action("unblock", task: task, teamID: teamID, fence: fence)
+        } else if status == .backlog && task.status != .backlog {
+            transitioned = try await action("skip", task: task, teamID: teamID, fence: fence)
+        }
+        try await fence.check()
         let masterKey = try await requireMasterKey(fence)
         var move: [String: Any] = ["task_id": task.id, "status": status.rawValue,
-                                  "version": try version(task.record)]
+                                  "version": try version(transitioned.record)]
         if let position { move["position"] = position }
         struct Response: Decodable { let tasks: [EncryptedUserTaskRecord] }
         let response: Response = try await requestJSON(.post, path: "\(UserTasksPaths.base)/reorder",
@@ -297,6 +472,8 @@ final class UserTasksService {
               let opened = try await open(record, masterKey: masterKey) else {
             throw UserTasksError.invalidResponse
         }
+        try await fence.check()
+        TasksWidgetBridge.upsert(opened, fence: fence, teamID: teamID)
         return opened
     }
 
@@ -306,15 +483,16 @@ final class UserTasksService {
         let path = UserTasksPaths.scoped("\(UserTasksPaths.task(task.id))?version=\(try version(task.record))",
                                          teamID: teamID)
         let _: Data = try await api.request(.delete, path: path, serverProfile: fence.serverProfile,
-            expectedAccountID: fence.accountID, expectedScope: fence.scope)
+            expectedAccountID: fence.accountID, expectedScope: fence.scope,
+            expectedTeamContext: fence.requestTeamContext)
         try await fence.check()
+        TasksWidgetBridge.remove(task.id, fence: fence, teamID: teamID)
     }
 
     func dependencies(for task: UserTaskItem, fence: UserTasksAccountFence) async throws -> [UserTaskDependency] {
         try await fence.check()
-        let response: DependencyResponse = try await api.request(.get,
-            path: "\(UserTasksPaths.task(task.id))/dependencies", serverProfile: fence.serverProfile,
-            expectedAccountID: fence.accountID, expectedScope: fence.scope)
+        let response: DependencyResponse = try await localResponse(DependencyResponse.self,
+            path: "\(UserTasksPaths.task(task.id))/dependencies", teamID: TeamWorkspaceContext.shared.teamID, fence: fence)
         try await fence.check()
         return response.dependencies
     }
@@ -326,13 +504,13 @@ final class UserTasksService {
         let taskKey = try await requireTaskKey(task.record, masterKey: masterKey)
         var entries: [UserTaskActivityEntry] = []
         var cursor: String?
+        var seen: Set<String> = []
         repeat {
-            let response: ActivityResponse = try await api.request(.get,
-                path: UserTasksPaths.activity(task.id, teamID: teamID, cursor: cursor),
-                serverProfile: fence.serverProfile,
-                expectedAccountID: fence.accountID, expectedScope: fence.scope)
+            let response: ActivityResponse = try await localResponse(ActivityResponse.self,
+                path: UserTasksPaths.activity(task.id, teamID: teamID, cursor: cursor), teamID: teamID, fence: fence)
             try await fence.check()
             entries += try response.entries.map { try openActivity($0, taskKey: taskKey) }
+            if let next = response.nextCursor, !seen.insert(next).inserted { throw UserTasksError.invalidResponse }
             cursor = response.nextCursor
         } while cursor != nil
         return entries.sorted { $0.record.createdAt < $1.record.createdAt }
@@ -368,11 +546,9 @@ final class UserTasksService {
         return response.proposedTasks
     }
 
-    private func open(_ record: EncryptedUserTaskRecord,
-                      masterKey: SymmetricKey) async throws -> UserTaskItem? {
-        guard let encryptedTaskKey = record.encryptedTaskKey, !encryptedTaskKey.isEmpty else { return nil }
-        let taskKey = try await CryptoManager.shared.unwrapChatKey(
-            encryptedChatKeyBase64: encryptedTaskKey, masterKey: masterKey)
+    func open(_ record: EncryptedUserTaskRecord,
+              masterKey: SymmetricKey) async throws -> UserTaskItem? {
+        let taskKey = try await requireTaskKey(record, masterKey: masterKey)
         guard record.version != nil else { throw UserTasksError.missingVersion }
         let title = try decryptOptional(record.encryptedTitle, key: taskKey)
         let description = try decryptOptional(record.encryptedDescription, key: taskKey)
@@ -482,8 +658,7 @@ final class UserTasksService {
     private func stringArray(_ value: String?, key: SymmetricKey) throws -> [String] {
         let text = try decryptOptional(value, key: key)
         guard let data = text.data(using: .utf8), !text.isEmpty else { return [] }
-        let array = try JSONSerialization.jsonObject(with: data) as? [String]
-        return array ?? []
+        return try JSONDecoder().decode([String].self, from: data)
     }
 
     private func jsonArray(_ values: [String]) throws -> String {
@@ -503,7 +678,8 @@ final class UserTasksService {
         let data: Data = try await api.request(method, path: path,
             serverProfile: fence.serverProfile,
             body: JSONRawBody(data: try JSONSerialization.data(withJSONObject: body)),
-            expectedAccountID: fence.accountID, expectedScope: fence.scope)
+            expectedAccountID: fence.accountID, expectedScope: fence.scope,
+            expectedTeamContext: fence.requestTeamContext)
         try await fence.check()
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase

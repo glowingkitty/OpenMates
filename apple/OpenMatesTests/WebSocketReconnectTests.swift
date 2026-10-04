@@ -1,4 +1,9 @@
 import XCTest
+#if os(iOS)
+import UIKit
+#elseif os(macOS)
+import AppKit
+#endif
 @testable import OpenMates
 
 @MainActor
@@ -159,6 +164,126 @@ final class WebSocketReconnectTests: XCTestCase {
         XCTAssertEqual(attempts, 2)
         XCTAssertEqual(manager.debugCurrentAuthToken, "new-token")
         manager.disconnect()
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity
+    func testPingTimerFiresDuringUITracking() async {
+        let manager = WebSocketManager()
+        manager.debugConnectionAttempt = {}
+        let sent = expectation(description: "ping fires during UI tracking")
+        var sentCount = 0
+        manager.debugPingSender = { completion in
+            sentCount += 1
+            if sentCount == 1 { sent.fulfill() }
+            completion(nil)
+        }
+        manager.connect(sessionId: "synthetic-session", token: nil)
+        manager.debugStartPingTimer(interval: 0.005)
+        runTrackingLoop(for: 0.03)
+        manager.debugPingTimer?.invalidate()
+        // Delivery may need its MainActor hop after tracking ends, but the timer
+        // must have queued it without a pass through the default run-loop mode.
+        await fulfillment(of: [sent], timeout: 1)
+        manager.disconnect()
+        XCTAssertGreaterThan(sentCount, 0)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=auth.session.isolation,sync.surface.semantic-parity
+    func testQueuedTimerFireCannotPingAReplacementConnection() async {
+        let manager = WebSocketManager()
+        manager.debugConnectionAttempt = {}
+        var sentCount = 0
+        manager.debugPingSender = { completion in sentCount += 1; completion(nil) }
+        manager.connect(sessionId: "old-session", token: nil)
+        manager.debugStartPingTimer(interval: 25)
+        manager.debugPingTimer?.fire()
+        // The old timer already queued its MainActor work when it is invalidated.
+        manager.disconnect()
+        manager.connect(sessionId: "replacement-session", token: nil)
+        await Task.yield()
+        XCTAssertEqual(sentCount, 0)
+        XCTAssertEqual(manager.connectionState, .connecting)
+        manager.disconnect()
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=auth.session.isolation,sync.surface.semantic-parity
+    func testLatePingFailureCannotDisconnectAReplacementConnection() async {
+        let manager = WebSocketManager()
+        manager.debugConnectionAttempt = {}
+        let sent = expectation(description: "old socket ping sent")
+        var completion: (@Sendable (Error?) -> Void)?
+        manager.debugPingSender = { callback in completion = callback; sent.fulfill() }
+        manager.connect(sessionId: "old-session", token: nil)
+        manager.debugStartPingTimer(interval: 25)
+        manager.debugPingTimer?.fire()
+        await fulfillment(of: [sent], timeout: 1)
+        manager.disconnect()
+        manager.connect(sessionId: "replacement-session", token: nil)
+        completion?(NSError(domain: NSURLErrorDomain, code: NSURLErrorNetworkConnectionLost))
+        await Task.yield()
+        XCTAssertEqual(manager.connectionState, .connecting)
+        manager.disconnect()
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity
+    func testPingDiagnosticsReportOnlyScalarsFromPrivateError() async {
+        NativeClientLogCollector.shared.resetForTests()
+        let manager = WebSocketManager()
+        manager.debugConnectionAttempt = {}
+        manager.debugReconnectDelay = 30
+        let sent = expectation(description: "ping completion delivered")
+        let privateValue = "PRIVATE_SOCKET_DETAIL_CANARY"
+        manager.debugPingSender = { completion in
+            completion(NSError(domain: privateValue, code: 73,
+                               userInfo: [NSLocalizedDescriptionKey: privateValue]))
+            sent.fulfill()
+        }
+        manager.connect(sessionId: privateValue, token: privateValue)
+        manager.debugStartPingTimer(interval: 25)
+        manager.debugPingTimer?.fire()
+        await fulfillment(of: [sent], timeout: 1)
+        await Task.yield()
+        let messages = NativeClientLogCollector.shared.entriesSnapshot(limit: 200).map(\.message)
+        XCTAssertTrue(messages.contains { $0.contains("event=socket_ping_failed") && $0.contains("error_code=73") && $0.contains("error_domain_class=0") })
+        XCTAssertFalse(messages.contains { $0.contains(privateValue) })
+        XCTAssertEqual(manager.connectionState, .reconnecting(attempt: 1))
+        manager.disconnect()
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity
+    func testMonotonicDiagnosticsKeepCadenceAndDrainBoundedSamples() {
+        var timings = WebSocketTimingWindow()
+        timings.startPingSchedule(at: 100, interval: 25)
+        XCTAssertEqual(timings.pingScheduleDrift(at: 180), 55_000)
+        XCTAssertEqual(timings.pingScheduleDrift(at: 200.125), 125)
+        timings.recordCallback(at: 210, deliveredAt: 210.02)
+        timings.recordCallback(at: 211, deliveredAt: 211.09)
+        timings.recordReceive(routingMilliseconds: 12)
+        timings.recordReceive(routingMilliseconds: 3)
+        timings.recordSyncEvent()
+        let counts = timings.takeWindowCounts()
+        XCTAssertEqual(counts["callback_count"], 2)
+        XCTAssertEqual(counts["callback_main_delay_max_ms"], 90)
+        XCTAssertEqual(counts["received_count"], 2)
+        XCTAssertEqual(counts["receive_routing_total_ms"], 15)
+        XCTAssertEqual(counts["sync_event_count"], 1)
+        XCTAssertTrue(timings.takeWindowCounts().values.allSatisfy { $0 == 0 })
+        XCTAssertEqual(WebSocketTimingWindow.errorDomainClass(NSURLErrorDomain), 1)
+        XCTAssertEqual(WebSocketTimingWindow.errorDomainClass("private-domain"), 0)
+    }
+
+    private func runTrackingLoop(for duration: TimeInterval) {
+        #if os(iOS)
+        let mode = RunLoop.Mode.tracking
+        #elseif os(macOS)
+        let mode = RunLoop.Mode.eventTracking
+        #else
+        let mode = RunLoop.Mode.common
+        #endif
+        let deadline = Date(timeIntervalSinceNow: duration)
+        while Date() < deadline {
+            RunLoop.main.run(mode: mode, before: deadline)
+        }
     }
 
 }

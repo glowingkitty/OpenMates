@@ -6,11 +6,16 @@ import SwiftUI
 // synthetic; they never inspect saved accounts, messages, drafts or credentials.
 struct DevSidebarComponentFixture: View {
     let variant: String
+    @StateObject private var projectStore: ProjectsWorkspaceStore
+    @State private var projectLocation: ChatProjectLocation?
+    @State private var dragScope = UUID()
     @StateObject private var store: ChatStore
     @State private var selected: Chat?
     @State private var showSearch = false
     @State private var isOpen = true
     @State private var hiddenBoundary = false
+    @State private var actionChat: Chat?
+    @State private var actionCallbackCount = 0
     @State private var limit: Int
     @State private var lastActiveID: String?
     private let userChats: [Chat]
@@ -19,7 +24,8 @@ struct DevSidebarComponentFixture: View {
 
     init(variant: String) {
         self.variant = variant
-        let users = variant == "dated" ? Self.datedChats : variant == "account" ? Self.accountChats : []
+        _projectStore = StateObject(wrappedValue: ProjectsWorkspaceStore(service: SidebarProjectFixtureService(), validateFence: { _ in }))
+        let users = variant == "dated" ? Self.datedChats : ["account", "organization"].contains(variant) ? Self.accountChats : []
         _limit = State(initialValue: variant == "dated" ? ChatSidebarDisplayPolicy.initialLimit : 2)
         let sections = variant == "empty" ? [] : Self.bundledPublicSections
         userChats = users; publicSections = sections
@@ -36,59 +42,132 @@ struct DevSidebarComponentFixture: View {
     }
     var body: some View {
         GeometryReader { geometry in
-            VStack(spacing: 0) {
-                if hiddenBoundary {
-                    Text("Hidden-chat authentication is not connected in this isolated component.")
-                        .font(.omSmall).accessibilityIdentifier("sidebar-fixture-hidden-boundary")
-                    Button(AppStrings.back) { hiddenBoundary = false }
-                        .accessibilityIdentifier("sidebar-fixture-hidden-return")
+            fixtureContent(size: geometry.size)
+        }
+        .overlay { actionSheet }
+        .task {
+            if variant == "organization" { await projectStore.refreshChatNavigation(accountID: "synthetic-owner", teamID: nil) }
+        }
+    }
+
+    private func fixtureContent(size: CGSize) -> some View {
+        VStack(spacing: 0) {
+            hiddenBoundaryContent
+            ZStack(alignment: .leading) {
+                selectedContent(height: size.height)
+                if isOpen {
+                    sidebarContent.frame(width: size.width <= 600 ? size.width : 325)
                 }
-                ZStack(alignment: .leading) {
-                    if let selected {
-                        VStack(spacing: 12) {
-                            ChatBannerView(state: .loaded(title: selected.displayTitle, appId: selected.category ?? "ai", summary: selected.chatSummary),
-                                viewportHeight: geometry.size.height)
-                            Text(store.messages(for: selected.id).first?.content ?? selected.displayTitle)
-                                .accessibilityIdentifier("sidebar-fixture-selected-content")
-                            Text(selected.id).accessibilityIdentifier("sidebar-fixture-selected-id")
-                        }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    } else {
-                        Color.grey20
-                    }
-                    if isOpen {
-                        ChatSidebarContent(userSections: userSections, publicSections: publicSections,
-                            selectedChatID: selected?.id, draftPreviews: drafts, showSearch: showSearch,
-                            emptyMessage: variant == "empty" ? AppStrings.noChats : nil,
-                            loadMore: limit < userChats.count ? .init(totalCount: userChats.count, loadedCount: limit, isLoading: false) : nil,
-                            actions: .init(select: select, showActions: nil, search: { showSearch = true },
-                                close: { isOpen = false }, showHidden: { hiddenBoundary = true },
-                                loadMore: { limit = ChatSidebarDisplayPolicy.nextLimit(after: limit) }), refresh: {}) {
-                            ChatSearchView(chats: store.chats, activeChatId: selected?.id, chatStore: store,
-                                onSelectResult: { result in
-                                    if let chat = store.chat(for: result.chatId) { select(chat) }
-                                }, onClose: { showSearch = false }, prepareSearchMetadata: {},
-                                draftPreviews: drafts, allowsOfflineContent: false)
-                        }
-                        .frame(width: geometry.size.width <= 600 ? geometry.size.width : 325)
-                    }
+            }
+            reopenControls
+            if variant == "organization" {
+                Text(String(actionCallbackCount)).font(.omXs).accessibilityIdentifier("sidebar-fixture-action-count")
+            }
+            Text("Local fixture; account/network/persistence disabled.")
+                .font(.omXs).accessibilityIdentifier("sidebar-fixture-boundary")
+        }
+    }
+
+    @ViewBuilder private var hiddenBoundaryContent: some View {
+        if hiddenBoundary {
+            Text("Hidden-chat authentication is not connected in this isolated component.")
+                .font(.omSmall).accessibilityIdentifier("sidebar-fixture-hidden-boundary")
+            Button(AppStrings.back) { hiddenBoundary = false }
+                .accessibilityIdentifier("sidebar-fixture-hidden-return")
+        }
+    }
+
+    @ViewBuilder private func selectedContent(height: CGFloat) -> some View {
+        if let selected {
+            VStack(spacing: 12) {
+                ChatBannerView(state: .loaded(title: selected.displayTitle, appId: selected.category ?? "ai", summary: selected.chatSummary),
+                    viewportHeight: height)
+                Text(store.messages(for: selected.id).first?.content ?? selected.displayTitle)
+                    .accessibilityIdentifier("sidebar-fixture-selected-content")
+                Text(selected.id).accessibilityIdentifier("sidebar-fixture-selected-id")
+            }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        } else {
+            Color.grey20
+        }
+    }
+
+    private var sidebarContent: some View {
+        ChatSidebarContent(projectNavigation: variant == "organization" ? projectNavigation : nil,
+            userSections: userSections, publicSections: publicSections,
+            selectedChatID: selected?.id, draftPreviews: drafts, showSearch: showSearch,
+            emptyMessage: variant == "empty" ? AppStrings.noChats : nil,
+            loadMore: sidebarLoadMore, actions: sidebarActions, refresh: {}) {
+                sidebarSearch
+            }
+    }
+
+    private var sidebarLoadMore: ChatSidebarLoadMore? {
+        limit < userChats.count ? .init(totalCount: userChats.count, loadedCount: limit, isLoading: false) : nil
+    }
+
+    private var sidebarActions: ChatSidebarActions {
+        let showActions: ((Chat) -> Void)? = variant == "organization" ? { chat in actionCallbackCount += 1; actionChat = chat } : nil
+        let dragPayload: ((Chat) -> ChatProjectDragPayload?)? = variant == "organization" ? { chat in self.payload(chat) } : nil
+        let dropChat: ((ChatProjectDragPayload, Chat) -> Void)? = variant == "organization" ? { payload, target in self.group(payload, target) } : nil
+        return .init(select: select, showActions: showActions, search: { showSearch = true },
+            close: { isOpen = false }, showHidden: { hiddenBoundary = true },
+            loadMore: { limit = ChatSidebarDisplayPolicy.nextLimit(after: limit) },
+            dragPayload: dragPayload, dropChat: dropChat)
+    }
+
+    private var sidebarSearch: some View {
+        ChatSearchView(chats: store.chats, activeChatId: selected?.id, chatStore: store,
+            onSelectResult: { result in
+                if let chat = store.chat(for: result.chatId) { select(chat) }
+            }, onClose: { showSearch = false }, prepareSearchMetadata: {},
+            draftPreviews: drafts, allowsOfflineContent: false)
+    }
+
+    @ViewBuilder private var reopenControls: some View {
+        if !isOpen {
+            HStack {
+                Button(AppStrings.chats) { isOpen = true }
+                    .accessibilityIdentifier("sidebar-fixture-reopen")
+                if variant == "dated" {
+                    Button(AppStrings.newChat) { selected = nil; isOpen = true }
+                        .accessibilityIdentifier("sidebar-fixture-new-chat")
                 }
-                if !isOpen {
-                    HStack {
-                        Button(AppStrings.chats) { isOpen = true }
-                            .accessibilityIdentifier("sidebar-fixture-reopen")
-                        if variant == "dated" {
-                            Button(AppStrings.newChat) { selected = nil; isOpen = true }
-                                .accessibilityIdentifier("sidebar-fixture-new-chat")
-                        }
-                    }
-                }
-                Text("Local fixture; account/network/persistence disabled.")
-                    .font(.omXs).accessibilityIdentifier("sidebar-fixture-boundary")
             }
         }
     }
+
+    private var actionSheet: some View {
+        OMSheet(isPresented: Binding(get: { actionChat != nil }, set: { if !$0 { actionChat = nil } }), title: actionChat?.displayTitle) {
+            Text(actionChat?.id ?? "").accessibilityIdentifier("sidebar-fixture-action-chat")
+            Button(AppStrings.close) { actionChat = nil }.accessibilityIdentifier("sidebar-fixture-action-close")
+        }.accessibilityIdentifier("sidebar-fixture-actions-overlay")
+    }
+    private var projectNavigation: ChatProjectNavigationContext {
+        .init(projects: projectStore.chatNavigationProjects, location: projectLocation,
+            navigate: { projectLocation = $0 }, drop: { payload, at in
+                guard accepts(payload), let chat = store.chat(for: payload.chatID) else { return }
+                Task { await projectStore.moveChats([chat], to: at) }
+            }, createFolder: { at, name in Task { await projectStore.createChatFolder(at: at, name: name) } }, openProject: { _ in })
+    }
+    private func payload(_ chat: Chat) -> ChatProjectDragPayload? {
+        .init(chatID: chat.id, accountID: "synthetic-owner", scope: dragScope, serverOrigin: "fixture.invalid", teamID: nil)
+    }
+    private func accepts(_ payload: ChatProjectDragPayload) -> Bool {
+        payload.accountID == "synthetic-owner" && payload.scope == dragScope && payload.serverOrigin == "fixture.invalid" && payload.teamID == nil
+    }
+    private func group(_ payload: ChatProjectDragPayload, _ target: Chat) {
+        guard accepts(payload), payload.chatID != target.id, let source = store.chat(for: payload.chatID) else { return }
+        Task { _ = await projectStore.createChatOrganization(chats: [source, target]) }
+    }
     private var userSections: [ChatSidebarSection] {
-        let visible = ChatSidebarDisplayPolicy.visibleChats(sortedUserChats: userChats, limit: limit,
+        let linked = Set(projectStore.chatNavigationProjects.flatMap { $0.contents.items.filter { $0.kind == "chat" }.map(\.targetID) })
+        let eligible = variant == "organization" ? userChats.filter { chat in
+            if let location = projectLocation {
+                return projectStore.chatNavigationProjects.first(where: { $0.id == location.projectID })?.chatIDs(in: location.folderID).contains(chat.id) == true
+            }
+            return !linked.contains(chat.id)
+        } : userChats
+        let visible = ChatSidebarDisplayPolicy.visibleChats(sortedUserChats: eligible, limit: projectLocation == nil ? limit : Int.max,
             selectedChatID: selected?.id, lastActiveChatID: lastActiveID)
         return ChatSidebarDisplayPolicy.groups(visible, now: Self.fixtureNow, calendar: Self.fixtureCalendar).map { group in
             ChatSidebarSection(id: group.key,
@@ -134,5 +213,50 @@ struct DevSidebarComponentFixture: View {
             ChatSidebarSection(id: id, title: title, chats: ids.compactMap { PublicChatContent.chat(for: $0)?.chat })
         }
     }
+}
+#endif
+#if DEBUG
+// Detached transport for actual production Project creation/move controls.
+// No account, inference request, persistence bridge, or external service is touched.
+@MainActor
+private final class SidebarProjectFixtureService: ProjectsWorkspaceServing {
+    private var projects: [ProjectWorkspaceProject] = []
+    private var links: [String: [ProjectWorkspaceItem]] = [:]
+    private var folders: [String: [ProjectWorkspaceFolder]] = [:]
+    func listProjects(accountID: String, teamID: String?) async throws -> [ProjectWorkspaceProject] { projects }
+    func contents(project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws -> ProjectWorkspaceContents {
+        .init(folders: folders[project.id] ?? [], items: links[project.id] ?? [], sources: [])
+    }
+    func createChatOrganization(chats: [Chat], fence: ProjectsWorkspaceFence, teamID: String?) async throws -> ProjectWorkspaceProject {
+        var project = ProjectsWorkspacePreviewFixture.state(for: "default").project
+        project.name = "Website launch"
+        projects = [project]; links[project.id] = []
+        return project
+    }
+    func copyItem(_ item: ProjectWorkspaceItem, project: ProjectWorkspaceProject, folderID: String?, fence: ProjectsWorkspaceFence) async throws {
+        links[project.id, default: []].append(.init(id: item.id, kind: item.kind, targetID: item.targetID,
+            name: item.name, metadata: item.metadata, folderHash: folderID.map(ChatSidebarProject.hash), position: item.position, createdAt: item.createdAt))
+    }
+    func moveItem(_ itemID: String, project: ProjectWorkspaceProject, folderID: String?, fence: ProjectsWorkspaceFence) async throws {
+        guard let item = links[project.id]?.first(where: { $0.id == itemID }) else { return }
+        links[project.id]?.removeAll { $0.id == itemID }
+        try await copyItem(item, project: project, folderID: folderID, fence: fence)
+    }
+    func createFolder(_ name: String, project: ProjectWorkspaceProject, parentID: String?, fence: ProjectsWorkspaceFence) async throws {
+        folders[project.id, default: []].append(.init(id: UUID().uuidString, name: name,
+            parentHash: parentID.map(ChatSidebarProject.hash), position: 0, createdAt: 0))
+    }
+    func removeChatLink(chatID: String, project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws { links[project.id]?.removeAll { $0.targetID == chatID } }
+    func listSources(project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws -> [ProjectWorkspaceSource] { [] }
+    func settings(project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws -> ProjectWorkspaceSettings {
+        .init(writeMode: .applyAndShow, selectionRequired: true, focusID: nil, focusInstruction: nil)
+    }
+    func createProject(name: String, writeMode: ProjectWorkspaceWriteMode, fence: ProjectsWorkspaceFence, teamID: String?) async throws -> ProjectWorkspaceProject { throw ProjectsWorkspaceError.invalidContext }
+    func updateProject(_ project: ProjectWorkspaceProject, name: String?, description: String?, fence: ProjectsWorkspaceFence) async throws -> ProjectWorkspaceProject { throw ProjectsWorkspaceError.invalidContext }
+    func updateWriteMode(_ mode: ProjectWorkspaceWriteMode, project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws -> ProjectWorkspaceSettings { throw ProjectsWorkspaceError.invalidContext }
+    func activateFocus(project: ProjectWorkspaceProject, chatID: String, focusID: String, instruction: String, fence: ProjectsWorkspaceFence) async throws { throw ProjectsWorkspaceError.invalidContext }
+    func deleteProject(_ project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws { throw ProjectsWorkspaceError.invalidContext }
+    func readStoredFile(_ item: ProjectWorkspaceItem, project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws -> [String: Any] { throw ProjectsWorkspaceError.invalidContext }
+    func openLinkedEmbed(_ item: ProjectWorkspaceItem, project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws -> EmbedRecord { throw ProjectsWorkspaceError.invalidContext }
 }
 #endif

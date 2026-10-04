@@ -65,6 +65,7 @@ enum EmbedVisualSkillIcon {
            (embed.skillId ?? embed.rawData?["skill_id"]?.value as? String) == "search" {
             return "search"
         }
+        if HostingEmbedKind.isSearch(embed) || HostingEmbedKind.isDomain(embed) { return "search" }
         switch embed.type {
         case "recording": return "microphone"
         case "app:audio:generate", "app:audio:speak": return "audio"
@@ -152,6 +153,9 @@ struct EmbedPreviewCard: View {
     @Environment(\.embedChatID) private var embedChatID
     @Environment(\.embedPIIMappings) private var embedPIIMappings
     @Environment(\.embedPIIRevealed) private var embedPIIRevealed
+    @Environment(\.embedShareSettingsAction) private var shareSettingsAction
+    @Environment(\.workspacePaneIsVisible) private var sharePaneVisible
+    @State private var showsContextActions = false
     @State private var isHovering = false
     @State private var hoverX: CGFloat = 0
     @State private var hoverY: CGFloat = 0
@@ -203,7 +207,9 @@ struct EmbedPreviewCard: View {
                     .accessibilityValue(statusAccessibilityValue)
                 }
             } else {
-                Button(action: onTap) {
+                Button {
+                    onTap()
+                } label: {
                     cardSurface
                         .contentShape(Rectangle())
                 }
@@ -216,11 +222,31 @@ struct EmbedPreviewCard: View {
                 )
                 // Code exposes its source/processing/empty renderer state in
                 // every status, while retaining the outer actionable card.
-                .accessibilityElement(children: embedType == .codeCode || embedType == .mindmapsMindmap || (embed.status == .finished &&
+                .accessibilityElement(children: HostingEmbedKind.isSearch(embed) || HostingEmbedKind.isDomain(embed) || embedType == .codeCode || embedType == .mindmapsMindmap || (embed.status == .finished &&
                     (embedType == .maps || embedType == .mapsPlace || embedType == .webSearch || embedType == .newsSearch || (embedType == .webWebsite && appId == "news") || embedType == .imagesSearch || embedType == .sheetsSheet || (embed.isAppSkillUse && appId == "web"))) ? .contain : .combine)
                 .accessibilityValue(statusAccessibilityValue)
             }
         }
+        .highPriorityGesture(LongPressGesture().onEnded { _ in
+            if sharePaneVisible, shareSettingsAction != nil, embed.status == .finished { showsContextActions = true }
+        })
+        #if os(macOS)
+        .background(EmbedSecondaryClickSurface {
+            if sharePaneVisible, shareSettingsAction != nil, embed.status == .finished { showsContextActions = true }
+        })
+        #endif
+        .overlay(alignment: .topTrailing) {
+            if showsContextActions, let chatId = embedChatID {
+                EmbedContextMenuView(embed: embed, chatId: chatId,
+                    onFullscreen: { showsContextActions = false; onTap() },
+                    onShare: {
+                        showsContextActions = false
+                        shareSettingsAction?.open(EmbedShareSettingsTarget(
+                            embed: embed, chatId: chatId, allEmbedRecords: allEmbedRecords))
+                    }, onClose: { showsContextActions = false })
+            }
+        }
+        .zIndex(showsContextActions ? 1 : 0)
         .onAppear {
             if embed.status == .processing && processingStartDate == nil {
                 processingStartDate = Date()
@@ -230,6 +256,7 @@ struct EmbedPreviewCard: View {
             handleStatusChange(from: oldStatus, to: newStatus)
         }
         .onDisappear {
+            showsContextActions = false
             statusHintTask?.cancel()
         }
     }
@@ -260,6 +287,7 @@ struct EmbedPreviewCard: View {
                 if variant == .large {
                     statusBar
                         .frame(width: Constants.expandedInfoBarWidth)
+                        .fixedSize(horizontal: false, vertical: true)
                         .offset(y: Constants.expandedInfoBarOffset)
                         .shadow(color: .black.opacity(0.12), radius: 24, x: 0, y: 8)
                         .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 2)
@@ -267,6 +295,9 @@ struct EmbedPreviewCard: View {
             }
             .padding(.top, variant == .large ? .spacing5 : 0)
             .padding(.bottom, variant == .large ? Constants.expandedBottomOutset : 0)
+            #if DEBUG
+            .background(EmbedPreviewGeometryProbe(name: "card"))
+            #endif
             .rotation3DEffect(.degrees(isHovering ? -hoverY * tiltMaxAngle : 0), axis: (x: 1, y: 0, z: 0), perspective: 1 / tiltPerspective)
             .rotation3DEffect(.degrees(isHovering ? hoverX * tiltMaxAngle : 0), axis: (x: 0, y: 1, z: 0), perspective: 1 / tiltPerspective)
             .scaleEffect(isHovering ? hoverScale : 1)
@@ -370,14 +401,27 @@ struct EmbedPreviewCard: View {
                 .overlay(alignment: .bottom) {
                     if variant == .compact {
                         statusBar
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
         } else {
-            VStack(spacing: 0) {
-                contentArea
-                if variant == .compact {
-                    statusBar
+            GeometryReader { viewport in
+                // Web .details-section has min-height:0 and flex:1, while
+                // BasicInfosBar is a nonshrinking 61px sibling. Intrinsic text
+                // or badge height must never move the footer outside the card.
+                VStack(spacing: 0) {
+                    contentArea
+                        .frame(height: EmbedPreviewFooterLayout.detailsHeight(cardHeight: viewport.size.height))
+                        .clipped()
+                    if variant == .compact {
+                        statusBar.fixedSize(horizontal: false, vertical: true)
+                    } else {
+                        // Large cards paint their footer in cardSurface's
+                        // overlay and retain the web's15pt transformed offset.
+                        Color.clear.frame(height: EmbedPreviewFooterLayout.height)
+                    }
                 }
+                .frame(width: viewport.size.width, height: viewport.size.height, alignment: .top)
             }
         }
     }
@@ -388,7 +432,11 @@ struct EmbedPreviewCard: View {
         ZStack(alignment: .topLeading) {
             Color.grey25
 
-            if embed.status == .processing, embed.isAppSkillUse {
+            // Hosting's web details retain the query/provider and explain each
+            // terminal status. Generic loading/error placeholders hide that
+            // information and must not replace its registered renderer.
+            if HostingEmbedKind.isSearch(embed) || HostingEmbedKind.isDomain(embed)
+                || (embed.status == .processing && embed.isAppSkillUse) {
                 EmbedContentView(
                     embed: embed,
                     mode: .preview,
@@ -475,6 +523,9 @@ struct EmbedPreviewCard: View {
             showSkillIcon: showsSkillIcon,
             trailingAction: processingOrAudioTrailingAction
         )
+        #if DEBUG
+        .background(EmbedPreviewGeometryProbe(name: "footer"))
+        #endif
     }
 
     private var isGeneratedAudioSkill: Bool {
@@ -511,6 +562,7 @@ struct EmbedPreviewCard: View {
     }
 
     private var showsSkillIcon: Bool {
+        if HostingEmbedKind.isDomain(embed) { return false }
         if embedType == .mailEmail || embedType == .mathPlot { return false }
         if embedType == .webSearch
             || embedType == .videosSearch
@@ -555,6 +607,8 @@ struct EmbedPreviewCard: View {
     }
 
     private var statusTitle: String {
+        if HostingEmbedKind.isDomain(embed) { return HostingDomainModel(embed).name }
+        if HostingEmbedKind.isSearch(embed) { return AppStrings.hosting(.title) }
         if embedType == .mindmapsMindmap {
             return NativeMindMapPreviewTitle.resolve(embed.rawData)
         }
@@ -655,9 +709,9 @@ struct EmbedPreviewCard: View {
             return skillDisplayName
         }
         if embedType == .codeCode {
-            if let filename = embed.rawData?["filename"]?.value as? String, !filename.isEmpty {
-                return filename.split(separator: "/").last.map(String.init) ?? filename
-            }
+            let content = AppleCodeEmbedContent(data: embed.rawData)
+            if let filename = content.previewFilename { return filename }
+            if !content.language.isEmpty { return formatLanguageName(content.language) }
             return LocalizationManager.shared.text("embeds.code_snippet")
         }
         if let query = embed.rawData?["query"]?.value as? String, !query.isEmpty {
@@ -677,6 +731,7 @@ struct EmbedPreviewCard: View {
     }
 
     private var statusSubtitle: String? {
+        if HostingEmbedKind.isDomain(embed) || (HostingEmbedKind.isSearch(embed) && embed.status != .processing) { return nil }
         if embedType == .travelStay { return nil }
         if embedType == .maps || embedType == .mapsPlace { return nil }
         if embedType == .mailEmail {
@@ -861,6 +916,7 @@ struct EmbedPreviewCard: View {
         case "html": return "HTML"
         case "css": return "CSS"
         case "swift": return "Swift"
+        case "md", "markdown": return "Markdown"
         default:
             return language.prefix(1).uppercased() + language.dropFirst()
         }

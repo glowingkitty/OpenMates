@@ -28,6 +28,7 @@ struct WatchRootView: View {
     @State private var runtimeToken: String?
     @State private var runtimeAccountGeneration: UInt64?
     @State private var runtimeServerScope: String?
+    @State private var backgroundSyncOwner: String?
 
     var body: some View {
         ZStack {
@@ -46,10 +47,14 @@ struct WatchRootView: View {
                         currentUserId: authStore.currentUser?.id,
                         currentUsername: authStore.currentUser?.username,
                         currentAccountID: {
-                            guard authStore.state == .authenticated, authStore.isVerifiedOnline else { return nil }
+                            guard authStore.state == .authenticated else { return nil }
                             return authStore.currentUser?.id
                         },
+                        writesAllowed: { authStore.state == .authenticated && authStore.isVerifiedOnline },
                         notificationRoute: push.pendingRoute.flatMap { push.permitsOpen($0) ? $0 : nil },
+                        onNavigationBusyChange: { busy in
+                            chatRuntime.setForegroundNavigationBusy(busy)
+                        },
                         onOpenItem: { request in
                             _ = phoneBridge.sendItemOpenRequest(request)
                         },
@@ -64,6 +69,7 @@ struct WatchRootView: View {
                             }
                         }
                     )
+                    .environment(\.watchEmbedAccountID, authStore.currentUser?.id)
                     .id("\(authStore.currentUser?.id ?? ""):\(WatchChatAccountLifecycle.generation):\(ServerProfile.current().apiBaseURL.absoluteString):\(runtimeRevision)")
                     .task { phoneBridge.start(onApproval: { _ in }, onAcknowledgment: { _ in }) }
                 } else {
@@ -109,6 +115,8 @@ struct WatchRootView: View {
 
     private func configureChatRuntime() {
         guard authStore.state == .authenticated, let accountID = authStore.currentUser?.id else {
+            if let backgroundSyncOwner { WatchBackgroundOfflineSync.shared.unregister(.chats, owner: backgroundSyncOwner) }
+            backgroundSyncOwner = nil
             chatRuntime?.stopRealtimeSync()
             chatRuntime = nil
             runtimeAccountID = nil
@@ -128,6 +136,7 @@ struct WatchRootView: View {
             }
             return
         }
+        if let backgroundSyncOwner { WatchBackgroundOfflineSync.shared.unregister(.chats, owner: backgroundSyncOwner) }
         chatRuntime?.stopRealtimeSync()
         let runtime = WatchChatRuntime(currentUserId: accountID,
             syncSession: WatchSyncSession(sessionId: WatchCompatibleSession.nativeSessionId, token: token))
@@ -137,6 +146,11 @@ struct WatchRootView: View {
         runtimeToken = token
         runtimeAccountGeneration = generation
         runtimeServerScope = scope
+        let owner = "\(accountID):\(scope):\(generation)"
+        backgroundSyncOwner = owner
+        WatchBackgroundOfflineSync.shared.register(.chats, owner: owner) { [weak runtime] in
+            await runtime?.performBackgroundOfflineSync()
+        }
         Task {
             await runtime.loadCachedSnapshot()
             await runtime.setForeground(scenePhase == .active)

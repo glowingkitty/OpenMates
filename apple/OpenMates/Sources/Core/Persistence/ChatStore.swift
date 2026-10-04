@@ -4,6 +4,9 @@
 // Specification: specifications/features/chats/specification.yml
 // Assertions: chats.followups.non-destructive-reconciliation, chats.surface.semantic-parity
 
+// Specification: specifications/features/apple-recent-offline-chats/specification.yml
+// Assertions: apple-offline.recent-cohort, apple-offline.local-first, apple-offline.interruption-isolation, apple-offline.snapshot-integrity
+
 import Foundation
 import SwiftUI
 
@@ -16,6 +19,7 @@ final class ChatStore: ObservableObject {
     @Published private var embedsByChat: [String: [String: EmbedRecord]] = [:]
 
     private var bridge: OfflineSyncBridge?
+    private(set) var metadataReadRevision = 0
     private var persistenceSuppressionDepth = 0
     private var serverSortOrderByChatId: [String: Int] = [:]
     private var recoveredMetadataFieldVersions: [String: [String: Int]] = [:]
@@ -186,6 +190,7 @@ final class ChatStore: ObservableObject {
     }
 
     func removeChat(_ chatId: String) {
+        metadataReadRevision &+= 1
         recoveredMetadataFieldVersions.removeValue(forKey: chatId)
         requiredCompleteMetadataRevision.removeValue(forKey: chatId)
         serverSortOrderByChatId.removeValue(forKey: chatId)
@@ -196,6 +201,7 @@ final class ChatStore: ObservableObject {
     }
 
     func clearInMemory() {
+        metadataReadRevision &+= 1
         recoveredMetadataFieldVersions.removeAll()
         requiredCompleteMetadataRevision.removeAll()
         chats.removeAll()
@@ -250,12 +256,22 @@ final class ChatStore: ObservableObject {
 
     func updateDraftVersion(chatId: String, draftVersion: Int, hasNonEmptyDraft: Bool? = nil, clearedDraftVersion: Int? = nil) {
         guard let index = chats.firstIndex(where: { $0.id == chatId }) else { return }
-        chats[index] = chats[index].withDraftVersion(draftVersion)
-        if let hasNonEmptyDraft { chats[index].hasNonEmptyDraft = hasNonEmptyDraft }
-        if let clearedDraftVersion {
-            chats[index].clearedDraftV = max(chats[index].clearedDraftV ?? 0, clearedDraftVersion)
+        let current = chats[index]
+        var updated = current.withDraftVersion(draftVersion)
+        if let hasNonEmptyDraft {
+            updated.hasNonEmptyDraft = hasNonEmptyDraft
+        } else if (current.draftV ?? 0) == draftVersion {
+            // An implicit same-version update carries no new presence evidence.
+            updated.hasNonEmptyDraft = current.hasNonEmptyDraft
         }
-        persistIfAllowed { $0.onChatsReceived([chats[index]]) }
+        if let clearedDraftVersion {
+            updated.clearedDraftV = max(current.clearedDraftV ?? 0, clearedDraftVersion)
+        }
+        guard (current.draftV ?? 0) != (updated.draftV ?? 0)
+            || current.hasNonEmptyDraft != updated.hasNonEmptyDraft
+            || (current.clearedDraftV ?? 0) != (updated.clearedDraftV ?? 0) else { return }
+        chats[index] = updated
+        persistIfAllowed { $0.onChatsReceived([updated]) }
     }
 
     func advanceMessagesVersion(chatId: String, to committedVersion: Int) {
@@ -318,6 +334,10 @@ final class ChatStore: ObservableObject {
         let records = embedsByChat[chatId] ?? [:]
         guard !records.isEmpty else { return [] }
         return lightweightEmbeds(for: messages, records: records)
+    }
+
+    func removeMessageIDs(_ ids: Set<String>, from chatID: String) {
+        messagesByChat[chatID]?.removeAll { ids.contains($0.id) || $0.serverMessageId.map(ids.contains) == true }
     }
 
     func setMessages(for chatId: String, messages: [Message]) {
@@ -605,6 +625,7 @@ private extension Chat {
             lastMessageAt: lastMessageAt,
             createdAt: createdAt,
             updatedAt: updatedAt,
+            lastEditedOverallTimestamp: lastEditedOverallTimestamp,
             isArchived: isArchived,
             isPinned: isPinned,
             appId: appId,
@@ -634,6 +655,7 @@ private extension Chat {
             isPrivate: isPrivate,
             isHidden: isHidden,
             isHiddenCandidate: isHiddenCandidate,
+            teamId: teamId, isSharedByOthers: isSharedByOthers,
             hasNonEmptyDraft: hasNonEmptyDraft,
             clearedDraftV: clearedDraftV
         )
@@ -647,6 +669,7 @@ private extension Chat {
             lastMessageAt: lastMessageAt,
             createdAt: createdAt,
             updatedAt: updatedAt,
+            lastEditedOverallTimestamp: lastEditedOverallTimestamp,
             isArchived: isArchived,
             isPinned: isPinned,
             appId: appId,
@@ -676,6 +699,7 @@ private extension Chat {
             isPrivate: isPrivate,
             isHidden: isHidden,
             isHiddenCandidate: isHiddenCandidate,
+            teamId: teamId, isSharedByOthers: isSharedByOthers,
             hasNonEmptyDraft: hasNonEmptyDraft,
             clearedDraftV: clearedDraftV
         )
@@ -691,6 +715,7 @@ extension Chat {
             lastMessageAt: lastMessageAt,
             createdAt: createdAt,
             updatedAt: updatedAt,
+            lastEditedOverallTimestamp: lastEditedOverallTimestamp,
             isArchived: isArchived,
             isPinned: isPinned,
             appId: appId,
@@ -720,6 +745,7 @@ extension Chat {
             isPrivate: isPrivate,
             isHidden: isHidden,
             isHiddenCandidate: isHiddenCandidate,
+            teamId: teamId, isSharedByOthers: isSharedByOthers,
             hasNonEmptyDraft: hasNonEmptyDraft,
             clearedDraftV: clearedDraftV
         )
@@ -735,6 +761,7 @@ private extension Chat {
             lastMessageAt: lastMessageAt,
             createdAt: createdAt,
             updatedAt: updatedAt,
+            lastEditedOverallTimestamp: lastEditedOverallTimestamp,
             isArchived: isArchived,
             isPinned: isPinned,
             appId: appId,
@@ -764,6 +791,7 @@ private extension Chat {
             isPrivate: isPrivate,
             isHidden: isHidden,
             isHiddenCandidate: isHiddenCandidate,
+            teamId: teamId, isSharedByOthers: isSharedByOthers,
             hasNonEmptyDraft: draftVersion == 0 ? false : hasNonEmptyDraft,
             clearedDraftV: clearedDraftV
         )
@@ -828,6 +856,7 @@ private extension Chat {
             lastMessageAt: incoming.lastMessageAt ?? lastMessageAt,
             createdAt: createdAt,
             updatedAt: incoming.updatedAt ?? updatedAt,
+            lastEditedOverallTimestamp: [lastEditedOverallTimestamp, incoming.lastEditedOverallTimestamp].compactMap { $0 }.max(),
             isArchived: incoming.isArchived ?? isArchived,
             isPinned: incoming.isPinned ?? isPinned,
             appId: incoming.appId ?? appId,
@@ -860,6 +889,7 @@ private extension Chat {
             isPrivate: incoming.isPrivate ?? isPrivate,
             isHidden: incoming.isHidden ?? isHidden,
             isHiddenCandidate: incoming.isHiddenCandidate ?? isHiddenCandidate,
+            teamId: incoming.teamId ?? teamId, isSharedByOthers: incoming.isSharedByOthers ?? isSharedByOthers,
             hasNonEmptyDraft: resolvedPresence,
             clearedDraftV: resolvedClearedVersion
         )
@@ -872,6 +902,7 @@ private extension Chat {
             lastMessageAt: lastMessageAt,
             createdAt: createdAt,
             updatedAt: updatedAt,
+            lastEditedOverallTimestamp: lastEditedOverallTimestamp,
             isArchived: isArchived,
             isPinned: isPinned,
             appId: appId,
@@ -901,6 +932,7 @@ private extension Chat {
             isPrivate: isPrivate,
             isHidden: isHidden,
             isHiddenCandidate: isHiddenCandidate,
+            teamId: teamId, isSharedByOthers: isSharedByOthers,
             hasNonEmptyDraft: hasNonEmptyDraft,
             clearedDraftV: clearedDraftV
         )
@@ -913,6 +945,7 @@ private extension Chat {
             lastMessageAt: lastMessageAt,
             createdAt: createdAt,
             updatedAt: updatedAt,
+            lastEditedOverallTimestamp: lastEditedOverallTimestamp,
             isArchived: isArchived,
             isPinned: isPinned,
             appId: appId,
@@ -942,6 +975,7 @@ private extension Chat {
             isPrivate: isPrivate,
             isHidden: isHidden,
             isHiddenCandidate: isHiddenCandidate,
+            teamId: teamId, isSharedByOthers: isSharedByOthers,
             hasNonEmptyDraft: hasNonEmptyDraft,
             clearedDraftV: clearedDraftV
         )

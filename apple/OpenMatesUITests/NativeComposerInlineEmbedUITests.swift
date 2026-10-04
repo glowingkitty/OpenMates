@@ -41,17 +41,34 @@ final class NativeComposerInlineEmbedUITests: XCTestCase {
         XCTAssertFalse(retry.exists)
         // Retry replaces the attachment's hosted preview. Resolve its finished
         // card, which owns the long-press action, after that lifecycle change.
-        let finishedRecording = app.descendants(matching: .any)["native-composer-preview-recording-finished"].firstMatch
+        let finishedHost = app.textViews["message-editor"].descendants(matching: .any)
+            .matching(identifier: "native-composer-embed-preview-failed-recording").firstMatch
+        XCTAssertTrue(finishedHost.waitForExistence(timeout: 5))
+        let finishedRecording = finishedHost.descendants(matching: .any)
+            .matching(identifier: "native-composer-preview-recording-finished").firstMatch
         XCTAssertTrue(finishedRecording.waitForExistence(timeout: 5), "Retry must finish the recording card: \(app.debugDescription)")
-        XCTAssertTrue(finishedRecording.isHittable)
+        let retriedHierarchy = XCTAttachment(string: app.debugDescription)
+        retriedHierarchy.name = "Retried recording host and actionable children"
+        retriedHierarchy.lifetime = .keepAlways
+        add(retriedHierarchy)
         let retriedScreenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         retriedScreenshot.name = "Retried recording before card removal"
         retriedScreenshot.lifetime = .keepAlways
         add(retriedScreenshot)
-        finishedRecording.press(forDuration: 1.1)
-        XCTAssertTrue(remove.waitForExistence(timeout: 3), "Long press must expose the retried card's removal control: \(app.debugDescription)")
-        XCTAssertTrue(remove.isHittable)
-        remove.tap()
+        // TextKit exposes a second, non-actionable snapshot of this preview as
+        // a direct editor child. Exercise the actual hosted playback and card
+        // gesture instead of treating that synthetic container as a button.
+        let retriedPlay = finishedHost.buttons["native-composer-audio-play-button"].firstMatch
+        XCTAssertTrue(retriedPlay.isHittable, "Playback must remain operable after retry")
+        XCTAssertGreaterThanOrEqual(finishedRecording.frame.width, 300)
+        XCTAssertGreaterThanOrEqual(finishedRecording.frame.height, 200)
+        retriedPlay.tap()
+        finishedRecording.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
+            .press(forDuration: 1.1)
+        let retriedRemove = finishedHost.buttons["native-composer-preview-action-close"].firstMatch
+        XCTAssertTrue(retriedRemove.waitForExistence(timeout: 3), "Long press must expose the retried card's removal control: \(app.debugDescription)")
+        XCTAssertTrue(retriedRemove.isHittable)
+        retriedRemove.tap()
         expectation(for: NSPredicate(format: "label == %@", "audio-removed"), evaluatedWith: action)
         waitForExpectations(timeout: 5)
         XCTAssertFalse(audio.exists)

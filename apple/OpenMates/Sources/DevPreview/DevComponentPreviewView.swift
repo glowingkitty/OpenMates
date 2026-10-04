@@ -49,7 +49,7 @@ struct DevComponentPreviewView: View {
         let allowedKeys: Set<String>
         switch component {
         case .login, .signup, .history, .sidebar, .welcome, .followUpSuggestions, .tasks, .projects: allowedKeys = []
-        case .notification, .sharedRecipient: allowedKeys = []
+        case .notification, .sharedRecipient, .workspaceSwitcher, .dailyInspiration: allowedKeys = []
         case .workflows:
             allowedKeys = []
             guard ["short-template", "home"].contains(configuration.variant) else {
@@ -341,6 +341,8 @@ private struct DevComponentPreviewCanvas: View {
     @ViewBuilder
     private func component(viewport: CGSize) -> some View {
         switch configuration.component {
+        case .workspaceSwitcher:
+            DevWorkspaceSwitcherFixture(viewport: viewport, reducedMotion: configuration.variant == "reduced-motion", shortViewport: configuration.variant == "short-viewport", startsWide: configuration.variant == "wide")
         case .sharedRecipient:
             SharedChatRecipientView.preview(state: configuration.variant)
         case .sidebar:
@@ -348,7 +350,11 @@ private struct DevComponentPreviewCanvas: View {
         case .history:
             DevHistoryComponentFixture(workspace: configuration.variant == "workspace")
         case .welcome:
-            DevWelcomeComponentFixture(empty: configuration.variant == "empty", onAction: { lastAction = $0 })
+            if configuration.variant == "continuation" {
+                DevChatContinuationLayoutFixture(onAction: { lastAction = $0 })
+            } else {
+                DevWelcomeComponentFixture(empty: configuration.variant == "empty", onAction: { lastAction = $0 })
+            }
         case .login, .signup:
             DevAuthFormFixture(configuration: configuration)
         case .composer where configuration.variant == "assistant-speech":
@@ -369,6 +375,8 @@ private struct DevComponentPreviewCanvas: View {
             DevNativeJSONExportControl()
         case .composer where configuration.variant == "model":
             DevComposerModelFixture()
+        case .composer where configuration.variant == "pii":
+            DevComposerPIIPreview()
         case .composer where configuration.variant == "search-suggestions":
             DevComposerSearchPreview()
         case .composer:
@@ -380,6 +388,8 @@ private struct DevComponentPreviewCanvas: View {
                            viewportHeight: viewport.height,
                            onPrevious: { headerIndex -= 1; lastAction = "previous-chat" },
                            onNext: { headerIndex += 1; lastAction = "next-chat" })
+        case .dailyInspiration:
+            DevDailyInspirationFixture(variant: configuration.variant, onAction: { lastAction = $0 })
         case .followUpSuggestions:
             FollowUpSuggestions(
                 suggestions: followUpSuggestionFixture,
@@ -399,9 +409,10 @@ private struct DevComponentPreviewCanvas: View {
                                    category: "productivity"),
                                onStartInspiration: { _ in lastAction = "tasks-inspiration-started" },
                                onOpenProject: { lastAction = "opened-project-\($0)" },
-                               onOpenChat: { lastAction = "opened-chat-\($0)" })
+                               onOpenChat: { lastAction = "opened-chat-\($0)" },
+                               onOpenWorkflowRun: { lastAction = "opened-workflow-\($0)-run-\($1 ?? "none")" })
                 .onAppear {
-                    tasksFixtureStore.installPreview()
+                    tasksFixtureStore.installPreview(manyBacklog: configuration.variant == "manyBacklog")
                     if configuration.variant == "task-load-failure" {
                         let failure = NSError(domain: "SyntheticTasksPreview", code: 1,
                             userInfo: [NSLocalizedDescriptionKey: "Synthetic task data is unavailable."])
@@ -423,7 +434,7 @@ private struct DevComponentPreviewCanvas: View {
                     onOpenProject: { lastAction = "opened-project-\($0)" })
                     .onAppear { projectsFixtureStore.installPreview(variant: "sidebar") }
             } else {
-                ProjectsWorkspaceView(store: projectsFixtureStore,
+                ProjectsWorkspaceView(store: projectsFixtureStore, chatStore: subChatFixtureStore,
                     tasksStore: projectTasksFixtureStore,
                     previewInitialTab: ["folders", "connectedSource", "localFolderSource",
                         "multipleSources", "largeConnectedSource", "legacyConnectedSource", "rootFiles", "truncatedConnectedSource", "offlineConnectedSource"]
@@ -438,6 +449,16 @@ private struct DevComponentPreviewCanvas: View {
                     onReportIssue: { lastAction = "reported-project-\($0)" })
                     .onAppear {
                         projectsFixtureStore.installPreview(variant: configuration.variant)
+                        if configuration.variant == "chats" {
+                            subChatFixtureStore.performWithoutPersistence {
+                                subChatFixtureStore.upsertChats((0..<27).map { index in
+                                    var chat = DevHistoryWelcomeData.chat("project-preview-chat-\(index)", title: index == 0 ? "Website launch" : "Project conversation \(index)")
+                                    chat.category = "marketing"; chat.icon = "megaphone"
+                                    chat.chatSummary = "Plan launch copy, research the audience and choose the next steps."
+                                    return chat
+                                })
+                            }
+                        }
                         projectTasksFixtureStore.installPreview(projectID: "preview-project")
                     }
             }
@@ -472,7 +493,19 @@ private struct DevComponentPreviewCanvas: View {
                 WorkflowShortTemplatePreviewHost()
             }
         case .message:
-            if configuration.variant.hasPrefix("streaming") {
+            if configuration.variant.hasPrefix("selected-text") {
+                DevMessageSelectionFixture(variant: configuration.variant)
+            } else if configuration.variant == "fork-settings" {
+                DevMessageForkSettingsFixture()
+            } else if ["action-memory", "action-memory-error"].contains(configuration.variant) {
+                DevEmbedMemoryActionFixture(variant: configuration.variant)
+            } else if ["action-calendar", "action-export"].contains(configuration.variant) {
+                DevFullscreenActionFixture(variant: configuration.variant)
+            } else if configuration.variant.hasPrefix("action-pcb") {
+                DevPCBSchematicActionsFixture(variant: configuration.variant)
+            } else if configuration.variant.hasPrefix("url-") {
+                DevURLMessageEmbedFixture(variant: configuration.variant)
+            } else if configuration.variant.hasPrefix("streaming") {
                 DevProgressiveMessageFixture(variant: configuration.variant)
             } else if configuration.variant == "sub-chat-batch" {
                 ScrollView {
@@ -499,7 +532,7 @@ private struct DevComponentPreviewCanvas: View {
                     RichMarkdownView(content: message.content ?? "", isUserMessage: false,
                                      allEmbedRecords: fixtureRecords,
                                      onEmbedTap: { open($0) })
-                        .frame(width: min(652, max(0, (configuration.variant == "results-visual" ? min(viewport.width, 390) : viewport.width) - 64)))
+                        .frame(width: max(0, (configuration.variant == "results-visual" ? min(viewport.width, 390) : viewport.width) - 64))
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.leading, 32)
                         .padding(.top, 70)
@@ -524,7 +557,9 @@ private struct DevComponentPreviewCanvas: View {
             }
             }
         case .embedPreview:
-            if configuration.variant == "search-group" {
+            if configuration.variant.hasPrefix("footer-") {
+                DevResponsiveEmbedFixture(large: configuration.variant == "footer-large")
+            } else if configuration.variant == "search-group" {
                 ForEach(EmbedGrouper.groupForInlineDisplay(DevEmbedPreviewFixtures.isolatedSearchGroup)) { group in
                     GroupedEmbedView(group: group) { open($0) }
                 }
@@ -533,7 +568,9 @@ private struct DevComponentPreviewCanvas: View {
                                  variant: configuration.variant == "sheet-large" ? .large : .compact) { open(primaryEmbed) }
             }
         case .embedFullscreen:
-            if standaloneFullscreenMinimized {
+            if configuration.variant == "wiki" {
+                DevWikiFullscreenFixture()
+            } else if standaloneFullscreenMinimized {
                 EmbedPreviewCard(embed: primaryEmbed, allEmbedRecords: fixtureRecords) { open(primaryEmbed) }
             } else {
                 fullscreen(standaloneParent ?? primaryEmbed)

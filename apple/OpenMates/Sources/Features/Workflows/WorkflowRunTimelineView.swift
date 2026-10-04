@@ -33,8 +33,9 @@ struct WorkflowRunTimelineView: View {
     }
 
     private var selected: WorkflowRunSummary? {
-        if let selectedRunId, selectedRunId != upcomingId {
-            return orderedRuns.first { $0.id == selectedRunId }
+        guard selectedRunId != upcomingId else { return nil }
+        if let selectedRunId {
+            return orderedRuns.first { $0.id == selectedRunId } ?? orderedRuns.first
         }
         return orderedRuns.first
     }
@@ -43,9 +44,9 @@ struct WorkflowRunTimelineView: View {
         nextRunAt != nil && (selectedRunId == upcomingId || orderedRuns.isEmpty)
     }
 
-    private var selectedStatus: String { detail?.status ?? selected?.status ?? "" }
-    private var canCancel: Bool { ["queued", "running", "waiting"].contains(selectedStatus) }
-    private var canDelete: Bool { ["completed", "failed", "cancelled", "skipped", "skipped_by_user"].contains(selectedStatus) }
+    private var selectedStatus: String { detail?.id == selected?.id ? detail?.status ?? "" : selected?.status ?? "" }
+    private var canCancel: Bool { !isUpcoming && ["queued", "running", "waiting"].contains(selectedStatus) }
+    private var canDelete: Bool { !isUpcoming && ["completed", "failed", "cancelled", "skipped", "skipped_by_user"].contains(selectedStatus) }
 
     private func tr(_ key: AppStrings.WorkflowRunCopy) -> String {
         AppStrings.workflowRun(key)
@@ -90,10 +91,7 @@ struct WorkflowRunTimelineView: View {
                 .accessibilityIdentifier("workflow-runs-back-to-editor")
 
                 Spacer()
-                if isUpcoming, let nextRunAt {
-                    Text("\(tr(.run)): \(date(nextRunAt)), \(time(nextRunAt))")
-                        .font(.omP.weight(.semibold))
-                } else if let selected {
+                if isUpcoming || selected != nil {
                     Menu {
                         if let nextRunAt {
                             Button("\(tr(.next)): \(date(nextRunAt)), \(time(nextRunAt))") { select(upcomingId) }
@@ -103,7 +101,7 @@ struct WorkflowRunTimelineView: View {
                         }
                     } label: {
                         HStack(spacing: 5) {
-                            Text("\(tr(.run)): \(date(selected.startedAt)), \(time(selected.startedAt))")
+                            Text("\(tr(.run)): \(date(isUpcoming ? nextRunAt : selected?.startedAt)), \(time(isUpcoming ? nextRunAt : selected?.startedAt))")
                             Icon("dropdown", size: 14)
                         }
                         .font(.omP.weight(.semibold))
@@ -135,20 +133,35 @@ struct WorkflowRunTimelineView: View {
             .frame(height: 45)
 
             if nextRunAt != nil || !orderedRuns.isEmpty {
+                GeometryReader { timeline in
                 ScrollView(.horizontal) {
                     HStack(spacing: 0) {
                         if let nextRunAt {
-                            marker(id: upcomingId, timestamp: nextRunAt, status: "next", selected: isUpcoming)
+                            marker(id: upcomingId, timestamp: nextRunAt, status: "next", selected: isUpcoming,
+                                   width: timeline.size.width <= 730 ? 96 : 112)
                         }
                         ForEach(orderedRuns) { run in
                             marker(id: run.id, timestamp: run.startedAt, status: run.status,
-                                   selected: !isUpcoming && selected?.id == run.id)
+                                   selected: !isUpcoming && selected?.id == run.id,
+                                   width: timeline.size.width <= 730 ? 96 : 112)
                         }
                     }
-                    .frame(maxWidth: .infinity)
                     .padding(.horizontal, 13)
+                    .frame(minWidth: timeline.size.width, alignment: timeline.size.width <= 730 ? .leading : .center)
+                    .background(alignment: .bottom) {
+                        Canvas { context, size in
+                            for x in stride(from: CGFloat(0), to: size.width, by: 8) {
+                                context.fill(Path(CGRect(x: x, y: 0, width: 1, height: 10)), with: .color(Color.grey40.opacity(0.5)))
+                            }
+                        }
+                        .frame(height: 10)
+                        .padding(.bottom, 14)
+                        .allowsHitTesting(false)
+                    }
                 }
                 .background(Color.grey10)
+                }
+                .frame(height: 100)
                 .accessibilityIdentifier("workflow-run-timeline")
             } else {
                 Text(tr(.empty))
@@ -196,39 +209,44 @@ struct WorkflowRunTimelineView: View {
             }
             .frame(maxWidth: .infinity)
         }
-        .frame(maxWidth: 960)
         .frame(maxWidth: .infinity)
         .background(Color.grey0)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("workflow-runs")
     }
 
-    private func marker(id: String, timestamp: Int?, status: String, selected: Bool) -> some View {
+    private func marker(id: String, timestamp: Int?, status: String, selected: Bool, width: CGFloat) -> some View {
         Button { select(id) } label: {
             VStack(spacing: 2) {
                 HStack(spacing: 3) {
-                    Icon(status == "completed" ? "check" : status == "failed" ? "warning" : "lucide-clock", size: 13)
-                    Text(tr(status == "next" ? .next : statusText(status)))
-                        .lineLimit(1)
+                    Icon(status == "completed" ? "check" : status == "failed" ? "warning" : "lucide-clock", size: status == "completed" ? 18 : 13)
+                    if status != "completed" {
+                        Text(tr(status == "next" ? .next : statusText(status)))
+                            .lineLimit(1)
+                    }
                 }
                 .font(.omSmall.weight(.semibold))
-                .foregroundStyle(status == "next" ? Color.fontButton : selected ? Color(hex: 0x4867CD) : Color.fontSecondary)
+                .foregroundStyle(status == "completed" ? Color.chatRainbowGreen : status == "next" || status == "failed" ? Color.fontButton : Color.fontSecondary)
                 .padding(.horizontal, 6)
                 .frame(minHeight: 24)
-                .background(status == "next" ? Color(hex: 0x4867CD) : Color.clear, in: Capsule())
+                .background(status == "next" ? Color(hex: 0x4867CD) : status == "failed" ? Color.error : Color.clear, in: Capsule())
 
                 Text(date(timestamp))
                 Text(time(timestamp))
             }
             .font(.omSmall.weight(.semibold))
             .foregroundStyle(selected ? Color(hex: 0x4867CD) : Color.fontSecondary)
-            .frame(width: 112, height: 100, alignment: .top)
+            .padding(.top, 7)
+            .frame(width: width, height: 100, alignment: .top)
             .overlay(alignment: .bottom) {
                 Rectangle().fill(selected ? Color(hex: 0x4867CD) : Color.fontPrimary)
                     .frame(width: selected ? 2 : 1, height: 24)
+                    .padding(.bottom, 8)
             }
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("\(date(timestamp)), \(time(timestamp)): \(tr(status == "next" ? .next : statusText(status)))")
+        .accessibilityValue(selected ? AppStrings.localized("workflows.builder.selected") : "")
         .accessibilityIdentifier(id == upcomingId ? "workflow-next-run-marker" : "workflow-run-marker")
     }
 }

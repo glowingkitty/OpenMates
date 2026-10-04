@@ -71,6 +71,32 @@ See `docs/architecture/apple-no-delete-safety.md` for scope and host limitations
 Legacy build/sync/cleanup instructions below require an admitted typed operation;
 they do not authorize arbitrary remote execution.
 
+### Automatic cleanup when Mac storage is insufficient
+
+Before an expensive build/archive, check available disk space against the
+operation's required reserve. If space is insufficient, or an operation reports
+disk exhaustion, automatically inspect build caches and old worktrees, safely
+reclaim verified disposable data, then resume the interrupted work. The user's
+standing authorization covers this safe cleanup; do not ask again for identified
+reproducible caches or coordinator-approved obsolete worktrees.
+
+Resolve each candidate path and check session ownership, running jobs and open
+handles before deletion. Prefer inactive repository-local DerivedData,
+ModuleCache, index data and Rust target outputs whose libraries can be rebuilt.
+Do not clear an active build's inputs or outputs, shared runtime/model assets,
+package checkouts needed for offline builds, installed apps, Simulator account
+data, signed archives, result bundles, screenshots or release/test receipts.
+Preserve completed evidence and interrupted release state. Recheck free space
+after cleanup and stop deleting once the required reserve is available.
+
+Inspect old worktrees through the session coordinator and use its supported
+reconcile/archive cleanup route. Age alone does not prove obsolescence. Preserve
+worktrees with uncommitted work, unique commits, pending publication or an active
+owner; never force removal or mark them obsolete to bypass those checks. Ask the
+user before deleting uncertain candidates or anything outside the admitted
+repository scope. If safe candidates are insufficient, record the actual
+storage blocker and continue independent work that fits the available space.
+
 ### Step 1: Load iOS rules and docs
 
 1. Read `.claude/rules/apple-ui.md` (design tokens, forbidden controls, file mappings)

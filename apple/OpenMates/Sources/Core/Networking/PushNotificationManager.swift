@@ -18,6 +18,17 @@ struct PushRegistrationContext: Equatable {
     let scope: UUID
 }
 
+enum PushCompletionNoticePolicy {
+    static func permits(expected: PushRegistrationContext, current: PushRegistrationContext?, notificationsEnabled: Bool) -> Bool {
+        notificationsEnabled && expected == current
+    }
+    static func receiptID(context: PushRegistrationContext, chatID: String, messageID: String) -> String {
+        let fields = [context.accountID, context.profile.apiBaseURL.absoluteString, chatID, messageID]
+        let data = (try? JSONEncoder().encode(fields)) ?? Data()
+        return "openmates-chat-completion-" + SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+    }
+}
+
 /// One installation token, fenced by the verified account and server. Transient
 /// failures retry within a bounded burst; the next online transition can resume.
 @MainActor
@@ -196,8 +207,11 @@ final class PushNotificationManager: NSObject, ObservableObject {
     private weak var registrationAuthSession: AuthManager?
     private var permissionAuthorized = false
     private var installationToken: String?
+    private var preferenceRefreshTask: Task<Void, Never>?
+    private var preferenceRefreshContext: PushRegistrationContext?
+    private var schedulingCompletionReceipts: Set<String> = []
+    private static let completionNoticeLedgerKey = "openmates.chat-completion-notices.v1"
     private lazy var deviceRegistration = makeDeviceRegistration()
-
     private func makeDeviceRegistration() -> PushDeviceRegistration {
         PushDeviceRegistration(
         context: { [weak self] in self?.registrationContext() },
@@ -208,26 +222,90 @@ final class PushNotificationManager: NSObject, ObservableObject {
                 "encryption_version": NotificationPreviewCrypto.encryptionVersion,
                 "device_id": Self.installationID
             ]
+            body["alerts_enabled"] = PushNotificationManager.shared.permissionAuthorized
+                && AuthManager.notificationSession.currentUser?.pushNotificationEnabled != false
             if let publicKey { body["notification_public_key"] = publicKey }
             else { NativeDiagnostics.warning("Notification preview key is unavailable", category: "push_notifications") }
             let _: Data = try await APIClient.shared.request(.post,
                 path: "/v1/notifications/register-device", serverProfile: context.profile, body: body,
                 expectedAccountID: context.accountID, expectedScope: context.scope)
         }, sleep: nil, retryDelays: [.seconds(1), .seconds(4), .seconds(16)],
-        acknowledge: { [weak self] registered in self?.isRegistered = registered })
+        acknowledge: { [weak self] registered in
+            guard let self else { return }
+            self.isRegistered = registered
+            if registered { self.refreshAuthoritativePreferenceAfterRegistration() }
+            NativeDiagnostics.event("push_registration_ack", category: "push_notifications", flags: ["acknowledged": registered])
+        })
     }
 
     private func registrationContext() -> PushRegistrationContext? {
         let auth = AuthManager.notificationSession
         guard permissionAuthorized, auth.state == .authenticated,
               auth.sessionValidationState == .onlineAuthenticated,
-              let account = auth.currentUser?.id,
-              AppSessionCoordinator.shared.webSocketManager.connectionState == .connected else { return nil }
+              let account = auth.currentUser?.id else { return nil }
         return PushRegistrationContext(accountID: account, profile: ServerProfile.current(),
                                        scope: OfflineStore.shared.scopeGeneration)
     }
 
-    func invalidateRegistration() { deviceRegistration.invalidate() }
+    func invalidateRegistration() {
+        deviceRegistration.invalidate()
+        if preferenceRefreshContext != currentAuthenticatedNoticeContext() {
+            preferenceRefreshTask?.cancel(); preferenceRefreshTask = nil
+            preferenceRefreshContext = nil
+        }
+    }
+
+    private func currentAuthenticatedNoticeContext() -> PushRegistrationContext? {
+        let auth = AuthManager.notificationSession
+        guard auth.state == .authenticated, let accountID = auth.currentUser?.id else { return nil }
+        return .init(accountID: accountID, profile: ServerProfile.current(), scope: OfflineStore.shared.scopeGeneration)
+    }
+
+    private func refreshAuthoritativePreferenceAfterRegistration() {
+        guard let context = registrationContext(), preferenceRefreshContext != context else { return }
+        // One coalesced authoritative read per verified registration context.
+        // OS permission alone never creates an account notification preference.
+        preferenceRefreshContext = context
+        guard AuthManager.notificationSession.currentUser?.pushNotificationEnabled != true else { return }
+        preferenceRefreshTask?.cancel()
+        preferenceRefreshTask = Task { [weak self] in
+            guard let self else { return }
+            defer { if self.preferenceRefreshContext == context { self.preferenceRefreshTask = nil } }
+            do {
+                let response: SessionResponse = try await APIClient.shared.request(.get, path: "/v1/auth/session",
+                    serverProfile: context.profile, expectedAccountID: context.accountID, expectedScope: context.scope)
+                guard !Task.isCancelled, self.preferenceRefreshContext == context,
+                      self.currentAuthenticatedNoticeContext() == context, response.success, let user = response.user else { return }
+                AuthManager.notificationSession.applyAuthoritativePushNotificationPreference(user,
+                    accountID: context.accountID, profile: context.profile, scope: context.scope)
+                NativeDiagnostics.event("push_preference_profile_refreshed", category: "push_notifications",
+                    flags: ["enabled": user.pushNotificationEnabled == true])
+            } catch {
+                guard !Task.isCancelled else { return }
+                NativeDiagnostics.event("push_preference_profile_refresh_failed", category: "push_notifications", level: .warning)
+            }
+        }
+    }
+
+    /// Refresh permissions after returning from OS Settings; keep diagnostic
+    /// output to state flags and never print installation tokens or identities.
+    func refreshAuthorizationAndRegistration() async {
+        let settings = await UNUserNotificationCenter.current().notificationSettings()
+        permissionAuthorized = settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional
+        if permissionAuthorized {
+            refreshRegistration()
+            if currentAuthenticatedNoticeContext() != nil { await registerForRemoteNotifications() }
+        } else { invalidateRegistration() }
+        let auth = AuthManager.notificationSession
+        let stored = try? KeychainHelper.load(key: Self.deviceTokenKey)
+        NativeDiagnostics.event("push_registration_state", category: "push_notifications", flags: [
+            "permission": permissionAuthorized, "token_present": installationToken != nil || stored != nil,
+            "server_ack": isRegistered, "notifications_opt_in": auth.currentUser?.pushNotificationEnabled == true,
+            "online_session": auth.sessionValidationState == .onlineAuthenticated,
+            "socket_connected": AppSessionCoordinator.shared.webSocketManager.connectionState == .connected,
+            "production_environment": Self.apnsEnvironment == "production"
+        ], counts: ["authorization": settings.authorizationStatus.rawValue])
+    }
 
     func refreshRegistration() {
         observeRegistrationAuthentication()
@@ -452,7 +530,7 @@ final class PushNotificationManager: NSObject, ObservableObject {
                         if state == .connected {
                             self.refreshRegistration()
                             await self.flushQueuedReplies()
-                        } else { self.invalidateRegistration() }
+                        } else { self.refreshRegistration() }
                     }
                 }
         }
@@ -461,6 +539,9 @@ final class PushNotificationManager: NSObject, ObservableObject {
             let settings = await center.notificationSettings()
             permissionAuthorized = settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional
             refreshRegistration()
+            if permissionAuthorized, currentAuthenticatedNoticeContext() != nil {
+                await registerForRemoteNotifications()
+            }
         }
     }
 
@@ -583,12 +664,21 @@ final class PushNotificationManager: NSObject, ObservableObject {
         #endif
     }
 
-    func showChatMessageNotification(chatId: String) async {
+    func showChatMessageNotification(chatId: String, messageID: String? = nil) async {
+        guard !chatId.isEmpty, let captured = currentAuthenticatedNoticeContext(),
+              PushCompletionNoticePolicy.permits(expected: captured, current: currentAuthenticatedNoticeContext(),
+                  notificationsEnabled: AuthManager.notificationSession.currentUser?.pushNotificationEnabled == true) else { return }
+        let identifier = PushCompletionNoticePolicy.receiptID(context: captured, chatID: chatId, messageID: messageID ?? UUID().uuidString)
+        let ledger = UserDefaults.standard.stringArray(forKey: Self.completionNoticeLedgerKey) ?? []
+        guard !ledger.contains(identifier), schedulingCompletionReceipts.insert(identifier).inserted else { return }
+        defer { schedulingCompletionReceipts.remove(identifier) }
         let center = UNUserNotificationCenter.current()
         configureChatMessageCategory(center: center)
 
         let settings = await center.notificationSettings()
-        guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else {
+        guard (settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional),
+              PushCompletionNoticePolicy.permits(expected: captured, current: currentAuthenticatedNoticeContext(),
+                  notificationsEnabled: AuthManager.notificationSession.currentUser?.pushNotificationEnabled == true) else {
             return
         }
 
@@ -601,13 +691,24 @@ final class PushNotificationManager: NSObject, ObservableObject {
         content.userInfo = ["chat_id": chatId]
 
         let request = UNNotificationRequest(
-            identifier: "openmates-chat-\(chatId)-\(UUID().uuidString)",
+            identifier: identifier,
             content: content,
             trigger: nil
         )
 
         do {
             try await center.add(request)
+            guard PushCompletionNoticePolicy.permits(expected: captured, current: currentAuthenticatedNoticeContext(),
+                notificationsEnabled: AuthManager.notificationSession.currentUser?.pushNotificationEnabled == true) else {
+                center.removePendingNotificationRequests(withIdentifiers: [identifier])
+                center.removeDeliveredNotifications(withIdentifiers: [identifier])
+                return
+            }
+            var updated = UserDefaults.standard.stringArray(forKey: Self.completionNoticeLedgerKey) ?? []
+            if !updated.contains(identifier) { updated.append(identifier) }
+            UserDefaults.standard.set(Array(updated.suffix(256)), forKey: Self.completionNoticeLedgerKey)
+            NativeDiagnostics.event("chat_completion_notice_scheduled", category: "push_notifications",
+                flags: ["stable_message_receipt": messageID != nil])
         } catch {
             NativeDiagnostics.warning("Chat notification scheduling failed: \(type(of: error))", category: "push_notifications")
         }

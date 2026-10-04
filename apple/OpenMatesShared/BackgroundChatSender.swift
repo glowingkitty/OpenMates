@@ -3,9 +3,14 @@
 // foreground navigation, such as the iOS share menu and notification replies.
 // It mirrors ChatSendPipeline's WebSocket payloads and crypto handling while
 // avoiding UI/store dependencies that are unavailable inside extensions.
+// Specifications: specifications/architecture/sync/specification.yml
+// Assertions: sync.access.first-party-authenticated, sync.surface.semantic-parity
+// Specifications: specifications/features/chats/specification.yml
+// Assertions: chats.persistence.client-encrypted, chats.surface.semantic-parity
 
 import CryptoKit
 import Foundation
+import OSLog
 
 struct BackgroundChatStoragePayload {
     let chatId: String
@@ -116,6 +121,246 @@ enum BackgroundChatID {
 
     static func makeMessageId(chatId: String) -> String {
         "\(chatId.suffix(10))-\(UUID().uuidString.lowercased())"
+    }
+}
+
+enum BackgroundChatServerRejection: String, LocalizedError {
+    case updateRequired = "client_update_required"
+    case inferencePaused = "inference_temporarily_paused"
+    case inferenceUnavailable = "inference_temporarily_unavailable"
+    case activeTask = "active_task_in_progress"
+    case dispatchFailed = "ai_dispatch_failed"
+    case chatKeyMismatch = "chat_key_mismatch"
+    case incompleteMetadata = "incomplete_chat_metadata"
+    case durablePreflightFailed = "durable_preflight_failed"
+    case versionConflict = "version_conflict"
+    case turnFailed = "failed_turn"
+    case other
+
+    static func from(code: String?) -> Self { code.flatMap { Self(rawValue: $0) } ?? .other }
+
+    var errorDescription: String? {
+        switch self {
+        case .updateRequired: return "Update OpenMates before sending to a saved chat."
+        case .inferencePaused: return "Saved-chat sending is temporarily paused. Please retry shortly."
+        case .inferenceUnavailable: return "Saved-chat sending is temporarily unavailable. Please retry shortly."
+        case .activeTask: return "Wait for the current response to finish, then retry this message."
+        case .dispatchFailed: return "The assistant could not start. Please retry."
+        case .chatKeyMismatch: return "OpenMates could not unlock this chat. Open the app and try again."
+        case .incompleteMetadata: return "The assistant did not return complete chat metadata. Please try again."
+        case .durablePreflightFailed: return "Encrypted message storage is temporarily unavailable. Please retry shortly."
+        case .versionConflict: return "Open this chat in OpenMates to sync it, then try again."
+        case .turnFailed: return "This message failed. Edit the message and try again."
+        case .other: return "OpenMates could not accept this message. Please try again."
+        }
+    }
+}
+
+enum BackgroundChatSendDiagnostics {
+    enum Stage: String {
+        case authenticationStarted = "authentication_started"
+        case authenticationReady = "authentication_ready"
+        case socketOpening = "socket_opening"
+        case socketReady = "socket_ready"
+        case preflightSent = "preflight_sent"
+        case preflightInbound = "preflight_inbound"
+        case preflightPrepared = "preflight_prepared"
+        case preflightLegacy = "preflight_legacy"
+        case preflightReplayed = "preflight_replayed"
+        case preflightFailed = "preflight_failed"
+        case preflightTimedOut = "preflight_timed_out"
+        case inferenceSent = "inference_sent"
+        case assistantWaiting = "assistant_waiting"
+        case assistantInbound = "assistant_inbound"
+        case assistantAccepted = "assistant_accepted"
+        case assistantTimedOut = "assistant_timed_out"
+        case storageSent = "storage_sent"
+        case storageInbound = "storage_inbound"
+        case storageAcknowledged = "storage_acknowledged"
+        case storageTimedOut = "storage_timed_out"
+    }
+
+    static func safeEventType(_ type: String?) -> String {
+        guard let type else { return "none" }
+        return ["ai_task_initiated", "ai_typing_started", "message_queued", "error",
+                "chat_key_mismatch", "incomplete_chat_metadata", "encrypted_metadata_stored",
+                "chat_message_confirmed", "chat_turn_preflight_ack"].contains(type) ? type : "other"
+    }
+
+    static func safeErrorCode(_ code: String?) -> String {
+        guard let code else { return "none" }
+        return BackgroundChatServerRejection.from(code: code).rawValue
+    }
+
+    static func record(_ stage: Stage, eventType: String? = nil, errorCode: String? = nil) {
+        #if DEBUG
+        // All values are bounded protocol enums. Never log raw inbound payloads,
+        // IDs, content, titles, URL fragments, credentials, or server messages.
+        let message = "stage=\(stage.rawValue) event=\(safeEventType(eventType)) code=\(safeErrorCode(errorCode))"
+        #if OPENMATES_SHARE_EXTENSION
+        Logger(subsystem: "org.openmates.app.share", category: "background_send").info("\(message, privacy: .public)")
+        #else
+        NativeDiagnostics.info(message, category: "background_send")
+        #endif
+        #endif
+    }
+}
+
+// The encrypted durable preflight and transient inference object retain exact
+// byte-stable identities across retries. This envelope is never written to disk.
+struct BackgroundPreparedTurn: Sendable {
+    let chatId: String
+    let messageId: String
+    let turnId: String
+    let preflightJSON: Data
+    let inferenceJSON: Data
+}
+
+struct BackgroundPreparedTurnScope: Equatable, Sendable {
+    let userId: String
+    let server: URL
+    let nativeSessionId: String
+    let requestFingerprint: Data
+}
+
+enum BackgroundChatTurnContract {
+    static func prepare(chatId: String, messageId: String, turnId: String,
+        encryptedChatKey: String, recoveryPublicKey: String, expectedMessagesVersion: Int,
+        encryptedUserMessage: [String: Any], inferenceRequest: [String: Any],
+        encryptedInitialTitle: String?, createdAt: Int) throws -> BackgroundPreparedTurn {
+        var payload: [String: Any] = [
+            "protocol_version": 1,
+            "chat_id": chatId,
+            "turn_id": turnId,
+            "message_id": messageId,
+            "chat_key_version": 1,
+            "encrypted_chat_key": encryptedChatKey,
+            "recovery_public_key": recoveryPublicKey,
+            "expected_messages_v": expectedMessagesVersion,
+            "encrypted_user_message": encryptedUserMessage,
+            "inference_request": inferenceRequest
+        ]
+        if let encryptedInitialTitle {
+            payload["encrypted_chat_metadata"] = [
+                "encrypted_title": encryptedInitialTitle,
+                "encrypted_chat_key": encryptedChatKey,
+                "created_at": createdAt,
+                "updated_at": createdAt
+            ]
+        }
+        return BackgroundPreparedTurn(chatId: chatId, messageId: messageId, turnId: turnId,
+            preflightJSON: try JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys]),
+            inferenceJSON: try JSONSerialization.data(withJSONObject: inferenceRequest, options: [.sortedKeys]))
+    }
+
+    static func objects(_ turn: BackgroundPreparedTurn) throws -> (preflight: [String: Any], inference: [String: Any]) {
+        guard let preflight = try JSONSerialization.jsonObject(with: turn.preflightJSON) as? [String: Any],
+              let inference = try JSONSerialization.jsonObject(with: turn.inferenceJSON) as? [String: Any],
+              preflight["protocol_version"] as? Int == 1,
+              preflight["chat_key_version"] as? Int == 1,
+              let durableMessage = preflight["encrypted_user_message"] as? [String: Any],
+              durableMessage["client_message_id"] as? String == turn.messageId,
+              durableMessage["chat_id"] as? String == turn.chatId,
+              preflight["chat_id"] as? String == turn.chatId,
+              preflight["turn_id"] as? String == turn.turnId,
+              preflight["message_id"] as? String == turn.messageId,
+              inference["chat_id"] as? String == turn.chatId,
+              inference["turn_id"] as? String == turn.turnId,
+              let message = inference["message"] as? [String: Any],
+              message["message_id"] as? String == turn.messageId,
+              let prepared = preflight["inference_request"] as? [String: Any],
+              NSDictionary(dictionary: prepared).isEqual(to: inference) else {
+            throw BackgroundChatSendError.invalidPreflightAcknowledgement
+        }
+        return (preflight, inference)
+    }
+
+    static func fingerprint(_ request: BackgroundChatSender.SendRequest) throws -> Data {
+        let embeds: [[String: Any]] = request.embeds.map {
+            ["id": $0.id, "type": $0.type, "reference_type": $0.referenceType,
+             "status": $0.status, "content": $0.content, "text_preview": $0.textPreview ?? ""]
+        }
+        let payload: [String: Any] = ["content": request.content,
+            "destination": request.destination?.id ?? "new", "embeds": embeds]
+        return Data(SHA256.hash(data: try JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys])))
+    }
+}
+
+// Keeps a new-chat draft and completed uploads across an unchanged Send retry.
+// Raw input and uploaded embeds stay in extension memory only, scoped to auth.
+actor BackgroundSharedAttachmentPreparation {
+    struct Input: Sendable {
+        let id: String
+        let data: Data
+        let filename: String
+        let contentType: String
+    }
+    struct Prepared: Sendable {
+        let destination: BackgroundChatSender.DestinationChat?
+        let embeds: [BackgroundPreparedEmbed]
+    }
+    private var scope: BackgroundPreparedTurnScope?
+    private var fingerprint: Data?
+    private var destination: BackgroundChatSender.DestinationChat?
+    private var embedsById: [String: BackgroundPreparedEmbed] = [:]
+
+    func prepare(content: String, selectedDestination: BackgroundChatSender.DestinationChat?,
+        attachments: [Input], scope currentScope: BackgroundPreparedTurnScope,
+        upload: @escaping @Sendable (Input, String) async throws -> BackgroundPreparedEmbed,
+        validate: @escaping @Sendable () async throws -> Void = {}) async throws -> Prepared {
+        let inputs: [[String: Any]] = attachments.map {
+            ["id": $0.id, "filename": $0.filename, "content_type": $0.contentType,
+             "digest": Data(SHA256.hash(data: $0.data)).base64EncodedString()]
+        }
+        let object: [String: Any] = ["content": content,
+            "destination": selectedDestination?.id ?? "new", "attachments": inputs]
+        let digest = Data(SHA256.hash(data: try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])))
+        if scope != currentScope || fingerprint != digest {
+            scope = currentScope
+            fingerprint = digest
+            embedsById = [:]
+            destination = selectedDestination
+            if !attachments.isEmpty && destination == nil {
+                destination = BackgroundChatSender.DestinationChat(id: BackgroundChatID.makeAuthenticatedChatId(),
+                    title: "New Chat", lastMessageAt: nil, createdAt: ISO8601DateFormatter().string(from: Date()),
+                    updatedAt: nil, appId: nil, encryptedTitle: nil, encryptedCategory: nil,
+                    encryptedIcon: nil, encryptedChatKey: nil, messagesV: 0, titleV: 0)
+                destination?.authenticatedUserId = currentScope.userId
+                destination?.authenticatedServer = currentScope.server
+            }
+        }
+        try await validate()
+        for attachment in attachments where embedsById[attachment.id] == nil {
+            guard let chatId = destination?.id else { throw BackgroundChatSendError.encoding }
+            try await validate()
+            let embed = try await upload(attachment, chatId)
+            try await validate()
+            embedsById[attachment.id] = embed
+        }
+        try await validate()
+        return Prepared(destination: destination, embeds: attachments.compactMap { embedsById[$0.id] })
+    }
+}
+
+enum BackgroundChatSocketIdentity {
+    // HTTP session validation keeps the shared authenticated logical session.
+    // The WebSocket query ID is only transport routing identity; the backend
+    // authenticates the same signed token/cookie and stable device separately.
+    static func routingSessionId(nativeSessionId: String, instanceId: UUID = UUID()) -> String {
+        "\(nativeSessionId):background:\(instanceId.uuidString.lowercased())"
+    }
+}
+
+enum BackgroundChatSyncContract {
+    static var recentChatsRequest: [String: Any] {
+        [
+            "phase": "phase1",
+            "context_epoch": 0,
+            "client_chat_versions": [String: Int](),
+            "client_chat_ids": [String](),
+            "client_suggestions_count": 0,
+            "client_embed_ids": [String]()
+        ]
     }
 }
 
@@ -405,7 +650,16 @@ enum BackgroundChatSendContract {
     private static func redactPII(in text: String) -> BackgroundPIIRedactionResult {
         let nsText = text as NSString
         let fullRange = NSRange(location: 0, length: nsText.length)
-        var occupied: [NSRange] = []
+        // Match web protectEmbedRefsFromPII: protocol IDs and URL fallbacks are
+        // opaque machine metadata, while surrounding user text is still scanned.
+        let embedReferences = try! NSRegularExpression(pattern: #"```json\s*\n([\s\S]*?)\n```"#)
+        var occupied: [NSRange] = embedReferences.matches(in: text, range: fullRange).compactMap { match in
+            let json = nsText.substring(with: match.range(at: 1))
+            guard let data = json.data(using: .utf8),
+                  let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  object["embed_id"] != nil || object["embed_ids"] != nil else { return nil }
+            return match.range
+        }
         var counters: [String: Int] = [:]
         var replacements: [(range: NSRange, mapping: BackgroundPIIMapping)] = []
 
@@ -530,6 +784,39 @@ enum BackgroundChatSendContract {
     }
 }
 
+// URLSessionWebSocketTask.receive can remain suspended after a Task is cancelled.
+// Closing the transport in the cancellation handler is required before a task
+// group can finish draining its losing receive operation.
+enum BackgroundChatDeadline {
+    static func run<Value: Sendable>(
+        before deadline: Date,
+        operation: @escaping @Sendable () async throws -> Value,
+        cancel: @escaping @Sendable () -> Void
+    ) async throws -> Value? {
+        try Task.checkCancellation()
+        let remaining = deadline.timeIntervalSinceNow
+        guard remaining > 0 else { cancel(); return nil }
+        return try await withThrowingTaskGroup(of: Value?.self) { group in
+            group.addTask {
+                try await withTaskCancellationHandler {
+                    try Task.checkCancellation()
+                    return try await operation()
+                } onCancel: {
+                    cancel()
+                }
+            }
+            group.addTask {
+                try await Task.sleep(nanoseconds: UInt64(remaining * 1_000_000_000))
+                return nil
+            }
+            defer { group.cancelAll() }
+            let result = try await group.next() ?? nil
+            try Task.checkCancellation()
+            return result
+        }
+    }
+}
+
 actor BackgroundChatSender {
     struct DestinationChat: Identifiable, Decodable, Sendable {
         let id: String
@@ -544,6 +831,11 @@ actor BackgroundChatSender {
         let encryptedChatKey: String?
         let messagesV: Int?
         let titleV: Int?
+        var metadataV: Int? = nil
+        var parentId: String? = nil
+        var isSubChat: Bool = false
+        var authenticatedUserId: String? = nil
+        var authenticatedServer: URL? = nil
 
         var displayTitle: String {
             let trimmed = title?.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -598,6 +890,9 @@ actor BackgroundChatSender {
             encryptedChatKey = try container.decodeIfPresent(String.self, forKey: .encryptedChatKey)
             messagesV = try container.decodeIfPresent(Int.self, forKey: .messagesV)
             titleV = try container.decodeIfPresent(Int.self, forKey: .titleV)
+            metadataV = try container.decodeIfPresent(Int.self, forKey: .metadataV)
+            parentId = try container.decodeIfPresent(String.self, forKey: .parentId)
+            isSubChat = try container.decodeIfPresent(Bool.self, forKey: .isSubChat) ?? false
         }
 
         private static func decodeFlexibleDateString(
@@ -632,6 +927,9 @@ actor BackgroundChatSender {
             case encryptedChatKey
             case messagesV
             case titleV
+            case metadataV
+            case parentId
+            case isSubChat
         }
     }
 
@@ -706,7 +1004,35 @@ actor BackgroundChatSender {
     }
 
     private struct ChatSyncPayload: Decodable {
-        let chats: [ChatSyncWrapper]?
+        let chatDetails: DestinationChat?
+        let recentChatMetadata: [DestinationChat]?
+    }
+
+    static func recentChats(from data: Data, limit: Int) throws -> [DestinationChat]? {
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        // Inspect the type before decoding metadata. Unrelated events may have
+        // content-bearing payloads that are not destination metadata.
+        let envelope = try decoder.decode(InboundMessage.self, from: data)
+        // Rejections have no destination snapshot. Surface a bounded error
+        // immediately without exposing the server's arbitrary diagnostic text.
+        if envelope.type == "error" { throw BackgroundChatSendError.recentChatsRejected }
+        guard envelope.type == "phase_1_last_chat_ready" else { return nil }
+        let snapshot = try decoder.decode(WSEnvelope<ChatSyncPayload>.self, from: data)
+        guard let payload = snapshot.payload ?? snapshot.data else {
+            throw BackgroundChatSendError.encoding
+        }
+        let candidates = (payload.chatDetails.map { [$0] } ?? []) + (payload.recentChatMetadata ?? [])
+        var seen = Set<String>()
+        let parents = candidates.filter { !$0.isSubChat && $0.parentId == nil && seen.insert($0.id).inserted }
+        // Last-opened can be older than the genuinely recent destinations.
+        let formatter = ISO8601DateFormatter()
+        let sorted = parents.sorted {
+            let left = formatter.date(from: $0.lastMessageAt ?? $0.updatedAt ?? $0.createdAt) ?? .distantPast
+            let right = formatter.date(from: $1.lastMessageAt ?? $1.updatedAt ?? $1.createdAt) ?? .distantPast
+            return left > right
+        }
+        return Array(sorted.prefix(max(0, limit)))
     }
 
     private struct WSEnvelope<T: Decodable>: Decodable {
@@ -726,6 +1052,17 @@ actor BackgroundChatSender {
             return nil
         }
 
+        func rejection(chatId: String, messageId: String, turnId: String? = nil) -> BackgroundChatServerRejection? {
+            guard ["error", "chat_key_mismatch", "incomplete_chat_metadata"].contains(type) else { return nil }
+            if let turnId, let receivedTurn = stringField("turn_id"), receivedTurn != turnId { return nil }
+            if let receivedChat = stringField("chat_id"), receivedChat != chatId { return nil }
+            if let receivedMessage = stringField("message_id"), receivedMessage != messageId { return nil }
+            if let receivedMessage = stringField("user_message_id"), receivedMessage != messageId { return nil }
+            // Global cutover/admission errors intentionally omit IDs. This
+            // dedicated background socket has only one outstanding send.
+            return BackgroundChatServerRejection.from(code: stringField("code") ?? (type == "error" ? nil : type))
+        }
+
         func stringArrayField(_ key: String) -> [String] {
             if let values = payload?[key]?.value as? [String] { return values }
             if let values = payload?[key]?.value as? [Any] { return values.compactMap { $0 as? String } }
@@ -735,7 +1072,7 @@ actor BackgroundChatSender {
         }
     }
 
-    private struct ChatMetadata {
+    struct ChatMetadata: Sendable, Equatable {
         let title: String?
         let iconNames: [String]
         let category: String?
@@ -752,6 +1089,29 @@ actor BackgroundChatSender {
             )
         }
     }
+
+    enum PreparedTurnAdmission: Sendable, Equatable {
+        case durable
+        case replayed
+        case legacy(taskId: String, metadata: ChatMetadata)
+    }
+
+    private struct CachedPreparedSend {
+        let scope: BackgroundPreparedTurnScope
+        let turn: BackgroundPreparedTurn
+        let key: SymmetricKey
+        let encryptedChatKey: String
+        let encryptedContent: String
+        let encryptedPIIMappings: String?
+        let content: String
+        let createdAtUnix: Int
+        let messagesV: Int
+        let titleV: Int
+        let isNewChat: Bool
+    }
+
+    private var pendingPreparedSend: CachedPreparedSend?
+    private let socketInstanceId = UUID()
 
     private let crypto = CryptoManager.shared
     private let decoder: JSONDecoder
@@ -772,122 +1132,238 @@ actor BackgroundChatSender {
         session = URLSession(configuration: config)
     }
 
-    func loadRecentChats(limit: Int = 12) async throws -> [DestinationChat] {
+    // Stable within this sender's lifetime, including reconnect/retry. Other
+    // sender instances remain isolated from this socket and the foreground app.
+    func socketRoutingSessionId(nativeSessionId: String) -> String {
+        BackgroundChatSocketIdentity.routingSessionId(nativeSessionId: nativeSessionId, instanceId: socketInstanceId)
+    }
+
+    // A cancelled recent loader may still be draining as Send opens. Its
+    // transient socket must never unregister the retained send routing ID.
+    func recentChatsRoutingSessionId(nativeSessionId: String) -> String {
+        BackgroundChatSocketIdentity.routingSessionId(nativeSessionId: nativeSessionId)
+    }
+
+    func attachmentPreparationScope() async throws -> BackgroundPreparedTurnScope {
+        let server = ServerConfiguration.current.apiBaseURL
+        let sessionId = nativeSessionId
         let auth = try await currentAuthenticatedUser()
-        let ws = try await BackgroundWebSocket.open(session: session, sessionId: nativeSessionId, token: auth.wsToken)
+        let scope = BackgroundPreparedTurnScope(userId: auth.userId, server: server,
+            nativeSessionId: sessionId, requestFingerprint: Data())
+        try validatePreparedScope(scope)
+        return scope
+    }
+
+    func validateAttachmentPreparationScope(_ scope: BackgroundPreparedTurnScope) throws {
+        try validatePreparedScope(scope)
+    }
+
+    func loadRecentChats(limit: Int = 12) async throws -> [DestinationChat] {
+        let profile = ServerProfile.current()
+        let server = profile.apiBaseURL
+        let sessionId = nativeSessionId
+        let auth = try await currentAuthenticatedUser()
+        guard server == ServerConfiguration.current.apiBaseURL, sessionId == nativeSessionId else {
+            throw BackgroundChatSendError.notAuthenticated
+        }
+        let ws = try await BackgroundWebSocket.open(session: session, routingSessionId: recentChatsRoutingSessionId(nativeSessionId: sessionId), token: auth.wsToken, profile: profile)
         defer { ws.close() }
 
-        try await ws.sendText(webSocketText(type: "phased_sync_request", payload: [
-            "phase": "all",
-            "client_chat_versions": [:],
-            "client_chat_ids": [],
-            "client_suggestions_count": 0,
-            "client_embed_ids": []
-        ]))
+        // Phase 1a includes key-bearing recent destination metadata. Phase 2 is
+        // intentionally metadata-only and cannot unlock an extension's chats.
+        try await ws.sendText(webSocketText(type: "phased_sync_request", payload: BackgroundChatSyncContract.recentChatsRequest))
 
         let deadline = Date().addingTimeInterval(8)
-        while Date() < deadline {
-            let data = try await ws.receiveData()
-            guard let envelope = try? decoder.decode(WSEnvelope<ChatSyncPayload>.self, from: data),
-                  envelope.type == "phase_2_last_20_chats_ready" || envelope.type == "sync_metadata_chats_response",
-                  let payload = envelope.payload ?? envelope.data else {
-                continue
+        while let data = try await receiveData(ws, before: deadline) {
+            if let chats = try Self.recentChats(from: data, limit: limit) {
+                guard server == ServerConfiguration.current.apiBaseURL, sessionId == nativeSessionId else {
+                    throw BackgroundChatSendError.notAuthenticated
+                }
+                return try await decryptDisplayTitles(for: chats, userId: auth.userId).map { chat in
+                    var destination = chat
+                    destination.authenticatedUserId = auth.userId
+                    destination.authenticatedServer = server
+                    return destination
+                }
             }
-            var chats = (payload.chats ?? []).compactMap(\.chatDetails)
-            chats = try await decryptDisplayTitles(for: chats, userId: auth.userId)
-            return Array(chats.prefix(limit))
         }
-        return []
+        throw BackgroundChatSendError.recentChatsTimedOut
     }
 
     func send(_ request: SendRequest) async throws -> SendResult {
-        let redactionResult = try BackgroundChatSendContract.redactedContentForSend(text: request.content, embeds: request.embeds)
-        let sendContent = redactionResult.content
-
+        let profile = ServerProfile.current()
+        let sessionId = nativeSessionId
+        BackgroundChatSendDiagnostics.record(.authenticationStarted)
         let auth = try await currentAuthenticatedUser()
-        let now = Date()
-        let createdAtUnix = Int(now.timeIntervalSince1970)
+        BackgroundChatSendDiagnostics.record(.authenticationReady)
+        guard profile == ServerProfile.current(), sessionId == nativeSessionId else {
+            throw BackgroundChatSendError.notAuthenticated
+        }
+        if let destination = request.destination,
+           (destination.authenticatedUserId.map { $0 != auth.userId } ?? false)
+            || (destination.authenticatedServer.map { $0 != profile.apiBaseURL } ?? false) {
+            throw BackgroundChatSendError.notAuthenticated
+        }
+        let scope = BackgroundPreparedTurnScope(userId: auth.userId, server: profile.apiBaseURL,
+            nativeSessionId: sessionId, requestFingerprint: try BackgroundChatTurnContract.fingerprint(request))
+        let prepared: CachedPreparedSend
+        if let retained = pendingPreparedSend, retained.scope == scope {
+            prepared = retained
+        } else {
+            pendingPreparedSend = nil
+            prepared = try await prepareSend(request, scope: scope)
+            try validatePreparedScope(scope)
+            pendingPreparedSend = prepared
+        }
+
+        BackgroundChatSendDiagnostics.record(.socketOpening)
+        let ws = try await BackgroundWebSocket.open(session: session, routingSessionId: socketRoutingSessionId(nativeSessionId: sessionId), token: auth.wsToken, profile: profile)
+        BackgroundChatSendDiagnostics.record(.socketReady)
+        defer { ws.close() }
+        let admission = try await sendPreparedTurn(prepared.turn, requiresLegacyMetadata: prepared.isNewChat,
+            send: { text in try await ws.sendText(text) },
+            receive: { [self] deadline in try await receiveData(ws, before: deadline) },
+            validate: { [self] in try await validatePreparedScope(scope) })
+        if case .legacy(let taskId, let metadata) = admission {
+            try validatePreparedScope(scope)
+            try await sendEncryptedUserStoragePackage(ws: ws, chatId: prepared.turn.chatId,
+                messageId: prepared.turn.messageId, content: prepared.content,
+                encryptedContent: prepared.encryptedContent, createdAtUnix: prepared.createdAtUnix,
+                encryptedChatKey: metadata.encryptedChatKey ?? prepared.encryptedChatKey,
+                key: prepared.key, encryptedPIIMappings: prepared.encryptedPIIMappings,
+                taskId: taskId, metadata: metadata, isNewChat: prepared.isNewChat,
+                messagesV: prepared.messagesV, currentTitleV: prepared.titleV)
+            BackgroundChatSendDiagnostics.record(.storageSent)
+            try await waitForStorageConfirmation(ws: ws, chatId: prepared.turn.chatId, messageId: prepared.turn.messageId)
+        }
+        try validatePreparedScope(scope)
+        pendingPreparedSend = nil
+        return SendResult(chatId: prepared.turn.chatId, messageId: prepared.turn.messageId)
+    }
+
+    private func validatePreparedScope(_ scope: BackgroundPreparedTurnScope) throws {
+        try Task.checkCancellation()
+        guard scope.server == ServerConfiguration.current.apiBaseURL, scope.nativeSessionId == nativeSessionId else {
+            throw BackgroundChatSendError.notAuthenticated
+        }
+        if let data = OpenMatesSharedEnvironment.defaults.data(forKey: "openmates.apple.auth.cached_user"),
+           let user = try? decoder.decode(CachedUser.self, from: data), user.id != scope.userId {
+            throw BackgroundChatSendError.notAuthenticated
+        }
+    }
+
+    private func prepareSend(_ request: SendRequest, scope: BackgroundPreparedTurnScope) async throws -> CachedPreparedSend {
+        let contentWithAttachments = try BackgroundChatSendContract.contentForSend(text: request.content, embeds: request.embeds)
+        let urlPreparation = try await URLMessageEmbedPreparation.prepare(
+            text: contentWithAttachments,
+            credits: URLMessageEmbedPreparation.cachedCredits(accountID: scope.userId),
+            validate: { [self] in try await validatePreparedScope(scope) }
+        )
+        let preparedEmbeds = request.embeds + urlPreparation.embeds
+        let redacted = try BackgroundChatSendContract.redactedContentForSend(text: urlPreparation.content, embeds: [])
+        let now = Int(Date().timeIntervalSince1970)
         let chatId = request.destination?.id ?? BackgroundChatID.makeAuthenticatedChatId()
         let messageId = BackgroundChatID.makeMessageId(chatId: chatId)
+        let turnId = UUID().uuidString.lowercased()
+        let isNewChat = (request.destination?.messagesV ?? 0) == 0 && (request.destination?.titleV ?? 0) == 0
+        let existingKey = request.destination?.encryptedChatKey
         let keyIntent = try BackgroundChatSendContract.chatKeyIntent(
-            isExistingChat: request.destination != nil,
-            encryptedChatKey: request.destination?.encryptedChatKey
-        )
-        let keyMaterial = try await ensureChatKey(
-            chatId: chatId,
-            intent: keyIntent,
-            userId: auth.userId
-        )
-        let encryptedContent = try await crypto.encryptContent(sendContent, key: keyMaterial.key)
-        let encryptedPIIMappings = try await encryptPIIMappings(redactionResult.piiMappings, key: keyMaterial.key)
-        let encryptedEmbedPayloads = try await encryptedEmbeds(
-            request.embeds,
-            chatId: chatId,
-            messageId: messageId,
-            userId: auth.userId,
-            chatKey: keyMaterial.key
-        )
-        let nextMessagesV = max(request.destination?.messagesV ?? 0, 0) + 1
+            isExistingChat: request.destination != nil && !(isNewChat && existingKey == nil), encryptedChatKey: existingKey)
+        let keyMaterial = try await ensureChatKey(chatId: chatId, intent: keyIntent, userId: scope.userId)
+        let encryptedContent = try await crypto.encryptContent(redacted.content, key: keyMaterial.key)
+        let encryptedPIIMappings = try await encryptPIIMappings(redacted.piiMappings, key: keyMaterial.key)
+        let encryptedEmbedPayloads = try await encryptedEmbeds(preparedEmbeds, chatId: chatId,
+            messageId: messageId, userId: scope.userId, chatKey: keyMaterial.key)
+        let recoveryKey = try await crypto.deriveRecoveryKeyPair(chatKey: keyMaterial.key, chatId: chatId, keyVersion: 1)
+        let titleV = max(request.destination?.titleV ?? 0, 0)
+        let expectedMessagesV = max(request.destination?.messagesV ?? 0, 0)
+        var message: [String: Any] = ["message_id": messageId, "role": "user", "content": redacted.content,
+            "created_at": now, "sender_name": "user", "chat_has_title": titleV > 0,
+            "current_chat_title_v": titleV, "current_chat_metadata_v": max(request.destination?.metadataV ?? titleV, titleV)]
+        if titleV > 0 { message["current_chat_title"] = request.destination?.title }
+        var inference: [String: Any] = ["chat_id": chatId, "message": message,
+            "encrypted_chat_key": keyMaterial.encryptedChatKey, "turn_id": turnId,
+            "recovery_public_key": recoveryKey.publicKey, "chat_key_version": 1]
+        let sendableEmbeds = preparedEmbeds.compactMap(\.serverPayload)
+        if !sendableEmbeds.isEmpty { inference["embeds"] = sendableEmbeds }
+        if !encryptedEmbedPayloads.isEmpty { inference["encrypted_embeds"] = encryptedEmbedPayloads }
+        if let encryptedPIIMappings { inference["encrypted_pii_mappings"] = encryptedPIIMappings }
+        var encryptedUserMessage: [String: Any] = ["client_message_id": messageId, "chat_id": chatId,
+            "encrypted_content": encryptedContent, "role": "user", "created_at": now, "updated_at": now]
+        if let encryptedPIIMappings { encryptedUserMessage["encrypted_pii_mappings"] = encryptedPIIMappings }
+        let initialTitle: String?
+        if isNewChat { initialTitle = try await crypto.encryptContent("", key: keyMaterial.key) }
+        else { initialTitle = nil }
+        let turn = try BackgroundChatTurnContract.prepare(chatId: chatId, messageId: messageId, turnId: turnId,
+            encryptedChatKey: keyMaterial.encryptedChatKey, recoveryPublicKey: recoveryKey.publicKey,
+            expectedMessagesVersion: expectedMessagesV, encryptedUserMessage: encryptedUserMessage,
+            inferenceRequest: inference, encryptedInitialTitle: initialTitle, createdAt: now)
+        return CachedPreparedSend(scope: scope, turn: turn, key: keyMaterial.key,
+            encryptedChatKey: keyMaterial.encryptedChatKey, encryptedContent: encryptedContent,
+            encryptedPIIMappings: encryptedPIIMappings, content: redacted.content, createdAtUnix: now,
+            messagesV: expectedMessagesV + 1, titleV: titleV, isNewChat: isNewChat)
+    }
 
-        let ws = try await BackgroundWebSocket.open(session: session, sessionId: nativeSessionId, token: auth.wsToken)
-        defer { ws.close() }
-
-        var messagePayload: [String: Any] = [
-            "message_id": messageId,
-            "role": "user",
-            "content": sendContent,
-            "created_at": createdAtUnix,
-            "sender_name": "user",
-            "chat_has_title": (request.destination?.titleV ?? 0) > 0
-        ]
-        if (request.destination?.titleV ?? 0) > 0 {
-            messagePayload["current_chat_title"] = request.destination?.title
+    // This is the production preflight/commit exchange. Its injected transport
+    // keeps deterministic tests focused on durable admission and exact retries.
+    func sendPreparedTurn(_ turn: BackgroundPreparedTurn, requiresLegacyMetadata: Bool,
+        send: @escaping @Sendable (String) async throws -> Void,
+        receive: @escaping @Sendable (Date) async throws -> Data?,
+        validate: @escaping @Sendable () async throws -> Void = {}) async throws -> PreparedTurnAdmission {
+        let objects = try BackgroundChatTurnContract.objects(turn)
+        try await validate()
+        try await send(webSocketText(type: "chat_turn_preflight", payload: objects.preflight))
+        BackgroundChatSendDiagnostics.record(.preflightSent)
+        let deadline = Date().addingTimeInterval(12)
+        var acknowledgedState: String?
+        var preflightId: String?
+        while Date() < deadline {
+            guard let data = try await receive(deadline) else { break }
+            guard let inbound = try? decoder.decode(InboundMessage.self, from: data) else { continue }
+            BackgroundChatSendDiagnostics.record(.preflightInbound, eventType: inbound.type, errorCode: inbound.stringField("code"))
+            if let rejection = inbound.rejection(chatId: turn.chatId, messageId: turn.messageId, turnId: turn.turnId) {
+                throw BackgroundChatSendError.serverRejected(rejection)
+            }
+            guard inbound.type == "chat_turn_preflight_ack", inbound.stringField("turn_id") == turn.turnId else { continue }
+            if let chatId = inbound.stringField("chat_id"), chatId != turn.chatId { continue }
+            if let messageId = inbound.stringField("message_id"), messageId != turn.messageId { continue }
+            guard let receivedId = inbound.stringField("preflight_id"), !receivedId.isEmpty,
+                  let state = inbound.stringField("state") else {
+                throw BackgroundChatSendError.invalidPreflightAcknowledgement
+            }
+            preflightId = receivedId
+            acknowledgedState = state
+            break
         }
-
-        let sendableEmbeds = request.embeds.compactMap(\.serverPayload)
-        var outboundPayload: [String: Any] = [
-            "chat_id": chatId,
-            "message": messagePayload,
-            "encrypted_chat_key": keyMaterial.encryptedChatKey
-        ]
-        if !sendableEmbeds.isEmpty {
-            outboundPayload["embeds"] = sendableEmbeds
+        try await validate()
+        guard let state = acknowledgedState, let preflightId else {
+            BackgroundChatSendDiagnostics.record(.preflightTimedOut)
+            throw BackgroundChatSendError.preflightTimedOut
         }
-        if !encryptedEmbedPayloads.isEmpty {
-            outboundPayload["encrypted_embeds"] = encryptedEmbedPayloads
+        if ["ENQUEUED", "RUNNING", "TERMINAL"].contains(state) {
+            BackgroundChatSendDiagnostics.record(.preflightReplayed)
+            return .replayed
         }
-        if let encryptedPIIMappings {
-            outboundPayload["encrypted_pii_mappings"] = encryptedPIIMappings
+        if state == "FAILED" {
+            BackgroundChatSendDiagnostics.record(.preflightFailed)
+            throw BackgroundChatSendError.serverRejected(.turnFailed)
         }
-
-        try await ws.sendText(webSocketText(type: "chat_message_added", payload: outboundPayload))
-
-        let isNewChat = request.destination == nil || (request.destination?.titleV ?? 0) == 0
-        if let storage = try await waitForAssistantStart(
-            ws: ws,
-            chatId: chatId,
-            userMessageId: messageId,
-            requiresCompleteNewChatMetadata: isNewChat
-        ) {
-            try await sendEncryptedUserStoragePackage(
-                ws: ws,
-                chatId: chatId,
-                messageId: messageId,
-                content: sendContent,
-                encryptedContent: encryptedContent,
-                createdAtUnix: createdAtUnix,
-                encryptedChatKey: storage.metadata.encryptedChatKey ?? keyMaterial.encryptedChatKey,
-                key: keyMaterial.key,
-                encryptedPIIMappings: encryptedPIIMappings,
-                taskId: storage.taskId,
-                metadata: storage.metadata,
-                isNewChat: isNewChat,
-                messagesV: nextMessagesV,
-                currentTitleV: request.destination?.titleV ?? 0
-            )
+        guard state == "PREPARED" || state == "LEGACY" else {
+            throw BackgroundChatSendError.invalidPreflightAcknowledgement
         }
-
-        return SendResult(chatId: chatId, messageId: messageId)
+        BackgroundChatSendDiagnostics.record(state == "PREPARED" ? .preflightPrepared : .preflightLegacy)
+        var commit = objects.inference
+        commit["protocol_version"] = 1
+        commit["preflight_id"] = preflightId
+        try await validate()
+        try await send(webSocketText(type: "chat_message_added", payload: commit))
+        BackgroundChatSendDiagnostics.record(.inferenceSent)
+        guard let accepted = try await waitForAssistantStart(chatId: turn.chatId, userMessageId: turn.messageId,
+            requiresCompleteNewChatMetadata: state == "LEGACY" && requiresLegacyMetadata,
+            turnId: turn.turnId, requiresTaskInitiated: state == "PREPARED", receive: receive) else { throw BackgroundChatSendError.network }
+        try await validate()
+        BackgroundChatSendDiagnostics.record(.assistantAccepted)
+        return state == "LEGACY" ? .legacy(taskId: accepted.taskId, metadata: accepted.metadata) : .durable
     }
 
     func prepareAttachment(
@@ -967,9 +1443,26 @@ actor BackgroundChatSender {
         userMessageId: String,
         requiresCompleteNewChatMetadata: Bool
     ) async throws -> (taskId: String, metadata: ChatMetadata)? {
+        try await waitForAssistantStart(chatId: chatId, userMessageId: userMessageId,
+            requiresCompleteNewChatMetadata: requiresCompleteNewChatMetadata, receive: { [self] deadline in
+                try await receiveData(ws, before: deadline)
+            })
+    }
+
+    // The production waiter accepts a receive operation so tests can exercise
+    // task acceptance and the socket's storage boundary without real AI/auth.
+    func waitForAssistantStart(
+        chatId: String,
+        userMessageId: String,
+        requiresCompleteNewChatMetadata: Bool,
+        turnId: String? = nil,
+        requiresTaskInitiated: Bool = false,
+        receive: @escaping @Sendable (Date) async throws -> Data?
+    ) async throws -> (taskId: String, metadata: ChatMetadata)? {
         var taskId: String?
         var metadata: ChatMetadata?
-        var deadline = Date().addingTimeInterval(20)
+        let deadline = Date().addingTimeInterval(20)
+        BackgroundChatSendDiagnostics.record(.assistantWaiting)
 
         func hasRequiredMetadata(_ metadata: ChatMetadata?) -> Bool {
             guard requiresCompleteNewChatMetadata else { return true }
@@ -979,24 +1472,27 @@ actor BackgroundChatSender {
             )
         }
 
-        func shrinkDeadlineForMetadataGrace() {
-            let metadataGraceDeadline = Date().addingTimeInterval(2)
-            if metadataGraceDeadline < deadline {
-                deadline = metadataGraceDeadline
-            }
-        }
-
         while Date() < deadline {
-            guard let data = try await receiveData(ws, before: deadline) else { break }
-            guard let inbound = try? decoder.decode(InboundMessage.self, from: data) else { continue }
+            guard let data = try await receive(deadline) else { break }
+            guard let inbound = try? decoder.decode(InboundMessage.self, from: data) else {
+                BackgroundChatSendDiagnostics.record(.assistantInbound, eventType: "other")
+                continue
+            }
+            BackgroundChatSendDiagnostics.record(.assistantInbound, eventType: inbound.type, errorCode: inbound.stringField("code"))
+            if let rejection = inbound.rejection(chatId: chatId, messageId: userMessageId, turnId: turnId) {
+                throw BackgroundChatSendError.serverRejected(rejection)
+            }
+            if let inboundTurn = inbound.stringField("turn_id"), let turnId, inboundTurn != turnId { continue }
             switch inbound.type {
             case "ai_task_initiated":
                 if inbound.stringField("chat_id") == chatId,
                    inbound.stringField("user_message_id") == userMessageId {
                     taskId = inbound.stringField("ai_task_id") ?? inbound.stringField("task_id")
-                    if let taskId {
-                        if let metadata, hasRequiredMetadata(metadata) { return (taskId, metadata) }
-                        shrinkDeadlineForMetadataGrace()
+                    if let taskId, !taskId.isEmpty, hasRequiredMetadata(metadata) {
+                        // Existing chats already have durable metadata. Commit
+                        // their encrypted user row immediately on task acceptance
+                        // while the socket remains open for storage confirmation.
+                        return (taskId, metadata ?? ChatMetadata.empty(userMessageId: userMessageId))
                     }
                 }
             case "ai_typing_started":
@@ -1012,7 +1508,8 @@ actor BackgroundChatSender {
                     metadata = candidate
                 }
             case "message_queued":
-                guard BackgroundChatStorageContract.shouldSendEncryptedStoragePackage(afterInboundEventType: inbound.type),
+                guard !requiresTaskInitiated,
+                      BackgroundChatStorageContract.shouldSendEncryptedStoragePackage(afterInboundEventType: inbound.type),
                       inbound.stringField("chat_id") == chatId else {
                     continue
                 }
@@ -1023,7 +1520,7 @@ actor BackgroundChatSender {
                     taskId: inbound.stringField("task_id"),
                     aiTaskId: inbound.stringField("ai_task_id"),
                     activeTaskId: inbound.stringField("active_task_id")
-                ) {
+                ), !queuedTaskId.isEmpty {
                     taskId = queuedTaskId
                     if hasRequiredMetadata(metadata) {
                         return (queuedTaskId, metadata ?? ChatMetadata.empty(userMessageId: userMessageId))
@@ -1032,12 +1529,13 @@ actor BackgroundChatSender {
             default:
                 break
             }
-            if let taskId, let metadata, hasRequiredMetadata(metadata) {
-                return (taskId, metadata)
+            if let taskId, !taskId.isEmpty, hasRequiredMetadata(metadata) {
+                return (taskId, metadata ?? ChatMetadata.empty(userMessageId: userMessageId))
             }
         }
 
-        if let taskId {
+        BackgroundChatSendDiagnostics.record(.assistantTimedOut)
+        if let taskId, !taskId.isEmpty {
             guard hasRequiredMetadata(metadata) else {
                 throw BackgroundChatSendError.incompleteNewChatMetadata
             }
@@ -1047,23 +1545,11 @@ actor BackgroundChatSender {
     }
 
     private func receiveData(_ ws: BackgroundWebSocket, before deadline: Date) async throws -> Data? {
-        let remainingSeconds = deadline.timeIntervalSinceNow
-        guard remainingSeconds > 0 else { return nil }
-        let remainingNanoseconds = UInt64(remainingSeconds * 1_000_000_000)
-
-        return try await withThrowingTaskGroup(of: Data?.self) { group in
-            group.addTask {
-                try await ws.receiveData()
-            }
-            group.addTask {
-                try await Task.sleep(nanoseconds: remainingNanoseconds)
-                return nil
-            }
-
-            let result = try await group.next() ?? nil
-            group.cancelAll()
-            return result
-        }
+        try await BackgroundChatDeadline.run(before: deadline, operation: {
+            try await ws.receiveData()
+        }, cancel: {
+            ws.close()
+        })
     }
 
     private func sendEncryptedUserStoragePackage(
@@ -1109,6 +1595,32 @@ actor BackgroundChatSender {
         try await ws.sendText(webSocketText(type: "encrypted_chat_metadata", payload: payload))
     }
 
+    private func waitForStorageConfirmation(ws: BackgroundWebSocket, chatId: String, messageId: String) async throws {
+        try await waitForStorageConfirmation(chatId: chatId, messageId: messageId, receive: { [self] deadline in
+            try await receiveData(ws, before: deadline)
+        })
+    }
+
+    func waitForStorageConfirmation(chatId: String, messageId: String,
+        receive: @escaping @Sendable (Date) async throws -> Data?) async throws {
+        let deadline = Date().addingTimeInterval(12)
+        while let data = try await receive(deadline) {
+            guard let inbound = try? decoder.decode(InboundMessage.self, from: data) else { continue }
+            BackgroundChatSendDiagnostics.record(.storageInbound, eventType: inbound.type, errorCode: inbound.stringField("code"))
+            if let rejection = inbound.rejection(chatId: chatId, messageId: messageId) {
+                throw BackgroundChatSendError.serverRejected(rejection)
+            }
+            guard inbound.stringField("chat_id") == chatId,
+                  inbound.stringField("message_id") == messageId else { continue }
+            if inbound.type == "encrypted_metadata_stored" {
+                BackgroundChatSendDiagnostics.record(.storageAcknowledged)
+                return
+            }
+        }
+        BackgroundChatSendDiagnostics.record(.storageTimedOut)
+        throw BackgroundChatSendError.network
+    }
+
     private func decryptDisplayTitles(for chats: [DestinationChat], userId: String) async throws -> [DestinationChat] {
         guard let masterKey = try await crypto.loadMasterKey(for: userId) else {
             throw BackgroundChatSendError.missingMasterKey
@@ -1116,14 +1628,17 @@ actor BackgroundChatSender {
 
         var decrypted: [DestinationChat] = []
         for var chat in chats {
-            if let encryptedTitle = chat.encryptedTitle,
-               let encryptedChatKey = chat.encryptedChatKey,
-               let chatKey = try? await crypto.unwrapChatKey(encryptedChatKeyBase64: encryptedChatKey, masterKey: masterKey),
-               let title = try? await crypto.decryptContent(base64String: encryptedTitle, key: chatKey) {
+            guard let encryptedChatKey = chat.encryptedChatKey,
+                  let chatKey = try? await crypto.unwrapChatKey(encryptedChatKeyBase64: encryptedChatKey, masterKey: masterKey) else {
+                continue
+            }
+            if let encryptedTitle = chat.encryptedTitle {
+                guard let title = try? await crypto.decryptContent(base64String: encryptedTitle, key: chatKey) else { continue }
                 chat.title = title
             }
             decrypted.append(chat)
         }
+        if !chats.isEmpty && decrypted.isEmpty { throw BackgroundChatSendError.missingChatKey }
         return decrypted
     }
 
@@ -1295,6 +1810,7 @@ actor BackgroundChatSender {
 
         var request = URLRequest(url: url)
         request.httpMethod = method.rawValue
+        if path == "/v1/auth/session" { request.timeoutInterval = 10 }
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(ServerConfiguration.current.webAppURL.absoluteString, forHTTPHeaderField: "Origin")
         request.setValue("OpenMates-Apple/\(appVersion)", forHTTPHeaderField: "User-Agent")
@@ -1319,8 +1835,10 @@ actor BackgroundChatSender {
     }
 
     private func webSocketText(type: String, payload: [String: Any]) throws -> String {
-        let outbound = BackgroundWSOutboundMessage(type: type, payload: payload)
-        let data = try JSONEncoder().encode(outbound)
+        // Prepared envelopes are parsed JSON objects containing NSNumber.
+        // Preserve numeric 0/1 as numbers: AnyCodable's Bool-first bridging can
+        // otherwise encode them as false/true and change the protocol contract.
+        let data = try JSONSerialization.data(withJSONObject: ["type": type, "payload": payload], options: [.sortedKeys])
         guard let text = String(data: data, encoding: .utf8) else {
             throw BackgroundChatSendError.encoding
         }
@@ -1398,13 +1916,13 @@ private final class BackgroundWebSocket: @unchecked Sendable {
         self.task = task
     }
 
-    static func open(session: URLSession, sessionId: String, token: String?) async throws -> BackgroundWebSocket {
-        guard var components = URLComponents(url: ServerConfiguration.current.apiBaseURL, resolvingAgainstBaseURL: false) else {
+    static func open(session: URLSession, routingSessionId: String, token: String?, profile: ServerProfile) async throws -> BackgroundWebSocket {
+        guard var components = URLComponents(url: profile.apiBaseURL, resolvingAgainstBaseURL: false) else {
             throw BackgroundChatSendError.network
         }
         components.scheme = components.scheme == "https" ? "wss" : "ws"
         components.path = "/v1/ws"
-        var queryItems = [URLQueryItem(name: "sessionId", value: sessionId)]
+        var queryItems = [URLQueryItem(name: "sessionId", value: routingSessionId)]
         if let token, !token.isEmpty {
             queryItems.append(URLQueryItem(name: "token", value: token))
         }
@@ -1413,7 +1931,7 @@ private final class BackgroundWebSocket: @unchecked Sendable {
 
         var request = URLRequest(url: url)
         request.timeoutInterval = 30
-        request.setValue(ServerConfiguration.current.webAppURL.absoluteString, forHTTPHeaderField: "Origin")
+        request.setValue(profile.webBaseURL.absoluteString, forHTTPHeaderField: "Origin")
         request.setValue("OpenMates-Apple/\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0")", forHTTPHeaderField: "User-Agent")
         request.setValue(Bundle.main.bundleIdentifier ?? "org.openmates.app", forHTTPHeaderField: "X-OpenMates-Bundle-ID")
         if let cookieHeader = OpenMatesSharedEnvironment.cookieHeader(for: url) {
@@ -1423,8 +1941,18 @@ private final class BackgroundWebSocket: @unchecked Sendable {
         let task = session.webSocketTask(with: request)
         task.resume()
         let ws = BackgroundWebSocket(task: task)
-        try await ws.waitForOpenSocket()
-        return ws
+        do {
+            guard try await BackgroundChatDeadline.run(before: Date().addingTimeInterval(8), operation: {
+                try await ws.waitForOpenSocket()
+                return true
+            }, cancel: { ws.close() }) == true else {
+                throw BackgroundChatSendError.network
+            }
+            return ws
+        } catch {
+            ws.close()
+            throw error
+        }
     }
 
     func sendText(_ text: String) async throws {
@@ -1462,16 +1990,6 @@ private final class BackgroundWebSocket: @unchecked Sendable {
     }
 }
 
-private struct BackgroundWSOutboundMessage: Encodable {
-    let type: String
-    let payload: [String: AnyCodable]
-
-    init(type: String, payload: [String: Any]) {
-        self.type = type
-        self.payload = payload.mapValues { AnyCodable($0) }
-    }
-}
-
 enum BackgroundChatKeyIntent: Equatable {
     case createNew
     case loadExisting(String)
@@ -1484,9 +2002,14 @@ enum BackgroundChatSendError: LocalizedError {
     case missingMasterKey
     case missingChatKey
     case incompleteNewChatMetadata
+    case recentChatsTimedOut
+    case recentChatsRejected
     case network
     case encoding
     case server(Int)
+    case serverRejected(BackgroundChatServerRejection)
+    case invalidPreflightAcknowledgement
+    case preflightTimedOut
 
     var errorDescription: String? {
         switch self {
@@ -1502,10 +2025,20 @@ enum BackgroundChatSendError: LocalizedError {
             return "OpenMates could not unlock this chat. Open the app and try again."
         case .incompleteNewChatMetadata:
             return "The assistant did not return complete chat metadata. Please try again."
+        case .recentChatsRejected:
+            return "Recent chats could not load. Please try again or send to New Chat."
+        case .recentChatsTimedOut:
+            return "Recent chats could not load. You can still send to New Chat or try again."
         case .network:
             return "OpenMates could not connect. Please try again."
         case .encoding:
             return "OpenMates could not prepare the message."
+        case .invalidPreflightAcknowledgement:
+            return "OpenMates could not verify encrypted message storage. Please try again."
+        case .preflightTimedOut:
+            return "OpenMates could not confirm encrypted message storage. Please try again."
+        case .serverRejected(let rejection):
+            return rejection.errorDescription
         case .server(let status):
             return "OpenMates server error (\(status))."
         }

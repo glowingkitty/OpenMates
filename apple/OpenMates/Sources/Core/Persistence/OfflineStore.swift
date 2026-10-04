@@ -8,6 +8,9 @@
 // Specification: specifications/features/pii-protection/specification.yml
 // Assertions: pii.embed.owner-local-reveal-sync, pii.surface.semantic-parity
 
+// Specification: specifications/features/apple-recent-offline-chats/specification.yml
+// Assertions: apple-offline.recent-cohort, apple-offline.local-first, apple-offline.interruption-isolation, apple-offline.snapshot-integrity
+
 import CryptoKit
 import Foundation
 import SwiftData
@@ -32,6 +35,8 @@ final class PersistedChat {
     var isPinned: Bool
     var isArchived: Bool
     var isPrivate: Bool
+    var teamId: String?
+    var isSharedByOthers: Bool?
     var lastMessageAt: String?
     var lastVisibleMessageId: String?
     var messagesV: Int?
@@ -42,6 +47,12 @@ final class PersistedChat {
     var metadataV: Int?
     var createdAt: String
     var updatedAt: String?
+    var lastEditedOverallTimestamp: String?
+    var offlineContentMessagesV: Int?
+    var offlineContentRecency: String?
+    var offlineContentServerCount: Int?
+    var offlineContentRowCount: Int?
+    var offlineSupplementalContentJSON: Data?
     var parentId: String?
     var isSubChat: Bool?
     var subChatSettingsJSON: Data?
@@ -72,6 +83,8 @@ final class PersistedChat {
         self.appId = chat.appId
         self.isPinned = chat.isPinned ?? false
         self.isArchived = chat.isArchived ?? false
+        self.teamId = chat.teamId
+        self.isSharedByOthers = chat.isSharedByOthers
         self.isPrivate = chat.isPrivate ?? true
         self.lastMessageAt = chat.lastMessageAt
         self.lastVisibleMessageId = chat.lastVisibleMessageId
@@ -83,6 +96,7 @@ final class PersistedChat {
         self.metadataV = chat.metadataV
         self.createdAt = chat.createdAt
         self.updatedAt = chat.updatedAt
+        self.lastEditedOverallTimestamp = OfflineRecentChatPolicy.recency(of: chat)
         self.parentId = chat.parentId
         self.isSubChat = chat.isSubChat
         self.subChatSettingsJSON = try? JSONEncoder().encode(chat.subChatSettings)
@@ -97,6 +111,7 @@ final class PersistedChat {
         Chat(
             id: id, title: title, lastMessageAt: lastMessageAt,
             createdAt: createdAt, updatedAt: updatedAt,
+            lastEditedOverallTimestamp: lastEditedOverallTimestamp,
             isArchived: isArchived, isPinned: isPinned,
             appId: appId, category: category, icon: icon, chatSummary: chatSummary,
             encryptedTitle: encryptedTitle,
@@ -120,6 +135,7 @@ final class PersistedChat {
             encryptedActiveFocusId: encryptedActiveFocusId,
             activeFocusId: activeFocusId,
             isPrivate: isPrivate,
+            teamId: teamId, isSharedByOthers: isSharedByOthers,
             hasNonEmptyDraft: hasNonEmptyDraft,
             clearedDraftV: clearedDraftV
         )
@@ -424,6 +440,7 @@ final class OfflineStore: ObservableObject {
     private(set) var activeScopeId: String?
     private(set) var scopeGeneration = UUID()
     private var chatDeletionVersions: [String: Int] = [:]
+    private let recentContentFence = OfflineRecentChatContentFence()
     private var storageDirectory: URL?
 
     // Remain detached until authentication identifies the owner. The legacy
@@ -463,7 +480,11 @@ final class OfflineStore: ObservableObject {
     }
 
     func deactivate() {
+        #if !os(watchOS)
+        if self === Self.shared { HighlightsManager.shared.reset() }
+        #endif
         scopeGeneration = UUID()
+        recentContentFence.invalidateScope()
         chatDeletionVersions.removeAll()
         modelContext = nil
         modelContainer = nil
@@ -489,16 +510,70 @@ final class OfflineStore: ObservableObject {
         self.modelContext = modelContainer.mainContext
     }
 
+    func makeRecentChatCacheWriter() async -> OfflineRecentChatCacheWriter? {
+        guard let container = modelContainer else { return nil }
+        // Construct the worker's context on a background executor. The main
+        // context and its model objects never cross the actor boundary.
+        return await Task.detached(priority: .utility) {
+            OfflineRecentChatCacheWriter(modelContainer: container)
+        }.value
+    }
+
+    func recentContentWriteFence(for chatID: String) -> OfflineRecentChatWriteFence {
+        recentContentFence.capture(chatID: chatID)
+    }
+
+    private func invalidateRecentContentReceipt(chatID: String, context: ModelContext) {
+        recentContentFence.invalidate(chatID: chatID)
+        let rows = FetchDescriptor<PersistedChat>(predicate: #Predicate { $0.id == chatID })
+        if let row = try? context.fetch(rows).first {
+            row.offlineContentMessagesV = nil
+            row.offlineContentRecency = nil
+            row.offlineContentServerCount = nil
+            row.offlineContentRowCount = nil
+        }
+    }
+
+    func hasCompleteOfflineSnapshot(for chat: Chat) -> Bool {
+        guard let container = modelContainer else { return false }
+        // Read a fresh context so receipts written by the cache actor, and their
+        // durable invalidations, cannot be hidden by main-context registrations.
+        let context = ModelContext(container)
+        let chatID = chat.id
+        let descriptor = FetchDescriptor<PersistedChat>(predicate: #Predicate { $0.id == chatID })
+        guard let row = try? context.fetch(descriptor).first,
+              let serverCount = row.offlineContentServerCount,
+              let expectedRows = row.offlineContentRowCount, serverCount >= 0, expectedRows >= serverCount,
+              (row.offlineContentMessagesV ?? -1) >= (chat.messagesV ?? 0),
+              row.offlineContentRecency == OfflineRecentChatPolicy.recency(of: chat) else { return false }
+        let messages = FetchDescriptor<PersistedMessage>(predicate: #Predicate { $0.chatId == chatID })
+        return (try? context.fetchCount(messages)) == expectedRows
+    }
+
     // MARK: - Save chats from sync
 
     func persistChats(_ chats: [Chat]) {
-        guard let context = modelContext else { return }
+        guard let context = modelContext, let container = modelContainer else { return }
+        // A fresh receipt context observes actor commits even when the main
+        // context already registered this metadata row. Save invalidations once
+        // per batch rather than once per chat.
+        let receiptContext = ModelContext(container)
+        receiptContext.autosaveEnabled = false
+        let start = NativeSyncPerfLog.now()
+        var fetchSeconds = 0.0
         for chat in chats {
             let targetId = chat.id
             let descriptor = FetchDescriptor<PersistedChat>(
                 predicate: #Predicate { $0.id == targetId }
             )
-            if let existing = try? context.fetch(descriptor).first {
+            let fetchStart = NativeSyncPerfLog.now()
+            let existingChat = try? context.fetch(descriptor).first
+            fetchSeconds += NativeSyncPerfLog.now() - fetchStart
+            if let existing = existingChat {
+                if chat.messagesV != existing.messagesV
+                    || OfflineRecentChatPolicy.recency(of: chat) > (existing.lastEditedOverallTimestamp ?? existing.createdAt) {
+                    invalidateRecentContentReceipt(chatID: chat.id, context: receiptContext)
+                }
                 let acceptsIncomingMetadata = (chat.metadataV ?? 0) >= (existing.metadataV ?? 0)
                 let acceptsIncomingSummary = (chat.metadataV ?? 0) > (existing.metadataV ?? 0)
                     || ((chat.metadataV ?? 0) == (existing.metadataV ?? 0)
@@ -534,7 +609,7 @@ final class OfflineStore: ObservableObject {
                         ?? existing.encryptedFollowUpRequestSuggestions
                 }
                 existing.encryptedAutoSpeakResponse = chat.encryptedAutoSpeakResponse ?? existing.encryptedAutoSpeakResponse
-                existing.encryptedChatKey = chat.encryptedChatKey
+                existing.encryptedChatKey = chat.encryptedChatKey ?? existing.encryptedChatKey
                 existing.icon = chat.icon
                 existing.category = chat.category
                 existing.appId = chat.appId
@@ -542,6 +617,7 @@ final class OfflineStore: ObservableObject {
                 existing.isArchived = chat.isArchived ?? false
                 existing.lastMessageAt = chat.lastMessageAt
                 existing.updatedAt = chat.updatedAt
+                existing.lastEditedOverallTimestamp = [existing.lastEditedOverallTimestamp, OfflineRecentChatPolicy.recency(of: chat)].compactMap { $0 }.max()
                 existing.lastVisibleMessageId = chat.lastVisibleMessageId
                 existing.messagesV = chat.messagesV
                 existing.titleV = max(storedTitleVersion, incomingTitleVersion)
@@ -557,12 +633,23 @@ final class OfflineStore: ObservableObject {
                 existing.encryptedFocusPhaseState = chat.encryptedFocusPhaseState
                 existing.encryptedActiveFocusId = chat.encryptedActiveFocusId
                 existing.activeFocusId = chat.activeFocusId
+                existing.teamId = chat.teamId ?? existing.teamId
+                existing.isSharedByOthers = chat.isSharedByOthers ?? existing.isSharedByOthers
                 existing.isPrivate = chat.isPrivate ?? existing.isPrivate
             } else {
                 context.insert(PersistedChat(from: chat))
             }
         }
+        let saveStart = NativeSyncPerfLog.now()
+        try? receiptContext.save()
         try? context.save()
+        let saveMs = NativeSyncPerfLog.ms(since: saveStart)
+        let elapsedMs = NativeSyncPerfLog.ms(since: start)
+        if chats.count > 1 || elapsedMs >= 16 {
+            NativeSyncPerfLog.info(
+                "phase=offlinePersistChats chats=\(chats.count) fetchMs=\(Int(fetchSeconds * 1000)) saveMs=\(saveMs) elapsedMs=\(elapsedMs)"
+            )
+        }
     }
 
     func persistMessages(_ messages: [Message], chatId: String) {
@@ -570,12 +657,18 @@ final class OfflineStore: ObservableObject {
     }
 
     func persistMessagesBatch(_ messagesByChat: [String: [Message]]) {
-        guard let context = modelContext else { return }
+        guard let context = modelContext, let container = modelContainer else { return }
+        // A fresh receipt context observes actor commits even when the main
+        // context already registered this metadata row. Save invalidations once
+        // per batch rather than once per chat.
+        let receiptContext = ModelContext(container)
+        receiptContext.autosaveEnabled = false
         let start = NativeSyncPerfLog.now()
         var savedMessages = 0
         let encoder = JSONEncoder()
 
         for (chatId, messages) in messagesByChat {
+            invalidateRecentContentReceipt(chatID: chatId, context: receiptContext)
             guard !messages.isEmpty else { continue }
             let targetChatId = chatId
             let chatDescriptor = FetchDescriptor<PersistedChat>(
@@ -633,6 +726,7 @@ final class OfflineStore: ObservableObject {
             }
         }
 
+        try? receiptContext.save()
         try? context.save()
         NativeSyncPerfLog.info(
             "phase=offlinePersistMessagesBatch chats=\(messagesByChat.count) messages=\(savedMessages) persistMs=\(NativeSyncPerfLog.ms(since: start))"
@@ -644,11 +738,17 @@ final class OfflineStore: ObservableObject {
     }
 
     func persistEmbedsBatch(_ embedsByChat: [String: [EmbedRecord]]) {
-        guard let context = modelContext else { return }
+        guard let context = modelContext, let container = modelContainer else { return }
+        // A fresh receipt context observes actor commits even when the main
+        // context already registered this metadata row. Save invalidations once
+        // per batch rather than once per chat.
+        let receiptContext = ModelContext(container)
+        receiptContext.autosaveEnabled = false
         let start = NativeSyncPerfLog.now()
         var savedEmbeds = 0
 
         for (chatId, embeds) in embedsByChat {
+            invalidateRecentContentReceipt(chatID: chatId, context: receiptContext)
             guard !embeds.isEmpty else { continue }
             let targetChatId = chatId
             let existingDescriptor = FetchDescriptor<PersistedEmbed>(
@@ -669,6 +769,7 @@ final class OfflineStore: ObservableObject {
             }
         }
 
+        try? receiptContext.save()
         try? context.save()
         NativeSyncPerfLog.info(
             "phase=offlinePersistEmbedsBatch chats=\(embedsByChat.count) embeds=\(savedEmbeds) persistMs=\(NativeSyncPerfLog.ms(since: start))"
@@ -712,7 +813,8 @@ final class OfflineStore: ObservableObject {
     func loadStartupChats(lastOpenedChatId: String?, limit: Int) -> [Chat] {
         guard let context = modelContext else { return [] }
         var descriptor = FetchDescriptor<PersistedChat>(
-            sortBy: [SortDescriptor(\.lastMessageAt, order: .reverse)]
+            sortBy: [SortDescriptor(\.lastEditedOverallTimestamp, order: .reverse),
+                     SortDescriptor(\.lastMessageAt, order: .reverse), SortDescriptor(\.id)]
         )
         descriptor.fetchLimit = limit
         var chats = (try? context.fetch(descriptor))?.map { $0.toChat() } ?? []
@@ -752,8 +854,8 @@ final class OfflineStore: ObservableObject {
         }
 
         return chats.sorted {
-            ($0.lastMessageAt ?? $0.updatedAt ?? $0.createdAt) >
-            ($1.lastMessageAt ?? $1.updatedAt ?? $1.createdAt)
+            let left = OfflineRecentChatPolicy.recency(of: $0), right = OfflineRecentChatPolicy.recency(of: $1)
+            return left == right ? $0.id < $1.id : left > right
         }
     }
 
@@ -772,11 +874,11 @@ final class OfflineStore: ObservableObject {
         let targetChatId = chatId
         var descriptor = FetchDescriptor<PersistedMessage>(
             predicate: #Predicate { $0.chatId == targetChatId },
-            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+            sortBy: [SortDescriptor(\.createdAt, order: .reverse), SortDescriptor(\.id, order: .reverse)]
         )
         descriptor.fetchLimit = limit
         let newestFirst = (try? context.fetch(descriptor)) ?? []
-        return newestFirst.map { $0.toMessage() }.sorted { $0.createdAt < $1.createdAt }
+        return newestFirst.reversed().map { $0.toMessage() }
     }
 
     func loadOlderMessageWindow(chatId: String, before messageId: String, limit: Int = ChatStore.boundedWindowSize) -> [Message] {
@@ -787,13 +889,72 @@ final class OfflineStore: ObservableObject {
         )
         guard let boundary = try? context.fetch(boundaryDescriptor).first else { return [] }
         let boundaryCreatedAt = boundary.createdAt
+        let boundaryID = boundary.id
         var descriptor = FetchDescriptor<PersistedMessage>(
-            predicate: #Predicate { $0.chatId == targetChatId && $0.createdAt < boundaryCreatedAt },
-            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+            predicate: #Predicate { $0.chatId == targetChatId && ($0.createdAt < boundaryCreatedAt || ($0.createdAt == boundaryCreatedAt && $0.id < boundaryID)) },
+            sortBy: [SortDescriptor(\.createdAt, order: .reverse), SortDescriptor(\.id, order: .reverse)]
         )
         descriptor.fetchLimit = limit
         let newestFirst = (try? context.fetch(descriptor)) ?? []
-        return newestFirst.map { $0.toMessage() }.sorted { $0.createdAt < $1.createdAt }
+        return newestFirst.reversed().map { $0.toMessage() }
+    }
+
+    func hasOlderMessages(chatId: String, before message: Message) -> Bool {
+        guard let context = modelContext else { return false }
+        let targetID = chatId
+        let timestamp = message.createdAt
+        let boundaryID = message.id
+        var descriptor = FetchDescriptor<PersistedMessage>(predicate: #Predicate {
+            $0.chatId == targetID && ($0.createdAt < timestamp || ($0.createdAt == timestamp && $0.id < boundaryID))
+        })
+        descriptor.fetchLimit = 1
+        return (try? context.fetch(descriptor).isEmpty) == false
+    }
+
+    func loadOldestMessageWindow(chatId: String, limit: Int = ChatStore.boundedWindowSize) -> [Message] {
+        guard let context = modelContext else { return [] }
+        let targetID = chatId
+        var descriptor = FetchDescriptor<PersistedMessage>(predicate: #Predicate { $0.chatId == targetID },
+            sortBy: [SortDescriptor(\.createdAt), SortDescriptor(\.id)])
+        descriptor.fetchLimit = limit
+        return ((try? context.fetch(descriptor)) ?? []).map { $0.toMessage() }
+    }
+
+    func loadNewerMessageWindow(chatId: String, after message: Message, limit: Int = ChatStore.boundedWindowSize) -> [Message] {
+        guard let context = modelContext else { return [] }
+        let targetID = chatId
+        let timestamp = message.createdAt
+        let boundaryID = message.id
+        var descriptor = FetchDescriptor<PersistedMessage>(predicate: #Predicate {
+            $0.chatId == targetID && ($0.createdAt > timestamp || ($0.createdAt == timestamp && $0.id > boundaryID))
+        }, sortBy: [SortDescriptor(\.createdAt), SortDescriptor(\.id)])
+        descriptor.fetchLimit = limit
+        return ((try? context.fetch(descriptor)) ?? []).map { $0.toMessage() }
+    }
+
+    func hasNewerMessages(chatId: String, after message: Message) -> Bool {
+        !loadNewerMessageWindow(chatId: chatId, after: message, limit: 1).isEmpty
+    }
+
+    func newerMessageCount(chatId: String, after message: Message) -> Int {
+        guard let context = modelContext else { return 0 }
+        let targetID = chatId
+        let timestamp = message.createdAt
+        let boundaryID = message.id
+        let descriptor = FetchDescriptor<PersistedMessage>(predicate: #Predicate {
+            $0.chatId == targetID && ($0.createdAt > timestamp || ($0.createdAt == timestamp && $0.id > boundaryID))
+        })
+        return (try? context.fetchCount(descriptor)) ?? 0
+    }
+
+    func loadMessageWindow(chatId: String, around messageID: String, limit: Int = ChatStore.boundedWindowSize) -> [Message] {
+        guard let context = modelContext else { return [] }
+        let targetID = messageID
+        let descriptor = FetchDescriptor<PersistedMessage>(predicate: #Predicate { $0.id == targetID })
+        guard let row = try? context.fetch(descriptor).first, row.chatId == chatId else { return [] }
+        let target = row.toMessage()
+        let older = loadOlderMessageWindow(chatId: chatId, before: messageID, limit: limit / 2)
+        return older + [target] + loadNewerMessageWindow(chatId: chatId, after: target, limit: max(0, limit - older.count - 1))
     }
 
     func loadEmbeds(chatId: String) -> [EmbedRecord] {
@@ -907,7 +1068,51 @@ final class OfflineStore: ObservableObject {
 
     // MARK: - Delete
 
+    func removeMessageIDs(_ ids: Set<String>, from chatID: String, scope: UUID) throws {
+        guard scope == scopeGeneration, let context = modelContext else { throw NSError(domain: "OpenMates.MessageScope", code: 1) }
+        let target = chatID
+        let descriptor = FetchDescriptor<PersistedMessage>(predicate: #Predicate { $0.chatId == target })
+        for row in try context.fetch(descriptor) where ids.contains(row.id) || row.serverMessageId.map(ids.contains) == true { context.delete(row) }
+        invalidateRecentContentReceipt(chatID: chatID, context: context)
+        try context.save()
+    }
+
+    func storeCompressionCheckpoint(_ checkpoint: [String: Any], chatID: String, scope: UUID) throws {
+        guard scope == scopeGeneration, let context = modelContext,
+              let id = checkpoint["id"] as? String,
+              let ciphertext = checkpoint["encrypted_summary"] as? String, !ciphertext.isEmpty,
+              let boundary = checkpoint["compressed_up_to_timestamp"] as? Int else { throw OfflineStoreDraftError.staleSession }
+        let target = chatID
+        let descriptor = FetchDescriptor<PersistedChat>(predicate: #Predicate { $0.id == target })
+        guard let row = try context.fetch(descriptor).first else { return }
+        var fields = row.offlineSupplementalContentJSON.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] } ?? [:]
+        var byChat = fields["compression_checkpoints_by_chat_id"] as? [String: Any] ?? [:]
+        var checkpoints = byChat[chatID] as? [[String: Any]] ?? []
+        // Only protocol ciphertext and opaque metadata cross the disk boundary.
+        var encrypted: [String: Any] = ["id": id, "chat_id": chatID, "encrypted_summary": ciphertext, "compressed_up_to_timestamp": boundary]
+        for key in ["compressed_message_count", "summary_token_estimate", "key_version", "created_at", "updated_at"] {
+            if let value = checkpoint[key] { encrypted[key] = value }
+        }
+        checkpoints.removeAll { $0["id"] as? String == id }; checkpoints.append(encrypted)
+        byChat[chatID] = checkpoints; fields["compression_checkpoints_by_chat_id"] = byChat
+        row.offlineSupplementalContentJSON = try JSONSerialization.data(withJSONObject: fields)
+        try context.save()
+    }
+
+    func compressionBoundary(chatID: String) -> Int? {
+        guard let context = modelContext else { return nil }
+        let target = chatID
+        let descriptor = FetchDescriptor<PersistedChat>(predicate: #Predicate { $0.id == target })
+        guard let bytes = try? context.fetch(descriptor).first?.offlineSupplementalContentJSON,
+              let fields = try? JSONSerialization.jsonObject(with: bytes) as? [String: Any] else { return nil }
+        guard let byChat = fields["compression_checkpoints_by_chat_id"] as? [String: Any],
+              let values = byChat[chatID] as? [[String: Any]],
+              let newest = values.filter({ ($0["encrypted_summary"] as? String)?.isEmpty == false }).max(by: { ($0["created_at"] as? Int ?? 0) < ($1["created_at"] as? Int ?? 0) }) else { return nil }
+        return newest["compressed_up_to_timestamp"] as? Int
+    }
+
     func deleteChat(_ chatId: String, preservingDraftTombstone: Bool = false) {
+        recentContentFence.invalidate(chatID: chatId)
         chatDeletionVersions[chatId, default: 0] += 1
         if self === Self.shared {
             CodeRunOutputStore.shared.remove(chatId: chatId)
@@ -1141,5 +1346,182 @@ extension OfflineStore: ComposerDraftRepository {
             try context.save()
         }
         return application
+    }
+}
+
+// A completed cohort receipt represents the full encrypted server snapshot,
+// never merely the currently visible fifty rows.
+struct OfflineRecentChatSnapshot: Sendable {
+    let messages: [Message]
+    let embeds: [EmbedRecord]
+    let embedKeys: [EmbedKeyRecord]
+    let chatKeyWrappers: [ChatKeyWrapperRecord]
+    let messagesVersion: Int
+    let supplementalContent: Data
+    let codeOutputs: [OfflineCachedCodeOutput]
+}
+
+struct OfflineCachedCodeOutput: Decodable, Sendable {
+    let id: String
+    let chatId: String
+    let embedId: String
+    let authorUserId: String?
+    let keyVersion: Int?
+    let encryptedPayload: String
+    let createdAt: Double
+    let updatedAt: Double
+}
+
+enum OfflineRecentChatCacheError: Error {
+    case incompleteSnapshot, staleSnapshot, keyUnavailable
+}
+
+/// A synchronous commit gate prevents a background receipt save from overtaking
+/// an accepted foreground update or an account boundary. Only save is serialized.
+final class OfflineRecentChatContentFence: @unchecked Sendable {
+    private let lock = NSLock()
+    private var scope = UUID()
+    private var versions: [String: UInt64] = [:]
+    func capture(chatID: String) -> OfflineRecentChatWriteFence {
+        lock.lock(); defer { lock.unlock() }
+        return OfflineRecentChatWriteFence(owner: self, scope: scope, chatID: chatID, version: versions[chatID, default: 0])
+    }
+    func invalidate(chatID: String) {
+        lock.lock(); defer { lock.unlock() }; versions[chatID, default: 0] &+= 1
+    }
+    func invalidateScope() {
+        lock.lock(); defer { lock.unlock() }; scope = UUID(); versions = [:]
+    }
+    func isCurrent(_ token: OfflineRecentChatWriteFence) -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        return scope == token.scope && versions[token.chatID, default: 0] == token.version
+    }
+    func commit(_ token: OfflineRecentChatWriteFence, save: () throws -> Void) throws {
+        lock.lock(); defer { lock.unlock() }
+        guard scope == token.scope, versions[token.chatID, default: 0] == token.version else {
+            throw OfflineRecentChatCacheError.staleSnapshot
+        }
+        try Task.checkCancellation()
+        try save()
+    }
+}
+struct OfflineRecentChatWriteFence: Sendable {
+    fileprivate let owner: OfflineRecentChatContentFence
+    fileprivate let scope: UUID
+    fileprivate let chatID: String
+    fileprivate let version: UInt64
+    var isCurrent: Bool { owner.isCurrent(self) }
+    func commit(save: () throws -> Void) throws { try owner.commit(self, save: save) }
+}
+
+@ModelActor
+actor OfflineRecentChatCacheWriter {
+    func decode(_ data: Data, chatId: String) throws -> OfflineRecentChatSnapshot {
+        try Task.checkCancellation()
+        guard let fields = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              fields["partial_error"] as? Bool != true else {
+            throw OfflineRecentChatCacheError.incompleteSnapshot
+        }
+        let payload = try ChatContentBatchPayload.decode(fields)
+        let messages = try payload.messages(for: chatId)
+        guard let version = payload.messagesVersion(for: chatId),
+              let count = payload.versionsByChatId[chatId]?["server_message_count"],
+              count == messages.count,
+              messages.allSatisfy({ $0.chatId == chatId }),
+              Set(messages.map(\.id)).count == messages.count else {
+            throw OfflineRecentChatCacheError.incompleteSnapshot
+        }
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let codeData = try JSONSerialization.data(withJSONObject: fields["code_run_outputs"] ?? [])
+        let outputs = try decoder.decode([OfflineCachedCodeOutput].self, from: codeData)
+        let supplementalKeys = ["compression_checkpoints_by_chat_id", "notebook_run_outputs"]
+        let supplemental = fields.filter { supplementalKeys.contains($0.key) }
+        return OfflineRecentChatSnapshot(messages: messages, embeds: payload.embeds(for: chatId),
+            embedKeys: payload.embedKeys, chatKeyWrappers: payload.chatKeyWrappers,
+            messagesVersion: version,
+            supplementalContent: try JSONSerialization.data(withJSONObject: supplemental),
+            codeOutputs: outputs.filter { $0.chatId == chatId })
+    }
+
+    func persist(_ snapshot: OfflineRecentChatSnapshot, chat: Chat,
+                 validatedWrapper: String?, preserving pendingIDs: Set<String>,
+                 fence: OfflineRecentChatWriteFence? = nil,
+                 beforeCommit: @escaping @Sendable () async -> Void = {}) async throws {
+        try Task.checkCancellation()
+        if let fence, !fence.isCurrent { throw OfflineRecentChatCacheError.staleSnapshot }
+        // A fresh context reads metadata accepted since the preceding batch.
+        let context = ModelContext(modelContainer)
+        context.autosaveEnabled = false
+        let chatID = chat.id
+        let chats = FetchDescriptor<PersistedChat>(predicate: #Predicate { $0.id == chatID })
+        guard let storedChat = try context.fetch(chats).first,
+              (storedChat.messagesV ?? 0) <= snapshot.messagesVersion,
+              OfflineRecentChatPolicy.recency(of: storedChat.toChat()) == OfflineRecentChatPolicy.recency(of: chat) else {
+            throw OfflineRecentChatCacheError.staleSnapshot
+        }
+        let rows = FetchDescriptor<PersistedMessage>(predicate: #Predicate { $0.chatId == chatID })
+        let existing = try context.fetch(rows)
+        let existingByID = Dictionary(existing.map { ($0.id, $0.toMessage()) }, uniquingKeysWith: { _, last in last })
+        let incomingIDs = Set(snapshot.messages.map(\.id))
+        let acceptedAliases = Set(snapshot.messages.compactMap { message -> String? in
+            guard let alias = message.serverMessageId, alias != message.id,
+                  let local = existingByID[alias], local.chatId == chatID, local.role == message.role else { return nil }
+            return alias
+        })
+        let preservedRows = existing.filter {
+            pendingIDs.contains($0.id) && !incomingIDs.contains($0.id) && !acceptedAliases.contains($0.id)
+        }
+        let preservedIDs = Set(preservedRows.map(\.id))
+        for row in existing where !preservedIDs.contains(row.id) { context.delete(row) }
+        for (index, var message) in snapshot.messages.enumerated() {
+            if index.isMultiple(of: 50) { try Task.checkCancellation() }
+            let local = message.localBodySource(canonical: existingByID[message.id],
+                alias: message.serverMessageId.flatMap { existingByID[$0] })
+            if message.content == nil, let local, local.chatId == chatID, local.role == message.role,
+               message.encryptedContent != nil, message.encryptedContent == local.encryptedContent {
+                message.content = local.content
+            }
+            let row = PersistedMessage(from: message)
+            row.chat = storedChat
+            context.insert(row)
+        }
+        let embeds = FetchDescriptor<PersistedEmbed>(predicate: #Predicate { $0.chatId == chatID })
+        let existingEmbeds = Dictionary(try context.fetch(embeds).map { ($0.id, $0) }, uniquingKeysWith: { _, last in last })
+        for embed in snapshot.embeds {
+            if let current = existingEmbeds[embed.id] { current.update(from: embed, chatId: chatID) }
+            else { context.insert(PersistedEmbed(from: embed, chatId: chatID)) }
+        }
+        for key in snapshot.embedKeys {
+            let keyID = PersistedEmbedKey.stableId(for: key)
+            let keys = FetchDescriptor<PersistedEmbedKey>(predicate: #Predicate { $0.id == keyID })
+            if let current = try context.fetch(keys).first { current.update(from: key) }
+            else { context.insert(PersistedEmbedKey(from: key)) }
+        }
+        for output in snapshot.codeOutputs {
+            let outputID = output.id
+            let outputs = FetchDescriptor<PersistedCodeRunOutput>(predicate: #Predicate { $0.id == outputID })
+            if let existing = try context.fetch(outputs).first {
+                if !existing.needsSync && output.updatedAt >= existing.updatedAt {
+                    existing.encryptedPayload = output.encryptedPayload
+                    existing.keyVersion = output.keyVersion
+                    existing.updatedAt = output.updatedAt
+                }
+            } else {
+                context.insert(PersistedCodeRunOutput(id: output.id, chatId: chatID, embedId: output.embedId,
+                    authorUserId: output.authorUserId, encryptedPayload: output.encryptedPayload,
+                    keyVersion: output.keyVersion, createdAt: output.createdAt, updatedAt: output.updatedAt))
+            }
+        }
+        if let validatedWrapper { storedChat.encryptedChatKey = validatedWrapper }
+        storedChat.offlineSupplementalContentJSON = snapshot.supplementalContent
+        storedChat.offlineContentMessagesV = snapshot.messagesVersion
+        storedChat.offlineContentRecency = OfflineRecentChatPolicy.recency(of: chat)
+        storedChat.offlineContentServerCount = snapshot.messages.count
+        storedChat.offlineContentRowCount = snapshot.messages.count + preservedRows.count
+        await beforeCommit()
+        try Task.checkCancellation()
+        if let fence { try fence.commit { try context.save() } }
+        else { try context.save() }
     }
 }

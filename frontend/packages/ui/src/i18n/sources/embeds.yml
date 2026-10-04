@@ -10911,3 +10911,43 @@ maps.show_all_results:
   en: Show all results
   de: Alle Ergebnisse anzeigen
   verified_by_human: []
+watch_preview_unavailable:
+  context: Watch embed fallback when no private preview could be hydrated
+  en: Preview not available
+  de: Vorschau nicht verfügbar
+  verified_by_human: []
+watch_sheet_cells:
+  context: Watch spreadsheet embed summary with number of populated cells
+  en: "{count} cells"
+  de: "{count} Zellen"
+  verified_by_human: []
+
+add_memory:
+  context: "Fullscreen embed memory action or saved memory fallback label"
+  en: "Add memory"
+  de: "Erinnerung hinzufügen"
+  verified_by_human: []
+
+forget_memory:
+  context: "Fullscreen embed memory action or saved memory fallback label"
+  en: "Forget"
+  de: "Vergessen"
+  verified_by_human: []
+
+event:
+  context: "Fullscreen embed memory action or saved memory fallback label"
+  en: "Event"
+  de: "Veranstaltung"
+  verified_by_human: []
+
+online_event:
+  context: "Fullscreen embed memory action or saved memory fallback label"
+  en: "Online event"
+  de: "Online-Veranstaltung"
+  verified_by_human: []
+
+travel_connection:
+  context: "Fullscreen embed memory action or saved memory fallback label"
+  en: "Travel connection"
+  de: "Reiseverbindung"
+  verified_by_human: []

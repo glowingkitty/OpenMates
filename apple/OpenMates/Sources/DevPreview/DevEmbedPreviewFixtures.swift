@@ -28,6 +28,7 @@ enum DevEmbedPreviewApp: String, CaseIterable, Identifiable {
     case finance
     case health
     case home
+    case hosting
     case web
     case images
     case mail
@@ -66,6 +67,7 @@ enum DevEmbedPreviewApp: String, CaseIterable, Identifiable {
         case .finance: return "Finance"
         case .health: return "Health"
         case .home: return "Home"
+        case .hosting: return "Hosting"
         case .web: return "Web"
         case .images: return "Images"
         case .mail: return "Mail"
@@ -162,6 +164,9 @@ enum DevEmbedPreviewFixtures {
         WebVariantSnapshot.self, from: Data(webVariantJSON.utf8))
 
     static func variants(for skill: DevEmbedPreviewSkill, fullscreen: Bool = false) -> [DevEmbedPreviewVariant] {
+        if HostingEmbedKind.isSearch(skill.primaryEmbed) || HostingEmbedKind.isDomain(skill.primaryEmbed) {
+            return DevHostingEmbedFixtures.variants(skill, fullscreen: fullscreen)
+        }
         let paths = fullscreen ? webVariants.fullscreen : webVariants.preview
         var component = paths[skill.primaryEmbed.type]
         if fullscreen, let fullscreenPath = component, !webVariants.availableFiles.contains(fullscreenPath) {
@@ -192,6 +197,24 @@ enum DevEmbedPreviewFixtures {
                 result.append(DevEmbedPreviewVariant(name: name,
                     skill: applying(variant, to: skill, fullscreen: true)))
             }
+        }
+        if skill.primaryEmbed.type == EmbedType.codeCode.rawValue {
+            for (name, filename) in [("markdown-absent-filename", NSNull() as Any),
+                                     ("markdown-json-null", NSNull() as Any),
+                                     ("markdown-string-null", "null" as Any),
+                                     ("markdown-blank-filename", "  " as Any),
+                                     ("markdown-real-filename", "docs/null.md" as Any)] {
+                var payload: [String: Any] = ["code": "# Notes\n\nA Markdown document.", "language": "markdown"]
+                if name != "markdown-absent-filename" { payload["filename"] = filename }
+                let embed = record(id: "preview-code-\(name)", type: EmbedType.codeCode.rawValue, appId: "code", data: payload)
+                result.append(.init(name: name, skill: self.skill(id: embed.id, label: "Code", primary: embed)))
+            }
+        }
+        if fullscreen, skill.primaryEmbed.type == EmbedType.sheetsSheet.rawValue {
+            let rows = (0..<300).map { "| Row \($0) | Value \($0) |" }.joined(separator: "\n")
+            let embed = record(id: "preview-sheet-sticky-long", type: EmbedType.sheetsSheet.rawValue, appId: "sheets",
+                data: ["title": "Scrollable sheet", "table": "| Name | Value |\n| --- | --- |\n" + rows])
+            result.append(.init(name: "sticky-long", skill: self.skill(id: embed.id, label: "Sheet", primary: embed)))
         }
         return result
     }
@@ -771,6 +794,8 @@ enum DevEmbedPreviewFixtures {
             return [healthAppointment, healthSearch]
         case .home:
             return [homeSearch, homeListing]
+        case .hosting:
+            return DevHostingEmbedFixtures.skills
         case .web:
             return [webSearch, webSearchYouTube, webRead, website]
         case .images:

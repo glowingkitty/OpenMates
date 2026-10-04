@@ -7,6 +7,7 @@ import Foundation
 @MainActor
 enum ProjectsWorkspacePreviewFixture {
     // Public synthetic bytes distinguish the full original from its bounded preview.
+    static let readmeImageData = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAACAAAAAQCAIAAAD4YuoOAAAAI0lEQVR4nGPwCb1EU8QwasGoBUPAgod3/tMUjVowasEQsAAA1wUvPSb5obMAAAAASUVORK5CYII=")!
     static let originalText = String(repeating: String(repeating: "public fixture line ", count: 1_000) + "\n",
         count: 12) + "ORIGINAL FILE END\n"
     private static let previewByteLimit = 180 * 1024
@@ -19,14 +20,14 @@ enum ProjectsWorkspacePreviewFixture {
     }
 
     static func downloadOriginal(path: String, progress: @escaping (Int, Int) -> Void) async throws -> URL {
-        guard path == "large.txt" else { throw ProjectsWorkspaceError.invalidContext }
+        guard ["large.txt", "mates-macos.png", "retry-image.png"].contains(path) else { throw ProjectsWorkspaceError.invalidContext }
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("OpenMatesProjectDownloads", isDirectory: true)
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true,
             attributes: [.protectionKey: FileProtectionType.complete])
         let url = directory.appendingPathComponent(path)
-        let bytes = Data(originalText.utf8)
+        let bytes = path.hasSuffix(".png") ? readmeImageData : Data(originalText.utf8)
         try bytes.write(to: url, options: .completeFileProtection)
         progress(bytes.count, bytes.count)
         return url
@@ -104,6 +105,12 @@ enum ProjectsWorkspacePreviewFixture {
                     "path": "guides/needle-stored-nested.md"], folderHash: nil,
                 position: 109, createdAt: now - 210))
         }
+        if variant == "chats" {
+            items = (0..<27).map { index in
+                ProjectWorkspaceItem(id: "chat-link-\(index)", kind: "chat", targetID: "project-preview-chat-\(index)",
+                    name: "Earlier title", metadata: [:], folderHash: nil, position: index, createdAt: now - index)
+            }
+        }
         let sourceKind = variant == "localFolderSource" ? "local_folder" : "local_git_repository"
         let hasSource = ["connectedSource", "localFolderSource", "multipleSources",
             "largeConnectedSource", "legacyConnectedSource", "rootFiles", "truncatedConnectedSource", "offlineConnectedSource"].contains(variant)
@@ -121,7 +128,7 @@ enum ProjectsWorkspacePreviewFixture {
         if variant == "truncatedConnectedSource" {
             remoteEntries = [entry("large.txt", kind: "file", size: originalText.utf8.count)]
         } else if variant == "rootFiles" {
-            remoteEntries = ["Dockerfile", "Makefile", "config.toml", "notes.custom", "archive.pdf"]
+            remoteEntries = ["Dockerfile", "Makefile", "config.toml", "notes.custom", "archive.pdf", "privacy_filter_benchmark.py", "mates-macos.png", "retry-image.png"]
                 .map { entry($0, kind: "file", size: 128) }
         } else if variant == "largeConnectedSource" {
             remoteEntries = (0..<125).map { index in
@@ -146,7 +153,7 @@ enum ProjectsWorkspacePreviewFixture {
                 entry("README.md", kind: "file", size: 1024)]
         }
         let readme: ProjectsWorkspaceStore.ReadmeState = variant == "offlineConnectedSource" ? .unavailable : variant == "readme"
-            ? .ready(ProjectWorkspaceReadme(markdown: "# OpenMates\n\nA private workspace for planning, research, and shipping useful work.\n\n## What we are building\n\n- Calm collaboration\n- Useful project context\n- Clear next steps",
+            ? .ready(ProjectWorkspaceReadme(markdown: "# OpenMates\n\nA private workspace for planning, research, and shipping useful work.\n\n## What we are building\n\n- Calm collaboration\n- Useful project context\n- Clear next steps\n\n```swift\nlet project = \"OpenMates\"\n```\n\n![Project overview preview][project image]\n\n- Reference image: ![List preview][project image]\n\n| Feature | Status |\n| --- | --- |\n| Documentation | Ready |\n\n[project image]: assets/readme-preview.png",
                 truncated: false, origin: "stored")) : .empty
         let previews = sources.reduce(into: [String: [ProjectRemoteEntry]]()) { result, source in
             guard source.status == "connected" else { return }

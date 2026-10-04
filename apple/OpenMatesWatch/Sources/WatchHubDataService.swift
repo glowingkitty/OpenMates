@@ -3,8 +3,67 @@
 // Specification: specifications/features/apple-watch/specification.yml
 // Assertions: apple-watch.lists.read-only-private, apple-watch.tasks.edit-private.
 
+// Specification: specifications/features/apple-offline-workspaces/specification.yml
+// Assertions: apple-workspaces.watch-retention, apple-workspaces.local-first, apple-workspaces.isolation
+
 import CryptoKit
 import Foundation
+
+/// Watch user data is sealed before crossing the disk actor. File names and
+/// authenticated encryption bind each entry to the personal account/server.
+actor WatchHubOfflineCache {
+    static let shared = WatchHubOfflineCache()
+    static let maximumEntryBytes = 2_000_000
+    static let maximumBytes = 64_000_000
+    private let directory: URL
+    private var eraseEpoch: UInt64 = 0
+    private let verifyScope: @Sendable (WatchWorkflowDetailScope) async -> Bool
+    init(directory: URL? = nil, verifyScope: @escaping @Sendable (WatchWorkflowDetailScope) async -> Bool = { scope in
+        await MainActor.run { scope.generation == WatchChatAccountLifecycle.generation && scope.profile == ServerProfile.current() }
+    }) {
+        self.verifyScope = verifyScope
+        self.directory = directory ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("OpenMatesWatch/hub-offline", isDirectory: true)
+    }
+    private func binding(_ scope: WatchWorkflowDetailScope, key: String) -> Data {
+        Data("\(scope.accountID)|\(scope.profile.apiBaseURL.absoluteString)|personal|\(key)".utf8)
+    }
+    private func url(_ scope: WatchWorkflowDetailScope, key: String) -> URL {
+        directory.appendingPathComponent(SHA256.hash(data: binding(scope, key: key)).map { String(format: "%02x", $0) }.joined() + ".sealed")
+    }
+    func load(key: String, scope: WatchWorkflowDetailScope, masterKey: SymmetricKey) -> Data? {
+        guard scope.teamID == nil, let data = try? Data(contentsOf: url(scope, key: key)),
+              data.count <= Self.maximumEntryBytes + 100,
+              let box = try? AES.GCM.SealedBox(combined: data) else { return nil }
+        return try? AES.GCM.open(box, using: masterKey, authenticating: binding(scope, key: key))
+    }
+    func save(_ data: Data, key: String, scope: WatchWorkflowDetailScope, masterKey: SymmetricKey) async throws {
+        let observedEraseEpoch = eraseEpoch
+        guard scope.teamID == nil, data.count <= Self.maximumEntryBytes else { throw APIError.invalidResponse }
+        let sealed = try AES.GCM.seal(data, using: masterKey, authenticating: binding(scope, key: key)).combined!
+        try Task.checkCancellation()
+        let current = await verifyScope(scope)
+        try Task.checkCancellation()
+        guard current, observedEraseEpoch == eraseEpoch else { throw CancellationError() }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        var directory = directory
+        var values = URLResourceValues(); values.isExcludedFromBackup = true
+        try directory.setResourceValues(values)
+        let target = url(scope, key: key)
+        let entries = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.fileSizeKey])
+        let total = try entries.filter { $0 != target }.reduce(0) { try $0 + ($1.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0) }
+        guard total + sealed.count <= Self.maximumBytes else { throw APIError.invalidResponse }
+        try sealed.write(to: target, options: [.atomic, .completeFileProtection])
+    }
+    func remove(key: String, scope: WatchWorkflowDetailScope) throws {
+        let target = url(scope, key: key)
+        if FileManager.default.fileExists(atPath: target.path) { try FileManager.default.removeItem(at: target) }
+    }
+    func removeAll() throws {
+        eraseEpoch &+= 1
+        if FileManager.default.fileExists(atPath: directory.path) { try FileManager.default.removeItem(at: directory) }
+    }
+}
 
 enum WatchTaskGroup: Int, CaseIterable, Identifiable {
     case backlog, todo, inProgress, blocked, done
@@ -105,9 +164,10 @@ struct WatchWorkflowRecord: Decodable {
     let updatedAt: Int
     let category: String?
     let icon: String?
+    let teamId: String?
 }
 
-struct WatchTaskRecord: Decodable, Equatable {
+struct WatchTaskRecord: Codable, Equatable {
     let taskId: String
     let source: String?
     let workflowId: String?
@@ -162,10 +222,12 @@ struct WatchTaskRequestContext: Sendable {
     let generation: UInt64
     let serverProfile: ServerProfile
     let currentAccountID: @MainActor @Sendable () -> String?
+    var isWrite = false
+    var writesAllowed: @MainActor @Sendable () -> Bool = { true }
 
     @MainActor func check() throws {
         try Task.checkCancellation()
-        guard !accountID.isEmpty, currentAccountID() == accountID,
+        guard (!isWrite || writesAllowed()), !accountID.isEmpty, currentAccountID() == accountID,
               generation == WatchChatAccountLifecycle.generation,
               serverProfile == ServerProfile.current(),
               !PairSessionDeadlineStore.isExpired(userID: accountID) else {
@@ -200,16 +262,25 @@ final class WatchHubDataService: ObservableObject {
     private let userId: String?
     private let usesFixture: Bool
     private let taskDependencies: WatchTaskDependencies
+    private let writesAllowed: @MainActor @Sendable () -> Bool
     private let currentTaskAccountID: @MainActor @Sendable () -> String?
     private let taskGeneration: UInt64
     private let taskProfile: ServerProfile
+    private let offlineCache: WatchHubOfflineCache
+    private var maintenanceTask: Task<Void, Never>?
+    private var maintenanceID = UUID()
+    private var backgroundSyncAllowed = false
     @Published private(set) var isSavingTask = false
 
     init(userId: String?, fixtureTasks: [WatchTaskListItem]? = nil,
          fixtureWorkflows: [WatchWorkflowListItem]? = nil,
          currentAccountID: @escaping @MainActor @Sendable () -> String? = { nil },
-         taskDependencies: WatchTaskDependencies? = nil) {
+         taskDependencies: WatchTaskDependencies? = nil,
+         offlineCache: WatchHubOfflineCache = .shared,
+         writesAllowed: @escaping @MainActor @Sendable () -> Bool = { true }) {
+        self.writesAllowed = writesAllowed
         self.userId = userId
+        self.offlineCache = offlineCache
         self.taskDependencies = taskDependencies ?? .live
         currentTaskAccountID = currentAccountID
         taskGeneration = WatchChatAccountLifecycle.generation
@@ -219,6 +290,85 @@ final class WatchHubDataService: ObservableObject {
         workflows = fixtureWorkflows ?? []
     }
 
+    private func offlineScope(_ account: String) -> WatchWorkflowDetailScope {
+        WatchWorkflowDetailScope(accountID: account, profile: taskProfile, generation: taskGeneration, teamID: nil)
+    }
+    private func openTaskPage(_ data: Data, masterKey: SymmetricKey) async throws -> [WatchTaskListItem] {
+        let decoder = JSONDecoder(); decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let response = try decoder.decode(WatchTaskListResponse.self, from: data)
+        var result: [WatchTaskListItem] = []
+        for record in response.tasks where record.teamId == nil {
+            if let item = await Self.openTask(record, masterKey: masterKey) { result.append(item) }
+            try checkTaskAccount()
+        }
+        return result
+    }
+    func loadCachedTasks() async {
+        guard !usesFixture, let userId else { return }
+        do {
+            try checkTaskAccount()
+            guard let masterKey = try await taskDependencies.masterKey(userId) else { return }
+            var items: [WatchTaskListItem] = []
+            for group in WatchTaskGroup.allCases {
+                if let data = await offlineCache.load(key: "tasks-" + group.status, scope: offlineScope(userId), masterKey: masterKey) {
+                    items += Array(try await openTaskPage(data, masterKey: masterKey).filter { $0.group == group }.prefix(50))
+                }
+            }
+            try checkTaskAccount()
+            if !items.isEmpty { tasks = Self.sortedTasks(items); tasksError = true }
+        } catch { if !taskAccountMatches { tasks = [] } }
+    }
+    func loadCachedWorkflows() async {
+        guard !usesFixture, let userId else { return }
+        do {
+            try checkTaskAccount()
+            guard let masterKey = try await taskDependencies.masterKey(userId),
+                  let data = await offlineCache.load(key: "workflows", scope: offlineScope(userId), masterKey: masterKey) else { return }
+            let decoder = JSONDecoder(); decoder.keyDecodingStrategy = .convertFromSnakeCase
+            let rows = try decoder.decode(WatchWorkflowListResponse.self, from: data).workflows
+            try checkTaskAccount()
+            workflows = rows.compactMap { row in
+                guard row.teamId == nil, let request = WatchItemOpenRequest(kind: .workflow, id: row.id) else { return nil }
+                return WatchWorkflowListItem(id: row.id, title: row.title, enabled: row.enabled, updatedAt: row.updatedAt,
+                    category: row.category, icon: row.icon, openRequest: request)
+            }.sorted { $0.updatedAt > $1.updatedAt }
+        } catch { if !taskAccountMatches { workflows = [] } }
+    }
+    /// Called from the hub's scene/navigation lifecycle; foreground reads win.
+    func setBackgroundSyncAllowed(_ allowed: Bool) {
+        backgroundSyncAllowed = allowed
+        if !allowed { maintenanceID = UUID(); maintenanceTask?.cancel(); maintenanceTask = nil; return }
+        guard !usesFixture, maintenanceTask == nil, let userId else { return }
+        let operation = UUID(); maintenanceID = operation
+        maintenanceTask = Task(priority: .utility) { @MainActor [weak self] in
+            guard let self else { return }
+            await self.loadCachedTasks(); await self.loadCachedWorkflows()
+            await self.refreshTasks(); await self.refreshWorkflows()
+            let service = WatchWorkflowDetailService(currentAccountID: self.currentTaskAccountID, offlineCache: self.offlineCache)
+            let scope = self.offlineScope(userId)
+            for workflow in self.workflows {
+                guard !Task.isCancelled, self.backgroundSyncAllowed, self.maintenanceID == operation,
+                      (try? self.checkTaskAccount()) != nil else { break }
+                // The existing workflow routes allow 60 reads/minute. A serial
+                // interval also bounds radio/CPU work and yields to navigation.
+                do { try await Task.sleep(for: .seconds(3)) } catch { break }
+                await service.load(id: workflow.id, scope: scope)
+                guard !Task.isCancelled else { break }
+                await service.loadRuns(workflowID: workflow.id, scope: scope)
+            }
+            if self.maintenanceID == operation { self.maintenanceTask = nil }
+        }
+    }
+    func waitForBackgroundSync() async { await maintenanceTask?.value }
+    func performBackgroundOfflineSync() async {
+        guard !backgroundSyncAllowed else { return }
+        setBackgroundSyncAllowed(true)
+        defer { setBackgroundSyncAllowed(false) }
+        await withTaskCancellationHandler(operation: { await waitForBackgroundSync() }, onCancel: {
+            Task { @MainActor [weak self] in self?.setBackgroundSyncAllowed(false) }
+        })
+    }
+
     func refreshTasks() async {
         if usesFixture { return }
         guard !isLoadingTasks, !isSavingTask, let userId else { return }
@@ -226,31 +376,49 @@ final class WatchHubDataService: ObservableObject {
         defer { isLoadingTasks = false }
         do {
             try checkTaskAccount()
-            let data = try await taskDependencies.request(.get, "/v1/user-tasks?limit=200", nil, taskContext(userId))
-            try checkTaskAccount()
-            let decoder = JSONDecoder()
-            decoder.keyDecodingStrategy = .convertFromSnakeCase
-            let response = try decoder.decode(WatchTaskListResponse.self, from: data)
-            guard let masterKey = try await taskDependencies.masterKey(userId) else {
-                throw WatchTaskEditingError.unavailableKey
-            }
-            try checkTaskAccount()
+            guard let masterKey = try await taskDependencies.masterKey(userId) else { throw WatchTaskEditingError.unavailableKey }
             var decrypted: [WatchTaskListItem] = []
-            for record in response.tasks {
-                if let item = await Self.openTask(record, masterKey: masterKey) { decrypted.append(item) }
+            var cachedIDsByStatus: [String: Set<String>] = [:]
+            for group in WatchTaskGroup.allCases {
                 try checkTaskAccount()
+                let data = try await taskDependencies.request(.get, "/v1/user-tasks?status=\(group.status)&limit=50", nil, taskContext(userId))
+                try checkTaskAccount()
+                let rows = try await openTaskPage(data, masterKey: masterKey).filter { $0.group == group }
+                let wire = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+                let personal = (wire?["tasks"] as? [[String: Any]] ?? []).filter { $0["team_id"] == nil || $0["team_id"] is NSNull }
+                let cacheData = try JSONSerialization.data(withJSONObject: ["tasks": Array(personal.filter { $0["status"] as? String == group.status }.prefix(50))])
+                decrypted += Array(rows.prefix(50))
+                cachedIDsByStatus[group.status] = Set(rows.prefix(50).map(\.id))
+                tasks = Self.sortedTasks(decrypted + tasks.filter { $0.group.rawValue > group.rawValue })
+                try? await offlineCache.save(cacheData, key: "tasks-" + group.status, scope: offlineScope(userId), masterKey: masterKey)
+                try checkTaskAccount()
+                await Task.yield()
             }
             tasks = Self.sortedTasks(decrypted)
+            // A task may move between status GETs. Repair only pages whose
+            // membership changed after choosing the freshest observed row.
+            let encoder = JSONEncoder(); encoder.keyEncodingStrategy = .convertToSnakeCase
+            for group in WatchTaskGroup.allCases {
+                let items = Array(tasks.filter { $0.group == group }.prefix(50))
+                guard Set(items.map(\.id)) != cachedIDsByStatus[group.status] else { continue }
+                struct CachedRows: Encodable { let tasks: [WatchTaskRecord] }
+                let data = try encoder.encode(CachedRows(tasks: items.compactMap(\.record)))
+                try checkTaskAccount()
+                try? await offlineCache.save(data, key: "tasks-" + group.status, scope: offlineScope(userId), masterKey: masterKey)
+                try checkTaskAccount()
+            }
             tasksError = false
         } catch {
-            if (try? checkTaskAccount()) == nil { tasks = [] }
+            if !taskAccountMatches { tasks = [] }
+            else if Task.isCancelled { return }
+            else { await loadCachedTasks() }
             tasksError = true
             NativeDiagnostics.event("watch_tasks_refresh_failed", category: "watch_hub", level: .warning)
         }
     }
 
     func canEditTask(_ item: WatchTaskListItem) -> Bool {
-        guard !isLoadingTasks, let record = item.record, record.taskId == item.id, record.source != "workflow_run",
+        guard writesAllowed(), !isLoadingTasks, !tasksError, let record = item.record, record.taskId == item.id, record.source != "workflow_run",
               item.openRequest.kind == .task, record.teamId == nil, record.readOnly != true,
               let version = record.version, version > 0, record.encryptedTaskKey != nil,
               tasks.contains(item) else { return false }
@@ -286,7 +454,7 @@ final class WatchHubDataService: ObservableObject {
             "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~")) ?? ""
         guard !escapedID.isEmpty else { throw WatchTaskEditingError.invalidResponse }
         let data = try await taskDependencies.request(.patch, "/v1/user-tasks/\(escapedID)",
-            JSONSerialization.data(withJSONObject: body), taskContext(userId))
+            JSONSerialization.data(withJSONObject: body), taskContext(userId, writing: true))
         try checkTaskAccount()
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
@@ -304,25 +472,42 @@ final class WatchHubDataService: ObservableObject {
         }
         tasks[index] = returned
         tasks = Self.sortedTasks(tasks)
+        let encoder = JSONEncoder(); encoder.keyEncodingStrategy = .convertToSnakeCase
+        for group in WatchTaskGroup.allCases {
+            struct CachedRows: Encodable { let tasks: [WatchTaskRecord] }
+            let records = Array(tasks.filter { $0.group == group }.prefix(50)).compactMap(\.record)
+            try checkTaskAccount()
+            let cacheData = try encoder.encode(CachedRows(tasks: records))
+            try? await offlineCache.save(cacheData, key: "tasks-" + group.status, scope: offlineScope(userId), masterKey: masterKey)
+        }
+        try checkTaskAccount()
         return returned
     }
 
-    private func taskContext(_ accountID: String) -> WatchTaskRequestContext {
+    private func taskContext(_ accountID: String, writing: Bool = false) -> WatchTaskRequestContext {
         WatchTaskRequestContext(accountID: accountID, generation: taskGeneration, serverProfile: taskProfile,
-            currentAccountID: currentTaskAccountID)
+            currentAccountID: currentTaskAccountID, isWrite: writing, writesAllowed: writesAllowed)
     }
 
+    private var taskAccountMatches: Bool {
+        guard let userId, !userId.isEmpty else { return false }
+        return currentTaskAccountID() == userId && !PairSessionDeadlineStore.isExpired(userID: userId)
+            && taskGeneration == WatchChatAccountLifecycle.generation && taskProfile == ServerProfile.current()
+    }
     private func checkTaskAccount() throws {
         try Task.checkCancellation()
-        guard let userId, !userId.isEmpty, currentTaskAccountID() == userId,
-              !PairSessionDeadlineStore.isExpired(userID: userId),
-              taskGeneration == WatchChatAccountLifecycle.generation, taskProfile == ServerProfile.current() else {
-            throw WatchTaskEditingError.accountChanged
-        }
+        guard taskAccountMatches else { throw WatchTaskEditingError.accountChanged }
     }
 
     private static func sortedTasks(_ items: [WatchTaskListItem]) -> [WatchTaskListItem] {
-        items.sorted {
+        var latest: [String: WatchTaskListItem] = [:]
+        for item in items {
+            // Later status responses win equal/unknown timestamps. Updated
+            // rows cannot leave duplicate ForEach IDs or duplicate offline rows.
+            if let previous = latest[item.id], previous.updatedAt > item.updatedAt { continue }
+            latest[item.id] = item
+        }
+        return latest.values.sorted {
             if $0.group != $1.group { return $0.group.rawValue < $1.group.rawValue }
             if $0.position != $1.position { return $0.position < $1.position }
             if $0.updatedAt != $1.updatedAt { return $0.updatedAt > $1.updatedAt }
@@ -380,7 +565,7 @@ final class WatchHubDataService: ObservableObject {
             decoder.keyDecodingStrategy = .convertFromSnakeCase
             let response = try decoder.decode(WatchWorkflowListResponse.self, from: data)
             workflows = response.workflows.compactMap { workflow in
-                guard let request = WatchItemOpenRequest(kind: .workflow, id: workflow.id),
+                guard workflow.teamId == nil, let request = WatchItemOpenRequest(kind: .workflow, id: workflow.id),
                       !workflow.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
                 return WatchWorkflowListItem(
                     id: workflow.id, title: workflow.title,
@@ -389,13 +574,24 @@ final class WatchHubDataService: ObservableObject {
                     openRequest: request
                 )
             }.sorted { $0.updatedAt > $1.updatedAt }
+            do {
+                if let masterKey = try await taskDependencies.masterKey(userId) {
+                    try checkTaskAccount()
+                    let wire = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+                    let personalRows = (wire?["workflows"] as? [[String: Any]] ?? []).filter { $0["team_id"] == nil || $0["team_id"] is NSNull }
+                    try await offlineCache.save(JSONSerialization.data(withJSONObject: ["workflows": personalRows]), key: "workflows", scope: offlineScope(userId), masterKey: masterKey)
+                }
+            } catch { /* Persistence limits never hide valid online rows. */ }
+            try checkTaskAccount()
             workflowsError = false
             NativeDiagnostics.event(
                 "watch_workflows_refreshed", category: "watch_hub",
                 counts: ["response_rows": response.workflows.count, "displayed_rows": workflows.count]
             )
         } catch {
-            if (try? checkTaskAccount()) == nil { workflows = [] }
+            if !taskAccountMatches { workflows = [] }
+            else if Task.isCancelled { return }
+            else { await loadCachedWorkflows() }
             workflowsError = true
             NativeDiagnostics.failure(
                 "watch_workflows_refresh_failed", category: "watch_hub",

@@ -32,6 +32,7 @@ enum AppleComposerPreviewFamily: Equatable, Sendable {
     case fitnessClass
     case appointment
     case homeListing
+    case hostingDomain
     case image
     case imageResult
     case email
@@ -136,6 +137,8 @@ struct AppleComposerRendererRegistry: Sendable {
         "health-appointment-group": .init(family: .group(childType: "health-appointment"), rendererIdentifier: "AppleComposerGroupedEmbedPreview"),
         "home-listing": .init(family: .homeListing, rendererIdentifier: "HomeListingRenderer"),
         "home-listing-group": .init(family: .group(childType: "home-listing"), rendererIdentifier: "AppleComposerGroupedEmbedPreview"),
+        "hosting-domain": .init(family: .hostingDomain, rendererIdentifier: "HostingDomainEmbedRenderer"),
+        "hosting-domain-group": .init(family: .group(childType: "hosting-domain"), rendererIdentifier: "AppleComposerGroupedEmbedPreview"),
         "image": .init(family: .image, rendererIdentifier: "ComposerLocalImagePreview"),
         "images-image-result": .init(family: .imageResult, rendererIdentifier: "ImageResultEmbedRenderer"),
         "images-image-result-group": .init(family: .group(childType: "images-image-result"), rendererIdentifier: "AppleComposerGroupedEmbedPreview"),

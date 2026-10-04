@@ -4,6 +4,7 @@
 // recovery credentials, provider APIs, or network state.
 
 import XCTest
+import CryptoKit
 import ImageIO
 @testable import OpenMates
 #if os(iOS)
@@ -135,39 +136,57 @@ final class SettingsFullParityTests: XCTestCase {
         XCTAssertEqual(SettingsRouteInventory.webBaseRoutes.subtracting(SettingsRouteInventory.intentionallyExcludedWebRoutes), SettingsRouteInventory.nativeRoutes.subtracting(SettingsRouteInventory.nativeOnlyRoutes))
     }
 
-    // contract-test: supporting surface=gui.apple assertions=settings-ui.composition.canonical-and-accessible,settings-ui.parity.web-apple-shell
-    func testEnhancedPIIModelSettingsLifecycle() async {
-        let manifest = EnhancedPIIModelManifest(
-            version: "2026-07-privacy-filter-q4",
-            sizeBytes: 771_740_000,
-            remoteURL: URL(string: "https://example.invalid/openmates/privacy-filter.onnx")!,
-            sha256: String(repeating: "a", count: 64)
-        )
-        let downloader = MockEnhancedPIIModelDownloader()
-        let controller = EnhancedPIIModelDownloadController(manifest: manifest, downloader: downloader)
+    // contract-test: supporting surface=gui.apple assertions=settings-ui.composition.canonical-and-accessible,settings-ui.parity.web-apple-shell,pii.apple.enhanced-local-detection
+    func testEnhancedPIIModelSettingsLifecycle() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("privacy-settings-test-" + UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let bytes = Data("disposable privacy asset".utf8)
+        let revision = String(repeating: "a", count: 40)
+        let digest = SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined()
+        let manifest = LocalModelManifest(id: .privacyFilter, revision: revision,
+            estimatedSizeBytes: Int64(bytes.count), files: [
+                LocalModelFile(path: "model.pte",
+                    url: URL(string: "https://huggingface.co/fixture/resolve/\(revision)/model.pte")!,
+                    sha256: digest, sizeBytes: Int64(bytes.count))
+            ])
+        let downloader = MockPrivacySettingsAssetDownloader(bytes: bytes)
+        let catalog = try JSONEncoder().encode(LocalModelCatalog(models: [manifest]))
+        let store = LocalModelStore(catalog: catalog, root: root, downloader: downloader, verifyExisting: false)
+        let controller = EnhancedPIIModelDownloadController(store: store)
 
         XCTAssertEqual(controller.status, .notDownloaded)
-        XCTAssertTrue(controller.statusCopy.contains("Download"))
-        XCTAssertTrue(controller.statusCopy.contains("local"))
-        XCTAssertTrue(controller.sizeCopy.contains("735.99 MB"))
+        XCTAssertFalse(controller.isActionDisabled)
+        XCTAssertFalse(controller.sizeCopy.isEmpty)
+        let initialRequests = await downloader.requestCount
+        XCTAssertEqual(initialRequests, 0, "Settings must never force the optional asset download")
 
         await controller.download()
-        XCTAssertEqual(controller.status, .ready(version: manifest.version, sizeBytes: manifest.sizeBytes))
-        XCTAssertEqual(downloader.downloadedManifests, [manifest])
+        XCTAssertEqual(store.state(for: .privacyFilter), .ready)
+        XCTAssertEqual(controller.status, .ready(version: revision, sizeBytes: bytes.count))
+        let completedRequests = await downloader.requestCount
+        XCTAssertEqual(completedRequests, 1)
+        XCTAssertNoThrow(try store.installedDirectory(.privacyFilter))
 
-        controller.markUpdateAvailable(version: "2026-08-privacy-filter-q4", sizeBytes: 800_000_000)
-        XCTAssertEqual(
-            controller.status,
-            .updateAvailable(currentVersion: manifest.version, newVersion: "2026-08-privacy-filter-q4", sizeBytes: 800_000_000)
-        )
-
-        await controller.remove()
+        // A new settings controller must reflect the same store installation.
+        let reopened = EnhancedPIIModelDownloadController(store: store)
+        await reopened.refresh()
+        XCTAssertEqual(reopened.status, controller.status)
+        await reopened.remove()
+        await controller.refresh()
+        XCTAssertEqual(store.state(for: .privacyFilter), .notDownloaded)
         XCTAssertEqual(controller.status, .notDownloaded)
+        XCTAssertThrowsError(try store.installedDirectory(.privacyFilter))
 
-        let failing = EnhancedPIIModelDownloadController(manifest: nil, downloader: downloader)
+        let emptyCatalog = try JSONEncoder().encode(LocalModelCatalog(models: []))
+        let unconfiguredStore = LocalModelStore(catalog: emptyCatalog,
+            root: root.appendingPathComponent("unconfigured"), downloader: downloader, verifyExisting: false)
+        let failing = EnhancedPIIModelDownloadController(store: unconfiguredStore)
+        XCTAssertTrue(failing.isActionDisabled)
         await failing.download()
         XCTAssertEqual(failing.status, .failed(reason: .modelNotConfigured))
-        XCTAssertFalse(failing.statusCopy.contains("example.invalid"))
+        XCTAssertFalse(failing.statusCopy.contains("huggingface.co"))
+        let finalRequests = await downloader.requestCount
+        XCTAssertEqual(finalRequests, 1, "Missing configuration must fail before requesting assets")
     }
 
     // contract-test: supporting surface=gui.apple assertions=app-skills.surface.semantic-parity,settings-ui.parity.web-apple-shell
@@ -773,13 +792,15 @@ final class SettingsFullParityTests: XCTestCase {
     }()
 }
 
-private final class MockEnhancedPIIModelDownloader: EnhancedPIIModelDownloading, @unchecked Sendable {
-    private(set) var downloadedManifests: [EnhancedPIIModelManifest] = []
+private actor MockPrivacySettingsAssetDownloader: LocalModelFileDownloading {
+    let bytes: Data
+    private(set) var requestCount = 0
+    init(bytes: Data) { self.bytes = bytes }
 
-    func download(_ manifest: EnhancedPIIModelManifest, progress: @MainActor @Sendable (Double) async -> Void) async throws -> URL {
-        downloadedManifests.append(manifest)
-        await progress(0.25)
-        await progress(1.0)
-        return URL(fileURLWithPath: "/tmp/openmates-privacy-filter.onnx")
+    func download(_ file: LocalModelFile, to destination: URL,
+                  progress: @escaping @Sendable (Int64) -> Void) async throws {
+        requestCount += 1
+        try bytes.write(to: destination)
+        progress(Int64(bytes.count))
     }
 }

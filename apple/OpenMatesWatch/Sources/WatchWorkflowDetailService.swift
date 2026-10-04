@@ -2,6 +2,10 @@
 // Specification: specifications/features/apple-watch/specification.yml
 // Assertions: apple-watch.workflows.compact-editor, apple-watch.lists.read-only-private
 import Combine
+// Specification: specifications/features/apple-offline-workspaces/specification.yml
+// Assertions: apple-workspaces.watch-retention, apple-workspaces.local-first, apple-workspaces.isolation
+
+import CryptoKit
 import Foundation
 
 struct WatchWorkflowDetailScope: Equatable, Sendable {
@@ -202,21 +206,49 @@ struct WatchWorkflowNodeDraft: Equatable {
     }
 }
 
+struct WatchWorkflowRunMetadata: Codable, Equatable, Sendable, Identifiable {
+    let id: String
+    let workflowID: String
+    let status: String
+    let startedAt: Int?
+    let finishedAt: Int?
+    let errorSummary: String?
+    let contentAvailable: Bool
+    enum CodingKeys: String, CodingKey {
+        case id, status
+        case workflowID = "workflow_id", startedAt = "started_at", finishedAt = "finished_at"
+        case errorSummary = "error_summary", contentAvailable = "content_available"
+    }
+}
+
 @MainActor final class WatchWorkflowDetailService: ObservableObject {
     enum State: Equatable { case idle, loading, loaded(WatchWorkflowDetail), failed, unavailable }
     typealias Validate = @MainActor @Sendable () throws -> Void
     typealias Request = @MainActor @Sendable (HTTPMethod, String, Data?, WatchWorkflowDetailScope, @escaping Validate) async throws -> Data
     @Published private(set) var state: State = .idle
+    @Published private(set) var runs: [WatchWorkflowRunMetadata] = []
+    @Published private(set) var runDetail: WatchWorkflowValue?
+    @Published private(set) var isOffline = false
+    private let offlineCache: WatchHubOfflineCache
+    private let masterKey: @MainActor (String) async throws -> SymmetricKey?
     @Published private(set) var orderedNodes: [WatchWorkflowNode] = []
     @Published var draft: WatchWorkflowNodeDraft?
     @Published private(set) var isSaving = false
     @Published private(set) var saveError: WatchWorkflowEditingError?
+    private let writesAllowed: @MainActor @Sendable () -> Bool
     private let currentAccountID: @MainActor @Sendable () -> String?
     private let request: Request
     private var requestID = UUID()
+    private var runDetailRequestID = UUID()
     private var selectionID: String?
     private var selectionScope: WatchWorkflowDetailScope?
-    init(currentAccountID: @escaping @MainActor @Sendable () -> String? = { nil }, request: Request? = nil) {
+    init(currentAccountID: @escaping @MainActor @Sendable () -> String? = { nil }, request: Request? = nil,
+         offlineCache: WatchHubOfflineCache = .shared,
+         masterKey: @escaping @MainActor (String) async throws -> SymmetricKey? = { try await CryptoManager.shared.loadMasterKey(for: $0) },
+         writesAllowed: @escaping @MainActor @Sendable () -> Bool = { true }) {
+        self.writesAllowed = writesAllowed
+        self.offlineCache = offlineCache
+        self.masterKey = masterKey
         self.currentAccountID = currentAccountID
         self.request = request ?? { method, path, body, scope, validate in
             try await APIClient.shared.requestForVerifiedWatchSession(method, path: path,
@@ -231,18 +263,19 @@ struct WatchWorkflowNodeDraft: Equatable {
         return selectionID == id && selectionScope == scope && permits(scope)
     }
     func clear() {
-        requestID = UUID(); selectionID = nil; selectionScope = nil
+        requestID = UUID(); runDetailRequestID = UUID(); selectionID = nil; selectionScope = nil
         orderedNodes = []; state = .idle; draft = nil; isSaving = false; saveError = nil
+        runs = []; runDetail = nil; isOffline = false
     }
     static func path(id: String) throws -> String {
         guard WatchItemOpenRequest(kind: .workflow, id: id) != nil,
               let encoded = id.addingPercentEncoding(withAllowedCharacters: CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~")) else { throw WatchWorkflowEditingError.invalidResponse }
         return "/v1/workflows/\(encoded)"
     }
-    private func validation(_ operation: UUID, scope: WatchWorkflowDetailScope) -> Validate {
+    private func validation(_ operation: UUID, scope: WatchWorkflowDetailScope, writing: Bool = false) -> Validate {
         { [weak self] in
             try Task.checkCancellation()
-            guard let self, self.requestID == operation, self.permits(scope) else { throw CancellationError() }
+            guard let self, (!writing || self.writesAllowed()), self.requestID == operation, self.permits(scope) else { throw CancellationError() }
         }
     }
     private func fetch(_ id: String, scope: WatchWorkflowDetailScope, operation: UUID) async throws -> WatchWorkflowDetail {
@@ -253,6 +286,7 @@ struct WatchWorkflowNodeDraft: Equatable {
         let detail = try JSONDecoder().decode(Response.self, from: data).workflow
         guard detail.id == id, !detail.title.isEmpty, detail.teamID == nil else { throw WatchWorkflowEditingError.invalidResponse }
         _ = try detail.graph.orderedNodes()
+        await cache(data, key: "workflow-" + id, scope: scope, operation: operation)
         return detail
     }
     func load(id: String, scope: WatchWorkflowDetailScope?) async {
@@ -261,17 +295,117 @@ struct WatchWorkflowNodeDraft: Equatable {
         selectionID = id; selectionScope = scope
         let operation = requestID
         state = .loading
+        if let data = await cached(key: "workflow-" + id, scope: scope, operation: operation) {
+            struct Response: Decodable { let workflow: WatchWorkflowDetail }
+            if let detail = try? JSONDecoder().decode(Response.self, from: data).workflow,
+               detail.id == id, detail.teamID == nil, let nodes = try? detail.graph.orderedNodes(),
+               (try? validation(operation, scope: scope)()) != nil {
+                orderedNodes = nodes; state = .loaded(detail); isOffline = true
+            }
+        }
         do {
             let detail = try await fetch(id, scope: scope, operation: operation)
             try validation(operation, scope: scope)()
-            orderedNodes = try detail.graph.orderedNodes(); state = .loaded(detail)
+            orderedNodes = try detail.graph.orderedNodes(); state = .loaded(detail); isOffline = false
         } catch {
+            guard requestID == operation else { return }
+            if case APIError.httpError(let status, _) = error, [403, 404, 410].contains(status), permits(scope) {
+                try? await offlineCache.remove(key: "workflow-" + id, scope: scope)
+                try? await offlineCache.remove(key: "runs-" + id, scope: scope)
+                guard requestID == operation, permits(scope) else { return }
+                orderedNodes = []; state = .unavailable; isOffline = false; return
+            }
+            if permits(scope), let data = await cached(key: "workflow-" + id, scope: scope, operation: operation) {
+                struct Response: Decodable { let workflow: WatchWorkflowDetail }
+                if let detail = try? JSONDecoder().decode(Response.self, from: data).workflow,
+                   detail.id == id, detail.teamID == nil, let nodes = try? detail.graph.orderedNodes(),
+                   (try? validation(operation, scope: scope)()) != nil {
+                    orderedNodes = nodes; state = .loaded(detail); isOffline = true; return
+                }
+            }
             guard requestID == operation else { return }
             orderedNodes = []; state = permits(scope) ? .failed : .unavailable
         }
     }
+    private func cache(_ data: Data, key: String, scope: WatchWorkflowDetailScope, operation: UUID) async {
+        do {
+            guard let masterKey = try await masterKey(scope.accountID) else { return }
+            try validation(operation, scope: scope)()
+            try await offlineCache.save(data, key: key, scope: scope, masterKey: masterKey)
+        } catch { /* A bounded cache failure must not fail an online read. */ }
+    }
+    private func cached(key: String, scope: WatchWorkflowDetailScope, operation: UUID) async -> Data? {
+        do {
+            guard let masterKey = try await masterKey(scope.accountID) else { return nil }
+            try validation(operation, scope: scope)()
+            let data = await offlineCache.load(key: key, scope: scope, masterKey: masterKey)
+            try validation(operation, scope: scope)()
+            return data
+        } catch { return nil }
+    }
+    func loadRuns(workflowID: String, scope: WatchWorkflowDetailScope?) async {
+        guard let scope, matches(id: workflowID, scope: scope) else { return }
+        let operation = requestID
+        if let data = await cached(key: "runs-" + workflowID, scope: scope, operation: operation),
+           let metadata = try? JSONDecoder().decode([WatchWorkflowRunMetadata].self, from: data),
+           (try? validation(operation, scope: scope)()) != nil { runs = metadata }
+        do {
+            let data = try await request(.get, Self.path(id: workflowID) + "/runs", nil, scope, validation(operation, scope: scope))
+            try validation(operation, scope: scope)()
+            guard data.count <= 8_000_000 else { throw APIError.invalidResponse }
+            struct Response: Decodable { let runs: [WatchWorkflowRunMetadata] }
+            let result = try JSONDecoder().decode(Response.self, from: data).runs
+            guard result.allSatisfy({ $0.workflowID == workflowID }) else { throw APIError.invalidResponse }
+            let metadata = Array(result.sorted { ($0.startedAt ?? 0) > ($1.startedAt ?? 0) }.prefix(50))
+            runs = metadata
+            // Retain metadata only; node output trees are read on demand.
+            await cache(try JSONEncoder().encode(metadata), key: "runs-" + workflowID, scope: scope, operation: operation)
+        } catch {
+            guard requestID == operation, permits(scope) else { return }
+            if case APIError.httpError(let status, _) = error, [403, 404, 410].contains(status) {
+                try? await offlineCache.remove(key: "runs-" + workflowID, scope: scope)
+                guard requestID == operation, permits(scope) else { return }
+                runs = []; return
+            }
+            if let data = await cached(key: "runs-" + workflowID, scope: scope, operation: operation),
+               let result = try? JSONDecoder().decode([WatchWorkflowRunMetadata].self, from: data),
+               (try? validation(operation, scope: scope)()) != nil { runs = result }
+        }
+    }
+    func loadRunDetail(workflowID: String, runID: String, scope: WatchWorkflowDetailScope?) async {
+        guard let scope, matches(id: workflowID, scope: scope),
+              WatchItemOpenRequest(kind: .workflow, id: runID) != nil else { return }
+        let operation = requestID
+        let runOperation = UUID(); runDetailRequestID = runOperation
+        let validateRun: Validate = { [weak self] in
+            guard let self, self.runDetailRequestID == runOperation else { throw CancellationError() }
+            try self.validation(operation, scope: scope)()
+        }
+        runDetail = nil
+        let key = "run-" + workflowID + "-" + runID
+        do {
+            let encoded = runID.addingPercentEncoding(withAllowedCharacters: CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~"))!
+            let data = try await request(.get, Self.path(id: workflowID) + "/runs/" + encoded, nil, scope, validateRun)
+            try validateRun()
+            guard data.count <= WatchHubOfflineCache.maximumEntryBytes else { throw APIError.invalidResponse }
+            let value = try JSONDecoder().decode(WatchWorkflowValue.self, from: data).object["run"]
+            guard value?.object["id"]?.text == runID, value?.object["workflow_id"]?.text == workflowID else { throw APIError.invalidResponse }
+            runDetail = value
+            await cache(data, key: key, scope: scope, operation: operation)
+        } catch {
+            guard requestID == operation, runDetailRequestID == runOperation, permits(scope) else { return }
+            if case APIError.httpError(let status, _) = error, [403, 404, 410].contains(status) {
+                try? await offlineCache.remove(key: key, scope: scope)
+                return
+            }
+            if let data = await cached(key: key, scope: scope, operation: operation),
+               let value = try? JSONDecoder().decode(WatchWorkflowValue.self, from: data).object["run"],
+               value.object["id"]?.text == runID, value.object["workflow_id"]?.text == workflowID,
+               (try? validateRun()) != nil { runDetail = value }
+        }
+    }
     func beginEditing(nodeID: String) {
-        guard !isSaving, let scope = selectionScope, permits(scope), case let .loaded(detail) = state,
+        guard writesAllowed(), !isSaving, !isOffline, let scope = selectionScope, permits(scope), case let .loaded(detail) = state,
               let node = detail.graph.nodes.first(where: { $0.id == nodeID }), node.editable else { return }
         draft = WatchWorkflowNodeDraft(node: node); saveError = nil
     }
@@ -279,7 +413,7 @@ struct WatchWorkflowNodeDraft: Equatable {
     // PATCH has no route-level CAS today. Preflight detects existing changes;
     // it cannot close the race between GET and PATCH. Only graph is sent.
     func save() async -> Bool {
-        guard !isSaving, let draft, let scope = selectionScope, permits(scope), let id = selectionID, case let .loaded(original) = state else { return false }
+        guard writesAllowed(), !isSaving, !isOffline, let draft, let scope = selectionScope, permits(scope), let id = selectionID, case let .loaded(original) = state else { return false }
         let operation = requestID
         isSaving = true; saveError = nil
         defer { if requestID == operation { isSaving = false } }
@@ -287,11 +421,12 @@ struct WatchWorkflowNodeDraft: Equatable {
             let node = try draft.editedNode()
             let graph = try original.graph.replacing(node)
             let latest = try await fetch(id, scope: scope, operation: operation)
+            try validation(operation, scope: scope, writing: true)()
             guard latest.currentVersionID == original.currentVersionID, latest.graph == original.graph else { throw WatchWorkflowEditingError.changed }
             struct Patch: Encodable { let graph: WatchWorkflowGraph }
             let body = try JSONEncoder().encode(Patch(graph: graph))
-            let data = try await request(.patch, Self.path(id: id), body, scope, validation(operation, scope: scope))
-            try validation(operation, scope: scope)()
+            let data = try await request(.patch, Self.path(id: id), body, scope, validation(operation, scope: scope, writing: true))
+            try validation(operation, scope: scope, writing: true)()
             guard data.count <= 2_000_000 else { throw WatchWorkflowEditingError.invalidResponse }
             struct Response: Decodable { let workflow: WatchWorkflowDetail }
             let saved = try JSONDecoder().decode(Response.self, from: data).workflow
@@ -300,6 +435,8 @@ struct WatchWorkflowNodeDraft: Equatable {
                   confirmed.title == node.title, confirmed.config == node.config,
                   confirmed.inputMapping == node.inputMapping else { throw WatchWorkflowEditingError.invalidResponse }
             orderedNodes = try saved.graph.orderedNodes(); state = .loaded(saved)
+            await cache(data, key: "workflow-" + id, scope: scope, operation: operation)
+            try validation(operation, scope: scope, writing: true)()
             self.draft = nil; saveError = nil
             return true
         } catch {
@@ -349,7 +486,19 @@ struct WatchWorkflowNodeDraft: Equatable {
         func request(method: HTTPMethod, path: String, body: Data?, scope: WatchWorkflowDetailScope,
                      validate: @escaping WatchWorkflowDetailService.Validate) async throws -> Data {
             try validate()
-            let id = String(path.split(separator: "/").last ?? "workflow-one")
+            let parts = path.split(separator: "/").map(String.init)
+            let id = parts.count > 2 ? parts[2] : "workflow-one"
+            if method == .get, path.hasSuffix("/runs") {
+                try validate()
+                return try JSONSerialization.data(withJSONObject: ["runs": [["id": "fixture-run", "workflow_id": id,
+                    "status": "completed", "started_at": 1_800_000_000, "finished_at": 1_800_000_010, "content_available": true]]])
+            }
+            if method == .get, path.contains("/runs/") {
+                try validate()
+                return try JSONSerialization.data(withJSONObject: ["run": ["id": parts.last ?? "fixture-run", "workflow_id": id,
+                    "status": "completed", "output_summary": ["summary": "Fixture workflow completed"],
+                    "node_runs": [["node_id": "ask", "status": "completed", "output_summary": ["answer": "Fixture run output"]]]]])
+            }
             if method == .get {
                 if failRead { failRead = false; throw APIError.invalidResponse }
             } else if method == .patch {

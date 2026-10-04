@@ -78,7 +78,11 @@ struct EmbedContentView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: .spacing3) {
-            if shouldUseCompositeRenderer {
+            if HostingEmbedKind.isSearch(embed) {
+                HostingSearchEmbedRenderer(embed: embed, mode: mode, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
+            } else if HostingEmbedKind.isDomain(embed) {
+                HostingDomainEmbedRenderer(embed: embed, mode: mode)
+            } else if shouldUseCompositeRenderer {
                 AppSkillUseRenderer(
                     embed: embed,
                     allEmbedRecords: allEmbedRecords,
@@ -185,7 +189,7 @@ struct EmbedContentView: View {
                     onOpenEmbed: onOpenEmbed
                 )
             case .electronicsPcbSchematic:
-                PcbSchematicEmbedRenderer(data: rawData, mode: mode, status: embed.status)
+                PcbSchematicEmbedRenderer(data: rawData, mode: mode, status: embed.status, embedID: embed.id)
             case .electronicsComponent:
                 ElectronicsComponentEmbedRenderer(data: rawData, mode: mode)
 

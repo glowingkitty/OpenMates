@@ -21,5 +21,7 @@
 		<key>NSExtensionPointIdentifier</key>
 		<string>com.apple.widgetkit-extension</string>
 	</dict>
+	<key>OpenMatesKeychainAccessGroup</key>
+	<string>$(AppIdentifierPrefix)org.openmates.app</string>
 </dict>
 </plist>

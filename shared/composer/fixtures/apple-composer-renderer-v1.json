@@ -5,6 +5,7 @@
     "uploading",
     "processing",
     "transcribing",
+    "correcting",
     "finished",
     "error",
     "cancelled"
@@ -32,6 +33,8 @@
     "health-appointment-group": { "title": "Synthetic composer preview", "media_kind": "health-appointment-group" },
     "home-listing": { "title": "Synthetic composer preview", "media_kind": "home-listing" },
     "home-listing-group": { "title": "Synthetic composer preview", "media_kind": "home-listing-group" },
+    "hosting-domain": { "title": "Synthetic composer preview", "media_kind": "hosting-domain" },
+    "hosting-domain-group": { "title": "Synthetic composer preview", "media_kind": "hosting-domain-group" },
     "image": { "title": "Synthetic composer preview", "media_kind": "image" },
     "images-image-result": { "title": "Synthetic composer preview", "media_kind": "images-image-result" },
     "images-image-result-group": { "title": "Synthetic composer preview", "media_kind": "images-image-result-group" },

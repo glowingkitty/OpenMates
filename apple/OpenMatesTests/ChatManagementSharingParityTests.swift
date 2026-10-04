@@ -13,6 +13,46 @@ import UIKit
 
 @MainActor
 final class ChatManagementSharingParityTests: XCTestCase {
+    #if os(macOS)
+    // contract-test: supporting surface=gui.apple assertions=message-input.drafts.preview-persistence,message-input.embeds.gated-send
+    func testQuickCaptureDismissesOnlyAfterSuccessfulSendAndKeepsFailedDraft() async throws {
+        var resumeSend: CheckedContinuation<Void, Error>?
+        let model = MacMenuBarQuickCaptureViewModel(sendMessage: { _ in
+            try await withCheckedThrowingContinuation { resumeSend = $0 }
+        })
+        model.message = "Capture fixture"
+        var dismissals = 0
+        let sending = try XCTUnwrap(model.sendCurrentMessage { dismissals += 1 })
+        for _ in 0..<100 where resumeSend == nil { await Task.yield() }
+        XCTAssertNotNil(resumeSend)
+        XCTAssertTrue(model.isSending)
+        XCTAssertEqual(dismissals, 0, "Admission must succeed before the captured popup closes")
+        resumeSend?.resume(); resumeSend = nil
+        await sending.value
+        XCTAssertEqual(dismissals, 1)
+        XCTAssertFalse(model.isSending)
+        XCTAssertEqual(model.message, "")
+
+        let failure = MacMenuBarQuickCaptureViewModel(sendMessage: { _ in throw BackgroundChatSendError.notAuthenticated })
+        failure.message = "Keep this draft"
+        await failure.sendCurrentMessage { dismissals += 1 }?.value
+        XCTAssertEqual(dismissals, 1)
+        XCTAssertEqual(failure.message, "Keep this draft")
+        XCTAssertNotNil(failure.error)
+        XCTAssertFalse(failure.isSending)
+    }
+
+    #endif
+
+    // contract-test: infrastructure
+    func testDockRestorationRejectsAuxiliaryAndClosedWindowsButRetainsMinimizedMain() {
+        let identity = MacMainWindowPolicy.identifier
+        XCTAssertTrue(MacMainWindowPolicy.canRestore(identifier: identity, visible: true, miniaturized: false))
+        XCTAssertTrue(MacMainWindowPolicy.canRestore(identifier: identity, visible: false, miniaturized: true))
+        XCTAssertFalse(MacMainWindowPolicy.canRestore(identifier: identity, visible: false, miniaturized: false))
+        XCTAssertFalse(MacMainWindowPolicy.canRestore(identifier: "menu-bar-popup", visible: true, miniaturized: false))
+        XCTAssertFalse(MacMainWindowPolicy.canRestore(identifier: nil, visible: true, miniaturized: false))
+    }
     // contract-test: direct surface=gui.apple assertions=message-input.drafts.preview-persistence,message-input.embeds.gated-send
     func testAskAboutPhotoQuickActionUsesDraftCapableNewChatComposer() {
         XCTAssertEqual(MainAppQuickActionRoute.route(for: .askAboutPhoto), .photoNewChat)

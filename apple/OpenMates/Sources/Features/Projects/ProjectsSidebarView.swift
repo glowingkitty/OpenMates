@@ -148,6 +148,7 @@ struct ProjectsSidebarView: View {
             }
             .accessibilityIdentifier("project-sidebar-write-policy")
         }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("projects-sidebar")
     }
 

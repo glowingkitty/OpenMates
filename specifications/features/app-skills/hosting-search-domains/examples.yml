@@ -86,7 +86,7 @@ embeds:
 
 parity:
   - id: typed-search-across-surfaces
-    given: Alice sends the same two grouped domain requests through REST, CLI, npm, and pip, then uses their typed output in a Workflow.
-    when: The search completes and the web renderer opens its parent and child embeds.
-    then: All programmatic surfaces preserve selected and checked results, quote details, warnings, and child references; the Workflow can render them on web and makes no Apple support claim.
+    given: Alice sends the same two grouped domain requests through REST, CLI, npm, and pip, then uses their typed output in a Workflow and opens the same saved result in the Apple app.
+    when: The search completes and the web and Apple renderers open its parent and child embeds.
+    then: All programmatic surfaces preserve selected and checked results, quote details, warnings, and child references; the Workflow can render them on web and Apple, including the same local in-use filter, child quote details, and fixed-origin Gandi action.
     assertion_ids: [hosting-domains.surface-parity]

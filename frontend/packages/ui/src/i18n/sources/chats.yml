@@ -3691,3 +3691,13 @@ error_report_consent.report_description:
   sv: A chat processing error happened. I consent to include the current chat context for debugging this incident.
   he: A chat processing error happened. I consent to include the current chat context for debugging this incident.
   verified_by_human: []
+watch_older_messages:
+  context: Watch chat action loading the previous bounded page of older messages
+  en: Older messages
+  de: Ältere Nachrichten
+  verified_by_human: []
+watch_newer_messages:
+  context: Watch chat action loading the next bounded page of newer messages
+  en: Newer messages
+  de: Neuere Nachrichten
+  verified_by_human: []

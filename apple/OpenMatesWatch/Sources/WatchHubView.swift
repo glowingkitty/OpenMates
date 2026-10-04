@@ -11,6 +11,9 @@
 // Specification: specifications/features/apple-notifications/specification.yml
 // Assertions: apple-notifications.action.routing-coherent, apple-notifications.delivery.idempotent-visible
 
+// Specification: specifications/features/apple-local-model-lab/specification.yml
+// Assertions: apple-local-model-lab.watch-tiny, apple-local-model-lab.isolated-scope
+
 import SwiftUI
 
 private enum WatchHubPalette {
@@ -182,6 +185,7 @@ enum WatchHubSection: String, CaseIterable, Identifiable {
 private enum WatchHubCopy {
     static var search: String { WatchLocalization.text("activity.search") }
     static var settings: String { WatchLocalization.text("common.settings") }
+    static var developers: String { WatchLocalization.text("settings.developers") }
     static var done: String { WatchLocalization.text("watch.hub.done") }
     static var loading: String { WatchLocalization.text("activity.syncing") }
     static var settingsLinkSent: String { WatchLocalization.text("watch.hub.settings_link_sent") }
@@ -194,6 +198,8 @@ private enum WatchHubCopy {
 }
 
 struct WatchHubView: View {
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var backgroundSyncOwner: String?
     @StateObject private var dataService: WatchHubDataService
     @StateObject private var workflowService: WatchWorkflowDetailService
     private let chatRuntime: WatchChatRuntime
@@ -202,6 +208,8 @@ struct WatchHubView: View {
     @State private var isSearching = false
     @State private var searchText = ""
     @State private var popupMessage: String?
+    @State private var showsSettingsDeveloperOptions = false
+    @State private var showsWhisperLab = false
     @State private var selectedTaskGroup: WatchTaskGroup = .backlog
     @State private var selectedTask: WatchTaskListItem?
     @State private var selectedWorkflow: WatchWorkflowListItem?
@@ -214,16 +222,19 @@ struct WatchHubView: View {
     private let onOpenItem: (WatchItemOpenRequest) -> Void
     private let onOpenSettings: () -> Void
     private let onCreate: (WatchHubSection) -> Void
+    private let onNavigationBusyChange: (Bool) -> Void
 
     init(
         chatRuntime: WatchChatRuntime,
         currentUserId: String?,
         currentUsername: String? = nil,
         currentAccountID: @escaping @MainActor @Sendable () -> String? = { nil },
+        writesAllowed: @escaping @MainActor @Sendable () -> Bool = { true },
         notificationRoute: WatchNotificationRoute? = nil,
         fixtureTasks: [WatchTaskListItem]? = nil,
         fixtureWorkflows: [WatchWorkflowListItem]? = nil,
         workflowDetailService: WatchWorkflowDetailService? = nil,
+        onNavigationBusyChange: @escaping (Bool) -> Void = { _ in },
         onOpenItem: @escaping (WatchItemOpenRequest) -> Void,
         onOpenSettings: @escaping () -> Void,
         onCreate: @escaping (WatchHubSection) -> Void
@@ -236,14 +247,15 @@ struct WatchHubView: View {
         self.onOpenItem = onOpenItem
         self.onOpenSettings = onOpenSettings
         self.onCreate = onCreate
+        self.onNavigationBusyChange = onNavigationBusyChange
         _dataService = StateObject(wrappedValue: WatchHubDataService(
             userId: currentUserId,
             fixtureTasks: fixtureTasks,
             fixtureWorkflows: fixtureWorkflows,
-            currentAccountID: currentAccountID
+            currentAccountID: currentAccountID, writesAllowed: writesAllowed
         ))
         _workflowService = StateObject(wrappedValue: workflowDetailService ??
-            WatchWorkflowDetailService(currentAccountID: currentAccountID))
+            WatchWorkflowDetailService(currentAccountID: currentAccountID, writesAllowed: writesAllowed))
     }
 
     var body: some View {
@@ -257,7 +269,7 @@ struct WatchHubView: View {
                         runtime: chatRuntime,
                         currentUsername: currentUsername,
                         notificationRoute: notificationRoute,
-                        isVisible: !showsSectionMenu && popupMessage == nil,
+                        isVisible: !showsSectionMenu && popupMessage == nil && !showsWhisperLab,
                         onOpenHub: openSectionMenu,
                         onOpenSettings: showSettingsPopup
                     )
@@ -272,18 +284,21 @@ struct WatchHubView: View {
                     else { listScreen }
                 }
             }
-            .allowsHitTesting(!showsSectionMenu)
-            if showsSectionMenu {
-                if selectedSection != nil {
-                    Color.black.opacity(0.72)
-                        .ignoresSafeArea()
-                        .onTapGesture { showsSectionMenu = false }
-                        .transition(.opacity)
-                }
-                selector
+            .allowsHitTesting(!showsSectionMenu && !showsWhisperLab)
+            if showsSectionMenu && selectedSection != nil {
+                Color.black.opacity(0.72)
+                    .ignoresSafeArea()
+                    .onTapGesture { showsSectionMenu = false }
                     .transition(.opacity)
-                    .zIndex(1)
             }
+            // Keep the selector mounted so its hit testing changes immediately.
+            // An outgoing conditional opacity transition can otherwise receive a
+            // settings tap at the former Chat row while the list is already visible.
+            selector
+                .opacity(showsSectionMenu ? 1 : 0)
+                .allowsHitTesting(showsSectionMenu)
+                .accessibilityHidden(!showsSectionMenu)
+                .zIndex(1)
             if let popupMessage {
                 Color.black.opacity(0.65).ignoresSafeArea()
                 VStack(spacing: 12) {
@@ -292,6 +307,23 @@ struct WatchHubView: View {
                         .fontWeight(.semibold)
                         .multilineTextAlignment(.center)
                         .foregroundStyle(Color.grey0)
+                    if showsSettingsDeveloperOptions {
+                        Button {
+                            self.popupMessage = nil
+                            showsWhisperLab = true
+                        } label: {
+                            VStack(spacing: .spacing1) {
+                                Text(WatchHubCopy.developers).font(.omMicro)
+                                Text(WatchWhisperCopy.title).font(.omXs.weight(.semibold))
+                            }
+                            .foregroundStyle(Color.grey0)
+                            .padding(.vertical, .spacing2)
+                            .frame(maxWidth: .infinity)
+                            .background(Color.grey80, in: RoundedRectangle(cornerRadius: .radius4))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("watch-settings-developer-whisper")
+                    }
                     Button { self.popupMessage = nil } label: {
                         Text(WatchHubCopy.done)
                             .font(.omXs)
@@ -306,7 +338,12 @@ struct WatchHubView: View {
                 .padding(12)
                 .frame(maxWidth: 158)
                 .background(Color.grey90, in: RoundedRectangle(cornerRadius: 18))
+                .accessibilityElement(children: .contain)
                 .accessibilityIdentifier("watch-hub-phone-popup")
+            }
+            if showsWhisperLab {
+                WatchWhisperLabView(onClose: { showsWhisperLab = false })
+                    .zIndex(2)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -314,8 +351,33 @@ struct WatchHubView: View {
         .animation(.easeInOut(duration: 0.28), value: showsSectionMenu)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("watch-hub")
+        .onChange(of: foregroundNavigationBusy, initial: true) { _, busy in
+            onNavigationBusyChange(busy)
+            dataService.setBackgroundSyncAllowed(scenePhase == .active && !busy)
+        }
+        .onChange(of: scenePhase) { _, phase in
+            dataService.setBackgroundSyncAllowed(phase == .active && !foregroundNavigationBusy)
+        }
+        .onDisappear {
+            dataService.setBackgroundSyncAllowed(false)
+            if let backgroundSyncOwner { WatchBackgroundOfflineSync.shared.unregister(.hub, owner: backgroundSyncOwner) }
+            backgroundSyncOwner = nil
+        }
+        .task {
+            if let account = currentAccountID() {
+                let owner = "\(account):\(ServerProfile.current().apiBaseURL.absoluteString):\(WatchChatAccountLifecycle.generation)"
+                backgroundSyncOwner = owner
+                let service = dataService
+                WatchBackgroundOfflineSync.shared.register(.hub, owner: owner) { [weak service] in
+                    await service?.performBackgroundOfflineSync()
+                }
+            }
+            await dataService.loadCachedTasks()
+            await dataService.loadCachedWorkflows()
+        }
         .task(id: notificationRoute?.id) {
             guard notificationRoute != nil else { return }
+            showsWhisperLab = false
             selectedSection = .chat
             selectedTask = nil
             closeWorkflow()
@@ -323,6 +385,11 @@ struct WatchHubView: View {
             popupMessage = nil
             isSearching = false
         }
+    }
+
+    private var foregroundNavigationBusy: Bool {
+        showsWhisperLab || selectedTask != nil || selectedWorkflow != nil || popupMessage != nil || isSearching
+
     }
 
     private var selector: some View {
@@ -422,6 +489,7 @@ struct WatchHubView: View {
             action("watch-create", label: selectedSection?.title ?? "", id: "watch-hub-new") {
                 if let selectedSection {
                     onCreate(selectedSection)
+                    showsSettingsDeveloperOptions = false
                     popupMessage = WatchHubCopy.newOnPhone
                 }
             }
@@ -606,6 +674,7 @@ struct WatchHubView: View {
 
     private func showSettingsPopup() {
         onOpenSettings()
+        showsSettingsDeveloperOptions = true
         popupMessage = WatchHubCopy.settingsLinkSent
     }
 }

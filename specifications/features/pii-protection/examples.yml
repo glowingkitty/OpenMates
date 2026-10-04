@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.pii-protection@1
+specification: feature.pii-protection@2
 
 composer_detection:
   - id: active-email-phone-redacted
@@ -43,3 +43,20 @@ surface_parity:
   - id: web-cli-apple-placeholder-boundary
     input: {surfaces: [gui.web, cli, gui.apple], contains_supported_pii: true}
     expect: {server_receives_active_placeholders_only: true, local_owner_restoration_semantics_match: true}
+
+apple_enhanced_detection:
+  - id: debounced-latest-foreground
+    input: {composer: existing_or_new_chat, edits_ms: [0, 100, 200], debounce_ms: 500, model_installed: true}
+    expect: {regex_immediate: true, model_warm_on_open: true, queued_intermediate_edits: 0, latest_snapshot_only: true, main_actor_inference: false}
+  - id: native-cancellation-drains
+    input: {native_kernel_held: true, action: replace_text_then_leave}
+    expect: {one_in_flight: true, stale_highlights: false, early_unload: false, plaintext_publication_after_leave: false}
+  - id: optional-privacy-install-and-fallback
+    input: {privacy_page_open: true, model_installed: false, composer_active: true}
+    expect: {download_forced: false, developer_model_download_card: false, basic_patterns_and_personal_entries_active: true}
+  - id: exact-send-preserves-new-typing
+    input: {send_snapshot: 'Email alice@example.com about Project Orchid', later_input: 'A separate draft', excluded_values: ['Project Orchid']}
+    expect: {send_snapshot_verified: true, active_email_redacted: true, excluded_original_preserved: true, later_input_cleared: false, mappings_encrypted_by_existing_pipeline: true}
+  - id: pressure-or-unavailable-runtime
+    input: {model_installed: true, action: memory_pressure_or_warm_failure}
+    expect: {basic_detection_available: true, enhanced_coverage_claimed: false, per_keystroke_reload: false, private_diagnostics: false}

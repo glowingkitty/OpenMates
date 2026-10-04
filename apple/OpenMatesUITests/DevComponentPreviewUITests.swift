@@ -266,6 +266,71 @@ final class DevComponentPreviewUITests: XCTestCase {
     }
 
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testCalendarPhoneViewportPinsWeekSelectorRevealsFirstEventAndScrollsGridBothAxes() throws {
+        let app = launch(component: "message", variant: "results-visual")
+        guard app.windows.firstMatch.frame.width < 600 else {
+            throw XCTSkip("This regression proves the iPhone calendar viewport")
+        }
+        app.buttons["embeds-results-view-tab-calendar"].tap()
+        let panel = element(app, "embeds-results-view-panel-calendar")
+        let toolbar = element(app, "embeds-results-view-calendar-toolbar")
+        let scroll = element(app, "embeds-results-view-calendar-scroll")
+        XCTAssertTrue(toolbar.waitForExistence(timeout: 5))
+        XCTAssertTrue(scroll.exists)
+        let bounds = panel.frame
+        let toolbarBefore = toolbar.frame
+        let scrollBefore = scroll.frame
+        XCTAssertEqual(bounds.width, 326, accuracy: 2)
+        XCTAssertLessThanOrEqual(bounds.maxX, app.windows.firstMatch.frame.maxX)
+        XCTAssertEqual(toolbarBefore.width, 260, accuracy: 2)
+        XCTAssertGreaterThanOrEqual(toolbarBefore.minX, bounds.minX)
+        XCTAssertLessThanOrEqual(toolbarBefore.maxX, bounds.maxX)
+        XCTAssertLessThanOrEqual(toolbarBefore.maxY, scrollBefore.minY)
+        for id in ["embeds-results-view-calendar-previous-week", "embeds-results-view-calendar-next-week"] {
+            let control = app.buttons[id]
+            XCTAssertTrue(control.exists)
+            XCTAssertTrue(bounds.contains(control.frame), "Both week controls must stay inside the phone calendar")
+        }
+
+        // The earliest flight departs Tuesday at10:00. Wednesday's midnight
+        // continuation determines the week timeline's00:00 start; opening must
+        // therefore scroll on both axes to Tuesday10:00 rather than empty Monday.
+        let earliest = app.descendants(matching: .any)
+            .matching(identifier: "embeds-results-view-calendar-item")
+            .matching(NSPredicate(format: "label CONTAINS %@", "10:00")).firstMatch
+        XCTAssertTrue(earliest.waitForExistence(timeout: 5))
+        let firstEventVisible = NSPredicate { _, _ in
+            earliest.isHittable && earliest.frame.minY >= scroll.frame.minY - 2
+                && earliest.frame.minY <= scroll.frame.minY + 48
+                && earliest.frame.minX >= scroll.frame.minX - 2
+                && earliest.frame.minX <= scroll.frame.minX + 20
+        }
+        expectation(for: firstEventVisible, evaluatedWith: app)
+        waitForExpectations(timeout: 5)
+        XCTAssertGreaterThanOrEqual(earliest.frame.width, 80,
+                                   "Five overlapping flights must retain readable title lanes, not blank11pt bars")
+        attachScreenshot("Phone calendar reveals earliest flight with viewport-sized week selector")
+
+        let eventX = earliest.frame.minX
+        scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.85, dy: 0.45))
+            .press(forDuration: 0.05, thenDragTo: scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.25, dy: 0.45)))
+        expectation(for: NSPredicate { _, _ in earliest.frame.minX < eventX - 40 }, evaluatedWith: app)
+        waitForExpectations(timeout: 5)
+        XCTAssertEqual(toolbar.frame.minX, toolbarBefore.minX, accuracy: 1)
+        XCTAssertEqual(toolbar.frame.minY, toolbarBefore.minY, accuracy: 1)
+
+        let eventY = earliest.frame.minY
+        scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.7, dy: 0.85))
+            .press(forDuration: 0.05, thenDragTo: scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.7, dy: 0.25)))
+        expectation(for: NSPredicate { _, _ in earliest.frame.minY < eventY - 40 }, evaluatedWith: app)
+        waitForExpectations(timeout: 5)
+        XCTAssertEqual(toolbar.frame.minX, toolbarBefore.minX, accuracy: 1)
+        XCTAssertEqual(toolbar.frame.minY, toolbarBefore.minY, accuracy: 1)
+        XCTAssertEqual(scroll.frame, scrollBefore, "Only the grid content moves inside the fixed calendar viewport")
+        attachScreenshot("Calendar grid scrolls both axes while week selector stays fixed")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testResultsViewVisualSurfaceAtWebPhoneWidth() {
         let app = launch(component: "message", variant: "results-visual")
         let carousel = element(app, "embeds-map-view-carousel")
@@ -367,6 +432,50 @@ final class DevComponentPreviewUITests: XCTestCase {
         attachScreenshot("Tasks rendered label filters production board")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=tasks.lifecycle.visible,tasks.surface.semantic-parity
+    func testTasksWorkspaceMountsThirtyThenTwentyItemsAndKeepsFullFilteredTotals() {
+        let app = launch(component: "tasks", variant: "manyBacklog")
+        let backlog = element(app, "task-column-backlog")
+        XCTAssertTrue(backlog.waitForExistence(timeout: 10))
+        let tasks = backlog.descendants(matching: .any).matching(identifier: "task-card")
+        let plans = backlog.descendants(matching: .any).matching(identifier: "task-board-plan-card")
+        let count = app.staticTexts["task-column-count-backlog"]
+        let more = app.buttons["task-column-show-more-backlog"]
+        XCTAssertEqual(count.label, "(56)")
+        XCTAssertEqual(tasks.count, 30)
+        XCTAssertEqual(plans.count, 0)
+        for expected in [50, 55] {
+            for _ in 0..<35 where !more.isHittable { app.swipeUp() }
+            XCTAssertTrue(more.isHittable, "Show more must be reachable through the page scroll")
+            more.tap()
+            expectation(for: NSPredicate(format: "count == %d", expected), evaluatedWith: tasks)
+            waitForExpectations(timeout: 3)
+            XCTAssertEqual(tasks.count, expected)
+            XCTAssertEqual(count.label, "(56)", "The header reports all records, including the remaining Plan")
+        }
+        XCTAssertEqual(plans.count, 1)
+        XCTAssertFalse(more.exists)
+        attachScreenshot("Tasks bounded mounting thirty then twenty with complete totals")
+
+        let filter = app.buttons["task-filter-button"]
+        for _ in 0..<65 where !filter.isHittable { app.swipeDown() }
+        XCTAssertTrue(filter.isHittable)
+        let label = app.buttons["#Self driving ballpit"]
+        if !label.exists { filter.tap() }
+        XCTAssertTrue(label.isHittable)
+        label.tap()
+        expectation(for: NSPredicate(format: "count == 1"), evaluatedWith: tasks)
+        waitForExpectations(timeout: 3)
+        XCTAssertEqual(count.label, "(1)")
+        XCTAssertEqual(plans.count, 0)
+        label.tap()
+        expectation(for: NSPredicate(format: "count == 55"), evaluatedWith: tasks)
+        waitForExpectations(timeout: 3)
+        XCTAssertEqual(count.label, "(56)")
+        XCTAssertEqual(plans.count, 1, "Clearing a filter restores the expanded window like web")
+        XCTAssertFalse(more.exists)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=tasks.detail.embed-responsive,tasks.lifecycle.visible,tasks.surface.semantic-parity
     func testTasksWorkspaceBoardAndTaskDetailAtWebPhoneWidth() {
         let app = launch(component: "tasks", variant: "default", theme: "dark")
@@ -410,7 +519,11 @@ final class DevComponentPreviewUITests: XCTestCase {
         close.tap()
         XCTAssertTrue(element(app, "task-detail-content").waitForNonExistence(timeout: 3))
         XCTAssertTrue(firstTask.isHittable, "Closing the custom reader restores the retained board")
+        #if os(macOS)
+        firstTask.rightClick()
+        #else
         firstTask.press(forDuration: 1)
+        #endif
         let actions = element(app, "task-action-menu-items")
         XCTAssertTrue(actions.waitForExistence(timeout: 3))
         XCTAssertFalse(element(app, "task-detail-content").exists,
@@ -476,14 +589,12 @@ final class DevComponentPreviewUITests: XCTestCase {
         let create = landing.buttons["project-overview-create"]
         XCTAssertTrue(create.isHittable)
         create.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
-        let createChat = landing.buttons["project-create-chat"]
-        XCTAssertTrue(createChat.waitForExistence(timeout: 3))
-        XCTAssertTrue(createChat.isHittable)
-        XCTAssertTrue(landing.buttons["project-create-workflow"].isHittable)
-        XCTAssertTrue(landing.buttons["project-create-plan"].isHittable)
-        attachScreenshot("Projects expanded custom create menu")
-        createChat.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
-        assertAction("opened-chat-preview-project", in: landing)
+        let readmeNotice = landing.staticTexts["notification-message"]
+        XCTAssertTrue(readmeNotice.waitForExistence(timeout: 3))
+        XCTAssertEqual(readmeNotice.label, "Creating READMEs directly in OpenMates is coming soon.")
+        XCTAssertFalse(landing.buttons["project-create-chat"].exists)
+        attachScreenshot("Projects empty README Create notification")
+        landing.buttons["notification-dismiss"].tap()
         landing.buttons["project-tab-files"].tap()
         XCTAssertTrue(landing.textFields["project-files-search"].waitForExistence(timeout: 5))
         XCTAssertEqual(landing.buttons["project-file-select"].frame.height, 41, accuracy: 1)
@@ -614,10 +725,12 @@ final class DevComponentPreviewUITests: XCTestCase {
         let create = app.buttons["project-overview-create"]
         XCTAssertTrue(create.isHittable)
         create.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
-        XCTAssertTrue(app.buttons["project-create-workflow"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.buttons["project-create-workflow"].isHittable)
+        let readmeNotice = app.staticTexts["notification-message"]
+        XCTAssertTrue(readmeNotice.waitForExistence(timeout: 3))
+        XCTAssertEqual(readmeNotice.label, "Creating READMEs directly in OpenMates is coming soon.")
+        XCTAssertFalse(app.buttons["project-create-workflow"].exists)
         attachScreenshot("Projects deployed overview at 1376 by 1032")
-        create.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        app.buttons["notification-dismiss"].tap()
         app.buttons["project-tab-files"].tap()
         XCTAssertTrue(app.textFields["project-files-search"].waitForExistence(timeout: 5))
         XCTAssertTrue(element(app, "project-folder-backend").exists)
@@ -668,6 +781,88 @@ final class DevComponentPreviewUITests: XCTestCase {
             format: "label CONTAINS[c] %@", "Teams feature")).firstMatch.exists)
         XCTAssertFalse(element(app, "project-open-tasks").exists)
         attachScreenshot("Project linked Tasks board at phone width")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=projects.workspace.contract-plan-task-check-chain,projects.surface.semantic-parity,tasks.detail.embed-responsive
+    func testProjectTaskReaderKeepsCompleteProjectPageBesideDetailOnWideViewport() throws {
+        #if os(iOS)
+        XCUIDevice.shared.orientation = .landscapeLeft
+        defer { XCUIDevice.shared.orientation = .portrait }
+        #endif
+        let app = launch(component: "projects", variant: "tasks")
+        let workspace = element(app, "project-task-workspace")
+        XCTAssertTrue(workspace.waitForExistence(timeout: 10))
+        guard workspace.frame.width >= 1024 else {
+            throw XCTSkip("Project reader split requires 1024 points of available workspace width")
+        }
+        let page = element(app, "project-detail-scroll")
+        let task = app.buttons.matching(identifier: "task-card-open").firstMatch
+        if !task.isHittable { page.swipeUp() }
+        XCTAssertTrue(task.isHittable)
+        let taskFrame = task.frame
+        task.tap()
+        let reader = workspace.descendants(matching: .any)
+            .matching(identifier: "workspace-embed").firstMatch
+        XCTAssertTrue(reader.waitForExistence(timeout: 5))
+        XCTAssertTrue(reader.descendants(matching: .any)
+            .matching(identifier: "task-detail-fullscreen").firstMatch.exists)
+        XCTAssertEqual(reader.staticTexts["task-detail-title"].label, "Teams feature")
+        XCTAssertTrue(reader.buttons["task-detail-status-select"].exists)
+        XCTAssertTrue(reader.buttons["task-detail-assignee-select"].exists)
+        XCTAssertTrue(reader.buttons["task-detail-project-card"].exists,
+                      "The shared pane contains the complete task detail")
+        let projectPane = element(app, "workspace-transcript")
+        XCTAssertEqual(projectPane.frame.width, 400, accuracy: 1)
+        XCTAssertLessThanOrEqual(projectPane.frame.maxX, reader.frame.minX)
+        XCTAssertTrue(element(app, "task-board").exists,
+                      "The linked Tasks board remains beside the complete project page")
+        XCTAssertTrue(task.isHittable, "The Project task board remains usable beside its reader")
+        XCTAssertTrue(app.buttons["project-tab-tasks"].isSelected)
+        XCTAssertTrue(app.buttons["project-tab-tasks"].isHittable)
+        XCTAssertTrue(app.buttons["task-detail-minimize"].isHittable)
+        attachScreenshot("Project Tasks board beside shared task reader")
+        app.buttons["task-detail-minimize"].tap()
+        XCTAssertTrue(reader.waitForNonExistence(timeout: 3))
+        XCTAssertTrue(task.isHittable)
+        XCTAssertTrue(app.buttons["project-tab-tasks"].isSelected)
+        XCTAssertEqual(task.frame.minY, taskFrame.minY, accuracy: 2,
+                       "Closing the reader restores the retained project scroll position")
+        XCTAssertFalse(app.buttons["project-card-preview-project"].exists,
+                       "Closing a task retains the selected project")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=projects.workspace.contract-plan-task-check-chain,tasks.detail.embed-responsive
+    func testCompactProjectTaskReaderRestoresLinkedBoardAndSelectedTab() throws {
+        let app = launch(component: "projects", variant: "tasks")
+        let workspace = element(app, "project-task-workspace")
+        XCTAssertTrue(workspace.waitForExistence(timeout: 10))
+        guard workspace.frame.width < 1024 else {
+            throw XCTSkip("Compact project fallback requires less than 1024 points")
+        }
+        let page = element(app, "project-detail-scroll")
+        let task = app.buttons.matching(identifier: "task-card-open").firstMatch
+        if !task.isHittable { page.swipeUp() }
+        XCTAssertTrue(task.isHittable)
+        let taskFrame = task.frame
+        task.tap()
+        let reader = workspace.descendants(matching: .any)
+            .matching(identifier: "workspace-embed").firstMatch
+        XCTAssertTrue(reader.waitForExistence(timeout: 5))
+        XCTAssertTrue(reader.descendants(matching: .any)
+            .matching(identifier: "task-detail-fullscreen").firstMatch.exists)
+        XCTAssertEqual(reader.staticTexts["task-detail-title"].label, "Teams feature")
+        XCTAssertTrue(reader.buttons["task-detail-status-select"].exists)
+        XCTAssertTrue(reader.buttons["task-detail-assignee-select"].exists)
+        XCTAssertTrue(reader.buttons["task-detail-project-card"].exists,
+                      "The shared pane contains the complete task detail")
+        XCTAssertEqual(reader.frame.width, workspace.frame.width, accuracy: 1)
+        XCTAssertTrue(app.buttons["task-detail-minimize"].isHittable)
+        app.buttons["task-detail-minimize"].tap()
+        XCTAssertTrue(reader.waitForNonExistence(timeout: 3))
+        XCTAssertTrue(task.isHittable)
+        XCTAssertTrue(app.buttons["project-tab-tasks"].isSelected)
+        XCTAssertEqual(task.frame.minY, taskFrame.minY, accuracy: 2)
+        XCTAssertFalse(app.buttons["project-card-preview-project"].exists)
     }
 
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
@@ -1082,6 +1277,26 @@ final class DevComponentPreviewUITests: XCTestCase {
         XCTAssertTrue(compactCard.waitForExistence(timeout: 10))
         XCTAssertFalse(compactCard.label.contains("A synthetic summary"))
         attachScreenshot("Compact continuation card with title")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testWebsiteFullscreenDescriptionUsesNativeSelectionAndReadOnlyCopy() {
+        // This local quote fixture has no remote image/media source.
+        let app = launch(component: "message", variant: "quote-scroll")
+        let open = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Open source without quote")).firstMatch
+        XCTAssertTrue(open.waitForExistence(timeout: 10))
+        open.tap()
+        waitForEmbedPresentation(app)
+        let description = app.textViews["website-description"].firstMatch
+        XCTAssertTrue(description.waitForExistence(timeout: 5), app.debugDescription)
+        description.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: 26, dy: 12)).press(forDuration: 1.2)
+        let copy = app.buttons["website-description-copy-selection"].firstMatch
+        XCTAssertTrue(copy.waitForExistence(timeout: 5), app.debugDescription)
+        XCTAssertTrue(copy.isHittable)
+        XCTAssertFalse(app.buttons["message-selection-highlight"].exists)
+        copy.tap()
+        XCTAssertTrue(description.exists)
+        attachScreenshot("Website native substring selection with Copy")
     }
 
     // contract-test: direct surface=gui.apple assertions=chats.surface.semantic-parity

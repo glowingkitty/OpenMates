@@ -7,10 +7,99 @@
 import XCTest
 import Combine
 import CryptoKit
+import SwiftData
 @testable import OpenMates
 
 @MainActor
 final class ChatWindowLoadingTests: XCTestCase {
+    // contract-test: direct surface=gui.apple assertions=apple-offline.local-first
+    func testOfflineChatBeyondStartupFiveOpensBoundedDiskWindowAndPagesWithEmbeds() async throws {
+        let schema = Schema([PersistedChat.self, PersistedMessage.self, PersistedEmbed.self,
+            PersistedEmbedKey.self, PersistedCodeRunOutput.self, PendingOfflineAction.self])
+        let configuration = ModelConfiguration("OfflineWindow-\(UUID().uuidString)", schema: schema, isStoredInMemoryOnly: true)
+        let container = try ModelContainer(for: schema, configurations: [configuration])
+        let offline = OfflineStore(modelContainer: container)
+        let store = ChatStore()
+        let chatID = "offline-sixth-chat"
+        let chat = makeChat(id: chatID, title: "Synthetic offline chat", updatedAt: "2026-01-02T00:00:00Z", messagesV: 250)
+        let rows = (0..<250).map { index in
+            Message(id: String(format: "offline-%03d", index), chatId: chatID, role: .user,
+                content: (index == 0 || index == 249) ? "```json\n{\"type\":\"sheet\",\"embed_id\":\"offline-sheet\"}\n```" : "Synthetic row \(index)",
+                encryptedContent: nil, createdAt: String(format: "2026-01-01T00:%02d:%02dZ", index / 60, index % 60),
+                updatedAt: nil, appId: nil, isStreaming: false, embedRefs: nil)
+        }
+        let embed = EmbedRecord(id: "offline-sheet", type: "sheets-sheet", status: .finished,
+            data: .raw(["table": AnyCodable("| Item | Count |\n|---|---|\n| Saved | 1 |")]),
+            parentEmbedId: nil, appId: "sheets", skillId: "sheet", embedIds: nil,
+            hashedChatId: ChatKeyWrapperRecord.hashedChatId(for: chatID), createdAt: nil)
+        offline.persistChats([chat])
+        offline.persistMessages(rows, chatId: chatID)
+        offline.persistEmbeds([embed], chatId: chatID)
+        store.performWithoutPersistence { store.upsertChat(chat) }
+        var decryptedCounts: [Int] = []
+        var networkRequests = 0
+        let model = ChatViewModel(messageDecryptor: { messages, _ in
+            decryptedCounts.append(messages.count)
+            return messages
+        }, accountScopeGeneration: { offline.scopeGeneration }, contentBatchFetcher: { _ in
+            networkRequests += 1
+            throw CancellationError()
+        }, offlineStore: offline)
+        model.configure(wsManager: nil, chatStore: store)
+        await model.loadChat(id: chatID)
+        await Task.yield()
+        XCTAssertNil(model.error)
+        XCTAssertEqual(model.messages.map(\.id), rows.suffix(50).map(\.id))
+        XCTAssertEqual(decryptedCounts.first, 50)
+        XCTAssertEqual(model.openingMetrics.initialMessagesReceived, 50)
+        XCTAssertEqual(model.openingMetrics.initialEmbedsReceived, 1)
+        XCTAssertEqual(model.embedRecords[embed.id]?.rawData?["table"]?.value as? String,
+                       embed.rawData?["table"]?.value as? String,
+                       "A decoded disk embed must be usable when the offline window finishes opening")
+        XCTAssertTrue(model.hasOlderMessages)
+        XCTAssertTrue(store.messages(for: chatID).isEmpty, "Opening one cached chat must not publish a full transcript")
+        for _ in 0..<8 where model.hasOlderMessages {
+            let task = try XCTUnwrap(model.loadOlderMessages())
+            await task.value
+            if model.messages.contains(where: { $0.id == rows[0].id }) {
+                XCTAssertEqual(model.embedRecords[embed.id]?.rawData?["table"]?.value as? String,
+                               embed.rawData?["table"]?.value as? String)
+            } else {
+                XCTAssertNil(model.embedRecords[embed.id], "Windows without the reference must not retain its payload")
+            }
+        }
+        XCTAssertEqual(model.messages.map(\.id), rows.prefix(50).map(\.id))
+        XCTAssertFalse(model.hasOlderMessages)
+        XCTAssertTrue(model.hasNewerMessages)
+        XCTAssertTrue(decryptedCounts.allSatisfy { $0 <= 50 })
+        let latest = try XCTUnwrap(model.loadMessageWindow(.latest))
+        await latest.value
+        XCTAssertEqual(model.messages.map(\.id), rows.suffix(50).map(\.id))
+        XCTAssertFalse(model.hasNewerMessages)
+        XCTAssertEqual(model.embedRecords[embed.id]?.rawData?["table"]?.value as? String,
+                       embed.rawData?["table"]?.value as? String)
+        XCTAssertEqual(networkRequests, 0, "Disk rows and full embed records must not require a network hydration request")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-offline.local-first
+    func testOfflinePagingDoesNotDropMessagesWithEqualTimestamps() throws {
+        let schema = Schema([PersistedChat.self, PersistedMessage.self])
+        let configuration = ModelConfiguration("OfflineTies-\(UUID().uuidString)", schema: schema, isStoredInMemoryOnly: true)
+        let container = try ModelContainer(for: schema, configurations: [configuration])
+        let offline = OfflineStore(modelContainer: container)
+        let chat = makeChat(id: "offline-ties", title: "Synthetic", updatedAt: "2026-01-01T00:00:00Z", messagesV: 70)
+        let rows = (0..<70).map { Message(id: String(format: "tie-%03d", $0), chatId: chat.id,
+            role: .user, content: "Synthetic", encryptedContent: nil, createdAt: chat.createdAt,
+            updatedAt: nil, appId: nil, isStreaming: false, embedRefs: nil) }
+        offline.persistChats([chat])
+        offline.persistMessages(rows, chatId: chat.id)
+        let tail = offline.loadLatestMessageWindow(chatId: chat.id)
+        let first = try XCTUnwrap(tail.first)
+        XCTAssertTrue(offline.hasOlderMessages(chatId: chat.id, before: first))
+        let older = offline.loadOlderMessageWindow(chatId: chat.id, before: first.id)
+        XCTAssertEqual((older + tail).map(\.id), rows.map(\.id))
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chats.rendering.assistant-document-convergence,code-run.surface-parity
     func testCanonicalCodeReferenceHydratesEncryptedSourceWithoutInventingHTMLMetadata() async throws {
         try await assertCanonicalCodeRecordHydrates(includeMetadata: true, convertFromSnakeCase: false)

@@ -10,6 +10,7 @@ export {};
  */
 
 const { expect, test } = require('./helpers/cookie-audit');
+const { request: playwrightRequest } = require('@playwright/test');
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { skipIfFeaturesDisabled } = require('./helpers/env-guard');
 const { getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
@@ -69,6 +70,113 @@ async function createProjectPlan(page: any, projectName: string): Promise<{ proj
 	return { projectId, planId };
 }
 
+// contract-test: supporting surface=rest_api assertions=apple-workspaces.offline-complete,apple-workspaces.isolation
+async function verifyEncryptedInventoryPages(page: any, apiUrl: string, kind: 'tasks' | 'plans'): Promise<Set<string>> {
+	const ids = new Set<string>();
+	const projectionIds = new Set<string>();
+	let cursor: string | null = null;
+	for (let pageIndex = 0; pageIndex < 8; pageIndex += 1) {
+		const params = new URLSearchParams({ paginate: 'true', limit: '250' });
+		if (cursor) params.set('cursor', cursor);
+		const response = await page.request.get(`${apiUrl}/v1/user-${kind}?${params}`);
+		expect(response.ok()).toBe(true);
+		const body = await response.json();
+		expect(typeof body.complete).toBe('boolean');
+		const rows = body[kind];
+		expect(Array.isArray(rows)).toBe(true);
+		const rawRows = rows.filter((row: any) => row.source !== 'workflow_run');
+		expect(rawRows.length).toBeLessThanOrEqual(250);
+		const key = kind === 'tasks' ? 'task_id' : 'plan_id';
+		for (const row of rows) {
+			if (row.source === 'workflow_run') {
+				expect(pageIndex).toBe(0);
+				expect(projectionIds.has(row.task_id)).toBe(false);
+				projectionIds.add(row.task_id);
+				continue;
+			}
+			expect(typeof row[key]).toBe('string');
+			expect(ids.has(row[key])).toBe(false);
+			ids.add(row[key]);
+			// Server inventory transports ciphertext for client-local decoding.
+			expect(row.encrypted_title).toBeTruthy();
+		}
+		if (body.complete) {
+			expect(body.next_cursor).toBeNull();
+			return ids;
+		}
+		expect(rawRows.length).toBe(250);
+		expect(body.next_cursor).toBe(rawRows[rawRows.length - 1][key]);
+		if (cursor) expect(body.next_cursor > cursor).toBe(true);
+		cursor = body.next_cursor;
+	}
+	throw new Error('Encrypted inventory did not complete within the disposable test account page budget');
+}
+
+// contract-test: supporting surface=rest_api assertions=apple-workspaces.offline-complete,apple-workspaces.isolation
+async function verifyPlanChildPages(page: any, apiUrl: string, planId: string): Promise<void> {
+	const parent = await page.request.get(`${apiUrl}/v1/user-plans/${encodeURIComponent(planId)}`);
+	expect(parent.ok()).toBe(true);
+	const cipher = (await parent.json()).plan.encrypted_title;
+	expect(cipher).toBeTruthy();
+	const collections = [
+		{ path: 'criteria', key: 'criteria', id: 'criterion_id', field: 'encrypted_text', extras: { required: false } },
+		{ path: 'verification', key: 'verifications', id: 'verification_id', field: 'encrypted_description', extras: { kind: 'manual_check', required_for_done: false } },
+		{ path: 'assumptions', key: 'assumptions', id: 'assumption_id', field: 'encrypted_text', extras: {} },
+		{ path: 'reference-patterns', key: 'reference_patterns', id: 'pattern_id', field: 'encrypted_title', extras: {} }
+	];
+	const anonymous = await playwrightRequest.newContext();
+	try {
+		for (const collection of collections) {
+			const seededIds = new Set<string>();
+			for (let index = 0; index < 2; index += 1) {
+				const id = `${planId}-${collection.key}-${index}`;
+				seededIds.add(id);
+				// Reuse existing ciphertext from this disposable Plan, so fixtures
+				// stay decryptable with its key and never send a plaintext child value.
+				const created = await page.request.post(`${apiUrl}/v1/user-plans/${encodeURIComponent(planId)}/${collection.path}`, {
+					data: { [collection.id]: id, [collection.field]: cipher, created_at: Date.now(), ...collection.extras }
+				});
+				expect(created.ok()).toBe(true);
+			}
+			const seen = new Set<string>();
+			let cursor: string | null = null;
+			let complete = false;
+			for (let pageIndex = 0; pageIndex < 8 && !complete; pageIndex += 1) {
+				const params = new URLSearchParams({ paginate: 'true', limit: '1' });
+				if (cursor) params.set('cursor', cursor);
+				const url = `${apiUrl}/v1/user-plans/${encodeURIComponent(planId)}/${collection.path}?${params}`;
+				const response = await page.request.get(url);
+				expect(response.ok()).toBe(true);
+				const body = await response.json();
+				expect(typeof body.complete).toBe('boolean');
+				const rows = body[collection.key];
+				expect(rows.length).toBeLessThanOrEqual(1);
+				for (const row of rows) {
+					expect(row.plan_id).toBe(planId);
+					expect(seen.has(row.id)).toBe(false);
+					seen.add(row.id);
+					if (seededIds.delete(row[collection.id])) expect(row[collection.field]).toBe(cipher);
+				}
+				complete = body.complete;
+				if (complete) expect(body.next_cursor).toBeNull();
+				else {
+					expect(rows).toHaveLength(1);
+					expect(body.next_cursor).toBe(rows[0].id);
+					if (cursor) expect(body.next_cursor > cursor).toBe(true);
+					cursor = body.next_cursor;
+				}
+			}
+			expect(complete).toBe(true);
+			expect(seededIds.size).toBe(0);
+			const path = `${apiUrl}/v1/user-plans/${encodeURIComponent(planId)}/${collection.path}?paginate=true`;
+			expect([401, 403]).toContain((await anonymous.get(path)).status());
+			expect([403, 404]).toContain((await page.request.get(`${path}&team_id=00000000-0000-4000-8000-000000000118`)).status());
+			const unknownParent = `${apiUrl}/v1/user-plans/00000000-0000-4000-8000-000000000118/${collection.path}?paginate=true`;
+			expect((await page.request.get(unknownParent)).status()).toBe(404);
+		}
+	} finally { await anonymous.dispose(); }
+}
+
 async function dragPlanToColumn(page: any, planCard: any, status: string): Promise<void> {
 	await planCard.evaluate((element: HTMLElement) => {
 		const dataTransfer = new DataTransfer();
@@ -113,6 +221,21 @@ test.describe('Plans on the global Tasks board', () => {
 			await expect(page.getByTestId('tasks-nav-link')).toHaveAttribute('aria-current', 'page');
 
 			({ projectId, planId } = await createProjectPlan(page, projectName));
+
+			// Existing session and explicit team guards apply identically to page mode.
+			const anonymous = await playwrightRequest.newContext();
+			try {
+				for (const kind of ['tasks', 'plans'] as const) {
+					const denied = await anonymous.get(`${apiUrl}/v1/user-${kind}?paginate=true&limit=250`);
+					expect([401, 403]).toContain(denied.status());
+					const unknownTeam = await page.request.get(`${apiUrl}/v1/user-${kind}?paginate=true&team_id=00000000-0000-4000-8000-000000000118`);
+					expect([403, 404]).toContain(unknownTeam.status());
+				}
+			} finally { await anonymous.dispose(); }
+			await verifyEncryptedInventoryPages(page, apiUrl, 'tasks');
+			const inventoryPlanIds = await verifyEncryptedInventoryPages(page, apiUrl, 'plans');
+			expect(inventoryPlanIds.has(planId)).toBe(true);
+
 
 			await page.goto(getE2EDebugUrl('/tasks'), { waitUntil: 'domcontentloaded' });
 			await expectTaskBoardReady(page);
@@ -239,6 +362,7 @@ test.describe('Plans on the global Tasks board', () => {
 			await expect(page).toHaveURL(new RegExp(`/#plan-id=${planId}(?:&|$)`));
 			await expect(page.getByTestId('plan-detail-page')).toBeVisible({ timeout: 30000 });
 			await expect(page.getByTestId('tasks-nav-link')).toHaveAttribute('aria-current', 'page');
+			await verifyPlanChildPages(page, apiUrl, planId);
 		} finally {
 			if (planId) await page.request.delete(`${apiUrl}/v1/user-plans/${encodeURIComponent(planId)}`).catch(() => null);
 			if (projectId) {

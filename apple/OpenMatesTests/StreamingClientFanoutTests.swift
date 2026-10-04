@@ -486,7 +486,7 @@ final class StreamingClientFanoutTests: XCTestCase {
         XCTAssertEqual(try ComposerEmbedCrypto.decryptContent(encryptedContent, using: derivedKey), plaintext)
         XCTAssertEqual(try ComposerEmbedCrypto.decryptContent(encryptedType, using: derivedKey), "app_skill_use")
         XCTAssertEqual(persistedKeys.count, 2)
-        XCTAssertEqual(transport.sentTypes, ["request_embed", "store_embed_keys", "store_embed"])
+        XCTAssertEqual(transport.sentTypes, ["request_embed", "store_embed", "store_embed_keys"])
 
         let storePayload = try XCTUnwrap(transport.payload(for: "store_embed"))
         XCTAssertNil(storePayload["content"])
@@ -499,7 +499,7 @@ final class StreamingClientFanoutTests: XCTestCase {
         XCTAssertTrue(keys.contains { ($0["key_type"] as? String) == "master" && $0["hashed_chat_id"] is NSNull })
 
         await coordinator.handleEmbedData(fields)
-        XCTAssertEqual(transport.sentTypes, ["request_embed", "store_embed_keys", "store_embed"],
+        XCTAssertEqual(transport.sentTypes, ["request_embed", "store_embed", "store_embed_keys"],
                        "Duplicate finalized delivery must not create new wrappers or rows")
     }
 
@@ -567,54 +567,376 @@ final class StreamingClientFanoutTests: XCTestCase {
     }
 
     // contract-test: direct surface=gui.apple assertions=chats.persistence.client-encrypted,chats.rendering.assistant-document-convergence
-    func testLiveEmbedFailedPersistenceAcknowledgementReRequestsPayload() async throws {
-        let chatId = "chat-live-embed-retry"
-        let chatStore = ChatStore()
-        chatStore.upsertChat(Chat(
-            id: chatId,
-            title: "Synthetic retry chat",
-            lastMessageAt: nil,
-            createdAt: "2026-01-01T00:00:00Z",
-            updatedAt: nil,
-            isArchived: false,
-            isPinned: false,
-            appId: "ai",
-            encryptedTitle: nil,
-            encryptedChatKey: nil
-        ))
+    func testLiveEmbedHeadFailureSendsNoKeysAndRetriesIdenticalCiphertext() async throws {
+        let fixture = liveEmbedFixture()
+        fixture.transport.failNextResponse(ofType: "store_embed_confirmed")
+        await fixture.coordinator.handleEmbedData(fixture.fields)
+        XCTAssertEqual(fixture.transport.sentTypes, ["store_embed"])
+        let original = try XCTUnwrap(fixture.transport.payload(for: "store_embed")?["encrypted_content"] as? String)
+        // Duplicate delivery must reuse the original prepared encryption.
+        await fixture.coordinator.handleEmbedData(fixture.fields)
+        XCTAssertEqual(fixture.transport.sentTypes, ["store_embed", "store_embed", "store_embed_keys"])
+        XCTAssertEqual(fixture.transport.sentPayloads[1]["encrypted_content"] as? String, original)
+        await fixture.coordinator.retryPendingPersistence()
+        await fixture.coordinator.handleEmbedData(fixture.fields)
+        XCTAssertEqual(fixture.transport.sentTypes.count, 3, "Only two durable receipts deduplicate final delivery")
+        fixture.coordinator.reset()
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.persistence.client-encrypted
+    func testLiveEmbedRejectsWrongHeadIdentityDigestAndMissingStrictDigest() async throws {
+        for invalid in ["digest", "uppercase", "decoded", "embed", "request", "missing", "malformed"] {
+            let fixture = liveEmbedFixture()
+            fixture.transport.receiptTransform = { type, fields in
+                guard type == "store_embed_confirmed" else { return fields }
+                var fields = fields
+                switch invalid {
+                case "digest": fields["canonical_digest"] = String(repeating: "0", count: 64)
+                case "uppercase": fields["canonical_digest"] = (fields["canonical_digest"] as? String)?.uppercased()
+                case "decoded":
+                    let ciphertext = fixture.transport.sentPayloads.last?["encrypted_content"] as? String ?? ""
+                    fields["canonical_digest"] = SHA256.hash(data: Data(base64Encoded: ciphertext) ?? Data()).map { String(format: "%02x", $0) }.joined()
+                case "embed": fields["embed_id"] = "another-embed"
+                case "request": fields["request_id"] = "another-request"
+                case "missing": fields.removeValue(forKey: "canonical_digest")
+                default: fields["canonical_digest"] = NSNull()
+                }
+                return fields
+            }
+            await fixture.coordinator.handleEmbedData(fixture.fields)
+            XCTAssertEqual(fixture.transport.sentTypes, ["store_embed"], invalid)
+            let ciphertext = fixture.transport.sentPayloads[0]["encrypted_content"] as? String
+            fixture.transport.receiptTransform = nil
+            await fixture.coordinator.retryPendingPersistence()
+            XCTAssertEqual(fixture.transport.sentTypes, ["store_embed", "store_embed", "store_embed_keys"], invalid)
+            XCTAssertEqual(fixture.transport.sentPayloads[1]["encrypted_content"] as? String, ciphertext, invalid)
+            fixture.coordinator.reset()
+        }
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.persistence.client-encrypted
+    func testLiveEmbedLegacyReceiptRequiresExplicitStagedPolicy() async {
+        let fixture = liveEmbedFixture(policy: .allowLegacyReceipt)
+        fixture.transport.receiptTransform = { _, fields in
+            var fields = fields
+            fields.removeValue(forKey: "canonical_digest")
+            fields.removeValue(forKey: "canonical_source")
+            fields.removeValue(forKey: "requested_count")
+            return fields
+        }
+        await fixture.coordinator.handleEmbedData(fixture.fields)
+        XCTAssertEqual(fixture.transport.sentTypes, ["store_embed", "store_embed_keys"])
+        await fixture.coordinator.handleEmbedData(fixture.fields)
+        XCTAssertEqual(fixture.transport.sentTypes.count, 2, "Complete legacy receipts still deduplicate finalized delivery")
+        fixture.coordinator.reset()
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.persistence.client-encrypted
+    func testLiveEmbedCanonicalHeadSourceRejectsMalformedValuesAndRetriesOriginalCiphertext() async throws {
+        for policy in [ChatEmbedStreamCoordinator.HeadReceiptPolicy.requireCanonicalDigest, .allowLegacyReceipt] {
+            let invalidSources: [Any] = ["version_row", "HEAD", "", NSNull(), false, 1]
+            for source in invalidSources {
+                let fixture = liveEmbedFixture(policy: policy)
+                fixture.transport.receiptTransform = { type, fields in
+                    guard type == "store_embed_confirmed" else { return fields }
+                    return fields.merging(["canonical_source": source]) { _, new in new }
+                }
+                await fixture.coordinator.handleEmbedData(fixture.fields)
+                XCTAssertEqual(fixture.transport.sentTypes, ["store_embed"])
+                let original = try XCTUnwrap(fixture.transport.sentPayloads.first?["encrypted_content"] as? String)
+                fixture.transport.receiptTransform = nil
+                await fixture.coordinator.retryPendingPersistence()
+                XCTAssertEqual(fixture.transport.sentTypes, ["store_embed", "store_embed", "store_embed_keys"])
+                XCTAssertEqual(fixture.transport.sentPayloads[1]["encrypted_content"] as? String, original)
+                await fixture.coordinator.handleEmbedData(fixture.fields)
+                XCTAssertEqual(fixture.transport.sentTypes.count, 3)
+                fixture.coordinator.reset()
+            }
+        }
+        let strict = liveEmbedFixture()
+        strict.transport.receiptTransform = { type, fields in
+            var fields = fields
+            if type == "store_embed_confirmed" { fields.removeValue(forKey: "canonical_source") }
+            return fields
+        }
+        await strict.coordinator.handleEmbedData(strict.fields)
+        XCTAssertEqual(strict.transport.sentTypes, ["store_embed"], "Strict mode must not send wrappers without canonical head proof")
+        strict.transport.receiptTransform = nil
+        await strict.coordinator.retryPendingPersistence()
+        XCTAssertEqual(strict.transport.sentTypes, ["store_embed", "store_embed", "store_embed_keys"])
+        strict.coordinator.reset()
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.persistence.client-encrypted
+    func testLiveEmbedRequestedKeyCountRejectsMalformedValuesAndRetriesOriginalWrappers() async throws {
+        for policy in [ChatEmbedStreamCoordinator.HeadReceiptPolicy.requireCanonicalDigest, .allowLegacyReceipt] {
+            let invalidCounts: [Any] = [0, 1, 3, -1, NSNull(), false, "2", 2.5]
+            for count in invalidCounts {
+                let fixture = liveEmbedFixture(policy: policy)
+                fixture.transport.receiptTransform = { type, fields in
+                    guard type == "store_embed_keys_confirmed" else { return fields }
+                    return fields.merging(["requested_count": count]) { _, new in new }
+                }
+                await fixture.coordinator.handleEmbedData(fixture.fields)
+                XCTAssertEqual(fixture.transport.sentTypes, ["store_embed", "store_embed_keys"])
+                let original = try JSONSerialization.data(withJSONObject: fixture.transport.sentPayloads[1]["keys"]!, options: [.sortedKeys])
+                fixture.transport.receiptTransform = nil
+                await fixture.coordinator.retryPendingPersistence()
+                XCTAssertEqual(fixture.transport.sentTypes, ["store_embed", "store_embed_keys", "store_embed_keys"])
+                XCTAssertEqual(try JSONSerialization.data(withJSONObject: fixture.transport.sentPayloads[2]["keys"]!, options: [.sortedKeys]), original)
+                await fixture.coordinator.handleEmbedData(fixture.fields)
+                XCTAssertEqual(fixture.transport.sentTypes.count, 3, "A rejected count must not mark the finalized payload persisted")
+                fixture.coordinator.reset()
+            }
+        }
+        let strict = liveEmbedFixture()
+        strict.transport.receiptTransform = { type, fields in
+            var fields = fields
+            if type == "store_embed_keys_confirmed" { fields.removeValue(forKey: "requested_count") }
+            return fields
+        }
+        await strict.coordinator.handleEmbedData(strict.fields)
+        strict.transport.receiptTransform = nil
+        await strict.coordinator.retryPendingPersistence()
+        XCTAssertEqual(strict.transport.sentTypes, ["store_embed", "store_embed_keys", "store_embed_keys"])
+        strict.coordinator.reset()
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.persistence.client-encrypted,chats.rendering.assistant-document-convergence
+    func testLiveEmbedRejectsFailedPartialMissingAndMalformedKeyCounts() async throws {
+        let invalidCounts: [[String: Any]] = [
+            ["failed_count": 1, "created_count": 1],
+            ["failed_count": 0, "created_count": 1],
+            ["failed_count": 0, "created_count": 3],
+            ["failed_count": NSNull(), "created_count": 2],
+            ["failed_count": 0, "created_count": NSNull()],
+            ["failed_count": false, "created_count": 2],
+            ["failed_count": 0, "created_count": "2"],
+            ["failed_count": 0, "created_count": 2.5],
+            ["failed_count": -1, "created_count": 2],
+        ]
+        for counts in invalidCounts {
+            let fixture = liveEmbedFixture()
+            fixture.transport.receiptTransform = { type, fields in
+                guard type == "store_embed_keys_confirmed" else { return fields }
+                return fields.merging(counts) { _, new in new }
+            }
+            await fixture.coordinator.handleEmbedData(fixture.fields)
+            XCTAssertEqual(fixture.transport.sentTypes, ["store_embed", "store_embed_keys"])
+            let originalKeys = try JSONSerialization.data(withJSONObject: fixture.transport.sentPayloads[1]["keys"]!, options: [.sortedKeys])
+            fixture.transport.receiptTransform = nil
+            await fixture.coordinator.retryPendingPersistence()
+            XCTAssertEqual(fixture.transport.sentTypes, ["store_embed", "store_embed_keys", "store_embed_keys"])
+            XCTAssertEqual(try JSONSerialization.data(withJSONObject: fixture.transport.sentPayloads[2]["keys"]!, options: [.sortedKeys]), originalKeys)
+            await fixture.coordinator.handleEmbedData(fixture.fields)
+            XCTAssertEqual(fixture.transport.sentTypes.count, 3)
+            fixture.coordinator.reset()
+        }
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.persistence.client-encrypted,auth.session.isolation
+    func testLiveEmbedDisconnectRetainsRetryAfterAutomaticBudgetAndConfirmedHead() async throws {
+        let fixture = liveEmbedFixture()
+        fixture.transport.failNextResponse(ofType: "store_embed_keys_confirmed")
+        await fixture.coordinator.handleEmbedData(fixture.fields)
+        let originalKeys = try JSONSerialization.data(withJSONObject: fixture.transport.sentPayloads[1]["keys"]!, options: [.sortedKeys])
+        for _ in 0..<4 {
+            fixture.transport.failNextResponse(ofType: "store_embed_keys_confirmed")
+            await fixture.coordinator.retryPendingPersistence()
+        }
+        fixture.coordinator.transportDisconnected()
+        let pausedCount = fixture.transport.sentTypes.count
+        await fixture.coordinator.retryPendingPersistence()
+        XCTAssertEqual(fixture.transport.sentTypes.count, pausedCount)
+        await fixture.coordinator.transportConnected()
+        XCTAssertEqual(fixture.transport.sentTypes.filter { $0 == "store_embed" }.count, 1)
+        XCTAssertEqual(try JSONSerialization.data(withJSONObject: try XCTUnwrap(fixture.transport.sentPayloads.last?["keys"]), options: [.sortedKeys]), originalKeys)
+        await fixture.coordinator.handleEmbedData(fixture.fields)
+        XCTAssertEqual(fixture.transport.sentTypes.count, pausedCount + 1)
+        fixture.coordinator.reset()
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.persistence.client-encrypted
+    func testLiveEmbedWaitsForHeadReceiptBeforeKeysAndSuppressesConcurrentDuplicate() async {
+        let fixture = liveEmbedFixture()
+        let gate = EmbedMasterKeySuspensionGate()
+        fixture.transport.beforeReceipt = { type in
+            if type == "store_embed_confirmed" { await gate.waitForRelease() }
+        }
+        let handling = Task { @MainActor in await fixture.coordinator.handleEmbedData(fixture.fields) }
+        await gate.waitUntilEntered()
+        XCTAssertEqual(fixture.transport.sentTypes, ["store_embed"])
+        await fixture.coordinator.handleEmbedData(fixture.fields)
+        XCTAssertEqual(fixture.transport.sentTypes, ["store_embed"])
+        await gate.release()
+        await handling.value
+        XCTAssertEqual(fixture.transport.sentTypes, ["store_embed", "store_embed_keys"])
+        fixture.coordinator.reset()
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.persistence.client-encrypted
+    func testLiveEmbedSupersededVersionCannotResendOldHeadOrKeys() async throws {
+        let fixture = liveEmbedFixture()
+        let gate = EmbedMasterKeySuspensionGate()
+        fixture.transport.beforeReceipt = { type in
+            if type == "store_embed_confirmed" { await gate.waitForRelease() }
+        }
+        let old = Task { @MainActor in await fixture.coordinator.handleEmbedData(fixture.fields) }
+        await gate.waitUntilEntered()
+        var newer = fixture.fields
+        newer["version_number"] = 2
+        newer["embed_ids"] = ["new-version-child"]
+        let registered = EmbedMasterKeySuspensionGate()
+        fixture.transport.afterSend = { type in
+            if type == "request_embed" { await registered.markEntered() }
+        }
+        newer["content"] = "type: app_skill_use\napp_id: web\nskill_id: search\nquery: newer synthetic content"
+        let new = Task { @MainActor in await fixture.coordinator.handleEmbedData(newer) }
+        await registered.waitUntilEntered()
+        fixture.transport.beforeReceipt = nil
+        await gate.release()
+        await old.value
+        await new.value
+        XCTAssertEqual(fixture.transport.sentTypes, ["store_embed", "request_embed", "store_embed", "store_embed_keys"])
+        XCTAssertEqual(fixture.transport.sentPayloads[2]["version_number"] as? Int, 2)
+        await fixture.coordinator.handleEmbedData(fixture.fields)
+        await fixture.coordinator.retryPendingPersistence()
+        XCTAssertEqual(fixture.transport.sentTypes.count, 4)
+        XCTAssertEqual(fixture.store.embeds(for: "chat-live-receipts").first?.versionNumber, 2)
+        fixture.coordinator.reset()
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.persistence.client-encrypted,chats.rendering.assistant-document-convergence
+    func testDelayedOlderProcessingOrEncryptedPayloadCannotReplaceNewerFinalPreview() async {
+        for encrypted in [false, true] {
+            let fixture = liveEmbedFixture()
+            let gate = EmbedMasterKeySuspensionGate()
+            fixture.transport.afterSend = { type in
+                if type == "request_embed" { await gate.waitForRelease() }
+            }
+            var older = fixture.fields
+            older["embed_ids"] = ["synthetic-delayed-child"]
+            older["status"] = encrypted ? "finished" : "processing"
+            older["already_encrypted"] = encrypted
+            older["encrypted_content"] = "synthetic-old-cipher"
+            older["encrypted_type"] = "synthetic-old-type"
+            let handling = Task { @MainActor in await fixture.coordinator.handleEmbedData(older) }
+            await gate.waitUntilEntered()
+            var newer = fixture.fields
+            newer["version_number"] = 2
+            newer["content"] = "type: app_skill_use\napp_id: web\nskill_id: search\nquery: newer synthetic content"
+            await fixture.coordinator.handleEmbedData(newer)
+            let expected = fixture.store.embeds(for: "chat-live-receipts").first
+            XCTAssertEqual(expected?.versionNumber, 2)
+            XCTAssertEqual(expected?.status, .finished)
+            await gate.release()
+            await handling.value
+            let actual = fixture.store.embeds(for: "chat-live-receipts").first
+            XCTAssertEqual(actual?.versionNumber, 2)
+            XCTAssertEqual(actual?.encryptedContent, expected?.encryptedContent)
+            XCTAssertEqual(actual?.status, .finished)
+            XCTAssertEqual(fixture.transport.sentTypes, ["request_embed", "store_embed", "store_embed_keys"])
+            fixture.coordinator.reset()
+        }
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.persistence.client-encrypted,auth.session.isolation
+    func testLiveEmbedScopeChangeWhileHeadWaitsDoesNotSendKeys() async {
         let transport = ChatEmbedRecordingTransport()
-        transport.failNextResponse(ofType: "store_embed_keys_confirmed")
-        let coordinator = ChatEmbedStreamCoordinator(
-            transport: transport,
-            chatStore: chatStore,
-            authenticatedOwnerId: { "retry-owner" },
-            masterKey: { _ in SymmetricKey(size: .bits256) },
-            chatKey: { requestedChatId in
-                requestedChatId == chatId ? SymmetricKey(size: .bits256) : nil
-            },
-            persistEmbedKeys: { _ in },
-            retryDelay: { _ in .seconds(3_600) }
-        )
+        let store = ChatStore()
+        var scope = UUID()
+        let fixture = liveEmbedFixture(transport: transport, store: store, scope: { scope })
+        let gate = EmbedMasterKeySuspensionGate()
+        transport.beforeReceipt = { _ in await gate.waitForRelease() }
+        let handling = Task { @MainActor in await fixture.coordinator.handleEmbedData(fixture.fields) }
+        await gate.waitUntilEntered()
+        scope = UUID()
+        fixture.coordinator.reset()
+        transport.beforeReceipt = nil
+        await gate.release()
+        await handling.value
+        await fixture.coordinator.transportConnected()
+        XCTAssertEqual(transport.sentTypes, ["store_embed"])
+    }
 
-        await coordinator.handleEmbedData([
-            "embed_id": "retry-embed",
-            "type": "app_skill_use",
-            "status": "finished",
-            "chat_id": chatId,
-            "message_id": "retry-message",
-            "content": "type: app_skill_use\napp_id: web\nskill_id: search",
-            "app_id": "web",
-            "skill_id": "search",
-        ])
+    // contract-test: direct surface=gui.apple assertions=chats.persistence.client-encrypted,auth.session.isolation
+    func testLiveEmbedQueuedSendRechecksScopeBeforeAnySocketWrite() async {
+        let transport = ChatEmbedRecordingTransport()
+        var scope = UUID()
+        let fixture = liveEmbedFixture(transport: transport, scope: { scope })
+        let gate = EmbedMasterKeySuspensionGate()
+        transport.beforeQueuedSend = { await gate.waitForRelease() }
+        let handling = Task { @MainActor in await fixture.coordinator.handleEmbedData(fixture.fields) }
+        await gate.waitUntilEntered()
+        scope = UUID()
+        transport.beforeQueuedSend = nil
+        await gate.release()
+        await handling.value
+        XCTAssertTrue(transport.sentTypes.isEmpty, "Scope must be fenced inside the queued socket sender")
+        fixture.coordinator.reset()
+    }
 
-        XCTAssertEqual(transport.sentTypes, ["store_embed_keys"])
-        await coordinator.retryPendingPersistence()
-        XCTAssertEqual(
-            transport.sentTypes,
-            ["store_embed_keys", "request_embed"],
-            "A failed durable ACK must request the server payload again instead of permanently deduplicating it"
-        )
-        XCTAssertEqual(transport.sentPayloads.last?["embed_id"] as? String, "retry-embed")
+    // contract-test: direct surface=gui.apple assertions=chats.persistence.client-encrypted
+    func testLiveEmbedAbsentKeyCountsDoNotCompletePersistence() async {
+        for absent in ["failed_count", "created_count"] {
+            let fixture = liveEmbedFixture()
+            fixture.transport.receiptTransform = { type, fields in
+                var fields = fields
+                if type == "store_embed_keys_confirmed" { fields.removeValue(forKey: absent) }
+                return fields
+            }
+            await fixture.coordinator.handleEmbedData(fixture.fields)
+            fixture.transport.receiptTransform = nil
+            await fixture.coordinator.retryPendingPersistence()
+            XCTAssertEqual(fixture.transport.sentTypes, ["store_embed", "store_embed_keys", "store_embed_keys"])
+            fixture.coordinator.reset()
+        }
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.persistence.client-encrypted,auth.session.isolation
+    func testLiveEmbedQueuedKeySendRechecksDeletionBeforeSocketWrite() async {
+        let transport = ChatEmbedRecordingTransport()
+        var deletionVersion = 0
+        let fixture = liveEmbedFixture(transport: transport, deletionVersion: { _ in deletionVersion })
+        let gate = EmbedMasterKeySuspensionGate()
+        var sendCount = 0
+        transport.beforeQueuedSend = {
+            sendCount += 1
+            if sendCount == 2 { await gate.waitForRelease() }
+        }
+        let handling = Task { @MainActor in await fixture.coordinator.handleEmbedData(fixture.fields) }
+        await gate.waitUntilEntered()
+        XCTAssertEqual(transport.sentTypes, ["store_embed"])
+        deletionVersion = 1
+        transport.beforeQueuedSend = nil
+        await gate.release()
+        await handling.value
+        await fixture.coordinator.retryPendingPersistence()
+        XCTAssertEqual(transport.sentTypes, ["store_embed"], "Deleted chat keys must never reach a queued sender or retry")
+        fixture.coordinator.reset()
+    }
+
+    private func liveEmbedFixture(
+        policy: ChatEmbedStreamCoordinator.HeadReceiptPolicy = .requireCanonicalDigest,
+        transport: ChatEmbedRecordingTransport = ChatEmbedRecordingTransport(),
+        store: ChatStore = ChatStore(),
+        scope: @escaping () -> UUID = { OfflineStore.shared.scopeGeneration },
+        deletionVersion: @escaping (String) -> Int = { _ in 0 }
+    ) -> (coordinator: ChatEmbedStreamCoordinator, transport: ChatEmbedRecordingTransport, store: ChatStore, fields: [String: Any]) {
+        let chatId = "chat-live-receipts"
+        store.upsertChat(Chat(id: chatId, title: "Synthetic receipts", lastMessageAt: nil,
+            createdAt: "2026-01-01T00:00:00Z", updatedAt: nil, isArchived: false, isPinned: false,
+            appId: "ai", encryptedTitle: nil, encryptedChatKey: nil))
+        let chatKey = SymmetricKey(size: .bits256)
+        let masterKey = SymmetricKey(size: .bits256)
+        let coordinator = ChatEmbedStreamCoordinator(transport: transport, chatStore: store,
+            authenticatedOwnerId: { "synthetic-owner" }, masterKey: { _ in masterKey },
+            chatKey: { _ in chatKey }, persistEmbedKeys: { _ in }, accountScopeGeneration: scope,
+            chatDeletionVersion: deletionVersion, headReceiptPolicy: policy, retryDelay: { _ in .seconds(3_600) })
+        return (coordinator, transport, store, ["embed_id": "synthetic-receipt-embed",
+            "type": "app_skill_use", "status": "finished", "chat_id": chatId,
+            "message_id": "synthetic-message", "version_number": 1,
+            "content": "type: app_skill_use\napp_id: web\nskill_id: search"])
     }
 
     // contract-test: direct surface=gui.apple assertions=chats.persistence.client-encrypted,chats.rendering.assistant-document-convergence
@@ -669,16 +991,80 @@ final class StreamingClientFanoutTests: XCTestCase {
         XCTAssertNil(sidecarCiphertext)
         XCTAssertFalse(transport.sentTypes.contains("store_embed"))
 
+        var mappingless = fields
+        mappingless.removeValue(forKey: "owner_pii_mappings")
+        await coordinator.handleEmbedData(mappingless)
+        await coordinator.retryPendingPersistence()
+        XCTAssertTrue(chatStore.embeds(for: chatId).isEmpty, "A mapping-less redelivery cannot bypass a retained owner sidecar")
+        XCTAssertTrue(transport.sentTypes.isEmpty)
+
         masterAvailable = true
         await coordinator.retryPendingOwnerPersistence()
         let ciphertext = try XCTUnwrap(sidecarCiphertext)
         XCTAssertFalse(ciphertext.contains(original))
         XCTAssertEqual(chatStore.embeds(for: chatId).count, 1)
-        XCTAssertEqual(Array(transport.sentTypes.suffix(2)), ["store_embed_keys", "store_embed"])
+        XCTAssertEqual(Array(transport.sentTypes.suffix(2)), ["store_embed", "store_embed_keys"])
         let storedPayload = try XCTUnwrap(transport.payload(for: "store_embed"))
         XCTAssertNil(storedPayload["owner_pii_mappings"])
         XCTAssertFalse(String(describing: storedPayload).contains(original))
         XCTAssertFalse(String(describing: chatStore.embeds(for: chatId)).contains(original))
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.persistence.client-encrypted
+    func testMappinglessRedeliveryCannotBypassFailedOwnerSidecarWithEncryptionKeysReady() async throws {
+        let chatId = "synthetic-sidecar-failure", embedId = "synthetic-finance-embed"
+        let ownerId = "synthetic-owner", original = "Private Merchant Example"
+        let sanitized = "type: app_skill_use\napp_id: finance\nskill_id: check_accounts\ncounterparty: [COUNTERPARTY_1]"
+        let store = ChatStore()
+        store.performWithoutPersistence {
+            store.upsertChat(Chat(id: chatId, title: "Synthetic sidecar retry", lastMessageAt: nil,
+                createdAt: "2026-01-01T00:00:00Z", updatedAt: nil, isArchived: false, isPinned: false,
+                appId: "ai", encryptedTitle: nil, encryptedChatKey: nil))
+        }
+        let master = SymmetricKey(size: .bits256), chatKey = SymmetricKey(size: .bits256)
+        let transport = ChatEmbedRecordingTransport()
+        var sidecarReady = false, sidecarSaved = false
+        let coordinator = ChatEmbedStreamCoordinator(transport: transport, chatStore: store,
+            authenticatedOwnerId: { ownerId }, masterKey: { _ in master }, chatKey: { _ in chatKey },
+            persistEmbedKeys: { _ in },
+            persistOwnerPII: { mappings, storedChatId, storedEmbedId, storedOwnerId, _ in
+                XCTAssertEqual(storedChatId, chatId); XCTAssertEqual(storedEmbedId, embedId)
+                XCTAssertEqual(storedOwnerId, ownerId)
+                XCTAssertEqual(mappings, [PIIMapping(placeholder: "[COUNTERPARTY_1]", original: original, type: "COUNTERPARTY")])
+                guard sidecarReady else { throw NSError(domain: "SyntheticSidecar", code: 1) }
+                sidecarSaved = true
+            }, chatDeletionVersion: { _ in 0 }, retryDelay: { _ in .seconds(3_600) })
+        let fields: [String: Any] = ["embed_id": embedId, "type": "app_skill_use", "status": "finished",
+            "chat_id": chatId, "message_id": "synthetic-finance-message", "user_id": ownerId,
+            "app_id": "finance", "skill_id": "check_accounts", "content": sanitized,
+            "owner_pii_mappings": [["placeholder": "[COUNTERPARTY_1]", "original": original, "type": "COUNTERPARTY"]]]
+        await coordinator.handleEmbedData(fields)
+        // Exhaust automatic retry eligibility while keys remain available.
+        // The retained originals must still gate reconnect and redelivery.
+        for _ in 0..<61 { await coordinator.retryPendingOwnerPersistence() }
+        var redelivery = fields
+        redelivery.removeValue(forKey: "owner_pii_mappings")
+        redelivery["content"] = sanitized.replacingOccurrences(of: "[COUNTERPARTY_1]", with: original)
+        await coordinator.handleEmbedData(redelivery)
+        await coordinator.retryPendingPersistence()
+        coordinator.transportDisconnected()
+        await coordinator.transportConnected()
+        XCTAssertFalse(sidecarSaved)
+        XCTAssertFalse(transport.sentTypes.contains("store_embed"), "Available keys cannot bypass failed owner-only persistence")
+        XCTAssertTrue(store.embeds(for: chatId).isEmpty)
+
+        sidecarReady = true
+        coordinator.transportDisconnected()
+        await coordinator.transportConnected()
+        XCTAssertTrue(sidecarSaved)
+        XCTAssertEqual(transport.sentTypes, ["store_embed", "store_embed_keys"])
+        let cipher = try XCTUnwrap(transport.payload(for: "store_embed")?["encrypted_content"] as? String)
+        let restored = try ComposerEmbedCrypto.decryptContent(cipher,
+            using: ComposerEmbedCrypto.deriveKey(chatKey: chatKey, embedId: embedId))
+        XCTAssertEqual(restored, sanitized, "Retry must retain the original sanitized owner payload")
+        XCTAssertFalse(restored.contains(original))
+        await coordinator.handleEmbedData(fields)
+        XCTAssertEqual(transport.sentTypes, ["store_embed", "store_embed_keys"])
     }
 
     // contract-test: direct surface=gui.apple assertions=chats.persistence.client-encrypted
@@ -840,6 +1226,10 @@ private final class ChatEmbedRecordingTransport: ChatWebSocketTransport {
     private(set) var sentTypes: [String] = []
     private(set) var sentPayloads: [[String: Any]] = []
     private var failingResponseTypes = Set<String>()
+    var receiptTransform: ((String, [String: Any]) -> [String: Any])?
+    var beforeReceipt: ((String) async -> Void)?
+    var afterSend: ((String) async -> Void)?
+    var beforeQueuedSend: (() async -> Void)?
 
     func failNextResponse(ofType type: String) {
         failingResponseTypes.insert(type)
@@ -849,6 +1239,7 @@ private final class ChatEmbedRecordingTransport: ChatWebSocketTransport {
         let decoded = try Self.decode(message)
         sentTypes.append(decoded.type)
         sentPayloads.append(decoded.payload)
+        await afterSend?(decoded.type)
     }
 
     func sendAndWait(
@@ -857,14 +1248,40 @@ private final class ChatEmbedRecordingTransport: ChatWebSocketTransport {
         timeout: Duration,
         matching predicate: @escaping ([String: Any]) -> Bool
     ) async throws -> WebSocketResponse {
+        try await sendAndWait(message, responseType: responseType, timeout: timeout,
+                              matching: predicate, beforeSend: {})
+    }
+
+    func sendAndWait(
+        _ message: WSOutboundMessage,
+        responseType: String,
+        timeout: Duration,
+        matching predicate: @escaping ([String: Any]) -> Bool,
+        beforeSend: @escaping @MainActor () throws -> Void
+    ) async throws -> WebSocketResponse {
+        let decoded = try Self.decode(message)
+        await beforeQueuedSend?()
+        try beforeSend()
         try await send(message)
+        await beforeReceipt?(responseType)
         if failingResponseTypes.remove(responseType) != nil {
             throw RecordingTransportError.syntheticFailure
         }
         var responseFields: [String: Any] = [:]
-        if let requestId = sentPayloads.last?["request_id"] as? String {
+        if let requestId = decoded.payload["request_id"] as? String {
             responseFields["request_id"] = requestId
         }
+        if responseType == "store_embed_confirmed" {
+            responseFields["embed_id"] = decoded.payload["embed_id"]
+            responseFields["canonical_source"] = "head"
+            let ciphertext = decoded.payload["encrypted_content"] as? String ?? ""
+            responseFields["canonical_digest"] = SHA256.hash(data: Data(ciphertext.utf8)).map { String(format: "%02x", $0) }.joined()
+        } else if responseType == "store_embed_keys_confirmed" {
+            responseFields["created_count"] = (decoded.payload["keys"] as? [[String: Any]])?.count ?? 0
+            responseFields["requested_count"] = (decoded.payload["keys"] as? [[String: Any]])?.count ?? 0
+            responseFields["failed_count"] = 0
+        }
+        responseFields = receiptTransform?(responseType, responseFields) ?? responseFields
         guard predicate(responseFields) else { throw RecordingTransportError.predicateRejected }
         return WebSocketResponse(fields: responseFields, type: responseType)
     }
@@ -903,10 +1320,13 @@ private actor EmbedMasterKeySuspensionGate {
     private var entryWaiters: [CheckedContinuation<Void, Never>] = []
     private var releaseWaiters: [CheckedContinuation<Void, Never>] = []
 
-    func waitForRelease() async {
+    func markEntered() {
         entered = true
         for waiter in entryWaiters { waiter.resume() }
         entryWaiters.removeAll()
+    }
+    func waitForRelease() async {
+        markEntered()
         await withCheckedContinuation { releaseWaiters.append($0) }
     }
 

@@ -1,0 +1,25 @@
+schema_version: 1
+specification: feature.apple-recent-offline-chats@1
+cohort:
+- id: recent-versus-pinned
+  given: Twenty-one recent chats and older pinned/draft chats exist.
+  when: The background cohort is selected.
+  then: The newest twenty eligible chats are selected by actual edit recency and stable ID, with no pinned/draft
+    displacement.
+opening:
+- id: sixth-chat-offline
+  given: A chat outside the five startup windows has 250 cached messages and embeds.
+  when: The user opens it offline and pages in both directions.
+  then: A bounded window appears from disk without waiting for the server; saved anchors, older and newer pages
+    remain reachable.
+isolation:
+- id: navigation-and-account-change
+  given: A background refresh is active.
+  when: The user opens a chat, then switches account or team.
+  then: Foreground work preempts maintenance; stale responses cannot publish or persist under the new scope.
+integrity:
+- id: authoritative-deletion
+  given: A cached chat includes a removed server row and a pending local send.
+  when: A complete current snapshot is stored.
+  then: The deleted row is removed, the pending send survives, and missing keys or partial response never mark the
+    snapshot complete.

@@ -31,6 +31,19 @@ final class DevPreviewLaunchConfigurationTests: XCTestCase {
     }
 
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testSelectedTextAndFullscreenActionRoutesResolveToIsolatedFixtures() throws {
+        for variant in ["selected-text", "selected-text-user", "selected-text-readonly", "fork-settings",
+                        "action-calendar", "action-export", "action-memory", "action-memory-error",
+                        "action-pcb", "action-pcb-failed", "action-pcb-delayed", "action-pcb-recipient"] {
+            let config = try XCTUnwrap(DevPreviewLaunchConfiguration.parse(arguments:
+                ["--dev-preview", "message", "--dev-preview-variant", variant]))
+            XCTAssertNil(config.error, variant)
+            XCTAssertEqual(config.component, .message)
+            XCTAssertEqual(config.variant, variant)
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testURLArgumentsAndEnvironmentHaveSameConfigurationIdentity() throws {
         let props = #"{"markdown":"Synthetic 🪐 message","compact":false,"count":3,"tags":["a","b"]}"#
         let environment = [

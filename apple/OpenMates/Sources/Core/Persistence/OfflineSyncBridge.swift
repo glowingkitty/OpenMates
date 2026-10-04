@@ -5,6 +5,9 @@
 // 3. Queuing user actions when offline and replaying them on reconnect
 // 4. Network reachability monitoring via NWPathMonitor
 
+// Specification: specifications/features/apple-recent-offline-chats/specification.yml
+// Assertions: apple-offline.recent-cohort, apple-offline.local-first, apple-offline.interruption-isolation, apple-offline.snapshot-integrity
+
 import CryptoKit
 import Foundation
 import Network
@@ -33,18 +36,30 @@ final class OfflineSyncBridge: ObservableObject {
     private var isSessionActive = true
     private var latestPath: NWPath?
     private var offlinePrefetchTask: Task<Void, Never>?
-    private var offlinePrefetchCursor = 10
+    private var offlinePrefetchRunID: UUID?
+    private var offlinePrefetchNeedsRefresh = false
+    private var completedOfflineSnapshots: [String: String] = [:]
+    private var invalidatedOfflineSnapshots = Set<String>()
+    private var foregroundNavigationTask: Task<Void, Never>?
+    private var isForegroundActive = true
+    private var hasCompletedInitialSync = false
+    private let contentFetcher: (@MainActor (String) async throws -> Data)?
+    private let eligibilityOverride: (@MainActor () -> Bool)?
+    private let keyValidator: (@MainActor (Chat, [ChatKeyWrapperRecord]) async throws -> String?)?
 
-    private let offlinePrefetchChunkSize = 3
     private let startupRecentChatLimit = 20
-    private let offlinePrefetchMaxMessages = 10_000
-    private let offlinePrefetchInterChunkDelayNs: UInt64 = 2_000_000_000
 
-    init(chatStore: ChatStore, wsManager: WebSocketManager? = nil, offlineStore: OfflineStore = .shared) {
+    init(chatStore: ChatStore, wsManager: WebSocketManager? = nil, offlineStore: OfflineStore = .shared,
+         contentFetcher: (@MainActor (String) async throws -> Data)? = nil,
+         prefetchEligibility: (@MainActor () -> Bool)? = nil,
+         keyValidator: (@MainActor (Chat, [ChatKeyWrapperRecord]) async throws -> String?)? = nil) {
         self.chatStore = chatStore
         self.wsManager = wsManager
         self.offlineStore = offlineStore
         self.scopeGeneration = offlineStore.scopeGeneration
+        self.contentFetcher = contentFetcher
+        self.eligibilityOverride = prefetchEligibility
+        self.keyValidator = keyValidator
     }
 
     deinit {
@@ -66,8 +81,9 @@ final class OfflineSyncBridge: ObservableObject {
                 self.networkStatus = newStatus
                 self.offlineStore.setOffline(newStatus == .offline)
 
-                if wasOffline && newStatus == .online {
-                    await self.replayPendingActions()
+                if newStatus == .offline { self.cancelOfflinePrefetch() }
+                if newStatus == .online {
+                    if wasOffline { await self.replayPendingActions() }
                     self.startOfflinePrefetchIfEligible(reason: "networkRestored")
                 }
             }
@@ -75,113 +91,160 @@ final class OfflineSyncBridge: ObservableObject {
         pathMonitor.start(queue: monitorQueue)
     }
 
-    // MARK: - Optional offline content prefetch
+    // MARK: - Recent twenty-chat offline cohort
 
-    func startOfflinePrefetchIfEligible(reason: String) {
-        guard isCurrentSession, offlinePrefetchTask == nil else { return }
-        guard canRunOfflinePrefetch else {
-            NativeSyncPerfLog.info("phase=offlinePrefetch skipped reason=notEligible trigger=\(reason)")
-            return
+    @discardableResult
+    func startOfflinePrefetchIfEligible(reason: String) -> Task<Void, Never>? {
+        guard isCurrentSession else { return nil }
+        if reason == "startupSyncComplete" { hasCompletedInitialSync = true }
+        offlinePrefetchNeedsRefresh = true
+        if let offlinePrefetchTask { return offlinePrefetchTask }
+        guard canRunOfflinePrefetch else { return nil }
+        let runID = UUID()
+        offlinePrefetchRunID = runID
+        offlinePrefetchTask = Task(priority: .utility) { @MainActor [weak self] in
+            await self?.runOfflinePrefetch(runID: runID)
         }
-
-        offlinePrefetchTask = Task { @MainActor [weak self] in
-            await self?.runOfflinePrefetch(reason: reason)
-        }
+        return offlinePrefetchTask
     }
 
     func cancelOfflinePrefetch() {
+        offlinePrefetchRunID = nil
         offlinePrefetchTask?.cancel()
         offlinePrefetchTask = nil
     }
 
-    private var canRunOfflinePrefetch: Bool {
-        guard networkStatus == .online else { return false }
-        if let latestPath {
-            guard latestPath.status == .satisfied else { return false }
-            guard !latestPath.isExpensive && !latestPath.isConstrained else { return false }
-        }
-        let processInfo = ProcessInfo.processInfo
-        guard !processInfo.isLowPowerModeEnabled else { return false }
-        switch processInfo.thermalState {
-        case .nominal, .fair:
-            break
-        case .serious, .critical:
-            return false
-        @unknown default:
-            return false
-        }
-        return offlineStore.persistedMessageCount() < offlinePrefetchMaxMessages
+    func waitForOfflinePrefetch() async {
+        while let task = offlinePrefetchTask { await task.value }
     }
 
-    private func runOfflinePrefetch(reason: String) async {
-        defer { offlinePrefetchTask = nil }
+    func setForegroundActive(_ active: Bool) {
+        isForegroundActive = active
+        if active { startOfflinePrefetchIfEligible(reason: "foreground") }
+        else {
+            foregroundNavigationTask?.cancel()
+            foregroundNavigationTask = nil
+            cancelOfflinePrefetch()
+        }
+    }
 
-        let generation = offlineStore.scopeGeneration
-        var cursor = offlinePrefetchCursor
-        NativeSyncPerfLog.info("phase=offlinePrefetch start cursor=\(cursor) reason=\(reason)")
+    func foregroundDidNavigate() {
+        cancelOfflinePrefetch()
+        foregroundNavigationTask?.cancel()
+        foregroundNavigationTask = Task { @MainActor [weak self] in
+            do { try await Task.sleep(for: .seconds(1)) } catch { return }
+            guard let self, self.isCurrentSession else { return }
+            self.foregroundNavigationTask = nil
+            self.startOfflinePrefetchIfEligible(reason: "navigationSettled")
+        }
+    }
 
-        while !Task.isCancelled && canRunOfflinePrefetch {
-            do {
-                let response: OfflinePrefetchResponse = try await APIClient.shared.request(
-                    .post,
-                    path: "/v1/sync/offline-prefetch",
-                    body: OfflinePrefetchRequest(
-                        cursor: cursor,
-                        limit: offlinePrefetchChunkSize,
-                        includeEmbeds: true
-                    )
-                )
-                guard !Task.isCancelled, isCurrentSession,
-                      generation == offlineStore.scopeGeneration else { return }
-                persistOfflinePrefetch(response)
+    private var canRunOfflinePrefetch: Bool {
+        guard isCurrentSession, hasCompletedInitialSync, isForegroundActive,
+              foregroundNavigationTask == nil else { return false }
+        if let eligibilityOverride { return eligibilityOverride() }
+        guard networkStatus == .online, wsManager?.connectionState == .connected else { return false }
+        if let latestPath {
+            guard latestPath.status == .satisfied, !latestPath.isExpensive, !latestPath.isConstrained else { return false }
+        }
+        guard !ProcessInfo.processInfo.isLowPowerModeEnabled else { return false }
+        switch ProcessInfo.processInfo.thermalState {
+        case .nominal, .fair: return true
+        default: return false
+        }
+    }
 
-                NativeSyncPerfLog.info(
-                    "phase=offlinePrefetch chunk cursor=\(cursor) next=\(response.nextCursor.map(String.init) ?? "done") chats=\(response.chats.count) messages=\(response.messagesByChatId.values.reduce(0) { $0 + $1.count }) embeds=\(response.embeds.count) done=\(response.done)"
-                )
+    private func isCurrentPrefetch(_ runID: UUID) -> Bool {
+        !Task.isCancelled && offlinePrefetchRunID == runID && canRunOfflinePrefetch
+    }
 
-                guard let nextCursor = response.nextCursor, !response.done else {
-                    offlinePrefetchCursor = 10
-                    return
-                }
-                offlinePrefetchCursor = nextCursor
-                cursor = nextCursor
-                try? await Task.sleep(nanoseconds: offlinePrefetchInterChunkDelayNs)
-            } catch {
-                NativeSyncPerfLog.warning("phase=offlinePrefetch failed cursor=\(cursor) error=\(error.localizedDescription)")
-                return
+    private func runOfflinePrefetch(runID: UUID) async {
+        defer {
+            if offlinePrefetchRunID == runID {
+                offlinePrefetchTask = nil
+                offlinePrefetchRunID = nil
             }
         }
+        guard let writer = await offlineStore.makeRecentChatCacheWriter(), isCurrentPrefetch(runID) else { return }
+        let started = NativeSyncPerfLog.now()
+        var cachedCount = 0
+        while offlinePrefetchNeedsRefresh && isCurrentPrefetch(runID) {
+            offlinePrefetchNeedsRefresh = false
+            let cohort = OfflineRecentChatPolicy.cohort(from: chatStore.chats)
+            // One request at a time. Neither decoded transcript rows nor embeds
+            // are published to ChatStore by this background maintenance pass.
+            for chat in cohort {
+                guard isCurrentPrefetch(runID) else { return }
+                let revision = OfflineRecentChatPolicy.revision(of: chat)
+                if !invalidatedOfflineSnapshots.contains(chat.id),
+                   completedOfflineSnapshots[chat.id] == revision || offlineStore.hasCompleteOfflineSnapshot(for: chat) { continue }
+                let deletionVersion = offlineStore.chatDeletionVersion(chat.id)
+                let writeFence = offlineStore.recentContentWriteFence(for: chat.id)
+                do {
+                    let data: Data
+                    if let contentFetcher { data = try await contentFetcher(chat.id) }
+                    else {
+                        guard let wsManager else { throw OfflineDraftReplayError.transportUnavailable }
+                        let response = try await wsManager.requestChatContentBatch(chatId: chat.id, beforeSend: { [weak self] in
+                            guard let self, self.isCurrentPrefetch(runID) else { throw CancellationError() }
+                        })
+                        data = try JSONSerialization.data(withJSONObject: response.fields)
+                    }
+                    guard isCurrentPrefetch(runID), offlineStore.chatDeletionVersion(chat.id) == deletionVersion,
+                          let current = chatStore.chat(for: chat.id),
+                          OfflineRecentChatPolicy.revision(of: current) == revision else { continue }
+                    let snapshot = try await writer.decode(data, chatId: chat.id)
+                    guard isCurrentPrefetch(runID), offlineStore.chatDeletionVersion(chat.id) == deletionVersion else { return }
+                    let validatedWrapper = try await validateSnapshotKey(chat: chat, snapshot: snapshot)
+                    guard isCurrentPrefetch(runID), offlineStore.chatDeletionVersion(chat.id) == deletionVersion else { return }
+                    let pending = pendingUserMessageIds(in: chat.id).union(chatStore.pendingAssistantRecoveryMessageIds(in: chat.id))
+                    try await writer.persist(snapshot, chat: chat, validatedWrapper: validatedWrapper, preserving: pending, fence: writeFence)
+                    guard isCurrentPrefetch(runID), offlineStore.chatDeletionVersion(chat.id) == deletionVersion else { return }
+                    guard writeFence.isCurrent else { continue }
+                    EmbedKeyManager.shared.store(snapshot.embedKeys, source: "recentOfflineCohort")
+                    completedOfflineSnapshots[chat.id] = revision
+                    invalidatedOfflineSnapshots.remove(chat.id)
+                    cachedCount += 1
+                    await Task.yield()
+                } catch is CancellationError {
+                    return
+                } catch {
+                    guard isCurrentPrefetch(runID) else { return }
+                    NativeSyncPerfLog.warning("phase=recentOfflineCache result=failed category=\(String(describing: type(of: error)))")
+                }
+            }
+        }
+        NativeSyncPerfLog.info("phase=recentOfflineCache cachedChats=\(cachedCount) elapsedMs=\(NativeSyncPerfLog.ms(since: started))")
     }
 
-    private func persistOfflinePrefetch(_ response: OfflinePrefetchResponse) {
-        let eligibleChats = response.chats.filter { !$0.isHiddenFromNormalSurfaces }
-        let skippedChats = response.chats.count - eligibleChats.count
-        let eligibleChatIds = response.chats.isEmpty ? nil : Set(eligibleChats.map(\.id))
-
-        if !eligibleChats.isEmpty {
-            offlineStore.persistChats(eligibleChats)
+    private func validateSnapshotKey(chat: Chat, snapshot: OfflineRecentChatSnapshot) async throws -> String? {
+        if let keyValidator { return try await keyValidator(chat, snapshot.chatKeyWrappers) }
+        let needsKey = snapshot.messages.contains { $0.encryptedContent != nil }
+            || snapshot.embeds.contains { $0.encryptedContent != nil || $0.encryptedType != nil }
+            || chat.encryptedTitle != nil
+        let expectedScope = offlineStore.scopeGeneration
+        let userID = await AuthManager.currentUserId()
+        guard isCurrentSession, expectedScope == offlineStore.scopeGeneration, !Task.isCancelled else { throw CancellationError() }
+        guard let userID, let masterKey = try? await CryptoManager.shared.loadMasterKey(for: userID) else {
+            if needsKey { throw OfflineRecentChatCacheError.keyUnavailable }
+            return nil
         }
-        if !response.embedKeys.isEmpty {
-            EmbedKeyManager.shared.store(response.embedKeys, source: "offlinePrefetch")
-            offlineStore.persistEmbedKeys(response.embedKeys)
+        guard isCurrentSession, expectedScope == offlineStore.scopeGeneration, !Task.isCancelled else { throw CancellationError() }
+        let manager = ChatKeyManager.shared
+        if !snapshot.chatKeyWrappers.isEmpty {
+            guard await manager.loadChatKey(chatId: chat.id, wrappers: snapshot.chatKeyWrappers, masterKey: masterKey) else {
+                throw OfflineRecentChatCacheError.keyUnavailable
+            }
+        } else if let encryptedKey = chat.encryptedChatKey {
+            guard await manager.loadChatKey(chatId: chat.id, encryptedChatKey: encryptedKey, masterKey: masterKey) else {
+                throw OfflineRecentChatCacheError.keyUnavailable
+            }
+        } else if needsKey && !manager.hasKey(for: chat.id) {
+            throw OfflineRecentChatCacheError.keyUnavailable
         }
-
-        let messagesByChat = response.decodedMessagesByChat().filter { chatId, _ in
-            eligibleChatIds?.contains(chatId) ?? true
-        }
-        if !messagesByChat.isEmpty {
-            offlineStore.persistMessagesBatch(messagesByChat)
-        }
-
-        let embedsByChat = response.groupedEmbedsByChat(messagesByChat: messagesByChat).filter { chatId, _ in
-            eligibleChatIds?.contains(chatId) ?? true
-        }
-        if !embedsByChat.isEmpty {
-            offlineStore.persistEmbedsBatch(embedsByChat)
-        }
-        if skippedChats > 0 {
-            NativeSyncPerfLog.info("phase=offlinePrefetch skippedHiddenChats=\(skippedChats)")
-        }
+        guard isCurrentSession, expectedScope == offlineStore.scopeGeneration, !Task.isCancelled else { throw CancellationError() }
+        if needsKey && manager.encryptedKey(for: chat.id) == nil { throw OfflineRecentChatCacheError.keyUnavailable }
+        return manager.encryptedKey(for: chat.id)
     }
 
     // MARK: - Cold boot: load from disk before network is available
@@ -229,6 +292,7 @@ final class OfflineSyncBridge: ObservableObject {
     func onChatsReceived(_ chats: [Chat]) {
         guard isCurrentSession else { return }
         offlineStore.persistChats(chats)
+        startOfflinePrefetchIfEligible(reason: "metadataChanged")
     }
 
     func pendingUserMessageIds(in chatId: String) -> Set<String> {
@@ -244,11 +308,17 @@ final class OfflineSyncBridge: ObservableObject {
     func onMessagesReceived(_ messages: [Message], chatId: String) {
         guard isCurrentSession else { return }
         offlineStore.persistMessages(messages, chatId: chatId)
+        completedOfflineSnapshots.removeValue(forKey: chatId)
+        invalidatedOfflineSnapshots.insert(chatId)
+        startOfflinePrefetchIfEligible(reason: "messagesChanged")
     }
 
     func onEmbedsReceived(_ embeds: [EmbedRecord], chatId: String) {
         guard isCurrentSession else { return }
         offlineStore.persistEmbeds(embeds, chatId: chatId)
+        completedOfflineSnapshots.removeValue(forKey: chatId)
+        invalidatedOfflineSnapshots.insert(chatId)
+        startOfflinePrefetchIfEligible(reason: "embedsChanged")
     }
 
     func onSyncContentReceived(
@@ -262,11 +332,17 @@ final class OfflineSyncBridge: ObservableObject {
         if !embedsByChat.isEmpty {
             offlineStore.persistEmbedsBatch(embedsByChat)
         }
+        invalidatedOfflineSnapshots.formUnion(messagesByChat.keys)
+        invalidatedOfflineSnapshots.formUnion(embedsByChat.keys)
+        startOfflinePrefetchIfEligible(reason: "syncedContentChanged")
     }
 
     func onChatDeleted(_ chatId: String) {
         guard isCurrentSession else { return }
+        cancelOfflinePrefetch()
+        completedOfflineSnapshots.removeValue(forKey: chatId)
         offlineStore.deleteChat(chatId)
+        startOfflinePrefetchIfEligible(reason: "chatDeleted")
     }
 
     // MARK: - Queue offline actions
@@ -477,6 +553,8 @@ final class OfflineSyncBridge: ObservableObject {
     // Stop old-session callbacks without deleting its queued offline work.
     func stopSession() {
         isSessionActive = false
+        foregroundNavigationTask?.cancel()
+        foregroundNavigationTask = nil
         cancelOfflinePrefetch()
         pathMonitor.cancel()
     }
@@ -490,75 +568,27 @@ private enum OfflineDraftReplayError: Error {
     case transportUnavailable
 }
 
-private struct OfflinePrefetchRequest: Encodable {
-    let cursor: Int
-    let limit: Int
-    let includeEmbeds: Bool
-}
+// Dedicated cache ordering is independent of sidebar pin/draft presentation.
+enum OfflineRecentChatPolicy {
+    static let capacity = 20
 
-private struct OfflinePrefetchResponse: Decodable {
-    let chats: [Chat]
-    let messagesByChatId: [String: [String]]
-    let embeds: [EmbedRecord]
-    let embedKeys: [EmbedKeyRecord]
-    let nextCursor: Int?
-    let done: Bool
-
-    func decodedMessagesByChat() -> [String: [Message]] {
-        let decoder = JSONDecoder()
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
-        return messagesByChatId.mapValues { rawMessages in
-            rawMessages.compactMap { raw in
-                guard let data = raw.data(using: .utf8) else { return nil }
-                return try? decoder.decode(Message.self, from: data)
-            }
-        }.filter { !$0.value.isEmpty }
+    static func recency(of chat: Chat) -> String {
+        chat.lastEditedOverallTimestamp ?? [chat.updatedAt, chat.lastMessageAt, chat.createdAt].compactMap { $0 }.max() ?? chat.createdAt
     }
 
-    func groupedEmbedsByChat(messagesByChat: [String: [Message]]) -> [String: [EmbedRecord]] {
-        var result: [String: [EmbedRecord]] = [:]
-        var chatIdsByHash: [String: String] = [:]
-        for chat in chats {
-            let digest = SHA256.hash(data: Data(chat.id.utf8))
-            chatIdsByHash[digest.map { String(format: "%02x", $0) }.joined()] = chat.id
-        }
+    static func revision(of chat: Chat) -> String {
+        "\(chat.messagesV ?? 0)|\(recency(of: chat))"
+    }
 
-        let embedsById = EmbedRecord.dictionaryById(embeds, context: "offlinePrefetch")
-        for chat in chats {
-            let referencedIds = Set(messagesByChat[chat.id]?.flatMap { $0.embedRefs?.map(\.id) ?? [] } ?? [])
-            if referencedIds.isEmpty {
-                let digest = SHA256.hash(data: Data(chat.id.utf8))
-                let hashedChatId = digest.map { String(format: "%02x", $0) }.joined()
-                let hashedEmbeds = embeds.filter { $0.hashedChatId == hashedChatId }
-                if !hashedEmbeds.isEmpty {
-                    result[chat.id] = hashedEmbeds
-                }
-                continue
-            }
-
-            var includedIds = referencedIds
-            var changed = true
-            while changed {
-                changed = false
-                for embed in embeds {
-                    let referencesParent = embed.parentEmbedId.map { includedIds.contains($0) } ?? false
-                    let referencesChild = !Set(embed.childEmbedIds).isDisjoint(with: includedIds)
-                    if (referencesParent || referencesChild), includedIds.insert(embed.id).inserted {
-                        changed = true
-                    }
-                }
-            }
-            let related = includedIds.compactMap { embedsById[$0] }
-            if !related.isEmpty {
-                result[chat.id] = related
-            }
-        }
-
-        for embed in embeds {
-            guard let hashedChatId = embed.hashedChatId, let chatId = chatIdsByHash[hashedChatId] else { continue }
-            result[chatId, default: []].append(embed)
-        }
-
-        return result.mapValues { EmbedRecord.deduplicatedById($0, context: "offlinePrefetch") }
+    static func cohort(from chats: [Chat]) -> [Chat] {
+        Array(chats.filter {
+            $0.parentId == nil && $0.isSubChat != true && !$0.isHiddenFromNormalSurfaces
+                && !IncognitoChatSession.isIncognitoChatId($0.id)
+                && !$0.id.hasPrefix("demo-") && !$0.id.hasPrefix("example-")
+                && !$0.id.hasPrefix("announcements-")
+        }.sorted {
+            let left = recency(of: $0), right = recency(of: $1)
+            return left == right ? $0.id < $1.id : left > right
+        }.prefix(capacity))
     }
 }

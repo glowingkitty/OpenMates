@@ -13,11 +13,11 @@ final class LocalModelLabControllerTests: XCTestCase {
         let fixture = try await fixture()
         defer { fixture.cleanup() }
         fixture.controller.privacyText = "Disposable test person"
-        fixture.controller.speechText = "Disposable speech"
+        fixture.controller.importAudio(try fixture.writeAudio())
         fixture.controller.run(.privacyFilter, enabled: true)
         var started = fixture.runStarted.makeAsyncIterator()
         _ = await started.next()
-        fixture.controller.run(.kokoro, enabled: true)
+        fixture.controller.run(.whisper, enabled: true)
         XCTAssertEqual(fixture.controller.runningModel, .privacyFilter)
         let runs = await fixture.runtime.runCount
         XCTAssertEqual(runs, 1)
@@ -67,10 +67,8 @@ final class LocalModelLabControllerTests: XCTestCase {
         await fixture.finish()
         XCTAssertNotNil(fixture.controller.output)
         XCTAssertEqual(fixture.controller.resultInput, "Disposable test person")
-        fixture.controller.speechText = "Disposable speech"
         XCTAssertTrue(FileManager.default.fileExists(atPath: imported.path))
         fixture.controller.leave()
-        XCTAssertEqual(fixture.controller.speechText, "")
         XCTAssertEqual(fixture.controller.privacyText, "")
         XCTAssertEqual(fixture.controller.resultInput, "")
         XCTAssertNil(fixture.controller.audioInput)
@@ -90,13 +88,11 @@ final class LocalModelLabControllerTests: XCTestCase {
         fixture.controller.importAudio(try fixture.writeAudio())
         let imported = try XCTUnwrap(fixture.controller.audioInput)
         fixture.controller.privacyText = "Disposable private input"
-        fixture.controller.speechText = "Disposable speech"
         fixture.controller.run(.whisper, enabled: true)
         var started = fixture.runStarted.makeAsyncIterator()
         _ = await started.next()
         fixture.controller.leave()
         XCTAssertEqual(fixture.controller.privacyText, "")
-        XCTAssertEqual(fixture.controller.speechText, "")
         XCTAssertNil(fixture.controller.audioInput)
         XCTAssertNil(fixture.controller.output)
         XCTAssertTrue(fixture.controller.busy)
@@ -124,19 +120,109 @@ final class LocalModelLabControllerTests: XCTestCase {
     }
 
     // contract-test: supporting surface=gui.apple assertions=apple-local-model-lab.availability
-    func testCapabilityPolicyRejectsIntelAndKokoroOnOS27AndLater() {
+    func testCapabilityPolicyRejectsUnsupportedArchitecture() {
         for id in LocalModelID.allCases {
-            XCTAssertNotNil(LocalModelLabAvailability.unavailableReason(for: id, architectureSupported: false, osMajorVersion: 26))
-        }
-        XCTAssertNil(LocalModelLabAvailability.unavailableReason(for: .kokoro, architectureSupported: true, osMajorVersion: 26))
-        for os in [27, 28] {
-            XCTAssertNotNil(LocalModelLabAvailability.unavailableReason(for: .kokoro, architectureSupported: true, osMajorVersion: os))
-            XCTAssertNil(LocalModelLabAvailability.unavailableReason(for: .whisper, architectureSupported: true, osMajorVersion: os))
-            XCTAssertNil(LocalModelLabAvailability.unavailableReason(for: .privacyFilter, architectureSupported: true, osMajorVersion: os))
+            XCTAssertNotNil(LocalModelLabAvailability.unavailableReason(for: id, architectureSupported: false))
+            XCTAssertNil(LocalModelLabAvailability.unavailableReason(for: id, architectureSupported: true))
         }
     }
 
-    private func fixture(available: Bool = true) async throws -> LabControllerFixture {
+    // contract-test: supporting surface=gui.apple assertions=apple-local-model-lab.local-execution
+    func testMeasuredPhasesUseInjectedMonotonicClockAndRunScopedMemory() {
+        let probe = LabMeasurementProbe()
+        let measurement = LocalModelRunMeasurement(now: { probe.time }, memory: { probe.bytes }, warningAfter: 30)
+        probe.advance(time: 2, bytes: 120)
+        measurement.transition(.tokenizerPreparation)
+        probe.advance(time: 4, bytes: 150)
+        measurement.sample()
+        measurement.transition(.modelLoading)
+        // An out-of-order callback cannot reopen an earlier phase.
+        measurement.transition(.submission)
+        probe.advance(time: 35, bytes: 140)
+        XCTAssertTrue(measurement.sample())
+        XCTAssertFalse(measurement.sample(), "A long phase emits one warning only")
+        XCTAssertTrue(measurement.snapshot().warning)
+        measurement.transition(.transcription)
+        XCTAssertFalse(measurement.snapshot().warning)
+        probe.advance(time: 37, bytes: 110)
+        measurement.transition(.cleanup)
+        probe.advance(time: 39, bytes: 105)
+        measurement.sample()
+        measurement.transition(.completion)
+        let final = measurement.snapshot()
+        XCTAssertEqual(final.timings.map(\.phase), [.submission, .tokenizerPreparation, .modelLoading, .transcription, .cleanup])
+        XCTAssertEqual(final.timings.map(\.durationSeconds), [2, 2, 31, 2, 2])
+        XCTAssertEqual(final.elapsed, 39)
+        XCTAssertEqual(final.baselineBytes, 100)
+        XCTAssertEqual(final.peakBytes, 150)
+        XCTAssertEqual(final.endBytes, 105)
+        // A new run does not inherit the previous run's peak.
+        let second = LocalModelRunMeasurement(now: { probe.time }, memory: { probe.bytes })
+        XCTAssertEqual(second.snapshot().peakBytes, 105)
+    }
+
+    // contract-test: direct surface=gui.apple assertions=apple-local-model-lab.local-execution,apple-local-model-lab.serialized-cancellation,apple-local-model-lab.ephemeral-state
+    func testCompletionIncludesCleanupAndRejectsLatePhaseFromPriorRun() async throws {
+        let fixture = try await fixture()
+        defer { fixture.cleanup() }
+        fixture.controller.privacyText = "Disposable test person"
+        fixture.controller.run(.privacyFilter, enabled: true)
+        var started = fixture.runStarted.makeAsyncIterator()
+        _ = await started.next()
+        await fixture.finish()
+        XCTAssertEqual(fixture.controller.phase, .completion)
+        XCTAssertEqual(fixture.controller.phaseTimings.map(\.phase), [.submission, .inference, .cleanup])
+        XCTAssertNotNil(fixture.controller.baselineResidentBytes)
+        XCTAssertNotNil(fixture.controller.endResidentBytes)
+        fixture.controller.run(.privacyFilter, enabled: true)
+        _ = await started.next()
+        await fixture.runtime.emitPreviousPhase(.completion)
+        await Task.yield()
+        XCTAssertEqual(fixture.controller.phase, .inference, "Prior run callbacks cannot update the new generation")
+        await fixture.finish()
+    }
+
+    // contract-test: direct surface=gui.apple assertions=apple-local-model-lab.serialized-cancellation,apple-local-model-lab.ephemeral-state
+    func testPendingMicrophonePermissionReservesOwnershipAndLateGrantAfterExitIsIgnored() async throws {
+        let started = AsyncStream<Void>.makeStream()
+        let permission = DelayedLabPermission(started: started.continuation)
+        let fixture = try await fixture(microphonePermission: { await permission.request() })
+        defer { fixture.cleanup() }
+        fixture.controller.privacyText = "Disposable test person"
+        let request = Task { await fixture.controller.startRecording() }
+        var iterator = started.stream.makeAsyncIterator()
+        _ = await iterator.next()
+        XCTAssertTrue(fixture.controller.busy)
+        XCTAssertTrue(fixture.controller.isRequestingMicrophone)
+        fixture.controller.run(.privacyFilter, enabled: true)
+        XCTAssertNil(fixture.controller.runningModel)
+        fixture.controller.leave()
+        await permission.finish(granted: true)
+        await request.value
+        XCTAssertFalse(fixture.controller.busy)
+        XCTAssertFalse(fixture.controller.isRecording)
+        XCTAssertFalse(fixture.controller.isRequestingMicrophone)
+        XCTAssertNil(fixture.controller.audioInput)
+    }
+
+    // contract-test: direct surface=gui.apple assertions=apple-local-model-lab.serialized-cancellation
+    func testMicrophoneDenialReleasesReservedOwnership() async throws {
+        let started = AsyncStream<Void>.makeStream()
+        let permission = DelayedLabPermission(started: started.continuation)
+        let fixture = try await fixture(microphonePermission: { await permission.request() })
+        defer { fixture.cleanup() }
+        let request = Task { await fixture.controller.startRecording() }
+        var iterator = started.stream.makeAsyncIterator()
+        _ = await iterator.next()
+        await permission.finish(granted: false)
+        await request.value
+        XCTAssertFalse(fixture.controller.busy)
+        XCTAssertFalse(fixture.controller.isRequestingMicrophone)
+        XCTAssertNotNil(fixture.controller.errorMessage)
+    }
+
+    private func fixture(available: Bool = true,
+                         microphonePermission: @escaping @MainActor () async -> Bool = { false }) async throws -> LabControllerFixture {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("local-lab-test-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let bytes = Data("disposable fixture asset".utf8)
@@ -159,7 +245,7 @@ final class LocalModelLabControllerTests: XCTestCase {
         let unloading = AsyncStream<Void>.makeStream()
         let runtime = ControlledLabRuntime(started: started.continuation, unloading: unloading.continuation)
         let controller = LocalModelLabController(store: store, temporaryRoot: root,
-            availability: { _ in available ? nil : AppStrings.localLabArchitectureUnavailable },
+            microphonePermission: microphonePermission, availability: { _ in available ? nil : AppStrings.localLabArchitectureUnavailable },
             runtimeFactory: { _ in runtime })
         return LabControllerFixture(root: root, controller: controller, runtime: runtime,
                                     runStarted: started.stream, unloadStarted: unloading.stream)
@@ -182,6 +268,8 @@ private actor ControlledLabRuntime: LocalModelRuntime {
     private var runContinuation: CheckedContinuation<LocalModelTestOutput, Never>?
     private var unloadContinuation: CheckedContinuation<Void, Never>?
     private(set) var runCount = 0
+    private var progress: (@Sendable (LocalModelRunPhase) -> Void)?
+    private var previousProgress: (@Sendable (LocalModelRunPhase) -> Void)?
     init(started: AsyncStream<Void>.Continuation, unloading: AsyncStream<Void>.Continuation) {
         self.started = started
         self.unloading = unloading
@@ -193,6 +281,14 @@ private actor ControlledLabRuntime: LocalModelRuntime {
             started.yield(())
         }
     }
+    func run(_ request: LocalModelTestRequest, directory: URL,
+             progress: @escaping @Sendable (LocalModelRunPhase) -> Void) async throws -> LocalModelTestOutput {
+        previousProgress = self.progress
+        self.progress = progress
+        progress(.inference)
+        return try await run(request, directory: directory)
+    }
+    func emitPreviousPhase(_ phase: LocalModelRunPhase) { previousProgress?(phase) }
     func unload() async {
         await withCheckedContinuation { continuation in
             unloadContinuation = continuation
@@ -239,4 +335,28 @@ private struct LabControllerFixture {
         }
         return source
     }
+}
+
+private final class LabMeasurementProbe: @unchecked Sendable {
+    private let lock = NSLock()
+    private var currentTime: Double = 0
+    private var currentBytes: Int64 = 100
+    var time: Double { lock.lock(); defer { lock.unlock() }; return currentTime }
+    var bytes: Int64 { lock.lock(); defer { lock.unlock() }; return currentBytes }
+    func advance(time: Double, bytes: Int64) {
+        lock.lock(); defer { lock.unlock() }; currentTime = time; currentBytes = bytes
+    }
+}
+
+private actor DelayedLabPermission {
+    let started: AsyncStream<Void>.Continuation
+    private var continuation: CheckedContinuation<Bool, Never>?
+    init(started: AsyncStream<Void>.Continuation) { self.started = started }
+    func request() async -> Bool {
+        await withCheckedContinuation { continuation in
+            self.continuation = continuation
+            started.yield(())
+        }
+    }
+    func finish(granted: Bool) { continuation?.resume(returning: granted); continuation = nil }
 }

@@ -33,6 +33,7 @@ struct ComposerSpeechControl: View {
                         Text(error).font(.caption).fixedSize(horizontal: false, vertical: true)
                         if speech.canRetry {
                             Button(AppStrings.retry) { Task { await speech.retry() } }.buttonStyle(.plain)
+                                .accessibilityIdentifier("assistant-speech-retry")
                         }
                     }.accessibilityIdentifier("assistant-speech-error").offset(y: -36)
                 }

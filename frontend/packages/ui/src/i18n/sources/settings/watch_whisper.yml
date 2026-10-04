@@ -1,0 +1,40 @@
+title:
+  context: Title of the optional foreground tiny Whisper experiment on Apple Watch
+  en: Watch tiny Whisper lab
+  de: Watch-Labor für tiny Whisper
+  verified_by_human: []
+experiment:
+  context: Experimental Watch transcription notice distinguishing unverified device measurements from chat settings
+  en: Foreground experiment. Physical Watch speed, memory, accuracy and battery use are unverified. Chat settings stay unchanged.
+  de: Test im Vordergrund. Tempo, Speicher, Genauigkeit und Akkuverbrauch auf der echten Watch sind nicht bestätigt. Chat-Einstellungen bleiben unverändert.
+  verified_by_human: []
+enable:
+  context: Action opting into the optional Watch tiny Whisper experiment
+  en: Enable this experiment
+  de: Diesen Test aktivieren
+  verified_by_human: []
+disable:
+  context: Action turning off the optional Watch tiny Whisper experiment
+  en: Disable this experiment
+  de: Diesen Test deaktivieren
+  verified_by_human: []
+record_limit:
+  context: Watch experiment recording duration and requirement to keep the lab page open
+  en: Record up to 30 seconds. Keep this page open while testing.
+  de: Bis zu 30 Sekunden aufnehmen. Diese Seite während des Tests geöffnet lassen.
+  verified_by_human: []
+metrics:
+  context: Measured Watch experiment phase durations in seconds; preserve load, transcribe and unload placeholders
+  en: "Load {load}s · Transcribe {transcribe}s · Unload {unload}s"
+  de: "Laden {load}s · Transkribieren {transcribe}s · Entladen {unload}s"
+  verified_by_human: []
+memory:
+  context: Sampled resident process memory during Watch experiment; not a device-wide or guaranteed absolute peak
+  en: "Resident memory: start {start}, sampled peak {peak}, end {end}"
+  de: "Residentes RAM: Start {start}, abgetastete Spitze {peak}, Ende {end}"
+  verified_by_human: []
+fixture:
+  context: Disposable audio fixture used to verify the optional Watch experiment
+  en: Disposable audio fixture
+  de: Temporäre Audio-Testdatei
+  verified_by_human: []

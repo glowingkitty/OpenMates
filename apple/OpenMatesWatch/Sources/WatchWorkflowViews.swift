@@ -31,6 +31,10 @@ struct WatchWorkflowDetailView: View {
     let onOpenOnPhone: (WatchItemOpenRequest) -> Void
     let crownActive: Bool
     @ObservedObject private var service: WatchWorkflowDetailService
+    @State private var runNodes: [WatchRenderedWorkflowRunNode] = []
+    @State private var selectedRunID: String?
+    @State private var loadingRun = false
+    @State private var showsRunHistory = false
     @State private var expandedNodeID: String?
     @State private var editingFieldID: String?
     @State private var cards: [WatchWorkflowCard] = []
@@ -60,7 +64,9 @@ struct WatchWorkflowDetailView: View {
         VStack(spacing: 0) {
             HStack(spacing: .spacing2) {
                 Button {
-                    if editingFieldID != nil { editingFieldID = nil }
+                    if selectedRunID != nil { selectedRunID = nil }
+                    else if showsRunHistory { showsRunHistory = false }
+                    else if editingFieldID != nil { editingFieldID = nil }
                     else if service.draft != nil { service.cancelEditing() }
                     else { service.clear(); cards = []; onClose() }
                 } label: {
@@ -90,7 +96,11 @@ struct WatchWorkflowDetailView: View {
                     identity: item.id, externalScrollRevision: crownScrollRevision
                 ) {
                     LazyVStack(spacing: .spacing3) {
-                        if let draft = service.draft, service.matches(id: item.id, scope: accountScope) {
+                        if let selectedRunID, service.matches(id: item.id, scope: accountScope) {
+                            runDetail(id: selectedRunID)
+                        } else if showsRunHistory, service.matches(id: item.id, scope: accountScope) {
+                            runHistory
+                        } else if let draft = service.draft, service.matches(id: item.id, scope: accountScope) {
                             editor(draft).id("workflow-editor")
                         } else {
                         switch visibleState {
@@ -116,6 +126,10 @@ struct WatchWorkflowDetailView: View {
                                 Text(WatchWorkflowCopy.empty).font(.omXs)
                                     .accessibilityIdentifier("watch-workflow-detail-empty")
                             }
+                            Button(WatchLocalization.text("workflows.runs.history")) { showsRunHistory = true }
+                                .font(.omXs).buttonStyle(.plain).padding(.spacing3)
+                                .background(Color.grey90, in: RoundedRectangle(cornerRadius: .radius4))
+                                .accessibilityIdentifier("watch-workflow-runs-open")
                             ForEach(cards) { card in nodeCard(card).id(card.id) }
                             Button(WatchWorkflowCopy.openOnPhone) { onOpenOnPhone(item.openRequest) }
                                 .font(.omXs).buttonStyle(.plain)
@@ -162,6 +176,12 @@ struct WatchWorkflowDetailView: View {
             guard !Task.isCancelled else { return }
         }
         .onChange(of: service.state) { _, _ in refreshCards() }
+        .onChange(of: service.runDetail) { _, detail in
+            runNodes = (detail?.object["node_runs"]?.array ?? []).enumerated().map { index, node in
+                WatchRenderedWorkflowRunNode(id: index, title: node.object["node_id"]?.text,
+                    status: node.object["status"]?.text, lines: WatchWorkflowRunReadProjection.lines(node))
+            }
+        }
         .onDisappear { service.clear(); cards = []; expandedNodeID = nil; editingFieldID = nil }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active, let accountScope, !service.permits(accountScope) {
@@ -173,13 +193,87 @@ struct WatchWorkflowDetailView: View {
     private func reload() async {
         cards = []
         expandedNodeID = nil
+        selectedRunID = nil; showsRunHistory = false
         await service.load(id: item.id, scope: accountScope)
         refreshCards()
+        await service.loadRuns(workflowID: item.id, scope: accountScope)
     }
 
     private func refreshCards() {
         guard service.matches(id: item.id, scope: accountScope), case let .loaded(detail) = service.state else { cards = []; return }
         cards = WatchWorkflowCard.make(nodes: service.orderedNodes, edges: detail.graph.edges)
+    }
+
+    private func runStatus(_ status: String) -> String {
+        let known = ["completed", "failed", "cancelled", "skipped", "queued", "planned", "running", "waiting", "cancellation_requested"]
+        return WatchLocalization.text("workflows.runs.status_" + (known.contains(status) ? status : "unavailable"))
+    }
+
+    private var runHistory: some View {
+        VStack(alignment: .leading, spacing: .spacing3) {
+            Text(WatchLocalization.text("workflows.runs.history")).font(.omSmall.weight(.bold))
+            if service.runs.isEmpty {
+                Text(WatchLocalization.text("workflows.runs.empty")).font(.omXs)
+            }
+            ForEach(service.runs) { run in
+                Button {
+                    selectedRunID = run.id; loadingRun = true
+                    Task {
+                        await service.loadRunDetail(workflowID: item.id, runID: run.id, scope: accountScope)
+                        if selectedRunID == run.id { loadingRun = false }
+                    }
+                } label: {
+                    VStack(alignment: .leading, spacing: .spacing1) {
+                        Text(runStatus(run.status)).font(.omXs.weight(.semibold))
+                        if let timestamp = run.startedAt {
+                            Text(Date(timeIntervalSince1970: Double(timestamp)), style: .date).font(.omMicro)
+                            Text(Date(timeIntervalSince1970: Double(timestamp)), style: .time).font(.omMicro)
+                        }
+                        if let error = run.errorSummary { Text(error).font(.omMicro).foregroundStyle(Color.error) }
+                    }.frame(maxWidth: .infinity, alignment: .leading).padding(.spacing3)
+                        .background(Color.grey90, in: RoundedRectangle(cornerRadius: .radius4))
+                }
+                .buttonStyle(.plain).accessibilityIdentifier("watch-workflow-run-" + run.id)
+            }
+        }.accessibilityElement(children: .contain)
+            .accessibilityIdentifier("watch-workflow-run-history")
+    }
+
+    @ViewBuilder private func runDetail(id: String) -> some View {
+        if loadingRun {
+            ProgressView().accessibilityLabel(WatchLocalization.text("workflows.runs.loading"))
+        } else {
+            VStack(alignment: .leading, spacing: .spacing3) {
+                if let run = service.runs.first(where: { $0.id == id }) {
+                    Text(runStatus(run.status)).font(.omSmall.weight(.bold))
+                }
+                if let detail = service.runDetail, detail.object["id"]?.text == id,
+                   detail.object["workflow_id"]?.text == item.id {
+                    if case .bool(false) = detail.object["content_available"] {
+                        Text(WatchLocalization.text("workflows.runs.content_unavailable")).font(.omXs)
+                    }
+                    // The API has already opened the selected run. Read the
+                    // same node_runs input/output fields as the web timeline.
+                    ForEach(runNodes) { node in
+                        VStack(alignment: .leading, spacing: .spacing2) {
+                            if let title = node.title { Text(title).font(.omXs.weight(.bold)) }
+                            if let status = node.status { Text(runStatus(status)).font(.omMicro) }
+                            ForEach(Array(node.lines.enumerated()), id: \.offset) { _, line in
+                                Text(line).font(.omXs).fixedSize(horizontal: false, vertical: true)
+                            }
+                        }.frame(maxWidth: .infinity, alignment: .leading).padding(.spacing2)
+                            .background(Color.grey90, in: RoundedRectangle(cornerRadius: .radius4))
+                    }
+                } else {
+                    Text(WatchLocalization.text("workflows.runs.content_unavailable")).font(.omXs)
+                    Button(WatchWorkflowCopy.retry) {
+                        loadingRun = true
+                        Task { await service.loadRunDetail(workflowID: item.id, runID: id, scope: accountScope); loadingRun = false }
+                    }.buttonStyle(.plain).accessibilityIdentifier("watch-workflow-run-retry")
+                }
+            }.accessibilityElement(children: .contain)
+                .accessibilityIdentifier("watch-workflow-run-detail")
+        }
     }
 
     private func editor(_ draft: WatchWorkflowNodeDraft) -> some View {
@@ -330,7 +424,7 @@ struct WatchWorkflowDetailView: View {
             .accessibilityValue(WatchWorkflowCopy.builder(expandedNodeID == card.id ? "collapse" : "details"))
             if expandedNodeID == card.id {
                 VStack(alignment: .leading, spacing: .spacing2) {
-                    if card.editable {
+                    if card.editable && !service.isOffline {
                         Button(WatchLocalization.text("common.edit")) { service.beginEditing(nodeID: card.id) }
                             .buttonStyle(.plain).font(.omXs).padding(.spacing3)
                             .frame(maxWidth: .infinity, minHeight: .spacing20)
@@ -493,3 +587,36 @@ struct WatchWorkflowUITestFixtureView: View {
     }
 }
 #endif
+
+/// Keep run inspection limited to actual saved input/results and errors.
+/// Wire metadata, wrapped keys, and ciphertext are never rendered as content.
+enum WatchWorkflowRunReadProjection {
+    static func lines(_ node: WatchWorkflowValue) -> [String] {
+        var result: [String] = []
+        func append(_ value: WatchWorkflowValue, prefix: String = "") {
+            switch value {
+            case .object(let fields):
+                for key in fields.keys.sorted() where !key.hasPrefix("encrypted_") && !["aes_key", "token", "embed_keys"].contains(key) {
+                    if let value = fields[key] { append(value, prefix: prefix.isEmpty ? key : prefix + "." + key) }
+                }
+            case .array(let values):
+                for (index, value) in values.enumerated() { append(value, prefix: prefix + "[\(index)]") }
+            case .null: break
+            default:
+                let text = value.editText
+                if !text.isEmpty { result.append(prefix.isEmpty ? text : prefix + ": " + text) }
+            }
+        }
+        for key in ["input_summary", "output_summary", "input", "inputs", "output", "outputs", "error", "error_summary", "skipped_reason"] {
+            if let value = node.object[key] { append(value) }
+        }
+        return result
+    }
+}
+
+private struct WatchRenderedWorkflowRunNode: Identifiable {
+    let id: Int
+    let title: String?
+    let status: String?
+    let lines: [String]
+}

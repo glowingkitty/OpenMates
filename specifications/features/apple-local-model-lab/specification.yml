@@ -1,20 +1,21 @@
 schema_version: 1
 id: feature.apple-local-model-lab
-version: 1
+version: 4
 status: draft
 title: Apple optional local model laboratory
-summary: An explicitly enabled native settings laboratory evaluates three separately downloaded local
-  models without changing production chat processing.
+summary: An explicitly enabled native settings laboratory evaluates optional downloaded speech models; Privacy settings
+  owns Enhanced PII downloads and their diagnostic page.
 scope:
   includes:
-  - Native iPhone, iPad and Mac laboratory for Whisper transcription, English Kokoro speech and OpenAI
-    Privacy Filter.
-  - Verified optional assets, local results, cancellation, private ephemeral state and visible device
-    measurements.
+  - Native iPhone, iPad and Mac laboratory for Whisper transcription and Pocket TTS; Privacy-owned diagnostics for
+    the downloaded OpenAI Privacy Filter.
+  - Verified optional assets, local results, cancellation, private ephemeral state and visible device measurements.
+  - Separate Apple Watch foreground multilingual tiny Whisper developer experiment with explicitly pinned assets,
+    microphone input capped at thirty seconds, cancellation and numeric timing/memory samples.
   excludes:
   - Production chat or billing routing changes, cloud fallback and bundled or automatic weight downloads.
-  - German Kokoro, Watch or Intel inference, and guarantees of accuracy, latency, battery use or physical-device
-    reliability.
+  - Unsupported adapter/platform inference, Watch production downloaded-model routing and guarantees of accuracy,
+    latency, battery use or physical-device reliability.
 relationships:
   related_specifications:
   - feature.settings-ui
@@ -23,61 +24,87 @@ relationships:
 assertions:
 - id: apple-local-model-lab.optional-downloads
   type: behavior
-  must: Each of Whisper, English Kokoro and OpenAI Privacy Filter is an independent optional download
-    with visible progress, cancellation, retry and removal. Weights are absent from the application bundle
-    and never downloaded automatically. Assets use immutable revision URLs and per-file size and SHA-256
-    validation; incomplete or corrupt assets never become ready. Reopening verifies installed assets without
-    network access.
+  must: Whisper, Pocket TTS and the Privacy-owned OpenAI Privacy Filter each is an independent optional download
+    with visible progress, cancellation, retry and removal. Weights are absent from the application bundle and never
+    downloaded automatically. Assets use immutable revision URLs and per-file size and SHA-256 validation; incomplete
+    or corrupt assets never become ready. Reopening verifies installed assets without network access. Transfer and
+    verification are distinct visible phases; progress advances monotonically and an existing download can be cancelled
+    while another model test is active. On iOS and iPadOS, an initiated transfer can continue while the app is suspended
+    through operating-system background download support, and a relaunch restores its pinned operation before verification
+    and installation. Transient connectivity loss retains verified work and retries within bounded limits; explicit
+    cancellation discards partial assets.
   depends_on:
   - examples.downloads
 - id: apple-local-model-lab.local-execution
   type: behavior
-  must: After explicit laboratory opt-in and verified installation, supported devices run audio transcription,
-    English speech synthesis with playable output, and contextual personal-data detection locally. Tests
-    show elapsed time, audio real-time factor where applicable, process peak memory and device/thermal
-    information. Inputs and outputs are never submitted to a server, no inference credits are charged,
-    and failures never select a cloud fallback.
+  must: After explicit laboratory opt-in and verified installation, supported devices run audio transcription and
+    contextual personal-data detection locally. Tests show elapsed time, audio real-time factor where applicable,
+    sampled per-run memory and device/thermal information. Inputs and outputs are never submitted to a server, no
+    inference credits are charged, and failures never select a cloud fallback. Preparation, loading, inference and
+    cleanup phases remain visible while work is active; no-progress diagnostics do not falsely declare a native
+    operation idle.
   depends_on:
   - examples.execution
 - id: apple-local-model-lab.pii-spans
   type: invariant
-  must: Privacy Filter produces calibrated contextual spans using one constrained decode over overlapping
-    token windows. Entity spans remain coherent at window seams and map outward across UTF-8 fragments
-    into valid UTF-16 highlighting boundaries. Invalid model output or cancellation cannot be reported
-    as a successful clean-text result. A no-entity result is visibly experimental and does not claim the
-    text is safe.
+  must: Privacy Filter produces calibrated contextual spans using one constrained decode over overlapping token
+    windows. Entity spans remain coherent at window seams and map outward across UTF-8 fragments into valid UTF-16
+    highlighting boundaries. Invalid model output or cancellation cannot be reported as a successful clean-text
+    result. A no-entity result is visibly experimental and does not claim the text is safe.
   depends_on:
   - examples.spans
 - id: apple-local-model-lab.isolated-scope
   type: invariant
-  must: Settings Developers exposes a native Local models lab page with an explicit switch confined to
-    the laboratory. The laboratory does not change chat transcription, assistant speech, production personal-data
-    replacement, provider preferences or billing behavior.
+  must: Settings Developers exposes a native Local models lab page with an explicit switch confined to the laboratory.
+    The laboratory does not change chat transcription, assistant speech, production personal-data replacement, provider
+    preferences or billing behavior.
   depends_on:
   - examples.scope
 - id: apple-local-model-lab.serialized-cancellation
   type: invariant
-  must: Only one model test runs at a time. Cancellation suppresses results and keeps the controller busy
-    until the active native operation completes and its resources unload; a second test cannot start during
-    cancellation or unloading.
+  must: Only one model test runs at a time. Cancellation suppresses results and keeps the controller busy until
+    the active native operation completes and its resources unload; a second test cannot start during cancellation
+    or unloading.
   depends_on:
   - examples.cancellation
 - id: apple-local-model-lab.ephemeral-state
   type: invariant
-  must: Text, test results and lab-owned recordings or imported audio copies are temporary. Page exit
-    clears visible inputs and results immediately, suppresses late completion, and removes private temporary
-    files after any active operation has finished. The imported original and installed model assets are
-    preserved. Logs and displayed errors omit private input/output text and raw runtime diagnostics.
+  must: Text, test results and lab-owned recordings or imported audio copies are temporary. Page exit clears visible
+    inputs and results immediately, suppresses late completion, and removes private temporary files after any active
+    operation has finished. The imported original and installed model assets are preserved. Logs and displayed errors
+    omit private input/output text and raw runtime diagnostics.
   depends_on:
   - examples.ephemeral
 - id: apple-local-model-lab.availability
   type: behavior
-  must: Before model installation or testing, the laboratory shows a localized reason and disables download
-    and run controls on unsupported hardware or OS. Intel Macs and Apple Watch do not run these adapters.
-    Kokoro is unavailable on OS major version 27 and later until its upstream native failure is resolved;
-    the other models remain separately available on supported hardware.
+  must: 'Unavailable or unsafe adapters are absent from laboratory choices and cannot download or run. Platform
+    eligibility belongs to each adapter: the pinned Whisper and Privacy Filter runtimes require Apple silicon, while
+    Pocket TTS uses its supported compiled CPU targets. Apple Watch offers only the separate foreground tiny Whisper
+    experiment. Removed Kokoro and Apple system voice laboratory adapters have no runtime, catalog or UI dependency.'
   depends_on:
   - examples.availability
+- id: apple-local-model-lab.watch-tiny
+  type: behavior
+  must: Watch Settings exposes a Developers tiny Whisper experiment with explicit opt-in. Only the multilingual
+    tiny Core ML model and its local tokenizer use a separate immutable revision/size/SHA-256 catalog and storage
+    root. No weights are bundled or downloaded automatically; invalid or interrupted assets never become ready,
+    retry is explicit, and verified reopening is offline. Foreground recordings are capped at thirty seconds. Test
+    execution cold-loads the tokenizer and models, transcribes locally with runtime downloading disabled, then unloads
+    before becoming idle; cancellation and page/background exit suppress late private results. Load, transcription
+    and unload durations plus available start/sampled-peak/end resident memory are visible. Removal is blocked during
+    active inference. No production chat routing, cloud fallback or physical Watch performance claim is introduced.
+  depends_on:
+  - examples.watch_tiny
+- id: apple-local-model-lab.pocket-tts
+  type: behavior
+  must: After explicit laboratory opt-in and verified installation, Pocket TTS generates and plays ephemeral audio
+    locally from bounded English test text using its pinned compatible CPU runtime and licensed voice assets. The
+    UI identifies the supported language, runtime and voice without claiming multilingual or device quality that
+    has not been measured. Load, synthesis and memory measurements are visible. Cancellation and page exit suppress
+    late results, remain busy until the active bounded native operation releases its resources, stop playback and
+    clear private text/audio. Production speech routing and billing remain unchanged.
+  depends_on:
+  - examples.pocket_tts
 applies_to:
   rest_api:
     required: false
@@ -107,10 +134,23 @@ examples:
   - cancellation
   - ephemeral
   - availability
+  - watch_tiny
+  - pocket_tts
 approval_source:
-  scope: 'Direct user instruction: lets implement as optional downloads, to keep the app size small. go
-    ahead with the three models/plan with the separate testing app sub page'
-  current_instruction: The user explicitly requested deployed testing of this implementation; prepare
-    its scoped integration and an actual Specification draft for root review.
-  specification_approval: Backfilled from the direct user-approved optional-download laboratory Plan.
-    Root checked assertion/examples preserve that scope; no separate fingerprint-review event is claimed.
+  scope: 'Direct user instruction: lets implement as optional downloads, to keep the app size small. go ahead with
+    the three models/plan with the separate testing app sub page'
+  current_instruction: The user explicitly requested deployed testing of this implementation; prepare its scoped
+    integration and an actual Specification draft for root review.
+  specification_approval: Backfilled from the direct user-approved optional-download laboratory Plan. Root checked
+    assertion/examples preserve that scope; no separate fingerprint-review event is claimed.
+  version_2_approval: 'Direct user instruction on 2026-10-03 in codex thread 01a0eeac-16cd-7ff1-941a-5d1fb4908fae:
+    implement Apple''s built-in premium voices for testing and go ahead with implementing the combined offline speech
+    stability plan. No separate fingerprint confirmation is claimed. The user subsequently instructed removing Kokoro
+    completely, resilient PII downloads and lock-screen background download progress.'
+  version_3_approval: Direct user instruction on 2026-10-03 in the current Codex thread authorizes an Apple Watch
+    tiny Whisper developer testing section. Existing large-v3 remains confined to its current targets; physical
+    Watch feasibility remains unverified.
+  version_4_approval: Direct user instruction on 2026-10-03 rejects Apple voices, authorizes Pocket TTS developer
+    testing and moves Enhanced PII download to Privacy with automatic debounced composer use; the latter is governed
+    by feature.pii-protection. Core ML research found no validated same-model mobile replacement, so the existing
+    pinned ExecuTorch model is retained.

@@ -51,7 +51,8 @@ struct ComposerLocationSelection: Sendable {
             type: "maps",
             referenceType: "location",
             status: "finished",
-            content: nil,
+            content: (try? JSONSerialization.data(withJSONObject: data.mapValues(\.value), options: [.sortedKeys]))
+                .flatMap { String(data: $0, encoding: .utf8) },
             textPreview: name,
             record: record,
             localData: nil,

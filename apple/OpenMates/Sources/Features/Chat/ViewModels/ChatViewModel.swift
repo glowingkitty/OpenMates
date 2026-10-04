@@ -11,6 +11,9 @@
 // Specification: specifications/features/pii-protection/specification.yml
 // Assertions: pii.embed.owner-local-reveal-sync, pii.surface.semantic-parity
 
+// Specification: specifications/features/apple-recent-offline-chats/specification.yml
+// Assertions: apple-offline.recent-cohort, apple-offline.local-first, apple-offline.interruption-isolation, apple-offline.snapshot-integrity
+
 import Foundation
 import SwiftUI
 import CryptoKit
@@ -299,6 +302,7 @@ enum ChatGeneratedMetadataPolicy {
             lastMessageAt: chat.lastMessageAt,
             createdAt: chat.createdAt,
             updatedAt: chat.updatedAt,
+            lastEditedOverallTimestamp: chat.lastEditedOverallTimestamp,
             isArchived: chat.isArchived,
             isPinned: chat.isPinned,
             appId: chat.appId,
@@ -345,6 +349,7 @@ enum ChatGeneratedMetadataPolicy {
             lastMessageAt: chat.lastMessageAt,
             createdAt: chat.createdAt,
             updatedAt: chat.updatedAt,
+            lastEditedOverallTimestamp: chat.lastEditedOverallTimestamp,
             isArchived: chat.isArchived,
             isPinned: chat.isPinned,
             appId: chat.appId,
@@ -563,8 +568,23 @@ final class ChatViewModel: ObservableObject {
         !pendingComposerEmbeds.isEmpty
     }
 
-    /// All messages fetched from the server (full history).
+    /// Loaded history: a full local snapshot or the bounded remote pages visited.
     private var allMessages: [Message] = []
+    private struct RemoteHistory {
+        let chatId: String
+        var start: ChatMessageWindowCursor?
+        var end: ChatMessageWindowCursor?
+        var hasOlder: Bool
+        var hasNewer: Bool
+        init(_ page: ChatMessageWindowPage) {
+            chatId = page.chatId; start = page.startCursor; end = page.endCursor
+            hasOlder = page.hasMoreBefore; hasNewer = page.hasMoreAfter
+        }
+    }
+    private var remoteHistory: RemoteHistory?
+    private var failedRemoteWindowRequest: Int?
+    private var foregroundDeletionRevision = 0
+    private var deletedForegroundMessageIds = Set<String>()
     /// Index in `allMessages` where the currently-rendered message window starts.
     private var visibleWindowStartIndex = 0
     private var visibleWindowEndIndex = 0
@@ -594,10 +614,16 @@ final class ChatViewModel: ObservableObject {
     private var embedContentBatchRequest: (chatId: String, generation: Int, scope: UUID,
         id: UUID, task: Task<ChatContentBatchPayload, Error>)?
     private let contentBatchFetcher: (@MainActor (String) async throws -> ChatContentBatchPayload)?
+    private let messageWindowFetcher: @MainActor (String, String?, ChatMessageWindowQuery) async throws -> ChatMessageWindowPage
     private var olderMessagesTask: Task<Void, Never>?
     private var loadGeneration = 0
     private let messageDecryptor: @MainActor ([Message], String) async -> [Message]
     private let accountScopeGeneration: @MainActor () -> UUID
+    private let offlineStore: OfflineStore
+    private var diskHistoryChatID: String?
+    private var diskHasOlderMessages = false
+    private var diskHasNewerMessages = false
+    private var diskNewerMessageCount = 0
     private var userMessageIdByAssistantMessageId: [String: String] = [:]
     private var assistantMessageCreatedAtById: [String: String] = [:]
     private var assistantCategoryByMessageId: [String: String] = [:]
@@ -611,10 +637,27 @@ final class ChatViewModel: ObservableObject {
             await ChatViewModel.decryptMessagesForDisplay($0, chatId: $1)
         },
         accountScopeGeneration: @escaping @MainActor () -> UUID = { OfflineStore.shared.scopeGeneration },
-        contentBatchFetcher: (@MainActor (String) async throws -> ChatContentBatchPayload)? = nil
+        contentBatchFetcher: (@MainActor (String) async throws -> ChatContentBatchPayload)? = nil,
+        offlineStore: OfflineStore = .shared,
+        messageWindowFetcher: @escaping @MainActor (String, String?, ChatMessageWindowQuery) async throws -> ChatMessageWindowPage = {
+            try await ChatMessageWindowClient.fetch(chatId: $0, teamId: $1, query: $2)
+        }
     ) {
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--ui-test-delayed-visible-window") {
+            self.messageDecryptor = { rows, chatID in
+                try? await Task.sleep(for: .seconds(2))
+                return await messageDecryptor(rows, chatID)
+            }
+        } else {
+            self.messageDecryptor = messageDecryptor
+        }
+        #else
         self.messageDecryptor = messageDecryptor
+        #endif
         self.accountScopeGeneration = accountScopeGeneration
+        self.offlineStore = offlineStore
+        self.messageWindowFetcher = messageWindowFetcher
         #if DEBUG
         let args = ProcessInfo.processInfo.arguments
         if contentBatchFetcher == nil, args.contains("--ui-test-authenticated-chat-navigation"),
@@ -669,6 +712,14 @@ final class ChatViewModel: ObservableObject {
     func loadChat(id: String, initialChat: Chat? = nil, initialMessages: [Message] = [], initialEmbeds: [EmbedRecord] = []) async {
         loadGeneration += 1
         let generation = loadGeneration
+        remoteHistory = nil
+        failedRemoteWindowRequest = nil
+        deletedForegroundMessageIds.removeAll()
+        let readFence = remoteReadFence(chatId: id, generation: generation)
+        diskHistoryChatID = nil
+        diskHasOlderMessages = false
+        diskHasNewerMessages = false
+        diskNewerMessageCount = 0
         followUpSuggestions = []
         cancelOlderMessagesLoad()
         embedHydrationTask?.cancel()
@@ -682,7 +733,7 @@ final class ChatViewModel: ObservableObject {
             return
         }
 
-        if let initialChat {
+        if let initialChat = initialChat ?? chatStore?.chat(for: id) ?? offlineStore.loadChat(id: id) {
             await loadSyncedChat(initialChat, messages: initialMessages, embeds: initialEmbeds, generation: generation)
             return
         }
@@ -695,13 +746,17 @@ final class ChatViewModel: ObservableObject {
 
             loadedChat = await decryptMetadata(for: loadedChat)
             let storedFollowUps = await decryptFollowUpSuggestions(for: loadedChat)
+            guard isCurrentRemoteRead(readFence) else { return }
             chat = loadedChat
 
-            let messagesResponse: [Message] = try await api.request(.get, path: "/v1/chats/\(id)/messages")
-
-            allMessages = ChatHistoryWindowPolicy.orderedUnique(messagesResponse)
+            let page = try await fetchRemoteWindow(chatId: id, teamId: loadedChat.teamId,
+                query: initialRemoteQuery(anchor: loadedChat.lastVisibleMessageId), generation: generation)
+            guard generation == loadGeneration else { return }
+            remoteHistory = RemoteHistory(page)
+            allMessages = mergeForegroundMessages(foregroundPageMessages(page), preserving: chatStore?.messages(for: id) ?? [], chatId: id)
             let visibleRawMessages = visibleWindow(from: allMessages, anchorMessageId: loadedChat.lastVisibleMessageId)
             let decryptedMessages = await decryptMessages(visibleRawMessages, chatId: id)
+            guard isCurrentRemoteRead(readFence) else { return }
             let embedded = PublicChatContent.attachEmbeds(to: decryptedMessages)
             embedRecords = embedded.records
             followUpSuggestions = ChatFollowUpSuggestionPolicy.restore(
@@ -728,7 +783,8 @@ final class ChatViewModel: ObservableObject {
                 source: "rest"
             )
         } catch {
-            self.error = error.localizedDescription
+            guard isCurrentRemoteRead(readFence) else { return }
+            self.error = error is ChatMessageWindowError ? AppStrings.genericProcessingError : error.localizedDescription
             isLoading = false
         }
     }
@@ -782,77 +838,66 @@ final class ChatViewModel: ObservableObject {
     private func loadSyncedChat(_ syncedChat: Chat, messages syncedMessages: [Message], embeds syncedEmbeds: [EmbedRecord],
                                 generation: Int, destination: ChatHistoryWindowDestination? = nil) async {
         let scopeGeneration = accountScopeGeneration()
+        let readFence = remoteReadFence(chatId: syncedChat.id, generation: generation)
         var loadedChat = syncedChat
         let start = NativeSyncPerfLog.now()
+        if loadedChat.encryptedChatKey == nil, let cachedChat = offlineStore.loadChat(id: loadedChat.id) {
+            await ensureChatKey(for: cachedChat)
+        }
         await ensureChatKey(for: loadedChat)
         loadedChat = await decryptMetadata(for: loadedChat)
         let storedFollowUps = await decryptFollowUpSuggestions(for: loadedChat)
-        guard generation == loadGeneration else { return }
+        guard isCurrentRemoteRead(readFence) else { return }
         if NativeSyncPerfLog.verboseCrypto {
             print("[ChatViewModel][loadSynced] chat=\(loadedChat.id.prefix(8)) afterMetadata title=\(loadedChat.title != nil) category=\(loadedChat.category != nil) icon=\(loadedChat.icon != nil) summary=\(loadedChat.chatSummary != nil) hasKey=\(ChatKeyManager.shared.hasKey(for: loadedChat.id))")
         }
 
         chat = loadedChat
-        followUpSuggestions = ChatFollowUpSuggestionPolicy.restore(
+        let initialFollowUpSuggestions = ChatFollowUpSuggestionPolicy.restore(
             stored: storedFollowUps,
             hasStoredCiphertext: loadedChat.encryptedFollowUpRequestSuggestions != nil,
             legacyExtracted: followUpSuggestions
         )
         // A warm shell supplies a bounded seed, while its store retains the raw
         // history. Never mistake that seed for the complete paging/send source.
+        if offlineStore.hasCompleteOfflineSnapshot(for: loadedChat) { remoteHistory = nil }
         let storedMessages = chatStore?.messages(for: loadedChat.id) ?? []
         var rawMessages = ChatHistoryWindowPolicy.orderedUnique(
             storedMessages.isEmpty ? syncedMessages : storedMessages)
+        if remoteHistory?.chatId == loadedChat.id {
+            rawMessages = mergeForegroundMessages(rawMessages, preserving: allMessages, chatId: loadedChat.id)
+        }
         var hydrationEmbeds = syncedEmbeds
+        if rawMessages.isEmpty {
+            rawMessages = offlineStore.loadLatestMessageWindow(chatId: loadedChat.id)
+        }
+        if !rawMessages.isEmpty && remoteHistory == nil {
+            let diskEmbeds = offlineStore.loadEmbeds(chatId: loadedChat.id)
+            hydrationEmbeds = Array(EmbedRecord.dictionaryById(diskEmbeds, context: "offlineChatOpen")
+                .merging(EmbedRecord.dictionaryById(syncedEmbeds, context: "offlineChatOpenSynced")) { _, synced in synced }.values)
+            diskHistoryChatID = loadedChat.id
+            refreshDiskHistoryBoundaries(rawMessages, chatId: loadedChat.id)
+        }
         if rawMessages.isEmpty && shouldFetchMissingSyncedMessages(for: loadedChat) {
             do {
-                guard let wsManager else {
-                    throw ChatContentHydrationError.websocketUnavailable
-                }
-                let response = try await wsManager.requestChatContentBatch(chatId: loadedChat.id)
-                let batch = try ChatContentBatchPayload.decode(response.fields)
+                let page = try await fetchRemoteWindow(chatId: loadedChat.id, teamId: loadedChat.teamId,
+                    query: initialRemoteQuery(anchor: loadedChat.lastVisibleMessageId), generation: generation)
                 guard generation == loadGeneration, chat?.id == loadedChat.id,
                       scopeGeneration == accountScopeGeneration() else { return }
-                if let userId = await AuthManager.currentUserId(),
-                   let masterKey = try? await CryptoManager.shared.loadMasterKey(for: userId) {
-                    await ChatKeyManager.shared.loadChatKey(
-                        chatId: loadedChat.id,
-                        wrappers: batch.chatKeyWrappers,
-                        masterKey: masterKey
-                    )
-                }
-                guard scopeGeneration == accountScopeGeneration() else { return }
-                if !batch.embedKeys.isEmpty {
-                    EmbedKeyManager.shared.store(batch.embedKeys, source: "chatContentBatch")
-                    OfflineStore.shared.persistEmbedKeys(batch.embedKeys)
-                }
-                let batchMessages = try batch.messages(for: loadedChat.id)
-                rawMessages = ChatContentBatchPayload.mergedMessages(
-                    snapshot: batchMessages,
-                    preserving: chatStore?.messages(for: loadedChat.id) ?? []
-                )
-                hydrationEmbeds = batch.embeds(for: loadedChat.id)
-                chatStore?.applySyncedContent(
-                    messagesByChat: [loadedChat.id: rawMessages],
-                    embedsByChat: [loadedChat.id: hydrationEmbeds]
-                )
-                await CodeRunOutputStore.shared.ingestRows(batch.codeRunOutputs ?? [],
-                    chatId: loadedChat.id, expectedScope: scopeGeneration)
-                if let messagesVersion = batch.messagesVersion(for: loadedChat.id) {
-                    chatStore?.advanceMessagesVersion(chatId: loadedChat.id, to: messagesVersion)
-                    loadedChat = chatStore?.chat(for: loadedChat.id) ?? loadedChat
-                    chat = loadedChat
-                }
-                NativeSyncPerfLog.info(
-                    "phase=loadSyncedChatContentBatch chat=\(loadedChat.id.prefix(8)) messages=\(rawMessages.count) embeds=\(hydrationEmbeds.count) embedKeys=\(batch.embedKeys.count) wrappers=\(batch.chatKeyWrappers.count)"
-                )
+                remoteHistory = RemoteHistory(page)
+                rawMessages = mergeForegroundMessages(foregroundPageMessages(page),
+                    preserving: chatStore?.messages(for: loadedChat.id) ?? [], chatId: loadedChat.id)
+                // Foreground pages remain in this reader. Sending them through
+                // the full-sync bridge would invalidate the 20-chat cohort or
+                // mistake this partial response for complete content coverage.
             } catch {
+                guard generation == loadGeneration, scopeGeneration == accountScopeGeneration() else { return }
                 if let hydrationError = error as? ChatContentHydrationError {
                     self.error = hydrationError == .websocketUnavailable
                         ? AppStrings.reconnecting
                         : AppStrings.genericProcessingError
                 } else {
-                    self.error = error.localizedDescription
+                    self.error = error is ChatMessageWindowError ? AppStrings.genericProcessingError : error.localizedDescription
                 }
                 isLoading = false
                 NativeSyncPerfLog.warning(
@@ -870,13 +915,23 @@ final class ChatViewModel: ObservableObject {
             synthesizeMissingContent: false
         )
         allMessages = rawMessages
+        if diskHistoryChatID == loadedChat.id,
+           let anchor = loadedChat.lastVisibleMessageId, destination == nil,
+           !rawMessages.contains(where: { $0.id == anchor }) {
+            let cachedWindow = offlineStore.loadMessageWindow(chatId: loadedChat.id, around: anchor)
+            if !cachedWindow.isEmpty {
+                rawMessages = cachedWindow
+                allMessages = cachedWindow
+                refreshDiskHistoryBoundaries(cachedWindow, chatId: loadedChat.id)
+            }
+        }
         let visibleRawMessages = visibleWindow(from: rawMessages, anchorMessageId: loadedChat.lastVisibleMessageId,
                                               destination: destination)
         let selectedTail = visibleWindowEndIndex == allMessages.count
         let selectionGeneration = explicitWindowNavigationGeneration
         let decryptedMessages = await decryptMessages(visibleRawMessages, chatId: loadedChat.id)
         openingMetrics.initialMessagesDecrypted = decryptedMessages.count
-        guard generation == loadGeneration, scopeGeneration == accountScopeGeneration() else { return }
+        guard isCurrentRemoteRead(readFence) else { return }
         restoreActiveStreamInRawHistory(chatId: loadedChat.id)
         // A live chunk can change the raw source during decryption. Resolve the
         // intended window against that source without aborting initial loading.
@@ -886,6 +941,7 @@ final class ChatViewModel: ObservableObject {
             destination: selectedTail ? .latest : visibleRawMessages.first.map { .preserve(firstMessage: $0.id) } ?? .latest,
             generation: generation, navigationGeneration: selectionGeneration, scopeGeneration: scopeGeneration
         ) else { return }
+        guard isCurrentRemoteRead(readFence) else { return }
         let messagesWithLegacyEmbedLinks = ChatLegacyEmbedLinkPolicy.applying(
             to: resolvedMessages,
             embeds: hydrationEmbeds
@@ -899,7 +955,7 @@ final class ChatViewModel: ObservableObject {
         )
         let renderedMessages = embedded.messages
         followUpSuggestions = ChatFollowUpSuggestionPolicy.restore(
-            stored: followUpSuggestions,
+            stored: initialFollowUpSuggestions,
             hasStoredCiphertext: loadedChat.encryptedFollowUpRequestSuggestions != nil,
             legacyExtracted: extractFollowUpSuggestions(from: renderedMessages)
         )
@@ -947,6 +1003,29 @@ final class ChatViewModel: ObservableObject {
     ) {
         let scope = accountScopeGeneration()
         embedHydrationTask?.cancel()
+        // Paging can prune a hydrated record while its messages are outside
+        // the visible window. Restore already decoded local payloads before
+        // returning the window; they need neither crypto nor the delayed
+        // media/network hydration task, which later navigation may cancel.
+        let localRecords = PublicChatContent.mergingHydratedRecords(
+            existing: EmbedRecord.dictionaryById(syncedEmbeds, context: "chatViewModel.localHydrationSnapshot"),
+            inline: EmbedRecord.dictionaryById(chatStore?.embeds(for: chatId) ?? [],
+                                               context: "chatViewModel.localHydrationCache")
+        )
+        let hydratedLocal = relatedEmbeds(referencedIds: referencedIds, from: Array(localRecords.values))
+            .filter { local in
+                guard local.rawData != nil, !Self.embedRecordRequiresHydration(local) else { return false }
+                guard let current = embedRecords[local.id] else { return true }
+                // A decoded older payload must not hide new ciphertext that
+                // still needs decryption, or replace an already hydrated row.
+                return Self.embedRecordRequiresHydration(current)
+                    && (current.encryptedContent == nil || current.encryptedContent == local.encryptedContent)
+                    && (current.encryptedType == nil || current.encryptedType == local.encryptedType)
+            }
+        embedRecords = PublicChatContent.mergingHydratedRecords(
+            existing: embedRecords,
+            inline: EmbedRecord.dictionaryById(hydratedLocal, context: "chatViewModel.localHydration")
+        )
         embedHydrationTask = Task { @MainActor [weak self] in
             guard let self else { return }
             await Task.yield()
@@ -1256,6 +1335,177 @@ final class ChatViewModel: ObservableObject {
     }
 
     /// Compatibility entry point used by existing callers and race regressions.
+    private struct RemoteReadFence {
+        let generation: Int; let scope: UUID; let server: ServerProfile
+        let team: TeamWorkspaceSnapshot; let chatId: String; let deletion: Int
+        let owner: String?
+        let foregroundDeletion: Int
+    }
+
+    private func remoteReadFence(chatId: String, generation: Int) -> RemoteReadFence {
+        .init(generation: generation, scope: accountScopeGeneration(), server: ServerProfile.current(),
+              team: TeamWorkspaceContext.shared.snapshot, chatId: chatId,
+              deletion: offlineStore.chatDeletionVersion(chatId), owner: AuthManager.notificationAccountId,
+              foregroundDeletion: foregroundDeletionRevision)
+    }
+
+    private func isCurrentRemoteRead(_ fence: RemoteReadFence) -> Bool {
+        let currentTeam = TeamWorkspaceContext.shared.snapshot
+        return !Task.isCancelled && loadGeneration == fence.generation && accountScopeGeneration() == fence.scope
+            && ServerProfile.current() == fence.server && currentTeam.epoch == fence.team.epoch
+            && currentTeam.teamID == fence.team.teamID && currentTeam.accountID == fence.team.accountID
+            && currentTeam.server == fence.team.server && currentTeam.scope == fence.team.scope
+            && AuthManager.notificationAccountId == fence.owner
+            && foregroundDeletionRevision == fence.foregroundDeletion
+            && offlineStore.chatDeletionVersion(fence.chatId) == fence.deletion
+    }
+
+    private func initialRemoteQuery(anchor: String?) -> ChatMessageWindowQuery {
+        .init(direction: anchor == nil ? .latest : .around, limit: ChatHistoryWindowPolicy.capacity,
+              anchorMessageId: anchor, respectCompressionBoundary: false)
+    }
+
+    private func foregroundPageMessages(_ page: ChatMessageWindowPage) -> [Message] {
+        page.messages.filter { !deletedForegroundMessageIds.contains($0.id)
+            && !($0.serverMessageId.map(deletedForegroundMessageIds.contains) ?? false) }
+    }
+
+    private func foregroundPendingIDs(chatId: String, actionType: String) -> Set<String> {
+        Set(offlineStore.loadPendingActions().compactMap { action in
+            guard action.actionType == actionType, let data = action.payloadJSON,
+                  let payload = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  (payload["chat_id"] ?? payload["chatId"]) as? String == chatId else { return nil }
+            return (payload["message_id"] ?? payload["messageId"]) as? String
+        })
+    }
+
+    private func mergeForegroundMessages(_ incoming: [Message], preserving current: [Message], chatId: String) -> [Message] {
+        let deleted = deletedForegroundMessageIds.union(foregroundPendingIDs(chatId: chatId, actionType: "delete_message"))
+        return ChatMessageWindowPage.merge(incoming, preserving: current,
+            pendingIds: foregroundPendingIDs(chatId: chatId, actionType: "send_message"))
+            .filter { !deleted.contains($0.id) && !($0.serverMessageId.map(deleted.contains) ?? false) }
+    }
+
+    /// Deletion also fences reads for IDs absent from this partial viewport.
+    func consumeForegroundMessageDeletion(chatId: String, messageId: String) {
+        guard chat?.id == chatId else { return }
+        foregroundDeletionRevision += 1
+        deletedForegroundMessageIds.insert(messageId)
+        cancelOlderMessagesLoad()
+        allMessages.removeAll { $0.id == messageId || $0.serverMessageId == messageId }
+        messages.removeAll { $0.id == messageId || $0.serverMessageId == messageId }
+        visibleWindowStartIndex = messages.first.flatMap { first in allMessages.firstIndex { $0.id == first.id } } ?? 0
+        visibleWindowEndIndex = min(allMessages.count, visibleWindowStartIndex + messages.count)
+        refreshWindowBoundaries(); historyWindowRevision += 1
+    }
+
+    private func fetchRemoteWindow(chatId: String, teamId: String?, query: ChatMessageWindowQuery,
+                                   generation: Int, fallbackMissingAnchor: Bool = true) async throws -> ChatMessageWindowPage {
+        let fence = remoteReadFence(chatId: chatId, generation: generation)
+        guard isCurrentRemoteRead(fence), fence.team.teamID == teamId else { throw ChatMessageWindowError.staleContext }
+        let page = try await messageWindowFetcher(chatId, teamId, query).validated(chatId: chatId, query: query)
+        guard isCurrentRemoteRead(fence) else { throw ChatMessageWindowError.staleContext }
+        if fallbackMissingAnchor && query.direction == .around && !page.anchorFound {
+            var latest = query; latest.direction = .latest; latest.anchorMessageId = nil
+            let fallback = try await messageWindowFetcher(chatId, teamId, latest).validated(chatId: chatId, query: latest)
+            guard isCurrentRemoteRead(fence) else { throw ChatMessageWindowError.staleContext }
+            return fallback
+        }
+        return page
+    }
+
+    private func remoteQuery(_ destination: ChatHistoryWindowDestination) -> ChatMessageWindowQuery? {
+        guard let remoteHistory, remoteHistory.chatId == chat?.id else { return nil }
+        var query = ChatMessageWindowQuery(limit: ChatHistoryWindowPolicy.capacity, respectCompressionBoundary: false)
+        switch destination {
+        case .older where remoteHistory.hasOlder && visibleWindowStartIndex < ChatHistoryWindowPolicy.stride:
+            query.direction = .before; query.before = remoteHistory.start
+        case .newer where remoteHistory.hasNewer && allMessages.count - visibleWindowEndIndex < ChatHistoryWindowPolicy.stride:
+            query.direction = .after; query.after = remoteHistory.end
+        case .latest where remoteHistory.hasNewer:
+            break
+        case .oldest where remoteHistory.hasOlder:
+            query.direction = .after; query.afterBeginning = true
+        case .message(let id) where !allMessages.contains(where: { $0.id == id }):
+            query.direction = .around; query.anchorMessageId = id
+        default: return nil
+        }
+        return query
+    }
+
+    private func loadRemoteMessageWindow(_ query: ChatMessageWindowQuery,
+        destination: ChatHistoryWindowDestination, chatId: String, generation: Int,
+        requestGeneration: Int, scopeGeneration: UUID) -> Task<Void, Never> {
+        let fence = remoteReadFence(chatId: chatId, generation: generation)
+        let teamId = chat?.teamId
+        isLoadingOlder = true
+        error = nil
+        failedRemoteWindowRequest = nil
+        let task = Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer {
+                if windowRequestGeneration == requestGeneration {
+                    isLoadingOlder = false; olderMessagesTask = nil
+                }
+            }
+            do {
+                let page = try await fetchRemoteWindow(chatId: chatId, teamId: teamId, query: query,
+                    generation: generation, fallbackMissingAnchor: false)
+                guard isCurrentRemoteRead(fence), isCurrentWindowRequest(chatId: chatId, generation: generation,
+                    requestGeneration: requestGeneration, scopeGeneration: scopeGeneration) else { return }
+                guard query.direction != .around || page.anchorFound else { throw ChatMessageWindowError.invalidResponse }
+                var source: [Message]
+                var nextRemote = remoteHistory ?? RemoteHistory(page)
+                let oldFirstId = messages.first?.id
+                if query.direction == .before || (query.direction == .after && !query.afterBeginning) {
+                    source = mergeForegroundMessages(foregroundPageMessages(page), preserving: allMessages, chatId: chatId)
+                    if query.direction == .before {
+                        nextRemote.start = page.startCursor ?? nextRemote.start; nextRemote.hasOlder = page.hasMoreBefore
+                    } else {
+                        nextRemote.end = page.endCursor ?? nextRemote.end; nextRemote.hasNewer = page.hasMoreAfter
+                    }
+                } else {
+                    let pendingIds = foregroundPendingIDs(chatId: chatId, actionType: "send_message")
+                    source = mergeForegroundMessages(foregroundPageMessages(page),
+                        preserving: allMessages.filter { $0.isStreaming == true || $0.encryptedContent == nil || pendingIds.contains($0.id) }, chatId: chatId)
+                    nextRemote = RemoteHistory(page)
+                    if query.afterBeginning { nextRemote.hasOlder = false }
+                }
+                var current = visibleWindowStartIndex..<visibleWindowEndIndex
+                if let oldFirstId, let index = source.firstIndex(where: { $0.id == oldFirstId }) {
+                    current = index..<min(source.count, index + messages.count)
+                }
+                let resolvedDestination: ChatHistoryWindowDestination = query.afterBeginning ? .oldest : destination
+                let range = ChatHistoryWindowPolicy.range(in: source, destination: resolvedDestination, current: current) ?? 0..<0
+                let visible = Array(source[range])
+                let decrypted = await decryptMessages(visible, chatId: chatId)
+                guard isCurrentRemoteRead(fence), isCurrentWindowRequest(chatId: chatId, generation: generation,
+                    requestGeneration: requestGeneration, scopeGeneration: scopeGeneration) else { return }
+                let queuedIds = foregroundPendingIDs(chatId: chatId, actionType: "send_message")
+                let pending = allMessages.filter { $0.isStreaming == true || queuedIds.contains($0.id) || ($0.encryptedContent == nil && $0.content != nil) }
+                let pendingIds = Set(pending.map(\.id))
+                source = ChatMessageWindowPage.merge(source.filter { !pendingIds.contains($0.id) }, preserving: pending)
+                let pendingById = Dictionary(pending.map { ($0.id, $0) }, uniquingKeysWith: { _, last in last })
+                let embedded = PublicChatContent.attachEmbeds(to: decrypted.map { pendingById[$0.id] ?? $0 })
+                allMessages = source; remoteHistory = nextRemote
+                messages = embedded.messages
+                embedRecords = PublicChatContent.mergingHydratedRecords(existing: embedRecords, inline: embedded.records)
+                visibleWindowStartIndex = messages.first.flatMap { first in source.firstIndex { $0.id == first.id } } ?? range.lowerBound
+                visibleWindowEndIndex = min(source.count, visibleWindowStartIndex + messages.count)
+                refreshWindowBoundaries(); historyWindowRevision += 1
+                scheduleEmbedHydration(syncedEmbeds: [],
+                    referencedIds: Set(messages.flatMap { $0.embedRefs?.map(\.id) ?? [] }),
+                    chatId: chatId, generation: generation, existingRecords: embedRecords, source: "remoteWindow")
+            } catch {
+                guard isCurrentRemoteRead(fence), windowRequestGeneration == requestGeneration else { return }
+                failedRemoteWindowRequest = requestGeneration
+                self.error = error is ChatMessageWindowError ? AppStrings.genericProcessingError : error.localizedDescription
+            }
+        }
+        olderMessagesTask = task
+        return task
+    }
+
     @discardableResult
     func loadOlderMessages() -> Task<Void, Never>? { loadMessageWindow(.older) }
 
@@ -1293,6 +1543,11 @@ final class ChatViewModel: ObservableObject {
         let generation = loadGeneration
         let requestGeneration = windowRequestGeneration
         let scopeGeneration = accountScopeGeneration()
+        if let query = remoteQuery(destination) {
+            return loadRemoteMessageWindow(query, destination: destination, chatId: chatId,
+                generation: generation, requestGeneration: requestGeneration, scopeGeneration: scopeGeneration)
+        }
+        extendDiskHistoryIfNeeded(destination, chatId: chatId)
         let current = visibleWindowStartIndex..<visibleWindowEndIndex
         let source = allMessages
         guard let nextRange = ChatHistoryWindowPolicy.range(in: source, destination: destination, current: current) else { return nil }
@@ -1338,7 +1593,7 @@ final class ChatViewModel: ObservableObject {
             historyWindowRevision += 1
             // Row navigation completes before media/network hydration. The UI
             // must restore its retained overlap immediately after this commit.
-            scheduleEmbedHydration(syncedEmbeds: [], referencedIds: referencedIDs,
+            scheduleEmbedHydration(syncedEmbeds: diskHistoryChatID == chatId ? offlineStore.loadEmbeds(chatId: chatId) : [], referencedIds: referencedIDs,
                 chatId: chatId, generation: generation, existingRecords: embedRecords,
                 source: "historyWindow")
         }
@@ -1350,9 +1605,49 @@ final class ChatViewModel: ObservableObject {
     }
 
     private func refreshWindowBoundaries() {
-        hasOlderMessages = visibleWindowStartIndex > 0
-        newerMessageCount = max(0, allMessages.count - visibleWindowEndIndex)
-        hasNewerMessages = newerMessageCount > 0
+        hasOlderMessages = visibleWindowStartIndex > 0 || diskHasOlderMessages || remoteHistory?.hasOlder == true
+        newerMessageCount = max(0, allMessages.count - visibleWindowEndIndex) + diskNewerMessageCount
+        hasNewerMessages = newerMessageCount > 0 || diskHasNewerMessages || remoteHistory?.hasNewer == true
+    }
+
+    private func refreshDiskHistoryBoundaries(_ source: [Message], chatId: String) {
+        diskHasOlderMessages = source.first.map { offlineStore.hasOlderMessages(chatId: chatId, before: $0) } ?? false
+        diskNewerMessageCount = source.last.map { offlineStore.newerMessageCount(chatId: chatId, after: $0) } ?? 0
+        diskHasNewerMessages = diskNewerMessageCount > 0
+    }
+
+    private func extendDiskHistoryIfNeeded(_ destination: ChatHistoryWindowDestination, chatId: String) {
+        guard remoteHistory == nil, diskHistoryChatID == chatId else { return }
+        var replacement: [Message]?
+        switch destination {
+        case .older where diskHasOlderMessages && visibleWindowStartIndex < ChatHistoryWindowPolicy.stride:
+            if let first = allMessages.first {
+                let older = offlineStore.loadOlderMessageWindow(chatId: chatId, before: first.id,
+                    limit: ChatHistoryWindowPolicy.stride)
+                allMessages = older + allMessages
+                visibleWindowStartIndex += older.count
+                visibleWindowEndIndex += older.count
+            }
+        case .newer where diskHasNewerMessages && allMessages.count - visibleWindowEndIndex < ChatHistoryWindowPolicy.stride:
+            if let last = allMessages.last {
+                allMessages += offlineStore.loadNewerMessageWindow(chatId: chatId, after: last,
+                    limit: ChatHistoryWindowPolicy.stride)
+            }
+        case .oldest where diskHasOlderMessages:
+            replacement = offlineStore.loadOldestMessageWindow(chatId: chatId)
+        case .latest where diskHasNewerMessages:
+            replacement = offlineStore.loadLatestMessageWindow(chatId: chatId)
+        case .message(let id) where !allMessages.contains(where: { $0.id == id }):
+            replacement = offlineStore.loadMessageWindow(chatId: chatId, around: id)
+        default:
+            break
+        }
+        if let replacement, !replacement.isEmpty {
+            allMessages = replacement
+            visibleWindowStartIndex = 0
+            visibleWindowEndIndex = 0
+        }
+        refreshDiskHistoryBoundaries(allMessages, chatId: chatId)
     }
 
     private func cancelOlderMessagesLoad() {
@@ -1377,7 +1672,8 @@ final class ChatViewModel: ObservableObject {
         excludedPIIPlaceholders: Set<String> = [],
         broadcastToSiblings: Bool = false,
         composerEmbeds explicitComposerEmbeds: [ComposerPendingEmbed]? = nil,
-        messageId: String? = nil
+        messageId: String? = nil,
+        editingMessageID: String? = nil
     ) async {
         guard let currentChat = chat else { return }
         if hasNewerMessages {
@@ -1387,9 +1683,11 @@ final class ChatViewModel: ObservableObject {
                 guard !Task.isCancelled, chat?.id == currentChat.id, loadGeneration == generation,
                       accountScopeGeneration() == scope,
                       let task = loadMessageWindow(.latest) else { return }
+                let tailRequestGeneration = windowRequestGeneration
                 await task.value
                 guard !Task.isCancelled, chat?.id == currentChat.id, loadGeneration == generation,
-                      accountScopeGeneration() == scope else { return }
+                      accountScopeGeneration() == scope,
+                      failedRemoteWindowRequest != tailRequestGeneration else { return }
                 // A new row may invalidate the source while decryption awaits.
                 // Retry that bounded tail before preparing the send payload.
             }
@@ -1402,7 +1700,24 @@ final class ChatViewModel: ObservableObject {
             await sendAnonymousMessage(content, in: currentChat)
             return
         }
+        let editingScope = OfflineStore.shared.scopeGeneration
         do {
+            let mutationFence = await captureMessageActionFence()
+            var editPlan: MessageEditPlan?
+            if let editingMessageID {
+                guard let mutationFence, mutationFence.chatID == currentChat.id, canMutatePersonalMessages else { throw MessageContextActionError.unavailable }
+                let complete = try await completeMessagesForAction(fence: mutationFence)
+                editPlan = try MessageEditPlan.make(messages: complete, chatID: currentChat.id, messageID: editingMessageID)
+            }
+            let retainedHistory = editPlan?.retained ?? allMessages
+            let preparedDeletion: (() async throws -> Void)? = editPlan.map { plan in
+                { [weak self] in
+                    guard let self, let mutationFence else { throw MessageContextActionError.staleContext }
+                    try self.requireMessageActionFence(mutationFence)
+                    try await MessageEditExecutor.removeSuffix(plan, validate: { try self.requireMessageActionFence(mutationFence) },
+                        remove: { try await self.deleteOwnedMessage($0, fence: mutationFence) })
+                }
+            }
             let composerEmbeds = explicitComposerEmbeds ?? pendingComposerEmbeds
             let mergedPIIMappings = sendPipeline.combinedPIIMappings(
                 textMappings: piiMappings,
@@ -1411,7 +1726,7 @@ final class ChatViewModel: ObservableObject {
             let result = try await sendPipeline.sendUserMessage(
                 content: content,
                 in: currentChat,
-                existingMessages: allMessages,
+                existingMessages: retainedHistory,
                 wsManager: wsManager,
                 chatStore: chatStore,
                 waitForInferenceReceipt: messageId != nil,
@@ -1420,8 +1735,14 @@ final class ChatViewModel: ObservableObject {
                 excludedPIIOriginals: excludedPIIOriginals,
                 excludedPIIPlaceholders: excludedPIIPlaceholders,
                 broadcastToSiblings: broadcastToSiblings,
+                createdAtOverride: editPlan?.removed.first?.createdAt,
+                beforePreparedSend: preparedDeletion,
+                validateRemoteSend: editingMessageID == nil ? nil : { [weak self] in
+                    guard let self, let mutationFence else { throw MessageContextActionError.staleContext }; try self.requireMessageActionFence(mutationFence)
+                },
                 messageId: messageId
             )
+            if editingMessageID != nil, let mutationFence { try requireMessageActionFence(mutationFence) }
             let provisionalTitle = allMessages.contains(where: { $0.role == .user })
                 ? nil
                 : ChatHeaderPresentation.provisionalTitle(
@@ -1459,6 +1780,7 @@ final class ChatViewModel: ObservableObject {
             isStreaming = true
             streamingContent = ""
         } catch {
+            if editingMessageID != nil && (chat?.id != currentChat.id || OfflineStore.shared.scopeGeneration != editingScope) { return }
             self.error = error.localizedDescription
             isStreaming = false
         }
@@ -2111,6 +2433,10 @@ final class ChatViewModel: ObservableObject {
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         do {
             switch type {
+            case "message_deleted":
+                let envelope = try decoder.decode(LifecycleEnvelope<ChatWindowMessageDeletion>.self, from: raw)
+                guard let payload = envelope.payload ?? envelope.data, payload.chatId == activeChatId else { return }
+                consumeForegroundMessageDeletion(chatId: payload.chatId, messageId: payload.messageId)
             case "sub_chat_confirmation_required":
                 let envelope = try decoder.decode(LifecycleEnvelope<SubChatApprovalRequest>.self, from: raw)
                 guard let payload = envelope.payload ?? envelope.data, payload.chatId == activeChatId else { return }
@@ -2363,6 +2689,72 @@ final class ChatViewModel: ObservableObject {
 
     // MARK: - Message actions
 
+    func containsMessageForEdit(_ id: String) -> Bool { allMessages.contains { $0.id == id } }
+    private var canMutatePersonalMessages: Bool {
+        guard let chat else { return false }
+        return chat.teamId == nil && chat.isSharedByOthers != true && TeamWorkspaceContext.shared.snapshot.teamID == nil
+            && !IncognitoChatSession.isIncognitoChatId(chat.id) && !isStreaming
+    }
+    private var canForkReadableMessages: Bool {
+        guard let chat, !isStreaming, !IncognitoChatSession.isIncognitoChatId(chat.id) else { return false }
+        if let teamID = chat.teamId { return TeamWorkspaceContext.shared.snapshot.teamID == teamID && ChatKeyManager.shared.hasKey(for: chat.id) }
+        return chat.isSharedByOthers != true && TeamWorkspaceContext.shared.snapshot.teamID == nil
+    }
+    private struct MessageActionFence {
+        let chatID: String; let accountID: String; let scope: UUID; let server: ServerProfile
+        let team: TeamWorkspaceSnapshot; let transport: Int
+    }
+    private func captureMessageActionFence() async -> MessageActionFence? {
+        guard let chat, let socket = wsManager else { return nil }
+        let scope = OfflineStore.shared.scopeGeneration, server = ServerProfile.current(), team = TeamWorkspaceContext.shared.snapshot
+        let transport = socket.transportGeneration
+        guard let accountID = await AuthManager.currentUserId(), self.chat?.id == chat.id,
+              OfflineStore.shared.scopeGeneration == scope, ServerProfile.current() == server,
+              TeamWorkspaceContext.shared.isCurrent(team), wsManager?.transportGeneration == transport else { return nil }
+        return .init(chatID: chat.id, accountID: accountID, scope: scope, server: server, team: team, transport: transport)
+    }
+    private func requireMessageActionFence(_ captured: MessageActionFence) throws {
+        try Task.checkCancellation()
+        guard chat?.id == captured.chatID, OfflineStore.shared.scopeGeneration == captured.scope,
+              ServerProfile.current() == captured.server, TeamWorkspaceContext.shared.isCurrent(captured.team),
+              wsManager?.transportGeneration == captured.transport else { throw MessageContextActionError.staleContext }
+    }
+    private func completeMessagesForAction(fence: MessageActionFence, readableFork: Bool = false) async throws -> [Message] {
+        try requireMessageActionFence(fence)
+        guard readableFork ? canForkReadableMessages : canMutatePersonalMessages else { throw MessageContextActionError.unavailable }
+        var path = "/v1/chats/\(fence.chatID)/messages"
+        if readableFork, let teamID = chat?.teamId {
+            var query = URLComponents(); query.queryItems = [URLQueryItem(name: "team_id", value: teamID)]
+            path += "?" + (query.percentEncodedQuery ?? "")
+        }
+        let raw: [Message] = try await api.request(.get, path: path)
+        try requireMessageActionFence(fence)
+        guard raw.allSatisfy({ $0.chatId == fence.chatID }), Set(raw.map(\.id)).count == raw.count else { throw MessageContextActionError.incompleteHistory }
+        let complete = await Self.decryptMessagesForDisplay(raw, chatId: fence.chatID)
+        try requireMessageActionFence(fence)
+        guard complete.allSatisfy({ $0.content != nil }) else { throw MessageContextActionError.incompleteHistory }
+        let serverIDs = Set(complete.map(\.id))
+        guard allMessages.allSatisfy({ serverIDs.contains($0.id) || $0.serverMessageId.map(serverIDs.contains) == true }) else {
+            throw MessageContextActionError.incompleteHistory
+        }
+        return ChatHistoryWindowPolicy.orderedUnique(complete)
+    }
+    private func deleteOwnedMessage(_ messageID: String, fence: MessageActionFence) async throws {
+        try requireMessageActionFence(fence)
+        guard canMutatePersonalMessages, let socket = wsManager,
+              await AuthManager.currentUserId() == fence.accountID else { throw MessageContextActionError.unavailable }
+        _ = try await socket.sendAndWait(WSOutboundMessage(type: "delete_message", payload: ["chatId": fence.chatID, "messageId": messageID]),
+            responseTypes: ["message_deleted", "error"],
+            matching: { fields in fields["chat_id"] as? String == fence.chatID && fields["message_id"] as? String == messageID }, beforeSend: { [weak self] in
+                guard let self, await AuthManager.currentUserId() == fence.accountID else { throw MessageContextActionError.staleContext }
+                try self.requireMessageActionFence(fence)
+            })
+        try requireMessageActionFence(fence)
+        try OfflineStore.shared.removeMessageIDs([messageID], from: fence.chatID, scope: fence.scope)
+        chatStore?.removeMessageIDs([messageID], from: fence.chatID)
+        consumeForegroundMessageDeletion(chatId: fence.chatID, messageId: messageID)
+        await HighlightsManager.shared.consume(type: "message_deleted", fields: ["chat_id": fence.chatID, "message_id": messageID], scope: fence.scope)
+    }
     func deleteMessage(_ messageId: String) async {
         #if DEBUG
         if isolatedHistory {
@@ -2370,38 +2762,45 @@ final class ChatViewModel: ObservableObject {
             refreshWindowBoundaries(); historyWindowRevision += 1; return
         }
         #endif
-        guard let chatId = chat?.id else { return }
         do {
-            let _: Data = try await api.request(
-                .delete, path: "/v1/chats/\(chatId)/messages/\(messageId)"
-            )
-            messages.removeAll { $0.id == messageId }
-        } catch {
-            self.error = error.localizedDescription
-        }
+            guard let fence = await captureMessageActionFence(), canMutatePersonalMessages else { throw MessageContextActionError.unavailable }
+            let complete = try await completeMessagesForAction(fence: fence)
+            guard complete.first?.id != messageId, complete.contains(where: { $0.id == messageId }) else { throw MessageContextActionError.unavailable }
+            try await deleteOwnedMessage(messageId, fence: fence)
+        } catch { self.error = AppStrings.error }
     }
 
-    /// Fork a conversation from a specific message. Returns the new chat ID
-    /// so the caller can navigate to it.
+    func prepareForkContext(_ messageID: String) async throws -> NativeMessageForkContext {
+        guard let fence = await captureMessageActionFence(), canForkReadableMessages else { throw MessageContextActionError.unavailable }
+        let complete = try await completeMessagesForAction(fence: fence, readableFork: true)
+        guard let index = complete.firstIndex(where: { $0.id == messageID }) else { throw MessageContextActionError.missingBoundary }
+        return .init(sourceChatID: fence.chatID, upToMessageID: messageID, defaultTitle: chat?.title ?? AppStrings.newChat,
+            messageCount: index + 1, onFork: { [weak self] title in
+                guard let self else { throw MessageContextActionError.staleContext }
+                try self.requireMessageActionFence(fence)
+                guard await self.forkFromMessage(messageID, title: title) else { throw MessageContextActionError.unavailable }
+            })
+    }
     @Published var forkedChatId: String?
-
-    func forkFromMessage(_ messageId: String) async {
+    @discardableResult
+    func forkFromMessage(_ messageId: String, title: String? = nil) async -> Bool {
         #if DEBUG
-        if isolatedHistory { return } // Fork requires an account; unavailable in isolated previews.
+        if isolatedHistory { return false }
         #endif
-        guard let chatId = chat?.id else { return }
         do {
-            let response: [String: AnyCodable] = try await api.request(
-                .post, path: "/v1/chats/\(chatId)/fork",
-                body: ["from_message_id": messageId]
-            )
-            if let newChatId = response["chat_id"]?.value as? String {
-                ToastManager.shared.show("Conversation forked", type: .success)
-                forkedChatId = newChatId
-            }
-        } catch {
-            self.error = error.localizedDescription
-        }
+            guard let fence = await captureMessageActionFence(), canForkReadableMessages,
+                  let source = chat, let socket = wsManager else { throw MessageContextActionError.unavailable }
+            let complete = try await completeMessagesForAction(fence: fence, readableFork: true)
+            guard let index = complete.firstIndex(where: { $0.id == messageId }) else { throw MessageContextActionError.missingBoundary }
+            let result = try await sendPipeline.persistFork(source: source, messages: Array(complete[...index]), socket: socket, title: title,
+                validate: { [weak self] in
+                    guard let self else { throw MessageContextActionError.staleContext }; try self.requireMessageActionFence(fence)
+                })
+            try requireMessageActionFence(fence)
+            chatStore?.upsertChat(result.chat); chatStore?.setMessages(for: result.chat.id, messages: result.messages)
+            forkedChatId = result.chat.id
+            return true
+        } catch { self.error = AppStrings.error; return false }
     }
 
     // MARK: - Embed loading
@@ -2469,6 +2868,10 @@ final class ChatViewModel: ObservableObject {
             return
         }
         do {
+            if remoteHistory?.chatId == chatId {
+                try await loadBoundedRemoteEmbeds(requiredEmbedIds, chatId: chatId, generation: generation)
+                return
+            }
             // Personal encrypted embeds use the same scoped content-batch
             // protocol as messages. There is no per-chat REST embeds endpoint.
             let batch = try await requestEmbedContentBatch(chatId: chatId, generation: generation, scope: scopeGeneration)
@@ -2493,8 +2896,55 @@ final class ChatViewModel: ObservableObject {
                 "phase=loadEmbedsFetched chat=\(chatId.prefix(8)) fetched=\(fetchedEmbeds.count) related=\(relatedEmbeds.count) keys=\(batch.embedKeys.count) linked=\(childLinked) decryptedRaw=\(rawCount) totalRecords=\(embedRecords.count)"
             )
         } catch {
-            print("[Chat] Failed to load embeds: \(error)")
+            if remoteHistory?.chatId == chatId, generation == loadGeneration,
+               scopeGeneration == accountScopeGeneration() {
+                self.error = error is ChatMessageWindowError ? AppStrings.genericProcessingError : error.localizedDescription
+            }
+            NativeDiagnostics.failure("chat_embed_read_failed", category: "chat_sync", level: .warning, error: error)
         }
+    }
+
+    /// Cold foreground paging requests only visible embed IDs, never the full
+    /// transcript. The published v1 WS response carries ciphertext and wrappers.
+    private func loadBoundedRemoteEmbeds(_ ids: Set<String>, chatId: String, generation: Int) async throws {
+        guard let socket = wsManager else { throw ChatContentHydrationError.websocketUnavailable }
+        let fence = remoteReadFence(chatId: chatId, generation: generation)
+        var fetched: [EmbedRecord] = []
+        let missing = ids.filter { embedRecords[$0].map(Self.embedRecordRequiresHydration) ?? true }
+        for id in missing.sorted().prefix(20) {
+            guard isCurrentRemoteRead(fence) else { throw ChatMessageWindowError.staleContext }
+            let response = try await socket.sendAndWait(
+                WSOutboundMessage(type: "request_embed", payload: ["embed_id": id]),
+                responseTypes: ["send_embed_data"],
+                matching: { $0["embed_id"] as? String == id },
+                preSendValidation: { [weak self] in
+                    guard self?.isCurrentRemoteRead(fence) == true else { throw ChatMessageWindowError.staleContext }
+                })
+            guard isCurrentRemoteRead(fence), response.fields["already_encrypted"] as? Bool == true,
+                  let content = response.fields["content"] as? String, !content.isEmpty,
+                  let type = response.fields["type"] as? String, !type.isEmpty else { throw ChatMessageWindowError.invalidResponse }
+            let fields = response.fields
+            let decoder = JSONDecoder(); decoder.keyDecodingStrategy = .convertFromSnakeCase
+            if let keys = fields["embed_keys"] {
+                let entries = try decoder.decode([EmbedKeyRecord].self, from: JSONSerialization.data(withJSONObject: keys))
+                guard entries.allSatisfy({ $0.hashedEmbedId == ChatKeyWrapperRecord.hashedChatId(for: id)
+                    && !$0.encryptedEmbedKey.isEmpty }) else { throw ChatMessageWindowError.invalidResponse }
+                EmbedKeyManager.shared.store(entries, source: "remoteMessageWindow")
+            }
+            fetched.append(EmbedRecord(id: id, type: "app-skill-use", status: .finished, data: nil,
+                encryptedContent: content, encryptedType: type,
+                encryptedTextPreview: fields["text_preview"] as? String,
+                parentEmbedId: fields["parent_embed_id"] as? String,
+                appId: fields["app_id"] as? String, skillId: fields["skill_id"] as? String,
+                embedIds: (fields["embed_ids"] as? [String])?.joined(separator: "|") ?? fields["embed_ids"] as? String,
+                hashedChatId: fields["chat_id"] as? String,
+                versionNumber: fields["version_number"] as? Int, contentHash: fields["content_hash"] as? String,
+                createdAt: nil))
+        }
+        let decoded = await decryptEmbeds(fetched, chatId: chatId, existingRecords: embedRecords)
+        guard isCurrentRemoteRead(fence) else { throw ChatMessageWindowError.staleContext }
+        embedRecords = PublicChatContent.mergingHydratedRecords(existing: embedRecords,
+            inline: EmbedRecord.dictionaryById(decoded, context: "remoteMessageWindow"))
     }
 
     func retryVisibleEmbedHydration() async {
@@ -3197,26 +3647,30 @@ enum AudioRecordingUploadPipeline {
         let realtimeTask = Task { @MainActor in
             await resolveRealtime(realtimeResult)
         }
-        async let uploaded = upload()
-
-        guard let uploadResult = await uploaded else {
+        defer { realtimeTask.cancel() }
+        return await withTaskCancellationHandler {
+            async let uploaded = upload()
+            guard let uploadResult = await uploaded, !Task.isCancelled else { return nil }
+            let transcription: TranscriptionMetadata
+            let realtimeResult = await realtimeTask.value
+            guard !Task.isCancelled else { return nil }
+            if let realtimeResult {
+                transcription = realtimeResult.transcriptionMetadata.withWaveform(waveform)
+            } else {
+                // A failed or stalled transcription must not strand an already
+                // uploaded recording in the composer. Keep its playable file and
+                // waveform even when there is no transcript to display.
+                let batchResult = await boundedBatchTranscription(
+                    uploadResult, operation: batchTranscription, timeout: batchTimeout
+                )
+                guard !Task.isCancelled else { return nil }
+                transcription = (batchResult ?? TranscriptionMetadata(transcript: nil))
+                    .withWaveform(waveform ?? batchResult?.waveform)
+            }
+            return AudioRecordingUploadPipelineResult(upload: uploadResult, transcription: transcription)
+        } onCancel: {
             realtimeTask.cancel()
-            return nil
         }
-        let transcription: TranscriptionMetadata
-        if let realtimeResult = await realtimeTask.value {
-            transcription = realtimeResult.transcriptionMetadata.withWaveform(waveform)
-        } else {
-            // A failed or stalled transcription must not strand an already
-            // uploaded recording in the composer. Keep its playable file and
-            // waveform even when there is no transcript to display.
-            let batchResult = await boundedBatchTranscription(
-                uploadResult, operation: batchTranscription, timeout: batchTimeout
-            )
-            transcription = (batchResult ?? TranscriptionMetadata(transcript: nil))
-                .withWaveform(waveform ?? batchResult?.waveform)
-        }
-        return AudioRecordingUploadPipelineResult(upload: uploadResult, transcription: transcription)
     }
 
     private static func boundedBatchTranscription(
@@ -3258,6 +3712,8 @@ struct AudioRecordingUploadScope: Equatable {
 
 @MainActor
 enum AudioRecordingUploadService {
+    static let batchTranscriptionPath = "/v1/apps/audio/skills/transcribe"
+
     static func prepare(
         url: URL,
         duration: TimeInterval,
@@ -3278,21 +3734,24 @@ enum AudioRecordingUploadService {
         let filename = url.lastPathComponent
         let mimeType = "audio/mp4"
         PendingUploadStore.shared.startUpload(id: uploadId, chatId: chatId, filename: AppStrings.audioRecording)
-        PendingUploadStore.shared.updateStatus(id: uploadId, status: .transcribing)
 
         let pipeline = await AudioRecordingUploadPipeline.run(
             waveform: waveform,
             realtimeResult: realtimeResult,
             upload: {
                 guard scope.isCurrent, !Task.isCancelled else { return nil }
-                if let uploadOperation { return await uploadOperation() }
-                return await upload(
-                    data: data,
-                    filename: filename,
-                    contentType: mimeType,
-                    chatId: chatId,
-                    uploadId: uploadId
-                )
+                let result: UploadFileResponse?
+                if let uploadOperation {
+                    result = await uploadOperation()
+                } else {
+                    result = await upload(data: data, filename: filename, contentType: mimeType,
+                        chatId: chatId, uploadId: uploadId)
+                }
+                guard scope.isCurrent, !Task.isCancelled else { return nil }
+                if result != nil {
+                    PendingUploadStore.shared.updateStatus(id: uploadId, status: .transcribing)
+                }
+                return result
             },
             batchTranscription: { upload in
                 guard scope.isCurrent, !Task.isCancelled else { return nil }
@@ -3347,8 +3806,11 @@ enum AudioRecordingUploadService {
             PendingUploadStore.shared.updateProgress(id: uploadId, progress: 1.0)
             return upload
         } catch {
+            if Task.isCancelled || error is CancellationError || (error as? URLError)?.code == .cancelled {
+                return nil
+            }
             NativeDiagnostics.error(
-                "Composer recording upload failed: \(type(of: error))",
+                "Composer recording upload failed category=\(failureCategory(error))",
                 category: "apple_composer"
             )
             let message = failureMessage(error)
@@ -3362,6 +3824,15 @@ enum AudioRecordingUploadService {
             return AppStrings.localized("settings.app_settings_memories.authentication_required")
         }
         return AppStrings.uploadProgressError
+    }
+
+    // Do not record server detail, transcript, filenames, keys, or cookie values.
+    static func failureCategory(_ error: Error) -> String {
+        if case APIError.httpError(let status, _) = error { return "http_\(status)" }
+        if let error = error as? URLError { return "url_\(error.code.rawValue)" }
+        if error is DecodingError { return "response_decode" }
+        if error is CancellationError { return "cancelled" }
+        return "transport"
     }
 
     private static func batchTranscription(
@@ -3392,13 +3863,14 @@ enum AudioRecordingUploadService {
         do {
             let response: TranscribeSkillResponse = try await APIClient.shared.request(
                 .post,
-                path: "apps/audio/skills/transcribe",
+                path: batchTranscriptionPath,
                 body: request
             )
             return response.data.results.first?.results.first
         } catch {
+            guard !Task.isCancelled, !(error is CancellationError), (error as? URLError)?.code != .cancelled else { return nil }
             NativeDiagnostics.error(
-                "Composer recording transcription failed: \(type(of: error))",
+                "Composer recording transcription failed category=\(failureCategory(error))",
                 category: "apple_composer"
             )
             return nil
@@ -3457,6 +3929,47 @@ struct TranscriptionMetadata: Decodable, Equatable, Sendable {
     }
 }
 
+struct ComposerEmbedReferenceScope: Equatable {
+    let accountScope: UUID
+    let server: String
+    let teamID: String?
+    let teamEpoch: UInt64
+
+    @MainActor static var current: Self {
+        let team = TeamWorkspaceContext.shared.snapshot
+        return Self(accountScope: OfflineStore.shared.scopeGeneration,
+                    server: ServerProfile.current().apiBaseURL.absoluteString,
+                    teamID: team.teamID, teamEpoch: team.epoch)
+    }
+}
+
+enum ComposerEmbedStorageDisposition: Equatable {
+    case requiredEncryptedBundle
+    // A saved/decrypted local record selected by the user. This provenance does
+    // not claim a new server availability receipt, which is not deployed yet.
+    case existingStoredReference(ComposerEmbedReferenceScope)
+}
+
+struct ComposerEmbedStorageError: LocalizedError, Equatable {
+    enum Reason: Equatable, Sendable { case missingContent, staleReference, changedReference }
+    let reason: Reason
+    let embedID: String
+    private let description: String
+    var errorDescription: String? { description }
+
+    // Capture translated text on the main actor; LocalizedError consumers can
+    // then read its immutable description safely from any thread.
+    @MainActor static func missingRequiredContent(_ id: String) -> Self {
+        Self(reason: .missingContent, embedID: id, description: AppStrings.chatStorageMissingAttachmentContent)
+    }
+    @MainActor static func staleStoredReference(_ id: String) -> Self {
+        Self(reason: .staleReference, embedID: id, description: AppStrings.chatStorageStaleAttachmentReference)
+    }
+    @MainActor static func changedStoredReference(_ id: String) -> Self {
+        Self(reason: .changedReference, embedID: id, description: AppStrings.chatStorageChangedAttachmentReference)
+    }
+}
+
 struct ComposerPendingEmbed: Identifiable {
     let id: String
     let type: String
@@ -3469,6 +3982,17 @@ struct ComposerPendingEmbed: Identifiable {
     let filename: String
     let size: Int
     let piiMappings: [PIIMapping]
+    let storageDisposition: ComposerEmbedStorageDisposition
+
+    init(id: String, type: String, referenceType: String, status: String, content: String?,
+         textPreview: String?, record: EmbedRecord, localData: Data?, filename: String,
+         size: Int, piiMappings: [PIIMapping],
+         storageDisposition: ComposerEmbedStorageDisposition = .requiredEncryptedBundle) {
+        self.id = id; self.type = type; self.referenceType = referenceType; self.status = status
+        self.content = content; self.textPreview = textPreview; self.record = record
+        self.localData = localData; self.filename = filename; self.size = size
+        self.piiMappings = piiMappings; self.storageDisposition = storageDisposition
+    }
 
     var markdownReference: String {
         "```json\n{\"type\": \"\(referenceType)\", \"embed_id\": \"\(id)\"}\n```"
@@ -3488,8 +4012,18 @@ struct ComposerPendingEmbed: Identifiable {
         return payload
     }
 
-    var canPersistDirectly: Bool {
-        content != nil
+    static func fromURL(_ embed: BackgroundPreparedEmbed) -> ComposerPendingEmbed {
+        let record = EmbedRecord(
+            id: embed.id, type: embed.type, status: .finished,
+            data: .raw(embed.content.mapValues { AnyCodable($0) }),
+            parentEmbedId: nil, appId: embed.type == "video" ? "videos" : "web",
+            skillId: nil, embedIds: nil, createdAt: String(Int(Date().timeIntervalSince1970))
+        )
+        return ComposerPendingEmbed(
+            id: embed.id, type: embed.type, referenceType: embed.referenceType,
+            status: embed.status, content: jsonString(embed.content), textPreview: embed.textPreview,
+            record: record, localData: nil, filename: embed.textPreview ?? "", size: 0, piiMappings: []
+        )
     }
 
     @MainActor
@@ -3741,6 +4275,24 @@ private struct TranscribeSkillResponse: Decodable {
     let data: ResponseData
 }
 
+/// A bounded cache of bundled public fixtures. Never accepts account chat IDs
+/// and keeps only one locale, so language switches cannot reuse translated rows.
+@MainActor
+struct LocalizedPublicChatCache<Value> {
+    private var locale: String?
+    private var values: [String: Value] = [:]
+
+    mutating func value(for id: String, locale: String, allowedIDs: Set<String>,
+                        build: () -> Value?) -> Value? {
+        guard allowedIDs.contains(id) else { return nil }
+        if self.locale != locale { values.removeAll(); self.locale = locale }
+        if let cached = values[id] { return cached }
+        guard let value = build() else { return nil }
+        values[id] = value
+        return value
+    }
+}
+
 @MainActor
 enum PublicChatContent {
     static func mergingHydratedRecords(
@@ -3770,7 +4322,23 @@ enum PublicChatContent {
         let embedRecords: [String: EmbedRecord]
     }
 
+    private static let publicChatIDs: Set<String> = [
+        "demo-who-develops-openmates", "announcements-introducing-openmates-v09",
+        "legal-privacy", "legal-terms", "legal-imprint",
+        "example-gigantic-airplanes", "example-artemis-ii-mission",
+        "example-beautiful-single-page-html", "example-eu-chat-control-law",
+        "example-flights-berlin-bangkok", "example-creativity-drawing-meetups-berlin"
+    ]
+    private static var cache = LocalizedPublicChatCache<PublicChat>()
+
+    static func isPublicChat(_ id: String) -> Bool { publicChatIDs.contains(id) }
+
     static func chat(for id: String) -> PublicChat? {
+        cache.value(for: id, locale: LocalizationManager.shared.currentLanguage.code,
+                    allowedIDs: publicChatIDs) { buildChat(for: id) }
+    }
+
+    private static func buildChat(for id: String) -> PublicChat? {
         let createdAt = "2026-04-20T12:00:00Z"
 
         switch id {
@@ -4546,6 +5114,130 @@ enum SubChatSpawnScopedStage {
     }
 }
 
+struct ChatSendRetryFence: Codable, Equatable {
+    let processEpoch: UUID
+    let accountID: String
+    let accountScope: UUID
+    let server: String
+    let teamID: String?
+    let teamEpoch: UInt64
+    let keyGeneration: UUID
+    let deletionVersion: Int
+    let chatKeyDigest: String
+
+    func permitsReplay(in current: Self, hasOriginalMessage: Bool,
+                       expectedVersion: Int, currentVersion: Int) -> Bool {
+        guard hasOriginalMessage, accountID == current.accountID, server == current.server,
+              teamID == current.teamID, chatKeyDigest == current.chatKeyDigest,
+              currentVersion == expectedVersion else { return false }
+        // A cold launch can rebind only after the exact local encrypted message
+        // and current authorized chat key are verified. Within one process,
+        // account/key/Team/deletion epochs cannot be rebound after mutation.
+        return processEpoch != current.processEpoch || (
+            accountScope == current.accountScope && teamEpoch == current.teamEpoch
+            && keyGeneration == current.keyGeneration && deletionVersion == current.deletionVersion
+        )
+    }
+}
+
+struct ChatRetainedSendBundle: Codable, Equatable {
+    let chatID: String
+    let chatTeamID: String?
+    let messageID: String
+    let turnID: String
+    let inputDigest: String
+    let messagesVersion: Int
+    let fence: ChatSendRetryFence
+    let preflight: Data
+    let outbound: Data
+
+    init(chatID: String, messageID: String, turnID: String, inputDigest: String,
+         messagesVersion: Int, fence: ChatSendRetryFence,
+         preflight: [String: Any], outbound: [String: Any], chatTeamID: String? = nil) throws {
+        self.chatID = chatID; self.chatTeamID = chatTeamID; self.messageID = messageID; self.turnID = turnID
+        self.inputDigest = inputDigest; self.messagesVersion = messagesVersion; self.fence = fence
+        self.preflight = try JSONSerialization.data(withJSONObject: preflight, options: [.sortedKeys])
+        self.outbound = try JSONSerialization.data(withJSONObject: outbound, options: [.sortedKeys])
+    }
+
+    @MainActor func payloads() throws -> (preflight: [String: Any], outbound: [String: Any]) {
+        guard let head = try JSONSerialization.jsonObject(with: preflight) as? [String: Any],
+              let send = try JSONSerialization.jsonObject(with: outbound) as? [String: Any],
+              head["chat_id"] as? String == chatID, head["message_id"] as? String == messageID,
+              head["turn_id"] as? String == turnID, send["chat_id"] as? String == chatID,
+              send["turn_id"] as? String == turnID,
+              (send["message"] as? [String: Any])?["message_id"] as? String == messageID,
+              let committed = head["inference_request"] as? [String: Any],
+              NSDictionary(dictionary: committed).isEqual(to: send) else { throw ChatSendError.retryUnavailable }
+        return (head, send)
+    }
+}
+
+/// Exact prepared requests are encrypted with the owner's master key before
+/// Keychain persistence. This store has no automatic replay or account adoption.
+@MainActor
+final class ChatRetainedSendStore {
+    private let read: (String) throws -> Data?
+    private let write: (String, Data) throws -> Void
+    private let erase: (String) throws -> Void
+
+    init(read: @escaping (String) throws -> Data? = { try KeychainHelper.load(key: $0) },
+         write: @escaping (String, Data) throws -> Void = { try KeychainHelper.save(key: $0, data: $1) },
+         erase: @escaping (String) throws -> Void = { try KeychainHelper.delete(key: $0) }) {
+        self.read = read; self.write = write; self.erase = erase
+    }
+
+    private func key(accountID: String, server: String, chatID: String, messageID: String) throws -> String {
+        let identity = try JSONEncoder().encode([accountID, server, chatID, messageID])
+        return "retained-chat-turn-" + SHA256.hash(data: identity).map { String(format: "%02x", $0) }.joined()
+    }
+
+    func load(accountID: String, server: String, chatID: String, messageID: String,
+              masterKey: SymmetricKey) throws -> ChatRetainedSendBundle? {
+        let storageKey = try key(accountID: accountID, server: server, chatID: chatID, messageID: messageID)
+        guard let bytes = try read(storageKey) else { return nil }
+        guard let encrypted = String(data: bytes, encoding: .utf8) else { throw ChatSendError.retryUnavailable }
+        let plaintext = try ComposerEmbedCrypto.decryptContent(encrypted, using: masterKey)
+        let bundle = try JSONDecoder().decode(ChatRetainedSendBundle.self, from: Data(plaintext.utf8))
+        guard bundle.fence.accountID == accountID, bundle.fence.server == server,
+              bundle.chatID == chatID, bundle.messageID == messageID else { throw ChatSendError.retryUnavailable }
+        _ = try bundle.payloads()
+        return bundle
+    }
+
+    func save(_ bundle: ChatRetainedSendBundle, masterKey: SymmetricKey) throws {
+        _ = try bundle.payloads()
+        let storageKey = try key(accountID: bundle.fence.accountID, server: bundle.fence.server,
+                                 chatID: bundle.chatID, messageID: bundle.messageID)
+        // A repeated identity must never replace a partially persisted request.
+        if let existing = try load(accountID: bundle.fence.accountID, server: bundle.fence.server,
+                                   chatID: bundle.chatID, messageID: bundle.messageID, masterKey: masterKey) {
+            guard existing == bundle else { throw ChatSendError.retryUnavailable }
+            return
+        }
+        let json = String(decoding: try JSONEncoder().encode(bundle), as: UTF8.self)
+        let sealed = try ComposerEmbedCrypto.encryptContent(json, using: masterKey)
+        try write(storageKey, Data(sealed.utf8))
+    }
+
+    func remove(_ bundle: ChatRetainedSendBundle, masterKey: SymmetricKey) throws {
+        guard let existing = try load(accountID: bundle.fence.accountID, server: bundle.fence.server,
+                                      chatID: bundle.chatID, messageID: bundle.messageID, masterKey: masterKey),
+              existing.turnID == bundle.turnID, existing == bundle else { return }
+        try erase(key(accountID: bundle.fence.accountID, server: bundle.fence.server,
+                      chatID: bundle.chatID, messageID: bundle.messageID))
+    }
+}
+
+@MainActor
+enum ChatPreparedSendRetentionStage {
+    static func retainThenCommit(retain: @MainActor () throws -> Void,
+                                 commit: @MainActor () async throws -> Void) async throws {
+        try retain()
+        try await commit()
+    }
+}
+
 @MainActor
 final class ChatSendPipeline {
     private let crypto = CryptoManager.shared
@@ -4553,12 +5245,12 @@ final class ChatSendPipeline {
     private var completedAssistantStorageSent = Set<String>()
     private struct PreparedTurn {
         let result: SendResult
-        let accountScope: UUID
-        let turnId: String
-        let preflightPayload: [String: Any]
-        let outboundPayload: [String: Any]
+        let bundle: ChatRetainedSendBundle
     }
     private var preparedTurns: [String: PreparedTurn] = [:]
+    private static let processEpoch = UUID()
+    private let retainedSendStore = ChatRetainedSendStore()
+    private var preparingMessageIDs = Set<String>()
 
     struct SendResult {
         let chat: Chat
@@ -4671,6 +5363,24 @@ final class ChatSendPipeline {
         let acceptedChat = copyChat(prepared.chat, messagesV: accepted.messages,
                                     titleV: accepted.title, metadataV: accepted.metadata)
         return SpawnedSubChatStorage(chat: acceptedChat, firstMessage: prepared.firstMessage)
+    }
+
+    func persistFork(source: Chat, messages: [Message], socket: WebSocketManager, title: String? = nil,
+                     validate: @escaping () throws -> Void) async throws -> (chat: Chat, messages: [Message]) {
+        try validate()
+        let id = UUID().uuidString, now = Date(), keyGeneration = ChatKeyManager.shared.cacheGeneration
+        let material = try await ensureChatKey(chatId: id, encryptedChatKey: nil)
+        try validate()
+        let prepared = try await MessageForkPayloadBuilder.prepare(source: source, messages: messages, id: id, now: now,
+            key: material.key, wrappedKey: material.encryptedChatKey, title: title, validate: validate)
+        try validate()
+        guard keyGeneration == ChatKeyManager.shared.cacheGeneration else { throw MessageContextActionError.staleContext }
+        let response = try await socket.sendAndWait(WSOutboundMessage(type: "encrypted_chat_metadata", payload: prepared.payload),
+            responseTypes: ["encrypted_metadata_stored", "incomplete_chat_metadata", "chat_key_mismatch"],
+            matching: { $0["chat_id"] as? String == id }, beforeSend: { try validate() })
+        try validate()
+        guard ChatEncryptedMetadataAcknowledgementPolicy.acceptedVersions(from: response.fields) != nil else { throw ChatSendError.chatKeyMismatch }
+        return (prepared.chat, prepared.messages)
     }
 
     func spawnedSubChatStoragePayload(
@@ -4898,45 +5608,109 @@ final class ChatSendPipeline {
         excludedPIIPlaceholders: Set<String> = [],
         broadcastToSiblings: Bool = false,
         beforeRemoteSend: ((String, [String: Any], [String: Any]) throws -> Void)? = nil,
+        createdAtOverride: String? = nil,
+        beforePreparedSend: (() async throws -> Void)? = nil,
         validateRemoteSend: (() throws -> Void)? = nil,
         messageId requestedMessageId: String? = nil
     ) async throws -> SendResult {
         guard let wsManager else { throw ChatSendError.webSocketUnavailable }
-        if let requestedMessageId, let prepared = preparedTurns[requestedMessageId] {
-            guard prepared.result.chat.id == chat.id,
-                  prepared.accountScope == OfflineStore.shared.scopeGeneration else {
-                preparedTurns.removeValue(forKey: requestedMessageId)
-                throw ChatSendError.webSocketUnavailable
-            }
-            try await sendRemoteUserMessage(chatId: chat.id, activateChat: activateChat,
-                wsManager: wsManager, turnId: prepared.turnId,
-                preflightPayload: prepared.preflightPayload,
-                outboundPayload: prepared.outboundPayload,
-                waitForInferenceReceipt: true, validateRemoteSend: validateRemoteSend)
-            preparedTurns.removeValue(forKey: requestedMessageId)
-            return prepared.result
-        }
         // Pin speech/account context before encryption and preference awaits.
         let accountScope = OfflineStore.shared.scopeGeneration
+        let server = ServerProfile.current()
+        let team = TeamWorkspaceContext.shared.snapshot
+        let keyGeneration = ChatKeyManager.shared.cacheGeneration
+        let deletionVersion = OfflineStore.shared.chatDeletionVersion(chat.id)
+        preparedTurns = preparedTurns.filter {
+            let fence = $0.value.bundle.fence
+            return fence.accountScope == accountScope && fence.server == server.apiBaseURL.absoluteString
+                && fence.teamID == team.teamID && fence.teamEpoch == team.epoch && fence.keyGeneration == keyGeneration
+        }
         let speechScope = AssistantSpeechAppRuntime.shared.scope(for: chat.id)
         let validateSendContext: () throws -> Void = {
-            guard OfflineStore.shared.scopeGeneration == accountScope else {
+            try Task.checkCancellation()
+            guard OfflineStore.shared.scopeGeneration == accountScope,
+                  ServerProfile.current() == server, TeamWorkspaceContext.shared.isCurrent(team),
+                  ChatKeyManager.shared.cacheGeneration == keyGeneration,
+                  OfflineStore.shared.chatDeletionVersion(chat.id) == deletionVersion else {
                 throw ChatSendError.webSocketUnavailable
             }
             try validateRemoteSend?()
             if let speechScope { try AssistantSpeechAppRuntime.shared.requireCurrent(speechScope, socket: wsManager) }
         }
         let now = Date()
-        let createdAt = Self.isoString(from: now)
-        let createdAtUnix = Int(now.timeIntervalSince1970)
+        let createdAt = createdAtOverride ?? Self.isoString(from: now)
+        let createdAtUnix = createdAtOverride.map(Self.unixSeconds) ?? Int(now.timeIntervalSince1970)
         let messageId = requestedMessageId ?? "\(chat.id.suffix(10))-\(UUID().uuidString)"
+        guard preparingMessageIDs.insert(messageId).inserted else { throw ChatSendError.retryUnavailable }
+        defer { preparingMessageIDs.remove(messageId) }
+        // Nil content alone is never evidence of an already stored attachment.
+        _ = try Self.requiredEncryptedBundles(composerEmbeds, referenceScope: .current)
+        guard let accountID = await AuthManager.currentUserId(),
+              let masterKey = try await crypto.loadMasterKey(for: accountID) else { throw ChatSendError.missingMasterKey }
+        try validateSendContext()
         let keyMaterial = try await ensureChatKey(chatId: chat.id, encryptedChatKey: chat.encryptedChatKey)
+        try validateSendContext()
+        let retryFence = ChatSendRetryFence(processEpoch: Self.processEpoch, accountID: accountID,
+            accountScope: accountScope, server: server.apiBaseURL.absoluteString,
+            teamID: team.teamID, teamEpoch: team.epoch, keyGeneration: keyGeneration,
+            deletionVersion: deletionVersion,
+            chatKeyDigest: keyMaterial.key.withUnsafeBytes { SHA256.hash(data: Data($0)).map { String(format: "%02x", $0) }.joined() })
+        let inputDigest = try Self.sendInputDigest(content: content, composerEmbeds: composerEmbeds,
+            piiMappings: piiMappings, excludedPIIOriginals: excludedPIIOriginals,
+            excludedPIIPlaceholders: excludedPIIPlaceholders, broadcastToSiblings: broadcastToSiblings,
+            createdAtOverride: createdAtOverride, isEdit: beforePreparedSend != nil,
+            knownMappings: knownPIIMappings(in: existingMessages.filter { $0.id != messageId }))
+        if requestedMessageId != nil,
+           let retained = try preparedTurns[messageId]?.bundle ?? retainedSendStore.load(
+            accountID: accountID, server: server.apiBaseURL.absoluteString,
+            chatID: chat.id, messageID: messageId, masterKey: masterKey) {
+            let payloads = try retained.payloads()
+            let original = (chatStore?.messages(for: chat.id) ?? existingMessages).first { $0.id == messageId }
+                ?? OfflineStore.shared.loadMessageWindow(chatId: chat.id, around: messageId).first { $0.id == messageId }
+            let currentChat = chatStore?.chat(for: chat.id) ?? chat
+            let originalCiphertext = (payloads.preflight["encrypted_user_message"] as? [String: Any])?["encrypted_content"] as? String
+            let originalMappingCiphertext = (payloads.preflight["encrypted_user_message"] as? [String: Any])?["encrypted_pii_mappings"] as? String
+            guard retained.chatID == chat.id, retained.messageID == messageId,
+                  retained.inputDigest == inputDigest, retained.chatTeamID == chat.teamId, let original,
+                  original.chatId == chat.id, original.role == .user,
+                  original.encryptedContent == originalCiphertext, originalCiphertext != nil,
+                  original.encryptedPIIMappings == originalMappingCiphertext,
+                  retained.fence.permitsReplay(in: retryFence, hasOriginalMessage: true,
+                    expectedVersion: retained.messagesVersion, currentVersion: currentChat.messagesV ?? existingMessages.count) else {
+                throw ChatSendError.retryUnavailable
+            }
+            let validateRetry: () throws -> Void = {
+                try validateSendContext()
+                let liveChat = chatStore?.chat(for: chat.id) ?? currentChat
+                guard (liveChat.messagesV ?? existingMessages.count) == retained.messagesVersion,
+                      chatStore == nil || chatStore?.messages(for: chat.id).contains(where: {
+                        $0.id == messageId && $0.encryptedContent == originalCiphertext
+                      }) == true else { throw ChatSendError.retryUnavailable }
+            }
+            try validateRetry()
+            try beforeRemoteSend?(retained.turnID, payloads.preflight, payloads.outbound)
+            try await sendRemoteUserMessage(chatId: chat.id, activateChat: activateChat,
+                wsManager: wsManager, turnId: retained.turnID, preflightPayload: payloads.preflight,
+                outboundPayload: payloads.outbound, waitForInferenceReceipt: true,
+                validateRemoteSend: validateRetry)
+            try validateSendContext()
+            try retainedSendStore.remove(retained, masterKey: masterKey)
+            if preparedTurns[messageId]?.bundle.turnID == retained.turnID { preparedTurns.removeValue(forKey: messageId) }
+            return SendResult(chat: currentChat, message: original)
+        }
         let contentWithEmbedReferences = Self.contentByAppendingComposerEmbedReferences(
             content,
             composerEmbeds: composerEmbeds
         )
+        let urlPreparation = try await URLMessageEmbedPreparation.prepare(
+            text: contentWithEmbedReferences,
+            credits: URLMessageEmbedPreparation.cachedCredits(accountID: await AuthManager.currentUserId()),
+            validate: validateSendContext
+        )
+        let preparedEmbeds = composerEmbeds + urlPreparation.embeds.map(ComposerPendingEmbed.fromURL)
+        try validateSendContext()
         let sendPreparation = contentAndMappingsForSend(
-            content: contentWithEmbedReferences,
+            content: urlPreparation.content,
             existingMessages: existingMessages,
             piiMappings: piiMappings,
             excludedPIIOriginals: excludedPIIOriginals,
@@ -4947,7 +5721,7 @@ final class ChatSendPipeline {
         let encryptedContent = try await crypto.encryptContent(contentForSend, key: keyMaterial.key)
         let encryptedPIIMappings = try await encryptPIIMappings(mappingsForSend, key: keyMaterial.key)
         let encryptedEmbedPayloads = try await encryptedEmbeds(
-            composerEmbeds,
+            preparedEmbeds,
             chatId: chat.id,
             messageId: messageId,
             chatKey: keyMaterial.key
@@ -4970,7 +5744,7 @@ final class ChatSendPipeline {
             updatedAt: nil,
             appId: nil,
             isStreaming: nil,
-            embedRefs: composerEmbeds.isEmpty ? nil : composerEmbeds.map { embed in
+            embedRefs: preparedEmbeds.isEmpty ? nil : preparedEmbeds.map { embed in
                 EmbedRef(id: embed.id, type: embed.type, status: embed.status, data: nil)
             },
             piiMappings: mappingsForSend.isEmpty ? nil : mappingsForSend,
@@ -5039,7 +5813,7 @@ final class ChatSendPipeline {
                 outboundPayload["focus_phase_state"] = states
             }
         }
-        let sendableEmbeds = composerEmbeds.compactMap(\.serverPayload)
+        let sendableEmbeds = preparedEmbeds.compactMap(\.serverPayload)
         if !sendableEmbeds.isEmpty {
             outboundPayload["embeds"] = sendableEmbeds
         }
@@ -5101,24 +5875,31 @@ final class ChatSendPipeline {
         // Notification actions persist this exact preflight/commit pair before
         // local insertion, so interrupted retries cannot create another message.
         try validateSendContext()
-        try beforeRemoteSend?(turnId, preflightPayload, outboundPayload)
+        let retainedBundle = try ChatRetainedSendBundle(chatID: chat.id, messageID: messageId,
+            turnID: turnId, inputDigest: inputDigest, messagesVersion: nextMessagesV, fence: retryFence,
+            preflight: preflightPayload, outbound: outboundPayload, chatTeamID: chat.teamId)
+        // Retention must succeed before callbacks, destructive edit preparation,
+        // optimistic insertion, or transport. Never truncate oversized payloads.
+        try await ChatPreparedSendRetentionStage.retainThenCommit(retain: {
+            try self.retainedSendStore.save(retainedBundle, masterKey: masterKey)
+        }, commit: {
+            try validateSendContext()
+            try beforeRemoteSend?(turnId, preflightPayload, outboundPayload)
+            try await beforePreparedSend?()
+            try validateSendContext()
+        })
         chatStore?.upsertChat(updatedChat)
         // A new chat can be sent directly from the welcome composer, before a
         // ChatViewModel exists to register its uploaded attachment. Keep the
         // durable records beside the optimistic user message so the first
         // render and a later cold open can resolve its [[embed:...]] references.
-        if !composerEmbeds.isEmpty {
-            chatStore?.upsertEmbeds(composerEmbeds.map(\.record), for: chat.id)
+        if !preparedEmbeds.isEmpty {
+            chatStore?.upsertEmbeds(preparedEmbeds.map(\.record), for: chat.id)
         }
         chatStore?.appendMessage(message, to: chat.id)
 
-        if requestedMessageId != nil {
-            preparedTurns[messageId] = PreparedTurn(
-                result: SendResult(chat: updatedChat, message: message),
-                accountScope: OfflineStore.shared.scopeGeneration,
-                turnId: turnId, preflightPayload: preflightPayload,
-                outboundPayload: outboundPayload)
-        }
+        preparedTurns[messageId] = PreparedTurn(
+            result: SendResult(chat: updatedChat, message: message), bundle: retainedBundle)
 
         if waitForRemoteSend {
             try await sendRemoteUserMessage(
@@ -5131,7 +5912,9 @@ final class ChatSendPipeline {
                 waitForInferenceReceipt: waitForInferenceReceipt,
                 validateRemoteSend: validateSendContext
             )
-            preparedTurns.removeValue(forKey: messageId)
+            try validateSendContext()
+            try retainedSendStore.remove(retainedBundle, masterKey: masterKey)
+            if preparedTurns[messageId]?.bundle.turnID == turnId { preparedTurns.removeValue(forKey: messageId) }
         } else {
             Task { @MainActor in
                 do {
@@ -5145,6 +5928,9 @@ final class ChatSendPipeline {
                         waitForInferenceReceipt: waitForInferenceReceipt,
                         validateRemoteSend: validateSendContext
                     )
+                    try validateSendContext()
+                    try self.retainedSendStore.remove(retainedBundle, masterKey: masterKey)
+                    if self.preparedTurns[messageId]?.bundle.turnID == turnId { self.preparedTurns.removeValue(forKey: messageId) }
                 } catch {
                     print("[ChatSendPipeline] Background send failed for chat \(chat.id.prefix(8)): \(error)")
                 }
@@ -5152,6 +5938,35 @@ final class ChatSendPipeline {
         }
 
         return SendResult(chat: updatedChat, message: message)
+    }
+
+    static func sendInputDigest(content: String, composerEmbeds: [ComposerPendingEmbed],
+                                piiMappings: [PIIMapping], excludedPIIOriginals: Set<String>,
+                                excludedPIIPlaceholders: Set<String>, broadcastToSiblings: Bool,
+                                createdAtOverride: String?, isEdit: Bool,
+                                knownMappings: [PIIMapping] = []) throws -> String {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        let mappings = try encoder.encode(piiMappings)
+        let knownMappings = try encoder.encode(knownMappings)
+        let input: [String: Any] = [
+            "content": content,
+            "embeds": composerEmbeds.map { embed -> [String: Any] in
+                let isReference: Bool
+                if case .existingStoredReference = embed.storageDisposition { isReference = true } else { isReference = false }
+                return ["id": embed.id, "type": embed.type, "reference_type": embed.referenceType,
+                        "status": embed.status, "content": embed.content as Any? ?? NSNull(),
+                        "text_preview": embed.textPreview as Any? ?? NSNull(), "existing_reference": isReference]
+            },
+            "pii_mappings": mappings.base64EncodedString(),
+            "known_pii_mappings": knownMappings.base64EncodedString(),
+            "excluded_pii_originals": excludedPIIOriginals.sorted(),
+            "excluded_pii_placeholders": excludedPIIPlaceholders.sorted(),
+            "broadcast_to_siblings": broadcastToSiblings,
+            "created_at_override": createdAtOverride as Any? ?? NSNull(), "is_edit": isEdit
+        ]
+        let bytes = try JSONSerialization.data(withJSONObject: input, options: [.sortedKeys])
+        return SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined()
     }
 
     static func contentByAppendingComposerEmbedReferences(
@@ -5373,6 +6188,23 @@ final class ChatSendPipeline {
         waitForInferenceReceipt: Bool = false,
         validateRemoteSend: (() throws -> Void)? = nil
     ) async throws {
+        // Capture ownership before the preflight await. A replaced account/team
+        // must not adopt this queued send into its local processing activity.
+        let processingScope = ActiveChatsCoordinator.shared.currentScope
+        let processingChatID = outboundPayload["chat_id"] as? String
+        let processingMessageID = (outboundPayload["message"] as? [String: Any])?["message_id"] as? String
+        func processingStarted() {
+            if let processingScope, let processingChatID, let processingMessageID {
+                ActiveChatsCoordinator.shared.started(chatID: processingChatID,
+                    turnID: processingMessageID, scope: processingScope)
+            }
+        }
+        func processingFailed() {
+            if let processingScope, let processingChatID, let processingMessageID {
+                ActiveChatsCoordinator.shared.finished(chatID: processingChatID,
+                    turnID: processingMessageID, scope: processingScope)
+            }
+        }
         try validateRemoteSend?()
         let acknowledgement = (try await transport.sendAndWait(
             WSOutboundMessage(type: "chat_turn_preflight", payload: preflightPayload),
@@ -5401,9 +6233,14 @@ final class ChatSendPipeline {
         // See backend/core/directus/extensions/chat-recovery-transaction/src/operations.js.
         if waitForInferenceReceipt {
             switch state {
-            case "ENQUEUED", "RUNNING", "TERMINAL":
+            case "ENQUEUED", "RUNNING":
+                processingStarted()
+                return
+            case "TERMINAL":
+                processingFailed()
                 return
             case "FAILED":
+                processingFailed()
                 throw ChatSendError.inferenceFailed
             default:
                 break
@@ -5416,27 +6253,35 @@ final class ChatSendPipeline {
         committedPayload["protocol_version"] = ChatCompletionRecoveryCoordinator.protocolVersion
         committedPayload["preflight_id"] = preflightId
         let commit = WSOutboundMessage(type: "chat_message_added", payload: committedPayload)
-        if waitForInferenceReceipt {
-            guard let chatId = outboundPayload["chat_id"] as? String, !chatId.isEmpty,
-                  let message = outboundPayload["message"] as? [String: Any],
-                  let messageId = message["message_id"] as? String, !messageId.isEmpty else {
-                throw ChatSendError.webSocketUnavailable
-            }
-            // Socket-write completion only means bytes left this client. Keep a
-            // background reply pending until AI admission is acknowledged. Register
-            // the waiter before sending so a fast server cannot outrun it.
-            _ = try await transport.sendAndWait(commit, responseType: "ai_task_initiated") { fields in
-                if fields["code"] as? String != nil {
-                    return fields["turn_id"] as? String == turnId ||
-                        (fields["chat_id"] as? String == chatId &&
-                         ((fields["user_message_id"] ?? fields["message_id"]) as? String) == messageId)
+        processingStarted()
+        do {
+            if waitForInferenceReceipt {
+                guard let chatId = outboundPayload["chat_id"] as? String, !chatId.isEmpty,
+                      let message = outboundPayload["message"] as? [String: Any],
+                      let messageId = message["message_id"] as? String, !messageId.isEmpty else {
+                    throw ChatSendError.webSocketUnavailable
                 }
-                return fields["chat_id"] as? String == chatId &&
-                    fields["user_message_id"] as? String == messageId &&
-                    ((fields["ai_task_id"] ?? fields["task_id"]) as? String)?.isEmpty == false
+                // Socket-write completion only means bytes left this client. Keep a
+                // background reply pending until AI admission is acknowledged. Register
+                // the waiter before sending so a fast server cannot outrun it.
+                _ = try await transport.sendAndWait(commit, responseType: "ai_task_initiated") { fields in
+                    if fields["code"] as? String != nil {
+                        return fields["turn_id"] as? String == turnId ||
+                            (fields["chat_id"] as? String == chatId &&
+                             ((fields["user_message_id"] ?? fields["message_id"]) as? String) == messageId)
+                    }
+                    return fields["chat_id"] as? String == chatId &&
+                        fields["user_message_id"] as? String == messageId &&
+                        ((fields["ai_task_id"] ?? fields["task_id"]) as? String)?.isEmpty == false
+                }
+            } else {
+                try await transport.send(commit)
             }
-        } else {
-            try await transport.send(commit)
+        } catch {
+            // A transport timeout may follow server admission. Keep the stale,
+            // time-bounded state until an exact terminal receipt proves completion.
+            if let sendError = error as? ChatSendError, case .inferenceFailed = sendError { processingFailed() }
+            throw error
         }
     }
 
@@ -5962,7 +6807,7 @@ final class ChatSendPipeline {
         messageId: String,
         chatKey: SymmetricKey
     ) async throws -> [[String: Any]] {
-        let persistableEmbeds = embeds.filter(\.canPersistDirectly)
+        let persistableEmbeds = try Self.requiredEncryptedBundles(embeds, referenceScope: .current)
         guard !persistableEmbeds.isEmpty else { return [] }
         guard let userId = await AuthManager.currentUserId(),
               let masterKey = try await crypto.loadMasterKey(for: userId) else {
@@ -5976,7 +6821,7 @@ final class ChatSendPipeline {
 
         var encryptedPayloads: [[String: Any]] = []
         for embed in persistableEmbeds {
-            guard let content = embed.content else { continue }
+            guard let content = embed.content else { throw ComposerEmbedStorageError.missingRequiredContent(embed.id) }
             let embedKey = ComposerEmbedCrypto.deriveKey(chatKey: chatKey, embedId: embed.id)
             let hashedEmbedId = sha256Hex(embed.id)
             let wrappedWithMaster = try ComposerEmbedCrypto.wrapKey(embedKey, using: masterKey)
@@ -6016,6 +6861,23 @@ final class ChatSendPipeline {
             encryptedPayloads.append(payload)
         }
         return encryptedPayloads
+    }
+
+    static func requiredEncryptedBundles(_ embeds: [ComposerPendingEmbed],
+                                         referenceScope: ComposerEmbedReferenceScope) throws -> [ComposerPendingEmbed] {
+        try embeds.filter { embed in
+            switch embed.storageDisposition {
+            case .requiredEncryptedBundle:
+                guard embed.content != nil else { throw ComposerEmbedStorageError.missingRequiredContent(embed.id) }
+                return true
+            case .existingStoredReference(let provenance):
+                guard provenance == referenceScope else { throw ComposerEmbedStorageError.staleStoredReference(embed.id) }
+                // Edits must be prepared explicitly as a fresh bundle. Never
+                // silently discard new content because an old ID was retained.
+                guard embed.content == nil else { throw ComposerEmbedStorageError.changedStoredReference(embed.id) }
+                return false
+            }
+        }
     }
 
     private func sha256Hex(_ value: String) -> String {
@@ -6129,6 +6991,9 @@ private enum ChatSendError: LocalizedError {
     case chatKeyMismatch
     case historyUnavailable
     case inferenceFailed
+    case retryContextUnavailable(String)
+
+    @MainActor static var retryUnavailable: Self { .retryContextUnavailable(AppStrings.chatStorageRetryContextChanged) }
 
     var errorDescription: String? {
         switch self {
@@ -6142,6 +7007,8 @@ private enum ChatSendError: LocalizedError {
             return "The message was saved, but its AI response failed. Open the chat to retry."
         case .chatKeyMismatch:
             return "Chat encryption keys are out of sync. Please reload this chat before sending."
+        case .retryContextUnavailable(let description):
+            return description
         }
     }
 }

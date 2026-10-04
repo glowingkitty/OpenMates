@@ -21,6 +21,11 @@ import UIKit
 import AppKit
 #endif
 
+enum NativeComposerAccessibilityStrategy {
+    case syntheticDescriptors
+    case hostedAttachments
+}
+
 struct NativeComposerEmbedAccessibilityDescriptor: Equatable {
     let nodeID: String
     let label: String
@@ -43,6 +48,7 @@ final class NativeComposerTextView: NSObject {
     private let editorAccessibilityLabel: String
     private let editorAccessibilityHint: String
     private let editorAccessibilityIdentifier: String
+    private let accessibilityStrategy: NativeComposerAccessibilityStrategy
     private let embedAccessibilityLabel: (ComposerNodeV1) -> String
     private let embedAccessibilityActions: (ComposerNodeV1) -> [AccessibilityAction]
     var onCanonicalMarkdownChange: @MainActor (String) -> Void
@@ -53,6 +59,9 @@ final class NativeComposerTextView: NSObject {
     #if canImport(UIKit)
     private var isAwaitingUIKitEdit = false
     private weak var piiTapRecognizer: UITapGestureRecognizer?
+    private weak var lastPIIDecorationStorage: NSTextStorage?
+    private var lastAppliedPIIDecorations: [NativeComposerPIIDecoration]?
+    private var lastPIIDecorationText: String?
     #endif
     private var lastSynchronizedRevision: Int?
     private var lastProjectedEmbedNodes: [ComposerNodeV1] = []
@@ -69,12 +78,14 @@ final class NativeComposerTextView: NSObject {
         onCanonicalMarkdownChange: @escaping @MainActor (String) -> Void,
         onFocusChange: @escaping @MainActor (Bool) -> Void,
         onSubmit: @escaping @MainActor () -> Void,
-        accessibilityIdentifier: String = "message-editor"
+        accessibilityIdentifier: String = "message-editor",
+        accessibilityStrategy: NativeComposerAccessibilityStrategy = .syntheticDescriptors
     ) {
         self.controller = controller
         self.editorAccessibilityLabel = accessibilityLabel
         self.editorAccessibilityHint = accessibilityHint
         self.editorAccessibilityIdentifier = accessibilityIdentifier
+        self.accessibilityStrategy = accessibilityStrategy
         self.embedAccessibilityLabel = embedAccessibilityLabel
         self.embedAccessibilityActions = embedAccessibilityActions
         self.onCanonicalMarkdownChange = onCanonicalMarkdownChange
@@ -105,6 +116,7 @@ final class NativeComposerTextView: NSObject {
         defer { isSynchronizing = false }
         let embedNodes = controller.document.nodes.filter { $0.kind == "embed" }
         let embedPresentationChanged = embedNodes != lastProjectedEmbedNodes
+        var didReprojectText = false
         // TextKit can retain an old attachment view when only its semantic
         // payload changes. Re-project that atom even though its replacement
         // character leaves the plain string unchanged. Ordinary equal-text
@@ -113,6 +125,7 @@ final class NativeComposerTextView: NSObject {
            (textView.attributedText.string != controller.attributedString.string
             || embedPresentationChanged) {
             textView.attributedText = styledAttributedString(controller.attributedString)
+            didReprojectText = true
             if embedPresentationChanged {
                 #if !OPENMATES_SHARE_EXTENSION
                 NativeDiagnostics.event(
@@ -125,7 +138,7 @@ final class NativeComposerTextView: NSObject {
         }
         lastSynchronizedRevision = controller.revision
         lastProjectedEmbedNodes = embedNodes
-        applyPIIDecorations(to: textView.textStorage)
+        applyPIIDecorations(to: textView.textStorage, force: didReprojectText)
         if textView.selectedRange != controller.selection {
             textView.selectedRange = controller.selection
         }
@@ -135,15 +148,23 @@ final class NativeComposerTextView: NSObject {
         textView.accessibilityHint = editorAccessibilityHint
         // UITextView exposes its current text to accessibility; do not freeze a snapshot.
         if rebuildEmbedAccessibilityElementsIfNeeded() {
-            textView.accessibilityElements = embedAccessibilityElements.map { descriptor in
-                let element = UIAccessibilityElement(accessibilityContainer: textView)
-                element.accessibilityIdentifier = descriptor.nodeID
-                element.accessibilityLabel = descriptor.label
-                element.accessibilityTraits = .button
-                element.accessibilityCustomActions = (actionsByEmbedID[descriptor.nodeID] ?? []).map { action in
-                    UIAccessibilityCustomAction(name: action.name) { _ in action.handler() }
+            switch accessibilityStrategy {
+            case .hostedAttachments:
+                // Keep UIKit's traversal of the real hosted preview controls.
+                // A synthetic list replaces those children when an atom changes
+                // status, hiding playback/retry/removal after re-projection.
+                textView.accessibilityElements = nil
+            case .syntheticDescriptors:
+                textView.accessibilityElements = embedAccessibilityElements.map { descriptor in
+                    let element = UIAccessibilityElement(accessibilityContainer: textView)
+                    element.accessibilityIdentifier = descriptor.nodeID
+                    element.accessibilityLabel = descriptor.label
+                    element.accessibilityTraits = .button
+                    element.accessibilityCustomActions = (actionsByEmbedID[descriptor.nodeID] ?? []).map { action in
+                        UIAccessibilityCustomAction(name: action.name) { _ in action.handler() }
+                    }
+                    return element
                 }
-                return element
             }
         }
     }
@@ -261,7 +282,18 @@ final class NativeComposerTextView: NSObject {
     }
 
     #if canImport(UIKit)
-    private func applyPIIDecorations(to storage: NSTextStorage) {
+    private func applyPIIDecorations(to storage: NSTextStorage, force: Bool) {
+        // A focus redraw must not invalidate TextKit attachment views by editing
+        // identical highlight attributes. Text changes and re-projection still
+        // restore highlights; a changed decoration set still clears old ranges.
+        guard force || lastPIIDecorationStorage !== storage
+            || lastAppliedPIIDecorations != piiDecorations
+            || lastPIIDecorationText != storage.string else { return }
+        defer {
+            lastPIIDecorationStorage = storage
+            lastAppliedPIIDecorations = piiDecorations
+            lastPIIDecorationText = storage.string
+        }
         let fullRange = NSRange(location: 0, length: storage.length)
         storage.removeAttribute(.backgroundColor, range: fullRange)
         #if OPENMATES_SHARE_EXTENSION

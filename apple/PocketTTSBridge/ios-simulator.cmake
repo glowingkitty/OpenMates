@@ -1,0 +1,23 @@
+# SentencePiece uses real C/C++ compiler and linker checks for this exact slice.
+# CMake reads this file again inside try_compile. Cache the requested architecture
+# before project() so CMP0126 initialization cannot replace it with Xcode defaults.
+macro(set_xcode_property TARGET XCODE_PROPERTY XCODE_VALUE XCODE_RELVERSION)
+  set_property(TARGET ${TARGET} PROPERTY XCODE_ATTRIBUTE_${XCODE_PROPERTY} "${XCODE_VALUE}")
+endmacro()
+if(DEFINED ENV{POCKET_APPLE_ARCH} AND NOT "$ENV{POCKET_APPLE_ARCH}" STREQUAL "")
+  set(POCKET_APPLE_ARCH "$ENV{POCKET_APPLE_ARCH}" CACHE STRING "Pocket CPU slice" FORCE)
+endif()
+if(NOT POCKET_APPLE_ARCH MATCHES "^(arm64|x86_64)$")
+  message(FATAL_ERROR "Pocket toolchain requires an explicitly supported architecture")
+endif()
+set(CMAKE_SYSTEM_NAME iOS)
+set(CMAKE_OSX_ARCHITECTURES "${POCKET_APPLE_ARCH}" CACHE STRING "Pocket CPU slice" FORCE)
+set(CMAKE_OSX_SYSROOT iphonesimulator CACHE STRING "Pocket SDK" FORCE)
+set(CMAKE_XCODE_ATTRIBUTE_ARCHS "${POCKET_APPLE_ARCH}" CACHE STRING "Pocket Xcode slice" FORCE)
+set(CMAKE_XCODE_ATTRIBUTE_ONLY_ACTIVE_ARCH NO CACHE STRING "Build the requested slice" FORCE)
+set(CMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED NO CACHE STRING "Static library signing" FORCE)
+list(APPEND CMAKE_TRY_COMPILE_PLATFORM_VARIABLES
+  POCKET_APPLE_ARCH CMAKE_OSX_ARCHITECTURES CMAKE_OSX_SYSROOT
+  CMAKE_XCODE_ATTRIBUTE_ARCHS CMAKE_XCODE_ATTRIBUTE_ONLY_ACTIVE_ARCH
+  CMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED)
+list(REMOVE_DUPLICATES CMAKE_TRY_COMPILE_PLATFORM_VARIABLES)

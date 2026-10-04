@@ -1,6 +1,10 @@
+// Specification: specifications/features/chat-navigation/specification.yml
+// Assertions: chat-navigation.projects.nested-readable, chat-navigation.activity.global-running, chat-navigation.projects.organize
+// Specification: specifications/features/apple-offline-workspaces/specification.yml
+// Assertions: apple-workspaces.offline-complete, apple-workspaces.local-first, apple-workspaces.isolation, apple-workspaces.maintenance
 // Web source: frontend/packages/ui/src/services/projectReadme.ts, projectService.ts
 // Specification: specifications/features/projects/specification.yml
-// Assertions: projects.access.explicit-context, projects.files.search-scoped, projects.files.connected-embed-previews
+// Assertions: projects.access.explicit-context, projects.files.search-scoped, projects.files.connected-embed-previews, projects.surface.semantic-parity
 import CryptoKit
 import Combine
 import Foundation
@@ -40,6 +44,8 @@ final class ProjectsWorkspaceStore: ObservableObject {
         case failed
     }
 
+    @Published private(set) var chatNavigationProjects: [ChatSidebarProject] = []
+    @Published private(set) var isOrganizingChats = false
     @Published private(set) var projects: [ProjectWorkspaceProject] = []
     @Published private(set) var selectedProjectID: String?
     @Published private(set) var folders: [ProjectWorkspaceFolder] = []
@@ -53,6 +59,8 @@ final class ProjectsWorkspaceStore: ObservableObject {
     @Published private(set) var remotePagination = ProjectRemotePagination()
     @Published private(set) var remoteText: ProjectRemoteText?
     @Published private(set) var remoteEmbed: EmbedRecord?
+    @Published private(set) var remoteImage: ProjectRemoteFileImage?
+    @Published private(set) var remoteSVG: StaticSVGImageSource?
     @Published private(set) var remoteFilePreviews: [String: EmbedRecord] = [:]
     @Published private(set) var remoteDownloadURL: URL?
     @Published private(set) var remoteDownloadProgress: (Int, Int)?
@@ -77,6 +85,8 @@ final class ProjectsWorkspaceStore: ObservableObject {
     private let validateFence: @MainActor (ProjectsWorkspaceFence) async throws -> Void
     private var accountID: String?
     private var teamID: String?
+    private var readmeImageCache: [String: Data] = [:]
+    private var cachedImageReadme: ProjectWorkspaceReadme?
     private var generation = UUID()
     private var searchGeneration = UUID()
     private var remoteGeneration = UUID()
@@ -87,6 +97,7 @@ final class ProjectsWorkspaceStore: ObservableObject {
     #if DEBUG
     private var previewVariant: String?
     /// Account-free fixture transport; nil always uses the encrypted source client.
+    var debugBeforeRemoteRead: (@MainActor () async -> Void)?
     var debugOriginalDownload: (@MainActor (String, @escaping (Int, Int) -> Void) async throws -> URL)?
     #endif
 
@@ -119,9 +130,14 @@ final class ProjectsWorkspaceStore: ObservableObject {
             reset(accountId: accountId)
             teamID = teamId
         }
+        guard !isLoading else { return }
         let requestGeneration = generation
         isLoading = true
         errorMessage = nil
+        if let cached = try? await service.cachedProjects(accountID: accountId, teamID: teamId),
+           requestGeneration == generation, accountID == accountId {
+            projects = cached.sorted { $0.updatedAt > $1.updatedAt }
+        }
         do {
             let values = try await service.listProjects(accountID: accountId, teamID: teamId)
             guard requestGeneration == generation, accountID == accountId else { return }
@@ -147,6 +163,8 @@ final class ProjectsWorkspaceStore: ObservableObject {
         accountID = accountId
         teamID = nil
         projects = []
+        chatNavigationProjects = []
+        isOrganizingChats = false
         selectedProjectID = nil
         clearDetail()
         clearRemoteDownload()
@@ -188,9 +206,20 @@ final class ProjectsWorkspaceStore: ObservableObject {
         sourceGeneration = UUID()
         let sourceRequest = sourceGeneration
         errorMessage = nil
+        if let cachedContents = try? await service.cachedContents(project: project, fence: fence),
+           let cachedSettings = try? await service.cachedSettings(project: project, fence: fence),
+           requestGeneration == generation, selectedProjectID == project.id,
+           (try? await validateFence(fence)) != nil {
+            folders = cachedContents.folders
+            items = cachedContents.items
+            sources = cachedContents.sources
+            self.settings = cachedSettings
+            isLoadingDetail = false
+        }
         do {
-            let contents = try await service.contents(project: project, fence: fence)
-            let settings = try await service.settings(project: project, fence: fence)
+            async let contentsRequest = service.contents(project: project, fence: fence)
+            async let settingsRequest = service.settings(project: project, fence: fence)
+            let (contents, settings) = try await (contentsRequest, settingsRequest)
             guard requestGeneration == generation, selectedProjectID == project.id else { return }
             try await validateFence(fence)
             folders = contents.folders
@@ -244,6 +273,8 @@ final class ProjectsWorkspaceStore: ObservableObject {
                   selectedProjectID == project.id,
                   sources != refreshed else { return }
             sourceGeneration = UUID()
+            readmeImageCache = [:]
+            cachedImageReadme = nil
             let sourceRequest = sourceGeneration
             let changedIDs = Set(sources.filter { old in
                 !refreshed.contains(old)
@@ -364,6 +395,117 @@ final class ProjectsWorkspaceStore: ObservableObject {
         if searchRequest == searchGeneration { isSearching = false }
     }
 
+    /// Independent of selection: opening a folder in the chat rail never changes the Project workspace.
+    func refreshChatNavigation(accountID: String, teamID: String?) async {
+        if self.accountID != accountID || self.teamID != teamID {
+            reset(accountId: accountID); self.teamID = teamID
+        }
+        let request = generation
+        let fence = ProjectsWorkspaceFence(accountID: accountID)
+        do {
+            try await validateFence(fence)
+            let projects = try await service.listProjects(accountID: accountID, teamID: teamID)
+            var result: [ChatSidebarProject] = []
+            for project in projects {
+                guard generation == request else { return }
+                let contents = try await service.contents(project: project, fence: fence)
+                try await validateFence(fence)
+                guard generation == request else { return }
+                result.append(.init(project: project, contents: contents))
+            }
+            guard generation == request else { return }
+            self.projects = projects.sorted { $0.updatedAt > $1.updatedAt }
+            chatNavigationProjects = result
+        } catch {
+            if generation == request { errorMessage = AppStrings.projectError(error) }
+        }
+    }
+
+    func createChatOrganization(chats: [Chat]) async -> String? {
+        guard let accountID, !isOrganizingChats, !chats.isEmpty,
+              chats.allSatisfy({ ChatProjectEligibility.canOrganize($0, teamID: teamID) }) else { return nil }
+        let request = generation, contextTeam = teamID
+        let fence = ProjectsWorkspaceFence(accountID: accountID)
+        isOrganizingChats = true; errorMessage = nil
+        defer { if generation == request { isOrganizingChats = false } }
+        do {
+            try await validateFence(fence)
+            let project = try await service.createChatOrganization(chats: chats, fence: fence, teamID: contextTeam)
+            guard generation == request else { return nil }
+            try await placeChats(chats, destination: project, folderID: nil, fence: fence, request: request)
+            guard generation == request else { return nil }
+            await refreshChatNavigation(accountID: accountID, teamID: contextTeam)
+            return generation == request ? project.id : nil
+        } catch {
+            if generation == request {
+                errorMessage = AppStrings.projectError(error)
+                await refreshChatNavigation(accountID: accountID, teamID: contextTeam)
+            }
+            return nil
+        }
+    }
+
+    func moveChats(_ chats: [Chat], to location: ChatProjectLocation, removeOtherLinks: Bool = true) async {
+        guard let accountID, !isOrganizingChats, !chats.isEmpty,
+              chats.allSatisfy({ ChatProjectEligibility.canOrganize($0, teamID: teamID) }) else { return }
+        let request = generation, contextTeam = teamID
+        let fence = ProjectsWorkspaceFence(accountID: accountID)
+        isOrganizingChats = true; errorMessage = nil
+        do {
+            try await validateFence(fence)
+            guard let destination = chatNavigationProjects.first(where: { $0.id == location.projectID }),
+                  location.folderID == nil || destination.contents.folders.contains(where: { $0.id == location.folderID }) else {
+                throw ProjectsWorkspaceError.invalidContext
+            }
+            try await placeChats(chats, destination: destination.project, folderID: location.folderID, fence: fence, request: request, removeOtherLinks: removeOtherLinks)
+        } catch {
+            if generation == request { errorMessage = AppStrings.projectError(error) }
+        }
+        guard generation == request else { return }
+        isOrganizingChats = false
+        await refreshChatNavigation(accountID: accountID, teamID: contextTeam)
+    }
+
+    private func placeChats(_ chats: [Chat], destination: ProjectWorkspaceProject, folderID: String?,
+                            fence: ProjectsWorkspaceFence, request: UUID, removeOtherLinks: Bool = true) async throws {
+        let existing = chatNavigationProjects.first { $0.id == destination.id }
+        // Destination writes all finish before any source association is removed.
+        for chat in chats {
+            try await validateFence(fence)
+            guard request == generation else { throw ProjectsWorkspaceError.accountChanged }
+            if existing?.chatIDs(in: folderID).contains(chat.id) == true { continue }
+            if let link = existing?.contents.items.first(where: { $0.kind == "chat" && $0.targetID == chat.id }) {
+                try await service.moveItem(link.id, project: destination, folderID: folderID, fence: fence)
+            } else {
+                let item = ProjectWorkspaceItem(id: UUID().uuidString.lowercased(), kind: "chat", targetID: chat.id,
+                    name: chat.displayTitle, metadata: [:], folderHash: nil, position: 0, createdAt: 0)
+                try await service.copyItem(item, project: destination, folderID: folderID, fence: fence)
+            }
+        }
+        for source in chatNavigationProjects where removeOtherLinks && source.id != destination.id {
+            for chat in chats where source.contents.items.contains(where: { $0.kind == "chat" && $0.targetID == chat.id }) {
+                try await validateFence(fence)
+                guard request == generation else { throw ProjectsWorkspaceError.accountChanged }
+                try await service.removeChatLink(chatID: chat.id, project: source.project, fence: fence)
+            }
+        }
+        try await validateFence(fence)
+        guard request == generation else { throw ProjectsWorkspaceError.accountChanged }
+    }
+
+    func createChatFolder(at location: ChatProjectLocation, name: String) async {
+        guard let accountID, let project = chatNavigationProjects.first(where: { $0.id == location.projectID }),
+              location.folderID == nil || project.contents.folders.contains(where: { $0.id == location.folderID }) else { return }
+        let request = generation, contextTeam = teamID
+        do {
+            let fence = ProjectsWorkspaceFence(accountID: accountID)
+            try await validateFence(fence)
+            try await service.createFolder(name, project: project.project, parentID: location.folderID, fence: fence)
+            guard generation == request else { return }
+            await refreshChatNavigation(accountID: accountID, teamID: contextTeam)
+        } catch { if generation == request { errorMessage = AppStrings.projectError(error) } }
+    }
+
     func createProject(name: String, writeMode: ProjectWorkspaceWriteMode) async {
         guard let accountID, !isSaving else { return }
         let requestGeneration = generation
@@ -373,8 +515,9 @@ final class ProjectsWorkspaceStore: ObservableObject {
         do {
             let project = try await service.createProject(name: name, writeMode: writeMode, fence: fence, teamID: teamID)
             guard requestGeneration == generation else { return }
-            try await fence.check()
+            try await validateFence(fence)
             projects.insert(project, at: 0)
+            chatNavigationProjects.insert(.init(project: project, contents: .init(folders: [], items: [], sources: [])), at: 0)
             isSaving = false
             await selectProject(project.id)
             return
@@ -392,8 +535,11 @@ final class ProjectsWorkspaceStore: ObservableObject {
         do {
             let updated = try await service.updateProject(project, name: name, description: description, fence: fence)
             guard requestGeneration == generation else { return }
-            try await fence.check()
+            try await validateFence(fence)
             if let index = projects.firstIndex(where: { $0.id == project.id }) { projects[index] = updated }
+            if let index = chatNavigationProjects.firstIndex(where: { $0.id == project.id }) {
+                chatNavigationProjects[index] = .init(project: updated, contents: chatNavigationProjects[index].contents)
+            }
         } catch {
             if requestGeneration == generation { errorMessage = AppStrings.projectError(error) }
         }
@@ -464,8 +610,9 @@ final class ProjectsWorkspaceStore: ObservableObject {
         do {
             try await service.deleteProject(project, fence: fence)
             guard requestGeneration == generation else { return }
-            try await fence.check()
+            try await validateFence(fence)
             projects.removeAll { $0.id == project.id }
+            chatNavigationProjects.removeAll { $0.id == project.id }
             isSaving = false
             await selectProject(nil)
             return
@@ -656,7 +803,7 @@ final class ProjectsWorkspaceStore: ObservableObject {
         await browseRemote(path: remotePath, pageIndex: index)
     }
 
-    func downloadRemoteFile(_ path: String) async {
+    func downloadRemoteFile(_ path: String, maximumBytes: Int? = nil) async {
         guard !isLoadingRemote, let project = selectedProject,
               let sourceID = activeRemoteSourceID,
               let source = sources.first(where: { $0.id == sourceID }) else { return }
@@ -691,12 +838,12 @@ final class ProjectsWorkspaceStore: ObservableObject {
             } else {
                 guard let requestFence = fence else { throw ProjectsWorkspaceError.invalidContext }
                 url = try await remoteClient.downloadOriginal(project: project, source: source,
-                    path: path, fence: requestFence, progress: progress)
+                    path: path, fence: requestFence, maximumBytes: maximumBytes, progress: progress)
             }
             #else
             guard let requestFence = fence else { throw ProjectsWorkspaceError.invalidContext }
             url = try await remoteClient.downloadOriginal(project: project, source: source,
-                path: path, fence: requestFence, progress: progress)
+                path: path, fence: requestFence, maximumBytes: maximumBytes, progress: progress)
             #endif
             downloadedURL = url
             guard requestGeneration == generation, downloadRequest == downloadGeneration,
@@ -724,6 +871,8 @@ final class ProjectsWorkspaceStore: ObservableObject {
             try? FileManager.default.removeItem(at: url.deletingLastPathComponent())
         }
         remoteDownloadURL = nil
+        remoteImage = nil
+        remoteSVG = nil
         remoteDownloadProgress = nil
     }
 
@@ -791,6 +940,49 @@ final class ProjectsWorkspaceStore: ObservableObject {
         if requestGeneration == generation && remoteRequest == remoteGeneration { isLoadingRemote = false }
     }
 
+    /// Opening is the only authorization needed to fetch image bytes. All file types
+    /// share the metadata-first fullscreen; binary originals retain explicit download.
+    func openRemoteFile(_ entry: ProjectRemoteEntry) async {
+        clearRemoteText()
+        if ProjectRemoteFilePresentation.isImage(entry.path) {
+            let request = remoteGeneration
+            let source = activeRemoteSourceID
+            let maximumBytes = ProjectRemoteFilePreview.maximumBytes(path: entry.path)
+            if let size = entry.sizeBytes, size > maximumBytes {
+                remoteError = AppStrings.projectError(ProjectsWorkspaceError.invalidResponse)
+                return
+            }
+            await downloadRemoteFile(entry.path, maximumBytes: maximumBytes)
+            guard request == remoteGeneration, source == activeRemoteSourceID,
+                  let url = remoteDownloadURL, remoteError == nil else { return }
+            isLoadingRemote = true
+            do {
+                let image = try await Task.detached(priority: .userInitiated) {
+                    try ProjectRemoteFilePreview.decode(url: url, path: entry.path)
+                }.value
+                guard request == remoteGeneration, source == activeRemoteSourceID,
+                      remoteDownloadURL == url else { return }
+                switch image {
+                case .raster(let pixels): remoteImage = pixels
+                case .svg(let source): remoteSVG = source
+                }
+            } catch {
+                if request == remoteGeneration, source == activeRemoteSourceID {
+                    remoteError = AppStrings.projectError(error)
+                }
+            }
+            if request == remoteGeneration, source == activeRemoteSourceID { isLoadingRemote = false }
+        } else if ProjectRemotePreviewPolicy.canReadText(entry.path) {
+            await openRemoteText(entry.path)
+        }
+    }
+
+    func reportRemoteSVGFailure(_ source: StaticSVGImageSource) {
+        guard remoteSVG?.data == source.data else { return }
+        remoteSVG = nil
+        remoteError = AppStrings.projectError(ProjectsWorkspaceError.invalidResponse)
+    }
+
     func openRemoteText(_ path: String) async {
         remoteGeneration = UUID()
         let remoteRequest = remoteGeneration
@@ -799,6 +991,9 @@ final class ProjectsWorkspaceStore: ObservableObject {
         remoteError = nil
         #if DEBUG
         if let previewVariant {
+            isLoadingRemote = true
+            await debugBeforeRemoteRead?()
+            guard remoteRequest == remoteGeneration else { return }
             remoteText = previewVariant == "truncatedConnectedSource"
                 ? ProjectsWorkspacePreviewFixture.truncatedText
                 : ProjectRemoteText(content: path == "README.md"
@@ -809,6 +1004,7 @@ final class ProjectsWorkspaceStore: ObservableObject {
                 remoteEmbed = ProjectRemotePreviewPolicy.embed(sourceID: source.id, sourceLabel: source.name, path: path, text: text)
                 cacheRemotePreview(path: path, source: source, text: text)
             }
+            isLoadingRemote = false
             return
         }
         #endif
@@ -866,6 +1062,8 @@ final class ProjectsWorkspaceStore: ObservableObject {
     }
 
     private func clearDetail() {
+        readmeImageCache = [:]
+        cachedImageReadme = nil
         sourceGeneration = UUID()
         sourceRefreshRequest = nil
         folders = []
@@ -879,6 +1077,69 @@ final class ProjectsWorkspaceStore: ObservableObject {
         closeRemoteSource()
         sourceRootPreviews = [:]
         remoteFilePreviews = [:]
+    }
+
+    /// Private README media remains scoped in memory to this Project and source binding.
+    func readReadmeImage(_ sourceURL: String, readme: ProjectWorkspaceReadme) async throws -> Data {
+        guard let path = ProjectReadmeDocument.relativePath(sourceURL) else { throw ProjectsWorkspaceError.invalidContext }
+        #if DEBUG
+        if previewVariant == "readme", path == "assets/readme-preview.png" {
+            return ProjectsWorkspacePreviewFixture.readmeImageData
+        }
+        #endif
+        guard let project = selectedProject, let accountID,
+              case .ready(let current) = self.readme, current == readme else { throw ProjectsWorkspaceError.invalidContext }
+        if cachedImageReadme != readme { readmeImageCache = [:]; cachedImageReadme = readme }
+        let requestGeneration = generation
+        let sourceRequest = sourceGeneration
+        let fence = ProjectsWorkspaceFence(accountID: accountID)
+        if let cached = readmeImageCache[path] {
+            try await validateFence(fence)
+            guard requestGeneration == generation, sourceRequest == sourceGeneration,
+                  case .ready(let current) = self.readme, current == readme else { throw ProjectsWorkspaceError.accountChanged }
+            return cached
+        }
+        let bytes: Data
+        if readme.origin == "connected" {
+            guard let sourceID = readme.sourceID,
+                  let source = sources.first(where: { $0.id == sourceID && $0.status == "connected"
+                      && $0.sessionID == readme.sourceSessionID && $0.keyEpoch == readme.sourceKeyEpoch }) else {
+                throw ProjectsWorkspaceError.invalidContext
+            }
+            bytes = try await remoteClient.readReadmeImage(project: project, source: source, path: path, fence: fence)
+            guard sources.contains(where: { $0.id == source.id && $0.sessionID == source.sessionID && $0.keyEpoch == source.keyEpoch }) else {
+                throw ProjectsWorkspaceError.accountChanged
+            }
+        } else {
+            guard let item = items.first(where: { $0.kind == "embed" && $0.folderHash == nil && $0.filePath == path }) else {
+                throw ProjectsWorkspaceError.invalidContext
+            }
+            let content = try await service.readStoredFile(item, project: project, fence: fence)
+            if let raw = content["data_url"] as? String, raw.utf8.count <= 2_800_000,
+               raw.range(of: #"^data:image/(png|jpeg|gif|webp|avif);base64,"#, options: [.regularExpression, .caseInsensitive]) != nil,
+               let encoded = raw.split(separator: ",", maxSplits: 1).last,
+               let data = Data(base64Encoded: String(encoded)) {
+                bytes = data
+            } else {
+                let files = content["files"] as? [String: Any] ?? [:]
+                guard let variant = ["preview", "full", "original"].compactMap({ files[$0] as? [String: Any] }).first,
+                      let key = variant["s3_key"] as? String, let aes = content["aes_key"] as? String else {
+                    throw ProjectsWorkspaceError.invalidResponse
+                }
+                bytes = try await S3MediaClient.shared.fetchAndDecryptBounded(s3Url: content["s3_base_url"] as? String ?? "",
+                    aesKeyHex: aes, aesNonceHex: variant["aes_nonce"] as? String ?? content["aes_nonce"] as? String,
+                    encryption: variant["encryption"] as? String, s3Key: key, maximumPlaintextBytes: 2 * 1024 * 1024)
+            }
+        }
+        guard !bytes.isEmpty, bytes.count <= 2 * 1024 * 1024, requestGeneration == generation,
+              sourceRequest == sourceGeneration,
+              selectedProjectID == project.id else { throw ProjectsWorkspaceError.accountChanged }
+        try await validateFence(fence)
+        guard requestGeneration == generation, sourceRequest == sourceGeneration, selectedProjectID == project.id,
+              case .ready(let current) = self.readme, current == readme else { throw ProjectsWorkspaceError.accountChanged }
+        try Task.checkCancellation()
+        if readmeImageCache.count < 8 { readmeImageCache[path] = bytes }
+        return bytes
     }
 
     private func loadReadme(project: ProjectWorkspaceProject, contents: ProjectWorkspaceContents,
@@ -922,7 +1183,8 @@ final class ProjectsWorkspaceStore: ObservableObject {
                 }
                 let text = try await read(source, entry.path)
                 return .ready(ProjectWorkspaceReadme(markdown: text.content,
-                    truncated: text.truncated, origin: "connected"))
+                    truncated: text.truncated, origin: "connected", sourceID: source.id,
+                    sourceSessionID: source.sessionID, sourceKeyEpoch: source.keyEpoch))
             } catch { unavailable = true }
         }
         return unavailable ? .unavailable : .empty
@@ -951,6 +1213,19 @@ final class ProjectsWorkspaceStore: ObservableObject {
     func installPreview(variant: String) {
         previewVariant = variant
         debugOriginalDownload = nil
+        debugBeforeRemoteRead = nil
+        if variant == "rootFiles" {
+            debugBeforeRemoteRead = { try? await Task.sleep(for: .seconds(2)) }
+            var failedImageOnce = false
+            debugOriginalDownload = { path, progress in
+                try await Task.sleep(for: .milliseconds(500))
+                if path == "retry-image.png", !failedImageOnce {
+                    failedImageOnce = true
+                    throw ProjectsWorkspaceError.invalidResponse
+                }
+                return try await ProjectsWorkspacePreviewFixture.downloadOriginal(path: path, progress: progress)
+            }
+        }
         if variant == "truncatedConnectedSource" {
             debugOriginalDownload = ProjectsWorkspacePreviewFixture.downloadOriginal(path:progress:)
         }

@@ -1,3 +1,5 @@
+// Specification: specifications/features/chat-navigation/specification.yml
+// Assertions: chat-navigation.projects.nested-readable, chat-navigation.activity.global-running, chat-navigation.projects.organize
 // Chat list row — single row in the chat sidebar.
 // Specification: specifications/features/message-input/specification.yml
 // Assertions: message-input.drafts.preview-persistence
@@ -20,11 +22,14 @@ import SwiftUI
 
 struct ChatListRow: View {
     let chat: Chat
+    let processing: Bool
+    let activeSubChatCount: Int
     let suppliedDraftPreview: String?
     private let formattedDraftPreview: String?
 
-    init(chat: Chat, suppliedDraftPreview: String? = nil) {
+    init(chat: Chat, suppliedDraftPreview: String? = nil, processing: Bool = false, activeSubChatCount: Int = 0) {
         self.chat = chat; self.suppliedDraftPreview = suppliedDraftPreview
+        self.processing = processing; self.activeSubChatCount = activeSubChatCount
         let preview = ChatDraftPreviewFormatter.format(suppliedDraftPreview)
         formattedDraftPreview = preview.isEmpty ? nil : preview
     }
@@ -109,7 +114,8 @@ struct ChatListRow: View {
                     .accessibilityHidden(true)
             }
 
-            if let descriptor = publicIconDescriptor {
+            if processing { ChatProcessingWheel() }
+            else if let descriptor = publicIconDescriptor {
                 Circle()
                     .fill(descriptor.gradient)
                     .frame(width: 28, height: 28)
@@ -155,6 +161,10 @@ struct ChatListRow: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.bottom, 2)
 
+                if activeSubChatCount > 0 {
+                    Text(LocalizationManager.shared.text(activeSubChatCount == 1 ? "chats.activity.subchats_single" : "chats.activity.subchats", replacements: ["count": String(activeSubChatCount)]))
+                        .font(.omXs).foregroundStyle(Color.fontSecondary).accessibilityIdentifier("running-subchat-count")
+                }
                 if let preview = draftPreview, preview != titleForDisplay {
                     Text(preview)
                         .font(.omXs)

@@ -5,7 +5,9 @@
 // per-chat keys from the Watch-local master key, and keeps a local JSON snapshot
 // for offline startup. This layer never logs plaintext.
 // Specification: specifications/features/apple-watch/specification.yml
-// Assertions: apple-watch.chats.browse-search-open, apple-watch.chats.new-text-reply, apple-watch.chats.audio-reply
+// Assertions: apple-watch.chats.browse-search-open, apple-watch.chats.new-text-reply, apple-watch.chats.audio-reply, apple-watch.offline.recent-cohort
+// Specification: specifications/features/apple-recent-offline-chats/specification.yml
+// Assertions: apple-offline.recent-cohort, apple-offline.interruption-isolation
 // Specification: specifications/features/apple-notifications/specification.yml
 // Assertions: apple-notifications.action.routing-coherent, apple-notifications.delivery.idempotent-visible
 
@@ -97,6 +99,16 @@ struct WatchChatSummary: Codable, Equatable, Identifiable, Sendable {
     var messagesV: Int = 0
     var titleV: Int = 0
     var metadataV: Int = 0
+    var lastEditedOverallTimestamp: String? = nil
+    var parentID: String? = nil
+    var isSubChat: Bool = false
+    var offlineWrappedChatKey: String? = nil
+    var category: String? = nil
+    var icon: String? = nil
+    var encryptedCategory: String? = nil
+    var encryptedIcon: String? = nil
+    var isSupportChat: Bool = false
+    var isSharedRecipient: Bool = false
 
     init(id: String, title: String?, lastMessageAt: String?, preview: String?, isPinned: Bool,
          encryptedTitle: String?, encryptedPreview: String?, encryptedChatKey: String?,
@@ -109,7 +121,7 @@ struct WatchChatSummary: Codable, Equatable, Identifiable, Sendable {
 
     private enum CodingKeys: String, CodingKey {
         case id, title, lastMessageAt, preview, isPinned, encryptedTitle, encryptedPreview,
-             encryptedChatKey, messagesV, titleV, metadataV
+             encryptedChatKey, messagesV, titleV, metadataV, lastEditedOverallTimestamp, parentID, isSubChat, offlineWrappedChatKey, category, icon, encryptedCategory, encryptedIcon, isSupportChat, isSharedRecipient
     }
 
     init(from decoder: Decoder) throws {
@@ -125,6 +137,16 @@ struct WatchChatSummary: Codable, Equatable, Identifiable, Sendable {
                   messagesV: try c.decodeIfPresent(Int.self, forKey: .messagesV) ?? 0,
                   titleV: try c.decodeIfPresent(Int.self, forKey: .titleV) ?? 0,
                   metadataV: try c.decodeIfPresent(Int.self, forKey: .metadataV) ?? 0)
+        lastEditedOverallTimestamp = try c.decodeIfPresent(String.self, forKey: .lastEditedOverallTimestamp)
+        parentID = try c.decodeIfPresent(String.self, forKey: .parentID)
+        isSubChat = try c.decodeIfPresent(Bool.self, forKey: .isSubChat) ?? false
+        offlineWrappedChatKey = try c.decodeIfPresent(String.self, forKey: .offlineWrappedChatKey)
+        category = try c.decodeIfPresent(String.self, forKey: .category)
+        icon = try c.decodeIfPresent(String.self, forKey: .icon)
+        encryptedCategory = try c.decodeIfPresent(String.self, forKey: .encryptedCategory)
+        encryptedIcon = try c.decodeIfPresent(String.self, forKey: .encryptedIcon)
+        isSupportChat = try c.decodeIfPresent(Bool.self, forKey: .isSupportChat) ?? false
+        isSharedRecipient = try c.decodeIfPresent(Bool.self, forKey: .isSharedRecipient) ?? false
     }
 }
 
@@ -479,10 +501,17 @@ struct WatchRemoteChat: Sendable {
     var messagesV: Int = 0
     var titleV: Int = 0
     var metadataV: Int = 0
+    var lastEditedOverallTimestamp: String? = nil
+    var parentID: String? = nil
+    var isSubChat: Bool = false
     var encryptedDraftMD: String? = nil
     var encryptedDraftPreview: String? = nil
     var draftV: Int? = nil
     var clearedDraftV: Int? = nil
+    var encryptedCategory: String? = nil
+    var encryptedIcon: String? = nil
+    var isSupportChat: Bool = false
+    var isSharedRecipient: Bool = false
 }
 
 struct WatchRemoteMessage: Equatable, Sendable {
@@ -510,6 +539,93 @@ struct WatchRemoteMessage: Equatable, Sendable {
         self.encryptedContent = encryptedContent
         self.embedRefs = embedRefs
         self.createdAt = createdAt
+    }
+}
+
+// Published v1 foreground viewing windows. Full encrypted offline sync remains separate.
+struct WatchMessageWindowCursor: Codable, Equatable, Sendable {
+    let createdAt: Int
+    let messageId: String
+}
+
+struct WatchMessageWindowQuery: Equatable, Sendable {
+    enum Direction: String, Sendable { case latest, before, after, around }
+    var direction: Direction = .latest
+    var limit: Int = 50
+    var before: WatchMessageWindowCursor? = nil
+    var after: WatchMessageWindowCursor? = nil
+    var anchorMessageId: String? = nil
+    var respectCompressionBoundary = true
+
+    func path(chatID: String) throws -> String {
+        guard (1...100).contains(limit), !chatID.isEmpty, !chatID.contains("/"),
+              direction != .before || before != nil,
+              direction != .after || after != nil,
+              direction != .around || anchorMessageId?.isEmpty == false,
+              before.map({ !$0.messageId.isEmpty && $0.createdAt >= 0 }) ?? true,
+              after.map({ !$0.messageId.isEmpty && $0.createdAt >= 0 }) ?? true else { throw WatchChatRuntimeError.historyUnavailable }
+        var components = URLComponents()
+        components.path = "/v1/chats/\(chatID)/messages/window"
+        var items = [URLQueryItem(name: "direction", value: direction.rawValue),
+                     URLQueryItem(name: "limit", value: String(limit)),
+                     URLQueryItem(name: "respect_compression_boundary", value: respectCompressionBoundary ? "true" : "false")]
+        if let before {
+            items += [URLQueryItem(name: "before_timestamp", value: String(before.createdAt)), URLQueryItem(name: "before_message_id", value: before.messageId)]
+        }
+        if let after {
+            items += [URLQueryItem(name: "after_timestamp", value: String(after.createdAt)), URLQueryItem(name: "after_message_id", value: after.messageId)]
+        }
+        if let anchorMessageId { items.append(URLQueryItem(name: "anchor_message_id", value: anchorMessageId)) }
+        components.queryItems = items
+        guard let path = components.url?.relativeString else { throw WatchChatRuntimeError.historyUnavailable }
+        return path
+    }
+}
+
+struct WatchMessageWindow: Sendable {
+    let chatId: String
+    var messages: [WatchRemoteMessage]
+    var hasMoreBefore = false
+    var hasMoreAfter = false
+    var startCursor: WatchMessageWindowCursor? = nil
+    var endCursor: WatchMessageWindowCursor? = nil
+    var anchorFound = true
+    var messagesV: Int? = nil
+    var serverMessageCount: Int? = nil
+    var compressionBoundaryTimestamp: Int? = nil
+    var compressionCheckpoints: [WatchMessageCompressionCheckpoint] = []
+    var respectCompressionBoundary = true
+}
+
+struct WatchMessageCompressionCheckpoint: Decodable, Sendable {
+    let id: String
+    let chatId: String
+    let encryptedSummary: String?
+    let compressedUpToTimestamp: Int?
+    let compressedMessageCount: Int?
+    let summaryTokenEstimate: Int?
+    let keyVersion: Int?
+}
+
+struct WatchMessageWindowEnvelope: Decodable {
+    let chatId: String
+    fileprivate let messages: [WatchChatMessageDTO]
+    let hasMoreBefore: Bool
+    let hasMoreAfter: Bool
+    let startCursor: WatchMessageWindowCursor?
+    let endCursor: WatchMessageWindowCursor?
+    let anchorFound: Bool
+    let messagesV: Int?
+    let serverMessageCount: Int?
+    let compressionBoundaryTimestamp: Int?
+    let compressionCheckpoints: [WatchMessageCompressionCheckpoint]
+    let respectCompressionBoundary: Bool
+    var window: WatchMessageWindow {
+        WatchMessageWindow(chatId: chatId, messages: messages.map(WatchRemoteMessage.init(dto:)),
+            hasMoreBefore: hasMoreBefore, hasMoreAfter: hasMoreAfter, startCursor: startCursor, endCursor: endCursor,
+            anchorFound: anchorFound, messagesV: messagesV, serverMessageCount: serverMessageCount,
+            compressionBoundaryTimestamp: compressionBoundaryTimestamp, compressionCheckpoints: compressionCheckpoints,
+            respectCompressionBoundary: respectCompressionBoundary)
     }
 }
 
@@ -573,9 +689,16 @@ struct WatchChatRequestContext: Sendable {
 protocol WatchChatAPI: Sendable {
     func fetchRecentChats(limit: Int, offset: Int, context: WatchChatRequestContext) async throws -> [WatchRemoteChat]
     func fetchMessages(chatId: String, context: WatchChatRequestContext) async throws -> [WatchRemoteMessage]
+    func fetchMessageWindow(chatId: String, query: WatchMessageWindowQuery, context: WatchChatRequestContext) async throws -> WatchMessageWindow
     func fetchMessagesVersion(chatId: String, context: WatchChatRequestContext) async throws -> Int?
     func uploadAudioRecording(data: Data, filename: String, chatId: String, context: WatchChatRequestContext) async throws -> WatchUploadedAudio
     func transcribeAudioRecording(_ upload: WatchUploadedAudio, chatId: String, context: WatchChatRequestContext) async throws -> WatchTranscriptionMetadata?
+}
+
+extension WatchChatAPI {
+    func fetchMessageWindow(chatId: String, query: WatchMessageWindowQuery, context: WatchChatRequestContext) async throws -> WatchMessageWindow {
+        throw WatchChatRuntimeError.historyUnavailable
+    }
 }
 
 @MainActor
@@ -621,6 +744,7 @@ extension WatchChatSyncSocket {
 
 @MainActor
 protocol WatchChatCrypto: AnyObject {
+    func offlineWrappedChatKey(for chat: WatchChatSummary) -> String?
     func decryptChat(_ chat: WatchRemoteChat) async -> WatchChatSummary?
     func decryptMessage(_ message: WatchRemoteMessage) async -> WatchChatMessage
     func encryptText(_ text: String, for chat: WatchChatSummary) async throws -> String
@@ -637,6 +761,7 @@ protocol WatchChatCrypto: AnyObject {
 }
 
 extension WatchChatCrypto {
+    func offlineWrappedChatKey(for chat: WatchChatSummary) -> String? { chat.offlineWrappedChatKey ?? chat.encryptedChatKey }
     func createChat(withID id: String) async throws -> WatchChatSummary { throw WatchChatRuntimeError.missingChatKey }
     func prepareEmbedStorage(payload: [String: Any], chat: WatchChatSummary, messageID: String) async throws -> (keys: [String: Any], embed: [String: Any]) { throw WatchChatRuntimeError.missingChatKey }
     func hydrateEmbed(payload: [String: Any], chat: WatchChatSummary) async throws -> WatchEmbedRef { throw WatchChatRuntimeError.missingChatKey }
@@ -658,13 +783,22 @@ enum WatchChatAccountLifecycle {
 }
 
 actor WatchChatOfflineCache {
+    static let shared = WatchChatOfflineCache()
+    static let maximumConversationBytes = 32_000_000
+    static let maximumConversationCacheBytes = 256_000_000
     private let fileURL: URL
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
+    private let conversationDirectory: URL
+    private var eraseEpoch: UInt64 = 0
 
     init(directory: URL? = nil) {
         self.fileURL = (directory ?? WatchChatOfflineCache.defaultDirectory())
             .appendingPathComponent("watch-chat-snapshot.json")
+        // Complete offline receipts are user data, not evictable system caches.
+        self.conversationDirectory = (directory ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("OpenMatesWatch", isDirectory: true))
+            .appendingPathComponent("recent-conversations", isDirectory: true)
         self.encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         self.decoder = JSONDecoder()
@@ -680,13 +814,16 @@ actor WatchChatOfflineCache {
     }
 
     func saveSnapshot(_ snapshot: WatchChatSnapshot, accountGeneration: UInt64? = nil, serverScope: String? = nil) async throws {
+        let observedEraseEpoch = eraseEpoch
         if let accountGeneration {
             let valid = await MainActor.run {
                 accountGeneration == WatchChatAccountLifecycle.generation &&
                 (serverScope == nil || serverScope == WatchChatRuntime.currentServerScope)
             }
-            guard valid else { throw CancellationError() }
+            guard valid, observedEraseEpoch == eraseEpoch else { throw CancellationError() }
         }
+        try Task.checkCancellation()
+        guard observedEraseEpoch == eraseEpoch else { throw CancellationError() }
         try FileManager.default.createDirectory(
             at: fileURL.deletingLastPathComponent(),
             withIntermediateDirectories: true
@@ -696,13 +833,190 @@ actor WatchChatOfflineCache {
     }
 
     func removeSnapshot() throws {
-        guard FileManager.default.fileExists(atPath: fileURL.path) else { return }
-        try FileManager.default.removeItem(at: fileURL)
+        eraseEpoch &+= 1
+        if FileManager.default.fileExists(atPath: fileURL.path) { try FileManager.default.removeItem(at: fileURL) }
+        if FileManager.default.fileExists(atPath: conversationDirectory.path) { try FileManager.default.removeItem(at: conversationDirectory) }
+    }
+
+    private func conversationURL(chatID: String) -> URL {
+        conversationDirectory.appendingPathComponent(WatchChatKeyWrapperRecord.hashedChatId(for: chatID) + ".json")
+    }
+
+    func loadConversation(chatID: String, accountID: String?, serverScope: String) -> WatchOfflineConversation? {
+        guard let data = try? Data(contentsOf: conversationURL(chatID: chatID)),
+              let value = try? decoder.decode(WatchOfflineConversation.self, from: data),
+              value.chat.id == chatID, value.accountID == accountID, value.serverScope == serverScope else { return nil }
+        return value
+    }
+
+    func conversationMetadata(accountID: String?, serverScope: String) -> [WatchChatSummary] {
+        var result: [WatchChatSummary] = []
+        for url in (try? FileManager.default.contentsOfDirectory(at: conversationDirectory, includingPropertiesForKeys: nil)) ?? [] {
+            guard let data = try? Data(contentsOf: url),
+                  let value = try? decoder.decode(WatchOfflineConversation.self, from: data),
+                  value.accountID == accountID, value.serverScope == serverScope else { continue }
+            var chat = value.chat
+            chat.offlineWrappedChatKey = value.wrappedRecoveryChatKey ?? chat.offlineWrappedChatKey
+            result.append(chat)
+        }
+        return result
+    }
+
+    func saveConversation(_ value: WatchOfflineConversation, accountGeneration: UInt64) async throws {
+        let observedEraseEpoch = eraseEpoch
+        let data = try encoder.encode(value)
+        guard data.count <= Self.maximumConversationBytes else { throw WatchChatRuntimeError.historyUnavailable }
+        let valid = await MainActor.run {
+            accountGeneration == WatchChatAccountLifecycle.generation && value.serverScope == WatchChatRuntime.currentServerScope
+        }
+        guard valid, observedEraseEpoch == eraseEpoch else { throw CancellationError() }
+        try Task.checkCancellation()
+        try FileManager.default.createDirectory(at: conversationDirectory, withIntermediateDirectories: true)
+        var directory = conversationDirectory
+        var values = URLResourceValues(); values.isExcludedFromBackup = true
+        try directory.setResourceValues(values)
+        let target = conversationURL(chatID: value.chat.id)
+        let entries = try FileManager.default.contentsOfDirectory(at: conversationDirectory, includingPropertiesForKeys: [.fileSizeKey])
+        let retainedBytes = try entries.filter { $0 != target }.reduce(0) { try $0 + ($1.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0) }
+        guard retainedBytes + data.count <= Self.maximumConversationCacheBytes else { throw WatchChatRuntimeError.historyUnavailable }
+        try data.write(to: target, options: [.atomic, .completeFileProtection])
+    }
+
+    func pruneConversations(retaining ids: Set<String>) throws {
+        let names = Set(ids.map { WatchChatKeyWrapperRecord.hashedChatId(for: $0) + ".json" })
+        for url in (try? FileManager.default.contentsOfDirectory(at: conversationDirectory, includingPropertiesForKeys: nil)) ?? [] {
+            try Task.checkCancellation()
+            if !names.contains(url.lastPathComponent) { try FileManager.default.removeItem(at: url) }
+        }
+    }
+
+    /// Parse and paginate ciphertext off the foreground actor. No transcript is
+    /// decrypted or published by cohort maintenance, and a receipt requires the
+    /// server's full-count/version agreement rather than a viewing window.
+    func prepareConversation(_ data: Data, chatID: String) throws -> WatchOfflinePreparedConversation {
+        try Task.checkCancellation()
+        guard data.count <= Self.maximumConversationBytes,
+              let fields = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              fields["partial_error"] as? Bool != true,
+              let rows = (fields["messages_by_chat_id"] as? [String: Any])?[chatID] as? [Any],
+              let versions = (fields["versions_by_chat_id"] as? [String: [String: Int]])?[chatID],
+              let count = versions["server_message_count"], count == rows.count,
+              let version = versions["messages_v"], version >= count else { throw WatchChatRuntimeError.historyUnavailable }
+        var messages: [[String: Any]] = []
+        var seen = Set<String>()
+        for row in rows {
+            try Task.checkCancellation()
+            let object: [String: Any]?
+            if let string = row as? String { object = try JSONSerialization.jsonObject(with: Data(string.utf8)) as? [String: Any] }
+            else { object = row as? [String: Any] }
+            guard var record = object, record["chat_id"] as? String == chatID,
+                  let id = (record["client_message_id"] ?? record["message_id"] ?? record["id"]) as? String,
+                  seen.insert(id).inserted else { throw WatchChatRuntimeError.historyUnavailable }
+            record["id"] = id
+            if let timestamp = record["created_at"], !(timestamp is String) { record["created_at"] = String(describing: timestamp) }
+            messages.append(record)
+        }
+        messages.sort { left, right in
+            let l = WatchRecentOfflinePolicy.timestamp(left["created_at"] as? String)
+            let r = WatchRecentOfflinePolicy.timestamp(right["created_at"] as? String)
+            return l == r ? (left["id"] as? String ?? "") < (right["id"] as? String ?? "") : l < r
+        }
+        let decoder = JSONDecoder(); decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let wrappers = try decoder.decode([WatchChatKeyWrapperRecord].self,
+            from: JSONSerialization.data(withJSONObject: fields["chat_key_wrappers"] ?? []))
+        let embeds = fields["embeds"] as? [[String: Any]] ?? []
+        let keys = fields["embed_keys"] as? [[String: Any]] ?? []
+        let hash = WatchChatKeyWrapperRecord.hashedChatId(for: chatID)
+        var payloads: [[String: Any]] = []
+        for embed in embeds {
+            guard let id = (embed["embed_id"] ?? embed["id"]) as? String,
+                  embed["chat_id"] as? String == chatID || embed["hashed_chat_id"] as? String == hash else { throw WatchChatRuntimeError.historyUnavailable }
+            var payload = embed
+            payload["embed_id"] = id
+            payload["chat_id"] = chatID
+            payload["type"] = embed["encrypted_type"] ?? embed["type"] ?? "app_skill_use"
+            payload["content"] = embed["encrypted_content"] ?? embed["content"] ?? ""
+            if embed["encrypted_content"] as? String != nil {
+                let matching = keys.filter { $0["hashed_embed_id"] as? String == WatchChatKeyWrapperRecord.hashedChatId(for: id) }
+                guard !matching.isEmpty else { throw WatchChatRuntimeError.missingChatKey }
+                payload["embed_keys"] = matching
+                payload["already_encrypted"] = true
+                payload["encryption_mode"] = "client"
+            }
+            payloads.append(payload)
+        }
+        func pages(_ rows: [[String: Any]]) throws -> [Data] {
+            try stride(from: 0, to: rows.count, by: 50).map {
+                try JSONSerialization.data(withJSONObject: Array(rows[$0..<min($0 + 50, rows.count)]))
+            }
+        }
+        let supplemental = fields.filter { ["compression_checkpoints_by_chat_id", "code_run_outputs", "notebook_run_outputs", "embed_keys", "chat_key_wrappers"].contains($0.key) }
+        return WatchOfflinePreparedConversation(messagePages: try pages(messages), embedPages: try pages(payloads),
+            supplemental: try JSONSerialization.data(withJSONObject: supplemental), wrappers: wrappers,
+            messagesVersion: version, messageCount: count)
+    }
+
+    func decodeMessagePage(_ data: Data) throws -> [WatchRemoteMessage] {
+        let decoder = JSONDecoder(); decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return try decoder.decode([WatchChatMessageDTO].self, from: data).map(WatchRemoteMessage.init(dto:))
+    }
+
+    func decodeEmbedPage(_ data: Data) throws -> [[String: AnyCodable]] {
+        try JSONDecoder().decode([[String: AnyCodable]].self, from: data)
     }
 
     static func defaultDirectory() -> URL {
         FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("OpenMatesWatch", isDirectory: true)
+    }
+}
+
+struct WatchOfflinePreparedConversation: Sendable {
+    let messagePages: [Data]
+    let embedPages: [Data]
+    let supplemental: Data
+    let wrappers: [WatchChatKeyWrapperRecord]
+    let messagesVersion: Int
+    let messageCount: Int
+}
+
+/// Each page and supplemental payload is sealed with the validated chat key.
+/// Only a complete atomic receipt is eligible for offline opening.
+struct WatchOfflineConversation: Codable, Sendable {
+    let chat: WatchChatSummary
+    let accountID: String?
+    let serverScope: String
+    let revision: String
+    let messagesVersion: Int
+    let messageCount: Int
+    let messagePages: [String]
+    let embedPages: [String]
+    let supplemental: String
+    var wrappedRecoveryChatKey: String? = nil
+}
+
+enum WatchRecentOfflinePolicy {
+    static let capacity = 20
+    static func timestamp(_ value: String?) -> Double {
+        guard let value else { return 0 }
+        if let number = Double(value) { return number }
+        let parser = ISO8601DateFormatter()
+        if let date = parser.date(from: value) { return date.timeIntervalSince1970 }
+        parser.formatOptions.insert(.withFractionalSeconds)
+        return parser.date(from: value)?.timeIntervalSince1970 ?? 0
+    }
+    static func activity(_ chat: WatchChatSummary) -> Double {
+        timestamp(chat.lastEditedOverallTimestamp ?? chat.lastMessageAt)
+    }
+    static func revision(_ chat: WatchChatSummary) -> String {
+        "\(chat.messagesV)|\(activity(chat))"
+    }
+    static func cohort(_ chats: [WatchChatSummary]) -> [WatchChatSummary] {
+        Array(chats.filter { chat in
+            chat.parentID == nil && !chat.isSubChat && !["incognito-", "demo-", "example-", "announcements-"].contains(where: chat.id.hasPrefix)
+        }.sorted {
+            activity($0) == activity($1) ? $0.id < $1.id : activity($0) > activity($1)
+        }.prefix(capacity))
     }
 }
 
@@ -745,6 +1059,7 @@ final class WatchChatRuntime: ObservableObject {
     private var draftSocketGeneration: Int?
     private var draftReconciledSocketGeneration: Int?
     private(set) var isPreviewFixture = false
+    private(set) var isOfflineCohortFixture = false
     private let api: any WatchChatAPI
     private let cache: WatchChatOfflineCache
     private let crypto: any WatchChatCrypto
@@ -759,6 +1074,21 @@ final class WatchChatRuntime: ObservableObject {
     private var receiptAttemptID = UUID()
     private var isSending = false
     private var refreshTask: Task<Void, Never>?
+    private var recentOfflineTask: Task<Void, Never>?
+    private var recentOfflineRunID: UUID?
+    private var recentOfflineNeedsRefresh = false
+    private var foregroundNavigationBusy = false
+    private var offlineConversation: WatchOfflineConversation?
+    @Published private(set) var offlinePageIndex: Int?
+    @Published private(set) var offlinePageCount = 0
+    @Published private(set) var isLoadingOfflinePage = false
+    @Published private(set) var hasMoreRemoteMessages = false
+    @Published private(set) var isLoadingRemoteMessages = false
+    private var remoteStartCursor: WatchMessageWindowCursor?
+    private var windowRequestID = UUID()
+    private var partialWindowChats: Set<String> = []
+
+    private var backgroundOfflineMaintenance = false
     private var chatListAuthoritative = false
     private var pendingTextSends: [WatchPendingTextSend] = []
     private var pendingRecoveryJobs: [WatchRecoveryJob] = []
@@ -777,7 +1107,7 @@ final class WatchChatRuntime: ObservableObject {
     init(
         currentUserId: String? = nil,
         api: any WatchChatAPI = APIClient.shared,
-        cache: WatchChatOfflineCache = WatchChatOfflineCache(),
+        cache: WatchChatOfflineCache = .shared,
         crypto: (any WatchChatCrypto)? = nil,
         syncSocket: (any WatchChatSyncSocket)? = WatchRealtimeSyncSocket(),
         syncSession: WatchSyncSession? = nil
@@ -791,6 +1121,45 @@ final class WatchChatRuntime: ObservableObject {
     }
 
 #if DEBUG
+    static func offlineCohortFixture(directory: URL? = nil) -> WatchChatRuntime {
+        let crypto = WatchOfflineFixtureCrypto()
+        let transport = WatchOfflineFixtureTransport(crypto: crypto)
+        let runtime = WatchChatRuntime(currentUserId: WatchOfflineFixtureTransport.accountID,
+            api: transport, cache: WatchChatOfflineCache(directory: directory ?? FileManager.default.temporaryDirectory.appendingPathComponent("watch-offline-fixture-" + UUID().uuidString)),
+            crypto: crypto, syncSocket: transport, syncSession: WatchSyncSession(sessionId: "fixture", token: nil))
+        runtime.isOfflineCohortFixture = true
+        return runtime
+    }
+
+    static func messageWindowFixture() -> WatchChatRuntime {
+        let runtime = WatchChatRuntime(api: WatchMessageWindowFixtureTransport(),
+            cache: WatchChatOfflineCache(directory: FileManager.default.temporaryDirectory.appendingPathComponent("watch-window-fixture-" + UUID().uuidString)),
+            crypto: WatchPreviewDraftCrypto(), syncSocket: nil)
+        runtime.isPreviewFixture = true
+        runtime.chats = [WatchChatSummary(id: "watch-window-fixture", title: "Synthetic paged history", lastMessageAt: nil,
+            preview: nil, isPinned: false, encryptedTitle: nil, encryptedPreview: nil, encryptedChatKey: nil)]
+        runtime.selectedChatId = "watch-window-fixture"
+        return runtime
+    }
+
+    func prepareMessageWindowFixture() async {
+        guard isPreviewFixture, api is WatchMessageWindowFixtureTransport, let chat = chats.first else { return }
+        await openChat(chat)
+    }
+
+    func prepareOfflineCohortFixture() async {
+        guard isOfflineCohortFixture, let transport = api as? WatchOfflineFixtureTransport else { return }
+        await setForeground(true)
+        await refresh()
+        await waitForRecentOfflineSync()
+        transport.offline = true
+        await setForeground(false)
+        isOffline = true
+        // Reopen from ciphertext to prove unopened cohort data is durable.
+        messagesByChatId.removeAll()
+        hydratedEmbedPreviews.removeAll()
+    }
+
     init(uiTestSnapshot snapshot: WatchChatSnapshot, selectedChatId: String?, initialDraft: String? = nil) {
         self.accountID = nil
         self.isPreviewFixture = true
@@ -821,6 +1190,11 @@ final class WatchChatRuntime: ObservableObject {
             })
     }
 
+    func selectedChatShareContext() -> WatchChatRequestContext? {
+        guard !isStopped, !isOffline, let selectedChat, chats.contains(where: { $0.id == selectedChat.id }) else { return nil }
+        return requestContext()
+    }
+
     var selectedChat: WatchChatSummary? {
         guard let selectedChatId else { return nil }
         return chats.first { $0.id == selectedChatId } ?? (transientChat?.id == selectedChatId ? transientChat : nil)
@@ -845,21 +1219,34 @@ final class WatchChatRuntime: ObservableObject {
         guard !isStopped else { return }
         let generation = lifecycleGeneration
         let profile = ServerProfile.current()
-        let snapshot = await cache.loadSnapshot()
-        guard generation == lifecycleGeneration, !isStopped, profile == ServerProfile.current(), snapshot.accountID == accountID,
-              snapshot.serverScope == serverScope || (accountID == nil && snapshot.serverScope == nil) else { return }
+        var snapshot = await cache.loadSnapshot()
+        if snapshot.accountID != accountID || !(snapshot.serverScope == serverScope || (accountID == nil && snapshot.serverScope == nil)) {
+            snapshot = .empty; snapshot.accountID = accountID; snapshot.serverScope = serverScope
+        }
+        let recent = await cache.conversationMetadata(accountID: accountID, serverScope: serverScope)
+        let present = Set(snapshot.chats.map(\.id))
+        snapshot.chats += recent.filter { !present.contains($0.id) }
+        guard generation == lifecycleGeneration, !isStopped, profile == ServerProfile.current() else { return }
         apply(snapshot)
         for cached in snapshot.chats {
-            let remote = WatchRemoteChat(id: cached.id, title: cached.title, lastMessageAt: cached.lastMessageAt,
+            var remote = WatchRemoteChat(id: cached.id, title: cached.title, lastMessageAt: cached.lastMessageAt,
                 updatedAt: nil, chatSummary: cached.preview, isPinned: cached.isPinned,
                 encryptedTitle: cached.encryptedTitle, encryptedChatSummary: cached.encryptedPreview,
                 encryptedChatKey: cached.encryptedChatKey, messagesV: cached.messagesV,
                 titleV: cached.titleV, metadataV: cached.metadataV)
-            if let decrypted = await crypto.decryptChat(remote), let index = chats.firstIndex(where: { $0.id == cached.id }) {
+            remote.encryptedCategory = cached.encryptedCategory; remote.encryptedIcon = cached.encryptedIcon
+            remote.isSupportChat = cached.isSupportChat; remote.isSharedRecipient = cached.isSharedRecipient
+            if let wrapped = cached.offlineWrappedChatKey {
+                remote.chatKeyWrappers = [WatchChatKeyWrapperRecord(id: nil, hashedChatId: WatchChatKeyWrapperRecord.hashedChatId(for: cached.id),
+                    keyType: "master", encryptedChatKey: wrapped, wrapperVersion: nil, createdAt: nil)]
+            }
+            if var decrypted = await crypto.decryptChat(remote), let index = chats.firstIndex(where: { $0.id == cached.id }) {
                 guard generation == lifecycleGeneration, !isStopped, profile == ServerProfile.current() else { return }
+                decrypted.lastEditedOverallTimestamp = cached.lastEditedOverallTimestamp
+                decrypted.parentID = cached.parentID; decrypted.isSubChat = cached.isSubChat
                 chats[index] = decrypted
             }
-            for message in snapshot.messagesByChatId[cached.id] ?? [] {
+            for message in (snapshot.messagesByChatId[cached.id] ?? []).filter(\.isPending) {
                 var decrypted = await crypto.decryptMessage(.init(id: message.id, chatId: message.chatId, role: message.role,
                     content: message.content, encryptedContent: message.encryptedContent, embedRefs: message.embedRefs, createdAt: message.createdAt))
                 guard generation == lifecycleGeneration, !isStopped, profile == ServerProfile.current() else { return }
@@ -889,7 +1276,7 @@ final class WatchChatRuntime: ObservableObject {
         chatListAuthoritative = false
         let generation = lifecycleGeneration
         let profile = ServerProfile.current()
-        func current() -> Bool { !isStopped && generation == lifecycleGeneration && profile == ServerProfile.current() }
+        func current() -> Bool { !Task.isCancelled && !isStopped && generation == lifecycleGeneration && profile == ServerProfile.current() }
         isSyncing = true
         defer { if current() { isSyncing = false } }
         errorMessage = nil
@@ -977,6 +1364,146 @@ final class WatchChatRuntime: ObservableObject {
                 NativeDiagnostics.failure("persist_failed", category: "watch_chat", level: .warning, error: error)
             }
         }
+        scheduleRecentOfflineSync()
+    }
+
+    private var canMaintainRecentOfflineChats: Bool {
+        !isStopped && !isPreviewFixture
+            && ((isForeground && !foregroundNavigationBusy && selectedChatId == nil) || (backgroundOfflineMaintenance && !isForeground))
+            && chatListAuthoritative && !isOffline && syncSocket?.isConnected == true
+    }
+
+    /// An opportunistic watchOS grant has an external cancellation deadline.
+    /// It may persist a subset of complete receipts, never a truncated receipt.
+    func performBackgroundOfflineSync() async {
+        guard !isStopped, !isForeground, accountID != nil else { return }
+        backgroundOfflineMaintenance = true
+        defer {
+            backgroundOfflineMaintenance = false
+            cancelRecentOfflineSync()
+            if !isForeground { syncSocket?.disconnect() }
+        }
+        if let syncSocket, let syncSession, !syncSocket.isConnected {
+            syncSocket.connect(session: syncSession, syncState: makeSyncClientState())
+        }
+        if let syncSocket {
+            let ready = await WatchSocketReadiness.wait(maxAttempts: 80, interval: .milliseconds(100)) {
+                if Task.isCancelled || self.isForeground || self.isStopped { return .closed }
+                return syncSocket.isConnected ? .open : .retry
+            }
+            guard ready else { return }
+        }
+        await refresh()
+        guard !Task.isCancelled, !isForeground else { return }
+        scheduleRecentOfflineSync()
+        await withTaskCancellationHandler(operation: { await waitForRecentOfflineSync() }, onCancel: {
+            Task { @MainActor [weak self] in self?.cancelRecentOfflineSync() }
+        })
+    }
+
+    private func cancelRecentOfflineSync() {
+        recentOfflineRunID = nil
+        recentOfflineTask?.cancel()
+        recentOfflineTask = nil
+    }
+
+    func setForegroundNavigationBusy(_ busy: Bool) {
+        foregroundNavigationBusy = busy
+        if busy { cancelRecentOfflineSync() }
+        else { scheduleRecentOfflineSync() }
+    }
+
+    private func scheduleRecentOfflineSync() {
+        guard canMaintainRecentOfflineChats else { return }
+        recentOfflineNeedsRefresh = true
+        guard recentOfflineTask == nil else { return }
+        let id = UUID()
+        recentOfflineRunID = id
+        recentOfflineTask = Task(priority: .utility) { @MainActor [weak self] in
+            guard let self else { return }
+            while self.recentOfflineNeedsRefresh, self.recentOfflineRunID == id, self.canMaintainRecentOfflineChats {
+                self.recentOfflineNeedsRefresh = false
+                await self.maintainRecentOfflineChats(runID: id)
+            }
+            if self.recentOfflineRunID == id {
+                self.recentOfflineTask = nil
+                self.recentOfflineRunID = nil
+            }
+        }
+    }
+
+    /// Deterministic completion hook; production starts maintenance from list
+    /// refresh, socket readiness, and hub foreground entry.
+    func waitForRecentOfflineSync() async {
+        while let task = recentOfflineTask { await task.value }
+    }
+
+    private func maintainRecentOfflineChats(runID: UUID) async {
+        guard let socket = syncSocket else { return }
+        let socketGeneration = socket.generation
+        let generation = lifecycleGeneration
+        func check() throws {
+            try Task.checkCancellation()
+            guard canMaintainRecentOfflineChats, recentOfflineRunID == runID,
+                  lifecycleGeneration == generation, socket.generation == socketGeneration else { throw CancellationError() }
+        }
+        let cohort = WatchRecentOfflinePolicy.cohort(chats)
+        for chat in cohort {
+            do {
+                try check()
+                let revision = WatchRecentOfflinePolicy.revision(chat)
+                if let existing = await cache.loadConversation(chatID: chat.id, accountID: accountID, serverScope: serverScope),
+                   existing.revision == revision { continue }
+                try check()
+                let fields = try await socket.requestEvent(type: "request_chat_content_batch", payload: ["chat_ids": [chat.id]],
+                    responseTypes: ["chat_content_batch_response"], matching: {
+                        ($0["messages_by_chat_id"] as? [String: Any])?[chat.id] != nil
+                    }, beforeSend: { try check() })
+                try check()
+                let prepared = try await cache.prepareConversation(JSONSerialization.data(withJSONObject: fields), chatID: chat.id)
+                try check()
+                guard let current = chats.first(where: { $0.id == chat.id }), WatchRecentOfflinePolicy.revision(current) == revision,
+                      prepared.messagesVersion >= chat.messagesV else { continue }
+                var remote = WatchRemoteChat(id: chat.id, title: nil, lastMessageAt: chat.lastMessageAt, updatedAt: nil,
+                    chatSummary: nil, isPinned: chat.isPinned, encryptedTitle: chat.encryptedTitle,
+                    encryptedChatSummary: chat.encryptedPreview, encryptedChatKey: chat.encryptedChatKey)
+                remote.chatKeyWrappers = prepared.wrappers
+                remote.messagesV = prepared.messagesVersion
+                guard let keyedChat = await crypto.decryptChat(remote), let recoveryWrapper = crypto.offlineWrappedChatKey(for: keyedChat) else { throw WatchChatRuntimeError.missingChatKey }
+                try check()
+                func seal(_ pages: [Data]) async throws -> [String] {
+                    var result: [String] = []
+                    for page in pages {
+                        try check()
+                        result.append(try await crypto.encryptText(String(decoding: page, as: UTF8.self), for: keyedChat))
+                        await Task.yield()
+                    }
+                    return result
+                }
+                let messagePages = try await seal(prepared.messagePages)
+                let embedPages = try await seal(prepared.embedPages)
+                let supplemental = try await crypto.encryptText(String(decoding: prepared.supplemental, as: UTF8.self), for: keyedChat)
+                try check()
+                var storedChat = chat
+                storedChat.title = nil; storedChat.preview = nil; storedChat.category = nil; storedChat.icon = nil
+                storedChat.offlineWrappedChatKey = recoveryWrapper
+                var value = WatchOfflineConversation(chat: storedChat, accountID: accountID, serverScope: serverScope,
+                    revision: revision, messagesVersion: prepared.messagesVersion, messageCount: prepared.messageCount,
+                    messagePages: messagePages, embedPages: embedPages, supplemental: supplemental)
+                value.wrappedRecoveryChatKey = recoveryWrapper
+                guard let latest = chats.first(where: { $0.id == chat.id }), WatchRecentOfflinePolicy.revision(latest) == revision else { continue }
+                try await cache.saveConversation(value, accountGeneration: accountLifecycleGeneration)
+                await Task.yield()
+            } catch is CancellationError { return }
+            catch {
+                guard (try? check()) != nil else { return }
+                NativeDiagnostics.event("recent_offline_chat_incomplete", category: "watch_chat", level: .warning)
+            }
+        }
+        do {
+            try check()
+            try await cache.pruneConversations(retaining: Set(WatchRecentOfflinePolicy.cohort(chats).map(\.id)))
+        } catch { }
     }
 
     private static func isConnectivityError(_ error: Error) -> Bool {
@@ -991,7 +1518,10 @@ final class WatchChatRuntime: ObservableObject {
         completionRetryAttempt = 0
         syncSocket.setChangeHandler { [weak self] in
             guard let self, !self.isStopped, self.lifecycleGeneration == generation else { return }
-            Task { await self.refreshSelectedChat() }
+            Task {
+                await self.refreshSelectedChat()
+                if self.selectedChatId == nil, !self.foregroundNavigationBusy { await self.refresh() }
+            }
         }
         syncSocket.setEventHandler { [weak self] type, payload in
             guard let self, !self.isStopped, self.lifecycleGeneration == generation else { return }
@@ -1007,13 +1537,18 @@ final class WatchChatRuntime: ObservableObject {
             guard let self, !self.isStopped, self.lifecycleGeneration == generation else { return }
             self.receiptAttemptID = UUID()
             self.inFlightReceiptIDs = []
-            Task { @MainActor in await self.foregroundHeartbeat() }
+            Task { @MainActor in
+                await self.foregroundHeartbeat()
+                self.scheduleRecentOfflineSync()
+            }
         }
         syncSocket.connect(session: syncSession, syncState: makeSyncClientState())
         await replayPendingDrafts()
         await replayPendingTextSends()
         await flushPendingCompletions()
         await requestSelectedEmbedPreviews()
+        // Cohort maintenance must not require opening the Chats section first.
+        await refresh()
     }
 
     /// Resolve only the requested authorized/decryptable chat. A missing target
@@ -1041,19 +1576,31 @@ final class WatchChatRuntime: ObservableObject {
 
     func openChat(_ chat: WatchChatSummary) async {
         guard !isStopped else { return }
+        cancelRecentOfflineSync()
         let generation = lifecycleGeneration
         let profile = ServerProfile.current()
         selectedChatId = chat.id
+        let requestID = UUID(); windowRequestID = requestID
+        hasMoreRemoteMessages = false; remoteStartCursor = nil
+        isLoadingRemoteMessages = false
+        offlineConversation = nil
+        offlinePageIndex = nil; offlinePageCount = 0
+        if let conversation = await cache.loadConversation(chatID: chat.id, accountID: accountID, serverScope: serverScope) {
+            guard !isStopped, generation == lifecycleGeneration, selectedChatId == chat.id else { return }
+            offlineConversation = conversation
+            if conversation.messagePages.isEmpty { messagesByChatId[chat.id] = [] }
+            await loadOfflinePage(max(0, conversation.messagePages.count - 1))
+        }
         if messagesByChatId[chat.id] == nil {
             let snapshot = await cache.loadSnapshot()
-            guard !isStopped, generation == lifecycleGeneration, profile == ServerProfile.current() else { return }
+            guard !isStopped, generation == lifecycleGeneration, profile == ServerProfile.current(), selectedChatId == chat.id, windowRequestID == requestID else { return }
             if snapshot.accountID == accountID,
                snapshot.serverScope == serverScope || (accountID == nil && snapshot.serverScope == nil) {
                 var cachedMessages: [WatchChatMessage] = []
-                for message in snapshot.messagesByChatId[chat.id] ?? [] {
+                for message in (snapshot.messagesByChatId[chat.id] ?? []).suffix(50) {
                     var decrypted = await crypto.decryptMessage(.init(id: message.id, chatId: message.chatId, role: message.role,
                         content: message.content, encryptedContent: message.encryptedContent, embedRefs: message.embedRefs, createdAt: message.createdAt))
-                    guard !isStopped, generation == lifecycleGeneration, profile == ServerProfile.current() else { return }
+                    guard !isStopped, generation == lifecycleGeneration, profile == ServerProfile.current(), selectedChatId == chat.id, windowRequestID == requestID else { return }
                     decrypted.isPending = message.isPending
                     cachedMessages.append(decrypted)
                 }
@@ -1065,19 +1612,24 @@ final class WatchChatRuntime: ObservableObject {
         let isDraftOnly = chat.messagesV == 0 && chat.titleV == 0 && chat.metadataV == 0
             && (transientChat?.id == chat.id || encryptedDrafts[chat.id]?.encryptedMarkdown != nil)
         if isDraftOnly, messagesByChatId[chat.id] == [] { return }
+        if isOffline, offlinePageIndex != nil { return }
 
         do {
-            let messages = try await fetchWithRetry {
-                try await api.fetchMessages(chatId: chat.id, context: requestContext())
+            let window = try await fetchWithRetry {
+                try await api.fetchMessageWindow(chatId: chat.id, query: WatchMessageWindowQuery(), context: requestContext())
             }
-            let decrypted = Self.sortedMessages(await decryptMessages(messages))
-            guard !isStopped, generation == lifecycleGeneration, profile == ServerProfile.current() else { return }
-            messagesByChatId[chat.id] = decrypted
-            let authoritativeVersion = try? await api.fetchMessagesVersion(chatId: chat.id, context: requestContext())
-            guard !isStopped, generation == lifecycleGeneration, profile == ServerProfile.current() else { return }
-            if let index = chats.firstIndex(where: { $0.id == chat.id }) {
-                chats[index].messagesV = max(chats[index].messagesV, authoritativeVersion ?? messages.count)
-            }
+            guard !isStopped, generation == lifecycleGeneration, profile == ServerProfile.current(),
+                  selectedChatId == chat.id, windowRequestID == requestID else { return }
+            try validateWindow(window, chatID: chat.id, limit: 50)
+            let decrypted = await decryptMessages(window.messages)
+            guard !isStopped, generation == lifecycleGeneration, profile == ServerProfile.current(),
+                  selectedChatId == chat.id, windowRequestID == requestID else { return }
+            mergeForegroundWindow(decrypted, chatID: chat.id)
+            remoteStartCursor = window.startCursor
+            hasMoreRemoteMessages = window.hasMoreBefore && window.startCursor != nil
+            offlinePageIndex = nil; offlinePageCount = 0
+            // A viewing page cannot advance content-sync versions or certify a
+            // complete offline snapshot. Maintenance keeps its full-history path.
             isOffline = false
             errorMessage = nil
             do {
@@ -1086,19 +1638,85 @@ final class WatchChatRuntime: ObservableObject {
                 NativeDiagnostics.failure("persist_failed", category: "watch_chat", level: .warning, error: error)
             }
         } catch {
-            guard !isStopped, generation == lifecycleGeneration, profile == ServerProfile.current() else { return }
+            guard !isStopped, generation == lifecycleGeneration, profile == ServerProfile.current(), selectedChatId == chat.id, windowRequestID == requestID else { return }
             NativeDiagnostics.failure("messages_fetch_failed", category: "watch_chat", level: .warning, error: error)
             isOffline = Self.isConnectivityError(error)
             errorMessage = error.localizedDescription
         }
-        guard !isStopped, generation == lifecycleGeneration, profile == ServerProfile.current() else { return }
+        guard !isStopped, generation == lifecycleGeneration, profile == ServerProfile.current(), selectedChatId == chat.id, windowRequestID == requestID else { return }
         await requestSelectedEmbedPreviews()
+    }
+
+    func loadOfflinePage(_ index: Int) async {
+        guard !isLoadingOfflinePage, !isStopped, let value = offlineConversation,
+              selectedChatId == value.chat.id, index >= 0, index < value.messagePages.count else { return }
+        isLoadingOfflinePage = true
+        defer { isLoadingOfflinePage = false }
+        let generation = lifecycleGeneration
+        let selection = selectedChatId
+        do {
+            let chat = value.chat
+            var remote = WatchRemoteChat(id: chat.id, title: nil, lastMessageAt: chat.lastMessageAt, updatedAt: nil,
+                chatSummary: nil, isPinned: chat.isPinned, encryptedTitle: chat.encryptedTitle,
+                encryptedChatSummary: chat.encryptedPreview, encryptedChatKey: chat.encryptedChatKey)
+            if let wrapped = value.wrappedRecoveryChatKey ?? chat.offlineWrappedChatKey {
+                remote.chatKeyWrappers = [WatchChatKeyWrapperRecord(id: nil, hashedChatId: WatchChatKeyWrapperRecord.hashedChatId(for: chat.id),
+                    keyType: "master", encryptedChatKey: wrapped, wrapperVersion: nil, createdAt: nil)]
+            }
+            guard let keyed = await crypto.decryptChat(remote) else { throw WatchChatRuntimeError.missingChatKey }
+            let plaintext = try await crypto.decryptText(value.messagePages[index], for: keyed)
+            let page = try await cache.decodeMessagePage(Data(plaintext.utf8))
+            let messages = Self.sortedMessages(await decryptMessages(page))
+            guard !isStopped, generation == lifecycleGeneration, selectedChatId == selection else { return }
+            let pending = (messagesByChatId[chat.id] ?? []).filter(\.isPending)
+            messagesByChatId[chat.id] = Self.sortedMessages(messages + pending.filter { item in !messages.contains(where: { $0.id == item.id }) })
+            hydratedEmbedPreviews.removeAll()
+            var needed = Set(messages.flatMap { WatchMessageContentSanitizer.mergedEmbedRefs(content: $0.content, provided: $0.embedRefs).map(\.id) })
+            // Two passes allow parents to reveal child IDs without decrypting
+            // unrelated payloads or retaining other conversations in RAM.
+            for _ in 0..<2 {
+                for sealed in value.embedPages {
+                    let text = try await crypto.decryptText(sealed, for: keyed)
+                    let rows = try await cache.decodeEmbedPage(Data(text.utf8))
+                    for row in rows {
+                        var payload = row.mapValues(\.value)
+                        guard let id = payload["embed_id"] as? String, needed.contains(id), hydratedEmbedPreviews[id] == nil else { continue }
+                        payload["user_id"] = accountID
+                        if let ref = try? await crypto.hydrateEmbed(payload: payload, chat: keyed) {
+                            guard !isStopped, generation == lifecycleGeneration, selectedChatId == selection else { return }
+                            hydratedEmbedPreviews[id] = ref
+                            needed.formUnion(WatchEmbedPreviewMapper.embedRecord(from: ref).childEmbedIds)
+                        }
+                    }
+                    guard !isStopped, generation == lifecycleGeneration, selectedChatId == selection else { return }
+                    await Task.yield()
+                }
+            }
+            offlinePageIndex = index; offlinePageCount = value.messagePages.count
+        } catch {
+            if !isStopped, generation == lifecycleGeneration, selectedChatId == selection {
+                NativeDiagnostics.event("offline_page_unavailable", category: "watch_chat", level: .warning)
+            }
+        }
     }
 
     func messageWithHydratedEmbeds(_ message: WatchChatMessage) -> WatchChatMessage {
         var result = message
-        result.embedRefs = (message.embedRefs ?? []).map { hydratedEmbedPreviews[$0.id] ?? $0 }
+        result.embedRefs = WatchMessageContentSanitizer.mergedEmbedRefs(content: message.content, provided: message.embedRefs)
+            .map { hydratedEmbedPreviews[$0.id] ?? $0 }
         return result
+    }
+
+    /// Parent previews may summarize their hydrated children. Keep those
+    /// child payloads in lookup memory without rendering duplicate cards.
+    func hydratedChildRecords(for message: WatchChatMessage) -> [EmbedRecord] {
+        let roots = messageWithHydratedEmbeds(message).watchEmbedRecords
+        let ids = roots.flatMap(\.childEmbedIds)
+        var seen = Set(roots.map(\.id))
+        return ids.prefix(30).compactMap { id in
+            guard seen.insert(id).inserted, let ref = hydratedEmbedPreviews[id] else { return nil }
+            return WatchEmbedPreviewMapper.embedRecord(from: ref)
+        }
     }
 
     func requestSelectedEmbedPreviews() async {
@@ -1110,8 +1728,9 @@ final class WatchChatRuntime: ObservableObject {
             requestedEmbedPreviews.removeAll()
             embedSocketGeneration = socketGeneration
         }
-        var ids = Set(selectedMessages.flatMap { ($0.embedRefs ?? []).map(\.id) })
-        for ref in selectedMessages.flatMap({ $0.embedRefs ?? [] }) {
+        let refs = selectedMessages.flatMap { WatchMessageContentSanitizer.mergedEmbedRefs(content: $0.content, provided: $0.embedRefs) }
+        var ids = Set(refs.map(\.id))
+        for ref in refs {
             let hydrated = hydratedEmbedPreviews[ref.id] ?? ref
             ids.formUnion(WatchEmbedPreviewMapper.embedRecord(from: hydrated).childEmbedIds)
         }
@@ -1160,7 +1779,7 @@ final class WatchChatRuntime: ObservableObject {
     private func embedOwner(embedID: String) -> (chat: WatchChatSummary, message: WatchChatMessage)? {
         for chat in chats {
             for message in messagesByChatId[chat.id] ?? [] {
-                if (message.embedRefs ?? []).contains(where: { ref in
+                if WatchMessageContentSanitizer.mergedEmbedRefs(content: message.content, provided: message.embedRefs).contains(where: { ref in
                     if ref.id == embedID { return true }
                     let hydrated = hydratedEmbedPreviews[ref.id] ?? ref
                     return WatchEmbedPreviewMapper.embedRecord(from: hydrated).childEmbedIds.contains(embedID)
@@ -1202,7 +1821,13 @@ final class WatchChatRuntime: ObservableObject {
         await saveComposerDraft(composerDrafts[chatId] ?? "", chatId: chatId,
                                 revision: currentDraftRevision(for: chatId), generation: lifecycleGeneration)
         selectedChatId = nil
+        windowRequestID = UUID(); hasMoreRemoteMessages = false; isLoadingRemoteMessages = false; remoteStartCursor = nil
+        offlineConversation = nil
+        offlinePageIndex = nil; offlinePageCount = 0
+        messagesByChatId = messagesByChatId.mapValues { $0.filter(\.isPending) }.filter { !$0.value.isEmpty }
+        hydratedEmbedPreviews.removeAll()
         if transientChat?.id == chatId { transientChat = nil }
+        scheduleRecentOfflineSync()
     }
 
     private func currentDraftRevision(for chatId: String) -> UInt64 {
@@ -1460,6 +2085,7 @@ final class WatchChatRuntime: ObservableObject {
     }
 
     func stopRealtimeSync() {
+        cancelRecentOfflineSync()
         lifecycleGeneration &+= 1
         isStopped = true
         draftSaveTask?.cancel()
@@ -1486,8 +2112,11 @@ final class WatchChatRuntime: ObservableObject {
         receiptAttemptID = UUID()
         inFlightReceiptIDs = []
         if foreground {
+            if backgroundOfflineMaintenance { backgroundOfflineMaintenance = false; cancelRecentOfflineSync() }
             await foregroundHeartbeat()
+            scheduleRecentOfflineSync()
         } else if let syncSocket, syncSocket.isConnected {
+            cancelRecentOfflineSync()
             do {
                 try await syncSocket.sendEvent(type: "native_client_lifecycle",
                     payload: ["is_foreground": false, "client_type": "apple"])
@@ -1496,6 +2125,7 @@ final class WatchChatRuntime: ObservableObject {
                                           level: .warning, error: error)
             }
         }
+        if !foreground { cancelRecentOfflineSync() }
     }
 
     func foregroundHeartbeat() async {
@@ -1813,41 +2443,82 @@ final class WatchChatRuntime: ObservableObject {
                 "message_id": message.id, "chat_id": message.chatId,
                 "role": message.role.rawValue, "content": content,
                 "sender_name": message.role == .user ? "User" : "Assistant",
-                "created_at": Int((ISO8601DateFormatter().date(from: message.createdAt) ?? Date()).timeIntervalSince1970)
+                "created_at": Int(Double(message.createdAt) ?? (ISO8601DateFormatter().date(from: message.createdAt) ?? Date()).timeIntervalSince1970)
             ])
         }
         return history
     }
 
-    private func refreshSelectedChat() async {
+    func refreshSelectedChat() async {
         guard !isStopped, let chat = selectedChat else { return }
         let generation = lifecycleGeneration
         let profile = ServerProfile.current()
+        let requestID = UUID(); windowRequestID = requestID
+        isLoadingRemoteMessages = false
         do {
-            let remote = try await api.fetchMessages(chatId: chat.id, context: requestContext())
-            let decrypted = Self.sortedMessages(await decryptMessages(remote))
-            guard !isStopped, generation == lifecycleGeneration, profile == ServerProfile.current() else { return }
-            let remoteIds = Set(decrypted.map(\.id))
-            let localOnly = (messagesByChatId[chat.id] ?? []).filter { !remoteIds.contains($0.id) }
-            messagesByChatId[chat.id] = Self.sortedMessages(decrypted + localOnly)
-            let authoritativeVersion = try? await api.fetchMessagesVersion(chatId: chat.id, context: requestContext())
-            guard !isStopped, generation == lifecycleGeneration, profile == ServerProfile.current() else { return }
-            if let index = chats.firstIndex(where: { $0.id == chat.id }) {
-                chats[index].messagesV = max(chats[index].messagesV, authoritativeVersion ?? remote.count)
-            }
+            let window = try await api.fetchMessageWindow(chatId: chat.id, query: WatchMessageWindowQuery(), context: requestContext())
+            guard !isStopped, generation == lifecycleGeneration, profile == ServerProfile.current(),
+                  selectedChatId == chat.id, windowRequestID == requestID else { return }
+            try validateWindow(window, chatID: chat.id, limit: 50)
+            let decrypted = await decryptMessages(window.messages)
+            guard !isStopped, generation == lifecycleGeneration, profile == ServerProfile.current(),
+                  selectedChatId == chat.id, windowRequestID == requestID else { return }
+            mergeForegroundWindow(decrypted, chatID: chat.id)
+            if remoteStartCursor == nil { remoteStartCursor = window.startCursor; hasMoreRemoteMessages = window.hasMoreBefore && window.startCursor != nil }
             try await persistSnapshot()
-        } catch {
-            // An unsaved local chat may not exist on the server until its first turn.
-        }
-        guard !isStopped, generation == lifecycleGeneration, profile == ServerProfile.current() else { return }
+        } catch { /* A new local chat may not exist before its first committed turn. */ }
+        guard !isStopped, generation == lifecycleGeneration, profile == ServerProfile.current(),
+              selectedChatId == chat.id, windowRequestID == requestID else { return }
         await requestSelectedEmbedPreviews()
+    }
+
+    func loadOlderMessages() async {
+        guard !isStopped, !isOffline, !isLoadingRemoteMessages, hasMoreRemoteMessages,
+              let chat = selectedChat, let cursor = remoteStartCursor else { return }
+        let generation = lifecycleGeneration
+        let profile = ServerProfile.current()
+        let requestID = UUID(); windowRequestID = requestID
+        isLoadingRemoteMessages = true
+        defer { if windowRequestID == requestID { isLoadingRemoteMessages = false } }
+        do {
+            let query = WatchMessageWindowQuery(direction: .before, before: cursor)
+            let window = try await api.fetchMessageWindow(chatId: chat.id, query: query, context: requestContext())
+            guard !isStopped, generation == lifecycleGeneration, profile == ServerProfile.current(),
+                  selectedChatId == chat.id, windowRequestID == requestID else { return }
+            try validateWindow(window, chatID: chat.id, limit: query.limit)
+            let decrypted = await decryptMessages(window.messages)
+            guard !isStopped, generation == lifecycleGeneration, profile == ServerProfile.current(),
+                  selectedChatId == chat.id, windowRequestID == requestID else { return }
+            mergeForegroundWindow(decrypted, chatID: chat.id)
+            remoteStartCursor = window.startCursor
+            hasMoreRemoteMessages = window.hasMoreBefore && window.startCursor != nil && window.startCursor != cursor
+            errorMessage = nil
+            try await persistSnapshot()
+            await requestSelectedEmbedPreviews()
+        } catch {
+            guard !isStopped, generation == lifecycleGeneration, profile == ServerProfile.current(),
+                  selectedChatId == chat.id, windowRequestID == requestID else { return }
+            errorMessage = WatchChatRuntimeError.historyUnavailable.localizedDescription
+        }
+    }
+
+    private func validateWindow(_ window: WatchMessageWindow, chatID: String, limit: Int) throws {
+        guard window.chatId == chatID, window.messages.count <= limit,
+              window.messages.allSatisfy({ $0.chatId == chatID }) else { throw WatchChatRuntimeError.historyUnavailable }
+    }
+
+    private func mergeForegroundWindow(_ messages: [WatchChatMessage], chatID: String) {
+        partialWindowChats.insert(chatID)
+        var byID = Dictionary((messagesByChatId[chatID] ?? []).map { ($0.id, $0) }, uniquingKeysWith: { _, new in new })
+        for message in messages { byID[message.id] = message }
+        messagesByChatId[chatID] = Self.sortedMessages(Array(byID.values))
     }
 
     private func apply(_ snapshot: WatchChatSnapshot) {
         encryptedDrafts = snapshot.encryptedDrafts
         draftRevision = encryptedDrafts.values.map(\.localRevision).max() ?? 0
         chats = Self.sortedChats(snapshot.chats)
-        messagesByChatId = snapshot.messagesByChatId.mapValues(Self.sortedMessages)
+        messagesByChatId = snapshot.messagesByChatId.mapValues { Self.sortedMessages($0.filter(\.isPending)) }.filter { !$0.value.isEmpty }
         pendingTextSends = snapshot.pendingTextSends
         pendingRecoveryJobs = snapshot.pendingRecoveryJobs
         pendingCompletions = snapshot.pendingCompletions
@@ -1863,10 +2534,19 @@ final class WatchChatRuntime: ObservableObject {
         }
         var encryptedChats: [WatchChatSummary] = []
         var encryptedMessages: [String: [WatchChatMessage]] = [:]
+        let previous = await cache.loadSnapshot()
+        try validate()
+        if previous.accountID == accountID, previous.serverScope == serverScope || (accountID == nil && previous.serverScope == nil) {
+            let retained = Set(chats.map(\.id))
+            encryptedMessages = previous.messagesByChatId.filter { retained.contains($0.key) && (messagesByChatId[$0.key] == nil || partialWindowChats.contains($0.key)) }
+        }
         for chat in chats {
             var storedChat = chat
             if let title = chat.title, storedChat.encryptedTitle == nil { storedChat.encryptedTitle = try await crypto.encryptText(title, for: chat) }
             if let preview = chat.preview, storedChat.encryptedPreview == nil { storedChat.encryptedPreview = try await crypto.encryptText(preview, for: chat) }
+            if let category = chat.category, storedChat.encryptedCategory == nil { storedChat.encryptedCategory = try await crypto.encryptText(category, for: chat) }
+            if let icon = chat.icon, storedChat.encryptedIcon == nil { storedChat.encryptedIcon = try await crypto.encryptText(icon, for: chat) }
+            storedChat.category = nil; storedChat.icon = nil
             storedChat.title = nil
             storedChat.preview = nil
             encryptedChats.append(storedChat)
@@ -1877,8 +2557,10 @@ final class WatchChatRuntime: ObservableObject {
                 }
                 storedMessage.content = nil
                 storedMessage.embedRefs = nil
+                encryptedMessages[chat.id, default: []].removeAll { $0.id == storedMessage.id }
                 encryptedMessages[chat.id, default: []].append(storedMessage)
             }
+            if let stored = encryptedMessages[chat.id] { encryptedMessages[chat.id] = Self.sortedMessages(stored) }
             try validate()
         }
         // Migrate legacy prepared JSON on the next save; queued inference and
@@ -1947,7 +2629,9 @@ final class WatchChatRuntime: ObservableObject {
                 if let cleared = chat.clearedDraftV { details["cleared_draft_v"] = cleared }
                 applyDraftDetails(details)
             }
-            if let decrypted = await crypto.decryptChat(chat) {
+            if var decrypted = await crypto.decryptChat(chat) {
+                decrypted.lastEditedOverallTimestamp = chat.lastEditedOverallTimestamp
+                decrypted.parentID = chat.parentID; decrypted.isSubChat = chat.isSubChat
                 result.append(decrypted)
             }
         }
@@ -2170,6 +2854,23 @@ final class WatchChatRuntime: ObservableObject {
                         }
                     }
                 }
+                if let chat = chats.first(where: { $0.id == entry.chatId }) {
+                    let encryptedCategory = payload["encrypted_chat_category"] as? String ?? payload["encrypted_category"] as? String
+                    if let encryptedCategory {
+                        let category = try await crypto.decryptText(encryptedCategory, for: chat)
+                        try validate()
+                        if let index = chats.firstIndex(where: { $0.id == entry.chatId }) {
+                            chats[index].category = category; chats[index].encryptedCategory = encryptedCategory
+                        }
+                    }
+                    if let encryptedIcon = payload["encrypted_icon"] as? String {
+                        let icon = try await crypto.decryptText(encryptedIcon, for: chat)
+                        try validate()
+                        if let index = chats.firstIndex(where: { $0.id == entry.chatId }) {
+                            chats[index].icon = icon; chats[index].encryptedIcon = encryptedIcon
+                        }
+                    }
+                }
                 if entry.eventType == "ai_response_completed" { markPendingMessageSent(messageId: entry.id, chatId: entry.chatId) }
                 pendingCompletions.removeAll { $0.id == entry.id }
                 try await persistSnapshot()
@@ -2261,7 +2962,17 @@ final class WatchChatRuntime: ObservableObject {
     }
 
     private static func sortedMessages(_ messages: [WatchChatMessage]) -> [WatchChatMessage] {
-        messages.sorted { $0.createdAt < $1.createdAt }
+        let formatter = ISO8601DateFormatter()
+        let dated: [(message: WatchChatMessage, timestamp: TimeInterval)] = messages.map { message in
+            let civilTimestamp = formatter.date(from: message.createdAt)?.timeIntervalSince1970 ?? 0
+            let timestamp: TimeInterval = Double(message.createdAt) ?? civilTimestamp
+            return (message: message, timestamp: timestamp)
+        }
+        let ordered = dated.sorted { lhs, rhs in
+            if lhs.timestamp == rhs.timestamp { return lhs.message.id < rhs.message.id }
+            return lhs.timestamp < rhs.timestamp
+        }
+        return ordered.map { $0.message }
     }
 }
 
@@ -2289,6 +3000,11 @@ extension APIClient: WatchChatAPI {
         return try decodeWatchResponse([WatchChatMessageDTO].self, data: data).map(WatchRemoteMessage.init(dto:))
     }
 
+    func fetchMessageWindow(chatId: String, query: WatchMessageWindowQuery, context: WatchChatRequestContext) async throws -> WatchMessageWindow {
+        let data = try await verifiedWatchData(.get, path: query.path(chatID: chatId), context: context)
+        return try decodeWatchResponse(WatchMessageWindowEnvelope.self, data: data).window
+    }
+
     func fetchMessagesVersion(chatId: String, context: WatchChatRequestContext) async throws -> Int? {
         let data = try await verifiedWatchData(.get, path: "/v1/chats/\(chatId)/messages/window?limit=1", context: context)
         let response = try decodeWatchResponse(WatchChatVersionEnvelope.self, data: data)
@@ -2313,7 +3029,7 @@ extension APIClient: WatchChatAPI {
             "mime_type": upload.contentType, "chat_id": chatId,
         ]]]
         let raw = JSONRawBody(data: try JSONSerialization.data(withJSONObject: body))
-        let data = try await verifiedWatchData(.post, path: "apps/audio/skills/transcribe", context: context, body: raw)
+        let data = try await verifiedWatchData(.post, path: "/v1/apps/audio/skills/transcribe", context: context, body: raw)
         return try decodeWatchResponse(WatchTranscribeSkillResponse.self, data: data).data.results.first?.results.first
     }
 }
@@ -2621,6 +3337,8 @@ private struct WatchWSOutboundMessage: Encodable {
 private final class WatchChatCryptoService: WatchChatCrypto {
     private let currentUserId: String?
     private var chatKeys: [String: SymmetricKey] = [:]
+    private var offlineWrappers: [String: String] = [:]
+    func offlineWrappedChatKey(for chat: WatchChatSummary) -> String? { offlineWrappers[chat.id] ?? chat.offlineWrappedChatKey ?? chat.encryptedChatKey }
 
     init(currentUserId: String?) {
         self.currentUserId = currentUserId
@@ -2637,7 +3355,7 @@ private final class WatchChatCryptoService: WatchChatCrypto {
         let key = resolved.key
         let title = await decrypt(chat.encryptedTitle, key: key) ?? chat.title
         let preview = await decrypt(chat.encryptedChatSummary, key: key) ?? chat.chatSummary
-        return WatchChatSummary(
+        var summary = WatchChatSummary(
             id: chat.id, title: title,
             lastMessageAt: chat.lastMessageAt ?? chat.updatedAt,
             preview: preview, isPinned: chat.isPinned,
@@ -2646,12 +3364,21 @@ private final class WatchChatCryptoService: WatchChatCrypto {
             encryptedChatKey: resolved.outboundWrapped,
             messagesV: chat.messagesV, titleV: chat.titleV, metadataV: chat.metadataV
         )
+        summary.lastEditedOverallTimestamp = chat.lastEditedOverallTimestamp
+        summary.parentID = chat.parentID
+        summary.isSubChat = chat.isSubChat
+        summary.category = await decrypt(chat.encryptedCategory, key: key)
+        summary.icon = await decrypt(chat.encryptedIcon, key: key)
+        summary.encryptedCategory = chat.encryptedCategory; summary.encryptedIcon = chat.encryptedIcon
+        summary.isSupportChat = chat.isSupportChat; summary.isSharedRecipient = chat.isSharedRecipient
+        summary.offlineWrappedChatKey = resolved.wrapped
+        return summary
     }
 
     func decryptMessage(_ message: WatchRemoteMessage) async -> WatchChatMessage {
         let key = chatKeys[message.chatId]
         let content = await decrypt(message.encryptedContent, key: key) ?? message.content
-        let embedRefs = message.embedRefs ?? WatchMessageContentSanitizer.inlineEmbedRefs(content: content)
+        let embedRefs = WatchMessageContentSanitizer.mergedEmbedRefs(content: content, provided: message.embedRefs)
         return WatchChatMessage(
             id: message.id,
             chatId: message.chatId,
@@ -2797,6 +3524,7 @@ private final class WatchChatCryptoService: WatchChatCrypto {
             masterKey: masterKey
         ) else { return nil }
         chatKeys[chatId] = resolved.key
+        offlineWrappers[chatId] = resolved.wrapped
         return resolved
     }
 
@@ -2995,9 +3723,23 @@ struct WatchChatDTO: Decodable {
     let encryptedDraftPreview: String?
     let draftV: Int?
     let clearedDraftV: Int?
+    let lastEditedOverallTimestamp: String?
+    let parentID: String?
+    let isSubChat: Bool
+    let encryptedCategory: String?
+    let encryptedIcon: String?
+    let isSupportChat: Bool
+    let isSharedRecipient: Bool
 
     private enum CodingKeys: String, CodingKey {
+        case encryptedCategory, encryptedCategorySnake = "encrypted_category", encryptedChatCategory, encryptedChatCategorySnake = "encrypted_chat_category"
+        case encryptedIcon, encryptedIconSnake = "encrypted_icon"
+        case isSupportChat, isSupportChatSnake = "is_support_chat"
+        case isSharedRecipient, isSharedRecipientSnake = "is_shared_recipient"
         case id
+        case lastEditedOverallTimestamp, lastEditedOverallTimestampSnake = "last_edited_overall_timestamp"
+        case parentID = "parentId", parentIDSnake = "parent_id"
+        case isSubChat, isSubChatSnake = "is_sub_chat"
         case chatId = "chat_id"
         case title
         case lastMessageAt
@@ -3033,6 +3775,13 @@ struct WatchChatDTO: Decodable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+        encryptedCategory = try container.decodeIfPresent(String.self, forKey: .encryptedCategory) ?? container.decodeIfPresent(String.self, forKey: .encryptedCategorySnake) ?? container.decodeIfPresent(String.self, forKey: .encryptedChatCategory) ?? container.decodeIfPresent(String.self, forKey: .encryptedChatCategorySnake)
+        encryptedIcon = try container.decodeIfPresent(String.self, forKey: .encryptedIcon) ?? container.decodeIfPresent(String.self, forKey: .encryptedIconSnake)
+        isSupportChat = try container.decodeIfPresent(Bool.self, forKey: .isSupportChat) ?? container.decodeIfPresent(Bool.self, forKey: .isSupportChatSnake) ?? false
+        isSharedRecipient = try container.decodeIfPresent(Bool.self, forKey: .isSharedRecipient) ?? container.decodeIfPresent(Bool.self, forKey: .isSharedRecipientSnake) ?? false
+        lastEditedOverallTimestamp = try container.decodeIfPresent(String.self, forKey: .lastEditedOverallTimestamp) ?? container.decodeIfPresent(String.self, forKey: .lastEditedOverallTimestampSnake)
+        parentID = try container.decodeIfPresent(String.self, forKey: .parentID) ?? container.decodeIfPresent(String.self, forKey: .parentIDSnake)
+        isSubChat = try container.decodeIfPresent(Bool.self, forKey: .isSubChat) ?? container.decodeIfPresent(Bool.self, forKey: .isSubChatSnake) ?? false
         encryptedDraftMD = try container.decodeIfPresent(String.self, forKey: .encryptedDraftMD) ?? container.decodeIfPresent(String.self, forKey: .encryptedDraftMDSnake)
         encryptedDraftPreview = try container.decodeIfPresent(String.self, forKey: .encryptedDraftPreview) ?? container.decodeIfPresent(String.self, forKey: .encryptedDraftPreviewSnake)
         draftV = try container.decodeIfPresent(Int.self, forKey: .draftV) ?? container.decodeIfPresent(Int.self, forKey: .draftVSnake)
@@ -3066,7 +3815,7 @@ struct WatchChatDTO: Decodable {
     }
 }
 
-private struct WatchChatMessageDTO: Decodable {
+fileprivate struct WatchChatMessageDTO: Decodable {
     let id: String
     let chatId: String
     let role: WatchChatMessage.Role
@@ -3077,7 +3826,7 @@ private struct WatchChatMessageDTO: Decodable {
 
     private enum CodingKeys: String, CodingKey {
         case id
-        case messageId = "message_id"
+        case messageId, messageIdSnake = "message_id"
         case chatId
         case chatIdSnake = "chat_id"
         case role
@@ -3092,8 +3841,9 @@ private struct WatchChatMessageDTO: Decodable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = try container.decodeIfPresent(String.self, forKey: .id)
-            ?? container.decode(String.self, forKey: .messageId)
+        id = try container.decodeIfPresent(String.self, forKey: .messageId)
+            ?? container.decodeIfPresent(String.self, forKey: .messageIdSnake)
+            ?? container.decode(String.self, forKey: .id)
         chatId = try container.decodeIfPresent(String.self, forKey: .chatId)
             ?? container.decode(String.self, forKey: .chatIdSnake)
         role = try container.decode(WatchChatMessage.Role.self, forKey: .role)
@@ -3102,9 +3852,11 @@ private struct WatchChatMessageDTO: Decodable {
             ?? container.decodeIfPresent(String.self, forKey: .encryptedContentSnake)
         embedRefs = try container.decodeIfPresent([WatchEmbedRef].self, forKey: .embedRefs)
             ?? container.decodeIfPresent([WatchEmbedRef].self, forKey: .embedRefsSnake)
-        createdAt = try container.decodeIfPresent(String.self, forKey: .createdAt)
-            ?? container.decodeIfPresent(String.self, forKey: .createdAtSnake)
-            ?? ""
+        if let timestamp = try? container.decode(String.self, forKey: .createdAt) { createdAt = timestamp }
+        else if let timestamp = try? container.decode(String.self, forKey: .createdAtSnake) { createdAt = timestamp }
+        else if let timestamp = try? container.decode(Int.self, forKey: .createdAt) { createdAt = String(timestamp) }
+        else if let timestamp = try? container.decode(Int.self, forKey: .createdAtSnake) { createdAt = String(timestamp) }
+        else { createdAt = "" }
     }
 }
 
@@ -3122,8 +3874,11 @@ extension WatchRemoteChat {
             encryptedChatKey: dto.encryptedChatKey,
             chatKeyWrappers: dto.chatKeyWrappers,
             messagesV: dto.messagesV, titleV: dto.titleV, metadataV: dto.metadataV,
+            lastEditedOverallTimestamp: dto.lastEditedOverallTimestamp, parentID: dto.parentID, isSubChat: dto.isSubChat,
             encryptedDraftMD: dto.encryptedDraftMD, encryptedDraftPreview: dto.encryptedDraftPreview,
-            draftV: dto.draftV, clearedDraftV: dto.clearedDraftV
+            draftV: dto.draftV, clearedDraftV: dto.clearedDraftV,
+            encryptedCategory: dto.encryptedCategory, encryptedIcon: dto.encryptedIcon,
+            isSupportChat: dto.isSupportChat, isSharedRecipient: dto.isSharedRecipient
         )
     }
 }
@@ -3172,5 +3927,137 @@ private final class WatchPreviewDraftCrypto: WatchChatCrypto {
     func encryptedAudioEmbed(_ embed: WatchPendingAudioEmbed, chat: WatchChatSummary, messageId: String) async throws -> [[String: Any]] {
         throw WatchChatRuntimeError.socketUnavailable
     }
+}
+
+@MainActor
+final class WatchOfflineFixtureCrypto: WatchChatCrypto {
+    let key = SymmetricKey(size: .bits256)
+    private(set) var decryptedMessageCount = 0
+    func seal(_ text: String) throws -> String { try ComposerEmbedCrypto.encryptContent(text, using: key) }
+    func decryptChat(_ chat: WatchRemoteChat) async -> WatchChatSummary? {
+        var value = WatchChatSummary(id: chat.id, title: chat.encryptedTitle.flatMap { try? ComposerEmbedCrypto.decryptContent($0, using: key) } ?? chat.title,
+            lastMessageAt: chat.lastMessageAt, preview: nil, isPinned: chat.isPinned,
+            encryptedTitle: chat.encryptedTitle, encryptedPreview: nil, encryptedChatKey: chat.encryptedChatKey,
+            messagesV: chat.messagesV, titleV: chat.titleV, metadataV: chat.metadataV)
+        value.lastEditedOverallTimestamp = chat.lastEditedOverallTimestamp
+        return value
+    }
+    func decryptMessage(_ message: WatchRemoteMessage) async -> WatchChatMessage {
+        decryptedMessageCount += 1
+        let text = message.encryptedContent.flatMap { try? ComposerEmbedCrypto.decryptContent($0, using: key) } ?? message.content
+        return WatchChatMessage(id: message.id, chatId: message.chatId, role: message.role, content: text,
+            encryptedContent: message.encryptedContent, embedRefs: WatchMessageContentSanitizer.inlineEmbedRefs(content: text),
+            createdAt: message.createdAt, isPending: false)
+    }
+    func encryptText(_ text: String, for chat: WatchChatSummary) async throws -> String { try seal(text) }
+    func decryptText(_ ciphertext: String, for chat: WatchChatSummary) async throws -> String { try ComposerEmbedCrypto.decryptContent(ciphertext, using: key) }
+    func encryptDraft(_ text: String) async throws -> String { try seal(text) }
+    func decryptDraft(_ ciphertext: String) async throws -> String { try ComposerEmbedCrypto.decryptContent(ciphertext, using: key) }
+    func hydrateEmbed(payload: [String: Any], chat: WatchChatSummary) async throws -> WatchEmbedRef {
+        guard let id = payload["embed_id"] as? String else { throw WatchChatRuntimeError.historyUnavailable }
+        return try WatchEmbedHydration.open(payload: payload, embedID: id, chatID: chat.id,
+            accountID: WatchOfflineFixtureTransport.accountID, masterKey: key, chatKey: key)
+    }
+    func createChat() async throws -> WatchChatSummary { throw WatchChatRuntimeError.socketUnavailable }
+    func recoveryPublicKey(for chat: WatchChatSummary) async throws -> String { throw WatchChatRuntimeError.socketUnavailable }
+    func encryptedAudioEmbed(_ embed: WatchPendingAudioEmbed, chat: WatchChatSummary, messageId: String) async throws -> [[String: Any]] { throw WatchChatRuntimeError.socketUnavailable }
+}
+
+/// Disposable DEBUG transport exercises the production disk/cohort path, then
+/// becomes offline; no release network or credential path can select this type.
+@MainActor
+final class WatchOfflineFixtureTransport: WatchChatAPI, WatchChatSyncSocket {
+    static let accountID = "watch-offline-fixture"
+    let crypto: WatchOfflineFixtureCrypto
+    var offline = false
+    var holdBatch = false
+    var partialBatch = false
+    var wrongCount = false
+    private(set) var requestedIDs: [String] = []
+    private(set) var windowReadCount = 0
+    private(set) var fullMessageReadCount = 0
+    var generation: Int { 1 }
+    var isConnected: Bool { !offline }
+    init(crypto: WatchOfflineFixtureCrypto) { self.crypto = crypto }
+    func chats() throws -> [WatchRemoteChat] {
+        try (0...20).map { index in
+            var chat = WatchRemoteChat(id: "watch-offline-\(index)", title: nil, lastMessageAt: String(1_800_000_000 + index), updatedAt: nil,
+                chatSummary: nil, isPinned: index == 0, encryptedTitle: try crypto.seal("Offline chat \(index)"),
+                encryptedChatSummary: nil, encryptedChatKey: "fixture-wrapped-key")
+            chat.lastEditedOverallTimestamp = String(1_800_000_000 + index)
+            return chat
+        }.sorted { $0.isPinned != $1.isPinned ? $0.isPinned : ($0.lastMessageAt ?? "") > ($1.lastMessageAt ?? "") }
+    }
+    func fetchRecentChats(limit: Int, offset: Int, context: WatchChatRequestContext) async throws -> [WatchRemoteChat] {
+        if offline { throw URLError(.notConnectedToInternet) }
+        return Array(try chats().dropFirst(offset).prefix(limit))
+    }
+    func fetchMessages(chatId: String, context: WatchChatRequestContext) async throws -> [WatchRemoteMessage] {
+        fullMessageReadCount += 1
+        if offline { throw URLError(.notConnectedToInternet) }
+        return []
+    }
+    func fetchMessageWindow(chatId: String, query: WatchMessageWindowQuery, context: WatchChatRequestContext) async throws -> WatchMessageWindow {
+        windowReadCount += 1
+        if offline { throw URLError(.notConnectedToInternet) }
+        // Complete fixture history still comes exclusively from the encrypted
+        // cohort batch; foreground REST is empty while this transport is online.
+        return WatchMessageWindow(chatId: chatId, messages: [])
+    }
+    func fetchMessagesVersion(chatId: String, context: WatchChatRequestContext) async throws -> Int? { nil }
+    func uploadAudioRecording(data: Data, filename: String, chatId: String, context: WatchChatRequestContext) async throws -> WatchUploadedAudio { throw WatchChatRuntimeError.socketUnavailable }
+    func transcribeAudioRecording(_ upload: WatchUploadedAudio, chatId: String, context: WatchChatRequestContext) async throws -> WatchTranscriptionMetadata? { throw WatchChatRuntimeError.socketUnavailable }
+    func connect(session: WatchSyncSession, syncState: WatchSyncClientState) { }
+    func disconnect() { offline = true }
+    func setChangeHandler(_ handler: (@MainActor () -> Void)?) { }
+    func sendTurn(_ pending: WatchPendingTextSend) async throws { throw WatchChatRuntimeError.socketUnavailable }
+    func sendEvent(type: String, payload: [String: Any]) async throws { if offline { throw WatchChatRuntimeError.socketUnavailable } }
+    func requestEvent(type: String, payload: [String: Any], responseTypes: Set<String>, matching: @escaping @MainActor ([String: Any]) -> Bool) async throws -> [String: Any] {
+        try Task.checkCancellation()
+        guard !offline, type == "request_chat_content_batch", let id = (payload["chat_ids"] as? [String])?.first else { throw WatchChatRuntimeError.socketUnavailable }
+        requestedIDs.append(id)
+        while holdBatch { try await Task.sleep(for: .milliseconds(1)) }
+        try Task.checkCancellation()
+        let count = id == "watch-offline-20" ? 101 : 1
+        let messages = try (0..<count).map { index -> [String: Any] in
+            let text = index == 100 ? "Last offline response\n[!](embed:offline-sheet)" : "Offline message \(index)"
+            return ["id": "offline-message-\(index)", "chat_id": id, "role": "assistant", "encrypted_content": try crypto.seal(text), "created_at": String(1_800_000_000 + index)]
+        }
+        var embeds: [[String: Any]] = []
+        var keys: [[String: Any]] = []
+        if id == "watch-offline-20" {
+            let embedKey = SymmetricKey(size: .bits256)
+            embeds = [["embed_id": "offline-sheet", "hashed_chat_id": WatchChatKeyWrapperRecord.hashedChatId(for: id),
+                "encrypted_type": try ComposerEmbedCrypto.encryptContent("sheet", using: embedKey),
+                "encrypted_content": try ComposerEmbedCrypto.encryptContent("{\"title\":\"offline.xls\",\"table\":\"|Name|Value|\\n|---|---|\\n|Offline|42|\",\"cell_count\":2}", using: embedKey), "status": "finished"]]
+            keys = [["hashed_embed_id": WatchChatKeyWrapperRecord.hashedChatId(for: "offline-sheet"), "key_type": "master",
+                "hashed_user_id": WatchChatKeyWrapperRecord.hashedChatId(for: Self.accountID),
+                "encrypted_embed_key": try ComposerEmbedCrypto.wrapKey(embedKey, using: crypto.key)]]
+        }
+        return ["messages_by_chat_id": [id: messages], "versions_by_chat_id": [id: ["messages_v": count, "server_message_count": count + (wrongCount ? 1 : 0)]],
+            "embeds": embeds, "embed_keys": keys, "chat_key_wrappers": [], "partial_error": partialBatch]
+    }
+}
+#endif
+
+#if DEBUG
+private struct WatchMessageWindowFixtureTransport: WatchChatAPI {
+    func fetchRecentChats(limit: Int, offset: Int, context: WatchChatRequestContext) async throws -> [WatchRemoteChat] { [] }
+    func fetchMessages(chatId: String, context: WatchChatRequestContext) async throws -> [WatchRemoteMessage] { throw WatchChatRuntimeError.historyUnavailable }
+    func fetchMessagesVersion(chatId: String, context: WatchChatRequestContext) async throws -> Int? { nil }
+    func fetchMessageWindow(chatId: String, query: WatchMessageWindowQuery, context: WatchChatRequestContext) async throws -> WatchMessageWindow {
+        let upper = query.before.flatMap { Int($0.messageId.replacingOccurrences(of: "window-message-", with: "")) } ?? 60
+        let lower = max(0, upper - query.limit)
+        let messages = (lower..<upper).map { index in
+            WatchRemoteMessage(id: "window-message-\(index)", chatId: chatId, role: .assistant,
+                content: "Remote message \(index)", encryptedContent: nil, createdAt: String(1_800_000_000 + index))
+        }
+        return WatchMessageWindow(chatId: chatId, messages: messages, hasMoreBefore: lower > 0,
+            hasMoreAfter: upper < 60, startCursor: messages.first.map { WatchMessageWindowCursor(createdAt: Int($0.createdAt)!, messageId: $0.id) },
+            endCursor: messages.last.map { WatchMessageWindowCursor(createdAt: Int($0.createdAt)!, messageId: $0.id) },
+            messagesV: 60, serverMessageCount: 60)
+    }
+    func uploadAudioRecording(data: Data, filename: String, chatId: String, context: WatchChatRequestContext) async throws -> WatchUploadedAudio { throw WatchChatRuntimeError.audioUploadFailed }
+    func transcribeAudioRecording(_ upload: WatchUploadedAudio, chatId: String, context: WatchChatRequestContext) async throws -> WatchTranscriptionMetadata? { throw WatchChatRuntimeError.audioUploadFailed }
 }
 #endif

@@ -1,4 +1,6 @@
 // Server endpoint configuration for the Apple app.
+// Specification: specifications/features/message-input/specification.yml
+// Assertions: message-input.embeds.gated-send, message-input.recording.lifecycle
 // Keeps the native API, web app origin, and passkey relying-party domain aligned.
 // The selected web domain is persisted locally so testers can switch servers
 // without rebuilding the app. Simulator/debug builds default to dev.
@@ -130,7 +132,10 @@ struct ServerProfile: Equatable, Codable, Sendable {
     }
 
     private static func uploadBaseURL(for id: String, apiBaseURL: URL) -> URL {
-        id == "production" ? ServerEndpointConfiguration.uploadBaseURL : apiBaseURL
+        // Both hosted environments use the upload satellite. Its Caddy route
+        // selects the dev/prod core API from the request's web Origin.
+        // Self-hosted profiles keep their own API/upload origin.
+        (id == "production" || id == "development") ? ServerEndpointConfiguration.uploadBaseURL : apiBaseURL
     }
 }
 

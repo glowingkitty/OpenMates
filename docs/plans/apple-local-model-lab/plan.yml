@@ -1,71 +1,75 @@
 id: apple-local-model-lab
 title: Apple optional local model laboratory
 status: implementing
-goal: 'Implement the three researched models as optional downloads to keep the app size small, with a
-  separate testing subpage accessible from settings. Evaluate local transcription, English speech synthesis,
-  and PII detection before adapting the rest of the Apple app or backend.
-
-  '
+goal: Evaluate optional Whisper and Pocket TTS speech downloads in Developers; provide Privacy-owned OpenAI Privacy
+  Filter diagnostics and measurements.
 scope:
   in:
   - Independent verified downloads, progress, cancellation, retry, removal and offline restoration.
-  - WhisperKit compressed large-v3 turbo, English Kokoro and OpenAI Privacy Filter CPU inference.
+  - WhisperKit compressed large-v3 turbo and pinned Pocket TTS English CPU inference; Privacy-owned OpenAI Privacy
+    Filter diagnostics.
   - Native settings laboratory with audio import/record, text inputs and visible results.
   - Visible hardware and OS availability before downloads and tests; unsupported controls disabled.
   - Local use switch confined to the laboratory, ephemeral inputs and sanitized errors.
-  - Duration, real-time factor, process peak memory and device/thermal information.
+  - Duration, real-time factor, per-run sampled memory and device/thermal information.
   - Focused download, decoder, controller lifecycle and native UI coverage.
+  - Explicit Watch developer experiment with the multilingual tiny model, verified local tokenizer, short microphone
+    recordings, local transcription, cancellation, and phase/memory measurements.
   out:
   - Changes to chat/composer transcription, assistant playback, production PII or billing.
   - Backend changes or silent server fallback.
   - Bundled weights or automatic weight downloads.
-  - German Kokoro, Apple Watch or Intel inference in this slice.
+  - Unsupported adapter/platform inference and production Watch transcription routing.
 acceptance:
-  LML-001: Downloaded assets use immutable revision URLs and streaming SHA-256 verification; incomplete
-    assets never become ready.
-  LML-002: Separate local tests expose real transcription, synthesized audio and contextual PII spans
-    without API calls or credits.
-  LML-003: Existing production UI and processing remain unchanged; the local switch affects only this
-    laboratory.
-  LML-004: Downloads and tests can be cancelled; tests run one at a time and unload before another can
-    start.
-  LML-005: Results and recordings are ephemeral; logs contain no input/output text; measured timing/device
-    state is visible.
+  LML-001: Downloaded assets use immutable revision URLs and streaming SHA-256 verification; incomplete assets never
+    become ready.
+  LML-002: Separate local tests expose real transcription, synthesized audio and contextual PII spans without API
+    calls or credits.
+  LML-003: Existing production UI and processing remain unchanged; the local switch affects only this laboratory.
+  LML-004: Downloads and tests can be cancelled; tests run one at a time and unload before another can start.
+  LML-005: Results and recordings are ephemeral; logs contain no input/output text; measured timing/device state
+    is visible.
 checks:
 - Swift syntax and pinned catalog/path/schema validation without weights.
 - Native LocalModelStoreTests, LocalPrivacyFilterRuntimeTests and LocalModelLabControllerTests.
 - LocalModelLabUITests and existing settings route coverage.
+- WatchWhisperLabTests and WatchWhisperLabUITests for the approved tiny-model experiment.
 - iOS and macOS dependency resolution/build when the authorized Mac guard allows it.
 physical_evaluation:
   devices:
   - iPhone 13 Pro
   - current entry-level iPad
-  gate: 'No production routing until real devices prove reliability, memory and thermal behavior, English/German
-    transcription accuracy against the existing web pipeline, English Kokoro listening quality and PII
-    recall on labelled fixtures.
-
-    '
+  - physical Apple Watch supporting the pinned WhisperKit runtime
+  gate: Measure actual device reliability, memory, thermal behavior and English/German transcription. Pocket English
+    listening quality requires blind comparison; multilingual compatibility is not established. Enhanced production
+    PII is explicitly authorized separately and retains regex fallback and latest-text send verification.
 approval:
   source: Direct user instruction in the current chat
   decision: Optional downloads and the separate testing subpage are approved.
+  updated: Direct user instruction rejects Apple voices and authorizes Pocket TTS developer testing. Enhanced PII
+    production use/download relocation is authorized in feature.pii-protection.
 tracking:
   task_id: a026e180-c49a-434f-8626-e34ad21d13a0
   status_authority: OpenMates Tasks
 notes: docs/specifications/apple/local-model-lab.md
 verification_state:
-  static: Structural catalog and whitespace checks passed; staged readiness checks recorded separately.
-  native: Pending root native verification; authored tests have not run.
-  inference: Pending deployed device testing; no measured inference claims.
-specification: feature.apple-local-model-lab@1
+  static: Catalog preparation, Swift parsing, PBX lint, localization and focused Specifications pass.
+  native: Prior release90 Watch/controller/store and UI evidence is retained. Current Pocket/PII/shortcut/regression
+    app build and focused native tests are pending. Pocket actual Mac CPU synthesis and arm64 simulator bridge compilation
+    succeeded.
+  inference: Measured exact-engine M1 PII cold load3.94s, warm scans2.02–2.65s; Pocket generated3.12s real audio
+    in2.413s. Physical iPhone/iPad/Watch performance and subjective voice quality remain unmeasured.
+specification: feature.apple-local-model-lab@4
 specification_bundle: specifications/features/apple-local-model-lab
-specification_review: Root reviewed assertion/examples against the direct user-approved experimental Plan.
-  This records the existing scope approval; no claim of a separate user fingerprint review.
+specification_review: Root reviewed assertion/examples against the direct user-approved experimental Plan. This
+  records the existing scope approval; no claim of a separate user fingerprint review.
 acceptance_trace:
   LML-001:
   - apple-local-model-lab.optional-downloads
   LML-002:
   - apple-local-model-lab.local-execution
   - apple-local-model-lab.pii-spans
+  - apple-local-model-lab.pocket-tts
   LML-003:
   - apple-local-model-lab.isolated-scope
   - apple-local-model-lab.availability

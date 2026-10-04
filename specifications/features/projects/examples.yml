@@ -385,6 +385,19 @@ project_remote_file_previews:
     when: A user opens its regular file card and chooses Download in the file detail.
     then: The detail shows the filename, path, and size, and the original file bytes download only after that explicit choice without importing the file into OpenMates. The download verifies each bounded chunk and saves the complete file even though it exceeds 4 MiB.
 
+  - id: connected-file-immediate-fullscreen
+    given: A connected source lists privacy_filter_benchmark.py with its already decrypted filename and size.
+    when: The user opens the file and the remote text read is still pending.
+    then: The shared embed fullscreen immediately shows the Code gradient, icon, filename, and size, with an opening spinner in its content. Hydration keeps the same fullscreen identity and closing restores the Project Files view.
+  - id: connected-image-automatic-render
+    given: A connected source lists a supported image named mates-macos.png.
+    when: The user opens the image.
+    then: The Images fullscreen appears immediately, fetches the image through the authorized source transport, and renders decoded pixels without a second Download action. Closing removes the owned temporary original and decoded pixels.
+  - id: connected-image-retry-and-scope
+    given: Opening a connected image fails to fetch or decode its bytes.
+    when: The user retries or closes the fullscreen before a held fetch completes.
+    then: Retry fetches and decodes the original again while keeping the known file metadata. Closing rejects late completion and removes returned temporary bytes without publishing a stale image or error.
+
 project_uploads:
   - id: encrypted-upload-embed
     input: {project: project-1, file: requirements.pdf}

@@ -1,0 +1,100 @@
+schema_version: 1
+id: feature.apple-live-activities
+version: 1
+status: draft
+title: Apple Live Activities and Active chats widgets
+summary: Supported lock screens display background download progress and upcoming saved memories; Active chats widgets
+  show running chats with quick-open links.
+scope:
+  includes:
+  - Native ActivityKit download progress, verified completion notifications and upcoming saved memory embeds.
+  - Native iOS, iPadOS and macOS WidgetKit Active chats snapshots with quick-open and View all links.
+  excludes:
+  - Live Activities for processing chats.
+  - Guarantees of OS presentation or suspension-time local callbacks.
+  - Private memory titles/details and Apple Watch/macOS Live Activity UI.
+relationships:
+  related_specifications:
+  - feature.apple-local-model-lab
+  - feature.apple-notifications
+assertions:
+- id: apple-live-activities.download.progress
+  type: behavior
+  must: On supported iPhone and iPad systems with Live Activities allowed, active optional-model downloads publish
+    bounded transfer, verification, waiting and retry progress. Restored operations adopt their original operation
+    identity; duplicate callbacks and relaunch do not create duplicate activities. Activity UI does not replace background
+    transport ownership.
+  depends_on:
+  - examples.downloads
+- id: apple-live-activities.download.completion
+  type: behavior
+  must: A fully verified installed download schedules at most one localized completion notification per operation
+    when notifications are allowed by user and system settings. Cancellation, failure, restore-only verification and
+    duplicate terminal callbacks never fabricate completion notifications.
+  depends_on:
+  - examples.completion
+- id: apple-live-activities.memories.upcoming
+  type: behavior
+  must: A saved event, appointment or trip embed with an explicit timezone-aware upcoming timestamp is eligible within
+    four hours. Eligible memories appear in chronological order with generic localized lock-screen text and their times.
+    When multiple items are upcoming, supported interactive Live Activities provide Previous and Next controls and
+    a current-item count, preserving the selected eligible item across updates. Platforms without interaction show
+    the earliest eligible item. Navigation pages stay within the ActivityKit payload budget; overflow retains the
+    truthful total and a View all link to saved memories. Custom swipe gestures are not required where ActivityKit
+    does not support them. On systems
+    supporting scheduled local Live Activities, the four-hour window can begin while the app is suspended; earlier
+    systems reconcile while active. Date-only, cancelled, completed, expired or removed memories are excluded.
+  depends_on:
+  - examples.memories
+- id: apple-live-activities.lifecycle.isolation
+  type: privacy
+  must: Activity state contains generic memory/download labels, timing, counts and opaque scope identity without medical
+    details, memory contents or encryption material. Account/server/team
+    changes, logout and disabled preferences end stale activities; asynchronous results are generation-fenced and
+    dismissed activities are not repeatedly recreated in the same window.
+    Active chats widget titles may persist only in a dedicated encrypted device-local snapshot with a device-only
+    shared key; plaintext defaults, logs, server registration and notification payloads do not receive those titles.
+  depends_on:
+  - examples.isolation
+- id: apple-live-activities.processing.widget
+  type: behavior
+  must: Native iOS, iPadOS and macOS widgets project the accepted processing census without a second network poller.
+    Each visible running-chat row opens that chat; bounded home-screen and rectangular Lock Screen layouts include
+    the total and a View all link for remaining rows. A circular Lock Screen layout shows the total and opens all
+    active chats. Lock Screen titles are privacy sensitive and unavailable encrypted snapshots show Open app.
+    Links retain account, server and authorized Team isolation. Exact completion, logout and scope changes
+    invalidate matching state; old completions cannot remove newer turns. Unchanged progress writes are bounded,
+    snapshots display stale status and expire without fresh accepted evidence, and actual WidgetKit presentation
+    remains OS-scheduled. Unknown background completion receipts do not fabricate a completed state.
+  depends_on:
+  - examples.widget
+applies_to:
+  rest_api:
+    required: false
+  cli:
+    required: false
+  sdks:
+    required: false
+    implementations:
+      npm:
+        required: false
+      pip:
+        required: false
+  gui:
+    required: true
+    implementations:
+      web:
+        required: false
+      apple:
+        required: true
+examples:
+  file: examples.yml
+  required_groups:
+  - downloads
+  - completion
+  - memories
+  - isolation
+  - widget
+approval_source:
+  instruction: Direct user instruction in codex thread 01a0eeac-16cd-7ff1-941a-5d1fb4908fae on 2026-10-03. Implementation
+    is explicitly authorized; no separate fingerprint approval is claimed.

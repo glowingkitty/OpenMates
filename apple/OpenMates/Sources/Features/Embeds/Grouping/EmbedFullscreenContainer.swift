@@ -21,6 +21,9 @@
 //             code-run.artifacts.parent-child-navigation
 // Specification: specifications/features/projects/specification.yml
 // Assertions: projects.files.connected-embed-previews
+// Web source: frontend/packages/ui/src/components/apps/AppsWorkspace.svelte
+// Specification: specifications/features/apps-workspace/specification.yml
+// Assertion: apps.presentation.shared-detail-and-recency
 
 import SwiftUI
 #if os(iOS)
@@ -54,6 +57,7 @@ struct EmbedFullscreenContainer: View {
     var onTogglePII: () -> Void = {}
     var onOpenEmbed: (EmbedRecord, EmbedRecord) -> Void = { _, _ in }
     var onClose: () -> Void = {}
+    var onOpenShareSettings: (EmbedShareSettingsTarget) -> Void = { _ in }
     var isSidePanel = false
     /// Web `EmbedHeader` switches at the browser viewport breakpoint, not at
     /// the width of a side-by-side embed pane. This remains separate from the
@@ -61,8 +65,11 @@ struct EmbedFullscreenContainer: View {
     var responsiveViewportWidth: CGFloat? = nil
     var showChat = false
     var onShowChat: () -> Void = {}
+    var onReportEmbedIssue: ((EmbedRecord) -> Void)? = nil
     var highlightQuoteText: String? = nil
     var originalFileActions: EmbedOriginalFileActions? = nil
+    var headerPresentation: EmbedFullscreenHeaderPresentation? = nil
+    var contentOverride: AnyView? = nil
 
     @State private var quoteAnchor: SourceQuoteHighlightAnchor?
     @State private var quoteContentSize: CGSize = .zero
@@ -93,19 +100,33 @@ struct EmbedFullscreenContainer: View {
     @State private var isSavingRunOutput = false
     @State private var headerFrame: CGRect = .zero
     @State private var moreActionsOpen = false
-    @State private var shareContext: AppleShareContext?
+    @State private var hostingViews: [String: HostingDomainView] = [:]
     @State private var selectedVersionNumber: Int?
     @State private var restoreConfirmVersion: Int?
     @StateObject private var codeRunViewModel = CodeRunViewModel()
     @StateObject private var imageDownloadController = ImageOriginalDownloadController()
+    @StateObject private var nativeActionController = NativeEmbedActionController()
+    @StateObject private var designIconExport = NativeDesignIconExportState()
+    @ObservedObject private var actionAccountScope = OfflineStore.shared
+    @Environment(\.recipientMediaContext) private var recipientMediaContext
+    @Environment(\.embedReportIssueAction) private var reportIssueAction
     @ObservedObject private var savedCodeRuns = CodeRunOutputStore.shared
     @ObservedObject private var ownerEmbedPII = OwnerEmbedPIIStore.shared
     @Environment(\.openURL) private var openURL
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    // Domain siblings follow the parent checked pool, including unknown checks.
+    private var navigationEmbeds: [EmbedRecord] {
+        guard let initial = embeds.first(where: { $0.id == initialEmbedId }),
+              HostingEmbedKind.isDomain(initial), let parentID = initial.parentEmbedId,
+              let parent = allEmbedRecords[parentID], HostingEmbedKind.isSearch(parent) else { return embeds }
+        let children = HostingSearchModel(embed: parent, allEmbedRecords: allEmbedRecords).children
+        return children.contains(where: { $0.id == initialEmbedId }) ? children : embeds
+    }
+
     private var currentEmbed: EmbedRecord? {
-        guard let id = selection.resolvedID(in: embeds, initialID: initialEmbedId) else { return nil }
-        return embeds.first { $0.id == id }
+        guard let id = selection.resolvedID(in: navigationEmbeds, initialID: initialEmbedId) else { return nil }
+        return navigationEmbeds.first { $0.id == id }
     }
 
     /// Resolve owner-only originals for the selected embed, never for the embed
@@ -118,12 +139,12 @@ struct EmbedFullscreenContainer: View {
     }
 
     private var currentIndex: Int {
-        embeds.firstIndex { $0.id == currentEmbed?.id } ?? 0
+        navigationEmbeds.firstIndex { $0.id == currentEmbed?.id } ?? 0
     }
 
     private func navigateFullscreen(by offset: Int) {
         var nextSelection = selection
-        guard nextSelection.move(by: offset, in: embeds, initialID: initialEmbedId) else { return }
+        guard nextSelection.move(by: offset, in: navigationEmbeds, initialID: initialEmbedId) else { return }
         selection = nextSelection
         resetPerEmbedState()
     }
@@ -138,6 +159,8 @@ struct EmbedFullscreenContainer: View {
         restoreConfirmVersion = nil
         codeRunViewModel.cleanup()
         imageDownloadController.cancel()
+        nativeActionController.cancel()
+        designIconExport.clear()
         NativeImagePreviewer.shared.dismissAndClear()
     }
 
@@ -157,7 +180,7 @@ struct EmbedFullscreenContainer: View {
     private func showsHeaderShare(for embed: EmbedRecord) -> Bool {
         if originalFileActions != nil { return false }
         switch EmbedType.normalized(rawValue: embed.type) {
-        case .recording, .pdf, .audioGenerate, .audioSpeak:
+        case .recording, .pdf, .audioGenerate, .audioSpeak, .wiki:
             return false
         case .image:
             guard let files = imageDownloadData(for: embed)?["files"]?.value as? [String: Any] else { return false }
@@ -180,12 +203,12 @@ struct EmbedFullscreenContainer: View {
     }
 
     private var usesEdgeToEdgeContent: Bool {
-        if currentEmbedType == .mailEmail { return true }
+        if currentEmbedType == .mailEmail || currentEmbed.map(HostingEmbedKind.isSearch) == true || currentEmbedType == .hostingDomain { return true }
         switch currentEmbedType {
         // These renderers own their responsive content gutters. Adding generic
         // fullscreen padding shifts the web grid and shrinks website snippets.
         case .webSearch, .imagesSearch, .newsSearch, .videosSearch, .codeRepoSearch, .electronicsSearch, .maps, .mapsPlace,
-             .webWebsite, .eventsEvent, .travelConnection, .travelStay, .healthSearch, .healthAppointment, .fileFile, .sheetsSheet, .mathPlot:
+             .webWebsite, .eventsEvent, .travelConnection, .travelStay, .healthSearch, .healthAppointment, .fileFile, .sheetsSheet, .mathPlot, .wiki:
             return true
         default:
             return false
@@ -220,8 +243,9 @@ struct EmbedFullscreenContainer: View {
             fullscreenContent(safeAreaInsets: safeArea.safeAreaInsets)
                 .coordinateSpace(name: "embed-fullscreen-coordinate")
         }
+        .modifier(HostingFullscreenAccessibility(embed: currentEmbed))
         .onAppear {
-            selection.reconcile(in: embeds, initialID: initialEmbedId)
+            selection.reconcile(in: navigationEmbeds, initialID: initialEmbedId)
             presentFullscreen()
         }
         .task(id: currentEmbed?.id) {
@@ -237,12 +261,12 @@ struct EmbedFullscreenContainer: View {
         }
         .onChange(of: embeds.map(\.id)) { _, _ in
             let previousID = selection.selectedID
-            selection.reconcile(in: embeds, initialID: initialEmbedId)
+            selection.reconcile(in: navigationEmbeds, initialID: initialEmbedId)
             if selection.selectedID != previousID { resetPerEmbedState() }
         }
         .onChange(of: initialEmbedId) { _, _ in
             selection = EmbedFullscreenSelection()
-            selection.reconcile(in: embeds, initialID: initialEmbedId)
+            selection.reconcile(in: navigationEmbeds, initialID: initialEmbedId)
             resetPerEmbedState()
             // Child fullscreen routes reuse this container when Close returns
             // to their parent. The child has already animated this surface out,
@@ -253,9 +277,15 @@ struct EmbedFullscreenContainer: View {
         .onChange(of: codeRunViewModel.status) { _, status in
             saveFinishedCodeRunIfNeeded(status: status)
         }
+        .onChange(of: actionAccountScope.scopeGeneration) { _, _ in
+            nativeActionController.cancel()
+            imageDownloadController.cancel()
+            designIconExport.clear()
+        }
         .onDisappear {
             codeRunViewModel.cleanup()
             imageDownloadController.cancel()
+            nativeActionController.cancel()
             NativeImagePreviewer.shared.dismissAndClear()
         }
     }
@@ -308,7 +338,7 @@ struct EmbedFullscreenContainer: View {
                                 versionTimeline(for: embed)
                             }
 
-                            if !embed.isAppSkillUse && currentEmbedType != .webSearch && !childEmbeds.isEmpty {
+                            if !embed.isAppSkillUse && !HostingEmbedKind.isSearch(embed) && currentEmbedType != .webSearch && !childEmbeds.isEmpty {
                                 childEmbedSection
                             }
                         }
@@ -358,12 +388,13 @@ struct EmbedFullscreenContainer: View {
                     }
                     EmbedFullscreenTopBar(
                         embed: embed,
-                        showCopy: isCodeEmbed || isSheetEmbed || currentEmbedType == .videosVideo || currentEmbedType == .travelConnection
+                        showCopy: HostingEmbedKind.isDomain(embed) || currentEmbedType == .mailEmail || (currentEmbedType == .designIconResult && designIconExport.svg != nil) || NativeEmbedDownload.hasCopySource(embed) || isCodeEmbed || isSheetEmbed || currentEmbedType == .videosVideo || currentEmbedType == .travelConnection
                             || ((currentEmbedType == .maps || currentEmbedType == .mapsPlace)
                                 && MapsEmbedModel(embed.rawData).osmURL != nil),
                         showShare: showsHeaderShare(for: embed),
                         showDownload: originalFileActions != nil || isCodeEmbed || isSheetEmbed || currentEmbedType == .mindmapsMindmap
-                            || (currentEmbedType == .fileFile && FileEmbedPayload(embed.rawData).availableDownloadURL != nil)
+                            || (currentEmbedType == .designIconResult && designIconExport.svg != nil)
+                            || NativeEmbedDownload.hasSource(embed)
                             || ImageOriginalDownloadController.canDownload(data: imageDownloadData(for: embed)),
                         showRun: isCodeRunnable,
                         runActive: codeRunViewModel.isActive,
@@ -377,64 +408,42 @@ struct EmbedFullscreenContainer: View {
                         onShare: { shareEmbed(embed) },
                         onCopy: { copyEmbedContent(embed) },
                         onDownload: {
-                            if let originalFileActions {
+                            if currentEmbedType == .designIconResult, let source = designIconExport.svg.flatMap({ StaticSVGImageSource(data: $0) }) {
+                                let size = designIconExport.size
+                                let name = NativeDesignIconActions.filename(data: embed.rawData, extension: "png")
+                                let recipient = recipientMediaContext
+                                nativeActionController.download(load: {
+                                    .init(filename: name, bytes: try await NativeDesignIconActions.png(source, size: size), mimeType: "image/png")
+                                }, validate: { try recipient?.checkCurrent() })
+                            } else if let originalFileActions {
                                 originalFileActions.onDownload()
                             } else if currentEmbedType == .mindmapsMindmap {
                                 downloadMindMapFile(embed)
-                            } else if currentEmbedType == .fileFile {
-                                if let url = FileEmbedPayload(embed.rawData).availableDownloadURL { openURL(url) }
-                            } else if let imageData = imageDownloadData(for: embed) {
+                            } else if isCodeEmbed || isSheetEmbed {
+                                downloadCodeFile(embed)
+                            } else if let imageData = imageDownloadData(for: embed), recipientMediaContext == nil {
                                 imageDownloadController.download(data: imageData)
                             } else {
-                                downloadCodeFile(embed)
+                                downloadOriginalFile(embed)
                             }
                         },
                         onRun: { runCode(embed) },
                         onTogglePreview: { codePreviewActive.toggle() },
                         onCalendar: { downloadCalendarFile(embed) },
                         onReportIssue: { reportIssue(embed) },
+                        showReport: onReportEmbedIssue != nil || reportIssueAction != nil,
                         showChat: showChat, onShowChat: onShowChat,
                         downloadLabel: originalFileActions?.downloadLabel ?? AppStrings.download,
-                        downloadDisabled: originalFileActions?.isDownloading ?? false,
-                        downloadIdentifier: originalFileActions == nil ? "embed-download-button" : "project-remote-download"
+                        downloadDisabled: originalFileActions?.isDownloading ?? (nativeActionController.isDownloading || imageDownloadController.isDownloading),
+                        downloadIdentifier: originalFileActions == nil ? "embed-download-button" : "project-remote-download",
+                        hostingActions: hostingHeaderActions(for: embed)
                     )
                     .padding(.top, safeAreaInsets.top)
                     .padding(.leading, safeAreaInsets.leading)
                     .padding(.trailing, safeAreaInsets.trailing)
                 }
 
-                if let shareContext {
-                    Color.black.opacity(0.35)
-                        .ignoresSafeArea()
-                        .onTapGesture { self.shareContext = nil }
 
-                    VStack(spacing: 0) {
-                        HStack {
-                            Text(AppStrings.share)
-                                .font(.omH3.weight(.semibold))
-                                .foregroundStyle(Color.fontPrimary)
-                            Spacer()
-                            OMIconButton(icon: "close", label: AppStrings.close, size: 34) {
-                                self.shareContext = nil
-                            }
-                        }
-                        .padding(.spacing6)
-                        .background(Color.grey0)
-
-                        ShareEmbedView(
-                            context: shareContext,
-                            onClose: { self.shareContext = nil },
-                            onGenerated: updateEmbedShareMetadata
-                        )
-                    }
-                    .frame(maxWidth: 620, maxHeight: 760)
-                    .background(Color.grey0)
-                    .clipShape(RoundedRectangle(cornerRadius: .radius8))
-                    .overlay(RoundedRectangle(cornerRadius: .radius8).stroke(Color.grey20, lineWidth: 1))
-                    .shadow(color: .black.opacity(0.18), radius: 24, x: 0, y: 12)
-                    .padding(.spacing8)
-                    .accessibilityIdentifier("embed-share-panel")
-                }
             }
             .offset(y: isSidePanel || isPresented ? 0 : proxy.size.height)
         }
@@ -461,13 +470,15 @@ struct EmbedFullscreenContainer: View {
         EmbedFullscreenHeader(
             embed: embed,
             hasPreviousEmbed: currentIndex > 0,
-            hasNextEmbed: currentIndex < embeds.count - 1,
+            hasNextEmbed: currentIndex < navigationEmbeds.count - 1,
             onNavigatePrevious: { withAnimation { navigateFullscreen(by: -1) } },
             onNavigateNext: { withAnimation { navigateFullscreen(by: 1) } },
             headerCTA: headerCTA(for: embed),
+            secondaryHeaderCTA: memoryHeaderCTA(for: embed),
             topContentInset: topInset,
             viewportWidth: viewportWidth,
             responsiveViewportWidth: responsiveViewportWidth,
+            presentation: headerPresentation,
             contentUnderlapsCTA: healthMapHeaderUnderlap(for: embed) > 0,
             mailPIIMappings: currentPIIMappings,
             mailPIIRevealed: isPIIRevealed
@@ -476,8 +487,39 @@ struct EmbedFullscreenContainer: View {
         .zIndex(2)
     }
 
+    private var hostingViewBinding: Binding<HostingDomainView> {
+        let parentID = currentEmbed.flatMap { HostingEmbedKind.isDomain($0) ? $0.parentEmbedId : $0.id } ?? initialEmbedId
+        return Binding(get: { hostingViews[parentID] ?? .selected }, set: { hostingViews[parentID] = $0 })
+    }
+
+    private func hostingHeaderActions(for embed: EmbedRecord) -> [HostingHeaderAction] {
+        guard HostingEmbedKind.isSearch(embed) else { return [] }
+        let model = HostingSearchModel(embed: embed, allEmbedRecords: allEmbedRecords)
+        let views = HostingDomainView.allCases.filter { $0 != .unknown || model.unknownCount > 0 }
+        return views.map { view in
+            let label: String
+            switch view {
+            case .selected: label = AppStrings.hosting(.selectedCount, ["count": String(model.resultCount)])
+            case .available: label = AppStrings.hosting(.showAvailable)
+            case .all: label = AppStrings.hosting(.showAll)
+            case .inUse: label = AppStrings.hosting(.showInUse)
+            case .unknown: label = AppStrings.hosting(.showUnknown)
+            }
+            return HostingHeaderAction(view: view, label: label, active: hostingViewBinding.wrappedValue == view) { hostingViewBinding.wrappedValue = view }
+        }
+    }
+
+    private func memoryHeaderCTA(for embed: EmbedRecord) -> AnyView? {
+        guard let config = NativeEmbedMemoryConfig.config(for: embed) else { return nil }
+        return AnyView(NativeEmbedMemoryButton(config: config).id(embed.id))
+    }
+
     private func fullscreenEmbedContent(for embed: EmbedRecord) -> some View {
-        EmbedContentView(
+        Group {
+            if let contentOverride {
+                contentOverride
+            } else {
+                EmbedContentView(
             embed: embed,
             mode: .fullscreen,
             allEmbedRecords: allEmbedRecords,
@@ -492,8 +534,12 @@ struct EmbedFullscreenContainer: View {
                 onOpenEmbed(child, embed)
             },
             onSheetDisplayedRowsChange: { sheetDisplayedRows = $0 }
-        )
+                )
+            }
+        }
             .environment(\.embedSourceQuoteText, embed.id == initialEmbedId ? highlightQuoteText : nil)
+            .environment(\.nativeDesignIconExportState, designIconExport)
+            .environment(\.hostingDomainView, hostingViewBinding)
             .padding(.horizontal, usesEdgeToEdgeContent ? 0 : .spacing8)
             .padding(.vertical, usesEdgeToEdgeContent ? 0 : .spacing10)
             .padding(.top, -healthMapHeaderUnderlap(for: embed))
@@ -511,6 +557,11 @@ struct EmbedFullscreenContainer: View {
     }
 
     private func headerCTA(for embed: EmbedRecord) -> EmbedHeaderCTA? {
+        if HostingEmbedKind.isDomain(embed), let url = HostingDomainModel(embed).providerURL {
+            return EmbedHeaderCTA(title: AppStrings.hosting(.openOnGandi), accessibilityIdentifier: "hosting-open-gandi") {
+                openExternalURL(url.absoluteString)
+            }
+        }
         if EmbedType.normalized(rawValue: embed.type) == .mailEmail {
             let mail = MailEmbedModel(embed.rawData).applyingPII(mappings: currentPIIMappings, revealed: isPIIRevealed)
             guard let url = mail.mailtoURL else { return nil }
@@ -519,7 +570,7 @@ struct EmbedFullscreenContainer: View {
         if EmbedType.normalized(rawValue: embed.type) == .healthAppointment {
             let model = HealthAppointmentModel(embed.rawData ?? [:])
             if let url = model.bookingURL {
-                return EmbedHeaderCTA(title: AppStrings.openOnProvider(model.provider), accessibilityIdentifier: "external-provider-cta") { openURL(url) }
+                return EmbedHeaderCTA(title: AppStrings.openOnProvider(model.provider), accessibilityIdentifier: "external-provider-cta") { openExternalURL(url.absoluteString) }
             }
         }
         if EmbedType(rawValue: embed.type) == .codeCode,
@@ -544,10 +595,14 @@ struct EmbedFullscreenContainer: View {
         }
 
         switch type {
+        case .wiki:
+            guard let url = WikiArticleIdentity(data: data, fallbackLanguage: LocalizationManager.shared.currentLanguage.code).pageURL else { return nil }
+            return EmbedHeaderCTA(title: AppStrings.localized("embeds.wiki.open_on_wikipedia"),
+                                  accessibilityIdentifier: "wiki-open-wikipedia") { openExternalURL(url.absoluteString) }
         case .maps, .mapsPlace:
             guard let url = MapsEmbedModel(data).googleMapsURL(isPlace: type == .mapsPlace) else { return nil }
             return EmbedHeaderCTA(title: AppStrings.openOnProvider("Google Maps"),
-                                  accessibilityIdentifier: "maps-open-google-maps") { openURL(url) }
+                                  accessibilityIdentifier: "maps-open-google-maps") { openExternalURL(url.absoluteString) }
 
         case .videosVideo:
             guard let url = firstString(["url"], in: data) else { return nil }
@@ -783,7 +838,7 @@ struct EmbedFullscreenContainer: View {
     }
 
     private func openExternalURL(_ urlString: String) {
-        guard let url = URL(string: urlString) else { return }
+        guard let url = NativeEmbedActionURL.external(urlString) else { return }
         openURL(url)
     }
 
@@ -823,47 +878,37 @@ struct EmbedFullscreenContainer: View {
     }
 
     private func shareEmbed(_ embed: EmbedRecord) {
-        Task {
-            guard let chatId, !chatId.isEmpty,
-                  let key = await EmbedKeyManager.shared.key(
-                    for: embed,
-                    chatId: chatId,
-                    allEmbeds: allEmbedRecords
-                  ) else {
-                ToastManager.shared.show(AppStrings.error, type: .error)
-                return
-            }
-            shareContext = AppleShareContext(
-                contentType: .embed,
-                id: embed.id,
-                title: embed.type,
-                summary: nil,
-                key: key,
-                chatId: chatId
-            )
+        guard let chatId, !chatId.isEmpty else {
+            ToastManager.shared.show(AppStrings.error, type: .error)
+            return
         }
-    }
-
-    private func updateEmbedShareMetadata(_ url: URL, _ usedLongFallback: Bool, _ duration: ShareDuration) async {
-        guard let shareContext else { return }
-        do {
-            let body: [String: Any] = [
-                "embed_id": shareContext.id,
-                "title": shareContext.title,
-                "description": NSNull(),
-                "is_shared": true
-            ]
-            let _: Data = try await APIClient.shared.request(.post, path: "/v1/share/embed/metadata", body: body)
-            NativeDiagnostics.info(
-                "Embed share metadata synced kind=\(usedLongFallback ? "long" : "short") duration=\(duration.rawValue)",
-                category: "sharing"
-            )
-        } catch {
-            NativeDiagnostics.warning("Embed share metadata sync failed", category: "sharing")
-        }
+        moreActionsOpen = false
+        onOpenShareSettings(EmbedShareSettingsTarget(
+            embed: embed, chatId: chatId, allEmbedRecords: allEmbedRecords
+        ))
     }
 
     private func copyEmbedContent(_ embed: EmbedRecord) {
+        do { try recipientMediaContext?.checkCurrent() } catch { return }
+        if HostingEmbedKind.isDomain(embed) {
+            let text = HostingDomainModel(embed).name
+            copyToClipboard(EmbedPIIText.render(text, mappings: currentPIIMappings, revealed: isPIIRevealed))
+            ToastManager.shared.show(AppStrings.localized("embeds.copied_to_clipboard"), type: .success)
+            return
+        }
+        if currentEmbedType == .designIconResult, let bytes = designIconExport.svg, let text = String(data: bytes, encoding: .utf8) {
+            copyToClipboard(text)
+            ToastManager.shared.show(AppStrings.localized("embeds.copied_to_clipboard"), type: .success)
+            return
+        }
+        if let text = NativeEmbedDownload.copyText(embed, renderText: {
+            EmbedPIIText.render($0, mappings: currentPIIMappings, revealed: isPIIRevealed)
+        }) {
+            copyToClipboard(text)
+            ToastManager.shared.show(AppStrings.localized("embeds.copied_to_clipboard"), type: .success)
+            return
+        }
+
         if EmbedType.normalized(rawValue: embed.type) == .travelConnection {
             let text = TravelConnectionActions(data: embed.rawData ?? [:]).copyText
             copyToClipboard(EmbedPIIText.render(text, mappings: currentPIIMappings, revealed: isPIIRevealed))
@@ -898,12 +943,7 @@ struct EmbedFullscreenContainer: View {
             ToastManager.shared.show("Table copied to clipboard", type: .success)
             return
         }
-        guard let data = embed.data, case .raw(let dict) = data else { return }
-        let text = dict.compactMap { key, val -> String? in
-            guard let str = val.value as? String else { return nil }
-            return "\(key): \(str)"
-        }.joined(separator: "\n")
-        copyToClipboard(text)
+
     }
 
     private func copyToClipboard(_ text: String) {
@@ -952,72 +992,27 @@ struct EmbedFullscreenContainer: View {
 
     private func downloadMindMapFile(_ embed: EmbedRecord) {
         let file = NativeMindMapDownloadFile.build(data: embed.rawData)
-        #if os(macOS)
-        let panel = NSSavePanel()
-        panel.nameFieldStringValue = file.filename
-        panel.canCreateDirectories = true
-        panel.begin { response in
-            guard response == .OK, let url = panel.url else { return }
-            do { try file.content.write(to: url, atomically: true, encoding: .utf8) }
-            catch { ToastManager.shared.show(AppStrings.error, type: .error) }
-        }
-        #elseif os(iOS)
-        guard let scene = UIApplication.shared.connectedScenes.first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene,
-              var presenter = scene.windows.first(where: \.isKeyWindow)?.rootViewController else { return }
-        while let presented = presenter.presentedViewController { presenter = presented }
-        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
-        do {
-            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-            let url = directory.appendingPathComponent(file.filename)
-            try file.content.write(to: url, atomically: true, encoding: .utf8)
-            let activity = UIActivityViewController(activityItems: [url], applicationActivities: nil)
-            activity.completionWithItemsHandler = { _, _, _, _ in try? FileManager.default.removeItem(at: directory) }
-            if let popover = activity.popoverPresentationController {
-                popover.sourceView = presenter.view
-                popover.sourceRect = CGRect(x: presenter.view.bounds.midX, y: presenter.view.bounds.maxY, width: 1, height: 1)
-            }
-            presenter.present(activity, animated: true)
-        } catch {
-            try? FileManager.default.removeItem(at: directory)
-            ToastManager.shared.show(AppStrings.error, type: .error)
-        }
-        #endif
+        nativeActionController.export(.init(filename: file.filename, bytes: Data(file.content.utf8), mimeType: "text/plain"))
     }
 
     private func downloadCodeFile(_ embed: EmbedRecord) {
         if let table = sheetTable(for: embed), currentEmbedType == .sheetsSheet {
-            downloadSheet(table, from: embed)
-            return
+            downloadSheet(table, from: embed); return
         }
         guard let payload = embed.codePayload else { return }
-        let filename = payload.filename ?? defaultCodeFilename(language: payload.language)
-        let exportedCode = EmbedPIIText.render(payload.code, mappings: currentPIIMappings, revealed: isPIIRevealed)
-        #if os(macOS)
-        let panel = NSSavePanel()
-        panel.nameFieldStringValue = filename
-        panel.canCreateDirectories = true
-        panel.begin { response in
-            guard response == .OK, let url = panel.url else { return }
-            do {
-                try exportedCode.write(to: url, atomically: true, encoding: .utf8)
-                ToastManager.shared.show("Code file downloaded", type: .success)
-            } catch {
-                ToastManager.shared.show("Failed to download code file", type: .error)
-            }
-        }
-        #elseif os(iOS)
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
-        do {
-            try exportedCode.write(to: url, atomically: true, encoding: .utf8)
-            let activityVC = UIActivityViewController(activityItems: [url], applicationActivities: nil)
-            if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-               let rootVC = scene.windows.first?.rootViewController {
-                rootVC.present(activityVC, animated: true)
-            }
-        } catch {
-            ToastManager.shared.show("Failed to download code file", type: .error)
-        }
-        #endif
+        let content = EmbedPIIText.render(payload.code, mappings: currentPIIMappings, revealed: isPIIRevealed)
+        nativeActionController.export(.init(filename: payload.filename ?? defaultCodeFilename(language: payload.language),
+            bytes: Data(content.utf8), mimeType: "text/plain"))
+    }
+
+    private func downloadOriginalFile(_ embed: EmbedRecord) {
+        guard let source = NativeEmbedDownload.source(embed, records: allEmbedRecords, renderText: {
+            EmbedPIIText.render($0, mappings: currentPIIMappings, revealed: isPIIRevealed)
+        }) else { ToastManager.shared.show(AppStrings.error, type: .error); return }
+        let recipient = recipientMediaContext
+        let scope = recipient?.namespace ?? OfflineStore.shared.activeScopeId
+        nativeActionController.download(load: { try await source.load(scope: scope, recipient: recipient) },
+            validate: { try recipient?.checkCurrent() })
     }
 
     private func defaultCodeFilename(language: String) -> String {
@@ -1037,6 +1032,13 @@ struct EmbedFullscreenContainer: View {
             return TravelConnectionActions(data: embed.rawData ?? [:]).calendarFile(renderText: {
                 EmbedPIIText.render($0, mappings: currentPIIMappings, revealed: isPIIRevealed)
             })
+        }
+        let render: (String) -> String = { EmbedPIIText.render($0, mappings: currentPIIMappings, revealed: isPIIRevealed) }
+        if EmbedType.normalized(rawValue: embed.type) == .eventsEvent {
+            return EventEmbedCalendarFile.make(embed.rawData ?? [:], renderText: render)
+        }
+        if EmbedType.normalized(rawValue: embed.type) == .fitnessClass {
+            return FitnessEmbedCalendarFile.make(embed.rawData ?? [:], renderText: render)
         }
         guard EmbedType.normalized(rawValue: embed.type) == .healthAppointment else { return nil }
         return HealthAppointmentCalendarFile.make(embed.rawData ?? [:], renderText: {
@@ -1061,37 +1063,9 @@ struct EmbedFullscreenContainer: View {
     }
 
     private func downloadCalendarFile(_ embed: EmbedRecord) {
+        do { try recipientMediaContext?.checkCurrent() } catch { return }
         guard let file = calendarFile(for: embed) else { return }
-        #if os(macOS)
-        let panel = NSSavePanel()
-        panel.nameFieldStringValue = file.filename
-        panel.canCreateDirectories = true
-        panel.begin { response in
-            guard response == .OK, let url = panel.url else { return }
-            do { try file.content.write(to: url, atomically: true, encoding: .utf8) }
-            catch { ToastManager.shared.show(AppStrings.error, type: .error) }
-        }
-        #elseif os(iOS)
-        guard let scene = UIApplication.shared.connectedScenes.first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene,
-              var presenter = scene.windows.first(where: \.isKeyWindow)?.rootViewController else { return }
-        while let presented = presenter.presentedViewController { presenter = presented }
-        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
-        do {
-            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-            let url = directory.appendingPathComponent(file.filename)
-            try file.content.write(to: url, atomically: true, encoding: .utf8)
-            let activity = UIActivityViewController(activityItems: [url], applicationActivities: nil)
-            activity.completionWithItemsHandler = { _, _, _, _ in try? FileManager.default.removeItem(at: directory) }
-            if let popover = activity.popoverPresentationController {
-                popover.sourceView = presenter.view
-                popover.sourceRect = CGRect(x: presenter.view.bounds.midX, y: presenter.view.bounds.maxY, width: 1, height: 1)
-            }
-            presenter.present(activity, animated: true)
-        } catch {
-            try? FileManager.default.removeItem(at: directory)
-            ToastManager.shared.show(AppStrings.error, type: .error)
-        }
-        #endif
+        nativeActionController.calendar(file)
     }
 
     private func sheetTable(for embed: EmbedRecord) -> ParsedSheetTable? {
@@ -1102,47 +1076,17 @@ struct EmbedFullscreenContainer: View {
     }
 
     private func downloadSheet(_ table: ParsedSheetTable, from embed: EmbedRecord) {
-        let baseName = (table.title?.isEmpty == false ? table.title : "table") ?? "table"
-        let safeName = baseName.replacingOccurrences(of: #"[/\\:]"#, with: "-", options: .regularExpression)
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        let filename = "\(safeName.isEmpty ? "table" : safeName).xlsx"
-        let workbook: Data
+        let name = (table.title?.isEmpty == false ? table.title : "table") ?? "table"
         do {
-            workbook = try SheetXLSXExporter.makeData(table: table, rows: sheetDisplayedRows ?? table.rows)
-        } catch {
-            ToastManager.shared.show("Failed to download table", type: .error)
-            return
-        }
-        #if os(macOS)
-        let panel = NSSavePanel()
-        panel.nameFieldStringValue = filename
-        panel.canCreateDirectories = true
-        panel.begin { response in
-            guard response == .OK, let url = panel.url else { return }
-            do {
-                try workbook.write(to: url, options: .atomic)
-                ToastManager.shared.show("Table downloaded", type: .success)
-            } catch {
-                ToastManager.shared.show("Failed to download table", type: .error)
-            }
-        }
-        #elseif os(iOS)
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
-        do {
-            try workbook.write(to: url, options: .atomic)
-            let activityVC = UIActivityViewController(activityItems: [url], applicationActivities: nil)
-            if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-               let rootVC = scene.windows.first?.rootViewController {
-                rootVC.present(activityVC, animated: true)
-            }
-        } catch {
-            ToastManager.shared.show("Failed to download table", type: .error)
-        }
-        #endif
+            let bytes = try SheetXLSXExporter.makeData(table: table, rows: sheetDisplayedRows ?? table.rows)
+            nativeActionController.export(.init(filename: name + ".xlsx", bytes: bytes,
+                mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+        } catch { ToastManager.shared.show(AppStrings.error, type: .error) }
     }
 
     private func reportIssue(_ embed: EmbedRecord) {
-        ToastManager.shared.show("Report issue", type: .info)
+        if let onReportEmbedIssue { onReportEmbedIssue(embed) }
+        else { reportIssueAction?.open(.init(title: "", category: "bug")) }
     }
 
     private var isCodeRunnable: Bool {
@@ -1256,11 +1200,13 @@ private struct EmbedFullscreenTopBar: View {
     let onTogglePreview: () -> Void
     let onCalendar: () -> Void
     let onReportIssue: () -> Void
+    var showReport = true
     var showChat = false
     var onShowChat: () -> Void = {}
     var downloadLabel = AppStrings.download
     var downloadDisabled = false
     var downloadIdentifier = "embed-download-button"
+    var hostingActions: [HostingHeaderAction] = []
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @FocusState private var focusedActionID: String?
     @State private var toolbarFrame: CGRect = .zero
@@ -1281,12 +1227,15 @@ private struct EmbedFullscreenTopBar: View {
         if showCalendar { values.append(.init(id: "calendar", icon: "calendar", label: "Add to calendar", perform: onCalendar)) }
         if showRun { values.append(.init(id: "run", icon: "play", label: AppStrings.codeRun, active: runActive, perform: onRun)) }
         if showPreview { values.append(.init(id: "preview", icon: "preview", label: AppStrings.preview, active: previewActive, perform: onTogglePreview)) }
+        values += hostingActions.map { .init(id: $0.id, icon: "search", label: $0.label, active: $0.active, perform: $0.perform) }
         return values
     }
     private var usesMore: Bool { EmbedHeaderActionPolicy.usesMore(width: viewportWidth, actionCount: actions.count, hasShare: showShare) }
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
-            pill(.init(id: "report", icon: "bug", label: LocalizationManager.shared.text("header.report_issue"), perform: onReportIssue), label: EmbedHeaderActionPolicy.reportShowsLabel(width: viewportWidth))
+            if showReport {
+                pill(.init(id: "report", icon: "bug", label: LocalizationManager.shared.text("header.report_issue"), perform: onReportIssue), label: EmbedHeaderActionPolicy.reportShowsLabel(width: viewportWidth))
+            }
             if viewportWidth >= 460 && showShare { pill(share) }
             if showChat {
                 pill(.init(id: "show-chat", icon: "chat", label: LocalizationManager.shared.text("chat.show_chat"), perform: onShowChat), label: true)
@@ -1371,7 +1320,7 @@ private struct EmbedFullscreenTopBar: View {
             action.perform()
         }.focused($focusedActionID, equals: action.id)
             .disabled(action.id == "download" && downloadDisabled)
-            .accessibilityIdentifier(action.id == "download" ? downloadIdentifier : "embed-\(action.id)-button")
+            .accessibilityIdentifier(action.id.hasPrefix("hosting-view-") ? action.id : action.id == "download" ? downloadIdentifier : "embed-\(action.id)-button")
     }
 }
 
@@ -1459,6 +1408,16 @@ enum EmbedFullscreenHeaderLayout {
     }
 }
 
+/// Apps supplies catalog presentation; ordinary embeds retain their renderer-owned identity.
+struct EmbedFullscreenHeaderPresentation: Equatable {
+    let title: String
+    let subtitle: String?
+    let icon: String
+    var eyebrow: String? = nil
+    var providers: String? = nil
+    var footer: String? = nil
+}
+
 struct EmbedFullscreenHeader: View {
     let embed: EmbedRecord
     var hasPreviousEmbed = false
@@ -1466,9 +1425,11 @@ struct EmbedFullscreenHeader: View {
     var onNavigatePrevious: () -> Void = {}
     var onNavigateNext: () -> Void = {}
     var headerCTA: EmbedHeaderCTA?
+    var secondaryHeaderCTA: AnyView? = nil
     var topContentInset: CGFloat = 0
     var viewportWidth: CGFloat? = nil
     var responsiveViewportWidth: CGFloat? = nil
+    var presentation: EmbedFullscreenHeaderPresentation? = nil
 
     /// Map templates can flow behind the CTA without shrinking its hit-test bounds.
     var contentUnderlapsCTA = false
@@ -1476,6 +1437,7 @@ struct EmbedFullscreenHeader: View {
     var mailPIIRevealed = false
 
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @State private var measuredCTAHeight: CGFloat = 44
 
     // Match the web's width breakpoint, including narrow macOS windows and
     // iPad split views whose platform size class may remain regular.
@@ -1500,13 +1462,15 @@ struct EmbedFullscreenHeader: View {
     private var headerFrameHeight: CGFloat {
         // The CTA begins 22pt above the panel edge and extends 22pt below it.
         // Keep its full button inside the header's hit-test layout bounds.
-        headerCTA == nil ? headerHeight : headerHeight + 22
+        hasHeaderCTA ? headerHeight + max(44, measuredCTAHeight) - 22 : headerHeight
     }
+    private var hasHeaderCTA: Bool { headerCTA != nil || secondaryHeaderCTA != nil }
     private var ctaOffsetY: CGFloat {
         headerHeight - 22
     }
-    private var skillIconName: String {
-        EmbedVisualSkillIcon.name(for: embed, fullscreen: true)
+    var skillIconName: String {
+        if let presentation { return presentation.icon }
+        return EmbedVisualSkillIcon.name(for: embed, fullscreen: true)
     }
 
     var body: some View {
@@ -1516,8 +1480,13 @@ struct EmbedFullscreenHeader: View {
                 .clipShape(.rect(bottomLeadingRadius: 14, bottomTrailingRadius: 14))
                 .shadow(color: .black.opacity(0.22), radius: 18, x: 0, y: 10)
 
-            if let headerCTA {
-                headerCTAButton(headerCTA)
+            if hasHeaderCTA {
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: .spacing4) { headerCTAControls }
+                    VStack(spacing: .spacing4) { headerCTAControls }
+                }
+                    .frame(maxWidth: max(0, (viewportWidth ?? 600) - 32))
+                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { measuredCTAHeight = $0 }
                     .offset(y: ctaOffsetY)
             }
         }
@@ -1528,6 +1497,12 @@ struct EmbedFullscreenHeader: View {
         .accessibilityValue(embed.id)
     }
 
+    @ViewBuilder
+    private var headerCTAControls: some View {
+        if let headerCTA { headerCTAButton(headerCTA) }
+        if let secondaryHeaderCTA { secondaryHeaderCTA }
+    }
+
     private var headerPanel: some View {
         ZStack {
             AppGradientBackground(appId: appId)
@@ -1535,6 +1510,9 @@ struct EmbedFullscreenHeader: View {
                 .accessibilityHidden(true)
 
             VStack(spacing: .spacing2) {
+                if let eyebrow = presentation?.eyebrow, !eyebrow.isEmpty {
+                    Text(eyebrow).font(.omSmall).foregroundStyle(Color.fontButton.opacity(0.85))
+                }
                 Icon(skillIconName, size: isNarrow ? 32 : 38)
                     .foregroundStyle(.white)
 
@@ -1554,6 +1532,12 @@ struct EmbedFullscreenHeader: View {
                         .foregroundStyle(.white.opacity(0.85))
                         .multilineTextAlignment(.center)
                         .lineLimit(2)
+                }
+                if let providers = presentation?.providers, !providers.isEmpty {
+                    Text(providers).font(.omXs).foregroundStyle(Color.fontButton.opacity(0.85)).lineLimit(1)
+                }
+                if let footer = presentation?.footer, !footer.isEmpty {
+                    Text(footer).font(.omXs).foregroundStyle(Color.fontButton.opacity(0.85)).lineLimit(1)
                 }
             }
             // Web max-width applies to its content box; padding is outside.
@@ -1645,7 +1629,16 @@ struct EmbedFullscreenHeader: View {
             : String(filename.prefix(maxLength - 1)) + "…"
     }
 
-    private var headerTitle: String {
+    var headerTitle: String {
+        if let presentation { return presentation.title }
+        if HostingEmbedKind.isDomain(embed) { return HostingDomainModel(embed).name }
+        if HostingEmbedKind.isSearch(embed) {
+            let query = embed.rawData?["query"]?.value as? String ?? ""
+            return query.isEmpty ? AppStrings.hosting(.title) : query
+        }
+        if embedType == .wiki {
+            return WikiArticleIdentity(data: embed.rawData ?? [:], fallbackLanguage: LocalizationManager.shared.currentLanguage.code).title
+        }
         if embedType == .maps { return AppStrings.domainLocation }
         if embedType == .mapsPlace { return MapsEmbedModel(embed.rawData).name ?? AppStrings.domainLocation }
         if embedType == .mailEmail {
@@ -1706,7 +1699,8 @@ struct EmbedFullscreenHeader: View {
             return embed.rawData?["filename"]?.value as? String ?? "notebook.ipynb"
         }
         if let payload = embed.codePayload {
-            return payload.filename ?? "Code snippet"
+            return payload.filename ?? (payload.language.isEmpty
+                ? LocalizationManager.shared.text("embeds.code_snippet") : payload.languageDisplayName)
         }
         if let table = sheetTable {
             return table.title ?? LocalizationManager.shared.text("embeds.table")
@@ -1730,7 +1724,15 @@ struct EmbedFullscreenHeader: View {
             ?? embed.type
     }
 
-    private var headerSubtitle: String? {
+    var headerSubtitle: String? {
+        if HostingEmbedKind.isDomain(embed) { return HostingDomainModel(embed).subtitle }
+        if HostingEmbedKind.isSearch(embed) {
+            let model = HostingSearchModel(embed: embed, allEmbedRecords: [:])
+            return AppStrings.hosting(.providerVia, ["provider": model.provider]) + " · " + model.currency
+                + (model.country.isEmpty ? "" : " · " + model.country)
+        }
+        if embedType == .wiki { return embed.rawData?["description"]?.value as? String }
+        if let presentation { return presentation.subtitle }
         if embedType == .mailEmail {
             let mail = MailEmbedModel(embed.rawData).applyingPII(mappings: mailPIIMappings, revealed: mailPIIRevealed)
             return mail.receiver.isEmpty ? nil : "\(AppStrings.localized("embeds.mail.to")): \(mail.receiver)"

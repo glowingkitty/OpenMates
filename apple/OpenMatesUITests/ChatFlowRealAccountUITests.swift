@@ -120,33 +120,49 @@ final class ChatFlowRealAccountUITests: XCTestCase {
                 search.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: value.count))
             }
             search.typeText(query)
-            let result = app.buttons.matching(identifier: "search-chat-item").firstMatch
-            XCTAssertTrue(result.waitForExistence(timeout: 45), "The configured existing conversation must be searchable")
-            result.tap()
+            let results = try NativeUITestElementResolution.requireVisible(
+                app.descendants(matching: .any).matching(identifier: "search-results"),
+                in: app, timeout: 45, actionable: false)
+            let matchingResults = results.buttons.matching(NSPredicate(
+                format: "identifier == %@ AND label CONTAINS[cd] %@", "search-chat-item", query))
+            let result = try NativeUITestElementResolution.requireVisible(matchingResults, in: app, timeout: 45)
+            XCTAssertTrue(result.isHittable, "The configured existing conversation must be searchable")
+            // The result is already visible. Tap its production hit area without
+            // XCTest's automatic scroll against a transient keyboard snapshot.
+            result.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
         }
-        XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "chat-view-\(chatID)").firstMatch.waitForExistence(timeout: 20))
+        // chat-view-ID confirms navigation through a DEBUG marker. It is a
+        // sibling of the production transcript, not its accessibility parent.
+        _ = try NativeUITestElementResolution.requireVisible(
+            app.descendants(matching: .any).matching(identifier: "chat-view-\(chatID)"),
+            in: app, timeout: 20, actionable: false)
         // A regular-width sidebar remains open after choosing a chat. Its own
         // header supplies the close action; the menu button exists only closed.
-        let sidebarClose = app.buttons["chat-sidebar-close"]
-        if sidebarClose.exists && sidebarClose.isHittable { sidebarClose.tap() }
-        XCTAssertTrue(app.buttons["sidebar-toggle"].waitForExistence(timeout: 5))
-        let history = app.scrollViews.matching(identifier: "chat-history-container").firstMatch
-        XCTAssertTrue(history.waitForExistence(timeout: 20))
-        XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "message-assistant").firstMatch.waitForExistence(timeout: 20))
-        let toTop = app.buttons["scroll-to-top-button"]
-        if toTop.exists { toTop.tap() }
+        if let sidebarClose = NativeUITestElementResolution.visible(
+            app.buttons.matching(identifier: "chat-sidebar-close"), in: app) { sidebarClose.tap() }
+        _ = try NativeUITestElementResolution.requireVisible(
+            app.buttons.matching(identifier: "sidebar-toggle"), in: app)
+        let history = try NativeUITestElementResolution.requireVisible(
+            app.scrollViews.matching(identifier: "chat-history-container"), in: app, timeout: 20)
+        XCTAssertTrue(history.descendants(matching: .any).matching(identifier: "message-assistant").firstMatch.waitForExistence(timeout: 20))
+        // Scroll navigation is an overlay sibling of the history container.
+        if let toTop = NativeUITestElementResolution.visible(
+            app.buttons.matching(identifier: "scroll-to-top-button"), in: app) { toTop.tap() }
         // Code cards contain their source accessibility children, so SwiftUI
         // may expose the exact actionable wrapper as Other rather than Button.
-        let transcript = app.descendants(matching: .any).matching(identifier: "chat-view-\(chatID)").firstMatch
-        let preview = transcript.descendants(matching: .any)
-            .matching(identifier: "embed-preview-\(embedID)").firstMatch
+        // A stored embed can appear repeatedly in this conversation. Resolve
+        // the visible occurrence after scrolling rather than its first AX match.
+        let previews = history.descendants(matching: .any)
+            .matching(identifier: "embed-preview-\(embedID)")
         for _ in 0..<12 {
-            if preview.exists && preview.isHittable { break }
+            if NativeUITestElementResolution.visible(previews, in: app) != nil { break }
             history.swipeUp()
         }
-        XCTAssertTrue(preview.exists && preview.isHittable, "The exact stored greeting.js card must hydrate inside the transcript viewport")
+        let visiblePreview = try NativeUITestElementResolution.requireVisible(previews, in: app)
+        XCTAssertTrue(visiblePreview.exists && visiblePreview.isHittable, "The exact stored greeting.js card must hydrate inside the transcript viewport")
         let largeSourceReady = NSPredicate { _, _ in
-            preview.exists && preview.isEnabled && preview.isHittable && (preview.value as? String) == "Ready" && preview.frame.height >= 400
+            guard let preview = NativeUITestElementResolution.visible(previews, in: app) else { return false }
+            return preview.exists && preview.isEnabled && preview.isHittable && (preview.value as? String) == "Ready" && preview.frame.height >= 400
         }
         XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: largeSourceReady, object: nil)], timeout: 20), .completed,
                        "The wide production card must show ready source in its large layout")
@@ -154,12 +170,13 @@ final class ChatFlowRealAccountUITests: XCTestCase {
         largeProof.name = "Existing greeting.js large source card"
         largeProof.lifetime = .keepAlways
         add(largeProof)
+        let preview = try NativeUITestElementResolution.requireVisible(previews, in: app)
         preview.tap()
 
         let header = app.descendants(matching: .any).matching(identifier: "embed-fullscreen-header").firstMatch
         XCTAssertTrue(header.waitForExistence(timeout: 15))
         XCTAssertEqual(header.value as? String, embedID, "The production card must open the canonical stored code embed")
-        XCTAssertEqual(app.staticTexts["embed-header-title"].firstMatch.label, "greeting.js")
+        XCTAssertEqual(app.staticTexts["embed-header-title"].firstMatch.label, "src/greeting.js")
         XCTAssertTrue(app.staticTexts["embed-header-subtitle"].firstMatch.label.contains("JavaScript"))
         let source = app.scrollViews.matching(identifier: "code-source-panel").firstMatch
         XCTAssertTrue(source.waitForExistence(timeout: 15))

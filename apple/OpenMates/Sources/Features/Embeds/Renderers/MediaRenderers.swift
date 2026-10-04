@@ -613,7 +613,7 @@ struct CachedRemoteImage<Content: View, Placeholder: View>: View {
 /// no browsing context, scripts or remote resources; the native image URL is
 /// fetched only by RemoteImageCache with its existing request privacy rules.
 @MainActor
-private struct StaticSVGRemoteImageView {
+struct StaticSVGRemoteImageView {
     let source: StaticSVGImageSource
     let contentMode: ContentMode
     let onSuccess: () -> Void

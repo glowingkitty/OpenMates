@@ -1,3 +1,5 @@
+// Specification: specifications/features/chat-navigation/specification.yml
+// Assertions: chat-navigation.projects.nested-readable, chat-navigation.activity.global-running, chat-navigation.projects.organize
 // Production sidebar content, independently renderable with in-memory inputs.
 // Web: chats/Chats.svelte .activity-history-wrapper/.group-title, chats/Chat.svelte.
 // Account loading/filtering, hidden-chat authentication and shell width stay with
@@ -29,9 +31,15 @@ struct ChatSidebarActions {
     let close: () -> Void
     let showHidden: () -> Void
     let loadMore: () -> Void
+    var dragPayload: ((Chat) -> ChatProjectDragPayload?)? = nil
+    var dropChat: ((ChatProjectDragPayload, Chat) -> Void)? = nil
 }
 
 struct ChatSidebarContent<SearchContent: View>: View {
+    var projectNavigation: ChatProjectNavigationContext? = nil
+    var revealRunningRequest = 0
+    var showsHiddenChatsButton = true
+    var processingChatIDs: Set<String> = []
     let userSections: [ChatSidebarSection]
     let publicSections: [ChatSidebarSection]
     let selectedChatID: String?
@@ -49,9 +57,12 @@ struct ChatSidebarContent<SearchContent: View>: View {
                 searchContent()
             } else {
                 WorkspaceSidebarHeader(onSearch: actions.search, onClose: actions.close)
+                ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 0) {
-                        hiddenButton
+                        Color.clear.frame(height: 0).id("chat-sidebar-top")
+                        if showsHiddenChatsButton { hiddenButton }
+                        if let projectNavigation { ChatProjectNavigator(context: projectNavigation) }
                         sections(userSections)
                         if let emptyMessage {
                             Text(emptyMessage).font(.omSmall).foregroundStyle(Color.fontTertiary)
@@ -67,6 +78,9 @@ struct ChatSidebarContent<SearchContent: View>: View {
                 }
                 .accessibilityIdentifier("chat-sidebar-scroll")
                 .refreshable { await refresh() }
+                .onChange(of: revealRunningRequest) { _, _ in proxy.scrollTo("chat-sidebar-top", anchor: .top) }
+                .onAppear { if revealRunningRequest > 0 { proxy.scrollTo("chat-sidebar-top", anchor: .top) } }
+                }
             }
         }
         .background(Color.grey20)
@@ -97,8 +111,12 @@ struct ChatSidebarContent<SearchContent: View>: View {
                     .accessibilityIdentifier("chat-sidebar-section-\(section.id)")
                 ForEach(section.chats) { chat in
                     ChatSidebarRowButton(chat: chat, selected: selectedChatID == chat.id,
+                        processing: processingChatIDs.contains(chat.id) || projectNavigation?.runningIDs.contains(chat.id) == true,
+                        activeSubChatCount: projectNavigation?.activeSubChatCounts[chat.id] ?? 0,
                         draftPreview: draftPreviews[chat.id], onSelect: { actions.select(chat) },
                         onShowActions: actions.showActions.map { action in { action(chat) } })
+                        .modifier(ChatProjectDragModifier(payload: actions.dragPayload?(chat),
+                            onDrop: actions.dropChat.map { drop in { drop($0, chat) } }))
                         .padding(.bottom, 4)
                 }
                 Color.clear.frame(height: 16).accessibilityHidden(true)
@@ -110,21 +128,61 @@ struct ChatSidebarContent<SearchContent: View>: View {
 private struct ChatSidebarRowButton: View {
     let chat: Chat
     let selected: Bool
+    let processing: Bool
+    let activeSubChatCount: Int
     let draftPreview: String?
     let onSelect: () -> Void
     let onShowActions: (() -> Void)?
     @State private var hovering = false
+    @GestureState private var holdingForActions = false
+    @State private var suppressSelection = false
+    @State private var holdMoved = false
     var body: some View {
-        Button(action: onSelect) {
-            ChatListRow(chat: chat, suppliedDraftPreview: draftPreview)
+        Button { if !suppressSelection { onSelect() } } label: {
+            ChatListRow(chat: chat, suppliedDraftPreview: draftPreview, processing: processing, activeSubChatCount: activeSubChatCount)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(selected ? Color.grey0 : hovering ? Color.grey10 : Color.clear)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
                 .contentShape(RoundedRectangle(cornerRadius: 8))
         }.buttonStyle(.plain)
             .onHover { hovering = $0 }
-            .onLongPressGesture { onShowActions?() }
+            // A draggable row must not present the custom menu during the lift.
+            // Complete a stationary hold on release; travel belongs to drag/drop.
+            .simultaneousGesture(
+                LongPressGesture(minimumDuration: 0.5, maximumDistance: 10)
+                    .sequenced(before: DragGesture(minimumDistance: 0))
+                    .updating($holdingForActions) { value, holding, _ in
+                        switch value {
+                        case .first(let recognized): holding = recognized
+                        case .second(let recognized, _): holding = recognized
+                        }
+                    }
+                    .onChanged { value in
+                        switch value {
+                        case .first(true): suppressSelection = true
+                        case .second(true, let drag):
+                            suppressSelection = true
+                            if let drag, hypot(drag.translation.width, drag.translation.height) > 10 { holdMoved = true }
+                        default: break
+                        }
+                    }
+                    .onEnded { value in
+                        if case .second(true, let drag) = value,
+                           !holdMoved, drag.map({ hypot($0.translation.width, $0.translation.height) <= 10 }) ?? true {
+                            onShowActions?()
+                        }
+                        resetHoldAfterRelease()
+                    }
+            )
+            .onChange(of: holdingForActions) { _, holding in
+                if !holding { resetHoldAfterRelease() }
+            }
             .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+    private func resetHoldAfterRelease() {
+        // Keep the release's Button action suppressed, then permit the next tap.
+        // GestureState also resets here when the native drag interaction cancels.
+        DispatchQueue.main.async { suppressSelection = false; holdMoved = false }
     }
 }
 

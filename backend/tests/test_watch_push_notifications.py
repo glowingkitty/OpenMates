@@ -113,3 +113,21 @@ def test_unsupported_platform_never_reaches_provider(monkeypatch):
     monkeypatch.setattr("httpx.Client", lambda **kwargs: pytest.fail("Unexpected provider request"))
     assert service._send_apns_notification({"type": "apns", "token": "fixture", "platform": "arbitrary"},
         title="OpenMates", body="New message", chat_id="chat", category=APNS_CHAT_CATEGORY, tag="tag") is False
+
+
+# contract-test: supporting surface=gui.apple assertions=apple-notifications.registration.lifecycle
+def test_legacy_processing_tokens_retire_without_losing_completion_targets():
+    phone = {"type": "apns", "platform": "ios", "token": "fixture-completion-token",
+             "device_id": "fixture-phone", "environment": "production",
+             "notification_public_key": "fixture-preview-key", "encryption_version": "v1"}
+    old_phone = {**phone, "activity_start_token": "obsolete-token",
+                 "activity_owner": "obsolete-owner", "activity_input_push_token": True}
+    browser = {"type": "web", "endpoint": "https://push.example.invalid/fixture"}
+    legacy = json.dumps({"type": "multi", "targets": [old_phone, browser]})
+    assert normalize_push_subscription_targets(legacy) == [phone, browser]
+    assert normalize_push_subscription_targets(json.dumps(old_phone)) == [phone]
+    refreshed = merge_push_subscription_target(legacy, {**old_phone, "token": "rotated-completion-token"})
+    assert normalize_push_subscription_targets(refreshed) == [browser, {**phone, "token": "rotated-completion-token"}]
+    assert "obsolete" not in refreshed
+    remaining, enabled = remove_push_subscription_target(refreshed, phone)
+    assert enabled and normalize_push_subscription_targets(remaining) == [browser]

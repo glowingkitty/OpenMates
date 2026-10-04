@@ -580,3 +580,33 @@ private enum TOTP {
         return output
     }
 }
+
+// Shared resolution for retained SwiftUI panes. Queries can expose hidden
+// mounted duplicates; select the current on-screen candidate before an action.
+enum NativeUITestElementResolution {
+    static func isOnScreen(_ element: XCUIElement, in app: XCUIApplication) -> Bool {
+        guard element.exists, !element.frame.isEmpty else { return false }
+        let viewport = app.windows.firstMatch.frame
+        return viewport.contains(CGPoint(x: element.frame.midX, y: element.frame.midY))
+    }
+
+    static func visible(_ query: XCUIElementQuery, in app: XCUIApplication,
+                        actionable: Bool = true) -> XCUIElement? {
+        query.allElementsBoundByIndex.first {
+            isOnScreen($0, in: app) && (!actionable || ($0.isEnabled && $0.isHittable))
+        }
+    }
+
+    static func requireVisible(_ query: XCUIElementQuery, in app: XCUIApplication,
+                               timeout: TimeInterval = 5, actionable: Bool = true,
+                               file: StaticString = #filePath, line: UInt = #line) throws -> XCUIElement {
+        if let element = visible(query, in: app, actionable: actionable) { return element }
+        let ready = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            visible(query, in: app, actionable: actionable) != nil
+        }, object: app)
+        XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: timeout), .completed,
+                       "Expected an on-screen production element", file: file, line: line)
+        return try XCTUnwrap(visible(query, in: app, actionable: actionable),
+                            "No on-screen candidate resolved", file: file, line: line)
+    }
+}

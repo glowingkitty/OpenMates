@@ -50,6 +50,38 @@ final class SettingsPrivacyParityUITests: XCTestCase {
         assertHittable("privacy-debug-session-start", in: app)
     }
 
+    // contract-test: direct surface=gui.apple assertions=pii.apple.enhanced-local-detection
+    func testEnhancedDetectionIsOptionalAndDownloadCanBeCancelledInPrivacy() {
+        let app = launchPrivacyFixture(extraArguments: ["--ui-test-local-lab-progress-fixture", "--ui-test-local-lab-hold-download"])
+        element("settings-hide-personal-data-row", in: app).tap()
+        scrollTo("settings-enhanced-pii-model-action", in: app)
+        let action = app.buttons["settings-enhanced-pii-model-action"]
+        // The deterministic store fixture starts with an installed privacy model.
+        let installed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@ AND enabled == true", "Remove model"), object: action)
+        XCTAssertEqual(XCTWaiter.wait(for: [installed], timeout: 5), .completed)
+        XCTAssertTrue(action.isEnabled && action.isHittable)
+        XCTAssertFalse(element("settings-enhanced-pii-model-progress", in: app).exists,
+                       "Opening Privacy must not start a download")
+        action.tap()
+        let offered = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", "Download model"), object: action)
+        XCTAssertEqual(XCTWaiter.wait(for: [offered], timeout: 5), .completed)
+        action.tap()
+        let cancel = app.buttons["settings-enhanced-pii-model-cancel-download"]
+        XCTAssertTrue(cancel.waitForExistence(timeout: 5))
+        XCTAssertTrue(cancel.isEnabled && cancel.isHittable)
+        XCTAssertTrue(element("settings-enhanced-pii-model-progress", in: app).exists)
+        cancel.tap()
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: cancel)], timeout: 5), .completed)
+        XCTAssertTrue(action.isEnabled)
+        XCTAssertTrue(element("settings-enhanced-pii-model-regex-fallback", in: app).exists)
+        scrollTo("settings-hide-personal-data-toggle", in: app)
+        XCTAssertTrue(app.switches["settings-hide-personal-data-toggle"].isHittable)
+        scrollTo("settings-pii-category-email_addresses", in: app)
+        XCTAssertTrue(app.switches["settings-pii-category-email_addresses"].isHittable)
+        scrollTo("settings-add-personal-data-custom", in: app)
+        XCTAssertTrue(element("settings-add-personal-data-custom", in: app).isHittable)
+    }
+
     // contract-test: direct surface=gui.apple assertions=settings-ui.navigation.contextual-availability,settings-ui.parity.web-apple-shell
     func testGuestPrivacyAccountActionsOpenAuthentication() {
         for identifier in [
@@ -147,14 +179,15 @@ final class SettingsPrivacyParityUITests: XCTestCase {
         return app
     }
 
-    private func launchPrivacyFixture() -> XCUIApplication {
+    private func launchPrivacyFixture(extraArguments: [String] = []) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = [
             "--ui-test-disable-auth-cache",
             "--ui-test-account-settings-fixture",
             "--ui-test-authenticated-chat-navigation",
             "--ui-test-privacy-settings-fixture",
-        ]
+            "-AppleLanguages", "(en)", "-AppleLocale", "en_US", "-app_language", "en",
+        ] + extraArguments
         app.launch()
         XCTAssertTrue(app.buttons["settings-button"].waitForExistence(timeout: 15))
         app.buttons["settings-button"].tap()

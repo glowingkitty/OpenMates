@@ -4,10 +4,73 @@
 // chats, network setup, or fragile screenshot pixel comparisons.
 
 import XCTest
+import UIKit
 
 final class ChatShellResponsiveParityUITests: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = false
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.layout.responsive-history
+    @MainActor
+    func testIPadBottomGutterMatchesSidesAndComposerAvoidsKeyboard() throws {
+        guard UIDevice.current.userInterfaceIdiom == .pad else {
+            throw XCTSkip("The iPad home-indicator inset is the regression under test")
+        }
+        let device = XCUIDevice.shared
+        defer { device.orientation = .portrait }
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-disable-auth-cache", "--ui-test-shell-metrics", "-AppleLanguages", "(en)"]
+        app.launchEnvironment["UI_TEST_SHELL_METRICS"] = "1"
+        for orientation in [UIDeviceOrientation.portrait, .landscapeLeft] {
+            // A fresh scene avoids reusing the iPad simulator's independently
+            // oriented window after a device rotation. Require its actual size.
+            if app.state != .notRunning { app.terminate() }
+            device.orientation = orientation
+            app.launch()
+            let window = app.windows.firstMatch
+            let surface = app.descendants(matching: .any)["chat-workspace-welcome"].firstMatch
+            XCTAssertTrue(surface.waitForExistence(timeout: 12))
+            let metrics = app.descendants(matching: .any).matching(identifier: "shell-responsive-metrics").firstMatch
+            XCTAssertTrue(metrics.waitForExistence(timeout: 5))
+            // Measure the laid-out surface before outer padding. Accessibility
+            // unions include descendants beyond clipping and are not bounds.
+            let equalGutters = waitUntil(timeout: 5) {
+                let keys = ["workspace-x", "workspace-y", "workspace-width", "workspace-height"]
+                let values = keys.compactMap { metric($0, in: metrics.label).flatMap(Double.init) }
+                guard values.count == 4 else { return false }
+                let bounds = window.frame
+                let rotationFinished = orientation.isLandscape
+                    ? bounds.width > bounds.height : bounds.height > bounds.width
+                guard rotationFinished else { return false }
+                let frame = CGRect(x: values[0], y: values[1], width: values[2], height: values[3])
+                let left = frame.minX - bounds.minX
+                let right = bounds.maxX - frame.maxX
+                let bottom = bounds.maxY - frame.maxY
+                return frame.width > 600 && abs(left - 20) <= 2 &&
+                    abs(right - left) <= 2 && abs(bottom - right) <= 2
+            }
+            let attachment = XCTAttachment(screenshot: app.screenshot())
+            attachment.name = "iPad equal workspace gutters \(orientation.rawValue)"
+            attachment.lifetime = .keepAlways
+            add(attachment)
+            XCTAssertTrue(equalGutters, "The actual iPad workspace must have equal 20-point side and bottom gutters: window=\(window.frame), geometry=\(metrics.label)")
+        }
+        let composer = app.descendants(matching: .any)["message-composer"].firstMatch
+        XCTAssertTrue(composer.waitForExistence(timeout: 5))
+        composer.tap()
+        let editor = app.textViews["message-editor"].firstMatch
+        XCTAssertTrue(editor.waitForExistence(timeout: 5))
+        editor.tap()
+        let keyboard = app.keyboards.firstMatch
+        XCTAssertTrue(keyboard.waitForExistence(timeout: 5))
+        XCTAssertTrue(waitUntil(timeout: 5) {
+            editor.frame.height > 0 && editor.frame.maxY <= keyboard.frame.minY + 2
+        }, "Ignoring the iPad container inset must retain keyboard avoidance")
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = "iPad composer above keyboard"
+        attachment.lifetime = .keepAlways
+        add(attachment)
     }
 
     // contract-test: supporting surface=gui.apple assertions=workspace-shell.nav.released-surfaces-visible,chats.layout.responsive-history
@@ -21,17 +84,35 @@ final class ChatShellResponsiveParityUITests: XCTestCase {
             .containing(NSPredicate(format: "label CONTAINS %@", "shell-width="))
             .firstMatch
         XCTAssertTrue(metrics.waitForExistence(timeout: 12))
+        _ = try waitForMetric("fixture-ready", equals: true, in: metrics)
 
         let workspaces = [
-            ("tasks", "task-sidebar-row-preview-todo", "Design 3D model"),
-            ("projects", "project-sidebar-card-preview-project", "OpenMates"),
-            ("workflows", "workflow-sidebar-row", "Weekly AI events")
+            ("tasks", "task-sidebar-row-preview-todo", "Design 3D model", "tasks-workspace"),
+            ("projects", "project-sidebar-card-preview-project", "OpenMates", "projects-home-greeting"),
+            ("workflows", "workflow-sidebar-row", "Weekly AI events", "workflows-workspace")
         ]
-        for (workspace, rowIdentifier, query) in workspaces {
+        for (workspace, rowIdentifier, query, destinationIdentifier) in workspaces {
             let tab = app.buttons["\(workspace)-nav-link"]
             if !tab.isHittable { app.buttons["workspace-switcher"].tap() }
             XCTAssertTrue(tab.waitForExistence(timeout: 5))
+            try waitForVisibleSidebarControl(tab, in: app)
+            let beforeNavigation = XCTAttachment(string: app.debugDescription)
+            beforeNavigation.name = "Before selecting \(workspace) workspace"
+            beforeNavigation.lifetime = .keepAlways
+            add(beforeNavigation)
             tab.tap()
+            let afterNavigation = XCTAttachment(string: app.debugDescription)
+            afterNavigation.name = "After selecting \(workspace) workspace"
+            afterNavigation.lifetime = .keepAlways
+            add(afterNavigation)
+            XCTAssertTrue(app.descendants(matching: .any)[destinationIdentifier].firstMatch
+                .waitForExistence(timeout: 5), "Expected the selected \(workspace) workspace")
+            if workspace == "workflows" {
+                let greeting = app.staticTexts.matching(identifier: "workflows-home-greeting").firstMatch
+                XCTAssertTrue(greeting.waitForExistence(timeout: 5),
+                              "The selected Workflows workspace must show its home content")
+                try waitForVisibleSidebarControl(greeting, in: app)
+            }
             app.buttons["sidebar-toggle"].tap()
             _ = try waitForMetric("chat-panel-open", equals: true, in: metrics)
             let close = app.buttons["\(workspace)-sidebar-close"]

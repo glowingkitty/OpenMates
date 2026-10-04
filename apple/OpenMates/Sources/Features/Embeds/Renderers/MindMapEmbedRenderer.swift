@@ -358,10 +358,8 @@ import SwiftUI
             Text(AppStrings.mindMapSource)
                 .font(.omP.weight(.bold))
                 .foregroundStyle(Color.fontPrimary)
-            Text(normalized.sourceJSON)
-                .font(.omMicro)
-                .foregroundStyle(Color.fontSecondary)
-                .textSelection(.enabled)
+            ReadOnlySelectableText(content: ReadOnlySelectableText.attributed(AttributedString(normalized.sourceJSON),
+                pointSize: 9, color: .fontSecondary), identifier: "mindmap-source-selection")
                 .frame(maxWidth: .infinity, alignment: .topLeading)
         }
         .padding(.spacing8)

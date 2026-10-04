@@ -3,6 +3,8 @@
 // Xcode MCP can launch this surface, capture screenshots, and compare it with
 // Playwright screenshots from the Svelte preview pages.
 // This file is compiled in Debug builds only.
+// Specification: specifications/features/apple-live-activities/specification.yml
+// Assertions: apple-live-activities.memories.upcoming, apple-live-activities.lifecycle.isolation
 
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/apps/web_app/src/routes/dev/preview/embeds/[app=embedApp]/+page.svelte
@@ -65,6 +67,19 @@ struct DevPreviewRootView: View {
     }
 
     @ViewBuilder
+    private var existingEmbedSharePreview: some View {
+        if ProcessInfo.processInfo.arguments.contains("--dev-workflows-widget-fixture") {
+            DevWorkflowsWidgetFixture()
+        } else if ProcessInfo.processInfo.arguments.contains("--dev-active-chats-widget-fixture") {
+            DevActiveChatsWidgetFixture()
+        } else if ProcessInfo.processInfo.arguments.contains("--dev-embed-share-settings-fixture") {
+            DevEmbedShareSettingsFixture()
+        } else {
+            DevEmbedSharePreviewView()
+        }
+    }
+
+    @ViewBuilder
     private var previewContent: some View {
         switch configuration.surface {
         case .component:
@@ -76,7 +91,15 @@ struct DevPreviewRootView: View {
         case .chatShare:
             DevChatSharePreviewView()
         case .embedShare:
-            DevEmbedSharePreviewView()
+            #if os(iOS)
+            if ProcessInfo.processInfo.arguments.contains("--dev-upcoming-memory-live-activity-fixture") {
+                DevUpcomingMemoryLiveActivityFixture()
+            } else {
+                existingEmbedSharePreview
+            }
+            #else
+            existingEmbedSharePreview
+            #endif
         case .quickCapture:
             #if os(macOS)
             MacMenuBarQuickCaptureView()
@@ -329,7 +352,7 @@ struct DevEmbedSharePreviewView: View {
     )
 
     var body: some View {
-        ShareEmbedView(context: context, onClose: {}, onGenerated: { _, _, _ in })
+        AppleSharePanel(context: context, onClose: {}, onGenerated: { _, _, _ in }, onStopSharing: nil)
             .accessibilityIdentifier("embed-share-preview")
     }
 }
@@ -369,6 +392,10 @@ struct DevEmbedPreviewGalleryView: View {
                       let skill = DevEmbedPreviewFixtures.fullscreenSkill(forRegistryKey: EmbedType.healthSearch.rawValue) {
                 DevEmbedFullscreenRouteHarness(skill: skill)
                     .padding(.spacing8)
+            } else if ProcessInfo.processInfo.arguments.contains("--dev-hosting-search-route-preview"),
+                      let request = canonicalRequest,
+                      let skill = DevEmbedPreviewFixtures.fixture(for: request) {
+                DevEmbedFullscreenRouteHarness(skill: skill)
             } else if let request = canonicalRequest {
                 canonicalSurface(request)
             } else {

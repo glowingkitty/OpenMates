@@ -1,0 +1,20 @@
+missing_attachment_content:
+  context: Chat send blocked because a fresh attachment has no complete payload to encrypt and save
+  en: An attachment is not ready to save. Please prepare it again.
+  de: Ein Anhang ist noch nicht zum Speichern bereit. Bitte bereite ihn erneut vor.
+  verified_by_human: []
+stale_attachment_reference:
+  context: Chat send blocked because a saved attachment reference belongs to an earlier account or workspace context
+  en: An attachment belongs to a previous account or workspace. Please select it again.
+  de: Ein Anhang gehört zu einem vorherigen Konto oder Arbeitsbereich. Bitte wähle ihn erneut aus.
+  verified_by_human: []
+changed_attachment_reference:
+  context: Chat send blocked because an existing attachment reference unexpectedly contains edited content
+  en: The attachment was edited. Please prepare it again before sending.
+  de: Der Anhang wurde bearbeitet. Bitte bereite ihn vor dem Senden erneut vor.
+  verified_by_human: []
+retry_context_changed:
+  context: An explicit same-message retry is blocked because its original encrypted bundle no longer matches the input or current authorized chat context
+  en: This saved send no longer matches the current chat or attachments. Reload the chat before retrying.
+  de: Dieser gespeicherte Sendeversuch passt nicht mehr zum aktuellen Chat oder zu den Anhängen. Lade den Chat vor einem erneuten Versuch neu.
+  verified_by_human: []

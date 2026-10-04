@@ -72,6 +72,42 @@ final class WorkflowsParityTests: XCTestCase {
         XCTAssertNotEqual(AppStrings.localized("workflows.builder.output_type_list"), "workflows.builder.output_type_list")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=workflows.control.typed-data,workflows.results.selective-embeds
+    func testOutputSchemaPresentationKeepsResultsAndHidesPrivateDiagnostics() {
+        let properties: [String: Any] = [
+            "results": ["type": "array"], "events": ["type": "array"],
+            "result_count": ["type": "integer"], "summary": ["type": "string"],
+            "partial": ["type": "boolean"], "provider": ["type": "string"],
+            "embed_id": ["type": "string"], "encrypted_payload": ["type": "string"],
+            "hidden": ["type": "string", "x-ui": ["hidden": true]]
+        ]
+        let fields = WorkflowOutputPresentation.fields(properties)
+        XCTAssertEqual(Set(fields.basic), ["results", "result_count"])
+        XCTAssertEqual(fields.advanced, ["provider"])
+        XCTAssertEqual(WorkflowOutputPresentation.type(["type": "array"]), "list")
+        XCTAssertEqual(WorkflowOutputPresentation.type(["type": "integer"]), "number")
+        XCTAssertEqual(WorkflowOutputPresentation.type(["type": "string", "format": "date-time"]), "date")
+        let explicit = WorkflowOutputPresentation.fields([
+            "results": ["type": "array", "x-ui": ["basic": false]],
+            "provider": ["type": "string", "x-ui": ["basic": true]]])
+        XCTAssertEqual(explicit.basic, ["provider"])
+        XCTAssertEqual(explicit.advanced, ["results"])
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=workflows.control.typed-data
+    func testOutputExamplesUseDeclaredValuesWithoutFabricatingMissingFields() throws {
+        XCTAssertNil(WorkflowOutputPresentation.example(["type": "number"]))
+        XCTAssertNil(WorkflowOutputPresentation.example(["type": "object"]))
+        XCTAssertEqual(WorkflowOutputPresentation.example(["type": "integer", "default": 6]) as? Int, 6)
+        let schema: [String: Any] = ["type": "array", "items": ["type": "object", "properties": [
+            "title": ["type": "string", "example": "Synthetic result"],
+            "missing": ["type": "string"]]]]
+        let values = try XCTUnwrap(WorkflowOutputPresentation.example(schema) as? [[String: Any]])
+        XCTAssertEqual(values.count, 1)
+        XCTAssertEqual(values.first?["title"] as? String, "Synthetic result")
+        XCTAssertNil(values.first?["missing"])
+    }
+
     private var requestInputSchema: [String: Any] {
         ["type": "object", "required": ["requests"], "properties": [
             "requests": ["type": "array", "items": ["type": "object", "required": ["query"], "properties": [

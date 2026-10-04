@@ -1,0 +1,58 @@
+schema_version: 1
+id: feature.apple-workflow-widget
+version: 1
+status: draft
+title: Apple Workflow widget
+summary: An independently configured native widget opens a current time-triggered workflow and starts an authenticated manual run.
+scope:
+  includes:
+  - Native iOS and macOS workflow widgets configured for one existing workflow with a date/time trigger.
+  - Cached encrypted selection metadata, explicit Run controls, authenticated manual execution and visible failure.
+  excludes:
+  - Workflow editing, automatic runs from widget refresh, new workflow backend APIs and credentials in shared storage.
+relationships:
+  related_specifications:
+  - feature.workflows
+assertions:
+- id: apple-workflow-widget.selection
+  type: behavior
+  must: Each widget independently selects one workflow with a schedule trigger from the current account and authorized Team's cached definitions. The widget displays that workflow's bounded title and an explicit Run action; missing or inaccessible metadata prompts Open app. Unrelated manual-only workflows are not offered as scheduled workflow choices. Refresh never executes a workflow or adds a separate network poller.
+  depends_on:
+  - examples.selection
+- id: apple-workflow-widget.run-current-scope
+  type: behavior
+  must: An explicit widget Run action uses the existing authenticated manual-run API and its readiness checks. A current complete scheduled graph may run while its automatic schedule is disabled. The containing app validates an issued bounded-expiry widget action against the current workflow, account, server and Team before execution; arbitrary, stale, missing, revoked or mismatched actions never start a run. Duplicate delivery and uncertain retries retain one idempotency key and cannot create duplicate accepted runs. Successful runs open their current workflow context; failures remain visible and retryable without claiming success or executing from a widget refresh.
+  depends_on:
+  - examples.run
+- id: apple-workflow-widget.private-cache
+  type: privacy
+  must: Only necessary workflow selection and action metadata is stored in a dedicated encrypted device-local widget snapshot protected by a device-only key available when unlocked. Shared storage never receives workflow vault keys, inputs, outputs, descriptions, credentials or plaintext titles. Titles supplied to OS-owned configuration and widget presentation are privacy sensitive. Logout and account, server or Team changes invalidate the snapshot and action identities; late writers cannot restore an older scope. Locked or missing keys and corrupt ciphertext fail closed.
+  depends_on:
+  - examples.privacy
+applies_to:
+  rest_api:
+    required: false
+  cli:
+    required: false
+  sdks:
+    required: false
+    implementations:
+      npm:
+        required: false
+      pip:
+        required: false
+  gui:
+    required: true
+    implementations:
+      web:
+        required: false
+      apple:
+        required: true
+examples:
+  file: examples.yml
+  required_groups:
+  - selection
+  - run
+  - privacy
+approval_source:
+  instruction: Direct user instruction in codex thread 01a0eeac-16cd-7ff1-941a-5d1fb4908fae on 2026-10-03 authorizes a workflow widget for manually running specific time-triggered workflows. Implementation is authorized; no separate fingerprint approval is claimed.

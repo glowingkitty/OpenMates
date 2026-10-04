@@ -9,9 +9,16 @@
 // Assertions: pii.embed.owner-local-reveal-sync, pii.surface.semantic-parity
 // Specification: specifications/features/auth/specification.yml
 // Assertions: auth.session.lifecycle, auth.session.authoritative-enforcement, auth.session.isolation
+// Specification: specifications/architecture/sync/specification.yml
+// Assertions: sync.surface.semantic-parity
 
 import CryptoKit
+import CoreFoundation
 import Foundation
+import Network
+#if os(iOS)
+import UIKit
+#endif
 #if os(macOS)
 import AppKit
 #endif
@@ -22,6 +29,9 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
 
     private var webSocketTask: URLSessionWebSocketTask?
     private var pingTimer: Timer?
+    private var socketTimings = WebSocketTimingWindow()
+    private var connectionObservation: WebSocketConnectionObservation?
+    private var observationGeneration = 0
     private let decoder = JSONDecoder()
     private var connectTask: Task<Void, Never>?
     private var reconnectTask: Task<Void, Never>?
@@ -72,6 +82,8 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
     // cancellation behavior for deterministic lifecycle tests.
     var debugConnectionAttempt: (() -> Void)?
     var debugReconnectDelay: TimeInterval?
+    var debugPingSender: ((@escaping @Sendable (Error?) -> Void) -> Void)?
+    var debugPingTimer: Timer? { pingTimer }
     #endif
 
     override init() {
@@ -103,6 +115,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         // retains this logical session's failed-handshake budget and backoff.
         // A new native session, explicit disconnect, or opened socket resets it.
         if activeConnectionKey?.sessionId != nextKey.sessionId {
+            stopConnectionObservation()
             reconnectAttempts = 0
             reconnectDelay = 1.0
         }
@@ -111,7 +124,11 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         rejectAllWaiters()
         connectionGeneration += 1
         streamEventDispatcher.reset()
-        embedStreamCoordinator?.reset()
+        if activeConnectionKey?.sessionId != nextKey.sessionId {
+            embedStreamCoordinator?.reset()
+        } else {
+            embedStreamCoordinator?.transportDisconnected()
+        }
         if activeConnectionKey?.sessionId != nextKey.sessionId {
             metadataRecoveryCoordinator?.reset()
         } else {
@@ -131,6 +148,9 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         activeConnectionKey = nextKey
         shouldReconnect = true
         connectionState = .connecting
+        socketTimings = WebSocketTimingWindow()
+        startConnectionObservationIfNeeded()
+        recordSocketEvent("socket_connecting")
 
         #if DEBUG
         if let debugConnectionAttempt {
@@ -212,6 +232,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
                 traceNativeStartupSync("phase=phasedSyncSendFailed errorType=\(type(of: error))")
             }
             guard generation == connectionGeneration else { return }
+            await embedStreamCoordinator?.transportConnected()
             await CodeRunOutputStore.shared.flushPendingUploads()
         }
     }
@@ -221,7 +242,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         rejectAllWaiters()
         connectionGeneration += 1
         streamEventDispatcher.reset()
-        embedStreamCoordinator?.reset()
+        embedStreamCoordinator?.transportDisconnected()
         // A waiter belongs to the socket/session that sent its request. Resume
         // it before a different account can establish a replacement connection.
         let disconnectedWaiters = Array(messageWaiters.values)
@@ -230,6 +251,8 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             waiter.continuation.resume(throwing: WebSocketError.notConnected)
         }
         shouldReconnect = false
+        stopConnectionObservation()
+        recordSocketEvent("socket_explicit_disconnect")
         reconnectTask?.cancel()
         reconnectTask = nil
         reconnectAttempts = 0
@@ -317,6 +340,17 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         try await sendAndWait(message, responseTypes: [responseType], timeout: timeout, matching: predicate)
     }
 
+    func sendAndWait(
+        _ message: WSOutboundMessage,
+        responseType: String,
+        timeout: Duration,
+        matching predicate: @escaping ([String: Any]) -> Bool,
+        beforeSend: @escaping @MainActor () throws -> Void
+    ) async throws -> WebSocketResponse {
+        try await sendAndWait(message, responseTypes: [responseType], timeout: timeout,
+                              matching: predicate, preSendValidation: beforeSend)
+    }
+
     var modelPreferenceSocketGeneration: Int { connectionGeneration }
     var modelPreferenceInbound: ((String, [String: Any], Int) -> Void)?
 
@@ -325,7 +359,8 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         responseTypes: Set<String>,
         timeout: Duration = .seconds(20),
         matching predicate: @escaping ([String: Any]) -> Bool,
-        beforeSend: (@MainActor () async throws -> Void)? = nil
+        beforeSend: (@MainActor () async throws -> Void)? = nil,
+        preSendValidation: (@MainActor () throws -> Void)? = nil
     ) async throws -> WebSocketResponse {
         guard let boundSocket = webSocketTask else { throw WebSocketError.notConnected }
         let expectedGeneration = connectionGeneration
@@ -336,6 +371,9 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
                 expectedGeneration: expectedGeneration, currentGeneration: self.connectionGeneration,
                 isCancelled: Task.isCancelled
             ), self.webSocketTask === boundSocket else { throw WebSocketError.notConnected }
+            // Final synchronous fence runs inside the queued sender, after all
+            // awaits and immediately before encryption payload reaches the socket.
+            try preSendValidation?()
             let data = try JSONEncoder().encode(message)
             guard let json = String(data: data, encoding: .utf8) else { throw WebSocketError.encodingFailed }
             try await boundSocket.send(.string(json))
@@ -482,7 +520,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         return await withCheckedContinuation { continuation in
             connectingTask.sendPing { error in
                 if let error {
-                    print("[WS] Open probe ping failed: \(error.localizedDescription)")
+                    Self.recordSocketFailure("socket_open_probe_failed", error: error)
                     continuation.resume(returning: false)
                 } else {
                     continuation.resume(returning: true)
@@ -495,18 +533,22 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
 
     private func receiveMessages(from receivingTask: URLSessionWebSocketTask?) {
         receivingTask?.receive { [weak self, weak receivingTask] result in
+            let callbackUptime = ProcessInfo.processInfo.systemUptime
             Task { @MainActor in
                 guard let self, let receivingTask,
                       Self.isCurrentSocket(
                           callbackTaskIdentifier: receivingTask.taskIdentifier,
                           currentTaskIdentifier: self.webSocketTask?.taskIdentifier
                       ) else { return }
+                self.socketTimings.recordCallback(at: callbackUptime, deliveredAt: ProcessInfo.processInfo.systemUptime)
                 switch result {
                 case .success(let message):
+                    let routeStart = ProcessInfo.processInfo.systemUptime
                     self.handleRawMessage(message)
+                    self.socketTimings.recordReceive(routingMilliseconds: WebSocketTimingWindow.milliseconds(since: routeStart))
                     self.receiveMessages(from: receivingTask)
                 case .failure(let error):
-                    NativeDiagnostics.failure("socket_receive_failed", category: "network", level: .warning, error: error)
+                    Self.recordSocketFailure("socket_receive_failed", error: error)
                     self.handleDisconnect()
                 }
             }
@@ -540,6 +582,24 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         resolveWaiters(type: msg.type, payload: msg.fields)
         if ["chat_model_preference", "chat_model_preference_updated", "chat_model_preference_synced"].contains(msg.type) {
             modelPreferenceInbound?(msg.type, msg.fields, connectionGeneration)
+        }
+        NativeChatActivityStore.shared.consume(type: msg.type, fields: msg.fields, scope: OfflineStore.shared.scopeGeneration)
+        if ["message_highlight_added", "message_highlight_updated", "message_highlight_removed", "message_deleted", "chat_deleted"].contains(msg.type) {
+            let scope = OfflineStore.shared.scopeGeneration, server = ServerProfile.current(), team = TeamWorkspaceContext.shared.snapshot
+            let transport = connectionGeneration
+            Task { @MainActor [weak self] in
+                guard let self, self.connectionGeneration == transport else { return }
+                await HighlightsManager.shared.receive(type: msg.type, fields: msg.fields, scope: scope, server: server, team: team)
+            }
+        }
+        if ["chat_compression_completed", "chat_compression_checkpoint_stored"].contains(msg.type) {
+            let scope = OfflineStore.shared.scopeGeneration, server = ServerProfile.current(), team = TeamWorkspaceContext.shared.snapshot
+            let transport = connectionGeneration
+            Task { @MainActor [weak self] in
+                guard let self, self.connectionGeneration == transport,
+                      let captured = await MessageHighlightRuntimeScope.capture(scope: scope, server: server, team: team) else { return }
+                await MessageCompressionCheckpointRuntime.consume(type: msg.type, fields: msg.fields, socket: self, captured: captured, transport: transport)
+            }
         }
         switch msg.type {
         // Keepalive
@@ -728,7 +788,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
               "last_opened_updated", "key_delivery_confirmed", "system_message_confirmed",
               "new_system_message", "reminder_fired", "pending_ai_response",
               "ai_response_storage_confirmed",
-              "chat_compression_started", "chat_compression_completed",
+              "chat_compression_started", "chat_compression_completed", "chat_compression_checkpoint_stored",
               "encrypted_metadata_stored", "post_processing_metadata_stored",
               "focus_mode_activated", "focus_phases_updated",
               "spawn_sub_chats", "sub_chat_confirmation_required",
@@ -751,10 +811,13 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
              "phased_sync_complete", "sync_status_response",
              "offline_sync_complete", "chat_content_batch_response",
              "code_run_outputs_sync_ready":
+            socketTimings.recordSyncEvent()
             traceNativeStartupSync("phase=syncEventReceived type=\(msg.type)")
             NotificationCenter.default.post(
                 name: .wsSyncEvent, object: nil,
-                userInfo: ["type": msg.type, "raw": raw]
+                userInfo: ["type": msg.type, "raw": raw,
+                           "accountScope": OfflineStore.shared.scopeGeneration,
+                           "transportGeneration": connectionGeneration]
             )
 
         // Embed updates
@@ -875,32 +938,107 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
 
     // MARK: - Ping timer
 
-    private func startPingTimer() {
+    private func startPingTimer(interval: TimeInterval = 25) {
         pingTimer?.invalidate()
-        pingTimer = Timer.scheduledTimer(withTimeInterval: 25, repeats: true) { [weak self] _ in
+        let generation = connectionGeneration
+        let boundSocket = webSocketTask
+        let taskIdentifier = boundSocket?.taskIdentifier
+        socketTimings.startPingSchedule(at: ProcessInfo.processInfo.systemUptime, interval: interval)
+        // Common modes preserve keepalive scheduling during scrolling/tracking.
+        // Capture the socket lifetime before the timer callback queues a MainActor hop.
+        let timer = Timer(timeInterval: interval, repeats: true) { [weak self] _ in
+            let firedUptime = ProcessInfo.processInfo.systemUptime
             Task { @MainActor [weak self] in
-                guard let self, let pingTask = self.webSocketTask else { return }
-                let taskIdentifier = pingTask.taskIdentifier
-                pingTask.sendPing { error in
-                    if let error {
-                        NativeDiagnostics.failure("socket_ping_failed", category: "network", level: .warning, error: error)
-                        Task { @MainActor [weak self] in
-                            guard let self,
-                                  Self.isCurrentSocket(
-                                      callbackTaskIdentifier: taskIdentifier,
-                                      currentTaskIdentifier: self.webSocketTask?.taskIdentifier
-                                  ) else { return }
+                guard let self,
+                      Self.shouldContinueConnectionAttempt(expectedGeneration: generation,
+                          currentGeneration: self.connectionGeneration, isCancelled: Task.isCancelled),
+                      self.webSocketTask?.taskIdentifier == taskIdentifier else { return }
+                self.socketTimings.recordCallback(at: firedUptime, deliveredAt: ProcessInfo.processInfo.systemUptime)
+                let drift = self.socketTimings.pingScheduleDrift(at: firedUptime)
+                self.recordSocketEvent("socket_ping_scheduled", extraCounts: ["schedule_drift_ms": drift])
+                let sentUptime = ProcessInfo.processInfo.systemUptime
+                let pongHandler: @Sendable (Error?) -> Void = { [weak self] error in
+                    let pongUptime = ProcessInfo.processInfo.systemUptime
+                    Task { @MainActor [weak self] in
+                        guard let self,
+                              Self.shouldContinueConnectionAttempt(expectedGeneration: generation,
+                                  currentGeneration: self.connectionGeneration, isCancelled: Task.isCancelled),
+                              self.webSocketTask?.taskIdentifier == taskIdentifier else { return }
+                        self.socketTimings.recordCallback(at: pongUptime, deliveredAt: ProcessInfo.processInfo.systemUptime)
+                        self.recordSocketEvent("socket_ping_completed", extraCounts: [
+                            "rtt_ms": WebSocketTimingWindow.milliseconds(from: sentUptime, to: pongUptime)
+                        ], flags: ["failed": error != nil])
+                        if let error {
+                            Self.recordSocketFailure("socket_ping_failed", error: error)
                             self.handleDisconnect()
                         }
                     }
                 }
+                #if DEBUG
+                if let sender = self.debugPingSender {
+                    sender(pongHandler)
+                    return
+                }
+                #endif
+                boundSocket?.sendPing(pongReceiveHandler: pongHandler)
             }
         }
+        pingTimer = timer
+        RunLoop.main.add(timer, forMode: .common)
+    }
+
+    private func recordSocketEvent(
+        _ name: String, level: NativeClientLogLevel = .info,
+        extraCounts: [String: Int] = [:], flags: [String: Bool] = [:]
+    ) {
+        var counts = socketTimings.takeWindowCounts()
+        counts["generation"] = connectionGeneration
+        counts["uptime_ms"] = WebSocketTimingWindow.milliseconds(from: 0, to: ProcessInfo.processInfo.systemUptime)
+        counts.merge(extraCounts) { _, new in new }
+        NativeDiagnostics.event(name, category: "network", level: level, flags: flags, counts: counts)
+    }
+
+    nonisolated private static func recordSocketFailure(_ name: String, error: Error) {
+        // Unknown domains are intentionally represented as zero: arbitrary NSError
+        // domains and descriptions can contain private endpoint or payload details.
+        let nsError = error as NSError
+        NativeDiagnostics.event(name, category: "network", level: .warning,
+            counts: ["error_domain_class": WebSocketTimingWindow.errorDomainClass(nsError.domain),
+                     "error_code": nsError.code])
+    }
+
+    private func startConnectionObservationIfNeeded() {
+        guard connectionObservation == nil else { return }
+        observationGeneration += 1
+        let generation = observationGeneration
+        #if os(iOS)
+        recordSocketEvent("socket_app_lifecycle", flags: ["foreground": UIApplication.shared.applicationState == .active])
+        #elseif os(macOS)
+        recordSocketEvent("socket_app_lifecycle", flags: ["foreground": NSApp.isActive])
+        #endif
+        connectionObservation = WebSocketConnectionObservation { [weak self] name, flags, counts, callbackUptime in
+            Task { @MainActor [weak self] in
+                guard let self, generation == self.observationGeneration, self.shouldReconnect else { return }
+                self.socketTimings.recordCallback(at: callbackUptime, deliveredAt: ProcessInfo.processInfo.systemUptime)
+                self.recordSocketEvent(name, extraCounts: counts, flags: flags)
+            }
+        }
+    }
+
+    private func stopConnectionObservation() {
+        observationGeneration += 1
+        connectionObservation = nil
     }
 
     // MARK: - Reconnect
 
     private func handleDisconnect(authenticationRejected: Bool = false) {
+        let syncSummary = NativeSyncDiagnosticsStore.shared.summary()
+        recordSocketEvent("socket_connection_lost", level: .warning, extraCounts: [
+            "sync_phase_count": syncSummary["phase_count"] as? Int ?? 0,
+            "sync_warning_count": syncSummary["warning_count"] as? Int ?? 0,
+            "sync_slowest_elapsed_ms": syncSummary["slowest_elapsed_ms"] as? Int ?? 0
+        ], flags: ["authentication_rejected": authenticationRejected])
         reconnectTask?.cancel()
         reconnectTask = nil
         connectTask?.cancel()
@@ -908,7 +1046,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         rejectAllWaiters()
         connectionGeneration += 1
         streamEventDispatcher.reset()
-        embedStreamCoordinator?.reset()
+        embedStreamCoordinator?.transportDisconnected()
         let reconnectGeneration = connectionGeneration
         pingTimer?.invalidate()
         pingTimer = nil
@@ -927,6 +1065,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
 
         guard currentAttempt <= maxReconnectAttempts else {
             shouldReconnect = false
+            stopConnectionObservation()
             connectionState = .disconnected
             NativeDiagnostics.event("socket_retries_exhausted", category: "network", level: .warning,
                                     counts: ["attempts": currentAttempt - 1])
@@ -974,6 +1113,10 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
     func debugFailCurrentConnection(authenticationRejected: Bool = false) {
         handleDisconnect(authenticationRejected: authenticationRejected)
     }
+    func debugStartPingTimer(interval: TimeInterval) {
+        connectionState = .connected
+        startPingTimer(interval: interval)
+    }
     var debugCurrentAuthToken: String? { authToken }
     #endif
 
@@ -998,12 +1141,15 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         webSocketTask: URLSessionWebSocketTask,
         didOpenWithProtocol protocol: String?
     ) {
+        let callbackUptime = ProcessInfo.processInfo.systemUptime
         Task { @MainActor [weak self] in
             guard let self, Self.isCurrentSocket(
                 callbackTaskIdentifier: webSocketTask.taskIdentifier,
                 currentTaskIdentifier: self.webSocketTask?.taskIdentifier
             ) else { return }
+            self.socketTimings.recordCallback(at: callbackUptime, deliveredAt: ProcessInfo.processInfo.systemUptime)
             self.didOpenCurrentSocket = true
+            self.recordSocketEvent("socket_opened")
         }
     }
 
@@ -1013,28 +1159,163 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         didCloseWith closeCode: URLSessionWebSocketTask.CloseCode,
         reason: Data?
     ) {
+        let callbackUptime = ProcessInfo.processInfo.systemUptime
         Task { @MainActor [weak self] in
             guard let self, Self.isCurrentSocket(
                 callbackTaskIdentifier: webSocketTask.taskIdentifier,
                 currentTaskIdentifier: self.webSocketTask?.taskIdentifier
             ) else { return }
-            NativeDiagnostics.event("socket_closed", category: "network", level: .warning,
-                                    counts: ["close_code": closeCode.rawValue])
+            self.socketTimings.recordCallback(at: callbackUptime, deliveredAt: ProcessInfo.processInfo.systemUptime)
+            self.recordSocketEvent("socket_closed", level: .warning, extraCounts: ["close_code": closeCode.rawValue],
+                                   flags: ["authentication_rejected": closeCode == .policyViolation])
             self.handleDisconnect(authenticationRejected: closeCode == .policyViolation)
         }
     }
 
     nonisolated func urlSession(_ session: URLSession, task: URLSessionTask,
                                 didCompleteWithError error: Error?) {
+        let callbackUptime = ProcessInfo.processInfo.systemUptime
         Task { @MainActor [weak self] in
             guard let self, Self.isCurrentSocket(callbackTaskIdentifier: task.taskIdentifier,
                 currentTaskIdentifier: self.webSocketTask?.taskIdentifier) else { return }
             let status = (task.response as? HTTPURLResponse)?.statusCode
             guard error != nil || status == 401 || status == 403 else { return }
-            NativeDiagnostics.event("socket_transport_failed", category: "network", level: .warning,
-                                    counts: ["http_status": status ?? 0])
+            self.socketTimings.recordCallback(at: callbackUptime, deliveredAt: ProcessInfo.processInfo.systemUptime)
+            self.recordSocketEvent("socket_transport_failed", level: .warning, extraCounts: ["http_status": status ?? 0],
+                                   flags: ["authentication_rejected": status == 401 || status == 403])
+            if let error { Self.recordSocketFailure("socket_transport_error", error: error) }
             self.handleDisconnect(authenticationRejected: status == 401 || status == 403)
         }
+    }
+}
+
+/// Bounded numeric aggregation: never retains an inbound payload, URL or identity.
+/// Receive samples are reported at ping/lifecycle cadence rather than per message.
+struct WebSocketTimingWindow {
+    private var nextPingUptime: TimeInterval?
+    private var pingInterval: TimeInterval = 25
+    private var callbackCount = 0
+    private var maxCallbackDelayMilliseconds = 0
+    private var receiveCount = 0
+    private var syncEventCount = 0
+    private var routingMilliseconds = 0
+
+    mutating func startPingSchedule(at uptime: TimeInterval, interval: TimeInterval) {
+        pingInterval = interval
+        nextPingUptime = uptime + interval
+    }
+
+    mutating func pingScheduleDrift(at uptime: TimeInterval) -> Int {
+        guard let expected = nextPingUptime else { return 0 }
+        let drift = Self.milliseconds(from: expected, to: uptime)
+        // Repeating Timer skips missed firings. Keep the original cadence and
+        // advance beyond now, instead of producing a burst after suspension.
+        let intervals = max(1, floor(max(0, uptime - expected) / pingInterval) + 1)
+        nextPingUptime = expected + intervals * pingInterval
+        return drift
+    }
+
+    mutating func recordCallback(at callbackUptime: TimeInterval, deliveredAt uptime: TimeInterval) {
+        callbackCount += 1
+        maxCallbackDelayMilliseconds = max(maxCallbackDelayMilliseconds,
+            Self.milliseconds(from: callbackUptime, to: uptime))
+    }
+
+    mutating func recordReceive(routingMilliseconds: Int) {
+        receiveCount += 1
+        self.routingMilliseconds += max(0, routingMilliseconds)
+    }
+
+    mutating func recordSyncEvent() { syncEventCount += 1 }
+
+    mutating func takeWindowCounts() -> [String: Int] {
+        let counts = ["callback_count": callbackCount,
+                      "callback_main_delay_max_ms": maxCallbackDelayMilliseconds,
+                      "received_count": receiveCount, "sync_event_count": syncEventCount,
+                      "receive_routing_total_ms": routingMilliseconds]
+        callbackCount = 0
+        maxCallbackDelayMilliseconds = 0
+        receiveCount = 0
+        syncEventCount = 0
+        routingMilliseconds = 0
+        return counts
+    }
+
+    static func milliseconds(since uptime: TimeInterval) -> Int {
+        milliseconds(from: uptime, to: ProcessInfo.processInfo.systemUptime)
+    }
+
+    static func milliseconds(from start: TimeInterval, to end: TimeInterval) -> Int {
+        let value = max(0, (end - start) * 1_000)
+        guard value.isFinite, value < Double(Int.max) else { return Int.max }
+        return Int(value.rounded())
+    }
+
+    static func errorDomainClass(_ domain: String) -> Int {
+        switch domain {
+        case NSURLErrorDomain: return 1
+        case NSPOSIXErrorDomain: return 2
+        case NSCocoaErrorDomain: return 3
+        case NSOSStatusErrorDomain: return 4
+        default: return 0
+        }
+    }
+}
+
+/// Owns its monitor/observer cancellation independently from retry generations.
+/// A manager generation check fences already-queued callbacks after disconnect.
+private final class WebSocketConnectionObservation: @unchecked Sendable {
+    typealias Handler = @Sendable (String, [String: Bool], [String: Int], TimeInterval) -> Void
+    private let monitor = NWPathMonitor()
+    private let pathQueue = DispatchQueue(label: "org.openmates.socket-path-diagnostics")
+    private var notificationObservers: [NSObjectProtocol] = []
+    private var previousPath: PathSnapshot?
+
+    private struct PathSnapshot: Equatable {
+        let status: Int
+        let flags: [String: Bool]
+    }
+
+    init(handler: @escaping Handler) {
+        monitor.pathUpdateHandler = { [weak self] path in
+            guard let self else { return }
+            let status: Int
+            switch path.status {
+            case .satisfied: status = 1
+            case .unsatisfied: status = 2
+            case .requiresConnection: status = 3
+            @unknown default: status = 0
+            }
+            let snapshot = PathSnapshot(status: status, flags: [
+                "satisfied": path.status == .satisfied,
+                "expensive": path.isExpensive, "constrained": path.isConstrained,
+                "wifi": path.usesInterfaceType(.wifi), "cellular": path.usesInterfaceType(.cellular),
+                "wired": path.usesInterfaceType(.wiredEthernet)
+            ])
+            // NWPathMonitor invokes this on its private serial queue.
+            guard snapshot != self.previousPath else { return }
+            self.previousPath = snapshot
+            handler("socket_network_path", snapshot.flags, ["path_status": status], ProcessInfo.processInfo.systemUptime)
+        }
+        monitor.start(queue: pathQueue)
+        #if os(iOS)
+        observe(UIApplication.didEnterBackgroundNotification, foreground: false, handler: handler)
+        observe(UIApplication.didBecomeActiveNotification, foreground: true, handler: handler)
+        #elseif os(macOS)
+        observe(NSApplication.didResignActiveNotification, foreground: false, handler: handler)
+        observe(NSApplication.didBecomeActiveNotification, foreground: true, handler: handler)
+        #endif
+    }
+
+    private func observe(_ name: Notification.Name, foreground: Bool, handler: @escaping Handler) {
+        notificationObservers.append(NotificationCenter.default.addObserver(forName: name, object: nil, queue: nil) { _ in
+            handler("socket_app_lifecycle", ["foreground": foreground], [:], ProcessInfo.processInfo.systemUptime)
+        })
+    }
+
+    deinit {
+        monitor.cancel()
+        for observer in notificationObservers { NotificationCenter.default.removeObserver(observer) }
     }
 }
 
@@ -1043,6 +1324,12 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
 /// `send_embed_data` payloads before any durable local write.
 @MainActor
 final class ChatEmbedStreamCoordinator {
+    enum HeadReceiptPolicy: Equatable {
+        case requireCanonicalDigest
+        // Current dev predates digest/source/requested-count receipts. This staged mode must
+        // never count as verification for activating the new storage guard.
+        case allowLegacyReceipt
+    }
     private let transport: ChatWebSocketTransport
     private let chatStore: ChatStore
     private let authenticatedOwnerId: () async -> String?
@@ -1050,8 +1337,16 @@ final class ChatEmbedStreamCoordinator {
     private let chatKey: (String) -> SymmetricKey?
     private let persistEmbedKeys: ([EmbedKeyRecord]) -> Void
     private let persistOwnerPII: ([PIIMapping], String, String, String, SymmetricKey) async throws -> Void
+    private let chatDeletionVersion: (String) -> Int
     private let accountScopeGeneration: () -> UUID
     private let retryDelay: (Int) -> Duration
+    private let headReceiptPolicy: HeadReceiptPolicy
+    private var transportPaused = false
+    private var preparedWrites: [String: PreparedEmbedWrite] = [:]
+    private var latestPayloadByEmbed: [String: String] = [:]
+    private var latestVersionByEmbed: [String: Int] = [:]
+    private var activeWriters = Set<String>()
+    private var writerWaiters: [String: [CheckedContinuation<Void, Never>]] = [:]
     private var generation = UUID()
     private var requestedEmbedIdsByChat: [String: Set<String>] = [:]
     private var processedPayloadKeys = Set<String>()
@@ -1075,6 +1370,8 @@ final class ChatEmbedStreamCoordinator {
             )
         },
         accountScopeGeneration: @escaping () -> UUID = { OfflineStore.shared.scopeGeneration },
+        chatDeletionVersion: @escaping (String) -> Int = { OfflineStore.shared.chatDeletionVersion($0) },
+        headReceiptPolicy: HeadReceiptPolicy = .requireCanonicalDigest,
         retryDelay: @escaping (Int) -> Duration = { attempt in
             switch attempt {
             case 1: return .milliseconds(350)
@@ -1090,8 +1387,10 @@ final class ChatEmbedStreamCoordinator {
         self.chatKey = chatKey
         self.persistEmbedKeys = persistEmbedKeys
         self.persistOwnerPII = persistOwnerPII
+        self.chatDeletionVersion = chatDeletionVersion
         self.accountScopeGeneration = accountScopeGeneration
         self.retryDelay = retryDelay
+        self.headReceiptPolicy = headReceiptPolicy
     }
 
     convenience init(transport: ChatWebSocketTransport, chatStore: ChatStore) {
@@ -1104,7 +1403,8 @@ final class ChatEmbedStreamCoordinator {
             persistEmbedKeys: { entries in
                 EmbedKeyManager.shared.store(entries, source: "liveEmbedStream")
                 OfflineStore.shared.persistEmbedKeys(entries)
-            }
+            },
+            headReceiptPolicy: .allowLegacyReceipt
         )
     }
 
@@ -1116,9 +1416,29 @@ final class ChatEmbedStreamCoordinator {
         ownerRetryTasks.removeAll()
         pendingOwnerPayloads.removeAll()
         pendingRetries.removeAll()
+        preparedWrites.removeAll()
+        latestPayloadByEmbed.removeAll()
+        latestVersionByEmbed.removeAll()
+        // Keep the writer lock until its old await returns; queued writers then
+        // recheck generation before touching the replacement account.
+        transportPaused = false
         requestedEmbedIdsByChat.removeAll()
         processedPayloadKeys.removeAll()
         inFlightPayloadKeys.removeAll()
+    }
+
+    func transportDisconnected() {
+        transportPaused = true
+        retryTasks.values.forEach { $0.cancel() }
+        ownerRetryTasks.values.forEach { $0.cancel() }
+        retryTasks.removeAll()
+        ownerRetryTasks.removeAll()
+    }
+
+    func transportConnected() async {
+        transportPaused = false
+        await retryPendingPersistence()
+        await retryPendingOwnerPersistence()
     }
 
     func beginTurn(chatId: String) {
@@ -1142,6 +1462,15 @@ final class ChatEmbedStreamCoordinator {
         guard let embedId = fields["embed_id"] as? String, !embedId.isEmpty else { return }
         let version = fields["version_number"] as? Int
         let payloadKey = version.map { "\(embedId):v\($0)" } ?? embedId
+        if let latest = latestVersionByEmbed[embedId], version == nil || version! < latest { return }
+        if let version { latestVersionByEmbed[embedId] = version }
+        if let previous = latestPayloadByEmbed[embedId], previous != payloadKey {
+            cancelRetry(previous)
+            preparedWrites.removeValue(forKey: previous)
+            pendingOwnerPayloads.removeValue(forKey: previous)
+            ownerRetryTasks.removeValue(forKey: previous)?.cancel()
+        }
+        latestPayloadByEmbed[embedId] = payloadKey
         let status = EmbedStatus(rawValue: fields["status"] as? String ?? "") ?? .finished
         let inFlightKey = "\(payloadKey):\(status.rawValue)"
         guard !processedPayloadKeys.contains(payloadKey), inFlightPayloadKeys.insert(inFlightKey).inserted else { return }
@@ -1156,7 +1485,8 @@ final class ChatEmbedStreamCoordinator {
                 expectedScope: expectedScope
             )
         }
-        guard isCurrent(expectedGeneration, expectedScope) else { return }
+        guard isCurrent(expectedGeneration, expectedScope),
+              latestPayloadByEmbed[embedId] == payloadKey else { return }
 
         do {
             if status == .processing {
@@ -1173,28 +1503,39 @@ final class ChatEmbedStreamCoordinator {
             if status == .error || status == .cancelled {
                 return
             }
-            if fields["owner_pii_mappings"] != nil {
+            if let pending = pendingOwnerPayloads[payloadKey] {
+                guard isCurrent(pending.generation, pending.scope),
+                      chatDeletionVersion(pending.chatId) == pending.deletionVersion else {
+                    throw LiveEmbedError.staleContext
+                }
+            }
+            let ownerFields = pendingOwnerPayloads[payloadKey]?.fields ?? fields
+            if ownerFields["owner_pii_mappings"] != nil {
                 try await persistOwnerMappings(
-                    fields, embedId: embedId,
+                    ownerFields, embedId: embedId,
                     expectedGeneration: expectedGeneration, expectedScope: expectedScope
                 )
             }
-            if fields["already_encrypted"] as? Bool == true {
+            guard isCurrent(expectedGeneration, expectedScope),
+                  latestPayloadByEmbed[embedId] == payloadKey else { throw LiveEmbedError.staleContext }
+            if ownerFields["already_encrypted"] as? Bool == true {
                 try storeAlreadyEncrypted(
-                    fields,
+                    ownerFields,
                     embedId: embedId,
                     expectedGeneration: expectedGeneration,
                     expectedScope: expectedScope
                 )
             } else {
                 try await encryptAndPersist(
-                    fields,
+                    ownerFields,
                     embedId: embedId,
+                    payloadKey: payloadKey,
                     expectedGeneration: expectedGeneration,
                     expectedScope: expectedScope
                 )
             }
-            guard isCurrent(expectedGeneration, expectedScope) else { return }
+            guard isCurrent(expectedGeneration, expectedScope), latestPayloadByEmbed[embedId] == payloadKey else { return }
+            preparedWrites.removeValue(forKey: payloadKey)
             cancelRetry(payloadKey)
             pendingOwnerPayloads.removeValue(forKey: payloadKey)
             ownerRetryTasks[payloadKey]?.cancel()
@@ -1202,13 +1543,14 @@ final class ChatEmbedStreamCoordinator {
             processedPayloadKeys.insert(payloadKey)
             NativeDiagnostics.event("live_embed_persisted", category: "chat_stream", counts: ["children": childIds.count])
         } catch {
-            if fields["owner_pii_mappings"] != nil,
-               isCurrent(expectedGeneration, expectedScope) {
-                scheduleOwnerRetry(fields, payloadKey: payloadKey,
+            let ownerFields = pendingOwnerPayloads[payloadKey]?.fields ?? fields
+            if ownerFields["owner_pii_mappings"] != nil,
+               isCurrent(expectedGeneration, expectedScope), latestPayloadByEmbed[embedId] == payloadKey {
+                scheduleOwnerRetry(ownerFields, payloadKey: payloadKey,
                                    expectedGeneration: expectedGeneration, expectedScope: expectedScope)
             }
             if let chatId = resolveChatId(fields["chat_id"] as? String),
-               isCurrent(expectedGeneration, expectedScope) {
+               isCurrent(expectedGeneration, expectedScope), latestPayloadByEmbed[embedId] == payloadKey {
                 scheduleRetry(
                     payloadKey: payloadKey,
                     embedId: embedId,
@@ -1234,7 +1576,7 @@ final class ChatEmbedStreamCoordinator {
               let content = fields["content"] as? String else {
             throw LiveEmbedError.invalidOwnerPIIPayload
         }
-        let deletionVersion = OfflineStore.shared.chatDeletionVersion(chatId)
+        let deletionVersion = chatDeletionVersion(chatId)
         let parsed = EmbedRecord.parseContent(content)
         let appId = fields["app_id"] as? String ?? parsed["app_id"] as? String
         let skillId = fields["skill_id"] as? String ?? parsed["skill_id"] as? String
@@ -1253,13 +1595,13 @@ final class ChatEmbedStreamCoordinator {
               fields["user_id"] as? String == ownerId,
               let key = await masterKey(ownerId),
               isCurrent(expectedGeneration, expectedScope),
-              OfflineStore.shared.chatDeletionVersion(chatId) == deletionVersion,
+              chatDeletionVersion(chatId) == deletionVersion,
               chatStore.chat(for: chatId) != nil else {
             throw LiveEmbedError.missingEncryptionContext
         }
         try await persistOwnerPII(mappings, chatId, embedId, ownerId, key)
         guard isCurrent(expectedGeneration, expectedScope),
-              OfflineStore.shared.chatDeletionVersion(chatId) == deletionVersion,
+              chatDeletionVersion(chatId) == deletionVersion,
               chatStore.chat(for: chatId) != nil else {
             throw LiveEmbedError.staleContext
         }
@@ -1290,7 +1632,7 @@ final class ChatEmbedStreamCoordinator {
             ownerRetryTasks[payloadKey] = nil
             guard let pending = pendingOwnerPayloads[payloadKey],
                   isCurrent(pending.generation, pending.scope),
-                  OfflineStore.shared.chatDeletionVersion(pending.chatId) == pending.deletionVersion else {
+                  chatDeletionVersion(pending.chatId) == pending.deletionVersion else {
                 pendingOwnerPayloads.removeValue(forKey: payloadKey)
                 continue
             }
@@ -1305,19 +1647,18 @@ final class ChatEmbedStreamCoordinator {
         let attempt = (pendingOwnerPayloads[payloadKey]?.attempt ?? 0) + 1
         guard let chatId = resolveChatId(fields["chat_id"] as? String) else { return }
         let deletionVersion = pendingOwnerPayloads[payloadKey]?.deletionVersion
-            ?? OfflineStore.shared.chatDeletionVersion(chatId)
-        guard OfflineStore.shared.chatDeletionVersion(chatId) == deletionVersion else { return }
-        guard attempt <= 60 else {
-            pendingOwnerPayloads.removeValue(forKey: payloadKey)
-            ownerRetryTasks[payloadKey]?.cancel()
-            ownerRetryTasks[payloadKey] = nil
-            return
-        }
+            ?? chatDeletionVersion(chatId)
+        guard chatDeletionVersion(chatId) == deletionVersion else { return }
         pendingOwnerPayloads[payloadKey] = PendingOwnerPayload(
             fields: fields, chatId: chatId, deletionVersion: deletionVersion, attempt: attempt,
             generation: expectedGeneration, scope: expectedScope
         )
         ownerRetryTasks[payloadKey]?.cancel()
+        ownerRetryTasks[payloadKey] = nil
+        // Exhausting automatic retries must not discard the owner-only originals
+        // or allow a mapping-less delivery to bypass the sidecar persistence gate.
+        // Reconnect/manual retry can finish the same retained payload later.
+        guard attempt <= 60, !transportPaused else { return }
         ownerRetryTasks[payloadKey] = Task { @MainActor [weak self] in
             try? await Task.sleep(for: .seconds(3))
             guard !Task.isCancelled, let self else { return }
@@ -1424,14 +1765,24 @@ final class ChatEmbedStreamCoordinator {
     private func encryptAndPersist(
         _ fields: [String: Any],
         embedId: String,
+        payloadKey: String,
         expectedGeneration: UUID,
         expectedScope: UUID
     ) async throws {
-        guard isCurrent(expectedGeneration, expectedScope) else { throw LiveEmbedError.staleContext }
-        guard let rawChatId = resolveChatId(fields["chat_id"] as? String) else {
+        await acquireWriter(embedId)
+        defer { releaseWriter(embedId) }
+        guard isCurrent(expectedGeneration, expectedScope), latestPayloadByEmbed[embedId] == payloadKey else {
+            throw LiveEmbedError.staleContext
+        }
+        if let prepared = preparedWrites[payloadKey] {
+            try await persistPrepared(prepared)
+            return
+        }
+        guard let rawChatId = resolveChatId(fields["chat_id"] as? String),
+              chatStore.chat(for: rawChatId) != nil else {
             throw LiveEmbedError.missingEncryptionContext
         }
-        let deletionVersion = OfflineStore.shared.chatDeletionVersion(rawChatId)
+        let deletionVersion = chatDeletionVersion(rawChatId)
         guard let rawMessageId = fields["message_id"] as? String,
               let content = fields["content"] as? String,
               let type = fields["type"] as? String,
@@ -1439,8 +1790,8 @@ final class ChatEmbedStreamCoordinator {
               let chatKey = chatKey(rawChatId) else {
             throw LiveEmbedError.missingEncryptionContext
         }
-        guard isCurrent(expectedGeneration, expectedScope),
-              OfflineStore.shared.chatDeletionVersion(rawChatId) == deletionVersion else {
+        guard isCurrent(expectedGeneration, expectedScope), latestPayloadByEmbed[embedId] == payloadKey,
+              chatDeletionVersion(rawChatId) == deletionVersion else {
             throw LiveEmbedError.staleContext
         }
 
@@ -1468,7 +1819,7 @@ final class ChatEmbedStreamCoordinator {
             guard let masterKey = await masterKey(ownerId) else {
                 throw LiveEmbedError.missingEncryptionContext
             }
-            guard isCurrent(expectedGeneration, expectedScope) else { throw LiveEmbedError.staleContext }
+            guard isCurrent(expectedGeneration, expectedScope), latestPayloadByEmbed[embedId] == payloadKey else { throw LiveEmbedError.staleContext }
             let hashedEmbedId = Self.sha256Hex(embedId)
             keyRecords = [
                 EmbedKeyRecord(
@@ -1484,7 +1835,7 @@ final class ChatEmbedStreamCoordinator {
                     encryptedEmbedKey: try ComposerEmbedCrypto.wrapKey(embedKey, using: chatKey)
                 ),
             ]
-            guard isCurrent(expectedGeneration, expectedScope) else { throw LiveEmbedError.staleContext }
+            guard isCurrent(expectedGeneration, expectedScope), latestPayloadByEmbed[embedId] == payloadKey else { throw LiveEmbedError.staleContext }
             persistEmbedKeys(keyRecords)
         }
 
@@ -1507,44 +1858,13 @@ final class ChatEmbedStreamCoordinator {
             contentHash: fields["content_hash"] as? String,
             createdAt: String(createdAt)
         )
-        guard isCurrent(expectedGeneration, expectedScope),
-              OfflineStore.shared.chatDeletionVersion(rawChatId) == deletionVersion else {
+        guard isCurrent(expectedGeneration, expectedScope), latestPayloadByEmbed[embedId] == payloadKey,
+              chatDeletionVersion(rawChatId) == deletionVersion else {
             throw LiveEmbedError.staleContext
         }
         chatStore.upsertEmbeds([record], for: rawChatId)
 
-        if !keyRecords.isEmpty {
-            let requestId = UUID().uuidString
-            let keyPayloads: [[String: Any]] = keyRecords.map { key in
-                [
-                    "hashed_embed_id": key.hashedEmbedId,
-                    "key_type": key.keyType,
-                    "hashed_chat_id": key.hashedChatId.map { $0 as Any } ?? NSNull(),
-                    "encrypted_embed_key": key.encryptedEmbedKey,
-                    "hashed_user_id": hashedOwnerId,
-                    "created_at": createdAt,
-                ]
-            }
-            _ = try await transport.sendAndWait(
-                WSOutboundMessage(type: "store_embed_keys", payload: [
-                    "request_id": requestId,
-                    "keys": keyPayloads,
-                ]),
-                responseType: "store_embed_keys_confirmed"
-            ) { $0["request_id"] as? String == requestId }
-            guard isCurrent(expectedGeneration, expectedScope),
-                  OfflineStore.shared.chatDeletionVersion(rawChatId) == deletionVersion else {
-                throw LiveEmbedError.staleContext
-            }
-        }
-
-        guard isCurrent(expectedGeneration, expectedScope),
-              OfflineStore.shared.chatDeletionVersion(rawChatId) == deletionVersion else {
-            throw LiveEmbedError.staleContext
-        }
-        let requestId = UUID().uuidString
         var storePayload: [String: Any] = [
-            "request_id": requestId,
             "embed_id": embedId,
             "encrypted_type": encryptedType,
             "encrypted_content": encryptedContent,
@@ -1564,11 +1884,112 @@ final class ChatEmbedStreamCoordinator {
         for key in ["version_number", "file_path", "content_hash", "text_length_chars"] {
             if let value = fields[key] { storePayload[key] = value }
         }
-        _ = try await transport.sendAndWait(
-            WSOutboundMessage(type: "store_embed", payload: storePayload),
-            responseType: "store_embed_confirmed"
-        ) { $0["request_id"] as? String == requestId }
-        guard isCurrent(expectedGeneration, expectedScope) else { throw LiveEmbedError.staleContext }
+        let keyPayloads: [[String: Any]] = keyRecords.map { key in
+            [
+                "hashed_embed_id": key.hashedEmbedId,
+                "key_type": key.keyType,
+                "hashed_chat_id": key.hashedChatId.map { $0 as Any } ?? NSNull(),
+                "encrypted_embed_key": key.encryptedEmbedKey,
+                "hashed_user_id": hashedOwnerId,
+                "created_at": createdAt,
+            ]
+        }
+        let prepared = PreparedEmbedWrite(
+            payloadKey: payloadKey, embedId: embedId, chatId: rawChatId,
+            deletionVersion: deletionVersion, generation: expectedGeneration, scope: expectedScope,
+            head: storePayload, keys: keyPayloads, digest: Self.sha256Hex(encryptedContent)
+        )
+        preparedWrites[payloadKey] = prepared
+        try await persistPrepared(prepared)
+    }
+
+    private func persistPrepared(_ prepared: PreparedEmbedWrite) async throws {
+        try validatePrepared(prepared)
+        if !prepared.headConfirmed {
+            let requestId = UUID().uuidString
+            var payload = prepared.head
+            payload["request_id"] = requestId
+            // sendAndWait registers its matching waiter before writing the socket.
+            let receipt = try await transport.sendAndWait(
+                WSOutboundMessage(type: "store_embed", payload: payload),
+                responseType: "store_embed_confirmed",
+                matching: { fields in
+                    fields["request_id"] as? String == requestId && fields["embed_id"] as? String == prepared.embedId
+                }, beforeSend: { try self.validatePrepared(prepared) }
+            )
+            try validatePrepared(prepared)
+            guard receipt.fields["request_id"] as? String == requestId,
+                  receipt.fields["embed_id"] as? String == prepared.embedId else {
+                throw LiveEmbedError.invalidHeadReceipt
+            }
+            if let digest = receipt.fields["canonical_digest"] as? String {
+                guard digest == prepared.digest else { throw LiveEmbedError.invalidHeadReceipt }
+            } else {
+                guard receipt.fields["canonical_digest"] == nil,
+                      headReceiptPolicy == .allowLegacyReceipt else { throw LiveEmbedError.invalidHeadReceipt }
+                NativeDiagnostics.event("live_embed_legacy_head_receipt", category: "chat_stream")
+            }
+            if let source = receipt.fields["canonical_source"] {
+                guard source as? String == "head" else { throw LiveEmbedError.invalidHeadReceipt }
+            } else {
+                guard headReceiptPolicy == .allowLegacyReceipt else { throw LiveEmbedError.invalidHeadReceipt }
+                NativeDiagnostics.event("live_embed_legacy_head_source_receipt", category: "chat_stream")
+            }
+            prepared.headConfirmed = true
+        }
+        try validatePrepared(prepared)
+        guard !prepared.keys.isEmpty else { return }
+        let requestId = UUID().uuidString
+        let receipt = try await transport.sendAndWait(
+            WSOutboundMessage(type: "store_embed_keys", payload: ["request_id": requestId, "keys": prepared.keys]),
+            responseType: "store_embed_keys_confirmed",
+            matching: { $0["request_id"] as? String == requestId },
+            beforeSend: { try self.validatePrepared(prepared) }
+        )
+        try validatePrepared(prepared)
+        guard receipt.fields["request_id"] as? String == requestId,
+              Self.receiptCount(receipt.fields["failed_count"]) == 0,
+              Self.receiptCount(receipt.fields["created_count"]) == prepared.keys.count else {
+            throw LiveEmbedError.invalidKeyReceipt
+        }
+        if let requestedCount = receipt.fields["requested_count"] {
+            guard Self.receiptCount(requestedCount) == prepared.keys.count else {
+                throw LiveEmbedError.invalidKeyReceipt
+            }
+        } else {
+            guard headReceiptPolicy == .allowLegacyReceipt else { throw LiveEmbedError.invalidKeyReceipt }
+            NativeDiagnostics.event("live_embed_legacy_key_count_receipt", category: "chat_stream")
+        }
+    }
+
+    private func validatePrepared(_ prepared: PreparedEmbedWrite) throws {
+        guard isCurrent(prepared.generation, prepared.scope),
+              latestPayloadByEmbed[prepared.embedId] == prepared.payloadKey,
+              chatDeletionVersion(prepared.chatId) == prepared.deletionVersion,
+              chatStore.chat(for: prepared.chatId) != nil else {
+            throw LiveEmbedError.staleContext
+        }
+    }
+
+    private static func receiptCount(_ value: Any?) -> Int? {
+        guard let number = value as? NSNumber,
+              CFGetTypeID(number) != CFBooleanGetTypeID(),
+              !["f", "d"].contains(String(cString: number.objCType)),
+              let count = value as? Int, count >= 0 else { return nil }
+        return count
+    }
+
+    private func acquireWriter(_ embedId: String) async {
+        while activeWriters.contains(embedId) {
+            await withCheckedContinuation { writerWaiters[embedId, default: []].append($0) }
+        }
+        activeWriters.insert(embedId)
+    }
+
+    private func releaseWriter(_ embedId: String) {
+        activeWriters.remove(embedId)
+        let waiters = writerWaiters.removeValue(forKey: embedId) ?? []
+        waiters.forEach { $0.resume() }
     }
 
     private func storeAlreadyEncrypted(
@@ -1629,14 +2050,8 @@ final class ChatEmbedStreamCoordinator {
         expectedGeneration: UUID,
         expectedScope: UUID
     ) {
-        guard isCurrent(expectedGeneration, expectedScope) else { return }
+        guard isCurrent(expectedGeneration, expectedScope), chatStore.chat(for: chatId) != nil else { return }
         let attempt = (pendingRetries[payloadKey]?.attempt ?? 0) + 1
-        guard attempt <= 3 else {
-            pendingRetries.removeValue(forKey: payloadKey)
-            retryTasks[payloadKey]?.cancel()
-            retryTasks[payloadKey] = nil
-            return
-        }
         pendingRetries[payloadKey] = PendingRetry(
             embedId: embedId,
             chatId: chatId,
@@ -1645,6 +2060,10 @@ final class ChatEmbedStreamCoordinator {
             scope: expectedScope
         )
         retryTasks[payloadKey]?.cancel()
+        retryTasks[payloadKey] = nil
+        // Stop automatic churn after three attempts, but retain the encrypted
+        // identity until a duplicate delivery or reconnect can finish both saves.
+        guard attempt <= 3, !transportPaused else { return }
         let delay = retryDelay(attempt)
         retryTasks[payloadKey] = Task { @MainActor [weak self] in
             try? await Task.sleep(for: delay)
@@ -1655,32 +2074,42 @@ final class ChatEmbedStreamCoordinator {
     }
 
     private func performRetry(_ payloadKey: String) async {
-        guard let retry = pendingRetries[payloadKey] else { return }
-        guard isCurrent(retry.generation, retry.scope) else {
-            pendingRetries.removeValue(forKey: payloadKey)
+        guard !transportPaused, let retry = pendingRetries[payloadKey] else { return }
+        guard isCurrent(retry.generation, retry.scope), latestPayloadByEmbed[retry.embedId] == payloadKey else {
+            cancelRetry(payloadKey)
+            preparedWrites.removeValue(forKey: payloadKey)
             return
         }
-        requestedEmbedIdsByChat[retry.chatId]?.remove(retry.embedId)
         do {
-            try await transport.send(WSOutboundMessage(
-                type: "request_embed",
-                payload: ["embed_id": retry.embedId]
-            ))
-            guard isCurrent(retry.generation, retry.scope) else {
-                pendingRetries.removeValue(forKey: payloadKey)
+            if let prepared = preparedWrites[payloadKey] {
+                await acquireWriter(retry.embedId)
+                defer { releaseWriter(retry.embedId) }
+                // Another delivery may have completed while this retry waited.
+                guard !processedPayloadKeys.contains(payloadKey) else { return }
+                try await persistPrepared(prepared)
+                cancelRetry(payloadKey)
+                preparedWrites.removeValue(forKey: payloadKey)
+                pendingOwnerPayloads.removeValue(forKey: payloadKey)
+                ownerRetryTasks.removeValue(forKey: payloadKey)?.cancel()
+                processedPayloadKeys.insert(payloadKey)
+            } else if pendingOwnerPayloads[payloadKey] == nil {
+                // Encryption context was unavailable. Re-requesting is not a
+                // save receipt: keep pending state until actual persistence.
+                requestedEmbedIdsByChat[retry.chatId]?.remove(retry.embedId)
+                try await transport.send(WSOutboundMessage(type: "request_embed", payload: ["embed_id": retry.embedId]))
+                guard isCurrent(retry.generation, retry.scope) else { return }
+                requestedEmbedIdsByChat[retry.chatId, default: []].insert(retry.embedId)
+            }
+        } catch {
+            guard isCurrent(retry.generation, retry.scope), latestPayloadByEmbed[retry.embedId] == payloadKey else { return }
+            if let prepared = preparedWrites[payloadKey],
+               chatDeletionVersion(prepared.chatId) != prepared.deletionVersion {
+                cancelRetry(payloadKey)
+                preparedWrites.removeValue(forKey: payloadKey)
                 return
             }
-            requestedEmbedIdsByChat[retry.chatId, default: []].insert(retry.embedId)
-            pendingRetries.removeValue(forKey: payloadKey)
-        } catch {
-            guard isCurrent(retry.generation, retry.scope) else { return }
-            scheduleRetry(
-                payloadKey: payloadKey,
-                embedId: retry.embedId,
-                chatId: retry.chatId,
-                expectedGeneration: retry.generation,
-                expectedScope: retry.scope
-            )
+            scheduleRetry(payloadKey: payloadKey, embedId: retry.embedId, chatId: retry.chatId,
+                          expectedGeneration: retry.generation, expectedScope: retry.scope)
         }
     }
 
@@ -1753,6 +2182,36 @@ final class ChatEmbedStreamCoordinator {
         case missingEncryptionContext
         case staleContext
         case invalidOwnerPIIPayload
+        case invalidHeadReceipt
+        case invalidKeyReceipt
+    }
+
+    // Ciphertext and wrapped-key identity are retained across socket retries;
+    // plaintext owner PII remains in its separate transient sidecar queue.
+    private final class PreparedEmbedWrite {
+        let payloadKey: String
+        let embedId: String
+        let chatId: String
+        let deletionVersion: Int
+        let generation: UUID
+        let scope: UUID
+        let head: [String: Any]
+        let keys: [[String: Any]]
+        let digest: String
+        var headConfirmed = false
+
+        init(payloadKey: String, embedId: String, chatId: String, deletionVersion: Int,
+             generation: UUID, scope: UUID, head: [String: Any], keys: [[String: Any]], digest: String) {
+            self.payloadKey = payloadKey
+            self.embedId = embedId
+            self.chatId = chatId
+            self.deletionVersion = deletionVersion
+            self.generation = generation
+            self.scope = scope
+            self.head = head
+            self.keys = keys
+            self.digest = digest
+        }
     }
 
     private struct PendingOwnerPayload {
@@ -1782,6 +2241,13 @@ protocol ChatWebSocketTransport: AnyObject {
         timeout: Duration,
         matching predicate: @escaping ([String: Any]) -> Bool
     ) async throws -> WebSocketResponse
+    func sendAndWait(
+        _ message: WSOutboundMessage,
+        responseType: String,
+        timeout: Duration,
+        matching predicate: @escaping ([String: Any]) -> Bool,
+        beforeSend: @escaping @MainActor () throws -> Void
+    ) async throws -> WebSocketResponse
     func waitForMessage(
         _ type: String,
         timeout: Duration,
@@ -1789,7 +2255,31 @@ protocol ChatWebSocketTransport: AnyObject {
     ) async throws -> WebSocketResponse
 }
 
+private enum ChatTransportFenceError: Error { case unsupported }
+
 extension ChatWebSocketTransport {
+    func sendAndWait(
+        _ message: WSOutboundMessage,
+        responseType: String,
+        timeout: Duration,
+        matching predicate: @escaping ([String: Any]) -> Bool,
+        beforeSend: @escaping @MainActor () throws -> Void
+    ) async throws -> WebSocketResponse {
+        // Never implement a fence by checking before a transport's queued send.
+        // Concrete transports must validate at their actual send boundary.
+        throw ChatTransportFenceError.unsupported
+    }
+
+    func sendAndWait(
+        _ message: WSOutboundMessage,
+        responseType: String,
+        matching predicate: @escaping ([String: Any]) -> Bool,
+        beforeSend: @escaping @MainActor () throws -> Void
+    ) async throws -> WebSocketResponse {
+        try await sendAndWait(message, responseType: responseType, timeout: .seconds(20),
+                              matching: predicate, beforeSend: beforeSend)
+    }
+
     func sendAndWait(
         _ message: WSOutboundMessage,
         responseType: String,

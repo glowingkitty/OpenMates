@@ -5,6 +5,9 @@
 # needed for ownership, filtering, scheduling, ordering, and execution.
 # test-file: backend/tests/test_user_task_activity_api.py
 
+# Specification: specifications/features/apple-offline-workspaces/specification.yml
+# Assertions: apple-workspaces.offline-complete, apple-workspaces.isolation
+
 import hashlib
 import logging
 import re
@@ -338,6 +341,8 @@ class UserTaskMethods:
         due_before: int | None = None,
         team_id: str | None = None,
         limit: int = 100,
+        paginate: bool = False,
+        cursor: str | None = None,
     ) -> list[dict[str, Any]]:
         requested_limit = max(1, min(limit, 500))
         if team_id:
@@ -354,8 +359,8 @@ class UserTaskMethods:
                 raise ValueError("Task external chat lookup hash must be a lowercase SHA-256 hex string")
         params: dict[str, Any] = {
             "fields": USER_TASK_FIELDS,
-            "sort": "position,created_at",
-            "limit": -1 if project_id else requested_limit,
+            "sort": "task_id" if paginate else "position,created_at",
+            "limit": requested_limit + 1 if paginate else (-1 if project_id else requested_limit),
         }
         if status:
             filter_terms.append({"status": {"_eq": status}})
@@ -372,14 +377,35 @@ class UserTaskMethods:
             filter_terms.append({"label_hashes": {"_contains": label_hash}})
         if due_before is not None:
             filter_terms.append({"due_at": {"_lte": due_before}})
+        if paginate and cursor is not None:
+            filter_terms.append({"task_id": {"_gt": cursor}})
         params["filter"] = {"_and": filter_terms} if len(filter_terms) > 1 else filter_terms[0]
 
-        response = await self.directus_service.get_items("user_tasks", params=params, no_cache=True)
+        response = await self.directus_service.get_items("user_tasks", params=params, no_cache=True,
+            **({"raise_on_error": True} if paginate else {}))
+        if paginate and not isinstance(response, list):
+            raise RuntimeError("Workspace inventory page did not return items")
         tasks = response if isinstance(response, list) else []
         if project_id:
             project_hash = hash_id(project_id)
             tasks = [task for task in tasks if project_hash in _coerce_hashes(task.get("linked_project_hashes"))]
-            tasks = tasks[:requested_limit]
+            if paginate:
+                batch = response if isinstance(response, list) else []
+                last_cursor = cursor
+                while len(tasks) < requested_limit + 1 and len(batch) == requested_limit + 1:
+                    next_cursor = batch[-1].get("task_id")
+                    if not isinstance(next_cursor, str) or not next_cursor or next_cursor == last_cursor:
+                        raise RuntimeError("Workspace inventory cursor did not advance")
+                    last_cursor = next_cursor
+                    params["filter"] = {"_and": [*filter_terms, {"task_id": {"_gt": next_cursor}}]}
+                    response = await self.directus_service.get_items("user_tasks", params=params, no_cache=True, raise_on_error=True)
+                    if not isinstance(response, list):
+                        raise RuntimeError("Workspace inventory page did not return items")
+                    batch = response
+                    tasks.extend(row for row in batch if project_hash in _coerce_hashes(row.get("linked_project_hashes")))
+                tasks = tasks[:requested_limit + 1]
+            else:
+                tasks = tasks[:requested_limit]
         return [_with_short_id(task) for task in tasks]
 
     async def summarize_task_metadata(self, user_id: str, team_id: str | None = None) -> dict[str, Any]:

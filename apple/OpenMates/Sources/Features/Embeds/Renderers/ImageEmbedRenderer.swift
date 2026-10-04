@@ -196,6 +196,10 @@ final class ImageOriginalDownloadController: ObservableObject {
                     self?.temporaryURL = nil
                 }
             }
+            if let popover = activity.popoverPresentationController {
+                popover.sourceView = presenter.view
+                popover.sourceRect = CGRect(x: presenter.view.bounds.midX, y: presenter.view.bounds.maxY, width: 1, height: 1)
+            }
             activityController = activity
             presenter.present(activity, animated: true)
         } catch {

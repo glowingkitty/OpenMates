@@ -49,6 +49,7 @@ struct OMSettingsInfoBox: View {
         .clipShape(RoundedRectangle(cornerRadius: 24))
         .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 4)
         .padding(.horizontal, .spacing5)
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier(identifier ?? "settings-info-box")
     }
 }

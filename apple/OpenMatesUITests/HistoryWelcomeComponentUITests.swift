@@ -6,12 +6,56 @@ import UIKit
 @MainActor
 final class HistoryWelcomeComponentUITests: XCTestCase {
     override func setUpWithError() throws { continueAfterFailure = false }
+    // contract-test: supporting surface=gui.apple assertions=chat-navigation.projects.organize,chat-navigation.projects.nested-readable
+    func testActualSidebarDragCreatesProjectAndOpensGroupedChats() {
+        let app = launchSidebar("organization")
+        let source = sidebarRow("sidebar-pinned", app: app), target = sidebarRow("sidebar-draft", app: app)
+        XCTAssertTrue(source.waitForExistence(timeout: 5)); XCTAssertTrue(target.waitForExistence(timeout: 5))
+        XCTAssertTrue(source.isHittable); XCTAssertTrue(target.isHittable)
+        source.press(forDuration: 0.7, thenDragTo: target)
+        let project = app.buttons["chat-project-root-preview-project"]
+        XCTAssertTrue(project.waitForExistence(timeout: 8), "The real transferable drop must run production Project creation and link both chats")
+        XCTAssertTrue(project.isHittable)
+        XCTAssertEqual(app.staticTexts["sidebar-fixture-action-count"].label, "0", "The production drag gesture must not invoke the non-nil action callback")
+        XCTAssertFalse(app.staticTexts["sidebar-fixture-action-chat"].exists, "Drag must leave the action overlay closed")
+        let shot = XCTAttachment(screenshot: app.screenshot()); shot.name = "Sidebar chat drag creates encrypted Project organization"; shot.lifetime = .keepAlways; add(shot)
+        XCTAssertFalse(sidebarRow("sidebar-pinned", app: app).exists, "Organized chats leave top-level history")
+        project.tap()
+        let grouped = sidebarRow("sidebar-pinned", app: app)
+        XCTAssertTrue(grouped.waitForExistence(timeout: 5)); XCTAssertTrue(grouped.isHittable)
+        grouped.tap()
+        XCTAssertTrue(app.staticTexts["sidebar-fixture-selected-id"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.staticTexts["sidebar-fixture-selected-id"].label, "sidebar-pinned")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chat-navigation.projects.organize,chats.surface.semantic-parity
+    func testStationarySidebarHoldShowsActionsAndNextTapStillSelectsChat() {
+        let app = launchSidebar("organization")
+        let row = sidebarRow("sidebar-pinned", app: app)
+        XCTAssertTrue(row.waitForExistence(timeout: 5)); XCTAssertTrue(row.isHittable)
+        row.press(forDuration: 1.1)
+        let action = app.staticTexts["sidebar-fixture-action-chat"]
+        XCTAssertTrue(action.waitForExistence(timeout: 5), "A stationary hold must still open the custom action callback")
+        XCTAssertEqual(action.label, "sidebar-pinned")
+        XCTAssertEqual(app.staticTexts["sidebar-fixture-action-count"].label, "1")
+        XCTAssertFalse(app.staticTexts["sidebar-fixture-selected-id"].exists, "The hold must not also select its Button")
+        app.buttons["sidebar-fixture-action-close"].tap()
+        let gone = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: action)
+        XCTAssertEqual(XCTWaiter.wait(for: [gone], timeout: 5), .completed)
+        XCTAssertTrue(row.isHittable); row.tap()
+        let selected = app.staticTexts["sidebar-fixture-selected-id"]
+        XCTAssertTrue(selected.waitForExistence(timeout: 5)); XCTAssertEqual(selected.label, "sidebar-pinned")
+        XCTAssertEqual(app.staticTexts["sidebar-fixture-action-count"].label, "1")
+    }
+
     // contract-test: direct surface=gui.apple assertions=chat-navigation.order.sidebar-header-match,chat-navigation.draft-only.addressable,chat-navigation.empty-new-chat.excluded,drafts.draft-only.presentation
     func testContinuationUsesProductionFilteringAndDraftCard() {
         let app = launch("welcome")
         let ids = app.staticTexts["dev-welcome-eligible-ids"]
         XCTAssertTrue(ids.waitForExistence(timeout: 5))
         XCTAssertEqual(ids.label, "fixture-resume,fixture-pinned-archived,fixture-pinned,fixture-draft")
+        XCTAssertFalse(app.descendants(matching: .any)["welcome-draft-card-fixture-pending-draft"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["welcome-draft-card-fixture-empty-preview"].exists)
         XCTAssertFalse(app.staticTexts["New Chat"].exists)
         let resume = app.descendants(matching: .any).matching(NSPredicate(format: "identifier IN %@", ["welcome-chat-card-fixture-resume", "welcome-chat-compact-card-fixture-resume"])).firstMatch
         resume.tap()
@@ -19,7 +63,10 @@ final class HistoryWelcomeComponentUITests: XCTestCase {
         let carousel = app.scrollViews["welcome-chat-cards-carousel"]
         carousel.swipeLeft(); carousel.swipeLeft()
         let draft = app.descendants(matching: .any)["welcome-draft-card-fixture-draft"].firstMatch
-        XCTAssertTrue(draft.waitForExistence(timeout: 3)); draft.tap()
+        XCTAssertTrue(draft.waitForExistence(timeout: 3))
+        XCTAssertEqual(draft.label, "Draft: Before [Audio] after [Image] describe it",
+                       "The production continuation carousel must display readable media labels and surrounding text")
+        draft.tap()
         XCTAssertTrue((app.descendants(matching: .any)["dev-preview-local-action"].firstMatch.label).contains("open:fixture-draft"))
     }
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
@@ -131,6 +178,14 @@ final class HistoryWelcomeComponentUITests: XCTestCase {
         XCTAssertTrue(result.waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons.matching(identifier: "search-message-snippet").firstMatch.exists,
             "The same production engine must find message text from the detached store")
+        // Replace a completed query through the real field. A cancelled matcher
+        // must not republish the prior transcript while the new query settles.
+        let missing = "unmatched"
+        replaceSearchQuery(input, with: missing, in: app)
+        XCTAssertTrue(app.staticTexts["search-no-results"].waitForExistence(timeout: 5))
+        XCTAssertFalse(result.exists)
+        replaceSearchQuery(input, with: "telescope", in: app)
+        XCTAssertTrue(result.waitForExistence(timeout: 5))
         result.tap()
         let selectedID = app.staticTexts["sidebar-fixture-selected-id"]
         XCTAssertTrue(selectedID.waitForExistence(timeout: 5)); XCTAssertEqual(selectedID.label, "sidebar-pinned")
@@ -138,6 +193,31 @@ final class HistoryWelcomeComponentUITests: XCTestCase {
         app.buttons["sidebar-fixture-reopen"].tap()
         XCTAssertTrue(app.buttons["search-button"].waitForExistence(timeout: 5))
         XCTAssertFalse(input.exists, "Selection closes the actual search state before reopening the sidebar")
+    }
+
+    private func replaceSearchQuery(_ input: XCUIElement, with query: String, in app: XCUIApplication) {
+        guard let existing = input.value as? String, existing != input.placeholderValue else {
+            XCTFail("A real existing search query is required for replacement")
+            return
+        }
+        XCTAssertLessThanOrEqual(existing.count, 12, "Keep the query fully visible for deterministic native caret placement")
+        // Both synthetic queries fit completely in the field. A tap beyond
+        // their rendered text places the native caret at the end.
+        input.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5)).tap()
+        input.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: existing.count))
+        let cleared = input.value as? String
+        guard let cleared, cleared.isEmpty || cleared == input.placeholderValue else {
+            let state = XCTAttachment(string: app.debugDescription)
+            state.name = "search-native-delete-did-not-clear-field"; state.lifetime = .keepAlways; add(state)
+            let screenshot = XCTAttachment(screenshot: app.screenshot())
+            screenshot.name = "search-native-delete-partial-query"; screenshot.lifetime = .keepAlways; add(screenshot)
+            XCTFail("Native deletion must empty the complete query before replacement")
+            return
+        }
+        input.typeText(query)
+        XCTAssertEqual(input.value as? String, query,
+            "Check the actual field value before evaluating search results")
+        input.typeText("\n")
     }
 
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity

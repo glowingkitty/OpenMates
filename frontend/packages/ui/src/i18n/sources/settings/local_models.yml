@@ -5,8 +5,8 @@ title:
   verified_by_human: []
 description:
   context: Apple-only local model lab description
-  en: "Optional on-device experiments. Download models once, then test without a network connection. No credits are charged."
-  de: "Optionale Tests auf diesem Gerät. Modelle einmal herunterladen, dann ohne Netzwerk testen. Es werden keine Credits berechnet."
+  en: "Optional on-device experiments. Use installed system voices or download models once, then test without a network connection. No credits are charged."
+  de: "Optionale Tests auf diesem Gerät. Installierte Systemstimmen verwenden oder Modelle einmal herunterladen, dann ohne Netzwerk testen. Es werden keine Credits berechnet."
   verified_by_human: []
 toggle:
   context: Apple-only local model lab toggle
@@ -68,11 +68,6 @@ audio_ready:
   en: "Audio ready: {seconds} seconds"
   de: "Audio bereit: {seconds} Sekunden"
   verified_by_human: []
-speech_input:
-  context: Apple-only local model lab speech input
-  en: "English text to speak"
-  de: "Englischer Text für Sprachausgabe"
-  verified_by_human: []
 privacy_input:
   context: Apple-only local model lab privacy input
   en: "Text to inspect for personal data"
@@ -82,16 +77,6 @@ input_placeholder:
   context: Apple-only local model lab input placeholder
   en: "Enter disposable test text"
   de: "Temporären Testtext eingeben"
-  verified_by_human: []
-play:
-  context: Apple-only local model lab play
-  en: "Play generated speech"
-  de: "Erzeugte Sprache abspielen"
-  verified_by_human: []
-stop_playback:
-  context: Apple-only local model lab stop playback
-  en: "Stop playback"
-  de: "Wiedergabe stoppen"
   verified_by_human: []
 running:
   context: Apple-only local model lab running
@@ -178,11 +163,6 @@ whisper:
   en: "WhisperKit large-v3 turbo · speech to text"
   de: "WhisperKit large-v3 turbo · Sprache zu Text"
   verified_by_human: []
-kokoro:
-  context: Apple-only local model lab kokoro
-  en: "Kokoro · English text to speech"
-  de: "Kokoro · englische Sprachausgabe"
-  verified_by_human: []
 privacy_filter:
   context: Apple-only local model lab privacy filter
   en: "OpenAI Privacy Filter · personal data"
@@ -203,11 +183,6 @@ revision:
   en: "Revision"
   de: "Revision"
   verified_by_human: []
-waveform:
-  context: Apple-only local model lab waveform
-  en: "Generated audio waveform"
-  de: "Wellenform der erzeugten Audiodatei"
-  verified_by_human: []
 cancelled:
   context: Local model lab cancelled download status
   en: Download cancelled
@@ -218,29 +193,147 @@ not_enough_space:
   en: Not enough free storage for this model
   de: Nicht genug freier Speicher für dieses Modell
   verified_by_human: []
-kokoro_os_error:
-  context: Kokoro upstream native runtime crashes on iOS and macOS 27, so the test is blocked
-  en: Kokoro is currently unavailable on iOS and macOS 27 or later because its upstream runtime can crash. Try another model or an earlier supported OS.
-  de: Kokoro ist unter iOS und macOS 27 oder neuer derzeit nicht verfügbar, da die zugrunde liegende Laufzeit abstürzen kann. Ein anderes Modell oder eine frühere unterstützte Betriebssystemversion verwenden.
-  verified_by_human: []
 peak_memory:
-  context: Whole app lifetime peak resident memory, not isolated model memory
-  en: App peak resident memory
-  de: Maximaler residenter App-Speicher
+  context: Maximum sampled whole-app resident memory during this test, not isolated model memory
+  en: Sampled app peak memory during test
+  de: Gemessener maximaler App-Speicher im Test
   verified_by_human: []
-verifying:
-  context: Offline integrity verification of previously installed local model files
-  en: Verifying installed files locally…
-  de: Installierte Dateien werden lokal geprüft …
-  verified_by_human: []
-kokoro_input_limits:
-  context: Experimental English speech frontend limitation; not the full upstream normalization pipeline
-  en: Use short, simple English text. Spell out decimals, currency amounts and times in words. Unsupported formats and foreign characters are rejected. This lab does not include the full upstream text normalization pipeline.
-  de: Kurzen, einfachen englischen Text verwenden. Dezimalzahlen, Geldbeträge und Uhrzeiten in Worten ausschreiben. Nicht unterstützte Formate und fremdsprachige Zeichen werden abgelehnt. Dieses Labor enthält nicht die vollständige Textnormalisierung des Ursprungsprojekts.
-  verified_by_human: []
-
 architecture_unavailable:
   context: The optional lab runtimes require arm64 iPhone, iPad or Mac and exclude Intel and Watch
   en: "These local models require an iPhone, iPad or Apple silicon Mac. Intel Macs and Apple Watch are unsupported; downloads and tests are disabled."
   de: "Diese lokalen Modelle benötigen ein iPhone, iPad oder einen Mac mit Apple-Chip. Intel-Macs und Apple Watch werden nicht unterstützt; Downloads und Tests sind deaktiviert."
+  verified_by_human: []
+
+phase_submission:
+  context: Apple-only local lab installed system speech or operation stage
+  en: "Preparing local test…"
+  de: "Lokaler Test wird vorbereitet …"
+  verified_by_human: []
+
+phase_tokenizer:
+  context: Apple-only local lab installed system speech or operation stage
+  en: "Preparing tokenizer…"
+  de: "Tokenizer wird vorbereitet …"
+  verified_by_human: []
+
+phase_model_loading:
+  context: Apple-only local lab installed system speech or operation stage
+  en: "Loading model…"
+  de: "Modell wird geladen …"
+  verified_by_human: []
+
+phase_transcription:
+  context: Apple-only local lab installed system speech or operation stage
+  en: "Transcribing audio…"
+  de: "Audio wird transkribiert …"
+  verified_by_human: []
+
+phase_cleanup:
+  context: Apple-only local lab installed system speech or operation stage
+  en: "Unloading resources…"
+  de: "Ressourcen werden entladen …"
+  verified_by_human: []
+
+phase_completion:
+  context: Apple-only local lab installed system speech or operation stage
+  en: "Local test completed"
+  de: "Lokaler Test abgeschlossen"
+  verified_by_human: []
+
+phase_warning:
+  context: Apple-only local lab installed system speech or operation stage
+  en: "This stage is taking longer than expected. You can cancel; native cleanup may take time."
+  de: "Dieser Schritt dauert länger als erwartet. Abbrechen ist möglich; das native Aufräumen kann dauern."
+  verified_by_human: []
+
+phase_duration:
+  context: Apple-only local lab installed system speech or operation stage
+  en: "{phase}: {seconds} s"
+  de: "{phase}: {seconds} s"
+  verified_by_human: []
+
+verifying_progress:
+  context: Apple-only local lab installed system speech or operation stage
+  en: "Verifying downloaded files {percent}%"
+  de: "Heruntergeladene Dateien werden überprüft: {percent}%"
+  verified_by_human: []
+
+baseline_memory:
+  context: Apple-only local lab installed system speech or operation stage
+  en: "Memory before test"
+  de: "Speicher vor dem Test"
+  verified_by_human: []
+
+end_memory:
+  context: Apple-only local lab installed system speech or operation stage
+  en: "Memory after unloading"
+  de: "Speicher nach dem Entladen"
+  verified_by_human: []
+
+phase_inference:
+  context: Apple-only local lab operation or interrupted transfer stage
+  en: "Detecting personal data…"
+  de: "Personenbezogene Daten werden erkannt …"
+  verified_by_human: []
+
+waiting_for_connection:
+  context: Apple-only local lab operation or interrupted transfer stage
+  en: "Waiting for connection · {percent}% downloaded. You can cancel."
+  de: "Warten auf Verbindung · {percent}% heruntergeladen. Abbrechen ist möglich."
+  verified_by_human: []
+
+retrying_download:
+  context: Apple-only local lab operation or interrupted transfer stage
+  en: "Retrying interrupted download · {percent}% downloaded"
+  de: "Unterbrochener Download wird erneut versucht · {percent}% heruntergeladen"
+  verified_by_human: []
+pocket_tts:
+  context: Native Pocket TTS developer lab
+  en: "Pocket TTS · English"
+  de: "Pocket TTS · Englisch"
+  verified_by_human: []
+pocket_description:
+  context: Native Pocket TTS developer lab
+  en: "Developer test: English speech with the Alba voice, entirely on this device after download. Chat speech stays unchanged. Multilingual models are not supported by this runtime."
+  de: "Entwicklertest: Englische Sprache mit Alba, nach dem Download vollständig auf diesem Gerät. Die Sprachausgabe im Chat bleibt unverändert. Mehrsprachige Modelle werden von dieser Laufzeit nicht unterstützt."
+  verified_by_human: []
+pocket_voice:
+  context: Native Pocket TTS developer lab
+  en: "Voice"
+  de: "Stimme"
+  verified_by_human: []
+pocket_attribution:
+  context: Native Pocket TTS developer lab
+  en: "Alba MacKenna voice attribution and license"
+  de: "Alba MacKenna: Quellenangabe und Lizenz"
+  verified_by_human: []
+pocket_input:
+  context: Native Pocket TTS developer lab
+  en: "Text to speak"
+  de: "Text für Sprachausgabe"
+  verified_by_human: []
+pocket_input_limit:
+  context: Native Pocket TTS developer lab
+  en: "Up to 600 UTF-8 bytes and 4 short sentences. Each sentence is limited to 160 bytes and 64 model tokens. Longer input is rejected."
+  de: "Bis zu 600 UTF-8-Bytes und 4 kurze Sätze. Jeder Satz ist auf 160 Bytes und 64 Modell-Tokens begrenzt. Längere Eingaben werden abgelehnt."
+  verified_by_human: []
+pocket_synthesis:
+  context: Native Pocket TTS developer lab
+  en: "Generating speech on this device…"
+  de: "Sprache wird auf diesem Gerät erzeugt…"
+  verified_by_human: []
+pocket_cancelling:
+  context: Native Pocket TTS developer lab
+  en: "Cancelling after the current sentence finishes and the model unloads…"
+  de: "Abbruch nach Abschluss des aktuellen Satzes und Entladen des Modells…"
+  verified_by_human: []
+pocket_play:
+  context: Native Pocket TTS developer lab
+  en: "Play generated audio"
+  de: "Erzeugtes Audio abspielen"
+  verified_by_human: []
+pocket_stop:
+  context: Native Pocket TTS developer lab
+  en: "Stop audio"
+  de: "Audio stoppen"
   verified_by_human: []

@@ -1,4 +1,5 @@
-// Native-only experimental local model page; production providers are unchanged.
+// Local model diagnostics with optional explicit Privacy scope.
+// Developers exposes only experimental audio models; Privacy owns PII assets.
 // ─── Web source ─────────────────────────────────────────────────────
 // Native-only page, composed from existing canonical settings elements.
 // Svelte: frontend/packages/ui/src/components/settings/elements/SettingsInfoBox.svelte
@@ -7,20 +8,37 @@
 //         frontend/packages/ui/src/components/settings/elements/SettingsTextarea.svelte
 //         frontend/packages/ui/src/components/settings/elements/SettingsButton.svelte
 // Tokens: ColorTokens.generated.swift, SpacingTokens.generated.swift, TypographyTokens.generated.swift
+// Specification: specifications/features/apple-local-model-lab/specification.yml
+// Specification: specifications/features/pii-protection/specification.yml
+// Assertions: pii.apple.enhanced-local-detection, apple-local-model-lab.optional-downloads, apple-local-model-lab.local-execution, apple-local-model-lab.availability, apple-local-model-lab.ephemeral-state
 // ────────────────────────────────────────────────────────────────────
 
 import SwiftUI
 import UniformTypeIdentifiers
 
 struct SettingsLocalModelsView: View {
+    #if DEBUG
+    @ObservedObject private var activityCoordinator = LocalModelLiveActivityCoordinator.shared
+    #endif
     @ObservedObject private var store: LocalModelStore
     @StateObject private var controller: LocalModelLabController
+    @StateObject private var pocket: PocketTTSLabController
+    @Environment(\.scenePhase) private var scenePhase
     @AppStorage("lab-use-local-models") private var useLocalModels = false
     @State private var importingAudio = false
     @State private var pageActive = false
+    @State private var observedTransferIDs: Set<LocalModelID> = []
+    let modelIDs: [LocalModelID]
+    let privacyDiagnosticMode: Bool
 
-    init(store: LocalModelStore = .shared) {
+    var diagnosticEnabled: Bool { privacyDiagnosticMode || useLocalModels }
+
+    init(store: LocalModelStore = .shared, modelIDs: [LocalModelID]? = nil, privacyDiagnosticMode: Bool = false) {
+        self.modelIDs = modelIDs ?? LocalModelID.allCases.filter { $0 != .privacyFilter }
+        self.privacyDiagnosticMode = privacyDiagnosticMode
         self.store = store
+        _pocket = StateObject(wrappedValue: store === LocalModelStore.shared
+            ? PocketTTSLabController.shared : PocketTTSLabController(store: store))
         _controller = StateObject(wrappedValue: store === LocalModelStore.shared
             ? LocalModelLabController.shared : LocalModelLabController(store: store))
     }
@@ -28,19 +46,35 @@ struct SettingsLocalModelsView: View {
     var body: some View {
         OMSettingsPage(title: AppStrings.localLabTitle, showsHeader: false,
                        scrollAccessibilityIdentifier: "local-model-lab-scroll") {
-            OMSettingsInfoBox(title: AppStrings.localLabTitle, message: AppStrings.localLabDescription, identifier: "local-model-lab-local-only")
-            OMSettingsSection {
-                OMSettingsToggleRow(title: AppStrings.localLabToggle, isOn: $useLocalModels)
-                    .accessibilityIdentifier("local-model-lab-toggle")
-                Text(AppStrings.localLabScope)
-                    .font(.omSmall).foregroundStyle(Color.fontSecondary).padding(.spacing6)
-                    .accessibilityIdentifier("local-model-lab-production-scope")
+            OMSettingsInfoBox(
+                title: privacyDiagnosticMode ? AppStrings.enhancedPIIModelDiagnosticTitle : AppStrings.localLabTitle,
+                message: privacyDiagnosticMode ? AppStrings.enhancedPIIModelDiagnosticDescription : AppStrings.localLabDescription,
+                identifier: privacyDiagnosticMode ? "privacy-model-diagnostic-scope" : "local-model-lab-local-only")
+            if !privacyDiagnosticMode {
+                OMSettingsSection {
+                    OMSettingsToggleRow(title: AppStrings.localLabToggle, isOn: $useLocalModels)
+                        .accessibilityIdentifier("local-model-lab-toggle")
+                    Text(AppStrings.localLabScope)
+                        .font(.omSmall).foregroundStyle(Color.fontSecondary).padding(.spacing6)
+                        .accessibilityIdentifier("local-model-lab-production-scope")
+                }
             }
             if let error = store.catalogError {
                 OMSettingsInfoBox(kind: .warning, message: error, identifier: "local-model-lab-catalog-error")
             }
-            ForEach(LocalModelID.allCases) { id in
+            ForEach(modelIDs) { id in
                 modelCard(id)
+            }
+            if privacyDiagnosticMode {
+                // Keep an existing asset transfer cancellable while diagnosing PII.
+                ForEach(LocalModelID.allCases.filter { observedTransferIDs.contains($0) }) { id in
+                    if isDownloadActive(id) {
+                        installControls(id)
+                    } else {
+                        Text(store.state(for: id) == .ready ? AppStrings.localLabReady : AppStrings.localLabNotDownloaded)
+                            .font(.omSmall).accessibilityIdentifier("local-model-\(id.rawValue)-status")
+                    }
+                }
             }
             if let error = controller.errorMessage {
                 OMSettingsInfoBox(kind: .warning, message: error, identifier: "local-model-lab-error")
@@ -49,13 +83,26 @@ struct SettingsLocalModelsView: View {
             Text(controller.environmentCopy).font(.omSmall).foregroundStyle(Color.fontSecondary)
                 .padding(.spacing6).accessibilityIdentifier("local-model-lab-device")
         }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("settings-local-models-page")
         .fileImporter(isPresented: $importingAudio, allowedContentTypes: [.audio]) { result in
             if pageActive, case .success(let url) = result { controller.importAudio(url) }
         }
-        .onChange(of: useLocalModels) { _, enabled in if !enabled { controller.leave() } }
+        .onChange(of: useLocalModels) { _, enabled in if !privacyDiagnosticMode && !enabled { controller.leave(); pocket.leave() } }
+        .task { await store.prepareForLab() }
+        .onReceive(store.$states) { states in
+            guard privacyDiagnosticMode else { return }
+            for id in LocalModelID.allCases where !modelIDs.contains(id) {
+                switch states[id] {
+                case .downloading, .waitingForConnection, .retrying, .verifying:
+                    observedTransferIDs.insert(id)
+                default: break
+                }
+            }
+        }
         .onAppear { pageActive = true }
-        .onDisappear { pageActive = false; controller.leave() }
+        .onDisappear { pageActive = false; controller.leave(); pocket.leave() }
+        .onChange(of: scenePhase) { _, phase in if phase == .background { pocket.leave() } }
     }
 
     @ViewBuilder private func modelCard(_ id: LocalModelID) -> some View {
@@ -67,25 +114,39 @@ struct SettingsLocalModelsView: View {
                             value: ByteCountFormatter.string(fromByteCount: manifest.estimatedSizeBytes, countStyle: .file))
                         OMSettingsDetailRow(label: AppStrings.localLabRevision, value: manifest.revision)
                     }
-                    if let reason = controller.unavailableReason(for: id) {
+                    if let reason = unavailableReason(id) {
                         OMSettingsInfoBox(kind: .warning, message: reason,
                             identifier: "local-model-\(id.rawValue)-unavailable")
                     }
                     installControls(id)
-                    if id == .kokoro {
-                        OMSettingsInfoBox(kind: .warning, message: AppStrings.localLabKokoroInputLimits,
-                            identifier: "local-model-lab-kokoro-input-limits")
+                    #if DEBUG
+                    if ProcessInfo.processInfo.arguments.contains("--ui-test-local-lab-live-activity") {
+                        Text(activityCoordinator.diagnosticReceipt).font(.omSmall)
+                            .accessibilityIdentifier("local-model-\(id.rawValue)-live-activity-receipt")
+                    }
+                    #endif
+                    if id == .pocketTTS {
+                        Text(AppStrings.localLabPocketDescription).font(.omSmall).foregroundStyle(Color.fontSecondary)
+                            .accessibilityIdentifier("pocket-tts-availability-scope")
                     }
                     if case .ready = store.state(for: id) {
+                        if id == .pocketTTS {
+                            PocketTTSLabView(controller: pocket, enabled: diagnosticEnabled && !controller.busy)
+                        } else {
                         inputControls(id)
-                        Button(AppStrings.localLabRun) { controller.run(id, enabled: useLocalModels) }
+                        Button(AppStrings.localLabRun) { pocket.stopPlayback(); controller.run(id, enabled: diagnosticEnabled) }
                             .buttonStyle(OMSettingsButtonStyle())
                             .disabled(!canRun(id))
                             .accessibilityIdentifier("local-model-\(id.rawValue)-run")
+                        }
                     }
                     if controller.runningModel == id {
-                        Text(controller.cancelling ? AppStrings.localLabCancelling : AppStrings.localLabRunning)
+                        Text(controller.cancelling ? AppStrings.localLabCancelling : controller.phase.map(phaseCopy) ?? AppStrings.localLabRunning)
                             .font(.omSmall).accessibilityIdentifier("local-model-lab-running")
+                        if controller.phaseWarning {
+                            OMSettingsInfoBox(kind: .warning, message: AppStrings.localLabPhaseWarning,
+                                identifier: "local-model-lab-phase-warning")
+                        }
                         Button(AppStrings.cancel) { controller.cancel() }
                             .buttonStyle(OMSettingsButtonStyle(secondary: true))
                             .disabled(controller.cancelling)
@@ -95,6 +156,7 @@ struct SettingsLocalModelsView: View {
                 }
             }
         }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("local-model-\(id.rawValue)-card")
     }
 
@@ -105,17 +167,38 @@ struct SettingsLocalModelsView: View {
                 .accessibilityIdentifier("local-model-\(id.rawValue)-status")
             downloadButton(id, title: AppStrings.localLabDownload)
         case .downloading(let progress):
-            Text(progress >= 1 ? AppStrings.localLabVerifying : AppStrings.localLabDownloading(percent: Int(max(0, min(1, progress)) * 100))).font(.omSmall)
+            Text(AppStrings.localLabDownloading(percent: percent(progress))).font(.omSmall)
                 .accessibilityIdentifier("local-model-\(id.rawValue)-status")
             ProgressView(value: progress).tint(Color.buttonPrimary)
             Button(AppStrings.cancel) { store.cancel(id) }
-                .buttonStyle(OMSettingsButtonStyle(secondary: true)).disabled(controller.busy)
+                .buttonStyle(OMSettingsButtonStyle(secondary: true))
+                .accessibilityIdentifier("local-model-\(id.rawValue)-cancel-download")
+        case .waitingForConnection(let progress):
+            Text(AppStrings.localLabWaitingForConnection(percent: percent(progress))).font(.omSmall)
+                .accessibilityIdentifier("local-model-\(id.rawValue)-status")
+            ProgressView(value: progress).tint(Color.buttonPrimary)
+            Button(AppStrings.cancel) { store.cancel(id) }
+                .buttonStyle(OMSettingsButtonStyle(secondary: true))
+                .accessibilityIdentifier("local-model-\(id.rawValue)-cancel-download")
+        case .retrying(let progress):
+            Text(AppStrings.localLabRetrying(percent: percent(progress))).font(.omSmall)
+                .accessibilityIdentifier("local-model-\(id.rawValue)-status")
+            ProgressView(value: progress).tint(Color.buttonPrimary)
+            Button(AppStrings.cancel) { store.cancel(id) }
+                .buttonStyle(OMSettingsButtonStyle(secondary: true))
+                .accessibilityIdentifier("local-model-\(id.rawValue)-cancel-download")
+        case .verifying(let progress):
+            Text(AppStrings.localLabVerifyingProgress(percent: percent(progress))).font(.omSmall)
+                .accessibilityIdentifier("local-model-\(id.rawValue)-status")
+            ProgressView(value: progress).tint(Color.buttonPrimary)
+            Button(AppStrings.cancel) { store.cancel(id) }
+                .buttonStyle(OMSettingsButtonStyle(secondary: true))
                 .accessibilityIdentifier("local-model-\(id.rawValue)-cancel-download")
         case .ready:
             Text(AppStrings.localLabReady).font(.omSmall).foregroundStyle(Color.fontSecondary)
                 .accessibilityIdentifier("local-model-\(id.rawValue)-status")
             Button(AppStrings.remove) { Task { await store.remove(id) } }
-                .buttonStyle(OMSettingsButtonStyle(secondary: true)).disabled(controller.busy)
+                .buttonStyle(OMSettingsButtonStyle(secondary: true)).disabled(controller.busy || pocket.busy)
                 .accessibilityIdentifier("local-model-\(id.rawValue)-remove")
         case .failed(let message):
             Text(message).font(.omSmall).foregroundStyle(Color.fontSecondary)
@@ -125,7 +208,7 @@ struct SettingsLocalModelsView: View {
     }
     private func downloadButton(_ id: LocalModelID, title: String) -> some View {
         Button(title) { Task { await store.download(id) } }
-            .buttonStyle(OMSettingsButtonStyle(secondary: true)).disabled(controller.busy || store.manifest(for: id) == nil || controller.unavailableReason(for: id) != nil)
+            .buttonStyle(OMSettingsButtonStyle(secondary: true)).disabled(controller.busy || pocket.busy || store.manifest(for: id) == nil || unavailableReason(id) != nil)
             .accessibilityIdentifier("local-model-\(id.rawValue)-download")
     }
 
@@ -133,27 +216,24 @@ struct SettingsLocalModelsView: View {
         switch id {
         case .whisper:
             Button(AppStrings.localLabImportAudio) { importingAudio = true }
-                .buttonStyle(OMSettingsButtonStyle(secondary: true)).disabled(controller.busy || !useLocalModels)
+                .buttonStyle(OMSettingsButtonStyle(secondary: true)).disabled(controller.busy || pocket.busy || !diagnosticEnabled)
                 .accessibilityIdentifier("local-model-lab-import-audio")
             Button(controller.isRecording ? AppStrings.localLabStopRecording : AppStrings.localLabRecord) {
                 if controller.isRecording { controller.stopRecording() }
-                else { Task { await controller.startRecording() } }
+                else { pocket.stopPlayback(); Task { await controller.startRecording() } }
             }
             .buttonStyle(OMSettingsButtonStyle(secondary: true))
-            .disabled(controller.runningModel != nil || !useLocalModels)
+            .disabled(controller.runningModel != nil || pocket.busy || !diagnosticEnabled)
             .accessibilityIdentifier("local-model-lab-record")
             if let seconds = controller.audioDuration {
                 Text(AppStrings.localLabAudioReady(seconds: String(format: "%.1f", seconds)))
                     .font(.omSmall).accessibilityIdentifier("local-model-lab-audio-ready")
             }
-        case .kokoro:
-            OMSettingsTextInput(label: AppStrings.localLabSpeechInput, placeholder: AppStrings.localLabInputPlaceholder,
-                value: $controller.speechText, identifier: "local-model-lab-speech-input", multiline: true)
-                .disabled(controller.busy || !useLocalModels)
+        case .pocketTTS: EmptyView() // Dedicated synthesis input above.
         case .privacyFilter:
             OMSettingsTextInput(label: AppStrings.localLabPrivacyInput, placeholder: AppStrings.localLabInputPlaceholder,
                 value: $controller.privacyText, identifier: "local-model-lab-privacy-input", multiline: true)
-                .disabled(controller.busy || !useLocalModels)
+                .disabled(controller.busy || pocket.busy || !diagnosticEnabled)
         }
     }
 
@@ -166,20 +246,24 @@ struct SettingsLocalModelsView: View {
             OMSettingsDetailRow(label: AppStrings.localLabPeakMemory,
                 value: ByteCountFormatter.string(fromByteCount: memory, countStyle: .memory))
         }
+        if let memory = controller.baselineResidentBytes {
+            OMSettingsDetailRow(label: AppStrings.localLabBaselineMemory,
+                value: ByteCountFormatter.string(fromByteCount: memory, countStyle: .memory))
+        }
+        if let memory = controller.endResidentBytes {
+            OMSettingsDetailRow(label: AppStrings.localLabEndMemory,
+                value: ByteCountFormatter.string(fromByteCount: memory, countStyle: .memory))
+        }
+        ForEach(Array(controller.phaseTimings.enumerated()), id: \.offset) { _, timing in
+            Text(AppStrings.localLabPhaseDuration(phase: phaseCopy(timing.phase), seconds: String(format: "%.2f", timing.durationSeconds)))
+                .font(.omSmall).foregroundStyle(Color.fontSecondary)
+                .accessibilityIdentifier("local-model-lab-phase-timing-\(timing.phase.rawValue)")
+        }
         if let rtf = controller.realTimeFactor {
             OMSettingsDetailRow(label: AppStrings.localLabRtf, value: String(format: "%.3f", rtf))
         }
         if let text = controller.output?.text {
             Text(text).font(.omP).textSelection(.enabled).accessibilityIdentifier("local-model-lab-transcript")
-        }
-        if id == .kokoro, !controller.waveform.isEmpty {
-            waveform
-            HStack(spacing: .spacing6) {
-                Button(AppStrings.localLabPlay) { controller.play() }
-                    .buttonStyle(OMSettingsButtonStyle()).accessibilityIdentifier("local-model-lab-play")
-                Button(AppStrings.localLabStopPlayback) { controller.stopPlayback() }
-                    .buttonStyle(OMSettingsButtonStyle(secondary: true)).accessibilityIdentifier("local-model-lab-stop-playback")
-            }
         }
         if id == .privacyFilter {
             Text(highlightedPrivacyText).font(.omP).textSelection(.enabled)
@@ -193,19 +277,6 @@ struct SettingsLocalModelsView: View {
             } else { Text(AppStrings.localLabNoEntities).font(.omSmall) }
         }
     }
-    private var waveform: some View {
-        Canvas { context, size in
-            let samples = controller.waveform
-            let step = size.width / CGFloat(max(1, samples.count))
-            for (index, sample) in samples.enumerated() {
-                let height = max(1, CGFloat(min(1, sample)) * size.height)
-                context.fill(Path(CGRect(x: CGFloat(index) * step, y: (size.height - height) / 2,
-                    width: max(1, step / 2), height: height)), with: .color(.buttonPrimary))
-            }
-        }
-        .frame(height: .spacing16)
-        .accessibilityLabel(AppStrings.localLabWaveform).accessibilityIdentifier("local-model-lab-waveform")
-    }
     private var highlightedPrivacyText: AttributedString {
         var text = AttributedString(controller.resultInput)
         for span in controller.output?.piiSpans ?? [] {
@@ -217,19 +288,41 @@ struct SettingsLocalModelsView: View {
         return text
     }
     private func canRun(_ id: LocalModelID) -> Bool {
-        guard controller.unavailableReason(for: id) == nil else { return false }
-        guard useLocalModels, !controller.busy else { return false }
+        guard unavailableReason(id) == nil else { return false }
+        guard diagnosticEnabled, !controller.busy, !pocket.busy else { return false }
         switch id {
         case .whisper: return controller.audioInput != nil
-        case .kokoro: return !controller.speechText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        case .pocketTTS: return false
         case .privacyFilter: return !controller.privacyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+    }
+    private func unavailableReason(_ id: LocalModelID) -> String? {
+        if id == .pocketTTS { return pocket.available ? nil : AppStrings.localLabArchitectureUnavailable }
+        return controller.unavailableReason(for: id)
+    }
+    private func isDownloadActive(_ id: LocalModelID) -> Bool {
+        switch store.state(for: id) {
+        case .downloading, .waitingForConnection, .retrying, .verifying: return true
+        default: return false
+        }
+    }
+    private func percent(_ progress: Double) -> Int { Int(max(0, min(1, progress)) * 100) }
+    private func phaseCopy(_ phase: LocalModelRunPhase) -> String {
+        switch phase {
+        case .submission: AppStrings.localLabPhaseSubmission
+        case .tokenizerPreparation: AppStrings.localLabPhaseTokenizer
+        case .modelLoading: AppStrings.localLabPhaseModelLoading
+        case .transcription: AppStrings.localLabPhaseTranscription
+        case .inference: AppStrings.localLabPhaseInference
+        case .cleanup: AppStrings.localLabPhaseCleanup
+        case .completion: AppStrings.localLabPhaseCompletion
         }
     }
     private func modelTitle(_ id: LocalModelID) -> String {
         switch id {
         case .whisper: AppStrings.localLabWhisper
-        case .kokoro: AppStrings.localLabKokoro
         case .privacyFilter: AppStrings.localLabPrivacyFilter
+        case .pocketTTS: AppStrings.localLabPocketTTS
         }
     }
 }

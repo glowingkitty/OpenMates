@@ -102,7 +102,8 @@ struct NativeComposerEditorView: UIViewRepresentable {
                     session?.publishControllerState(canonicalMarkdown: markdown)
                 },
                 onFocusChange: { _ in },
-                onSubmit: { }
+                onSubmit: { },
+                accessibilityStrategy: .hostedAttachments
             )
             adapter.onFocusChange = { [weak self] focused in self?.onFocusChange(focused) }
             adapter.onSubmit = { [weak self] in self?.onSubmit() }

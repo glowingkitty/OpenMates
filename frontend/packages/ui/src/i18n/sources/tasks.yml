@@ -1,3 +1,33 @@
+workspace.drag:
+  context: Accessibility instruction for dragging a Task between status columns in the native Task board
+  en: "Drag task to another status"
+  de: "Aufgabe in einen anderen Status ziehen"
+  verified_by_human: []
+detail.edit_failed:
+  context: Task edit failed to save; unsaved draft remains available for retry
+  en: Could not save the task. Your changes are still here.
+  de: Die Aufgabe konnte nicht gespeichert werden. Deine Änderungen bleiben erhalten.
+  verified_by_human: []
+detail.edit_conflict:
+  context: Task edit conflicts with a newer server version and requires reload before saving
+  en: This task changed elsewhere. Reload it before saving your changes.
+  de: Diese Aufgabe wurde an anderer Stelle geändert. Lade sie neu, bevor du deine Änderungen speicherst.
+  verified_by_human: []
+detail.priority:
+  context: Priority field label when editing a Task
+  en: Priority
+  de: Priorität
+  verified_by_human: []
+workspace.move_failed:
+  context: Visible failure notice after a native Task board move failed and the board reconciled with server state
+  en: "The task could not be moved. Try again."
+  de: "Die Aufgabe konnte nicht verschoben werden. Erneut versuchen."
+  verified_by_human: []
+workspace.drop_to_mark:
+  context: Native Task status-column drop-target instruction; status is an already localized Task status label
+  en: "Drop to mark {status}"
+  de: "Ablegen, um als {status} zu markieren"
+  verified_by_human: []
 blocked_heading:
   context: Heading above the explanation shown when a Task is blocked
   en: Blocked reason

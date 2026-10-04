@@ -422,6 +422,19 @@ Embed headers use an animated app-gradient banner.
 
 Reduce or disable header animations for `prefers-reduced-motion: reduce`.
 
+### Compact Apple workspace navigation
+
+When the centered five-tab strip (360 points) cannot fit between the measured
+header controls, iPhone, iPad and macOS use the user-approved Watch selector
+reference: rounded blue-gradient overlay, white icon/label rows, 60-point row
+height, 16-point vertical inset and 30-point expanded radius. The compact control
+expands its width and height over 280ms; Reduce Motion disables that transition.
+Short viewports constrain the panel to the available height and scroll the
+60-point rows vertically.
+Wide available header space retains the existing tabs. Selection, outside tap,
+Escape and viewport resizing close the picker. Source:
+`WorkspaceSwitcher.swift`, `WatchHubView.swift` and `Header.svelte`.
+
 ## Motion
 
 Motion should make the UI feel alive and responsive without distracting users.

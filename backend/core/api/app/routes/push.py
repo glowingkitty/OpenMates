@@ -69,6 +69,7 @@ class NativeDeviceRegisterRequest(BaseModel):
     notification_public_key: Optional[str] = None
     encryption_version: Optional[str] = None
     device_id: Optional[str] = None
+    alerts_enabled: Optional[bool] = None
 
 
 class NativeDeviceUnregisterRequest(BaseModel):
@@ -293,16 +294,16 @@ async def register_native_device(
         "encryption_version": body.encryption_version,
         "device_id": (body.device_id or "").strip() or None,
     }
-
     try:
         async with push_subscription_write_lock(cache_service, user_id) as lock:
             existing_subscription_json = await _get_existing_subscription_json(cache_service, directus_service, user_id)
             subscription_json = merge_push_subscription_target(existing_subscription_json, target)
             await require_push_subscription_lock(lock)
-            updated = await directus_service.update_user(user_id, {
-                "push_notification_enabled": True,
-                "push_notification_subscription": subscription_json,
-            })
+            values = {"push_notification_subscription": subscription_json}
+            # Preserve completion-alert preference during token rotation.
+            if getattr(body, "alerts_enabled", None) is not False:
+                values["push_notification_enabled"] = True
+            updated = await directus_service.update_user(user_id, values)
             if not updated:
                 raise HTTPException(status_code=500, detail="Failed to save device token")
 

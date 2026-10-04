@@ -32,9 +32,14 @@ home.subtitle:
   de: Was möchtest du als Nächstes automatisieren?
   verified_by_human: []
 home.show_all:
-  context: Show every workflow from workspace home
-  en: Show all
-  de: Alle anzeigen
+  context: Show the owner's workflow browse section from workspace home
+  en: Show my workflows
+  de: Meine Workflows anzeigen
+  verified_by_human: []
+home.show_templates:
+  context: Show the existing starter template browse section from workspace home
+  en: Show templates
+  de: Vorlagen anzeigen
   verified_by_human: []
 home.back_to_recent:
   context: Return to recent Workflow cards
@@ -2670,3 +2675,14 @@ templates.website_changes_message_title:
   context: Editable chat title for matching website-change notifications
   en: Congress updates
   de: Congress-Neuigkeiten
+
+sidebar.my_workflows:
+  context: Sidebar heading above the user's saved native Workflows
+  en: "My workflows"
+  de: "Meine Workflows"
+  verified_by_human: []
+sidebar.templates:
+  context: Sidebar heading above reusable native Workflow templates
+  en: "Templates"
+  de: "Vorlagen"
+  verified_by_human: []

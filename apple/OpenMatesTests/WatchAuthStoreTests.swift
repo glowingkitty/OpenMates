@@ -35,6 +35,7 @@ final class WatchAuthStoreTests: XCTestCase {
         XCTAssertTrue(source.contains("clearRevokedSession"))
         XCTAssertTrue(source.contains("WatchServerProfileStore().resetToProduction()"))
         XCTAssertTrue(source.contains("OpenMatesSharedEnvironment.cookieStorage.removeCookies"))
-        XCTAssertTrue(source.contains("WatchChatOfflineCache().removeSnapshot()"))
+        XCTAssertTrue(source.contains("WatchChatOfflineCache.shared.removeSnapshot()"))
+        XCTAssertTrue(source.contains("WatchHubOfflineCache.shared.removeAll()"))
     }
 }

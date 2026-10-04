@@ -2,6 +2,8 @@
 // Encrypted content is kept in memory only after the account master key unlocks it.
 // Specification: specifications/features/tasks/specification.yml
 // Assertions: tasks.content.client-encrypted, tasks.lifecycle.visible
+// Specification: specifications/features/apple-task-board-interactions/specification.yml
+// Assertions: apple-task-board.drag-move
 
 import Foundation
 
@@ -125,16 +127,26 @@ struct UserTaskItem: Identifiable, Sendable {
     let linkedProjectIds: [String]
     let blockedReason: String
     let externalChat: UserTaskExternalChat?
+    // Optimistic board presentation never rewrites ciphertext or server versions.
+    var pendingStatus: UserTaskStatus? = nil
+    var pendingPosition: Int? = nil
+
+    func placing(on status: UserTaskStatus, at position: Int) -> UserTaskItem {
+        var moved = self
+        moved.pendingStatus = status
+        moved.pendingPosition = position
+        return moved
+    }
 
     var id: String { record.taskId }
-    var status: UserTaskStatus { record.status }
+    var status: UserTaskStatus { pendingStatus ?? record.status }
     var assigneeType: UserTaskAssigneeType { record.assigneeType }
     var assigneeIdentity: UserTaskAssigneeIdentity? { record.assigneeIdentity }
     var primaryChatId: String? { record.primaryChatId }
     var planId: String? { record.planId }
     var dueAt: Int? { record.dueAt }
     var priority: Int { record.priority ?? 0 }
-    var position: Int { record.position ?? 0 }
+    var position: Int { pendingPosition ?? record.position ?? 0 }
     var version: Int { record.version ?? 0 }
 }
 

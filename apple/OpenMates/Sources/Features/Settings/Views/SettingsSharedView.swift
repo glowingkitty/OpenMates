@@ -15,11 +15,21 @@ import SwiftUI
 struct SettingsSharedView: View {
     @EnvironmentObject private var chatStore: ChatStore
     private let initialChatId: String?
+    private let initialEmbedTarget: EmbedShareSettingsTarget?
+    private let onChildNavigationChanged: ((SettingsChildBannerNavigation?) -> Void)?
+    private let onEmbedShareBack: (() -> Void)?
+    @State private var selectedEmbedTarget: EmbedShareSettingsTarget?
     @State private var selectedChatId: String?
     @State private var errorMessage: String?
     @State private var showsTip = false
 
-    init(initialChatId: String? = nil, initiallyShowsTip: Bool = false) {
+    init(initialChatId: String? = nil, initialEmbedTarget: EmbedShareSettingsTarget? = nil, initiallyShowsTip: Bool = false,
+         onChildNavigationChanged: ((SettingsChildBannerNavigation?) -> Void)? = nil,
+         onEmbedShareBack: (() -> Void)? = nil) {
+        self.initialEmbedTarget = initialEmbedTarget
+        self.onChildNavigationChanged = onChildNavigationChanged
+        self.onEmbedShareBack = onEmbedShareBack
+        _selectedEmbedTarget = State(initialValue: initialEmbedTarget)
         self.initialChatId = initialChatId
         _selectedChatId = State(initialValue: initialChatId)
         _showsTip = State(initialValue: initiallyShowsTip)
@@ -31,7 +41,11 @@ struct SettingsSharedView: View {
 
     var body: some View {
         Group {
-            if let selectedChatId {
+            if let selectedEmbedTarget {
+                ShareEmbedView(target: selectedEmbedTarget)
+                    .id(selectedEmbedTarget.requestID)
+                    .accessibilityIdentifier("settings-shared-share-settings")
+            } else if let selectedChatId {
                 VStack(spacing: 0) {
                     OMSettingsRow(title: AppStrings.back, icon: "back", showsChevron: false) {
                         self.selectedChatId = nil
@@ -82,7 +96,25 @@ struct SettingsSharedView: View {
         }
         .onChange(of: initialChatId) { _, newChatId in
             selectedChatId = newChatId
+            if newChatId != nil { selectedEmbedTarget = nil }
         }
+        .onChange(of: initialEmbedTarget?.requestID) { _, _ in
+            selectedEmbedTarget = initialEmbedTarget
+            if initialEmbedTarget != nil { selectedChatId = nil }
+            publishChildNavigation()
+        }
+        .onChange(of: selectedEmbedTarget?.requestID) { _, _ in publishChildNavigation() }
+        .onAppear { publishChildNavigation() }
+        .onDisappear { onChildNavigationChanged?(nil) }
+    }
+
+    private func publishChildNavigation() {
+        guard selectedEmbedTarget != nil else { onChildNavigationChanged?(nil); return }
+        onChildNavigationChanged?(SettingsChildBannerNavigation(
+            title: AppStrings.shareEmbed, description: AppStrings.shareEmbedDescription,
+            icon: "share", breadcrumb: "\(AppStrings.settings) / \(AppStrings.settingsShared)",
+            onBack: { selectedEmbedTarget = nil; onEmbedShareBack?(); publishChildNavigation() }
+        ))
     }
 
     private func unshare(_ chat: Chat) {

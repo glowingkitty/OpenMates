@@ -12,6 +12,9 @@
 // Specification: specifications/features/workflows/specification.yml
 // Assertions: workflows.mvp.steps, workflows.control.check,
 //             workflows.control.typed-data
+// Specification: specifications/features/workflows-ui/specification.yml
+// Assertions: workflows-ui.template.centered-in-place-editor,
+//             workflows-ui.responsive-accessible-reachable
 
 import SwiftUI
 
@@ -70,6 +73,8 @@ struct WorkflowEditorTextFieldStyle: TextFieldStyle {
 
 struct WorkflowGraphView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Namespace private var nodeExpansion
     @ObservedObject private var offlineStore = OfflineStore.shared
     @ObservedObject private var teamContext = TeamWorkspaceContext.shared
     let graph: WorkflowGraph
@@ -102,6 +107,21 @@ struct WorkflowGraphView: View {
     @State private var choosingChat = false
     @ObservedObject private var modelCatalog = NativeModelCatalogRuntime.shared
     @State private var modelDetails: NativeModelCatalog.Model?
+
+    private func outputValues(for node: WorkflowNode) -> [String: AnyCodable]? {
+        if let values = stepTest.outputsByNode[node.id] { return values }
+        #if DEBUG
+        // Rendering fixture only. It never executes Test or bypasses API scope capture.
+        if ProcessInfo.processInfo.arguments.contains("--ui-test-workflows-fixture"),
+           ProcessInfo.processInfo.arguments.contains("--ui-test-workflow-output-fixture"), node.id == "news" {
+            return ["results": AnyCodable([
+                ["title": "First synthetic article", "description": "First synthetic result", "url": "https://example.invalid/first"],
+                ["title": "Second synthetic article", "description": "Second synthetic result", "url": "https://example.invalid/second"]
+            ]), "result_count": AnyCodable(2)]
+        }
+        #endif
+        return nil
+    }
 
     private var editorHorizontalPadding: CGFloat { horizontalSizeClass == .compact ? .spacing6 : .spacing12 }
 
@@ -161,6 +181,12 @@ struct WorkflowGraphView: View {
         .background(Color.grey0)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("workflow-node-stack")
+        // Web node view transitions share the card's frame in both dimensions
+        // over .3s with cubic-bezier(.32, 0, .2, 1).
+        .animation(reduceMotion ? nil : .timingCurve(0.32, 0, 0.2, 1, duration: 0.3), value: editingNodeId)
+        .transaction { transaction in
+            if reduceMotion { transaction.animation = nil; transaction.disablesAnimations = true }
+        }
         .task(id: "\(workflowId ?? "")|\(accountId ?? "")|\(offlineStore.scopeGeneration)|\(teamContext.contextEpoch)") {
             stepTest.reset(accountId: accountId)
             askHints.reset(accountId: accountId)
@@ -210,6 +236,8 @@ struct WorkflowGraphView: View {
                     .contentShape(.interaction, RoundedRectangle(cornerRadius: .radius7))
             }
             .buttonStyle(.plain)
+            .matchedGeometryEffect(id: node.id, in: nodeExpansion, properties: .frame, anchor: .top)
+            .transition(.opacity)
             .accessibilityIdentifier(isAskAI(node) ? "workflow-ask-ai-node" : "workflow-node-summary")
             .accessibilityValue(editingNodeId == node.id ? "expanded" : "collapsed")
             }
@@ -237,10 +265,12 @@ struct WorkflowGraphView: View {
                     .background(Color.grey10)
                 } else {
                     editor(for: node)
+                        .matchedGeometryEffect(id: node.id, in: nodeExpansion, properties: .frame, anchor: .top)
+                        .transition(.opacity)
                 }
             }
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: editingNodeId == node.id && !readOnly ? 772.8 : .infinity)
         .id(WorkflowEditorScrollTarget.nodeID(node.id))
         .dropDestination(for: String.self) { items, _ in
             guard !readOnly, let sourceId = items.first,
@@ -250,7 +280,9 @@ struct WorkflowGraphView: View {
             return true
         }
         .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("workflow-node-card")
+        // The outer node is the actual panel accessibility boundary. A nested
+        // expanded identifier is flattened into this parent by SwiftUI.
+        .accessibilityIdentifier(editingNodeId == node.id && !readOnly ? "workflow-node-expanded" : "workflow-node-card")
     }
 
     @ViewBuilder
@@ -354,7 +386,6 @@ struct WorkflowGraphView: View {
             }
         }
         .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("workflow-node-expanded")
     }
 
     private func editorHeader(for node: WorkflowNode) -> some View {
@@ -663,7 +694,6 @@ struct WorkflowGraphView: View {
                     .frame(maxWidth: .infinity)
             }
 
-            if !askAI {
             Button(AppStrings.workflowBuilder(showOutputFields ? .hide_output_fields : .show_output_fields)) {
                 showOutputFields.toggle()
             }
@@ -674,33 +704,36 @@ struct WorkflowGraphView: View {
             .accessibilityIdentifier("workflow-show-output-fields")
             if showOutputFields {
                 HStack {
-                    Text(AppStrings.workflowBuilder(.output))
+                    HStack(spacing: 4) {
+                        Icon("lucide-upload", size: 18).foregroundStyle(Color.fontSecondary)
+                        Text(AppStrings.workflowBuilder(.output) + ":")
+                    }
                     .font(.omP.weight(.semibold))
                     Spacer()
-                    Text(AppStrings.workflowBuilder(stepTest.outputsByNode[node.id] == nil ? .example : .test_output))
+                    Text(AppStrings.workflowBuilder(outputValues(for: node) == nil ? .example : .test_output))
                         .font(.omSmall)
                         .foregroundStyle(Color.fontSecondary)
+                        .accessibilityIdentifier("workflow-output-example-heading")
                 }
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("workflow-output-heading")
                 if stepTest.activeNodeId == node.id && stepTest.status == .processing {
                     ProgressView(AppStrings.workflowBuilder(.processing))
                         .accessibilityIdentifier("workflow-test-output-loading")
-                } else if let tested = stepTest.outputsByNode[node.id] {
+                } else if stepTest.activeNodeId == node.id,
+                          [.failed, .cancelled, .pending].contains(stepTest.status) {
+                    // Failure never presents schema examples as successful output.
+                    Text(stepTest.errorMessage ?? AppStrings.workflowOutputTestFailed)
+                        .font(.omP)
+                        .foregroundStyle(Color.error)
+                        .accessibilityIdentifier("workflow-test-output-error")
+                } else if let tested = outputValues(for: node) {
                     WorkflowValueView(value: tested.mapValues(\.value), appId: appId)
+                        .accessibilityElement(children: .contain)
                         .accessibilityIdentifier("workflow-output-fields")
                 } else {
-                    let properties = capability?.outputSchema["properties"]?.value as? [String: Any] ?? [:]
-                    ForEach(properties.keys.sorted(), id: \.self) { key in
-                        let field = properties[key] as? [String: Any] ?? [:]
-                        HStack {
-                            Text(field["title"] as? String ?? WorkflowValueView.displayLabel(key))
-                            Spacer()
-                            Text(field["type"] as? String ?? "")
-                                .foregroundStyle(Color.fontSecondary)
-                        }
-                        .font(.omSmall)
-                    }
+                    WorkflowOutputFieldsView(properties: capability?.outputSchema["properties"]?.value as? [String: Any] ?? [:], appId: appId)
                 }
-            }
             }
         }
         .overlay(alignment: .topLeading) {
@@ -867,7 +900,8 @@ struct WorkflowGraphView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .center)
-        if stepTest.activeNodeId == node.id, let error = stepTest.errorMessage {
+        if stepTest.activeNodeId == node.id, let error = stepTest.errorMessage,
+           !(node.type == .appSkillAction && showOutputFields) {
             Text(error)
                 .font(.omSmall)
                 .foregroundStyle(Color.error)

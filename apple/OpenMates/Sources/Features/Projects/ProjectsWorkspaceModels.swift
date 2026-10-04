@@ -1,6 +1,8 @@
+// Specification: specifications/features/apple-offline-workspaces/specification.yml
+// Assertions: apple-workspaces.offline-complete, apple-workspaces.local-first, apple-workspaces.isolation, apple-workspaces.maintenance
 // Web source: frontend/packages/ui/src/services/projectService.ts
 // Specification: specifications/features/projects/specification.yml
-// Assertions: projects.access.explicit-context, projects.files.no-server-decryption-authority
+// Assertions: projects.access.explicit-context, projects.files.no-server-decryption-authority, projects.surface.semantic-parity
 import CryptoKit
 import Foundation
 
@@ -40,7 +42,7 @@ extension AppStrings {
     }
 }
 
-enum ProjectWorkspaceWriteMode: String, Codable, CaseIterable, Identifiable {
+enum ProjectWorkspaceWriteMode: String, Codable, CaseIterable, Identifiable, Sendable {
     case applyAndShow = "apply_and_show"
     case alwaysAsk = "always_ask"
 
@@ -67,7 +69,7 @@ enum ProjectWorkspaceTab: String, CaseIterable, Identifiable {
     }
 }
 
-struct ProjectWorkspaceProject: Identifiable {
+struct ProjectWorkspaceProject: Identifiable, Sendable {
     let id: String
     var name: String
     var description: String
@@ -82,7 +84,7 @@ struct ProjectWorkspaceProject: Identifiable {
     var permissions: ProjectWorkspacePermissions
 }
 
-struct ProjectWorkspacePermissions: Decodable {
+struct ProjectWorkspacePermissions: Decodable, Sendable {
     let create: Bool
     let update: Bool
     let archive: Bool
@@ -98,7 +100,7 @@ struct ProjectWorkspacePermissions: Decodable {
         manageAnySources: false, manageOwnItems: false, manageOwnSources: false)
 }
 
-struct ProjectWorkspaceFolder: Identifiable {
+struct ProjectWorkspaceFolder: Identifiable, Sendable {
     let id: String
     let name: String
     let parentHash: String?
@@ -106,7 +108,7 @@ struct ProjectWorkspaceFolder: Identifiable {
     let createdAt: Int
 }
 
-struct ProjectWorkspaceItem: Identifiable {
+struct ProjectWorkspaceItem: Identifiable, Sendable {
     let id: String
     let kind: String
     let targetID: String
@@ -122,7 +124,7 @@ struct ProjectWorkspaceItem: Identifiable {
     }
 }
 
-struct ProjectWorkspaceSource: Identifiable, Equatable {
+struct ProjectWorkspaceSource: Identifiable, Equatable, Sendable {
     let id: String
     let kind: String
     let name: String
@@ -133,23 +135,28 @@ struct ProjectWorkspaceSource: Identifiable, Equatable {
     let keyEpoch: Int?
 }
 
-struct ProjectWorkspaceContents {
+struct ProjectWorkspaceContents: Sendable {
     let folders: [ProjectWorkspaceFolder]
     let items: [ProjectWorkspaceItem]
     let sources: [ProjectWorkspaceSource]
 }
 
-struct ProjectWorkspaceSettings {
+struct ProjectWorkspaceSettings: Sendable {
     let writeMode: ProjectWorkspaceWriteMode
     let selectionRequired: Bool
     let focusID: String?
     let focusInstruction: String?
 }
 
-struct ProjectWorkspaceReadme {
+struct ProjectWorkspaceReadme: Hashable {
+    /// A reload must reset lazy media even when Markdown/source paths are unchanged.
+    let renderID = UUID()
     let markdown: String
     let truncated: Bool
     let origin: String
+    var sourceID: String? = nil
+    var sourceSessionID: String? = nil
+    var sourceKeyEpoch: Int? = nil
 }
 
 enum ProjectWorkspacePath {
@@ -164,9 +171,17 @@ enum ProjectWorkspacePath {
 }
 
 // These mirror the encrypted API records. Nothing in them is persisted as plaintext.
-struct ProjectWorkspaceRecord: Decodable {
-    let projectId: String
+struct ProjectWorkspaceKeyWrapper: Decodable, Sendable {
+    let keyType: String
+    let hashedTeamId: String?
+    let teamKeyEpoch: Int?
     let encryptedProjectKey: String
+}
+
+struct ProjectWorkspaceRecord: Decodable, Sendable {
+    let projectId: String
+    let encryptedProjectKey: String?
+    let keyWrappers: [ProjectWorkspaceKeyWrapper]?
     let encryptedName: String
     let encryptedDescription: String?
     let encryptedIcon: String?
@@ -178,7 +193,7 @@ struct ProjectWorkspaceRecord: Decodable {
     let mutationPermissions: ProjectWorkspacePermissions?
 }
 
-struct ProjectWorkspaceFolderRecord: Decodable {
+struct ProjectWorkspaceFolderRecord: Decodable, Sendable {
     let folderId: String
     let encryptedName: String
     let hashedParentFolderId: String?
@@ -186,7 +201,7 @@ struct ProjectWorkspaceFolderRecord: Decodable {
     let position: Int
 }
 
-struct ProjectWorkspaceItemRecord: Decodable {
+struct ProjectWorkspaceItemRecord: Decodable, Sendable {
     let projectItemId: String
     let itemType: String
     let targetIdEncrypted: String
@@ -197,7 +212,7 @@ struct ProjectWorkspaceItemRecord: Decodable {
     let position: Int
 }
 
-struct ProjectWorkspaceSourceRecord: Decodable {
+struct ProjectWorkspaceSourceRecord: Decodable, Sendable {
     let sourceId: String
     let sourceType: String
     let encryptedDisplayName: String
@@ -208,7 +223,7 @@ struct ProjectWorkspaceSourceRecord: Decodable {
     let keyEpoch: Int?
 }
 
-struct ProjectWorkspaceSettingsRecord: Decodable {
+struct ProjectWorkspaceSettingsRecord: Decodable, Sendable {
     let writeMode: ProjectWorkspaceWriteMode?
     let selectionRequired: Bool?
     let encryptedSettings: String?

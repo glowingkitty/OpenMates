@@ -174,6 +174,39 @@ final class DraftSyncCoordinator {
         }
     }
 
+    /// A decrypted empty draft is removed without deleting its chat or local keys.
+    func submitVerifiedEmptyDelete(_ record: ComposerDraftRecord) async throws -> Bool {
+        let result = try await apply(.verifiedEmptyDeletion(record))
+        guard result.applied, let tombstone = result.record,
+              try await isCurrentEmptyDeletion(tombstone) else { return false }
+        publish(result, refresh: false, removeEmptyChat: false)
+        if newChatDraftId == record.chatId { resetNewChatDraftId() }
+        try validateSession()
+        let message = DraftSyncMessage(type: "delete_draft", payload: ["chat_id": record.chatId])
+        guard let transport, transport.isConnected else {
+            offlineActions?.queueDraftDelete(chatId: record.chatId)
+            return true
+        }
+        do { try await transport.sendDraftSyncMessage(message) }
+        catch {
+            // Transport suspension must not enqueue a stale delete behind new text.
+            if try await isCurrentEmptyDeletion(tombstone) {
+                offlineActions?.queueDraftDelete(chatId: record.chatId)
+            }
+        }
+        try validateSession()
+        return true
+    }
+
+    private func isCurrentEmptyDeletion(_ tombstone: ComposerDraftRecord) async throws -> Bool {
+        try validateSession()
+        let versions = try await repository.allDeletionVersions()
+        let active = try await repository.record(chatId: tombstone.chatId)
+        try validateSession()
+        return active == nil && versions[tombstone.chatId] == tombstone.clearedDraftVersion
+            && (chatStore.chat(for: tombstone.chatId)?.draftV ?? 0) <= tombstone.clearedDraftVersion
+    }
+
     func reconcileAfterReconnect() async throws {
         try validateSession()
         guard let transport, transport.isConnected else { return }
@@ -254,15 +287,28 @@ final class DraftSyncCoordinator {
 
     func handleSyncEvent(raw: Data) async throws {
         try validateSession()
+        let decodeStart = NativeSyncPerfLog.now()
         let envelope = try decoder.decode(AuthoritativeSyncEnvelope.self, from: raw)
+        let decodeMs = NativeSyncPerfLog.ms(since: decodeStart)
+        let applyStart = NativeSyncPerfLog.now()
+        var attemptedDeletions = 0
+        var appliedDeletions = 0
         for item in envelope.payload.chats ?? [] {
             try validateSession()
-            try await applySyncedDraft(item.chatDetails)
+            if let deletion = try await applySyncedDraft(item.chatDetails) {
+                attemptedDeletions += 1
+                if deletion.applied { appliedDeletions += 1 }
+            }
         }
+        let applyMs = NativeSyncPerfLog.ms(since: applyStart)
+        let reconcileStart = NativeSyncPerfLog.now()
         try await reconcileChats(
             authoritative: envelope.payload.authoritative ?? false,
             authoritativeChatIds: envelope.payload.authoritativeChatIds ?? [],
             deletedChatIds: envelope.payload.deletedChatIds ?? []
+        )
+        NativeSyncPerfLog.info(
+            "phase=draftSyncStages chats=\(envelope.payload.chats?.count ?? 0) rawBytes=\(raw.count) decodeMs=\(decodeMs) applyMs=\(applyMs) reconcileMs=\(NativeSyncPerfLog.ms(since: reconcileStart)) attemptedDeletions=\(attemptedDeletions) appliedDeletions=\(appliedDeletions) unchangedDeletions=\(attemptedDeletions - appliedDeletions)"
         )
     }
 
@@ -315,12 +361,16 @@ final class DraftSyncCoordinator {
         }
     }
 
-    private func applySyncedDraft(_ details: SyncedDraftDetails) async throws {
+    /// Returns only deletion applications for aggregate sync performance counts.
+    @discardableResult
+    private func applySyncedDraft(_ details: SyncedDraftDetails) async throws -> ComposerDraftApplication? {
         try validateSession()
-        guard let draftVersion = details.draftV else { return }
+        guard let draftVersion = details.draftV else { return nil }
         if details.explicitlyClearsDraft {
             let version = max(draftVersion, details.clearedDraftV ?? 0)
-            publish(try await apply(.deletion(chatId: details.id, version: version)), refresh: true)
+            let deletion = try await apply(.deletion(chatId: details.id, version: version))
+            publish(deletion, refresh: true)
+            return deletion
         } else if let encryptedMarkdown = details.encryptedDraftMd {
             let existing = try await repository.record(chatId: details.id)
             try validateSession()
@@ -331,6 +381,7 @@ final class DraftSyncCoordinator {
             publish(try await apply(.content(record)), refresh: true)
         }
         // A metadata-only positive version omitting ciphertext must not delete a draft.
+        return nil
     }
 
     private func validateSession() throws {
@@ -347,14 +398,16 @@ final class DraftSyncCoordinator {
     }
 
     private func publish(_ result: ComposerDraftApplication, refresh: Bool,
-                         createMissingChat: Bool = false, timestamp: Int? = nil) {
+                         createMissingChat: Bool = false, timestamp: Int? = nil, removeEmptyChat: Bool = true) {
         guard isCurrentSession(), let record = result.record else { return }
         let current = chatStore.chat(for: record.chatId)
         if record.isDeleted {
+            // Even an unchanged/rejected mutation must reconcile a shell that a
+            // late metadata page recreated behind this durable deletion fence.
             guard record.clearedDraftVersion >= (current?.draftV ?? 0) else { return }
             chatStore.updateDraftVersion(chatId: record.chatId, draftVersion: 0,
                 hasNonEmptyDraft: false, clearedDraftVersion: record.clearedDraftVersion)
-            removeDraftOnlyChatIfNeeded(record.chatId)
+            if removeEmptyChat { removeDraftOnlyChatIfNeeded(record.chatId) }
         } else {
             guard result.applied,
                   ComposerDraftVersionPolicy.acceptsContent(version: record.draftVersion,

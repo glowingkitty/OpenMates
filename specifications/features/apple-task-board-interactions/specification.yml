@@ -1,0 +1,84 @@
+schema_version: 1
+id: feature.apple-task-board-interactions
+version: 1
+status: draft
+title: Apple task board interactions
+summary: Apple task boards preserve web task context actions, status movement, editable task details, creation shortcuts and workflow-run navigation.
+scope:
+  includes:
+  - Native regular-task card interactions and workflow projections.
+  excludes:
+  - Backend task lifecycle changes and unbounded board rendering.
+relationships:
+  related_specifications:
+  - feature.tasks
+  - feature.workspace-shell
+assertions:
+- id: apple-task-board.context-menu
+  type: behavior
+  must: Press and hold or secondary click on a task opens the existing shared Apple context-menu presentation with
+    web-equivalent available task actions. Normal click continues to open task detail; menus respect read-only workflow
+    projections and status eligibility.
+  depends_on:
+  - examples.menu
+- id: apple-task-board.drag-move
+  type: behavior
+  must: Regular tasks can be dragged between ordered status columns with visual drop feedback and reduced-motion-aware
+    animation. Moves preserve web lifecycle rules and place the task first in the destination column; rejected or
+    failed writes restore authoritative state. Workflow projections are not draggable. Mounted card windows remain
+    bounded.
+  depends_on:
+  - examples.move
+- id: apple-task-board.workflow-run
+  type: behavior
+  must: A workflow task projection with a run identifier opens its corresponding run detail like the web task board,
+    and the Open workflow run action routes to that workflow and run. Missing run identifiers do not fabricate a
+    runnable detail; ordinary tasks retain their normal detail navigation.
+  depends_on:
+  - examples.run
+- id: apple-task-board.edit
+  type: behavior
+  must: An explicit Edit action opens editable title, description, tags, due date, priority and supported assignment
+    fields for a regular task using the existing encrypted update contract and the version captured when editing
+    starts. Save closes the editor only after success; validation, server failures and version conflicts retain the
+    draft with useful feedback. Cancel discards the local draft. Content edits preserve unchanged attribution and
+    lifecycle controls use existing status actions. Workflow projections remain read-only.
+  depends_on:
+  - examples.edit
+- id: apple-task-board.new-task-shortcuts
+  type: behavior
+  must: The iOS app-icon New task shortcut, macOS New task menu action beside New chat, and new-task deep links open
+    the Tasks workspace and focus its composer without dispatching a task. Task widget links open only their validated
+    task identifier in the Tasks workspace. Existing drafts remain intact.
+  depends_on:
+  - examples.shortcuts
+applies_to:
+  rest_api:
+    required: false
+  cli:
+    required: false
+  sdks:
+    required: false
+    implementations:
+      npm:
+        required: false
+      pip:
+        required: false
+  gui:
+    required: true
+    implementations:
+      web:
+        required: false
+      apple:
+        required: true
+examples:
+  file: examples.yml
+  required_groups:
+  - menu
+  - move
+  - run
+  - edit
+  - shortcuts
+approval_source:
+  instruction: Direct user instruction in codex thread 01a0eeac-16cd-7ff1-941a-5d1fb4908fae on 2026-10-03. Implementation
+    is explicitly authorized; no separate fingerprint approval is claimed.

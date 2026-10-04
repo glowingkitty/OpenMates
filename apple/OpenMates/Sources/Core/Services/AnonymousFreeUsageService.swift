@@ -3,6 +3,9 @@
 // public official-cloud inference budget endpoint for text-only turns.
 // Anonymous chat keys are wrapped with an install-local session key in Keychain,
 // then re-wrapped with the account master key during signup/login promotion.
+// Web source: frontend/packages/ui/src/services/appsWorkspaceResultsService.ts
+// Specification: specifications/features/apps-workspace/specification.yml
+// Assertions: apps.anonymous.local-results-and-promotion
 
 import Combine
 import CryptoKit
@@ -62,6 +65,22 @@ final class AnonymousFreeUsageService: ObservableObject {
         let value = UUID().uuidString
         defaults.set(value, forKey: Self.anonymousIdKey)
         return value
+    }
+
+    // Apps retains its own encrypted receipts while sharing the established
+    // install session key. Promotion never changes anonymous chat membership.
+    // Specification: specifications/features/apps-workspace/specification.yml
+    // Assertions: apps.anonymous.local-results-and-promotion
+    func wrapAppsResultKey(_ key: SymmetricKey) throws -> String { try wrapAnonymousChatKey(key) }
+    func unwrapAppsResultKey(_ wrapper: String) throws -> SymmetricKey { try unwrapAnonymousChatKey(wrapper) }
+    func encryptAppsResultReceipt(_ data: Data) throws -> Data {
+        guard let combined = try AES.GCM.seal(data, using: localSessionKey()).combined else {
+            throw AppsWorkspaceError.missingKey
+        }
+        return combined
+    }
+    func decryptAppsResultReceipt(_ data: Data) throws -> Data {
+        try AES.GCM.open(AES.GCM.SealedBox(combined: data), using: localSessionKey())
     }
 
     func refreshStatus() async {

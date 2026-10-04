@@ -7,6 +7,29 @@ import UIKit
 
 final class EmbedWireFormatTests: XCTestCase {
     #if os(iOS)
+    // contract-test: supporting surface=gui.apple assertions=code-run.surface-parity
+    func testCodeFilenameNullAndBlankMetadataPreservesLanguageAndRealNames() throws {
+        for absent in [AnyCodable(NSNull()), AnyCodable("null"), AnyCodable(" NULL "), AnyCodable("  ")] {
+            let content = AppleCodeEmbedContent(data: ["filename": absent, "language": AnyCodable("markdown"), "code": AnyCodable("# Notes")])
+            XCTAssertNil(content.filename)
+            XCTAssertNil(content.previewFilename)
+            XCTAssertEqual(content.language, "markdown")
+        }
+        let decoded = try JSONDecoder().decode([String: AnyCodable].self,
+            from: Data(##"{"filename":null,"language":"markdown","code":"# Notes"}"##.utf8))
+        XCTAssertNil(AppleCodeEmbedContent(data: decoded).filename)
+        let aliased = AppleCodeEmbedContent(data: ["filename": AnyCodable("null"), "path": AnyCodable("docs/notes.md"), "language": AnyCodable("markdown")])
+        XCTAssertEqual(aliased.previewFilename, "notes.md")
+        let missing = AppleCodeEmbedContent(data: ["language": AnyCodable("markdown"), "code": AnyCodable("# Notes")])
+        XCTAssertNil(missing.filename)
+        XCTAssertEqual(missing.language, "markdown")
+        let real = AppleCodeEmbedContent(data: ["filename": AnyCodable("  C:\\docs\\null.md  "), "language": AnyCodable("markdown"), "code": AnyCodable("# Notes")])
+        XCTAssertEqual(real.filename, "C:\\docs\\null.md")
+        XCTAssertEqual(real.previewFilename, "null.md")
+        let parsed = AppleCodeEmbedContent.parse("markdown:notes.md\n# Notes", language: "markdown", filename: "null")
+        XCTAssertEqual(parsed.filename, "notes.md")
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chats.rendering.assistant-document-convergence
     @MainActor
     func testProductionSheetFullscreenBoundsLargeTableAndOwnsStickyScrolling() async throws {
@@ -64,7 +87,7 @@ final class EmbedWireFormatTests: XCTestCase {
         XCTAssertEqual(scrolledResult, .completed, "The table must scroll its own rows")
         let letter = try XCTUnwrap(layout.layoutAttributesForItem(at: IndexPath(item: 1, section: 0)))
         let header = try XCTUnwrap(layout.layoutAttributesForItem(at: IndexPath(item: 4, section: 0)))
-        XCTAssertEqual(letter.frame.minY, collection.bounds.minY + collection.adjustedContentInset.top, accuracy: 0.01)
+        XCTAssertEqual(letter.frame.minY, collection.bounds.minY, accuracy: 0.01)
         XCTAssertEqual(header.frame.minY, letter.frame.maxY, accuracy: 0.01)
         XCTAssertTrue(collection.visibleCells.contains { $0.accessibilityIdentifier == "sheet-sort-column-0" })
         XCTAssertLessThan(collection.visibleCells.count, collection.numberOfItems(inSection: 0) / 10)
@@ -76,6 +99,7 @@ final class EmbedWireFormatTests: XCTestCase {
         let layout = SheetFullscreenCollectionLayout()
         let collection = UICollectionView(frame: CGRect(x: 0, y: 0, width: 200, height: 160), collectionViewLayout: layout)
         collection.contentInset.top = 70
+        collection.bounds.origin.y = -70
         let longValue = String(repeating: "Wrapped cell content ", count: 12)
         let rows = [["Ada", "Short"], ["Zoe", longValue]] + Array(repeating: ["More", "Rows"], count: 100)
         layout.configure(headers: ["Name", "Note"], rows: rows, widths: [80, 80], viewportWidth: 402)
@@ -88,12 +112,15 @@ final class EmbedWireFormatTests: XCTestCase {
         XCTAssertEqual(layout.metrics.font.pointSize, 12)
         XCTAssertEqual(layout.metrics.horizontalPadding, 8)
 
+        let initialLetter = try XCTUnwrap(layout.layoutAttributesForItem(at: IndexPath(item: 1, section: 0)))
+        XCTAssertEqual(initialLetter.frame.minY, 0, "A caller inset affects the initial viewport, not sticky anchoring")
+
         collection.bounds.origin = CGPoint(x: 50, y: 100)
         layout.prepare()
         let letter = try XCTUnwrap(layout.layoutAttributesForItem(at: IndexPath(item: 1, section: 0)))
         let header = try XCTUnwrap(layout.layoutAttributesForItem(at: IndexPath(item: 4, section: 0)))
         let corner = try XCTUnwrap(layout.layoutAttributesForItem(at: IndexPath(item: 0, section: 0)))
-        XCTAssertEqual(letter.frame.minY, collection.bounds.minY + collection.adjustedContentInset.top)
+        XCTAssertEqual(letter.frame.minY, collection.bounds.minY)
         XCTAssertEqual(header.frame.minY, letter.frame.maxY)
         XCTAssertEqual(corner.frame.minX, collection.bounds.minX + collection.adjustedContentInset.left)
         let visible = try XCTUnwrap(layout.layoutAttributesForElements(in: collection.bounds))

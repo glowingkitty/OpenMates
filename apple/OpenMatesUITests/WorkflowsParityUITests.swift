@@ -29,18 +29,38 @@ final class WorkflowsParityUITests: XCTestCase {
         assertVisible("workflows-home-greeting", in: app,
                       message: "Workflow home must greet the owner above its action cards.")
         assertVisible("workflow-mixed-row", in: app,
-                      message: "Workflow home must show recent and starter workflow cards.")
-        XCTAssertGreaterThanOrEqual(app.buttons.matching(identifier: "workflow-landing-card").count, 4,
-                                    "The owner workflow and three starters must be available.")
-        attachScreenshot("Workflow home with inspiration and starter cards")
+                      message: "Workflow home must show recent owner workflow cards.")
+        let cards = app.buttons.matching(identifier: "workflow-landing-card")
+        // A starter and the fixture owner intentionally share this title.
+        // Their real localized badges distinguish the available actions.
+        let owner = cards.matching(NSPredicate(format: "label == %@ AND value == %@", "Weekly AI events", "Paused")).firstMatch
+        XCTAssertEqual(cards.count, 1, "Recent contains the fixture owner workflow, without templates")
+        XCTAssertTrue(owner.exists)
+        attachScreenshot("Workflow home with inspiration and recent owner card")
+
+        let templates = app.buttons["workflows-show-templates"]
+        XCTAssertTrue(templates.isHittable); templates.tap()
+        assertVisible("all-workflows-view", in: app, message: "Show templates must reveal the template grid")
+        let heading = app.staticTexts["workflows-browse-heading"]
+        XCTAssertEqual(heading.label, "Templates")
+        XCTAssertEqual(cards.count, 3, "Templates contains exactly the three existing starter cards")
+        XCTAssertTrue(cards.allElementsBoundByIndex.allSatisfy { $0.value as? String == "Starter" },
+                      "Every template card must expose its starter action state")
+        XCTAssertFalse(owner.exists, "Templates must not include owner workflows")
+        XCTAssertTrue(cards.firstMatch.isHittable, "Starter cards retain their real creation action")
+        app.buttons["workflows-back-to-recent"].tap()
+        assertVisible("workflow-mixed-row", in: app, message: "Back must restore recent owner workflows")
+        XCTAssertEqual(cards.count, 1); XCTAssertTrue(owner.exists)
 
         app.descendants(matching: .any)["workflows-show-all"].tap()
         assertVisible("all-workflows-view", in: app,
                       message: "Show all must reveal the owner's workflow grid.")
+        XCTAssertEqual(app.staticTexts["workflows-browse-heading"].label, "My workflows")
+        XCTAssertEqual(cards.count, 1); XCTAssertTrue(owner.exists)
         attachScreenshot("Workflow all workflows browse")
         app.descendants(matching: .any)["workflows-back-to-recent"].tap()
         assertVisible("workflow-mixed-row", in: app,
-                      message: "Back to recent must restore the mixed landing cards.")
+                      message: "Back to recent must restore recent owner cards.")
         XCTAssertFalse(
             app.descendants(matching: .any)["workspace-placeholder-workflows"].exists,
             "Workflow home must not fall back to WorkspacePlaceholderView."
@@ -85,6 +105,7 @@ final class WorkflowsParityUITests: XCTestCase {
         let initialCount = summaries.count
         let trigger = summaries.firstMatch
         XCTAssertTrue(trigger.isHittable)
+        let compactFrame = trigger.frame
         trigger.tap()
         XCTAssertEqual(summaries.count, initialCount - 1,
                        "An editable expanded panel must replace its compact summary card.")
@@ -105,6 +126,12 @@ final class WorkflowsParityUITests: XCTestCase {
                        "Expansion must automatically bring the schedule into view.")
         let editorHeader = app.descendants(matching: .any)["workflow-editor-header"]
         XCTAssertTrue(editorHeader.exists)
+        let expanded = app.descendants(matching: .any)["workflow-node-expanded"]
+        XCTAssertTrue(expanded.waitForExistence(timeout: 5), "The actual expanded node panel must retain its own accessibility boundary")
+        XCTAssertGreaterThan(expanded.frame.width, compactFrame.width,
+                             "The focused node must expand horizontally from its summary card.")
+        XCTAssertGreaterThan(expanded.frame.height, compactFrame.height,
+                             "The focused node must expand vertically to contain its controls.")
         XCTAssertGreaterThanOrEqual(editorHeader.frame.minY, editorScroll.frame.minY - 1,
                                     "Automatic scrolling must retain the expanded editor header in the viewport.")
         XCTAssertLessThanOrEqual(editorHeader.frame.maxY, editorScroll.frame.maxY + 1)
@@ -124,7 +151,15 @@ final class WorkflowsParityUITests: XCTestCase {
         for _ in 0..<6 where !close.isHittable { editorScroll.swipeDown() }
         XCTAssertTrue(close.isHittable, "The expanded editor's Close must become clickable after returning to its header.")
         close.tap()
-        XCTAssertEqual(summaries.count, initialCount, "Close must restore the compact summary.")
+        let contracted = XCTNSPredicateExpectation(
+            predicate: NSPredicate { _, _ in
+                summaries.count == initialCount
+                    && abs(summaries.firstMatch.frame.width - compactFrame.width) < 2
+                    && abs(summaries.firstMatch.frame.height - compactFrame.height) < 2
+            }, object: nil
+        )
+        XCTAssertEqual(XCTWaiter.wait(for: [contracted], timeout: 5), .completed,
+                       "Close must contract the node back to both compact dimensions.")
     }
 
     // contract-test: supporting surface=gui.apple assertions=workflows-ui.detail.stable-visual-header,workflows-ui.detail.shared-template-runs-tabs,workflows-ui.template.centered-in-place-editor
@@ -340,12 +375,23 @@ final class WorkflowsParityUITests: XCTestCase {
         attachScreenshot("Workflow message draft retained after destination Back")
     }
 
-    // contract-test: supporting surface=gui.apple assertions=workflows-ui.runs.timeline-execution-detail
+    // contract-test: supporting surface=gui.apple assertions=workflows-ui.runs.timeline-execution-detail,workflows-ui.detail.stable-visual-header
     func testWorkflowRunTabShowsEmptyHistoryWithoutRetainedContent() throws {
         let app = launchWorkflowFixture("no-runs")
-        app.descendants(matching: .any)["workflow-tab-runs"].tap()
-        assertVisible("workflow-runs", in: app, message: "The run tab must show owner-scoped history.")
-        assertVisible("workflow-runs-empty", in: app, message: "No-run fixture must show empty history.")
+        let header = app.descendants(matching: .any)["workspace-detail-header"]
+        XCTAssertTrue(header.waitForExistence(timeout: 8))
+        let templateHeight = header.frame.height
+        XCTAssertGreaterThanOrEqual(templateHeight, 304)
+        XCTAssertLessThan(templateHeight, 420, "The fixture identity has a bounded intrinsic banner height.")
+        for _ in 0..<2 {
+            app.descendants(matching: .any)["workflow-tab-runs"].tap()
+            assertVisible("workflow-runs", in: app, message: "The run tab must show owner-scoped history.")
+            assertVisible("workflow-runs-empty", in: app, message: "No-run fixture must show empty history.")
+            XCTAssertEqual(header.frame.height, templateHeight, accuracy: 2,
+                           "A short run panel must not expand the category banner to fill the viewport.")
+            app.descendants(matching: .any)["workflow-tab-template"].tap()
+        }
+        attachScreenshot("Workflow banner retains intrinsic height for empty Runs")
     }
 
     // contract-test: supporting surface=gui.apple assertions=workflows-ui.runs.timeline-execution-detail,workflows.execution.lifecycle-visible
@@ -354,6 +400,80 @@ final class WorkflowsParityUITests: XCTestCase {
         app.descendants(matching: .any)["workflow-tab-runs"].tap()
         assertVisible("workflow-run-marker", in: app, message: "The completed run must appear on the timeline.")
         assertVisible("workflow-run-graph", in: app, message: "The selected run must show its pinned graph.")
+        let timeline = app.descendants(matching: .any)["workflow-run-timeline"]
+        XCTAssertEqual(timeline.frame.height, 100, accuracy: 2)
+        let scroll = app.scrollViews["workflow-management"]
+        let panel = app.descendants(matching: .any)["workflow-runs"]
+        XCTAssertGreaterThan(panel.frame.minX, scroll.frame.minX)
+        XCTAssertLessThan(panel.frame.maxX, scroll.frame.maxX)
+        let next = app.buttons["workflow-next-run-marker"]
+        for _ in 0..<3 where !next.isHittable { scroll.swipeUp() }
+        XCTAssertTrue(next.isHittable); next.tap()
+        XCTAssertTrue(app.buttons["workflow-run-select"].exists,
+                      "Upcoming selection must retain the menu to select historical runs.")
+        XCTAssertFalse(app.buttons["workflow-delete-run"].exists,
+                       "The upcoming schedule has no persisted run to delete.")
+        let completed = app.buttons["workflow-run-marker"]
+        completed.tap()
+        assertVisible("workflow-run-graph", in: app, message: "Returning to history restores the pinned run graph.")
+        attachScreenshot("Workflow Runs panel and selected history timeline")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=workflows.control.typed-data,workflows.actions.skill-contract
+    func testWorkflowOutputExamplesShowTypedFieldsAndDeclaredListDetails() throws {
+        let app = launchWorkflowFixture("editor")
+        let scroll = app.scrollViews["workflow-management"]
+        let weather = app.buttons.matching(identifier: "workflow-node-summary")
+            .matching(NSPredicate(format: "label CONTAINS[c] %@", "Weather")).firstMatch
+        XCTAssertTrue(weather.waitForExistence(timeout: 8))
+        for _ in 0..<10 where !weather.isHittable { scroll.swipeUp() }
+        XCTAssertTrue(weather.isHittable); weather.tap()
+        let toggle = app.buttons["workflow-show-output-fields"]
+        for _ in 0..<12 where !toggle.isHittable { scroll.swipeUp() }
+        XCTAssertTrue(toggle.isHittable); toggle.tap()
+        let fields = app.descendants(matching: .any)["workflow-output-fields"]
+        XCTAssertTrue(fields.waitForExistence(timeout: 5))
+        XCTAssertEqual(app.staticTexts["workflow-output-example-heading"].label, "Example")
+        XCTAssertEqual(app.descendants(matching: .any).matching(identifier: "workflow-output-field").count, 4)
+        let types = app.staticTexts.matching(identifier: "workflow-output-type").allElementsBoundByIndex.map(\.label)
+        XCTAssertTrue(types.contains("Number")); XCTAssertTrue(types.contains("Bool")); XCTAssertTrue(types.contains("List"))
+        let disclosure = app.buttons["workflow-output-list-disclosure"]
+        for _ in 0..<6 where !disclosure.isHittable { scroll.swipeUp() }
+        XCTAssertTrue(disclosure.isHittable); disclosure.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["workflow-output-list-details"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["09:00"].exists, "The list uses its declared first-item example.")
+        disclosure.tap()
+        XCTAssertFalse(app.descendants(matching: .any)["workflow-output-list-details"].exists)
+        attachScreenshot("Workflow typed output examples")
+    }
+
+    // Rendering fixture only; accepted Test decoding is covered separately with actual response bytes.
+    // contract-test: supporting surface=gui.apple assertions=workflows.results.selective-embeds,workflows.control.typed-data
+    func testWorkflowCompletedOutputUsesRealPreviewCarousel() throws {
+        let app = launchWorkflowFixture("editor", extraArguments: ["--ui-test-workflow-output-fixture"])
+        let scroll = app.scrollViews["workflow-management"]
+        let news = app.buttons.matching(identifier: "workflow-node-summary")
+            .matching(NSPredicate(format: "label CONTAINS[c] %@", "News")).firstMatch
+        XCTAssertTrue(news.waitForExistence(timeout: 8))
+        for _ in 0..<12 where !news.isHittable { scroll.swipeUp() }
+        XCTAssertTrue(news.isHittable); news.tap()
+        let toggle = app.buttons["workflow-show-output-fields"]
+        for _ in 0..<12 where !toggle.isHittable { scroll.swipeUp() }
+        XCTAssertTrue(toggle.isHittable); toggle.tap()
+        let position = app.staticTexts["workflow-result-position"]
+        XCTAssertTrue(position.waitForExistence(timeout: 5))
+        XCTAssertEqual(position.label, "1 of 2")
+        XCTAssertEqual(app.staticTexts["workflow-output-example-heading"].label, "Test output")
+        XCTAssertTrue(app.descendants(matching: .any)["workflow-result-card"].exists)
+        XCTAssertTrue(app.staticTexts["First synthetic article"].exists)
+        let next = app.buttons["workflow-result-next"]
+        for _ in 0..<8 where !next.isHittable { scroll.swipeUp() }
+        XCTAssertTrue(next.isHittable); next.tap()
+        XCTAssertEqual(position.label, "2 of 2")
+        XCTAssertTrue(app.staticTexts["Second synthetic article"].exists)
+        XCTAssertFalse(next.isEnabled)
+        XCTAssertTrue(app.buttons["workflow-result-previous"].isEnabled)
+        attachScreenshot("Workflow completed output news result carousel")
     }
 
     // contract-test: supporting surface=gui.apple assertions=workflows-ui.mvp.ask-ai
@@ -409,19 +529,24 @@ final class WorkflowsParityUITests: XCTestCase {
 
         assertVisible("workflows-sidebar", in: app, message: "The Workflows workspace must render its own sidebar.")
         assertVisible("workflow-sidebar-row", in: app, message: "The Workflows sidebar must list workflow rows.")
+        assertVisible("workflows-sidebar-heading", in: app,
+                      message: "The sidebar must retain its single Workflows owner-list heading.")
+        XCTAssertFalse(app.descendants(matching: .any)["workflow-sidebar-template"].exists,
+                       "Template browsing belongs to workflow home rather than the owner sidebar")
+        attachScreenshot("Workflow sidebar owner list")
         XCTAssertFalse(
             app.descendants(matching: .any)["chat-history-panel"].exists,
             "The Workflows sidebar must not render the chats history panel."
         )
     }
 
-    private func launchWorkflowFixture(_ fixture: String) -> XCUIApplication {
+    private func launchWorkflowFixture(_ fixture: String, extraArguments: [String] = []) -> XCUIApplication {
         #if os(iOS)
         let wide = UIDevice.current.userInterfaceIdiom == .pad
         if wide { XCUIDevice.shared.orientation = .landscapeLeft }
         #endif
         let app = XCUIApplication()
-        app.launchArguments = ["--ui-test-disable-auth-cache", "--ui-test-workflows-fixture", fixture]
+        app.launchArguments = ["--ui-test-disable-auth-cache", "--ui-test-workflows-fixture", fixture] + extraArguments
         app.launchEnvironment["UI_TEST_WORKFLOWS_FIXTURE"] = fixture
         app.launch()
 

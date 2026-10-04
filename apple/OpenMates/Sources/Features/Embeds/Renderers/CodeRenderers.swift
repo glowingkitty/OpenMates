@@ -69,8 +69,8 @@ struct AppleCodeEmbedContent: Equatable {
             ?? ""
         let languageHint = Self.string(resolved, keys: ["language"])
             ?? Self.string(root, keys: ["language"])
-        let filenameHint = Self.string(resolved, keys: ["filename", "path", "name"])
-            ?? Self.string(root, keys: ["filename", "path", "name"])
+        let filenameHint = Self.metadataString(resolved, keys: ["filename", "path", "name"])
+            ?? Self.metadataString(root, keys: ["filename", "path", "name"])
         let parsed = Self.parse(rawCode, language: languageHint, filename: filenameHint)
         code = parsed.code
         language = parsed.language
@@ -105,8 +105,23 @@ struct AppleCodeEmbedContent: Equatable {
         } else {
             resolvedLanguage = header?.language ?? ""
         }
-        let usefulFilename = filename?.trimmingCharacters(in: .whitespacesAndNewlines)
-        return (code, resolvedLanguage, usefulFilename?.isEmpty == false ? usefulFilename : header?.filename)
+        let usefulFilename = normalizedFilename(filename)
+        return (code, resolvedLanguage, usefulFilename ?? header?.filename)
+    }
+
+    /// Null metadata denotes absence; real names such as null.md remain names.
+    static func normalizedFilename(_ value: String?) -> String? {
+        guard let value else { return nil }
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty || trimmed.lowercased() == "null" ? nil : trimmed
+    }
+
+    var previewFilename: String? {
+        filename?.split(whereSeparator: { $0 == "/" || $0 == "\\" }).last.map(String.init)
+    }
+
+    private static func metadataString(_ root: [String: AnyCodable], keys: [String]) -> String? {
+        keys.lazy.compactMap { normalizedFilename(root[$0]?.value as? String) }.first
     }
 
     private static func contentDictionary(in root: [String: AnyCodable]) -> [String: AnyCodable] {
@@ -976,11 +991,12 @@ struct NotebookEmbedRenderer: View {
                 )
                 .frame(maxWidth: .infinity, alignment: .leading)
             } else {
-                Text(compact ? cell.firstLine : cell.source)
-                    .font(compact ? .omSmall : .omP)
-                    .foregroundStyle(Color.fontPrimary)
-                    .lineLimit(compact ? 2 : nil)
-                    .textSelection(.enabled)
+                if compact {
+                    Text(cell.firstLine).font(.omSmall).foregroundStyle(Color.fontPrimary).lineLimit(2)
+                } else {
+                    ReadOnlySelectableText(content: ReadOnlySelectableText.attributed(AttributedString(cell.source)),
+                        identifier: "notebook-cell-\(cell.index)-text")
+                }
             }
 
             if !compact, let output = cell.output, !output.isEmpty {
@@ -989,10 +1005,8 @@ struct NotebookEmbedRenderer: View {
                         .font(.omMicro)
                         .fontWeight(.semibold)
                         .foregroundStyle(Color.fontSecondary)
-                    Text(output)
-                        .font(.omXs)
-                        .foregroundStyle(Color.fontPrimary)
-                        .textSelection(.enabled)
+                    ReadOnlySelectableText(content: ReadOnlySelectableText.attributed(AttributedString(output), pointSize: 13),
+                        identifier: "notebook-cell-\(cell.index)-output")
                 }
                 .padding(.spacing4)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -1267,11 +1281,10 @@ private struct CodeRunTerminalView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach(displayEvents) { event in
-                        Text(event.text)
-                            .font(.system(size: 15, weight: .bold, design: .monospaced))
-                            .foregroundStyle(color(for: event.kind))
+                        ReadOnlySelectableText(content: ReadOnlySelectableText.attributed(AttributedString(event.text),
+                            pointSize: 15, color: color(for: event.kind), monospace: true, bold: true),
+                            identifier: "code-run-output-selection-\(event.id)")
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .textSelection(.enabled)
                             .accessibilityIdentifier("code-run-output-text")
                             .accessibilityLabel(event.text)
                     }
@@ -1401,8 +1414,33 @@ private struct CodeLinesView: View {
     let fontSize: CGFloat
     let clipsLongLines: Bool
     var gutterWidth: CGFloat = 34
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
+        if !clipsLongLines {
+            HStack(alignment: .top, spacing: .spacing4) {
+                if showsLineNumbers {
+                    VStack(alignment: .trailing, spacing: 0) {
+                        ForEach(Array(lines.enumerated()), id: \.offset) { index, _ in
+                            Text("\(index + 1)")
+                                .font(.system(size: fontSize, design: .monospaced))
+                                .foregroundStyle(Color.grey60)
+                                .frame(width: gutterWidth, height: fontSize * 1.6, alignment: .trailing)
+                        }
+                    }
+                    .textSelection(.disabled)
+                }
+                ReadOnlySelectableText(content: CodeSelectableSource.attributed(code: code, language: language,
+                    fontSize: fontSize, colorScheme: colorScheme), identifier: "code-readonly-source", wrapsText: false)
+                    .fixedSize(horizontal: true, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .topLeading)
+        } else {
+            previewLines
+        }
+    }
+
+    private var previewLines: some View {
         VStack(alignment: .leading, spacing: 0) {
             ForEach(Array(lines.enumerated()), id: \.offset) { index, line in
                 HStack(alignment: .top, spacing: .spacing4) {
@@ -1431,6 +1469,25 @@ private struct CodeLinesView: View {
     private var lines: [String] {
         let split = code.components(separatedBy: "\n")
         return split.isEmpty ? [""] : split
+    }
+}
+
+/// Continuous source storage preserves selected newlines/indentation without
+/// copying the separately rendered, non-selectable line-number gutter.
+@MainActor
+enum CodeSelectableSource {
+    static func attributed(code: String, language: String, fontSize: CGFloat, colorScheme: ColorScheme) -> NSAttributedString {
+        var source = AttributedString()
+        let lines = code.components(separatedBy: "\n")
+        for (index, line) in lines.enumerated() {
+            if index > 0 { source.append(AttributedString("\n")) }
+            for token in CodeSyntaxHighlighter.tokens(for: line, language: language, colorScheme: colorScheme) {
+                var run = AttributedString(token.text)
+                run.foregroundColor = token.color
+                source.append(run)
+            }
+        }
+        return ReadOnlySelectableText.attributed(source, pointSize: fontSize, monospace: true, lineHeight: fontSize * 1.6)
     }
 }
 
@@ -1828,6 +1885,8 @@ struct CodeGetDocsEmbedRenderer: View {
                 }
                 if let documentation, !documentation.isEmpty {
                     RichMarkdownView(content: documentation, isUserMessage: false)
+                        .environment(\.messageTextSelection, nil)
+                        .environment(\.readOnlyTextSelection, true)
                         .frame(maxWidth: .infinity, alignment: .topLeading)
                         .padding(.spacing12)
                         .background(Color.grey0, in: RoundedRectangle(cornerRadius: 30))
@@ -2233,7 +2292,6 @@ private struct SheetFullscreenTable: View {
                     }
                 }
             }
-            .padding(.top, 70)
         }
     }
 
@@ -2405,7 +2463,7 @@ private struct SheetFullscreenCollectionTable: UIViewRepresentable {
         collectionView.alwaysBounceHorizontal = true
         collectionView.showsVerticalScrollIndicator = true
         collectionView.showsHorizontalScrollIndicator = true
-        collectionView.contentInset.top = 70
+        collectionView.contentInset.top = 0
         collectionView.dataSource = context.coordinator
         collectionView.delegate = context.coordinator
         collectionView.register(SheetFullscreenCollectionCell.self, forCellWithReuseIdentifier: SheetFullscreenCollectionCell.reuseIdentifier)
@@ -2614,7 +2672,7 @@ final class SheetFullscreenCollectionLayout: UICollectionViewLayout {
         )
         if let collectionView {
             if row < 2 {
-                let stickyTop = collectionView.bounds.minY + collectionView.adjustedContentInset.top
+                let stickyTop = collectionView.bounds.minY
                 itemAttributes.frame.origin.y = max(rowOffsets[row], stickyTop + rowOffsets[row])
                 itemAttributes.zIndex = 3
             }
@@ -3384,6 +3442,7 @@ struct PcbSchematicEmbedRenderer: View {
     let data: [String: AnyCodable]?
     let mode: EmbedDisplayMode
     let status: EmbedStatus
+    var embedID: String? = nil
 
     private var schematic: PcbSchematicSummary { PcbSchematicSummary(data: data ?? [:]) }
 
@@ -3392,7 +3451,7 @@ struct PcbSchematicEmbedRenderer: View {
         case .preview:
             PcbSchematicPreview(schematic: schematic, status: status)
         case .fullscreen:
-            PcbSchematicFullscreen(schematic: schematic)
+            PcbSchematicFullscreen(schematic: schematic, data: data, embedID: embedID)
         }
     }
 }
@@ -3433,6 +3492,13 @@ private struct PcbSchematicPreview: View {
 
 private struct PcbSchematicFullscreen: View {
     let schematic: PcbSchematicSummary
+    let data: [String: AnyCodable]?
+    let embedID: String?
+    @Environment(\.recipientMediaContext) private var recipient
+    @Environment(\.nativePCBTransport) private var injectedTransport
+    @StateObject private var actions = NativePCBSchematicActions()
+    @StateObject private var exporter = NativeEmbedActionController()
+    @State private var prepareTask: Task<Void, Never>?
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     var body: some View {
@@ -3457,6 +3523,38 @@ private struct PcbSchematicFullscreen: View {
         .padding(.horizontal, .spacing5)
         .padding(.top, .spacing8)
         .padding(.bottom, .spacing8)
+        .task(id: embedID) { actions.initialize(data) }
+        .onDisappear { prepareTask?.cancel(); actions.cancel(); exporter.cancel() }
+    }
+
+    private func transport() async throws -> NativePCBTransport {
+        // Shared recipients have no owner-authorized compile API capability.
+        guard recipient == nil else { throw CancellationError() }
+        if let injectedTransport { return injectedTransport }
+        return try await NativePCBSchematicActions.accountTransport()
+    }
+    private func prepare() {
+        guard let embedID, !actions.preparing, recipient == nil else { return }
+        prepareTask = Task {
+            do { await actions.prepare(embedID: embedID, transport: try await transport()) }
+            catch is CancellationError { }
+            catch { ToastManager.shared.show(AppStrings.error, type: .error) }
+        }
+    }
+    private func download(_ artifact: NativePCBArtifact) {
+        guard recipient == nil else { return }
+        let profile = ServerProfile.current()
+        let scope = OfflineStore.shared.scopeGeneration
+        let teamEpoch = TeamWorkspaceContext.shared.contextEpoch
+        let teamID = TeamWorkspaceContext.shared.teamID
+        exporter.download(load: {
+            try await actions.download(artifact, transport: try await transport())
+        }, validate: {
+            guard recipient == nil, ServerProfile.current() == profile,
+                  OfflineStore.shared.scopeGeneration == scope,
+                  TeamWorkspaceContext.shared.contextEpoch == teamEpoch,
+                  TeamWorkspaceContext.shared.teamID == teamID else { throw CancellationError() }
+        })
     }
 
     private var sourcePanel: some View {
@@ -3482,12 +3580,21 @@ private struct PcbSchematicFullscreen: View {
         ScrollView {
             VStack(alignment: .leading, spacing: .spacing6) {
                 VStack(alignment: .leading, spacing: .spacing3) {
-                    Text(AppStrings.pcbSchematicPrepareFiles)
-                        .font(.omSmall)
-                        .fontWeight(.bold)
-                        .foregroundStyle(Color.fontPrimary)
-                    if let status = schematic.compileStatus {
-                        Text(status)
+                    Button(action: prepare) {
+                        Text(actions.preparing ? AppStrings.localized("embeds.electronics.pcb_schematic.preparing") : AppStrings.pcbSchematicPrepareFiles)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(embedID == nil || actions.preparing || recipient != nil)
+                    .accessibilityIdentifier("pcb-schematic-prepare-files")
+                    if !actions.logs.isEmpty || actions.error != nil {
+                        Button(actions.showLogs ? AppStrings.localized("embeds.electronics.pcb_schematic.hide_logs") : AppStrings.localized("embeds.electronics.pcb_schematic.show_logs")) {
+                            actions.showLogs.toggle()
+                        }
+                        .buttonStyle(.bordered)
+                        .accessibilityIdentifier("pcb-schematic-show-logs")
+                    }
+                    Group {
+                        Text(actions.status)
                             .font(.omXs)
                             .fontWeight(.bold)
                             .foregroundStyle(Color.fontPrimary)
@@ -3500,7 +3607,7 @@ private struct PcbSchematicFullscreen: View {
                         .font(.omXs)
                         .foregroundStyle(Color.grey70)
                         .lineSpacing(.spacing1)
-                    if let compileError = schematic.compileError {
+                    if let compileError = actions.error, !actions.showLogs {
                         Text(compileError)
                             .font(.omXs)
                             .foregroundStyle(Color.error)
@@ -3508,18 +3615,19 @@ private struct PcbSchematicFullscreen: View {
                     }
                 }
 
-                if !schematic.artifacts.isEmpty {
+                if !actions.artifacts.isEmpty && !actions.showLogs {
                     VStack(alignment: .leading, spacing: .spacing3) {
                         Text(AppStrings.pcbSchematicArtifacts)
                             .font(.omSmall)
                             .fontWeight(.bold)
                             .foregroundStyle(Color.fontPrimary)
-                        ForEach(schematic.artifacts) { artifact in
+                        ForEach(actions.artifacts) { artifact in
                             VStack(alignment: .leading, spacing: .spacing1) {
-                                Text(artifact.name)
+                                Button(artifact.name) { download(artifact) }
                                     .font(.omXs)
                                     .fontWeight(.semibold)
-                                    .foregroundStyle(Color.fontPrimary)
+                                    .disabled(actions.compileID == nil || recipient != nil || exporter.isDownloading)
+                                    .accessibilityIdentifier("pcb-schematic-artifact-\(artifact.id)")
                                 if let type = artifact.type {
                                     Text(type)
                                         .font(.omXs)
@@ -3535,13 +3643,13 @@ private struct PcbSchematicFullscreen: View {
                     .accessibilityIdentifier("pcb-schematic-artifacts")
                 }
 
-                if let logs = schematic.logs {
+                if actions.showLogs {
                     VStack(alignment: .leading, spacing: .spacing3) {
                         Text(AppStrings.pcbSchematicLogs)
                             .font(.omSmall)
                             .fontWeight(.bold)
                             .foregroundStyle(Color.fontPrimary)
-                        Text(logs)
+                        Text(!actions.logs.isEmpty ? actions.logs : actions.error ?? AppStrings.localized("embeds.electronics.pcb_schematic.no_logs"))
                             .font(.omXs)
                             .monospaced()
                             .foregroundStyle(Color.grey0)

@@ -90,13 +90,13 @@ final class ChatStreamingLifecycleParityTests: XCTestCase {
     }
 
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
-    func testTallPhoneUsesLargeContinuationCardsWhenVerticalSpaceAllows() {
+    func testContinuationCardsUseActualAvailableGapRatherThanViewportHeight() {
         XCTAssertTrue(
-            WelcomeContinuationCarousel.usesLargeCards(for: CGSize(width: 390, height: 744)),
+            WelcomeContinuationCarousel.usesLargeCards(for: CGSize(width: 390, height: 454)),
             "A tall iPhone should use the same full continuation card as a tall iPad"
         )
-        XCTAssertTrue(WelcomeContinuationCarousel.usesLargeCards(for: CGSize(width: 1024, height: 1000)))
-        XCTAssertFalse(WelcomeContinuationCarousel.usesLargeCards(for: CGSize(width: 390, height: 699)))
+        XCTAssertTrue(WelcomeContinuationCarousel.usesLargeCards(for: CGSize(width: 1024, height: 420)))
+        XCTAssertFalse(WelcomeContinuationCarousel.usesLargeCards(for: CGSize(width: 390, height: 419)))
     }
 
     // contract-test: direct surface=gui.apple assertions=chats.surface.semantic-parity

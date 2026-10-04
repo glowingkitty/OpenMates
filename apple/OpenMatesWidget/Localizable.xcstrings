@@ -1,0 +1,481 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "apple.tasks_widget.title": {
+      "comment": "Canonical web locale key; keep translations aligned with frontend generated i18n JSON.",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufgaben"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tasks"
+          }
+        }
+      }
+    },
+    "apple.tasks_widget.description": {
+      "comment": "Canonical web locale key; keep translations aligned with frontend generated i18n JSON.",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deine Aufgaben nach Status, mit Schnelllinks zum Öffnen und Erstellen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your tasks by status, with quick links to open and create tasks."
+          }
+        }
+      }
+    },
+    "apple.tasks_widget.status_parameter": {
+      "comment": "Canonical web locale key; keep translations aligned with frontend generated i18n JSON.",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Status"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Status"
+          }
+        }
+      }
+    },
+    "apple.tasks_widget.all": {
+      "comment": "Canonical web locale key; keep translations aligned with frontend generated i18n JSON.",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All"
+          }
+        }
+      }
+    },
+    "apple.tasks_widget.empty": {
+      "comment": "Canonical web locale key; keep translations aligned with frontend generated i18n JSON.",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine Aufgaben mit diesem Status"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No tasks in this status"
+          }
+        }
+      }
+    },
+    "apple.tasks_widget.open_app": {
+      "comment": "Canonical web locale key; keep translations aligned with frontend generated i18n JSON.",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öffne OpenMates, um deine Aufgaben zu laden"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open OpenMates to load your tasks"
+          }
+        }
+      }
+    },
+    "apple.tasks_widget.new_task": {
+      "comment": "Canonical web locale key; keep translations aligned with frontend generated i18n JSON.",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neue Aufgabe"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New task"
+          }
+        }
+      }
+    },
+    "tasks.workspace.todo": {
+      "comment": "Canonical web locale key; keep translations aligned with frontend generated i18n JSON.",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zu erledigen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Todo"
+          }
+        }
+      }
+    },
+    "tasks.workspace.in_progress": {
+      "comment": "Canonical web locale key; keep translations aligned with frontend generated i18n JSON.",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In Bearbeitung"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In progress"
+          }
+        }
+      }
+    },
+    "tasks.workspace.blocked": {
+      "comment": "Canonical web locale key; keep translations aligned with frontend generated i18n JSON.",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Blockiert"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Blocked"
+          }
+        }
+      }
+    },
+    "tasks.workspace.backlog": {
+      "comment": "Canonical web locale key; keep translations aligned with frontend generated i18n JSON.",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Backlog"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Backlog"
+          }
+        }
+      }
+    },
+    "tasks.workspace.done": {
+      "comment": "Canonical web locale key; keep translations aligned with frontend generated i18n JSON.",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erledigt"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Done"
+          }
+        }
+      }
+    },
+    "apple.active_chats_widget.description": {
+      "comment": "Widget gallery description for the Active chats widget; canonical source frontend/packages/ui/src/i18n/sources/apple.yml.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Currently running chats, with quick links to each chat."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktuell laufende Chats mit Schnelllinks zu jedem Chat."
+          }
+        }
+      }
+    },
+    "apple.active_chats_widget.empty": {
+      "comment": "Active chats widget state after the processing census is empty; canonical source frontend/packages/ui/src/i18n/sources/apple.yml.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No chats are currently running"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zurzeit laufen keine Chats"
+          }
+        }
+      }
+    },
+    "apple.active_chats_widget.open_app": {
+      "comment": "Active chats widget instruction when the encrypted snapshot is absent or locked; canonical source frontend/packages/ui/src/i18n/sources/apple.yml.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open OpenMates to load active chats"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öffne OpenMates, um aktive Chats zu laden"
+          }
+        }
+      }
+    },
+    "apple.active_chats_widget.view_all": {
+      "comment": "Widget action opening every currently running chat in the app; canonical source frontend/packages/ui/src/i18n/sources/apple.yml.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "View all active chats"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle aktiven Chats anzeigen"
+          }
+        }
+      }
+    },
+    "apple.active_chats_widget.stale": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting for app update"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Warte auf Aktualisierung der App"
+          }
+        }
+      }
+    },
+    "live_activities.upcoming_previous": {
+      "comment": "Canonical Live Activity locale key; align with frontend live_activities.yml.",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zurück"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Previous"
+          }
+        }
+      }
+    },
+    "live_activities.upcoming_next": {
+      "comment": "Canonical Live Activity locale key; align with frontend live_activities.yml.",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Weiter"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next"
+          }
+        }
+      }
+    },
+    "live_activities.upcoming_position": {
+      "comment": "Canonical Live Activity locale key; align with frontend live_activities.yml.",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{number} von {count}"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{number} of {count}"
+          }
+        }
+      }
+    },
+    "live_activities.upcoming_total": {
+      "comment": "Canonical Live Activity locale key; align with frontend live_activities.yml.",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{count} bevorstehend"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{count} upcoming"
+          }
+        }
+      }
+    },
+    "live_activities.upcoming_view_all": {
+      "comment": "Canonical Live Activity locale key; align with frontend live_activities.yml.",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle anzeigen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "View all"
+          }
+        }
+      }
+    },
+    "apple.workflows_widget.title": {
+      "comment": "Canonical native widget key from frontend/packages/ui/src/i18n/sources/apple.yml.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Workflows"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Workflows"
+          }
+        }
+      }
+    },
+    "apple.workflows_widget.description": {
+      "comment": "Canonical native widget key from frontend/packages/ui/src/i18n/sources/apple.yml.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a scheduled workflow to run manually."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wähle einen zeitgesteuerten Workflow, um ihn manuell zu starten."
+          }
+        }
+      }
+    },
+    "apple.workflows_widget.workflow_parameter": {
+      "comment": "Canonical native widget key from frontend/packages/ui/src/i18n/sources/apple.yml.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Workflow"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Workflow"
+          }
+        }
+      }
+    },
+    "apple.workflows_widget.choose": {
+      "comment": "Canonical native widget key from frontend/packages/ui/src/i18n/sources/apple.yml.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a workflow in widget settings."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wähle einen Workflow in den Widget-Einstellungen."
+          }
+        }
+      }
+    },
+    "apple.workflows_widget.open_app": {
+      "comment": "Canonical native widget key from frontend/packages/ui/src/i18n/sources/apple.yml.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open OpenMates"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenMates öffnen"
+          }
+        }
+      }
+    },
+    "apple.workflows_widget.run": {
+      "comment": "Canonical native widget key from frontend/packages/ui/src/i18n/sources/apple.yml.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Run workflow"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Workflow starten"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

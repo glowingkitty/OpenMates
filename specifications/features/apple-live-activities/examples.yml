@@ -1,0 +1,49 @@
+schema_version: 1
+specification: feature.apple-live-activities@1
+downloads:
+- id: background-progress
+  given: An authorized background model download is active.
+  when: The app suspends, waits for connectivity and resumes transfer/verification.
+  then: Its lock-screen activity retains the operation identity and displays the corresponding bounded phase/progress.
+completion:
+- id: duplicate-terminal
+  given: A model finishes size and SHA validation and installs.
+  when: Two terminal callbacks arrive, or the app relaunches.
+  then: At most one allowed completion notification is scheduled; cancellation and installed-asset restoration produce
+    none.
+memories:
+- id: upcoming-versus-date-only
+  given: Saved event and appointment embeds have explicit times within four hours, while another trip has only a date.
+  when: The decrypted memory snapshot is reconciled.
+  then: The earliest timed eligible item is selected; the date-only trip is excluded and private details are absent.
+- id: multiple-upcoming-items
+  given: Three saved entries have explicit future times within four hours and another entry is date-only.
+  when: The user navigates Next and Previous in an interactive Live Activity, then the selected entry is removed.
+  then: Controls navigate only eligible items in chronological order with an item count; removal selects an eligible
+    remaining item and stale account or activity identities cannot change the current activity. Private titles are absent.
+- id: upcoming-payload-overflow
+  given: More eligible saved entries exist than fit in the bounded ActivityKit state.
+  when: The activity is published.
+  then: The encoded state stays within its payload budget, shows the full eligible count, and opens saved memories
+    through View all without exposing private titles or claiming that omitted entries are absent.
+- id: scheduled-window
+  given: An eligible saved memory starts more than four hours later on a system supporting scheduled Live Activities.
+  when: The memory is reconciled and the app suspends.
+  then: The local activity is scheduled for four hours before its start; older systems update only when active.
+isolation:
+- id: logout-and-removal
+  given: An upcoming memory or download activity exists.
+  when: Its memory is removed or account/session/preferences change.
+  then: Stale state ends and delayed callbacks cannot republish it under another scope.
+widget:
+- id: running-overflow-and-routing
+  given: Nine chats are processing in an authenticated account and authorized Team context.
+  when: A bounded Active chats widget is displayed and a row or View all link is selected.
+  then: The total includes all accepted runs, row links open their matching chat and View all opens the running-chat
+    list. An old-account, other-server or unavailable-Team link cannot open another context's content.
+- id: completion-staleness-and-logout
+  given: A widget snapshot contains admitted turns and the app subsequently suspends.
+  when: Exact completion evidence, a stale completion for an older turn, a progress burst or logout is received.
+  then: Exact completion removes only its current turn, old receipts preserve newer runs, unchanged progress
+    publication remains bounded, and logout invalidates the encrypted snapshot. Without fresh evidence, the widget
+    explicitly becomes stale and expires rather than claiming knowledge of background completion.

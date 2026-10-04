@@ -10,6 +10,35 @@ import XCTest
 
 @MainActor
 final class NativeComposerMentionPIITests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=pii.apple.enhanced-local-detection,pii.composer.detect-redact-exclude
+    func testModelWhitespaceBoundariesPreserveUnicodeSeparatorsAndExactExclusionValues() async throws {
+        let text = "Ask\u{00A0} Élodie 👩🏽‍💻 \tthen 42 Test Lane \nplease."
+        let source = text as NSString
+        let detector = PrivacyFilterNativeDetector(runner: WhitespaceBoundaryPIIRunner(spans: [
+            .init(label: .privatePerson, range: source.range(of: "\u{00A0} Élodie 👩🏽‍💻 \t"), score: 0.99),
+            .init(label: .privateAddress, range: source.range(of: " 42 Test Lane \n"), score: 0.99),
+            .init(label: .secret, range: source.range(of: " \t"), score: 0.99)
+        ]))
+        let spans = try await detector.detectModelSpans(in: text)
+        XCTAssertEqual(spans.count, 2, "Whitespace-only model spans must not become empty highlights")
+        XCTAssertEqual(spans.map { source.substring(with: $0.range) }, ["Élodie 👩🏽‍💻", "42 Test Lane"])
+        let matches = PrivacyFilterSpanMerger.mergeMatches(text: text, regexMatches: [], modelSpans: spans, excludedIds: [])
+        let document = ComposerDocumentV1(version: 1, nodes: [.text(id: "synthetic", source: text)])
+        let redacted = ComposerPIIDecorations.redactedDocument(document: document, detectedMatches: matches)
+        let redactedText = try ComposerMarkdownAdapter.serialize(redacted.document)
+        XCTAssertEqual(redactedText, "Ask\u{00A0} " + matches[0].placeholder + " \tthen " + matches[1].placeholder + " \nplease.")
+        XCTAssertEqual(redacted.mappings.map(\.original), ["Élodie 👩🏽‍💻", "42 Test Lane"])
+        XCTAssertEqual(PIIDetector.restorePII(in: redactedText, mappings: redacted.mappings), text)
+
+        let excluded = PrivacyFilterSpanMerger.mergeMatches(text: text, regexMatches: [], modelSpans: spans,
+            excludedIds: [matches[0].id])
+        let excludingPerson = ComposerPIIDecorations.redactedDocument(document: document,
+            excludedIds: [matches[0].id], detectedMatches: excluded)
+        let excludingText = try ComposerMarkdownAdapter.serialize(excludingPerson.document)
+        XCTAssertEqual(excludingText, "Ask\u{00A0} Élodie 👩🏽‍💻 \tthen " + matches[1].placeholder + " \nplease.")
+        XCTAssertEqual(excludingPerson.mappings.map(\.original), ["42 Test Lane"])
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testCanonicalMentionRenderingPreservesCodeEmailsAndUnknownSyntax() {
         let tokens = InlineMarkdownTokenizer.parse("Use @focus:workflows:clarify_workflows, @skill:web:search and @best-model:best. `@mate:software_development` a@mate:software_development @unknown:x")
@@ -186,4 +215,46 @@ final class NativeComposerMentionPIITests: XCTestCase {
         )
         XCTAssertEqual(decoration.id, matches.first?.id)
     }
+    // contract-test: supporting surface=gui.apple assertions=pii.composer.detect-redact-exclude,pii.apple.enhanced-local-detection
+    func testRedactionReplacesOneMatchAcrossAdjacentTextNodes() {
+        let document = ComposerDocumentV1(version: 1, nodes: [
+            .text(id: "first", source: "ada@"), .text(id: "second", source: "example.test")
+        ])
+        let result = ComposerPIIDecorations.redactedDocument(document: document)
+        XCTAssertEqual(result.mappings.map(\.original), ["ada@example.test"])
+        XCTAssertEqual(result.document.nodes.map(\.id), ["first", "second"])
+        XCTAssertEqual(result.document.nodes[1].source, "")
+        XCTAssertFalse(ComposerPIIDecorations.visibleText(document: result.document).contains("ada@example.test"))
+        XCTAssertEqual(result.document.nodes[0].source, result.mappings.first?.placeholder)
+        XCTAssertEqual(document.nodes[0].source, "ada@")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=pii.composer.detect-redact-exclude,pii.apple.enhanced-local-detection
+    func testEnhancedRedactionSpansHardBreakButCannotCrossOpaqueAtom() {
+        let document = ComposerDocumentV1(version: 1, nodes: [
+            .text(id: "first", source: "Ada"), .init(kind: "hardBreak", id: "break"),
+            .text(id: "second", source: "Lovelace")
+        ])
+        let match = PIIMatch(id: "synthetic-model-match", type: .genericSecret,
+            value: "Ada\nLovelace", range: NSRange(location: 0, length: 12), placeholder: "[PERSON]")
+        let result = ComposerPIIDecorations.redactedDocument(document: document, detectedMatches: [match])
+        XCTAssertEqual(result.mappings.map(\.original), ["Ada\nLovelace"])
+        XCTAssertEqual(result.document.nodes.map(\.id), document.nodes.map(\.id))
+        XCTAssertEqual(ComposerPIIDecorations.visibleText(document: result.document), "[PERSON]")
+        XCTAssertEqual(document.nodes[1].kind, "hardBreak")
+        let atom = ComposerNodeV1.mention(id: "opaque", mentionKind: "mate", targetId: "public-fixture",
+            canonicalSyntax: "@mate:public-fixture", displayLabel: "Ada Lovelace")
+        let opaqueDocument = ComposerDocumentV1(version: 1, nodes: [document.nodes[0], atom, document.nodes[2]])
+        let unsafeMatch = PIIMatch(id: "cross-atom", type: .genericSecret,
+            value: "Ada\u{FFFC}Lovelace", range: NSRange(location: 0, length: 12), placeholder: "[PERSON]")
+        let safe = ComposerPIIDecorations.redactedDocument(document: opaqueDocument, detectedMatches: [unsafeMatch])
+        XCTAssertEqual(safe.document, opaqueDocument)
+        XCTAssertTrue(safe.mappings.isEmpty)
+    }
+
+}
+
+private struct WhitespaceBoundaryPIIRunner: PrivacyFilterModelRunning {
+    let spans: [PrivacyFilterModelSpan]
+    func detectedSpans(in text: String) async throws -> [PrivacyFilterModelSpan] { spans }
 }

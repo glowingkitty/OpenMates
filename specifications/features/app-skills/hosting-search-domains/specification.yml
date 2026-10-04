@@ -5,7 +5,7 @@ status: draft
 title: Hosting Domain Search
 summary: >
   Check and discover Gandi domains with truthful availability, comparable price
-  and term context, and grouped results that work across programmatic and web clients.
+  and term context, and grouped results that work across programmatic, web, and Apple clients.
 
 inherits:
   - architecture.app-skill-execution@1
@@ -16,11 +16,10 @@ scope:
     - Exact domain checks and bounded name or keyword suggestions from Gandi
     - Evidence-based availability selection and optional relevance ranking
     - Registration and renewal quotes, tax, premium, term, and restriction context
-    - Grouped skill results and independent parent and child web embeds
+    - Grouped skill results and independent parent and child web and Apple embeds
   excludes:
     - Domain purchase, reservation, or availability guarantee
     - Claims that an undocumented provider endpoint has published API permission
-    - Apple GUI delivery in this release
 
 models:
   DomainSearchRequest:
@@ -101,11 +100,11 @@ assertions:
     depends_on: [models.DomainSearchGroup, models.DomainResult]
   - id: hosting-domains.embeds.parent-child
     type: behavior
-    must: The web search result has a parent summary embed and independently openable domain child embeds for checked_results with encrypted child references. The parent preview summarizes checked counts and only comparable starting prices; fullscreen uses a responsive child-card grid and can locally reveal or filter checked in-use domains from the already checked pool without a provider refetch, while keeping displayed selection bounded by count. By default, in-use domains are hidden when available results fill count. Each child preview shows availability and supplied registration and renewal prices; fullscreen shows provider CTA, term and tax details, supplied restrictions, sibling navigation, and return to results. Unknown, unavailable, premium, minimum-term, partial, empty, processing, cancelled, and error states remain distinct.
+    must: The web and Apple search result has a parent summary embed and independently openable domain child embeds for checked_results with encrypted child references. The parent preview summarizes checked counts and only comparable starting prices; fullscreen uses a responsive child-card grid and can locally reveal or filter checked in-use domains from the already checked pool without a provider refetch, while keeping displayed selection bounded by count. By default, in-use domains are hidden when available results fill count. Each child preview shows availability and supplied registration and renewal prices; fullscreen shows provider CTA, term and tax details, supplied restrictions, sibling navigation, and return to results. Unknown, unavailable, premium, minimum-term, partial, empty, processing, cancelled, and error states remain distinct.
     depends_on: [models.DomainSearchGroup, models.DomainResult]
   - id: hosting-domains.surface-parity
     type: parity
-    must: Assistant, REST API, CLI, npm and pip SDKs preserve grouped requests, availability selection, optional relevance ranking, quote fields, safe errors, and child references. A Workflow can pass the typed search output to the web result renderer. Apple is outside the current GUI scope and is not advertised as supporting this skill.
+    must: Assistant, REST API, CLI, npm and pip SDKs preserve grouped requests, availability selection, optional relevance ranking, quote fields, safe errors, and child references. A Workflow can pass the typed search output to web and Apple result renderers. Apple preserves the same bounded grouped availability, truthful quote details, error states, child navigation, and provider action semantics.
     depends_on: [models, applies_to]
 
 applies_to:
@@ -122,13 +121,11 @@ applies_to:
     parity: semantic
     implementations:
       web: {required: true}
-      apple: {required: false}
-    exceptions:
-      - id: apple-deferred-v1
-        implementation: gui.apple
-        reason: The approved Hosting delivery scope covers programmatic surfaces and web.
-        equivalent_outcome: Future native delivery must preserve the same grouped availability, quote, error, and child-detail semantics.
+      apple: {required: true}
 
 examples:
   file: examples.yml
   required_groups: [requests, lookup, availability, relevance, provider, quotes, safety, embeds, parity]
+
+approval_source:
+  instruction: Direct user instruction in the existing Codex task on 2026-10-03 authorizes Hosting Apple parity. No separate fingerprint approval is claimed.

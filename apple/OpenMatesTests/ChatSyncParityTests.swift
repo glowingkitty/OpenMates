@@ -10,6 +10,261 @@ import SwiftData
 
 @MainActor
 final class ChatSyncParityTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity
+    func testWelcomeDraftCardsWaitForDecryptedPreviewButKeepAttachmentPlaceholders() {
+        let draft = DevHistoryWelcomeData.chat("synthetic-draft", messages: 0, draft: 7)
+        XCTAssertFalse(WelcomeScreenState.isContinuationPreviewReady(draft, draftPreview: nil))
+        XCTAssertFalse(WelcomeScreenState.isContinuationPreviewReady(draft, draftPreview: " \n "))
+        XCTAssertTrue(WelcomeScreenState.isContinuationPreviewReady(draft, draftPreview: "[Audio] [Image]"))
+        XCTAssertTrue(WelcomeScreenState.isContinuationPreviewReady(DevHistoryWelcomeData.chat("synthetic-chat", title: "Existing", messages: 2), draftPreview: nil))
+    }
+
+    // contract-test: direct surface=gui.apple assertions=apple-offline.recent-cohort
+    func testOfflineCohortUsesOverallRecencyRatherThanSidebarPinsOrDrafts() throws {
+        func chat(_ id: String, edited: Int, pinned: Bool = false, draft: Int = 0,
+                  parent: String? = nil, hidden: Bool = false) throws -> Chat {
+            let decoder = JSONDecoder()
+            decoder.keyDecodingStrategy = .convertFromSnakeCase
+            var fields: [String: Any] = ["id": id, "created_at": 1700000000,
+                "last_message_timestamp": 1700000001, "last_edited_overall_timestamp": edited,
+                "pinned": pinned, "draft_v": draft, "is_hidden": hidden]
+            if let parent { fields["parent_id"] = parent }
+            return try decoder.decode(Chat.self, from: JSONSerialization.data(withJSONObject: fields))
+        }
+        let recent = try (0..<21).map { try chat(String(format: "recent-%02d", $0), edited: 1800000000 - $0) }
+        let ineligible = try [chat("old-pinned", edited: 1700000002, pinned: true),
+            chat("old-draft", edited: 1700000003, draft: 9),
+            chat("hidden", edited: 1900000000, hidden: true),
+            chat("child", edited: 1900000000, parent: "parent"),
+            chat("incognito-fixture", edited: 1900000000), chat("demo-fixture", edited: 1900000000)]
+        XCTAssertEqual(OfflineRecentChatPolicy.cohort(from: Array((ineligible + recent).reversed())).map(\.id), recent.prefix(20).map(\.id))
+        let ties = try [chat("tie-b", edited: 1800000000), chat("tie-a", edited: 1800000000)]
+        XCTAssertEqual(OfflineRecentChatPolicy.cohort(from: ties).map(\.id), ["tie-a", "tie-b"])
+        let store = ChatStore()
+        store.upsertChat(recent[0])
+        store.updateLastVisibleMessage(chatId: recent[0].id, messageId: "anchor")
+        store.advanceMessagesVersion(chatId: recent[0].id, to: 2)
+        store.upsertChat(try chat(recent[0].id, edited: 1700000004))
+        let preserved = try XCTUnwrap(store.chat(for: recent[0].id))
+        XCTAssertEqual(preserved.lastEditedOverallTimestamp, recent[0].lastEditedOverallTimestamp)
+        XCTAssertEqual(PersistedChat(from: preserved).toChat().lastEditedOverallTimestamp, preserved.lastEditedOverallTimestamp)
+        XCTAssertNotEqual(preserved.lastMessageAt, preserved.lastEditedOverallTimestamp)
+    }
+
+    // contract-test: direct surface=gui.apple assertions=apple-offline.recent-cohort,apple-offline.snapshot-integrity
+    func testOfflineMaintenanceCachesExactlyTwentyExplicitChatsWithoutPublishingTranscriptsOrEvictingOtherData() async throws {
+        let (offline, container) = try makeRecentOfflineStore()
+        let store = ChatStore()
+        let chats = (0..<21).map { makeChat(id: String(format: "cache-%02d", $0), title: "Synthetic", messagesV: 2,
+            lastMessageAt: String(format: "2026-01-01T00:%02d:00Z", 30 - $0)) }
+        offline.persistChats(chats)
+        store.performWithoutPersistence { store.upsertChats(chats) }
+        let outside = Message(id: "retained-outside", chatId: chats[20].id, role: .user, content: "Synthetic retained data",
+            encryptedContent: nil, createdAt: chats[20].createdAt, updatedAt: nil, appId: nil, isStreaming: false, embedRefs: nil)
+        offline.persistMessages([outside], chatId: chats[20].id)
+        var requested: [String] = []
+        let bridge = OfflineSyncBridge(chatStore: store, offlineStore: offline,
+            contentFetcher: { id in requested.append(id); return try self.recentOfflineBatch(chatID: id) },
+            prefetchEligibility: { true }, keyValidator: { _, _ in "validated-wrapper" })
+        bridge.startOfflinePrefetchIfEligible(reason: "startupSyncComplete")
+        await bridge.waitForOfflinePrefetch()
+        XCTAssertEqual(requested, chats.prefix(20).map(\.id))
+        let reloaded = OfflineStore(modelContainer: container)
+        for chat in chats.prefix(20) {
+            XCTAssertEqual(reloaded.loadMessages(chatId: chat.id).count, 2)
+            XCTAssertEqual(reloaded.loadEmbeds(chatId: chat.id).count, 1)
+            XCTAssertEqual(reloaded.loadChat(id: chat.id)?.encryptedChatKey, "validated-wrapper")
+            XCTAssertTrue(store.messages(for: chat.id).isEmpty, "Cache maintenance must not hydrate twenty in-memory transcripts")
+        }
+        XCTAssertEqual(reloaded.loadMessages(chatId: chats[20].id).map(\.id), [outside.id])
+        bridge.startOfflinePrefetchIfEligible(reason: "unchangedRefresh")
+        await bridge.waitForOfflinePrefetch()
+        XCTAssertEqual(requested.count, 20, "Unchanged completed revisions must reuse their receipts")
+    }
+
+    // contract-test: direct surface=gui.apple assertions=apple-offline.interruption-isolation
+    func testOfflineRefreshCoalescesAndRejectsStoppedSessionResponses() async throws {
+        let (offline, _) = try makeRecentOfflineStore()
+        let store = ChatStore()
+        let chat = makeChat(id: "coalesced-cache", title: "Synthetic", messagesV: 2)
+        offline.persistChats([chat])
+        store.performWithoutPersistence { store.upsertChat(chat) }
+        let gate = RecentOfflineFetchGate()
+        let bridge = OfflineSyncBridge(chatStore: store, offlineStore: offline,
+            contentFetcher: { _ in try await gate.fetch() }, prefetchEligibility: { true },
+            keyValidator: { _, _ in nil })
+        bridge.startOfflinePrefetchIfEligible(reason: "startupSyncComplete")
+        await gate.waitUntilStarted(0)
+        for _ in 0..<5 { bridge.startOfflinePrefetchIfEligible(reason: "sameRefresh") }
+        gate.release(0, data: try recentOfflineBatch(chatID: chat.id))
+        await bridge.waitForOfflinePrefetch()
+        XCTAssertEqual(gate.calls, 1)
+        XCTAssertEqual(offline.loadMessages(chatId: chat.id).count, 2)
+
+        let stopped = OfflineSyncBridge(chatStore: store, offlineStore: offline,
+            contentFetcher: { _ in try await gate.fetch() }, prefetchEligibility: { true }, keyValidator: { _, _ in nil })
+        // A changed accepted version invalidates the persisted completion receipt.
+        store.advanceMessagesVersion(chatId: chat.id, to: 3)
+        offline.persistChats(store.chats)
+        let stoppedTask = stopped.startOfflinePrefetchIfEligible(reason: "startupSyncComplete")
+        await gate.waitUntilStarted(1)
+        stopped.stopSession()
+        gate.release(1, data: try recentOfflineBatch(chatID: chat.id, version: 3, prefix: "stale"))
+        await stoppedTask?.value
+        XCTAssertFalse(offline.loadMessages(chatId: chat.id).contains { $0.id.contains("-stale-") })
+
+        let cancelledRun = bridge.startOfflinePrefetchIfEligible(reason: "changedRevision")
+        await gate.waitUntilStarted(2)
+        bridge.setForegroundActive(false)
+        bridge.setForegroundActive(true)
+        await gate.waitUntilStarted(3)
+        gate.release(2, data: try recentOfflineBatch(chatID: chat.id, version: 3, prefix: "cancelled"))
+        await cancelledRun?.value
+        let replacement = bridge.startOfflinePrefetchIfEligible(reason: "coalescedReplacement")
+        gate.release(3, data: try recentOfflineBatch(chatID: chat.id, version: 3, prefix: "replacement"))
+        await replacement?.value
+        XCTAssertEqual(gate.calls, 4, "A cancelled run's defer must not clear the replacement task")
+        XCTAssertFalse(offline.loadMessages(chatId: chat.id).contains { $0.id.contains("-cancelled-") })
+        XCTAssertTrue(offline.loadMessages(chatId: chat.id).contains { $0.id.contains("-replacement-") })
+
+        store.advanceMessagesVersion(chatId: chat.id, to: 4)
+        offline.persistChats(store.chats)
+        let changedAccountRun = bridge.startOfflinePrefetchIfEligible(reason: "accountBoundary")
+        await gate.waitUntilStarted(4)
+        offline.deactivate()
+        gate.release(4, data: try recentOfflineBatch(chatID: chat.id, version: 4, prefix: "other-account"))
+        await changedAccountRun?.value
+        XCTAssertTrue(offline.loadMessages(chatId: chat.id).isEmpty)
+    }
+
+    // contract-test: direct surface=gui.apple assertions=apple-offline.snapshot-integrity
+    func testOfflineSnapshotRejectsPartialResponsesAndReconcilesOnlyExplicitPendingRows() async throws {
+        let (offline, container) = try makeRecentOfflineStore()
+        let chat = makeChat(id: "integrity-cache", title: "Synthetic", messagesV: 2)
+        offline.persistChats([chat])
+        let old = ["deleted", "queued"].map { Message(id: $0, chatId: chat.id, role: .user,
+            content: "Synthetic", encryptedContent: nil, createdAt: chat.createdAt,
+            updatedAt: nil, appId: nil, isStreaming: false, embedRefs: nil) }
+        offline.persistMessages(old, chatId: chat.id)
+        let optionalWriter = await offline.makeRecentChatCacheWriter()
+        let writer = try XCTUnwrap(optionalWriter)
+        for invalid in [try recentOfflineBatch(chatID: chat.id, partial: true),
+                        try recentOfflineBatch(chatID: chat.id, claimedCount: 3)] {
+            do { _ = try await writer.decode(invalid, chatId: chat.id); XCTFail("Incomplete snapshots must not produce a receipt") }
+            catch OfflineRecentChatCacheError.incompleteSnapshot { }
+        }
+        let snapshot = try await writer.decode(recentOfflineBatch(chatID: chat.id), chatId: chat.id)
+        try await writer.persist(snapshot, chat: chat, validatedWrapper: nil, preserving: ["queued"])
+        let reloaded = OfflineStore(modelContainer: container)
+        XCTAssertEqual(Set(reloaded.loadMessages(chatId: chat.id).map(\.id)), ["integrity-cache-current-0", "integrity-cache-current-1", "queued"])
+        XCTAssertTrue(reloaded.hasCompleteOfflineSnapshot(for: chat))
+    }
+
+    // contract-test: direct surface=gui.apple assertions=apple-offline.snapshot-integrity
+    func testAuthoritativeCacheCanonicalizesPendingAliasOnceAndKeepsUnsentRowsOnReload() async throws {
+        let (offline, container) = try makeRecentOfflineStore()
+        let chat = makeChat(id: "pending-alias-cache", title: "Synthetic", messagesV: 1)
+        offline.persistChats([chat])
+        let alias = Message(id: "database-alias", chatId: chat.id, role: .assistant, content: "Synthetic saved body",
+            encryptedContent: "matching-cipher", createdAt: chat.createdAt, updatedAt: nil,
+            appId: nil, isStreaming: false, embedRefs: nil)
+        let unsent = Message(id: "unsent-local", chatId: chat.id, role: .user, content: "Synthetic unsent body",
+            encryptedContent: nil, createdAt: chat.createdAt, updatedAt: nil,
+            appId: nil, isStreaming: false, embedRefs: nil)
+        offline.persistMessages([alias, unsent], chatId: chat.id)
+        let canonical = Message(id: "canonical-client", chatId: chat.id, role: .assistant, content: nil,
+            encryptedContent: alias.encryptedContent, createdAt: chat.createdAt, updatedAt: nil,
+            appId: nil, isStreaming: false, embedRefs: nil, serverMessageId: alias.id)
+        let snapshot = OfflineRecentChatSnapshot(messages: [canonical], embeds: [], embedKeys: [], chatKeyWrappers: [],
+            messagesVersion: 1, supplementalContent: Data("{}".utf8), codeOutputs: [])
+        let optionalWriter = await offline.makeRecentChatCacheWriter()
+        let writer = try XCTUnwrap(optionalWriter)
+        for _ in 0..<2 {
+            try await writer.persist(snapshot, chat: chat, validatedWrapper: nil, preserving: [alias.id, unsent.id],
+                                     fence: offline.recentContentWriteFence(for: chat.id))
+        }
+        let reloaded = OfflineStore(modelContainer: container)
+        let rows = reloaded.loadMessages(chatId: chat.id)
+        XCTAssertEqual(Set(rows.map(\.id)), [canonical.id, unsent.id])
+        XCTAssertEqual(rows.count, 2)
+        XCTAssertEqual(rows.first { $0.id == canonical.id }?.content, alias.content)
+        XCTAssertEqual(rows.first { $0.id == unsent.id }?.content, unsent.content)
+        XCTAssertTrue(reloaded.hasCompleteOfflineSnapshot(for: chat))
+    }
+
+    // contract-test: direct surface=gui.apple assertions=apple-offline.interruption-isolation,apple-offline.snapshot-integrity
+    func testForegroundContentUpdateDuringCacheCommitRejectsOldWriteAndReceipt() async throws {
+        let (offline, container) = try makeRecentOfflineStore()
+        let chat = makeChat(id: "late-update-cache", title: "Synthetic", messagesV: 2)
+        offline.persistChats([chat])
+        let optionalWriter = await offline.makeRecentChatCacheWriter()
+        let writer = try XCTUnwrap(optionalWriter)
+        let snapshot = try await writer.decode(recentOfflineBatch(chatID: chat.id), chatId: chat.id)
+        let fence = offline.recentContentWriteFence(for: chat.id)
+        let entered = AsyncStream<Void>.makeStream()
+        let gate = RecentOfflineCommitGate(entered: entered.continuation)
+        let write = Task {
+            try await writer.persist(snapshot, chat: chat, validatedWrapper: nil, preserving: [], fence: fence,
+                                     beforeCommit: { await gate.pause() })
+        }
+        var iterator = entered.stream.makeAsyncIterator()
+        _ = await iterator.next()
+        let late = Message(id: "accepted-after-snapshot", chatId: chat.id, role: .user, content: "Synthetic new accepted row",
+            encryptedContent: "later-cipher", createdAt: chat.createdAt, updatedAt: nil,
+            appId: nil, isStreaming: false, embedRefs: nil)
+        offline.persistMessages([late], chatId: chat.id)
+        XCTAssertFalse(fence.isCurrent)
+        await gate.release()
+        do { try await write.value; XCTFail("A cache write must not overtake newer accepted content") }
+        catch OfflineRecentChatCacheError.staleSnapshot { }
+        let reloaded = OfflineStore(modelContainer: container)
+        XCTAssertEqual(reloaded.loadMessages(chatId: chat.id).map(\.id), [late.id])
+        XCTAssertFalse(reloaded.hasCompleteOfflineSnapshot(for: chat))
+    }
+
+    // contract-test: direct surface=gui.apple assertions=apple-offline.snapshot-integrity
+    func testReloadRejectsReceiptAfterCountMismatchOrNonAuthoritativeContentUpdate() async throws {
+        let (offline, container) = try makeRecentOfflineStore()
+        let chat = makeChat(id: "count-receipt-cache", title: "Synthetic", messagesV: 2)
+        offline.persistChats([chat])
+        let optionalWriter = await offline.makeRecentChatCacheWriter()
+        let writer = try XCTUnwrap(optionalWriter)
+        let snapshot = try await writer.decode(recentOfflineBatch(chatID: chat.id), chatId: chat.id)
+        try await writer.persist(snapshot, chat: chat, validatedWrapper: nil, preserving: [])
+        XCTAssertTrue(OfflineStore(modelContainer: container).hasCompleteOfflineSnapshot(for: chat))
+        let corruption = ModelContext(container)
+        let target = snapshot.messages[0].id
+        let descriptor = FetchDescriptor<PersistedMessage>(predicate: #Predicate { $0.id == target })
+        corruption.delete(try XCTUnwrap(corruption.fetch(descriptor).first))
+        try corruption.save()
+        XCTAssertFalse(OfflineStore(modelContainer: container).hasCompleteOfflineSnapshot(for: chat), "A valid version alone cannot prove the saved record count")
+        try await writer.persist(snapshot, chat: chat, validatedWrapper: nil, preserving: [])
+        XCTAssertTrue(OfflineStore(modelContainer: container).hasCompleteOfflineSnapshot(for: chat))
+        offline.persistMessages([snapshot.messages[0]], chatId: chat.id)
+        XCTAssertFalse(OfflineStore(modelContainer: container).hasCompleteOfflineSnapshot(for: chat), "A partial update must durably invalidate the prior receipt before a restart")
+    }
+
+    private func makeRecentOfflineStore() throws -> (OfflineStore, ModelContainer) {
+        let schema = Schema([PersistedChat.self, PersistedMessage.self, PersistedEmbed.self,
+            PersistedEmbedKey.self, PersistedCodeRunOutput.self, PendingOfflineAction.self])
+        let configuration = ModelConfiguration("RecentOffline-\(UUID().uuidString)", schema: schema, isStoredInMemoryOnly: true)
+        let container = try ModelContainer(for: schema, configurations: [configuration])
+        return (OfflineStore(modelContainer: container), container)
+    }
+
+    private func recentOfflineBatch(chatID: String, version: Int = 2, prefix: String = "current",
+                                    partial: Bool = false, claimedCount: Int = 2) throws -> Data {
+        let rows = try (0..<2).map { index in String(decoding: try JSONSerialization.data(withJSONObject: [
+            "id": "\(chatID)-\(prefix)-\(index)", "chat_id": chatID, "role": "user", "encrypted_content": "synthetic-cipher",
+            "created_at": "2026-01-01T00:00:0\(index)Z"]), as: UTF8.self) }
+        return try JSONSerialization.data(withJSONObject: ["messages_by_chat_id": [chatID: rows],
+            "versions_by_chat_id": [chatID: ["messages_v": version, "server_message_count": claimedCount]],
+            "embeds": [["embed_id": "embed-\(chatID)", "type": "sheets-sheet", "status": "finished",
+                "hashed_chat_id": ChatKeyWrapperRecord.hashedChatId(for: chatID),
+                "encrypted_content": "synthetic-embed-cipher"]],
+            "embed_keys": [], "chat_key_wrappers": [], "code_run_outputs": [], "partial_error": partial])
+    }
+
     // contract-test: supporting surface=gui.apple assertions=drafts.sync.version-authoritative,chat-navigation.open.local-first-coherent
     func testChatMergeKeepsDraftDeletionFenceThroughLatePageAndPersistenceCopies() throws {
         let decoder = JSONDecoder()
@@ -833,6 +1088,31 @@ final class ChatSyncParityTests: XCTestCase {
         XCTAssertTrue(card.isDraftOnly)
         XCTAssertEqual(card.title, AppStrings.draftBadge)
         XCTAssertEqual(card.draftPreview, String(repeating: "a", count: 80) + "…")
+        let audio = AppStrings.draftEmbedPreviewLabel(type: "audio")
+        let image = AppStrings.draftEmbedPreviewLabel(type: "image")
+        let expected = "Before \(audio) after \(image) describe it"
+        let serializedPreviews = [
+            "Before ```json\n{\"type\":\"audio\",\"embed_id\":\"synthetic-audio\"}\n``` after ```json\n{\"type\":\"image\",\"embed_id\":\"synthetic-image\"}\n``` describe it",
+            #"{"version":1,"nodes":[{"kind":"text","source":"Before "},{"kind":"embed","embedType":"audio-recording"},{"kind":"text","source":" after "},{"kind":"embed","embedType":"image"},{"kind":"text","source":" describe it"}]}"#,
+            #"{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Before "},{"type":"embed","attrs":{"type":"audio"}},{"type":"text","text":" after "},{"type":"embed","attrs":{"type":"image"}},{"type":"text","text":" describe it"}]}]}"#
+        ]
+        for source in serializedPreviews {
+            let formattedCard = WelcomeScreenState.cardData(for: draft, draftPreview: source)
+            XCTAssertEqual(formattedCard.draftPreview, expected)
+            XCTAssertTrue(formattedCard.isDraftOnly)
+            XCTAssertEqual(formattedCard.title, AppStrings.draftBadge)
+        }
+        let ordinaryJSON = #"{"type":"audio","message":"Discuss this JSON"}"#
+        XCTAssertEqual(WelcomeScreenState.cardData(for: draft, draftPreview: ordinaryJSON).draftPreview, ordinaryJSON)
+        XCTAssertEqual(WelcomeScreenState.cardData(for: draft, draftPreview: "  Ordinary\n draft  ").draftPreview, "Ordinary draft")
+        XCTAssertNil(WelcomeScreenState.cardData(for: draft).draftPreview)
+        XCTAssertEqual(WelcomeScreenState.cardData(for: draft, draftPreview: " \n ").draftPreview, "")
+        XCTAssertTrue(WelcomeScreenState.isContinuationEligible(draft),
+                      "Formatting an empty preview must not discard an addressable draft record")
+        let projectMention = #"{"version":1,"nodes":[{"kind":"text","source":"Review "},{"kind":"mention","displayLabel":"@Synthetic-Project","canonicalSyntax":"@project:synthetic-id:read"}]}"#
+        XCTAssertEqual(WelcomeScreenState.cardData(for: draft, draftPreview: projectMention).draftPreview,
+                       "Review @Synthetic-Project")
+
         XCTAssertFalse(WelcomeScreenState.cardData(for: existing, draftPreview: "Unsent follow-up").isDraftOnly)
         XCTAssertEqual(WelcomeScreenState.resumeChat(from: [existing], lastOpened: "existing")?.id, "existing")
     }
@@ -1097,4 +1377,42 @@ final class ChatSyncParityTests: XCTestCase {
             embedRefs: nil
         )
     }
+}
+
+@MainActor
+private final class RecentOfflineFetchGate {
+    private(set) var calls = 0
+    private var pending: [Int: CheckedContinuation<Data, Error>] = [:]
+    private var waiters: [Int: CheckedContinuation<Void, Never>] = [:]
+
+    func fetch() async throws -> Data {
+        let index = calls
+        calls += 1
+        return try await withCheckedThrowingContinuation { continuation in
+            pending[index] = continuation
+            waiters.removeValue(forKey: index)?.resume()
+        }
+    }
+
+    func waitUntilStarted(_ index: Int) async {
+        if pending[index] != nil { return }
+        await withCheckedContinuation { waiters[index] = $0 }
+    }
+
+    func release(_ index: Int, data: Data) {
+        pending.removeValue(forKey: index)?.resume(returning: data)
+    }
+}
+
+private actor RecentOfflineCommitGate {
+    let entered: AsyncStream<Void>.Continuation
+    private var continuation: CheckedContinuation<Void, Never>?
+    init(entered: AsyncStream<Void>.Continuation) { self.entered = entered }
+    func pause() async {
+        await withCheckedContinuation { continuation in
+            self.continuation = continuation
+            entered.yield(())
+        }
+    }
+    func release() { continuation?.resume(); continuation = nil }
 }

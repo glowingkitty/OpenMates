@@ -202,7 +202,7 @@ final class DraftService: ObservableObject {
         recordings: [EmbedRecord]? = nil,
         attachments: [ComposerDraftAttachment]? = nil
     ) async throws {
-        guard !canonicalMarkdown.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        guard ComposerDraftContentPolicy.hasContent(canonicalMarkdown) else {
             try await clearDraft(chatId: chatId)
             return
         }
@@ -306,6 +306,29 @@ final class DraftService: ObservableObject {
                 base64String: record.encryptedMarkdown,
                 key: masterKey
             )
+            // Ciphertext presence says nothing about meaningful editor content.
+            // Serialized embed/mention/code markers remain nonempty markdown, even
+            // when their human-readable preview is empty. Preserve an opaque local
+            // companion conservatively until its content can be recovered.
+            if !ComposerDraftContentPolicy.hasContent(markdown),
+               record.encryptedRecordingPayload == nil {
+                try requireCurrentLoad()
+                let applied: Bool
+                if let syncCoordinator {
+                    applied = try await syncCoordinator.submitVerifiedEmptyDelete(record)
+                } else {
+                    applied = try await repository.apply(.verifiedEmptyDeletion(record),
+                        knownVersion: 0, knownClearedVersion: 0, expectedScope: scope).applied
+                }
+                try requireCurrentLoad()
+                guard applied else { throw ComposerDraftError.versionConflict }
+                draftGenerationByChatId[resolvedChatId] = UUID()
+                currentDraft = ""
+                draftPreviews.removeValue(forKey: record.chatId)
+                if syncCoordinator?.activeNewChatDraftId == nil { persistNewChatDraftId(nil) }
+                postDraftChange(chatId: record.chatId, reloadComposer: false)
+                return nil
+            }
             let preview: String
             let attachments: [ComposerDraftAttachment]
             var expectedEncryptedPreview = record.encryptedPreview
@@ -323,10 +346,13 @@ final class DraftService: ObservableObject {
                 expectedEncryptedPreview = encryptedPreview
             } else {
                 loadPhase = "previewDecrypt"
-                preview = try await crypto.decryptContent(
+                let decryptedPreview = try await crypto.decryptContent(
                     base64String: record.encryptedPreview,
                     key: masterKey
                 )
+                // A missing display preview must not discard serialized attachments.
+                preview = decryptedPreview.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    ? String(markdown.prefix(160)) : decryptedPreview
             }
             if let encryptedPayload = record.encryptedRecordingPayload {
                 loadPhase = "recordingPayloadDecrypt"

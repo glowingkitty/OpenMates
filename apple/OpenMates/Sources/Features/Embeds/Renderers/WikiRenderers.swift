@@ -42,7 +42,7 @@ struct WikiInlineLinkView: View {
             }
         }
         .onTapGesture {
-            if let url, let link = URL(string: url) {
+            if let url, let link = WikiArticleIdentity.articleURL(url) {
                 #if os(iOS)
                 UIApplication.shared.open(link)
                 #elseif os(macOS)
@@ -57,67 +57,57 @@ struct WikiRenderer: View {
     @Environment(\.recipientMediaContext) private var recipientMediaContext
     let data: [String: AnyCodable]?
     let mode: EmbedDisplayMode
-    @State private var article: WikipediaArticleSummary?
-    @State private var isLoading = false
-    @State private var loadError: String?
+    @State private var loadState = WikiArticleLoadState()
+    @State private var loadedImageURL: URL?
 
-    private var title: String? { data?["title"]?.value as? String }
-    private var summary: String? { data?["summary"]?.value as? String ?? data?["extract"]?.value as? String }
-    private var thumbnail: String? { data?["thumbnail_url"]?.value as? String }
-    private var imageURL: String? {
-        thumbnail
-            ?? data?["image"]?.value as? String
-            ?? data?["image_url"]?.value as? String
+    private var identity: WikiArticleIdentity {
+        WikiArticleIdentity(data: data ?? [:], fallbackLanguage: LocalizationManager.shared.currentLanguage.code)
     }
-    private var url: String? { data?["url"]?.value as? String }
-    private var content: String? { data?["content"]?.value as? String }
+    private var article: WikiArticleSummary? { loadState.article(for: identity) }
     private var resolvedTitle: String {
-        title ?? article?.title ?? wikipediaTitleFromURL ?? LocalizationManager.shared.text("embed.wikipedia")
+        article?.title ?? data?["title"]?.value as? String ?? identity.title
     }
     private var resolvedDescription: String? {
-        article?.description ?? summary
+        article?.description ?? data?["description"]?.value as? String
     }
-    private var resolvedExtract: String? {
-        article?.extract ?? content ?? summary
+    private var resolvedImageURL: URL? {
+        let raw = article?.imageURL ?? data?["thumbnail_url"]?.value as? String
+            ?? data?["image_url"]?.value as? String
+        // Use the same preview proxy as web. Relative bundled example assets
+        // resolve against the presentation's origin, including anonymous shares.
+        let base = recipientMediaContext?.webBaseURL ?? ServerProfile.current().webBaseURL
+        return WikiArticleSummary.proxiedImageURL(raw, webBaseURL: base)
     }
-    private var resolvedImageURL: String? {
-        article?.imageURL ?? imageURL
+    private struct FetchIdentity: Hashable {
+        let article: WikiArticleIdentity
+        let authority: UUID
+        let api: String
     }
-    private var resolvedURL: String? {
-        article?.pageURL ?? url
+    private var fetchIdentity: FetchIdentity {
+        FetchIdentity(article: identity,
+            authority: recipientMediaContext?.generation ?? OfflineStore.shared.scopeGeneration,
+            api: (recipientMediaContext?.apiBaseURL ?? ServerProfile.current().apiBaseURL).absoluteString)
     }
 
     var body: some View {
         if mode == .preview {
             previewLayout
         } else {
-            fullscreenLayout
-                .task(id: summaryFetchTitle) {
-                    await loadWikipediaSummaryIfNeeded()
-                }
+            fullscreenLayout.task(id: fetchIdentity) { await loadWikipediaSummary() }
         }
     }
 
     private var previewLayout: some View {
         VStack(alignment: .leading, spacing: .spacing3) {
             HStack(spacing: .spacing3) {
-                Icon("book", size: 16)
-                    .foregroundStyle(Color.buttonPrimary)
-                Text(LocalizationManager.shared.text("embed.wikipedia"))
+                Icon("book", size: 16).foregroundStyle(Color.buttonPrimary)
+                Text(AppStrings.localized("embeds.wiki.wikipedia"))
                     .font(.omTiny).foregroundStyle(Color.fontTertiary)
             }
-
-            if let title {
-                Text(title)
-                    .font(.omSmall).fontWeight(.medium)
-                    .foregroundStyle(Color.fontPrimary)
-                    .lineLimit(2)
-            }
-
-            if let summary {
-                Text(summary)
-                    .font(.omXs).foregroundStyle(Color.fontSecondary)
-                    .lineLimit(3)
+            Text(resolvedTitle).font(.omSmall).fontWeight(.medium)
+                .foregroundStyle(Color.fontPrimary).lineLimit(2)
+            if let description = resolvedDescription ?? data?["summary"]?.value as? String {
+                Text(description).font(.omXs).foregroundStyle(Color.fontSecondary).lineLimit(3)
             }
         }
         .padding(.spacing4)
@@ -126,173 +116,97 @@ struct WikiRenderer: View {
 
     private var fullscreenLayout: some View {
         VStack(alignment: .leading, spacing: .spacing8) {
-            if let url = resolvedURL, let link = URL(string: url) {
-                Button {
-                    open(link)
-                } label: {
-                    Text("Open on Wikipedia")
-                        .font(.omP)
-                        .fontWeight(.bold)
-                        .foregroundStyle(Color.fontButton)
-                        .padding(.horizontal, .spacing10)
-                        .padding(.vertical, .spacing5)
-                        .background(Color.buttonPrimary)
-                        .clipShape(RoundedRectangle(cornerRadius: .radius8))
-                        .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 4)
-                }
-                .buttonStyle(.plain)
-                .frame(maxWidth: .infinity)
-                .offset(y: -28)
-                .padding(.bottom, -20)
-            }
-
-            if isLoading && article == nil && resolvedImageURL == nil {
-                RoundedRectangle(cornerRadius: .radius6)
-                    .fill(Color.grey10)
-                    .frame(maxWidth: .infinity, minHeight: 260)
-                    .overlay {
-                        ProgressView()
-                    }
-            } else if let imageURL = resolvedImageURL, let url = URL(string: imageURL) {
-                CachedRemoteImage(url: url) { image in
-                    image
-                        .resizable()
-                        .scaledToFit()
+            // The action belongs to EmbedFullscreenHeader, which paints it over
+            // the banner edge and reserves its full hit bounds.
+            if let imageURL = resolvedImageURL {
+                CachedRemoteImage(url: imageURL, onSuccess: { loadedImageURL = imageURL }) { image in
+                    image.resizable().scaledToFit()
                 } placeholder: { wikiImageFallback }
+                .frame(maxWidth: 511, maxHeight: 340)
+                .clipShape(RoundedRectangle(cornerRadius: .radius5))
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(resolvedTitle)
+                .accessibilityIdentifier("wiki-hero-image")
+                .accessibilityValue(loadedImageURL == imageURL ? "loaded" : "loading")
                 .frame(maxWidth: .infinity)
-                .clipShape(RoundedRectangle(cornerRadius: .radius6))
+            } else if loadState.isLoading || loadState.identity != identity {
+                wikiImageFallback.overlay { ProgressView() }
             }
 
-            VStack(alignment: .leading, spacing: .spacing4) {
-                Text(resolvedTitle)
-                    .font(.omH2)
-                    .fontWeight(.bold)
-                    .foregroundStyle(Color.fontPrimary)
-
+            VStack(alignment: .leading, spacing: .spacing2) {
+                Text(resolvedTitle).font(.omH3).fontWeight(.semibold)
+                    .foregroundStyle(Color.grey90)
+                    .accessibilityIdentifier("wiki-fullscreen-title")
                 if let description = resolvedDescription, !description.isEmpty {
-                    SourceQuoteHighlightedText(text: description, locationID: "wiki-description")
-                        .font(.omP)
-                        .fontWeight(.semibold)
-                        .italic()
-                        .foregroundStyle(Color.fontSecondary)
+                    SourceQuoteHighlightedText(text: description, locationID: "wiki-description", pointSize: 14, textColor: .grey60, lineHeight: 21, italic: true)
+                        .font(.omSmall).italic().foregroundStyle(Color.grey60)
+                        .accessibilityIdentifier("wiki-fullscreen-description")
                 }
-
-                if let extract = resolvedExtract, !extract.isEmpty {
-                    SourceQuoteTextDocument(text: extract, locationPrefix: "wiki-extract-paragraph")
-                        .font(.omP)
-                        .foregroundStyle(Color.fontPrimary)
-                        .textSelection(.enabled)
-                }
-
-                if loadError != nil && article == nil {
-                    Text(LocalizationManager.shared.text("embed.wikipedia"))
-                        .font(.omSmall)
-                        .foregroundStyle(Color.fontTertiary)
-                }
-
-                Text("Source: Wikipedia - content available under CC BY-SA 4.0")
-                    .font(.omXs)
-                    .fontWeight(.medium)
-                    .foregroundStyle(Color.fontTertiary)
+            }
+            if let extract = article?.extract, !extract.isEmpty {
+                SourceQuoteTextDocument(text: extract, locationPrefix: "wiki-extract-paragraph", textColor: .grey80)
+                    .font(.omP).foregroundStyle(Color.grey80).textSelection(.enabled)
+                    .accessibilityIdentifier("wiki-fullscreen-extract")
+            }
+            if loadState.identity == identity && loadState.failed {
+                Text(AppStrings.localized("embeds.wiki.article_not_found"))
+                    .font(.omSmall).foregroundStyle(Color.fontTertiary)
+                    .accessibilityIdentifier("wiki-fullscreen-error")
+            }
+            if article != nil {
+                Text(AppStrings.localized("embeds.wiki.source_wikipedia"))
+                    .font(.omTiny).foregroundStyle(Color.grey40)
+                    .frame(maxWidth: .infinity)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.spacing8)
+        .frame(maxWidth: 600)
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("wiki-fullscreen-content")
     }
 
     private var wikiImageFallback: some View {
-        RoundedRectangle(cornerRadius: .radius6)
-            .fill(Color.grey10)
-            .frame(maxWidth: .infinity, minHeight: 220)
-            .overlay {
-                Icon("book", size: 64)
-                    .foregroundStyle(Color.fontTertiary)
-            }
-    }
-
-    private var wikipediaTitleFromURL: String? {
-        guard let url, let last = URL(string: url)?.lastPathComponent.removingPercentEncoding else { return nil }
-        return last.replacingOccurrences(of: "_", with: " ")
-    }
-
-    private var summaryFetchTitle: String {
-        (title ?? wikipediaTitleFromURL ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        RoundedRectangle(cornerRadius: .radius5).fill(Color.grey10)
+            .frame(maxWidth: .infinity, minHeight: 200, maxHeight: 200)
     }
 
     @MainActor
-    private func loadWikipediaSummaryIfNeeded() async {
-        guard article == nil, !summaryFetchTitle.isEmpty else { return }
-        isLoading = true
-        loadError = nil
+    private func loadWikipediaSummary() async {
+        let requested = fetchIdentity
+        guard !requested.article.title.isEmpty else { return }
+        let request = loadState.begin(requested.article)
+        let recipient = recipientMediaContext
+        let profile = ServerProfile.current()
+        let account = await AuthManager.currentUserId()
         do {
-            let response: WikipediaSummaryResponse
-            if let recipientMediaContext {
-                var url = URLComponents(url: recipientMediaContext.apiBaseURL.appendingPathComponent("v1/wikipedia/summary"), resolvingAgainstBaseURL: false)!
-                url.queryItems = [.init(name: "title", value: summaryFetchTitle), .init(name: "language", value: "en")]
-                let data = try await recipientMediaContext.download(url.url!)
-                response = try JSONDecoder().decode(WikipediaSummaryResponse.self, from: data)
-                try recipientMediaContext.checkCurrent()
+            try Task.checkCancellation()
+            let bytes: Data
+            if let recipient {
+                var url = URLComponents(url: recipient.apiBaseURL.appendingPathComponent("v1/wikipedia/summary"), resolvingAgainstBaseURL: false)!
+                let query = URLComponents(string: requested.article.summaryPath)!
+                url.percentEncodedQuery = query.percentEncodedQuery
+                bytes = try await recipient.download(url.url!)
+                try recipient.checkCurrent()
             } else {
-                let encoded = summaryFetchTitle.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? summaryFetchTitle
-                response = try await APIClient.shared.request(.get, path: "/v1/wikipedia/summary?title=\(encoded)&language=en")
+                guard requested == fetchIdentity else { throw CancellationError() }
+                bytes = try await APIClient.shared.request(.get, path: requested.article.summaryPath,
+                    serverProfile: profile, expectedAccountID: account,
+                    expectedScope: account == nil ? nil : requested.authority)
             }
-            article = WikipediaArticleSummary(response: response)
+            try Task.checkCancellation()
+            if let recipient { try recipient.checkCurrent() }
+            else {
+                let currentAccount = await AuthManager.currentUserId()
+                guard currentAccount == account, requested == fetchIdentity else { throw CancellationError() }
+            }
+            guard requested == fetchIdentity else { throw CancellationError() }
+            loadState.finish(try WikiArticleSummary.decode(bytes), request: request)
         } catch {
-            loadError = error.localizedDescription
+            guard !Task.isCancelled, requested == fetchIdentity else { return }
+            if error is CancellationError { loadState.finish(nil, request: request); return }
+            loadState.finish(nil, request: request, failed: true)
         }
-        isLoading = false
     }
-
-    private func open(_ url: URL) {
-        #if os(iOS)
-        UIApplication.shared.open(url)
-        #elseif os(macOS)
-        NSWorkspace.shared.open(url)
-        #endif
-    }
-}
-
-private struct WikipediaArticleSummary {
-    let title: String?
-    let description: String?
-    let extract: String?
-    let imageURL: String?
-    let pageURL: String?
-
-    init(response: WikipediaSummaryResponse) {
-        title = response.title
-        description = response.description
-        extract = response.extract
-        imageURL = response.originalImage?.source ?? response.thumbnail?.source
-        pageURL = response.contentUrls?.desktop?.page
-    }
-}
-
-private struct WikipediaSummaryResponse: Decodable {
-    let title: String?
-    let description: String?
-    let extract: String?
-    let thumbnail: WikipediaSummaryImage?
-    let originalImage: WikipediaSummaryImage?
-    let contentUrls: WikipediaContentURLs?
-
-    enum CodingKeys: String, CodingKey {
-        case title
-        case description
-        case extract
-        case thumbnail
-        case originalImage = "originalimage"
-        case contentUrls = "content_urls"
-    }
-}
-
-private struct WikipediaSummaryImage: Decodable {
-    let source: String?
-}
-
-private struct WikipediaContentURLs: Decodable {
-    let desktop: WikipediaPageURL?
-}
-
-private struct WikipediaPageURL: Decodable {
-    let page: String?
 }

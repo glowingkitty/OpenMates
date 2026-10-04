@@ -6,7 +6,9 @@
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/DailyInspirationBanner.svelte
 // CSS:     DailyInspirationBanner.svelte <style>
-//          Banner height: 240px desktop, 190px mobile (≤730px)
+//          Regular layout uses measured container width (mobile ≤730px).
+//          Rendered wide preview: equal 333px columns, 14px gap, 300×200 video.
+//          Inner max outer width 760px, including 40px horizontal padding.
 //          Background: getCategoryGradientColors per inspiration category
 //          Layout: label top-left, mate profile + phrase row, CTA bottom-left
 //          Decorative category icons at edges, living gradient orbs
@@ -16,6 +18,9 @@
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
 //          GradientTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
+
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.surface.semantic-parity, chats.layout.responsive-history
 
 import SwiftUI
 #if os(iOS)
@@ -150,15 +155,14 @@ struct InspirationCard: View {
     var tapHint: String? = nil
     let onTap: () -> Void
 
-    @Environment(\.horizontalSizeClass) private var sizeClass
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var decoAppeared = false
     @State private var showMobileCard = false
 
-    private var isCompact: Bool { sizeClass == .compact || containerSize.width <= 730 }
+    private var isCompact: Bool { containerSize.width <= 730 }
 
-    /// Web `.daily-inspiration-banner`: `height: 35vh; min-height: 240px`,
-    /// switching to fixed `190px` at the mobile breakpoint.
+    /// Production shell supplies its measured height; standalone welcome cards
+    /// retain the desktop 240pt minimum and mobile 190pt fallback.
     private var bannerHeight: CGFloat {
         if let heightOverride { return heightOverride }
         guard !isCompact else { return 190 }
@@ -214,6 +218,7 @@ struct InspirationCard: View {
 
                 // 4. Content: label, phrase row with mate profile, CTA, and optional video
                 contentLayer
+                    .frame(height: bannerHeight)
             }
             .task(id: mobileCardTaskIdentity) {
                 // Web alternates the phrase and preview at 55% of its 20-second
@@ -244,7 +249,7 @@ struct InspirationCard: View {
             .contentShape(Rectangle())
             .onTapGesture(perform: onTap)
         }
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("daily-inspiration-card")
         .accessibleButton(
             accessibilitySummary,
@@ -326,36 +331,54 @@ struct InspirationCard: View {
     }
 
     private var bannerContent: some View {
-        ZStack {
-            HStack(alignment: .center, spacing: 14) {
-                leftContent
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-                    .opacity(isCompact && hasMobileCard && showMobileCard ? 0 : 1)
-                    .offset(y: isCompact && hasMobileCard && showMobileCard ? -6 : 0)
+        GeometryReader { viewport in
+            // Web .banner-left and .banner-embed-wrapper each use flex:1 and
+            // min-width:0. Explicit columns prevent a thumbnail's intrinsic
+            // size from expanding across the phrase's layout allocation.
+            let hasSideCard = !isCompact && (shouldShowSideBySideVideo || inspiration.feature != nil)
+            let columnWidth = hasSideCard ? max(0, (viewport.size.width - 14) / 2) : viewport.size.width
+            ZStack {
+                HStack(alignment: .center, spacing: 14) {
+                    if !isCompact || !hasMobileCard || !showMobileCard {
+                        leftContent
+                            .frame(width: columnWidth, height: viewport.size.height, alignment: .leading)
+                            .clipped()
+                            .accessibilityElement(children: .contain)
+                            .transition(.opacity.combined(with: .offset(y: -6)))
+                    } else {
+                        // Preserve the measured row allocation during crossfade.
+                        // The inactive phrase has no retained accessibility tree.
+                        Color.clear
+                            .frame(width: columnWidth, height: viewport.size.height)
+                            .allowsHitTesting(false)
+                            .accessibilityHidden(true)
+                    }
 
-                if shouldShowSideBySideVideo {
-                    videoPreviewLayer
-                        .frame(maxWidth: 220, maxHeight: .infinity)
-                } else if !isCompact, let feature = inspiration.feature {
-                    featurePreviewLayer(feature)
-                        .frame(width: 220)
-                        .frame(maxHeight: .infinity)
-                }
-            }
-            .animation(reduceMotion ? nil : .easeInOut(duration: 0.42), value: showMobileCard)
-
-            if isCompact, hasMobileCard {
-                Group {
-                    if hasVideo {
-                        videoPreviewLayer.frame(maxWidth: 220, maxHeight: .infinity)
-                    } else if let feature = inspiration.feature {
-                        featurePreviewLayer(feature, mobile: true)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    if shouldShowSideBySideVideo {
+                        videoPreviewLayer(size: CGSize(width: columnWidth, height: viewport.size.height + 27))
+                            .offset(y: -1.5) // web wrapper margins: -15px top, -12px bottom
+                            .frame(width: columnWidth, height: viewport.size.height, alignment: .trailing)
+                    } else if !isCompact, let feature = inspiration.feature {
+                        featurePreviewLayer(feature)
+                            .frame(width: columnWidth, height: viewport.size.height)
+                            .clipped()
                     }
                 }
-                .opacity(showMobileCard ? 1 : 0)
-                .offset(y: showMobileCard ? 0 : 6)
                 .animation(reduceMotion ? nil : .easeInOut(duration: 0.42), value: showMobileCard)
+
+                if isCompact, hasMobileCard, showMobileCard {
+                    ZStack {
+                        if hasVideo {
+                            videoPreviewLayer(size: viewport.size)
+                        } else if let feature = inspiration.feature {
+                            featurePreviewLayer(feature, mobile: true)
+                                .frame(width: viewport.size.width, height: viewport.size.height)
+                        }
+                    }
+                    .accessibilityElement(children: .contain)
+                    .transition(.opacity.combined(with: .offset(y: 6)))
+                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.42), value: showMobileCard)
+                }
             }
         }
     }
@@ -375,6 +398,8 @@ struct InspirationCard: View {
                     .fontWeight(.medium)
                     .foregroundStyle(.white.opacity(0.85))
             }
+            .fixedSize(horizontal: false, vertical: true)
+            .accessibilityIdentifier("daily-inspiration-cta-text")
             .padding(.bottom, 10)
         }
     }
@@ -417,75 +442,40 @@ struct InspirationCard: View {
                 .foregroundStyle(.white)
                 .lineLimit(4)
                 .multilineTextAlignment(.leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityIdentifier("daily-inspiration-phrase")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private var videoPreviewLayer: some View {
-        ZStack(alignment: .bottomLeading) {
-            RoundedRectangle(cornerRadius: .radius6)
-                .fill(.black.opacity(0.28))
+    private func videoPreviewLayer(size: CGSize) -> some View {
+        // Render the same production 300×200 preview and 61px footer as web.
+        // Short banners fit the entire card, including its footer, together.
+        let scale = min(1, max(0, size.width) / 300, max(0, size.height) / 200)
+        return EmbedPreviewCard(embed: videoEmbed, onTap: onTap)
+            .frame(width: 300, height: 200)
+            .scaleEffect(scale)
+            .frame(width: 300 * scale, height: 200 * scale)
+            .accessibilityIdentifier("daily-inspiration-video-preview")
+    }
 
-            if let thumbnailUrl = inspiration.video?.thumbnailUrl,
-               let url = URL(string: thumbnailUrl) {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .scaledToFill()
-                    default:
-                        AppIconView(appId: "videos", size: 54)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .clipped()
-            } else {
-                AppIconView(appId: "videos", size: 54)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
-
-            LinearGradient(
-                colors: [.black.opacity(0), .black.opacity(0.72)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-
-            HStack(spacing: .spacing3) {
-                ZStack {
-                    Circle()
-                        .fill(Color(hex: 0xEF2F2A))
-                        .frame(width: 46, height: 46)
-                    Icon("play", size: 20)
-                        .foregroundStyle(.white)
-                }
-
-                VStack(alignment: .leading, spacing: .spacing1) {
-                    Text(inspiration.video?.title ?? inspiration.title ?? inspiration.text)
-                        .font(.omSmall)
-                        .fontWeight(.bold)
-                        .foregroundStyle(.white)
-                        .lineLimit(2)
-                        .truncationMode(.tail)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    if let channel = inspiration.video?.channelName {
-                        Text(channel)
-                            .font(.omXs)
-                            .fontWeight(.medium)
-                            .foregroundStyle(.white.opacity(0.72))
-                            .lineLimit(1)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .layoutPriority(1)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.spacing4)
+    private var videoEmbed: EmbedRecord {
+        var data: [String: AnyCodable] = [
+            "title": AnyCodable(inspiration.video?.title ?? inspiration.title ?? inspiration.text)
+        ]
+        if let id = inspiration.video?.youtubeId, !id.isEmpty {
+            data["url"] = AnyCodable("https://www.youtube.com/watch?v=\(id)")
         }
-        .clipShape(RoundedRectangle(cornerRadius: .radius6))
-        .frame(maxHeight: .infinity)
-        .accessibilityLabel(inspiration.video?.title ?? inspiration.text)
+        if let thumbnail = inspiration.video?.thumbnailUrl, !thumbnail.isEmpty {
+            data["thumbnail_url"] = AnyCodable(thumbnail)
+        }
+        if let channel = inspiration.video?.channelName { data["channel_name"] = AnyCodable(channel) }
+        if let duration = inspiration.video?.durationSeconds { data["duration_seconds"] = AnyCodable(duration) }
+        if let views = inspiration.video?.viewCount { data["view_count"] = AnyCodable(views) }
+        if let published = inspiration.video?.publishedAt { data["published_at"] = AnyCodable(published) }
+        return EmbedRecord(id: "inspiration-video-\(inspiration.inspirationId ?? "current")",
+            type: "videos-video", status: .finished, data: .raw(data), parentEmbedId: nil,
+            appId: "videos", skillId: nil, embedIds: nil, createdAt: nil)
     }
 
     // MARK: - Mate profile circle

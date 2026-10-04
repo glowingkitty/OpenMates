@@ -1,0 +1,41 @@
+schema_version: 1
+specification: feature.apple-offline-workspaces@1
+complete:
+- id: more-than-page-limit
+  given: The iPhone or macOS account has more than five hundred tasks and multiple full workflow graphs.
+  when: Connected maintenance traverses the inventory.
+  then: All pages and definitions are retained; failed traversal leaves the previous complete snapshot intact, with
+    no false completeness.
+opening:
+- id: offline-workflow
+  given: A complete encrypted workflow graph was synchronized previously.
+  when: The app cold-launches offline and the user opens it.
+  then: The graph renders from device storage without awaiting a detail GET.
+- id: supplementary-task-delay
+  given: The task snapshot is cached and plan/project-label requests are suspended.
+  when: The user opens Tasks.
+  then: The board is already visible and mounted cards remain bounded.
+isolation:
+- id: foreign-scope-and-deletion
+  given: A team cache and in-flight refresh exist.
+  when: The user switches to personal context, then a stale response arrives.
+  then: Foreign data is neither rendered nor written into personal storage; only a complete matching snapshot can
+    reconcile deletions.
+refresh:
+- id: coalesced-workspace-entry
+  given: Startup maintenance and a workspace view ask for the same list.
+  when: The user opens its detail while maintenance is active.
+  then: Requests coalesce, local content appears first, and background work yields to foreground navigation.
+watch:
+- id: unopened-watch-workspaces
+  given: Watch has an authenticated personal account with more than fifty tasks in each canonical status and multiple workflows.
+  when: Connected idle maintenance runs without visiting Tasks, Workflows or any workflow detail, then the app reopens offline.
+  then: Each status shows up to fifty cached tasks; synchronized workflow graphs and recent run metadata open from encrypted device storage.
+- id: watch-run-detail-demand
+  given: A workflow and its latest fifty run metadata records are cached on Watch.
+  when: The user opens a run detail online, then reopens that detail offline.
+  then: Node output content was fetched only for the selected run and its encrypted detail cache can reopen; metadata alone never fabricates detail content.
+- id: watch-budget-and-background
+  given: A valid cache entry exists and a background refresh is scheduled by watchOS.
+  when: A replacement exceeds the per-entry or total storage budget, or the OS execution window ends.
+  then: The prior valid entry survives, unsynchronized content stays unavailable, pending work cancels, and the OS task completes without claiming the full cohort is ready.

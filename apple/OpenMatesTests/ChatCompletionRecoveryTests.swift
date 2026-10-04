@@ -277,17 +277,50 @@ final class ChatCompletionRecoveryTests: XCTestCase {
         XCTAssertEqual(cold.persisted.committedMessagesVersions, [8])
     }
 
-    // contract-test: supporting surface=gui.apple assertions=chats.message.identity-idempotent
+    // contract-test: supporting surface=gui.apple assertions=chats.completion.recovery-takeover,chats.persistence.client-encrypted,chats.message.identity-idempotent
     @MainActor
-    func testAvailableRecoverySkipsAnAlreadyEncryptedAssistant() async throws {
+    func testAvailableRecoveryWithLocalCiphertextAndNoQueueStillPersistsCanonicallyOnce() async throws {
         let fixture = try await makeRecoveryFixture()
-        let encrypted = try await CryptoManager.shared.encryptContent("Recovered hello",
+        let encrypted = try await CryptoManager.shared.encryptContent("Uncommitted local response",
             key: SymmetricKey(data: try decodeBase64URL(RecoveryVector.shared.chatKey)))
-        fixture.persisted.messages = [streamedRecoveryFixtureMessage(encryptedContent: encrypted)]
+        var local = streamedRecoveryFixtureMessage(encryptedContent: encrypted)
+        local.content = "Uncommitted local response"
+        fixture.persisted.messages = [local]
+        XCTAssertTrue(fixture.coordinator.pendingAssistantMessageIds(in: local.chatId).isEmpty)
         await fixture.coordinator.markInitialSyncReady()
         await fixture.coordinator.handleAvailableJobs(fixture.availability)
-        XCTAssertTrue(fixture.transport.sentTypes.isEmpty)
-        XCTAssertEqual(fixture.persisted.upsertCount, 0)
+        await fixture.coordinator.handleAvailableJobs(fixture.availability)
+        XCTAssertEqual(fixture.transport.sentTypes, ["recovery_job_claim", "recovery_job_persist"])
+        XCTAssertEqual(fixture.persisted.upsertCount, 1)
+        XCTAssertEqual(fixture.persisted.messages.count, 1)
+        XCTAssertEqual(fixture.persisted.messages.first?.id, local.id)
+        XCTAssertEqual(fixture.persisted.messages.first?.content, "Recovered hello")
+        XCTAssertNotEqual(fixture.persisted.messages.first?.encryptedContent, encrypted)
+        XCTAssertEqual(fixture.persisted.messages.first?.thinkingContent, local.thinkingContent)
+        XCTAssertEqual(fixture.persisted.committedMessagesVersions, [8])
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.completion.recovery-takeover,chats.persistence.client-encrypted,chats.message.identity-idempotent
+    @MainActor
+    func testAvailableTerminalRecoveryWithOnlyLocalCiphertextFetchesCanonicalAssistant() async throws {
+        let key = SymmetricKey(data: try decodeBase64URL(RecoveryVector.shared.chatKey))
+        let localCiphertext = try await CryptoManager.shared.encryptContent("Local response", key: key)
+        let canonicalCiphertext = try await CryptoManager.shared.encryptContent("Canonical response", key: key)
+        let fixture = try await makeRecoveryFixture(initialClaimTerminal: true,
+            committedBatch: try await committedBatchFixture(ciphertext: canonicalCiphertext))
+        var local = streamedRecoveryFixtureMessage(encryptedContent: localCiphertext)
+        local.content = "Local response"
+        fixture.persisted.messages = [local]
+        XCTAssertTrue(fixture.coordinator.pendingAssistantMessageIds(in: local.chatId).isEmpty)
+        await fixture.coordinator.markInitialSyncReady()
+        await fixture.coordinator.handleAvailableJobs(fixture.availability)
+        await fixture.coordinator.handleAvailableJobs(fixture.availability)
+        XCTAssertEqual(fixture.transport.sentTypes, ["recovery_job_claim", "request_chat_content_batch"])
+        XCTAssertEqual(fixture.persisted.messages.count, 1)
+        XCTAssertEqual(fixture.persisted.messages.first?.id, local.id)
+        XCTAssertEqual(fixture.persisted.messages.first?.encryptedContent, canonicalCiphertext)
+        XCTAssertEqual(fixture.persisted.messages.first?.content, "Canonical response")
+        XCTAssertEqual(fixture.persisted.committedMessagesVersions, [8])
     }
 
     // contract-test: supporting surface=gui.apple assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
@@ -357,24 +390,141 @@ final class ChatCompletionRecoveryTests: XCTestCase {
 
     // contract-test: supporting surface=gui.apple assertions=chats.completion.recovery-takeover,chats.persistence.client-encrypted
     @MainActor
-    func testVersionConflictRefreshesEncryptedHistoryBeforeAReclaimedPersist() async throws {
+    func testVersionConflictRefreshesEncryptedHistoryBeforeRetryingTheRetainedLease() async throws {
         let clock = RecoveryManualScheduler()
         let fixture = try await makeRecoveryFixture(scheduler: clock,
             committedBatch: try await committedBatchFixture(assistantId: "previous-assistant", version: 7))
         fixture.persisted.currentMessagesVersion = 6
         fixture.transport.responseErrors["recovery_job_persisted"] = [WebSocketError.remote(code: "version_conflict")]
-        fixture.transport.replaceSecondClaimWithNewLease()
         await fixture.coordinator.markInitialSyncReady()
         await fixture.coordinator.handleAvailableJobs(fixture.availability)
         XCTAssertEqual(fixture.transport.sentTypes, ["recovery_job_claim", "recovery_job_persist"])
         await clock.advanceNext()
         XCTAssertEqual(fixture.transport.sentTypes,
-                       ["recovery_job_claim", "recovery_job_persist", "request_chat_content_batch", "recovery_job_claim", "recovery_job_persist"])
+                       ["recovery_job_claim", "recovery_job_persist", "request_chat_content_batch", "recovery_job_persist"])
         XCTAssertEqual(fixture.transport.sentPayloads.last?["expected_messages_v"] as? Int, 7)
-        XCTAssertEqual(fixture.transport.sentPayloads.last?["lease_generation"] as? Int, 3)
+        XCTAssertEqual(fixture.transport.sentPayloads.last?["lease_generation"] as? Int, 2)
+        XCTAssertEqual(fixture.transport.sentPayloads.last?["lease_token"] as? String, "synthetic-lease-token")
+        let firstMessage = try XCTUnwrap(fixture.transport.sentPayloads[1]["encrypted_assistant_message"] as? [String: Any])
+        let retryMessage = try XCTUnwrap(fixture.transport.sentPayloads.last?["encrypted_assistant_message"] as? [String: Any])
+        XCTAssertTrue(NSDictionary(dictionary: firstMessage).isEqual(to: retryMessage), "Retry preserves exact encrypted message and timestamps")
         XCTAssertEqual(fixture.persisted.committedMessagesVersions, [7, 8])
         XCTAssertEqual(fixture.persisted.messages.count, 2)
         XCTAssertFalse(fixture.transport.sentTypes.contains("chat_message_added"))
+    }
+
+
+    // contract-test: supporting surface=gui.apple assertions=chats.completion.recovery-takeover,chats.persistence.client-encrypted
+    @MainActor
+    func testCanonicalRecoveryVersionOverridesInflatedLocalAndCacheVersionsWithoutSelfLeaseConflict() async throws {
+        let clock = RecoveryManualScheduler()
+        var authoritativeReads = 0
+        let fixture = try await makeRecoveryFixture(committedMessagesVersion: 8, scheduler: clock,
+            committedBatch: try await committedBatchFixture(assistantId: "previous-assistant", version: 9),
+            authoritativeMessagesVersion: { chatId, ownerId in
+                XCTAssertEqual(chatId, RecoveryVector.shared.chatId)
+                XCTAssertEqual(ownerId, RecoveryVector.shared.ownerId)
+                authoritativeReads += 1
+                return 7
+            })
+        fixture.persisted.currentMessagesVersion = 10
+        fixture.transport.responseErrors["recovery_job_persisted"] = [WebSocketError.remote(code: "version_conflict")]
+        // A second claim would correctly reject our still-active lease.
+        fixture.transport.responseErrors["recovery_job_claimed"] = []
+        await fixture.coordinator.markInitialSyncReady()
+        await fixture.coordinator.handleAvailableJobs(fixture.availability)
+        fixture.transport.responseErrors["recovery_job_claimed"] = [WebSocketError.remote(code: "lease_conflict")]
+        await clock.advanceNext()
+        let writes = zip(fixture.transport.sentTypes, fixture.transport.sentPayloads).filter { $0.0 == "recovery_job_persist" }.map { $0.1 }
+        XCTAssertEqual(writes.count, 2)
+        XCTAssertEqual(writes[0]["expected_messages_v"] as? Int, 10)
+        XCTAssertEqual(writes[1]["expected_messages_v"] as? Int, 7,
+            "Canonical persist version must bypass both inflated batch metadata and the monotonic local store")
+        XCTAssertEqual(fixture.persisted.currentMessagesVersion, 10, "Correctness cannot depend on lowering the chat store version")
+        XCTAssertEqual(fixture.persisted.committedMessagesVersions, [7, 8])
+        XCTAssertEqual(authoritativeReads, 1)
+        XCTAssertEqual(fixture.transport.sentTypes.filter { $0 == "recovery_job_claim" }.count, 1)
+        XCTAssertEqual(clock.activeCount, 0)
+        XCTAssertEqual(fixture.persisted.messages.filter { $0.id == RecoveryVector.shared.assistantMessageId }.count, 1)
+        XCTAssertFalse(fixture.transport.sentTypes.contains("chat_message_added"))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.completion.recovery-takeover,chats.sync.key-gated-recovery
+    @MainActor
+    func testExpiredRecoveryLeaseIsReclaimedBeforeRetryingTheCanonicalVersion() async throws {
+        let clock = RecoveryManualScheduler()
+        let fixture = try await makeRecoveryFixture(scheduler: clock,
+            committedBatch: try await committedBatchFixture(assistantId: "previous-assistant", version: 7),
+            leaseExpiresAt: clock.now.addingTimeInterval(1))
+        fixture.transport.replaceSecondClaimWithNewLease()
+        fixture.transport.responseErrors["recovery_job_persisted"] = [WebSocketError.remote(code: "version_conflict")]
+        await fixture.coordinator.markInitialSyncReady()
+        await fixture.coordinator.handleAvailableJobs(fixture.availability)
+        await clock.advanceNext()
+        XCTAssertEqual(fixture.transport.sentTypes.filter { $0 == "recovery_job_claim" }.count, 2)
+        XCTAssertEqual(fixture.transport.sentPayloads.last?["lease_generation"] as? Int, 3)
+        XCTAssertEqual(fixture.transport.sentPayloads.last?["lease_token"] as? String, "synthetic-next-lease")
+        XCTAssertEqual(fixture.transport.sentPayloads.last?["expected_messages_v"] as? Int, 7)
+        XCTAssertEqual(fixture.persisted.committedMessagesVersions, [7, 8])
+        XCTAssertEqual(clock.activeCount, 0)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.completion.recovery-takeover,chats.sync.key-gated-recovery
+    @MainActor
+    func testDisconnectInvalidatesRetainedLeaseBeforeReconnectRetry() async throws {
+        let clock = RecoveryManualScheduler()
+        let fixture = try await makeRecoveryFixture(scheduler: clock,
+            committedBatch: try await committedBatchFixture(assistantId: "previous-assistant", version: 7))
+        fixture.transport.replaceSecondClaimWithNewLease()
+        fixture.transport.responseErrors["recovery_job_persisted"] = [WebSocketError.remote(code: "version_conflict")]
+        await fixture.coordinator.markInitialSyncReady()
+        await fixture.coordinator.handleAvailableJobs(fixture.availability)
+        fixture.coordinator.handleTransportDisconnected()
+        await fixture.coordinator.handleTransportConnected()
+        XCTAssertEqual(fixture.transport.sentTypes.filter { $0 == "recovery_job_claim" }.count, 2,
+            "Lease tokens must never be carried onto a replacement socket")
+        XCTAssertEqual(fixture.transport.sentPayloads.last?["lease_generation"] as? Int, 3)
+        XCTAssertEqual(fixture.persisted.committedMessagesVersions, [7, 8])
+        XCTAssertEqual(clock.activeCount, 0)
+    }
+
+
+    // contract-test: supporting surface=gui.apple assertions=chats.completion.recovery-takeover,chats.persistence.client-encrypted
+    @MainActor
+    func testInterruptedPersistReceiptRetriesExactCiphertextUnderTheSameLease() async throws {
+        let clock = RecoveryManualScheduler()
+        let fixture = try await makeRecoveryFixture(persistWasAlreadyCommitted: true, scheduler: clock)
+        fixture.transport.responseErrors["recovery_job_persisted"] = [WebSocketError.messageTimeout]
+        await fixture.coordinator.markInitialSyncReady()
+        await fixture.coordinator.handleAvailableJobs(fixture.availability)
+        await clock.advanceNext()
+        let writes = zip(fixture.transport.sentTypes, fixture.transport.sentPayloads).filter { $0.0 == "recovery_job_persist" }.map { $0.1 }
+        XCTAssertEqual(writes.count, 2)
+        XCTAssertTrue(NSDictionary(dictionary: writes[0]).isEqual(to: writes[1]),
+            "Ambiguous receipt retry must preserve terminal ciphertext identity, timestamps and lease fields")
+        XCTAssertEqual(fixture.transport.sentTypes.filter { $0 == "recovery_job_claim" }.count, 1)
+        XCTAssertEqual(fixture.transport.sentTypes.filter { $0 == "request_chat_content_batch" }.count, 1)
+        XCTAssertEqual(fixture.persisted.committedMessagesVersions, [8])
+        XCTAssertEqual(fixture.persisted.messages.filter { $0.id == RecoveryVector.shared.assistantMessageId }.count, 1)
+        XCTAssertEqual(clock.activeCount, 0)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.completion.recovery-takeover,chats.sync.key-gated-recovery
+    @MainActor
+    func testAccountChangeDuringCanonicalVersionRefreshCannotReuseTheOldLease() async throws {
+        let clock = RecoveryManualScheduler()
+        let identity = RecoveryIdentity(ownerId: RecoveryVector.shared.ownerId, eligible: true)
+        let fixture = try await makeRecoveryFixture(scheduler: clock, identity: identity,
+            committedBatch: try await committedBatchFixture(assistantId: "previous-assistant", version: 7),
+            authoritativeMessagesVersion: { _, _ in identity.ownerId = "replacement-owner"; return 7 })
+        fixture.transport.responseErrors["recovery_job_persisted"] = [WebSocketError.remote(code: "version_conflict")]
+        await fixture.coordinator.markInitialSyncReady()
+        await fixture.coordinator.handleAvailableJobs(fixture.availability)
+        await clock.advanceNext()
+        XCTAssertEqual(fixture.transport.sentTypes.filter { $0 == "recovery_job_persist" }.count, 1)
+        XCTAssertEqual(fixture.transport.sentTypes.filter { $0 == "recovery_job_claim" }.count, 1)
+        XCTAssertTrue(fixture.persisted.committedMessagesVersions.isEmpty)
+        XCTAssertEqual(clock.activeCount, 0)
     }
 
     // contract-test: supporting surface=gui.apple assertions=chats.sync.key-gated-recovery,chats.message.identity-idempotent
@@ -824,7 +974,9 @@ final class ChatCompletionRecoveryTests: XCTestCase {
         queue: PendingAssistantResponseQueue? = nil,
         recorder: RecoveryMessageRecorder? = nil,
         identity: RecoveryIdentity? = nil,
-        committedBatch: [String: Any]? = nil
+        committedBatch: [String: Any]? = nil,
+        leaseExpiresAt: Date? = nil,
+        authoritativeMessagesVersion: ((String, String) async throws -> Int)? = nil
     ) async throws -> RecoveryFixture {
         let vector = RecoveryVector.shared
         var envelope: [String: Any] = [
@@ -846,7 +998,7 @@ final class ChatCompletionRecoveryTests: XCTestCase {
         if let persistAcknowledgementLeaseGeneration {
             persistedAcknowledgement["lease_generation"] = persistAcknowledgementLeaseGeneration
         }
-        let leasedClaim: [String: Any] = [
+        var leasedClaim: [String: Any] = [
                 "job_id": vector.jobId,
                 "state": "LEASED",
                 "lease_token": "synthetic-lease-token",
@@ -857,6 +1009,7 @@ final class ChatCompletionRecoveryTests: XCTestCase {
                 "chat_key_version": Int(vector.keyVersion),
                 "sealed_payload": sealedPayload,
             ]
+        if let leaseExpiresAt { leasedClaim["lease_expires_at"] = ISO8601DateFormatter().string(from: leaseExpiresAt) }
         let terminalClaim: [String: Any] = [
                 "job_id": vector.jobId,
                 "state": "TERMINAL",
@@ -890,11 +1043,6 @@ final class ChatCompletionRecoveryTests: XCTestCase {
             chatKey: { _ in hasKey ? key : nil },
             isChatKeyReady: { true },
             chatVersion: { _ in persisted.currentMessagesVersion },
-            containsPersistedMessage: { chatId, messageId in
-                persisted.messages.contains {
-                    $0.chatId == chatId && $0.id == messageId && !($0.encryptedContent?.isEmpty ?? true)
-                }
-            },
             persistMessage: { recovered in
                 persisted.upsertCount += 1
                 let index = persisted.messages.firstIndex { $0.chatId == recovered.chatId && $0.id == recovered.id }
@@ -910,7 +1058,8 @@ final class ChatCompletionRecoveryTests: XCTestCase {
             currentOwnerSnapshot: { identity.ownerId },
             recoveryQueue: { $0 == vector.ownerId ? queue : nil },
             now: { scheduler?.now ?? Date(timeIntervalSince1970: 1_780_000_000) },
-            scheduleRetry: { delay, operation in scheduler?.schedule(after: delay, operation: operation) ?? {} }
+            scheduleRetry: { delay, operation in scheduler?.schedule(after: delay, operation: operation) ?? {} },
+            authoritativeMessagesVersion: authoritativeMessagesVersion
         )
         return RecoveryFixture(
             coordinator: coordinator,
@@ -939,6 +1088,7 @@ private final class RecoveryRecordingTransport: ChatWebSocketTransport {
         guard var next = responses["recovery_job_claimed"]?.first else { return }
         next["lease_generation"] = 3
         next["lease_token"] = "synthetic-next-lease"
+        next.removeValue(forKey: "lease_expires_at")
         responses["recovery_job_claimed"] = [responses["recovery_job_claimed"]![0], next]
     }
     private(set) var sentTypes: [String] = []

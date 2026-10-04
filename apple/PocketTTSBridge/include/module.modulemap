@@ -1,0 +1,4 @@
+module CPocketTTS {
+  header "PocketTTSBridge.h"
+  export *
+}

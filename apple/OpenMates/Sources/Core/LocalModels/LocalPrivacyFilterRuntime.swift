@@ -1,4 +1,6 @@
-// Standalone local-model lab inference; never participates in composer detection.
+// Pinned local privacy-filter engine shared by foreground composer detection and diagnostics.
+// Specification: specifications/features/pii-protection/specification.yml
+// Assertion: pii.apple.enhanced-local-detection
 // Model/decoder reference: https://github.com/openai/privacy-filter
 
 import Foundation
@@ -12,10 +14,20 @@ enum LocalPrivacyFilterError: Error, Sendable {
     case invalidRequest, unavailableRuntime, invalidAssets, invalidOutput, busy
 }
 
+struct LocalPrivacyFilterTimings: Equatable, Sendable {
+    let loadSeconds: Double
+    let tokenizeSeconds: Double
+    let inferenceSeconds: Double
+    let decodeSeconds: Double
+    let totalSeconds: Double
+    let usedWarmModel: Bool
+}
+
 /// One actor owns the non-thread-safe ExecuTorch Module. No network access is used.
 actor LocalPrivacyFilterRuntime: LocalModelRuntime {
     private var generation: UInt64 = 0
     private var running = false
+    private(set) var lastTimings: LocalPrivacyFilterTimings?
 #if arch(arm64) && !os(watchOS)
     private struct Loaded {
         let directory: URL
@@ -59,19 +71,12 @@ actor LocalPrivacyFilterRuntime: LocalModelRuntime {
         let runGeneration = generation
         try Task.checkCancellation()
 #if arch(arm64) && !os(watchOS)
-        let assets: Loaded
-        if let cached = loaded, cached.directory == directory {
-            assets = cached
-        } else {
-            let config = try LocalPrivacyFilterDecoder.configuration(directory: directory)
-            let tokenizer = try await AutoTokenizer.from(directory: directory)
-            try checkActive(runGeneration)
-            let module = Module(filePath: directory.appendingPathComponent("model.pte").path, loadMode: .mmap)
-            try module.load("forward")
-            assets = Loaded(directory: directory, module: module, tokenizer: tokenizer,
-                            decoder: config.decoder, padID: config.padID)
-            loaded = assets
-        }
+        let started = Date()
+        let wasWarm = loaded?.directory == directory
+        let loadStarted = Date()
+        let assets = try await loadAssets(directory: directory, expectedGeneration: runGeneration)
+        let loadSeconds = Date().timeIntervalSince(loadStarted)
+        let tokenizeStarted = Date()
         let encoding = try assets.tokenizer.encodeWithMetadata(
             text: text, textPair: nil, addSpecialTokens: false, offsetUnit: .utf8
         )
@@ -82,6 +87,8 @@ actor LocalPrivacyFilterRuntime: LocalModelRuntime {
         guard assets.tokenizer.decode(tokenIds: encoding.tokenIds, skipSpecialTokens: false) == text else {
             throw LocalPrivacyFilterError.invalidOutput
         }
+        let tokenizeSeconds = Date().timeIntervalSince(tokenizeStarted)
+        let inferenceStarted = Date()
         let ids = encoding.tokenIds
         if ids.isEmpty { return LocalModelTestOutput(piiSpans: []) }
         // Assemble emissions, not independently decoded labels: one global grammar
@@ -120,15 +127,55 @@ actor LocalPrivacyFilterRuntime: LocalModelRuntime {
         }
         try checkActive(runGeneration)
         guard coverage.allSatisfy({ $0 }) else { throw LocalPrivacyFilterError.invalidOutput }
+        let inferenceSeconds = Date().timeIntervalSince(inferenceStarted)
+        let decodeStarted = Date()
         let path = try assets.decoder.decode(emissions)
         let offsets = encoding.offsetSpans.map { $0.start..<$0.end }
         let spans = try assets.decoder.spans(path: path, emissions: emissions, byteOffsets: offsets, text: text)
         try checkActive(runGeneration)
+        lastTimings = LocalPrivacyFilterTimings(loadSeconds: loadSeconds, tokenizeSeconds: tokenizeSeconds,
+            inferenceSeconds: inferenceSeconds, decodeSeconds: Date().timeIntervalSince(decodeStarted),
+            totalSeconds: Date().timeIntervalSince(started), usedWarmModel: wasWarm)
         return LocalModelTestOutput(piiSpans: spans)
 #else
         throw LocalPrivacyFilterError.unavailableRuntime
 #endif
     }
+
+    /// Warm only after an installed model and an active composer authorize local work.
+    func warm(directory: URL) async throws -> Double {
+        guard !running else { throw LocalPrivacyFilterError.busy }
+        running = true
+        defer { running = false }
+        let started = Date()
+#if arch(arm64) && !os(watchOS)
+        do {
+            _ = try await loadAssets(directory: directory, expectedGeneration: generation)
+            return Date().timeIntervalSince(started)
+        } catch is CancellationError { throw CancellationError() }
+        catch let error as LocalPrivacyFilterError { throw error }
+        catch { throw LocalPrivacyFilterError.invalidAssets }
+#else
+        throw LocalPrivacyFilterError.unavailableRuntime
+#endif
+    }
+
+#if arch(arm64) && !os(watchOS)
+    private func loadAssets(directory: URL, expectedGeneration: UInt64) async throws -> Loaded {
+        try checkActive(expectedGeneration)
+        if let cached = loaded, cached.directory == directory { return cached }
+        let config = try LocalPrivacyFilterDecoder.configuration(directory: directory)
+        let tokenizer = try await AutoTokenizer.from(directory: directory)
+        try checkActive(expectedGeneration)
+        let module = Module(filePath: directory.appendingPathComponent("model.pte").path, loadMode: .mmap)
+        try module.load("forward")
+        try checkActive(expectedGeneration)
+        let assets = Loaded(directory: directory, module: module, tokenizer: tokenizer,
+            decoder: config.decoder, padID: config.padID)
+        loaded = assets
+        return assets
+    }
+#endif
 
     private func checkActive(_ expectedGeneration: UInt64) throws {
         try Task.checkCancellation()

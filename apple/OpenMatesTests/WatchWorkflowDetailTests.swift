@@ -1,8 +1,91 @@
 import Foundation
+import CryptoKit
 import XCTest
 @testable import OpenMates
 
 @MainActor final class WatchWorkflowDetailTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=apple-workspaces.watch-retention,apple-workspaces.local-first,apple-workspaces.isolation
+    func testUnopenedWorkflowGraphAndRunMetadataPersistAndRunDetailIsFetchedOnDemand() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let cache = WatchHubOfflineCache(directory: directory)
+        let key = SymmetricKey(size: .bits256)
+        let account = "workflow-cache-test-" + UUID().uuidString
+        let scope = WatchWorkflowDetailScope.capture(accountID: account)
+        var network = true
+        var requests: [String] = []
+        let response = try WatchWorkflowDetailFixtures.response(graph: WatchWorkflowDetailFixtures.graph())
+        let service = WatchWorkflowDetailService(currentAccountID: { account }, request: { _, path, _, _, validate in
+            try validate(); requests.append(path)
+            guard network else { throw URLError(.notConnectedToInternet) }
+            if path.hasSuffix("/runs/run-one") {
+                return Data(#"{"run":{"id":"run-one","workflow_id":"workflow-one","node_runs":[{"private":"Private run content"}]}}"#.utf8)
+            }
+            if path.hasSuffix("/runs") {
+                return Data(#"{"runs":[{"id":"run-one","workflow_id":"workflow-one","status":"completed","started_at":123,"content_available":true,"node_runs":[{"private":"Private run content"}]}]}"#.utf8)
+            }
+            return response
+        }, offlineCache: cache, masterKey: { _ in key })
+        await service.load(id: "workflow-one", scope: scope)
+        await service.loadRuns(workflowID: "workflow-one", scope: scope)
+        XCTAssertEqual(service.runs.map(\.id), ["run-one"])
+        XCTAssertNil(service.runDetail)
+        XCTAssertFalse(requests.contains { $0.hasSuffix("/runs/run-one") })
+        let metadata = await cache.load(key: "runs-workflow-one", scope: scope, masterKey: key)
+        XCTAssertFalse(String(decoding: try XCTUnwrap(metadata), as: UTF8.self).contains("Private run content"))
+        await service.loadRunDetail(workflowID: "workflow-one", runID: "run-one", scope: scope)
+        XCTAssertNotNil(service.runDetail)
+        network = false
+        let restored = WatchWorkflowDetailService(currentAccountID: { account }, request: { _, _, _, _, _ in throw URLError(.notConnectedToInternet) }, offlineCache: cache, masterKey: { _ in key })
+        await restored.load(id: "workflow-one", scope: scope)
+        XCTAssertTrue(restored.isOffline)
+        XCTAssertEqual(restored.orderedNodes.count, 5)
+        restored.beginEditing(nodeID: "ask")
+        XCTAssertNil(restored.draft, "Offline cached graphs remain read-only")
+        await restored.loadRuns(workflowID: "workflow-one", scope: scope)
+        XCTAssertEqual(restored.runs, service.runs)
+        await restored.loadRunDetail(workflowID: "workflow-one", runID: "run-one", scope: scope)
+        XCTAssertEqual(restored.runDetail, service.runDetail)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-workspaces.isolation,apple-workspaces.watch-retention
+    func testLateRunDetailCannotReplaceNewSelectionAndConfirmedDeletionEvictsGraph() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let cache = WatchHubOfflineCache(directory: directory)
+        let key = SymmetricKey(size: .bits256)
+        let account = "workflow-detail-race-" + UUID().uuidString
+        let scope = WatchWorkflowDetailScope.capture(accountID: account)
+        let response = try WatchWorkflowDetailFixtures.response(graph: WatchWorkflowDetailFixtures.graph())
+        var held: CheckedContinuation<Data, Never>?
+        var suspended: CheckedContinuation<Void, Never>?
+        var deleted = false
+        let service = WatchWorkflowDetailService(currentAccountID: { account }, request: { _, path, _, _, validate in
+            try validate()
+            if path.hasSuffix("/runs/run-old") {
+                return await withCheckedContinuation { held = $0; suspended?.resume(); suspended = nil }
+            }
+            if path.hasSuffix("/runs/run-new") {
+                return Data(#"{"run":{"id":"run-new","workflow_id":"workflow-one","status":"completed"}}"#.utf8)
+            }
+            if deleted { throw APIError.httpError(status: 404, message: "Unavailable") }
+            return response
+        }, offlineCache: cache, masterKey: { _ in key })
+        await service.load(id: "workflow-one", scope: scope)
+        let old = Task { await service.loadRunDetail(workflowID: "workflow-one", runID: "run-old", scope: scope) }
+        if held == nil { await withCheckedContinuation { suspended = $0 } }
+        await service.loadRunDetail(workflowID: "workflow-one", runID: "run-new", scope: scope)
+        held?.resume(returning: Data(#"{"run":{"id":"run-old","workflow_id":"workflow-one","status":"completed"}}"#.utf8)); held = nil
+        await old.value
+        XCTAssertEqual(service.runDetail?.object["id"]?.text, "run-new")
+        deleted = true
+        await service.load(id: "workflow-one", scope: scope)
+        XCTAssertEqual(service.state, .unavailable)
+        XCTAssertTrue(service.orderedNodes.isEmpty)
+        let erased = await cache.load(key: "workflow-workflow-one", scope: scope, masterKey: key)
+        XCTAssertNil(erased)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=apple-watch.workflows.compact-editor
     func testGraphOrderingContainsEveryNodeTypeAndTerminatesCycles() throws {
         var graph = try WatchWorkflowDetailFixtures.graph()

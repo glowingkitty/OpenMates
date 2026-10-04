@@ -12,6 +12,46 @@ final class MacMenuBarQuickCaptureUITests: XCTestCase {
         continueAfterFailure = false
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.layout.responsive-history
+    func testRegularWindowCannotShrinkBelowCompactViewport() throws {
+        let app = launchQuickCapturePreview()
+        let window = app.windows.firstMatch
+        XCTAssertTrue(window.waitForExistence(timeout: 12))
+        let resize = window.coordinate(withNormalizedOffset: CGVector(dx: 1, dy: 1))
+            .withOffset(CGVector(dx: -2, dy: -2))
+        let tooSmall = window.coordinate(withNormalizedOffset: .zero)
+            .withOffset(CGVector(dx: 100, dy: 100))
+        resize.press(forDuration: 0.1, thenDragTo: tooSmall)
+        XCTAssertGreaterThanOrEqual(window.frame.width, 320)
+        XCTAssertGreaterThanOrEqual(window.frame.height, 320)
+        XCTAssertLessThan(window.frame.width, 380, "Resizing must reach the compact limit rather than remain at the default size")
+        XCTAssertLessThan(window.frame.height, 400, "The minimum includes only the requested viewport and native chrome")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.drafts.preview-persistence,message-input.embeds.gated-send
+    func testQuickCaptureSuccessfulSendDismissesCapturedWindow() throws {
+        let app = launchQuickCapturePreview(sendResult: "success")
+        let field = element(in: app, identifier: "message-field")
+        XCTAssertTrue(field.waitForExistence(timeout: 12))
+        field.tap(); field.typeText("Successful capture fixture")
+        sendButton(in: app).tap()
+        XCTAssertTrue(waitForWindowCount(0, in: app), "Successful admission must dismiss the capture window")
+        XCTAssertNotEqual(app.state, .notRunning)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.drafts.preview-persistence,message-input.embeds.gated-send
+    func testQuickCaptureFailedSendKeepsCapturedWindowAndDraft() throws {
+        let app = launchQuickCapturePreview(sendResult: "failure")
+        let field = element(in: app, identifier: "message-field")
+        XCTAssertTrue(field.waitForExistence(timeout: 12))
+        field.tap(); field.typeText("Retained capture fixture")
+        sendButton(in: app).tap()
+        XCTAssertTrue(app.staticTexts["quick-capture-error"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.windows.count, 1)
+        XCTAssertTrue((field.value as? String ?? "").contains("Retained capture fixture"))
+        XCTAssertTrue(field.isHittable)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=message-input.actions.visibility
     func testQuickCapturePreviewShowsDefaultChatDestinationAndComposer() throws {
         let app = launchQuickCapturePreview()
@@ -84,6 +124,13 @@ final class MacMenuBarQuickCaptureUITests: XCTestCase {
         )
         XCTAssertEqual(app.windows.count, 1, "Expected Dock activation to restore exactly one regular window")
 
+        // A second close must recreate a regular window rather than restore a
+        // retained, ordered-out window object left in NSApplication.windows.
+        app.windows.firstMatch.typeKey("w", modifierFlags: .command)
+        XCTAssertTrue(waitForWindowCount(0, in: app))
+        app.activate()
+        XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 10))
+        XCTAssertEqual(app.windows.count, 1)
         let restoredWindow = app.windows.firstMatch
         restoredWindow.typeKey("m", modifierFlags: .command)
         app.activate()
@@ -243,13 +290,14 @@ final class MacMenuBarQuickCaptureUITests: XCTestCase {
         XCTAssertEqual(Set(headerTitles), Set(["Window A draft", "Window B draft"]))
     }
 
-    private func launchQuickCapturePreview(seedAttachment: Bool = false) -> XCUIApplication {
+    private func launchQuickCapturePreview(seedAttachment: Bool = false, sendResult: String? = nil) -> XCUIApplication {
         let app = XCUIApplication()
         var arguments = [
             "--dev-preview",
             "quick-capture",
             "--ui-test-seed-quick-capture-recent-chat"
         ]
+        if let sendResult { arguments.append("--ui-test-quick-capture-send-" + sendResult) }
         if seedAttachment {
             arguments.append("--ui-test-seed-quick-capture-attachment")
         }

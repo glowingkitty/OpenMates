@@ -1,3 +1,5 @@
+// Specification: specifications/features/chat-navigation/specification.yml
+// Assertions: chat-navigation.projects.nested-readable, chat-navigation.activity.global-running, chat-navigation.projects.organize
 // Main app shell after authentication.
 // Uses NavigationSplitView for adaptive layout across iPhone, iPad, and Mac.
 // Sidebar shows chat list; detail shows active chat or empty state.
@@ -97,6 +99,7 @@ enum MainAppChatHeaderActionPolicy {
 
 enum MainAppQuickActionRoute: Equatable {
     case focusedNewChat
+    case focusedNewTask
     case recordingNewChat
     case photoNewChat
     case search
@@ -105,6 +108,7 @@ enum MainAppQuickActionRoute: Equatable {
     static func route(for action: AppQuickAction) -> Self {
         switch action {
         case .ask: .focusedNewChat
+        case .newTask: .focusedNewTask
         case .recordRequest: .recordingNewChat
         case .askAboutPhoto: .photoNewChat
         case .search: .search
@@ -164,7 +168,17 @@ struct MainAppView: View {
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var appSession = AppSessionCoordinator.shared
     @StateObject private var chatStore = AppSessionCoordinator.shared.chatStore
+    @StateObject private var appsStore = AppsWorkspaceStore()
     @StateObject private var workflowStore = WorkflowStore()
+    @ObservedObject private var sidebarActivity = NativeChatActivityStore.shared
+    @State private var chatProjectLocation: ChatProjectLocation?
+    @State private var revealRunningChatsRequest = 0
+    @State private var widgetRunningChatsOnly = false
+    @State private var widgetLinkTask: Task<Void, Never>?
+    @State private var widgetLinkGeneration = UUID()
+    @State private var workflowWidgetRunTask: Task<Void, Never>?
+    @State private var workflowWidgetRunGeneration = UUID()
+    @State private var pendingHiddenWidgetChatID: String?
     @StateObject private var projectsStore = ProjectsWorkspaceStore()
     @StateObject private var tasksStore = TasksWorkspaceStore()
     @StateObject private var projectTasksStore = TasksWorkspaceStore()
@@ -181,6 +195,9 @@ struct MainAppView: View {
     @State private var syncBridge: OfflineSyncBridge?
     @State private var selectedChatId: String?
     @State private var selectedWorkspace: WorkspaceDestination = .chat
+    @State private var workspaceMaintenanceResume: Task<Void, Never>?
+    @State private var workspaceMaintenanceGeneration = UUID()
+    @State private var taskComposerFocusRequestID: UUID?
     @State private var isChatsPanelOpen = false
     @State private var currentViewportWidth: CGFloat = 0
     #if DEBUG
@@ -194,6 +211,8 @@ struct MainAppView: View {
     @State private var showExplore = false
     @State private var showSearch = false
     @State private var settingsShareChatId: String?
+    @State private var settingsEmbedShareTarget: EmbedShareSettingsTarget?
+    @State private var settingsForkContext: NativeMessageForkContext?
     @State private var settingsChatInitialTab: ChatSettingsTab = .plan
     @State private var settingsProjectID: String?
     @State private var settingsDeepLinkPath: String?
@@ -219,6 +238,10 @@ struct MainAppView: View {
     @State private var renameChatTitle = ""
     @State private var showAuthSheet = false
     @State private var isReauthenticatingCachedSession = false
+    @State private var projectPickerChatID: String?
+    @State private var projectPickerScope: ChatProjectDragPayload?
+    @State private var projectPickerMoves = false
+    @State private var projectPickerLocation: ChatProjectLocation?
     @State private var actionChat: Chat?
     @State private var didBootstrapAuthenticatedSession = false
     @State private var windowRuntimeID = UUID()
@@ -257,6 +280,7 @@ struct MainAppView: View {
 
     #if DEBUG
     private static let welcomeRecentOverflowUITestSeedCount = 10
+    @State private var workspaceSidebarFixtureReady = false
     #endif
 
     /// Whether the user is currently authenticated
@@ -273,12 +297,18 @@ struct MainAppView: View {
     }
 
     private var filteredSidebarUserChats: [Chat] {
+        let projectIDs = chatProjectLocation.flatMap { location in
+            projectsStore.chatNavigationProjects.first(where: { $0.id == location.projectID })?.chatIDs(in: location.folderID)
+        }
+        let organized = Set(projectsStore.chatNavigationProjects.flatMap { $0.contents.items.filter { $0.kind == "chat" }.map(\.targetID) })
+        let runningRoots = sidebarActivity.rootIDs(chats: chatStore.chats)
         let sorted = chatStore.sortedChats.filter { chat in
-            isVisibleUserChat(chat) && (chat.isPinned == true || chat.isArchived != true) &&
+            let visible = publicChatGroup(for: chat.id) == nil && !chat.isHiddenFromNormalSurfaces && !isEmptyShellChat(chat) &&
+                chat.teamId == teamContext.teamID && (chatProjectLocation != nil || isTopLevelUserChat(chat))
+            let inLocation = chatProjectLocation == nil ? !organized.contains(chat.id) : projectIDs?.contains(chat.id) == true
+            return visible && inLocation && !runningRoots.contains(chat.id) && (chat.isPinned == true || chat.isArchived != true) &&
                 (searchText.isEmpty || chat.displayTitle.localizedCaseInsensitiveContains(searchText))
         }
-        // One ChatStore sort, retaining its draft/time/server order within each
-        // category and the existing archived-pinned visibility behavior.
         return sorted.filter { $0.isPinned == true } + sorted.filter { $0.isPinned != true }
     }
 
@@ -323,7 +353,7 @@ struct MainAppView: View {
     private var visibleSidebarUserChats: [Chat] {
         // Preserve ChatStore's existing order within the pinned/unpinned groups.
         let sorted = filteredSidebarUserChats
-        guard isAuthenticated, searchText.isEmpty else { return sorted }
+        guard isAuthenticated, searchText.isEmpty, chatProjectLocation == nil else { return sorted }
         return ChatSidebarDisplayPolicy.visibleChats(sortedUserChats: sorted, limit: visibleUserChatLimit,
             selectedChatID: selectedChatId,
             lastActiveChatID: lastActiveSidebarSelection?.chatID(in: sidebarAccountScope) ?? authManager.currentUser?.lastOpened)
@@ -334,10 +364,35 @@ struct MainAppView: View {
     }
 
     private var visibleSidebarChatIds: [String] {
-        let userChatIds = visibleSidebarUserChats.map(\.id)
-        let publicChatIds = [PublicChatGroup.intro, .examples, .announcements, .legal]
+        if widgetRunningChatsOnly { return widgetRunningChats.map(\.id) }
+        let runningRoots = sidebarActivity.rootIDs(chats: chatStore.chats)
+        let running = chatStore.sortedChats.filter { runningRoots.contains($0.id) && !$0.isHiddenFromNormalSurfaces && $0.teamId == teamContext.teamID }
+        let userChatIds = running.map(\.id) + visibleSidebarUserChats.map(\.id)
+        let publicChatIds = (chatProjectLocation == nil ? [PublicChatGroup.intro, .examples, .announcements, .legal] : [])
             .flatMap { publicChats(in: $0).map(\.id) }
         return userChatIds + publicChatIds
+    }
+
+    private var widgetRunningChatIDs: [String] {
+        let coordinator = ActiveChatsCoordinator.shared
+        let scope = coordinator.currentScope
+        let matches = scope?.accountID == authManager.currentUser?.id && scope?.server == ServerProfile.current()
+            && scope?.scope == OfflineStore.shared.scopeGeneration && scope?.teamID == teamContext.teamID
+            && scope?.teamEpoch == teamContext.contextEpoch
+        let ordered = matches ? coordinator.policy.orderedItems.map(\.chatID) : []
+        return ordered + sidebarActivity.processingIDs.subtracting(Set(ordered)).sorted()
+    }
+
+    private var widgetRunningChats: [Chat] {
+        ActiveChatsWidgetNavigationPolicy.rows(ids: widgetRunningChatIDs, chats: chatStore.chats,
+            teamID: teamContext.teamID, hiddenUnlocked: hiddenChatsUnlocked)
+    }
+
+    private var activeChatsWidgetMetadata: [String] {
+        widgetRunningChatIDs.flatMap { id in
+            guard let chat = chatStore.chat(for: id) else { return [id] }
+            return [id, chat.title ?? "", chat.teamId ?? "", String(chat.isHiddenFromNormalSurfaces)]
+        }
     }
 
     private var userChatCountForDisplayLimit: Int {
@@ -509,10 +564,27 @@ struct MainAppView: View {
         .appKeyboardShortcuts(
             onNewChat: openNewChatScreen,
             onSearch: openSearchOverlay,
-            onSettings: { showSettings = true }
+            onSettings: {
+                settingsForkContext = nil
+                settingsEmbedShareTarget = nil
+                showSettings = true
+            }
         )
         .modifier(externalEventHandlers)
         .onChange(of: deepLinkHandler.pendingChatId, pendingDeepLinkChatDidChange)
+        .onChange(of: deepLinkHandler.pendingActiveChatsWidgetLink) { _, _ in openPendingActiveChatsWidgetLink() }
+        .onChange(of: hiddenChatsUnlocked) { _, unlocked in
+            if unlocked, pendingHiddenWidgetChatID != nil { openPendingActiveChatsWidgetLink() }
+        }
+        .onChange(of: showHiddenChats) { _, shown in
+            if !shown, pendingHiddenWidgetChatID != nil {
+                pendingHiddenWidgetChatID = nil
+                deepLinkHandler.pendingActiveChatsWidgetLink = nil
+            }
+        }
+        .onChange(of: isChatsPanelOpen) { _, open in
+            if !open { widgetRunningChatsOnly = false }
+        }
         .onChange(of: deepLinkHandler.pendingPairToken, pendingPairTokenDidChange)
         .onChange(of: deepLinkHandler.pendingInspirationId, pendingInspirationDidChange)
         .onChange(of: deepLinkHandler.pendingMessageText) { _, text in
@@ -527,6 +599,27 @@ struct MainAppView: View {
             guard let path else { return }
             openSettingsDeepLink(path)
             deepLinkHandler.pendingSettingsPath = nil
+        }
+        .onChange(of: deepLinkHandler.pendingTasksWorkspace) { _, requested in
+            guard requested else { return }
+            selectWorkspace(.tasks)
+            deepLinkHandler.pendingTasksWorkspace = false
+        }
+        .onChange(of: deepLinkHandler.pendingNewTask) { _, requested in
+            guard requested else { return }
+            openNewTaskScreen()
+            deepLinkHandler.pendingNewTask = false
+        }
+        .onChange(of: deepLinkHandler.pendingTaskID) { _, id in
+            guard let id else { return }
+            openWorkspaceTasks(taskID: id)
+            deepLinkHandler.pendingTaskID = nil
+        }
+        .onChange(of: deepLinkHandler.pendingAppsPath) { _, path in
+            guard let path else { return }
+            selectWorkspace(.apps)
+            appsStore.openRoute(path.isEmpty ? "apps" : "apps/" + path)
+            deepLinkHandler.pendingAppsPath = nil
         }
         .onChange(of: deepLinkHandler.pendingAppId) { _, id in
             guard let id else { return }
@@ -603,36 +696,55 @@ struct MainAppView: View {
             }
         }
         #endif
-        .task {
-            if isAuthenticated { appSession.registerWindow(windowRuntimeID) }
-            #if os(iOS)
-            phoneWatchLoginBridge.start(isAuthenticated: { authManager.state == .authenticated })
-            #endif
-            await runStartupTask()
-            if let fixture = workflowUITestFixture {
-                selectedWorkspace = .workflows
-                isChatsPanelOpen = fixture == "sidebar"
-                workflowStore.showFixture(fixture)
-            }
-            #if DEBUG
-            if ProcessInfo.processInfo.arguments.contains("--ui-test-workspace-sidebar-fixture") {
-                tasksStore.installPreview()
-                projectsStore.installPreview(variant: "landing")
-                workflowStore.showFixture("home")
-            }
-            #endif
-        }
-        .onDisappear {
-            ProjectWorkspaceReviewRuntime.shared.deactivate(ownerID: windowRuntimeID)
-            appSession.unregisterWindow(windowRuntimeID)
-        }
+        .task { await startShellLifecycle() }
+        .onDisappear(perform: stopShellLifecycle)
     }
 
-    var body: some View {
+    private func startShellLifecycle() async {
+        if isAuthenticated { appSession.registerWindow(windowRuntimeID) }
+        #if os(iOS)
+        phoneWatchLoginBridge.start(isAuthenticated: { authManager.state == .authenticated })
+        #endif
+        await runStartupTask()
+        if let fixture = workflowUITestFixture {
+            selectedWorkspace = .workflows
+            isChatsPanelOpen = fixture == "sidebar"
+            workflowStore.showFixture(fixture)
+        }
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--ui-test-apps-workspace") {
+            selectedWorkspace = .apps
+            await appsStore.load()
+        }
+        if ProcessInfo.processInfo.arguments.contains("--ui-test-workspace-sidebar-fixture") {
+            tasksStore.installPreview()
+            projectsStore.installPreview(variant: "landing")
+            workflowStore.showFixture("home")
+            workspaceSidebarFixtureReady = true
+        }
+        #endif
+    }
+
+    private func stopShellLifecycle() {
+        widgetLinkTask?.cancel()
+        workflowWidgetRunTask?.cancel()
+        workspaceMaintenanceResume?.cancel()
+        ProjectWorkspaceReviewRuntime.shared.deactivate(ownerID: windowRuntimeID)
+        appSession.unregisterWindow(windowRuntimeID)
+    }
+
+    private var shellWithReportEvents: some View {
         shellWithLifecycle
+        .environment(\.embedReportIssueAction, EmbedReportIssueAction(open: { prefill in
+            openReportIssue(prefill: prefill)
+        }))
         .onDeviceShakeToReportIssue {
             openReportIssue(prefill: .deviceShake())
         }
+    }
+
+    private var shellWithChatTransportEvents: some View {
+        shellWithReportEvents
         .onReceive(NotificationCenter.default.publisher(for: .wsMessageReceived)) { notification in
             handleChatUpdate(notification)
         }
@@ -642,6 +754,10 @@ struct MainAppView: View {
         .onReceive(NotificationCenter.default.publisher(for: .wsSyncEvent)) { notification in
             handleSyncEvent(notification)
         }
+    }
+
+    private var shellWithTransportEvents: some View {
+        shellWithChatTransportEvents
         .onReceive(NotificationCenter.default.publisher(for: .wsHistoryRequested)) { notification in
             handleHistoryRequest(notification)
         }
@@ -657,6 +773,27 @@ struct MainAppView: View {
         .onChange(of: authManager.currentUser?.lastOpened) { _, _ in
             Task { await decryptVisibleChatMetadata(reason: "resumeSelection") }
         }
+    }
+
+    private var shellWithActivityEvents: some View {
+        shellWithTransportEvents
+        .task(id: "\(memoryActivityRuntimeIdentity)|\(wsManager.connectionState)|\(scenePhase)") {
+            sidebarActivity.configure(accountID: isAuthenticated ? authManager.currentUser?.id : nil,
+                scope: OfflineStore.shared.scopeGeneration, server: ServerProfile.current(), teamID: teamContext.teamID, teamEpoch: teamContext.contextEpoch)
+            if scenePhase == .active && isAuthenticated {
+                await sidebarActivity.refresh()
+                if let accountID = authManager.currentUser?.id {
+                    await projectsStore.refreshChatNavigation(accountID: accountID, teamID: teamContext.teamID)
+                }
+            }
+        }
+        .task(id: memoryActivityRuntimeIdentity) {
+            configureMemoryActivities()
+            if scenePhase == .active { await UpcomingMemoryLiveActivityBridge.shared.foreground() }
+        }
+        .onChange(of: authManager.currentUser?.pushNotificationEnabled) { _, _ in
+            configureMemoryActivities()
+        }
         .onChange(of: authManager.state, authStateDidChange)
         .onChange(of: sidebarAccountScope) { _, _ in
             pushManager.invalidateRegistration()
@@ -670,16 +807,61 @@ struct MainAppView: View {
                 }
             }
         }
+        .onChange(of: projectsStore.chatNavigationProjects.map(\.id)) { _, ids in
+            if let location = chatProjectLocation, !ids.contains(location.projectID) { chatProjectLocation = nil }
+        }
+        .onChange(of: sidebarActivity.processingIDs) { _, ids in
+            Task { await hydrateProjectChats(Array(ids.union(sidebarActivity.rootIDs(chats: chatStore.chats)))) }
+        }
+        .onChange(of: sidebarActivity.ancestry) { _, _ in
+            Task { await hydrateProjectChats(Array(sidebarActivity.rootIDs(chats: chatStore.chats))) }
+        }
+        .onChange(of: chatStore.metadataReadRevision) { _, _ in ActiveChatsWidgetBridge.shared.metadataChanged() }
+        .onChange(of: activeChatsWidgetMetadata) { _, _ in ActiveChatsWidgetBridge.shared.metadataChanged() }
+    }
+
+    private var shellWithWorkspaceEvents: some View {
+        shellWithActivityEvents
+        .onChange(of: selectedWorkspace) { _, _ in foregroundWorkspaceDidNavigate() }
+        .onChange(of: workflowStore.selectedWorkflow?.id) { _, _ in foregroundWorkspaceDidNavigate() }
+        .onChange(of: projectsStore.selectedProjectID) { _, _ in foregroundWorkspaceDidNavigate() }
+        .onChange(of: tasksStore.selectedTaskID) { _, _ in foregroundWorkspaceDidNavigate() }
         .onChange(of: teamContext.contextEpoch) { _, _ in
+            HighlightsManager.shared.reset()
+            widgetRunningChatsOnly = false
             projectFullscreenEmbed = nil
             workflowStore.invalidateTransientContext()
             projectsStore.reset(accountId: authManager.currentUser?.id)
+            chatProjectLocation = nil
+            projectPickerChatID = nil
+            projectPickerScope = nil
             tasksStore.reset(accountID: authManager.currentUser?.id)
             projectTasksStore.reset(accountID: authManager.currentUser?.id)
-            Task { await loadSelectedWorkspace() }
+            appsStore.reset(accountId: authManager.currentUser?.id)
+            NativeWorkspaceOfflineRuntime.pauseMaintenance()
+            configureMemoryActivities()
+            maintainOfflineWorkspaces()
+            Task {
+                let scope = await MessageHighlightRuntimeScope.capture(scope: OfflineStore.shared.scopeGeneration,
+                    server: ServerProfile.current(), team: teamContext.snapshot)
+                await HighlightsManager.shared.configure(scope)
+                await loadSelectedWorkspace()
+            }
         }
+    }
+
+    var body: some View {
+        shellWithWorkspaceEvents
         .onChange(of: deepLinkHandler.pendingWorkflowTemplate) { _, _ in
             openPendingWorkflowTemplate()
+        }
+        .onChange(of: deepLinkHandler.pendingWorkflowWidgetRun) { _, _ in
+            openPendingWorkflowWidgetRun()
+        }
+        .onChange(of: deepLinkHandler.pendingWorkflowsWorkspace) { _, requested in
+            guard requested else { return }
+            selectWorkspace(.workflows)
+            deepLinkHandler.pendingWorkflowsWorkspace = false
         }
         .onChange(of: deepLinkHandler.pendingShortLinkError) { _, failed in
             if failed {
@@ -755,6 +937,7 @@ struct MainAppView: View {
         .overlay {
             ToastOverlay()
         }
+        .overlay { chatProjectPicker }
         .overlay {
             if let actionChat {
                 chatActionsOverlay(for: actionChat)
@@ -825,6 +1008,99 @@ struct MainAppView: View {
         }
     }
 
+    private func openPendingActiveChatsWidgetLink() {
+        guard let route = deepLinkHandler.pendingActiveChatsWidgetLink else { return }
+        guard authManager.state != .initializing else { return }
+        guard isAuthenticated, didBootstrapAuthenticatedSession,
+              let accountID = authManager.currentUser?.id else {
+            if authManager.state == .unauthenticated { deepLinkHandler.pendingActiveChatsWidgetLink = nil }
+            return
+        }
+        widgetLinkTask?.cancel()
+        let operation = UUID()
+        widgetLinkGeneration = operation
+        let server = ServerProfile.current(), runtime = OfflineStore.shared.scopeGeneration
+        guard route.belongsTo(accountID: accountID, apiBaseURL: server.apiBaseURL, teamID: route.teamID) else {
+            pendingHiddenWidgetChatID = nil
+            deepLinkHandler.pendingActiveChatsWidgetLink = nil
+            return
+        }
+        widgetLinkTask = Task { @MainActor in
+            // Membership and Team keys come from the existing account-fenced
+            // service, never from the URL or a saved widget title.
+            // Personal cached chats can open offline. Team routes still refresh
+            // membership and keys before accepting a widget destination.
+            if route.teamID != nil { await teamContext.load(accountID: accountID) }
+            guard !Task.isCancelled, widgetLinkGeneration == operation,
+                  deepLinkHandler.pendingActiveChatsWidgetLink == route,
+                  isAuthenticated, authManager.currentUser?.id == accountID,
+                  ServerProfile.current() == server, OfflineStore.shared.scopeGeneration == runtime else { return }
+            guard (route.teamID == nil || teamContext.error == nil),
+                  ActiveChatsWidgetNavigationPolicy.accepts(route, accountID: accountID, server: server,
+                    readableTeamIDs: Set(teamContext.teams.filter(\.canRead).map(\.id))) else {
+                deepLinkHandler.pendingActiveChatsWidgetLink = nil
+                return
+            }
+            if teamContext.teamID != route.teamID { await teamContext.selectTeam(route.teamID) }
+            let team = teamContext.snapshot
+            guard !Task.isCancelled, widgetLinkGeneration == operation,
+                  deepLinkHandler.pendingActiveChatsWidgetLink == route,
+                  isAuthenticated, authManager.currentUser?.id == accountID,
+                  ServerProfile.current() == server, OfflineStore.shared.scopeGeneration == runtime,
+                  teamContext.isCurrent(team), team.teamID == route.teamID,
+                  (route.teamID == nil || teamContext.error == nil) else { return }
+            configureMemoryActivities()
+            sidebarActivity.configure(accountID: accountID, scope: runtime, server: server,
+                teamID: team.teamID, teamEpoch: team.epoch)
+            switch route.destination {
+            case .chat(let id):
+                await hydrateProjectChat(id)
+                guard !Task.isCancelled, widgetLinkGeneration == operation,
+                      deepLinkHandler.pendingActiveChatsWidgetLink == route,
+                      isAuthenticated, authManager.currentUser?.id == accountID,
+                      ServerProfile.current() == server, OfflineStore.shared.scopeGeneration == runtime,
+                      teamContext.isCurrent(team), let chat = chatStore.chat(for: id), chat.teamId == team.teamID else { return }
+                if !ActiveChatsWidgetNavigationPolicy.canOpen(chat, teamID: team.teamID, hiddenUnlocked: hiddenChatsUnlocked) {
+                    pendingHiddenWidgetChatID = id
+                    showHiddenChats = true
+                    return
+                }
+                pendingHiddenWidgetChatID = nil
+                deepLinkHandler.pendingActiveChatsWidgetLink = nil
+                showHiddenChats = false
+                showSettings = false
+                openWorkspaceChat(id)
+            case .all:
+                await sidebarActivity.refresh()
+                guard !Task.isCancelled, widgetLinkGeneration == operation,
+                      deepLinkHandler.pendingActiveChatsWidgetLink == route,
+                      isAuthenticated, authManager.currentUser?.id == accountID,
+                      ServerProfile.current() == server, OfflineStore.shared.scopeGeneration == runtime,
+                      teamContext.isCurrent(team) else { return }
+                await hydrateProjectChats(widgetRunningChatIDs)
+                guard !Task.isCancelled, widgetLinkGeneration == operation,
+                      deepLinkHandler.pendingActiveChatsWidgetLink == route,
+                      isAuthenticated, authManager.currentUser?.id == accountID,
+                      ServerProfile.current() == server, OfflineStore.shared.scopeGeneration == runtime,
+                      teamContext.isCurrent(team) else { return }
+                pendingHiddenWidgetChatID = nil
+                deepLinkHandler.pendingActiveChatsWidgetLink = nil
+                selectedWorkspace = .chat
+                selectedChatId = nil
+                showNewChat = false
+                showSettings = false
+                showSearch = false
+                showExplore = false
+                searchText = ""
+                searchSelection = nil
+                chatProjectLocation = nil
+                widgetRunningChatsOnly = true
+                isChatsPanelOpen = true
+                revealRunningChatsRequest &+= 1
+            }
+        }
+    }
+
     private func pendingPairTokenDidChange(_ oldValue: String?, _ token: String?) {
         if let token {
             pairToken = token
@@ -854,6 +1130,9 @@ struct MainAppView: View {
 
     @Environment(\.accessibilityReduceMotion) private var workspaceReduceMotion
     @State private var workspaceWindowFrame: CGRect = .zero
+    #if DEBUG
+    @State private var workspaceContentFrame: CGRect = .zero
+    #endif
 
     private var rootShell: some View {
         GeometryReader { geo in
@@ -902,6 +1181,12 @@ struct MainAppView: View {
                 currentViewportWidth = newWidth
             }
         }
+        #if os(iOS)
+        // The iPad surface already supplies its web 20-point bottom inset.
+        // Adding the container's home-indicator inset made it wider than the
+        // side gutters. Retain keyboard avoidance and the top/status inset.
+        .ignoresSafeArea(.container, edges: UIDevice.current.userInterfaceIdiom == .pad ? .bottom : [])
+        #endif
         .background(Color.grey0)
         #if DEBUG
         .overlay(alignment: .bottomLeading) {
@@ -994,6 +1279,17 @@ struct MainAppView: View {
             "chat-panel-width=\(Int(compactPanelWidth.rounded()))",
             "active-main-width=\(Int(activeMainWidth.rounded()))"
         ]
+        #if DEBUG
+        if isUITestShellMetricsEnabled {
+            metrics.append("workspace-x=\(Int(workspaceContentFrame.minX.rounded()))")
+            metrics.append("workspace-y=\(Int(workspaceContentFrame.minY.rounded()))")
+            metrics.append("workspace-width=\(Int(workspaceContentFrame.width.rounded()))")
+            metrics.append("workspace-height=\(Int(workspaceContentFrame.height.rounded()))")
+        }
+        if ProcessInfo.processInfo.arguments.contains("--ui-test-workspace-sidebar-fixture") {
+            metrics.append("fixture-ready=\(workspaceSidebarFixtureReady)")
+        }
+        #endif
         if isShellPerformanceUITestEnabled {
             let frameSummary = NativePerformanceMonitor.shared.summary()
             let frameSamples = intMetric("sample_count", in: frameSummary)
@@ -1031,6 +1327,10 @@ struct MainAppView: View {
     }
 
     private func selectedChatDidChange(_ oldValue: String?, _ chatId: String?) {
+        if oldValue != chatId {
+            syncBridge?.foregroundDidNavigate()
+            foregroundWorkspaceDidNavigate()
+        }
         if let chatId {
             lastActiveSidebarSelection = .init(chatID: chatId, scope: sidebarAccountScope)
         }
@@ -1063,6 +1363,7 @@ struct MainAppView: View {
                 authFlowState.reset()
             }
             guard didBootstrapAuthenticatedSession else { return }
+            openPendingWorkflowWidgetRun()
             connectWebSocket()
             Task { await loadSelectedWorkspace(force: true) }
         default: break
@@ -1126,12 +1427,30 @@ struct MainAppView: View {
         } else {
             reportIssuePrefill = nil
             settingsShareChatId = nil
+            settingsForkContext = nil
+            settingsEmbedShareTarget = nil
             settingsProjectID = nil
             messageSettingsTarget = nil
         }
     }
 
     private func scenePhaseDidChange(_ oldValue: ScenePhase, _ newValue: ScenePhase) {
+        configureMemoryActivities()
+        if newValue == .active {
+            Task {
+                await UpcomingMemoryLiveActivityBridge.shared.foreground()
+                await pushManager.refreshAuthorizationAndRegistration()
+            }
+            ActiveChatsCoordinator.shared.foreground()
+            foregroundWorkspaceDidNavigate()
+        } else {
+            UpcomingMemoryLiveActivityBridge.shared.background()
+            workspaceMaintenanceGeneration = UUID()
+            workspaceMaintenanceResume?.cancel()
+            NativeWorkspaceOfflineRuntime.pauseMaintenance()
+        }
+
+        syncBridge?.setForegroundActive(newValue == .active)
         if newValue != .active {
             ProjectWorkspaceReviewRuntime.shared.deactivate(ownerID: windowRuntimeID)
         }
@@ -1168,6 +1487,7 @@ struct MainAppView: View {
 
     private func websocketConnectionStateDidChange(_ oldValue: WebSocketManager.ConnectionState, _ newValue: WebSocketManager.ConnectionState) {
         guard newValue == .connected else { return }
+        maintainOfflineWorkspaces(force: true)
         if appSession.claimSharedReconnectWork(windowRuntimeID) {
             pendingPushChatDidChange(nil, pushManager.pendingChatId)
             Task {
@@ -1199,6 +1519,8 @@ struct MainAppView: View {
     }
 
     private func resumeNewChatScreen() {
+        widgetRunningChatsOnly = false
+        cancelPendingWidgetNavigation()
         selectedWorkspace = .chat
         selectedChatId = nil
         searchSelection = nil
@@ -1289,6 +1611,9 @@ struct MainAppView: View {
     }
 
     private func selectWorkspace(_ workspace: WorkspaceDestination, loadContent: Bool = true) {
+        widgetRunningChatsOnly = false
+        cancelPendingWidgetNavigation()
+        foregroundWorkspaceDidNavigate()
         selectedWorkspace = workspace
         workflowTemplateLink = nil
         sharedBrowserDestination = nil
@@ -1315,9 +1640,27 @@ struct MainAppView: View {
     }
 
     private func resetWorkspaceState() {
+        widgetLinkTask?.cancel()
+        workflowWidgetRunTask?.cancel()
+        workflowWidgetRunGeneration = UUID()
+        widgetLinkGeneration = UUID()
+        widgetRunningChatsOnly = false
+        pendingHiddenWidgetChatID = nil
+        if authManager.state != .initializing,
+           let route = deepLinkHandler.pendingActiveChatsWidgetLink,
+           (!isAuthenticated || (authManager.currentUser?.id).map({ route.belongsTo(accountID: $0,
+                apiBaseURL: ServerProfile.current().apiBaseURL, teamID: route.teamID) }) != true) {
+            deepLinkHandler.pendingActiveChatsWidgetLink = nil
+        }
+        settingsForkContext = nil
+        settingsEmbedShareTarget = nil
         let accountID = isAuthenticated ? authManager.currentUser?.id : nil
+        appsStore.reset(accountId: accountID)
         workflowStore.reset(accountId: accountID)
         projectsStore.reset(accountId: accountID)
+        chatProjectLocation = nil
+        projectPickerChatID = nil
+        projectPickerScope = nil
         tasksStore.reset(accountID: accountID)
         projectTasksStore.reset(accountID: accountID)
         teamContext.reset(accountID: accountID)
@@ -1329,7 +1672,64 @@ struct MainAppView: View {
         sharedChatDestination = nil
     }
 
+    private var memoryActivityRuntimeIdentity: String {
+        [authManager.currentUser?.id ?? "", ServerProfile.current().apiBaseURL.absoluteString,
+         OfflineStore.shared.scopeGeneration.uuidString, teamContext.teamID ?? "",
+         String(teamContext.contextEpoch), String(isAuthenticated),
+         String(authManager.currentUser?.pushNotificationEnabled == true)].joined(separator: "|")
+    }
+
+    private func configureMemoryActivities() {
+        ActiveChatsWidgetBridge.shared.setChatLookup { chatStore.chat(for: $0) }
+        TasksWidgetBridge.configure(accountID: isAuthenticated ? authManager.currentUser?.id : nil)
+        WorkflowsWidgetBridge.configure(accountID: isAuthenticated ? authManager.currentUser?.id : nil)
+        ActiveChatsCoordinator.shared.configure(accountID: authManager.currentUser?.id,
+            server: ServerProfile.current(), scope: OfflineStore.shared.scopeGeneration,
+            team: .init(epoch: teamContext.contextEpoch, teamID: teamContext.teamID),
+            authenticated: isAuthenticated)
+        LegacyProcessingActivityRetirement.retire()
+        UpcomingMemoryLiveActivityBridge.shared.configure(accountID: authManager.currentUser?.id,
+            server: ServerProfile.current(), scope: OfflineStore.shared.scopeGeneration,
+            team: .init(epoch: teamContext.contextEpoch, teamID: teamContext.teamID),
+            authenticated: isAuthenticated,
+            notificationsEnabled: authManager.currentUser?.pushNotificationEnabled == true)
+    }
+
+    // Foreground navigation cancels maintenance before starting its own loads.
+    // A cancellable grace period prevents a burst of workspace/chat switches from
+    // repeatedly restarting full inventories alongside visible rendering.
+    private func foregroundWorkspaceDidNavigate() {
+        workspaceMaintenanceGeneration = UUID()
+        workspaceMaintenanceResume?.cancel()
+        NativeWorkspaceOfflineRuntime.pauseMaintenance()
+        guard isAuthenticated, scenePhase == .active else { return }
+        workspaceMaintenanceResume = Task(priority: .utility) {
+            do { try await Task.sleep(for: .seconds(2)) } catch { return }
+            guard !Task.isCancelled else { return }
+            maintainOfflineWorkspaces()
+        }
+    }
+
+    private func maintainOfflineWorkspaces(force: Bool = false) {
+        guard isAuthenticated, let accountID = authManager.currentUser?.id else { return }
+        let context = teamContext.snapshot
+        let generation = workspaceMaintenanceGeneration
+        Task(priority: .utility) {
+            do {
+                _ = try await NativeWorkspaceOfflineRuntime.configure(accountID: accountID, teamID: context.teamID)
+                guard generation == workspaceMaintenanceGeneration,
+                      isAuthenticated, authManager.currentUser?.id == accountID,
+                      teamContext.isCurrent(context), scenePhase == .active,
+                      wsManager.connectionState == .connected else { return }
+                NativeWorkspaceOfflineRuntime.startMaintenance(accountID: accountID, teamID: context.teamID, force: force)
+            } catch {
+                NativeDiagnostics.event("workspace_cache_unavailable", category: "offline", level: .warning)
+            }
+        }
+    }
+
     private func loadSelectedWorkspace(force: Bool = false) async {
+        if selectedWorkspace == .apps { await appsStore.load(); return }
         guard isAuthenticated, let accountID = authManager.currentUser?.id else { return }
         #if DEBUG
         if selectedWorkspace == .workflows, let fixture = workflowUITestFixture {
@@ -1344,9 +1744,15 @@ struct MainAppView: View {
             await projectsStore.load(accountId: accountID, teamId: teamContext.teamID)
         case .tasks:
             await tasksStore.load(accountID: accountID, teamID: teamContext.teamID, force: force)
-        case .chat:
+        case .chat, .apps:
             break
         }
+    }
+
+    private func openNewTaskScreen() {
+        selectWorkspace(.tasks)
+        tasksStore.closeDetail()
+        taskComposerFocusRequestID = UUID()
     }
 
     private func openWorkspaceChat(_ id: String) {
@@ -1403,6 +1809,8 @@ struct MainAppView: View {
     }
 
     private func openProjectSettings(_ projectID: String) {
+        settingsForkContext = nil
+        settingsEmbedShareTarget = nil
         settingsDeepLinkPath = nil
         settingsProjectID = projectID
         showSettings = true
@@ -1418,6 +1826,50 @@ struct MainAppView: View {
         selectWorkspace(.workflows, loadContent: false)
         workflowTemplateLink = link
         deepLinkHandler.pendingWorkflowTemplate = nil
+    }
+
+    private func openPendingWorkflowWidgetRun() {
+        guard let route = deepLinkHandler.pendingWorkflowWidgetRun,
+              authManager.state != .initializing else { return }
+        guard isAuthenticated, didBootstrapAuthenticatedSession,
+              let accountID = authManager.currentUser?.id else {
+            if authManager.state == .unauthenticated { deepLinkHandler.pendingWorkflowWidgetRun = nil }
+            return
+        }
+        let server = ServerProfile.current(), runtime = OfflineStore.shared.scopeGeneration
+        let team = teamContext.snapshot
+        // Clear the shared handoff synchronously so a second window cannot
+        // dispatch the same action. The service verifies its encrypted ticket.
+        deepLinkHandler.pendingWorkflowWidgetRun = nil
+        guard route.belongsTo(accountID: accountID, apiBaseURL: server.apiBaseURL, teamID: team.teamID) else {
+            ToastManager.shared.show(AppStrings.error, type: .error)
+            return
+        }
+        let operation = UUID()
+        workflowWidgetRunGeneration = operation
+        workflowWidgetRunTask?.cancel()
+        selectWorkspace(.workflows, loadContent: false)
+        workflowWidgetRunTask = Task { @MainActor in
+            do {
+                let run = try await WorkflowWidgetRunService.shared.run(route, accountID: accountID)
+                guard !Task.isCancelled, workflowWidgetRunGeneration == operation,
+                      isAuthenticated, authManager.currentUser?.id == accountID,
+                      ServerProfile.current() == server, OfflineStore.shared.scopeGeneration == runtime,
+                      teamContext.isCurrent(team), selectedWorkspace == .workflows else { return }
+                await workflowStore.select(id: route.workflowID)
+                guard !Task.isCancelled, workflowWidgetRunGeneration == operation,
+                      isAuthenticated, authManager.currentUser?.id == accountID,
+                      ServerProfile.current() == server, OfflineStore.shared.scopeGeneration == runtime,
+                      teamContext.isCurrent(team), selectedWorkspace == .workflows else { return }
+                await workflowStore.selectRun(run.id)
+            } catch {
+                guard !Task.isCancelled, workflowWidgetRunGeneration == operation,
+                      isAuthenticated, authManager.currentUser?.id == accountID,
+                      ServerProfile.current() == server, OfflineStore.shared.scopeGeneration == runtime,
+                      teamContext.isCurrent(team) else { return }
+                ToastManager.shared.show(AppStrings.error, type: .error)
+            }
+        }
     }
 
     private func openProjectEmbed(_ item: ProjectWorkspaceItem) {
@@ -1450,11 +1902,13 @@ struct MainAppView: View {
             EmbedFullscreenContainer(embeds: [embed], initialEmbedId: embed.id,
                 allEmbedRecords: [embed.id: embed], chatId: nil,
                 onClose: { projectFullscreenEmbed = nil },
+                onOpenShareSettings: openEmbedShareSettings,
                 responsiveViewportWidth: currentViewportWidth)
         }
     }
 
     private func openSearchOverlay() {
+        widgetRunningChatsOnly = false
         selectWorkspace(.chat, loadContent: false)
         isChatsPanelOpen = true
         showSearch = true
@@ -1478,6 +1932,8 @@ struct MainAppView: View {
 
     private func handleQuickAction(_ action: AppQuickAction) {
         switch MainAppQuickActionRoute.route(for: action) {
+        case .focusedNewTask:
+            openNewTaskScreen()
         case .focusedNewChat:
             openFocusedNewChatScreen()
         case .recordingNewChat:
@@ -1492,6 +1948,17 @@ struct MainAppView: View {
     }
 
     private func resetToUnauthenticatedSession() {
+        configureMemoryActivities()
+        UpcomingMemoryLiveActivityBridge.shared.background()
+        ActiveChatsCoordinator.shared.reset()
+        workspaceMaintenanceResume?.cancel()
+        Task {
+            guard !isAuthenticated else { return }
+            await LocalModelLiveActivityCoordinator.shared.reset()
+            guard !isAuthenticated else { return }
+            await NativeWorkspaceOfflineRuntime.deactivate()
+        }
+
         pushManager.invalidateRegistration()
         settingsDeepLinkPath = nil
         newChatPrefillText = nil
@@ -1576,6 +2043,14 @@ struct MainAppView: View {
         // The synthetic Chat Settings route must not wait for public API
         // startup requests or import anonymous account data.
         if isChatSettingsUITestFixture {
+            applyLaunchCommandIfNeeded()
+            return
+        }
+        // The sidebar fixture owns synchronous local records and must not
+        // wait for public startup or anonymous-account hydration.
+        if ProcessInfo.processInfo.arguments.contains("--ui-test-workspace-sidebar-fixture") {
+            loadDemoChats()
+            resumeNewChatScreen()
             applyLaunchCommandIfNeeded()
             return
         }
@@ -1717,6 +2192,7 @@ struct MainAppView: View {
         return VStack(spacing: 0) {
             OpenMatesWebHeader(
                 viewportWidth: viewportWidth,
+                viewportHeight: workspaceWindowFrame.height,
                 isAuthenticated: shouldShowAuthenticatedHeaderAffordances || showAuthSheet,
                 isChatsPanelOpen: isChatsPanelOpen,
                 isSettingsOpen: showSettings,
@@ -1766,6 +2242,11 @@ struct MainAppView: View {
     private func chatContainer<Content: View>(@ViewBuilder content: () -> Content) -> some View {
         content()
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            #if DEBUG
+            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: {
+                if isUITestShellMetricsEnabled { workspaceContentFrame = $0 }
+            }
+            #endif
             .padding(.leading, 10)
             .padding(.trailing, currentViewportWidth <= 600 ? 10 : 20)
             .padding(.top, 10)
@@ -1843,7 +2324,7 @@ struct MainAppView: View {
 
     private func settingsPanel(width: CGFloat, closesOnExampleChatOpen: Bool) -> some View {
         Group {
-        if let chatID = settingsShareChatId, let chat = chatStore.chat(for: chatID) {
+        if settingsEmbedShareTarget == nil, let chatID = settingsShareChatId, let chat = chatStore.chat(for: chatID) {
             ChatSettingsView(
                 chat: chat,
                 messages: chatStore.messages(for: chatID),
@@ -1863,7 +2344,9 @@ struct MainAppView: View {
             reportIssuePrefill: reportIssuePrefill,
             referralCodeRequest: referralCodeRequest,
             shareChatId: settingsShareChatId,
+            embedShareTarget: settingsEmbedShareTarget,
             messageSettingsTarget: messageSettingsTarget,
+            forkContext: settingsForkContext,
             projectID: settingsProjectID,
             teamContext: teamContext,
             deepLinkPath: settingsDeepLinkPath,
@@ -1916,6 +2399,8 @@ struct MainAppView: View {
     }
 
     private func openSettingsDeepLink(_ path: String) {
+        settingsForkContext = nil
+        settingsEmbedShareTarget = nil
         let route = SettingsDeepLinkRoute(path)
         settingsDeepLinkPath = route.path
         settingsDeepLinkRequest += 1
@@ -1933,6 +2418,10 @@ struct MainAppView: View {
     }
 
     private func openReportIssue(prefill: ReportIssuePrefill) {
+        settingsForkContext = nil
+        settingsEmbedShareTarget = nil
+        settingsShareChatId = nil
+        settingsProjectID = nil
         settingsDeepLinkPath = nil
         messageSettingsTarget = nil
         reportIssuePrefill = prefill
@@ -1942,6 +2431,10 @@ struct MainAppView: View {
     }
 
     private func openReferralCodeSettings() {
+        settingsForkContext = nil
+        settingsEmbedShareTarget = nil
+        settingsShareChatId = nil
+        settingsProjectID = nil
         settingsDeepLinkPath = nil
         messageSettingsTarget = nil
         referralCodeRequest += 1
@@ -1954,7 +2447,30 @@ struct MainAppView: View {
         openChatSettings(for: chatId, tab: .share)
     }
 
+    private func openForkSettings(_ context: NativeMessageForkContext) {
+        settingsShareChatId = nil
+        settingsEmbedShareTarget = nil
+        settingsDeepLinkPath = nil
+        messageSettingsTarget = nil
+        settingsProjectID = nil
+        reportIssuePrefill = nil
+        settingsForkContext = context
+        withAnimation(.easeInOut(duration: 0.3)) { showSettings = true }
+    }
+
+    private func openEmbedShareSettings(_ target: EmbedShareSettingsTarget) {
+        settingsShareChatId = nil
+        settingsDeepLinkPath = nil
+        messageSettingsTarget = nil
+        settingsProjectID = nil
+        reportIssuePrefill = nil
+        settingsEmbedShareTarget = target
+        withAnimation(.easeInOut(duration: 0.3)) { showSettings = true }
+    }
+
     private func openChatSettings(for chatId: String, tab: ChatSettingsTab = .plan) {
+        settingsForkContext = nil
+        settingsEmbedShareTarget = nil
         settingsDeepLinkPath = nil
         messageSettingsTarget = nil
         selectedChatId = chatId
@@ -1975,6 +2491,8 @@ struct MainAppView: View {
     }
 
     private func openAssistantMessageSettings(_ target: AssistantMessageSettingsTarget) {
+        settingsForkContext = nil
+        settingsEmbedShareTarget = nil
         reportIssuePrefill = nil
         settingsShareChatId = nil
         messageSettingsTarget = target
@@ -2131,7 +2649,11 @@ struct MainAppView: View {
 
     @ViewBuilder
     private var shellContent: some View {
-        if showAuthSheet { authContent } else { detailContent }
+        ZStack {
+            if showAuthSheet { authContent } else { detailContent }
+        }
+        .animation(workspaceReduceMotion ? nil : .timingCurve(0.25, 0.1, 0.25, 1, duration: 0.3), value: selectedChatId)
+        .animation(workspaceReduceMotion ? nil : .timingCurve(0.25, 0.1, 0.25, 1, duration: 0.3), value: showNewChat)
     }
 
     private var authContent: some View {
@@ -2180,12 +2702,21 @@ struct MainAppView: View {
             .background(Color.grey0)
             .id("workflow-template-\(accountID)-\(OfflineStore.shared.scopeGeneration)")
             .accessibilityIdentifier("workflow-template-share-page")
+        } else if selectedWorkspace == .apps {
+            AppsWorkspaceView(store: appsStore,
+                greetingName: authManager.currentUser?.username ?? "",
+                onOpenWorkflow: { openWorkspaceWorkflow($0) },
+                onOpenExampleChat: openWorkspaceChat,
+                onOpenSettings: openSettingsDeepLink,
+                onReportIssue: { openReportIssue(prefill: .init(title: AppStrings.apps, category: "bug")) },
+                onSignup: { showAuthSheet = true })
         } else if selectedWorkspace == .workflows {
             WorkflowWorkspaceView(store: workflowStore, authManager: authManager,
                 onReportIssue: { openReportIssue(prefill: .init(title: AppStrings.workflows, category: "bug")) },
                 chatChoices: workflowChatChoices)
         } else if selectedWorkspace == .projects {
-            ProjectsWorkspaceView(store: projectsStore, tasksStore: projectTasksStore,
+            ProjectsWorkspaceView(store: projectsStore, chatStore: chatStore, hydrateProjectChat: hydrateProjectChat,
+                processingChatIDs: sidebarActivity.processingIDs, tasksStore: projectTasksStore,
                 greetingName: authManager.currentUser?.username ?? "there",
                 onOpenChat: openWorkspaceChat,
                 onOpenWorkflow: { openWorkspaceWorkflow($0) },
@@ -2208,7 +2739,7 @@ struct MainAppView: View {
                     teamID: context.teamID)
             }
         } else if selectedWorkspace == .tasks {
-            TasksWorkspaceView(store: tasksStore,
+            TasksWorkspaceView(store: tasksStore, composerFocusRequestID: taskComposerFocusRequestID,
                 onOpenProject: openWorkspaceProject, onOpenChat: openWorkspaceChat,
                 onOpenWorkflowRun: { openWorkspaceWorkflow($0, runID: $1) },
                 onReportIssue: { openReportIssue(prefill: .init(title: AppStrings.tasks, category: "bug")) })
@@ -2326,6 +2857,12 @@ struct MainAppView: View {
                 onShowChatActions: { chatId in
                     actionChat = chatStore.chat(for: chatId)
                 },
+                onShowAllChats: {
+                    selectWorkspace(.chat, loadContent: false)
+                    showSearch = false
+                    isChatsPanelOpen = true
+                },
+                onSearchChats: openSearchOverlay,
                 onInspirationViewed: { inspirationId in
                     guard isAuthenticated else { return }
                     Task {
@@ -2342,11 +2879,17 @@ struct MainAppView: View {
                     }
                 },
                 onOpenAuth: { showAuthSheet = true },
+                activeChatCount: sidebarActivity.rootIDs(chats: chatStore.chats).filter { id in
+                    guard let chat = chatStore.chat(for: id) else { return false }
+                    return !chat.isHiddenFromNormalSurfaces && chat.teamId == teamContext.teamID
+                }.count,
+                onRevealRunningChats: { selectedWorkspace = .chat; isChatsPanelOpen = true; showSearch = false; chatProjectLocation = nil; revealRunningChatsRequest &+= 1 },
                 canSendAnonymously: anonymousFreeUsage.canSendAnonymously,
                 prefillText: newChatPrefillText,
                 prefillRequest: newChatPrefillRequest,
                 onPrefillConsumed: { newChatPrefillText = nil }
             )
+            .accessibilityElement(children: .contain)
             .accessibilityIdentifier("chat-workspace-welcome")
         } else if isAuthenticated, let chatId = selectedChatId {
             let isPublic = publicChatGroup(for: chatId) != nil
@@ -2377,6 +2920,8 @@ struct MainAppView: View {
                         openShareSettings(for: chatId)
                     }
                 },
+                onOpenForkSettings: openForkSettings,
+                onOpenEmbedShareSettings: openEmbedShareSettings,
                 onOpenChatSettings: headerActions.exposesOwnerSettings ? {
                     openChatSettings(for: chatId)
                 } : nil,
@@ -2404,6 +2949,8 @@ struct MainAppView: View {
                     }
                 }
             )
+            .id(chatId)
+            .transition(workspaceReduceMotion ? .opacity : .move(edge: .bottom))
         } else if !isAuthenticated, let chatId = selectedChatId {
             let isAnonymous = anonymousFreeUsage.isAnonymousChat(chatId)
             let initialWindow = isAnonymous ? ChatHistoryWindowPolicy.initialMessages(
@@ -2422,6 +2969,8 @@ struct MainAppView: View {
                 initialEmbedId: pendingExternalEmbedOpen?.chatId == chatId ? pendingExternalEmbedOpen?.embedId : nil,
                 isSettingsOpen: currentViewportWidth > 1100 && showSettings,
                 onShareChat: { sharePublicChat(chatId) },
+                onOpenForkSettings: openForkSettings,
+                onOpenEmbedShareSettings: openEmbedShareSettings,
                 onCloseChat: {
                     guard selectedChatId == chatId else { return }
                     closeChatToWorkspaceLanding()
@@ -2439,6 +2988,8 @@ struct MainAppView: View {
                     }
                 }
             )
+            .id(chatId)
+            .transition(workspaceReduceMotion ? .opacity : .move(edge: .bottom))
         }
     }
 
@@ -2483,18 +3034,25 @@ struct MainAppView: View {
     }
 
     private func closeWorkspaceSidebar() {
+        widgetRunningChatsOnly = false
+        cancelPendingWidgetNavigation()
         withAnimation(.easeInOut(duration: 0.24)) { isChatsPanelOpen = false }
+    }
+
+    private func cancelPendingWidgetNavigation() {
+        guard deepLinkHandler.pendingActiveChatsWidgetLink != nil else { return }
+        widgetLinkTask?.cancel()
+        widgetLinkGeneration = UUID()
+        pendingHiddenWidgetChatID = nil
+        deepLinkHandler.pendingActiveChatsWidgetLink = nil
     }
 
     @ViewBuilder
     private var chatsPanel: some View {
-        if selectedWorkspace == .workflows {
-            WorkflowSidebarView(store: workflowStore, onClose: closeWorkspaceSidebar) { workflow in
-                Task { await workflowStore.select(workflow) }
-                if isCompactShell {
-                    withAnimation(.easeInOut(duration: 0.2)) { isChatsPanelOpen = false }
-                }
-            }
+        if selectedWorkspace == .apps {
+            appsSidebarPanel
+        } else if selectedWorkspace == .workflows {
+            workflowsSidebarPanel
         } else if selectedWorkspace == .projects {
             ProjectsSidebarView(store: projectsStore,
                 onClose: closeWorkspaceSidebar, onOpenProject: openWorkspaceProject)
@@ -2503,43 +3061,182 @@ struct MainAppView: View {
                 onOpenTask: { openWorkspaceTasks(taskID: $0) },
                 onOpenPlan: { openWorkspaceTasks(planID: $0) })
         } else {
-            // Filter/sort once per sidebar render. Draft-preview updates consume
-            // this snapshot instead of repeating the full user-chat projection.
-            let filteredChats = filteredSidebarUserChats
-            let snapshot = ChatSidebarDisplayPolicy.snapshot(sortedUserChats: filteredChats,
-                appliesDisplayLimit: isAuthenticated && searchText.isEmpty,
-                limit: visibleUserChatLimit, selectedChatID: selectedChatId,
-                lastActiveChatID: lastActiveSidebarSelection?.chatID(in: sidebarAccountScope) ?? authManager.currentUser?.lastOpened,
-                totalChatCount: totalChatCount, serverChatPagesExhausted: serverChatPagesExhausted)
-            let locale = Locale(identifier: LocalizationManager.shared.currentLanguage.code)
-            let userSections = snapshot.groups.map { group in
-                ChatSidebarSection(id: group.key,
-                    title: ChatSidebarDisplayPolicy.title(for: group.key, locale: locale), chats: group.chats)
-            }
-            let publicSections = sidebarPublicSections
-            let emptyMessage = snapshot.visibleChats.isEmpty && isAuthenticated &&
-                publicSections.first(where: { $0.id == PublicChatGroup.intro.rawValue })?.chats.isEmpty == true
-                ? AppStrings.noChats : nil
-            let loadMore = snapshot.shouldShowMore ? ChatSidebarLoadMore(
-                totalCount: max(totalChatCount, snapshot.filteredCount),
-                loadedCount: visibleUserChatLimit, isLoading: isLoadingMore) : nil
-            ChatSidebarDraftContext { draftPreviews in
-                ChatSidebarContent(userSections: userSections, publicSections: publicSections,
-                    selectedChatID: selectedChatId, draftPreviews: draftPreviews,
-                    showSearch: showSearch,
-                    emptyMessage: emptyMessage, loadMore: loadMore,
-                    actions: ChatSidebarActions(select: selectSidebarChat,
-                        showActions: isAuthenticated ? { actionChat = $0 } : nil,
-                        search: openSearchOverlay,
-                        close: { withAnimation(.easeInOut(duration: 0.24)) { isChatsPanelOpen = false } },
-                        showHidden: openHiddenChatsFromSidebar, loadMore: showMoreUserChats),
-                    refresh: { if isAuthenticated { await loadInitialData() } }) {
-                    ChatSearchView(chats: chatStore.chats, activeChatId: selectedChatId,
-                        chatStore: chatStore, onSelectResult: handleSearchSelection, onClose: closeSearch,
-                        prepareSearchMetadata: { await prepareSearchMetadata() }, draftPreviews: draftPreviews)
-                }
+            chatHistorySidebarPanel
+        }
+    }
+
+    private var appsSidebarPanel: some View {
+        AppsSidebarView(store: appsStore, onClose: closeWorkspaceSidebar) { app in
+            appsStore.selectApp(app)
+            if isCompactShell { closeWorkspaceSidebar() }
+        }
+    }
+
+    private var workflowsSidebarPanel: some View {
+        WorkflowSidebarView(store: workflowStore, onClose: closeWorkspaceSidebar) { workflow in
+            Task { await workflowStore.select(workflow) }
+            if isCompactShell {
+                withAnimation(.easeInOut(duration: 0.2)) { isChatsPanelOpen = false }
             }
         }
+    }
+
+    private struct ChatSidebarPresentation {
+        let userSections: [ChatSidebarSection]
+        let publicSections: [ChatSidebarSection]
+        let emptyMessage: String?
+        let loadMore: ChatSidebarLoadMore?
+    }
+
+    private var chatSidebarPresentation: ChatSidebarPresentation {
+        // Filter/sort once per sidebar render. Draft-preview updates consume
+        // this snapshot instead of repeating the full user-chat projection.
+        let filteredChats = filteredSidebarUserChats
+        let snapshot = ChatSidebarDisplayPolicy.snapshot(sortedUserChats: filteredChats,
+            appliesDisplayLimit: isAuthenticated && searchText.isEmpty && chatProjectLocation == nil,
+            limit: visibleUserChatLimit, selectedChatID: selectedChatId,
+            lastActiveChatID: lastActiveSidebarSelection?.chatID(in: sidebarAccountScope) ?? authManager.currentUser?.lastOpened,
+            totalChatCount: totalChatCount, serverChatPagesExhausted: serverChatPagesExhausted)
+        let locale = Locale(identifier: LocalizationManager.shared.currentLanguage.code)
+        let historySections: [ChatSidebarSection] = snapshot.groups.map { group in
+            ChatSidebarSection(id: group.key,
+                title: ChatSidebarDisplayPolicy.title(for: group.key, locale: locale), chats: group.chats)
+        }
+        let runningRoots = sidebarActivity.rootIDs(chats: chatStore.chats)
+        let running: [Chat] = widgetRunningChatsOnly ? widgetRunningChats : chatStore.sortedChats.filter { runningRoots.contains($0.id) && !$0.isHiddenFromNormalSurfaces && $0.teamId == teamContext.teamID }
+        let userSections: [ChatSidebarSection] = (running.isEmpty ? [] : [ChatSidebarSection(id: "running", title: AppStrings.localized("chats.activity.heading"), chats: running)]) + (widgetRunningChatsOnly ? [] : historySections)
+        let publicSections: [ChatSidebarSection] = !widgetRunningChatsOnly && chatProjectLocation == nil ? sidebarPublicSections : []
+        let emptyMessage: String? = widgetRunningChatsOnly ? (running.isEmpty ? AppStrings.localized("apple.active_chats_widget.empty") : nil) : snapshot.visibleChats.isEmpty && isAuthenticated &&
+            publicSections.first(where: { $0.id == PublicChatGroup.intro.rawValue })?.chats.isEmpty == true
+            ? AppStrings.noChats : nil
+        let loadMore: ChatSidebarLoadMore? = !widgetRunningChatsOnly && snapshot.shouldShowMore ? ChatSidebarLoadMore(
+            totalCount: max(totalChatCount, snapshot.filteredCount),
+            loadedCount: visibleUserChatLimit, isLoading: isLoadingMore) : nil
+        return ChatSidebarPresentation(userSections: userSections, publicSections: publicSections,
+            emptyMessage: emptyMessage, loadMore: loadMore)
+    }
+
+    private var chatHistorySidebarPanel: some View {
+        let presentation = chatSidebarPresentation
+        return ChatSidebarDraftContext { draftPreviews in
+            chatSidebarContent(presentation: presentation, draftPreviews: draftPreviews)
+        }
+    }
+
+    private func chatSidebarContent(presentation: ChatSidebarPresentation, draftPreviews: [String: String]) -> some View {
+        ChatSidebarContent(projectNavigation: isAuthenticated && !widgetRunningChatsOnly ? chatProjectNavigation : nil,
+            revealRunningRequest: revealRunningChatsRequest,
+            showsHiddenChatsButton: !widgetRunningChatsOnly,
+            processingChatIDs: widgetRunningChatsOnly ? Set(widgetRunningChatIDs) : [],
+            userSections: presentation.userSections, publicSections: presentation.publicSections,
+            selectedChatID: selectedChatId, draftPreviews: widgetRunningChatsOnly ? [:] : draftPreviews,
+            showSearch: showSearch, emptyMessage: presentation.emptyMessage, loadMore: presentation.loadMore,
+            actions: chatSidebarActions, refresh: refreshChatSidebar) {
+                chatSidebarSearchContent(draftPreviews: draftPreviews)
+            }
+            .accessibilityIdentifier(widgetRunningChatsOnly ? "active-chats-widget-destination" : "chat-history-panel")
+    }
+
+    private var chatSidebarActions: ChatSidebarActions {
+        let showActions: ((Chat) -> Void)? = isAuthenticated && !widgetRunningChatsOnly ? { actionChat = $0 } : nil
+        let dragPayload: ((Chat) -> ChatProjectDragPayload?)? = widgetRunningChatsOnly ? nil : { chat in sidebarDragPayload(chat) }
+        let dropChat: ((ChatProjectDragPayload, Chat) -> Void)? = widgetRunningChatsOnly ? nil : { payload, chat in groupSidebarChats(payload, chat) }
+        return ChatSidebarActions(select: selectSidebarChat,
+            showActions: showActions,
+            search: openSearchOverlay, close: closeWorkspaceSidebar,
+            showHidden: openHiddenChatsFromSidebar, loadMore: showMoreUserChats,
+            dragPayload: dragPayload, dropChat: dropChat)
+    }
+
+    private func refreshChatSidebar() async {
+        if widgetRunningChatsOnly {
+            await sidebarActivity.refresh()
+            await hydrateProjectChats(widgetRunningChatIDs)
+        } else if isAuthenticated {
+            await loadInitialData()
+        }
+    }
+
+    private func chatSidebarSearchContent(draftPreviews: [String: String]) -> some View {
+        ChatSearchView(chats: chatStore.chats, activeChatId: selectedChatId,
+            chatStore: chatStore, onSelectResult: handleSearchSelection, onClose: closeSearch,
+            prepareSearchMetadata: { await prepareSearchMetadata() }, draftPreviews: draftPreviews)
+    }
+
+    private var chatProjectNavigation: ChatProjectNavigationContext {
+        .init(projects: projectsStore.chatNavigationProjects, location: chatProjectLocation,
+            runningIDs: sidebarActivity.processingAncestorIDs(chats: chatStore.chats), activeSubChatCounts: sidebarActivity.activeSubChatCounts(chats: chatStore.chats), isOrganizing: projectsStore.isOrganizingChats, errorMessage: projectsStore.errorMessage,
+            navigate: { location in
+                chatProjectLocation = location
+                if let project = projectsStore.chatNavigationProjects.first(where: { $0.id == location?.projectID }) {
+                    Task { await hydrateProjectChats(Array(project.chatIDs(in: location?.folderID))) }
+                }
+            }, drop: { payload, location in
+                guard acceptsSidebarDrag(payload), let chat = chatStore.chat(for: payload.chatID) else { return }
+                Task { await projectsStore.moveChats([chat], to: location) }
+            }, createFolder: { location, name in Task { await projectsStore.createChatFolder(at: location, name: name) } },
+            openProject: openWorkspaceProject)
+    }
+
+    private func sidebarDragPayload(_ chat: Chat) -> ChatProjectDragPayload? {
+        guard isAuthenticated, let accountID = authManager.currentUser?.id,
+              ChatProjectEligibility.canOrganize(chat, teamID: teamContext.teamID) else { return nil }
+        return .init(chatID: chat.id, accountID: accountID, scope: OfflineStore.shared.scopeGeneration,
+            serverOrigin: ServerConfiguration.current.apiBaseURL.absoluteString, teamID: teamContext.teamID)
+    }
+    private func acceptsSidebarDrag(_ payload: ChatProjectDragPayload) -> Bool {
+        guard isAuthenticated, payload.accountID == authManager.currentUser?.id,
+              payload.scope == OfflineStore.shared.scopeGeneration,
+              payload.serverOrigin == ServerConfiguration.current.apiBaseURL.absoluteString,
+              payload.teamID == teamContext.teamID, let chat = chatStore.chat(for: payload.chatID) else { return false }
+        return ChatProjectEligibility.canOrganize(chat, teamID: teamContext.teamID)
+    }
+    private func groupSidebarChats(_ payload: ChatProjectDragPayload, _ target: Chat) {
+        guard acceptsSidebarDrag(payload), payload.chatID != target.id,
+              ChatProjectEligibility.canOrganize(target, teamID: teamContext.teamID),
+              let source = chatStore.chat(for: payload.chatID) else { return }
+        Task {
+            if let id = await projectsStore.createChatOrganization(chats: [source, target]) { openWorkspaceProject(id) }
+        }
+    }
+    private func hydrateProjectChat(_ id: String) async { await hydrateProjectChats([id]) }
+    private func hydrateProjectChats(_ ids: [String], visited: Set<String> = []) async {
+        guard isAuthenticated, let accountID = authManager.currentUser?.id else { return }
+        let context = teamContext.snapshot, scope = OfflineStore.shared.scopeGeneration
+        let deletionRevision = chatStore.metadataReadRevision
+        let visited = visited.union(ids)
+        let missing = ids.filter { chatStore.chat(for: $0) == nil }
+        if !missing.isEmpty {
+            do {
+                struct Response: Decodable { let chats: [Chat] }
+                let suffix = context.teamID.map { "?team_id=" + ($0.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "") } ?? ""
+                for start in stride(from: 0, to: missing.count, by: 100) {
+                    let batch = Array(missing[start..<min(start + 100, missing.count)])
+                    let response: Response = try await APIClient.shared.request(.post, path: "/v1/chats/metadata/batch" + suffix,
+                        serverProfile: ServerProfile.current(), body: ["chat_ids": batch], expectedAccountID: accountID,
+                        expectedScope: scope, expectedTeamContext: .init(epoch: context.epoch, teamID: context.teamID))
+                    guard teamContext.isCurrent(context), OfflineStore.shared.scopeGeneration == scope,
+                          chatStore.metadataReadRevision == deletionRevision else { return }
+                    let safe = response.chats.filter { batch.contains($0.id) && $0.teamId == context.teamID }
+                    if let teamID = context.teamID {
+                        let team = try await TeamWorkspaceService().getTeam(teamID, fence: TeamWorkspaceFence(accountID: accountID))
+                        for chat in safe {
+                            if let wrapper = chat.encryptedChatKey {
+                                _ = await ChatKeyManager.shared.loadChatKey(chatId: chat.id, encryptedChatKey: wrapper, masterKey: team.key)
+                            }
+                        }
+                    }
+                    guard teamContext.isCurrent(context), OfflineStore.shared.scopeGeneration == scope,
+                          chatStore.metadataReadRevision == deletionRevision else { return }
+                    chatStore.upsertChats(safe)
+                    let missingParents = safe.compactMap(\.parentId).filter { chatStore.chat(for: $0) == nil && !visited.contains($0) }
+                    if !missingParents.isEmpty { await hydrateProjectChats(missingParents, visited: visited) }
+                }
+            } catch { return }
+        }
+        guard teamContext.isCurrent(context), OfflineStore.shared.scopeGeneration == scope,
+              chatStore.metadataReadRevision == deletionRevision else { return }
+        await decryptAndUpsertChatMetadata(ids.compactMap { chatStore.chat(for: $0) }, reason: "projectChat")
     }
 
     private var sidebarPublicSections: [ChatSidebarSection] {
@@ -2550,6 +3247,13 @@ struct MainAppView: View {
         }
     }
     private func selectSidebarChat(_ chat: Chat) {
+        if widgetRunningChatsOnly {
+            guard let accountID = authManager.currentUser?.id else { return }
+            deepLinkHandler.pendingActiveChatsWidgetLink = .init(destination: .chat(chat.id),
+                owner: WidgetActiveChatsOwner.identity(accountID: accountID,
+                    apiBaseURL: ServerProfile.current().apiBaseURL, teamID: teamContext.teamID), teamID: teamContext.teamID)
+            return
+        }
         chatInputFocusRequest = 0
         selectedChatId = chat.id
         searchSelection = nil
@@ -2600,6 +3304,52 @@ struct MainAppView: View {
         }
     }
 
+    private func showChatProjectPicker(_ chat: Chat, move: Bool) {
+        guard let payload = sidebarDragPayload(chat) else { return }
+        actionChat = nil; projectPickerScope = payload; projectPickerChatID = chat.id
+        projectPickerMoves = move; projectPickerLocation = nil
+    }
+    private var chatProjectPicker: some View {
+        OMSheet(isPresented: Binding(get: { projectPickerChatID != nil }, set: { shown in
+            if !shown && !projectsStore.isOrganizingChats { projectPickerChatID = nil; projectPickerScope = nil }
+        }), title: AppStrings.localized(projectPickerMoves ? "chats.projects.move" : "chats.projects.add")) {
+            VStack(alignment: .leading, spacing: .spacing6) {
+                if projectsStore.isOrganizingChats {
+                    HStack(spacing: .spacing6) { ProgressView(); Text(AppStrings.localized("chats.projects.organizing")).font(.omSmall) }
+                } else {
+                    ChatProjectNavigator(context: .init(projects: projectsStore.chatNavigationProjects, location: projectPickerLocation,
+                        runningIDs: sidebarActivity.processingIDs, navigate: { projectPickerLocation = $0 }, drop: { _, _ in },
+                        createFolder: { at, name in Task { await projectsStore.createChatFolder(at: at, name: name) } },
+                        openProject: { id in projectPickerChatID = nil; openWorkspaceProject(id) }))
+                }
+                if let error = projectsStore.errorMessage { Text(error).font(.omSmall).foregroundStyle(Color.error).accessibilityIdentifier("chat-project-picker-error") }
+                HStack(spacing: .spacing4) {
+                    Button(AppStrings.localized("chats.projects.create")) { submitChatProjectPicker(create: true) }
+                        .buttonStyle(OMSecondaryButtonStyle()).accessibilityIdentifier("chat-project-create")
+                    if projectPickerLocation != nil {
+                        Button(AppStrings.localized(projectPickerMoves ? "chats.projects.move_here" : "chats.projects.add_here")) { submitChatProjectPicker(create: false) }
+                            .buttonStyle(OMPrimaryButtonStyle()).accessibilityIdentifier("chat-project-add-here")
+                    }
+                }.disabled(projectsStore.isOrganizingChats)
+            }.accessibilityIdentifier("chat-project-picker")
+        }
+    }
+    private func submitChatProjectPicker(create: Bool) {
+        guard let payload = projectPickerScope, acceptsSidebarDrag(payload),
+              let chat = chatStore.chat(for: payload.chatID) else { return }
+        let location = projectPickerLocation, moves = projectPickerMoves
+        Task {
+            if create {
+                if let id = await projectsStore.createChatOrganization(chats: [chat]) {
+                    projectPickerChatID = nil; openWorkspaceProject(id)
+                }
+            } else if let location {
+                await projectsStore.moveChats([chat], to: location, removeOtherLinks: moves)
+                if projectsStore.errorMessage == nil { projectPickerChatID = nil }
+            }
+        }
+    }
+
     private func chatActionsOverlay(for chat: Chat) -> some View {
         ZStack {
             Color.black.opacity(0.28)
@@ -2627,6 +3377,16 @@ struct MainAppView: View {
                     openShareSettings(for: chat.id)
                 }
 
+                if ChatProjectEligibility.canOrganize(chat, teamID: teamContext.teamID) {
+                    chatActionRow(icon: "project", title: AppStrings.localized("chats.projects.add")) { showChatProjectPicker(chat, move: false) }
+                        .accessibilityIdentifier("chat-action-add-project")
+                    chatActionRow(icon: "project", title: AppStrings.localized("chats.projects.move")) { showChatProjectPicker(chat, move: true) }
+                        .accessibilityIdentifier("chat-action-move-project")
+                    chatActionRow(icon: "project", title: AppStrings.localized("chats.projects.create")) {
+                        actionChat = nil
+                        Task { if let id = await projectsStore.createChatOrganization(chats: [chat]) { openWorkspaceProject(id) } }
+                    }.accessibilityIdentifier("chat-action-create-project")
+                }
                 chatActionRow(icon: "copy", title: AppStrings.rename) {
                     renameChat(chat)
                     actionChat = nil
@@ -3018,6 +3778,10 @@ struct MainAppView: View {
 
     private func bootstrapAuthenticatedSession() async {
         guard isAuthenticated, !didBootstrapAuthenticatedSession else { return }
+        defer {
+            openPendingActiveChatsWidgetLink()
+            openPendingWorkflowWidgetRun()
+        }
         didBootstrapAuthenticatedSession = true
         if let accountID = authManager.currentUser?.id, !isChatNavigationUITestEnabled {
             Task { await teamContext.load(accountID: accountID) }
@@ -3055,6 +3819,8 @@ struct MainAppView: View {
         if let user = authManager.currentUser?.id { appSession.modelPreferences.activate(server: ServerProfile.current().apiBaseURL.absoluteString, user: user) }
         let bridge = appSession.prepareAuthenticatedRuntime(lastOpenedChatId: authManager.currentUser?.lastOpened)
         syncBridge = bridge
+        configureMemoryActivities()
+        maintainOfflineWorkspaces(force: true)
         pushManager.refreshRegistration()
         appSession.configureDraftSyncIfNeeded()
 
@@ -3682,6 +4448,13 @@ struct MainAppView: View {
     private func processChatUpdate(type: String, raw: Data) async {
         do {
             switch type {
+            case "project_task_sync":
+                if let envelope = try JSONSerialization.jsonObject(with: raw) as? [String: Any],
+                   let payload = envelope["payload"] as? [String: Any], payload["final"] as? Bool == true,
+                   let accountID = authManager.currentUser?.id {
+                    NativeWorkspaceOfflineRuntime.markDirty(accountID: accountID, teamID: teamContext.teamID)
+                    foregroundWorkspaceDidNavigate()
+                }
             case "new_chat_message":
                 let envelope = try syncDecoder.decode(WSEnvelope<NewChatMessagePayload>.self, from: raw)
                 guard let payload = envelope.payload ?? envelope.data else { return }
@@ -3808,6 +4581,15 @@ struct MainAppView: View {
     }
 
     private func applyTypingStartedMetadata(_ payload: AITypingStartedSyncPayload) async {
+        if let turnID = payload.userMessageId ?? payload.messageId,
+           let scope = ActiveChatsCoordinator.shared.currentScope {
+            ActiveChatsCoordinator.shared.started(chatID: payload.chatId, turnID: turnID,
+                scope: scope)
+            if let messageID = payload.messageId, messageID != turnID {
+                ActiveChatsCoordinator.shared.adoptServerTurn(chatID: payload.chatId,
+                    provisionalTurnID: turnID, serverTurnID: messageID, scope: scope)
+            }
+        }
         await loadChatKeyIfNeeded(chatId: payload.chatId, encryptedChatKey: payload.encryptedChatKey)
 
         let existing = chatStore.chat(for: payload.chatId)
@@ -3922,7 +4704,14 @@ struct MainAppView: View {
         rejectionReason: String?,
         source: String
     ) async {
-        guard !chatId.isEmpty, !messageId.isEmpty, !content.isEmpty else { return }
+        guard !chatId.isEmpty, !messageId.isEmpty else { return }
+        if let scope = ActiveChatsCoordinator.shared.currentScope {
+            ActiveChatsCoordinator.shared.finished(chatID: chatId, turnID: messageId, scope: scope)
+            if let userMessageId {
+                ActiveChatsCoordinator.shared.finished(chatID: chatId, turnID: userMessageId, scope: scope)
+            }
+        }
+        guard !content.isEmpty else { return }
         guard !chatStore.messages(for: chatId).contains(where: { $0.id == messageId }) else {
             NativeSyncPerfLog.info("phase=assistantCompletionSkip source=\(source) chat=\(chatId.prefix(8)) message=\(messageId.prefix(8)) reason=duplicate")
             return
@@ -4011,7 +4800,7 @@ struct MainAppView: View {
         guard scenePhase != .active else { return }
 
         await pushManager.showChatMessageNotification(
-            chatId: chat.id
+            chatId: chat.id, messageID: message.id
         )
     }
 
@@ -4481,6 +5270,7 @@ struct MainAppView: View {
                 appSession.isInitialSyncComplete = true
                 traceNativeStartupSync("phase=startupMarkerComplete marker=true")
                 syncBridge?.startOfflinePrefetchIfEligible(reason: "startupSyncComplete")
+                maintainOfflineWorkspaces()
                 ChatKeyManager.shared.markInitialSyncReady()
                 await appSession.markRecoveryInitialSyncReady()
 
@@ -5229,61 +6019,12 @@ struct SyncedNewChatSuggestion: Decodable {
 
 // MARK: - Web app header
 
-private enum WorkspaceDestination: String, CaseIterable, Identifiable {
-    case chat
-    case projects
-    case workflows
-    case tasks
-
-    var id: String { rawValue }
-
-    var icon: String {
-        switch self {
-        case .chat:
-            return "chat"
-        case .projects:
-            return "project"
-        case .tasks:
-            return "projectmanagement"
-        case .workflows:
-            return "workflow"
-        }
-    }
-
-    @MainActor var label: String {
-        switch self {
-        case .chat:
-            return AppStrings.chat
-        case .projects:
-            return AppStrings.projects
-        case .tasks:
-            return AppStrings.tasks
-        case .workflows:
-            return AppStrings.workflows
-        }
-    }
-
-    var testId: String {
-        switch self {
-        case .chat:
-            return "chats-nav-link"
-        case .projects:
-            return "projects-nav-link"
-        case .tasks:
-            return "tasks-nav-link"
-        case .workflows:
-            return "workflows-nav-link"
-        }
-    }
-
-    var placeholderIcon: String { icon }
-}
-
-private struct OpenMatesWebHeader: View {
+struct OpenMatesWebHeader: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.openURL) private var openURL
 
     let viewportWidth: CGFloat
+    let viewportHeight: CGFloat
     let isAuthenticated: Bool
     let isChatsPanelOpen: Bool
     let isSettingsOpen: Bool
@@ -5300,7 +6041,8 @@ private struct OpenMatesWebHeader: View {
     let onOpenReferral: () -> Void
     let onOpenAuth: () -> Void
     private static let compactHeaderMaxWidth: CGFloat = 894
-    private static let compactWorkspaceMaxWidth: CGFloat = 730
+    @State private var leadingControlsWidth: CGFloat = 0
+    @State private var trailingControlsWidth: CGFloat = 0
     private static let githubURL = URL(string: "https://github.com/glowingkitty/OpenMates")!
 
     private var isCompact: Bool {
@@ -5308,92 +6050,99 @@ private struct OpenMatesWebHeader: View {
     }
 
     private var isCompactWorkspace: Bool {
-        horizontalSizeClass == .compact || viewportWidth <= Self.compactWorkspaceMaxWidth
+        WorkspaceSwitcherLayoutPolicy.isCompact(headerWidth: viewportWidth,
+            leadingWidth: leadingControlsWidth, trailingWidth: trailingControlsWidth)
     }
 
     var body: some View {
         ZStack {
             HStack(alignment: .center, spacing: .spacing4) {
-                if !isChatsPanelOpen {
-                    Button(action: onToggleChats) {
-                        Icon("menu", size: 25)
-                            .foregroundStyle(LinearGradient.primary)
-                            .frame(width: 25, height: 25)
+                HStack(spacing: .spacing4) {
+                    if !isChatsPanelOpen {
+                        Button(action: onToggleChats) {
+                            Icon("menu", size: 25)
+                                .foregroundStyle(LinearGradient.primary)
+                                .frame(width: 25, height: 25)
+                        }
+                        .buttonStyle(.plain)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                        .accessibilityIdentifier("sidebar-toggle")
+                        .help(Text(LocalizationManager.shared.text("header.toggle_menu")))
+                        .accessibilityLabel(LocalizationManager.shared.text("header.toggle_menu"))
                     }
-                    .buttonStyle(.plain)
-                    .frame(width: 44, height: 44)
-                    .contentShape(Rectangle())
-                    .accessibilityIdentifier("sidebar-toggle")
-                    .help(Text(LocalizationManager.shared.text("header.toggle_menu")))
-                    .accessibilityLabel(LocalizationManager.shared.text("header.toggle_menu"))
-                }
 
-                headerLogo
+                    headerLogo
+                }
+                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { leadingControlsWidth = $0 }
 
                 Spacer(minLength: .spacing4)
 
-                if !isAuthenticated {
-                    Button {
-                        openURL(Self.githubURL)
-                    } label: {
-                        Icon("github", size: 22)
-                            .foregroundStyle(LinearGradient.primary)
-                            .frame(width: 42, height: 42)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("github-repo-button")
-                    .help(Text(LocalizationManager.shared.text("signup.view_on_github")))
-                    .accessibilityLabel(LocalizationManager.shared.text("signup.view_on_github"))
-
-                    Button(action: onOpenAuth) {
-                        Text(isCompact ? AppStrings.login : AppStrings.loginSignup)
-                            .font(.omP)
-                            .foregroundStyle(Color.fontButton)
-                            .lineLimit(1)
-                            .padding(.horizontal, .spacing6)
-                            .padding(.vertical, .spacing4)
-                            .background(Color.buttonPrimary)
-                            .clipShape(RoundedRectangle(cornerRadius: .radius3))
-                            .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 2)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("header-login-signup-btn")
-                    .help(Text(isCompact ? AppStrings.login : AppStrings.loginSignup))
-                    .accessibilityLabel(isCompact ? AppStrings.login : AppStrings.loginSignup)
-                }
-
-                if isAuthenticated {
-                    Button(action: onOpenReferral) {
-                        HStack(spacing: .spacing3) {
-                            Icon("gift", size: 22)
+                HStack(spacing: .spacing4) {
+                    if !isAuthenticated {
+                        Button {
+                            openURL(Self.githubURL)
+                        } label: {
+                            Icon("github", size: 22)
                                 .foregroundStyle(LinearGradient.primary)
-                                .frame(width: 38, height: 38)
-                                .background(Color.grey10)
-                                .clipShape(Circle())
+                                .frame(width: 42, height: 42)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("github-repo-button")
+                        .help(Text(LocalizationManager.shared.text("signup.view_on_github")))
+                        .accessibilityLabel(LocalizationManager.shared.text("signup.view_on_github"))
 
-                            if !isCompact {
-                                Text(AppStrings.getFreeCredits)
-                                    .font(.omSmall)
-                                    .fontWeight(.semibold)
+                        Button(action: onOpenAuth) {
+                            Text(isCompact ? AppStrings.login : AppStrings.loginSignup)
+                                .font(.omP)
+                                .foregroundStyle(Color.fontButton)
+                                .lineLimit(1)
+                                .padding(.horizontal, .spacing6)
+                                .padding(.vertical, .spacing4)
+                                .background(Color.buttonPrimary)
+                                .clipShape(RoundedRectangle(cornerRadius: .radius3))
+                                .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 2)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("header-login-signup-btn")
+                        .help(Text(isCompact ? AppStrings.login : AppStrings.loginSignup))
+                        .accessibilityLabel(isCompact ? AppStrings.login : AppStrings.loginSignup)
+                    }
+
+                    if isAuthenticated {
+                        Button(action: onOpenReferral) {
+                            HStack(spacing: .spacing3) {
+                                Icon("gift", size: 22)
                                     .foregroundStyle(LinearGradient.primary)
-                                    .lineLimit(1)
+                                    .frame(width: 38, height: 38)
+                                    .background(Color.grey10)
+                                    .clipShape(Circle())
+
+                                if !isCompact {
+                                    Text(AppStrings.getFreeCredits)
+                                        .font(.omSmall)
+                                        .fontWeight(.semibold)
+                                        .foregroundStyle(LinearGradient.primary)
+                                        .lineLimit(1)
+                                }
                             }
                         }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("referral-cta")
+                        .help(Text(AppStrings.getFreeCredits))
+                        .accessibilityLabel(AppStrings.getFreeCredits)
+                    }
+
+                    Button(action: onOpenSettings) {
+                        // Web: settings affordance changes into the close affordance while the panel is open.
+                        headerSettingsIcon
                     }
                     .buttonStyle(.plain)
-                    .accessibilityIdentifier("referral-cta")
-                    .help(Text(AppStrings.getFreeCredits))
-                    .accessibilityLabel(AppStrings.getFreeCredits)
+                    .accessibilityIdentifier("settings-button")
+                    .help(Text(isSettingsOpen ? AppStrings.close : AppStrings.settings))
+                    .accessibilityLabel(isSettingsOpen ? AppStrings.close : AppStrings.settings)
                 }
-
-                Button(action: onOpenSettings) {
-                    // Web: settings affordance changes into the close affordance while the panel is open.
-                    headerSettingsIcon
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("settings-button")
-                .help(Text(isSettingsOpen ? AppStrings.close : AppStrings.settings))
-                .accessibilityLabel(isSettingsOpen ? AppStrings.close : AppStrings.settings)
+                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { trailingControlsWidth = $0 }
             }
 
             if showWorkspaceSwitcher {
@@ -5401,7 +6150,11 @@ private struct OpenMatesWebHeader: View {
                     isCompact: isCompactWorkspace,
                     selectedWorkspace: selectedWorkspace,
                     onSelectWorkspace: onSelectWorkspace,
-                    onNewChat: onNewChat
+                    onNewChat: onNewChat,
+                    viewportSize: CGSize(width: viewportWidth, height: viewportHeight),
+                    availableCenterWidth: WorkspaceSwitcherLayoutPolicy.availableWidth(
+                        headerWidth: viewportWidth, leadingWidth: leadingControlsWidth,
+                        trailingWidth: trailingControlsWidth)
                 )
                     .zIndex(1)
             }
@@ -5494,178 +6247,6 @@ private struct OpenMatesWebHeader: View {
     }
 }
 
-private struct WorkspaceSwitcherTabs: View {
-    let isCompact: Bool
-    let selectedWorkspace: WorkspaceDestination
-    let onSelectWorkspace: (WorkspaceDestination) -> Void
-    let onNewChat: () -> Void
-
-    @State private var hoveredTabId: WorkspaceDestination.ID?
-    @State private var showingWorkspaceChoices = false
-
-    private static let tabWidth: CGFloat = 72
-    private static let tabHeight: CGFloat = 44.8
-    private static let tabRadius: CGFloat = 52
-    private static let compactWidth: CGFloat = 120
-    private static let compactHeight: CGFloat = 44
-
-    private var tabs: [WorkspaceDestination] {
-        WorkspaceDestination.allCases
-    }
-
-    private var activeTab: WorkspaceDestination {
-        selectedWorkspace
-    }
-
-    private var activeIndex: Int {
-        tabs.firstIndex(of: selectedWorkspace) ?? 0
-    }
-
-    private var hoveredIndex: Int? {
-        guard let hoveredTabId else { return nil }
-        return tabs.firstIndex { $0.id == hoveredTabId }
-    }
-
-    var body: some View {
-        if isCompact {
-            compactSwitcher
-        } else {
-            desktopSwitcher
-        }
-    }
-
-    private var desktopSwitcher: some View {
-        ZStack(alignment: .leading) {
-            // Each real Button paints its full segment. The moving capsule and
-            // icons are decorative overlays, so their alpha cannot create hit gaps.
-            HStack(spacing: 0) {
-                ForEach(tabs) { tab in
-                    workspaceTab(tab)
-                }
-            }
-
-            if let hoveredIndex, hoveredIndex != activeIndex {
-                RoundedRectangle(cornerRadius: Self.tabRadius)
-                    .fill(LinearGradient.primary)
-                    .opacity(0.5)
-                    .frame(width: Self.tabWidth, height: Self.tabHeight)
-                    .offset(x: CGFloat(hoveredIndex) * Self.tabWidth)
-                    .animation(.easeInOut(duration: 0.25), value: hoveredIndex)
-                    .allowsHitTesting(false)
-                    .accessibilityHidden(true)
-            }
-
-            RoundedRectangle(cornerRadius: Self.tabRadius)
-                .fill(LinearGradient.primary)
-                .frame(width: Self.tabWidth, height: Self.tabHeight)
-                .offset(x: CGFloat(activeIndex) * Self.tabWidth)
-                .animation(.easeInOut(duration: 0.3), value: activeIndex)
-                .allowsHitTesting(false)
-                .accessibilityHidden(true)
-
-            HStack(spacing: 0) {
-                ForEach(tabs) { tab in
-                    Icon(tab.icon, size: 20)
-                        .foregroundStyle(tab == selectedWorkspace || hoveredTabId == tab.id
-                            ? AnyShapeStyle(Color.white) : AnyShapeStyle(Color.grey70))
-                        .frame(width: Self.tabWidth, height: Self.tabHeight)
-                }
-            }
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
-        }
-        .frame(width: Self.tabWidth * CGFloat(tabs.count), height: Self.tabHeight)
-        .background(Color.grey10)
-        .clipShape(RoundedRectangle(cornerRadius: Self.tabRadius))
-        .shadow(color: Color.black.opacity(0.14), radius: 4, x: 0, y: 4)
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("workspace-switcher")
-    }
-
-    private var compactSwitcher: some View {
-        Button {
-            showingWorkspaceChoices.toggle()
-        } label: {
-            HStack(spacing: .spacing3) {
-                Icon(activeTab.icon, size: 21.6).foregroundStyle(Color.white)
-                Icon("dropdown", size: 18).foregroundStyle(Color.white)
-            }
-            .frame(width: Self.compactWidth, height: Self.compactHeight)
-            .background(LinearGradient.primary)
-            .clipShape(RoundedRectangle(cornerRadius: Self.tabRadius))
-            .contentShape(Rectangle())
-            .shadow(color: Color.black.opacity(0.12), radius: 4, x: 0, y: 4)
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("workspace-switcher")
-        .help(Text(activeTab.label))
-        .accessibilityLabel(activeTab.label)
-        .overlay(alignment: .top) {
-            if showingWorkspaceChoices {
-                VStack(spacing: 0) {
-                    ForEach(tabs) { tab in
-                        Button {
-                            showingWorkspaceChoices = false
-                            if tab == .chat, tab == selectedWorkspace { onNewChat() }
-                            else { onSelectWorkspace(tab) }
-                        } label: {
-                            HStack(spacing: .spacing4) {
-                                Icon(tab.icon, size: 20)
-                                Text(tab.label).font(.omP)
-                                Spacer(minLength: .spacing4)
-                                if tab == selectedWorkspace { Icon("check", size: 16) }
-                            }
-                            .foregroundStyle(Color.fontPrimary)
-                            .padding(.horizontal, .spacing6)
-                            .frame(height: 44)
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityIdentifier(tab.testId)
-                    }
-                }
-                .frame(width: 200)
-                .padding(.vertical, .spacing2)
-                .background(Color.grey0, in: RoundedRectangle(cornerRadius: .radius8))
-                .overlay(RoundedRectangle(cornerRadius: .radius8).stroke(Color.grey20, lineWidth: 1))
-                .shadow(color: .black.opacity(0.1), radius: 4, y: 4)
-                .offset(y: Self.compactHeight + .spacing4)
-            }
-        }
-        .onChange(of: selectedWorkspace) { _, _ in showingWorkspaceChoices = false }
-    }
-
-    @ViewBuilder
-    private func workspaceTab(_ item: WorkspaceDestination) -> some View {
-        let isActive = item == selectedWorkspace
-        let tab = Button {
-            if item == .chat, isActive {
-                onNewChat()
-            } else {
-                onSelectWorkspace(item)
-            }
-        } label: {
-            Color.grey10
-                .frame(width: Self.tabWidth, height: Self.tabHeight)
-                .contentShape(.interaction, Rectangle())
-        }
-        .buttonStyle(.plain)
-        .onHover { isHovering in
-            hoveredTabId = isHovering ? item.id : nil
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityIdentifier(item.testId)
-        .help(Text(item.label))
-        .accessibilityLabel(item.label)
-        .accessibilityAddTraits(.isButton)
-
-        if isActive {
-            tab.accessibilityAddTraits(.isSelected)
-        } else {
-            tab
-        }
-    }
-}
 
 private struct WorkspacePlaceholderView: View {
     let workspace: WorkspaceDestination
@@ -6038,6 +6619,12 @@ enum WelcomeScreenState {
         return hasDraft && (chat.messagesV ?? 0) == 0 && !hasGeneratedMetadata(chat)
     }
 
+    /// Pending or undecryptable draft previews are not empty-draft evidence.
+    /// Keep the stored draft, but wait for display content before making a card.
+    static func isContinuationPreviewReady(_ chat: Chat, draftPreview: String?) -> Bool {
+        !isDraftOnly(chat) || !ChatDraftPreviewFormatter.format(draftPreview).isEmpty
+    }
+
     static func resumeChat(from chats: [Chat], lastOpened: String?) -> Chat? {
         guard let lastOpened, !lastOpened.isEmpty, lastOpened != "/chat/new" else { return nil }
         return chats.first { $0.id == lastOpened && isContinuationEligible($0) && !isDraftOnly($0) }
@@ -6068,7 +6655,7 @@ enum WelcomeScreenState {
 
     static func cardData(for chat: Chat, draftPreview: String? = nil) -> WelcomeChatCardData {
         let category = chat.category ?? category(for: chat)
-        let preview = draftPreview?.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        let preview = draftPreview.map(ChatDraftPreviewFormatter.format)
         let draftOnly = isDraftOnly(chat)
         return WelcomeChatCardData(
             id: chat.id,
@@ -6212,8 +6799,12 @@ struct NewChatWelcomeView: View {
     let onDraftPersisted: (String, Bool) -> Bool
     let onOpenChat: (String) -> Void
     let onShowChatActions: (String) -> Void
+    var onShowAllChats: () -> Void = {}
+    var onSearchChats: () -> Void = {}
     let onInspirationViewed: (String) -> Void
     let onOpenAuth: () -> Void
+    var activeChatCount = 0
+    var onRevealRunningChats: () -> Void = {}
     var canSendAnonymously = false
     var prefillText: String? = nil
     var prefillRequest = 0
@@ -6244,6 +6835,13 @@ struct NewChatWelcomeView: View {
     @State private var handledRecordRequest = 0
     @State private var handledCameraCaptureRequest = 0
     @State private var handledFreshSessionRequest = 0
+    @StateObject private var piiDetectionCoordinator = ComposerPIIDetectionCoordinator()
+    @ObservedObject private var piiDetectionService = EnhancedPIIDetectionService.shared
+    @ObservedObject private var piiModelController = EnhancedPIIModelDownloadController.shared
+    @Environment(\.scenePhase) private var piiScenePhase
+    @Environment(\.workspacePaneIsVisible) private var piiParentPaneVisible
+    @State private var piiExcludedValues = Set<String>()
+    @State private var isVerifyingWelcomePIISend = false
     @State private var detectedPIIMatches: [PIIMatch] = []
     @State private var piiExclusions = Set<String>()
     @State private var anonymousAttachmentPending = false
@@ -6283,6 +6881,8 @@ struct NewChatWelcomeView: View {
     @StateObject private var composerRecorder = VoiceRecorder()
     @State private var isFocused = false
     @State private var measuredWelcomeComposerHeight: CGFloat = 0
+    @State private var measuredWelcomeBannerBottom: CGFloat?
+    @State private var measuredWelcomeComposerTop: CGFloat?
     @State private var measuredWelcomeSuggestionsHeight: CGFloat = 0
     @State private var keyboardEndMinY: CGFloat?
 
@@ -6409,7 +7009,7 @@ struct NewChatWelcomeView: View {
             cards.append(WelcomeScreenState.cardData(for: resumeChat, draftPreview: welcomeDraftService.draftPreview(chatId: resumeChat.id)))
         }
         cards.append(contentsOf: WelcomeScreenState
-            .recentChats(from: chats, excluding: resumeChat?.id)
+            .recentChats(from: chats.filter { WelcomeScreenState.isContinuationPreviewReady($0, draftPreview: welcomeDraftService.draftPreview(chatId: $0.id)) }, excluding: resumeChat?.id)
             .map { WelcomeScreenState.cardData(for: $0, draftPreview: welcomeDraftService.draftPreview(chatId: $0.id)) })
         return cards
     }
@@ -6458,7 +7058,7 @@ struct NewChatWelcomeView: View {
     }
 
     private var activePIIMatches: [PIIMatch] {
-        detectedPIIMatches.filter { !piiExclusions.contains($0.id) }
+        detectedPIIMatches.filter { !piiExclusions.contains($0.id) && !piiExcludedValues.contains($0.value) }
     }
 
     private var recordHintText: String? {
@@ -6534,6 +7134,13 @@ struct NewChatWelcomeView: View {
                 )
                 : 100
 
+            let bannerFallback: CGFloat = isAuthenticated
+                ? (activeInspiration == nil ? 0 : Self.inspirationBannerHeight(for: proxy.size, isSettingsOpen: isSettingsOpen))
+                : Self.guestLandingBannerHeight(for: proxy.size, story: activeLandingStory)
+            let continuation = WorkspaceContinuationLayoutPolicy.resolve(width: proxy.size.width, height: proxy.size.height,
+                bannerBottom: measuredWelcomeBannerBottom ?? bannerFallback,
+                composerTop: measuredWelcomeComposerTop ?? max(0, proxy.size.height - composerReserve - keyboardOverlap))
+
             ZStack(alignment: .bottom) {
                 Color.clear
                     // Keep the full-screen dismissal target under the device chrome,
@@ -6550,10 +7157,16 @@ struct NewChatWelcomeView: View {
                     if !isAuthenticated, !isComposerActive {
                         guestLandingCarousel(containerSize: proxy.size)
                             .padding(.top, 0)
+                            .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("welcome-continuation-layout")).maxY } action: {
+                                measuredWelcomeBannerBottom = $0
+                            }
                             .transition(.opacity)
                     } else if let activeInspiration, !isComposerActive {
                         inspirationCarousel(activeInspiration, containerSize: proxy.size)
                             .padding(.top, 0)
+                            .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("welcome-continuation-layout")).maxY } action: {
+                                measuredWelcomeBannerBottom = $0
+                            }
                             .transition(.opacity)
                     }
 
@@ -6562,6 +7175,7 @@ struct NewChatWelcomeView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
 
                 if !isComposerActive {
+                    WelcomeContinuationLayout(placement: continuation, width: proxy.size.width) {
                     VStack(spacing: .spacing4) {
                         welcomeHeader(containerSize: proxy.size)
 
@@ -6573,14 +7187,19 @@ struct NewChatWelcomeView: View {
                             )
                             .transition(.opacity)
                         } else if !shownChatCards.isEmpty {
-                            welcomeCardsCarousel(containerSize: proxy.size)
+                            welcomeCardsCarousel(containerSize: CGSize(width: proxy.size.width, height: continuation.availableHeight))
+                            HStack(spacing: .spacing5) {
+                                WorkspaceContinuationLink(title: AppStrings.welcomeShowAllChats, icon: "message-square",
+                                    identifier: "welcome-show-all-chats", action: onShowAllChats)
+                                WorkspaceContinuationLink(title: AppStrings.search, icon: "search",
+                                    identifier: "welcome-search-chats", action: onSearchChats)
+                            }
+                            .accessibilityElement(children: .contain)
+                            .accessibilityIdentifier("welcome-workspace-link-row")
                         }
                     }
-                    .frame(maxWidth: .infinity)
-                    .position(
-                        x: proxy.size.width / 2,
-                        y: welcomeClusterCenterY(for: proxy.size, composerReserve: composerReserve)
-                    )
+                    .fixedSize(horizontal: false, vertical: true)
+                    }
                     .transition(.opacity)
                 }
 
@@ -6608,6 +7227,9 @@ struct NewChatWelcomeView: View {
                     isAuthenticated: isAuthenticated,
                     canSendAnonymously: canSendAnonymously,
                     piiMatches: activePIIMatches,
+                    piiRuntimeFallback: piiModelController.status.isReady && piiDetectionService.status != .ready
+                        && piiPrivacySettingsStore.settings.masterEnabled,
+                    piiVerifying: isVerifyingWelcomePIISend,
                     anonymousAttachmentPending: anonymousAttachmentPending,
                     isSubmitting: isCreatingChat || isRecordingUploadPending,
                     pendingComposerEmbeds: pendingComposerEmbeds,
@@ -6617,8 +7239,8 @@ struct NewChatWelcomeView: View {
                     isRecordingOverlayActive: composerOverlay == .recording,
                     isAttachmentMenuPresented: $showAttachmentMenu,
                     onRemovePendingEmbed: removePendingComposerEmbed,
-                    onExcludePII: { match in piiExclusions.insert(match.id) },
-                    onUndoAllPII: { piiExclusions.formUnion(detectedPIIMatches.map(\.id)) },
+                    onExcludePII: { match in piiExclusions.insert(match.id); piiExcludedValues.insert(match.value) },
+                    onUndoAllPII: { piiExclusions.formUnion(detectedPIIMatches.map(\.id)); piiExcludedValues.formUnion(detectedPIIMatches.map(\.value)) },
                     onSend: { createChatWith(message: messageText) },
                     onOpenAuth: onOpenAuth,
                     onBlockedAttachment: blockAnonymousAttachment,
@@ -6650,7 +7272,11 @@ struct NewChatWelcomeView: View {
                     measuredWelcomeComposerHeight = height
                 }
                 .padding(.bottom, keyboardOverlap)
+                .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("welcome-continuation-layout")).minY } action: {
+                    measuredWelcomeComposerTop = $0
+                }
             }
+            .coordinateSpace(name: "welcome-continuation-layout")
             .animation(.easeInOut(duration: 0.2), value: isComposerActive)
         }
         .background(Color.clear)
@@ -6753,8 +7379,12 @@ struct NewChatWelcomeView: View {
         .onReceive(composerSearchStore.objectWillChange) { _ in scheduleComposerSearch(storeChanged: true) }
         .onChange(of: isComposerActive) { _, active in
             if active { scheduleComposerSearch() } else { composerSearch.cancel() }
+            updatePIIMatches(for: messageText)
         }
-        .onChange(of: currentUser?.id) { _, _ in composerSearch.cancel(); scheduleComposerSearch() }
+        .onChange(of: currentUser?.id) { _, _ in
+            composerSearch.cancel(); scheduleComposerSearch()
+            resetWelcomePIIDetection(); updatePIIMatches(for: messageText)
+        }
         .onChange(of: composerSearchTeam.contextEpoch) { _, _ in composerSearch.cancel(); scheduleComposerSearch() }
         .onChange(of: composerSession.revision) { _, _ in
             if suppressNextDraftSave {
@@ -6785,6 +7415,11 @@ struct NewChatWelcomeView: View {
         .onChange(of: piiPrivacySettingsStore.settings) { _, _ in
             updatePIIMatches(for: messageText)
         }
+        .onChange(of: piiScenePhase) { _, _ in updatePIIMatches(for: messageText) }
+        .onChange(of: piiParentPaneVisible) { _, _ in updatePIIMatches(for: messageText) }
+        .onChange(of: modelDraftID) { _, _ in resetWelcomePIIDetection(); updatePIIMatches(for: messageText) }
+        .onReceive(piiDetectionCoordinator.$publication) { applyWelcomePIIPublication($0) }
+        .onDisappear { resetWelcomePIIDetection() }
         .onKeyPress(.init("m"), phases: .down) { press in
             handleKeyboardRecordShortcut(press)
         }
@@ -7831,6 +8466,12 @@ struct NewChatWelcomeView: View {
                 .multilineTextAlignment(.center)
                 .lineLimit(2)
 
+            if isAuthenticated && activeChatCount > 0 {
+                Button(action: onRevealRunningChats) {
+                    Text(LocalizationManager.shared.text(activeChatCount == 1 ? "chats.activity.count_single" : "chats.activity.count", replacements: ["count": String(activeChatCount)]))
+                        .font(.omSmall).underline().foregroundStyle(Color.fontPrimary).padding(.spacing4)
+                }.buttonStyle(.plain).accessibilityIdentifier("active-chats-link")
+            }
             Text(subtitle)
                 .font(.custom("Lexend Deca", size: 16).weight(.semibold))
                 .fontWeight(.semibold)
@@ -8067,12 +8708,6 @@ struct NewChatWelcomeView: View {
 
     private func restartInspirationProgress() {
         inspirationProgressRestartToken += 1
-    }
-
-    private func welcomeClusterCenterY(for size: CGSize, composerReserve: CGFloat) -> CGFloat {
-        let availableHeight = max(0, size.height - composerReserve)
-        let webLikeCenter = availableHeight * 0.79
-        return min(max(webLikeCenter, 330), max(330, size.height - composerReserve - 150))
     }
 
     private func carouselArrow(label: String, identifier: String, height: CGFloat, action: @escaping () -> Void) -> some View {
@@ -8637,20 +9272,14 @@ struct NewChatWelcomeView: View {
             return
         }
 
-        let redaction = ComposerPIIDecorations.redactedDocument(
-            document: composerSession.controller.document,
-            excludedIds: piiExclusions,
-            options: piiPrivacySettingsStore.detectionOptions()
-        )
-        let outboundText: String
-        do {
-            outboundText = try ComposerMarkdownAdapter.serialize(redaction.document)
-        } catch {
-            recordWelcomeSendStage("failed-serialization")
-            NativeDiagnostics.warning("Welcome composer serialization failed", category: "chat_send")
-            return
-        }
+        let sendDocument = composerSession.controller.document
+        let sendOptions = piiPrivacySettingsStore.detectionOptions()
+        let sendExclusions = piiExclusions
+        let excludedOriginals = piiExcludedValues
+        let piiOwner = welcomePIIContext
+        let dispatchFence = ComposerPIIDispatchFence(context: piiOwner, options: sendOptions)
         isCreatingChat = true
+        isVerifyingWelcomePIISend = true
         draftSaveTask?.cancel()
         draftSaveTask = nil
 
@@ -8665,9 +9294,18 @@ struct NewChatWelcomeView: View {
                 if sendingOwner.matches(server: ServerProfile.current().apiBaseURL.absoluteString,
                     accountGeneration: OfflineStore.shared.scopeGeneration, chatID: modelDraftID) {
                     isCreatingChat = false
+                    isVerifyingWelcomePIISend = false
                 }
             }
             do {
+                let redaction = await piiDetectionCoordinator.verifiedRedaction(document: sendDocument,
+                    excludedIds: sendExclusions, excludedOriginals: excludedOriginals,
+                    options: sendOptions, context: piiOwner)
+                guard piiOwner == welcomePIIContext, welcomePIIForeground, sendOptions == piiPrivacySettingsStore.detectionOptions(),
+                      sendingOwner.matches(server: ServerProfile.current().apiBaseURL.absoluteString,
+                        accountGeneration: OfflineStore.shared.scopeGeneration, chatID: modelDraftID) else { return }
+                isVerifyingWelcomePIISend = false
+                let outboundText = try ComposerMarkdownAdapter.serialize(redaction.document)
                 recordWelcomeSendStage("model-activate")
                 await modelHost.activate(context)
                 let routingGeneration = modelHost.sendGeneration
@@ -8677,6 +9315,15 @@ struct NewChatWelcomeView: View {
                 guard sendingOwner.matches(server: ServerProfile.current().apiBaseURL.absoluteString,
                     accountGeneration: OfflineStore.shared.scopeGeneration, chatID: modelDraftID),
                     context == modelContext, modelHost.sendGeneration == routingGeneration else { return }
+                guard dispatchFence.permits(currentContext: welcomePIIContext,
+                    currentOptions: piiPrivacySettingsStore.detectionOptions(),
+                    foreground: welcomePIIForeground, cancelled: Task.isCancelled) else {
+                    // This draft is still owned here and has not been cleared.
+                    // Resume its durable save after abandoning the old snapshot.
+                    isCreatingChat = false; isVerifyingWelcomePIISend = false
+                    scheduleNewChatDraftSave()
+                    return
+                }
                 recordWelcomeSendStage("create-start")
                 let chatId = try await onCreateChatWithMessage(
                     routedText,
@@ -8704,17 +9351,20 @@ struct NewChatWelcomeView: View {
                 guard sendingOwner.matches(server: ServerProfile.current().apiBaseURL.absoluteString,
                     accountGeneration: OfflineStore.shared.scopeGeneration, chatID: modelDraftID),
                     context == modelContext, modelHost.sendGeneration == routingGeneration else { return }
-                messageText = ""
-                isComposerActivated = false
-                isComposerExpanded = false
-                isFocused = false
-                anonymousAttachmentPending = false
-                pendingComposerEmbeds = []
-                try? await DraftService.shared.clearDraft(chatId: modelDraftID)
-                DraftService.shared.releaseNewChatDraftId(ifMatches: modelDraftID)
-                guard sendingOwner.matches(server: ServerProfile.current().apiBaseURL.absoluteString,
-                    accountGeneration: OfflineStore.shared.scopeGeneration, chatID: modelDraftID),
-                    context == modelContext, modelHost.sendGeneration == routingGeneration else { return }
+                if composerSession.controller.document == sendDocument {
+                    messageText = ""
+                    isComposerActivated = false
+                    isComposerExpanded = false
+                    isFocused = false
+                    anonymousAttachmentPending = false
+                    pendingComposerEmbeds = []
+                    try? await DraftService.shared.clearDraft(chatId: modelDraftID)
+                    DraftService.shared.releaseNewChatDraftId(ifMatches: modelDraftID)
+                    guard sendingOwner.matches(server: ServerProfile.current().apiBaseURL.absoluteString,
+                        accountGeneration: OfflineStore.shared.scopeGeneration, chatID: modelDraftID),
+                        context == modelContext, modelHost.sendGeneration == routingGeneration else { return }
+                    detectedPIIMatches = []; piiExclusions = []; piiExcludedValues = []
+                }
                 showAttachmentMenu = false
                 composerOverlay = nil
                 detectedPIIMatches = []
@@ -8733,15 +9383,31 @@ struct NewChatWelcomeView: View {
         }
     }
 
-    private func updatePIIMatches(for _: String) {
-        let visibleText = ComposerPIIDecorations.visibleText(document: composerSession.controller.document)
-        detectedPIIMatches = PIIDetector.detect(
-            in: visibleText,
-            options: piiPrivacySettingsStore.detectionOptions()
-        )
-        let currentIds = Set(detectedPIIMatches.map(\.id))
-        piiExclusions = piiExclusions.intersection(currentIds)
+    private var welcomePIIContext: ComposerPIIContext {
+        .init(server: ServerProfile.current().apiBaseURL.absoluteString,
+              accountGeneration: OfflineStore.shared.scopeGeneration, routeID: "new:" + modelDraftID)
     }
+    private var welcomePIIForeground: Bool { piiScenePhase == .active && piiParentPaneVisible && isComposerActive }
+    private func updatePIIMatches(for _: String) {
+        let visible = ComposerPIIDecorations.visibleText(document: composerSession.controller.document)
+        piiExcludedValues = piiExcludedValues.filter { visible.contains($0) }
+        piiDetectionCoordinator.submit(text: visible, options: piiPrivacySettingsStore.detectionOptions(),
+            context: welcomePIIContext, enabled: piiPrivacySettingsStore.settings.masterEnabled,
+            foreground: welcomePIIForeground)
+    }
+    private func applyWelcomePIIPublication(_ publication: ComposerPIIDetectionPublication?) {
+        guard let publication else { detectedPIIMatches = []; return }
+        guard welcomePIIForeground, publication.snapshot.context == welcomePIIContext,
+              publication.snapshot.options == piiPrivacySettingsStore.detectionOptions(),
+              publication.snapshot.text == ComposerPIIDecorations.visibleText(document: composerSession.controller.document) else { return }
+        detectedPIIMatches = publication.result.matches
+        piiExclusions = Set(detectedPIIMatches.filter { piiExcludedValues.contains($0.value) }.map(\.id))
+    }
+    private func resetWelcomePIIDetection() {
+        piiDetectionCoordinator.invalidate(); detectedPIIMatches = []; piiExclusions = []; piiExcludedValues = []
+        isVerifyingWelcomePIISend = false
+    }
+
 }
 
 private struct GuestLandingStoryCard: View {
@@ -9161,12 +9827,25 @@ private struct InterestTagChip: View {
     }
 }
 
+// Measured continuation region used by the real welcome screen and its
+// isolated geometry fixture. Content cannot overlap inspiration or composer.
+struct WelcomeContinuationLayout<Content: View>: View {
+    let placement: WorkspaceContinuationLayoutPolicy.Placement
+    let width: CGFloat
+    @ViewBuilder let content: () -> Content
+    var body: some View {
+        content()
+            .frame(width: width, height: placement.availableHeight)
+            .clipped()
+            .position(x: width / 2, y: placement.centerY)
+    }
+}
+
 // Production continuation carousel shared with isolated component tests.
 // Web: ActiveChat.svelte resume cards; selection/filtering stays in WelcomeScreenState.
 struct WelcomeContinuationCarousel: View {
-    /// The web threshold is 800px for the full viewport. Native receives the
-    /// content area after app chrome and safe areas, which is about 100pt less.
-    static let largeCardContentHeightThreshold: CGFloat = 700
+    /// containerSize is the measured banner-to-composer gap, not the viewport.
+    static let largeCardContentHeightThreshold = WorkspaceContinuationLayoutPolicy.minimumExpandedGap
     let cards: [WelcomeChatCardData]
     var overflowCount = 0
     let containerSize: CGSize
@@ -9174,11 +9853,11 @@ struct WelcomeContinuationCarousel: View {
     let onShowChatActions: (String) -> Void
     private var usesLargeCards: Bool { Self.usesLargeCards(for: containerSize) }
     static func usesLargeCards(for size: CGSize) -> Bool {
-        size.height >= largeCardContentHeightThreshold
+        WorkspaceContinuationLayoutPolicy.resolve(width: size.width, height: size.height, bannerBottom: 0, composerTop: size.height).expanded
     }
     var body: some View {
         GeometryReader { proxy in
-            let cardWidth: CGFloat = max(180, min(300, proxy.size.width - 72))
+            let cardWidth: CGFloat = max(180, min(300, proxy.size.width - 20))
             let sideInset = max((proxy.size.width - cardWidth) / 2, CGFloat.spacing5)
 
             ScrollView(.horizontal, showsIndicators: false) {
@@ -9243,13 +9922,16 @@ struct WelcomeDraftCard: View {
         .onTapGesture(perform: onTap)
         .accessibilityElement(children: .ignore)
         .accessibilityIdentifier("welcome-draft-card-\(card.id)")
-        .accessibilityLabel([AppStrings.draftBadge, card.draftPreview ?? ""].joined(separator: ": "))
+        .accessibilityLabel([AppStrings.draftBadge, card.draftPreview ?? ""].joined(separator: " "))
         .accessibilityAddTraits(.isButton)
         .accessibilityAction(named: Text(AppStrings.openChat), onTap)
     }
 }
 
 struct WelcomeResumeCard: View {
+    var badge: String? = nil
+    var summaryLineLimit = 4
+    var processing = false
     let card: WelcomeChatCardData
     let width: CGFloat
     let height: CGFloat
@@ -9262,15 +9944,23 @@ struct WelcomeResumeCard: View {
             let time = timeline.date.timeIntervalSinceReferenceDate
 
             ZStack {
-                    AnimatedCategoryBackground(category: card.category, iconName: card.iconName, time: time)
+                    if processing { Color.grey10 }
+                    else { AnimatedCategoryBackground(category: card.category, iconName: card.iconName, time: time) }
 
                     VStack(spacing: .spacing2) {
-                        WelcomeCardIcon(name: card.iconName, size: 32)
+                        if let badge {
+                            Text(badge).font(.custom("Lexend Deca", size: 10.56).weight(.bold))
+                                .foregroundStyle((processing ? Color.fontSecondary : Color.fontButton).opacity(0.94))
+                                .padding(.vertical, 3).padding(.horizontal, 7)
+                                .background(Color.grey100.opacity(0.18), in: Capsule())
+                        }
+                        if processing { ChatProcessingWheel().frame(width: 32, height: 32) }
+                        else { WelcomeCardIcon(name: card.iconName, size: 32) }
 
                         Text(card.title)
                             .font(.custom("Lexend Deca", size: 16).weight(.bold))
                             .fontWeight(.bold)
-                            .foregroundStyle(.white)
+                            .foregroundStyle(processing ? Color.fontPrimary : Color.white)
                             .multilineTextAlignment(.center)
                             .lineLimit(2)
                             .minimumScaleFactor(0.82)
@@ -9278,9 +9968,9 @@ struct WelcomeResumeCard: View {
                         if let summary = card.summary {
                             Text(summary)
                                 .font(.custom("Lexend Deca", size: 12).weight(.medium))
-                                .foregroundStyle(.white.opacity(0.85))
+                                .foregroundStyle((processing ? Color.fontSecondary : Color.white).opacity(0.85))
                                 .multilineTextAlignment(.center)
-                                .lineLimit(4)
+                                .lineLimit(summaryLineLimit)
                         }
                     }
                     .padding(.horizontal, .spacing12)
@@ -9523,7 +10213,7 @@ private struct AnimatedCategoryBackground: View {
     }
 }
 
-private struct WelcomeCardIcon: View {
+struct WelcomeCardIcon: View {
     let name: String
     let size: CGFloat
 
@@ -9611,6 +10301,8 @@ private struct WelcomeComposer: View {
     let isAuthenticated: Bool
     let canSendAnonymously: Bool
     let piiMatches: [PIIMatch]
+    let piiRuntimeFallback: Bool
+    let piiVerifying: Bool
     let anonymousAttachmentPending: Bool
     let isSubmitting: Bool
     let pendingComposerEmbeds: [ComposerPendingEmbed]
@@ -9695,6 +10387,14 @@ private struct WelcomeComposer: View {
 
     var body: some View {
         VStack(spacing: .spacing2) {
+            if piiVerifying {
+                ProgressView(AppStrings.enhancedPIIModelVerifying).font(.omXs)
+                    .accessibilityIdentifier("composer-pii-verifying")
+            }
+            if piiRuntimeFallback {
+                Text(AppStrings.enhancedPIIModelRegexFallback).font(.omXs).foregroundStyle(Color.fontSecondary)
+                    .accessibilityIdentifier("composer-pii-regex-fallback")
+            }
             PIIWarningBanner(matches: piiMatches, onUndoAll: onUndoAllPII)
 
             PIIHighlightStrip(matches: piiMatches, onExclude: onExcludePII)

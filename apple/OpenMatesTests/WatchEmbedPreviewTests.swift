@@ -101,7 +101,9 @@ final class WatchEmbedPreviewTests: XCTestCase {
         XCTAssertEqual(WatchEmbedPreviewModel.cardWidth, 156)
         XCTAssertTrue(source.contains("width: CGFloat(WatchEmbedPreviewModel.cardWidth)"))
         XCTAssertTrue(source.contains("gradient(forAppId: model.appId)"))
-        XCTAssertTrue(source.contains("model.family == .code && model.state == .ready"))
+        XCTAssertTrue(source.contains("watch-embed-app-bar-"))
+        XCTAssertTrue(source.contains("multilineTextAlignment(.center)"))
+        XCTAssertFalse(source.contains("Circle()"), "Watch previews use the approved full-width mobile app bar")
     }
 
     // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.compact-layout
@@ -486,5 +488,127 @@ extension WatchEmbedPreviewTests {
         XCTAssertNil(wire.embed["type"])
         XCTAssertThrowsError(try WatchEmbedHydration.prepareStorage(payload: live, embedID: "public-embed", chatID: "other-chat",
             messageID: "public-message", accountID: "public-owner", masterKey: masterKey, chatKey: chatKey))
+    }
+}
+
+extension WatchEmbedPreviewTests {
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.compact-layout
+    func testEmptyOrPartialAPIRefsCannotSuppressActualMessageBlockEmbeds() {
+        let content = "[[embed:sheet-marker]]\n[!](embed:code-marker)"
+        let empty = WatchMessageContentSanitizer.mergedEmbedRefs(content: content, provided: [])
+        XCTAssertEqual(empty.map(\.id), ["sheet-marker", "code-marker"])
+        let supplied = WatchEmbedRef(id: "sheet-marker", type: EmbedType.sheetsSheet.rawValue,
+            status: "finished", data: ["title": AnyCodable("devices.xls")])
+        let merged = WatchMessageContentSanitizer.mergedEmbedRefs(content: content, provided: [supplied])
+        XCTAssertEqual(merged.map(\.id), ["sheet-marker", "code-marker"])
+        XCTAssertEqual(merged[0].type, EmbedType.sheetsSheet.rawValue)
+        XCTAssertEqual(merged[0].data?["title"]?.value as? String, "devices.xls")
+        XCTAssertEqual(WatchMessageContentSanitizer.mergedEmbedRefs(content: content, provided: merged).count, 2)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.compact-layout
+    func testUnhydratedReferenceShowsUnavailableWithoutInventingContent() {
+        let ref = WatchEmbedRef(id: "sheet-marker", type: EmbedType.sheetsSheet.rawValue, status: "finished", data: nil)
+        let model = WatchEmbedPreviewMapper.makeModel(for: ref, chatId: "fixture-chat")
+        XCTAssertEqual(model.state, .unavailable)
+        XCTAssertEqual(model.visual, .symbol)
+        XCTAssertEqual(model.family, .spreadsheet)
+        XCTAssertEqual(model.continuation.embedId, "sheet-marker")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.compact-layout
+    func testSheetMobileVisualKeepsOnlyBoundedCellsButUsesAuthoritativeTotal() {
+        let table = "| Device | Type | Price |\n| --- | --- | --- |\n| Nexus Fold X | Phone | 1 |\n| Lumina Watch Pro | Watch | 2 |\n| AuraBook Air | Laptop | 3 |\n| Pixel Pad | Tablet | 4 |"
+        let ref = WatchEmbedRef(id: "sheet", type: EmbedType.sheetsSheet.rawValue, status: "finished",
+            data: ["title": AnyCodable("devices.xls"), "table": AnyCodable(table),
+                   "row_count": AnyCodable(29), "col_count": AnyCodable(2)])
+        let model = WatchEmbedPreviewMapper.makeModel(for: ref, chatId: "fixture-chat")
+        XCTAssertEqual(model.visual, .table(headers: ["Device", "Type"],
+            rows: [["Nexus Fold X", "Phone"], ["Lumina Watch Pro", "Watch"], ["AuraBook Air", "Laptop"]], cellCount: 58))
+        XCTAssertEqual(model.title, "devices.xls")
+        XCTAssertEqual(model.state, .ready)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.compact-layout,drafts.access.first-party-encrypted
+    func testEncryptedSheetHydrationUsesSharedContentDecoderAndKeepsNullEnvelopeChildren() throws {
+        let master = SymmetricKey(size: .bits256), key = SymmetricKey(size: .bits256)
+        func hash(_ value: String) -> String { SHA256.hash(data: Data(value.utf8)).map { String(format: "%02x", $0) }.joined() }
+        let content = #"{"title":"devices.xls","table":"| Device |\n| --- |\n| Nexus Fold X |","embed_ids":["child-fixture"]}"#
+        let payload: [String: Any] = ["embed_id": "sheet", "user_id": "owner", "already_encrypted": true,
+            "type": try ComposerEmbedCrypto.encryptContent(EmbedType.sheetsSheet.rawValue, using: key),
+            "content": try ComposerEmbedCrypto.encryptContent(content, using: key), "embed_ids": NSNull(),
+            "parent_embed_id": NSNull(), "embed_keys": [["key_type": "master", "hashed_embed_id": hash("sheet"),
+                "hashed_user_id": hash("owner"), "encrypted_embed_key": try ComposerEmbedCrypto.wrapKey(key, using: master)]]]
+        let ref = try WatchEmbedHydration.open(payload: payload, embedID: "sheet", chatID: "fixture-chat",
+            accountID: "owner", masterKey: master, chatKey: nil)
+        XCTAssertEqual(WatchEmbedPreviewMapper.embedRecord(from: ref).childEmbedIds, ["child-fixture"])
+        XCTAssertEqual(WatchEmbedPreviewMapper.makeModel(for: ref, chatId: "fixture-chat").visual,
+                       .table(headers: ["Device"], rows: [["Nexus Fold X"]], cellCount: 1))
+        XCTAssertThrowsError(try WatchEmbedHydration.open(payload: payload, embedID: "sheet", chatID: "fixture-chat",
+            accountID: "other-owner", masterKey: master, chatKey: nil))
+    }
+}
+
+extension WatchEmbedPreviewTests {
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.compact-layout
+    func testNestedEnvelopeNormalizesMetadataWithoutDisplayingPrivateWireContent() {
+        let encoded = #"{"title":"devices.xls","table":"| Device |\n| --- |\n| Nexus Fold X |","aes_key":"never-display-key"}"#
+        let ref = WatchEmbedRef(id: "sheet", type: EmbedType.sheetsSheet.rawValue, status: "finished",
+            data: ["content": AnyCodable(encoded)])
+        let record = WatchEmbedPreviewMapper.embedRecord(from: ref)
+        XCTAssertNil(record.rawData?["content"], "The serialized envelope cannot become a text excerpt")
+        let model = WatchEmbedPreviewMapper.makeModel(for: ref, chatId: "fixture-chat")
+        XCTAssertEqual(model.title, "devices.xls")
+        XCTAssertEqual(model.visual, .table(headers: ["Device"], rows: [["Nexus Fold X"]], cellCount: 1))
+    }
+}
+
+extension WatchEmbedPreviewTests {
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.compact-layout
+    func testPreviewPositionsGroupsAndInlineCitationsRemainDistinct() {
+        let message = WatchChatMessage(id: "fixture-message", chatId: "fixture-chat", role: .assistant,
+            content: "Before\n\n[!](embed:first)\n\n[!](embed:second)\n\nAfter [reference](embed:citation)",
+            encryptedContent: nil, embedRefs: ["first", "second", "citation"].map {
+                WatchEmbedRef(id: $0, type: EmbedType.webWebsite.rawValue, status: "finished", data: ["title": AnyCodable($0)])
+            }, createdAt: "2026-10-03T12:00:00Z", isPending: false)
+        let segments = WatchMessageRenderProjection.segments(message: message)
+        XCTAssertEqual(segments.count, 3)
+        XCTAssertEqual(segments[0].content, .markdown("Before"))
+        guard case .embeds(let previews) = segments[1].content else { return XCTFail("Expected inline group") }
+        XCTAssertEqual(previews.map(\.id), ["first", "second"])
+        XCTAssertEqual(segments[2].content, .markdown("After reference"))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.compact-layout
+    func testMarkersInsideOrdinaryCodeDoNotProducePreviewsAndZoomIsBounded() {
+        let message = WatchChatMessage(id: "code", chatId: "fixture-chat", role: .assistant,
+            content: "```swift\nlet marker = \"[!](embed:example)\"\n```", encryptedContent: nil,
+            embedRefs: nil, createdAt: "2026-10-03T12:00:00Z", isPending: false)
+        let segments = WatchMessageRenderProjection.segments(message: message)
+        XCTAssertFalse(segments.contains { if case .embeds = $0.content { return true }; return false })
+        XCTAssertEqual(WatchTranscriptZoom.scale(for: 0), 1)
+        XCTAssertGreaterThan(WatchTranscriptZoom.scale(for: 1), 1)
+        XCTAssertLessThan(WatchTranscriptZoom.scale(for: -1), 1)
+        XCTAssertEqual(WatchTranscriptZoom.adjust(WatchTranscriptZoom.maximum, increase: true), WatchTranscriptZoom.maximum)
+        XCTAssertEqual(WatchTranscriptZoom.adjust(WatchTranscriptZoom.minimum, increase: false), WatchTranscriptZoom.minimum)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.embeds.read-only-fullscreen
+    func testFullscreenPreservesFullSheetContentAndRejectsUnsafeMapAndThumbnailFields() {
+        let table = "| Device | Price |\n| --- | --- |\n| A | 1 |\n| B | 2 |\n| C | 3 |\n| D | 4 |"
+        let sheet = WatchEmbedPreviewMapper.makeModel(for: WatchEmbedRef(id: "sheet", type: EmbedType.sheetsSheet.rawValue,
+            status: "finished", data: ["table": AnyCodable(table)]), chatId: "fixture-chat")
+        XCTAssertEqual(sheet.detailContent.text, table)
+        XCTAssertEqual(sheet.detailContent.tableRows.count, 4)
+        let map = WatchEmbedPreviewMapper.makeModel(for: WatchEmbedRef(id: "map", type: EmbedType.mapsPlace.rawValue,
+            status: "finished", data: ["name": AnyCodable("Public place"), "latitude": AnyCodable(true),
+                "longitude": AnyCodable(181), "thumbnail_url": AnyCodable("https://user:secret@example.com/image.png")]), chatId: "fixture-chat")
+        XCTAssertNil(map.detailContent.latitude); XCTAssertNil(map.detailContent.longitude); XCTAssertNil(map.detailContent.imageURL)
+        let valid = WatchEmbedPreviewMapper.makeModel(for: WatchEmbedRef(id: "valid-map", type: EmbedType.mapsPlace.rawValue,
+            status: "finished", data: ["location": AnyCodable(["latitude": 52.52, "longitude": 13.405]),
+                "thumbnail_url": AnyCodable("https://example.com/thumb.png")]), chatId: "fixture-chat")
+        XCTAssertEqual(valid.detailContent.latitude, 52.52)
+        XCTAssertEqual(valid.detailContent.longitude, 13.405)
+        XCTAssertEqual(valid.detailContent.imageURL?.host, "example.com")
     }
 }

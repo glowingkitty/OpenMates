@@ -74,6 +74,13 @@ async def test_list_chats_returns_bounded_encrypted_metadata() -> None:
         "chats": [
             {
                 "id": "chat-owned",
+                "created_at": None,
+                "last_edited_overall_timestamp": None,
+                "parent_id": None,
+                "is_sub_chat": False,
+                "messages_v": None,
+                "title_v": None,
+                "metadata_v": None,
                 "encrypted_title": "cipher-title",
                 "encrypted_slug": None,
                 "slug_lookup_hash": None,
@@ -102,6 +109,29 @@ async def test_list_chats_returns_bounded_encrypted_metadata() -> None:
     )
     assert "title" not in result["chats"][0]
     assert "chat_summary" not in result["chats"][0]
+
+
+# contract-test: supporting surface=rest_api assertions=apple-watch.offline.recent-cohort,chats.persistence.client-encrypted
+@pytest.mark.anyio
+@pytest.mark.parametrize("pinned", [False, True])
+async def test_native_chat_payload_preserves_recency_and_versions_independent_of_pin(pinned: bool) -> None:
+    chat_service = SimpleNamespace(get_user_chats_metadata=AsyncMock(return_value=[{
+        "id": "owned-recent", "pinned": pinned, "last_edited_overall_timestamp": 900,
+        "last_message_timestamp": 100, "created_at": 50, "messages_v": 7,
+        "title_v": 2, "metadata_v": 3, "parent_id": None, "is_sub_chat": False,
+        "encrypted_title": "opaque-title", "encrypted_chat_key": "opaque-wrapped-key",
+    }]))
+    result = await list_chats(request=_request(chat_service), limit=20, offset=0,
+                             team_id=None, current_user=SimpleNamespace(id="owner"))
+    row = result["chats"][0]
+    assert row["pinned"] is pinned
+    assert row["last_edited_overall_timestamp"] == "900"
+    assert row["last_message_at"] == "100"
+    assert row["created_at"] == "50"
+    assert (row["messages_v"], row["title_v"], row["metadata_v"]) == (7, 2, 3)
+    assert row["parent_id"] is None and row["is_sub_chat"] is False
+    assert "title" not in row and "chat_summary" not in row
+    assert chat_service.get_user_chats_metadata.await_args.kwargs["sort"] == "-pinned,-last_edited_overall_timestamp"
 
 
 # contract-test: supporting surface=rest_api assertions=teams.membership.role-gated,teams.workspace.surface-parity,chats.persistence.client-encrypted

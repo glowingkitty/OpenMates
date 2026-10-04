@@ -194,7 +194,7 @@ actor StreamingClient {
         pruneReplay()
     }
 
-    func dispatch(_ event: StreamEvent, for chatId: String, session: StreamingSessionGeneration? = nil) {
+    func dispatch(_ event: StreamEvent, for chatId: String, session: StreamingSessionGeneration? = nil) async {
         adoptCurrentSession()
         let expected = session ?? sessionGate.current
         guard !Task.isCancelled, sessionGate.isCurrent(expected), adoptedSession == expected else { return }
@@ -208,6 +208,11 @@ actor StreamingClient {
             for stream in streams.values { stream.continuation.yield(event) }
         }
         pruneReplay()
+        await MainActor.run {
+            guard self.sessionGate.isCurrent(expected), !Task.isCancelled,
+                  let scope = ActiveChatsCoordinator.shared.currentScope else { return }
+            ActiveChatsCoordinator.shared.consume(event, chatID: chatId, scope: scope)
+        }
     }
     func dispatchToAll(_ event: StreamEvent, session: StreamingSessionGeneration? = nil) {
         adoptCurrentSession()

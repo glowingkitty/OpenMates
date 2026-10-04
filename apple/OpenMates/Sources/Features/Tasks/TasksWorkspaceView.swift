@@ -1,4 +1,8 @@
 import SwiftUI
+import UniformTypeIdentifiers
+#if os(iOS)
+import UIKit
+#endif
 
 /// The central Tasks surface follows TasksPage.svelte and TaskBoard.svelte. The
 /// shell retains `store`; this view does not own account or team state.
@@ -8,10 +12,14 @@ import SwiftUI
 //             frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
 // Specification: specifications/features/tasks/specification.yml
 // Assertions: tasks.lifecycle.visible, tasks.detail.embed-responsive, tasks.surface.semantic-parity
+// Specification: specifications/features/apple-task-board-interactions/specification.yml
+// Assertions: apple-task-board.context-menu, apple-task-board.drag-move, apple-task-board.workflow-run, apple-task-board.new-task-shortcuts
 struct TasksWorkspaceView: View {
     @ObservedObject var store: TasksWorkspaceStore
+    var composerFocusRequestID: UUID? = nil
     var showPlansOnly = false
     var compactProjectBoard = false
+    var presentsDetail = true
     var inspiration: DailyInspirationData? = nil
     var onStartInspiration: (String) -> Void = { _ in }
     var onOpenProject: (String) -> Void = { _ in }
@@ -22,7 +30,6 @@ struct TasksWorkspaceView: View {
     @State private var searchExpanded = false
     @State private var filtersExpanded = false
     @State private var desktopFiltersExpanded = true
-    @State private var prompt = ""
     @State private var showingNewTask = false
     @State private var newTaskTitle = ""
     @State private var newPlanGoal = ""
@@ -32,6 +39,15 @@ struct TasksWorkspaceView: View {
     @State private var inspirationIndex = 0
     @State private var cardActionsID: String?
     @State private var hoveredCardID: String?
+    @State private var draggedTaskID: String?
+    @State private var dragToken: String?
+    @State private var dragGeneration: UUID?
+    @State private var targetedColumn: UserTaskStatus?
+    @State private var cardFrames: [String: CGRect] = [:]
+    @State private var keyboardFrame: CGRect?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var boardAnimation: Animation? { reduceMotion ? nil : .easeOut(duration: 0.18) }
 
     var body: some View {
         GeometryReader { geometry in
@@ -41,7 +57,12 @@ struct TasksWorkspaceView: View {
                 && (store.selectedTaskID != nil || store.selectedWorkflowRunID != nil)
             let workspaceWidth = split ? max(340, geometry.size.width * 0.32) : geometry.size.width
             let narrow = workspaceWidth <= 900
-            ZStack(alignment: .bottom) {
+            let keyboardOverlap = TasksWorkspaceLayoutPolicy.keyboardOverlap(
+                container: geometry.frame(in: .global), keyboard: keyboardFrame)
+            let visibleHeight = max(0, geometry.size.height - keyboardOverlap)
+            // Keep the editor in its own lane. The board scrolls within the
+            // remaining space instead of sizing the workspace through the keyboard.
+            VStack(spacing: 0) {
                 ScrollView(.vertical) {
                     VStack(spacing: 0) {
                         if compactProjectBoard {
@@ -51,7 +72,7 @@ struct TasksWorkspaceView: View {
                             toolbar(narrow: narrow)
                             greeting
                         }
-                        if store.isLoading {
+                        if store.isLoading && store.boardItems.isEmpty && store.plans.isEmpty {
                             ProgressView(AppStrings.loading)
                                 .frame(maxWidth: .infinity, minHeight: 180)
                                 .accessibilityIdentifier("tasks-loading")
@@ -78,19 +99,45 @@ struct TasksWorkspaceView: View {
                                     .padding(.horizontal, .spacing6)
                                     .accessibilityIdentifier("tasks-project-names-load-error")
                             }
+                            if let error = store.interactionErrorMessage {
+                                Text(error).font(.omSmall).foregroundStyle(Color.error)
+                                    .padding(.horizontal, .spacing6)
+                                    .accessibilityIdentifier("task-move-error")
+                            }
                             board(narrow: narrow, width: workspaceWidth)
                         }
                     }
-                    .padding(.bottom, 120)
+                    .padding(.bottom, 12)
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .accessibilityIdentifier("tasks-workspace-scroll")
                 composer
             }
+            .frame(width: geometry.size.width, height: visibleHeight, alignment: .top)
             .background(Color.grey20.ignoresSafeArea())
+            .coordinateSpace(name: "tasks-workspace")
+            .onPreferenceChange(TaskCardFramesKey.self) { cardFrames = $0 }
+            #if os(macOS)
+            .background(TaskSecondaryClickReader { point in
+                guard pendingDelete == nil, !showingNewTask,
+                      store.selectedTaskID == nil, store.selectedWorkflowRunID == nil,
+                      let id = cardFrames.first(where: { $0.value.contains(point) })?.key,
+                      store.boardItems.contains(where: { if case .task = $0 { return $0.id == id }; return false })
+                else { return false }
+                cardActionsID = id
+                return true
+            })
+            #endif
             .overlay { OMSheet(isPresented: $showingNewTask, title: showPlansOnly ? AppStrings.tasksNewPlan : AppStrings.tasksNew) { newTaskSheet } }
             .modifier(TasksDetailPresentation(selection: selectedDetailBinding,
-                store: store, allowsSplit: !compactProjectBoard,
+                store: store, allowsSplit: !compactProjectBoard, isEnabled: presentsDetail,
                 onOpenProject: onOpenProject, onOpenChat: onOpenChat,
                 onReportIssue: onReportIssue))
+            .overlay { taskActionsOverlay }
+            .onDisappear { dragToken = nil; dragGeneration = nil; draggedTaskID = nil; targetedColumn = nil; cardActionsID = nil }
+            .onChange(of: store.interactionGeneration) { _, _ in
+                dragToken = nil; dragGeneration = nil; draggedTaskID = nil; targetedColumn = nil; cardActionsID = nil
+            }
             .overlay {
                 if let task = pendingDelete {
                     OMConfirmDialog(title: AppStrings.delete, message: AppStrings.tasksDeleteConfirmation,
@@ -110,6 +157,17 @@ struct TasksWorkspaceView: View {
                 }
             }
         }
+        #if os(iOS)
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { notification in
+            guard let frame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else { return }
+            let window = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+                .flatMap(\.windows).first(where: \.isKeyWindow)
+            keyboardFrame = window?.convert(frame, from: nil) ?? frame
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+            keyboardFrame = nil
+        }
+        #endif
     }
 
     private var selectedDetailBinding: Binding<TasksDetailSelection?> {
@@ -131,10 +189,10 @@ struct TasksWorkspaceView: View {
             ZStack {
                 InspirationCard(inspiration: value,
                                 containerSize: CGSize(width: width, height: height),
-                                heightOverride: width < 730 ? 190 : max(240, height * 0.35),
+                                heightOverride: TasksWorkspaceLayoutPolicy.bannerHeight(width: width, height: height),
                                 ctaTitle: showPlansOnly ? AppStrings.plansInspirationCTA : AppStrings.tasksInspirationCTA,
                                 tapHint: showPlansOnly ? AppStrings.plansInspirationCTA : AppStrings.tasksInspirationCTA) {
-                    prompt = value.text
+                    store.promptDraft = value.text
                     newTaskTitle = value.text
                     onStartInspiration(value.text)
                 }
@@ -159,6 +217,7 @@ struct TasksWorkspaceView: View {
             }
         }
         .frame(maxWidth: .infinity)
+        .frame(height: TasksWorkspaceLayoutPolicy.bannerHeight(width: width, height: height))
         .accessibilityIdentifier("tasks-daily-inspiration-area")
     }
 
@@ -355,6 +414,7 @@ struct TasksWorkspaceView: View {
                 RoundedRectangle(cornerRadius: 2).fill(status.accent).frame(width: 4, height: 28)
                 Text(status.localizedTitle).font(.omH3).fontWeight(.bold)
                 Text("(\(count))").font(.omXxs).foregroundStyle(Color.fontSecondary)
+                    .accessibilityIdentifier("task-column-count-\(status.rawValue)")
             }
             .frame(height: 28)
             ForEach(Array(columnTasks.prefix(visible))) { item in
@@ -376,6 +436,28 @@ struct TasksWorkspaceView: View {
         .background(status == .blocked ? Color.grey25 : Color.clear,
                     in: RoundedRectangle(cornerRadius: .radius8))
         .accessibilityElement(children: .contain)
+        .overlay {
+            if targetedColumn == status && draggedTaskID != nil {
+                RoundedRectangle(cornerRadius: .radius8)
+                    .fill(status.accent.opacity(0.12))
+                    .overlay(RoundedRectangle(cornerRadius: .radius8)
+                        .stroke(status.accent, style: StrokeStyle(lineWidth: 2, dash: [6, 4])))
+                    .overlay(alignment: .bottom) {
+                        Text(AppStrings.tasksDropToMark(status: status.localizedTitle))
+                            .font(.omSmall).foregroundStyle(Color.fontPrimary)
+                            .padding(.spacing3).background(Color.grey0, in: Capsule())
+                            .padding(.spacing3)
+                    }
+                    .allowsHitTesting(false)
+                    .accessibilityIdentifier("task-drop-target-\(status.rawValue)")
+            }
+        }
+        .onDrop(of: [UTType.utf8PlainText], isTargeted: Binding(
+            get: { targetedColumn == status },
+            set: { if $0 { targetedColumn = status } else if targetedColumn == status { targetedColumn = nil } }
+        )) { providers in acceptDrop(providers, to: status) }
+        .animation(boardAnimation, value: columnTasks.map { "\($0.id):\($0.position)" })
+        .animation(boardAnimation, value: targetedColumn)
         .accessibilityIdentifier("task-column-\(status.rawValue)")
     }
 
@@ -402,7 +484,7 @@ struct TasksWorkspaceView: View {
                 }
             }, onActions: {
                 if case .task = item { cardActionsID = item.id }
-            }))
+            }, allowsPointerDrag: true))
             .accessibilityIdentifier({
                 if case .workflowRun = item { return "workflow-run-projection" }
                 return "task-card-open"
@@ -428,6 +510,12 @@ struct TasksWorkspaceView: View {
                             .accessibilityIdentifier("task-card-due")
                     }
                     Spacer(minLength: 0)
+                    #if os(iOS)
+                    if UIDevice.current.userInterfaceIdiom == .phone {
+                        TaskDragHandle()
+                            .modifier(TaskCardDragSource(task: task, onBegin: beginDrag))
+                    }
+                    #endif
                     if task.assigneeType == .openmates || task.assigneeType == .externalAI {
                         Icon("ai", size: 12).foregroundStyle(.white)
                             .frame(width: 20, height: 20)
@@ -465,17 +553,6 @@ struct TasksWorkspaceView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background {
             RoundedRectangle(cornerRadius: .radius5).fill(Color.grey0)
-            Color.clear.contentShape(RoundedRectangle(cornerRadius: .radius5))
-                .highPriorityGesture(cardActivationGesture(onSelect: {
-                    cardActionsID = nil
-                    switch item {
-                    case .task: store.openTask(item.id)
-                    case .workflowRun: store.openWorkflowRun(item.id)
-                    }
-                }, onActions: {
-                    if case .task = item { cardActionsID = item.id }
-                }))
-                .accessibilityHidden(true)
         }
         .overlay(RoundedRectangle(cornerRadius: .radius5).stroke(Color.grey25, lineWidth: 1))
         .shadow(color: .black.opacity(0.10), radius: 5, y: 2)
@@ -484,6 +561,21 @@ struct TasksWorkspaceView: View {
             if case .task(let task) = item {
                 cardActions(task)
             }
+        }
+        .background(GeometryReader { proxy in
+            Color.clear.preference(key: TaskCardFramesKey.self,
+                                   value: [item.id: proxy.frame(in: .named("tasks-workspace"))])
+        })
+        .modifier(TaskCardDragSource(task: {
+            #if os(iOS)
+            // Phone touch uses the dedicated handle above. A whole-card OS
+            // drag recognizer would also consume the title's menu long press.
+            if UIDevice.current.userInterfaceIdiom == .phone { return nil }
+            #endif
+            if case .task(let task) = item { return task }; return nil
+        }(), onBegin: beginDrag))
+        .accessibilityAction(named: Text(AppStrings.tasksMoreActions)) {
+            if case .task = item { cardActionsID = item.id }
         }
         .zIndex(cardActionsID == item.id ? 9 : 0)
         .accessibilityElement(children: .contain)
@@ -539,8 +631,20 @@ struct TasksWorkspaceView: View {
     /// action remains available for accessibility activation; long press never
     /// reaches the tap branch or the underlying Button's touch handler.
     private func cardActivationGesture(onSelect: @escaping () -> Void,
-                                       onActions: @escaping () -> Void) -> some Gesture {
-        LongPressGesture(minimumDuration: 0.5)
+                                       onActions: @escaping () -> Void,
+                                       allowsPointerDrag: Bool = false) -> AnyGesture<Void> {
+        #if os(macOS)
+        // Pointer dragging owns the whole card, including its title. Secondary
+        // click opens actions through TaskSecondaryClickReader.
+        if allowsPointerDrag { return AnyGesture(TapGesture().onEnded { onSelect() }) }
+        #else
+        if allowsPointerDrag && hoveredCardID != nil {
+            // iPad trackpad/mouse uses the same full-card drag surface as Mac.
+            // The visible More actions control retains menu access.
+            return AnyGesture(TapGesture().onEnded { onSelect() })
+        }
+        #endif
+        return AnyGesture(LongPressGesture(minimumDuration: 0.5)
             .exclusively(before: TapGesture())
             .onEnded { gesture in
                 switch gesture {
@@ -548,59 +652,113 @@ struct TasksWorkspaceView: View {
                 case .second: onSelect()
                 }
             }
+            .map { _ in () })
     }
 
     @ViewBuilder private func cardActions(_ task: UserTaskItem) -> some View {
-        if hoveredCardID == task.id || cardActionsID == task.id {
-            VStack(alignment: .trailing, spacing: .spacing2) {
-                Button { cardActionsID = cardActionsID == task.id ? nil : task.id } label: {
-                    Text("•••").font(.omXxs).foregroundStyle(Color.fontSecondary)
-                        .frame(width: 28, height: 24)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(AppStrings.tasksMoreActions)
-                .accessibilityIdentifier("task-actions-more")
-                if cardActionsID == task.id {
-                    VStack(spacing: .spacing2) {
-                        Button(AppStrings.tasksOpenTask) { cardActionsID = nil; store.openTask(task.id) }
-                            .accessibilityIdentifier("task-detail-link")
-                        if task.assigneeType != .openmates && task.assigneeType != .externalAI {
-                            Button(AppStrings.tasksAssignAI) {
-                                cardActionsID = nil
-                                Task { await store.saveTask(task, patch: UserTaskUpdateInput(assigneeType: .openmates)) }
-                            }
-                            .accessibilityIdentifier("task-start-ai")
-                        }
-                        ForEach(UserTaskStatus.allCases.filter { $0 != task.status && $0 != .blocked }) { status in
-                            Button(status.localizedTitle) {
-                                cardActionsID = nil
-                                Task { await store.moveTask(task, to: status) }
-                            }
-                            .accessibilityIdentifier("task-move-\(status.rawValue)")
-                        }
-                        Button(task.status == .blocked ? AppStrings.tasksUnblock : AppStrings.tasksBlock) {
-                            cardActionsID = nil
-                            Task { await store.taskAction(task.status == .blocked ? "unblock" : "block", task: task) }
-                        }
-                        if task.status != .backlog {
-                            Button(AppStrings.tasksSkip) { cardActionsID = nil; Task { await store.taskAction("skip", task: task) } }
-                        }
-                        Button(AppStrings.delete) { cardActionsID = nil; pendingDelete = task }
-                            .foregroundStyle(Color.error)
-                    }
-                    .font(.omXxs)
-                    .buttonStyle(TasksCardActionStyle())
-                    .padding(.spacing4)
-                    .frame(width: 136)
-                    .background(Color.grey0, in: RoundedRectangle(cornerRadius: .radius5))
-                    .overlay(RoundedRectangle(cornerRadius: .radius5).stroke(Color.grey25, lineWidth: 1))
-                    .shadow(color: .black.opacity(0.2), radius: 8, y: 4)
-                    .accessibilityElement(children: .contain)
-                    .accessibilityIdentifier("task-action-menu-items")
-                }
+        if hoveredCardID == task.id {
+            Button { cardActionsID = task.id } label: {
+                Text("•••").font(.omSmall).foregroundStyle(Color.fontSecondary)
+                    .frame(width: 28, height: 24)
             }
+            .buttonStyle(.plain)
+            .accessibilityLabel(AppStrings.tasksMoreActions)
+            .accessibilityIdentifier("task-actions-more")
             .padding(.spacing2)
         }
+    }
+
+    @ViewBuilder private var taskActionsOverlay: some View {
+        if let id = cardActionsID,
+           let item = store.boardItems.first(where: { $0.id == id }), case .task(let task) = item {
+            ZStack {
+                Button { cardActionsID = nil } label: {
+                    Color.black.opacity(0.28).ignoresSafeArea().contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .keyboardShortcut(.cancelAction)
+                .accessibilityLabel(AppStrings.close)
+                .accessibilityIdentifier("task-actions-dismiss")
+                VStack(alignment: .leading, spacing: .spacing2) {
+                    Text(task.title).font(.omSmall.weight(.semibold))
+                        .foregroundStyle(Color.fontSecondary).lineLimit(1)
+                        .padding(.horizontal, .spacing4).padding(.top, .spacing3)
+                    taskActionRow("task", AppStrings.tasksOpenTask, id: "task-detail-link") { store.openTask(task.id) }
+                    if task.assigneeType != .openmates && task.assigneeType != .externalAI {
+                        taskActionRow("ai", AppStrings.tasksAssignAI, id: "task-start-ai") {
+                            Task { await store.saveTask(task, patch: UserTaskUpdateInput(assigneeType: .openmates)) }
+                        }
+                    }
+                    ForEach(UserTaskStatus.allCases.filter { $0 != task.status && $0 != .blocked }) { status in
+                        taskActionRow("task", status.localizedTitle, id: "task-move-\(status.rawValue)") {
+                            Task { await store.moveTask(task, to: status) }
+                        }
+                    }
+                    taskActionRow("task", task.status == .blocked ? AppStrings.tasksUnblock : AppStrings.tasksBlock,
+                                  id: "task-action-block") {
+                        Task { await store.moveTask(task, to: task.status == .blocked ? .todo : .blocked) }
+                    }
+                    if task.status != .backlog {
+                        taskActionRow("task", AppStrings.tasksSkip, id: "task-action-skip") {
+                            Task { await store.moveTask(task, to: .backlog) }
+                        }
+                    }
+                    taskActionRow("delete", AppStrings.delete, id: "task-action-delete", destructive: true) { pendingDelete = task }
+                }
+                .padding(.vertical, .spacing2).frame(width: 280)
+                .background(Color.grey0)
+                .clipShape(RoundedRectangle(cornerRadius: .radius7))
+                .overlay(RoundedRectangle(cornerRadius: .radius7).stroke(Color.grey20, lineWidth: 1))
+                .shadow(color: .black.opacity(0.18), radius: 18, x: 0, y: 10)
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("task-action-menu-items")
+            }
+        }
+    }
+
+    private func taskActionRow(_ icon: String, _ title: String, id: String,
+                               destructive: Bool = false, action: @escaping () -> Void) -> some View {
+        Button { cardActionsID = nil; action() } label: {
+            HStack(spacing: .spacing3) {
+                Icon(icon, size: 17).foregroundStyle(destructive ? Color.error : Color.fontSecondary)
+                Text(title).font(.omSmall.weight(.medium))
+                    .foregroundStyle(destructive ? Color.error : Color.fontPrimary)
+                Spacer()
+            }
+            .padding(.horizontal, .spacing4).padding(.vertical, .spacing3)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain).disabled(store.isSaving)
+        .accessibilityIdentifier(id)
+    }
+
+    private func beginDrag(_ task: UserTaskItem) -> NSItemProvider {
+        cardActionsID = nil
+        draggedTaskID = task.id
+        let token = UUID().uuidString
+        dragToken = token
+        dragGeneration = store.interactionGeneration
+        return NSItemProvider(object: token as NSString)
+    }
+
+    private func acceptDrop(_ providers: [NSItemProvider], to status: UserTaskStatus) -> Bool {
+        guard !store.isSaving, dragGeneration == store.interactionGeneration,
+              let id = draggedTaskID, let token = dragToken,
+              let item = store.boardItems.first(where: { $0.id == id }),
+              case .task(let task) = item, task.status != status,
+              let provider = providers.first(where: { $0.hasItemConformingToTypeIdentifier(UTType.utf8PlainText.identifier) })
+        else { return false }
+        provider.loadDataRepresentation(forTypeIdentifier: UTType.utf8PlainText.identifier) { data, _ in
+            guard let data, String(data: data, encoding: .utf8) == token else { return }
+            Task { @MainActor in
+                guard dragToken == token, draggedTaskID == id,
+                      dragGeneration == store.interactionGeneration else { return }
+                dragToken = nil; draggedTaskID = nil; targetedColumn = nil
+                withAnimation(boardAnimation) { cardActionsID = nil }
+                await store.moveTask(task, to: status)
+            }
+        }
+        return true
     }
 
     @ViewBuilder private func planActions(_ plan: UserPlanItem) -> some View {
@@ -636,7 +794,7 @@ struct TasksWorkspaceView: View {
 
     private var composer: some View {
         WorkspacePromptComposerView(
-            text: $prompt,
+            text: $store.promptDraft,
             placeholder: compactProjectBoard ? AppStrings.tasksPromptCompact : AppStrings.tasksPrompt,
             submitLabel: AppStrings.tasksSend,
             submittingLabel: AppStrings.tasksSaving,
@@ -647,7 +805,8 @@ struct TasksWorkspaceView: View {
             submitIdentifier: compactProjectBoard ? "project-task-workspace-submit" : "task-workspace-submit",
             micIdentifier: compactProjectBoard ? "project-task-workspace-mic" : "task-workspace-mic",
             onSubmit: submitPrompt,
-            onMic: { ToastManager.shared.show(AppStrings.tasksMicUnavailable, type: .error) }
+            onMic: { ToastManager.shared.show(AppStrings.tasksMicUnavailable, type: .error) },
+            focusRequestID: composerFocusRequestID
         )
         .padding(.horizontal, compactProjectBoard ? 0 : 32).padding(.bottom, 12)
     }
@@ -655,7 +814,7 @@ struct TasksWorkspaceView: View {
     private func submitPrompt(_ value: String) {
         let title = value.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty else { return }
-        prompt = ""
+        store.promptDraft = ""
         if showPlansOnly {
             newTaskTitle = title
             showingNewTask = true
@@ -703,6 +862,22 @@ struct TasksWorkspaceView: View {
 
 }
 
+/// The shell may already have adopted SwiftUI's keyboard safe area. Only
+/// subtract the part still covering this pane; floating keyboards retain the
+/// full workspace and mobile inspiration stays at the web's fixed 190 points.
+enum TasksWorkspaceLayoutPolicy {
+    static func keyboardOverlap(container: CGRect, keyboard: CGRect?) -> CGFloat {
+        guard !container.isEmpty, let keyboard, !keyboard.isEmpty,
+              keyboard.maxY >= container.maxY,
+              container.intersection(keyboard).width > 0 else { return 0 }
+        return min(container.height, max(0, container.maxY - keyboard.minY))
+    }
+
+    static func bannerHeight(width: CGFloat, height: CGFloat) -> CGFloat {
+        width < 730 ? 190 : max(240, height * 0.35)
+    }
+}
+
 // TaskCard.svelte .task-action-menu-items: 41px rendered button height,
 // 12px text, 6px horizontal padding, pill-shaped grey10 background.
 private struct TasksCardActionStyle: ButtonStyle {
@@ -731,61 +906,76 @@ private struct TasksDetailPresentation: ViewModifier {
     @Binding var selection: TasksDetailSelection?
     @ObservedObject var store: TasksWorkspaceStore
     let allowsSplit: Bool
+    let isEnabled: Bool
     let onOpenProject: (String) -> Void
     let onOpenChat: (String) -> Void
     let onReportIssue: () -> Void
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    func body(content: Content) -> some View {
-        GeometryReader { geometry in
-            let split = allowsSplit && geometry.size.width >= 1100
-                && (store.selectedTaskID != nil || store.selectedWorkflowRunID != nil)
-            if split, let selection {
-                HStack(spacing: .spacing5) {
-                    content.frame(width: max(340, geometry.size.width * 0.32))
-                    reader(selection)
-                }
-                .accessibilityIdentifier("tasks-workspace-split")
-            } else {
-                content.overlay {
-                    if let selection { reader(selection).zIndex(10) }
+    @ViewBuilder func body(content: Content) -> some View {
+        if !isEnabled {
+            content
+        } else {
+            GeometryReader { geometry in
+                let split = allowsSplit && geometry.size.width >= 1100
+                    && (store.selectedTaskID != nil || store.selectedWorkflowRunID != nil)
+                if split, let selection {
+                    HStack(spacing: .spacing5) {
+                        content.frame(width: max(340, geometry.size.width * 0.32))
+                        reader(selection)
+                            .transition(reduceMotion ? .opacity : .move(edge: .bottom))
+                    }
+                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: selection.id)
+                    .accessibilityIdentifier("tasks-workspace-split")
+                } else {
+                    content.overlay {
+                        if let selection {
+                            reader(selection).zIndex(10)
+                                .transition(reduceMotion ? .opacity : .move(edge: .bottom))
+                        }
+                    }
+                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: selection?.id)
                 }
             }
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: selection?.id)
         }
     }
 
     private func reader(_ selection: TasksDetailSelection) -> some View {
-        detail(selection)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color.grey20)
-            // UnifiedEmbedFullscreen's rendered outer radius is 17px.
-            .clipShape(RoundedRectangle(cornerRadius: 17))
+        TasksWorkspaceDetailView(store: store, onOpenProject: onOpenProject,
+            onOpenChat: onOpenChat, onReportIssue: onReportIssue)
     }
+}
 
-    @ViewBuilder private func detail(_ selection: TasksDetailSelection) -> some View {
-        switch selection {
-        case .task(let id):
-            if let task = store.boardItems.compactMap({ item -> UserTaskItem? in
-                if case .task(let task) = item, task.id == id { return task }
-                return nil
-            }).first {
+/// Shared reader: Projects presents this beside its complete page while its
+/// embedded Tasks board keeps the same selection and mutation store.
+// Web source: frontend/packages/ui/src/components/tasks/TaskDetailFullscreen.svelte
+// Specification: specifications/features/tasks/specification.yml
+// Assertions: tasks.detail.embed-responsive
+struct TasksWorkspaceDetailView: View {
+    @ObservedObject var store: TasksWorkspaceStore
+    var onOpenProject: (String) -> Void = { _ in }
+    var onOpenChat: (String) -> Void = { _ in }
+    var onReportIssue: () -> Void = {}
+
+    var body: some View {
+        Group {
+            if let task = store.selectedTask {
                 TaskDetailView(store: store, task: task,
-                               onOpenProject: onOpenProject, onOpenChat: onOpenChat,
-                               onReportIssue: onReportIssue)
-            }
-        case .plan(let id):
-            if let plan = store.plans.first(where: { $0.id == id }) {
+                    onOpenProject: onOpenProject, onOpenChat: onOpenChat,
+                    onReportIssue: onReportIssue)
+            } else if let plan = store.selectedPlan {
                 PlanDetailView(store: store, plan: plan,
-                               onOpenProject: onOpenProject, onOpenChat: onOpenChat,
-                               onReportIssue: onReportIssue)
-            }
-        case .workflowRun(let id):
-            if let projection = store.boardItems.compactMap({ item -> WorkflowRunTaskProjection? in
-                if case .workflowRun(let run) = item, run.id == id { return run }
-                return nil
-            }).first {
+                    onOpenProject: onOpenProject, onOpenChat: onOpenChat,
+                    onReportIssue: onReportIssue)
+            } else if let projection = store.selectedWorkflowRun {
                 WorkflowRunTaskDetailView(store: store, projection: projection)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.grey20)
+        // UnifiedEmbedFullscreen's rendered outer radius is 17px.
+        .clipShape(RoundedRectangle(cornerRadius: 17))
     }
 }
 
@@ -808,6 +998,7 @@ private struct WorkflowRunTaskDetailView: View {
         VStack(spacing: 0) {
             HStack {
                 OMIconButton(icon: "back", label: AppStrings.tasks) { store.closeDetail() }
+                    .accessibilityIdentifier("workflow-run-detail-close")
                 Text(projection.displayTitle).font(.omH3).lineLimit(2)
                 Spacer()
             }
@@ -975,6 +1166,7 @@ struct TasksSidebarView: View {
             }
         }
         .background(Color.grey20)
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("tasks-sidebar")
     }
 }

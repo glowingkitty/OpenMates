@@ -1,4 +1,6 @@
 // Independent, ephemeral local-model test lifecycle. No API, billing or chat integration.
+// Specification: specifications/features/apple-local-model-lab/specification.yml
+// Assertions: apple-local-model-lab.local-execution, apple-local-model-lab.serialized-cancellation, apple-local-model-lab.ephemeral-state, apple-local-model-lab.availability
 
 import AVFoundation
 import Combine
@@ -17,21 +19,27 @@ enum LocalModelLabAvailability {
 
     @MainActor
     static func unavailableReason(for id: LocalModelID,
-                                  architectureSupported: Bool = supportsArchitecture,
-                                  osMajorVersion: Int = ProcessInfo.processInfo.operatingSystemVersion.majorVersion) -> String? {
+                                  architectureSupported: Bool = supportsArchitecture) -> String? {
         guard architectureSupported else { return AppStrings.localLabArchitectureUnavailable }
-        if id == .kokoro, osMajorVersion >= 27 { return AppStrings.localLabKokoroOsError }
         return nil
     }
 }
 
 @MainActor
 final class LocalModelLabController: ObservableObject {
-    static let shared = LocalModelLabController(store: .shared)
-    @Published var speechText = ""
+    static let shared: LocalModelLabController = {
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--ui-test-local-lab-progress-fixture") {
+            return LocalModelLabController(store: .shared, availability: { _ in nil },
+                                           runtimeFactory: { _ in LocalModelProgressFixtureRuntime() })
+        }
+        #endif
+        return LocalModelLabController(store: .shared)
+    }()
     @Published var privacyText = ""
     @Published private(set) var audioInput: URL?
     @Published private(set) var isRecording = false
+    @Published private(set) var isRequestingMicrophone = false
     @Published private(set) var runningModel: LocalModelID?
     @Published private(set) var cancelling = false
     @Published private(set) var resultModel: LocalModelID?
@@ -39,30 +47,46 @@ final class LocalModelLabController: ObservableObject {
     @Published private(set) var output: LocalModelTestOutput?
     @Published private(set) var elapsed: TimeInterval?
     @Published private(set) var peakResidentBytes: Int64?
+    @Published private(set) var baselineResidentBytes: Int64?
+    @Published private(set) var endResidentBytes: Int64?
+    @Published private(set) var phase: LocalModelRunPhase?
+    @Published private(set) var phaseTimings: [LocalModelPhaseTiming] = []
+    @Published private(set) var phaseWarning = false
     @Published private(set) var realTimeFactor: Double?
-    @Published private(set) var waveform: [Float] = []
     @Published private(set) var errorMessage: String?
+    private let microphonePermission: @MainActor () async -> Bool
     private let store: LocalModelStore
     private var job: Task<Void, Never>?
     private var recorder: AVAudioRecorder?
-    private var player: AVAudioPlayer?
     private var temporaryDirectory: URL?
     private var generation = UUID()
     private var activeRuntime: (any LocalModelRuntime)?
-    private let runtimeFactory: (LocalModelID) -> any LocalModelRuntime
+    private let runtimeFactory: (LocalModelID) -> (any LocalModelRuntime)?
     private let availability: @MainActor (LocalModelID) -> String?
     private let temporaryRoot: URL
+    private let monotonicNow: @Sendable () -> Double
+    private let memorySample: @Sendable () -> Int64?
+    private var lastMeasurementElapsed = -Double.infinity
+    private let warningAfter: Double
 
     init(store: LocalModelStore = .shared,
          temporaryRoot: URL = FileManager.default.temporaryDirectory,
+         microphonePermission: @escaping @MainActor () async -> Bool = { await LocalModelLabController.requestMicrophonePermission() },
+         monotonicNow: @escaping @Sendable () -> Double = { ProcessInfo.processInfo.systemUptime },
+         memorySample: @escaping @Sendable () -> Int64? = { LocalModelRunMeasurement.residentBytes() },
+         warningAfter: Double = 30,
          availability: @escaping @MainActor (LocalModelID) -> String? = { LocalModelLabAvailability.unavailableReason(for: $0) },
-         runtimeFactory: @escaping (LocalModelID) -> any LocalModelRuntime = { id in
+         runtimeFactory: @escaping (LocalModelID) -> (any LocalModelRuntime)? = { id in
              switch id {
              case .whisper: WhisperKitLocalRuntime()
-             case .kokoro: KokoroLocalRuntime()
              case .privacyFilter: LocalPrivacyFilterRuntime()
+             case .pocketTTS: nil // Dedicated Pocket controller owns audio synthesis.
              }
          }) {
+        self.microphonePermission = microphonePermission
+        self.monotonicNow = monotonicNow
+        self.memorySample = memorySample
+        self.warningAfter = warningAfter
         self.store = store
         self.temporaryRoot = temporaryRoot
         self.availability = availability
@@ -71,7 +95,7 @@ final class LocalModelLabController: ObservableObject {
 
     func unavailableReason(for id: LocalModelID) -> String? { availability(id) }
 
-    var busy: Bool { runningModel != nil || isRecording }
+    var busy: Bool { runningModel != nil || isRecording || isRequestingMicrophone }
     var audioDuration: Double? {
         guard let audioInput, let file = try? AVAudioFile(forReading: audioInput),
               file.processingFormat.sampleRate > 0 else { return nil }
@@ -108,7 +132,6 @@ final class LocalModelLabController: ObservableObject {
     func importAudio(_ source: URL) {
         guard !busy else { return }
         clearResult()
-        stopPlayback()
         let scoped = source.startAccessingSecurityScopedResource()
         defer { if scoped { source.stopAccessingSecurityScopedResource() } }
         var importedCopy: URL?
@@ -127,20 +150,27 @@ final class LocalModelLabController: ObservableObject {
         }
     }
 
-    func startRecording() async {
-        guard !busy else { return }
-        let token = generation
+    private static func requestMicrophonePermission() async -> Bool {
         #if os(iOS)
-        let permission = await withCheckedContinuation { continuation in
+        return await withCheckedContinuation { continuation in
             AVAudioSession.sharedInstance().requestRecordPermission { continuation.resume(returning: $0) }
         }
         #else
-        let permission = await AVCaptureDevice.requestAccess(for: .audio)
+        return await AVCaptureDevice.requestAccess(for: .audio)
         #endif
-        guard generation == token, !busy else { return }
+    }
+
+    func startRecording() async {
+        guard !busy else { return }
+        generation = UUID()
+        let token = generation
+        isRequestingMicrophone = true
+        clearResult()
+        let permission = await microphonePermission()
+        guard generation == token, isRequestingMicrophone else { return }
+        isRequestingMicrophone = false
         guard permission else { errorMessage = AppStrings.localLabMicrophoneError; return }
         clearResult()
-        stopPlayback()
         do {
             #if os(iOS)
             try AVAudioSession.sharedInstance().setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker])
@@ -160,6 +190,8 @@ final class LocalModelLabController: ObservableObject {
     }
 
     func stopRecording() {
+        if isRequestingMicrophone { generation = UUID() }
+        isRequestingMicrophone = false
         recorder?.stop()
         recorder = nil
         isRecording = false
@@ -174,63 +206,104 @@ final class LocalModelLabController: ObservableObject {
         case .whisper:
             guard let audioInput else { return }
             request = .transcribe(audioInput)
-        case .kokoro:
-            guard !speechText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-            request = .speak(speechText)
         case .privacyFilter:
             guard !privacyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
             request = .detectPII(privacyText)
+        case .pocketTTS: return
         }
+        guard let runtime = runtimeFactory(id) else { return }
         clearResult()
-        stopPlayback()
+        generation = UUID()
         let token = generation
         runningModel = id
-        let runtime = runtimeFactory(id)
         activeRuntime = runtime
         let sourceDuration = id == .whisper ? audioDuration : nil
         let submittedText = id == .privacyFilter ? privacyText : ""
+        let measurement = LocalModelRunMeasurement(now: monotonicNow, memory: memorySample, warningAfter: warningAfter)
+        applyMeasurement(measurement.snapshot())
+        let progressController = self
         job = Task {
+            let sampler = Task.detached(priority: .utility) {
+                while !Task.isCancelled {
+                    do { try await Task.sleep(for: .milliseconds(250)) } catch { break }
+                    measurement.sample()
+                    let snapshot = measurement.snapshot()
+                    await MainActor.run { [weak progressController] in
+                        guard let controller = progressController, controller.generation == token,
+                              controller.runningModel == id else { return }
+                        controller.applyMeasurement(snapshot)
+                    }
+                }
+            }
+            var result: LocalModelTestOutput?
             do {
                 let directory = try store.installedDirectory(id)
-                let start = ContinuousClock.now
-                let result = try await runtime.run(request, directory: directory)
+                result = try await runtime.run(request, directory: directory) { nextPhase in
+                    measurement.transition(nextPhase)
+                    Task { @MainActor [weak progressController] in
+                        guard let controller = progressController, controller.generation == token,
+                              controller.runningModel == id else { return }
+                        controller.applyMeasurement(measurement.snapshot())
+                    }
+                }
                 try Task.checkCancellation()
-                let duration = start.duration(to: .now)
-                let seconds = Double(duration.components.seconds) + Double(duration.components.attoseconds) / 1e18
-                if token == generation {
+            } catch is CancellationError {
+                // Cancellation is an expected terminal state, with no retained result.
+                result = nil
+            } catch {
+                if token == generation { errorMessage = AppStrings.localLabRunError }
+                result = nil
+            }
+            measurement.transition(.cleanup)
+            if token == generation { applyMeasurement(measurement.snapshot()) }
+            await runtime.unload()
+            // Keep ownership and sampling until even a non-cooperative native kernel drains.
+            sampler.cancel()
+            await sampler.value
+            measurement.sample()
+            measurement.transition(.completion)
+            let final = measurement.snapshot()
+            if token == generation && !Task.isCancelled {
+                applyMeasurement(final)
+                if let result {
                     resultInput = submittedText
                     output = result
                     resultModel = id
-                    elapsed = seconds
-                    var usage = rusage()
-                    if getrusage(RUSAGE_SELF, &usage) == 0 { peakResidentBytes = Int64(usage.ru_maxrss) }
-                    let audioSeconds = sourceDuration ?? result.audioDurationSeconds ?? result.audioSamples.flatMap { samples in
-                        result.sampleRate.map { Double(samples.count) / Double($0) }
-                    }
-                    realTimeFactor = audioSeconds.flatMap { $0 > 0 ? seconds / $0 : nil }
-                    prepareWaveform(result.audioSamples ?? [])
+                    elapsed = final.elapsed
+                    let audioSeconds = sourceDuration ?? result.audioDurationSeconds
+                    realTimeFactor = audioSeconds.flatMap { $0 > 0 ? final.elapsed / $0 : nil }
                 }
-            } catch LocalSpeechRuntimeError.incompatibleOS {
-                if token == generation { errorMessage = AppStrings.localLabKokoroOsError }
-            } catch is CancellationError {
-                // Cancellation is an expected terminal state, with no retained result.
-            } catch {
-                if token == generation { errorMessage = AppStrings.localLabRunError }
             }
-            await runtime.unload()
+            NativeDiagnostics.event("offline_model_run", category: "local_models", flags: ["cancelled": Task.isCancelled],
+                counts: ["duration_ms": Int(final.elapsed * 1000), "baseline_bytes": Int(final.baselineBytes ?? 0),
+                         "peak_bytes": Int(final.peakBytes ?? 0), "end_bytes": Int(final.endBytes ?? 0)])
             activeRuntime = nil
             runningModel = nil
             cancelling = false
             job = nil
             if token != generation { removeTemporaryFiles() }
+            else if Task.isCancelled { clearResult() }
         }
+    }
+
+    private func applyMeasurement(_ snapshot: LocalModelRunMeasurement.Snapshot) {
+        // Sample and callback tasks can arrive in either order; phase never regresses.
+        if let phase, snapshot.phase.rawValue < phase.rawValue { return }
+        guard snapshot.elapsed >= lastMeasurementElapsed else { return }
+        lastMeasurementElapsed = snapshot.elapsed
+        phase = snapshot.phase
+        phaseTimings = snapshot.timings
+        phaseWarning = snapshot.warning
+        baselineResidentBytes = snapshot.baselineBytes
+        peakResidentBytes = snapshot.peakBytes
+        endResidentBytes = snapshot.endBytes
     }
 
     func cancel() {
         guard job != nil else { return }
         cancelling = true
         job?.cancel()
-        clearResult()
+        clearResult(keepProgress: true)
     }
 
     /// Await the actual runtime completion and unload; cancellation does not imply idle.
@@ -238,52 +311,22 @@ final class LocalModelLabController: ObservableObject {
         if let job { await job.value }
     }
 
-    func play() {
-        guard !busy, let samples = output?.audioSamples, let rate = output?.sampleRate,
-              rate > 0, !samples.isEmpty else { return }
-        stopPlayback()
-        do {
-            #if os(iOS)
-            try AVAudioSession.sharedInstance().setCategory(.playback)
-            try AVAudioSession.sharedInstance().setActive(true)
-            #endif
-            let url = try tempDirectory().appendingPathComponent("speech.wav")
-            let format = AVAudioFormat(standardFormatWithSampleRate: Double(rate), channels: 1)!
-            guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(samples.count)),
-                  let channel = buffer.floatChannelData?[0] else { throw CocoaError(.fileWriteUnknown) }
-            buffer.frameLength = AVAudioFrameCount(samples.count)
-            for (index, sample) in samples.enumerated() { channel[index] = sample }
-            // AVAudioFile finalizes the WAV header when released. Drain the writer
-            // before AVAudioPlayer opens the completed output file.
-            try autoreleasepool {
-                let file = try AVAudioFile(forWriting: url, settings: format.settings)
-                try file.write(from: buffer)
-            }
-            player = try AVAudioPlayer(contentsOf: url)
-            guard player?.play() == true else { throw CocoaError(.fileReadUnknown) }
-        } catch { errorMessage = AppStrings.localLabAudioError; deactivateAudio() }
-    }
-
-    func stopPlayback() { player?.stop(); player = nil; deactivateAudio() }
     func leave() {
         generation = UUID()
         cancel()
         stopRecording()
-        stopPlayback()
-        speechText = ""
         privacyText = ""
         audioInput = nil
         clearResult()
         if job == nil { removeTemporaryFiles() }
     }
-    private func clearResult() {
+    private func clearResult(keepProgress: Bool = false) {
         resultInput = ""; output = nil; resultModel = nil; elapsed = nil; realTimeFactor = nil
-        waveform = []; peakResidentBytes = nil; errorMessage = nil
-    }
-    private func prepareWaveform(_ samples: [Float]) {
-        let stride = max(1, samples.count / 80)
-        waveform = Swift.stride(from: 0, to: samples.count, by: stride).map { start in
-            samples[start..<min(samples.count, start + stride)].reduce(Float(0)) { max($0, abs($1)) }
+        errorMessage = nil
+        if !keepProgress {
+            peakResidentBytes = nil; baselineResidentBytes = nil; endResidentBytes = nil
+            phase = nil; phaseTimings = []; phaseWarning = false
+            lastMeasurementElapsed = -Double.infinity
         }
     }
     private func tempDirectory() throws -> URL {
@@ -303,3 +346,28 @@ final class LocalModelLabController: ObservableObject {
         #endif
     }
 }
+
+#if DEBUG
+private actor LocalModelProgressFixtureRuntime: LocalModelRuntime {
+    func run(_ request: LocalModelTestRequest, directory: URL) async throws -> LocalModelTestOutput {
+        try await run(request, directory: directory, progress: { _ in })
+    }
+    func run(_ request: LocalModelTestRequest, directory: URL,
+             progress: @escaping @Sendable (LocalModelRunPhase) -> Void) async throws -> LocalModelTestOutput {
+        progress(.tokenizerPreparation)
+        try await Task.sleep(for: .milliseconds(300))
+        progress(.modelLoading)
+        // XCTest's cross-process snapshots can take several seconds. Keep the
+        // real fixture phase observable before advancing to held inference.
+        try await Task.sleep(for: .seconds(8))
+        progress(.inference)
+        while true { try await Task.sleep(for: .seconds(1)) }
+    }
+    func unload() async {
+        // Cancellation retains ownership until this simulated native drain
+        // ends; detached cleanup deliberately does not inherit cancellation.
+        await Task.detached { try? await Task.sleep(for: .seconds(8)) }.value
+    }
+}
+
+#endif

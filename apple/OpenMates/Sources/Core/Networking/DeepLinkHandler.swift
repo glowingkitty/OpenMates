@@ -1,5 +1,11 @@
 // Deep link handler — processes openmates:// URLs and universal links.
 // Supports: chat-id, message-id, share links, settings deep links, app links.
+// Specification: specifications/features/apple-task-board-interactions/specification.yml
+// Assertions: apple-task-board.new-task-shortcuts
+// Specification: specifications/features/apps-workspace/specification.yml
+// Assertions: apps.navigation.hash-and-forwarding
+// Specification: specifications/features/apple-tasks-widget/specification.yml
+// Assertions: apple-tasks-widget.links
 // Mirrors the web app's hash-based routing (#chat-id=X, #share-chat-id=X).
 
 import Foundation
@@ -53,6 +59,7 @@ final class DeepLinkHandler: ObservableObject {
     @Published var pendingSharedBrowserURL: URL?
     @Published var pendingSharedChatURL: URL?
     @Published var pendingChatId: String?
+    @Published var pendingActiveChatsWidgetLink: WidgetActiveChatsRoute?
     @Published var pendingEmbedId: String?
     @Published var pendingMessageId: String?
     @Published var pendingShareChatId: String?
@@ -63,6 +70,12 @@ final class DeepLinkHandler: ObservableObject {
     @Published var pendingInspirationId: String?
     @Published var pendingMessageText: String?
     @Published var pendingWorkflowTemplate: WorkflowTemplateLink?
+    @Published var pendingWorkflowWidgetRun: WidgetWorkflowRunRoute?
+    @Published var pendingWorkflowsWorkspace = false
+    @Published var pendingTasksWorkspace = false
+    @Published var pendingTaskID: String?
+    @Published var pendingNewTask = false
+    @Published var pendingAppsPath: String?
     @Published var pendingNewChat = false
     @Published var pendingSearch = false
 
@@ -76,6 +89,9 @@ final class DeepLinkHandler: ObservableObject {
         pendingSharedBrowserURL = nil
         pendingSharedChatURL = nil
         pendingWorkflowTemplate = nil
+        pendingWorkflowWidgetRun = nil
+        pendingWorkflowsWorkspace = false
+        pendingActiveChatsWidgetLink = nil
         // Public recipient decryption is independent of the signed-in account
         // and selected server. Keep the full fragment inside the native viewer.
         if Self.isNativeChatShareURL(url) {
@@ -91,10 +107,34 @@ final class DeepLinkHandler: ObservableObject {
 
     private func handleCustomScheme(_ url: URL) {
         guard let host = url.host else { return }
+        if host == "run-workflow" {
+            pendingWorkflowWidgetRun = WidgetWorkflowsLinks.route(url)
+            return
+        }
+        // Every owner-bearing widget link is parsed separately. Malformed or
+        // foreign-owner links must never fall through to ordinary chat routing.
+        let hasWidgetOwner = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?
+            .contains(where: { $0.name == "owner" }) == true
+        if host == "active-chats" || hasWidgetOwner {
+            pendingChatId = nil; pendingEmbedId = nil; pendingMessageId = nil
+            pendingActiveChatsWidgetLink = WidgetActiveChatsLinks.route(url)
+            return
+        }
 
         switch host {
         case "new-chat", "newchat":
             pendingNewChat = true
+        case "tasks":
+            pendingTasksWorkspace = true
+        case "workflows":
+            pendingWorkflowsWorkspace = true
+        case "task":
+            if url.pathComponents.count == 2,
+               let id = url.pathComponents.last, UUID(uuidString: id) != nil { pendingTaskID = id }
+        case "new-task", "newtask":
+            pendingNewTask = true
+        case "apps":
+            pendingAppsPath = url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         case "search":
             pendingSearch = true
         case "chat":
@@ -142,6 +182,14 @@ final class DeepLinkHandler: ObservableObject {
         let params = parseFragment(fragment)
 
         let normalizedFragment = fragment.hasPrefix("/") ? String(fragment.dropFirst()) : fragment
+        if normalizedFragment == "tasks" { pendingTasksWorkspace = true }
+        if let id = params["task-id"], UUID(uuidString: id) != nil { pendingTaskID = id }
+        if normalizedFragment == "new-task" || normalizedFragment == "newtask" {
+            pendingNewTask = true
+        } else if normalizedFragment == "apps" || normalizedFragment.hasPrefix("apps/") {
+            pendingAppsPath = String(normalizedFragment.dropFirst("apps".count))
+                .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        }
         if normalizedFragment == "settings" || normalizedFragment.hasPrefix("settings/") {
             pendingSettingsPath = String(normalizedFragment.dropFirst("settings".count))
                 .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
@@ -174,6 +222,16 @@ final class DeepLinkHandler: ObservableObject {
             // Embed share - open in browser for now
         } else if path == "/new-chat" || path == "/newchat" {
             pendingNewChat = true
+        } else if path == "/tasks" {
+            pendingTasksWorkspace = true
+        } else if path.hasPrefix("/task/"), url.pathComponents.count == 3,
+                  let id = url.pathComponents.last, UUID(uuidString: id) != nil {
+            pendingTaskID = id
+        } else if path == "/new-task" || path == "/newtask" {
+            pendingNewTask = true
+        } else if path == "/apps" || path.hasPrefix("/apps/") {
+            pendingAppsPath = String(path.dropFirst("/apps".count))
+                .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         } else if path == "/search" {
             pendingSearch = true
         } else if path == "/settings" || path.hasPrefix("/settings/") {
@@ -320,20 +378,21 @@ final class DeepLinkHandler: ObservableObject {
     static func shouldInterceptAppURL(_ url: URL, selectedDomain: String) -> Bool {
         if shouldInterceptShareURL(url, selectedDomain: selectedDomain) { return true }
         if url.scheme == "openmates" {
-            return ["new-chat", "newchat", "search", "chat", "share", "settings", "app", "inspiration"]
+            return ["new-chat", "newchat", "new-task", "newtask", "tasks", "task", "apps", "search", "chat", "active-chats", "share", "settings", "app", "inspiration"]
                 .contains(url.host ?? "")
         }
         guard isSelectedWebURL(url, selectedDomain: selectedDomain) else { return false }
         let path = url.path
-        if ["/new-chat", "/newchat", "/search", "/settings"].contains(path)
-            || path.hasPrefix("/settings/") || path.hasPrefix("/pair/")
+        if ["/new-chat", "/newchat", "/new-task", "/newtask", "/tasks", "/apps", "/search", "/settings"].contains(path)
+            || path.hasPrefix("/task/") || path.hasPrefix("/apps/") || path.hasPrefix("/settings/") || path.hasPrefix("/pair/")
             || path.hasPrefix("/share/chat/") { return true }
         // Marketing and documentation paths stay in the website. App hash
         // destinations are rooted in the selected web app, never foreign hosts.
         guard path.isEmpty || path == "/" else { return false }
         let fragment = (url.fragment ?? "").trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        if ["new-task", "newtask", "tasks", "apps"].contains(fragment) || fragment.hasPrefix("apps/") { return true }
         if fragment.isEmpty || fragment == "settings" || fragment.hasPrefix("settings/") { return true }
-        return ["chat-id=", "chat_id=", "chatid=", "share-chat-id=", "message=", "pair=", "pair-login=", "settings="]
+        return ["task-id=", "chat-id=", "chat_id=", "chatid=", "share-chat-id=", "message=", "pair=", "pair-login=", "settings="]
             .contains { fragment.hasPrefix($0) }
     }
 
@@ -370,6 +429,7 @@ final class DeepLinkHandler: ObservableObject {
         pendingSharedBrowserURL = nil
         pendingSharedChatURL = nil
         pendingChatId = nil
+        pendingActiveChatsWidgetLink = nil
         pendingEmbedId = nil
         pendingMessageId = nil
         pendingShareChatId = nil
@@ -380,6 +440,12 @@ final class DeepLinkHandler: ObservableObject {
         pendingInspirationId = nil
         pendingMessageText = nil
         pendingWorkflowTemplate = nil
+        pendingWorkflowWidgetRun = nil
+        pendingWorkflowsWorkspace = false
+        pendingTasksWorkspace = false
+        pendingTaskID = nil
+        pendingNewTask = false
+        pendingAppsPath = nil
         pendingNewChat = false
         pendingSearch = false
     }

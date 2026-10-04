@@ -18,6 +18,11 @@
 // Assertions: chats.surface.semantic-parity (MathPlot web/native rendering)
 
 import SwiftUI
+#if os(iOS)
+import UIKit
+#elseif os(macOS)
+import AppKit
+#endif
 
 struct SocialMediaPostEmbedRenderer: View {
     let data: [String: AnyCodable]?
@@ -108,10 +113,8 @@ private struct SocialMediaPostFullscreen: View {
                                 .foregroundStyle(Color.fontPrimary)
                         }
                         if let body = post.body {
-                            Text(body)
-                                .font(.omP)
-                                .foregroundStyle(Color.fontPrimary)
-                                .lineSpacing(.spacing2)
+                            ReadOnlySelectableText(content: ReadOnlySelectableText.attributed(AttributedString(body), lineHeight: 25.6),
+                                identifier: "social-post-body-selection")
                         }
                     }
                     .padding(.horizontal, .spacing8)
@@ -175,10 +178,8 @@ private struct SocialMediaPostFullscreen: View {
                                 }
                                 .font(.omXs.weight(.semibold))
                                 .foregroundStyle(Color.fontSecondary)
-                                Text(comment.body)
-                                    .font(.omSmall)
-                                    .foregroundStyle(Color.fontPrimary)
-                                    .lineSpacing(.spacing2)
+                                ReadOnlySelectableText(content: ReadOnlySelectableText.attributed(AttributedString(comment.body),
+                                    pointSize: 14, lineHeight: 21), identifier: "social-comment-\(comment.id)-selection")
                             }
                             .padding(.top, .spacing5)
                             .overlay(alignment: .top) { Rectangle().fill(Color.grey20).frame(height: 1) }
@@ -1703,6 +1704,18 @@ struct ProductSummaryEmbedRenderer: View {
 struct DesignIconResultEmbedRenderer: View {
     let data: [String: AnyCodable]?
     let mode: EmbedDisplayMode
+    @Environment(\.recipientMediaContext) private var recipient
+    @Environment(\.nativeDesignIconExportState) private var sharedExport
+    @ObservedObject private var account = OfflineStore.shared
+    @StateObject private var actions = NativeEmbedActionController()
+    @State private var rawSVG: Data?
+    @State private var color = "#111827"
+    @State private var pngSize = "256"
+
+    private var preparedSVG: StaticSVGImageSource? {
+        guard let rawSVG else { return nil }
+        return try? NativeDesignIconActions.prepare(rawSVG, color: color, palette: data?["palette"]?.value as? Bool == true)
+    }
 
     private var title: String {
         for key in ["display_name", "name", "icon_id"] {
@@ -1719,8 +1732,8 @@ struct DesignIconResultEmbedRenderer: View {
     }
 
     private var sourceURL: URL? {
-        guard let value = data?["svg_path"]?.value as? String else { return nil }
-        return URL(string: value)
+        NativeDesignIconActions.url(data?["svg_path"]?.value as? String,
+            apiBase: recipient?.apiBaseURL ?? ServerProfile.current().apiBaseURL)
     }
 
     var body: some View {
@@ -1749,28 +1762,41 @@ struct DesignIconResultEmbedRenderer: View {
                     HStack(spacing: .spacing4) {
                         VStack(alignment: .leading, spacing: .spacing2) {
                             Text("Color").font(.omSmall).foregroundStyle(Color.fontSecondary)
-                            Rectangle().fill(Color(red: 0.06, green: 0.08, blue: 0.12))
-                                .frame(width: 48, height: 32)
-                                .overlay(Rectangle().stroke(Color.grey30))
+                            TextField("#111827", text: $color)
+                                .textFieldStyle(OMTextFieldStyle())
+                                .frame(width: 140)
+                                .disabled(data?["palette"]?.value as? Bool == true)
+                                .accessibilityIdentifier("design-icon-color-input")
                         }
                         VStack(alignment: .leading, spacing: .spacing2) {
                             Text("PNG size").font(.omSmall).foregroundStyle(Color.fontSecondary)
-                            Text("256").font(.omSmall).fontWeight(.semibold)
-                                .frame(width: 92, height: 32, alignment: .leading)
-                                .padding(.horizontal, .spacing3)
-                                .background(Color.grey0, in: RoundedRectangle(cornerRadius: .radius4))
-                                .overlay(RoundedRectangle(cornerRadius: .radius4).stroke(Color.grey30))
+                            TextField("256", text: $pngSize)
+                                .textFieldStyle(OMTextFieldStyle())
+                                .frame(width: 120)
+                                .accessibilityIdentifier("design-icon-png-size-input")
                         }
                     }
                     HStack(spacing: .spacing4) {
-                        exportButton("Copy SVG")
-                        exportButton("Download SVG")
+                        exportButton("\(AppStrings.copy) SVG", id: "design-icon-copy-svg") { copySVG() }
+                        exportButton("\(AppStrings.download) SVG", id: "design-icon-download-svg") { exportSVG() }
                     }
-                    exportButton("Download PNG")
+                    exportButton("\(AppStrings.download) PNG", id: "design-icon-download-png") { exportPNG() }
                 }
             }
             .padding(.spacing6)
             .accessibilityIdentifier("design-icon-result-fullscreen")
+            .task(id: sourceURL) {
+                rawSVG = nil
+                guard let sourceURL else { return }
+                let generation = account.scopeGeneration
+                let bytes = try? await NativeDesignIconActions.load(sourceURL, recipient: recipient)
+                guard !Task.isCancelled, account.scopeGeneration == generation else { return }
+                do { try recipient?.checkCurrent(); rawSVG = bytes } catch { }
+            }
+            .onChange(of: preparedSVG?.data, initial: true) { _, bytes in sharedExport?.svg = bytes }
+            .onChange(of: pngSize, initial: true) { _, value in sharedExport?.size = Int(value) ?? 0 }
+            .onDisappear { actions.cancel(); rawSVG = nil; sharedExport?.clear() }
+            .onChange(of: account.scopeGeneration) { _, _ in actions.cancel(); rawSVG = nil }
         }
     }
 
@@ -1778,8 +1804,12 @@ struct DesignIconResultEmbedRenderer: View {
         ZStack {
             RoundedRectangle(cornerRadius: mode == .preview ? .radius4 : 24)
                 .fill(Color.grey10)
-            if let sourceURL {
-                AsyncImage(url: sourceURL) { image in image.resizable().scaledToFit() }
+            if let preparedSVG {
+                StaticSVGRemoteImageView(source: preparedSVG, contentMode: .fit, onSuccess: {}, onFailure: {})
+                    .allowsHitTesting(false)
+                    .frame(width: markSize, height: markSize)
+            } else if let sourceURL {
+                CachedRemoteImage(url: sourceURL) { image in image.resizable().scaledToFit() }
                     placeholder: { Rectangle().fill(Color.grey50).frame(width: markSize, height: markSize) }
                     .frame(width: markSize, height: markSize)
             } else {
@@ -1790,14 +1820,32 @@ struct DesignIconResultEmbedRenderer: View {
         .overlay(RoundedRectangle(cornerRadius: mode == .preview ? .radius4 : 24).stroke(Color.grey20))
     }
 
-    private func exportButton(_ title: String) -> some View {
-        Text(title)
-            .font(.omSmall).fontWeight(.medium)
-            .foregroundStyle(Color.fontSecondary)
-            .padding(.horizontal, .spacing5).padding(.vertical, .spacing3)
-            .background(Color.grey10, in: RoundedRectangle(cornerRadius: .radius4))
-            .overlay(RoundedRectangle(cornerRadius: .radius4).stroke(Color.grey30))
-            .opacity(sourceURL == nil ? 0.55 : 1)
+    private func exportButton(_ title: String, id: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) { Text(title) }
+            .buttonStyle(OMSecondaryButtonStyle())
+            .disabled(preparedSVG == nil || actions.isDownloading)
+            .accessibilityIdentifier(id)
+    }
+    private func copySVG() {
+        guard let source = preparedSVG, let text = String(data: source.data, encoding: .utf8) else { return }
+        do { try recipient?.checkCurrent() } catch { return }
+        #if os(iOS)
+        UIPasteboard.general.string = text
+        #elseif os(macOS)
+        NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string)
+        #endif
+        ToastManager.shared.show(AppStrings.localized("embeds.copied_to_clipboard"), type: .success)
+    }
+    private func exportSVG() {
+        guard let source = preparedSVG else { return }
+        actions.export(.init(filename: NativeDesignIconActions.filename(data: data, extension: "svg"), bytes: source.data, mimeType: "image/svg+xml"),
+            validate: { try recipient?.checkCurrent() })
+    }
+    private func exportPNG() {
+        guard let source = preparedSVG, let size = Int(pngSize) else { return }
+        actions.download(load: {
+            .init(filename: NativeDesignIconActions.filename(data: data, extension: "png"), bytes: try await NativeDesignIconActions.png(source, size: size), mimeType: "image/png")
+        }, validate: { try recipient?.checkCurrent() })
     }
 }
 

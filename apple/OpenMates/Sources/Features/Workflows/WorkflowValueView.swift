@@ -23,10 +23,11 @@ struct WorkflowValueView: View {
 
     @State private var selectedIndex = 0
     @State private var detailsExpanded = false
+    @State private var measuredWidth: CGFloat = 0
 
     private static let maximumDepth = 4
     private static let maximumItems = 30
-    private static let privateKeys: Set<String> = [
+    nonisolated static let privateKeys: Set<String> = [
         "access_token", "refresh_token", "api_key", "secret", "password",
         "authorization", "cookie", "aes_key", "private_key", "id", "type",
         "hash", "source_id", "embed_id", "embed_ids", "delivery_id",
@@ -57,8 +58,14 @@ struct WorkflowValueView: View {
             } else if let dictionary = dictionaryValue {
                 if let kind = resultKind(dictionary) {
                     resultBody(dictionary, kind: kind)
-                } else {
+                } else if depth == 0 {
                     dictionaryBody(dictionary)
+                } else {
+                    DisclosureGroup(AppStrings.localized("workflows.builder.details")) {
+                        dictionaryBody(dictionary)
+                    }
+                    .font(.omP)
+                    .accessibilityIdentifier("workflow-value-details")
                 }
             } else if let items = arrayValue {
                 arrayBody(items)
@@ -77,6 +84,8 @@ struct WorkflowValueView: View {
                     .foregroundStyle(Color.fontSecondary)
             }
         }
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { measuredWidth = $0 }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("workflow-value-view")
     }
 
@@ -96,11 +105,14 @@ struct WorkflowValueView: View {
         } else {
             VStack(alignment: .leading, spacing: .spacing3) {
                 ForEach(Array(keys), id: \.self) { key in
-                    HStack(alignment: .top, spacing: .spacing4) {
+                    let layout = measuredWidth > 550
+                        ? AnyLayout(HStackLayout(alignment: .top, spacing: 13))
+                        : AnyLayout(VStackLayout(alignment: .leading, spacing: 3))
+                    layout {
                         Text(Self.displayLabel(key))
                             .font(.omSmall.weight(.semibold))
                             .foregroundStyle(Color.fontSecondary)
-                            .frame(maxWidth: 132, alignment: .leading)
+                            .frame(maxWidth: measuredWidth > 550 ? 132 : .infinity, alignment: .leading)
                         WorkflowValueView(value: dictionary[key], title: key, appId: appId,
                                           depth: depth + 1)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -126,11 +138,16 @@ struct WorkflowValueView: View {
                         Icon("chevron-left", size: 18)
                     }
                     .disabled(selectedIndex == 0)
+                    .frame(width: 42, height: 42)
+                    .background(Color.grey30, in: Circle())
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("workflow-result-previous")
                     .accessibilityLabel(AppStrings.workflowBuilder(.previous_result))
 
                     Text(AppStrings.workflowResultPosition(current: min(selectedIndex + 1, results.count), total: results.count))
                         .font(.omSmall.weight(.semibold))
                         .foregroundStyle(Color.fontSecondary)
+                        .accessibilityIdentifier("workflow-result-position")
 
                     Button {
                         selectedIndex = min(results.count - 1, selectedIndex + 1)
@@ -138,6 +155,10 @@ struct WorkflowValueView: View {
                         Icon("chevron-right", size: 18)
                     }
                     .disabled(selectedIndex >= results.count - 1)
+                    .frame(width: 42, height: 42)
+                    .background(Color.grey30, in: Circle())
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("workflow-result-next")
                     .accessibilityLabel(AppStrings.workflowBuilder(.next_result))
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
@@ -150,11 +171,22 @@ struct WorkflowValueView: View {
                     .clipShape(RoundedRectangle(cornerRadius: .radius5))
             }
         } else {
-            VStack(alignment: .leading, spacing: .spacing2) {
-                ForEach(Array(items.prefix(Self.maximumItems).enumerated()), id: \.offset) { _, item in
-                    WorkflowValueView(value: item, appId: appId, depth: depth + 1)
+            DisclosureGroup(AppStrings.localized("workflows.builder.output_item_count")
+                .replacingOccurrences(of: "{count}", with: String(items.count))) {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: .spacing3) {
+                        ForEach(Array(items.prefix(Self.maximumItems).enumerated()), id: \.offset) { _, item in
+                            WorkflowValueView(value: item, appId: appId, depth: depth + 1)
+                                .padding(.spacing4)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(Color.grey0, in: RoundedRectangle(cornerRadius: 10))
+                        }
+                    }
                 }
+                .frame(maxHeight: 448)
             }
+            .font(.omP)
+            .accessibilityIdentifier("workflow-value-list")
         }
     }
 
@@ -221,7 +253,7 @@ struct WorkflowValueView: View {
     }
 
     private enum ResultKind {
-        case fitness, event, home
+        case fitness, event, home, news
     }
 
     private func resultKind(_ item: [String: Any]) -> ResultKind? {
@@ -233,6 +265,7 @@ struct WorkflowValueView: View {
         }
         if item["price_label"] != nil || item["size_sqm"] != nil
             || item["type"] as? String == "home_listing" { return .home }
+        if item["url"] != nil, appId == "news" || ["news_result", "news_article"].contains(item["type"] as? String ?? "") { return .news }
         return nil
     }
 
@@ -240,6 +273,13 @@ struct WorkflowValueView: View {
     private func resultBody(_ item: [String: Any], kind: ResultKind) -> some View {
         let data = item.mapValues { AnyCodable($0) }
         VStack(alignment: .leading, spacing: .spacing3) {
+            if kind == .news {
+                // Ephemeral in-memory preview only: never inserted into embed storage.
+                EmbedPreviewCard(embed: EmbedRecord(id: "workflow-value-preview", type: "web-website", status: .finished,
+                    data: .raw(data), parentEmbedId: nil, appId: "news", skillId: "article", embedIds: nil, createdAt: nil),
+                    onTap: { detailsExpanded.toggle() })
+                    .accessibilityIdentifier("workflow-result-card")
+            } else {
             Button { detailsExpanded.toggle() } label: {
                 switch kind {
                 case .fitness:
@@ -248,10 +288,13 @@ struct WorkflowValueView: View {
                     EventResultCard(event: EventResultSummary(embedId: nil, data: data))
                 case .home:
                     HomeListingRenderer(data: data, mode: .preview)
+                case .news:
+                    EmptyView()
                 }
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("workflow-result-card")
+            }
             if showDetails || detailsExpanded {
                 dictionaryBody(item)
                     .padding(.spacing4)
@@ -299,5 +342,170 @@ private struct WorkflowFitnessResultCard: View {
         .background(Color.grey20)
         .clipShape(RoundedRectangle(cornerRadius: 30))
         .shadow(color: .black.opacity(0.12), radius: 16, x: 0, y: 6)
+    }
+}
+
+// WorkflowOutputFields.svelte / WorkflowOutputField.svelte: declared examples
+// have type badges and progressive fields; a completed Test uses readable values.
+enum WorkflowOutputPresentation {
+    static func fields(_ properties: [String: Any]) -> (basic: [String], advanced: [String]) {
+        let diagnostics: Set<String> = ["summary", "warning", "warnings", "partial", "is_partial", "status"]
+        let aliases: Set<String> = ["articles", "events", "listings"]
+        let eligible = properties.keys.sorted().filter { key in
+            let ui = (properties[key] as? [String: Any])?["x-ui"] as? [String: Any] ?? [:]
+            return ui["hidden"] as? Bool != true && !WorkflowValueView.privateKeys.contains(key)
+                && !diagnostics.contains(key) && !key.hasPrefix("_") && !key.hasPrefix("encrypted_")
+                && !key.hasPrefix("hashed_") && !key.hasSuffix("_id") && !key.hasSuffix("_ids")
+                && !(properties["results"] != nil && aliases.contains(key))
+        }
+        func ui(_ key: String) -> [String: Any] { (properties[key] as? [String: Any])?["x-ui"] as? [String: Any] ?? [:] }
+        let explicit = eligible.filter { ui($0)["basic"] as? Bool == true }
+        let hasSelection = eligible.contains { ui($0)["basic"] is Bool }
+        let preferred: Set<String> = ["result", "results", "answer", "text", "content", "result_count", "count", "title", "name", "date_start", "start_time", "start_date", "start", "location", "address", "url", "link", "value", "matched", "forecast", "forecast_day", "forecast_days", "temperature", "rain_probability", "rain_expected", "rain_periods", "rain_summary", "max_temperature_c", "min_temperature_c", "condition"]
+        let prioritized = explicit + eligible.filter { ui($0)["basic"] == nil && preferred.contains($0) }
+        let basic = hasSelection ? explicit : Array((prioritized.isEmpty ? eligible : prioritized).prefix(4))
+        return (basic, eligible.filter { !basic.contains($0) })
+    }
+
+    static func example(_ schema: [String: Any], depth: Int = 0) -> Any? {
+        if let value = schema["example"] { return value }
+        if let values = schema["examples"] as? [Any], let value = values.first { return value }
+        if let value = schema["default"] { return value }
+        guard depth < 8 else { return nil }
+        if schema["type"] as? String == "object", let properties = schema["properties"] as? [String: Any] {
+            let values = properties.compactMapValues { field in
+                (field as? [String: Any]).flatMap { example($0, depth: depth + 1) }
+            }
+            return values.isEmpty ? nil : values
+        }
+        if schema["type"] as? String == "array", let item = schema["items"] as? [String: Any],
+           let value = example(item, depth: depth + 1) { return [value] }
+        return nil
+    }
+
+    static func type(_ schema: [String: Any]) -> String {
+        if (schema["format"] as? String)?.contains("date") == true { return "date" }
+        switch schema["type"] as? String {
+        case "array": return "list"
+        case "integer", "number": return "number"
+        case "boolean": return "boolean"
+        case "object": return "object"
+        default: return "text"
+        }
+    }
+}
+
+struct WorkflowOutputFieldsView: View {
+    let properties: [String: Any]
+    var appId = ""
+    @State private var showAll = false
+
+    var body: some View {
+        let fields = WorkflowOutputPresentation.fields(properties)
+        VStack(alignment: .leading, spacing: 16) {
+            ForEach(showAll ? fields.basic + fields.advanced : fields.basic, id: \.self) { key in
+                WorkflowOutputFieldView(name: key, schema: properties[key] as? [String: Any] ?? [:], appId: appId)
+            }
+            if !fields.advanced.isEmpty {
+                Button(AppStrings.workflowBuilder(showAll ? .show_basic_fields : .show_all_fields)) { showAll.toggle() }
+                    .buttonStyle(.plain)
+                    .font(.omSmall)
+                    .foregroundStyle(Color.fontSecondary)
+                    .frame(maxWidth: .infinity)
+                    .accessibilityIdentifier("workflow-output-show-all")
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("workflow-output-fields")
+    }
+}
+
+private struct WorkflowOutputFieldView: View {
+    let name: String
+    let schema: [String: Any]
+    let appId: String
+    @State private var expanded = false
+    @State private var measuredWidth: CGFloat = 0
+
+    private var type: String { WorkflowOutputPresentation.type(schema) }
+    private var color: Color { type == "number" ? .error : type == "date" ? .warning : Color(hex: 0x4867CD) }
+    private var icon: String {
+        if type == "date" { return "lucide-calendar-days" }
+        if ["location", "address"].contains(name) { return "lucide-map-pin" }
+        if name.contains("count") || type == "number" { return "lucide-hash" }
+        if name.contains("url") || name.contains("link") { return "lucide-link" }
+        switch type {
+        case "list": return "lucide-list"
+        case "object": return "lucide-braces"
+        case "boolean": return "lucide-toggle-left"
+        default: return "lucide-type"
+        }
+    }
+
+    private var typeBadge: some View {
+        Text(AppStrings.localized("workflows.builder.output_type_\(type)"))
+            .font(.omSmall)
+            .padding(.horizontal, 5).padding(.vertical, 2)
+            .foregroundStyle(Color.fontButton)
+            .background(color, in: RoundedRectangle(cornerRadius: 3))
+            .accessibilityIdentifier("workflow-output-type")
+    }
+
+    private var fieldName: some View {
+        HStack(alignment: .top, spacing: 4) {
+            Icon(icon, size: 18).foregroundStyle(Color.fontSecondary)
+            Text(schema["title"] as? String ?? WorkflowValueView.displayLabel(name))
+                .font(.omP.weight(.semibold))
+        }
+    }
+
+    @ViewBuilder private var exampleValue: some View {
+        let value = WorkflowOutputPresentation.example(schema)
+        if let items = value as? [Any], !items.isEmpty {
+            Button { expanded.toggle() } label: {
+                Icon(expanded ? "chevron-up" : "dropdown", size: 22)
+                    .frame(width: 32, height: 32)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(AppStrings.localized("workflows.builder.details"))
+            .accessibilityIdentifier("workflow-output-list-disclosure")
+        } else {
+            WorkflowValueView(value: value, title: name, appId: appId)
+        }
+    }
+
+    var body: some View {
+        let items = WorkflowOutputPresentation.example(schema) as? [Any]
+        VStack(alignment: .leading, spacing: 8) {
+            if measuredWidth > 730 {
+                HStack(alignment: .top, spacing: 10) {
+                    typeBadge.frame(width: 88, alignment: .leading)
+                    fieldName.frame(maxWidth: .infinity, alignment: .leading)
+                    exampleValue.frame(maxWidth: .infinity, alignment: .leading)
+                }
+            } else {
+                HStack(alignment: .center, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        typeBadge
+                        fieldName
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    exampleValue.frame(width: 108, alignment: .leading)
+                }
+            }
+            if expanded, let first = items?.first {
+                // The web example disclosure inspects the first declared item.
+                WorkflowValueView(value: first, appId: appId)
+                    .padding(13)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.grey10, in: RoundedRectangle(cornerRadius: 5))
+                    .accessibilityElement(children: .contain)
+                    .accessibilityIdentifier("workflow-output-list-details")
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("workflow-output-field")
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { measuredWidth = $0 }
     }
 }

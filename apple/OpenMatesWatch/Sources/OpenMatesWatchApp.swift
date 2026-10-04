@@ -22,6 +22,11 @@ import WatchKit
 struct OpenMatesWatchApp: App {
     @WKApplicationDelegateAdaptor(WatchPushAppDelegate.self) private var pushDelegate
     init() {
+#if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--ui-test-watch-reset-zoom") {
+            UserDefaults.standard.removeObject(forKey: "watch.transcript.zoom")
+        }
+#endif
         FontRegistration.registerFonts()
         WatchPushNotificationManager.shared.configureForLaunch()
     }
@@ -47,6 +52,12 @@ struct OpenMatesWatchApp: App {
                 WatchCrownBindingDiagnosticView()
             } else if ProcessInfo.processInfo.arguments.contains("--ui-test-watch-native-crown") {
                 WatchNativeCrownDiagnosticView()
+            } else if ProcessInfo.processInfo.arguments.contains("--ui-test-watch-message-window") {
+                WatchMessageWindowUITestView()
+            } else if ProcessInfo.processInfo.arguments.contains("--ui-test-watch-chat-list-metadata") {
+                WatchChatListMetadataUITestView()
+            } else if ProcessInfo.processInfo.arguments.contains("--ui-test-watch-chat-share") {
+                WatchChatShareUITestView()
             } else if ProcessInfo.processInfo.arguments.contains("--ui-test-watch-chat-layout") {
                 WatchChatShellView(
                     uiTestSnapshot: Self.uiTestSnapshot,
@@ -60,6 +71,13 @@ struct OpenMatesWatchApp: App {
                                    fixtureNotificationChatID: "missing-notification-chat")
             } else if ProcessInfo.processInfo.arguments.contains("--ui-test-watch-chat-remote-draft") {
                 WatchChatShellView(uiTestSnapshot: .empty, selectedChatId: nil, remoteDraftFixture: true)
+            } else if ProcessInfo.processInfo.arguments.contains("--ui-test-watch-offline-cohort") {
+                WatchOfflineCohortUITestView()
+            } else if ProcessInfo.processInfo.arguments.contains("--watch-whisper-lab-fixture") {
+                WatchWhisperLabView()
+            } else if ProcessInfo.processInfo.arguments.contains("--ui-test-watch-chat-mobile-preview") {
+                WatchChatShellView(uiTestSnapshot: Self.uiTestMobilePreviewSnapshot, selectedChatId: Self.uiTestChatId)
+                    .environment(\.dynamicTypeSize, ProcessInfo.processInfo.arguments.contains("--ui-test-watch-large-text") ? .accessibility3 : .large)
             } else if ProcessInfo.processInfo.arguments.contains("--ui-test-watch-chat-markdown") {
                 WatchChatShellView(uiTestSnapshot: Self.uiTestMarkdownSnapshot, selectedChatId: Self.uiTestChatId)
             } else if ProcessInfo.processInfo.arguments.contains("--ui-test-watch-chat-draft") {
@@ -127,6 +145,61 @@ struct OpenMatesWatchApp: App {
         messagesByChatId: [:],
         savedAt: Date(timeIntervalSince1970: 0)
     )
+
+    /// Local payloads exercise the production mobile composition without
+    /// granting fixture launches account, network or persistence access.
+    private static var uiTestMobilePreviewSnapshot: WatchChatSnapshot {
+        let args = ProcessInfo.processInfo.arguments
+        let family = args.firstIndex(of: "--ui-test-watch-embed-family")
+            .flatMap { args.indices.contains($0 + 1) ? args[$0 + 1] : nil } ?? "spreadsheet"
+        let type: EmbedType
+        switch family {
+        case "website": type = .webWebsite
+        case "webVideo": type = .videosVideo
+        case "image": type = .image
+        case "audioRecording": type = .recording
+        case "code": type = .codeCode
+        case "pdf": type = .pdf
+        case "mapPlace": type = .mapsPlace
+        case "searchResults": type = .eventsSearch
+        case "travelStay": type = .travelStay
+        case "travelConnection": type = .travelConnection
+        case "shoppingProduct": type = .shoppingProduct
+        case "weather": type = .weatherForecast
+        case "reminder": type = .reminderSet
+        case "event": type = .eventsEvent
+        case "document": type = .docsDoc
+        case "mindmap": type = .mindmapsMindmap
+        case "audio": type = .audioSpeak
+        case "application": type = .mailEmail
+        default: type = .sheetsSheet
+        }
+        let data: [String: AnyCodable] = [
+            "title": AnyCodable("devices.xls"), "query": AnyCodable("Public device comparison"),
+            "table": AnyCodable("| Device | Type |\n| --- | --- |\n| Nexus Fold X | Phone |\n| Lumina Watch Pro | Watch |\n| AuraBook Air | Laptop |"),
+            "row_count": AnyCodable(29), "col_count": AnyCodable(2),
+            "code": AnyCodable("let device = \"Watch\"\nlet readable = true"),
+            "summary": AnyCodable("A compact public device comparison."),
+            "filename": AnyCodable("devices.xls"), "line_count": AnyCodable(2),
+            "location_latitude": AnyCodable(52.52), "location_longitude": AnyCodable(13.405),
+            "thumbnail_base64": AnyCodable(family == "image" ? "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGPwL73xHwAFTwKctQraKwAAAABJRU5ErkJggg==" : ""),
+        ]
+        let missing = args.contains("--ui-test-watch-preview-missing-payload")
+        let id = "watch-mobile-preview"
+        let grouped = args.contains("--ui-test-watch-preview-group")
+        var refs = [WatchEmbedRef(id: id, type: type.rawValue, status: "finished", data: missing ? nil : data)]
+        if grouped { refs.append(WatchEmbedRef(id: "watch-second-preview", type: type.rawValue,
+            status: "finished", data: ["title": AnyCodable("second.xls"), "table": data["table"]!])) }
+        let content = grouped ? "Before the previews\n\n[!](embed:\(id))\n\n[!](embed:watch-second-preview)\n\nAfter the previews" : "Hello Watch\n\n[!](embed:\(id))"
+        let message = WatchChatMessage(id: "watch-mobile-message", chatId: uiTestChatId,
+            role: .assistant, content: content, encryptedContent: nil,
+            embedRefs: refs,
+            createdAt: "2026-10-03T12:00:00Z", isPending: false)
+        return WatchChatSnapshot(chats: [WatchChatSummary(id: uiTestChatId, title: "Mobile previews",
+            lastMessageAt: nil, preview: nil, isPinned: false, encryptedTitle: nil,
+            encryptedPreview: nil, encryptedChatKey: nil)],
+            messagesByChatId: [uiTestChatId: [message]], savedAt: .distantPast)
+    }
 
     private static let uiTestMarkdownSnapshot = WatchChatSnapshot(
         chats: [WatchChatSummary(id: uiTestChatId, title: "Public Berlin events", lastMessageAt: "2026-09-30T12:00:00Z",

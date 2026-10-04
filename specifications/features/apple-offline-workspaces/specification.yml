@@ -1,0 +1,97 @@
+schema_version: 1
+id: feature.apple-offline-workspaces
+version: 1
+status: draft
+title: Apple offline workspaces
+summary: Workflows, tasks and project metadata load from encrypted device storage before connected refresh.
+scope:
+  includes:
+  - Current full workflow definitions, encrypted task/plan inventories and encrypted project metadata.
+  - Device-first workspace entry and scope-safe connected maintenance.
+  excludes:
+  - Downloading all connected project file bodies and fabricating remote source presence.
+  - Changes to task lifecycle rules or server encryption ownership.
+relationships:
+  related_specifications:
+  - feature.workflows
+  - feature.tasks
+  - feature.projects
+  - feature.apple-recent-offline-chats
+assertions:
+- id: apple-workspaces.offline-complete
+  type: behavior
+  must: For the authenticated account and explicit team context, connected maintenance traverses all task and plan
+    pages on iPhone and macOS and retains every current workflow definition and all project metadata exposed by complete first-party
+    snapshots. Workflow graphs and any client-decoded data are encrypted before persistence; encrypted records retain
+    their required scoped wrappers and permissions. Cached availability never fabricates connected-source liveness
+    or remote file content.
+  depends_on:
+  - examples.complete
+- id: apple-workspaces.watch-retention
+  type: behavior
+  must: Watch proactively retains up to fifty personal tasks in each of backlog, todo, in_progress, blocked and done,
+    independently of the selected hub section. This explicit constrained-device exception does not limit the complete
+    iPhone or macOS inventory. Watch retains current definitions for all personal workflows and the latest fifty run
+    metadata records per workflow; node outputs and run details are fetched on demand and previously fetched details
+    remain available offline. A successful status request replaces that bounded status cache; truncation never claims
+    a complete account inventory. Each hub entry is limited to two megabytes and the encrypted hub cache to sixty-four
+    megabytes; a refused oversized write preserves its prior valid entry and never fabricates offline availability.
+    Cache reads precede network repair, cached content remains read-only until verified online reads succeed, and
+    utility maintenance pauses for foreground navigation. Opportunistic watchOS application refresh uses a bounded
+    execution window and completes its OS task; OS scheduling does not guarantee completion before first suspension.
+  depends_on:
+  - examples.watch
+- id: apple-workspaces.local-first
+  type: behavior
+  must: Opening Workflows, Tasks or Projects and a cached detail renders available device data before remote refresh.
+    Cached data remains visible during refresh or transient connection failure; task board publication does not
+    wait for supplementary plans or project labels. Workflow selection does not clear an available cached graph
+    while requesting newer data.
+  depends_on:
+  - examples.opening
+- id: apple-workspaces.isolation
+  type: privacy
+  must: Cache identity includes account, server and explicit personal or team context. Runtime scope and operation
+    generations reject late responses. Secrets and decrypted private metadata are not stored in plaintext, and deletions
+    reconcile only after successful complete snapshots; partial or failed traversal preserves the last complete
+    cache.
+  depends_on:
+  - examples.isolation
+- id: apple-workspaces.maintenance
+  type: invariant
+  must: Workspace refresh is coalesced and low-priority, does not issue duplicate concurrent list/detail loads,
+    and yields to foreground navigation. On connection restoration it updates retained revisions without requiring
+    the user to open each workspace, while UI card windows remain bounded and stale data is not reported as freshly
+    synchronized.
+  depends_on:
+  - examples.refresh
+applies_to:
+  rest_api:
+    required: false
+  cli:
+    required: false
+  sdks:
+    required: false
+    implementations:
+      npm:
+        required: false
+      pip:
+        required: false
+  gui:
+    required: true
+    implementations:
+      web:
+        required: false
+      apple:
+        required: true
+examples:
+  file: examples.yml
+  required_groups:
+  - complete
+  - opening
+  - isolation
+  - refresh
+  - watch
+approval_source:
+  instruction: Direct user instruction in codex thread 01a0eeac-16cd-7ff1-941a-5d1fb4908fae on 2026-10-03. Implementation
+    is explicitly authorized; no separate fingerprint approval is claimed.

@@ -4,6 +4,9 @@
 # prompts, and evidence are client-encrypted; the backend stores only minimal
 # metadata needed for ownership, filtering, status, and orchestration.
 
+# Specification: specifications/features/apple-offline-workspaces/specification.yml
+# Assertions: apple-workspaces.offline-complete, apple-workspaces.isolation
+
 import hashlib
 import logging
 import re
@@ -259,12 +262,14 @@ class UserPlanMethods:
         active_only: bool = False,
         team_id: str | None = None,
         limit: int = 100,
+        paginate: bool = False,
+        cursor: str | None = None,
     ) -> list[dict[str, Any]]:
         requested_limit = max(1, min(limit, 500))
         params: dict[str, Any] = {
             "fields": USER_PLAN_FIELDS,
-            "sort": "-updated_at",
-            "limit": -1 if project_id else requested_limit,
+            "sort": "plan_id" if paginate else "-updated_at",
+            "limit": requested_limit + 1 if paginate else (-1 if project_id else requested_limit),
         }
         if team_id:
             params["filter[hashed_team_id][_eq]"] = hash_id(team_id)
@@ -277,12 +282,33 @@ class UserPlanMethods:
             params["filter[status][_in]"] = ["active", "executing", "blocked"]
         if chat_id:
             params["filter[hashed_primary_chat_id][_eq]"] = hash_id(chat_id)
-        response = await self.directus_service.get_items("user_plans", params=params, no_cache=True)
+        if paginate and cursor is not None:
+            params["filter[plan_id][_gt]"] = cursor
+        response = await self.directus_service.get_items("user_plans", params=params, no_cache=True,
+            **({"raise_on_error": True} if paginate else {}))
+        if paginate and not isinstance(response, list):
+            raise RuntimeError("Workspace inventory page did not return items")
         plans = response if isinstance(response, list) else []
         if project_id:
             project_hash = hash_id(project_id)
             plans = [plan for plan in plans if project_hash in _coerce_hashes(plan.get("linked_project_hashes"))]
-            plans = plans[:requested_limit]
+            if paginate:
+                batch = response if isinstance(response, list) else []
+                last_cursor = cursor
+                while len(plans) < requested_limit + 1 and len(batch) == requested_limit + 1:
+                    next_cursor = batch[-1].get("plan_id")
+                    if not isinstance(next_cursor, str) or not next_cursor or next_cursor == last_cursor:
+                        raise RuntimeError("Workspace inventory cursor did not advance")
+                    last_cursor = next_cursor
+                    params["filter[plan_id][_gt]"] = next_cursor
+                    response = await self.directus_service.get_items("user_plans", params=params, no_cache=True, raise_on_error=True)
+                    if not isinstance(response, list):
+                        raise RuntimeError("Workspace inventory page did not return items")
+                    batch = response
+                    plans.extend(row for row in batch if project_hash in _coerce_hashes(row.get("linked_project_hashes")))
+                plans = plans[:requested_limit + 1]
+            else:
+                plans = plans[:requested_limit]
         for plan in plans:
             if "key_wrappers" not in plan:
                 plan["key_wrappers"] = await self.list_plan_key_wrappers(user_id, str(plan.get("plan_id") or ""))
@@ -711,10 +737,28 @@ class UserPlanMethods:
             return None
         return data
 
-    async def list_criteria(self, plan_id: str) -> list[dict[str, Any]]:
-        params = {"filter[plan_id][_eq]": plan_id, "fields": CRITERION_FIELDS, "sort": "created_at"}
-        response = await self.directus_service.get_items("user_plan_acceptance_criteria", params=params, no_cache=True)
+    async def _list_child_collection(
+        self, collection: str, fields: str, plan_id: str, *,
+        paginate: bool = False, limit: int = 100, cursor: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Read opaque Plan children; the caller authorizes their parent first."""
+        params = {"filter[plan_id][_eq]": plan_id, "fields": fields, "sort": "created_at"}
+        if paginate:
+            params.update(sort="id", limit=max(1, min(limit, 500)) + 1)
+            if cursor is not None:
+                params["filter[id][_gt]"] = cursor
+        response = await self.directus_service.get_items(
+            collection, params=params, no_cache=True,
+            **({"raise_on_error": True} if paginate else {}),
+        )
+        if paginate and not isinstance(response, list):
+            raise RuntimeError("Invalid Plan child inventory response")
         return response if isinstance(response, list) else []
+
+    async def list_criteria(self, plan_id: str, *, paginate: bool = False,
+                          limit: int = 100, cursor: str | None = None) -> list[dict[str, Any]]:
+        return await self._list_child_collection("user_plan_acceptance_criteria", CRITERION_FIELDS, plan_id,
+                                                 paginate=paginate, limit=limit, cursor=cursor)
 
     async def update_criterion(self, plan_id: str, criterion_id: str, patch: dict[str, Any]) -> dict[str, Any] | None:
         params = {
@@ -747,10 +791,10 @@ class UserPlanMethods:
             return None
         return data
 
-    async def list_verifications(self, plan_id: str) -> list[dict[str, Any]]:
-        params = {"filter[plan_id][_eq]": plan_id, "fields": VERIFICATION_FIELDS, "sort": "created_at"}
-        response = await self.directus_service.get_items("user_plan_verifications", params=params, no_cache=True)
-        return response if isinstance(response, list) else []
+    async def list_verifications(self, plan_id: str, *, paginate: bool = False,
+                          limit: int = 100, cursor: str | None = None) -> list[dict[str, Any]]:
+        return await self._list_child_collection("user_plan_verifications", VERIFICATION_FIELDS, plan_id,
+                                                 paginate=paginate, limit=limit, cursor=cursor)
 
     async def update_verification(self, plan_id: str, verification_id: str, patch: dict[str, Any]) -> dict[str, Any] | None:
         params = {
@@ -775,10 +819,10 @@ class UserPlanMethods:
             return None
         return data
 
-    async def list_assumptions(self, plan_id: str) -> list[dict[str, Any]]:
-        params = {"filter[plan_id][_eq]": plan_id, "fields": ASSUMPTION_FIELDS, "sort": "created_at"}
-        response = await self.directus_service.get_items("user_plan_assumptions", params=params, no_cache=True)
-        return response if isinstance(response, list) else []
+    async def list_assumptions(self, plan_id: str, *, paginate: bool = False,
+                          limit: int = 100, cursor: str | None = None) -> list[dict[str, Any]]:
+        return await self._list_child_collection("user_plan_assumptions", ASSUMPTION_FIELDS, plan_id,
+                                                 paginate=paginate, limit=limit, cursor=cursor)
 
     async def update_assumption(self, plan_id: str, assumption_id: str, patch: dict[str, Any]) -> dict[str, Any] | None:
         params = {
@@ -806,10 +850,10 @@ class UserPlanMethods:
             return None
         return data
 
-    async def list_reference_patterns(self, plan_id: str) -> list[dict[str, Any]]:
-        params = {"filter[plan_id][_eq]": plan_id, "fields": REFERENCE_PATTERN_FIELDS, "sort": "created_at"}
-        response = await self.directus_service.get_items("user_plan_reference_patterns", params=params, no_cache=True)
-        return response if isinstance(response, list) else []
+    async def list_reference_patterns(self, plan_id: str, *, paginate: bool = False,
+                          limit: int = 100, cursor: str | None = None) -> list[dict[str, Any]]:
+        return await self._list_child_collection("user_plan_reference_patterns", REFERENCE_PATTERN_FIELDS, plan_id,
+                                                 paginate=paginate, limit=limit, cursor=cursor)
 
     async def update_reference_pattern(self, plan_id: str, pattern_id: str, patch: dict[str, Any]) -> dict[str, Any] | None:
         params = {

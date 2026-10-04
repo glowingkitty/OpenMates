@@ -68,3 +68,24 @@ chat_layout:
     given: A conversation with a website embed is open on a small Watch.
     when: The user views the transcript and reply area.
     then: The embed fits the viewport and the text and audio reply controls remain reachable.
+  - id: mobile-preview-hierarchy-and-readable-text
+    given: A Watch conversation contains a hydrated sheet with a declared 58 cells and previews from the other supported embed families.
+    when: The user reads the transcript, views the previews, and increases Dynamic Type.
+    then: Transcript text starts at a scalable 15 points; long-press Zoom in and Zoom out resize it and retain only the preference; every preview is 156 points wide with its bounded payload visual above the full-width gradient app-icon bar and its centered title and metadata below. The sheet shows bounded real cells and reports 58 cells.
+  - id: markers-with-incomplete-or-missing-payload
+    given: A message contains actual embed markers while its supplied embed-reference list is empty or partial, and one referenced embed has no decrypted payload.
+    when: The Watch renders the message and the user opens the unavailable preview's continuation action.
+    then: Actual marker references are merged without duplicating or discarding richer supplied data; the missing payload is visibly unavailable with no invented preview content, and continuation remains usable.
+  - id: inline-group-and-read-only-detail
+    given: A Watch message contains text before and after two consecutive sheet previews, with available real cells, and another message has image thumbnails and valid map coordinates.
+    when: The user scrolls the previews horizontally and opens the selected sheet, image, or map.
+    then: The group stays between the original text blocks in iPhone ordering; fullscreen reads the selected hydrated content including full cells, thumbnails, and the coordinate map with Back and explicit iPhone continuation, and exposes no edit control. Unavailable content remains explicit.
+offline_cohort:
+  - id: unopened-recent-chat-after-network-loss
+    given: Twenty-one ordinary chats include an old pinned chat; the most recently active unpinned chat has 101 encrypted messages and an encrypted sheet embed with wrapped keys.
+    when: Watch completes serial maintenance while active, loses network access, and the user opens the recent chat for the first time and pages backward and forward.
+    then: Exactly the latest twenty chats have complete encrypted receipts, excluding the old pinned chat; the recent chat opens with its cached sheet preview, all 101 messages are reachable in pages of at most fifty, and bulk binary assets have not been downloaded.
+  - id: interrupted-or-wrong-scope-maintenance
+    given: A Watch maintenance request is in progress or returns a partial response or a mismatched full message count.
+    when: The user opens a foreground detail, the app backgrounds, or the account or server changes before completion.
+    then: Maintenance stops and late responses cannot commit a receipt or alter visible content; valid receipts remain usable in their original scope, another account or server cannot open them, maintenance can resume when eligible, and logout removes the encrypted cohort files.

@@ -1,6 +1,8 @@
 // S3 encrypted media download and decryption client.
 // Handles downloading AES-encrypted media files (images, audio, PDFs)
 // from S3, decrypting them with embed-specific keys, and caching results.
+// Specification: specifications/features/projects/specification.yml
+// Assertions: projects.access.explicit-context, projects.surface.semantic-parity
 
 import Foundation
 import CryptoKit
@@ -21,18 +23,22 @@ actor S3MediaClient {
     private var inFlight: [String: Task<Data, Error>] = [:]
     private let diskCache: MediaDiskCache?
     private let encryptedDataLoader: @Sendable (String, String?) async throws -> Data
+    private let boundedEncryptedDataLoader: @Sendable (String, String?, Int) async throws -> Data
 
     private init() {
         diskCache = MediaDiskCache(directoryName: "s3-media")
         encryptedDataLoader = Self.downloadFromS3
+        boundedEncryptedDataLoader = Self.downloadBoundedFromS3
     }
 
     // Isolated test seam: a real encrypted payload exercises the cache policy
     // without an API request or persistent user media.
     init(diskCache: MediaDiskCache? = nil,
-         encryptedDataLoader: @escaping @Sendable (String, String?) async throws -> Data) {
+         encryptedDataLoader: @escaping @Sendable (String, String?) async throws -> Data,
+         boundedEncryptedDataLoader: (@Sendable (String, String?, Int) async throws -> Data)? = nil) {
         self.diskCache = diskCache
         self.encryptedDataLoader = encryptedDataLoader
+        self.boundedEncryptedDataLoader = boundedEncryptedDataLoader ?? Self.downloadBoundedFromS3
     }
 
     func fetchAndDecrypt(
@@ -90,6 +96,36 @@ actor S3MediaClient {
         }
     }
 
+    /// README/private small media has its own bounded, memory-only path. It
+    /// never joins an unbounded cached flight or persists decrypted bytes.
+    func fetchAndDecryptBounded(
+        s3Url: String, aesKeyHex: String, aesNonceHex: String?,
+        encryption: String? = nil, s3Key: String? = nil,
+        maximumPlaintextBytes: Int
+    ) async throws -> Data {
+        let limit = try Self.ciphertextLimit(maximumPlaintextBytes: maximumPlaintextBytes,
+            encodedNonce: aesNonceHex, encryption: encryption)
+        try Task.checkCancellation()
+        let encrypted = try await boundedEncryptedDataLoader(s3Url, s3Key, limit)
+        try Task.checkCancellation()
+        // Enforce before constructing the sealed box or allocating plaintext,
+        // including when a supplied test transport violates its byte contract.
+        guard encrypted.count <= limit else { throw URLError(.dataLengthExceedsMaximum) }
+        let decrypted = try Self.decryptAESGCM(data: encrypted, encodedKey: aesKeyHex,
+            encodedNonce: aesNonceHex, encryption: encryption)
+        guard decrypted.count <= maximumPlaintextBytes else { throw URLError(.dataLengthExceedsMaximum) }
+        return decrypted
+    }
+
+    static func ciphertextLimit(maximumPlaintextBytes: Int, encodedNonce: String?, encryption: String?) throws -> Int {
+        guard maximumPlaintextBytes > 0, maximumPlaintextBytes <= Int.max - 28 else {
+            throw URLError(.dataLengthExceedsMaximum)
+        }
+        if let encryption, encryption != noncePrefixedEncryption { throw S3Error.unsupportedEncryptionMarker }
+        let overhead = encryption == noncePrefixedEncryption || encodedNonce?.isEmpty != false ? 28 : 16
+        return maximumPlaintextBytes + overhead
+    }
+
     static func cacheKey(s3Url: String, aesKey: String, nonce: String?, encryption: String?, s3Key: String?, namespace: String?) -> String {
         let mediaIdentity = s3Key ?? s3Url
         guard let namespace else { return mediaIdentity }
@@ -131,6 +167,48 @@ actor S3MediaClient {
               (200...299).contains(httpResponse.statusCode) else {
             throw S3Error.downloadFailed
         }
+        return data
+    }
+
+    private static func downloadBoundedFromS3(_ urlString: String, s3Key: String?, maximumBytes: Int) async throws -> Data {
+        let target: String
+        if let s3Key, !s3Key.isEmpty {
+            let encoded = s3Key.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed.subtracting(CharacterSet(charactersIn: "&=+?#"))) ?? s3Key
+            let response: PresignedURLResponse = try await APIClient.shared.request(.get,
+                path: "/v1/embeds/presigned-url?s3_key=\(encoded)")
+            target = response.url
+        } else { target = urlString }
+        guard let components = URLComponents(string: target), components.scheme == "https",
+              components.user == nil, components.password == nil, let url = components.url else { throw S3Error.invalidURL }
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.httpCookieStorage = nil
+        configuration.urlCredentialStorage = nil
+        configuration.httpShouldSetCookies = false
+        configuration.urlCache = nil
+        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
+        let session = URLSession(configuration: configuration)
+        // Cancels the response immediately if its declared/actual size exceeds
+        // the cap. No owner headers or cookies leave the presigned-url API.
+        defer { session.invalidateAndCancel() }
+        var request = URLRequest(url: url)
+        request.httpShouldHandleCookies = false
+        let (bytes, response) = try await session.bytes(for: request)
+        return try await boundedResponseData(bytes, response: response, maximumBytes: maximumBytes)
+    }
+
+    static func boundedResponseData<Bytes: AsyncSequence>(
+        _ bytes: Bytes, response: URLResponse, maximumBytes: Int
+    ) async throws -> Data where Bytes.Element == UInt8 {
+        guard maximumBytes > 0 else { throw URLError(.dataLengthExceedsMaximum) }
+        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else { throw S3Error.downloadFailed }
+        guard response.expectedContentLength <= Int64(maximumBytes) else { throw URLError(.dataLengthExceedsMaximum) }
+        var data = Data()
+        for try await byte in bytes {
+            guard data.count < maximumBytes else { throw URLError(.dataLengthExceedsMaximum) }
+            if data.count % 16_384 == 0 { try Task.checkCancellation() }
+            data.append(byte)
+        }
+        try Task.checkCancellation()
         return data
     }
 

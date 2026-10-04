@@ -847,6 +847,139 @@ final class ChatHistoryRenderDocumentTests: XCTestCase {
         )
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.streaming.progressive-presentation,chats.rendering.assistant-document-convergence,chats.surface.semantic-parity
+    func testMessagePresentationFiltersAndResolvesParentsOnceForAllConsumers() {
+        let raw = "Visible answer.\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"parent\""
+        let message = presentationMessage(content: "Earlier answer.")
+        let parent = presentationParent("parent")
+        var filterCalls = 0
+        var resolverCalls = 0
+        let presentation = ChatMessageRenderPresentation(
+            message: message, streamingContent: raw, piiMappings: [], isPIIRevealed: false,
+            embeds: [parent], allEmbedRecords: [parent.id: parent],
+            streamingFilter: { content in
+                filterCalls += 1
+                return ChatMessageStreamingRenderPolicy.visibleContent(content)
+            }, parentResolver: { embeds, records, content in
+                resolverCalls += 1
+                XCTAssertEqual(content, "Visible answer.\n")
+                return ChatMessageRenderPresentation.resolveParents(embeds, records, content)
+            }
+        )
+        // Content, counts, card traversal, inline suppression and accessibility all
+        // read the same prepared value instead of invoking the policies again.
+        for _ in 0..<8 {
+            XCTAssertEqual(presentation.displayContent, "Visible answer.\n")
+            XCTAssertEqual(presentation.progressiveContent, raw)
+            XCTAssertEqual(presentation.topLevelAppSkillEmbeds.map(\.id), [parent.id])
+            XCTAssertEqual(presentation.hiddenInlineEmbedIds, [parent.id])
+            XCTAssertEqual(ChatMessageAccessibilityPolicy.semanticLabel(
+                content: presentation.displayContent, thinkingContent: nil,
+                embedTypes: [parent.type], fallback: "message-assistant"), "Visible answer.")
+        }
+        XCTAssertEqual(filterCalls, 1)
+        XCTAssertEqual(resolverCalls, 1)
+        XCTAssertNil(presentation.stableRenderDocument)
+
+        let ordinaryJSON = "```json\n{\"answer\":true"
+        let ordinary = ChatMessageRenderPresentation(
+            message: message, streamingContent: ordinaryJSON, piiMappings: [], isPIIRevealed: false,
+            embeds: [], allEmbedRecords: [:])
+        XCTAssertEqual(ordinary.displayContent, ordinaryJSON)
+        XCTAssertEqual(ordinary.progressiveContent, ordinaryJSON)
+        for role in [MessageRole.user, .system] {
+            let row = ChatMessageRenderPresentation(
+                message: presentationMessage(content: "Visible answer.", role: role),
+                streamingContent: nil, piiMappings: [], isPIIRevealed: false,
+                embeds: [parent], allEmbedRecords: [parent.id: parent],
+                streamingFilter: { _ in XCTFail("Complete rows must not filter streaming protocol"); return "" },
+                parentResolver: { _, _, _ in XCTFail("Only assistant rows render parent cards"); return [] })
+            XCTAssertEqual(row.displayContent, "Visible answer.")
+            XCTAssertTrue(row.topLevelAppSkillEmbeds.isEmpty)
+            XCTAssertTrue(row.hiddenInlineEmbedIds.isEmpty)
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=pii.surface.semantic-parity,chats.streaming.progressive-presentation
+    func testMessagePresentationRestoresBothVisibleAndRawProgressiveContentWithoutMutatingMessage() {
+        let mapping = PIIMapping(placeholder: "[PERSON_NAME_1]", original: "Synthetic Name", type: "person_name")
+        let raw = "Hello [PERSON_NAME_1].\n\n```json_embed\n{\"private_label\":\"[PERSON_NAME_1]\""
+        let message = presentationMessage(content: raw)
+        let hidden = ChatMessageRenderPresentation(
+            message: message, streamingContent: raw, piiMappings: [mapping], isPIIRevealed: false,
+            embeds: [], allEmbedRecords: [:])
+        let revealed = ChatMessageRenderPresentation(
+            message: message, streamingContent: raw, piiMappings: [mapping], isPIIRevealed: true,
+            embeds: [], allEmbedRecords: [:])
+        XCTAssertEqual(hidden.displayContent, "Hello [PERSON_NAME_1].\n")
+        XCTAssertEqual(hidden.progressiveContent, raw)
+        XCTAssertEqual(revealed.displayContent, "Hello Synthetic Name.\n")
+        XCTAssertEqual(revealed.progressiveContent, raw.replacingOccurrences(of: mapping.placeholder, with: mapping.original))
+        XCTAssertFalse(revealed.displayContent.contains("private_label"))
+        XCTAssertTrue(revealed.progressiveContent.contains("private_label"))
+        XCTAssertNil(revealed.stableRenderDocument)
+        XCTAssertEqual(message.content, raw)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.rendering.assistant-document-convergence,chats.surface.semantic-parity
+    func testMessagePresentationRebuildsLateHydratedParentsAndPrefersDirectParentsInOrder() {
+        let late = presentationParent("late-parent")
+        let unrelated = presentationParent("unrelated-parent")
+        let message = presentationMessage(content: "Answer [[embed:late-parent]]")
+        let before = ChatMessageRenderPresentation(
+            message: message, streamingContent: nil, piiMappings: [], isPIIRevealed: false,
+            embeds: [], allEmbedRecords: [:])
+        XCTAssertTrue(before.topLevelAppSkillEmbeds.isEmpty)
+        let hydrated = ChatMessageRenderPresentation(
+            message: message, streamingContent: nil, piiMappings: [], isPIIRevealed: false,
+            embeds: [], allEmbedRecords: [late.id: late, unrelated.id: unrelated])
+        XCTAssertEqual(hydrated.topLevelAppSkillEmbeds.map(\.id), [late.id])
+        XCTAssertEqual(hydrated.hiddenInlineEmbedIds, [late.id])
+        XCTAssertEqual(hydrated.stableRenderDocument, message.renderDocumentForDisplay)
+
+        let direct = [presentationParent("direct-first"), presentationParent("direct-second")]
+        let preferred = ChatMessageRenderPresentation(
+            message: message, streamingContent: nil, piiMappings: [], isPIIRevealed: false,
+            embeds: direct, allEmbedRecords: [late.id: late])
+        XCTAssertEqual(preferred.topLevelAppSkillEmbeds.map(\.id), direct.map(\.id))
+        XCTAssertEqual(Array(preferred.topLevelAppSkillEmbeds.reversed()).map(\.id), ["direct-second", "direct-first"])
+        XCTAssertEqual(preferred.hiddenInlineEmbedIds, Set(direct.map(\.id)))
+        XCTAssertTrue(before.topLevelAppSkillEmbeds.isEmpty, "Preparation must not mutate an earlier render")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=pii.surface.semantic-parity,chats.rendering.assistant-document-convergence
+    func testMessagePresentationPreservesStableDocumentEligibilityGuards() throws {
+        let contentKinds: [(String, ChatHistoryRenderBlock.Kind)] = [
+            ("Stable answer.", .paragraph),
+            ("```interactive_question\n{\"type\":\"choice\",\"id\":\"synthetic-question\",\"question\":\"Choose?\",\"options\":[{\"id\":\"one\",\"text\":\"One\"}]}\n```", .interactiveQuestion),
+            ("[[example_chats_group]]", .demoGroup)
+        ]
+        for (content, kind) in contentKinds {
+            let message = presentationMessage(content: content)
+            let document = try XCTUnwrap(message.renderDocumentForDisplay)
+            XCTAssertEqual(document.blocks.first?.kind, kind)
+            let presentation = ChatMessageRenderPresentation(
+                message: message, streamingContent: nil, piiMappings: [], isPIIRevealed: false,
+                embeds: [], allEmbedRecords: [:])
+            XCTAssertEqual(presentation.stableRenderDocument, kind == .paragraph ? document : nil)
+            let revealed = ChatMessageRenderPresentation(
+                message: message, streamingContent: nil, piiMappings: [], isPIIRevealed: true,
+                embeds: [], allEmbedRecords: [:])
+            XCTAssertNil(revealed.stableRenderDocument, "Reveal mode must reparse even when no mappings are present")
+        }
+    }
+
+    private func presentationMessage(content: String, role: MessageRole = .assistant) -> Message {
+        Message(id: "presentation-message", chatId: "presentation-chat", role: role,
+                content: content, encryptedContent: nil, createdAt: "2026-01-01T00:00:00Z",
+                updatedAt: nil, appId: nil, isStreaming: false, embedRefs: nil)
+    }
+
+    private func presentationParent(_ id: String) -> EmbedRecord {
+        EmbedRecord(id: id, type: "app_skill_use", status: .finished, data: .raw([:]),
+                    parentEmbedId: nil, appId: "web", skillId: "search", embedIds: nil, createdAt: nil)
+    }
+
     // contract-test: direct surface=gui.apple assertions=chats.streaming.progressive-presentation,chats.rendering.assistant-document-convergence
     func testSameIDEmbedFinalizationChangesSyncSignatureAndRequiresViewModelRefresh() {
         let processing = EmbedRecord(

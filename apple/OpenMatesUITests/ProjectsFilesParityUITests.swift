@@ -6,6 +6,50 @@ import XCTest
 final class ProjectsFilesParityUITests: XCTestCase {
     override func setUpWithError() throws { continueAfterFailure = false }
 
+    // contract-test: supporting surface=gui.apple assertions=projects.surface.semantic-parity
+    func testEmptyOverviewCreateNotifiesAndUploadOpensSystemPicker() {
+        let app = launch(variant: "default")
+        let create = app.buttons["project-overview-create"]
+        XCTAssertTrue(create.waitForExistence(timeout: 8))
+        reveal(create, in: app)
+        XCTAssertTrue(create.isHittable)
+        create.tap()
+        let notice = app.staticTexts["notification-message"]
+        XCTAssertTrue(notice.waitForExistence(timeout: 3))
+        XCTAssertEqual(notice.label, "Creating READMEs directly in OpenMates is coming soon.")
+        XCTAssertFalse(element(app, "project-create-menu").exists)
+        XCTAssertFalse(app.buttons["project-create-chat"].exists)
+        XCTAssertFalse(app.buttons["project-create-workflow"].exists)
+        XCTAssertFalse(app.buttons["project-create-plan"].exists)
+        screenshot(app, "Empty README Create coming-soon notification")
+        app.buttons["notification-dismiss"].tap()
+        let upload = app.buttons["project-overview-upload"]
+        reveal(upload, in: app)
+        XCTAssertTrue(upload.isHittable)
+        upload.tap()
+        // The OS owns this UI: the picker must present its real cancellation control.
+        let cancel = app.buttons["Cancel"].firstMatch
+        XCTAssertTrue(cancel.waitForExistence(timeout: 5))
+        XCTAssertTrue(cancel.isHittable)
+        screenshot(app, "Empty README Upload system picker")
+        cancel.tap()
+        XCTAssertTrue(upload.waitForExistence(timeout: 5))
+        XCTAssertTrue(upload.isHittable)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chat-navigation.projects.organize,projects.items.responsive-embeds
+    func testLinkedProjectChatUsesContinuationCardAndOpensItsChat() {
+        let app = launch(variant: "chats")
+        let card = element(app, "project-chat-card-project-preview-chat-0")
+        XCTAssertTrue(card.waitForExistence(timeout: 8))
+        reveal(card, in: app)
+        XCTAssertEqual(card.frame.width, 300, accuracy: 1); XCTAssertEqual(card.frame.height, 200, accuracy: 1)
+        XCTAssertTrue(card.isHittable)
+        screenshot(app, "Project linked chat uses regular continuation embed dimensions")
+        card.tap()
+        XCTAssertEqual(element(app, "dev-preview-local-action").label, "opened-chat-project-preview-chat-0")
+    }
+
     // contract-test: supporting surface=gui.apple assertions=projects.files.connected-embed-previews,projects.surface.semantic-parity
     func testConnectedFolderUsesFilesEmbedFooterAndOpensItsContents() {
         let app = launch(variant: "connectedSource")
@@ -188,6 +232,50 @@ final class ProjectsFilesParityUITests: XCTestCase {
         screenshot(app, "Connected text truncation and complete original download")
         app.buttons["embed-minimize"].tap()
         XCTAssertTrue(app.buttons["project-remote-entry-large.txt"].waitForExistence(timeout: 5))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=projects.files.connected-embed-previews,projects.surface.semantic-parity
+    func testRemoteFileOpensKnownFullscreenHeaderBeforeReadAndImageRendersAutomatically() {
+        let app = launch(variant: "rootFiles")
+        waitForConnectedRoot(app, entry: "privacy_filter_benchmark.py")
+        let code = app.buttons["project-remote-entry-privacy_filter_benchmark.py"]
+        reveal(code, in: app)
+        code.tap()
+        XCTAssertTrue(element(app, "project-remote-file-opening").waitForExistence(timeout: 2))
+        let header = element(app, "embed-fullscreen-header")
+        XCTAssertTrue(header.exists)
+        XCTAssertTrue(header.staticTexts["privacy_filter_benchmark.py"].exists,
+                      "Decrypted filename and type shell appear before the read completes")
+        XCTAssertTrue(app.buttons["embed-minimize"].exists)
+        XCTAssertTrue(element(app, "code-source-panel").waitForExistence(timeout: 5))
+        waitForPresentation(app)
+        app.buttons["embed-minimize"].tap()
+        let image = app.buttons["project-remote-entry-mates-macos.png"]
+        reveal(image, in: app)
+        image.tap()
+        let pixels = element(app, "project-remote-image-rendered")
+        XCTAssertTrue(pixels.waitForExistence(timeout: 5), "Tap must download and decode image bytes automatically")
+        XCTAssertEqual(pixels.value as? String, "32x16")
+        XCTAssertTrue(element(app, "embed-fullscreen-header").staticTexts["mates-macos.png"].exists)
+        XCTAssertFalse(app.buttons["project-remote-download"].exists)
+        screenshot(app, "Connected image rendered in shared fullscreen")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=projects.files.connected-embed-previews,projects.surface.semantic-parity
+    func testRemoteImageFailureKeepsFullscreenMetadataAndRetryRendersBytes() {
+        let app = launch(variant: "rootFiles")
+        waitForConnectedRoot(app, entry: "retry-image.png")
+        let image = app.buttons["project-remote-entry-retry-image.png"]
+        reveal(image, in: app)
+        image.tap()
+        let retry = app.buttons["project-remote-file-retry"]
+        XCTAssertTrue(retry.waitForExistence(timeout: 5))
+        XCTAssertTrue(element(app, "project-remote-file-error").exists)
+        XCTAssertTrue(element(app, "embed-fullscreen-header").staticTexts["retry-image.png"].exists)
+        XCTAssertFalse(app.buttons["project-remote-download"].exists)
+        retry.tap()
+        XCTAssertTrue(element(app, "project-remote-image-rendered").waitForExistence(timeout: 5))
+        XCTAssertFalse(element(app, "project-remote-file-error").exists)
     }
 
     private func launch(variant: String) -> XCUIApplication {

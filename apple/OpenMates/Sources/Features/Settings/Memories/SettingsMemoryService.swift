@@ -1,6 +1,8 @@
 // Web source: frontend/packages/ui/src/stores/appSettingsMemoriesStore.ts
 // Specification: specifications/features/app-memories/specification.yml
 // Assertions: app-memories.surface.semantic-parity
+// Specification: specifications/features/apple-live-activities/specification.yml
+// Assertions: apple-live-activities.memories.upcoming, apple-live-activities.lifecycle.isolation
 // Plaintext lives only in memory; API records contain ciphertext and hashed keys.
 
 import Combine
@@ -48,6 +50,7 @@ final class SettingsMemoryService: ObservableObject {
     }
     typealias Transport = @MainActor (HTTPMethod, String, Data?, SettingsMemoryContext) async throws -> Data
     typealias KeyLoader = @MainActor (String) async throws -> SymmetricKey?
+    typealias LiveActivitySnapshot = @MainActor (SettingsMemoryLiveActivitySnapshot) -> Void
     @Published private(set) var state: LoadState = .loading
     @Published private(set) var categories: [SettingsMemoryCategory] = [] { didSet { updateSections() } }
     @Published private(set) var entries: [SettingsMemoryEntry] = [] { didSet { updateSections() } }
@@ -58,6 +61,7 @@ final class SettingsMemoryService: ObservableObject {
     private let keyLoader: KeyLoader
     private let environment: TeamWorkspaceEnvironment
     private let teamContext: () -> APIRequestTeamContext
+    private let liveActivitySnapshot: LiveActivitySnapshot
     private var context: SettingsMemoryContext?
     private var generation = UUID()
     private var recordsByID: [String: SettingsEncryptedMemoryRecord] = [:]
@@ -71,7 +75,9 @@ final class SettingsMemoryService: ObservableObject {
          environment: TeamWorkspaceEnvironment = .live,
          teamContext: @escaping () -> APIRequestTeamContext = {
             .init(epoch: TeamWorkspaceContext.shared.contextEpoch, teamID: TeamWorkspaceContext.shared.teamID)
-         }, observesSync: Bool = true) {
+         }, observesSync: Bool = true,
+         liveActivitySnapshot: @escaping LiveActivitySnapshot = { UpcomingMemoryLiveActivityBridge.shared.accept($0) }) {
+        self.liveActivitySnapshot = liveActivitySnapshot
         self.environment = environment; self.teamContext = teamContext
         self.transport = transport ?? { method, path, data, context in
             if let data {
@@ -123,6 +129,7 @@ final class SettingsMemoryService: ObservableObject {
             isAuthenticated = true
             guard let key = try await keyLoader(account) else { try await check(pinned, token: token); state = .missingKey; return }
             try await check(pinned, token: token)
+            let snapshotRevision = SettingsMemoryLiveActivitySnapshot.nextRevision()
             let responseData = try await transport(.get, "/v1/sdk/memories", nil, pinned)
             try await check(pinned, token: token)
             let response = try JSONDecoder().decode(SettingsEncryptedMemoryResponse.self, from: responseData)
@@ -141,6 +148,7 @@ final class SettingsMemoryService: ObservableObject {
             try await check(pinned, token: token)
             entries = decoded.sorted { $0.updatedAt > $1.updatedAt }; recordsByID = records
             state = entries.isEmpty ? .empty : .loaded
+            publishLiveActivitySnapshot(context: pinned, revision: snapshotRevision)
         } catch {
             guard generation == token else { return }
             if error is CancellationError { cancel(); return }
@@ -190,6 +198,7 @@ final class SettingsMemoryService: ObservableObject {
             _ = try await transport(.post, "/v1/sdk/memories", requestData, context)
             try await check(context, token: token)
             recordsByID[record.id] = record; entries.removeAll { $0.id == draft.id }; entries.insert(draft, at: 0); state = .loaded
+            publishLiveActivitySnapshot(context: context, revision: SettingsMemoryLiveActivitySnapshot.nextRevision(), change: .upsert(draft))
             return true
         } catch { await handle(error, token: token, context: context); return false }
     }
@@ -206,7 +215,9 @@ final class SettingsMemoryService: ObservableObject {
             let id = entry.id.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? entry.id
             _ = try await transport(.delete, "/v1/sdk/memories/\(id)", nil, context)
             try await check(context, token: token)
-            recordsByID[entry.id] = nil; entries.removeAll { $0.id == entry.id }; state = entries.isEmpty ? .empty : .loaded; return true
+            recordsByID[entry.id] = nil; entries.removeAll { $0.id == entry.id }; state = entries.isEmpty ? .empty : .loaded
+            publishLiveActivitySnapshot(context: context, revision: SettingsMemoryLiveActivitySnapshot.nextRevision(), change: .removed(entry.id))
+            return true
         } catch { await handle(error, token: token, context: context); return false }
     }
     private func handle(_ error: Error, token: UUID, context: SettingsMemoryContext) async {
@@ -215,6 +226,11 @@ final class SettingsMemoryService: ObservableObject {
         do { try await check(context, token: token) } catch { if generation == token { cancel() }; return }
         state = error.localizedDescription.contains("409") ? .conflict : .error(AppStrings.error)
         NativeDiagnostics.warning("Memory mutation failed errorType=\(type(of: error))", category: "settings_memories")
+    }
+    private func publishLiveActivitySnapshot(context: SettingsMemoryContext, revision: UInt64,
+                                            change: SettingsMemoryLiveActivitySnapshot.Change = .full) {
+        guard isAuthenticated, let scope = UpcomingMemorySnapshotScope(context) else { return }
+        liveActivitySnapshot(.init(scope: scope, entries: entries, revision: revision, change: change))
     }
     static func decodePayload(_ plaintext: String, fallbackKey: String) throws -> (key: String, value: [String: SettingsMemoryValue]) {
         guard var fields = try SettingsMemoryValue.parse(plaintext).object else { throw SettingsMemoryServiceError.invalidPayload }

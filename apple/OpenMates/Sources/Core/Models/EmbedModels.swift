@@ -892,6 +892,8 @@ enum EmbedType: String, CaseIterable {
     case healthAppointment = "health-appointment"
     case homeSearch = "app:home:search"
     case homeListing = "home-listing"
+    case hostingSearch = "app:hosting:search_domains"
+    case hostingDomain = "hosting-domain"
     case imagesSearch = "app:images:search"
     case imagesImageResult = "images-image-result"
     case mailSearch = "app:mail:search"
@@ -952,6 +954,7 @@ enum EmbedType: String, CaseIterable {
         case "images-image": return .image
         case "company_financial_result": return .businessCompanyFinancialResult
         case "event": return .eventsEvent
+        case "hosting_domain": return .hostingDomain
         default: return EmbedType(rawValue: rawValue)
         }
     }
@@ -959,7 +962,7 @@ enum EmbedType: String, CaseIterable {
     var isComposite: Bool {
         switch self {
         case .codeRepoSearch, .designSearchIcons, .electronicsSearch,
-              .businessCompanyFinancials, .eventsSearch, .healthSearch, .homeSearch, .imagesSearch,
+              .businessCompanyFinancials, .eventsSearch, .healthSearch, .homeSearch, .hostingSearch, .imagesSearch,
               .fitnessSearchLocations, .fitnessSearchClasses,
               .models3dSearch,
               .mailSearch, .mapsSearch, .newsSearch, .nutritionSearch,
@@ -984,6 +987,7 @@ enum EmbedType: String, CaseIterable {
         case .fitnessSearchClasses: return .fitnessClass
         case .healthSearch: return .healthAppointment
         case .homeSearch: return .homeListing
+        case .hostingSearch: return .hostingDomain
         case .imagesSearch: return .imagesImageResult
         case .mapsSearch: return .mapsPlace
         case .models3dSearch: return .models3dModelResult
@@ -1029,6 +1033,7 @@ enum EmbedType: String, CaseIterable {
             case .eventsEvent: return "events"
             case .healthAppointment: return "health"
             case .homeListing: return "home"
+            case .hostingDomain: return "hosting"
             case .nutritionRecipe: return "nutrition"
             case .shoppingProduct: return "shopping"
             case .socialMediaPost: return "social_media"
@@ -1101,6 +1106,8 @@ enum EmbedType: String, CaseIterable {
         case .healthAppointment: return "Appointment"
         case .homeSearch: return "Listings"
         case .homeListing: return "Listing"
+        case .hostingSearch: return "Search domains"
+        case .hostingDomain: return "Domain"
         case .nutritionSearch: return "Recipes"
         case .nutritionRecipe: return "Recipe"
         case .shoppingSearch: return "Products"

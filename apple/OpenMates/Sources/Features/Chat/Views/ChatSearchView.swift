@@ -40,14 +40,14 @@ struct ChatSearchView: View {
     var allowsOfflineContent = true
 
     @State private var query = ""
-    @State private var results = ChatSearchResults.empty
-    @State private var isSearching = false
-    @State private var searchTask: Task<Void, Never>?
+    @StateObject private var searchController = ChatSearchController()
     @State private var metadataTask: Task<Void, Never>?
     @State private var originalContentChatIds: Set<String> = []
     @FocusState private var isFocused: Bool
 
     private var offlineStore: OfflineStore? { allowsOfflineContent ? OfflineStore.shared : nil }
+    private var results: ChatSearchResults { searchController.results }
+    private var isSearching: Bool { searchController.isSearching }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -76,9 +76,9 @@ struct ChatSearchView: View {
                 scheduleSearch()
             }
         }
-        .onReceive(chatStore.$chats) { _ in scheduleSearch() }
+        .onReceive(chatStore.$chats) { _ in scheduleSearch(storeChanged: true) }
         .onDisappear {
-            searchTask?.cancel()
+            searchController.cancel()
             metadataTask?.cancel()
         }
     }
@@ -100,7 +100,7 @@ struct ChatSearchView: View {
             Button {
                 isFocused = false
                 query = ""
-                results = .empty
+                searchController.cancel()
                 onClose()
             } label: {
                 Icon("close", size: 20)
@@ -267,44 +267,26 @@ struct ChatSearchView: View {
         .accessibilityIdentifier("search-metadata-snippet")
     }
 
-    private func scheduleSearch() {
-        searchTask?.cancel()
-        let nextQuery = query
-        guard !nextQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            results = .empty
-            isSearching = false
-            return
+    private func scheduleSearch(storeChanged: Bool = false, immediately: Bool = false) {
+        let scope = OfflineStore.shared.scopeGeneration
+        let team = TeamWorkspaceContext.shared.snapshot
+        let server = ServerProfile.current().apiBaseURL
+        let language = LocalizationManager.shared.currentLanguage
+        let isCurrent: @MainActor () -> Bool = {
+            scope == OfflineStore.shared.scopeGeneration &&
+                server == ServerProfile.current().apiBaseURL &&
+                language == LocalizationManager.shared.currentLanguage &&
+                ComposerSearchSuggestionsController.isTeamContextCurrent(team)
         }
-        isSearching = true
-        searchTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 250_000_000)
-            guard !Task.isCancelled else { return }
-            performSearch(nextQuery)
+        searchController.schedule(query: query, storeChanged: storeChanged,
+            immediately: immediately, isCurrent: isCurrent) { nextQuery in
+            try await ChatSearchEngine.searchAsync(query: nextQuery, chats: chatStore.chats,
+                chatStore: chatStore, offlineStore: offlineStore,
+                offlineContentChatIds: originalContentChatIds, isCurrent: isCurrent)
         }
     }
 
-    private func runSearchImmediately() {
-        searchTask?.cancel()
-        performSearch(query)
-    }
-
-    private func performSearch(_ rawQuery: String) {
-        let trimmed = rawQuery.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
-            results = .empty
-            isSearching = false
-            return
-        }
-
-        results = ChatSearchEngine.search(
-            query: trimmed,
-            chats: chatStore.chats,
-            chatStore: chatStore,
-            offlineStore: offlineStore,
-            offlineContentChatIds: originalContentChatIds
-        )
-        isSearching = false
-    }
+    private func runSearchImmediately() { scheduleSearch(immediately: true) }
 
     private func highlighted(_ text: String, query: String) -> AttributedString {
         var attributed = AttributedString(text)
@@ -321,20 +303,89 @@ struct ChatSearchView: View {
     }
 }
 
-struct ChatSearchResults {
+/// Store hydration may publish continuously. Finish the current query, publish
+/// its result, then take at most one fresh pass; only a changed query cancels it.
+/// All derived plaintext is view-local and discarded on disappearance.
+@MainActor
+final class ChatSearchController: ObservableObject {
+    @Published private(set) var results = ChatSearchResults.empty
+    @Published private(set) var isSearching = false
+    private var task: Task<Void, Never>?
+    private var generation = UUID()
+    private var activeQuery = ""
+    private var pendingRefresh = false
+    private var currentRunIsCurrent: @MainActor () -> Bool = { true }
+
+    func cancel() {
+        task?.cancel()
+        task = nil
+        generation = UUID()
+        activeQuery = ""
+        pendingRefresh = false
+        currentRunIsCurrent = { true }
+        results = .empty
+        isSearching = false
+    }
+
+    func schedule(query: String, storeChanged: Bool = false, immediately: Bool = false,
+                  isCurrent: @escaping @MainActor () -> Bool = { true },
+                  search: @escaping @MainActor (String) async throws -> ChatSearchResults) {
+        if !currentRunIsCurrent() { cancel() }
+        let normalized = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalized.isEmpty, isCurrent() else { cancel(); return }
+        if storeChanged && normalized == activeQuery && task != nil {
+            pendingRefresh = true
+            return
+        }
+        task?.cancel()
+        let owner = UUID()
+        generation = owner
+        activeQuery = normalized
+        currentRunIsCurrent = isCurrent
+        pendingRefresh = false
+        isSearching = true
+        task = Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer {
+                if self.generation == owner { self.task = nil; self.isSearching = false }
+            }
+            do {
+                if !immediately { try await Task.sleep(for: .milliseconds(250)) }
+                repeat {
+                    try Task.checkCancellation()
+                    guard self.generation == owner else { return }
+                    guard isCurrent() else { self.cancel(); return }
+                    self.pendingRefresh = false
+                    let next = try await search(normalized)
+                    try Task.checkCancellation()
+                    guard self.generation == owner else { return }
+                    guard isCurrent() else { self.cancel(); return }
+                    self.results = next
+                    self.isSearching = false
+                } while self.pendingRefresh
+            } catch {
+                if self.generation == owner && !isCurrent() { self.cancel() }
+                // Cancellation is the only expected error; an obsolete task
+                // must never clear a newer query's busy state or results.
+            }
+        }
+    }
+}
+
+struct ChatSearchResults: Sendable {
     let groups: [ChatSearchResultGroup]
     let totalCount: Int
 
     static let empty = ChatSearchResults(groups: [], totalCount: 0)
 }
 
-struct ChatSearchResultGroup: Identifiable {
+struct ChatSearchResultGroup: Identifiable, Sendable {
     let id: String
     let title: String
     let items: [ChatSearchResult]
 }
 
-struct ChatSearchResult: Identifiable {
+struct ChatSearchResult: Identifiable, Sendable {
     let id: String
     let chat: Chat
     let decryptedTitle: String?
@@ -344,7 +395,7 @@ struct ChatSearchResult: Identifiable {
     let sortDate: Date
 }
 
-struct ChatSearchSnippet: Identifiable {
+struct ChatSearchSnippet: Identifiable, Sendable {
     let id: String
     let messageId: String
     let text: String
@@ -352,7 +403,7 @@ struct ChatSearchSnippet: Identifiable {
     let sortDate: Date
 }
 
-struct ChatMetadataSnippet: Identifiable {
+struct ChatMetadataSnippet: Identifiable, Sendable {
     let id: String
     let text: String
     let sourceLabel: String
@@ -405,27 +456,78 @@ enum ChatSearchEngine {
         offlineStore: OfflineStore?,
         allowOfflineContent: Bool
     ) -> ChatSearchResult? {
+        evaluate(snapshot(chat, query: query, chatStore: chatStore,
+            offlineStore: offlineStore, allowOfflineContent: allowOfflineContent), query: query)
+    }
+
+    private struct Snapshot: Sendable {
+        let chat: Chat
+        let messages: [Message]
+        let embeds: [EmbedRecord]
+        let metadataSnippets: [ChatMetadataSnippet]
+        let sortDate: Date
+    }
+
+    @MainActor
+    private static func snapshot(_ chat: Chat, query: String, chatStore: ChatStore,
+                                 offlineStore: OfflineStore?, allowOfflineContent: Bool) -> Snapshot {
+        // SwiftData's ModelContext stays on its owner actor. Only immutable
+        // model values cross to the matcher; no store/context escapes.
+        Snapshot(chat: chat,
+            messages: allowOfflineContent ? messages(for: chat, chatStore: chatStore, offlineStore: offlineStore) : chatStore.messages(for: chat.id),
+            embeds: allowOfflineContent ? embeds(for: chat, chatStore: chatStore, offlineStore: offlineStore) : chatStore.embeds(for: chat.id),
+            metadataSnippets: metadataSnippets(in: chat, query: query),
+            sortDate: chat.lastMessageDate ?? chat.updatedDate ?? chat.createdDate ?? Date.distantPast)
+    }
+
+    private static func evaluate(_ snapshot: Snapshot, query: String) -> ChatSearchResult? {
+        let chat = snapshot.chat
         let title = chat.displayTitle
         let titleMatch = title.range(of: query, options: [.caseInsensitive, .diacriticInsensitive]) != nil
+        let snippets = messageSnippets(in: snapshot.messages, embeds: snapshot.embeds, query: query)
+        guard titleMatch || !snippets.isEmpty || !snapshot.metadataSnippets.isEmpty else { return nil }
+        return ChatSearchResult(id: chat.id, chat: chat, decryptedTitle: title, titleMatch: titleMatch,
+            messageSnippets: snippets, metadataSnippets: snapshot.metadataSnippets, sortDate: snapshot.sortDate)
+    }
 
-        // Metadata expansion must not synchronously scan every older message
-        // archive. Keep existing content search for the initial loaded set only.
-        let messages = allowOfflineContent ? messages(for: chat, chatStore: chatStore, offlineStore: offlineStore) : chatStore.messages(for: chat.id)
-        let embeds = allowOfflineContent ? embeds(for: chat, chatStore: chatStore, offlineStore: offlineStore) : chatStore.embeds(for: chat.id)
-        let snippets = messageSnippets(in: messages, embeds: embeds, query: query)
-        let metadataSnippets = metadataSnippets(in: chat, query: query)
-
-        guard titleMatch || !snippets.isEmpty || !metadataSnippets.isEmpty else { return nil }
-
-        return ChatSearchResult(
-            id: chat.id,
-            chat: chat,
-            decryptedTitle: title,
-            titleMatch: titleMatch,
-            messageSnippets: snippets,
-            metadataSnippets: metadataSnippets,
-            sortDate: chat.lastMessageDate ?? chat.updatedDate ?? chat.createdDate ?? Date.distantPast
-        )
+    /// Local content reads remain actor-safe and yield between bounded batches.
+    /// Regex stripping, embed traversal and message matching run off the UI actor.
+    @MainActor
+    static func searchAsync(query: String, chats: [Chat], chatStore: ChatStore,
+                            offlineStore: OfflineStore?, offlineContentChatIds: Set<String>,
+                            isCurrent: @escaping @MainActor () -> Bool = { true }) async throws -> ChatSearchResults {
+        let normalized = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalized.isEmpty else { return .empty }
+        var matches: [ChatSearchResult] = []
+        let visible = chats.filter { !$0.isHiddenFromNormalSurfaces }
+        for start in stride(from: 0, to: visible.count, by: 4) {
+            try Task.checkCancellation()
+            guard isCurrent() else { throw CancellationError() }
+            let batch = visible[start..<min(start + 4, visible.count)].map {
+                snapshot($0, query: normalized, chatStore: chatStore, offlineStore: offlineStore,
+                    allowOfflineContent: offlineContentChatIds.contains($0.id))
+            }
+            let matcher = Task.detached(priority: .userInitiated) {
+                try Task.checkCancellation()
+                return try batch.compactMap { item -> ChatSearchResult? in
+                    try Task.checkCancellation()
+                    return evaluate(item, query: normalized)
+                }
+            }
+            let next = try await withTaskCancellationHandler {
+                try await matcher.value
+            } onCancel: { matcher.cancel() }
+            try Task.checkCancellation()
+            guard isCurrent() else { throw CancellationError() }
+            matches.append(contentsOf: next)
+            await Task.yield()
+        }
+        matches.sort {
+            if $0.titleMatch != $1.titleMatch { return $0.titleMatch }
+            if $0.messageSnippets.isEmpty != $1.messageSnippets.isEmpty { return !$0.messageSnippets.isEmpty }
+            return $0.sortDate > $1.sortDate
+        }
+        return ChatSearchResults(groups: group(matches), totalCount: matches.count)
     }
 
     @MainActor
@@ -452,6 +554,7 @@ enum ChatSearchEngine {
         var snippetsPerMessage: [String: Int] = [:]
 
         let entries = messages.flatMap { message -> [SearchableMessageEntry] in
+            guard !Task.isCancelled else { return [] }
             var result: [SearchableMessageEntry] = []
             let createdDate = parseDate(message.createdAt) ?? Date.distantPast
             if let content = message.content?.trimmingCharacters(in: .whitespacesAndNewlines), !content.isEmpty {

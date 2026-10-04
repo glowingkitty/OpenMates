@@ -1,0 +1,113 @@
+tasks_widget.title:
+  context: Name of the native iOS or macOS Tasks widget
+  en: Tasks
+  de: Aufgaben
+  verified_by_human: []
+workflows_widget.title:
+  context: Name of the native widget for manually running a scheduled workflow
+  en: Workflows
+  de: Workflows
+  verified_by_human: []
+workflows_widget.description:
+  context: Description of the native configurable scheduled workflow widget
+  en: Choose a scheduled workflow to run manually.
+  de: Wähle einen zeitgesteuerten Workflow, um ihn manuell zu starten.
+  verified_by_human: []
+workflows_widget.workflow_parameter:
+  context: Workflow choice parameter in native widget configuration
+  en: Workflow
+  de: Workflow
+  verified_by_human: []
+workflows_widget.choose:
+  context: Widget prompt when no current scheduled workflow is selected
+  en: Choose a workflow in widget settings.
+  de: Wähle einen Workflow in den Widget-Einstellungen.
+  verified_by_human: []
+workflows_widget.open_app:
+  context: Workflow widget fallback when its encrypted snapshot cannot be read
+  en: Open OpenMates
+  de: OpenMates öffnen
+  verified_by_human: []
+workflows_widget.run:
+  context: Explicit native widget action to start a manual workflow run
+  en: Run workflow
+  de: Workflow starten
+  verified_by_human: []
+tasks_widget.description:
+  context: Description in the native widget gallery for the Tasks widget
+  en: Your tasks by status, with quick links to open and create tasks.
+  de: Deine Aufgaben nach Status, mit Schnelllinks zum Öffnen und Erstellen.
+  verified_by_human: []
+tasks_widget.status_parameter:
+  context: Task status filter parameter in native widget configuration
+  en: Status
+  de: Status
+  verified_by_human: []
+tasks_widget.all:
+  context: Tasks widget configuration option showing tasks from every status
+  en: All
+  de: Alle
+  verified_by_human: []
+tasks_widget.empty:
+  context: Empty state for the currently selected Task status in a native widget
+  en: No tasks in this status
+  de: Keine Aufgaben mit diesem Status
+  verified_by_human: []
+tasks_widget.open_app:
+  context: Widget instruction when no authenticated task snapshot is available
+  en: Open OpenMates to load your tasks
+  de: Öffne OpenMates, um deine Aufgaben zu laden
+  verified_by_human: []
+tasks_widget.new_task:
+  context: Native widget action opening the Task composer
+  en: New task
+  de: Neue Aufgabe
+  verified_by_human: []
+
+active_chats_widget.description:
+  context: Widget gallery description for the Active chats widget
+  en: Currently running chats, with quick links to each chat.
+  de: Aktuell laufende Chats mit Schnelllinks zu jedem Chat.
+  verified_by_human: []
+
+active_chats_widget.total_one:
+  context: Widget count when exactly one chat is processing
+  en: 1 chat processing
+  de: 1 Chat wird verarbeitet
+  verified_by_human: []
+
+active_chats_widget.total:
+  context: Widget total of all admitted currently processing chats, including overflow rows
+  en: "{count} chats processing"
+  de: "{count} Chats werden verarbeitet"
+  verified_by_human: []
+
+active_chats_widget.chat:
+  context: Generic widget row label when a private chat title is not available
+  en: "Chat {number}"
+  de: "Chat {number}"
+  verified_by_human: []
+
+active_chats_widget.empty:
+  context: Active chats widget state after the processing census is empty
+  en: No chats are currently running
+  de: Zurzeit laufen keine Chats
+  verified_by_human: []
+
+active_chats_widget.open_app:
+  context: Active chats widget instruction when the encrypted snapshot is absent or locked
+  en: Open OpenMates to load active chats
+  de: Öffne OpenMates, um aktive Chats zu laden
+  verified_by_human: []
+
+active_chats_widget.view_all:
+  context: Widget action opening every currently running chat in the app
+  en: View all active chats
+  de: Alle aktiven Chats anzeigen
+  verified_by_human: []
+
+active_chats_widget.stale:
+  context: Active chats widget notice after accepted processing evidence becomes stale
+  en: Waiting for app update
+  de: Warte auf Aktualisierung der App
+  verified_by_human: []

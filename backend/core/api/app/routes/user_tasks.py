@@ -551,6 +551,8 @@ def _query_list_values(value: Any) -> list[str]:
     return [str(value)]
 
 
+# Specification: specifications/features/apple-offline-workspaces/specification.yml
+# Assertions: apple-workspaces.offline-complete, apple-workspaces.isolation
 @router.get("")
 @limiter.limit("60/minute")
 async def list_user_tasks(
@@ -568,14 +570,24 @@ async def list_user_tasks(
     due_before: int | None = None,
     team_id: str | None = None,
     limit: int = 100,
+    paginate: bool = False,
+    cursor: str | None = Query(default=None, min_length=1, max_length=512),
     service: UserTaskService = Depends(get_user_task_service),
     workflow_projection_service: WorkflowTaskProjectionService = Depends(get_workflow_task_projection_service),
 ) -> dict[str, Any]:
+    # First-party encrypted client inventory: existing session/approved client
+    # credentials and owner/team scope, 60/minute, no paid inference or credits.
+    # Paging adds no public route or Caddy allowlist entry.
     current_user = await _current_user(request, response)
     label_hash_values = [*_query_list_values(label_hash), *_query_list_values(label_hashes)]
     priority_value = _unwrap_query_default(priority)
     external_chat_lookup_hash = _unwrap_query_default(external_chat_lookup_hash)
+    cursor = _unwrap_query_default(cursor)
     try:
+        if cursor is not None and not paginate:
+            raise ValueError("Workspace cursor requires paginate=true")
+        if paginate and (not 1 <= limit <= 500 or (cursor is not None and (not isinstance(cursor, str) or not 1 <= len(cursor) <= 512))):
+            raise ValueError("Invalid workspace page limit or cursor")
         if team_id:
             await request.app.state.directus_service.team.require_team_role(team_id, current_user.id, {"owner", "admin", "member", "viewer"})
         if (external_chat_provider is None) != (external_chat_lookup_hash is None):
@@ -593,16 +605,24 @@ async def list_user_tasks(
             due_before=due_before,
             team_id=team_id,
             limit=limit,
+            **({"paginate": True, "cursor": cursor} if paginate else {}),
         )
         eligible = await service.task_methods.eligible_external_ai(current_user.id)
     except Exception as exc:
         _handle_task_error(exc)
+    complete = not paginate or len(tasks) <= limit
+    if paginate:
+        tasks = tasks[:limit]
+    next_cursor = tasks[-1]["task_id"] if paginate and not complete else None
     projections = []
-    if not any((chat_id, external_chat_provider, external_chat_lookup_hash, project_id, assignee_hash, label_hash_values, priority_value is not None, due_before is not None)):
+    if (not paginate or (cursor is None and team_id is None)) and not any((chat_id, external_chat_provider, external_chat_lookup_hash, project_id, assignee_hash, label_hash_values, priority_value is not None, due_before is not None)):
         projections = await run_in_threadpool(workflow_projection_service.list_projections, current_user.id)
         if status is not None:
             projections = [projection for projection in projections if projection.status == status]
-    return {"tasks": tasks + [projection.model_dump(mode="json") for projection in projections], "eligible_external_ai": eligible}
+    result = {"tasks": tasks + [projection.model_dump(mode="json") for projection in projections], "eligible_external_ai": eligible}
+    if paginate:
+        result.update(next_cursor=next_cursor, complete=complete)
+    return result
 
 
 @router.get("/assignment-eligibility")

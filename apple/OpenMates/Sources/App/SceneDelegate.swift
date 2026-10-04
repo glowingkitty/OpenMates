@@ -1,3 +1,5 @@
+// Specification: specifications/features/apple-task-board-interactions/specification.yml
+// Assertions: apple-task-board.new-task-shortcuts
 // Scene delegate — enables iPad multitasking (Split View, Slide Over, Stage Manager),
 // Handoff continuation from other Apple devices, home screen shortcut items, and
 // external display scenes for the iPhone/iPad controller experience.
@@ -50,6 +52,8 @@ enum SceneExternalURLRouting {
 extension AppQuickAction {
     init?(shortcutItem: UIApplicationShortcutItem) {
         switch shortcutItem.type {
+        case AppQuickAction.newTaskType:
+            self = .newTask
         case AppQuickAction.askType, AppQuickAction.legacyNewChatType:
             self = .ask
         case AppQuickAction.recordRequestType:

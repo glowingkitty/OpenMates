@@ -146,6 +146,24 @@ final class AuthManager: ObservableObject {
         return result
     }
 
+    /// Only the acknowledged /session preference is copied. Other profile fields
+    /// may have changed locally while registration's authoritative read awaited.
+    func applyAuthoritativePushNotificationPreference(_ received: UserProfile,
+                                                      accountID: String, profile: ServerProfile, scope: UUID) {
+        guard state == .authenticated, received.id == accountID,
+              currentUser?.id == accountID, ServerProfile.current() == profile,
+              OfflineStore.shared.scopeGeneration == scope,
+              let enabled = received.pushNotificationEnabled, let currentUser,
+              currentUser.pushNotificationEnabled != enabled,
+              let data = try? JSONEncoder().encode(currentUser),
+              var fields = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return }
+        fields["pushNotificationEnabled"] = enabled
+        guard let updated = try? JSONSerialization.data(withJSONObject: fields),
+              let user = try? JSONDecoder().decode(UserProfile.self, from: updated) else { return }
+        self.currentUser = user
+        cacheAuthenticatedUser(user)
+    }
+
     private var isCheckingSession = false
 
     // MARK: - Session check (app launch)

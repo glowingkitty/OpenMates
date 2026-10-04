@@ -4,6 +4,7 @@
 // Uses debug-only public fixture content without credentials or private chat data.
 // Requires explicit OpenMatesUITests target membership before Xcode execution.
 
+import CryptoKit
 import XCTest
 
 #if os(iOS)
@@ -127,7 +128,7 @@ final class ChatHistoryFullParityUITests: XCTestCase {
         assertComposerClearsFinalContent(in: app)
     }
 
-    // contract-test: direct surface=gui.apple assertions=chats.streaming.progressive-presentation,chats.rendering.assistant-document-convergence,chats.surface.semantic-parity
+    // contract-test: direct surface=gui.apple assertions=chats.streaming.progressive-presentation,chats.rendering.assistant-document-convergence,chats.surface.semantic-parity,message-input.actions.visibility
     func testStreamingThinkingAndComposerStopMatchWebContract() throws {
         let app = launchFixture(extraArguments: ["--ui-test-streaming-presentation"])
         let stage = element(in: app, identifier: "streaming-banner")
@@ -135,13 +136,18 @@ final class ChatHistoryFullParityUITests: XCTestCase {
 
         XCTAssertTrue(stage.waitForExistence(timeout: 12), app.debugDescription)
         XCTAssertFalse(stage.label.contains("embed."), "Stage status exposed an untranslated key")
+        // Processing must expose Stop in the compact, unfocused follow-up field.
+        XCTAssertFalse(app.keyboards.firstMatch.exists)
         XCTAssertTrue(stop.waitForExistence(timeout: 8), app.debugDescription)
         XCTAssertTrue(stop.isHittable)
         XCTAssertGreaterThanOrEqual(stop.frame.width, 44)
         XCTAssertGreaterThanOrEqual(stop.frame.height, 44)
         XCTAssertFalse(element(in: app, identifier: "send-button").exists)
+        XCTAssertFalse(element(in: app, identifier: "record-audio-button").exists)
 
         let history = element(in: app, identifier: "chat-history-container")
+        XCTAssertTrue(element(in: app, identifier: "thinking-section").exists)
+        XCTAssertTrue(app.buttons["thinking-toggle"].exists)
         let thinking = element(in: app, identifier: "thinking-content")
         for _ in 0..<5 where !thinking.exists {
             history.swipeUp()
@@ -150,6 +156,19 @@ final class ChatHistoryFullParityUITests: XCTestCase {
         XCTAssertLessThanOrEqual(thinking.frame.height, 202, "Streaming thinking content must remain bounded")
         XCTAssertEqual(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "**")).count, 0)
         XCTAssertTrue(app.staticTexts["Bounded thinking detail"].exists)
+        let assistant = element(in: app, identifier: "chat-history-fixture-assistant")
+        XCTAssertTrue(assistant.exists)
+        XCTAssertTrue(assistant.label.hasPrefix("Synthetic assistant history fixture"))
+        XCTAssertFalse(assistant.label.contains("Bounded thinking detail"), "A message with visible text keeps its own semantic label")
+        let manifestValue = try XCTUnwrap(assistant.value as? String)
+        let manifest = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(manifestValue.utf8)) as? [String: Any])
+        let normalizedLabel = assistant.label.split(whereSeparator: { $0.isWhitespace }).joined(separator: " ")
+        let labelHash = SHA256.hash(data: Data(normalizedLabel.utf8)).prefix(8)
+            .map { String(format: "%02x", $0) }.joined()
+        XCTAssertEqual(manifest["role"] as? String, "assistant")
+        XCTAssertEqual(manifest["content_hash"] as? String, labelHash, "DEBUG evidence and accessibility must consume the same prepared text")
+        XCTAssertEqual(manifest["text_length"] as? Int, normalizedLabel.count)
+        XCTAssertEqual(manifest["has_thinking"] as? Bool, true)
         attachScreenshot(name: "Streaming stage thinking and composer stop")
     }
 

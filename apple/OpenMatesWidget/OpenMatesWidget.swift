@@ -291,6 +291,7 @@ struct MediumInspirationView: View {
     }
 }
 
+#if os(iOS)
 // MARK: - Lock Screen / StandBy rectangular widget
 
 struct AccessoryRectangularInspirationView: View {
@@ -347,6 +348,8 @@ struct AccessoryCircularInspirationView: View {
     }
 }
 
+#endif
+
 // MARK: - Entry view (family-aware)
 
 struct InspirationWidgetEntryView: View {
@@ -359,12 +362,14 @@ struct InspirationWidgetEntryView: View {
             SmallInspirationView(entry: entry)
         case .systemMedium:
             MediumInspirationView(entry: entry)
+        #if os(iOS)
         case .accessoryRectangular:
             AccessoryRectangularInspirationView(entry: entry)
         case .accessoryInline:
             AccessoryInlineInspirationView(entry: entry)
         case .accessoryCircular:
             AccessoryCircularInspirationView(entry: entry)
+        #endif
         default:
             MediumInspirationView(entry: entry)
         }
@@ -391,10 +396,11 @@ struct DailyInspirationWidget: Widget {
         }
         .configurationDisplayName("Daily Inspiration")
         .description("A new curiosity question every day. Available on Home Screen, Lock Screen, and StandBy.")
-        .supportedFamilies([
-            .systemSmall, .systemMedium,
-            .accessoryRectangular, .accessoryInline, .accessoryCircular
-        ])
+        #if os(iOS)
+        .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular, .accessoryInline, .accessoryCircular])
+        #else
+        .supportedFamilies([.systemSmall, .systemMedium])
+        #endif
         #if os(iOS)
         .contentMarginsDisabled()
         #endif
@@ -419,6 +425,12 @@ struct DailyInspirationWidget: Widget {
 struct OpenMatesWidgetBundle: WidgetBundle {
     var body: some Widget {
         DailyInspirationWidget()
+        TasksWidget()
+        ActiveChatsWidget()
+        WorkflowsWidget()
+        #if os(iOS)
+        if #available(iOS 16.2, *) { OpenMatesLiveActivity() }
+        #endif
     }
 }
 
@@ -450,6 +462,7 @@ struct OpenMatesWidgetBundle: WidgetBundle {
     InspirationEntry(date: Date(), inspiration: .placeholder)
 }
 
+#if os(iOS)
 #Preview("Lock Screen Rectangular", as: .accessoryRectangular) {
     DailyInspirationWidget()
 } timeline: {
@@ -467,4 +480,5 @@ struct OpenMatesWidgetBundle: WidgetBundle {
 } timeline: {
     InspirationEntry(date: Date(), inspiration: .placeholder)
 }
+#endif
 #endif

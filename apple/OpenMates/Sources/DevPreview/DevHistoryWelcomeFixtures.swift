@@ -2,6 +2,12 @@
 // Parent runtime is detached; no account, draft, upload or socket work may start.
 #if DEBUG
 import SwiftUI
+import CryptoKit
+#if os(iOS)
+import UIKit
+#elseif os(macOS)
+import AppKit
+#endif
 
 @MainActor
 enum DevHistoryWelcomeData {
@@ -126,11 +132,13 @@ struct DevWelcomeComponentFixture: View {
     @State private var selection: String?
     var body: some View {
         GeometryReader { geometry in
-            let chats = empty ? [] : DevHistoryWelcomeData.welcomeChats
+            let chats = empty ? [] : DevHistoryWelcomeData.welcomeChats + [DevHistoryWelcomeData.chat("fixture-pending-draft", messages: 0, draft: 5), DevHistoryWelcomeData.chat("fixture-empty-preview", messages: 0, draft: 6)]
             let resume = WelcomeScreenState.resumeChat(from: chats, lastOpened: "fixture-resume")
-            let recent = WelcomeScreenState.recentChats(from: chats, excluding: resume?.id)
+            let recent = WelcomeScreenState.recentChats(from: chats.filter {
+                WelcomeScreenState.isContinuationPreviewReady($0, draftPreview: $0.id == "fixture-draft" ? "[Audio] [Image]" : ($0.id == "fixture-empty-preview" ? "   " : nil))
+            }, excluding: resume?.id)
             let cards = ([resume].compactMap { $0 } + recent).map {
-                WelcomeScreenState.cardData(for: $0, draftPreview: $0.id == "fixture-draft" ? "A real draft preview" : nil)
+                WelcomeScreenState.cardData(for: $0, draftPreview: $0.id == "fixture-draft" ? "Before ```json\n{\"type\":\"audio\",\"embed_id\":\"fixture-audio\"}\n``` after ```json\n{\"type\":\"image\",\"embed_id\":\"fixture-image\"}\n``` describe it" : nil)
             }
             VStack(spacing: 16) {
                 if let selection {
@@ -147,6 +155,103 @@ struct DevWelcomeComponentFixture: View {
     }
     private func select(_ card: WelcomeChatCardData) {
         selection = card.title; onAction("open:\(card.id)")
+    }
+}
+
+// Selection comes only from the production platform text view delegate. The
+// local transport records ciphertext routing and never contacts an account.
+@MainActor
+final class DevMessageSelectionFixtureModel: ObservableObject {
+    @Published var receipt = ""
+    @Published var selected = ""
+    var manager: HighlightsManager!
+    let scope = MessageHighlightRuntimeScope(accountID: "selection-fixture-owner", scope: UUID(), server: .development,
+        team: .init(accountID: "selection-fixture-owner", server: .development, scope: nil, teamID: nil, epoch: 0))
+    init() {
+        let key = SymmetricKey(size: .bits256), scope = scope
+        manager = HighlightsManager(storage: nil, key: { _ in key }, transport: { [weak self] type, fields in
+            guard let cipher = fields["encrypted_payload"] as? String,
+                  !cipher.contains(self?.selected ?? "Svelte") else { throw MessageContextActionError.unavailable }
+            self?.receipt = type + ":encrypted"
+        }, validate: { $0 == scope })
+    }
+}
+struct DevMessageSelectionFixture: View {
+    let variant: String
+    @StateObject private var model = DevMessageSelectionFixtureModel()
+    @State private var selection: MessageTextSelectionSnapshot?
+    @State private var comment = ""
+    @State private var commentID: String?
+    @State private var route = ""
+    @State private var showContext = false
+    private var policy: MessageSelectionActionPolicy {
+        .init(authenticated: variant != "selected-text-readonly", readOnly: variant == "selected-text-readonly",
+              incognito: false, assistant: variant != "selected-text-user", streaming: false)
+    }
+    var body: some View {
+        VStack(alignment: .leading, spacing: .spacing6) {
+            InlineMarkdownText(content: "Svelte **runes** make state explicit. Select part of this sentence.", isUserMessage: false)
+                .environment(\.messageTextSelection, .init(messageID: "selection-fixture-message",
+                    highlights: model.manager.anchors(chatID: "selection-fixture-chat", messageID: "selection-fixture-message"),
+                    onSelection: receive, onContextMenu: receive))
+                .frame(maxWidth: .infinity, alignment: .leading)
+            InlineMarkdownText(content: "Preserved `inline code` and [Citation](https://example.invalid/source).", isUserMessage: false)
+                .accessibilityIdentifier("selection-fixture-entities")
+            if let selection {
+                MessageSelectionToolbar(canExplain: policy.canExplain, canHighlight: policy.canHighlight,
+                    onCopy: {
+                        #if os(iOS)
+                        UIPasteboard.general.string = selection.copyText
+                        #else
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(selection.copyText, forType: .string)
+                        #endif
+                        route = selection.copyText
+                    },
+                    onMore: { showContext = true },
+                    onHighlight: { save(selection, comment: false) }, onComment: { save(selection, comment: true) },
+                    onExplain: { route = "Tell me more about: " + selection.explanationTerm })
+            }
+            if showContext {
+                Text("Message actions").accessibilityIdentifier("selection-fixture-context")
+            }
+            if commentID != nil {
+                MessageHighlightCommentEditor(comment: $comment, onSave: {
+                    guard let id = commentID else { return }
+                    Task { try? await model.manager.updateComment(id: id, comment: comment); commentID = nil }
+                }, onCancel: { commentID = nil })
+            }
+            Text(model.selected).accessibilityIdentifier("selection-fixture-selected")
+            Text(model.receipt).accessibilityIdentifier("selection-fixture-transport")
+            Text(route).accessibilityIdentifier("selection-fixture-route")
+            Spacer()
+        }.padding(.spacing5).frame(maxWidth: .infinity, maxHeight: .infinity)
+            .task { await model.manager.configure(model.scope) }
+    }
+    private func receive(_ value: MessageTextSelectionSnapshot?) {
+        guard let value else { return }
+        selection = value; model.selected = value.anchor.exact
+    }
+    private func save(_ value: MessageTextSelectionSnapshot, comment: Bool) {
+        Task {
+            if let id = try? await model.manager.add(chatID: "selection-fixture-chat", messageID: value.messageID, anchor: value.anchor), comment {
+                commentID = id
+            }
+        }
+    }
+}
+
+/// Production shared SettingsView route with a local callback receipt. This is
+/// panel interaction coverage; encrypted fork preparation has separate unit proof.
+struct DevMessageForkSettingsFixture: View {
+    @State private var receipt = ""
+    var body: some View {
+        VStack(spacing: .spacing3) {
+            SettingsView(isolatedNavigation: true, forkContext: .init(sourceChatID: "fork-fixture-source",
+                upToMessageID: "fork-fixture-boundary", defaultTitle: "Synthetic source", messageCount: 3,
+                onFork: { title in receipt = title }))
+            Text(receipt).accessibilityIdentifier("message-fork-fixture-receipt")
+        }
     }
 }
 #endif

@@ -30,6 +30,8 @@ final class AssistantSpeechAppRuntime {
     private var sourceSubscription: AnyCancellable?
     private var metadataSubscription: AnyCancellable?
     private var knownCiphertexts: [String: String] = [:]
+    private var knownChatIDs = Set<String>()
+    private var deletedChatIDs = Set<String>()
     private var earlyEvents: [String: AssistantSpeechEarlyEvents] = [:]
     private lazy var preference = AssistantSpeechPreferenceAdapter(dependencies: .init(
         isCurrent: { [weak self] in self?.current($0) == true },
@@ -85,6 +87,7 @@ final class AssistantSpeechAppRuntime {
         }
         metadataSubscription = store.$chats.sink { [weak self] chats in
             guard let self else { return }
+            reconcileChatIDs(Set(chats.map(\.id)))
             for chat in chats {
                 if (chat.messagesV ?? 0) > 0, committedChats.contains(chat.id), let scope = scope(for: chat.id) {
                     schedulePromotion(scope)
@@ -99,9 +102,27 @@ final class AssistantSpeechAppRuntime {
         }
     }
     func scope(for chatID: String) -> AssistantSpeechScope? {
-        guard store != nil, socket != nil, let identity = OfflineStore.shared.activeScopeId,
+        guard !deletedChatIDs.contains(chatID), store != nil, socket != nil, let identity = OfflineStore.shared.activeScopeId,
               scopeGeneration == OfflineStore.shared.scopeGeneration else { return nil }
         return .init(accountID: identity, serverID: identity, chatID: chatID, sessionID: sessionGeneration)
+    }
+    // Only a previously observed saved/draft row disappearing is deletion;
+    // a welcome composer can legitimately activate before its chat is stored.
+    func reconcileChatIDs(_ ids: Set<String>) {
+        for id in knownChatIDs.subtracting(ids) {
+            deletedChatIDs.insert(id)
+            controllers.removeValue(forKey: id)?.reset()
+            promotionTasks.removeValue(forKey: id)?.cancel()
+            outgoing.removeValue(forKey: id); pendingCommitUserIDs.removeValue(forKey: id)
+            earlyEvents.removeValue(forKey: id); knownCiphertexts.removeValue(forKey: id)
+            committedChats.remove(id)
+            if activeChatID == id {
+                activationGeneration = UUID()
+                activeChatID = nil; activeOwnerID = nil
+                systemMedia.reset(); mediaSubscription = nil
+            }
+        }
+        knownChatIDs = ids
     }
     private func current(_ scope: AssistantSpeechScope) -> Bool {
         if scope == publicScope { return scope.serverID == ServerProfile.current().webBaseURL.absoluteString }
@@ -270,7 +291,10 @@ final class AssistantSpeechAppRuntime {
         if let messageID = Self.correlatedAssistantMessageID(type: type, fields: fields,
             chatID: chatID, expectedUserMessageID: outgoing[chatID]) {
             let control = controller(for: chatID)
-            if outgoing.removeValue(forKey: chatID) != nil { control.expectResponse(messageID, in: scope) }
+            if outgoing.removeValue(forKey: chatID) != nil {
+                control.expectResponse(messageID, in: scope)
+                control.updateSource(from: store?.messages(for: chatID) ?? [])
+            }
             for event in earlyEvents.removeValue(forKey: chatID)?.events ?? [] { control.receive(event, in: scope) }
         } else if type == "assistant_speech_acknowledgement",
                   let id = fields["message_id"] as? String, let clip = fields["clip_id"] as? String,
@@ -318,6 +342,7 @@ final class AssistantSpeechAppRuntime {
         systemMedia.reset(); mediaSubscription = nil; publicScope = nil
         sessionGeneration = UUID(); activationGeneration = UUID(); pendingPublicChatID = nil
         sourceSubscription = nil; metadataSubscription = nil; knownCiphertexts.removeAll()
+        knownChatIDs.removeAll(); deletedChatIDs.removeAll()
         promotionTasks.values.forEach { $0.cancel() }; promotionTasks.removeAll()
         controllers.values.forEach { $0.reset() }; controllers.removeAll()
         preference.clear(); outgoing.removeAll(); earlyEvents.removeAll(); player.stop()

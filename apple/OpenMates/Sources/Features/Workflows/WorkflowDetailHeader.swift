@@ -120,10 +120,9 @@ struct WorkflowDetailHeader: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ZStack(alignment: .top) {
-                CategoryMapping.gradient(for: CategoryMapping.isKnownCategory(category) ? category : "general_knowledge")
-
-                VStack(spacing: 10) {
+            // Only identity content owns height. Decorative layers must not
+            // absorb the editor's minimum viewport height when Runs is short.
+            VStack(spacing: 10) {
                     WorkflowIconView(title: title, icon: icon, category: category, size: 38)
                         .foregroundStyle(Color.fontButton)
                         .frame(height: 42) // Web identity icon line box.
@@ -205,26 +204,26 @@ struct WorkflowDetailHeader: View {
                 .padding(.top, 76.8)
                 .padding(.bottom, 57.6)
 
-                VStack {
-                    Spacer()
-                    Text(metadata)
-                        .font(.omSmall)
-                        .foregroundStyle(Color.fontButton.opacity(0.8))
-                        .accessibilityIdentifier("workflow-detail-metadata")
-                }
-                .padding(.bottom, .spacing8)
-
+            .frame(maxWidth: .infinity, minHeight: 304)
+            .fixedSize(horizontal: false, vertical: true)
+            .background(CategoryMapping.gradient(for: CategoryMapping.isKnownCategory(category) ? category : "general_knowledge"))
+            .overlay(alignment: .bottom) {
+                Text(metadata)
+                    .font(.omSmall)
+                    .foregroundStyle(Color.fontButton.opacity(0.8))
+                    .padding(.bottom, 16)
+                    .accessibilityIdentifier("workflow-detail-metadata")
+            }
+            .overlay(alignment: .top) {
                 GeometryReader { geometry in
                     Text(tr(.workflow))
                         .font(.omSmall.weight(.semibold))
                         .foregroundStyle(Color.fontButton)
                         .frame(maxWidth: .infinity, alignment: .top)
                         .padding(.top, geometry.size.width <= 730 ? 54 : 20)
-
                 }
-                .zIndex(3)
+                .allowsHitTesting(false)
             }
-            .frame(minHeight: 304)
             .clipShape(UnevenRoundedRectangle(bottomLeadingRadius: 16, bottomTrailingRadius: 16))
             .onGeometryChange(for: CGRect.self) { geometry in
                 geometry.frame(in: .named(WorkflowDetailViewport.coordinateSpace))

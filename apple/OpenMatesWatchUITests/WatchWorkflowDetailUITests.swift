@@ -1,6 +1,21 @@
 import XCTest
 
+@MainActor
 final class WatchWorkflowDetailUITests: XCTestCase {
+    override func tearDownWithError() throws {
+        if let testRun, testRun.failureCount > 0 {
+            let screenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+            screenshot.name = "Watch failure screenshot — " + name
+            screenshot.lifetime = .keepAlways
+            add(screenshot)
+            let hierarchy = XCTAttachment(string: XCUIApplication().debugDescription)
+            hierarchy.name = "Watch failure accessibility tree — " + name
+            hierarchy.lifetime = .keepAlways
+            add(hierarchy)
+        }
+        try super.tearDownWithError()
+    }
+
     override func setUpWithError() throws { continueAfterFailure = false }
     @MainActor
     // contract-test: direct surface=gui.apple assertions=apple-watch.workflows.compact-editor,apple-watch.handoff.exact-private
@@ -180,5 +195,30 @@ final class WatchWorkflowDetailUITests: XCTestCase {
     @MainActor private func screenshot(_ name: String) {
         let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         attachment.name = name; attachment.lifetime = .keepAlways; add(attachment)
+    }
+}
+
+extension WatchWorkflowDetailUITests {
+    @MainActor
+    // contract-test: direct surface=gui.apple assertions=apple-workspaces.watch-retention,apple-watch.workflows.compact-editor
+    func testRunHistoryOpensReadOnlySavedResultAndReturnsToGraph() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-watch-workflow-detail"]
+        app.launch()
+        let history = app.buttons["watch-workflow-runs-open"]
+        XCTAssertTrue(history.waitForExistence(timeout: 12)); XCTAssertTrue(history.isHittable); history.tap()
+        let run = app.buttons["watch-workflow-run-fixture-run"]
+        XCTAssertTrue(run.waitForExistence(timeout: 5)); XCTAssertTrue(run.isHittable); run.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["watch-workflow-run-detail"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["answer: Fixture run output"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.buttons["watch-workflow-save"].exists)
+        XCTAssertFalse(app.buttons["watch-workflow-edit-message"].exists)
+        app.buttons["watch-workflow-detail-back"].tap()
+        XCTAssertTrue(run.waitForExistence(timeout: 5))
+        app.buttons["watch-workflow-detail-back"].tap()
+        XCTAssertTrue(history.waitForExistence(timeout: 5))
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        attachment.name = "Watch read-only Workflow run history and result"
+        attachment.lifetime = .keepAlways; add(attachment)
     }
 }

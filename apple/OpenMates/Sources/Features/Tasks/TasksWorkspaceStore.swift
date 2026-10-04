@@ -1,7 +1,11 @@
+// Specification: specifications/features/apple-offline-workspaces/specification.yml
+// Assertions: apple-workspaces.offline-complete, apple-workspaces.local-first, apple-workspaces.isolation, apple-workspaces.maintenance
 // Retained Tasks workspace state. MainAppView owns this object so board selection,
 // horizontal position, and detail context survive workspace switches.
 // Specification: specifications/features/tasks/specification.yml
 // Assertions: tasks.lifecycle.visible, tasks.surface.semantic-parity
+// Specification: specifications/features/apple-task-board-interactions/specification.yml
+// Assertions: apple-task-board.drag-move, apple-task-board.workflow-run, apple-task-board.edit
 
 import Combine
 import Foundation
@@ -13,6 +17,8 @@ final class TasksWorkspaceStore: ObservableObject {
     @Published private(set) var projectNames: [String: String] = [:]
     @Published private(set) var isLoading = false
     @Published private(set) var isSaving = false
+    @Published private(set) var taskEditErrorMessage: String?
+    @Published private(set) var interactionErrorMessage: String?
     @Published private(set) var errorMessage: String?
     @Published private(set) var plansLoadErrorMessage: String?
     @Published private(set) var projectNamesLoadErrorMessage: String?
@@ -20,8 +26,12 @@ final class TasksWorkspaceStore: ObservableObject {
     @Published var selectedPlanID: String?
     @Published var selectedWorkflowRunID: String?
     @Published var searchText = ""
+    @Published var promptDraft = ""
     @Published var tagsExpanded = true
 
+    private let teamContext: TeamWorkspaceContext
+    private var teamEpoch: UInt64?
+    private var contextTeamID: String?
     private let tasks: UserTasksService
     private let plansService: UserPlansService
     private let projects: ProjectsWorkspaceServing
@@ -36,12 +46,16 @@ final class TasksWorkspaceStore: ObservableObject {
     #if DEBUG
     /// A suspended loader lets the unit test prove that a new filter request
     /// starts while the previous request is still in flight.
+    var debugTaskEditor: (@MainActor (UserTaskItem, UserTaskUpdateInput) async throws -> UserTaskItem)?
+    var debugTaskMover: (@MainActor (UserTaskItem, UserTaskStatus, Int) async throws -> UserTaskItem)?
     var debugBoardLoader: (@MainActor (UserTaskListFilters) async throws -> [TaskBoardItem])?
     #endif
 
     init(tasks: UserTasksService = UserTasksService(),
          plansService: UserPlansService = UserPlansService(),
-         projects: ProjectsWorkspaceServing = ProjectsWorkspaceService()) {
+         projects: ProjectsWorkspaceServing = ProjectsWorkspaceService(),
+         teamContext: TeamWorkspaceContext = .shared) {
+        self.teamContext = teamContext
         self.tasks = tasks
         self.plansService = plansService
         self.projects = projects
@@ -127,14 +141,18 @@ final class TasksWorkspaceStore: ObservableObject {
     func reset(accountID: String?) {
         guard accountID == nil || self.accountID != accountID
                 || scope != OfflineStore.shared.scopeGeneration
-                || serverProfile != ServerProfile.current() else { return }
+                || serverProfile != ServerProfile.current()
+                || teamEpoch != teamContext.contextEpoch
+                || contextTeamID != teamContext.teamID else { return }
         self.accountID = accountID
+        teamEpoch = teamContext.contextEpoch
+        contextTeamID = teamContext.teamID
         isPreview = false
         scope = OfflineStore.shared.scopeGeneration
         serverProfile = accountID == nil ? nil : ServerProfile.current()
         loadGeneration = UUID()
         projectID = nil
-        teamID = nil
+        teamID = teamContext.teamID
         boardItems = []
         plans = []
         projectNames = [:]
@@ -142,7 +160,10 @@ final class TasksWorkspaceStore: ObservableObject {
         selectedPlanID = nil
         selectedWorkflowRunID = nil
         searchText = ""
+        promptDraft = ""
         errorMessage = nil
+        interactionErrorMessage = nil
+        taskEditErrorMessage = nil
         plansLoadErrorMessage = nil
         projectNamesLoadErrorMessage = nil
         hasLoaded = false
@@ -168,15 +189,32 @@ final class TasksWorkspaceStore: ObservableObject {
             selectedTaskID = nil
             selectedPlanID = nil
             selectedWorkflowRunID = nil
+            promptDraft = ""
         }
         guard !isLoading, force || !hasLoaded else { return }
-        let fence = UserTasksAccountFence(accountID: accountID)
+        let fence = UserTasksAccountFence(accountID: accountID, teamContext: teamContext)
         let generation = loadGeneration
         isLoading = true
         errorMessage = nil
         defer { if generation == loadGeneration { isLoading = false } }
         plansLoadErrorMessage = nil
         projectNamesLoadErrorMessage = nil
+        let filters = UserTaskListFilters(projectID: projectID, teamID: teamID)
+        #if DEBUG
+        let useCache = debugBoardLoader == nil
+        #else
+        let useCache = true
+        #endif
+        if useCache {
+            if let cached = try? await tasks.cachedBoard(filters: filters, fence: fence),
+               await acceptsLoadResult(generation: generation, fence: fence) { boardItems = cached }
+            if let cached = try? await plansService.cachedPlans(projectID: projectID, teamID: teamID, fence: fence),
+               await acceptsLoadResult(generation: generation, fence: fence) { plans = cached }
+            if let cached = try? await projects.cachedProjects(accountID: accountID, teamID: teamID),
+               await acceptsLoadResult(generation: generation, fence: fence) {
+                projectNames = Dictionary(cached.map { ($0.id, $0.name) }, uniquingKeysWith: { _, last in last })
+            }
+        }
         var boardLoaded = false
         var plansLoaded = false
         do {
@@ -218,7 +256,6 @@ final class TasksWorkspaceStore: ObservableObject {
             projectNames = Dictionary(fetchedProjects.map { ($0.id, $0.name) }, uniquingKeysWith: { _, current in current })
         } catch {
             guard await acceptsLoadResult(generation: generation, fence: fence) else { return }
-            projectNames = [:]
             recordLoadFailure(error, stage: .projectNames, generation: generation)
         }
         guard generation == loadGeneration else { return }
@@ -266,8 +303,8 @@ final class TasksWorkspaceStore: ObservableObject {
     #if DEBUG
     /// In-memory mirror of TaskBoard.preview.ts for signed-out visual checks.
     /// Ciphertext records are synthetic and never sent to the API.
-    func installPreview(projectID: String? = nil) {
-        reset(accountID: nil)
+    func installPreview(projectID: String? = nil, manyBacklog: Bool = false, accountID: String? = nil) {
+        reset(accountID: accountID)
         isPreview = true
         let timestamp = 1_788_883_200
         let decoder = JSONDecoder()
@@ -303,6 +340,13 @@ final class TasksWorkspaceStore: ObservableObject {
             task("preview-blocked", "Confirm launch requirements", .blocked, 0,
                  tags: [], assignee: .unassigned, blockedReason: "Waiting for confirmation."),
         ].compactMap { $0 }
+        if manyBacklog {
+            // TaskBoard.preview.ts manyBacklog: 55 Tasks plus one draft Plan.
+            boardItems += (0..<53).compactMap { index in
+                task("preview-extra-\(index)", "Extra backlog task \(index + 1)",
+                     .backlog, index + 2)
+            }
+        }
         boardItems.append(.workflowRun(WorkflowRunTaskProjection(
             taskId: "preview-workflow", source: "workflow_run", projectionKind: "next_run",
             workflowId: "weather-report", workflowRunId: "weather-report-run",
@@ -357,6 +401,10 @@ final class TasksWorkspaceStore: ObservableObject {
     }
 
     func openWorkflowRun(_ id: String) {
+        guard boardItems.contains(where: { item in
+            if case .workflowRun(let run) = item { return run.id == id && run.workflowRunId != nil }
+            return false
+        }) else { return }
         selectedTaskID = nil
         selectedPlanID = nil
         selectedWorkflowRunID = id
@@ -425,33 +473,193 @@ final class TasksWorkspaceStore: ObservableObject {
         }
     }
 
-    func saveTask(_ task: UserTaskItem, patch: UserTaskUpdateInput) async {
-        guard let fence = currentFence(), !isSaving else { return }
+    func clearTaskEditError() { taskEditErrorMessage = nil }
+
+    /// Return success only after an account-fenced authoritative response. The
+    /// detail view retains its original version and draft when this returns false.
+    @discardableResult
+    func saveTask(_ task: UserTaskItem, patch: UserTaskUpdateInput) async -> Bool {
+        guard !isSaving, boardItems.contains(where: { item in
+            if case .task(let current) = item { return current.id == task.id }; return false
+        }) else { return false }
+        let generation = loadGeneration
+        let fence = currentFence()
+        #if DEBUG
+        let preview = isPreview
+        guard preview || fence != nil else { return false }
+        #else
+        guard fence != nil else { return false }
+        #endif
         isSaving = true
-        defer { isSaving = false }
+        taskEditErrorMessage = nil
+        defer { if generation == loadGeneration { isSaving = false } }
         do {
-            let updated = try await tasks.update(task, patch: patch, teamID: teamID, fence: fence)
+            let updated: UserTaskItem
+            #if DEBUG
+            if preview {
+                guard let latest = boardItems.compactMap({ item -> UserTaskItem? in
+                    if case .task(let value) = item, value.id == task.id { return value }; return nil
+                }).first, latest.version == task.version else {
+                    throw APIError.httpError(status: 409, message: "")
+                }
+                if let debugTaskEditor { updated = try await debugTaskEditor(task, patch) }
+                else {
+                    if ProcessInfo.processInfo.arguments.contains("--ui-test-task-edit-conflict") {
+                        throw APIError.httpError(status: 409, message: "")
+                    }
+                    if ProcessInfo.processInfo.arguments.contains("--ui-test-task-edit-failure") {
+                        throw UserTasksError.invalidResponse
+                    }
+                    updated = try previewEditedTask(task, patch: patch)
+                }
+                guard generation == loadGeneration, isPreview else { return false }
+            } else {
+                guard let fence else { return false }
+                updated = try await tasks.update(task, patch: patch, teamID: teamID, fence: fence)
+                try await fence.check()
+            }
+            #else
+            guard let fence else { return false }
+            updated = try await tasks.update(task, patch: patch, teamID: teamID, fence: fence)
             try await fence.check()
+            #endif
+            guard generation == loadGeneration else { return false }
             replace(updated)
             errorMessage = nil
+            return true
         } catch {
-            guard (try? await fence.check()) != nil else { return }
-            errorMessage = error.localizedDescription
+            guard generation == loadGeneration else { return false }
+            if let fence, (try? await fence.check()) == nil { return false }
+            if case APIError.httpError(let code, _) = error, code == 409 {
+                taskEditErrorMessage = AppStrings.tasksEditConflict
+            } else { taskEditErrorMessage = AppStrings.tasksEditFailed }
+            NativeDiagnostics.error("Task edit failed error_type=\(type(of: error))", category: "tasks")
+            return false
         }
     }
 
+    #if DEBUG
+    /// Synthetic preview writes use the same save reducer with no network,
+    /// real account state, ciphertext creation or persistent storage.
+    private func previewEditedTask(_ task: UserTaskItem, patch: UserTaskUpdateInput) throws -> UserTaskItem {
+        let encoder = JSONEncoder()
+        encoder.keyEncodingStrategy = .convertToSnakeCase
+        guard var json = try JSONSerialization.jsonObject(with: encoder.encode(task.record)) as? [String: Any] else {
+            throw UserTasksError.invalidResponse
+        }
+        json["version"] = task.version + 1
+        if let value = patch.assigneeType {
+            json["assignee_type"] = value.rawValue
+            if value != task.assigneeType {
+                if value == .openmates { json["assignee_identity"] = UserTaskAssigneeIdentity.openmates.rawValue }
+                else { json["assignee_identity"] = NSNull() }
+            }
+        }
+        if let value = patch.assigneeIdentity { json["assignee_identity"] = value.rawValue }
+        if patch.clearDueAt { json.removeValue(forKey: "due_at") }
+        else if let value = patch.dueAt { json["due_at"] = value }
+        if let value = patch.priority { json["priority"] = value }
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let record = try decoder.decode(EncryptedUserTaskRecord.self,
+            from: JSONSerialization.data(withJSONObject: json))
+        return UserTaskItem(record: record, title: patch.title ?? task.title,
+            description: patch.description ?? task.description, latestInstruction: task.latestInstruction,
+            tags: patch.tags ?? task.tags, linkedProjectIds: task.linkedProjectIds,
+            blockedReason: task.blockedReason, externalChat: task.externalChat)
+    }
+    #endif
+
+    /// Drops and explicit menu moves share ordering, optimistic feedback and rollback.
     func moveTask(_ task: UserTaskItem, to status: UserTaskStatus) async {
-        guard let fence = currentFence(), !isSaving else { return }
+        guard !isSaving, let current = boardItems.compactMap({ item -> UserTaskItem? in
+            if case .task(let candidate) = item, candidate.id == task.id { return candidate }
+            return nil
+        }).first, current.status != status else { return }
+        let position = firstPosition(in: status, excluding: current.id)
+        let generation = loadGeneration
+        let fence = currentFence()
+        #if DEBUG
+        let preview = isPreview
+        guard preview || fence != nil else { return }
+        #else
+        guard fence != nil else { return }
+        #endif
         isSaving = true
-        defer { isSaving = false }
+        interactionErrorMessage = nil
+        replace(current.placing(on: status, at: position))
+        defer { if generation == loadGeneration { isSaving = false } }
         do {
-            let updated = try await tasks.move(task, to: status, teamID: teamID, fence: fence)
+            let updated: UserTaskItem
+            #if DEBUG
+            if preview {
+                if let debugTaskMover {
+                    updated = try await debugTaskMover(current, status, position)
+                } else {
+                    try await Task.sleep(for: .milliseconds(180))
+                    if ProcessInfo.processInfo.arguments.contains("--ui-test-task-move-failure") {
+                        throw UserTasksError.invalidResponse
+                    }
+                    updated = current.placing(on: status, at: position)
+                }
+                guard generation == loadGeneration, isPreview else { return }
+            } else {
+                guard let fence else { return }
+                updated = try await persistMove(current, to: status, position: position, fence: fence, generation: generation)
+                try await fence.check()
+            }
+            #else
+            guard let fence else { return }
+            updated = try await persistMove(current, to: status, position: position, fence: fence, generation: generation)
             try await fence.check()
+            #endif
+            guard generation == loadGeneration else { return }
             replace(updated)
-            errorMessage = nil
         } catch {
-            guard (try? await fence.check()) != nil else { return }
-            errorMessage = error.localizedDescription
+            guard generation == loadGeneration else { return }
+            if let fence {
+                guard await acceptsLoadResult(generation: generation, fence: fence) else { return }
+                if let refreshed = try? await tasks.listBoard(filters: .init(projectID: projectID, teamID: teamID), fence: fence),
+                   await acceptsLoadResult(generation: generation, fence: fence) {
+                    boardItems = refreshed
+                } else {
+                    guard await acceptsLoadResult(generation: generation, fence: fence) else { return }
+                    replace(current)
+                }
+            } else {
+                #if DEBUG
+                guard isPreview else { return }
+                replace(current)
+                #endif
+            }
+            interactionErrorMessage = AppStrings.tasksMoveFailed
+            NativeDiagnostics.error("Task move failed error_type=\(type(of: error))", category: "tasks")
+        }
+    }
+
+    var interactionGeneration: UUID { loadGeneration }
+
+    /// Web inserts a moved card ahead of every item in its destination column.
+    func firstPosition(in status: UserTaskStatus, excluding id: String) -> Int {
+        let lowest = boardItems.filter { $0.id != id && $0.status == status }.map(\.position).min() ?? 0
+        return min(0, lowest) > Int.min ? min(0, lowest) - 1 : Int.min
+    }
+
+    private func persistMove(_ task: UserTaskItem, to status: UserTaskStatus, position: Int,
+                             fence: UserTasksAccountFence, generation: UUID) async throws -> UserTaskItem {
+        do {
+            return try await tasks.move(task, to: status, position: position, teamID: teamID, fence: fence)
+        } catch APIError.httpError(let statusCode, _) where statusCode == 409 {
+            let latest = try await tasks.listBoard(filters: .init(projectID: projectID, teamID: teamID), fence: fence)
+            try await fence.check()
+            guard generation == loadGeneration else { throw UserTasksError.accountChanged }
+            guard let current = latest.compactMap({ item -> UserTaskItem? in
+                if case .task(let candidate) = item, candidate.id == task.id { return candidate }
+                return nil
+            }).first else { throw UserTasksError.invalidResponse }
+            boardItems = latest
+            replace(current.placing(on: status, at: position))
+            return try await tasks.move(current, to: status, position: position, teamID: teamID, fence: fence)
         }
     }
 
@@ -626,8 +834,11 @@ final class TasksWorkspaceStore: ObservableObject {
     private func currentFence() -> UserTasksAccountFence? {
         guard let accountID,
               scope == OfflineStore.shared.scopeGeneration,
-              serverProfile == ServerProfile.current() else { return nil }
-        return UserTasksAccountFence(accountID: accountID)
+              serverProfile == ServerProfile.current(),
+              teamEpoch == teamContext.contextEpoch,
+              contextTeamID == teamContext.teamID,
+              teamID == teamContext.teamID else { return nil }
+        return UserTasksAccountFence(accountID: accountID, teamContext: teamContext)
     }
 
     private func replace(_ task: UserTaskItem) {

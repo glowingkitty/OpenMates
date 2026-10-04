@@ -1,6 +1,6 @@
 // Web source: frontend/packages/ui/src/services/projectService.ts
 // Specification: specifications/features/projects/specification.yml
-// Assertions: projects.access.explicit-context, projects.files.no-server-decryption-authority, projects.files.connected-embed-previews
+// Assertions: projects.access.explicit-context, projects.files.no-server-decryption-authority, projects.files.connected-embed-previews, projects.surface.semantic-parity
 import CryptoKit
 import Foundation
 
@@ -69,7 +69,7 @@ struct ProjectRemoteDirectory {
 enum ProjectRemotePreviewPolicy {
     private static let binaryExtensions: Set<String> = [
         "7z", "avi", "bin", "bmp", "dmg", "doc", "docx", "dylib", "exe", "gif", "gz", "ico", "jar",
-        "jpeg", "jpg", "mov", "mp3", "mp4", "odt", "pdf", "png", "ppt", "pptx", "rar", "so", "tar",
+        "avif", "svg", "jpeg", "jpg", "mov", "mp3", "mp4", "odt", "pdf", "png", "ppt", "pptx", "rar", "so", "tar",
         "ttf", "wasm", "webm", "webp", "woff", "woff2", "xls", "xlsx", "zip",
     ]
 
@@ -115,7 +115,7 @@ enum ProjectRemotePreviewPolicy {
                 "language": AnyCodable(language(path)), "code": AnyCodable(text.content),
                 "line_count": AnyCodable(text.lineCount), "size_bytes": AnyCodable(text.sizeBytes),
                 "safety_flags": AnyCodable(text.truncated ? ["truncated"] : [])]),
-            parentEmbedId: nil, appId: "code", skillId: "code", embedIds: nil, createdAt: nil)
+            parentEmbedId: nil, appId: appID(path), skillId: "code", embedIds: nil, createdAt: nil)
     }
 
     static func canReadText(_ path: String) -> Bool {
@@ -264,6 +264,44 @@ final class ProjectRemoteSourceClient {
         return ProjectRemoteSearchResult(matches: matches, omitted: omitted)
     }
 
+    /// Uses the existing encrypted remote-read exchange, with the web README bounds.
+    func readReadmeImage(project: ProjectWorkspaceProject, source: ProjectWorkspaceSource,
+                         path: String, fence: ProjectsWorkspaceFence) async throws -> Data {
+        guard ProjectWorkspacePath.normalized(path) != nil else { throw ProjectsWorkspaceError.invalidContext }
+        return try await Self.assembleReadmeImage { offset in
+            try Task.checkCancellation()
+            try await fence.check()
+            return try await self.request(project: project, source: source, operation: "read_image_chunk",
+                arguments: ["path": path, "offset": offset], fence: fence)
+        }
+    }
+
+    static func assembleReadmeImage(read: (Int) async throws -> [String: Any]) async throws -> Data {
+        var data = Data()
+        var total: Int?
+        var mime: String?
+        var hash: String?
+        repeat {
+            let offset = data.count
+            let result = try await read(offset)
+            guard let size = result["size_bytes"] as? Int, size > 0, size <= 2 * 1024 * 1024,
+                  let resultOffset = result["offset"] as? Int, resultOffset == offset,
+                  let type = result["mime_type"] as? String,
+                  ["image/png", "image/jpeg", "image/gif", "image/webp", "image/avif"].contains(type),
+                  let identity = result["content_hash"] as? String, !identity.isEmpty,
+                  let encoded = result["content_base64"] as? String, let chunk = Data(base64Encoded: encoded),
+                  offset < size, chunk.count == min(128 * 1024, size - offset),
+                  total == nil || (total == size && mime == type && hash == identity) else {
+                throw ProjectsWorkspaceError.invalidResponse
+            }
+            total = size; mime = type; hash = identity
+            data.append(chunk)
+        } while data.count < (total ?? 0)
+        let digest = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+        guard digest == hash else { throw ProjectsWorkspaceError.invalidResponse }
+        return data
+    }
+
     func readText(project: ProjectWorkspaceProject, source: ProjectWorkspaceSource,
                   path: String, fence: ProjectsWorkspaceFence) async throws -> ProjectRemoteText {
         guard ProjectWorkspacePath.normalized(path) != nil else { throw ProjectsWorkspaceError.invalidResponse }
@@ -281,7 +319,7 @@ final class ProjectRemoteSourceClient {
     }
 
     func downloadOriginal(project: ProjectWorkspaceProject, source: ProjectWorkspaceSource,
-                          path: String, fence: ProjectsWorkspaceFence,
+                          path: String, fence: ProjectsWorkspaceFence, maximumBytes: Int? = nil,
                           progress: @escaping (Int, Int) -> Void) async throws -> URL {
         guard ProjectWorkspacePath.normalized(path) != nil else { throw ProjectsWorkspaceError.invalidResponse }
         let unsafeName = path.split(separator: "/").last.map(String.init) ?? "download"
@@ -309,7 +347,7 @@ final class ProjectRemoteSourceClient {
                 try await fence.check()
                 let result = try await request(project: project, source: source,
                     operation: "read_file_chunk", arguments: ["path": path, "offset": offset], fence: fence)
-                guard let size = result["size_bytes"] as? Int, size >= 0,
+                guard let size = result["size_bytes"] as? Int, size >= 0, offset <= size,
                       let resultOffset = result["offset"] as? Int, resultOffset == offset,
                       let fileIdentity = result["file_identity"] as? String,
                       let chunkHash = result["chunk_hash"] as? String,
@@ -319,6 +357,7 @@ final class ProjectRemoteSourceClient {
                       total == nil || (total == size && identity == fileIdentity) else {
                     throw ProjectsWorkspaceError.invalidResponse
                 }
+                try Self.validateDownloadSize(total: size, offset: offset, chunkBytes: bytes.count, maximumBytes: maximumBytes)
                 let digest = SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined()
                 guard digest == chunkHash else { throw ProjectsWorkspaceError.invalidResponse }
                 try await fence.check()
@@ -336,6 +375,22 @@ final class ProjectRemoteSourceClient {
             try? output.close()
             try? FileManager.default.removeItem(at: directory)
             throw error
+        }
+    }
+
+    /// Automatic previews are bounded before writing even the first received chunk.
+    /// Explicit original downloads pass no limit and preserve their existing behavior.
+    static func validateDownloadSize(total: Int, offset: Int, chunkBytes: Int,
+                                     maximumBytes: Int?) throws {
+        guard total >= 0, offset >= 0, offset <= total,
+              chunkBytes >= 0, chunkBytes <= total - offset else {
+            throw ProjectsWorkspaceError.invalidResponse
+        }
+        if let maximumBytes {
+            guard maximumBytes > 0, total <= maximumBytes,
+                  chunkBytes <= maximumBytes - offset else {
+                throw ProjectsWorkspaceError.invalidResponse
+            }
         }
     }
 

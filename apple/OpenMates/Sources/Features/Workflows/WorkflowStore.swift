@@ -1,3 +1,5 @@
+// Specification: specifications/features/apple-offline-workspaces/specification.yml
+// Assertions: apple-workspaces.offline-complete, apple-workspaces.local-first, apple-workspaces.isolation, apple-workspaces.maintenance
 // Owner-scoped native Workflow workspace state.
 // Web source: frontend/packages/ui/src/stores/workflowWorkspaceStore.ts
 // Specification: specifications/features/workflows/specification.yml
@@ -96,12 +98,16 @@ final class WorkflowStore: ObservableObject {
         if accountId != owner { reset(accountId: owner) }
         let requestGeneration = generation
         let scope = operationScope(for: owner)
+        guard !isLoading else { return }
         isLoading = true
         errorMessage = nil
+        if let cached = try? await api.cachedWorkflows(scope: scope),
+           isCurrent(requestGeneration, account: owner, scope: scope) { workflows = cached }
         do {
             let loaded = try await api.listWorkflows(scope: scope)
             guard isCurrent(requestGeneration, account: owner, scope: scope) else { return }
             workflows = loaded
+            await WorkflowsWidgetBridge.refresh()
             if let selectedWorkflowId, !loaded.contains(where: { $0.id == selectedWorkflowId }) {
                 clearSelection()
             }
@@ -139,14 +145,20 @@ final class WorkflowStore: ObservableObject {
         let selection = selectionGeneration
         let requestGeneration = generation
         let scope = operationScope(for: owner)
+        let previousID = selectedWorkflowId
         selectedWorkflowId = workflowId
         selectedRunId = nil
-        selectedWorkflow = nil
+        if previousID != workflowId { selectedWorkflow = nil }
         runs = []
         selectedRunDetail = nil
         pinnedRunGraph = nil
         isLoading = true
         errorMessage = nil
+        if detailRequest == nil, let cached = try? await api.cachedWorkflow(workflowId, scope: scope),
+           isCurrent(requestGeneration, account: owner, scope: scope), selection == selectionGeneration,
+           workflows.first(where: { $0.id == workflowId })?.currentVersionId == cached.currentVersionId {
+            selectedWorkflow = cached
+        }
         // Run history is ancillary: a failed or slow history request must not
         // suppress a successfully loaded template (web selectWorkflow parity).
         async let history: Void = loadSelectionRuns(workflowId, requestGeneration: requestGeneration,
@@ -158,6 +170,7 @@ final class WorkflowStore: ObservableObject {
             guard isCurrent(requestGeneration, account: owner, scope: scope),
                   selection == selectionGeneration, selectedWorkflowId == workflowId else { return }
             selectedWorkflow = loadedDetail
+            await WorkflowsWidgetBridge.refresh()
         } catch {
             guard isCurrent(requestGeneration, account: owner, scope: scope), selection == selectionGeneration else { return }
             errorMessage = error.localizedDescription
@@ -338,6 +351,7 @@ final class WorkflowStore: ObservableObject {
             try await api.deleteWorkflow(workflow.id, scope: scope)
             guard isCurrent(requestGeneration, account: owner, scope: scope), selectedWorkflowId == workflow.id else { return }
             workflows.removeAll { $0.id == workflow.id }
+            await WorkflowsWidgetBridge.refresh()
             clearSelection()
         } catch {
             guard isCurrent(requestGeneration, account: owner, scope: scope) else { return }
@@ -568,6 +582,7 @@ final class WorkflowStore: ObservableObject {
     }
 
     private func upsert(_ workflow: WorkflowDetail) {
+        Task { await WorkflowsWidgetBridge.refresh() }
         let value = summary(from: workflow)
         if let index = workflows.firstIndex(where: { $0.id == value.id }) { workflows[index] = value }
         else { workflows.insert(value, at: 0) }

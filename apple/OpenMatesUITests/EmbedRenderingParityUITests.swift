@@ -1086,8 +1086,10 @@ final class EmbedRenderingParityUITests: XCTestCase {
             XCTAssertTrue(header.exists && fullscreen.exists)
             XCTAssertEqual(header.frame.minY, fullscreen.frame.minY, accuracy: 1,
                            "The CTA reserve belongs below the banner, not in a blank top strip")
-            let firstLine = panel.staticTexts.matching(NSPredicate(format: "label == %@", "line_1 = \"content for line 1\"")).firstMatch
+            let firstLine = panel.textViews["code-readonly-source"].firstMatch
             XCTAssertTrue(firstLine.waitForExistence(timeout: 3))
+            XCTAssertTrue(firstLine.label.hasPrefix("line_1 = \"content for line 1\""),
+                          "The selectable source must retain the actual first line")
             // The fixture's widest line is 33 characters: narrower than the
             // phone source viewport. A horizontal ScrollView must not center it.
             XCTAssertLessThanOrEqual(firstLine.frame.minX, panel.frame.minX + 64)
@@ -1098,6 +1100,28 @@ final class EmbedRenderingParityUITests: XCTestCase {
             attachScreenshot(name: "Code leading gutter \(theme)")
             app.terminate()
         }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,code-run.surface-parity
+    func testCodeFullscreenNativeRangeOffersReadOnlyCopyWhileGutterStaysSeparate() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--dev-preview", "embeds", "--dev-preview-app", "code",
+            "--embed-registry-key", "code-code", "--embed-surface", "fullscreen", "--embed-variant", "longCode"]
+        app.launch()
+        let source = app.textViews["code-readonly-source"].firstMatch
+        XCTAssertTrue(source.waitForExistence(timeout: 8))
+        XCTAssertTrue(source.label.hasPrefix("line_1 = \"content for line 1\""))
+        let firstWord = source.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: 22, dy: 12))
+        firstWord.press(forDuration: 1.2)
+        let copy = app.buttons["code-readonly-source-copy-selection"].firstMatch
+        XCTAssertTrue(copy.waitForExistence(timeout: 5), app.debugDescription)
+        XCTAssertTrue(copy.isHittable)
+        XCTAssertFalse(app.buttons["message-selection-highlight"].exists)
+        copy.tap()
+        XCTAssertTrue(source.exists)
+        let panel = app.descendants(matching: .any)["code-source-panel"].firstMatch
+        XCTAssertTrue(panel.staticTexts.matching(NSPredicate(format: "label == %@", "1")).firstMatch.exists)
+        attachScreenshot(name: "Native code range copy with separate gutter")
     }
 
     // contract-test: direct surface=gui.apple assertions=code-run.surface-parity
@@ -1283,6 +1307,51 @@ final class EmbedRenderingParityUITests: XCTestCase {
         attachScreenshot(name: "Sheets fullscreen")
     }
 
+    // contract-test: direct surface=gui.apple assertions=chats.surface.semantic-parity
+    func testIPhoneSheetColumnHeadersStayAtContentTopAfterBodyScroll() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--dev-preview", "embeds", "--dev-preview-app", "sheets",
+            "--embed-registry-key", "sheets-sheet", "--embed-surface", "fullscreen",
+            "--embed-variant", "sticky-long", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        app.launch()
+        let filter = app.descendants(matching: .any)["sheet-filter-toggle"].firstMatch
+        XCTAssertTrue(filter.waitForExistence(timeout: 10)); XCTAssertTrue(filter.isHittable)
+        let header = app.descendants(matching: .any)["embed-fullscreen-header"].firstMatch
+        let sort = app.descendants(matching: .any)["sheet-sort-column-0"].firstMatch
+        let initialTop = filter.frame.minY
+        XCTAssertEqual(initialTop, header.frame.maxY, accuracy: 2)
+        let initialHeaderTop = sort.frame.minY
+        let firstRow = app.textViews.matching(NSPredicate(format: "value == %@", "Row 0")).firstMatch
+        XCTAssertTrue(firstRow.isHittable)
+        let body = app.descendants(matching: .any)["sheet-fullscreen-table"].firstMatch
+        for _ in 0..<3 { body.swipeUp() }
+        XCTAssertFalse(firstRow.isHittable, "The actual sheet rows must move, while the headers remain pinned")
+        XCTAssertEqual(filter.frame.minY, initialTop, accuracy: 2)
+        XCTAssertEqual(sort.frame.minY, initialHeaderTop, accuracy: 2)
+        XCTAssertTrue(filter.isHittable); XCTAssertTrue(sort.isHittable)
+        filter.tap()
+        let input = app.textFields["sheet-filter-input-0"]
+        XCTAssertTrue(input.waitForExistence(timeout: 5)); XCTAssertTrue(input.isHittable)
+        attachScreenshot(name: "Sheet headers pinned at content top after significant scrolling")
+    }
+
+    // contract-test: direct surface=gui.apple assertions=code-run.surface-parity
+    func testCodePreviewNullFilenameUsesMarkdownAndRealFilenameRemainsVisible() {
+        for (variant, title) in [("markdown-absent-filename", "Markdown"), ("markdown-json-null", "Markdown"), ("markdown-string-null", "Markdown"),
+                                 ("markdown-blank-filename", "Markdown"), ("markdown-real-filename", "null.md")] {
+            let app = XCUIApplication()
+            app.launchArguments = ["--dev-preview", "embeds", "--dev-preview-app", "code",
+                "--embed-registry-key", "code-code", "--embed-surface", "preview", "--embed-variant", variant,
+                "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+            app.launch()
+            let renderedTitle = app.staticTexts[title].firstMatch
+            XCTAssertTrue(renderedTitle.waitForExistence(timeout: 10)); XCTAssertTrue(renderedTitle.isHittable)
+            XCTAssertFalse(app.staticTexts["null"].exists)
+            attachScreenshot(name: "Code preview filename \(variant)")
+            app.terminate()
+        }
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testCanonicalSheetFullscreenUsesWebFixtureAndEdgeToEdgeTable() {
         let app = XCUIApplication()
@@ -1310,9 +1379,8 @@ final class EmbedRenderingParityUITests: XCTestCase {
         XCTAssertEqual(app.staticTexts["embed-header-subtitle"].label, "8 rows × 6 columns")
         XCTAssertEqual(table.frame.minX, app.frame.minX, accuracy: 1)
         XCTAssertEqual(table.frame.width, app.frame.width, accuracy: 1)
-        // The web spreadsheet clears its floating controls with one 70px gap.
-        // Generic fullscreen padding must not add another gutter or top gap.
-        XCTAssertEqual(filter.frame.minY - header.frame.maxY, 70, accuracy: 2)
+        // The column letters start at the fullscreen content viewport's top.
+        XCTAssertEqual(filter.frame.minY, header.frame.maxY, accuracy: 2)
         XCTAssertEqual(filter.frame.minX, app.frame.minX, accuracy: 1)
         // Sheet values are selectable UITextViews, matching web cell selection.
         let firstValue = app.textViews.matching(NSPredicate(format: "value == %@", "Alice Johnson")).firstMatch

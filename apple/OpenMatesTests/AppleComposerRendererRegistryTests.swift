@@ -40,7 +40,7 @@ final class AppleComposerRendererRegistryTests: XCTestCase {
             "events-event", "events-event-group", "fitness-location",
             "fitness-location-group", "fitness-class", "fitness-class-group",
             "health-appointment", "health-appointment-group", "home-listing",
-            "home-listing-group", "image", "images-image-result",
+            "home-listing-group", "hosting-domain", "hosting-domain-group", "image", "images-image-result",
             "images-image-result-group", "mail-email", "mail-email-group",
             "maps-place", "maps-place-group", "maps", "math-plot",
             "mindmaps-mindmap", "mindmaps-mindmap-group", "web-website",
@@ -67,7 +67,7 @@ final class AppleComposerRendererRegistryTests: XCTestCase {
         let expectedStates = Set(AppleComposerEmbedLifecycleState.allCases)
         XCTAssertEqual(
             Set(AppleComposerEmbedLifecycleState.allCases.map(\.rawValue)),
-            ["draft", "uploading", "processing", "transcribing", "finished", "error", "cancelled"]
+            ["draft", "uploading", "processing", "transcribing", "correcting", "finished", "error", "cancelled"]
         )
 
         for embedType in registry.registeredTypes {

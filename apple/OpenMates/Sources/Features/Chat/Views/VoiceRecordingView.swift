@@ -164,7 +164,7 @@ final class AudioRecordingRealtimeSession {
 
     private var client: AudioRealtimeTranscriptionClient?
     private var pcmForwarder: OrderedRealtimePCMForwarder?
-    private var resultWaiters: [CheckedContinuation<AudioRecordingRealtimeResult?, Never>] = []
+    private var resultWaiters: [UUID: CheckedContinuation<AudioRecordingRealtimeResult?, Never>] = [:]
     private var settledResult: AudioRecordingRealtimeResult??
     private let finishTimeout: Duration
     private var finishTimeoutTask: Task<Void, Never>?
@@ -183,7 +183,7 @@ final class AudioRecordingRealtimeSession {
         isConnecting = true
         presentationHandler("", true)
         settledResult = nil
-        resultWaiters = []
+        resultWaiters = [:]
         rawTranscript = nil
         rawTranscriptHandler = nil
 
@@ -234,9 +234,21 @@ final class AudioRecordingRealtimeSession {
     }
 
     func awaitResult() async -> AudioRecordingRealtimeResult? {
+        guard !Task.isCancelled else { return nil }
         if let settledResult { return settledResult }
-        return await withCheckedContinuation { continuation in
-            resultWaiters.append(continuation)
+        let waiterID = UUID()
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                if Task.isCancelled {
+                    continuation.resume(returning: nil)
+                } else {
+                    resultWaiters[waiterID] = continuation
+                }
+            }
+        } onCancel: {
+            Task { @MainActor [weak self] in
+                self?.resultWaiters.removeValue(forKey: waiterID)?.resume(returning: nil)
+            }
         }
     }
 
@@ -304,8 +316,8 @@ final class AudioRecordingRealtimeSession {
         isConnecting = false
         presentationHandler?(liveTranscript, false)
         let waiters = resultWaiters
-        resultWaiters = []
-        waiters.forEach { $0.resume(returning: result) }
+        resultWaiters = [:]
+        waiters.values.forEach { $0.resume(returning: result) }
     }
 }
 

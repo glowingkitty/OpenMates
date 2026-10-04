@@ -41,10 +41,11 @@ struct ComposerEmbedSearchResult: Identifiable {
 
     /// Existing references must retain their durable identity and key wrappers.
     /// A nil content payload prevents sending a duplicate upload to the backend.
-    var pendingReference: ComposerPendingEmbed {
+    @MainActor var pendingReference: ComposerPendingEmbed {
         ComposerPendingEmbed(id: id, type: record.type, referenceType: referenceType,
             status: record.status.rawValue, content: nil, textPreview: title,
-            record: record, localData: nil, filename: title, size: 0, piiMappings: [])
+            record: record, localData: nil, filename: title, size: 0, piiMappings: [],
+            storageDisposition: .existingStoredReference(.current))
     }
 }
 
@@ -57,6 +58,25 @@ final class ComposerSearchSuggestionsController: ObservableObject {
     private var searchGeneration = UUID()
     private var isSearchRunning = false
     private var pendingStoreRefresh = false
+    private var activeContext: SearchContext?
+
+    // A publisher event can belong to a different composer/account even while
+    // the previous metadata task is suspended. Only coalesce the same search.
+    private struct SearchContext: Equatable {
+        let query: String
+        let store: ObjectIdentifier
+        let authenticated: Bool
+        let accountID: String?
+        let chatID: String?
+        let scope: UUID
+        let server: String
+        let teamAccountID: String?
+        let teamID: String?
+        let teamScope: UUID?
+        let teamEpoch: UInt64
+        let language: String
+    }
+
     var hasResults: Bool { !chats.isEmpty || !embeds.isEmpty }
 
     func cancel() {
@@ -65,6 +85,7 @@ final class ComposerSearchSuggestionsController: ObservableObject {
         searchGeneration = UUID()
         isSearchRunning = false
         pendingStoreRefresh = false
+        activeContext = nil
         query = ""
         chats = []
         embeds = []
@@ -73,18 +94,24 @@ final class ComposerSearchSuggestionsController: ObservableObject {
     func schedule(text: String, store: ChatStore, authenticated: Bool,
                   accountID: String?, currentChatID: String? = nil,
                   prepareMetadata: @escaping () async -> Void = {}, storeChanged: Bool = false) {
-        // Metadata preparation publishes into the same production store that
-        // hosts observe. Coalesce these updates instead of cancelling their
-        // owner; the search reads the latest store after preparation completes.
-        if storeChanged && isSearchRunning {
-            pendingStoreRefresh = true
-            return
-        }
-        task?.cancel()
         let normalized = text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard !normalized.isEmpty else { cancel(); return }
         let scope = OfflineStore.shared.scopeGeneration
         let team = TeamWorkspaceContext.shared.snapshot
+        let server = ServerProfile.current().apiBaseURL.absoluteString
+        let language = LocalizationManager.shared.currentLanguage.code
+        let context = SearchContext(query: normalized, store: ObjectIdentifier(store),
+            authenticated: authenticated, accountID: accountID, chatID: currentChatID,
+            scope: scope, server: server, teamAccountID: team.accountID, teamID: team.teamID,
+            teamScope: team.scope, teamEpoch: team.epoch, language: language)
+        // Metadata preparation publishes into the same production store that
+        // hosts observe. Coalesce its updates; a changed scope/query must cancel.
+        if storeChanged && isSearchRunning && activeContext == context {
+            pendingStoreRefresh = true
+            return
+        }
+        task?.cancel()
+        activeContext = context
         let generation = UUID()
         searchGeneration = generation
         isSearchRunning = true
@@ -98,8 +125,16 @@ final class ComposerSearchSuggestionsController: ObservableObject {
                     self.task = nil
                 }
             }
+            let isCurrent: @MainActor @Sendable () -> Bool = {
+                !Task.isCancelled && self.searchGeneration == generation
+                    && scope == OfflineStore.shared.scopeGeneration
+                    && server == ServerProfile.current().apiBaseURL.absoluteString
+                    && language == LocalizationManager.shared.currentLanguage.code
+                    && Self.isTeamContextCurrent(team)
+            }
+            guard isCurrent() else { return }
             await prepareMetadata()
-            guard !Task.isCancelled, Self.isTeamContextCurrent(team) else { return }
+            guard isCurrent() else { return }
             // Store changes during hydration (including external arrivals) are
             // represented by the fresh snapshot below. Later changes request
             // one follow-up pass after the current search publishes.
@@ -108,23 +143,25 @@ final class ComposerSearchSuggestionsController: ObservableObject {
             let offline = authenticated && expectedScope == OfflineStore.shared.activeScopeId && expectedScope != nil
                 ? OfflineStore.shared : nil
             guard scope == OfflineStore.shared.scopeGeneration else { self.cancel(); return }
-            let loaded = store.chats.filter { authenticated || PublicChatContent.chat(for: $0.id) != nil }
+            let loaded = store.chats.filter { authenticated || PublicChatContent.isPublicChat($0.id) }
             let cached = offline?.loadChats() ?? []
             let eligible = Self.eligibleChats(loaded + ChatSearchMetadata.missingCachedChats(cached, loaded: loaded))
-            let matches = ChatSearchEngine.search(query: normalized, chats: eligible, chatStore: store,
-                offlineStore: offline, offlineContentChatIds: Set(eligible.map(\.id)))
+            guard let matches = try? await ChatSearchEngine.searchAsync(query: normalized,
+                chats: eligible, chatStore: store, offlineStore: offline,
+                offlineContentChatIds: Set(eligible.map(\.id)), isCurrent: isCurrent),
+                  isCurrent() else { return }
             var records: [EmbedRecord] = []
-            for chat in eligible {
-                guard !Task.isCancelled, scope == OfflineStore.shared.scopeGeneration,
-                      Self.isTeamContextCurrent(team) else { return }
+            for (index, chat) in eligible.enumerated() {
+                // Local reads stay on their store actor, but a large local
+                // catalog must yield to navigation and a replacement query.
+                if index.isMultiple(of: 4) { await Task.yield() }
+                guard isCurrent() else { return }
                 let local = Self.localEmbeds(chat: chat, store: store, offline: offline)
-                let decrypted = await Self.decryptLocalEmbeds(local, chatID: chat.id, isCurrent: {
-                    !Task.isCancelled && scope == OfflineStore.shared.scopeGeneration && Self.isTeamContextCurrent(team)
-                })
+                let decrypted = await Self.decryptLocalEmbeds(local, chatID: chat.id, isCurrent: isCurrent)
                 records.append(contentsOf: decrypted)
             }
             /* local decrypted results remain memory-only */
-            guard !Task.isCancelled, scope == OfflineStore.shared.scopeGeneration, Self.isTeamContextCurrent(team) else { return }
+            guard isCurrent() else { return }
             self.query = normalized
             self.chats = Array(matches.groups.flatMap(\.items).map(\.chat).filter { $0.id != currentChatID }.prefix(5))
             self.embeds = Self.searchEmbeds(query: normalized, records: records)
@@ -149,7 +186,9 @@ final class ComposerSearchSuggestionsController: ObservableObject {
 
     private static func localEmbeds(chat: Chat, store: ChatStore, offline: OfflineStore?) -> [EmbedRecord] {
         let memory = store.embeds(for: chat.id)
-        if let publicChat = PublicChatContent.chat(for: chat.id) { return Array(publicChat.embedRecords.values) }
+        if PublicChatContent.isPublicChat(chat.id), let publicChat = PublicChatContent.chat(for: chat.id) {
+            return Array(publicChat.embedRecords.values)
+        }
         let cached = offline?.loadEmbeds(chatId: chat.id) ?? []
         var merged = EmbedRecord.dictionaryById(cached, context: "composerSearch.local")
         for record in memory { merged[record.id] = record }
@@ -160,7 +199,8 @@ final class ComposerSearchSuggestionsController: ObservableObject {
                                            isCurrent: () -> Bool) async -> [EmbedRecord] {
         let byID = EmbedRecord.dictionaryById(records, context: "composerSearch.decrypt")
         var result: [EmbedRecord] = []
-        for record in records {
+        for (index, record) in records.enumerated() {
+            if index.isMultiple(of: 16) { await Task.yield() }
             guard isCurrent() else { return [] }
             guard record.rawData == nil, record.encryptedContent != nil || record.encryptedType != nil else {
                 result.append(record); continue

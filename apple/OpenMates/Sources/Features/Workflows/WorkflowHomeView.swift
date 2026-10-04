@@ -11,8 +11,15 @@ struct WorkflowHomeView: View {
 
     @State private var instruction = ""
     @State private var showingVoiceInput = false
-    @State private var showingAll = false
+    private enum BrowseMode { case recent, workflows, templates }
+    @State private var browseMode = BrowseMode.recent
+    private var showingAll: Bool { browseMode != .recent }
     @State private var newStarterIDs: Set<String> = []
+    @State private var measuredBannerBottom: CGFloat?
+    @State private var measuredComposerTop: CGFloat?
+    @State private var keyboardMinY: CGFloat?
+    @State private var measuredToolbarBottom: CGFloat?
+    private let continuationCoordinateSpace = "workflows-continuation-layout"
 
     private struct HomeCard: Identifiable {
         let id: String
@@ -48,9 +55,11 @@ struct WorkflowHomeView: View {
 
     private var landingCards: [HomeCard] {
         guard store.accountId != nil else { return [] }
-        return recentCards + starterCards
+        return recentCards
     }
     private var allCards: [HomeCard] { sortedWorkflows.map(recentCard) }
+    private var browseCards: [HomeCard] { browseMode == .templates ? starterCards : allCards }
+    private var browseHeading: String { browseMode == .templates ? AppStrings.workflowTemplates : AppStrings.workflowMyWorkflows }
 
     private var starterCards: [HomeCard] {
         [
@@ -85,34 +94,49 @@ struct WorkflowHomeView: View {
     var body: some View {
         GeometryReader { geometry in
             let narrow = geometry.size.width < 550
-            let tallCards = geometry.size.width >= 550 && geometry.size.height >= 800
+            let globalBottom = geometry.frame(in: .global).maxY
+            let keyboardOverlap = max(0, globalBottom - (keyboardMinY ?? globalBottom))
+            let bannerHeight: CGFloat = geometry.size.width < 730
+                ? 190 : max(240, min(420, geometry.size.height * 0.35))
+            let placement = WorkspaceContinuationLayoutPolicy.resolve(
+                width: geometry.size.width, height: geometry.size.height,
+                bannerBottom: showingAll ? (measuredToolbarBottom ?? 52) : (measuredBannerBottom ?? bannerHeight),
+                composerTop: measuredComposerTop ?? max(0, geometry.size.height - 100 - keyboardOverlap)
+            )
             ZStack(alignment: .bottom) {
                 VStack(spacing: 0) {
                     if !showingAll {
                         InspirationCard(
                             inspiration: workflowInspiration,
                             containerSize: geometry.size,
-                            heightOverride: geometry.size.width < 730
-                                ? 190 : max(240, min(420, geometry.size.height * 0.35)),
+                            heightOverride: bannerHeight,
                             ctaTitle: AppStrings.localized("daily_inspiration.click_to_open_settings"),
                             tapHint: AppStrings.workflowInspirationPhrase
                         ) {
                             if store.accountId != nil { instruction = workflowInspiration.text }
                         }
                         .accessibilityIdentifier("workflows-daily-inspiration-area")
+                        .onGeometryChange(for: CGFloat.self) { proxy in
+                            proxy.frame(in: .named(continuationCoordinateSpace)).maxY
+                        } action: { measuredBannerBottom = $0 }
                     }
                     topControls(showingAll: showingAll)
+                        .onGeometryChange(for: CGFloat.self) { proxy in
+                            proxy.frame(in: .named(continuationCoordinateSpace)).maxY
+                        } action: { measuredToolbarBottom = $0 }
                     Spacer(minLength: 0)
                 }
 
                 if showingAll {
-                    allWorkflowsView(width: geometry.size.width, height: geometry.size.height)
-                        .position(x: geometry.size.width / 2,
-                                  y: geometry.size.height / 2 + (geometry.size.width <= 730 ? 72 : 0))
+                    allWorkflowsView(width: geometry.size.width, height: placement.availableHeight)
+                        .frame(height: placement.availableHeight)
+                        .clipped()
+                        .position(x: geometry.size.width / 2, y: placement.centerY)
                 } else {
-                    homeCenter(width: geometry.size.width, tallCards: tallCards)
-                        .position(x: geometry.size.width / 2,
-                                  y: geometry.size.height / 2 + (narrow ? 72 : geometry.size.height * 0.175))
+                    homeCenter(width: geometry.size.width, tallCards: placement.expanded)
+                        .frame(height: placement.availableHeight)
+                        .clipped()
+                        .position(x: geometry.size.width / 2, y: placement.centerY)
                 }
 
                 VStack(spacing: 8) {
@@ -136,8 +160,12 @@ struct WorkflowHomeView: View {
                 }
                 .frame(maxWidth: narrow ? .infinity : 629)
                 .padding(.horizontal, narrow ? 0 : 15)
-                .padding(.bottom, narrow ? 5 : 15)
+                .padding(.bottom, (narrow ? 5 : 15) + keyboardOverlap)
+                .onGeometryChange(for: CGFloat.self) { proxy in
+                    proxy.frame(in: .named(continuationCoordinateSpace)).minY
+                } action: { measuredComposerTop = $0 }
             }
+            .coordinateSpace(name: continuationCoordinateSpace)
             // Attach the home container to its real multi-child content.
             // GeometryReader otherwise forwards the workspace's identifier
             // onto this destination when the workspace has one child.
@@ -155,11 +183,12 @@ struct WorkflowHomeView: View {
             }
             .onChange(of: store.accountId) { _, _ in
                 instruction = ""
-                showingAll = false
+                browseMode = .recent
                 showingVoiceInput = false
                 newStarterIDs = []
             }
         }
+        .modifier(WorkspaceContinuationKeyboardTracking(minY: $keyboardMinY))
     }
 
     private func topControls(showingAll: Bool) -> some View {
@@ -176,7 +205,7 @@ struct WorkflowHomeView: View {
             .accessibilityIdentifier("workflows-home-report-issue")
             if showingAll {
                 Button {
-                    self.showingAll = false
+                    browseMode = .recent
                 } label: {
                     HStack(spacing: 8) {
                         LucideNativeIcon("grid-2x2", size: 18)
@@ -184,13 +213,10 @@ struct WorkflowHomeView: View {
                     }
                 }
                 .accessibilityIdentifier("workflows-back-to-recent")
-                Button(action: searchUnavailable) {
-                    HStack(spacing: 8) {
-                        LucideNativeIcon("search", size: 18)
-                        Text(AppStrings.workflowHomeSearch)
-                    }
-                }
-                .accessibilityIdentifier("workflows-search")
+                WorkspaceContinuationLink(
+                    title: AppStrings.workflowHomeSearch, icon: "search",
+                    identifier: "workflows-search", action: searchUnavailable
+                )
             }
             Spacer(minLength: 0)
         }
@@ -239,27 +265,27 @@ struct WorkflowHomeView: View {
                 .padding(.horizontal, max(0, (width - 300) / 2))
                 .padding(.vertical, tallCards ? 12 : 6)
             }
+            .frame(height: (tallCards ? 224 : 56) + (landingCards.contains(where: \.isNew) ? 31 : 0))
             .accessibilityIdentifier("workflow-mixed-row")
 
             HStack(spacing: 12) {
-                if !store.workflows.isEmpty {
-                    Button {
-                        showingAll = true
-                    } label: {
-                        HStack(spacing: 8) {
-                            Icon("workflow", size: 14)
-                            Text(AppStrings.workflowHomeShowAll)
-                        }
-                    }
-                    .accessibilityIdentifier("workflows-show-all")
+                if store.accountId != nil {
+                    WorkspaceContinuationLink(
+                        title: AppStrings.workflowHomeShowAll, icon: "workflow",
+                        identifier: "workflows-show-all"
+                    ) { browseMode = .workflows }
                 }
-                Button(action: searchUnavailable) {
-                    HStack(spacing: 8) {
-                        LucideNativeIcon("search", size: 18)
-                        Text(AppStrings.workflowHomeSearch)
-                    }
+                Button {
+                    browseMode = .templates
+                } label: {
+                    Text(AppStrings.localized("workflows.home.show_templates"))
                 }
-                .accessibilityIdentifier("workflows-search")
+                .disabled(store.accountId == nil || store.isLoading)
+                .accessibilityIdentifier("workflows-show-templates")
+                WorkspaceContinuationLink(
+                    title: AppStrings.workflowHomeSearch, icon: "search",
+                    identifier: "workflows-search", action: searchUnavailable
+                )
             }
             .font(.omP.weight(.bold))
             .foregroundStyle(Color.grey60)
@@ -270,6 +296,7 @@ struct WorkflowHomeView: View {
             }
         }
         .frame(width: width)
+        .fixedSize(horizontal: false, vertical: true)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("workflows-start-screen")
     }
@@ -281,17 +308,25 @@ struct WorkflowHomeView: View {
         let columnCount = max(1, Int((innerWidth + 16) / (narrow ? 246 : 316)))
         let columnWidth = narrow
             ? (innerWidth - CGFloat(columnCount - 1) * 16) / CGFloat(columnCount) : 300
-        let rows = max(1, (allCards.count + columnCount - 1) / columnCount)
-        let contentHeight = CGFloat(rows * 200 + (rows - 1) * 16 + 68)
+        let rows = max(1, (browseCards.count + columnCount - 1) / columnCount)
+        let contentHeight = CGFloat(rows * 200 + (rows - 1) * 16 + 124)
         let gridWidth = narrow ? innerWidth : CGFloat(columnCount * 300 + (columnCount - 1) * 16)
-        let scrollHeight = min(contentHeight, narrow ? min(height * 0.56, 560) : min(height * 0.58, 620))
+        let scrollHeight = max(0, min(contentHeight, height))
         let fade = min(0.5, 34 / max(scrollHeight, 1))
         return ScrollView {
-            LazyVGrid(columns: Array(repeating: GridItem(.fixed(columnWidth), spacing: 16,
-                                                         alignment: narrow ? .leading : .center), count: columnCount), spacing: 16) {
-                ForEach(allCards) { card in homeCard(card, tall: true) }
+            VStack(spacing: 16) {
+                Text(browseHeading)
+                    .font(.omH2.weight(.semibold))
+                    .foregroundStyle(Color.fontPrimary)
+                    .accessibilityIdentifier("workflows-browse-heading")
+                LazyVGrid(columns: Array(repeating: GridItem(.fixed(columnWidth), spacing: 16,
+                                                             alignment: narrow ? .leading : .center), count: columnCount), spacing: 16) {
+                    ForEach(browseCards) { card in homeCard(card, tall: true) }
+                }
+                .frame(width: gridWidth)
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("all-workflows-grid")
             }
-            .frame(width: gridWidth)
             .frame(width: innerWidth, alignment: narrow ? .leading : .center)
             .padding(.horizontal, 8)
             .padding(.vertical, 34)
@@ -303,6 +338,7 @@ struct WorkflowHomeView: View {
             .init(color: .black, location: 1 - fade),
             .init(color: .clear, location: 1)
         ], startPoint: .top, endPoint: .bottom))
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("all-workflows-view")
     }
 
@@ -356,6 +392,7 @@ struct WorkflowHomeView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(card.title)
+        .accessibilityValue(card.badge)
         .accessibilityIdentifier("workflow-landing-card")
     }
 

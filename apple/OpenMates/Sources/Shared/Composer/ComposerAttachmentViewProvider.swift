@@ -18,6 +18,67 @@ import UIKit
 import ObjectiveC
 
 @MainActor private var composerHostingControllerKey: UInt8 = 0
+@MainActor private var composerAttachmentLongPressKey: UInt8 = 0
+
+// TextKit's ancestor recognizers must be allowed to track the same touch. Scope
+// this bridge to one attachment host instead of changing the editor's gestures.
+@MainActor
+final class ComposerAttachmentLongPressBridge: NSObject, UIGestureRecognizerDelegate {
+    private weak var attachment: ComposerTextAttachment?
+    private var isPressActive = false
+    let recognizer: UILongPressGestureRecognizer
+
+    private init(host: UIView, attachment: ComposerTextAttachment) {
+        self.attachment = attachment
+        recognizer = UILongPressGestureRecognizer()
+        super.init()
+        recognizer.minimumPressDuration = 0.6
+        recognizer.cancelsTouchesInView = false
+        recognizer.delegate = self
+        recognizer.addTarget(self, action: #selector(handleLongPress(_:)))
+        host.addGestureRecognizer(recognizer)
+    }
+
+    @discardableResult
+    static func install(on host: UIView, attachment: ComposerTextAttachment) -> ComposerAttachmentLongPressBridge {
+        if let installed = objc_getAssociatedObject(host, &composerAttachmentLongPressKey) as? ComposerAttachmentLongPressBridge {
+            return installed
+        }
+        let bridge = ComposerAttachmentLongPressBridge(host: host, attachment: attachment)
+        objc_setAssociatedObject(host, &composerAttachmentLongPressKey, bridge, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        return bridge
+    }
+
+    @objc private func handleLongPress(_ gesture: UILongPressGestureRecognizer) {
+        handle(state: gesture.state)
+    }
+
+    func handle(state: UIGestureRecognizer.State) {
+        switch state {
+        case .began:
+            guard !isPressActive, let attachment else { return }
+            isPressActive = true
+            attachment.setShowsRemovalAction(!attachment.showsRemovalAction)
+        case .ended, .cancelled, .failed:
+            isPressActive = false
+        default:
+            break
+        }
+    }
+
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
+                           shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+        guard gestureRecognizer === recognizer, let otherView = otherGestureRecognizer.view else { return false }
+        var ancestor = recognizer.view?.superview
+        while let view = ancestor {
+            if let textView = view as? UITextView {
+                return otherView === textView || otherView.isDescendant(of: textView)
+            }
+            ancestor = view.superview
+        }
+        return false
+    }
+}
 
 final class ComposerAttachmentViewProvider: NSTextAttachmentViewProvider {
     private static let embedHeight: CGFloat = 200
@@ -55,6 +116,9 @@ final class ComposerAttachmentViewProvider: NSTextAttachmentViewProvider {
             )
             controller.view.backgroundColor = .clear
             controller.view.accessibilityIdentifier = platformIdentifier(for: node)
+            if node.kind == "embed" {
+                content.installLongPress(on: controller.view)
+            }
             objc_setAssociatedObject(
                 controller.view as Any,
                 &composerHostingControllerKey,
@@ -193,6 +257,13 @@ private func platformIdentifier(for node: ComposerNodeV1) -> String {
 private struct ComposerAttachmentContent: View {
     @ObservedObject var attachment: ComposerTextAttachment
 
+    #if canImport(UIKit)
+    @MainActor
+    func installLongPress(on host: UIView) {
+        ComposerAttachmentLongPressBridge.install(on: host, attachment: attachment)
+    }
+    #endif
+
     @ViewBuilder
     var body: some View {
         Group {
@@ -213,7 +284,8 @@ private struct ComposerAttachmentContent: View {
                     embedRecord: attachment.embedRecord,
                     allEmbedRecords: attachment.embedRecord.map { [$0.id: $0] } ?? [:],
                     localPreviewData: attachment.localPreviewData,
-                    actions: attachment.embedActions
+                    actions: attachment.embedActions,
+                    hostedRemovalAction: hostedRemovalAction
                 )
             } else {
                 Text(attachment.nodeSnapshot?.display?.title ?? attachment.nodeSnapshot?.embedType ?? "")
@@ -225,5 +297,13 @@ private struct ComposerAttachmentContent: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    private var hostedRemovalAction: Binding<Bool>? {
+        #if canImport(UIKit)
+        Binding(get: { attachment.showsRemovalAction }, set: { attachment.setShowsRemovalAction($0) })
+        #else
+        nil
+        #endif
     }
 }

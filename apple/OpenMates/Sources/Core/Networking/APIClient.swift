@@ -122,7 +122,9 @@ actor APIClient {
         try await checkUploadContext(accountID: capturedAccountID, scope: scope, profile: profile)
         try Task.checkCancellation()
         do {
-            return try await execute(request, using: uploadSession)
+            // A retry must use the credential produced by recovery, rather
+            // than race the ordinary request's background validation.
+            return try await execute(request, using: uploadSession, awaitUnauthorizedRecovery: true)
         } catch where Self.shouldRetryUpload(after: error) {
             try await checkUploadContext(accountID: capturedAccountID, scope: scope, profile: profile)
             let retryRequest = Self.makeUploadRequest(
@@ -575,6 +577,7 @@ actor APIClient {
 
     private func execute(_ request: URLRequest, using transport: URLSession,
                          expectedRecoveryAccountID: String? = nil,
+                         awaitUnauthorizedRecovery: Bool = false,
                          authorizeSessionResponse: (@MainActor (HTTPURLResponse, Data) -> (isCurrent: Bool, publishCookies: Bool))? = nil,
                          cookieAuthority: (@MainActor @Sendable () throws -> Void)? = nil,
                          authenticationURL: URL? = nil,
@@ -683,7 +686,12 @@ actor APIClient {
             )
             #if os(iOS) || os(macOS)
             if httpResponse.statusCode == 401, let recoveryContext {
-                Task { @MainActor in await AuthManager.recoverRejectedRequest(recoveryContext) }
+                if awaitUnauthorizedRecovery {
+                    await AuthManager.recoverRejectedRequest(recoveryContext)
+                    try Task.checkCancellation()
+                } else {
+                    Task { @MainActor in await AuthManager.recoverRejectedRequest(recoveryContext) }
+                }
             }
             #endif
             let errorBody = try? decoder.decode(APIErrorResponse.self, from: data)

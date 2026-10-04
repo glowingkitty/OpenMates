@@ -114,6 +114,38 @@ final class NativeComposerTextViewAdapterTests: XCTestCase {
     }
 
     #if canImport(UIKit)
+    // contract-test: direct surface=gui.apple assertions=message-input.recording.lifecycle,message-input.embeds.gated-send
+    func testHostedAccessibilityRetainsPreviewChildrenAcrossRecordingRetry() throws {
+        let controller = try NativeComposerController(document: ComposerDocumentV1(version: 1, nodes: [
+            ComposerNodeV1(kind: "embed", id: "composer:retry-recording", embedType: "recording",
+                status: "error", display: ComposerEmbedDisplayV1(title: "Synthetic recording", mediaKind: "recording"))
+        ]), selection: NSRange(location: 1, length: 0))
+        let adapter = makeAdapter(controller: controller, accessibilityStrategy: .hostedAttachments)
+        let textView = adapter.makePlatformView()
+        // Exercise UIKit's child traversal policy with a hosted preview surface,
+        // rather than replacing its playback controls with semantic descriptors.
+        let hosted = UIHostingController(rootView: Button("Play synthetic recording") { })
+        hosted.view.accessibilityIdentifier = "synthetic-hosted-recording"
+        textView.addSubview(hosted.view)
+        let hostedIdentity = ObjectIdentifier(hosted.view)
+        let editorIdentity = ObjectIdentifier(textView)
+        XCTAssertNil(textView.accessibilityElements)
+        XCTAssertTrue(hosted.view.isDescendant(of: textView))
+        XCTAssertEqual(adapter.embedAccessibilityElements.first?.label, "Synthetic recording, error")
+
+        try controller.updateEmbed(id: "composer:retry-recording", status: "finished")
+        adapter.synchronize(textView)
+
+        XCTAssertEqual(ObjectIdentifier(textView), editorIdentity)
+        XCTAssertEqual(ObjectIdentifier(hosted.view), hostedIdentity)
+        XCTAssertTrue(hosted.view.isDescendant(of: textView))
+        XCTAssertFalse(hosted.view.accessibilityElementsHidden)
+        XCTAssertNil(textView.accessibilityElements,
+                     "Status re-projection must preserve native hosted-child traversal")
+        XCTAssertEqual(adapter.embedAccessibilityElements.first?.label, "Synthetic recording, finished")
+        XCTAssertEqual(textView.attributedText.string, controller.attributedString.string)
+    }
+
     // contract-test: direct surface=gui.apple assertions=message-input.recording.lifecycle
     func testResolvedEmbedReprojectsAttachmentWithoutWaitingForTyping() throws {
         let controller = try makeController()
@@ -158,6 +190,70 @@ final class NativeComposerTextViewAdapterTests: XCTestCase {
 
         XCTAssertFalse(NativeComposerTextView.shouldUseTextViewInteraction(for: attachment))
         XCTAssertTrue(NativeComposerTextView.shouldUseTextViewInteraction(for: NSTextAttachment()))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle,message-input.embeds.gated-send
+    func testAttachmentProviderInstallsOneLongPressScopedToContainingEditor() throws {
+        let controller = try makeController()
+        let textView = makeAdapter(controller: controller).makePlatformView()
+        let attachment = try XCTUnwrap(textView.attributedText.attribute(.attachment, at: 1, effectiveRange: nil) as? ComposerTextAttachment)
+        let location = try XCTUnwrap(textView.textLayoutManager?.textContentManager?.documentRange.location)
+        let provider = try XCTUnwrap(attachment.viewProvider(for: textView, location: location, textContainer: textView.textContainer))
+        provider.loadView()
+        let host = try XCTUnwrap(provider.view)
+        textView.addSubview(host)
+        let recognizers = host.gestureRecognizers?.filter { $0.delegate is ComposerAttachmentLongPressBridge } ?? []
+        XCTAssertEqual(recognizers.count, 1)
+        let recognizer = try XCTUnwrap(recognizers.first as? UILongPressGestureRecognizer)
+        let bridge = try XCTUnwrap(recognizer.delegate as? ComposerAttachmentLongPressBridge)
+        XCTAssertTrue(ComposerAttachmentLongPressBridge.install(on: host, attachment: attachment) === bridge)
+        XCTAssertEqual(host.gestureRecognizers?.filter { $0.delegate is ComposerAttachmentLongPressBridge }.count, 1)
+        XCTAssertEqual(recognizer.minimumPressDuration, 0.6)
+        XCTAssertFalse(recognizer.cancelsTouchesInView)
+
+        let editorGesture = UILongPressGestureRecognizer()
+        textView.addGestureRecognizer(editorGesture)
+        XCTAssertTrue(bridge.gestureRecognizer(recognizer, shouldRecognizeSimultaneouslyWith: editorGesture))
+        let child = UIView()
+        host.addSubview(child)
+        let childGesture = UITapGestureRecognizer()
+        child.addGestureRecognizer(childGesture)
+        XCTAssertTrue(bridge.gestureRecognizer(recognizer, shouldRecognizeSimultaneouslyWith: childGesture))
+        let unrelatedEditor = UITextView(usingTextLayoutManager: true)
+        let unrelatedGesture = UILongPressGestureRecognizer()
+        unrelatedEditor.addGestureRecognizer(unrelatedGesture)
+        XCTAssertFalse(bridge.gestureRecognizer(recognizer, shouldRecognizeSimultaneouslyWith: unrelatedGesture))
+        XCTAssertFalse(bridge.gestureRecognizer(editorGesture, shouldRecognizeSimultaneouslyWith: childGesture))
+        XCTAssertFalse(bridge.gestureRecognizer(recognizer, shouldRecognizeSimultaneouslyWith: UITapGestureRecognizer()))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle,message-input.embeds.gated-send
+    func testHostedLongPressTogglesRemovalOncePerPressWithoutRemovingAttachment() throws {
+        let attachment = ComposerTextAttachment(node: fixtureEmbed(id: "recording", title: "Synthetic recording", embedType: "recording"))
+        let host = UIView()
+        let bridge = ComposerAttachmentLongPressBridge.install(on: host, attachment: attachment)
+        var removals = 0
+        attachment.updateActions(AppleComposerEmbedActions(onOpen: { _ in }, onRetry: { _ in }, onRemove: { _ in removals += 1 }))
+        XCTAssertFalse(attachment.showsRemovalAction)
+        bridge.handle(state: .possible)
+        XCTAssertFalse(attachment.showsRemovalAction)
+        bridge.handle(state: .began)
+        XCTAssertTrue(attachment.showsRemovalAction)
+        bridge.handle(state: .began)
+        bridge.handle(state: .changed)
+        bridge.handle(state: .ended)
+        XCTAssertTrue(attachment.showsRemovalAction)
+        bridge.handle(state: .began)
+        XCTAssertFalse(attachment.showsRemovalAction)
+        bridge.handle(state: .cancelled)
+        bridge.handle(state: .began)
+        XCTAssertTrue(attachment.showsRemovalAction)
+        bridge.handle(state: .failed)
+        attachment.setShowsRemovalAction(false)
+        bridge.handle(state: .began)
+        XCTAssertTrue(attachment.showsRemovalAction)
+        XCTAssertEqual(removals, 0, "Recognition must reveal the explicit Remove action rather than delete the atom")
+        XCTAssertEqual(attachment.nodeSnapshot?.id, "recording")
     }
     #endif
 
@@ -313,6 +409,53 @@ final class NativeComposerTextViewAdapterTests: XCTestCase {
         XCTAssertEqual(textView.autocapitalizationType, .none)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.privacy-context,message-input.recording.lifecycle
+    func testEqualSynchronizationDoesNotEditTextStorageAndPIIChangesStillApply() throws {
+        let controller = try NativeComposerController(
+            document: ComposerDocumentV1(version: 1, nodes: [
+                .text(id: "text", source: "alice@example.com "),
+                fixtureEmbed(id: "recording", title: "Synthetic recording", embedType: "recording")
+            ]), selection: NSRange(location: 0, length: 0))
+        let adapter = makeAdapter(controller: controller)
+        let textView = adapter.makePlatformView()
+        let edits = TextStorageEditCounter()
+        let observer = NotificationCenter.default.addObserver(
+            forName: NSTextStorage.didProcessEditingNotification,
+            object: textView.textStorage, queue: nil
+        ) { _ in MainActor.assumeIsolated { edits.count += 1 } }
+        defer { NotificationCenter.default.removeObserver(observer) }
+
+        adapter.synchronize(textView)
+        XCTAssertEqual(edits.count, 0, "An equal redraw without PII must not edit attachment text storage")
+        let decoration = NativeComposerPIIDecoration(id: "email", range: NSRange(location: 0, length: 5))
+        adapter.updatePIIDecorations([decoration], onExclude: { _ in })
+        adapter.synchronize(textView)
+        let warning = UIColor(Color.warning).withAlphaComponent(0.35)
+        XCTAssertEqual(textView.textStorage.attribute(.backgroundColor, at: 0, effectiveRange: nil) as? UIColor, warning)
+        edits.count = 0
+        adapter.synchronize(textView)
+        XCTAssertEqual(edits.count, 0, "A focus redraw with unchanged PII must preserve TextKit attachment hosts")
+
+        adapter.updatePIIDecorations([], onExclude: { _ in })
+        adapter.synchronize(textView)
+        XCTAssertGreaterThan(edits.count, 0, "An actual PII change must update text storage")
+        XCTAssertNil(textView.textStorage.attribute(.backgroundColor, at: 0, effectiveRange: nil))
+
+        adapter.updatePIIDecorations([decoration], onExclude: { _ in })
+        adapter.synchronize(textView)
+        try controller.updateEmbed(id: "recording", status: "finished")
+        adapter.synchronize(textView)
+        XCTAssertEqual(textView.textStorage.attribute(.backgroundColor, at: 0, effectiveRange: nil) as? UIColor, warning,
+                       "Equal-text attachment re-projection must restore PII highlights")
+        try controller.loadDocument(ComposerDocumentV1(version: 1, nodes: [.text(id: "changed", source: "Other input")]))
+        adapter.synchronize(textView)
+        XCTAssertEqual(textView.textStorage.attribute(.backgroundColor, at: 0, effectiveRange: nil) as? UIColor, warning,
+                       "Changed text must restore the current PII decoration ranges")
+        adapter.updatePIIDecorations([], onExclude: { _ in })
+        adapter.synchronize(textView)
+        XCTAssertNil(textView.textStorage.attribute(.backgroundColor, at: 0, effectiveRange: nil))
+    }
+
     // contract-test: supporting surface=gui.apple assertions=message-input.privacy-context
     func testPIIDecorationsUseWarningBackgroundAndExcludeOnlyTappedIdentity() throws {
         let controller = try NativeComposerController(
@@ -359,7 +502,8 @@ final class NativeComposerTextViewAdapterTests: XCTestCase {
 
     private func makeAdapter(
         controller: NativeComposerController,
-        recorder: AccessibilityActionRecorder = AccessibilityActionRecorder()
+        recorder: AccessibilityActionRecorder = AccessibilityActionRecorder(),
+        accessibilityStrategy: NativeComposerAccessibilityStrategy = .syntheticDescriptors
     ) -> NativeComposerTextView {
         NativeComposerTextView(
             controller: controller,
@@ -379,7 +523,8 @@ final class NativeComposerTextViewAdapterTests: XCTestCase {
             },
             onCanonicalMarkdownChange: { _ in },
             onFocusChange: { _ in },
-            onSubmit: { }
+            onSubmit: { },
+            accessibilityStrategy: accessibilityStrategy
         )
     }
 
@@ -424,3 +569,10 @@ final class NativeComposerTextViewAdapterTests: XCTestCase {
 private final class AccessibilityActionRecorder {
     var nodeIDs: [String] = []
 }
+
+#if canImport(UIKit)
+@MainActor
+private final class TextStorageEditCounter {
+    var count = 0
+}
+#endif

@@ -143,10 +143,14 @@ private struct MacWindowChromeConfigurator: NSViewRepresentable {
 
     private func configure(window: NSWindow?) {
         guard let window else { return }
+        window.identifier = NSUserInterfaceItemIdentifier(MacMainWindowPolicy.identifier)
         window.styleMask.insert(.fullSizeContentView)
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         window.backgroundColor = NSColor(named: "grey-0", bundle: .main) ?? .black
+        // Keep regular app windows usable at the requested compact viewport.
+        // This is the content minimum; AppKit accounts for window chrome.
+        window.contentMinSize = NSSize(width: 320, height: 320)
         // Product content includes selectable text and frameless editors. A
         // background window-drag region can consume their pointer gestures.
         window.isMovableByWindowBackground = false

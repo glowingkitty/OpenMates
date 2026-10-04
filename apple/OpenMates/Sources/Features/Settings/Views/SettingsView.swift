@@ -349,6 +349,8 @@ struct SettingsView: View {
     var reportIssuePrefill: ReportIssuePrefill?
     var referralCodeRequest: Int
     var shareChatId: String?
+    var embedShareTarget: EmbedShareSettingsTarget?
+    var forkContext: NativeMessageForkContext?
     var messageSettingsTarget: AssistantMessageSettingsTarget?
     var projectID: String?
     var teamContext: TeamWorkspaceContext?
@@ -375,6 +377,8 @@ struct SettingsView: View {
     @State private var teamChildNavigation: SettingsChildBannerNavigation?
     @State private var supportChildNavigation: SettingsChildBannerNavigation?
     @State private var memoryChildNavigation: SettingsChildBannerNavigation?
+    @State private var sharedChildNavigation: SettingsChildBannerNavigation?
+    @State private var activeEmbedShareTarget: EmbedShareSettingsTarget?
     @State private var showsMemoriesDiscovery = false
 
     init(
@@ -382,7 +386,9 @@ struct SettingsView: View {
         reportIssuePrefill: ReportIssuePrefill? = nil,
         referralCodeRequest: Int = 0,
         shareChatId: String? = nil,
+        embedShareTarget: EmbedShareSettingsTarget? = nil,
         messageSettingsTarget: AssistantMessageSettingsTarget? = nil,
+        forkContext: NativeMessageForkContext? = nil,
         projectID: String? = nil,
         teamContext: TeamWorkspaceContext? = nil,
         deepLinkPath: String? = nil,
@@ -405,6 +411,9 @@ struct SettingsView: View {
         self.reportIssuePrefill = reportIssuePrefill
         self.referralCodeRequest = referralCodeRequest
         self.shareChatId = shareChatId
+        self.embedShareTarget = embedShareTarget
+        _activeEmbedShareTarget = State(initialValue: embedShareTarget)
+        self.forkContext = forkContext
         self.messageSettingsTarget = messageSettingsTarget
         self.onClose = onClose
         self.onOpenExampleChat = onOpenExampleChat
@@ -420,7 +429,7 @@ struct SettingsView: View {
             messageDestination = nil
         }
         _destination = State(initialValue: reportIssuePrefill == nil
-            ? (shareChatId == nil ? (referralCodeRequest > 0 ? .billing : messageDestination) : .shared)
+            ? (forkContext != nil ? .fork : (shareChatId == nil && embedShareTarget == nil ? (referralCodeRequest > 0 ? .billing : messageDestination) : .shared))
             : .reportIssue)
         _activeReportIssuePrefill = State(initialValue: reportIssuePrefill)
         _activeReferralCodeRequest = State(initialValue: referralCodeRequest)
@@ -489,6 +498,15 @@ struct SettingsView: View {
             guard newChatId != nil else { return }
             navigateTo(.shared)
         }
+        .onChange(of: embedShareTarget?.requestID) { _, request in
+            activeEmbedShareTarget = embedShareTarget
+            guard request != nil else { sharedChildNavigation = nil; return }
+            navigateTo(.shared)
+        }
+        .onChange(of: forkContext?.id) { _, id in
+            guard id != nil else { return }
+            navigateTo(.fork)
+        }
         .onChange(of: messageSettingsTarget) { _, newTarget in
             guard let newTarget else { return }
             activeMessageSettingsTarget = newTarget
@@ -526,6 +544,7 @@ struct SettingsView: View {
         teamChildNavigation = nil
         supportChildNavigation = nil
         memoryChildNavigation = nil
+        sharedChildNavigation = nil
         showsMemoriesDiscovery = false
         activeDeepLinkRoute = nil
         guard route.canOpen(authenticated: isAuthenticated || BillingUITestFixture.enabled, admin: isAdmin) else {
@@ -538,7 +557,7 @@ struct SettingsView: View {
         let destinations: [String: SettingsDestination] = [
             "pricing": .pricing, "ai": .ai, "settings_memories": .memories,
             "privacy": .privacy, "projects": .projects, "teams": .teams, "mates": .mates, "billing": .billing,
-            "notifications": .notifications, "shared": .shared, "interface": .interface,
+            "notifications": .notifications, "shared": .shared, "fork": .fork, "interface": .interface,
             "account": .account, "developers": .developers, "newsletter": .newsletter,
             "support": .support, "report_issue": .reportIssue, "report-issue": .reportIssue,
             "server": .server, "server-connection": .serverConnection, "logs": .logs,
@@ -720,6 +739,8 @@ struct SettingsView: View {
                         teamChildNavigation = nil
                         supportChildNavigation = nil
                         memoryChildNavigation = nil
+                        sharedChildNavigation = nil
+                        activeEmbedShareTarget = nil
                         showsMemoriesDiscovery = false
                         self.destination = nil
                     }
@@ -748,6 +769,7 @@ struct SettingsView: View {
         case .teams: return teamChildNavigation
         case .support: return supportChildNavigation
         case .memories: return memoryChildNavigation
+        case .shared: return sharedChildNavigation
         default: return nil
         }
     }
@@ -771,6 +793,7 @@ struct SettingsView: View {
     private func returnToMemoriesHub() {
         navigationDirection = .back
         memoryChildNavigation = nil
+        sharedChildNavigation = nil
         showsMemoriesDiscovery = false
         activeDeepLinkRoute = nil
         activeDeepLinkRevision += 1
@@ -847,10 +870,12 @@ struct SettingsView: View {
     }
 
     private func navigateTo(_ destination: SettingsDestination) {
+        if destination != .shared { activeEmbedShareTarget = nil }
         aiChildNavigation = nil
         teamChildNavigation = nil
         supportChildNavigation = nil
         memoryChildNavigation = nil
+        sharedChildNavigation = nil
         showsMemoriesDiscovery = false
         activeDeepLinkRoute = nil
         guard !isolatedNavigation || destination == .learningMode else { return }
@@ -956,7 +981,7 @@ struct SettingsView: View {
     }
 
     private var shellPageAccessibilityIdentifier: String {
-        if destination == .shared, shareChatId != nil { return "settings-shared-share-settings" }
+        if destination == .shared, shareChatId != nil || sharedChildNavigation != nil { return "settings-shared-share-settings" }
         return destination?.pageAccessibilityIdentifier ?? "settings-panel"
     }
 
@@ -979,8 +1004,19 @@ struct SettingsView: View {
                 guestSession: guestLearningMode,
                 controller: accountLearningMode
             )
+        case .fork:
+            if let forkContext {
+                NativeMessageForkPanel(context: forkContext, onClose: { onClose?() })
+                    .id(forkContext.id)
+            } else {
+                Text(AppStrings.error).font(.omP).foregroundStyle(Color.fontSecondary)
+                    .accessibilityIdentifier("message-fork-unavailable")
+            }
         case .shared:
-            SettingsSharedView(initialChatId: shareChatId, initiallyShowsTip: activeDeepLinkRoute?.childPath == "tip")
+            SettingsSharedView(initialChatId: shareChatId, initialEmbedTarget: activeEmbedShareTarget,
+                initiallyShowsTip: activeDeepLinkRoute?.childPath == "tip",
+                onChildNavigationChanged: { sharedChildNavigation = $0 },
+                onEmbedShareBack: { activeEmbedShareTarget = nil })
         case .mates:
             if let mate = settingsMate {
                 SettingsMateDetailView(mate: mate)
@@ -1238,7 +1274,7 @@ struct SettingsView: View {
     private enum SettingsDestination: Hashable {
         // Top-level menu items (matching web settingsRoutes.ts order)
         case pricing, ai, memories, privacy, projects, teams, mates
-        case billing, notifications, shared, interface, learningMode
+        case billing, notifications, shared, fork, interface, learningMode
         case account, developers, newsletter, support, reportIssue
         case serverConnection
         case server, logs
@@ -1257,6 +1293,7 @@ struct SettingsView: View {
             case .billing: return AppStrings.settingsBilling
             case .notifications: return AppStrings.settingsNotifications
             case .shared: return AppStrings.settingsShared
+            case .fork: return AppStrings.localized("chats.fork.title.text")
             case .interface: return AppStrings.settingsInterface
             case .learningMode: return AppStrings.learningMode
             case .account: return AppStrings.settingsAccount
@@ -1285,6 +1322,7 @@ struct SettingsView: View {
             case .billing: return "billing"
             case .notifications: return "notifications"
             case .shared: return "shared"
+            case .fork: return "planning"
             case .interface: return "interface"
             case .learningMode: return "study"
             case .account: return "account"
@@ -1319,6 +1357,7 @@ struct SettingsView: View {
             case .billing: return "billing"
             case .notifications: return "notifications"
             case .shared: return "shared"
+            case .fork: return "fork"
             case .interface: return "interface"
             case .learningMode: return "learning-mode"
             case .account: return "account"
@@ -1375,6 +1414,7 @@ struct SettingsView: View {
             case .billing: SettingsBillingView(referralCodeRequest: referralCodeRequest)
             case .notifications: SettingsNotificationsView()
             case .shared: SettingsSharedView()
+            case .fork: EmptyView()
             case .interface: SettingsInterfaceSubPage()
             case .learningMode: EmptyView()
             case .account: SettingsAccountSubPage()

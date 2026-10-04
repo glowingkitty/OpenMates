@@ -13,6 +13,7 @@ import argparse
 import json
 import re
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -463,9 +464,186 @@ def _extract_swift_enum_raw_value_to_case(source: str, enum_name: str) -> dict[s
 
 
 def _extract_apple_fixture_skill_ids(source: str) -> set[str]:
-    direct = re.findall(r"return skill\(id:\s*\"([^\"]+)\"", source)
+    direct = re.findall(r"\bskill\(id:\s*\"([^\"]+)\"", source)
     helper_calls = re.findall(r"calendarAction\(id:\s*\"([^\"]+)\"", source)
     return set(direct + helper_calls)
+
+
+def _swift_mask(source: str) -> str:
+    """Mask comments/strings without changing positions for balanced Swift blocks."""
+    return re.sub(
+        r'//[^\n]*|/\*.*?\*/|""".*?"""|"(?:\\.|[^"\\])*"',
+        lambda match: re.sub(r"[^\n]", " ", match.group()), source, flags=re.DOTALL,
+    )
+
+
+def _swift_without_comments(source: str) -> str:
+    return re.sub(
+        r'""".*?"""|"(?:\\.|[^"\\])*"|//[^\n]*|/\*.*?\*/',
+        lambda match: re.sub(r"[^\n]", " ", match.group()) if match.group().startswith(("//", "/*")) else match.group(),
+        source, flags=re.DOTALL,
+    )
+
+
+def _swift_block(source: str, anchor: str) -> str:
+    match = re.search(anchor, source)
+    if not match:
+        return ""
+    mask = _swift_mask(source)
+    start = mask.find("{", match.end())
+    if start < 0:
+        return ""
+    depth = 1
+    for end in range(start + 1, len(mask)):
+        depth += (mask[end] == "{") - (mask[end] == "}")
+        if depth == 0:
+            return source[start + 1:end]
+    return ""
+
+
+def _swift_cases(body: str) -> dict[str, str]:
+    mask = _swift_mask(body)
+    starts = []
+    for match in re.finditer(r"^\s*(case\s+[^:]+:|default:)", body, re.MULTILINE):
+        prefix = mask[:match.start()]
+        if prefix.count("{") == prefix.count("}"):
+            starts.append(match)
+    result = {}
+    for index, match in enumerate(starts):
+        end = starts[index + 1].start() if index + 1 < len(starts) else len(body)
+        names = re.findall(r"\.([A-Za-z][A-Za-z0-9_]*)", match.group()) or ["default"]
+        for name in names:
+            result[name] = body[match.end():end]
+    return result
+
+
+def _fixture_registry_types(source: str, raw_to_case: dict[str, str]) -> set[str]:
+    # Literal records and typed helper calls both create real gallery fixtures;
+    # their IDs need not be the registry key's spelling.
+    source = _swift_without_comments(source)
+    literals = set(re.findall(r'\btype:\s*"([^"]+)"', source))
+    cases = set(re.findall(r"\b(?:type|childType):\s*(?:EmbedType)?\.([A-Za-z][A-Za-z0-9_]*)", source))
+    return literals | {raw for raw, case in raw_to_case.items() if case in cases}
+
+
+SHARED_APP_SKILL_PARENTS = {
+    "app:design:search_icons", "app:mail:search", "app:maps:search",
+    "app:social_media:get-posts", "app:social_media:search",
+}
+
+
+def _predicate_registry_keys(source: str, owner: str, method: str) -> set[str]:
+    """Resolve positive type predicates used by the renderer entry view.
+
+    Only explicit true comparisons and whole contains expressions count. A type
+    mentioned in a false branch, comment, or unrelated helper is not coverage.
+    Unsupported predicate forms fail closed through the missing-route check.
+    """
+    owner_body = _swift_block(_swift_without_comments(source), rf"\b(?:enum|struct|class)\s+{re.escape(owner)}\b[^{{]*")
+    predicate = _swift_block(owner_body, rf"\bfunc\s+{re.escape(method)}\([^{{]*\)\s*->\s*Bool\s*")
+    keys = set(re.findall(r'if\s+embed\.type\s*==\s*"([^"]+)"\s*\{\s*return\s+true\s*\}', predicate))
+    contains = re.fullmatch(r'\s*(?:return\s+)?\[(?P<keys>[^\]]+)\]\.contains\(embed\.type\)\s*', predicate)
+    if contains:
+        keys.update(re.findall(r'"([^"]+)"', contains.group("keys")))
+    comparison = re.fullmatch(r'\s*(?:return\s+)?embed\.type\s*==\s*"([^"]+)"\s*', predicate)
+    if comparison:
+        keys.add(comparison.group(1))
+    return keys
+
+
+def _native_embed_dispatch(
+    keys: set[str], raw_to_case: dict[str, str], content: str, parent: str,
+    predicate_sources: str = "",
+) -> tuple[list[str], list[str]]:
+    """Check actual entry routes in both modes, not merely enum/fixture names.
+
+    This is a source-structure gate. Shared search parents are review warnings;
+    no visual or functional equivalence is inferred from an accepted route.
+    """
+    errors: list[str] = []
+    warnings: list[str] = []
+    content = _swift_without_comments(content)
+    parent = _swift_without_comments(parent)
+    parent_entry = _swift_block(content, r"if\s+(?:shouldUseCompositeRenderer|embed\.isAppSkillUse)\s*")
+    composite_gate = _swift_block(content, r"var\s+shouldUseCompositeRenderer\s*:[^{{]+")
+    has_parent_entry = (
+        "AppSkillUseRenderer(" in _swift_mask(parent_entry)
+        and bool(re.search(r"\bmode:\s*mode\b", _swift_mask(parent_entry)))
+        and ("embed.isAppSkillUse" in composite_gate or "if embed.isAppSkillUse" in content)
+    )
+    direct = _swift_cases(_swift_block(content, r"switch\s+embedType\s*"))
+    predicate_routes: dict[str, str] = {}
+    entry_body = _swift_block(content, r"var\s+body\s*:\s*some\s+View\s*")
+    for match in re.finditer(r"\bif\s+(\w+)\.(\w+)\(embed\)\s*\{", entry_body):
+        owner, method = match.groups()
+        branch = _swift_block(entry_body[match.start():], r"if\s+\w+\.\w+\(embed\)\s*")
+        for key in _predicate_registry_keys(predicate_sources, owner, method):
+            predicate_routes.setdefault(key, branch)
+    # Tuple case labels contain strings rather than .enum names. Extract them
+    # independently from the specializedKind function's explicit return cases.
+    kind_source = _swift_block(parent, r"func\s+specializedKind\([^{{\n]*")
+    specialized_keys = {
+        f"app:{app}:{skill}": kind
+        for labels, kind in re.findall(r"case\s+(.*?):\s*return\s+\.([A-Za-z][A-Za-z0-9_]*)", kind_source, re.DOTALL)
+        for app, skill in re.findall(r'\("([^"]+)",\s*"([^"]+)"\)', labels)
+    }
+    for mode in ("preview", "fullscreen"):
+        body = _swift_block(parent, rf"private\s+var\s+{mode}\s*:[^{{]+")
+        routes: dict[str, str] = {}
+        for match in re.finditer(r"\b(?:if|else if)\s+([^{}]+)\{", body):
+            prefix = _swift_mask(body[:match.start()])
+            if prefix.count("{") != prefix.count("}"):
+                continue
+            condition = match.group(1)
+            branch = _swift_block(body[match.start():], r"\bif\s+[^{}]+")
+            # Named boolean predicates are defined beside the dispatch chain.
+            if re.fullmatch(r"is\w+", condition.strip()):
+                condition = _swift_block(parent, rf"var\s+{condition.strip()}\s*:\s*Bool\s*")
+            apps = re.findall(r'appId\s*==\s*"([^"]+)"', condition)
+            skills = re.findall(r'skillId\s*==\s*"([^"]+)"', condition)
+            skills += re.findall(r'"([^"]+)"', condition.split("&&", 1)[-1]) if ".contains(skillId)" in condition else []
+            for app in apps:
+                for skill in skills:
+                    routes[f"app:{app}:{skill}"] = branch
+        special_function = _swift_block(parent, rf"func\s+specialized{mode.title()}\([^{{\n]*")
+        special_bodies = _swift_cases(_swift_block(special_function, r"switch\s+kind\s*"))
+        if "Self.specializedKind(" in body and f"specialized{mode.title()}(specialized)" in body:
+            for key, kind in specialized_keys.items():
+                routes[key] = special_bodies.get(kind, "")
+        fallback = ""
+        for match in re.finditer(r"\belse\s*\{", body):
+            prefix = _swift_mask(body[:match.start()])
+            if prefix.count("{") == prefix.count("}"):
+                fallback = _swift_block(body[match.start():], r"else\s*")
+        fallback_code = _swift_mask(fallback)
+        shared_exists = ("textSearchPreview" in fallback_code if mode == "preview" else "SearchResultFullscreenRow(" in fallback_code)
+        for key in sorted(keys):
+            case = raw_to_case.get(key)
+            if not case:
+                continue  # enum absence has its own precise error
+            if key in predicate_routes:
+                branch = predicate_routes[key]
+                has_mode = bool(re.search(r"\bmode:\s*mode\b", _swift_mask(branch)))
+            elif key.startswith("app:"):
+                if not has_parent_entry:
+                    errors.append(f"missing Apple app-skill entry route ({mode}): {key}")
+                    continue
+                branch = routes.get(key, "")
+                if key not in routes and key in SHARED_APP_SKILL_PARENTS and shared_exists and "GenericEmbedRenderer" not in fallback_code:
+                    warnings.append(f"shared AppSkillUseRenderer parent ({mode}): {key}; review visual/behavior parity")
+                    continue
+                if key not in routes and "GenericEmbedRenderer" in fallback_code:
+                    branch = fallback
+                has_mode = bool(re.search(rf"\bmode:\s*\.{mode}\b", _swift_mask(branch)))
+            else:
+                branch = direct.get(case, direct.get("default", ""))
+                has_mode = bool(re.search(r"\bmode:\s*mode\b", _swift_mask(branch)))
+            branch_code = _swift_mask(branch)
+            if "GenericEmbedRenderer" in branch_code:
+                errors.append(f"known Apple embed uses generic fallback ({mode}): {key}")
+            elif not branch or not has_mode or not re.search(r"\b\w*(?:Renderer|SkillCard)\s*\(", branch_code):
+                errors.append(f"missing concrete Apple embed route ({mode}): {key}")
+    return errors, warnings
 
 
 def _extract_generic_embed_cases(source: str) -> set[str]:
@@ -500,16 +678,75 @@ def _has_apple_embed_registry_coverage(
     return False
 
 
-def audit_embeds() -> tuple[list[str], list[str]]:
+def _embed_registry_source(web_root: Path) -> str:
+    registry = web_root / "frontend/packages/ui/src/data/embedRegistry.generated.ts"
+    if registry.exists():
+        return registry.read_text(encoding="utf-8")
+    # Read YAML through the web package's existing dependency. Never import/run
+    # the generator, which writes shared source; mirror its active component-map
+    # rules (including virtual definitions and composite child registration).
+    node = shutil.which("node")
+    if not node:
+        raise ContractError("missing generated embed registry and Node.js needed to read canonical YAML")
+    reader = r'''
+const fs = require('fs'), path = require('path');
+const root = process.argv[1];
+const yaml = require(require.resolve('yaml', {paths: [path.join(root, 'frontend/packages/ui')]}));
+const defs = [];
+for (const app of fs.readdirSync(path.join(root, 'backend/apps')).sort()) {
+  const p = path.join(root, 'backend/apps', app, 'app.yml');
+  if (!fs.existsSync(p)) continue;
+  for (const d of yaml.parse(fs.readFileSync(p, 'utf8'))?.embed_types || [])
+    if (d.default_enabled !== false) defs.push({...d, app_id: app});
+}
+for (const d of yaml.parse(fs.readFileSync(path.join(root, 'shared/config/embed_types.yml'), 'utf8'))?.embed_types || [])
+  if (d.default_enabled !== false) defs.push(d);
+process.stdout.write(JSON.stringify(defs));
+'''
+    try:
+        result = subprocess.run([node, "-e", reader, str(web_root)], capture_output=True, text=True, timeout=30, check=True)
+        definitions = json.loads(result.stdout)
+    except (subprocess.SubprocessError, json.JSONDecodeError) as exc:
+        raise ContractError(f"cannot read canonical embed YAML using the existing web YAML dependency: {exc}") from exc
+    maps: dict[str, dict[str, str]] = {"EMBED_PREVIEW_COMPONENTS": {}, "EMBED_FULLSCREEN_COMPONENTS": {}}
+    for definition in definitions:
+        if definition.get("category") == "app-skill-use" and definition.get("app_id") and definition.get("skill_id"):
+            key = f"app:{definition['app_id']}:{definition['skill_id']}"
+        elif definition.get("category") == "direct" and definition.get("frontend_type"):
+            key = definition["frontend_type"]
+        else:
+            continue
+        for mode, const in (("preview", "EMBED_PREVIEW_COMPONENTS"), ("fullscreen", "EMBED_FULLSCREEN_COMPONENTS")):
+            component = definition.get(f"{mode}_component")
+            if component and (mode != "fullscreen" or component != "null"):
+                maps[const][key] = component
+            child_component = definition.get(f"child_{mode}_component")
+            if definition.get("has_children") and definition.get("child_frontend_type") and child_component:
+                maps[const][definition["child_frontend_type"]] = child_component
+    return "\n".join(
+        f"export const {name}: Record<string, string> = {{\n"
+        + "\n".join(f"  {json.dumps(key)}: {json.dumps(value)}," for key, value in sorted(values.items())) + "\n};"
+        for name, values in maps.items()
+    )
+
+
+def audit_embeds(*, web_root: Path | None = None, native_root: Path | None = None) -> tuple[list[str], list[str]]:
     errors: list[str] = []
     warnings: list[str] = []
 
-    registry_source = _read_repo_file("frontend/packages/ui/src/data/embedRegistry.generated.ts")
-    showcase_source = _read_repo_file("frontend/apps/web_app/src/routes/dev/preview/embeds/[app=embedApp]/+page.svelte")
-    showcase_apps_source = _read_repo_file("frontend/apps/web_app/src/lib/devPreviewEmbedApps.ts")
-    embed_models_source = _read_repo_file("apple/OpenMates/Sources/Core/Models/EmbedModels.swift")
-    fixtures_source = _read_repo_file("apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift")
-    content_view_source = _read_repo_file("apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift")
+    web_root = web_root or REPO_ROOT
+    native_root = native_root or REPO_ROOT
+    registry_source = _embed_registry_source(web_root)
+    showcase_source = (web_root / "frontend/apps/web_app/src/routes/dev/preview/embeds/[app=embedApp]/+page.svelte").read_text()
+    showcase_apps_source = (web_root / "frontend/apps/web_app/src/lib/devPreviewEmbedApps.ts").read_text()
+    embed_models_source = (native_root / "apple/OpenMates/Sources/Core/Models/EmbedModels.swift").read_text()
+    preview_root = native_root / "apple/OpenMates/Sources/DevPreview"
+    fixture_paths = sorted(set(preview_root.glob("Dev*EmbedFixtures.swift")) | {preview_root / "DevEmbedPreviewFixtures.swift"})
+    fixtures_source = "\n".join(path.read_text() for path in fixture_paths)
+    content_view_source = (native_root / "apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift").read_text()
+    parent_source = (native_root / "apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift").read_text()
+    embed_source_root = native_root / "apple" / "OpenMates" / "Sources" / "Features" / "Embeds"
+    predicate_sources = "\n".join(path.read_text() for path in sorted(embed_source_root.rglob("*.swift")))
 
     preview_keys = _extract_ts_object_keys(registry_source, "EMBED_PREVIEW_COMPONENTS")
     fullscreen_keys = _extract_ts_object_keys(registry_source, "EMBED_FULLSCREEN_COMPONENTS")
@@ -519,6 +756,7 @@ def audit_embeds() -> tuple[list[str], list[str]]:
     showcase_apps = _extract_showcase_apps(showcase_apps_source)
     apple_apps = _extract_swift_enum_raw_values(fixtures_source, "DevEmbedPreviewApp")
     apple_fixture_skill_ids = _extract_apple_fixture_skill_ids(fixtures_source)
+    fixture_registry_types = _fixture_registry_types(fixtures_source, apple_type_cases_by_raw_value)
     generic_embed_cases = _extract_generic_embed_cases(content_view_source)
 
     if not registry_keys:
@@ -571,7 +809,7 @@ def audit_embeds() -> tuple[list[str], list[str]]:
             errors.append(f"Apple DevEmbedPreviewFixtures.skills missing switch coverage for app: {app}")
 
     for registry_key in sorted(registry_keys):
-        if not _has_apple_embed_registry_coverage(
+        if registry_key not in fixture_registry_types and not _has_apple_embed_registry_coverage(
             registry_key,
             apple_fixture_skill_ids=apple_fixture_skill_ids,
             embed_type_cases_by_raw_value=apple_type_cases_by_raw_value,
@@ -579,8 +817,12 @@ def audit_embeds() -> tuple[list[str], list[str]]:
         ):
             errors.append(f"missing Apple debug fixture for registry key: {registry_key}")
 
+    route_errors, route_warnings = _native_embed_dispatch(registry_keys, apple_type_cases_by_raw_value, content_view_source, parent_source, predicate_sources)
+    errors.extend(route_errors)
+    warnings.extend(route_warnings)
+    warnings.append(f"structural registry coverage: {len(preview_keys)} web previews, {len(fullscreen_keys)} web fullscreens; visual/functional parity is not established")
+
     forbidden_controls = ["Form {", "List {", "NavigationLink {", ".navigationTitle(", ".toolbar {"]
-    embed_source_root = REPO_ROOT / "apple" / "OpenMates" / "Sources" / "Features" / "Embeds"
     parity_paths = [
         path
         for path in embed_source_root.rglob("*.swift")
@@ -699,6 +941,8 @@ def main() -> int:
 
     audit_parser = subparsers.add_parser("audit")
     audit_parser.add_argument("--surface", required=True, choices=["message-input", "embeds", "settings"])
+    audit_parser.add_argument("--web-root", type=Path, help="Embed audit web source root; defaults to this checkout")
+    audit_parser.add_argument("--native-root", type=Path, help="Embed audit Apple source root; defaults to this checkout")
 
     args = parser.parse_args()
     try:
@@ -717,7 +961,10 @@ def main() -> int:
             return 0
 
         if args.command == "audit":
-            errors, warnings = audit_surface(args.surface)
+            if args.surface != "embeds" and (args.web_root or args.native_root):
+                raise ContractError("--web-root/--native-root apply only to the embeds audit")
+            errors, warnings = (audit_embeds(web_root=args.web_root, native_root=args.native_root)
+                                if args.surface == "embeds" else audit_surface(args.surface))
             for warning in warnings:
                 print(f"WARNING: {warning}")
             if errors:

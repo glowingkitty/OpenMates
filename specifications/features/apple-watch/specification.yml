@@ -137,7 +137,53 @@ assertions:
     must: >
       The Watch Chat list, opened transcript, embed previews, text composer,
       and audio action remain visible and usable within the Watch viewport.
+      Transcript text defaults to a scalable 15 points. Long-pressing a message
+      offers bounded Zoom in and Zoom out controls, with only the chosen text
+      size preference persisted. Preview markers remain in their original
+      positions between message text blocks. Consecutive embed groups scroll
+      horizontally within the viewport, using iPhone group ordering. All supported embed
+      preview families share a 156-point-wide vertical layout: a bounded
+      payload visual above a full-width gradient app-icon bar, with a centered
+      title and available metadata below. Sheet previews show bounded real
+      cells and the actual declared cell count when available. Actual message
+      embed markers are merged with supplied references, including when that
+      reference list is empty or partial. A missing decrypted payload shows an
+      unavailable preview and preserves the continuation action without
+      fabricating content.
     depends_on: [examples.chat_layout]
+  - id: apple-watch.embeds.read-only-fullscreen
+    type: behavior
+    must: >
+      Tapping an embed opens read-only Watch detail using the selected hydrated
+      payload. Available text, code, full sheet cells, ordered result children,
+      thumbnails, and valid map coordinates are readable within a scrollable
+      Watch viewport. The detail offers Back and explicit Open on iPhone, and
+      does not offer content edits or execution. Missing payloads and unsupported
+      remote content remain visibly unavailable. Thumbnails load only on visible
+      demand, with bounded transport and image decoding; cached bytes are
+      encrypted and fenced to the current personal account and server. Automatic
+      bulk original-binary downloads are excluded.
+    depends_on: [examples.chat_layout]
+  - id: apple-watch.offline.recent-cohort
+    type: behavior
+    must: >
+      After a successful online maintenance pass, the exact twenty most recently
+      active ordinary personal conversations are available on Watch without a
+      network connection, ordered by the authoritative overall activity timestamp
+      with stable identifier ties independently of pinning. Each complete receipt
+      retains the full encrypted transcript, embed payloads, wrapped keys, and
+      supplemental content; metadata or a visible message window alone cannot
+      count as complete. Partial or mismatched server responses never replace a
+      complete receipt. Maintenance runs serially while the app is active and
+      navigation is idle, yields to foreground navigation, and stops on background,
+      logout, account, or server changes. Offline reading decrypts bounded
+      fifty-message pages and the selected page's referenced preview payloads,
+      without publishing all twenty transcripts into Watch memory. Automatic
+      bulk binary downloads are excluded; an unavailable binary or missing payload
+      remains visibly unavailable with continuation on iPhone. Durable cache
+      content is encrypted and scoped to the account and server, and logout
+      removes the cohort cache.
+    depends_on: [examples.offline_cohort]
 
 applies_to:
   rest_api:
@@ -160,4 +206,16 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [pairing, pairing_privacy, hub, lists, task_editing, workflow_details, handoff, chats, replies, audio, chat_layout]
+  required_groups: [pairing, pairing_privacy, hub, lists, task_editing, workflow_details, handoff, chats, replies, audio, chat_layout, offline_cohort]
+
+approval_source:
+  instruction: >
+    Direct user instruction in codex thread 01a0eeac-16cd-7ff1-941a-5d1fb4908fae
+    on 2026-10-03 authorizes the mobile Watch embed-preview hierarchy and
+    scalable transcript text, with the latest user overriding the default to
+    approximately 14–15 points and authorizing long-press text zoom, previews
+    in original message positions, horizontal groups, and read-only Watch embed
+    fullscreen including available thumbnails, text, and maps. The latest user
+    instruction extends full offline availability of the last twenty chats to
+    Apple Watch under the same no-bulk-binary scope as iPhone. Implementation is
+    explicitly authorized; no separate version or fingerprint approval is claimed.

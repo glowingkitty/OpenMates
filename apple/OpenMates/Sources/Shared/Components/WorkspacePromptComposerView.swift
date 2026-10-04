@@ -1,5 +1,7 @@
 import SwiftUI
 
+// Specification: specifications/features/apple-task-board-interactions/specification.yml
+// Assertions: apple-task-board.new-task-shortcuts
 // Shared Projects, Tasks and Workflows field; each surface owns its actions.
 // Web source: frontend/packages/ui/src/components/workspace/WorkspacePromptComposer.svelte
 struct WorkspacePromptComposerView: View {
@@ -16,6 +18,7 @@ struct WorkspacePromptComposerView: View {
     let onSubmit: (String) -> Void
     let onMic: () -> Void
     var compact: Bool? = nil
+    var focusRequestID: UUID? = nil
 
     @Environment(\.workspaceViewportWidth) private var viewportWidth
     @Environment(\.horizontalSizeClass) private var sizeClass
@@ -122,6 +125,9 @@ struct WorkspacePromptComposerView: View {
         .shadow(color: .black.opacity(0.08), radius: 12, y: 4)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(identifier)
+        .task(id: focusRequestID) {
+            if focusRequestID != nil, !disabled { focused = true }
+        }
     }
 
     private func submit() {

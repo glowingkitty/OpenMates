@@ -1,13 +1,19 @@
 // Native Workflow home, sidebar, editor, versions and run history.
-// Web source: frontend/apps/web_app/src/routes/workflows/+page.svelte
-//             frontend/packages/ui/src/components/workspace/WorkflowSidebar.svelte
-//             frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte: frontend/apps/web_app/src/routes/workflows/+page.svelte
+//         frontend/packages/ui/src/components/workspace/WorkflowSidebar.svelte
+//         frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte
 // CSS: +page.svelte .workflow-management, .workflow-detail, #tabpanel-template
+//      WorkflowSidebar.svelte .workflow-sidebar-heading, .workflow-sidebar-list
+// Tokens: ColorTokens.generated.swift, SpacingTokens.generated.swift,
+//         TypographyTokens.generated.swift, GradientTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
 // Specification: specifications/features/workflows/specification.yml
 // Assertions: workflows.mvp.list, workflows.mvp.editor, workflows.mvp.run-history
 // Specification: specifications/features/workflows-ui/specification.yml
 // Assertions: workflows-ui.detail.stable-visual-header, workflows-ui.detail.shared-template-runs-tabs,
 //             workflows-ui.template.centered-in-place-editor
+// Sidebar mirrors the web owner list; home owns My workflows / Templates browsing.
 
 import SwiftUI
 
@@ -16,6 +22,7 @@ struct WorkflowWorkspaceView: View {
     @ObservedObject var authManager: AuthManager
     let onReportIssue: () -> Void
     let chatChoices: [WorkflowChatChoice]
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         // Keep workspace and destination accessibility containers distinct.
@@ -26,6 +33,7 @@ struct WorkflowWorkspaceView: View {
                                    authoring: store.authoring, workflow: workflow,
                                    onReportIssue: onReportIssue, chatChoices: chatChoices)
                     .id(workflow.id)
+                    .transition(reduceMotion ? .opacity : .move(edge: .bottom))
             } else {
                 WorkflowHomeView(store: store, authManager: authManager,
                                  authoring: store.authoring, onReportIssue: onReportIssue)
@@ -38,6 +46,7 @@ struct WorkflowWorkspaceView: View {
             await store.load()
         }
         .background(Color.grey0)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: store.selectedWorkflow?.id)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("workflows-workspace")
     }
@@ -82,6 +91,8 @@ struct WorkflowSidebarView: View {
                             .background(Color.grey10, in: Circle())
                     }
                     .foregroundStyle(Color.fontSecondary)
+                    .accessibilityElement(children: .contain)
+                    .accessibilityIdentifier("workflows-sidebar-heading")
 
                     if store.isLoading && store.workflows.isEmpty {
                         Text(AppStrings.workflowSidebarLoading)
@@ -114,6 +125,8 @@ struct WorkflowSidebarView: View {
                             .accessibilityIdentifier("workflow-sidebar-row")
                         }
                     }
+
+
                 }
                 .padding(.spacing6)
             }
@@ -122,6 +135,8 @@ struct WorkflowSidebarView: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("workflows-sidebar")
     }
+
+
 }
 
 private struct WorkflowEditorView: View {
@@ -235,11 +250,22 @@ private struct WorkflowEditorView: View {
                     WorkflowRunTimelineView(
                         workflow: workflow, runs: store.runs, detail: store.selectedRunDetail,
                         pinnedGraph: store.pinnedRunGraph, loadingDetail: store.isLoadingRun,
-                        onSelect: { runId in Task { await store.selectRun(runId) } },
+                        onSelect: { runId in
+                            // The local fixture owns immutable retained detail; selection
+                            // exercises the real timeline without issuing account requests.
+                            guard !ProcessInfo.processInfo.arguments.contains("--ui-test-workflows-fixture") else { return }
+                            Task { await store.selectRun(runId) }
+                        },
                         onOpenEditor: { tab = .template },
                         onCancel: { runId in await store.cancelRun(runId) },
                         onDelete: { runId in await store.deleteRun(runId) }
                     )
+                    .padding(.top, 36.8)
+                    .padding(.bottom, 32)
+                    .frame(maxWidth: min(960, max(0, viewport.size.width - (viewport.size.width <= 730 ? 16 : 64))))
+                    .background(Color.grey0, in: RoundedRectangle(cornerRadius: 12))
+                    .frame(maxWidth: .infinity)
+                    .padding(.bottom, 32)
                     .task(id: tab) {
                         guard !ProcessInfo.processInfo.arguments.contains("--ui-test-workflows-fixture") else { return }
                         while !Task.isCancelled && tab == .runs {
@@ -288,6 +314,9 @@ private struct WorkflowEditorView: View {
             guard !ProcessInfo.processInfo.arguments.contains("--ui-test-workflows-fixture") else { return }
             await store.loadCapabilities()
             await store.loadVersions()
+        }
+        .onChange(of: store.selectedRunDetail?.id) { _, runID in
+            if runID != nil { tab = .runs }
         }
         .overlay(alignment: .top) {
             if showSharingSoon {

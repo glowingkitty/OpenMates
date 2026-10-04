@@ -41,6 +41,20 @@ struct AppleComposerEmbedActions: @unchecked Sendable {
     let onRemove: (String) -> Void
 }
 
+private struct ComposerPreviewRemovalGesture: ViewModifier {
+    let enabled: Bool
+    let action: () -> Void
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if enabled {
+            content.simultaneousGesture(LongPressGesture(minimumDuration: 0.6).onEnded { _ in action() })
+        } else {
+            content
+        }
+    }
+}
+
 struct AppleComposerEmbedPreview: View {
     let descriptor: AppleComposerPreviewDescriptor
     let node: ComposerNodeV1
@@ -51,7 +65,19 @@ struct AppleComposerEmbedPreview: View {
     private let localPreviewImage: Image?
     let actions: AppleComposerEmbedActions
     let showsActions: Bool
-    @State private var showsRemovalAction = false
+    private let hostedRemovalAction: Binding<Bool>?
+    @State private var standaloneShowsRemovalAction = false
+
+    private var showsRemovalAction: Bool {
+        get { hostedRemovalAction?.wrappedValue ?? standaloneShowsRemovalAction }
+        nonmutating set {
+            if let hostedRemovalAction {
+                hostedRemovalAction.wrappedValue = newValue
+            } else {
+                standaloneShowsRemovalAction = newValue
+            }
+        }
+    }
 
     init(
         descriptor: AppleComposerPreviewDescriptor,
@@ -61,7 +87,8 @@ struct AppleComposerEmbedPreview: View {
         allEmbedRecords: [String: EmbedRecord],
         localPreviewData: Data? = nil,
         actions: AppleComposerEmbedActions,
-        showsActions: Bool = true
+        showsActions: Bool = true,
+        hostedRemovalAction: Binding<Bool>? = nil
     ) {
         self.descriptor = descriptor
         self.node = node
@@ -72,6 +99,7 @@ struct AppleComposerEmbedPreview: View {
         self.localPreviewImage = Self.makeLocalPreviewImage(data: localPreviewData)
         self.actions = actions
         self.showsActions = showsActions
+        self.hostedRemovalAction = hostedRemovalAction
     }
 
     var body: some View {
@@ -120,6 +148,10 @@ struct AppleComposerEmbedPreview: View {
                     allEmbedRecords: allEmbedRecords,
                     actions: actions
                 )
+            } else if let embedRecord, HostingEmbedKind.isSearch(embedRecord) {
+                EmbedPreviewCard(embed: embedRecord, allEmbedRecords: allEmbedRecords) {
+                    if lifecycle == .finished { actions.onOpen(node.id) }
+                }
             } else if lifecycle == .finished, let embedRecord, usesReadRenderer {
                 EmbedPreviewCard(embed: embedRecord, allEmbedRecords: allEmbedRecords) {
                     actions.onOpen(node.id)
@@ -133,7 +165,7 @@ struct AppleComposerEmbedPreview: View {
                 }
                 .padding(.spacing4)
             }
-            if showsRemovalAction {
+            if showsActions && showsRemovalAction {
                 Button {
                     showsRemovalAction = false
                     actions.onRemove(node.id)
@@ -152,11 +184,12 @@ struct AppleComposerEmbedPreview: View {
             }
         }
         .frame(width: AppleComposerPreviewMetrics.width, height: AppleComposerPreviewMetrics.height)
-        // The editor also removes selected atoms with Backspace. A deliberate
-        // long press exposes removal without adding controls to the idle card.
-        .onLongPressGesture {
+        .contentShape(RoundedRectangle(cornerRadius: AppleComposerPreviewMetrics.cornerRadius))
+        // Card removal uses a long press; the editor also removes selected atoms
+        // with Backspace. Playback and retry retain their ordinary tap handling.
+        .modifier(ComposerPreviewRemovalGesture(enabled: hostedRemovalAction == nil) {
             if showsActions { showsRemovalAction.toggle() }
-        }
+        })
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("native-composer-preview-\(descriptor.embedType)-\(lifecycle.rawValue)")
         .accessibilityValue(node.contentRef == nil ? "local-preview-no-durable-id" : "durable-preview")
@@ -278,6 +311,7 @@ struct AppleComposerEmbedPreview: View {
         case .fitnessLocation, .fitnessClass: "fitness"
         case .appointment: "health"
         case .homeListing: "home"
+        case .hostingDomain: "hosting"
         case .image, .imageResult: "images"
         case .email: "mail"
         case .place, .map: "maps"
@@ -308,6 +342,7 @@ struct AppleComposerEmbedPreview: View {
         case .fitnessLocation, .fitnessClass: "fitness"
         case .appointment: "health"
         case .homeListing: "home"
+        case .hostingDomain: "hosting"
         case .image, .imageResult: "images"
         case .email: "mail"
         case .place, .map: "maps"

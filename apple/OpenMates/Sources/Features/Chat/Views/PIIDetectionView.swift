@@ -11,6 +11,7 @@
 
 import SwiftUI
 import CryptoKit
+import Combine
 
 struct PIIMatch: Identifiable, Equatable, Sendable {
     let id: String
@@ -845,7 +846,28 @@ struct PrivacyFilterNativeDetector: Sendable {
                     && NSMaxRange(span.range) <= nsText.length
                     && options.disabledCategories.isDisjoint(with: span.label.categoryKeys)
             }
+            .compactMap { Self.trimmingWhitespaceBoundaries(of: $0, in: text) }
             .sorted { $0.range.location < $1.range.location }
+    }
+
+    /// BPE token offsets can include separator spaces. Keep raw engine output
+    /// intact, but UI/merge/exclusion values must describe the sensitive value
+    /// itself so its replacement cannot consume surrounding whitespace.
+    private static func trimmingWhitespaceBoundaries(of span: PrivacyFilterModelSpan,
+                                                     in text: String) -> PrivacyFilterModelSpan? {
+        guard let range = Range(span.range, in: text) else { return nil }
+        let scalars = text.unicodeScalars
+        var start = range.lowerBound, end = range.upperBound
+        while start < end, CharacterSet.whitespacesAndNewlines.contains(scalars[start]) {
+            start = scalars.index(after: start)
+        }
+        while start < end {
+            let previous = scalars.index(before: end)
+            guard CharacterSet.whitespacesAndNewlines.contains(scalars[previous]) else { break }
+            end = previous
+        }
+        guard start < end else { return nil }
+        return PrivacyFilterModelSpan(label: span.label, range: NSRange(start..<end, in: text), score: span.score)
     }
 
     func mergedSpans(
@@ -946,24 +968,14 @@ enum PrivacyFilterSpanMerger {
     }
 }
 
-enum EnhancedPIIModelConfiguration {
-    // Set this once the OpenMates-hosted artifact URL, SHA-256, and size are finalized.
-    static let productionManifest: EnhancedPIIModelManifest? = nil
-}
-
-struct EnhancedPIIModelManifest: Equatable, Sendable {
-    let version: String
-    let sizeBytes: Int
-    let remoteURL: URL
-    let sha256: String
-}
-
 enum EnhancedPIIModelFailureReason: String, Equatable, Sendable {
     case modelNotConfigured = "model_not_configured"
     case downloadFailed = "download_failed"
     case removalFailed = "removal_failed"
     case timeout
     case runtimeFailed = "runtime_failed"
+    case modelLoading = "model_loading"
+    case memoryPressure = "memory_pressure"
 }
 
 enum EnhancedPIIModelStatus: Equatable, Sendable {
@@ -989,238 +1001,84 @@ enum EnhancedPIIModelStatus: Equatable, Sendable {
     }
 }
 
-protocol EnhancedPIIModelDownloading: Sendable {
-    func download(_ manifest: EnhancedPIIModelManifest, progress: @MainActor @Sendable (Double) async -> Void) async throws -> URL
-}
-
-struct URLSessionEnhancedPIIModelDownloader: EnhancedPIIModelDownloading {
-    enum DownloadError: Error {
-        case checksumMismatch
-    }
-
-    func download(_ manifest: EnhancedPIIModelManifest, progress: @MainActor @Sendable (Double) async -> Void) async throws -> URL {
-        await progress(0.05)
-        let (temporaryURL, _) = try await URLSession.shared.download(from: manifest.remoteURL)
-        await progress(0.85)
-        let digest = try sha256Hex(for: temporaryURL)
-        guard digest.caseInsensitiveCompare(manifest.sha256) == .orderedSame else {
-            throw DownloadError.checksumMismatch
-        }
-
-        let directory = try modelDirectory()
-        let targetURL = directory.appendingPathComponent("privacy-filter-\(manifest.version).onnx")
-        try removeExistingModelArtifacts(in: directory, excluding: targetURL)
-        if FileManager.default.fileExists(atPath: targetURL.path) {
-            try FileManager.default.removeItem(at: targetURL)
-        }
-        try FileManager.default.moveItem(at: temporaryURL, to: targetURL)
-        await progress(1.0)
-        return targetURL
-    }
-
-    private func modelDirectory() throws -> URL {
-        let appSupport = try FileManager.default.url(
-            for: .applicationSupportDirectory,
-            in: .userDomainMask,
-            appropriateFor: nil,
-            create: true
-        )
-        let directory = appSupport.appendingPathComponent("EnhancedPIIModel", isDirectory: true)
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        return directory
-    }
-
-    private func removeExistingModelArtifacts(in directory: URL, excluding targetURL: URL) throws {
-        let files = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
-        for file in files where file.lastPathComponent.hasPrefix("privacy-filter-") && file != targetURL {
-            try FileManager.default.removeItem(at: file)
-        }
-    }
-
-    private func sha256Hex(for url: URL) throws -> String {
-        let handle = try FileHandle(forReadingFrom: url)
-        defer { try? handle.close() }
-        var hasher = SHA256()
-        while true {
-            let data = try handle.read(upToCount: 1024 * 1024) ?? Data()
-            guard !data.isEmpty else { break }
-            hasher.update(data: data)
-        }
-        return hasher.finalize().map { String(format: "%02x", $0) }.joined()
-    }
-}
-
-typealias EnhancedPIIModelRunnerFactory = @Sendable (URL) -> (any PrivacyFilterModelRunning)?
-
+/// Privacy controls use the same pinned, checksum-verified installation as diagnostics.
 @MainActor
 final class EnhancedPIIModelDownloadController: ObservableObject {
-    static let shared = EnhancedPIIModelDownloadController(
-        manifest: EnhancedPIIModelConfiguration.productionManifest,
-        downloader: URLSessionEnhancedPIIModelDownloader(),
-        defaults: .standard
-    )
-
+    static let shared: EnhancedPIIModelDownloadController = EnhancedPIIModelDownloadController(store: .shared, beforeRemoval: {
+        await EnhancedPIIDetectionService.shared.invalidateModel()
+    })
     @Published private(set) var status: EnhancedPIIModelStatus = .notDownloaded
-
-    private let manifest: EnhancedPIIModelManifest?
-    private let downloader: any EnhancedPIIModelDownloading
-    private let defaults: UserDefaults?
-    private let runnerFactory: EnhancedPIIModelRunnerFactory?
-    private var artifactURL: URL?
-
-    init(
-        manifest: EnhancedPIIModelManifest?,
-        downloader: any EnhancedPIIModelDownloading,
-        defaults: UserDefaults? = nil,
-        runnerFactory: EnhancedPIIModelRunnerFactory? = nil
-    ) {
-        self.manifest = manifest
-        self.downloader = downloader
-        self.defaults = defaults
-        self.runnerFactory = runnerFactory
-        if let defaults,
-           let version = defaults.string(forKey: Self.versionKey),
-           let path = defaults.string(forKey: Self.pathKey) {
-            let sizeBytes = defaults.integer(forKey: Self.sizeKey)
-            let url = URL(fileURLWithPath: path)
-            if FileManager.default.fileExists(atPath: url.path) {
-                self.artifactURL = url
-                self.status = .ready(version: version, sizeBytes: sizeBytes)
-            }
-        }
+    let store: LocalModelStore
+    private var observation: AnyCancellable?
+    private var removing = false
+    private let beforeRemoval: @MainActor () async -> Void
+    init(store: LocalModelStore, beforeRemoval: @escaping @MainActor () async -> Void = {}) {
+        self.store = store; self.beforeRemoval = beforeRemoval
+        synchronizeState()
+        observation = store.$states.sink { [weak self] states in self?.synchronizeState(states[.privacyFilter]) }
     }
-
-    var isDownloadConfigured: Bool { manifest != nil }
-
-    var modelDetector: PrivacyFilterNativeDetector? {
-        guard case .ready = status,
-              let artifactURL,
-              let runner = runnerFactory?(artifactURL) else { return nil }
-        return PrivacyFilterNativeDetector(runner: runner)
-    }
-
-    var sizeCopy: String {
-        guard let sizeBytes = manifest?.sizeBytes ?? status.sizeBytes else { return "" }
-        return Self.sizeCopy(for: sizeBytes)
-    }
-
-    static func sizeCopy(for sizeBytes: Int) -> String {
-        String(format: "%.2f MB", Double(sizeBytes) / 1_048_576)
-    }
-
+    var isDownloadConfigured: Bool { store.manifest(for: .privacyFilter) != nil }
+    var installedDirectory: URL? { try? store.installedDirectory(.privacyFilter) }
+    var sizeCopy: String { store.manifest(for: .privacyFilter).map { Self.sizeCopy(for: Int($0.estimatedSizeBytes)) } ?? "" }
+    static func sizeCopy(for sizeBytes: Int) -> String { String(format: "%.2f MB", Double(sizeBytes) / 1_048_576) }
     var statusCopy: String {
         switch status {
-        case .notDownloaded:
-            return "\(AppStrings.enhancedPIIModelStatusNotDownloaded) \(AppStrings.enhancedPIIModelDescription)"
-        case .downloading:
-            return AppStrings.enhancedPIIModelDownloading
-        case .ready:
-            return AppStrings.enhancedPIIModelStatusLocalReady
-        case .failed:
-            return AppStrings.enhancedPIIModelFailed
-        case .updateAvailable:
-            return AppStrings.enhancedPIIModelUpdateAvailable
-        case .removing:
-            return AppStrings.enhancedPIIModelRemove
+        case .notDownloaded: return "\(AppStrings.enhancedPIIModelStatusNotDownloaded) \(AppStrings.enhancedPIIModelDescription)"
+        case .downloading: return AppStrings.enhancedPIIModelDownloading
+        case .ready: return AppStrings.enhancedPIIModelStatusLocalReady
+        case .failed: return AppStrings.enhancedPIIModelFailed
+        case .updateAvailable: return AppStrings.enhancedPIIModelUpdateAvailable
+        case .removing: return AppStrings.enhancedPIIModelRemove
         }
     }
-
     var actionTitle: String {
         switch status {
-        case .ready, .removing:
-            return AppStrings.enhancedPIIModelRemove
-        case .failed:
-            return AppStrings.retry
-        case .downloading:
-            return AppStrings.enhancedPIIModelDownloading
-        case .notDownloaded, .updateAvailable:
-            return AppStrings.enhancedPIIModelDownload
+        case .ready, .removing: return AppStrings.enhancedPIIModelRemove
+        case .failed: return AppStrings.retry
+        case .downloading: return AppStrings.enhancedPIIModelDownloading
+        case .notDownloaded, .updateAvailable: return AppStrings.enhancedPIIModelDownload
         }
     }
-
     var isActionDisabled: Bool {
         switch status {
-        case .downloading, .removing:
-            return true
-        case .notDownloaded, .failed, .updateAvailable:
-            return !isDownloadConfigured
-        case .ready:
-            return false
+        case .downloading, .removing: return true
+        case .notDownloaded, .failed, .updateAvailable: return !isDownloadConfigured
+        case .ready: return false
         }
     }
-
+    func refresh() async { await store.prepareForLab(); synchronizeState() }
     func performPrimaryAction() async {
         switch status {
-        case .ready:
-            await remove()
-        case .notDownloaded, .failed, .updateAvailable:
-            await download()
-        case .downloading, .removing:
-            break
+        case .ready: await remove()
+        case .notDownloaded, .failed, .updateAvailable: await download()
+        case .downloading, .removing: break
         }
     }
-
     func download() async {
-        guard let manifest else {
-            status = .failed(reason: .modelNotConfigured)
-            return
-        }
-        status = .downloading(progress: 0)
-        do {
-            let url = try await downloader.download(manifest) { [weak self] progress in
-                self?.status = .downloading(progress: min(max(progress, 0), 1))
-            }
-            artifactURL = url
-            persistReady(version: manifest.version, sizeBytes: manifest.sizeBytes, url: url)
-            status = .ready(version: manifest.version, sizeBytes: manifest.sizeBytes)
-        } catch {
-            status = .failed(reason: .downloadFailed)
-        }
+        guard isDownloadConfigured else { status = .failed(reason: .modelNotConfigured); return }
+        await store.download(.privacyFilter)
+        synchronizeState()
     }
-
-    func markUpdateAvailable(version: String, sizeBytes: Int) {
-        let currentVersion: String
-        switch status {
-        case .ready(let version, _):
-            currentVersion = version
-        case .updateAvailable(let version, _, _):
-            currentVersion = version
-        default:
-            currentVersion = manifest?.version ?? "unknown"
-        }
-        status = .updateAvailable(currentVersion: currentVersion, newVersion: version, sizeBytes: sizeBytes)
-    }
-
+    func cancelDownload() { store.cancel(.privacyFilter) }
     func remove() async {
-        status = .removing
-        if let artifactURL, FileManager.default.fileExists(atPath: artifactURL.path) {
-            do {
-                try FileManager.default.removeItem(at: artifactURL)
-            } catch {
-                status = .failed(reason: .removalFailed)
-                return
-            }
+        removing = true; status = .removing
+        await beforeRemoval()
+        await store.remove(.privacyFilter)
+        removing = false
+        synchronizeState()
+    }
+    private func synchronizeState(_ state: LocalModelInstallState? = nil) {
+        guard !removing else { return }
+        switch state ?? store.state(for: .privacyFilter) {
+        case .notDownloaded: status = .notDownloaded
+        case .downloading(let progress), .verifying(let progress), .waitingForConnection(let progress), .retrying(let progress):
+            status = .downloading(progress: progress)
+        case .ready:
+            guard let manifest = store.manifest(for: .privacyFilter) else { status = .failed(reason: .modelNotConfigured); return }
+            status = .ready(version: manifest.revision, sizeBytes: Int(manifest.estimatedSizeBytes))
+        case .failed: status = .failed(reason: .downloadFailed)
         }
-        self.artifactURL = nil
-        clearPersistedReadyState()
-        status = .notDownloaded
     }
-
-    private func persistReady(version: String, sizeBytes: Int, url: URL) {
-        defaults?.set(version, forKey: Self.versionKey)
-        defaults?.set(sizeBytes, forKey: Self.sizeKey)
-        defaults?.set(url.path, forKey: Self.pathKey)
-    }
-
-    private func clearPersistedReadyState() {
-        defaults?.removeObject(forKey: Self.versionKey)
-        defaults?.removeObject(forKey: Self.sizeKey)
-        defaults?.removeObject(forKey: Self.pathKey)
-    }
-
-    private static let versionKey = "enhanced_pii_model.version"
-    private static let sizeKey = "enhanced_pii_model.size_bytes"
-    private static let pathKey = "enhanced_pii_model.path"
 }
 
 struct EnhancedPIIRecommendationPolicy: Equatable, Sendable {
@@ -1293,11 +1151,11 @@ struct EnhancedPIIDetector: Sendable {
     static let defaultModelTimeoutNanoseconds: UInt64 = 250_000_000
 
     let modelDetector: PrivacyFilterNativeDetector?
-    let modelTimeoutNanoseconds: UInt64
+    let modelTimeoutNanoseconds: UInt64?
 
     init(
         modelDetector: PrivacyFilterNativeDetector?,
-        modelTimeoutNanoseconds: UInt64 = defaultModelTimeoutNanoseconds
+        modelTimeoutNanoseconds: UInt64? = defaultModelTimeoutNanoseconds
     ) {
         self.modelDetector = modelDetector
         self.modelTimeoutNanoseconds = modelTimeoutNanoseconds
@@ -1322,7 +1180,8 @@ struct EnhancedPIIDetector: Sendable {
     }
 
     private func withModelTimeout(_ operation: @escaping @Sendable () async throws -> [PIIMatch]) async throws -> [PIIMatch]? {
-        try await withThrowingTaskGroup(of: [PIIMatch]?.self) { group in
+        guard let modelTimeoutNanoseconds else { return try await operation() }
+        return try await withThrowingTaskGroup(of: [PIIMatch]?.self) { group in
             group.addTask { try await operation() }
             group.addTask {
                 try await Task.sleep(nanoseconds: modelTimeoutNanoseconds)

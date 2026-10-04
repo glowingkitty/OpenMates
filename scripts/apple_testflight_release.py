@@ -48,6 +48,15 @@ SOURCE_INPUTS = (
     "apple/PairOpaqueBridge/build-apple.sh",
     "apple/PairOpaqueBridge/localize-runtime.sh",
     "apple/PairOpaqueBridge/local-runtime-symbols.txt",
+    "apple/PocketTTSBridge/Cargo.toml",
+    "apple/PocketTTSBridge/Cargo.lock",
+    "apple/PocketTTSBridge/src",
+    "apple/PocketTTSBridge/include",
+    "apple/PocketTTSBridge/build-apple.sh",
+    "apple/PocketTTSBridge/prepare.py",
+    "apple/PocketTTSBridge/local-runtime-symbols.txt",
+    "apple/PocketTTSBridge/ios-device.cmake",
+    "apple/PocketTTSBridge/ios-simulator.cmake",
     "frontend/packages/chatCategoryTheme.ts",
     "apple/OpenMates.xcodeproj",
     "apple/OpenMates",
@@ -453,8 +462,32 @@ def generate_release_inputs(release_dir: Path) -> None:
         ("tokens", ["npm", "--prefix", package, "run", "build:tokens"]),
     )
     for name, command in commands:
+        if name == "translations":
+            outputs = list((REPO_ROOT / package / "src/i18n/locales").glob("*.json"))
+        else:
+            swift = REPO_ROOT / package / "src/tokens/generated/swift"
+            outputs = [swift / filename for filename in (
+                "ColorTokens.generated.swift", "TypographyTokens.generated.swift", "SpacingTokens.generated.swift",
+                "GradientTokens.generated.swift", "Tokens.generated.swift", "IconMapping.generated.swift",
+                "ComponentTokens.generated.swift",
+            )]
+        unchanged_candidates = {}
+        for output in outputs:
+            if output.is_file() and not output.is_symlink():
+                stat = output.stat()
+                unchanged_candidates[output] = (output.read_bytes(), stat.st_dev, stat.st_ino, stat.st_mtime_ns)
         print(f"stage=generate-{name} status=started log=generate-{name}.log")
         run_logged(command, release_dir / f"generate-{name}.log", timeout=10 * 60)
+        # Generators overwrite these known Apple inputs even when their content
+        # is unchanged. Restore only the same file's byte-identical mtime so a
+        # tooling-only archive retry can use Xcode's validated incremental work.
+        # Changed/new/replaced/deleted outputs keep their new state, and archive
+        # fingerprints still hash all generated content after generation.
+        for output, (content, device, inode, mtime) in unchanged_candidates.items():
+            if output.is_file() and not output.is_symlink():
+                stat = output.stat()
+                if (stat.st_dev, stat.st_ino) == (device, inode) and output.read_bytes() == content:
+                    os.utime(output, ns=(stat.st_atime_ns, mtime))
         print(f"stage=generate-{name} status=complete")
 
 
@@ -662,8 +695,27 @@ def validate_release_entitlements(path: Path, platform: str) -> None:
         raise ReleaseError("macOS app archive is missing the App Sandbox entitlement")
     if entitlements.get("com.apple.developer.aps-environment") != "production":
         raise ReleaseError("macOS app archive is missing a concrete production APNs entitlement")
+    for key in (
+        "com.apple.security.files.user-selected.read-only",
+        "com.apple.security.device.audio-input",
+    ):
+        if entitlements.get(key) is not True:
+            raise ReleaseError(f"macOS app archive is missing required entitlement: {key}")
     if extension_entitlements.get("com.apple.security.app-sandbox") is not True:
         raise ReleaseError("macOS share extension archive is missing the App Sandbox entitlement")
+    widget = app / "Contents" / "PlugIns" / "OpenMatesWidget_macOS.appex"
+    widget_entitlements = signed_entitlements(widget)
+    for key in ("com.apple.security.app-sandbox", "com.apple.security.network.client"):
+        if widget_entitlements.get(key) is not True:
+            raise ReleaseError(f"macOS widget archive is missing required entitlement: {key}")
+    widget_groups = widget_entitlements.get("com.apple.security.application-groups")
+    if not isinstance(widget_groups, list) or "group.org.openmates.app.shared" not in widget_groups:
+        raise ReleaseError("macOS widget archive is missing the shared app-group entitlement")
+    keychains = widget_entitlements.get("keychain-access-groups")
+    if (not isinstance(keychains, list) or len(keychains) != 2
+            or not isinstance(keychains[0], str) or not keychains[0].endswith(f".{BUNDLE_ID}.widgetmacos")
+            or keychains[1] != keychains[0].removesuffix(".widgetmacos")):
+        raise ReleaseError("macOS widget archive is missing its scoped and shared keychain entitlements")
 
 
 def validate_shared_link_domains(associated: object) -> None:
@@ -712,28 +764,28 @@ def resolved_macos_entitlements(source: Path, team_id: str, bundle_id: str) -> d
 
 def stamp_unsigned_macos_archive(path: Path, log_path: Path, team_id: str) -> None:
     app = path / "Products" / "Applications" / "OpenMates.app"
-    extension = app / "Contents" / "PlugIns" / "OpenMatesShareExtension_macOS.appex"
-    app_bundle_id = load_plist(app / "Contents" / "Info.plist").get("CFBundleIdentifier")
-    extension_bundle_id = load_plist(extension / "Contents" / "Info.plist").get("CFBundleIdentifier")
-    if app_bundle_id != BUNDLE_ID or extension_bundle_id != f"{BUNDLE_ID}.sharemacos":
-        raise ReleaseError("macOS archive bundle identifiers do not match the signing targets")
-    entitlement_paths = (
-        ("apple/OpenMatesShareExtensionMacOS/OpenMatesShareExtensionMacOS.entitlements", log_path.with_name("macos-share-entitlements.plist"), extension_bundle_id),
-        ("apple/OpenMates/Resources/OpenMatesMacOS.entitlements", log_path.with_name("macos-app-entitlements.plist"), app_bundle_id),
+    plugins = app / "Contents" / "PlugIns"
+    targets = (
+        (plugins / "OpenMatesShareExtension_macOS.appex", f"{BUNDLE_ID}.sharemacos",
+         "apple/OpenMatesShareExtensionMacOS/OpenMatesShareExtensionMacOS.entitlements", "macos-share-entitlements.plist"),
+        (plugins / "OpenMatesWidget_macOS.appex", f"{BUNDLE_ID}.widgetmacos",
+         "apple/OpenMatesWidget/MacWidget.entitlements", "macos-widget-entitlements.plist"),
+        (app, BUNDLE_ID, "apple/OpenMates/Resources/OpenMatesMacOS.entitlements", "macos-app-entitlements.plist"),
     )
-    for source, destination, bundle_id in entitlement_paths:
+    # Validate all identities before mutating a signature. Extensions keep their
+    # own entitlements and must be signed before their containing app.
+    for bundle, bundle_id, _, _ in targets:
+        if load_plist(bundle / "Contents" / "Info.plist").get("CFBundleIdentifier") != bundle_id:
+            raise ReleaseError(f"macOS archive bundle identifiers do not match the signing targets: {bundle.name}")
+    commands = []
+    for bundle, bundle_id, source, destination_name in targets:
+        destination = log_path.with_name(destination_name)
         with destination.open("wb") as handle:
             plistlib.dump(resolved_macos_entitlements(REPO_ROOT / source, team_id, bundle_id), handle)
-    commands = (
-        [
+        commands.append([
             "codesign", "--force", "--sign", "-", "--timestamp=none", "--entitlements",
-            str(entitlement_paths[0][1]), str(extension),
-        ],
-        [
-            "codesign", "--force", "--sign", "-", "--timestamp=none", "--entitlements",
-            str(entitlement_paths[1][1]), str(app),
-        ],
-    )
+            str(destination), str(bundle),
+        ])
     for index, command in enumerate(commands, 1):
         run_logged(command, log_path.with_name(f"{log_path.stem}-{index}{log_path.suffix}"), timeout=120)
 

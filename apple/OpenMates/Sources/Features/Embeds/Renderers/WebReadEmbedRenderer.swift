@@ -76,7 +76,7 @@ struct WebReadEmbedRenderer: View {
                 }
 
                 if let content {
-                    SourceQuoteTextDocument(text: content, locationPrefix: "web-read-paragraph")
+                    SourceQuoteTextDocument(text: content, locationPrefix: "web-read-paragraph", lineHeight: 27.2)
                         .font(.omP)
                         .foregroundStyle(Color.fontPrimary)
                 }

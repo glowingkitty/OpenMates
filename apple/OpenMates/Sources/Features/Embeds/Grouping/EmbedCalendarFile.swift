@@ -1,13 +1,29 @@
 // Web sources: utils/calendarDownload.ts, health/HealthAppointmentEmbedFullscreen.svelte,
 // travel/TravelConnectionEmbedFullscreen.svelte.
-// Calendar exports are files; they never write Calendar data or request permissions.
+// Calendar data feeds the system event editor/import UI; the app never saves events itself.
 // Specification: specifications/features/chats/specification.yml
 // Assertions: chats.surface.semantic-parity
 import Foundation
 
+struct EmbedCalendarEvent: Equatable, Sendable {
+    let title: String
+    let start: Date
+    let end: Date
+    let allDay: Bool
+    let timeZone: TimeZone
+    let location: String?
+    let notes: String?
+    let sourceURL: URL?
+}
+
 struct EmbedCalendarFile: Equatable, Sendable {
     let filename: String
     let content: String
+    let event: EmbedCalendarEvent?
+
+    init(filename: String, content: String, event: EmbedCalendarEvent? = nil) {
+        self.filename = filename; self.content = content; self.event = event
+    }
 
     static func build(title: String, start: String, end explicitEnd: String? = nil,
                       location: String?, description: String?, url: String?, filename: String? = nil,
@@ -33,10 +49,13 @@ struct EmbedCalendarFile: Equatable, Sendable {
                      "SUMMARY:\(escape(safeTitle))"]
         if let location, !location.isEmpty { lines.append("LOCATION:\(escape(location))") }
         if let description, !description.isEmpty { lines.append("DESCRIPTION:\(escape(description))") }
-        if let url, !url.isEmpty { lines.append("URL:\(escape(url))") }
+        if let url = url.flatMap(NativeEmbedActionURL.external) { lines.append("URL:\(escape(url.absoluteString))") }
         lines += ["END:VEVENT", "END:VCALENDAR"]
         return .init(filename: sanitizeFilename(filename ?? "\(safeTitle)-\(start.prefix(10))") + ".ics",
-                     content: lines.map(fold).joined(separator: "\r\n") + "\r\n")
+                     content: lines.map(fold).joined(separator: "\r\n") + "\r\n",
+                     event: EmbedCalendarEvent(title: safeTitle, start: date, end: end, allDay: allDay,
+                         timeZone: timeZone, location: location, notes: description,
+                         sourceURL: url.flatMap(NativeEmbedActionURL.external)))
     }
 
     private static func parse(_ value: String, timeZone: TimeZone) -> Date? {
@@ -114,5 +133,55 @@ enum HealthAppointmentCalendarFile {
         return EmbedCalendarFile.build(title: renderText(title.isEmpty ? "Health appointment" : title), start: slot,
             location: fields.string("address").map(renderText), description: renderText(description.joined(separator: "\n")),
             url: url.map(renderText), now: now, timeZone: timeZone)
+    }
+}
+
+
+@MainActor
+enum EventEmbedCalendarFile {
+    static func make(_ data: [String: AnyCodable], now: Date = Date(), timeZone: TimeZone = .current,
+                     renderText: (String) -> String = { $0 }) -> EmbedCalendarFile? {
+        let event = EventResultSummary(embedId: nil, data: data)
+        guard let start = event.dateStart else { return nil }
+        let url = data["url"]?.value as? String
+        let description = [event.description,
+            event.organizerName.map { "Organizer: \($0)" },
+            event.providerLabel.map { "Source: \($0)" }, url]
+            .compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: "\n\n")
+        return EmbedCalendarFile.build(title: renderText(event.title), start: start, end: event.dateEnd,
+            location: renderText(event.isOnline ? "Online event" : event.venueAddress),
+            description: renderText(description), url: url, now: now, timeZone: timeZone)
+    }
+}
+
+@MainActor
+enum FitnessEmbedCalendarFile {
+    static func make(_ data: [String: AnyCodable], now: Date = Date(), timeZone: TimeZone = .current,
+                     renderText: (String) -> String = { $0 }) -> EmbedCalendarFile? {
+        func string(_ key: String) -> String? { data[key]?.value as? String }
+        guard let date = string("date"), !date.isEmpty else { return nil }
+        let title = string("name") ?? string("venue_name") ?? "Fitness class"
+        let time = string("time_range") ?? ""
+        let times = (try! NSRegularExpression(pattern: #"\b(\d{1,2}):(\d{2})\b"#))
+            .matches(in: time, range: NSRange(time.startIndex..., in: time)).map { match -> String? in
+                let text = time as NSString
+                guard let hour = Int(text.substring(with: match.range(at: 1))),
+                      let minute = Int(text.substring(with: match.range(at: 2))), hour < 24, minute < 60 else { return nil }
+                return String(format: "%02d:%02d:00", hour, minute)
+            }
+        let start = times.first.flatMap { $0 }.map { "\(date)T\($0)" } ?? date
+        let end = times.count > 1 ? times[1].map { "\(date)T\($0)" } : nil
+        let address = string("address") ?? string("venue_address")
+            ?? [string("street"), string("postal_code"), string("city")].compactMap { $0 }.joined(separator: ", ")
+        let location = [string("venue_name"), address].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: ", ")
+        let url = string("detail_url") ?? string("url") ?? string("venue_url")
+        let plans = (data["plans_required"]?.value as? [String])?.joined(separator: ", ")
+            ?? string("plans_required")?.split(separator: "|").joined(separator: ", ")
+        let description = [string("class_type").map { "Class: \($0)" }, string("category").map { "Category: \($0)" },
+            string("spots_display").map { "Spots: \($0)" }, plans.map { "Plans: \($0)" }, url]
+            .compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: "\n")
+        return EmbedCalendarFile.build(title: renderText(title), start: start, end: end,
+            location: renderText(location), description: renderText(description), url: url,
+            now: now, timeZone: timeZone)
     }
 }
