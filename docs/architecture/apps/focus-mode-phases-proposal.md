@@ -51,7 +51,11 @@ Career insights pilots Understand your situation → Confirm your career profile
 Explore career directions → Plan your next steps. The user may skip intake or
 profile confirmation explicitly; the assistant keeps assumptions visible.
 
-Validation is in progress. The focused backend suite has 21 passing cases.
-Native build/test execution is currently unavailable: the remote helper rejects
-build/test operations and existing GitHub workflows have no macOS runner. Do not
-claim native compilation or visual proof from source inspection alone.
+Implementation is deployed to dev. The focused backend suite has 80 passing
+checks, including 29 phase cases and six processor transition regressions.
+Isolated CI passes two CLI transport tests, three phase component tests and four
+settings browser tests. Real multi-message CLI/web inference has not run because
+configured disposable dev credentials are rejected; current credentials are
+required. Native build/test execution is also unavailable: the remote helper
+rejects build/test operations and existing workflows have no macOS runner. The
+Plan remains implementing; source inspection does not establish native proof.

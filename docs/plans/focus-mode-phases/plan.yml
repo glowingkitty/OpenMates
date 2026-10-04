@@ -104,14 +104,14 @@ tests:
     expected: pass
     evidence:
       status: passed
-      timestamp: '2026-10-04T12:00:19.810837+00:00'
-      command: Focused backend pytest and deployment-selected backend suite (492 passed; 10 integration/benchmark
-        deselected)
-      run_id: session-907d-deploy-a314f905
-      subject_commit: a314f90545a32e0b7c9372c3dfece1c4d2ae98cc
-      artifact: /tmp/focus-deploy-5.log
-      summary: 23 phase cases and all 492 selected checks passed with test-only Redis import and logger
-        capture setup.
+      timestamp: '2026-10-04T12:18:01.669838+00:00'
+      command: pytest backend/tests/test_focus_phases.py backend/tests/test_focus_mode_routing.py backend/tests/test_main_processor_invalid_tool_calls.py
+      run_id: session-907d-runtime-fixes
+      subject_commit: 1aedbfdb4a72e8cb946cbe14a2c86870dfd889e7
+      artifact: /tmp/focus-transition-green-2.log
+      summary: 80 passed, including 29 phase cases; six processor integration cases first failed against
+        the previous implementation. Scoped lint and the deployment-required two-file pytest gate also
+        pass. The initial broader deployment suite passed 492 checks before these fixes.
   file: backend/tests/test_focus_phases.py
   command: pytest backend/tests/test_focus_phases.py
 - id: T-PHASE-2
@@ -136,7 +136,7 @@ tests:
         No real inference conversations have run.
       next_action: Use current disposable dev credentials, then run both eight-turn conversations with
         the coordinator leases and inspect responses/phase history.
-      subject_commit: a314f90545a32e0b7c9372c3dfece1c4d2ae98cc
+      subject_commit: 1aedbfdb4a72e8cb946cbe14a2c86870dfd889e7
 - id: T-PHASE-3
   type: playwright
   covers:
@@ -152,18 +152,17 @@ tests:
     expected: pass
     evidence:
       status: passed
-      timestamp: '2026-10-04T12:00:19.810837+00:00'
+      timestamp: '2026-10-04T12:23:36.179680+00:00'
       command: ci_coordinator.py submit --session 907d --mode component --no-prepared-builds --spec components/focus-phases.spec.ts
-      run_id: '37197392128'
-      subject_commit: 53eabe1a30c86d32037a3a742c7345fb77f210b1
-      harness_commit: d84085c99f5ea469dcf32e8e6da0233d22fe9c41
+      run_id: '37201694266'
+      subject_commit: 1aedbfdb4a72e8cb946cbe14a2c86870dfd889e7
+      harness_commit: 1aedbfdb4a72e8cb946cbe14a2c86870dfd889e7
       profile: component
       execution_environment: isolated_github_ci
       artifacts:
-      - https://github.com/glowingkitty/OpenMates/actions/runs/37197392128
-      summary: Three checks passed without skips/flakiness; laptop and phone screenshots reviewed. These
-        component implementation/test files are unchanged in the deployed revision. Whole-commit identity
-        differs; no exact-revision conformance claim.
+      - https://github.com/glowingkitty/OpenMates/actions/runs/37201694266
+      summary: All three phase notice/detail tests pass on the corrected runtime revision, without skips
+        or flaky results; unchanged appearance previously reviewed at laptop and phone widths.
   file: frontend/apps/web_app/tests/components/focus-phases.spec.ts
   command: ci_coordinator.py submit --suite playwright
   target: isolated preview
@@ -189,7 +188,7 @@ tests:
         has no Swift or native runner. Source audit passed; native tests are unexecuted.
       next_action: Use an approved Mac runner to build iOS/macOS and run the phase rendering/restoration
         tests.
-      subject_commit: a314f90545a32e0b7c9372c3dfece1c4d2ae98cc
+      subject_commit: 1aedbfdb4a72e8cb946cbe14a2c86870dfd889e7
 - id: T-PHASE-5
   type: manual
   covers:
@@ -212,9 +211,9 @@ tests:
         No real inference conversations have run.
       next_action: Use current disposable dev credentials, then run both eight-turn conversations with
         the coordinator leases and inspect responses/phase history.
-      subject_commit: a314f90545a32e0b7c9372c3dfece1c4d2ae98cc
+      subject_commit: 1aedbfdb4a72e8cb946cbe14a2c86870dfd889e7
 implementation_state:
-  subject_commit: a314f90545a32e0b7c9372c3dfece1c4d2ae98cc
+  subject_commit: 1aedbfdb4a72e8cb946cbe14a2c86870dfd889e7
 approvals:
   specification:
     status: approved
@@ -251,7 +250,7 @@ tasks:
     shared_files: []
 - id: TASK-4703
   title: Phased focus implementation surface
-  status: in_progress
+  status: blocked
   phase: working_tasks
   covers:
     scenarios:
@@ -299,13 +298,12 @@ attempts:
   recorded_at: '2026-10-04'
 handoff:
   current_task_id: TASK-6202
-  next_action: Obtain current disposable-account configuration; complete the leased eight-turn CLI/web
-    real inference verifier and native checks. Final settings navigation coverage is still running in
-    isolated CI.
-  command: python3 /tmp/focus-live-907d/runner.py a314f90545a32e0b7c9372c3dfece1c4d2ae98cc
-  expected_outcome: Required real inference conversations, linked detail/reload checks, and native build/rendering
-    evidence are complete.
-  last_verified_commit: a314f90545a32e0b7c9372c3dfece1c4d2ae98cc
+  next_action: Use current disposable dev credentials to complete the eight-turn CLI and web real inference
+    conversations; then verify Apple on an approved Mac build/test runner.
+  command: FOCUS_TEST_SLOT=<valid-slot> python3 /tmp/focus-live-907d/runner.py 1aedbfdb4a72e8cb946cbe14a2c86870dfd889e7
+  expected_outcome: Real inference and native evidence meet all required criteria; Plan remains implementing
+    until that evidence exists.
+  last_verified_commit: 1aedbfdb4a72e8cb946cbe14a2c86870dfd889e7
   blocker:
     requires_user_input: true
     task_id: TASK-6202
@@ -315,9 +313,9 @@ handoff:
       Mac runner.
 verification_receipts:
   deployment:
-    commit: a314f90545a32e0b7c9372c3dfece1c4d2ae98cc
+    commit: 1aedbfdb4a72e8cb946cbe14a2c86870dfd889e7
     web_status: success
-    backend_status: all coordinated services healthy
+    backend_status: All coordinated dev services running and healthy on the corrected revision
     nullable_phase_field: verified
   cli_transport:
     run_id: '37197389513'
@@ -325,7 +323,26 @@ verification_receipts:
     source_commit: 53eabe1a30c86d32037a3a742c7345fb77f210b1
     tests_passed: 2
   settings_browser:
-    state: queued
-    interim_result: Three of four settings tests passed; OpenMates overview omitted its Focus modes tab. Final test-source correction is queued.
-    final_source: 6afcfda5ac712c2e1cf224f3c36fa01fc162688b
-    coordinator_id: 8fa1c2040d4ca9a49064cc8b6ed795461caf8d7f0ccd951baf2ee5e16475a53c
+    state: success
+    source_commit: 6afcfda5ac712c2e1cf224f3c36fa01fc162688b
+    run_id: '37201100537'
+    url: https://github.com/glowingkitty/OpenMates/actions/runs/37201100537
+    passed: 4
+    skipped: 0
+    flaky: 0
+  runtime_fixes:
+    commit: 1aedbfdb4a72e8cb946cbe14a2c86870dfd889e7
+    focused_backend_passed: 80
+    red_integration_cases: 6
+    issues_fixed:
+    - Inherited Mate tools no longer abort transitions.
+    - Focus metadata cannot widen Mate tool permissions; explicit empty lists deny app tools.
+    - Normal and recovery prompts both refresh for catalog and Project phase transitions.
+  phase_component:
+    state: success
+    source_commit: 1aedbfdb4a72e8cb946cbe14a2c86870dfd889e7
+    run_id: '37201694266'
+    url: https://github.com/glowingkitty/OpenMates/actions/runs/37201694266
+    passed: 3
+    skipped: 0
+    flaky: 0

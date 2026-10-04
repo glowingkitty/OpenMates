@@ -113,6 +113,40 @@ Project focus off revokes the Project binding before clearing encrypted focus
 metadata. Existing displayed chat content remains readable within its prior
 access; future Project operations require the current authorization state.
 
+### Phased focus modes
+
+Focus instructions may include YAML frontmatter with `phases_version: 1` and an
+ordered `phases` list. Each phase requires an `id`, `title`, `instructions`, and
+nonempty `requirements`; each requirement has `id`, `text`, and an optional
+`type` (`semantic` by default, or `user_confirmation`). The shared loader rejects
+unknown fields, duplicate IDs/keys, aliases, invalid versions, and empty content.
+The Markdown System prompt supplies global instructions. Project instruction text
+uses the same schema; unphased text retains its existing behavior. See the
+[Career insights definition](../../../backend/apps/jobs/focus_modes/career-insights/SKILL.md)
+for a complete example.
+
+`backend/apps/ai/processing/focus_phases.py` evaluates gates with Jev at user,
+completed tool-batch, and completed assistant boundaries. Unmet, uncertain or
+failed decisions retain the phase. Confirmation uses actual user input after
+phase entry. Explicit requests can return to earlier phases, with a same-turn
+no-bounce guard. Both normal and recovery prompts receive current-phase
+instructions/requirements and only IDs/titles for other phases. Tool reselection
+stays inside the Mate's authorized discovered app catalog and grants no access.
+
+Clients encrypt phase progress separately in `encrypted_focus_phase_state` and
+persist UUID-stable phase-change system history. Short-lived Redis compare-and-set
+state rejects stale decisions and repeated boundaries. Catalog focus activation
+and deactivation retain the independent Project base. Phase history links to
+catalog or Project details; active-chat focus chrome remains unchanged. The
+web and Apple detail views render the phase instructions and requirements.
+
+The five clarification rounds are instruction text, with examples and a
+recommendation for each question, waiting for the reply and considering research
+before the next question. Users may skip or batch questions; there is no minimum
+question-count gate. Current implementation evidence and outstanding real
+inference/native checks are recorded in the
+[Plan](../../plans/focus-mode-phases/plan.yml).
+
 ### Backend: Deactivation
 
 **AI-initiated:** Clear cache, persist to Directus, create system message, restart without focus mode prompt.
