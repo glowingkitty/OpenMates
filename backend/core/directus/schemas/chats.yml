@@ -5,6 +5,8 @@
 # exceptions for public/community chat previews.
 chats:
   type: collection
+  meta:
+    accountability: null
   fields:
     id: # chat_id
       type: uuid

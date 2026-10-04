@@ -6,6 +6,8 @@
 # follow-up context; Vault-encrypted AI cache payloads must never be persisted here.
 messages:
   type: collection
+  meta:
+    accountability: null
   fields:
     id:
       type: uuid

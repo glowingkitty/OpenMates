@@ -4,6 +4,8 @@
 # Encrypted with the same embed_key as the parent embed (zero-knowledge).
 embed_diffs:
   type: collection
+  meta:
+    accountability: null
   fields:
     id:
       type: uuid

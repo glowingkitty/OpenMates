@@ -620,3 +620,64 @@ def test_user_chat_preference_migration_runs_inside_setup_transaction() -> None:
     )
 
     assert "CONCURRENTLY" not in migration.read_text(encoding="utf-8")
+
+
+def test_reviewed_accountability_is_applied_on_creation_and_reconciled_once(monkeypatch) -> None:
+    setup = load_setup_schemas_module()
+    config = {"type": "collection", "meta": {"accountability": None}, "fields": {}}
+    posted = []
+    patched = []
+    state = {"exists": False, "accountability": "all"}
+
+    monkeypatch.setattr(setup, "collection_exists", lambda *_: state["exists"])
+    monkeypatch.setattr(setup, "settle", lambda *_: None)
+    monkeypatch.setattr(setup.requests, "post", lambda url, **kwargs: posted.append(kwargs["json"]) or FakeResponse(200))
+
+    def fake_get(url, **kwargs):
+        return FakeResponse(200, {"data": {"meta": {"accountability": state["accountability"], "note": "keep"}}})
+
+    def fake_patch(url, **kwargs):
+        patched.append(kwargs["json"])
+        state["accountability"] = kwargs["json"]["meta"]["accountability"]
+        return FakeResponse(200)
+
+    monkeypatch.setattr(setup.requests, "get", fake_get)
+    monkeypatch.setattr(setup.requests, "patch", fake_patch)
+    assert setup.create_collection_from_config("token", "messages", config) == (True, True)
+    assert posted[0]["meta"]["accountability"] is None
+
+    state["exists"] = True
+    assert setup.create_collection_from_config("token", "messages", config) == (True, False)
+    assert patched == [{"meta": {"accountability": None}}]
+    assert setup.create_collection_from_config("token", "messages", config) == (True, False)
+    assert len(patched) == 1
+
+
+def test_accountability_reconciliation_rejects_unreviewed_and_failed_updates(monkeypatch) -> None:
+    setup = load_setup_schemas_module()
+    monkeypatch.setattr(setup, "collection_exists", lambda *_: True)
+    config = {"meta": {"accountability": None}, "fields": {}}
+    assert setup.create_collection_from_config("token", "invoices", config) == (False, False)
+
+    monkeypatch.setattr(
+        setup.requests, "get",
+        lambda *args, **kwargs: FakeResponse(200, {"data": {"meta": {"accountability": "all"}}}),
+    )
+    monkeypatch.setattr(setup.requests, "patch", lambda *args, **kwargs: FakeResponse(403, text="denied"))
+    assert setup.create_collection_from_config("token", "chats", config) == (False, False)
+
+
+def test_accountability_schema_matrix_is_exact_and_preserves_embed_history() -> None:
+    from backend.core.directus.setup.accountability_policy import REDUCED_ACCOUNTABILITY
+
+    schemas = Path(__file__).parents[1] / "core/directus/schemas"
+    declared = {}
+    for path in schemas.glob("*.yml"):
+        for name, config in (yaml.safe_load(path.read_text(encoding="utf-8")) or {}).items():
+            if "accountability" in (config.get("meta") or {}):
+                declared[name] = config["meta"]["accountability"]
+    assert declared == REDUCED_ACCOUNTABILITY
+    assert set(declared) == {"chats", "messages", "embeds", "embed_diffs", "test_results"}
+    assert "directus_users" not in declared
+    # Product version history remains a normal collection with its payload/indexes.
+    assert "encrypted_snapshot" in yaml.safe_load((schemas / "embed_diffs.yml").read_text())["embed_diffs"]["fields"]

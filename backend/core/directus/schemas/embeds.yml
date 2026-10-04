@@ -8,6 +8,8 @@
 # All sensitive fields (type, chat_id, message_id, task_id) are protected before storage to maintain zero-knowledge architecture.
 embeds:
   type: collection
+  meta:
+    accountability: null
   fields:
     id:
       type: uuid

@@ -6,6 +6,11 @@ import requests
 import glob
 import hashlib
 from dotenv import load_dotenv
+try:
+    from backend.core.directus.setup.accountability_policy import configured_accountability
+except ModuleNotFoundError:
+    # The setup image runs this file as a standalone script.
+    from accountability_policy import configured_accountability
 
 # Load environment variables from .env file
 load_dotenv()
@@ -837,6 +842,7 @@ def create_collection_from_config(token, collection_name, collection):
     Returns a tuple: (success: bool, newly_created: bool)
     """
     try:
+        has_accountability, desired_accountability = configured_accountability(collection_name, collection)
         is_system_collection = collection_name.startswith('directus_')
         
         # Check if collection already exists
@@ -900,7 +906,8 @@ def create_collection_from_config(token, collection_name, collection):
                 "collection": collection_name,
                 "meta": {
                     "note": collection.get('note', ''),
-                    "display_template": collection.get('display_template')
+                    "display_template": collection.get('display_template'),
+                    **({"accountability": desired_accountability} if has_accountability else {}),
                 },
                 "schema": { "name": collection_name },
                 "fields": [primary_field] # Define primary key during creation
@@ -921,6 +928,26 @@ def create_collection_from_config(token, collection_name, collection):
                      print(f'Response status code: {e.response.status_code}')
                      print(f'Response body: {e.response.text}')
                  return False, False # Failed to create
+
+        # Only this reviewed collection matrix may reconcile existing metadata.
+        # Other Directus collection settings and historical revisions are retained.
+        if exists and has_accountability:
+            response = requests.get(
+                f"{CMS_URL}/collections/{collection_name}",
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=15,
+            )
+            response.raise_for_status()
+            existing_meta = response.json().get('data', {}).get('meta') or {}
+            if existing_meta.get('accountability') != desired_accountability:
+                response = requests.patch(
+                    f"{CMS_URL}/collections/{collection_name}",
+                    json={"meta": {"accountability": desired_accountability}},
+                    headers={"Authorization": f"Bearer {token}"},
+                    timeout=15,
+                )
+                response.raise_for_status()
+                print(f"Updated accountability for {collection_name}")
 
         # --- Field and Relation Processing ---
         # Process fields if:
