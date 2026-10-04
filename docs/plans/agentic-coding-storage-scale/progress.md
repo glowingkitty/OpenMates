@@ -29,11 +29,28 @@ Snapshot: 2026-10-04. OpenMates Tasks owns work status and dependencies.
   request/count receipts and head-before-keys, including Watch. Typed v2 must be
   advertised only when its complete reader/persist/ACK flow is wired. Native
   typed readers remain a pruning gate.
-- The final CLI and web canaries remain pending. Slot 10 was absent on dev. A
-  later CLI command on registered slot 4 exited with status 1 after durable
-  ledger dispatch; its server outcome is uncertain, it has not been retried, and
-  neither provider dispatch nor canary success is inferred. The web canary on
-  registered slot 3 has not sent a user turn.
+- Missing-version recovery guard `9f42f3f23c5550c1166d0fdab792c3b113c0c82d`
+  is public and active. Operation `docker-2ca18e8b` restarted 16 API/worker
+  services in 84.36 seconds; all are healthy and CMS schema was unchanged.
+  Exact-source isolated CI `37233294260` passed the bounded version-404 case
+  1/1 in 0.50 seconds; the focused local route suite passed 15/15.
+- Exactly two real user turns completed, once each and without inference retry:
+  CLI used 25 credits and web used 33, 58 total. CLI SQL and a fresh process
+  verify exactly one user/assistant pair, the exact saved `add_one` code embed,
+  one bounded v1 snapshot row, an acknowledged sealed diff, one canonical v1
+  row and no duplicate charge. Web SQL and fresh CLI read verify one
+  user/assistant pair; a read-only browser renders the exact stored answer with
+  synced status. The first browser harness compared the CLI JSON database row
+  `id` with the DOM `clientMessageId`; the CLI deliberately exposes `id` and
+  `clientMessageId` separately, so this was a harness error rather than a product
+  identity defect. Corrected receipt
+  `final-live-smoke-preparation/readback-verified/browser-receipt.json` passed at
+  20:57:23 UTC with the exact canonical client message ID, one user and one
+  assistant, synced status, and an identical rendered answer hash after reload
+  and after login from a second empty browser context. It used zero new inference.
+  The initial live-browser ACK capture timeout remains recorded; stronger
+  canonical and fresh-device recovery evidence passed. Across both canaries there
+  were exactly two sends, two charges (25 + 33 = 58 credits) and no retries.
 
 ## Earlier release and verification history
 

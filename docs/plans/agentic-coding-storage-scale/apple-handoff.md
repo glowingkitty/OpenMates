@@ -1,7 +1,8 @@
 # Immediate Mac action for the active development storage API
 
-Development backend commit
-`1e7b84c33ea33734ec53c85deda27b90aad3124d` is now public and active. The user
+Development backend commits
+`1e7b84c33ea33734ec53c85deda27b90aad3124d` and recovery guard
+`9f42f3f23c5550c1166d0fdab792c3b113c0c82d` are public and active. The user
 is the only Apple tester and does not require backward compatibility for this
 development rollout, so the legacy-client compatibility hold is cleared on dev.
 Production is unchanged. Do not use that decision to bypass capability checks or
@@ -30,6 +31,10 @@ to claim native reader compatibility.
    exact digest/source/request/count validation, retry identity, same-embed
    normal/typed serialization and capability rejection. Full typed readers,
    archive readers and cross-client concurrency remain pruning gates.
+6. Keep the database row `id` distinct from canonical `client_message_id` in
+   native fixtures and UI correlation. Existing CLI JSON deliberately exposes
+   `.id` and `.clientMessageId` separately; never compare the row ID to a DOM or
+   socket client message ID.
 
 The active backend allows this native work against development now. The detailed
 payloads and fixtures below remain authoritative. Return the public Apple commit
@@ -57,7 +62,7 @@ When the canonical checkout is clean and on `dev`:
 git pull --ff-only origin dev
 ```
 
-Preserve the Mac chat's existing changes and follow its session integration workflow for a dirty or detached task worktree. Read this handoff, the storage Plan, and `specifications/architecture/storage-lifecycle/specification.yml` when the backend changes reach dev. The approved Specification, Plan and backend implementation are published. Pull development commit `1e7b84c33ea33734ec53c85deda27b90aad3124d` or newer before implementing and verifying this contract.
+Preserve the Mac chat's existing changes and follow its session integration workflow for a dirty or detached task worktree. Read this handoff, the storage Plan, and `specifications/architecture/storage-lifecycle/specification.yml` when the backend changes reach dev. The approved Specification, Plan and backend implementation are published. Pull development commit `9f42f3f23c5550c1166d0fdab792c3b113c0c82d` or newer before implementing and verifying this contract.
 
 ## 1. Repair the live AI embed writer first
 

@@ -27,11 +27,20 @@ deferred and remains the first-real-prune gate. Native typed readers and writers
 cross-client concurrency, reference-safe expanded-billing expiry and Team billing
 policy remain incomplete. Archive/prune and expanded billing remain disabled.
 
-The final real canaries remain pending. After slot 10 proved absent, a CLI
-command on registered slot 4 exited with status 1 after its durable ledger
-dispatch; its server outcome is still being reconciled and no provider dispatch
-or successful canary is inferred. No retry has been sent. The web canary on
-registered slot 3 has not sent a user turn. Production is unchanged. [Current progress](progress.md) records the detailed
+Missing-version recovery guard `9f42f3f23c5550c1166d0fdab792c3b113c0c82d`
+is also published and active. Coordinated operation `docker-2ca18e8b` restarted
+16 API/worker services in 84.36 seconds; all are healthy and CMS schema was
+unchanged. Exact-source isolated CI run `37233294260` passed the bounded 404 case
+1/1 in 0.50 seconds, and the focused local route suite passed 15/15.
+
+The two authorized real turns completed once each with no inference retry: CLI
+used 25 credits and web used 33, 58 total. SQL and fresh-client reads verify one
+canonical user/assistant pair for each. CLI also has the exact saved `add_one`
+code embed, one bounded v1 snapshot row, an acknowledged sealed diff, one
+canonical v1 row and no duplicate charge. The web stored answer renders with
+synced status. The corrected exact-client-ID browser readback passed at 20:57:23
+UTC with zero new inference: the rendered answer hash remained identical after
+reload and login from a second empty browser context. Production is unchanged. [Current progress](progress.md) records the detailed
 receipts and remaining gates.
 
 ## Why this work exists
