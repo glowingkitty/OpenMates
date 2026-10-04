@@ -324,6 +324,7 @@
         setOriginalMarkdown?: (markdown: string) => void;
         setCurrentChatContext?: (chatId: string | null, content: TiptapJSON | null, version: number) => void;
         focus: () => void;
+        dismissFocus: () => void;
         revealDraftActions?: () => void;
         flushCurrentDraft?: () => Promise<void> | void;
         sendCurrentMessage: () => Promise<void> | void;
@@ -4298,26 +4299,13 @@
 
     async function applyPersistedDraftHeader(
         chat: Chat,
-        reason: string,
+        _reason: string,
         isCurrentTarget: () => boolean = () => currentChat?.chat_id === chat.chat_id,
     ): Promise<boolean> {
         if (!isPersistedDraftOnlyChat(chat)) return false;
 
-        const encryptedPreview = chat.encrypted_draft_preview || chat.encrypted_draft_md;
-        if (!encryptedPreview) return false;
-
-        const preview = formatDraftPreview(await decryptWithMasterKey(encryptedPreview));
-        if (!preview) {
-            console.error(`[ActiveChat] ${reason}: Failed to decrypt persisted draft preview for ${chat.chat_id}`);
-            return false;
-        }
         if (!isCurrentTarget()) return false;
-
-        activeChatDecryptedTitle = preview;
-        activeChatDecryptedCategory = 'general_knowledge';
-        activeChatDecryptedIcon = 'lightbulb';
-        activeChatDecryptedSummary = null;
-        isNewChatGeneratingTitle = false;
+        resetChatHeaderState();
         return true;
     }
 
@@ -5339,21 +5327,9 @@
     // This is used for container-based responsive behavior instead of viewport-based
     let isEffectivelyNarrow = $derived(isNarrow || showSideBySideLayout);
 
-    // Guest interest tags are an overlay on desktop welcome screens, so composer
-    // height changes from embeds must not fade or move them out of the way.
-    let keepGuestInterestOverlayVisible = $derived(
-        !$authStore.isAuthenticated && showWelcome && guestInterestSelectorVisible && !isTouchEnvironment && !isEffectivelyNarrow
-    );
-
-    // New-chat welcome surfaces must get out of the way whenever the composer
-    // is active. On active chats, keep the old constrained-layout-only behavior.
-    let hideWelcomeForKeyboard = $derived(
-        messageInputFocused &&
-        (
-            showWelcome ||
-            (!keepGuestInterestOverlayVisible && (isTouchEnvironment || isEffectivelyNarrow))
-        )
-    );
+    // Preserve welcome layout during composer focus. The whole chat-side
+    // workspace fades and becomes inert until focus is dismissed.
+    const hideWelcomeForKeyboard = false;
 
     // Effective chat width: The actual width of the chat area
     // In side-by-side mode, the chat is constrained to 400px regardless of container width
@@ -13615,6 +13591,8 @@
                 <!-- Left side container for chat history and buttons -->
                 <div
                     class="chat-side"
+                    class:composer-background-faded={messageInputFocused}
+                    inert={messageInputFocused}
                     class:welcome-chat-side={showWelcome}
                     data-testid="chat-side"
                     bind:this={chatSideEl}
@@ -14631,14 +14609,22 @@
                     {/if}
                 </div>
 
+                {#if messageInputFocused}
+                    <button type="button" class="composer-focus-backdrop" data-testid="chat-composer-focus-backdrop"
+                        data-composer-focus-control aria-label={$text('common.cancel')}
+                        onpointerdown={(event) => event.preventDefault()}
+                        onclick={() => messageInputFieldRef?.dismissFocus()}></button>
+                {/if}
+
                 <!-- Right side container for message input -->
                 <div
                     class="message-input-wrapper"
+                    class:composer-focused={messageInputFocused}
                     class:guest-welcome-input-context={showWelcome && !$authStore.isAuthenticated}
                     data-testid="message-input-wrapper"
                     bind:clientHeight={messageInputWrapperHeight}
-                    inert={showWelcome && guestLandingIntroContentCovered}
-                    aria-hidden={showWelcome && guestLandingIntroContentCovered}
+                    inert={showWelcome && guestLandingIntroContentCovered && !messageInputFocused}
+                    aria-hidden={showWelcome && guestLandingIntroContentCovered && !messageInputFocused}
                 >
                     {#if showWelcome && !$authStore.isAuthenticated && !guestAllExamplesVisible && !messageInputFocused}
                         <a
@@ -14844,18 +14830,15 @@
 
                         <!-- Cancel / Save draft pill: shown below the input when focused in a chat
                              that has the new-chat button. Blurs the editor to restore compact mode. -->
-                        {#if showNewChatButtonBesideInput && messageInputFocused}
+                        {#if messageInputFocused}
                             <button
                                 class="input-dismiss-button"
                                 data-testid="input-dismiss-button"
-                                onclick={async () => {
-                                    await messageInputFieldRef?.flushCurrentDraft?.();
-                                    const active = document.activeElement;
-                                    if (active instanceof HTMLElement) active.blur();
-                                }}
+                                data-composer-focus-control
+                                onclick={() => messageInputFieldRef?.dismissFocus()}
                                 in:fade={{ duration: 150 }}
                             >
-                                {messageInputHasContent ? $text('common.save_draft') : $text('common.cancel')}
+                                {$text('common.cancel')}
                             </button>
                         {/if}
                     </div>
@@ -16745,6 +16728,16 @@
         max-width: 500px;
     }
 
+    .composer-background-faded { opacity: 0.15; pointer-events: none; }
+    .chat-side { transition: opacity 200ms ease; }
+    .composer-focus-backdrop {
+        position: absolute; inset: 0; border: 0; padding: 0;
+        background: transparent; cursor: default; z-index: var(--z-index-raised-4);
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .chat-side { transition: none; }
+    }
+
     .message-input-container {
         position: relative;
         display: flex;
@@ -17089,7 +17082,7 @@
     .chat-wrapper.landing-intro-content-covered .top-buttons,
     .chat-wrapper.landing-intro-content-covered .center-content,
     .chat-wrapper.landing-intro-content-covered .guest-interest-tags-overlay,
-    .chat-wrapper.landing-intro-content-covered .message-input-wrapper {
+    .chat-wrapper.landing-intro-content-covered .message-input-wrapper:not(.composer-focused) {
         opacity: 0;
         pointer-events: none;
         visibility: visible;

@@ -106,6 +106,7 @@ function createEditorMock() {
     editor: {
       chain: vi.fn(() => chain),
       getText: vi.fn(() => 'max@posteo.de'),
+      getJSON: vi.fn(() => ({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'max@posteo.de' }] }] })),
     },
     chain,
   };
@@ -146,6 +147,17 @@ describe('draftCore setCurrentChatContext', () => {
       { type: 'doc', content: [] },
       { emitUpdate: false },
     );
+  });
+
+  it('preserves a pending audio embed when a same-chat restore contains only older text', async () => {
+    const { editor, chain } = createEditorMock();
+    editor.getJSON.mockReturnValue({ type: 'doc', content: [{ type: 'embed', attrs: { id: 'audio-1', type: 'audio', status: 'transcribing' } }] } as never);
+    mocks.draftEditorUIState.reset({ currentChatId: 'chat-1' });
+    initializeDraftService(editor as never);
+
+    await setCurrentChatContext('chat-1', { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'older text' }] }] }, 2);
+
+    expect(chain.setContent).not.toHaveBeenCalled();
   });
 });
 

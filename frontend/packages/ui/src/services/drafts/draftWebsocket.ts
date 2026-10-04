@@ -16,6 +16,7 @@ import type {
 } from "./draftTypes";
 import { LOCAL_CHAT_LIST_CHANGED_EVENT } from "./draftConstants";
 import { getEditorInstance } from "./draftCore";
+import { incomingDraftOmitsLocalEmbed } from "./draftContent";
 import { isDraftUpdateBlockedByLocalDeletion } from "../chatSyncMerge";
 import { isDraftOnlyChatSurface, isPersistedDraftOnlyChat } from "../../utils/chatDraftState";
 
@@ -51,6 +52,7 @@ async function decryptDraftMarkdown(
 function shouldPreserveActiveLocalDraft(
   chatId: string,
   incomingMarkdown: string,
+  incomingContent: TiptapJSON | null,
   incomingDraftVersion: number | null,
   currentState: DraftEditorState,
   source: string,
@@ -67,6 +69,7 @@ function shouldPreserveActiveLocalDraft(
   const currentEditorMarkdown = tipTapToCanonicalMarkdown(
     editorInstance.getJSON() as TiptapJSON,
   );
+  if (incomingDraftOmitsLocalEmbed(editorInstance.getJSON(), incomingContent)) return true;
   if (currentEditorMarkdown === incomingMarkdown) {
     return false;
   }
@@ -131,6 +134,7 @@ const handleDraftUpdated = async (
     shouldPreserveActiveLocalDraft(
       chat_id,
       incomingMarkdown,
+      decryptedDraftContent,
       newUserDraftVersion,
       currentEditorState,
       "chat_draft_updated",
@@ -248,6 +252,7 @@ const handleDraftUpdated = async (
           currentEditorMarkdown !== latestEditorState.lastSavedContentMarkdown)
       );
       if (
+        incomingDraftOmitsLocalEmbed(currentEditorContent, decryptedDraftContent) ||
         currentContentChangedSinceLastSave ||
         (newUserDraftVersion <= latestEditorState.currentUserDraftVersion &&
           currentEditorMarkdown !== incomingMarkdown)
@@ -337,6 +342,7 @@ const handleChatDetails = async (payload: ChatDetailsServerResponse) => {
     shouldPreserveActiveLocalDraft(
       payload.chat_id,
       incomingDraftMarkdown,
+      decryptedDraftContent,
       payload.draft_v ?? null,
       latestState,
       "chat_details",
@@ -396,7 +402,8 @@ const handleChatDetails = async (payload: ChatDetailsServerResponse) => {
             (currentState.lastSavedContentMarkdown !== null &&
               currentEditorMarkdown !== currentState.lastSavedContentMarkdown)
           );
-          if (currentContentChangedSinceLastSave) {
+          if (currentContentChangedSinceLastSave ||
+              incomingDraftOmitsLocalEmbed(currentEditorContent, decryptedDraftContent)) {
             console.info(
               `[DraftService] Preserving active local draft for chat ${payload.chat_id}; chat_details content is older than local editor content`,
             );

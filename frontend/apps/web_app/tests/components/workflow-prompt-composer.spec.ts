@@ -18,6 +18,11 @@ const preview = (width: number, variant?: string, theme = 'light') =>
     ...(variant ? { variant } : {}),
   })}`;
 
+const focusPreview = (variant: string) =>
+  `/dev/preview/workspace/WorkspaceComposerFocusFixture?${new URLSearchParams({
+    theme: 'light', background: '#dbeafe', width: '900', chrome: '0', variant,
+  })}`;
+
 test.describe('Workflow prompt composer', () => {
   for (const [width, theme] of [[320, 'light'], [390, 'dark'], [1024, 'light']] as const) {
     // contract-test: direct surface=gui.web assertions=workflows-ui.responsive-accessible-reachable
@@ -88,7 +93,9 @@ test.describe('Workflow prompt composer', () => {
         expect(geometry.overflow).toBe('auto');
         const [activeInput, activeComposer, activeSubmit] = await Promise.all([input.boundingBox(), composer.boundingBox(), page.getByTestId(`${surface}-input-submit`).boundingBox()]);
         if (!activeInput || !activeComposer || !activeSubmit) throw new Error('Active composer controls must be measurable.');
-        expect(activeInput.width).toBeGreaterThan(activeComposer.width * .7);
+        // The expand control reserves 28px from the text row; keep at least 70% of the remaining field usable.
+        expect(activeInput.width).toBeGreaterThan((activeComposer.width - 28) * .7);
+        expect(activeInput.x + activeInput.width).toBeLessThanOrEqual(activeComposer.x + activeComposer.width);
         expect(activeInput.y + activeInput.height).toBeLessThan(activeSubmit.y);
         await input.evaluate((element: HTMLTextAreaElement) => { element.scrollTop = element.scrollHeight; });
         expect(await input.evaluate((element: HTMLTextAreaElement) => element.scrollTop)).toBeGreaterThan(0);
@@ -131,8 +138,9 @@ test.describe('Workflow prompt composer', () => {
         await expect.poll(async () => (await composer.boundingBox())!.height).toBe(restingHeight);
         await input.click();
         await page.getByTestId(`${surface}-input-submit`).focus();
-        await expect(collapsedPreview).toBeVisible();
-        await expect(toggle).toHaveCount(0);
+        await expect(collapsedPreview).toHaveCount(0);
+        await expect(toggle).toBeVisible();
+        await expect.poll(async () => (await composer.boundingBox())!.height).toBeGreaterThan(restingHeight);
         await expect(input).toHaveValue(`${draft}\nx`);
       });
     }
@@ -244,6 +252,133 @@ test.describe('Workflow prompt composer', () => {
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
     await expect(page.locator('.safari-browser-tint-sampler.top')).toHaveCSS('background-color', 'rgb(23, 23, 23)');
   });
+
+  // contract-test: direct surface=gui.web assertions=workflows-ui.mvp.authoring,workflows-ui.responsive-accessible-reachable
+  for (const [variant, surface, backdropId] of [
+    ['default', 'tasks', 'tasks-composer-backdrop'],
+    ['workflows', 'workflows', 'workflows-composer-backdrop'],
+    ['editor', 'workflows', 'fixture-editor-backdrop'],
+  ] as const) {
+    test(`${variant} focus dims controls and preserves the multiline draft on outside click`, async ({ page }: { page: Page }) => {
+      await page.goto(focusPreview(variant), { waitUntil: 'domcontentloaded' });
+      await waitForComponentPreview(page);
+      const input = page.getByTestId(`${surface}-input-textarea`);
+      await input.focus();
+      const background = variant === 'editor' ? page.getByTestId('fixture-editor-graph') : page.locator('.workspace-scroll-layer');
+      await expect(page.getByTestId(backdropId)).toBeVisible();
+      await expect(background).toHaveAttribute('inert', '');
+      await input.fill('First\nSecond\nThird\nFourth\nFifth');
+      await expect.poll(() => input.evaluate((element) => element.getBoundingClientRect().height)).toBeGreaterThan(70);
+      const regularHeight = await input.evaluate((element) => element.getBoundingClientRect().height);
+      await page.getByTestId(`${surface}-input-textarea-expand`).click();
+      await expect.poll(() => input.evaluate((element) => element.getBoundingClientRect().height)).toBeGreaterThan(regularHeight + 30);
+      await expect(page.getByTestId(`${surface}-input-mic`)).toBeVisible();
+      await page.getByTestId(backdropId).click({ position: { x: 8, y: 8 } });
+      await expect(page.getByTestId(backdropId)).toHaveCount(0);
+      await expect(background).not.toHaveAttribute('inert', '');
+      await expect(input).toHaveValue('First\nSecond\nThird\nFourth\nFifth');
+      await expect(input).not.toBeFocused();
+      await page.getByTestId('fixture-card').click();
+      await expect(page.getByTestId('fixture-card-clicks')).toHaveText('1');
+    });
+  }
+
+  // contract-test: direct surface=gui.web assertions=workflows-ui.mvp.authoring
+  test('Cancel keeps the draft and microphone works with text', async ({ page }: { page: Page }) => {
+    await page.goto(focusPreview('workflows'), { waitUntil: 'domcontentloaded' });
+    await waitForComponentPreview(page);
+    const input = page.getByTestId('workflows-input-textarea');
+    await input.fill('Keep\nthis draft');
+    await page.getByTestId('workflows-input-mic').click();
+    await expect(page.getByTestId('fixture-mic-clicks')).toHaveText('1');
+    await expect.poll(() => page.evaluate(() => {
+      const field = document.querySelector('[data-testid="workflows-input-composer"]');
+      const cancel = document.querySelector('[data-testid="workflows-input-textarea-cancel"]');
+      if (!field || !cancel) throw new Error('Cancel and message field must be measurable.');
+      return cancel.getBoundingClientRect().top - field.getBoundingClientRect().bottom;
+    })).toBeGreaterThanOrEqual(0);
+    await page.getByTestId('workflows-input-textarea-cancel').click();
+    await expect(page.getByTestId('workflows-composer-backdrop')).toHaveCount(0);
+    await expect(input).toHaveValue('Keep\nthis draft');
+  });
+
+  // contract-test: supporting surface=gui.web assertions=workspace-shell.start.chat-visual-parity
+  test('programmatic inspiration prefill focuses and expands the task editor', async ({ page }: { page: Page }) => {
+    await page.goto(focusPreview('default'), { waitUntil: 'domcontentloaded' });
+    await waitForComponentPreview(page);
+    await page.getByTestId('fixture-prefill').click();
+    const input = page.getByTestId('tasks-input-textarea');
+    await expect(input).toHaveValue('An inspired task');
+    await expect(input).toBeFocused();
+    await expect(page.getByTestId('tasks-input-textarea-expand')).toBeVisible();
+    await expect(page.getByTestId('tasks-composer-backdrop')).toBeVisible();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=workspace-shell.start.chat-visual-parity
+  test('compact project task editor dims and disables its board and search', async ({ page }: { page: Page }) => {
+    await page.goto(`/dev/preview/tasks/TasksPage?${new URLSearchParams({ theme: 'light', width: '900', chrome: '0', variant: 'project' })}`, { waitUntil: 'domcontentloaded' });
+    await waitForComponentPreview(page);
+    const input = page.getByTestId('project-task-workspace-input');
+    await input.fill('Keep\na project draft');
+    const background = page.getByTestId('project-task-background');
+    await expect(background).toHaveAttribute('inert', '');
+    await expect(background).toHaveClass(/dimmed/);
+    await expect(page.getByTestId('project-task-composer-backdrop')).toBeVisible();
+    await page.getByTestId('project-task-composer-backdrop').click({ position: { x: 8, y: 8 } });
+    await expect(background).not.toHaveAttribute('inert', '');
+    await expect(input).toHaveValue('Keep\na project draft');
+    await expect(input).not.toBeFocused();
+  });
+
+  // contract-test: direct surface=gui.web assertions=workflows-ui.mvp.authoring
+  for (const variant of ['declined', 'rejected', 'default'] as const) {
+    test(`${variant} submit only collapses after success`, async ({ page }: { page: Page }) => {
+      await page.goto(focusPreview(variant), { waitUntil: 'domcontentloaded' });
+      await waitForComponentPreview(page);
+      const input = page.getByTestId('tasks-input-textarea');
+      await input.fill('Create a task');
+      await page.getByTestId('tasks-input-submit').click();
+      await expect(page.getByTestId('fixture-sends')).toHaveText('1');
+      if (variant === 'default') {
+        await expect(page.getByTestId('tasks-composer-backdrop')).toHaveCount(0);
+        await expect(input).toHaveValue('');
+      } else {
+        await expect(page.getByTestId('tasks-composer-backdrop')).toBeVisible();
+        await expect(input).toHaveValue('Create a task');
+        await expect(input).toBeFocused();
+      }
+    });
+  }
+
+  // contract-test: direct surface=gui.web assertions=workflows-ui.mvp.authoring
+  for (const [variant, accepted] of [['pendingSuccess', true], ['pendingFailure', false]] as const) {
+    test(`${variant} retains a focused read-only draft until the send settles`, async ({ page }: { page: Page }) => {
+      await page.goto(focusPreview(variant), { waitUntil: 'domcontentloaded' });
+      await waitForComponentPreview(page);
+      const input = page.getByTestId('tasks-input-textarea');
+      const draft = 'Create a task\nwith details';
+      await input.fill(draft);
+      await page.getByTestId('tasks-input-submit').click();
+      await expect(page.getByTestId('fixture-settle')).toBeVisible();
+      await expect(input).toHaveAttribute('readonly', '');
+      await expect(input).toBeFocused();
+      await expect(page.getByTestId('tasks-composer-backdrop')).toBeVisible();
+      await expect(page.getByTestId('tasks-input-textarea-expand')).toBeVisible();
+      await expect(page.getByTestId('tasks-input-submit')).toBeDisabled();
+      await expect(page.getByTestId('tasks-input-mic')).toBeDisabled();
+      await expect(input).toHaveValue(draft);
+      await page.getByTestId('fixture-settle').click();
+      if (accepted) {
+        await expect(page.getByTestId('tasks-composer-backdrop')).toHaveCount(0);
+        await expect(input).toHaveValue('');
+      } else {
+        await expect(input).not.toHaveAttribute('readonly', '');
+        await expect(input).toHaveValue(draft);
+        await expect(input).toBeFocused();
+        await expect(page.getByTestId('tasks-composer-backdrop')).toBeVisible();
+      }
+    });
+  }
 
   // contract-test: direct surface=gui.web assertions=workflows-ui.mvp.authoring,workflows-ui.responsive-accessible-reachable
   test('fits the shared recording overlay inside the phone composer', async ({ page }: { page: Page }) => {

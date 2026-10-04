@@ -15,13 +15,14 @@
 
   type WorkspaceSurface = 'projects' | 'workflows' | 'tasks' | 'plans';
 
-  type SubmitCallback = (value: string) => void | Promise<void>;
+  type SubmitCallback = (value: string) => void | boolean | Promise<void | boolean>;
   type MicCallback = () => void | Promise<void>;
   type RecordedAudio = { blob: Blob; duration: number; mimeType: string; waveform?: AudioWaveformData; realtime?: AudioRealtimeTranscriptionHandle; liveTranscript?: string };
 
   let {
     surface,
     value = $bindable(''),
+    focusActive = $bindable(false),
     placeholder,
     submitLabel,
     submittingLabel,
@@ -40,6 +41,7 @@
   }: {
     surface: WorkspaceSurface;
     value?: string;
+    focusActive?: boolean;
     placeholder: string;
     submitLabel: string;
     submittingLabel: string;
@@ -58,7 +60,7 @@
   } = $props();
 
   let textareaElement = $state<HTMLTextAreaElement | null>(null);
-  let focused = $state(false);
+  let focused = $derived(focusActive);
   let expanded = $state(false);
   const hasText = $derived(value.trim().length > 0);
   const collapsible = $derived(surface === 'workflows' || surface === 'tasks');
@@ -69,28 +71,25 @@
   async function syncTextareaHeight(): Promise<void> {
     await tick();
     if (!textareaElement) return;
-    textareaElement.style.height = 'auto';
+    if (!collapsible) textareaElement.style.height = 'auto';
     const style = getComputedStyle(textareaElement);
-    const lineHeight = Number.parseFloat(style.lineHeight);
+    const lineHeight = Number.parseFloat(style.lineHeight) || 22;
     const maximum = collapsible ? (expanded && !recording ? Number.parseFloat(style.maxHeight) : lineHeight * 4) : 160;
-    const height = collapsed || recording ? lineHeight : expanded ? maximum : Math.min(textareaElement.scrollHeight, maximum);
-    textareaElement.style.height = `${Math.max(height, focused && collapsible ? lineHeight * 2 : lineHeight)}px`;
+    const height = collapsed || recording ? lineHeight : expanded ? maximum : collapsible && focused ? lineHeight * 4 : Math.min(textareaElement.scrollHeight, maximum);
+    textareaElement.style.height = `${height}px`;
     if (collapsed) textareaElement.scrollTop = 0;
   }
 
   function handleFocusIn(event: FocusEvent): void {
     if (event.target === textareaElement) {
-      focused = true;
-    } else if (!(event.target instanceof HTMLElement && event.target.matches('.workspace-prompt-expand') && focused)) {
-      focused = false;
-      expanded = false;
+      focusActive = true;
     }
   }
 
   function handleFocusOut(event: FocusEvent): void {
-    // Only the expand control retains editor focus during keyboard activation.
-    if (event.relatedTarget === textareaElement || event.relatedTarget instanceof HTMLElement && event.relatedTarget.matches('.workspace-prompt-expand')) return;
-    focused = false;
+    if (event.relatedTarget instanceof HTMLElement && event.relatedTarget.matches('.workspace-prompt-cancel')) return;
+    if (event.relatedTarget instanceof HTMLElement && event.relatedTarget.closest('.workspace-prompt-composer') === event.currentTarget) return;
+    focusActive = false;
     expanded = false;
   }
 
@@ -103,7 +102,17 @@
   async function submitComposer(): Promise<void> {
     const trimmedValue = value.trim();
     if (!trimmedValue || disabled || submitting) return;
-    await onSubmit(trimmedValue);
+    try {
+      const accepted = await onSubmit(trimmedValue);
+      if (accepted === false) { textareaElement?.focus(); return; }
+    } catch (error) {
+      console.error('[WorkspacePromptComposer] Submit failed:', error);
+      textareaElement?.focus();
+      return;
+    }
+    focusActive = false;
+    expanded = false;
+    textareaElement?.blur();
     await syncTextareaHeight();
   }
 
@@ -111,6 +120,7 @@
     if (event.isComposing) return;
     if (event.key === 'Escape' && collapsible) {
       event.preventDefault();
+      focusActive = false;
       textareaElement?.blur();
       return;
     }
@@ -126,10 +136,21 @@
     void recording;
     void syncTextareaHeight();
   });
+
+  $effect(() => {
+    if (!focusActive && textareaElement === document.activeElement) textareaElement?.blur();
+  });
+
+  $effect(() => {
+    if (focusActive && !recording && !disabled && textareaElement && !textareaElement.closest('form')?.contains(document.activeElement)) {
+      textareaElement.focus();
+    }
+  });
 </script>
 
 <svelte:window onresize={() => void syncTextareaHeight()} />
 
+<div class="workspace-prompt-shell" class:focused={collapsible && focused}>
 <form
   class="workspace-prompt-composer"
   class:focused
@@ -174,6 +195,7 @@
     data-testid={inputTestId}
     {placeholder}
     {disabled}
+    readOnly={submitting}
     aria-label={placeholder}
     oninput={() => void syncTextareaHeight()}
     onkeydown={handleKeydown}
@@ -200,21 +222,16 @@
       disabled={disabled || submitting}
       onmousedown={(event) => { if (collapsible) event.preventDefault(); }}
     >{submitting ? submittingLabel : submitLabel}</button>
-  {:else}
-    <button
+  {/if}
+  <button
       class="clickable-icon icon_recordaudio workspace-prompt-mic"
       type="button"
       data-testid={micTestId}
       aria-label="Voice input"
-      disabled={disabled}
+      disabled={disabled || submitting}
       onmousedown={(event) => { if (collapsible) event.preventDefault(); }}
-      onclick={() => {
-        focused = false;
-        expanded = false;
-        void onMicClick();
-      }}
+      onclick={() => void onMicClick()}
     ></button>
-  {/if}
   {#if recording}
     <RecordAudio initialPosition={{ x: 0, y: 0 }} enableRealtime={true}
       correctionContext={surface === 'workflows' ? 'workflow' : undefined}
@@ -223,12 +240,25 @@
       on:cancel={() => onRecordingClose?.()} />
   {/if}
 </form>
+{#if collapsible}
+  <button class="workspace-prompt-cancel" class:visible={focused && !recording} type="button" data-testid={`${inputTestId}-cancel`}
+    tabindex={focused && !recording ? 0 : -1} aria-hidden={!(focused && !recording)}
+    onpointerdown={(event) => event.preventDefault()}
+    onfocusout={(event) => { if (!(event.relatedTarget instanceof HTMLElement && event.relatedTarget.closest('.workspace-prompt-composer'))) focusActive = false; }}
+    onclick={(event) => { focusActive = false; expanded = false; textareaElement?.blur(); event.currentTarget.blur(); }}>{$text('common.cancel')}</button>
+{/if}
+</div>
 
 <style>
+  .workspace-prompt-shell {
+    width: min(629px, 100%);
+    margin: 0 auto;
+  }
+
   .workspace-prompt-composer {
     position: relative;
     display: flex;
-    width: min(629px, 100%);
+    width: 100%;
     min-height: 64px;
     align-items: center;
     gap: var(--spacing-4);
@@ -239,6 +269,7 @@
     background: var(--color-grey-blue);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
     box-sizing: border-box;
+    transition: min-height .18s ease, border-radius .18s ease, padding .18s ease;
   }
 
   .workspace-prompt-composer.has-text,
@@ -255,7 +286,7 @@
 
   .workspace-prompt-composer.collapsible.focused:not(.recording) {
     display: block;
-    padding: 16px 16px 68px;
+    padding: 42px 16px 68px;
   }
 
   .workspace-prompt-text {
@@ -270,7 +301,7 @@
 
   .workspace-prompt-composer.collapsible.focused .workspace-prompt-submit {
     position: absolute;
-    right: 16px;
+    right: 58px;
     bottom: 16px;
     margin: 0;
   }
@@ -291,6 +322,35 @@
     bottom: 16px;
   }
 
+  .workspace-prompt-composer.collapsible.focused .workspace-prompt-mic { right: 18px; }
+
+  .workspace-prompt-cancel {
+    display: block;
+    width: max-content;
+    max-height: 0;
+    margin: 0 0 0 48px;
+    border: 0;
+    padding: 0 8px;
+    overflow: hidden;
+    background: transparent;
+    color: var(--color-font-secondary);
+    font: inherit;
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    transition: max-height .18s ease, margin-top .18s ease, padding .18s ease, opacity .18s ease;
+  }
+
+  .workspace-prompt-cancel.visible {
+    max-height: 44px;
+    margin-top: 8px;
+    padding: 8px;
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .workspace-prompt-cancel:hover { color: var(--color-font-primary); }
+
   .workspace-prompt-composer.collapsible.focused .workspace-prompt-file:hover,
   .workspace-prompt-composer.collapsible.focused .workspace-prompt-mic:hover {
     transform: scale(1.05);
@@ -301,6 +361,13 @@
     max-height: calc(4 * 1.35em);
     overflow-y: auto;
     caret-color: var(--color-font-primary);
+    transition: height .18s ease;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .workspace-prompt-composer,
+    .workspace-prompt-composer.collapsible textarea,
+    .workspace-prompt-cancel { transition: none; }
   }
 
   .workspace-prompt-composer.collapsed textarea {
@@ -312,6 +379,10 @@
   }
 
   .workspace-prompt-composer.expanded:not(.recording) textarea {
+    max-height: 65dvh;
+  }
+
+  .workspace-prompt-composer.collapsible.focused .workspace-prompt-text {
     max-height: 65dvh;
   }
 
@@ -439,6 +510,10 @@
     font: inherit;
     font-weight: 800;
     cursor: pointer;
+  }
+
+  .workspace-prompt-composer.collapsible.has-text:not(.focused) .workspace-prompt-submit {
+    margin-right: 38px;
   }
 
   .workspace-prompt-file {

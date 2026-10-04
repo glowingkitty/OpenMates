@@ -13,6 +13,7 @@
 // Architecture: frontend/packages/ui/src/services/drafts/draftSave.ts
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { inspectDraftContent } from "../draftContent";
 
 const mocks = vi.hoisted(() => {
   const initialDraftEditorState = {
@@ -242,7 +243,9 @@ function createEditor(isEmpty: boolean) {
     isEmpty,
     isDestroyed: false,
     isEditable: true,
-    getJSON: vi.fn().mockReturnValue({ type: "doc", content: [] }),
+    getJSON: vi.fn().mockReturnValue(isEmpty
+      ? { type: "doc", content: [] }
+      : { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "draft" }] }] }),
     chain,
   };
 }
@@ -309,6 +312,24 @@ describe("draftSave", () => {
   });
 
   describe("context switching empty draft saves", () => {
+    // contract-test: supporting surface=gui.web assertions=drafts.draft-only.lifecycle
+    it("deletes an already restored whitespace draft", async () => {
+      const editor = createEditor(false);
+      editor.getJSON.mockReturnValue({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "  \n " }] }] });
+      mocks.getEditorInstance.mockReturnValue(editor);
+      mocks.resetDraftState({
+        currentChatId: "auth-draft-chat",
+        currentUserDraftVersion: 3,
+        lastSavedContentMarkdown: "  \n ",
+      });
+      mocks.tipTapToCanonicalMarkdown.mockReturnValue("  \n ");
+
+      await saveDraftDebounced("auth-draft-chat", editor as never);
+
+      expect(mocks.chatSyncService.sendDeleteDraft).toHaveBeenCalledWith("auth-draft-chat");
+      expect(mocks.encryptWithMasterKey).not.toHaveBeenCalled();
+    });
+
     // contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative,drafts.draft-only.lifecycle
     it("does not schedule authenticated draft deletion while switching context", () => {
       const editor = createEditor(true);
@@ -442,6 +463,69 @@ describe("draftSave", () => {
   });
 
   describe("new-chat draft activation", () => {
+    // contract-test: supporting surface=gui.web assertions=drafts.persistence.local-first-encrypted
+    it.each([
+      ["inline math", { type: "doc", content: [{ type: "paragraph", content: [{ type: "inlineMath", attrs: { latex: "x + 1" } }] }] }],
+      ["block math", { type: "doc", content: [{ type: "blockMath", attrs: { latex: "x^2" } }] }],
+      ["horizontal rule", { type: "doc", content: [{ type: "horizontalRule" }] }],
+    ])("preserves a %s-only draft", async (_label, content) => {
+      const editor = createEditor(false);
+      editor.getJSON.mockReturnValue(content);
+      mocks.getEditorInstance.mockReturnValue(editor);
+      mocks.tipTapToCanonicalMarkdown.mockReturnValue("meaningful markdown");
+
+      expect(inspectDraftContent(content).hasMeaningfulContent).toBe(true);
+      await saveDraftDebounced(undefined, editor as never);
+
+      expect(mocks.chatDB.createNewChatWithCurrentUserDraft).toHaveBeenCalledTimes(1);
+    });
+
+    // contract-test: supporting surface=gui.web assertions=drafts.draft-only.lifecycle
+    it("treats whitespace and hard breaks as an empty draft", () => {
+      const content = { type: "doc", content: [{ type: "paragraph", content: [
+        { type: "text", text: "  \n " }, { type: "hardBreak" },
+      ] }] };
+      expect(inspectDraftContent(content).hasMeaningfulContent).toBe(false);
+    });
+
+    // contract-test: supporting surface=gui.web assertions=drafts.draft-only.lifecycle
+    it("does not create a draft for whitespace-only text", async () => {
+      const editor = createEditor(false);
+      editor.getJSON.mockReturnValue({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "   " }] }] });
+      mocks.getEditorInstance.mockReturnValue(editor);
+      mocks.tipTapToCanonicalMarkdown.mockReturnValue("   ");
+
+      await saveDraftDebounced(undefined, editor as never);
+
+      expect(mocks.chatDB.createNewChatWithCurrentUserDraft).not.toHaveBeenCalled();
+      expect(mocks.encryptWithMasterKey).not.toHaveBeenCalled();
+    });
+
+    // contract-test: supporting surface=gui.web assertions=drafts.draft-only.lifecycle
+    it("keeps a pending image in the composer without saving empty markdown", async () => {
+      const editor = createEditor(false);
+      editor.getJSON.mockReturnValue({ type: "doc", content: [{ type: "embed", attrs: { id: "image-1", type: "image", status: "uploading" } }] });
+      mocks.getEditorInstance.mockReturnValue(editor);
+
+      await saveDraftDebounced(undefined, editor as never);
+
+      expect(mocks.chatDB.createNewChatWithCurrentUserDraft).not.toHaveBeenCalled();
+      expect(mocks.chatSyncService.sendDeleteDraft).not.toHaveBeenCalled();
+      expect(editor.chain().clearContent).not.toHaveBeenCalled();
+    });
+
+    // contract-test: supporting surface=gui.web assertions=drafts.persistence.local-first-encrypted
+    it("still saves a mention-only draft", async () => {
+      const editor = createEditor(false);
+      editor.getJSON.mockReturnValue({ type: "doc", content: [{ type: "paragraph", content: [{ type: "mate", attrs: { id: "mate-1" } }] }] });
+      mocks.getEditorInstance.mockReturnValue(editor);
+      mocks.tipTapToCanonicalMarkdown.mockReturnValue("@mate");
+
+      await saveDraftDebounced(undefined, editor as never);
+
+      expect(mocks.chatDB.createNewChatWithCurrentUserDraft).toHaveBeenCalledTimes(1);
+    });
+
     // contract-test: supporting surface=gui.web assertions=drafts.persistence.local-first-encrypted,drafts.draft-only.lifecycle
     it("publishes the persisted draft shell ID for selection after a successful first save", async () => {
       const editor = createEditor(false);

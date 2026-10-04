@@ -144,6 +144,7 @@
     // Draft audio chat tracking — links usage entries to pre-allocated UUIDs for unsent recordings
     import { markChatIdAsDraftAudio, unmarkChatIdAsDraftAudio } from '../../stores/draftAudioChatStore';
     import { draftEditorUIState } from '../../services/drafts/draftState';
+    import { incomingDraftOmitsLocalEmbed, inspectDraftContent } from '../../services/drafts/draftContent';
     // Deferred send while uploading — tracks messages queued waiting for embed uploads to complete
     import {
         markEmbedFinished,
@@ -577,31 +578,6 @@
         return Array.isArray(groupedItems) && groupedItems.some((item) => {
             return !!item && typeof item === 'object' && embedAttrsNeedSignup(item as Record<string, unknown>);
         });
-    }
-
-    function editorHasInFlightEmbed(editor: Editor | null | undefined): boolean {
-        if (!editor || editor.isDestroyed) return false;
-        let found = false;
-        editor.state.doc.descendants((node) => {
-            if (node.type.name !== 'embed') return true;
-            const attrs = node.attrs as Record<string, unknown>;
-            const status = typeof attrs.status === 'string' ? attrs.status : '';
-            if (status === 'uploading' || status === 'processing' || status === 'transcribing' || status === 'correcting') {
-                found = true;
-                return false;
-            }
-            return true;
-        });
-        return found;
-    }
-
-    function draftContentHasEmbedContent(content: unknown): boolean {
-        if (Array.isArray(content)) return content.some(draftContentHasEmbedContent);
-        if (!content || typeof content !== 'object') return false;
-
-        const node = content as Record<string, unknown>;
-        if (node.type === 'embed') return true;
-        return draftContentHasEmbedContent(node.content);
     }
 
     function editorHasSendableText(editor: Editor | null | undefined): boolean {
@@ -2625,6 +2601,14 @@
             }
         }
         window.addEventListener('docsMessagePrefill', handleDocsPrefill);
+        function dismissOnOutsidePointer(event: PointerEvent) {
+            if (!isFocused || $recordingState.showRecordAudioUI || isMenuInteraction) return;
+            const target = event.target;
+            if (!(target instanceof HTMLElement) || messageInputWrapper?.contains(target) ||
+                target.closest('[data-preserve-composer-focus="true"], [data-composer-focus-control]')) return;
+            dismissFocus();
+        }
+        document.addEventListener('pointerdown', dismissOnOutsidePointer, true);
 
         function handleCodeRunOutputFollowup(event: Event) {
             const { output } = (event as CustomEvent<{ output?: string }>).detail ?? {};
@@ -2637,6 +2621,7 @@
             unsubscribeAiTyping();
             unsubscribeText();
             window.removeEventListener('docsMessagePrefill', handleDocsPrefill);
+            document.removeEventListener('pointerdown', dismissOnOutsidePointer, true);
             window.removeEventListener('codeRunOutputFollowup', handleCodeRunOutputFollowup);
         };
     });
@@ -2736,7 +2721,8 @@
             const activeElement = document.activeElement;
             const editorDomIsFocused = !!editorDom &&
                 (activeElement === editorDom || (activeElement instanceof Node && editorDom.contains(activeElement)));
-            if (editor && !editor.isDestroyed && !editorDomIsFocused && !isMenuInteraction) {
+            if (editor && !editor.isDestroyed && !editorDomIsFocused &&
+                !(activeElement instanceof Node && messageInputWrapper?.contains(activeElement)) && !isMenuInteraction) {
                 isMessageFieldFocused = false;
                 isFocused = false; // Update bindable prop for parent components
                 
@@ -3268,7 +3254,11 @@
         if (!textActuallyChanged) {
             // Embed attributes can change without changing plain text. Refresh their
             // preview state, but avoid a document scan for selection-only updates.
-            if (transaction.docChanged) refreshDraftPreviewState(editor);
+            if (transaction.docChanged) {
+                refreshDraftPreviewState(editor);
+                updateOriginalMarkdown(editor);
+                triggerSaveDraft(currentChatId, editor);
+            }
             // Still check mention trigger (depends on cursor position, not content)
             checkMentionTrigger(editor);
             return;
@@ -4395,6 +4385,8 @@
             console.debug('[MessageInput] Click on button detected, allowing default behavior');
             return;
         }
+        // A tap is explicit focus intent, even before mount settling finishes.
+        isInitialMount = false;
         
         // If clicking on the editor itself, ensure it gets focus
         if (editor?.view.dom.contains(target)) {
@@ -5107,8 +5099,8 @@
 
         // Hide the send button immediately on first press — this is the primary
         // mechanism preventing double-sends. The button disappears before any async
-        // work begins, so subsequent taps have no button to press. The editor is
-        // cleared by handleSend shortly after, keeping this consistent.
+        // work begins, so subsequent taps have no button to press. Keep the
+        // editor document intact until the send is accepted.
         hasContent = false;
         draftPreviewParts = EMPTY_DRAFT_PREVIEW_PARTS;
 
@@ -5198,7 +5190,7 @@
             }
         }
 
-        void handleSend(
+        const accepted = await handleSend(
             editor,
             dispatch,
             (value) => {
@@ -5211,8 +5203,26 @@
             (chatId) => cancelledNewChatSendIds.has(chatId),
             getE2EServerContentOverride(event),
             projectFocusDocumentAtSendRequest
-        );
+        ).catch((error) => {
+            console.error('[MessageInput] Send preparation failed:', error);
+            vibrateMessageField();
+            return false;
+        });
         sendClickInProgress = false;
+        if (!accepted) {
+            hasContent = !isContentEmptyExceptMention(editor);
+            refreshDraftPreviewState(editor);
+            awaitingAITaskStart = false;
+            if (awaitingAITaskTimeoutId) clearTimeout(awaitingAITaskTimeoutId);
+            awaitingAITaskTimeoutId = null;
+            triggerSaveDraft(currentChatId, editor);
+            if (isFocused) editor.commands.focus(undefined, { scrollIntoView: false });
+            return;
+        }
+        dismissFocus();
+        // A new draft typed while transport was pending keeps its privacy and
+        // URL detection state. Dismissal still follows the accepted send.
+        if (inspectDraftContent(editor.getJSON()).hasMeaningfulContent) return;
         
         // Clear PII state after sending
         detectedPII = [];
@@ -5636,6 +5646,8 @@
     // --- Public API ---
     export function focus() {
         if (!editor || editor.isDestroyed) return;
+        // Deep links and parent focus actions must bypass mount autofocus suppression.
+        isInitialMount = false;
 
         if (blurTimeoutId) {
             clearTimeout(blurTimeoutId);
@@ -5644,6 +5656,25 @@
         isMessageFieldFocused = true;
         isFocused = true;
         editor.commands.focus('end');
+    }
+    export function dismissFocus() {
+        if (blurTimeoutId) clearTimeout(blurTimeoutId);
+        blurTimeoutId = null;
+        preserveComposerFocusOnNextBlur = false;
+        if (preserveComposerFocusResetTimer) clearTimeout(preserveComposerFocusResetTimer);
+        preserveComposerFocusResetTimer = null;
+        forceDraftActionsVisible = false;
+        isFullscreen = false;
+        panelTransitionOverride = '';
+        isMessageFieldFocused = false;
+        isFocused = false;
+        showMentionDropdown = false;
+        editor?.commands.blur();
+        if (blurTimeoutId) clearTimeout(blurTimeoutId);
+        blurTimeoutId = null;
+        const active = document.activeElement;
+        if (active instanceof HTMLElement && messageInputWrapper?.contains(active)) active.blur();
+        void flushCurrentDraft();
     }
     export function revealDraftActions() {
         forceDraftActionsVisible = true;
@@ -5781,7 +5812,7 @@
         }
         return '';
     }
-    export function setDraftContent(chatId: string | null, draftContent: Content | null, version: number, shouldFocus: boolean = false) {
+    export async function setDraftContent(chatId: string | null, draftContent: Content | null, version: number, shouldFocus: boolean = false) {
         const diagnosticsWindow = window as typeof window & { __openmatesMessageInputDraftDiagnostics?: Array<Record<string, unknown>> };
         const appendMessageInputDiagnostic = (event: string, data: Record<string, unknown> = {}) => {
             diagnosticsWindow.__openmatesMessageInputDraftDiagnostics = [
@@ -5799,9 +5830,8 @@
         const isSameOrPendingDraftContext = !draftStateChatId || draftStateChatId === chatId;
         const isActiveComposerContext = !chatId || !currentChatId || currentChatId === chatId;
         const shouldPreserveInFlightEmbed = !!editor && !editor.isDestroyed &&
-            draftContent !== null &&
-            !draftContentHasEmbedContent(draftContent) &&
-            editorHasInFlightEmbed(editor) &&
+            incomingDraftOmitsLocalEmbed(editor.getJSON(), draftContent) &&
+            (inspectDraftContent(editor.getJSON()).hasPendingEmbed || draftState.hasUnsavedChanges || draftState.isSaveInProgress) &&
             isSameOrPendingDraftContext &&
             isActiveComposerContext;
         const shouldPreserveNewerLocalDraft = !!editor && !editor.isDestroyed &&
@@ -5840,17 +5870,33 @@
             });
         }
 
-        const draftContentForContext = shouldPreserveInFlightEmbed ? null : draftContent;
+        if (shouldPreserveInFlightEmbed) {
+            draftEditorUIState.update((state) => ({
+                ...state,
+                currentChatId: chatId,
+                currentUserDraftVersion: Math.max(state.currentUserDraftVersion, version),
+                hasUnsavedChanges: true,
+            }));
+            updateOriginalMarkdown(editor);
+            refreshDraftPreviewState(editor);
+            triggerSaveDraft(chatId ?? undefined, editor);
+            return;
+        }
+        const draftContentForContext = draftContent;
 
         // CRITICAL: setCurrentChatContext already sets the editor content (to draftContent or initial content)
         // So we don't need to clear it again if draftContent is null - that would trigger unnecessary update events
         // The setCurrentChatContext function handles setting the editor content with emitUpdate: false to prevent triggering saves
-        setDraftServiceCurrentChatContext(chatId, draftContentForContext, version);
+        await setDraftServiceCurrentChatContext(chatId, draftContentForContext, version);
+        // A newer route selection may have replaced this context during the
+        // previous draft flush. Never clean up or apply content to that editor.
+        if (get(draftEditorUIState).currentChatId !== chatId) return;
 
         // Cold-boot chat restore can run while the draft service still points at a
         // stale editor instance. Apply non-empty restored content to this bound
         // MessageInput immediately so the visible editor reflects the active chat.
-        if (editor && !editor.isDestroyed && draftContent !== null && !shouldPreserveInFlightEmbed) {
+        if (editor && !editor.isDestroyed && draftContent !== null && !shouldPreserveInFlightEmbed &&
+            JSON.stringify(editor.getJSON()) !== JSON.stringify(draftContent)) {
             editor.commands.setContent(draftContent, { emitUpdate: false });
         }
         appendMessageInputDiagnostic('setDraftContent-after-local-apply', {
@@ -5891,6 +5937,12 @@
                 runPIIDetectionImmediate(editor);
             });
             
+            // Legacy empty/whitespace drafts are cleared after restoration. The
+            // draft service defers this through context-switch protection.
+            if (chatId && draftContent !== null && !inspectDraftContent(editor.getJSON()).hasMeaningfulContent) {
+                void flushSaveDraft(editor, chatId);
+            }
+
             // Only focus if explicitly requested - default is false to prevent unwanted auto-focus
             // Users should manually click on the input field when they want to type
             if (shouldFocus) {
@@ -6490,6 +6542,7 @@
              in the top-right corner so the button stays visible above the overlay content. -->
         {#if !startNewChatOnClick && (isFullscreen || hasSendableDraft || isMessageFieldFocused) && !isDraftPreview && !showCamera && !showSketch && !showMaps}
             <button
+                data-testid="message-expand-button"
                 class="clickable-icon {isFullscreen ? 'icon_minimize' : 'icon_fullscreen'} fullscreen-button"
                 type="button"
                 onmousedown={(event) => event.preventDefault()}

@@ -1677,7 +1677,7 @@
   //   e) isSharedChat is true (badge remains visible even if shared metadata has no title), or
   //   f) this is an owned writable chat whose encrypted title is not yet available.
   let showChatHeader = $derived(
-    isDraftOnly || isIncognito || isNewChatGeneratingTitle || isNewChatCreditsError || !!chatTitle || isSharedChat || chatHeaderWritable,
+    !isDraftOnly && (isIncognito || isNewChatGeneratingTitle || isNewChatCreditsError || !!chatTitle || isSharedChat || chatHeaderWritable),
   );
 
   async function saveChatHeaderTitle(title: string): Promise<void> {

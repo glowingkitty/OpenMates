@@ -164,6 +164,15 @@
   cursor: text;
 }
 
+/* Focus reveals a multiline canvas without replacing the mounted editor. */
+.message-field.focused:not(.fullscreen-expanded):not(.recording-active):not(.maps-open) {
+  min-height: 180px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .message-field, .scrollable-content { transition: none; }
+}
+
 /* Buttons should have pointer cursor instead of text cursor */
 .message-field button {
   cursor: pointer !important;

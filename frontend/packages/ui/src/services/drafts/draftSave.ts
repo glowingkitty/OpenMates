@@ -6,6 +6,7 @@ import type { Chat, TiptapJSON, OfflineChange } from "../../types/chat";
 import { draftEditorUIState, initialDraftEditorState } from "./draftState"; // Renamed import
 import { LOCAL_CHAT_LIST_CHANGED_EVENT } from "./draftConstants";
 import { getEditorInstance, clearEditorAndResetDraftState } from "./draftCore";
+import { inspectDraftContent } from "./draftContent";
 import { chatSyncService } from "../chatSyncService"; // Import the new service
 import { tipTapToCanonicalMarkdown } from "../../message_parsing/serializers"; // Import markdown converter
 import { encryptWithMasterKey } from "../cryptoService"; // Import encryption functions
@@ -758,6 +759,7 @@ export const saveDraftDebounced = debounce(
       }
 
       const contentJSON = editor.getJSON() as TiptapJSON;
+      const contentState = inspectDraftContent(contentJSON);
 
       // CRITICAL: Only delete draft if we're sure the editor is actually empty
       // AND we're not in the middle of a context switch
@@ -766,7 +768,7 @@ export const saveDraftDebounced = debounce(
       // NOTE: We only check editor.isEmpty here, NOT isContentEmptyExceptMention.
       // isContentEmptyExceptMention is for SENDING (where a lone mention isn't a valid message),
       // but for DRAFTS, a mention alone IS valid content that should be saved.
-      if (editor.isEmpty) {
+      if (!contentState.hasMeaningfulContent) {
         // CRITICAL: Never delete drafts during context switches - this prevents deleting the wrong chat's draft
         // when switching between demo chats. The isSwitchingContext flag is set for 200ms after setCurrentChatContext,
         // which should be enough time for the context switch to complete.
@@ -826,6 +828,9 @@ export const saveDraftDebounced = debounce(
 
       // Convert TipTap content to markdown for storage
       const contentMarkdown = tipTapToCanonicalMarkdown(contentJSON);
+      // Uploading attachments without a serialized reference live only in this
+      // editor. An empty markdown save would replace their draft on another load.
+      if (contentState.hasPendingEmbed && !contentMarkdown.trim()) return;
 
       // Check if content has changed
       if (
@@ -937,6 +942,7 @@ export const saveDraftDebounced = debounce(
     // If chatIdFromMessageInput was null, currentChatIdForOperation remains what was in the state.
 
     const contentJSON = editor.getJSON() as TiptapJSON;
+    const contentState = inspectDraftContent(contentJSON);
 
     // Convert TipTap content to markdown for storage
     const contentMarkdown = tipTapToCanonicalMarkdown(contentJSON);
@@ -948,7 +954,7 @@ export const saveDraftDebounced = debounce(
     // NOTE: We only check editor.isEmpty here, NOT isContentEmptyExceptMention.
     // isContentEmptyExceptMention is for SENDING (where a lone mention isn't a valid message),
     // but for DRAFTS, a mention alone IS valid content that should be saved.
-    if (editor.isEmpty) {
+    if (!contentState.hasMeaningfulContent) {
       if (currentState.isSwitchingContext) {
         console.debug(
           "[DraftService] Editor empty but context switch in progress - skipping authenticated draft deletion to prevent data loss:",
@@ -991,7 +997,7 @@ export const saveDraftDebounced = debounce(
           return;
         }
 
-        if (!editor.isEmpty) {
+        if (inspectDraftContent(editor.getJSON()).hasMeaningfulContent) {
           console.debug(
             "[DraftService] Editor became non-empty before authenticated draft deletion; skipping stale empty cleanup.",
           );
@@ -999,7 +1005,7 @@ export const saveDraftDebounced = debounce(
         }
 
         const liveEditor = getEditorInstance();
-        if (liveEditor && liveEditor !== editor && !liveEditor.isEmpty) {
+        if (liveEditor && liveEditor !== editor && inspectDraftContent(liveEditor.getJSON()).hasMeaningfulContent) {
           console.debug(
             "[DraftService] Stale empty editor attempted to delete draft while live editor has content; skipping cleanup.",
           );
@@ -1019,6 +1025,8 @@ export const saveDraftDebounced = debounce(
       }
       return;
     }
+
+    if (contentState.hasPendingEmbed && !contentMarkdown.trim()) return;
 
     // CRITICAL: Check if we're saving a non-empty draft to a demo/legal/example chat.
     // If so, generate a new UUID so the saved draft becomes a regular private chat.
@@ -1462,7 +1470,7 @@ function scheduleDeferredEmptyDraftFlush(
       !liveEditor ||
       liveEditor !== editor ||
       editor.isDestroyed ||
-      !editor.isEmpty
+      inspectDraftContent(editor.getJSON()).hasMeaningfulContent
     ) return;
     if (currentState.currentChatId !== (targetChatId ?? null)) return;
 
@@ -1492,7 +1500,7 @@ export function flushSaveDraft(
   if (!editor) return;
   console.info("[DraftService] Flushing draft operation.");
   const currentState = get(draftEditorUIState);
-  if (currentState.isSwitchingContext && editor.isEmpty) {
+  if (currentState.isSwitchingContext && !inspectDraftContent(editor.getJSON()).hasMeaningfulContent) {
     const targetChatId = chatIdFromMessageInput ?? currentState.currentChatId ?? undefined;
     scheduleDeferredEmptyDraftFlush(
       editor,

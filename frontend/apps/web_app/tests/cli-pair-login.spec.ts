@@ -293,7 +293,9 @@ test.describe('CLI Pair Login', () => {
 				.getAttribute('data-current-chat-id');
 			expect(draftChatId).toMatch(/^[0-9a-f-]{36}$/i);
 			await fillMessageEditor(page, page.getByTestId('message-editor'), draftMarker);
-			await expect(page.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 15_000 });
+			await expect(page.getByTestId('message-editor')).toContainText(draftMarker);
+			await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', draftChatId!);
+			await expect(page.getByTestId('chat-header-banner')).toHaveCount(0);
 			await expect
 				.poll(
 					async () =>

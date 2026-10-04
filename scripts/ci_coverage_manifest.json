@@ -260,6 +260,7 @@
         "components/workflow-check-editor.spec.ts",
         "components/settings-dropdown-rich.spec.ts",
         "components/workflow-ai-pending-preview.spec.ts",
+        "components/chat-composer-focus.spec.ts",
         "components/workflow-prompt-composer.spec.ts",
         "components/workflow-run-provenance.spec.ts",
         "components/workflow-detail-tabs.spec.ts",

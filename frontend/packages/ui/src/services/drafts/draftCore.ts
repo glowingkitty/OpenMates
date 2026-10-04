@@ -6,6 +6,7 @@ import { registerWebSocketHandlers, unregisterWebSocketHandlers } from './draftW
 import { saveDraftDebounced } from './draftSave'; // Will be created next
 import { authStore } from '../../stores/authStore';
 import type { Editor } from '@tiptap/core'; // Import authStore for authentication checks
+import { incomingDraftOmitsLocalEmbed, inspectDraftContent } from './draftContent';
 
 let editorInstance: Editor | null = null; // Keep a reference to the Tiptap editor
 
@@ -95,6 +96,13 @@ export async function setCurrentChatContext(
 ) {
 	console.info(`[DraftService] Setting context: chatId=${chatId}, version=${version}`);
 	const currentState = get(draftEditorUIState); // Use renamed store
+	if (chatId && currentState.currentChatId === chatId && editorInstance && draftContent != null &&
+		incomingDraftOmitsLocalEmbed(editorInstance.getJSON(), draftContent)) {
+		// A delayed same-chat snapshot must not reset the local save flags or
+		// replace an attachment that has not reached the persisted draft yet.
+		draftEditorUIState.update((state) => reconcilePreservedDraftVersion(state, chatId, version));
+		return;
+	}
 	
 	// CRITICAL: Save the previous chat's draft before switching context
 	// This prevents draft loss when quickly switching between chats
@@ -122,11 +130,15 @@ export async function setCurrentChatContext(
 
 	// Set content in the editor
 	if (editorInstance) {
-		const hasUserTypedContent = !isContentEmptyExceptMention(editorInstance);
+		const localContent = editorInstance.getJSON();
+		const hasUserTypedContent = !isContentEmptyExceptMention(editorInstance) ||
+			inspectDraftContent(localContent).hasMeaningfulContent;
 		const sameOrPendingContext = !currentState.currentChatId || currentState.currentChatId === chatId;
 		const shouldPreserveTypedContent = draftContent == null && hasUserTypedContent && sameOrPendingContext;
+		const shouldPreserveLocalEmbed = draftContent != null && sameOrPendingContext &&
+			incomingDraftOmitsLocalEmbed(localContent, draftContent);
 
-		if (shouldPreserveTypedContent) {
+		if (shouldPreserveTypedContent || shouldPreserveLocalEmbed) {
 			console.debug('[DraftService] Preserving typed composer content during delayed empty draft restore', {
 				chatId,
 				previousChatId: currentState.currentChatId,

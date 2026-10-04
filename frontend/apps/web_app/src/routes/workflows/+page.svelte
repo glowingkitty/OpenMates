@@ -114,6 +114,8 @@
 	}
 	let workflowInputText = $state('');
 	let editorInstruction = $state('');
+	let homeComposerFocused = $state(false);
+	let editorComposerFocused = $state(false);
 	let voiceTarget = $state<'home' | 'editor' | null>(null);
 	let aiChange = $state<WorkflowInputChange | null>(null);
 	let aiSession = $state<WorkflowInputSession | null>(null);
@@ -678,11 +680,12 @@
 		await createWorkflow(item.title, graph, false, description);
 	}
 
-	async function submitWorkflowInput(text: string = workflowInputText): Promise<void> {
+	async function submitWorkflowInput(text: string = workflowInputText): Promise<boolean> {
 		const instruction = text.trim();
-		if (!instruction || saving || pendingSaveSessionId || !canLoadWorkflows) return;
+		if (!instruction || saving || pendingSaveSessionId || !canLoadWorkflows) return false;
 		workflowInputText = instruction;
 		await authorWorkflow(instruction);
+		return !routeError;
 	}
 
 	async function stopAuthoring(): Promise<void> {
@@ -705,18 +708,22 @@
 		}
 	}
 
-	function submitEditorInstruction(text: string): void {
-		if (!selectedWorkflow || !text.trim() || pendingSaveSessionId) return;
+	function submitEditorInstruction(text: string): boolean {
+		if (!selectedWorkflow || !text.trim() || pendingSaveSessionId) return false;
 		editorInstruction = text.trim();
-		requestNavigation(() => authorWorkflow(text.trim(), selectedWorkflow.id));
+		requestNavigation(async () => {
+			await authorWorkflow(text.trim(), selectedWorkflow.id);
+			if (!routeError) editorComposerFocused = false;
+		});
+		return false;
 	}
 
 	async function handleWorkflowAudioRecorded(event: CustomEvent<WorkflowAudioRecording>, target: 'home' | 'editor'): Promise<void> {
 		const { realtime, liveTranscript } = event.detail;
 		let raw = liveTranscript?.trim() ?? '';
 		const review = () => {
-			if (target === 'home') workflowInputText = raw;
-			else editorInstruction = raw;
+			if (target === 'home') { workflowInputText = raw; homeComposerFocused = !!raw; }
+			else { editorInstruction = raw; editorComposerFocused = !!raw; }
 			if (!raw) routeError = $text('workflows.builder.voice_transcription_failed');
 		};
 		if (!realtime) {
@@ -1339,6 +1346,8 @@
 
 				{#if !showManageView}
 					<WorkspaceHomeShell
+						composerFocused={homeComposerFocused}
+						onComposerDismiss={() => { homeComposerFocused = false; }}
 						surface="workflows"
 						testId="workflows-start-screen"
 						heading={`Hey ${visibleWorkflowGreetingName}!`}
@@ -1387,11 +1396,12 @@
 							<WorkspacePromptComposer
 								surface="workflows"
 								bind:value={workflowInputText}
+								bind:focusActive={homeComposerFocused}
 								placeholder={$text('workflows.builder.new_workflow_placeholder')}
 								submitLabel="Create workflow"
 								submittingLabel="Creating..."
-								disabled={saving || !!pendingSaveSessionId || !canRenderWorkflowData}
-								submitting={saving}
+								disabled={!canRenderWorkflowData}
+								submitting={saving || !!pendingSaveSessionId}
 								testId="workflow-input-composer"
 								inputTestId="workflow-input-textarea"
 								submitTestId="workflow-input-submit"
@@ -1428,7 +1438,7 @@
 							workflowClosing = true;
 						}}
 					>
-						<div class="management-grid">
+						<div class="management-grid" inert={editorComposerFocused} class:composer-background-dimmed={editorComposerFocused}>
 							<section class="workflow-detail" data-testid="workflow-detail">
 								{#if provisionalFullscreen}
 									<WorkflowDetailPage
@@ -1581,6 +1591,7 @@
 								{/if}
 							</section>
 						</div>
+						{#if editorComposerFocused}<button type="button" class="workflow-editor-backdrop" data-testid="workflow-editor-composer-backdrop" aria-label={$text('common.cancel')} onpointerdown={(event) => event.preventDefault()} onclick={() => { editorComposerFocused = false; }}></button>{/if}
 						{#if provisionalFullscreen}
 							<div class="workflow-ai-composer" data-testid="workflow-ai-editor-composer">
 								<WorkspacePromptComposer surface="workflows" bind:value={editorInstruction}
@@ -1594,8 +1605,9 @@
 						{:else if selectedWorkflow && !isRunsView && editorGraph}
 							<div class="workflow-ai-composer" data-testid="workflow-ai-editor-composer">
 								<WorkspacePromptComposer surface="workflows" bind:value={editorInstruction}
+									bind:focusActive={editorComposerFocused}
 									placeholder={$text('workflows.builder.ai_edit_placeholder')} submitLabel={$text('workflows.builder.ai_edit_submit')} submittingLabel={$text('workflows.builder.ai_edit_submitting')}
-									disabled={saving || !!pendingSaveSessionId} submitting={saving} testId="workflow-ai-edit-composer" inputTestId="workflow-ai-edit-textarea"
+									disabled={!canRenderWorkflowData} submitting={saving || !!pendingSaveSessionId} testId="workflow-ai-edit-composer" inputTestId="workflow-ai-edit-textarea"
 									submitTestId="workflow-ai-edit-submit" micTestId="workflow-ai-edit-mic" onSubmit={submitEditorInstruction}
 									onMicClick={() => { voiceTarget = 'editor'; }} recording={voiceTarget === 'editor'}
 									onAudioRecorded={(event) => handleWorkflowAudioRecorded(event, 'editor')}
@@ -1703,7 +1715,12 @@
 <NotificationStack />
 
 <style>
+	.workflow-management .management-grid { transition: opacity .18s ease; }
+	.workflow-management .management-grid.composer-background-dimmed { opacity: .36; }
+	@media (prefers-reduced-motion: reduce) { .workflow-management .management-grid { transition: none; } }
+	.workflow-editor-backdrop { position: absolute; inset: 0; z-index: 2; width: 100%; border: 0; background: transparent; cursor: default; }
 	.workflow-ai-composer{position:relative;z-index:var(--z-index-raised-2);flex:none;box-sizing:border-box;width:100%;margin:-36px 0 0;padding:36px 1rem max(12px,env(safe-area-inset-bottom));background:linear-gradient(to bottom,transparent,var(--color-grey-10) 36px);pointer-events:none}
+	.workflow-management:has(.workflow-editor-backdrop) .workflow-ai-composer { z-index: 3; }
 	.workflow-ai-composer :global(.workspace-prompt-composer),.workflow-ai-pending{pointer-events:auto}
 	.workflow-import-dropzone{display:grid;justify-items:center;gap:.4rem;width:100%;border:2px dashed transparent;border-radius:var(--radius-5)}.workflow-import-dropzone.dragging{border-color:var(--color-button-primary);background:var(--color-grey-10)}.workflow-import-hint{font-size:var(--font-size-small);color:var(--color-font-secondary)}
 	.workflow-ai-assumptions{max-width:42rem;margin:.75rem auto;text-align:center;color:var(--color-font-secondary);font-size:var(--font-size-small)}

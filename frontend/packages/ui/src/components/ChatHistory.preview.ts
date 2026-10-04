@@ -17,4 +17,7 @@ const unknown = request(requestId, 0);
 const known = request("preview-web-request", 1);
 const props = { currentChatId: chatId, chatTitle: "Writing preferences", chatCategory: "general_knowledge", canAnnotate: false, isExampleChat: true, sourceMessages: [user, unknown, known] };
 export default props;
-export const variants = { reversed: { ...props, sourceMessages: [user, known, unknown] } };
+export const variants = {
+  reversed: { ...props, sourceMessages: [user, known, unknown] },
+  draftOnly: { ...props, isDraftOnly: true, chatTitle: '{"type":"image","embed_id":"fictional-image"}', sourceMessages: [] },
+};

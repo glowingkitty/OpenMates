@@ -225,20 +225,6 @@
             </button>
         </div>
 
-        <button
-            type="button"
-            class="clickable-icon icon_recordaudio {isRecordButtonPressed ? 'recording' : ''}"
-            data-testid="record-audio-button"
-            bind:this={recordButton}
-            onmousedown={handleRecordMouseDown}
-            onmouseup={handleRecordMouseUp}
-            onmouseleave={handleRecordMouseLeave}
-            ontouchstart={handleRecordTouchStart}
-            ontouchend={handleRecordTouchEnd}
-            aria-label={$text('enter_message.attachments.record_audio')}
-            use:tooltip
-        ></button>
-
         {#if showSendButton || forceUnauthenticatedCta || (isAuthenticated && hasNoCredits)}
             {#if isAuthenticated && hasNoCredits}
                 <button type="button" class="send-button buy-credits-button" data-action="buy-credits" onclick={handleBuyCreditsClick} aria-label={$text('enter_message.buy_credits')} in:fly={{ x: 40, duration: 200 }} out:fly={{ x: 40, duration: 150 }}>
@@ -255,6 +241,21 @@
                 </button>
             {/if}
         {/if}
+
+        <button
+            type="button"
+            class="clickable-icon icon_recordaudio {isRecordButtonPressed ? 'recording' : ''}"
+            data-testid="record-audio-button"
+            bind:this={recordButton}
+            onmousedown={handleRecordMouseDown}
+            onmouseup={handleRecordMouseUp}
+            onmouseleave={handleRecordMouseLeave}
+            ontouchstart={handleRecordTouchStart}
+            ontouchend={handleRecordTouchEnd}
+            aria-label={$text('enter_message.attachments.record_audio')}
+            use:tooltip
+        ></button>
+
     </div>
 </div>
 

@@ -376,16 +376,6 @@ function resetEditorContent(editor: Editor, shouldKeepFocus?: boolean) {
   }
 }
 
-function restoreEditorDraftText(editor: Editor, markdown: string): void {
-  const escaped = markdown
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/\n/g, "<br>");
-  editor.commands.setContent(`<p>${escaped}</p>`, { emitUpdate: false });
-  editor.commands.focus("end");
-}
-
 /**
  * Guard flag to prevent double-sends on mobile.
  * Mobile browsers (especially Firefox iOS) can fire click/touchend events in rapid succession,
@@ -571,6 +561,7 @@ export async function handleSend(
     return;
   }
   sendInProgress = true;
+  const submittedEditorDocument = JSON.stringify(editor.getJSON());
   recordSendDebugStep("send_guard_acquired", { currentChatId });
 
   // OTel instrumentation: root span covering the entire send pipeline
@@ -893,7 +884,7 @@ export async function handleSend(
     rootSpan.setAttribute('message.send.deferred', true);
     sendInProgress = false;
     rootSpan.end();
-    return; // Exit — the actual send will happen when embedUploadFinished fires
+    return true; // Durable deferred queue accepted the message; upload completion sends it.
   }
 
   // OTel: embed registration span (image + audio embeds, includes dynamic imports)
@@ -1405,6 +1396,7 @@ export async function handleSend(
   let chatToUpdate: import("../../../types/chat").Chat | null = null;
   let isNewChatCreation = false;
   let didCreateMessagePayload = false;
+  let sendAccepted = false;
   let messagePayload: Message; // Defined here to be accessible for sendNewMessage
 
   try {
@@ -1421,17 +1413,20 @@ export async function handleSend(
         currentChatId,
         sourceDemoId: currentChatId && isPublicChat(currentChatId) ? currentChatId : null,
         onPending: async (pending) => {
-          setHasContent(false);
-          resetEditorContent(editor, false);
-          await clearCurrentDraft();
           dispatch("sendMessage", {
             message: pending.userMessage,
             newChat: pending.isNewChat ? pending.chat : undefined,
           });
         },
       });
+      sendAccepted = true;
+      if (JSON.stringify(editor.getJSON()) === submittedEditorDocument) {
+        setHasContent(false);
+        resetEditorContent(editor, false);
+        await clearCurrentDraft();
+      }
       void refreshAnonymousFreeUsageStatus();
-      return;
+      return true;
     }
 
     recordSendDebugStep("authenticated_send_path_started", { currentChatId });
@@ -1942,11 +1937,6 @@ export async function handleSend(
       }
     }
 
-    // Set hasContent to false first to prevent race conditions with editor updates
-    setHasContent(false);
-    // Reset editor and force blur to show stop button and reduce height
-    // Always blur after sending to make input compact and show assistant response
-    resetEditorContent(editor, false); // Force blur (false = don't keep focus)
 
     // ─── Edit mode: delete messages from edit point before re-sending ───
     // When the user edits a previous message, we need to delete all messages
@@ -2112,6 +2102,7 @@ export async function handleSend(
 			undefined,
 			projectFocusIntent ?? undefined,
 		);
+    sendAccepted = true;
 		recordSendDebugStep("send_new_message_complete", {
 			chatIdToUse,
 			messageId: messagePayload.message_id,
@@ -2138,12 +2129,18 @@ export async function handleSend(
 
     wsSpan.end();
 
+    const composerStillContainsSentDocument = JSON.stringify(editor.getJSON()) === submittedEditorDocument;
+    if (!wasCancelledAfterSend && composerStillContainsSentDocument) {
+      setHasContent(false);
+      resetEditorContent(editor, false);
+    }
+
     // OTel: cleanup span (draft clearing)
     const cleanupSpan = tracer.startSpan('message.send.cleanup');
     // After successfully sending the message, clear the draft for this chat
     // Ensure we only clear if the message was for the chat currently in the draft editor's context
     const currentDraftState = get(draftEditorUIState);
-    if (!isSendCancelled(chatIdToUse) && chatIdToUse && currentDraftState.currentChatId === chatIdToUse) {
+    if (!isSendCancelled(chatIdToUse) && composerStillContainsSentDocument && chatIdToUse && currentDraftState.currentChatId === chatIdToUse) {
       console.info(
         `[handleSend] Message sent for chat ${chatIdToUse}, clearing its draft.`,
       );
@@ -2164,7 +2161,12 @@ export async function handleSend(
       );
     }
     cleanupSpan.end();
+    return !wasCancelledAfterSend;
   } catch (error) {
+    if (sendAccepted) {
+      console.error('[handleSend] Message accepted but draft cleanup failed:', error);
+      return true;
+    }
     recordSendDebugStep("send_failed", {
       currentChatId,
       chatIdToUse,
@@ -2173,10 +2175,7 @@ export async function handleSend(
     });
     if (error instanceof AnonymousFreeUsageExhaustedError) {
       showAnonymousDailyCreditsExhaustedNotification();
-      if (editor && !editor.isDestroyed) {
-        restoreEditorDraftText(editor, markdown);
-        setHasContent(true);
-      }
+      if (editor && !editor.isDestroyed) setHasContent(true);
       vibrateMessageField();
       return;
     }

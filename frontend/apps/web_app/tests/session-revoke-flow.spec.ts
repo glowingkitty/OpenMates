@@ -121,13 +121,13 @@ const SESSION_REVOKE_LOGOUT_PROOF = defineVideoProof({
 	transcript: [
 		{
 			id: 'session-b-draft',
-			text: 'Session B starts in an authenticated draft chat with its chat header visible.',
+			text: 'Session B starts in an authenticated draft chat with its saved composer visible.',
 			checkpoint: 'session-b-draft-header',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
 			id: 'session-b-forced-logout',
-			text: 'After Session A removes Session B, Session B returns to the guest onboarding carousel without the stale draft header.',
+			text: 'After Session A removes Session B, Session B returns to the guest onboarding carousel without the saved draft composer.',
 			checkpoint: 'session-b-guest-onboarding',
 			devices: ['web-laptop', 'web-phone']
 		}
@@ -136,7 +136,7 @@ const SESSION_REVOKE_LOGOUT_PROOF = defineVideoProof({
 		{
 			id: 'session-revoke.session-b-draft-header',
 			checkpoint: 'session-b-draft-header',
-			visual: 'Session B visibly shows an authenticated draft chat header before revocation.',
+			visual: 'Session B visibly shows the authenticated saved draft in its composer and no chat header before revocation.',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
@@ -362,10 +362,11 @@ test('session revoke: revoking session B from session A does not log out session
 		const sessionBDraftText = `Session revoke logout header cleanup ${Date.now().toString(36).replace(/[0-9]/g, 'a')}`;
 		const messageEditorB = pageB.getByTestId('message-editor');
 		await fillMessageEditor(pageB, messageEditorB, sessionBDraftText);
-		await expect(pageB.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 15000 });
-		await expect(pageB.getByTestId('chat-header-title')).toContainText(sessionBDraftText, { timeout: 15000 });
-		logB('Session B: active draft chat header visible before forced logout.');
-		await screenshotB(pageB, '02b-session-b-active-draft-header');
+		await expect.poll(() => pageB.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? null, { timeout: 15000 }).toBeTruthy();
+		await expect(messageEditorB).toContainText(sessionBDraftText);
+		await expect(pageB.getByTestId('chat-header-banner')).toHaveCount(0);
+		logB('Session B: saved draft composer visible before forced logout.');
+		await screenshotB(pageB, '02b-session-b-active-draft-composer');
 
 		logA(`Both sessions logged in. Waiting ${Math.ceil(SESSION_STABILIZE_MS / 1000)}s for WebSocket connections to stabilise…`);
 		await pageA.waitForTimeout(SESSION_STABILIZE_MS);
@@ -400,8 +401,8 @@ test('session revoke: revoking session B from session A does not log out session
 		});
 		await proof.checkpoint('session-b-draft-header');
 		await proof.assert('session-revoke.session-b-draft-header', async () => {
-			await expect(pageB.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 5000 });
-			await expect(pageB.getByTestId('chat-header-title')).toContainText(sessionBDraftText, { timeout: 5000 });
+			await expect(messageEditorB).toContainText(sessionBDraftText, { timeout: 5000 });
+			await expect(pageB.getByTestId('chat-header-banner')).toHaveCount(0);
 		});
 
 		// The button triggers a confirm() dialog — handle it

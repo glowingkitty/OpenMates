@@ -162,6 +162,23 @@ describe('draftWebsocket chat_draft_updated', () => {
     expect(mocks.chatDB.upsertRawChat).not.toHaveBeenCalled();
   });
 
+  // contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative,drafts.persistence.local-first-encrypted
+  it('preserves an unfinished image even when its canonical markdown matches the server echo', async () => {
+    mocks.editor.getJSON.mockReturnValue({ type: 'doc', content: [{ type: 'embed', attrs: { id: 'image-1', status: 'uploading', type: 'image' } }] } as never);
+    mocks.tipTapToCanonicalMarkdown.mockReturnValue('Please read this document.');
+    registerWebSocketHandlers();
+
+    await mocks.handlers.get('chat_draft_updated')?.({
+      chat_id: 'chat-1',
+      data: { encrypted_draft_md: '<encrypted prompt only>', encrypted_draft_preview: null },
+      versions: { draft_v: 2 },
+      last_edited_overall_timestamp: 100,
+    });
+
+    expect(mocks.setContent).not.toHaveBeenCalled();
+    expect(mocks.chatDB.upsertRawChat).not.toHaveBeenCalled();
+  });
+
   // contract-test: direct surface=gui.web assertions=drafts.sync.version-authoritative
   it('preserves a local draft newer than the reconnect tombstone', async () => {
     mocks.chatDB.getRawChat.mockResolvedValue({

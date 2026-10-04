@@ -96,6 +96,7 @@
   let transcriptText = $state('');
   let correctedTranscriptText = $state('');
   let taskPromptValue = $state('');
+  let taskComposerFocused = $state(false);
   let pendingTaskDelete = $state<{ task: TasksBoardItem; request: string; scope: string | null } | null>(null);
   let isExtracting = $state(false);
   let extractedProposals = $state<UserTaskProposal[]>([]);
@@ -150,6 +151,7 @@
     transcriptText = '';
     correctedTranscriptText = '';
     taskPromptValue = '';
+    taskComposerFocused = false;
     extractedProposals = [];
     searchTerm = '';
     selectedTask = null;
@@ -439,23 +441,23 @@
     }
   }
 
-  async function handleTaskPromptSubmit(value: string): Promise<void> {
-    if (!tasksEnabled || isSaving) return;
+  async function handleTaskPromptSubmit(value: string): Promise<boolean> {
+    if (!tasksEnabled || isSaving) return false;
     const requestedScope = getWorkspaceCacheIdentity();
     if (/\bexternal[-\s]?ai\b/i.test(value) && !/\bcodex\b/i.test(value) && /\b(assign|start|handoff|hand off)\b/i.test(value)) {
       notificationStore.error('Name Codex explicitly when assigning work to it.');
-      return;
+      return false;
     }
     const mentionedTask = findTaskMention(value);
     const normalized = value.toLowerCase();
     if (/\b(delete|remove)\b/.test(normalized)) {
       if (!mentionedTask) {
         notificationStore.error('Name the task to delete first.');
-        return;
+        return false;
       }
       pendingTaskDelete = { task: mentionedTask, request: value, scope: requestedScope };
       taskPromptValue = '';
-      return;
+      return true;
     }
 
     if (mentionedTask && !isWorkflowRunTaskProjectionViewModel(mentionedTask)) {
@@ -464,51 +466,53 @@
       const targetAssignee = parseAssigneeUpdate(value);
       const targetStatus = parseTaskStatus(value);
       if (renamedTitle) {
-        await updateTaskFromPrompt(mentionedTask, { title: renamedTitle }, 'Task renamed');
-        if (!scopeIsCurrent(requestedScope)) return;
+        if (!await updateTaskFromPrompt(mentionedTask, { title: renamedTitle }, 'Task renamed')) return false;
+        if (!scopeIsCurrent(requestedScope)) return false;
         taskPromptValue = '';
-        return;
+        return true;
       }
       if (description) {
-        await updateTaskFromPrompt(mentionedTask, { description }, 'Task details updated');
-        if (!scopeIsCurrent(requestedScope)) return;
+        if (!await updateTaskFromPrompt(mentionedTask, { description }, 'Task details updated')) return false;
+        if (!scopeIsCurrent(requestedScope)) return false;
         taskPromptValue = '';
-        return;
+        return true;
       }
       if (targetAssignee) {
         if (targetAssignee === 'codex' && !canAssignCodex) {
           notificationStore.error('Codex must create its first task before it can be assigned work.');
+          return false;
         } else if (targetAssignee === 'openmates') {
-          await handleStartAI(mentionedTask);
+          if (!await handleStartAI(mentionedTask)) return false;
         } else {
-          await updateTaskFromPrompt(mentionedTask, assignmentPatchForTask(mentionedTask, targetAssignee), targetAssignee === 'codex' ? 'Task assigned to Codex' : 'Task assignment updated');
+          if (!await updateTaskFromPrompt(mentionedTask, assignmentPatchForTask(mentionedTask, targetAssignee), targetAssignee === 'codex' ? 'Task assigned to Codex' : 'Task assignment updated')) return false;
         }
-        if (!scopeIsCurrent(requestedScope)) return;
+        if (!scopeIsCurrent(requestedScope)) return false;
         taskPromptValue = '';
-        return;
+        return true;
       }
       if (targetStatus) {
-        await handleMove(mentionedTask, targetStatus);
-        if (!scopeIsCurrent(requestedScope)) return;
+        if (!await handleMove(mentionedTask, targetStatus)) return false;
+        if (!scopeIsCurrent(requestedScope)) return false;
         taskPromptValue = '';
-        return;
+        return true;
       }
     }
 
     if (looksLikeTaskManagementRequest(value) && !looksLikeTaskCreationRequest(value)) {
       notificationStore.error('I could not find a matching task. Include the exact task title.');
-      return;
+      return false;
     }
 
-    await createTaskFromPrompt(value);
-    if (!scopeIsCurrent(requestedScope)) return;
+    if (!await createTaskFromPrompt(value)) return false;
+    if (!scopeIsCurrent(requestedScope)) return false;
     taskPromptValue = '';
+    return true;
   }
 
-  async function createTaskFromPrompt(value: string): Promise<void> {
+  async function createTaskFromPrompt(value: string): Promise<boolean> {
     if (requestedCodexAssignment(value) && !canAssignCodex) {
       notificationStore.error('Codex must create its first task before it can be assigned work.');
-      return;
+      return false;
     }
     const requestedScope = getWorkspaceCacheIdentity();
     isSaving = true;
@@ -527,31 +531,35 @@
         primaryChatId: chatId,
         linkedProjectIds: projectId ? [projectId] : [],
       });
-      if (!scopeIsCurrent(requestedScope)) return;
+      if (!scopeIsCurrent(requestedScope)) return false;
       tasks = prependTaskBoardItem(tasks, task);
       broadcastTasksChanged();
       notificationStore.success(assigneeSuccessLabel(selectedAssignee));
+      return true;
     } catch (error) {
-      if (!scopeIsCurrent(requestedScope)) return;
+      if (!scopeIsCurrent(requestedScope)) return false;
       console.error('[TasksPage] Failed to create task from prompt:', error);
       notificationStore.error('Failed to create task');
+      return false;
     } finally {
       if (scopeIsCurrent(requestedScope)) isSaving = false;
     }
   }
 
-  async function updateTaskFromPrompt(task: UserTaskViewModel, patch: Parameters<typeof updateUserTask>[1], successMessage: string): Promise<void> {
+  async function updateTaskFromPrompt(task: UserTaskViewModel, patch: Parameters<typeof updateUserTask>[1], successMessage: string): Promise<boolean> {
     const requestedScope = getWorkspaceCacheIdentity();
     try {
       const updated = await updateUserTask(task, patch);
-      if (!scopeIsCurrent(requestedScope)) return;
+      if (!scopeIsCurrent(requestedScope)) return false;
       tasks = tasks.map((candidate) => candidate.task_id === updated.task_id ? updated : candidate);
       broadcastTasksChanged();
       notificationStore.success(successMessage);
+      return true;
     } catch (error) {
-      if (!scopeIsCurrent(requestedScope)) return;
+      if (!scopeIsCurrent(requestedScope)) return false;
       console.error('[TasksPage] Failed to update task from prompt:', error);
       notificationStore.error('Failed to update task');
+      return false;
     }
   }
 
@@ -565,6 +573,7 @@
 
   function handleStartTaskInspiration(inspiration: DailyInspiration): void {
     taskPromptValue = inspiration.phrase;
+    taskComposerFocused = true;
     title = inspiration.phrase;
     description = inspiration.assistant_response ?? '';
   }
@@ -644,9 +653,10 @@
     return moved;
   }
 
-  async function handleMove(task: TasksBoardItem, status: UserTaskStatus): Promise<void> {
-    if (isWorkflowRunTaskProjectionViewModel(task)) return;
+  async function handleMove(task: TasksBoardItem, status: UserTaskStatus): Promise<boolean> {
+    if (isWorkflowRunTaskProjectionViewModel(task)) return false;
     const requestedScope = getWorkspaceCacheIdentity();
+    let succeeded = false;
     await runTaskMove(task.task_id, async () => {
       if (requestedScope !== getWorkspaceCacheIdentity()) return;
       const displayed = tasks.find((candidate) => candidate.task_id === task.task_id);
@@ -654,14 +664,15 @@
       const cached = peekUserTask(task.task_id);
       const current = cached && (cached.version > displayed.version || (cached.version === displayed.version && cached.updatedAt > displayed.updatedAt))
         ? cached : displayed;
-      if (current.status === status) return;
-      await persistBoardMove(current, status, requestedScope);
+      if (current.status === status) { succeeded = true; return; }
+      succeeded = await persistBoardMove(current, status, requestedScope);
     });
+    return succeeded;
   }
 
-  async function persistBoardMove(task: UserTaskViewModel, status: UserTaskStatus, requestedScope: string | null): Promise<void> {
+  async function persistBoardMove(task: UserTaskViewModel, status: UserTaskStatus, requestedScope: string | null): Promise<boolean> {
     const scopeIsCurrent = () => requestedScope === getWorkspaceCacheIdentity();
-    if (!scopeIsCurrent()) return;
+    if (!scopeIsCurrent()) return false;
     const previous = tasks;
     const position = firstPositionIn(status, task.task_id, previous);
     tasks = tasks.map((candidate) => candidate.task_id === task.task_id ? { ...candidate, status, position } : candidate);
@@ -670,32 +681,34 @@
       try {
         updated = await persistMove(task, status, position, requestedScope);
       } catch (error) {
-        if (!scopeIsCurrent()) return;
+        if (!scopeIsCurrent()) return false;
         if (!(error instanceof Error) || !error.message.includes('Tasks API failed (409)')) throw error;
         // Another client may have changed this task since the board loaded.
         const latest = await listTaskBoardItems(filters(), { force: true });
-        if (!scopeIsCurrent()) return;
+        if (!scopeIsCurrent()) return false;
         const current = latest.find((candidate) => candidate.task_id === task.task_id);
         if (!current || isWorkflowRunTaskProjectionViewModel(current)) throw error;
         tasks = latest.map((candidate) => candidate.task_id === task.task_id ? { ...candidate, status, position } : candidate);
         updated = await persistMove(current, status, position, requestedScope);
       }
-      if (!scopeIsCurrent() || !updated) return;
+      if (!scopeIsCurrent() || !updated) return false;
       tasks = tasks.map((candidate) => candidate.task_id === updated.task_id ? updated : candidate);
       broadcastTasksChanged();
+      return true;
     } catch (error) {
-      if (!scopeIsCurrent()) return;
+      if (!scopeIsCurrent()) return false;
       try {
         const latest = await listTaskBoardItems(filters(), { force: true });
-        if (!scopeIsCurrent()) return;
+        if (!scopeIsCurrent()) return false;
         tasks = latest;
       } catch {
-        if (!scopeIsCurrent()) return;
+        if (!scopeIsCurrent()) return false;
         tasks = previous;
       }
-      if (!scopeIsCurrent()) return;
+      if (!scopeIsCurrent()) return false;
       console.error('[TasksPage] Failed to update task:', error);
       notificationStore.error('Failed to update task');
+      return false;
     }
   }
 
@@ -735,19 +748,21 @@
     }
   }
 
-  async function handleStartAI(task: TasksBoardItem): Promise<void> {
-    if (isWorkflowRunTaskProjectionViewModel(task)) return;
+  async function handleStartAI(task: TasksBoardItem): Promise<boolean> {
+    if (isWorkflowRunTaskProjectionViewModel(task)) return false;
     const requestedScope = getWorkspaceCacheIdentity();
     try {
       const updated = await startUserTaskWithAI(task);
-      if (!scopeIsCurrent(requestedScope)) return;
+      if (!scopeIsCurrent(requestedScope)) return false;
       tasks = tasks.map((candidate) => candidate.task_id === updated.task_id ? updated : candidate);
       broadcastTasksChanged();
       notificationStore.success('AI task queued');
+      return true;
     } catch (error) {
-      if (!scopeIsCurrent(requestedScope)) return;
+      if (!scopeIsCurrent(requestedScope)) return false;
       console.error('[TasksPage] Failed to start AI task:', error);
       notificationStore.error('Failed to start AI task');
+      return false;
     }
   }
 
@@ -913,6 +928,8 @@
     <div class="tasks-workspace-layout" class:split={showSplitTaskDetail} data-testid="tasks-workspace-layout">
     <section class="tasks-figma-workspace" data-testid="tasks-figma-workspace" aria-label="Tasks workspace" bind:clientWidth={tasksWorkspaceWidth}>
       <WorkspaceHomeShell
+        composerFocused={taskComposerFocused}
+        onComposerDismiss={() => { taskComposerFocused = false; }}
           surface="tasks"
           testId="tasks-workspace-home"
           centerTestId="task-greeting"
@@ -1003,10 +1020,11 @@
         <WorkspacePromptComposer
           surface="tasks"
           bind:value={taskPromptValue}
+          bind:focusActive={taskComposerFocused}
           placeholder="Click to add or update tasks"
           submitLabel="Send"
           submittingLabel="Saving..."
-          disabled={!tasksEnabled || isSaving}
+          disabled={!tasksEnabled}
           submitting={isSaving}
           testId="task-workspace-composer"
           inputTestId="task-workspace-input"
@@ -1134,6 +1152,7 @@
   </section>
   {/if}
 
+  <div class="compact-task-background" class:dimmed={compact && taskComposerFocused} inert={compact && taskComposerFocused} data-testid={compact ? 'project-task-background' : undefined}>
   {#if compact}
     <div class="compact-task-toolbar" data-testid="project-task-toolbar">
       <label class="compact-task-search" for="project-task-search">
@@ -1177,15 +1196,18 @@
       onSelect={handleSelectTask}
     />
   {/if}
+  </div>
   {#if compact}
+    {#if taskComposerFocused}<button type="button" class="compact-task-backdrop" data-testid="project-task-composer-backdrop" aria-label="Dismiss task editor" onpointerdown={(event) => event.preventDefault()} onclick={() => { taskComposerFocused = false; }}></button>{/if}
     <div class="compact-task-composer" data-testid="project-task-composer-shell">
       <WorkspacePromptComposer
         surface="tasks"
         bind:value={taskPromptValue}
+        bind:focusActive={taskComposerFocused}
         placeholder="Click here to add or update tasks"
         submitLabel="Send"
         submittingLabel="Saving..."
-        disabled={!tasksEnabled || isSaving}
+        disabled={!tasksEnabled}
         submitting={isSaving}
         testId="project-task-workspace-composer"
         inputTestId="project-task-workspace-input"
@@ -1246,6 +1268,14 @@
   .tasks-page.compact {
     padding: 0;
     overflow: visible;
+  }
+
+  .compact-task-background { transition: opacity .18s ease; }
+  .compact-task-background.dimmed { opacity: .36; }
+  .compact-task-backdrop { position: absolute; inset: 0; z-index: 3; width: 100%; border: 0; background: transparent; cursor: default; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .compact-task-background { transition: none; }
   }
 
   .compact-task-composer {

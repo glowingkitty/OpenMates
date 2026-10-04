@@ -9,14 +9,16 @@ const { skipWithoutCredentials } = require('./helpers/env-guard');
 const { email, password, otpKey } = getTestAccount();
 
 // contract-test: direct surface=gui.web assertions=drafts.draft-only.presentation,drafts.persistence.local-first-encrypted
-test('saved embed references show type labels in resume, sidebar, and header previews', async ({ page }: { page: any }) => {
+test('saved embed references show type labels in navigation without a draft-only header', async ({ page }: { page: any }) => {
   test.setTimeout(90_000);
   skipWithoutCredentials(test, email, password, otpKey);
   await page.setViewportSize({ width: 1280, height: 900 });
   await loginToTestAccount(page, () => undefined, async () => undefined, { waitForEditor: true });
   await startNewChat(page);
   await fillMessageEditor(page, page.getByTestId('message-editor'), 'Draft with an image reference');
-  await expect(page.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 15_000 });
+  await expect.poll(() => page.url()).toContain('chat-id=');
+  await page.getByTestId('input-dismiss-button').click();
+  await expect(page.getByTestId('draft-chat-badge')).toHaveCount(0);
 
   const draftChatId = page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1];
   expect(draftChatId).toBeTruthy();
@@ -46,6 +48,7 @@ test('saved embed references show type labels in resume, sidebar, and header pre
   await expect(sidebarRow).toContainText('[Image]', { timeout: 20_000 });
   await expect(sidebarRow).not.toContainText('embed_id');
   await sidebarRow.click();
-  await expect(page.getByTestId('chat-header-title')).toContainText('[Image]', { timeout: 20_000 });
-  await expect(page.getByTestId('chat-header-title')).not.toContainText('embed_id');
+  await expect(page.getByTestId('message-editor')).toContainText('Look at this', { timeout: 20_000 });
+  await expect(page.getByTestId('chat-header-title')).toHaveCount(0);
+  await expect(page.getByTestId('draft-chat-badge')).toHaveCount(0);
 });

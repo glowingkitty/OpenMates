@@ -19,6 +19,7 @@
   import { getLucideIcon, getValidIconName } from '../../utils/categoryUtils';
   import { resolveIconName } from '../../utils/iconNameResolver';
   import { hasRoomForLargeContinueCards } from '../../utils/continueCardLayout';
+  import { text } from '../../i18n/translations';
 
   // Vite resolves the same packaged SVGs used by app details into real asset URLs.
   // Keep the glyph independent of Icon.svelte's scoped pseudo-element CSS.
@@ -57,6 +58,8 @@
     centerTestId?: string;
     contentSlotVisible?: boolean;
     contentSlotTestId?: string;
+    composerFocused?: boolean;
+    onComposerDismiss?: () => void;
     showReportIssue?: boolean;
     showComposer?: boolean;
     showAllMode?: boolean;
@@ -101,6 +104,8 @@
     centerTestId = `${surface}-workspace-center`,
     contentSlotVisible = false,
     contentSlotTestId = `${surface}-workspace-content`,
+    composerFocused = false,
+    onComposerDismiss,
     showReportIssue = false,
     showComposer = true,
     showAllMode = false,
@@ -231,8 +236,8 @@
 
 </script>
 
-<section class="workspace-home-shell" class:all-items-mode={showAllMode} class:content-slot-mode={contentSlotVisible} data-testid={testId} data-surface={surface} bind:clientWidth={containerWidth} bind:this={shellElement}>
-  <div class="workspace-scroll-layer" data-testid={contentSlotVisible ? `${surface}-workspace-scroll-layer` : undefined} style:--workspace-composer-height={`${composerHeight}px`}>
+<section class="workspace-home-shell" class:all-items-mode={showAllMode} class:content-slot-mode={contentSlotVisible} class:composer-focused={composerFocused} data-testid={testId} data-surface={surface} bind:clientWidth={containerWidth} bind:this={shellElement}>
+  <div class="workspace-scroll-layer" inert={composerFocused} data-testid={contentSlotVisible ? `${surface}-workspace-scroll-layer` : undefined} style:--workspace-composer-height={`${composerHeight}px`}>
     {#if !showAllMode}
       <div class="daily-inspiration-area workspace-daily-inspiration-area" data-testid={`${surface}-daily-inspiration-area`} bind:this={inspirationElement}>
         <DailyInspirationBanner
@@ -492,6 +497,9 @@
     {/if}
   </div>
 
+  {#if composerFocused}
+    <button type="button" class="workspace-composer-backdrop" data-testid={`${surface}-composer-backdrop`} aria-label={$text('common.cancel')} onpointerdown={(event) => event.preventDefault()} onclick={() => onComposerDismiss?.()}></button>
+  {/if}
   {#if showComposer}
     <div class="workspace-composer-slot" data-testid="workspace-composer-slot" bind:this={composerElement}>
       <slot name="composer" />
@@ -547,7 +555,27 @@
     overflow: hidden;
     container-type: inline-size;
     container-name: chat-side;
+    transition: opacity .18s ease;
   }
+
+  .workspace-home-shell.composer-focused .workspace-scroll-layer {
+    opacity: .36;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .workspace-scroll-layer { transition: none; }
+  }
+
+  .workspace-composer-backdrop {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    border: 0;
+    background: transparent;
+    cursor: default;
+  }
+
+  .workspace-home-shell.composer-focused .workspace-composer-slot { z-index: 4; }
 
   .workspace-home-shell:is([data-surface='projects'], [data-surface='workflows']):not(.content-slot-mode) .workspace-scroll-layer {
     display: flex;
