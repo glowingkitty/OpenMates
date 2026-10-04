@@ -16,6 +16,48 @@ import pytest
 from scripts import ci_results
 
 
+@pytest.mark.parametrize("fault", ["", "source", "frontend", "egress", "extra_actor", "missing_mount", "stopped"])
+def test_api_only_accountability_result_requires_exact_backend_runtime(fault):
+    import json
+
+    source = "a" * 40
+    services = {name: {"running": True} for name in
+                ("api", "core-worker", "cms", "cms-database", "cache", "vault")}
+    for name in ("api", "core-worker"):
+        services[name]["backend_source"] = "/home/runner/work/OpenMates/OpenMates/subject/backend"
+    environment = {"source_commit": source, "shared_dev_dns": "rejected",
+                   "shared_dev_https": "rejected", "services": services}
+    if fault == "source":
+        environment["source_commit"] = "b" * 40
+    elif fault == "frontend":
+        environment["frontend"] = {"source_commit": source}
+    elif fault == "egress":
+        environment["shared_dev_dns"] = "unverified"
+    elif fault == "extra_actor":
+        services["ai-worker"] = {"running": True}
+    elif fault == "missing_mount":
+        services["api"]["backend_source"] = "/other/backend"
+    elif fault == "stopped":
+        services["api"]["running"] = False
+    job = {"source": source, "mode": "e2e",
+           "specs": json.dumps(["storage-accountability-integration.spec.ts"])}
+    assert ci_results.green_e2e_source_and_egress_verified(environment, job) is (fault == "")
+    job["specs"] = json.dumps(["storage-message-embed-bundle.spec.ts"])
+    assert ci_results.green_e2e_source_and_egress_verified(environment, job) is (fault == "frontend")
+
+
+def test_browser_component_result_keeps_existing_frontend_identity_requirement():
+    import json
+
+    source = "a" * 40
+    job = {"source": source, "mode": "component", "specs": json.dumps(["component.spec.ts"])}
+    environment = {"source_commit": source, "shared_dev_https": "rejected",
+                   "frontend": {"source_commit": source}}
+    assert ci_results.green_e2e_source_and_egress_verified(environment, job) is True
+    environment["frontend"] = {"source_commit": "b" * 40}
+    assert ci_results.green_e2e_source_and_egress_verified(environment, job) is False
+
+
 def test_timings_separate_preparation_admission_and_actual_github_work():
     from scripts.ci_results import timings
     result = timings(

@@ -26,6 +26,31 @@ MAX_EXPANDED = 512 * 1024**2
 DOWNLOAD_SECONDS = 60
 
 
+def green_e2e_source_and_egress_verified(environment: dict, job: dict) -> bool:
+    """Require the exact source runtime for browser or API-only accountability E2E."""
+    if (environment.get("source_commit") != job["source"]
+            or environment.get("shared_dev_https") != "rejected"
+            or (job.get("mode") != "component" and not environment.get("services"))):
+        return False
+    selected = sorted(json.loads(job["specs"]))
+    if (job.get("mode") == "e2e"
+            and selected == ["storage-accountability-integration.spec.ts"]):
+        services = environment["services"]
+        expected = {"api", "core-worker", "cms", "cms-database", "cache", "vault"}
+        if (environment.get("frontend") is not None
+                or environment.get("shared_dev_dns") != "rejected"
+                or set(services) != expected
+                or any(service.get("running") is not True for service in services.values())):
+            return False
+        for name in ("api", "core-worker"):
+            source = services[name].get("backend_source")
+            if not isinstance(source, str) or Path(source).parts[-2:] != ("subject", "backend"):
+                return False
+        return True
+    return (environment.get("frontend", {}).get("source_commit") == job["source"]
+            and (job.get("mode") == "component" or bool(environment["services"])))
+
+
 def timings(job: dict, runner_jobs: list[dict]) -> dict:
     """Record measured phases; missing timestamps stay unknown, never zero."""
     def timestamp(value):
@@ -244,16 +269,7 @@ def fetch(github, job: dict, root: Path) -> dict:
                 "CI harness or requested proof profile identity mismatch"
             )
         if job["state"] == "success" and job.get("mode") in ("component", "e2e", "visual-smoke"):
-            if (
-                environment_data.get("source_commit") != job["source"]
-                or environment_data.get("frontend", {}).get("source_commit")
-                != job["source"]
-                or environment_data.get("shared_dev_https") != "rejected"
-                or (
-                    job.get("mode") != "component"
-                    and not environment_data.get("services")
-                )
-            ):
+            if not green_e2e_source_and_egress_verified(environment_data, job):
                 raise RuntimeError(
                     "Green E2E lacks runner-local source and egress evidence"
                 )
