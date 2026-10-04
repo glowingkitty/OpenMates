@@ -473,9 +473,11 @@ def run_isolated_legacy_claim_probe() -> dict:
         raise RuntimeError("Disposable legacy claim SQL probe omitted a bounded receipt") from exc
     counts = receipt.get("legacy_claim_sql_races") if isinstance(receipt, dict) else None
     if not isinstance(receipt, dict) or receipt.get("passed") is not True or not isinstance(counts, dict) or (
-        set(counts) != {"ordinary", "batch", "lifecycle_retired", "chat_deleted", "account_deleted"}
+        set(counts) != {"ordinary", "batch", "canonical_present", "lifecycle_retired",
+                        "chat_deleted", "account_deleted"}
         or any(type(counts[key]) is not int or counts[key] < 1 for key in counts)
         or counts["ordinary"] != counts["batch"]
+        or counts["canonical_present"] != 2 * counts["ordinary"] + counts["batch"]
         or counts["lifecycle_retired"] != counts["ordinary"] + counts["batch"]
         or counts["chat_deleted"] != counts["ordinary"]
         or counts["account_deleted"] != counts["batch"]
@@ -1141,7 +1143,7 @@ def capture_recovery_ai_diagnostics(report: dict, index: int) -> list[dict[str, 
 
 
 def sanitize_archive_probe_failure(stderr: str) -> str:
-    """Expose the innermost application frame and exception class, never values."""
+    """Expose frame/class, plus only the fixed legacy actor schema diagnosis."""
     frames = re.findall(
         r'File "/app/[^"\n]+", line ([0-9]{1,6}), in ([A-Za-z_][A-Za-z_0-9]{0,79})',
         stderr,
@@ -1152,7 +1154,18 @@ def sanitize_archive_probe_failure(stderr: str) -> str:
         r"([A-Za-z_][A-Za-z_0-9.]{0,75}(?:Error|Exception))(?::|$)", terminal
     )
     error_type = error_type_match.group(1) if error_type_match else "unknown"
-    return f"Disposable archive DB/S3 transaction probe failed at {function}:{line} ({error_type})"
+    result = f"Disposable archive DB/S3 transaction probe failed at {function}:{line} ({error_type})"
+    if function == "_legacy_claim_fixture_user" and error_type == "RuntimeError":
+        match = re.fullmatch(
+            r"RuntimeError: Synthetic legacy claim actor creation failed "
+            r"status=([0-9]{3}) code=([A-Z0-9_]{1,48}|unknown) "
+            r"field=(id|email|password|status|role|hashed_email|account_id|unknown)",
+            terminal,
+        )
+        if match:
+            result += (f" status={match.group(1)} code={match.group(2)} "
+                       f"field={match.group(3)}")
+    return result
 
 
 def retain_capacity_failure_rows(results_path: Path, private: Path) -> int:

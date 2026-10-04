@@ -99,7 +99,8 @@ def test_legacy_claim_sql_probe_runs_only_on_exact_fresh_profile_before_epoch(tm
     monkeypatch.setattr(runner, "RESULTS", tmp_path)
     monkeypatch.setattr(runner, "require_runner", lambda: None)
     calls = []
-    counts = {"ordinary": 4, "batch": 4, "lifecycle_retired": 8,
+    counts = {"ordinary": 4, "batch": 4, "canonical_present": 12,
+              "lifecycle_retired": 8,
               "chat_deleted": 4, "account_deleted": 4}
     receipt = {"passed": True, "legacy_claim_sql_races": counts}
     monkeypatch.setattr(runner, "compose", lambda *args, **kwargs: (
@@ -131,7 +132,8 @@ def test_legacy_claim_sql_probe_rejects_partial_receipt_and_precedes_epoch(tmp_p
     monkeypatch.setattr(runner, "require_runner", lambda: None)
     monkeypatch.setattr(runner, "compose", lambda *args, **kwargs: SimpleNamespace(
         stdout=json.dumps({"passed": True, "legacy_claim_sql_races": {
-            "ordinary": 4, "batch": 4, "lifecycle_retired": 7,
+            "ordinary": 4, "batch": 4, "canonical_present": 12,
+            "lifecycle_retired": 7,
             "chat_deleted": 4, "account_deleted": 4,
         }})
     ))
@@ -141,6 +143,36 @@ def test_legacy_claim_sql_probe_rejects_partial_receipt_and_precedes_epoch(tmp_p
     activation_block = source.split("if name in CAPACITY_EPOCH_SPECS:")[-1]
     assert activation_block.index("run_isolated_legacy_claim_probe()") < activation_block.index(
         "activate_isolated_recovery_epoch()")
+
+
+@pytest.mark.parametrize("bad_counts", [
+    {"ordinary": 4, "batch": 4, "lifecycle_retired": 8,
+     "chat_deleted": 4, "account_deleted": 4},
+    {"ordinary": 4, "batch": 4, "canonical_present": 11,
+     "lifecycle_retired": 8, "chat_deleted": 4, "account_deleted": 4},
+    {"ordinary": 4, "batch": 4, "canonical_present": True,
+     "lifecycle_retired": 8, "chat_deleted": 4, "account_deleted": 4},
+    {"ordinary": 4, "batch": 4, "canonical_present": 12,
+     "lifecycle_retired": 8, "chat_deleted": 4, "account_deleted": 4,
+     "unexpected": 1},
+])
+def test_legacy_claim_sql_probe_rejects_missing_or_wrong_canonical_count(
+    tmp_path, monkeypatch, bad_counts,
+):
+    runner = _load_bound_runner(monkeypatch)
+    profile = compose_profile(
+        "candidate-sha", storage_capacity=True, account_emails=["ci-one@example.com"],
+    )
+    compose_path = tmp_path / "compose.json"
+    compose_path.write_text(json.dumps(profile))
+    monkeypatch.setattr(runner, "COMPOSE_PATH", compose_path)
+    monkeypatch.setattr(runner, "RESULTS", tmp_path)
+    monkeypatch.setattr(runner, "require_runner", lambda: None)
+    monkeypatch.setattr(runner, "compose", lambda *args, **kwargs: SimpleNamespace(
+        stdout=json.dumps({"passed": True, "legacy_claim_sql_races": bad_counts})
+    ))
+    with pytest.raises(RuntimeError, match="incomplete"):
+        runner.run_isolated_legacy_claim_probe()
 
 
 def test_recovery_epoch_child_program_compiles_and_uses_only_cutover_dependencies(monkeypatch) -> None:
@@ -235,6 +267,53 @@ def test_archive_probe_reports_inner_application_frame_without_private_values(mo
         'initialize_core_services:261 (AttributeError)'
     )
     assert 'private-account-token-value' not in public
+
+
+def test_legacy_actor_schema_failure_preserves_only_fixed_diagnostics(monkeypatch) -> None:
+    runner = _load_bound_runner(monkeypatch)
+    stderr = (
+        '  File "/app/scripts/storage_archive_integration.py", line 152, '
+        'in _legacy_claim_fixture_user\n'
+        'RuntimeError: Synthetic legacy claim actor creation failed '
+        'status=400 code=INVALID_PAYLOAD field=email\n'
+    )
+    assert runner.sanitize_archive_probe_failure(stderr) == (
+        'Disposable archive DB/S3 transaction probe failed at '
+        '_legacy_claim_fixture_user:152 (RuntimeError) '
+        'status=400 code=INVALID_PAYLOAD field=email'
+    )
+
+
+@pytest.mark.parametrize("terminal", [
+    'RuntimeError: Synthetic legacy claim actor creation failed status=400 '
+    'code=INVALID_PAYLOAD field=email secret=private',
+    'RuntimeError: Synthetic legacy claim actor creation failed status=400 '
+    'code=private-token field=email',
+    'RuntimeError: Synthetic legacy claim actor creation failed status=400 '
+    'code=INVALID_PAYLOAD field=private-account',
+    'RuntimeError: Synthetic legacy claim actor creation failed status=400 '
+    'code=INVALID_PAYLOAD field=email@example.com',
+    'RuntimeError: private exception with status=400 code=INVALID_PAYLOAD field=email',
+])
+def test_legacy_actor_schema_failure_rejects_unbounded_suffix(monkeypatch, terminal) -> None:
+    runner = _load_bound_runner(monkeypatch)
+    stderr = ('  File "/app/scripts/storage_archive_integration.py", line 152, '
+              'in _legacy_claim_fixture_user\n' + terminal)
+    public = runner.sanitize_archive_probe_failure(stderr)
+    assert public == ('Disposable archive DB/S3 transaction probe failed at '
+                      '_legacy_claim_fixture_user:152 (RuntimeError)')
+
+
+def test_legacy_actor_schema_failure_requires_exact_producer_frame(monkeypatch) -> None:
+    runner = _load_bound_runner(monkeypatch)
+    stderr = (
+        '  File "/app/scripts/storage_archive_integration.py", line 152, in other\n'
+        'RuntimeError: Synthetic legacy claim actor creation failed '
+        'status=400 code=INVALID_PAYLOAD field=email\n'
+    )
+    assert runner.sanitize_archive_probe_failure(stderr) == (
+        'Disposable archive DB/S3 transaction probe failed at other:152 (RuntimeError)'
+    )
 
 
 def _runner_with_frontend_files(tmp_path, monkeypatch):
