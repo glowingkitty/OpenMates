@@ -10115,6 +10115,23 @@
       }
     }
   },
+  "focus_phases": {
+    "phases": {
+      "text": "阶段"
+    },
+    "requirements": {
+      "text": "要求"
+    },
+    "confirmation": {
+      "text": "需要你的确认"
+    },
+    "switched": {
+      "text": "专注阶段："
+    },
+    "returned": {
+      "text": "已返回专注阶段："
+    }
+  },
   "footer": {
     "language_selector": {
       "label": {

@@ -2866,6 +2866,13 @@ export async function handleRequestChatHistoryImpl(
       encrypted_chat_key: chat?.encrypted_chat_key ?? null,
     };
 
+    if (chat?.encrypted_focus_phase_state) {
+      const key = await chatKeyManager.getKey(payload.chat_id);
+      if (key) {
+        const state = await decryptWithChatKey(chat.encrypted_focus_phase_state, key);
+        if (state) resendPayload.focus_phase_state = JSON.parse(state);
+      }
+    }
     // Only include active_focus_id when it could be decrypted (non-null)
     if (activeFocusId) {
       resendPayload.active_focus_id = activeFocusId;

@@ -276,6 +276,12 @@ final class ChatStore: ObservableObject {
         persistIfAllowed { $0.onChatsReceived([chats[index]]) }
     }
 
+    func updateFocusPhaseState(chatId: String, encrypted: String?) {
+        guard let index = chats.firstIndex(where: { $0.id == chatId }) else { return }
+        chats[index].encryptedFocusPhaseState = encrypted
+        persistIfAllowed { $0.onChatsReceived([chats[index]]) }
+    }
+
     // MARK: - Message operations
 
     func messages(for chatId: String) -> [Message] {
@@ -622,6 +628,7 @@ private extension Chat {
             subChatSettings: subChatSettings,
             budgetLimit: budgetLimit,
             budgetSpent: budgetSpent,
+            encryptedFocusPhaseState: encrypted["encrypted_focus_phase_state"] ?? encryptedFocusPhaseState,
             encryptedActiveFocusId: encrypted["encrypted_active_focus_id"] ?? encryptedActiveFocusId,
             activeFocusId: plaintext["encrypted_active_focus_id"] ?? activeFocusId,
             isPrivate: isPrivate,
@@ -663,6 +670,7 @@ private extension Chat {
             subChatSettings: subChatSettings,
             budgetLimit: budgetLimit,
             budgetSpent: budgetSpent,
+            encryptedFocusPhaseState: encryptedFocusPhaseState,
             encryptedActiveFocusId: encryptedActiveFocusId,
             activeFocusId: activeFocusId,
             isPrivate: isPrivate,
@@ -706,6 +714,7 @@ extension Chat {
             subChatSettings: subChatSettings,
             budgetLimit: budgetLimit,
             budgetSpent: budgetSpent,
+            encryptedFocusPhaseState: encryptedFocusPhaseState,
             encryptedActiveFocusId: encryptedActiveFocusId,
             activeFocusId: activeFocusId,
             isPrivate: isPrivate,
@@ -749,6 +758,7 @@ private extension Chat {
             subChatSettings: subChatSettings,
             budgetLimit: budgetLimit,
             budgetSpent: budgetSpent,
+            encryptedFocusPhaseState: encryptedFocusPhaseState,
             encryptedActiveFocusId: encryptedActiveFocusId,
             activeFocusId: activeFocusId,
             isPrivate: isPrivate,
@@ -843,6 +853,7 @@ private extension Chat {
             subChatSettings: incoming.subChatSettings ?? subChatSettings,
             budgetLimit: incoming.budgetLimit ?? budgetLimit,
             budgetSpent: incoming.budgetSpent ?? budgetSpent,
+            encryptedFocusPhaseState: metadataCiphertext(encryptedFocusPhaseState, incoming.encryptedFocusPhaseState),
             encryptedActiveFocusId: incoming.encryptedActiveFocusId ?? encryptedActiveFocusId,
             activeFocusId: incoming.encryptedActiveFocusId != nil && incoming.encryptedActiveFocusId != encryptedActiveFocusId
                 ? incoming.activeFocusId : (incoming.activeFocusId ?? activeFocusId),
@@ -884,6 +895,7 @@ private extension Chat {
             subChatSettings: subChatSettings,
             budgetLimit: budgetLimit,
             budgetSpent: budgetSpent,
+            encryptedFocusPhaseState: encryptedFocusPhaseState,
             encryptedActiveFocusId: encryptedActiveFocusId,
             activeFocusId: activeFocusId,
             isPrivate: isPrivate,
@@ -924,6 +936,7 @@ private extension Chat {
             subChatSettings: subChatSettings,
             budgetLimit: budgetLimit,
             budgetSpent: budgetSpent,
+            encryptedFocusPhaseState: encryptedFocusPhaseState,
             encryptedActiveFocusId: encryptedActiveFocusId,
             activeFocusId: activeFocusId,
             isPrivate: isPrivate,

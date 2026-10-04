@@ -209,6 +209,8 @@ function parseSkillMd(filePath, appId, dirName) {
   return {
     id: focusId,
     default_enabled: fm.default_enabled,
+    phases_version: fm.phases_version,
+    phases: fm.phases,
     icon_image: fm.icon || undefined,
     // Derive translation keys from the snake_case focusId
     name_translation_key: `${appId}.${focusId}`,
@@ -759,6 +761,20 @@ function parseAppYaml(appId, filePath) {
           ),
         };
 
+        if (focus.phases !== undefined) {
+          if (focus.phases_version !== 1 || !Array.isArray(focus.phases) || !focus.phases.length) {
+            throw new Error(`Invalid phase definition for ${appId}-${focus.id}`);
+          }
+          const ids = new Set();
+          for (const phase of focus.phases) {
+            if (!phase.id || ids.has(phase.id) || !phase.title || !phase.instructions || !phase.requirements?.length) {
+              throw new Error(`Invalid phase in ${appId}-${focus.id}`);
+            }
+            ids.add(phase.id);
+          }
+          focusMetadata.phases_version = 1;
+          focusMetadata.phases = focus.phases;
+        }
         // Include system prompt used when this focus mode is activated (for display on settings page)
         if (focus.systemprompt && typeof focus.systemprompt === "string") {
           focusMetadata.system_prompt = focus.systemprompt.trim();
@@ -1074,6 +1090,10 @@ function generateTypeScript(appsMetadata) {
       lines.push(`        focus_modes: [`);
       for (const focus of app.focus_modes) {
         lines.push(`            {`);
+        if (focus.phases !== undefined) {
+          lines.push(`                phases_version: 1,`);
+          lines.push(`                phases: ${JSON.stringify(focus.phases)},`);
+        }
         lines.push(`                id: ${JSON.stringify(focus.id)},`);
         lines.push(
           `                name_translation_key: ${JSON.stringify(focus.name_translation_key)},`,

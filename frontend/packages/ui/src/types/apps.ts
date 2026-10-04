@@ -82,7 +82,16 @@ export interface SkillPricing {
  * - Defined in: `backend/shared/python_schemas/app_metadata_schemas.py:AppFocusDefinition`
  * - Note: Implemented focus modes are enabled by default unless `default_enabled: false` is set.
  */
+export interface FocusPhaseDefinition {
+  id: string;
+  title: string;
+  instructions: string;
+  requirements: Array<{ id: string; text: string; type?: "semantic" | "user_confirmation" }>;
+}
+
 export interface FocusModeMetadata {
+  phases_version?: 1;
+  phases?: FocusPhaseDefinition[];
   id: string;
   name_translation_key: string; // Translation key for focus mode name
   description_translation_key: string; // Translation key for focus mode description

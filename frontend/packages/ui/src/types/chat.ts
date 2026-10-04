@@ -468,6 +468,7 @@ export interface Chat {
   encrypted_icon?: string | null; // Encrypted icon name from Lucide library, generated during pre-processing
   encrypted_category?: string | null; // Encrypted category name, generated during pre-processing
   encrypted_shared_short_url?: string | null; // Encrypted full /s/<token>#<shortKey> URL for reopening owner share UI
+  encrypted_focus_phase_state?: string | null; // Encrypted current phase runs and history receipts
   encrypted_active_focus_id?: string | null; // Encrypted active focus mode ID (e.g., "jobs-career_insights"), set when a focus mode is activated for this chat
   encrypted_auto_speak_response?: string | null; // Encrypted chat-scoped assistant-response speech preference
 
@@ -1006,6 +1007,7 @@ export interface InitialSyncResponsePayload {
     encrypted_category?: string | null; // Encrypted category name
     encrypted_quick_tip_slugs?: string | null; // Encrypted quick-tip slugs selected during post-processing
     encrypted_auto_speak_response?: string | null;
+    encrypted_focus_phase_state?: string | null;
     encrypted_shared_short_url?: string | null;
     unread_count?: number;
     messages?: Message[];

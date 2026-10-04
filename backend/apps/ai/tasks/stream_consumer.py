@@ -5450,6 +5450,16 @@ async def _consume_main_processing_stream(
                 pre_main_open = False
             if not isinstance(chunk, str):
                 await content_publisher.flush()
+            if isinstance(chunk, dict) and "__focus_phases_updated__" in chunk:
+                request_data.focus_phase_state = chunk.get("states") or {}
+                if cache_service:
+                    await cache_service.publish_event(f"user_cache_events:{request_data.user_id}", {
+                        "event_type": "focus_phases_updated", "payload": {
+                            "chat_id": request_data.chat_id, "states": request_data.focus_phase_state,
+                        },
+                    })
+                continue
+
             # Check for debug metadata marker (system prompt, tools, message history)
             # This is yielded early by main_processor before the LLM call loop,
             # captured here and returned to ask_skill_task for debug cache enrichment.

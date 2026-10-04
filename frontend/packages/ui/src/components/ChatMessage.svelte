@@ -26,6 +26,8 @@
   import CodeFullscreen from './fullscreen_previews/CodeFullscreen.svelte';
   import Icon from './Icon.svelte';
   import type { MessageStatus, MessageRole, Message } from '../types/chat';
+  import FocusPhaseNotice from './FocusPhaseNotice.svelte';
+  import { parseFocusPhaseEvent } from '../types/focusPhases';
   import { text, settingsDeepLink, panelState } from '@repo/ui'; // For translations
   import { getModelDisplayName, getModelByNameOrId } from '../utils/modelDisplayName';
   import { getMatesById } from '../data/matesMetadata';
@@ -1092,6 +1094,7 @@
     }
   }
 
+  let phaseEvent = $derived(parseFocusPhaseEvent(systemRawContent()));
   let systemMessageText = $derived.by(() => {
     const rawContent = systemRawContent();
     return connectedAccountReceipt ? connectedAccountReceiptText(connectedAccountReceipt) : rawContent;
@@ -3083,7 +3086,8 @@
         </button>
       {:else}
         <!-- Normal system message (e.g., credit rejection notice) -->
-        <span class="system-message-text" data-testid="system-message-text">{systemMessageText}</span>
+        {#if phaseEvent}<FocusPhaseNotice event={phaseEvent} />
+        {:else}<span class="system-message-text" data-testid="system-message-text">{systemMessageText}</span>{/if}
         {#if canCancelConnectedAccountReceipt}
           <button
             class="system-message-action-btn"

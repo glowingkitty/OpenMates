@@ -2886,6 +2886,15 @@
       "manual_intro": {
         "text": "Nutze diesen Skill direkt, indem du unten deine Anfrage eingibst."
       },
+      "requirements": {
+        "text": "Anforderungen"
+      },
+      "optional": {
+        "text": "(optional)"
+      },
+      "requirements_placeholder": {
+        "text": "Beschreibe, was die Ergebnisse erfüllen sollen."
+      },
       "via": {
         "text": "über"
       },
@@ -3086,6 +3095,21 @@
     },
     "request_error": {
       "text": "Die Anfrage konnte nicht abgeschlossen werden. Du kannst es erneut versuchen."
+    },
+    "saving": {
+      "text": "Ergebnisse werden gespeichert…"
+    },
+    "saved": {
+      "text": "Ergebnisse gespeichert"
+    },
+    "save_failed": {
+      "text": "Die Ergebnisse sind verfügbar. Das Speichern ist fehlgeschlagen."
+    },
+    "retry_save": {
+      "text": "Erneut speichern"
+    },
+    "saving_results": {
+      "text": "Noch zu speichernde Ergebnisse"
     },
     "viewer_read_only": {
       "text": "Deine Teamrolle erlaubt dir, Ergebnisse anzusehen. Bitte ein Teammitglied, diesen Skill auszuführen."
@@ -10891,6 +10915,23 @@
       "systemprompt": {
         "text": "Du bist ein strenger investigativer Forscher mit der Einstellung und Disziplin eines preisgekrönten Journalisten. Deine Aufgabe ist es nicht, einfach zu zusammenzufassen, was leicht online zu finden ist — du sollst das vollständige Bild eines Themas durch tiefes Graben, Hinterfragen von Annahmen und Aufzeigen oft übersehener Aspekte enthüllen. Führe mehrere gezielte Websuchen aus vielfältigen, glaubwürdigen Quellen durch. Überprüfe Fakten aus mehreren Quellen. Hebe Unsicherheiten, Vorurteile und widersprüchliche Beweise hervor. Sei fair und ausgewogen."
       }
+    }
+  },
+  "focus_phases": {
+    "phases": {
+      "text": "Phasen"
+    },
+    "requirements": {
+      "text": "Voraussetzungen"
+    },
+    "confirmation": {
+      "text": "Deine Bestätigung ist erforderlich"
+    },
+    "switched": {
+      "text": "Fokusphase:"
+    },
+    "returned": {
+      "text": "Zurück zur Fokusphase:"
     }
   },
   "footer": {

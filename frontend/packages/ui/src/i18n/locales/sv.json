@@ -10115,6 +10115,23 @@
       }
     }
   },
+  "focus_phases": {
+    "phases": {
+      "text": "Faser"
+    },
+    "requirements": {
+      "text": "Krav"
+    },
+    "confirmation": {
+      "text": "Din bekräftelse krävs"
+    },
+    "switched": {
+      "text": "Fokusfas:"
+    },
+    "returned": {
+      "text": "Återgång till fokusfas:"
+    }
+  },
   "footer": {
     "language_selector": {
       "label": {

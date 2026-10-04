@@ -10115,6 +10115,23 @@
       }
     }
   },
+  "focus_phases": {
+    "phases": {
+      "text": "Aşamalar"
+    },
+    "requirements": {
+      "text": "Gereksinimler"
+    },
+    "confirmation": {
+      "text": "Onayınız gerekiyor"
+    },
+    "switched": {
+      "text": "Odak aşaması:"
+    },
+    "returned": {
+      "text": "Odak aşamasına dönüldü:"
+    }
+  },
   "footer": {
     "language_selector": {
       "label": {

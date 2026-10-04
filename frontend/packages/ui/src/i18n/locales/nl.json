@@ -10115,6 +10115,23 @@
       }
     }
   },
+  "focus_phases": {
+    "phases": {
+      "text": "Fasen"
+    },
+    "requirements": {
+      "text": "Vereisten"
+    },
+    "confirmation": {
+      "text": "Je bevestiging is vereist"
+    },
+    "switched": {
+      "text": "Focusfase:"
+    },
+    "returned": {
+      "text": "Terug naar focusfase:"
+    }
+  },
   "footer": {
     "language_selector": {
       "label": {

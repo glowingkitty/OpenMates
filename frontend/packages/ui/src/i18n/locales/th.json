@@ -10115,6 +10115,23 @@
       }
     }
   },
+  "focus_phases": {
+    "phases": {
+      "text": "ระยะ"
+    },
+    "requirements": {
+      "text": "เงื่อนไข"
+    },
+    "confirmation": {
+      "text": "ต้องได้รับการยืนยันจากคุณ"
+    },
+    "switched": {
+      "text": "ระยะของโหมดโฟกัส:"
+    },
+    "returned": {
+      "text": "กลับไปยังระยะของโหมดโฟกัส:"
+    }
+  },
   "footer": {
     "language_selector": {
       "label": {

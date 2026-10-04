@@ -10115,6 +10115,23 @@
       }
     }
   },
+  "focus_phases": {
+    "phases": {
+      "text": "Этапы"
+    },
+    "requirements": {
+      "text": "Условия"
+    },
+    "confirmation": {
+      "text": "Требуется ваше подтверждение"
+    },
+    "switched": {
+      "text": "Этап фокусировки:"
+    },
+    "returned": {
+      "text": "Возврат к этапу фокусировки:"
+    }
+  },
   "footer": {
     "language_selector": {
       "label": {

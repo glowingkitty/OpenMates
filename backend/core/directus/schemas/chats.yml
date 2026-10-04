@@ -68,6 +68,11 @@ chats:
       type: integer
       note: "Unix timestamp (seconds) of the most recent completed message, for sorting"
 
+    encrypted_focus_phase_state:
+      type: text
+      nullable: true
+      note: "[Client-encrypted permanent storage] Phase run state and bounded transition receipts; no plaintext phase progress."
+
     encrypted_active_focus_id:
       type: string
       note: "[Client-encrypted permanent storage] ID of the currently active focus for this chat (e.g., 'travel/plan_trip'), encrypted with the chat-specific key before storage in Directus."

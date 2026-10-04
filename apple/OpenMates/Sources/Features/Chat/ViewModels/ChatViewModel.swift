@@ -322,6 +322,7 @@ enum ChatGeneratedMetadataPolicy {
             subChatSettings: chat.subChatSettings,
             budgetLimit: chat.budgetLimit,
             budgetSpent: chat.budgetSpent,
+            encryptedFocusPhaseState: chat.encryptedFocusPhaseState,
             encryptedActiveFocusId: chat.encryptedActiveFocusId,
             activeFocusId: chat.activeFocusId
         )
@@ -367,6 +368,7 @@ enum ChatGeneratedMetadataPolicy {
             subChatSettings: chat.subChatSettings,
             budgetLimit: chat.budgetLimit,
             budgetSpent: chat.budgetSpent,
+            encryptedFocusPhaseState: chat.encryptedFocusPhaseState,
             encryptedActiveFocusId: chat.encryptedActiveFocusId,
             activeFocusId: chat.activeFocusId
         )
@@ -1611,6 +1613,7 @@ final class ChatViewModel: ObservableObject {
             subChatSettings: chat.subChatSettings,
             budgetLimit: chat.budgetLimit,
             budgetSpent: chat.budgetSpent,
+            encryptedFocusPhaseState: chat.encryptedFocusPhaseState,
             encryptedActiveFocusId: chat.encryptedActiveFocusId,
             activeFocusId: chat.activeFocusId
         )
@@ -2325,6 +2328,7 @@ final class ChatViewModel: ObservableObject {
             subChatSettings: currentChat.subChatSettings,
             budgetLimit: currentChat.budgetLimit,
             budgetSpent: currentChat.budgetSpent,
+            encryptedFocusPhaseState: chat.encryptedFocusPhaseState,
             encryptedActiveFocusId: nil,
             activeFocusId: nil
         )
@@ -5029,6 +5033,12 @@ final class ChatSendPipeline {
                 uniquingKeysWith: { _, new in new }
             )
         }
+        if let encryptedPhaseState = chatStore?.chat(for: chat.id)?.encryptedFocusPhaseState ?? chat.encryptedFocusPhaseState {
+            let text = try await crypto.decryptContent(base64String: encryptedPhaseState, key: keyMaterial.key)
+            if let data = text.data(using: .utf8), let states = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                outboundPayload["focus_phase_state"] = states
+            }
+        }
         let sendableEmbeds = composerEmbeds.compactMap(\.serverPayload)
         if !sendableEmbeds.isEmpty {
             outboundPayload["embeds"] = sendableEmbeds
@@ -6093,6 +6103,7 @@ final class ChatSendPipeline {
             subChatSettings: chat.subChatSettings,
             budgetLimit: chat.budgetLimit,
             budgetSpent: chat.budgetSpent,
+            encryptedFocusPhaseState: chat.encryptedFocusPhaseState,
             encryptedActiveFocusId: chat.encryptedActiveFocusId,
             activeFocusId: chat.activeFocusId
         )

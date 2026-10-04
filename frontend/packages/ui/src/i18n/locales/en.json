@@ -2902,6 +2902,15 @@
       "manual_intro": {
         "text": "Use this skill directly by entering your request below."
       },
+      "requirements": {
+        "text": "Requirements"
+      },
+      "optional": {
+        "text": "(optional)"
+      },
+      "requirements_placeholder": {
+        "text": "Describe what the results should match."
+      },
       "via": {
         "text": "via"
       },
@@ -3102,6 +3111,21 @@
     },
     "request_error": {
       "text": "The request could not finish. You can try again."
+    },
+    "saving": {
+      "text": "Saving results…"
+    },
+    "saved": {
+      "text": "Results saved"
+    },
+    "save_failed": {
+      "text": "Results are available. Saving failed."
+    },
+    "retry_save": {
+      "text": "Retry saving"
+    },
+    "saving_results": {
+      "text": "Results awaiting save"
     },
     "viewer_read_only": {
       "text": "Your team role allows viewing results. Ask a team member to run this skill."
@@ -10961,6 +10985,23 @@
       "systemprompt": {
         "text": "Help the user turn their original request into one or more executable workflows.\nPreserve the requested actions, schedule, conditions, location, and delivery\nchannel. Never silently substitute a different action or channel. Ask only for\ndetails needed to create a valid workflow; use Monday at 09:00 in the user's\nbrowser timezone when a weekly request omits its day and time, unless the user\nspecifies another timezone. State any default you use.\n\nUse the Workflows capability information and user-owned workflow search when\nneeded. Do not invent graph node types, skill parameters, or existing workflows.\nFor an existing workflow, verify the target before editing it. For several\ncreate or edit operations, gather enough detail for every operation before any\nsave. If the available tool cannot commit all requested changes together,\nexplain that limitation and continue clarifying without making partial changes.\n\nWhen the validated save path is available, save new workflows disabled and\npreserve the enabled state of edited workflows. Tell the user that a new\nworkflow must be activated by them. Summarize the workflows actually saved and\ndistinguish saved changes from proposals. Do not claim a workflow was created\nor edited until the tool confirms it."
       }
+    }
+  },
+  "focus_phases": {
+    "phases": {
+      "text": "Phases"
+    },
+    "requirements": {
+      "text": "Requirements"
+    },
+    "confirmation": {
+      "text": "Your confirmation is required"
+    },
+    "switched": {
+      "text": "Focus phase:"
+    },
+    "returned": {
+      "text": "Returned to focus phase:"
     }
   },
   "footer": {
@@ -23519,6 +23560,108 @@
       },
       "if_unsure": {
         "text": "If unsure"
+      },
+      "check_result": {
+        "text": "Result"
+      },
+      "check_result_boolean": {
+        "text": "True or False"
+      },
+      "check_result_options": {
+        "text": "Multiple choice"
+      },
+      "check_selection_mode": {
+        "text": "Select"
+      },
+      "check_select_one": {
+        "text": "Exactly one"
+      },
+      "check_select_multiple": {
+        "text": "All that apply"
+      },
+      "check_option_name": {
+        "text": "Option name"
+      },
+      "check_option_description": {
+        "text": "Select when (optional)"
+      },
+      "add_option": {
+        "text": "Add option"
+      },
+      "remove_option": {
+        "text": "Remove option"
+      },
+      "if_no_match": {
+        "text": "If none match"
+      },
+      "selected": {
+        "text": "Selected"
+      },
+      "no_match": {
+        "text": "No match"
+      },
+      "ai_check_options_guidance": {
+        "text": "Choose from the named options using earlier results. A variable alone is enough; an instruction is optional. Unsure is used when evidence is missing."
+      },
+      "branch_mapping_required": {
+        "text": "This branch contains steps. Move or remove those steps before changing its result or deleting it."
+      },
+      "for_each": {
+        "text": "For each"
+      },
+      "for_each_items": {
+        "text": "List to process"
+      },
+      "for_each_max_items": {
+        "text": "Maximum items"
+      },
+      "for_each_advanced_limits": {
+        "text": "Advanced limits"
+      },
+      "for_each_duration": {
+        "text": "Total time limit (seconds)"
+      },
+      "for_each_credits": {
+        "text": "Credit limit"
+      },
+      "for_each_timeout": {
+        "text": "Time limit per item (seconds)"
+      },
+      "for_each_limits": {
+        "text": "Processes items one at a time. Defaults: 100 items, 300 seconds, 100 credits and 60 seconds per item."
+      },
+      "for_each_array_required": {
+        "text": "Choose an earlier list and a maximum of 1 to 100 items."
+      },
+      "for_each_body": {
+        "text": "For each item"
+      },
+      "this_item": {
+        "text": "This item"
+      },
+      "start_input": {
+        "text": "Start input"
+      },
+      "item_number": {
+        "text": "Item"
+      },
+      "chat_actions": {
+        "text": "Workflow actions"
+      },
+      "chat_open_workflow": {
+        "text": "Open workflow"
+      },
+      "chat_save_reusable": {
+        "text": "Save as reusable"
+      },
+      "chat_open_saved_copy": {
+        "text": "Open saved copy"
+      },
+      "chat_snapshot_note": {
+        "text": "Showing the workflow saved with this chat. Open the Workflows workspace to edit it."
+      },
+      "chat_copy_failed": {
+        "text": "Could not save this workflow."
       },
       "if": {
         "text": "If"

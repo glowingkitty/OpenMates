@@ -87,6 +87,7 @@ import {
   type TaskProposalEvent,
   type TaskUpdateProposalEvent,
 } from "./ws.js";
+import type { FocusPhaseState } from "../../ui/src/types/focusPhases.js";
 import type { MentionContext, AppInfo, MemoryEntryInfo } from "./mentions.js";
 import { CHAT_MODELS } from "./mentions.js";
 import type { EncryptedEmbed, EmbedKeyWrapper, PreparedEmbed } from "./embedCreator.js";
@@ -7117,6 +7118,7 @@ export class OpenMatesClient {
     let activeFocusId: string | null = null;
     let encryptedChatKey: string | null = null;
     let chatSlugLookupKey: Uint8Array | null = null;
+    let focusPhaseState: Record<string, FocusPhaseState> = {};
     let baselineMessagesV = 0;
     let notificationTitle: string | null = null;
     let terminalExpectedMessagesV = 1;
@@ -7166,6 +7168,12 @@ export class OpenMatesClient {
                 // Missing or stale metadata only removes the optional mail title.
               }
             }
+            const encryptedPhaseState = chat.details.encrypted_focus_phase_state;
+            if (typeof encryptedPhaseState === "string" && encryptedPhaseState) {
+              const phaseText = await decryptWithAesGcmCombined(encryptedPhaseState, chatKeyBytes);
+              if (!phaseText) throw new Error("Could not decrypt focus phase progress. Sync before sending again.");
+              focusPhaseState = JSON.parse(phaseText);
+            }
             const encryptedFocusId = chat.details.encrypted_active_focus_id;
             if (typeof encryptedFocusId === "string" && encryptedFocusId) {
               activeFocusId = await decryptWithAesGcmCombined(encryptedFocusId, chatKeyBytes);
@@ -7188,12 +7196,48 @@ export class OpenMatesClient {
     ws.onMessageType<{ chat_id?: string; focus_id?: string }>("focus_mode_activated", (event) => {
       if (event.chat_id !== chatId || !event.focus_id || !chatKeyBytes || params.incognito) return;
       const focusId = event.focus_id;
+      if (!focusId.startsWith("project-")) delete focusPhaseState[focusId];
       const key = chatKeyBytes;
       focusPersistence = focusPersistence.then(async () => {
         const encryptedFocusId = await encryptWithAesGcmCombined(focusId, key);
         await ws.sendAsync("update_encrypted_active_focus_id", {
           chat_id: chatId, encrypted_active_focus_id: encryptedFocusId,
         });
+      }).catch((error: unknown) => { focusPersistenceError = error; });
+    });
+
+    ws.onMessageType<{ chat_id?: string; states?: Record<string, FocusPhaseState> }>("focus_phases_updated", (event) => {
+      if (event.chat_id !== chatId || !event.states || !chatKeyBytes || params.incognito) return;
+      const key = chatKeyBytes;
+      const states = event.states;
+      focusPersistence = focusPersistence.then(async () => {
+        for (const [focusId, phase] of Object.entries(states)) {
+          if (phase.schema_version !== 1 || phase.chat_id !== chatId || phase.focus_id !== focusId
+              || !Number.isSafeInteger(phase.version) || phase.version < 0
+              || !Array.isArray(phase.transitions) || phase.transitions.length > 32) {
+            throw new Error("Invalid focus phase state received");
+          }
+          if (focusPhaseState[focusId]?.run_id === phase.run_id
+              && focusPhaseState[focusId].version > phase.version) states[focusId] = focusPhaseState[focusId];
+        }
+        focusPhaseState = states;
+        const encryptedState = await encryptWithAesGcmCombined(JSON.stringify(states), key);
+        const persisted = ws.waitForMessage("encrypted_metadata_stored",
+          payload => (payload as Record<string, unknown>).chat_id === chatId, 20_000);
+        await ws.sendAsync("encrypted_chat_metadata", { chat_id: chatId,
+          ...(teamId ? { team_id: teamId } : {}), encrypted_focus_phase_state: encryptedState });
+        await persisted;
+        const eventIds = new Set<string>();
+        for (const phase of Object.values(states)) for (const transition of phase.transitions) {
+          if (transition.chat_id !== chatId || transition.focus_id !== phase.focus_id || !transition.event_id
+              || eventIds.has(transition.event_id)) continue;
+          eventIds.add(transition.event_id);
+          const content = JSON.stringify(transition);
+          await ws.sendAsync("chat_system_message_added", { chat_id: chatId,
+            message: { message_id: transition.event_id, role: "system", status: "synced",
+              encrypted_content: await encryptWithAesGcmCombined(content, key), created_at: transition.created_at } });
+        }
+        clearSyncCache(teamId);
       }).catch((error: unknown) => { focusPersistenceError = error; });
     });
 
@@ -7218,6 +7262,7 @@ export class OpenMatesClient {
       client_capabilities: clientCapabilities,
       // Only decrypted current metadata restores focus; history is never authority.
       active_focus_id: activeFocusId,
+      focus_phase_state: focusPhaseState,
       is_incognito: Boolean(params.incognito),
       message: {
         message_id: messageId,

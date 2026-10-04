@@ -136,26 +136,12 @@ async def _async_focus_mode_auto_confirm(
     directus_service = DirectusService()
     await directus_service.ensure_auth_token()
 
-    # A catalog focus replaces any active Project focus for this chat. Clear the
-    # server-authoritative Project binding before publishing the catalog focus so
-    # the previous Project cannot remain as hidden tool authority.
-    try:
-        from backend.core.api.app.services.project_write_authorization_service import (
-            ProjectWriteAuthorizationService,
-        )
+    # A specialist adds its instructions to the already authorized Project base.
+    # It never grants additional Project permissions.
+    from backend.apps.ai.processing.focus_phases import invalidate_phase_runtime
+    await invalidate_phase_runtime(await cache_service.client, owner_id=user_id,
+                                   chat_id=chat_id, focus_id=focus_id)
 
-        await ProjectWriteAuthorizationService(
-            directus_service,
-            cache_service,
-        ).deactivate_focus(user_id=user_id, chat_id=chat_id)
-    except Exception:
-        logger.error(
-            "%s Cannot replace Project focus with catalog focus",
-            log_prefix,
-            exc_info=True,
-        )
-        return
-    
     # Fetch user's vault key — needed for decryption in step 2c
     user_vault_key_id = await cache_service.get_user_vault_key_id(user_id)
     if not user_vault_key_id:

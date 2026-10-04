@@ -30,7 +30,7 @@ CHAT_METADATA_FINGERPRINT_FIELDS = (
     "encrypted_follow_up_request_suggestions",
     "encrypted_top_recommended_apps_for_chat",
     "encrypted_quick_tip_slugs",
-    "encrypted_active_focus_id",
+    "encrypted_active_focus_id", "encrypted_focus_phase_state",
     "encrypted_auto_speak_response",
 )
 

@@ -109,6 +109,7 @@ class CachedChatListItemData(BaseModel):
     encrypted_top_recommended_apps_for_chat: Optional[str] = None  # Encrypted array of recommended app IDs for this chat
     encrypted_quick_tip_slugs: Optional[str] = None  # Encrypted array of selected product quick tip slugs
     encrypted_shared_short_url: Optional[str] = None  # Encrypted owner share URL for reopening copy/QR UI
+    encrypted_focus_phase_state: Optional[str] = None  # Client-encrypted progress and transition receipts
     encrypted_active_focus_id: Optional[str] = None  # Encrypted ID of active focus (encrypted with chat-specific key)
     encrypted_auto_speak_response: Optional[str] = None  # Encrypted chat-scoped assistant-response speech preference
     last_message_timestamp: Optional[int] = None  # Unix timestamp of most recent completed message

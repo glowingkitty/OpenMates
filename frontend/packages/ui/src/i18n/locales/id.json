@@ -10115,6 +10115,23 @@
       }
     }
   },
+  "focus_phases": {
+    "phases": {
+      "text": "Tahapan"
+    },
+    "requirements": {
+      "text": "Persyaratan"
+    },
+    "confirmation": {
+      "text": "Konfirmasi Anda diperlukan"
+    },
+    "switched": {
+      "text": "Tahap fokus:"
+    },
+    "returned": {
+      "text": "Kembali ke tahap fokus:"
+    }
+  },
   "footer": {
     "language_selector": {
       "label": {

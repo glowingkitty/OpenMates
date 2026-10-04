@@ -47,6 +47,7 @@ final class PersistedChat {
     var subChatSettingsJSON: Data?
     var budgetLimit: Double?
     var budgetSpent: Double?
+    var encryptedFocusPhaseState: String?
     var encryptedActiveFocusId: String?
     var activeFocusId: String?
 
@@ -87,6 +88,7 @@ final class PersistedChat {
         self.subChatSettingsJSON = try? JSONEncoder().encode(chat.subChatSettings)
         self.budgetLimit = chat.budgetLimit
         self.budgetSpent = chat.budgetSpent
+        self.encryptedFocusPhaseState = chat.encryptedFocusPhaseState
         self.encryptedActiveFocusId = chat.encryptedActiveFocusId
         self.activeFocusId = chat.activeFocusId
     }
@@ -114,6 +116,7 @@ final class PersistedChat {
             subChatSettings: subChatSettingsJSON.flatMap { try? JSONDecoder().decode(SubChatSettings.self, from: $0) },
             budgetLimit: budgetLimit,
             budgetSpent: budgetSpent,
+            encryptedFocusPhaseState: encryptedFocusPhaseState,
             encryptedActiveFocusId: encryptedActiveFocusId,
             activeFocusId: activeFocusId,
             isPrivate: isPrivate,
@@ -551,6 +554,7 @@ final class OfflineStore: ObservableObject {
                 existing.subChatSettingsJSON = try? JSONEncoder().encode(chat.subChatSettings)
                 existing.budgetLimit = chat.budgetLimit
                 existing.budgetSpent = chat.budgetSpent
+                existing.encryptedFocusPhaseState = chat.encryptedFocusPhaseState
                 existing.encryptedActiveFocusId = chat.encryptedActiveFocusId
                 existing.activeFocusId = chat.activeFocusId
                 existing.isPrivate = chat.isPrivate ?? existing.isPrivate

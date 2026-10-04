@@ -527,6 +527,8 @@ class FocusModeMetadataItem(BaseModel):
     
     Includes resolved translation strings, not translation keys.
     """
+    phases_version: Optional[int] = None
+    phases: List[Dict[str, Any]] = Field(default_factory=list)
     id: str
     name: str  # Resolved translation string for focus mode name
     description: str  # Resolved translation string for focus mode description
@@ -730,6 +732,8 @@ def build_app_metadata_item(
             icon_image=focus.icon_image,
             process=process,
             system_prompt=system_prompt,
+            phases_version=focus.phases_version,
+            phases=[p.model_dump() for p in focus.phases or []],
             how_to_use=focus.how_to_use or _translated_examples(
                 translation_service=translation_service,
                 base_key=focus.name_translation_key,

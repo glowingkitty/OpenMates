@@ -149,6 +149,7 @@ struct SettingsAppsFullView: View {
         let exampleChatIds: [String]?
         let process: [String]?
         let systemPrompt: String?
+        let phases: [FocusPhaseDefinition]?
         let models: [ModelDetail]?
         let iconImage: String?
         let type: String?
@@ -174,6 +175,7 @@ struct SettingsAppsFullView: View {
             exampleChatIds: [String]? = nil,
             processBullets: [String]? = nil,
             systemPrompt: String? = nil,
+            phases: [FocusPhaseDefinition]? = nil,
             modelNames: [String]? = nil,
             models: [ModelDetail]? = nil,
             iconImage: String? = nil,
@@ -190,6 +192,7 @@ struct SettingsAppsFullView: View {
             self.exampleChatIds = exampleChatIds
             self.process = processBullets
             self.systemPrompt = systemPrompt
+            self.phases = phases
             self.models = models ?? modelNames?.map {
                 ModelDetail(id: $0, name: $0, description: nil, providerId: "", providerName: "", pricing: nil)
             }
@@ -1499,6 +1502,8 @@ private struct AppFocusModeDetailNativeView: View {
                     }
                 }
             }
+
+            if let phases = focusMode.phases, !phases.isEmpty { FocusModePhasesNativeView(phases: phases) }
 
             OMSettingsSection(AppStrings.appStoreSystemPrompt, icon: "systemprompt") {
                 if let bullets = focusMode.processBullets, !bullets.isEmpty {

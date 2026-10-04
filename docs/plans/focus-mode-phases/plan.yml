@@ -1,0 +1,253 @@
+schema_version: 2
+status: implementing
+goal: 'Implement and test phased focus modes via OpenMates CLI and web app, with Apple rendering
+  parity. Five question rounds are instructions that users may override by skipping remaining questions
+  or asking for all questions together.
+
+  '
+tracking:
+  authority: OpenMates Tasks
+  external_chat: codex:01a10607-989f-77e1-b08b-4dce9f7d106a
+  session: 907d
+scope:
+  in:
+  - Versioned YAML phases in focus text, stable IDs, titles, instructions and requirements.
+  - Jev gates on user, completed tool batch and completed assistant boundaries; automatic forward
+    progression and explicit rewind.
+  - Full current-phase prompt and title-only other phases; scoped state and stale evaluation protection.
+  - Encrypted restoration, linked system history, detail-page phases and unchanged active focus chrome.
+  - Career insights pilot and the shared engine for Project instruction text.
+  out:
+  - Broader Jev agentic Project work and automatic Workflow execution.
+decisions:
+- id: D-1
+  status: active
+  decision: Five rounds are phase instructions only; users can skip or batch questions.
+  reason: Explicit user correction and implementation authorization.
+  decided_at: '2026-10-04'
+verification:
+- Focused parser and state-machine unit tests, including malformed definitions, confirmation, rewind
+  and stale decisions.
+- CLI and web app real inference across multiple messages on dev with disposable chat state.
+- Isolated GitHub CI component and browser coverage for phase detail and history links.
+- Remote Mac native build and focused rendering verification.
+authorization: User explicitly approved implementation and testing after correcting the clarification
+  minimum; no further planning approval is required.
+id: focus-mode-phases
+title: Phased focus modes with user-controlled clarification
+scenarios:
+- id: S-1
+  title: Progress and return with restored state
+  given:
+  - A focus with validated phases is active.
+  when:
+  - The user answers or requests a return; a tool batch or response completes.
+  then:
+  - Requirements gate forward progress and explicit requests allow rewind; encrypted restoration
+    and linked history agree across clients.
+acceptance_criteria:
+- id: AC-1
+  scenario: S-1
+  text: Strict phase parsing, Jev gates, uncertainty, user consent, stale CAS and rewind work without
+    a question-count gate.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: related_backend
+  verification_ids:
+  - T-PHASE-1
+- id: AC-2
+  scenario: S-1
+  text: Real dev CLI chat advances, restores phase state, honors skipping and batching questions,
+    and returns on request.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: cli
+  verification_ids:
+  - T-PHASE-2
+- id: AC-3
+  scenario: S-1
+  text: Web detail phases and linked system history render while active-focus chrome stays unchanged;
+    real multi-message web conversations honor sequential questions, batching, skipping, confirmation and rewind.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: playwright
+  verification_ids:
+  - T-PHASE-3
+  - T-PHASE-5
+- id: AC-4
+  scenario: S-1
+  text: Apple renders phase detail and linked history with matching state and compiles on Mac.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: apple
+  verification_ids:
+  - T-PHASE-4
+tests:
+- id: T-PHASE-1
+  type: pytest
+  covers:
+  - AC-1
+  assertions:
+  - Strict phase parsing, Jev gates, uncertainty, user consent, stale CAS and rewind work without
+    a question-count gate.
+  red_phase:
+    required: false
+    expected: legacy implementation has no phase behavior
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+  file: backend/tests/test_focus_phases.py
+  command: pytest backend/tests/test_focus_phases.py
+- id: T-PHASE-2
+  type: manual
+  covers:
+  - AC-2
+  assertions:
+  - Real dev CLI chat advances, restores phase state, honors skipping and batching questions, and
+    returns on request.
+  red_phase:
+    required: false
+    expected: legacy implementation has no phase behavior
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+- id: T-PHASE-3
+  type: playwright
+  covers:
+  - AC-3
+  assertions:
+  - Web detail phases and linked system history render while active-focus chrome stays unchanged.
+  red_phase:
+    required: false
+    expected: legacy implementation has no phase behavior
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+  file: frontend/apps/web_app/tests/components/focus-phases.spec.ts
+  command: ci_coordinator.py submit --suite playwright
+  target: isolated preview
+  execution_environment: isolated_github_ci
+- id: T-PHASE-4
+  type: manual
+  covers:
+  - AC-4
+  assertions:
+  - Apple renders phase detail and linked history with matching state and compiles on Mac.
+  red_phase:
+    required: false
+    expected: legacy implementation has no phase behavior
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+- id: T-PHASE-5
+  type: manual
+  covers:
+  - AC-3
+  assertions:
+  - Real multi-message web conversations honor sequential questions, batching, skipping, confirmation and rewind.
+  red_phase:
+    required: false
+    expected: legacy implementation has no phase behavior
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+implementation_state:
+  subject_commit: d84085c99f5ea469dcf32e8e6da0233d22fe9c41
+approvals:
+  specification:
+    status: approved
+    approved_at: '2026-10-04'
+    fingerprint: 57a9851de73d1bab3d8f5b453f35864f811990ebfe7ac5c036b00b58aacb19c3
+    source: Explicit user approval in linked Codex chat; session 907d receipt.
+  plan:
+    status: approved
+    approved_at: '2026-10-04'
+    source: User go-ahead in linked Codex chat.
+tasks:
+- id: TASK-6202
+  title: Phased focus implementation surface
+  status: pending
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    acceptance_criteria:
+    - AC-1
+    - AC-2
+  expected_files: &id001
+  - backend/apps/ai/processing/focus_phases.py
+  verification_ids:
+  - T-PHASE-1
+  - T-PHASE-2
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files: *id001
+    shared_files: []
+- id: TASK-4703
+  title: Phased focus implementation surface
+  status: pending
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    acceptance_criteria:
+    - AC-3
+  expected_files: &id002
+  - frontend/packages/ui/src/components/settings/FocusModeDetails.svelte
+  verification_ids:
+  - T-PHASE-3
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files: *id002
+    shared_files: []
+- id: TASK-7858
+  title: Phased focus implementation surface
+  status: pending
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    acceptance_criteria:
+    - AC-4
+  expected_files: &id003
+  - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+  verification_ids:
+  - T-PHASE-4
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files: *id003
+    shared_files: []
+attempts:
+- id: ATT-1
+  task_id: TASK-6202
+  outcome: planned
+  approach: Implement strict YAML definitions and completed-boundary gates, then client parity and
+    focused evidence.
+  recorded_at: '2026-10-04'
+handoff:
+  current_task_id: TASK-6202
+  next_action: Wire client encrypted state and history, then verify.
+  command: python3 scripts/sessions.py status --session 907d
+  expected_outcome: All four acceptance criteria satisfied with scoped evidence.
+  last_verified_commit: d84085c99f5ea469dcf32e8e6da0233d22fe9c41
+  blocker: null

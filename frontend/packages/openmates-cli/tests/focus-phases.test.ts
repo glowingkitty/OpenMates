@@ -1,0 +1,273 @@
+/** Phase restoration/history integration using the real SDK and a bounded mock transport. */
+// contract-test-file: supporting surface=cli assertions=focus-modes.phases,focus-modes.restoration,focus-modes.history-events
+import { after, it } from "node:test";
+import assert from "node:assert/strict";
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { WebSocketServer } from "ws";
+const previousStateDir = process.env.OPENMATES_STATE_DIR;
+const previousApiUrl = process.env.OPENMATES_API_URL;
+const stateDir = mkdtempSync(join(tmpdir(), "openmates-focus-phases-"));
+process.env.OPENMATES_STATE_DIR = stateDir;
+delete process.env.OPENMATES_API_URL;
+const { OpenMatesClient } = await import("../src/client.ts");
+const { encryptBytesWithAesGcm, encryptWithAesGcmCombined, decryptWithAesGcmCombined,
+  sealChatCompletionRecoveryPayload } = await import("../src/crypto.ts");
+function writeLegacySession(apiUrl: string): void {
+  mkdirSync(stateDir, { recursive: true, mode: 0o700 });
+  writeFileSync(join(stateDir, "session.json"), JSON.stringify({
+    apiUrl, sessionId: "test-session-id", wsToken: "test-ws-token",
+    cookies: { auth_refresh_token: "test-refresh-token" },
+    masterKeyExportedB64: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+    emailEncryptionKeyB64: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+    hashedEmail: "test-hashed-email", userEmailSalt: "test-email-salt",
+    createdAt: 1710000000000, authorizerDeviceName: "Test Browser", autoLogoutMinutes: null,
+  }), { mode: 0o600 });
+}
+after(() => {
+  if (previousStateDir === undefined) delete process.env.OPENMATES_STATE_DIR;
+  else process.env.OPENMATES_STATE_DIR = previousStateDir;
+  if (previousApiUrl === undefined) delete process.env.OPENMATES_API_URL;
+  else process.env.OPENMATES_API_URL = previousApiUrl;
+  rmSync(stateDir, { recursive: true, force: true });
+});
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
+  // contract-test: supporting surface=cli assertions=focus-modes.full-instruction,focus-modes.restoration
+  for (const restoredFocus of ["jobs-career_insights", null]) {
+  // contract-test: supporting surface=cli assertions=focus-modes.phases,focus-modes.restoration,focus-modes.history-events
+  it(`restores encrypted phase progress and persists live history for saved chats (${restoredFocus ?? "off"})`, async () => {
+    const chatId = "11111111-1111-4111-8111-111111111111";
+    const ownerId = "22222222-2222-4222-8222-222222222222";
+    const assistantMessageId = "33333333-3333-4333-8333-333333333333";
+    const recoveryJobId = "44444444-4444-4444-8444-444444444444";
+    const rawChatKey = new Uint8Array(32).fill(7);
+    const projectFocusId = "project-55555555-5555-4555-8555-555555555555";
+    const initialPhase = { schema_version: 1, chat_id: chatId, focus_id: "jobs-career_insights",
+      revision: "definition-v1", run_id: "old-run", version: 2, phase_id: "explore", complete: false, transitions: [] };
+    const projectPhase = { ...initialPhase, focus_id: projectFocusId, version: 4 };
+    const savedPhases = restoredFocus ? { [restoredFocus]: initialPhase, [projectFocusId]: projectPhase } : {};
+    const phaseEvent = { type: "focus_phase_changed", event_id: "66666666-6666-4666-8666-666666666666",
+      chat_id: chatId, focus_id: "jobs-career_insights", run_id: "new-run", version: 1,
+      previous_phase_id: "confirm_profile", phase_id: "explore", phase_title: "Explore career directions",
+      direction: "forward", created_at: 1770000000 };
+    const livePhases = { "jobs-career_insights": { ...initialPhase, run_id: "new-run", version: 1, transitions: [phaseEvent] },
+      [projectFocusId]: { ...projectPhase, version: 3 } };
+    const encryptedChatKey = await encryptBytesWithAesGcm(rawChatKey, new Uint8Array(32));
+    writeFileSync(join(stateDir, "sync_cache.json"), JSON.stringify({
+      syncedAt: Date.now(),
+      totalChatCount: 1,
+      loadedChatCount: 1,
+      chats: [{
+        details: { id: chatId, encrypted_chat_key: encryptedChatKey, messages_v: 7,
+          encrypted_active_focus_id: restoredFocus ? await encryptWithAesGcmCombined(restoredFocus, rawChatKey) : null,
+          encrypted_focus_phase_state: restoredFocus ? await encryptWithAesGcmCombined(JSON.stringify(savedPhases), rawChatKey) : null },
+        messages: [],
+      }],
+      embeds: [],
+      embedKeys: [],
+    }));
+
+    const captured: {
+      preflightPayload?: Record<string, unknown>;
+      messagePayload?: Record<string, unknown>;
+      persistPayload?: Record<string, unknown>;
+      focusUpdate?: Record<string, unknown>;
+      phaseMetadata?: Record<string, unknown>;
+      phaseMessages: Array<Record<string, unknown>>;
+      frameTypes: string[];
+    } = { frameTypes: [], phaseMessages: [] };
+    let sealedPayloadForTest: string | null = null;
+    const wss = new WebSocketServer({ noServer: true });
+    const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      if (request.method === "POST" && request.url === "/v1/auth/session") {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({
+          success: true,
+          ws_token: "fresh-ws-token",
+          user: { id: ownerId },
+        }));
+        return;
+      }
+      if (
+        request.method === "GET" &&
+        request.url === "/v1/settings/export-account-data?include_usage=false&include_invoices=false"
+      ) {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ data: { app_settings_memories: [] } }));
+        return;
+      }
+      if (request.method === "GET" && request.url?.startsWith(`/v1/chats/${chatId}/messages/window`)) {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ messages: [], has_more_before: false, start_cursor: null }));
+        return;
+      }
+      response.writeHead(404);
+      response.end();
+    });
+    server.on("upgrade", (request, socket, head) => {
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        ws.on("message", async (raw) => {
+          const frame = JSON.parse(raw.toString()) as { type: string; payload: Record<string, unknown> };
+          captured.frameTypes.push(frame.type);
+          if (frame.type === "phased_sync_request") {
+            ws.send(JSON.stringify({ type: "phase_2_last_20_chats_ready", payload: {
+              total_chat_count: 1, chats: [{ chat_details: {
+                id: chatId, encrypted_chat_key: encryptedChatKey, messages_v: 7,
+                encrypted_active_focus_id: restoredFocus ? await encryptWithAesGcmCombined(restoredFocus, rawChatKey) : null,
+                encrypted_focus_phase_state: captured.phaseMetadata?.encrypted_focus_phase_state
+                  ?? (restoredFocus ? await encryptWithAesGcmCombined(JSON.stringify(savedPhases), rawChatKey) : null),
+              }, messages: [] }],
+            }}));
+            ws.send(JSON.stringify({ type: "phased_sync_complete", payload: {} }));
+          }
+          if (frame.type === "chat_turn_preflight") {
+            captured.preflightPayload = frame.payload;
+            sealedPayloadForTest = JSON.stringify(await sealChatCompletionRecoveryPayload(
+              new TextEncoder().encode(JSON.stringify({
+                assistant_message_id: assistantMessageId,
+                category: null,
+                chat_id: chatId,
+                content: "ok",
+                job_id: recoveryJobId,
+                key_version: 1,
+                model_name: null,
+                turn_id: frame.payload.turn_id,
+              })),
+              {
+                recoveryPublicKey: String(frame.payload.recovery_public_key),
+                ownerId,
+                chatId,
+                turnId: String(frame.payload.turn_id),
+                jobId: recoveryJobId,
+                assistantMessageId,
+                keyVersion: 1,
+              },
+            ));
+            ws.send(JSON.stringify({
+              type: "chat_turn_preflight_ack",
+              payload: { preflight_id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", turn_id: frame.payload.turn_id },
+            }));
+          }
+          if (frame.type === "update_encrypted_active_focus_id") captured.focusUpdate = frame.payload;
+          if (frame.type === "encrypted_chat_metadata") {
+            captured.phaseMetadata = frame.payload;
+            ws.send(JSON.stringify({ type: "encrypted_metadata_stored", payload: { chat_id: chatId } }));
+          }
+          if (frame.type === "chat_system_message_added") captured.phaseMessages.push(frame.payload);
+          if (frame.type === "chat_message_added") {
+            ws.send(JSON.stringify({ type: "focus_mode_activated", payload: { chat_id: chatId, focus_id: "jobs-career_insights" } }));
+            if (restoredFocus) ws.send(JSON.stringify({ type: "focus_phases_updated", payload: { chat_id: chatId, states: livePhases } }));
+            captured.messagePayload = frame.payload;
+            const message = frame.payload.message as Record<string, unknown>;
+            ws.send(JSON.stringify({
+              type: "chat_message_confirmed",
+              payload: { chat_id: chatId, message_id: message.message_id, new_messages_v: 9 },
+            }));
+            setTimeout(() => {
+              ws.send(JSON.stringify({
+                type: "ai_message_update",
+                payload: {
+                  chat_id: chatId,
+                  user_message_id: message.message_id,
+                  message_id: assistantMessageId,
+                  full_content_so_far: "ok",
+                  is_final_chunk: true,
+                },
+              }));
+              ws.send(JSON.stringify({ type: "post_processing_metadata", payload: { chat_id: chatId } }));
+            }, 10);
+            setTimeout(() => {
+              ws.send(JSON.stringify({
+                type: "recovery_jobs_available",
+                payload: {
+                  jobs: [{
+                    job_id: recoveryJobId,
+                    chat_id: chatId,
+                    turn_id: captured.preflightPayload?.turn_id,
+                    assistant_message_id: assistantMessageId,
+                    chat_key_version: 1,
+                  }],
+                },
+              }));
+            }, 30);
+          }
+          if (frame.type === "recovery_job_claim") {
+            assert.ok(sealedPayloadForTest);
+            ws.send(JSON.stringify({
+              type: "recovery_job_claimed",
+              payload: {
+                job_id: recoveryJobId,
+                state: "LEASED",
+                lease_token: "lease-token-old-chat",
+                lease_generation: 2,
+                sealed_payload: sealedPayloadForTest,
+                chat_id: chatId,
+                turn_id: captured.preflightPayload?.turn_id,
+                assistant_message_id: assistantMessageId,
+                chat_key_version: 1,
+              },
+            }));
+          }
+          if (frame.type === "recovery_job_persist") {
+            captured.persistPayload = frame.payload;
+            ws.send(JSON.stringify({
+              type: "recovery_job_persisted",
+              payload: { job_id: recoveryJobId, state: "TERMINAL", committed_messages_v: 9 },
+            }));
+          }
+        });
+      });
+    });
+
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      // This fixture tests request/recovery metadata; it has no phased-sync history server.
+      await client.sendMessage({ message: "Continue this old chat", chatId, messageHistory: [] });
+
+      assert.equal(captured.messagePayload?.active_focus_id, restoredFocus);
+      assert.equal(captured.focusUpdate?.chat_id, chatId);
+      assert.equal(await decryptWithAesGcmCombined(String(captured.focusUpdate?.encrypted_active_focus_id), rawChatKey), "jobs-career_insights");
+      assert.ok(captured.preflightPayload);
+      assert.equal(captured.preflightPayload.expected_messages_v, 7);
+      assert.equal(captured.preflightPayload.encrypted_chat_key, encryptedChatKey);
+      assert.equal(captured.preflightPayload.chat_key_version, 1);
+      assert.equal(typeof captured.preflightPayload.recovery_public_key, "string");
+      assert.equal(captured.preflightPayload.encrypted_chat_metadata, undefined);
+      assert.equal(captured.frameTypes.includes("encrypted_chat_metadata"), Boolean(restoredFocus));
+      if (restoredFocus) {
+        assert.deepEqual(captured.messagePayload?.focus_phase_state, savedPhases);
+        const saved = JSON.parse(await decryptWithAesGcmCombined(String(captured.phaseMetadata?.encrypted_focus_phase_state), rawChatKey));
+        assert.equal(saved[restoredFocus].run_id, "new-run");
+        assert.equal(saved[restoredFocus].phase_id, "explore");
+        assert.equal(saved[projectFocusId].version, 4, "Catalog activation retains newer Project phase progress");
+        assert.equal(captured.phaseMessages.length, 1);
+        const message = captured.phaseMessages[0].message as Record<string, unknown>;
+        assert.equal(message.role, "system");
+        assert.equal(message.message_id, phaseEvent.event_id);
+        assert.deepEqual(JSON.parse(await decryptWithAesGcmCombined(String(message.encrypted_content), rawChatKey)), phaseEvent);
+      }
+      assert.equal(captured.messagePayload?.protocol_version, 1);
+      assert.equal(captured.messagePayload?.preflight_id, "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb");
+      assert.equal(captured.messagePayload?.turn_id, captured.preflightPayload.turn_id);
+      assert.equal(captured.messagePayload?.recovery_public_key, captured.preflightPayload.recovery_public_key);
+      assert.equal(captured.messagePayload?.chat_key_version, 1);
+      assert.equal(captured.frameTypes.includes("ai_response_completed"), false);
+      assert.equal(captured.persistPayload?.expected_messages_v, 9);
+      assert.equal(captured.persistPayload?.lease_token, "lease-token-old-chat");
+      assert.equal(captured.persistPayload?.lease_generation, 2);
+    } finally {
+      rmSync(join(stateDir, "sync_cache.json"), { force: true });
+      wss.close();
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+  }
+

@@ -75,6 +75,7 @@ struct SettingsProjectsView: View {
     @State private var projectNames: [String: String] = [:]
     @State private var projectKeys: [String: SymmetricKey] = [:]
     @State private var sources: [ProjectSource] = []
+    @State private var focusPhases: [FocusPhaseDefinition] = []
     @State private var sourceNames: [String: String] = [:]
     @State private var writeMode: WriteMode?
     @State private var isLoading = true
@@ -111,7 +112,7 @@ struct SettingsProjectsView: View {
     struct ProjectsResponse: Decodable { let projects: [ProjectItem] }
     struct SourcesResponse: Decodable { let sources: [ProjectSource] }
     struct SettingsResponse: Decodable { let settings: ProjectSettings }
-    struct ProjectSettings: Decodable { let writeMode: WriteMode? }
+    struct ProjectSettings: Decodable { let writeMode: WriteMode?; let encryptedSettings: String? }
     struct UpdateSettingsRequest: Encodable {
         let writeMode: WriteMode
         let updatedAt: Int
@@ -193,6 +194,7 @@ struct SettingsProjectsView: View {
             if isLoading {
                 ProgressView().frame(maxWidth: .infinity).padding(.spacing8)
             } else {
+                if !focusPhases.isEmpty { FocusModePhasesNativeView(phases: focusPhases) }
                 OMSettingsSection(L("settings.projects.write_policy")) {
                     ForEach(WriteMode.allCases, id: \.self) { mode in
                         OMSettingsRow(
@@ -357,6 +359,7 @@ struct SettingsProjectsView: View {
         sources = []
         sourceNames = [:]
         writeMode = nil
+        focusPhases = []
         do {
             let sourceResponse: SourcesResponse = try await requestPinned(
                 .get, path: route.sources(project.id), fence: fence)
@@ -366,7 +369,17 @@ struct SettingsProjectsView: View {
             guard await isCurrent(operation, fence: fence), selectedProject?.id == project.id else { return }
             sources = sourceResponse.sources
             sourceNames = names
-            writeMode = settingsResponse.settings.writeMode
+            writeMode = settingsResponse.settings.writeMode;
+            focusPhases = []
+            if let encrypted = settingsResponse.settings.encryptedSettings, let key = projectKeys[project.id] {
+                if let text = try? await CryptoManager.shared.decryptContent(base64String: encrypted, key: key),
+                   let data = text.data(using: .utf8),
+                   let settings = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+                   let focus = settings["default_focus"] as? [String: Any], let instruction = focus["instructions"] as? String,
+                   await isCurrent(operation, fence: fence), selectedProject?.id == project.id {
+                    focusPhases = FocusPhaseDefinition.fromInstruction(instruction)
+                }
+            }
         } catch {
             guard await isCurrent(operation, fence: fence), selectedProject?.id == project.id else { return }
             errorMessage = error.localizedDescription

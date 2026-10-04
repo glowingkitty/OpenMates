@@ -5048,7 +5048,9 @@ struct MessageBubble: View {
     }
 
     private var systemContent: some View {
-        RichMarkdownView(
+        Group {
+        if let event = FocusPhaseEvent.parse(displayContent) { FocusPhaseNoticeView(event: event) }
+        else { RichMarkdownView(
             content: displayContent,
             renderDocument: stableRenderDocument,
             isUserMessage: false,
@@ -5056,7 +5058,8 @@ struct MessageBubble: View {
             allEmbedRecords: allEmbedRecords,
             onEmbedTap: onEmbedTap,
             searchHighlightQuery: searchHighlightQuery
-        )
+        ) }
+        }
         .font(.omSmall)
         .foregroundStyle(Color.fontSecondary)
         .padding(.horizontal, .spacing6)

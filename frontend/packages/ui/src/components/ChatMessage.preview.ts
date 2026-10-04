@@ -26,6 +26,18 @@ export default defaultProps;
 
 /** Named variants for different message types and states */
 export const variants = {
+  focusPhase: {
+    ...defaultProps, role: 'system' as const,
+    content: JSON.stringify({ type: 'focus_phase_changed', event_id: '11111111-1111-4111-8111-111111111111',
+      chat_id: '22222222-2222-4222-8222-222222222222', focus_id: 'jobs-career_insights', phase_id: 'explore',
+      phase_title: 'Explore career directions', direction: 'forward', created_at: 1, run_id: 'run', version: 2 }),
+  },
+  focusPhaseReturn: {
+    ...defaultProps, role: 'system' as const,
+    content: JSON.stringify({ type: 'focus_phase_changed', event_id: '11111111-1111-4111-8111-111111111111',
+      chat_id: '22222222-2222-4222-8222-222222222222', focus_id: 'jobs-career_insights', phase_id: 'understand',
+      phase_title: 'Understand your situation', direction: 'backward', created_at: 1, run_id: 'run', version: 3 }),
+  },
 	/** Assistant message */
 	assistant: {
 		role: 'assistant' as const,

@@ -10115,6 +10115,23 @@
       }
     }
   },
+  "focus_phases": {
+    "phases": {
+      "text": "שלבים"
+    },
+    "requirements": {
+      "text": "דרישות"
+    },
+    "confirmation": {
+      "text": "נדרש אישורך"
+    },
+    "switched": {
+      "text": "שלב מיקוד:"
+    },
+    "returned": {
+      "text": "חזרה לשלב מיקוד:"
+    }
+  },
   "footer": {
     "language_selector": {
       "label": {

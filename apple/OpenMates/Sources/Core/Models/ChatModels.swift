@@ -109,6 +109,7 @@ struct Chat: Identifiable, Decodable, Sendable {
     let subChatSettings: SubChatSettings?
     let budgetLimit: Double?
     let budgetSpent: Double?
+    var encryptedFocusPhaseState: String?
     let encryptedActiveFocusId: String?
     var activeFocusId: String?
     let isPrivate: Bool?
@@ -144,6 +145,7 @@ struct Chat: Identifiable, Decodable, Sendable {
         subChatSettings: SubChatSettings? = nil,
         budgetLimit: Double? = nil,
         budgetSpent: Double? = nil,
+        encryptedFocusPhaseState: String? = nil,
         encryptedActiveFocusId: String? = nil,
         activeFocusId: String? = nil,
         isPrivate: Bool? = nil,
@@ -182,6 +184,7 @@ struct Chat: Identifiable, Decodable, Sendable {
         self.subChatSettings = subChatSettings
         self.budgetLimit = budgetLimit
         self.budgetSpent = budgetSpent
+        self.encryptedFocusPhaseState = encryptedFocusPhaseState
         self.encryptedActiveFocusId = encryptedActiveFocusId
         self.activeFocusId = activeFocusId
         self.isPrivate = isPrivate
@@ -237,6 +240,8 @@ struct Chat: Identifiable, Decodable, Sendable {
             ?? Self.decodeFlexibleDouble(container, .budgetLimitSnake)
         budgetSpent = Self.decodeFlexibleDouble(container, .budgetSpent)
             ?? Self.decodeFlexibleDouble(container, .budgetSpentSnake)
+        encryptedFocusPhaseState = try container.decodeIfPresent(String.self, forKey: .encryptedFocusPhaseState)
+            ?? container.decodeIfPresent(String.self, forKey: .encryptedFocusPhaseStateSnake)
         encryptedActiveFocusId = try container.decodeIfPresent(String.self, forKey: .encryptedActiveFocusId)
             ?? container.decodeIfPresent(String.self, forKey: .encryptedActiveFocusIdSnake)
         activeFocusId = try container.decodeIfPresent(String.self, forKey: .activeFocusId)
@@ -319,6 +324,8 @@ struct Chat: Identifiable, Decodable, Sendable {
         case budgetLimitSnake = "budget_limit"
         case budgetSpent
         case budgetSpentSnake = "budget_spent"
+        case encryptedFocusPhaseState
+        case encryptedFocusPhaseStateSnake = "encrypted_focus_phase_state"
         case encryptedActiveFocusId
         case encryptedActiveFocusIdSnake = "encrypted_active_focus_id"
         case activeFocusId

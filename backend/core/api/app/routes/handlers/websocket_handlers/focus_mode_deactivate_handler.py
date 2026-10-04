@@ -35,7 +35,7 @@ async def handle_focus_mode_deactivate(
     """
     _otel_span, _otel_token = None, None
     try:
-        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span, end_ws_handler_span
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span
         _otel_span, _otel_token = start_ws_handler_span("focus_mode_deactivate", user_id, payload, user_otel_attrs)
     except Exception:
         pass
@@ -65,6 +65,9 @@ async def handle_focus_mode_deactivate(
             if not cache_service:
                 cache_service = CacheService()
 
+            from backend.apps.ai.processing.focus_phases import invalidate_phase_runtime
+            await invalidate_phase_runtime(await cache_service.client, owner_id=user_id,
+                                           chat_id=chat_id, focus_id=focus_id)
             # Clear the encrypted_active_focus_id from the cache
             success = await cache_service.update_chat_active_focus_id(
                 user_id=user_id,

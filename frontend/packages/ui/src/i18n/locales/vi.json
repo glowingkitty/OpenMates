@@ -10115,6 +10115,23 @@
       }
     }
   },
+  "focus_phases": {
+    "phases": {
+      "text": "Các giai đoạn"
+    },
+    "requirements": {
+      "text": "Điều kiện"
+    },
+    "confirmation": {
+      "text": "Cần bạn xác nhận"
+    },
+    "switched": {
+      "text": "Giai đoạn tập trung:"
+    },
+    "returned": {
+      "text": "Quay lại giai đoạn tập trung:"
+    }
+  },
   "footer": {
     "language_selector": {
       "label": {

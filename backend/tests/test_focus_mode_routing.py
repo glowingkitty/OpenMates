@@ -149,13 +149,20 @@ def _focus_prompt_scope(active_focus_id="jobs-career_insights", *, language="en"
     source = Path("backend/apps/ai/processing/main_processor.py").read_text()
     tree = ast.parse(source)
     function = next(n for n in tree.body if isinstance(n, ast.AsyncFunctionDef) and n.name == "handle_main_processing")
-    start = next(i for i, n in enumerate(function.body) if isinstance(n, ast.AnnAssign) and isinstance(n.target, ast.Name) and n.target.id == "active_focus_prompt_text")
+    start = next(i for i, n in enumerate(function.body) if isinstance(n, ast.Assign) and any(isinstance(t, ast.Name) and t.id == "active_focus_definition" for t in n.targets))
     end = next(i for i, n in enumerate(function.body) if isinstance(n, ast.Assign) and any(isinstance(t, ast.Name) and t.id == "follow_up_suggestions_enabled" for t in n.targets))
     instruction = "Full focus instruction: ask about constraints.\nPreserve all configured details."
     translator = SimpleNamespace(get_nested_translation=lambda key, lang="en": instruction if lang == "en" and translation_available else None)
     scope = dict(vars(focus_mode_routing))
-    scope.update(Optional=Optional, logger=logging.getLogger(__name__), log_prefix="test", request_data=SimpleNamespace(active_focus_id=active_focus_id), discovered_apps_metadata={"jobs": SimpleNamespace(focuses=[SimpleNamespace(id="career_insights", system_prompt=inline, systemprompt_translation_key="focus_modes.jobs_career_insights.systemprompt")])}, prompt_parts=["Base instructions"], preprocessing_results=SimpleNamespace(output_language=language), translation_service=translator, TranslationService=lambda: translator, chat_depth=0)
-    exec(compile(ast.Module(body=function.body[start:end], type_ignores=[]), "production-focus-prompt", "exec"), scope)
+    scope.update(Optional=Optional, logger=logging.getLogger(__name__), log_prefix="test", request_data=SimpleNamespace(active_focus_id=active_focus_id), discovered_apps_metadata={"jobs": SimpleNamespace(focuses=[SimpleNamespace(id="career_insights", phases=None, system_prompt=inline, systemprompt_translation_key="focus_modes.jobs_career_insights.systemprompt")])}, prompt_parts=["Base instructions"], preprocessing_results=SimpleNamespace(output_language=language), translation_service=translator, TranslationService=lambda: translator, chat_depth=0)
+    import asyncio
+    run_slice = ast.AsyncFunctionDef(name="run_focus_slice",
+        args=ast.arguments(posonlyargs=[], args=[], kwonlyargs=[], kw_defaults=[], defaults=[]),
+        body=function.body[start:end] + [ast.Return(value=ast.Call(func=ast.Name(id="locals", ctx=ast.Load()), args=[], keywords=[]))],
+        decorator_list=[])
+    module = ast.fix_missing_locations(ast.Module(body=[run_slice], type_ignores=[]))
+    exec(compile(module, "production-focus-prompt", "exec"), scope)
+    scope.update(asyncio.run(scope["run_focus_slice"]()))
     return scope, instruction
 
 
@@ -189,7 +196,9 @@ def test_ai_deactivation_removes_instruction_before_next_inference():
     instruction = "Full focus instruction"
     focus_part = f"--- Active Focus: jobs-career_insights ---\n{instruction}\n--- End Active Focus ---"
     scope = dict(vars(focus_mode_routing))
-    scope.update(json=json, logger=logging.getLogger(__name__), log_prefix="test", request_data=SimpleNamespace(active_focus_id="jobs-career_insights"), cache_service=None, current_message_history=[], tool_call_id="deactivate-1", tool_name="system-deactivate_focus_mode", prompt_parts=[focus_part, "Base instructions"], active_focus_prompt_text=instruction, active_focus_prompt_section=focus_part, full_system_prompt=focus_part + "\n\nBase instructions")
+    scope.update(json=json, logger=logging.getLogger(__name__), log_prefix="test", request_data=SimpleNamespace(active_focus_id="jobs-career_insights", user_id="owner", chat_id="chat"), cache_service=None, phase_redis=None, focus_phase_runtimes=[], current_message_history=[], tool_call_id="deactivate-1", tool_name="system-deactivate_focus_mode", prompt_parts=[focus_part, "Base instructions"], active_focus_prompt_text=instruction, active_focus_prompt_section=focus_part, full_system_prompt=focus_part + "\n\nBase instructions")
+    from backend.apps.ai.processing.focus_phases import invalidate_phase_runtime
+    scope["invalidate_phase_runtime"] = invalidate_phase_runtime
     exec(compile(module, "production-focus-deactivate", "exec"), scope)
     result = asyncio.run(scope["run_branch"]())
     assert scope["request_data"].active_focus_id is None

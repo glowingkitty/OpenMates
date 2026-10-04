@@ -990,6 +990,7 @@ export async function sendNewMessageImpl(
 		connected_account_directory?: PreparedConnectedAccountSendContext["directory"];
 		connected_account_token_refs?: PreparedConnectedAccountSendContext["tokenRefs"];
 		mentioned_settings_memories_cleartext?: Record<string, unknown[]>; // Cleartext for @memory/@memory-entry mentions so backend does not re-request
+		focus_phase_state?: Record<string, unknown>;
 		active_focus_id?: string | null; // Plaintext focus mode ID for AI processing (decrypted from E2E encrypted field)
 		project_focus_candidates?: Array<{ project_id: string; name: string }>;
 		team_ai_invocation?: {
@@ -1106,6 +1107,14 @@ export async function sendNewMessageImpl(
 				"[ChatSyncService:Senders] Failed to decrypt active_focus_id, AI will use default focus:",
 				e
 			);
+		}
+	}
+
+	if (!isIncognitoChat && chat?.encrypted_focus_phase_state) {
+		const chatKey = await chatKeyManager.getKey(message.chat_id);
+		if (chatKey) {
+			const phaseText = await decryptWithChatKey(chat.encrypted_focus_phase_state, chatKey);
+			if (phaseText) payload.focus_phase_state = JSON.parse(phaseText);
 		}
 	}
 

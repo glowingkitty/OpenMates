@@ -26,6 +26,7 @@
     import { onDestroy } from 'svelte';
     import { pendingMentionStore } from '../../stores/pendingMentionStore';
     import { panelState } from '../../stores/panelStateStore';
+    import FocusModePhases from "./FocusModePhases.svelte";
     import ChatPreviewCard from './ChatPreviewCard.svelte';
     import { activeChatStore } from '../../stores/activeChatStore';
     import { isMobileView } from '../../stores/uiStateStore';
@@ -293,6 +294,10 @@
                     {$text('settings.app_store.focus_modes.how_to_use_mention').split('{focusname}')[0]}<button type="button" class="mention-name" onclick={insertFocusMention}>@{focusMentionDisplayName}</button>{$text('settings.app_store.focus_modes.how_to_use_mention').split('{focusname}')[1]}
                 </p>
             </div>
+        {/if}
+
+        {#if focusMode?.phases?.length}
+            <FocusModePhases phases={focusMode.phases} />
         {/if}
 
         <!-- Instructions section: bullet-point summary of what the focus mode does,

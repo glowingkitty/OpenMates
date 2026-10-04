@@ -10115,6 +10115,23 @@
       }
     }
   },
+  "focus_phases": {
+    "phases": {
+      "text": "Fáze"
+    },
+    "requirements": {
+      "text": "Požadavky"
+    },
+    "confirmation": {
+      "text": "Je vyžadováno vaše potvrzení"
+    },
+    "switched": {
+      "text": "Fáze soustředění:"
+    },
+    "returned": {
+      "text": "Návrat do fáze soustředění:"
+    }
+  },
   "footer": {
     "language_selector": {
       "label": {

@@ -416,7 +416,7 @@ specifications:
     version: 1
     status: draft
     path: features/focus-modes
-    fingerprint: f16a8dfc7061b059386b6c64f7bff062e1e5f55e0d0b1a8d790eea24ef629be8
+    fingerprint: 57a9851de73d1bab3d8f5b453f35864f811990ebfe7ac5c036b00b58aacb19c3
     required_applies_to:
     - rest_api
     - cli
@@ -5344,7 +5344,7 @@ assertions:
     specification: feature.focus-modes@1
     specification_id: feature.focus-modes
     type: invariant
-    fingerprint: 0e9f3d69448455d08025475c9d1c44b3fa5ecef784b3c653a4ddcc3d20cd3b61
+    fingerprint: 298f00bca04aad56830197bfeb8a8e12b58a1e84a5a3f17cf25cbd2006d9db7a
     required_applies_to:
     - rest_api
     - cli
@@ -5368,7 +5368,7 @@ assertions:
     specification: feature.focus-modes@1
     specification_id: feature.focus-modes
     type: invariant
-    fingerprint: fa93a7aa92b1d1992c818c37656a9f7ba8b797c6604f7a8cb3546d80d0511b63
+    fingerprint: 083edbb182e4d37747aa1aecfe15efa3e4fa215afd177bb030de189975f84a71
     required_applies_to:
     - rest_api
     - cli
@@ -5453,6 +5453,18 @@ assertions:
     specification_id: feature.focus-modes
     type: behavior
     fingerprint: feda32f769a80f027243bb14f1f08baf296dbe949dcbf78a9fcbcb97e11911cf
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  focus-modes.phases:
+    specification: feature.focus-modes@1
+    specification_id: feature.focus-modes
+    type: behavior
+    fingerprint: a74da24e206cf1288f414e236f9d958590ac967fc23807def10b8aac47c80a7c
     required_applies_to:
     - rest_api
     - cli

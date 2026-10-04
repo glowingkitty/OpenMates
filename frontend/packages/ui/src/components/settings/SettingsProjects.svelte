@@ -29,6 +29,9 @@
         type ProjectSourceViewModel,
         type ProjectViewModel,
     } from '../../services/projectService';
+    import FocusModePhases from './FocusModePhases.svelte';
+    import { projectFocusPhases } from '../../types/focusPhases';
+    import type { FocusPhaseDefinition } from '../../types/apps';
     import type { ProjectWriteMode } from '../../services/projectRemoteSources';
 
     let { activeSettingsView = 'projects' }: { activeSettingsView?: string } = $props();
@@ -38,6 +41,7 @@
     let projects = $state<ProjectViewModel[]>([]);
     let sources = $state<ProjectSourceViewModel[]>([]);
     let writeMode = $state<ProjectWriteMode | null>(null);
+    let focusPhases = $state<FocusPhaseDefinition[]>([]);
     let isLoading = $state(true);
     let isSavingSettings = $state(false);
     let loadError = $state('');
@@ -58,6 +62,7 @@
     async function loadProjects(): Promise<void> {
         isLoading = true;
         loadError = '';
+        focusPhases = [];
         try {
             const nextProjects = await listProjects();
             projects = nextProjects;
@@ -71,6 +76,8 @@
                 ]);
                 sources = projectSources;
                 writeMode = projectSettings.writeMode;
+                const defaultFocus = projectSettings.settings.default_focus as { instructions?: string } | undefined;
+                focusPhases = projectFocusPhases(defaultFocus?.instructions);
             } else {
                 sources = [];
                 writeMode = null;
@@ -144,6 +151,7 @@
                 <SettingsDetailRow label="Write policy" value={writeMode ? writeModeLabel(writeMode) : 'Choose a policy'} />
                 <SettingsDetailRow label="Automated checks" value="Not configured" muted />
             </SettingsCard>
+            {#if focusPhases.length}<FocusModePhases phases={focusPhases} />{/if}
             <SettingsButtonGroup align="left">
                 <SettingsButton
                     variant={writeMode === 'apply_and_show' ? 'primary' : 'secondary'}

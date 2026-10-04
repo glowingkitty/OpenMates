@@ -10115,6 +10115,23 @@
       }
     }
   },
+  "focus_phases": {
+    "phases": {
+      "text": "단계"
+    },
+    "requirements": {
+      "text": "요구 사항"
+    },
+    "confirmation": {
+      "text": "확인이 필요합니다"
+    },
+    "switched": {
+      "text": "집중 단계:"
+    },
+    "returned": {
+      "text": "집중 단계로 돌아감:"
+    }
+  },
   "footer": {
     "language_selector": {
       "label": {

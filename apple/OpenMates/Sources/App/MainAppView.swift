@@ -234,6 +234,7 @@ struct MainAppView: View {
     @State private var visibleUserChatLimit = Self.initialUserChatLimit
     @State private var lastActiveSidebarSelection: ChatSidebarDisplayPolicy.RetainedSelection?
     @State private var syncProcessingTask: Task<Void, Never>?
+    @State private var phaseDeliveryTasks: [String: (id: UUID, task: Task<Void, Never>)] = [:]
     @State private var backgroundSyncFlushTask: Task<Void, Never>?
     @State private var pendingAssistantResponseFlushTask: Task<Void, Never>?
     @State private var isBackgroundSyncFlushInProgress = false
@@ -3731,6 +3732,11 @@ struct MainAppView: View {
                 guard let payload = envelope.payload ?? envelope.data else { return }
                 await applyFocusModeActivated(payload)
 
+            case "focus_phases_updated":
+                let envelope = try syncDecoder.decode(WSEnvelope<FocusPhasesUpdatedPayload>.self, from: raw)
+                guard let payload = envelope.payload ?? envelope.data else { return }
+                enqueueFocusPhasesUpdated(payload)
+
             default:
                 await loadInitialData()
             }
@@ -3774,6 +3780,7 @@ struct MainAppView: View {
             lastVisibleMessageId: existing?.lastVisibleMessageId,
             parentId: payload.parentId ?? existing?.parentId,
             isSubChat: payload.isSubChat ?? existing?.isSubChat,
+            encryptedFocusPhaseState: existing?.encryptedFocusPhaseState,
             encryptedActiveFocusId: existing?.encryptedActiveFocusId,
             activeFocusId: existing?.activeFocusId
         )
@@ -3830,6 +3837,7 @@ struct MainAppView: View {
             lastVisibleMessageId: existing?.lastVisibleMessageId,
             parentId: existing?.parentId,
             isSubChat: existing?.isSubChat,
+            encryptedFocusPhaseState: existing?.encryptedFocusPhaseState,
             encryptedActiveFocusId: existing?.encryptedActiveFocusId,
             activeFocusId: existing?.activeFocusId
         )
@@ -3971,6 +3979,7 @@ struct MainAppView: View {
             subChatSettings: existingChat.subChatSettings,
             budgetLimit: existingChat.budgetLimit,
             budgetSpent: existingChat.budgetSpent,
+            encryptedFocusPhaseState: existingChat.encryptedFocusPhaseState,
             encryptedActiveFocusId: existingChat.encryptedActiveFocusId,
             activeFocusId: existingChat.activeFocusId
         )
@@ -4014,6 +4023,16 @@ struct MainAppView: View {
             NativeSyncPerfLog.warning("phase=focusModeActivated reason=missingKey")
             return
         }
+        var phaseCiphertext = existing.encryptedFocusPhaseState
+        if let saved = phaseCiphertext,
+           let text = try? await CryptoManager.shared.decryptContent(base64String: saved, key: key),
+           let data = text.data(using: .utf8),
+           var states = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] {
+            if !payload.focusId.hasPrefix("project-") { states.removeValue(forKey: payload.focusId) }
+            if let retained = try? JSONSerialization.data(withJSONObject: states) {
+                phaseCiphertext = try? await CryptoManager.shared.encryptContent(String(decoding: retained, as: UTF8.self), key: key)
+            }
+        }
         let updated = Chat(
             id: existing.id,
             title: existing.title,
@@ -4042,6 +4061,7 @@ struct MainAppView: View {
             subChatSettings: existing.subChatSettings,
             budgetLimit: existing.budgetLimit,
             budgetSpent: existing.budgetSpent,
+            encryptedFocusPhaseState: phaseCiphertext,
             encryptedActiveFocusId: encryptedFocusId,
             activeFocusId: payload.focusId
         )
@@ -4062,6 +4082,68 @@ struct MainAppView: View {
         } catch {
             print("[MainApp] Failed to persist focus sync metadata")
         }
+    }
+
+    private func enqueueFocusPhasesUpdated(_ payload: FocusPhasesUpdatedPayload) {
+        let previous = phaseDeliveryTasks[payload.chatId]?.task
+        let deliveryID = UUID()
+        let scope = OfflineStore.shared.scopeGeneration
+        let accountID = authManager.currentUser?.id
+        let task = Task { @MainActor in
+            await previous?.value
+            guard !Task.isCancelled, isAuthenticated,
+                  scope == OfflineStore.shared.scopeGeneration,
+                  accountID == authManager.currentUser?.id else { return }
+            await applyFocusPhasesUpdated(payload)
+            if phaseDeliveryTasks[payload.chatId]?.id == deliveryID {
+                phaseDeliveryTasks.removeValue(forKey: payload.chatId)
+            }
+        }
+        phaseDeliveryTasks[payload.chatId] = (deliveryID, task)
+    }
+
+    private func applyFocusPhasesUpdated(_ payload: FocusPhasesUpdatedPayload) async {
+        let scope = OfflineStore.shared.scopeGeneration
+        let accountID = authManager.currentUser?.id
+        func isCurrent() -> Bool {
+            !Task.isCancelled && isAuthenticated && scope == OfflineStore.shared.scopeGeneration
+                && accountID == authManager.currentUser?.id
+        }
+        guard let chat = chatStore.chat(for: payload.chatId), !IncognitoChatSession.isIncognitoChatId(payload.chatId) else { return }
+        await loadChatKeyIfNeeded(chatId: payload.chatId, encryptedChatKey: chat.encryptedChatKey)
+        guard isCurrent(), let key = ChatKeyManager.shared.key(for: payload.chatId) else { return }
+        let encoder = JSONEncoder(); encoder.keyEncodingStrategy = .convertToSnakeCase
+        do {
+            var states = payload.states
+            if let saved = chat.encryptedFocusPhaseState {
+                let text = try await CryptoManager.shared.decryptContent(base64String: saved, key: key)
+                let decoder = JSONDecoder(); decoder.keyDecodingStrategy = .convertFromSnakeCase
+                if let data = text.data(using: .utf8), let old = try? decoder.decode([String: FocusPhaseState].self, from: data) {
+                    for (id, state) in states where old[id]?.runId == state.runId && (old[id]?.version ?? -1) > state.version { states[id] = old[id] }
+                }
+            }
+            guard states.allSatisfy({ $0.value.schemaVersion == 1 && $0.value.chatId == payload.chatId && $0.value.focusId == $0.key && $0.value.version >= 0 && $0.value.transitions.count <= 32 }) else { return }
+            let data = try encoder.encode(states)
+            let encrypted = try await CryptoManager.shared.encryptContent(String(decoding: data, as: UTF8.self), key: key)
+            guard isCurrent() else { return }
+            chatStore.updateFocusPhaseState(chatId: payload.chatId, encrypted: encrypted)
+            try await wsManager.send(WSOutboundMessage(type: "encrypted_chat_metadata", payload: [
+                "chat_id": payload.chatId, "encrypted_focus_phase_state": encrypted
+            ]))
+            for state in states.values {
+                for event in state.transitions where event.chatId == payload.chatId && event.focusId == state.focusId {
+                    guard isCurrent() else { return }
+                    guard !chatStore.messages(for: payload.chatId).contains(where: { $0.id == event.id }) else { continue }
+                    let content = String(decoding: try encoder.encode(event), as: UTF8.self)
+                    let message = Message(id: event.id, chatId: payload.chatId, role: .system,
+                        content: content, encryptedContent: nil, createdAt: Self.isoString(fromUnixSeconds: event.createdAt),
+                        appId: nil, isStreaming: false)
+                    chatStore.appendMessage(message, to: payload.chatId)
+                    _ = try await ChatSendPipeline().persistCompletedAssistantMessage(message,
+                        userMessageId: nil, wsManager: wsManager, chatStore: chatStore)
+                }
+            }
+        } catch { NativeDiagnostics.error("Focus phase persistence failed", category: "chat.focus") }
     }
 
     private func activateProjectReviewOwner(chatID: String?) {

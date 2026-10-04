@@ -88,53 +88,42 @@ async function navigateToAppStore(
 	page: any,
 	logCheckpoint: (message: string) => void
 ): Promise<void> {
-	// Click the "Apps" text in the settings menu (no data-testid on menu items)
-	const appStoreLink = page.locator('[data-testid="settings-menu"]').getByText('Apps', { exact: true });
-	await expect(appStoreLink).toBeVisible({ timeout: 5000 });
-	await appStoreLink.click();
-	logCheckpoint('Clicked Apps menu item.');
-	await page.waitForTimeout(1000);
+	// Apps moved out of Settings; exercise its current public workspace route.
+	const { getE2EDebugUrl } = require('./signup-flow-helpers');
+	await page.goto(getE2EDebugUrl('/#apps/all'));
+	await expect(page.getByTestId('apps-all-items-grid')).toBeVisible({ timeout: 30000 });
+	logCheckpoint('Opened Apps workspace catalog.');
 }
 
 async function openAllAppsList(
 	page: any,
 	logCheckpoint: (message: string) => void
 ): Promise<void> {
-	const settingsMenu = page.getByTestId('settings-menu');
-	const allAppsItem = settingsMenu.getByText(/show all apps/i).first();
-	if (await allAppsItem.isVisible({ timeout: 2000 }).catch(() => false)) {
-		await allAppsItem.click();
-		logCheckpoint('Opened the full Apps list.');
-		await page.waitForTimeout(500);
-	}
+	await expect(page.getByTestId('apps-all-items-grid')).toBeVisible();
+	logCheckpoint('Full Apps catalog is visible.');
 }
 
 async function navigateToApp(
 	page: any,
 	appId: string,
-	logCheckpoint: (message: string) => void
+	logCheckpoint: (message: string) => void,
+	focusModes = true
 ): Promise<void> {
-	// Look for the app card in the Apps list, falling back to text-based search
-	const appCard = page.getByTestId(`app-store-card`).filter({ hasText: new RegExp(appId, 'i') });
-	const cardVisible = await appCard.first().isVisible({ timeout: 5000 }).catch(() => false);
-
-	if (cardVisible) {
-		await appCard.first().click();
-		logCheckpoint(`Clicked app card for "${appId}" via data-testid.`);
-	} else {
-		// Fallback: click any element with the app name text in the settings panel
-		const appText = page.locator('[data-testid="settings-menu"]').getByText(new RegExp(appId, 'i')).first();
-		await expect(appText).toBeVisible({ timeout: 5000 });
-		await appText.click();
-		logCheckpoint(`Clicked app "${appId}" via text match.`);
+	const appCard = page.getByTestId('apps-all-items-grid').locator(`[data-app-id="${appId}"]`).first();
+	await expect(appCard).toBeVisible();
+	await appCard.click();
+	await expect(page.getByTestId('apps-detail-fullscreen')).toBeVisible();
+	if (focusModes) {
+		await page.getByTestId('apps-tab-focus_modes').click();
 	}
-	await page.waitForTimeout(500);
+	logCheckpoint(`Opened ${appId} app ${focusModes ? 'focus modes' : 'overview'}.`);
 }
 
 // ---------------------------------------------------------------------------
 // Test 1: Focus mode appears in Apps with name and description
 // ---------------------------------------------------------------------------
 
+// contract-test: direct surface=gui.web assertions=focus-modes.phases
 // contract-test: supporting surface=gui.web assertions=focus-modes.specializations
 test('Career insights focus mode appears in Jobs app settings with name and description', async ({
 	page
@@ -189,6 +178,16 @@ test('Career insights focus mode appears in Jobs app settings with name and desc
 	// Wait for detail page to render (settings routing is async)
 	await page.waitForTimeout(2000);
 	await takeStepScreenshot(page, 'detail-page-opened');
+
+    // The real settings route consumes the canonical Career insights definition.
+    await expect(page.getByTestId('focus-mode-phase')).toHaveCount(4);
+    await expect(page.getByTestId('focus-mode-phases')).toContainText('Understand your situation');
+    await expect(page.getByTestId('focus-mode-phases')).toContainText('Confirm your career profile');
+    await expect(page.getByTestId('focus-mode-phases')).toContainText('Explore career directions');
+    await expect(page.getByTestId('focus-phase-instructions').first()).toContainText('skip remaining questions');
+    await expect(page.getByTestId('focus-phase-requirement').first()).toBeVisible();
+    await expect(page.getByTestId('focus-mode-phases')).toContainText('Your confirmation is required');
+    await takeStepScreenshot(page, 'phase-instructions-and-requirements');
 
 	// STEP 7: Verify process summary bullets are shown
 	logCheckpoint('Checking for process summary bullets...');
@@ -286,7 +285,7 @@ test('OpenMates app does not offer the retired Welcome focus mode', async ({ pag
 	await openSettingsPanel(page, logCheckpoint);
 	await navigateToAppStore(page, logCheckpoint);
 	await openAllAppsList(page, logCheckpoint);
-	await navigateToApp(page, 'openmates', logCheckpoint);
+	await navigateToApp(page, 'openmates', logCheckpoint, false);
 	const appCards = page.getByTestId('app-store-card');
 	await expect(appCards.filter({ hasText: /Plan/i }).first()).toBeVisible();
 	await expect(appCards.filter({ hasText: /^Welcome$/i })).toHaveCount(0);

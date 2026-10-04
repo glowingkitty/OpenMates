@@ -10115,6 +10115,23 @@
       }
     }
   },
+  "focus_phases": {
+    "phases": {
+      "text": "المراحل"
+    },
+    "requirements": {
+      "text": "المتطلبات"
+    },
+    "confirmation": {
+      "text": "تأكيدك مطلوب"
+    },
+    "switched": {
+      "text": "مرحلة التركيز:"
+    },
+    "returned": {
+      "text": "العودة إلى مرحلة التركيز:"
+    }
+  },
   "footer": {
     "language_selector": {
       "label": {

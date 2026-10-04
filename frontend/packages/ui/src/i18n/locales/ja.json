@@ -10115,6 +10115,23 @@
       }
     }
   },
+  "focus_phases": {
+    "phases": {
+      "text": "フェーズ"
+    },
+    "requirements": {
+      "text": "要件"
+    },
+    "confirmation": {
+      "text": "確認が必要です"
+    },
+    "switched": {
+      "text": "フォーカスのフェーズ："
+    },
+    "returned": {
+      "text": "フォーカスのフェーズに戻りました："
+    }
+  },
   "footer": {
     "language_selector": {
       "label": {

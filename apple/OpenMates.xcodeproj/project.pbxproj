@@ -140,6 +140,7 @@
 		1B240BC3DA0217022ED7BF78 /* LocalizedText.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0F65AEA0691444C7CBB0E3D /* LocalizedText.swift */; };
 		1B8B59959B11C5B20222D3BC /* ChatSettingsModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B112D66E2CA11318FAF75E4D /* ChatSettingsModel.swift */; };
 		1BCCD61384E7BD33CC980AF3 /* ChatModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = D75EAD87B703C54666637C80 /* ChatModels.swift */; };
+		7E8D3F10F72A49D3B544C1E7 /* FocusPhaseModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 623AE945F0EDAD13223A2669 /* FocusPhaseModels.swift */; };
 		1C8CCEE498A1F2C212C9A04F /* MessageEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0484C1E71DDCAAD4DEBB61F /* MessageEditView.swift */; };
 		1CB52290D2BF6A2AE255CBCE /* ImageResultEmbedRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47327F0B9A1BA1DE4EB995B4 /* ImageResultEmbedRenderer.swift */; };
 		1CDD06EFC5C55BC6EAD2FECE /* ProjectsWorkspaceStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BB6E0730C882D9B54B49EB1 /* ProjectsWorkspaceStore.swift */; };
@@ -211,6 +212,7 @@
 		2D18AB800166A6C7D0FEECF0 /* ProjectReviewFixtures.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48ED0A624115AB20782BB464 /* ProjectReviewFixtures.swift */; };
 		2D3ABAB853DF32496A760843 /* WorkflowStepTestServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13D117946462CE38B86FD9A4 /* WorkflowStepTestServiceTests.swift */; };
 		2D69227733F3D9C2BE2DB02B /* FocusModeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEB56BB8CA933CEC26CCA7E2 /* FocusModeView.swift */; };
+		740599FC4D5C066689FE20B6 /* FocusPhaseNoticeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4AE4F3B286D6582C465A1C9 /* FocusPhaseNoticeView.swift */; };
 		2D9B416D827F1EE90DE9C597 /* AssistantSpeechNativeMedia.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9290481DBB8DB19422239378 /* AssistantSpeechNativeMedia.swift */; };
 		2DCA24C417F195F5C0FAA26A /* SearchDomainRenderers.swift in Sources */ = {isa = PBXBuildFile; fileRef = C33806E8A24E5E5D76A8ADE3 /* SearchDomainRenderers.swift */; };
 		2DE7FA10431C56F2D7CDE898 /* SettingsMatesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F626DBB5DC4CFCA1A618E7 /* SettingsMatesView.swift */; };
@@ -468,6 +470,7 @@
 		697D8B3F1127D5F4C9E04423 /* S3MediaClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3098424CAA7116A6667AD61D /* S3MediaClient.swift */; };
 		69BA6A5A13B52BF3784FA5AC /* StreamingClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 229E73CA38CF97C82078BF88 /* StreamingClient.swift */; };
 		69EFBB3B1D25DFFBBEC984FC /* FocusModeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEB56BB8CA933CEC26CCA7E2 /* FocusModeView.swift */; };
+		612092E4B302BC7672F72A5D /* FocusPhaseNoticeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4AE4F3B286D6582C465A1C9 /* FocusPhaseNoticeView.swift */; };
 		6A1450682B9559FC037CCA13 /* AnyCodable.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAF7ABCEA32F7C1A1EA73079 /* AnyCodable.swift */; };
 		6A230C76DBE6D76552FF828D /* SkillExecutor.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE830E48599EBB56BCF4FDA0 /* SkillExecutor.swift */; };
 		6B3CCA9A9426BD5AA9F3E975 /* settings.json in Resources */ = {isa = PBXBuildFile; fileRef = ECD217403D6BCC959884C43B /* settings.json */; };
@@ -555,6 +558,7 @@
 		7DE8D8F07DE7C177E9DCA56E /* EmbedDiffEditingParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 017004A7DC8D937F29C4AD68 /* EmbedDiffEditingParityTests.swift */; };
 		7E3B1D396CC0C79D4D5F79C1 /* AccountRecoveryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B654CD72EF52F98AA3D2E7F /* AccountRecoveryView.swift */; };
 		7E7BB0D8EF775F75FFA1720D /* SettingsProjectsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1471B1188DC64327331A8CE9 /* SettingsProjectsView.swift */; };
+		D5987ADCC83991F737FD27FD /* FocusModePhasesNativeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AAC996947F41E1A975E18E4 /* FocusModePhasesNativeView.swift */; };
 		7E937A5DEF2B64C2F651DA31 /* WatchChatRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE57873D02BD642C646EF779 /* WatchChatRuntime.swift */; };
 		7EC878CD66E174FFB6E04034 /* PrivacySettingsModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E6FB871DEABA72FD051B5D6 /* PrivacySettingsModels.swift */; };
 		7ED4180BCF6460D7FCF986BE /* ChatEmbedWorkspace.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA6720FEE84B04916BF41FCE /* ChatEmbedWorkspace.swift */; };
@@ -623,6 +627,7 @@
 		8ABC744091714D9223D18C2E /* AssistantSpeechWaveform.swift in Sources */ = {isa = PBXBuildFile; fileRef = B374E7EA6645ED9EE8D7D666 /* AssistantSpeechWaveform.swift */; };
 		8AEF873A7C4E7975BD794F3D /* PairLoginRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D7A90C37C325390A2C0E002 /* PairLoginRuntime.swift */; };
 		8AF71C62B1C2F4819F7CCC88 /* SettingsProjectsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1471B1188DC64327331A8CE9 /* SettingsProjectsView.swift */; };
+		4DA8BBC174A967C33C313C90 /* FocusModePhasesNativeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AAC996947F41E1A975E18E4 /* FocusModePhasesNativeView.swift */; };
 		8AFE774A1A2937CB5D956A3A /* CodeRunService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C389244BC1DFB3C97123D3C2 /* CodeRunService.swift */; };
 		8B12CFC6DF07725998702B1E /* ProcessingDetailsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4E28DB090AD6C04C9F23635 /* ProcessingDetailsView.swift */; };
 		8B91B0E358FB2C905A7C6188 /* SettingsModesParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 422EB7EDB8DB231B6E89866C /* SettingsModesParityTests.swift */; };
@@ -807,6 +812,7 @@
 		BA00EE4DED4B707CF5CF8BA4 /* EditMessageStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4011158DF04A05A08516EA7D /* EditMessageStore.swift */; };
 		BA043ACAA61C7A3C3E82C053 /* ChatHistoryMacParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11A37EEF2EB01B4FDE86D809 /* ChatHistoryMacParityUITests.swift */; };
 		BA2CEDCC52997D7A2F55B0A9 /* ChatModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = D75EAD87B703C54666637C80 /* ChatModels.swift */; };
+		D113043C9C3AA414317F6FA9 /* FocusPhaseModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 623AE945F0EDAD13223A2669 /* FocusPhaseModels.swift */; };
 		BA5480420A61DE202E1B4703 /* WorkflowAIAuthoringController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E84F5C70E726F117A4704E19 /* WorkflowAIAuthoringController.swift */; };
 		BB303EADE6D03CF0B57DBE8A /* WorkspacePromptComposerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36E88ED7FD852F97A28EEC7C /* WorkspacePromptComposerView.swift */; };
 		BB83CAA00F7AC220DCADEFF0 /* NewsSearchEmbedRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C72AFBA9A59E6F7E39BBE383 /* NewsSearchEmbedRenderer.swift */; };
@@ -968,6 +974,7 @@
 		E12975A6FD43F6869C3624EC /* NativeComposerInlineEmbedUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AEB37482F6796B7E0AFA29C /* NativeComposerInlineEmbedUITests.swift */; };
 		E12B61C4C46BAA9CDC768471 /* ProjectHostedPathPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 140DA0063DBB28A7CCDB7378 /* ProjectHostedPathPolicy.swift */; };
 		E158679C2C3505093B52AABC /* ProjectsWorkspaceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BD9F18AD8C41CCA247729DC /* ProjectsWorkspaceTests.swift */; };
+		B822805D2474C71EA24BAAEF /* FocusPhaseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 948EDE3179A37435C461D1E0 /* FocusPhaseTests.swift */; };
 		E15E20E7B40C9CAE54D49EF8 /* ProjectWorkspaceReviewRuntimeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 616EF9A073236D4C793FCE50 /* ProjectWorkspaceReviewRuntimeTests.swift */; };
 		E1621B4A303B18E0430F1E55 /* FontRegistration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50826BC7A9753643CB205C57 /* FontRegistration.swift */; };
 		E1C37E5FF74A2727415468DD /* ProjectRemoteBridgeCrypto.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41D91FE84CB6D31798AA6221 /* ProjectRemoteBridgeCrypto.swift */; };
@@ -1265,6 +1272,7 @@
 		13D117946462CE38B86FD9A4 /* WorkflowStepTestServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkflowStepTestServiceTests.swift; sourceTree = "<group>"; };
 		140DA0063DBB28A7CCDB7378 /* ProjectHostedPathPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectHostedPathPolicy.swift; sourceTree = "<group>"; };
 		1471B1188DC64327331A8CE9 /* SettingsProjectsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsProjectsView.swift; sourceTree = "<group>"; };
+		7AAC996947F41E1A975E18E4 /* FocusModePhasesNativeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusModePhasesNativeView.swift; sourceTree = "<group>"; };
 		151F47FC0A1C13A3A3FC3ABF /* PasswordLoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasswordLoginView.swift; sourceTree = "<group>"; };
 		1590D8670281FDF56C8F2860 /* SettingsLogsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsLogsView.swift; sourceTree = "<group>"; };
 		159C49E82A183D6E01A495BD /* CodeRunOutputSyncTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodeRunOutputSyncTests.swift; sourceTree = "<group>"; };
@@ -1402,6 +1410,7 @@
 		4B2DB33FDD8248DFB34B515B /* WatchCanonicalStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchCanonicalStorage.swift; sourceTree = "<group>"; };
 		4B609EC451249DCE059E1154 /* ComposerSubmitPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerSubmitPolicy.swift; sourceTree = "<group>"; };
 		4BD9F18AD8C41CCA247729DC /* ProjectsWorkspaceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectsWorkspaceTests.swift; sourceTree = "<group>"; };
+		948EDE3179A37435C461D1E0 /* FocusPhaseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusPhaseTests.swift; sourceTree = "<group>"; };
 		4BE23EE45E994DA6739B61E1 /* OpenMatesNotificationService.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = OpenMatesNotificationService.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		4BF0E020341A19BE592E18A1 /* CryptoFailureTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CryptoFailureTests.swift; sourceTree = "<group>"; };
 		4BF995AEFC4B6686D66B9790 /* NativeAssistantSpeechTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeAssistantSpeechTests.swift; sourceTree = "<group>"; };
@@ -1748,6 +1757,7 @@
 		CE455C265F425B2DA089EDE5 /* AssistantSpeechPreferenceAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantSpeechPreferenceAdapter.swift; sourceTree = "<group>"; };
 		CE99B1F557823E870553122D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		CEB56BB8CA933CEC26CCA7E2 /* FocusModeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusModeView.swift; sourceTree = "<group>"; };
+		A4AE4F3B286D6582C465A1C9 /* FocusPhaseNoticeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusPhaseNoticeView.swift; sourceTree = "<group>"; };
 		CFE391E71C783F60B2510FDB /* ReadLastResponseIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReadLastResponseIntent.swift; sourceTree = "<group>"; };
 		D03BD252041F2BADADD61496 /* PublicChatListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublicChatListView.swift; sourceTree = "<group>"; };
 		D0A6C34AC07E9959E5B95E6B /* NativeComposerDraftEditUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeComposerDraftEditUITests.swift; sourceTree = "<group>"; };
@@ -1772,6 +1782,7 @@
 		D6661AC4A7A1158761E8C721 /* ChatFlowParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatFlowParityUITests.swift; sourceTree = "<group>"; };
 		D6E42A0D4E0A0A8E0B4F17B7 /* HomeSearchIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeSearchIntent.swift; sourceTree = "<group>"; };
 		D75EAD87B703C54666637C80 /* ChatModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatModels.swift; sourceTree = "<group>"; };
+		623AE945F0EDAD13223A2669 /* FocusPhaseModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusPhaseModels.swift; sourceTree = "<group>"; };
 		D7D6932769B27CF1F2C0F935 /* RealAccountLoginRecoveryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealAccountLoginRecoveryTests.swift; sourceTree = "<group>"; };
 		D7E5D3FEA77B41C97F403839 /* WorkflowAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkflowAPI.swift; sourceTree = "<group>"; };
 		D82141164C0949C2F8C28C00 /* ChatPaginationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatPaginationView.swift; sourceTree = "<group>"; };
@@ -2282,6 +2293,7 @@
 				EFA6812BE938FDF939DE1C09 /* PendingUploadStoreTests.swift */,
 				7B2E41DB640F33889EAE0735 /* ProgressiveMarkdownRenderTests.swift */,
 				4BD9F18AD8C41CCA247729DC /* ProjectsWorkspaceTests.swift */,
+				948EDE3179A37435C461D1E0 /* FocusPhaseTests.swift */,
 				616EF9A073236D4C793FCE50 /* ProjectWorkspaceReviewRuntimeTests.swift */,
 				5FC52C91D23D3093D50348E3 /* PublicAssistantSpeechParityTests.swift */,
 				B6B7AD0E117079E37D0B8604 /* PublicImageLoaderTests.swift */,
@@ -2800,6 +2812,7 @@
 				6CCBCDCD1566933277833B65 /* AuthError.swift */,
 				EB7F8B81401F93E43A5A56A9 /* AuthModels.swift */,
 				D75EAD87B703C54666637C80 /* ChatModels.swift */,
+				623AE945F0EDAD13223A2669 /* FocusPhaseModels.swift */,
 				EC211406AADF88E0D1BF6F4D /* EmbedModels.swift */,
 			);
 			path = Models;
@@ -2859,6 +2872,7 @@
 				6C947C94A4DBB0463284E9A1 /* SettingsPricingView.swift */,
 				92FB0CDA6AB6FDA6A4D0E8A2 /* SettingsProfilePictureView.swift */,
 				1471B1188DC64327331A8CE9 /* SettingsProjectsView.swift */,
+				7AAC996947F41E1A975E18E4 /* FocusModePhasesNativeView.swift */,
 				A12642E3DAC31B20117E70C1 /* SettingsServerConnectionView.swift */,
 				2B0C1FF9CFB126B5BAA62F06 /* SettingsServerView.swift */,
 				21BC12F96BA8B77B52EF831A /* SettingsSessionPairingView.swift */,
@@ -2914,6 +2928,7 @@
 				FB531014DF91F38A7DD04A2B /* DailyInspirationView.swift */,
 				41E019B11E74836197058244 /* ExampleChatsView.swift */,
 				CEB56BB8CA933CEC26CCA7E2 /* FocusModeView.swift */,
+				A4AE4F3B286D6582C465A1C9 /* FocusPhaseNoticeView.swift */,
 				E76E863A52EBF1C2CEE7D70A /* FollowUpSuggestions.swift */,
 				A25713DDF92D2E7ACF6D4E4B /* ForkProgressBannerView.swift */,
 				B5117D449244BC59D5C79B93 /* HiddenChatsListView.swift */,
@@ -3802,6 +3817,7 @@
 				C074A675E6D76DFF38359DCE /* ChatMetadataRecoveryCoordinator.swift in Sources */,
 				12C21EB7A47B576ACFD1E33B /* ChatModelPreferenceService.swift in Sources */,
 				BA2CEDCC52997D7A2F55B0A9 /* ChatModels.swift in Sources */,
+				D113043C9C3AA414317F6FA9 /* FocusPhaseModels.swift in Sources */,
 				DD26A49438933FC88A097561 /* ChatPaginationView.swift in Sources */,
 				9AA0DAEE4312F4FD5D4B93BC /* ChatSearchView.swift in Sources */,
 				055085FE4123DB468F3E0B17 /* ChatSettingsExport.swift in Sources */,
@@ -3877,6 +3893,7 @@
 				CE36EC2B4D9B2B66C28DA248 /* EventsSearchIntent.swift in Sources */,
 				FAC141D64EFFEFB70916484E /* ExampleChatsView.swift in Sources */,
 				2D69227733F3D9C2BE2DB02B /* FocusModeView.swift in Sources */,
+				740599FC4D5C066689FE20B6 /* FocusPhaseNoticeView.swift in Sources */,
 				3799CA81C40779C746D6B4D3 /* FollowUpSuggestions.swift in Sources */,
 				E1621B4A303B18E0430F1E55 /* FontRegistration.swift in Sources */,
 				90CCE42F38631051AB9940DD /* ForkProgressBannerView.swift in Sources */,
@@ -4047,6 +4064,7 @@
 				501F763EE09DB88E294E2C90 /* SettingsPrivacyContentView.swift in Sources */,
 				A3DCF1538042117D07CD6BE9 /* SettingsProfilePictureView.swift in Sources */,
 				7E7BB0D8EF775F75FFA1720D /* SettingsProjectsView.swift in Sources */,
+				D5987ADCC83991F737FD27FD /* FocusModePhasesNativeView.swift in Sources */,
 				F4D78FF84E22208402F097F5 /* SettingsServerConnectionView.swift in Sources */,
 				23B666E453D592CEE9783215 /* SettingsServerView.swift in Sources */,
 				AA71DB4CDAE9A1DD1C761F9C /* SettingsSessionPairingView.swift in Sources */,
@@ -4334,6 +4352,7 @@
 				86F9B072B0BA040A114381B4 /* ChatMetadataRecoveryCoordinator.swift in Sources */,
 				FC60B4C2B82D1DE460AEFEBF /* ChatModelPreferenceService.swift in Sources */,
 				1BCCD61384E7BD33CC980AF3 /* ChatModels.swift in Sources */,
+				7E8D3F10F72A49D3B544C1E7 /* FocusPhaseModels.swift in Sources */,
 				31E2D37AB5BCAE9C588CDD35 /* ChatPaginationView.swift in Sources */,
 				F00B62B6169A0248631F2C0F /* ChatSearchView.swift in Sources */,
 				E802EAFA68C202607CA5E3FF /* ChatSettingsExport.swift in Sources */,
@@ -4409,6 +4428,7 @@
 				8DEA42AA2288909CEE6A1AB3 /* EventsSearchIntent.swift in Sources */,
 				F15C2C67D523ABA23BB9A3C5 /* ExampleChatsView.swift in Sources */,
 				69EFBB3B1D25DFFBBEC984FC /* FocusModeView.swift in Sources */,
+				612092E4B302BC7672F72A5D /* FocusPhaseNoticeView.swift in Sources */,
 				A127CA2EA72A4841BCB5DB5C /* FollowUpSuggestions.swift in Sources */,
 				3E1C783F2F3EF8EDE3378D64 /* FontRegistration.swift in Sources */,
 				F3DFFE681A29A34B353336F9 /* ForkProgressBannerView.swift in Sources */,
@@ -4579,6 +4599,7 @@
 				4752A6B5C4B0292DC22F9CF6 /* SettingsPrivacyContentView.swift in Sources */,
 				6F7C80829B47D4F58764D148 /* SettingsProfilePictureView.swift in Sources */,
 				8AF71C62B1C2F4819F7CCC88 /* SettingsProjectsView.swift in Sources */,
+				4DA8BBC174A967C33C313C90 /* FocusModePhasesNativeView.swift in Sources */,
 				937F37FC2170C53ACCA47EC2 /* SettingsServerConnectionView.swift in Sources */,
 				8CAB42A8E2164868821C601F /* SettingsServerView.swift in Sources */,
 				78B3053D8DCDB089E74F884B /* SettingsSessionPairingView.swift in Sources */,
@@ -4799,6 +4820,7 @@
 				1317E764456BBB8CE0B29A80 /* ProgressiveMarkdownRenderTests.swift in Sources */,
 				E15E20E7B40C9CAE54D49EF8 /* ProjectWorkspaceReviewRuntimeTests.swift in Sources */,
 				E158679C2C3505093B52AABC /* ProjectsWorkspaceTests.swift in Sources */,
+				B822805D2474C71EA24BAAEF /* FocusPhaseTests.swift in Sources */,
 				58610D3B059FCFDC803E72C8 /* PublicAssistantSpeechParityTests.swift in Sources */,
 				60A3718F535E9016A4667365 /* PublicImageLoaderTests.swift in Sources */,
 				C8BB492A268C584D64806DAA /* RealAccountLoginRecoveryTests.swift in Sources */,

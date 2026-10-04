@@ -279,9 +279,16 @@ export class ChatSynchronizationService extends EventTarget {
       if (!(await ensureChatKeySafeForWrite(chatId, chatKey, "active focus id encryption"))) {
         throw new Error("Focus activation chat key is unsafe for write");
       }
-      const { encryptWithChatKey } = await import("./encryption/MessageEncryptor");
+      const { encryptWithChatKey, decryptWithChatKey } = await import("./encryption/MessageEncryptor");
       const encryptedFocusId = await encryptWithChatKey(focusId, chatKey);
       chat.encrypted_active_focus_id = encryptedFocusId;
+      // Reset only the accepted mode; retain the independent Project base run.
+      if (chat.encrypted_focus_phase_state) {
+        const text = await decryptWithChatKey(chat.encrypted_focus_phase_state, chatKey);
+        const states = text ? JSON.parse(text) : {};
+        if (!focusId.startsWith("project-")) delete states[focusId];
+        chat.encrypted_focus_phase_state = await encryptWithChatKey(JSON.stringify(states), chatKey);
+      }
       await chatDB.updateChat(chat);
       chatMetadataCache.invalidateChat(chatId);
       await webSocketService.sendMessage("update_encrypted_active_focus_id", {
@@ -1902,6 +1909,12 @@ export class ChatSynchronizationService extends EventTarget {
     // in real-time without requiring a page refresh.
     // IMPORTANT: Registered synchronously (not inside dynamic import .then()) to avoid
     // a race condition where the WebSocket event arrives before the dynamic import resolves.
+    webSocketService.on("focus_phases_updated", async (payload) => {
+      try {
+        const { handleFocusPhasesUpdated } = await import("./chatSyncServiceHandlersFocusPhases");
+        await handleFocusPhasesUpdated(this, payload as Parameters<typeof handleFocusPhasesUpdated>[1]);
+      } catch (error) { console.error("[ChatSyncService] Phase update failed:", error); }
+    });
     webSocketService.on("focus_mode_activated", async (payload) => {
       try {
         const focusPayload = payload as { chat_id?: string; focus_id?: string };

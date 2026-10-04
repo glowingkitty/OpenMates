@@ -3181,6 +3181,14 @@ async def handle_main_processing(
         and not request_data.is_incognito
         and cache_service is not None
     )
+    from backend.apps.ai.processing.focus_phases import (
+        FocusPhaseRuntime, restore_state, phase_prompt, parse_project_phase_focus,
+        invalidate_phase_runtime, reselect_phase_tools,
+    )
+    focus_phase_runtimes = []
+    project_phase_prompt_section = None
+    phase_state_in = getattr(request_data, "focus_phase_state", None) or {}
+    phase_redis = await cache_service.client if cache_service else None
     active_project_focus = None
     active_project_sources: list[dict[str, Any]] = []
     # Focus instructions remain active even when the current client cannot
@@ -3246,7 +3254,19 @@ async def handle_main_processing(
         else None
     )
     if active_project_focus:
-        prompt_parts.append(build_project_focus_prompt(active_project_focus, active_project_sources))
+        project_instruction_focus = parse_project_phase_focus(
+            active_project_focus.get("instruction") or "", active_project_focus["focus_id"])
+        effective_project_focus = dict(active_project_focus)
+        if project_instruction_focus:
+            project_runtime = FocusPhaseRuntime(project_instruction_focus,
+                restore_state(project_instruction_focus, focus_id=active_project_focus["focus_id"],
+                    chat_id=request_data.chat_id, saved=phase_state_in.get(active_project_focus["focus_id"])),
+                redis=phase_redis, owner_id=request_data.user_id)
+            await project_runtime.load()
+            focus_phase_runtimes.append(project_runtime)
+            effective_project_focus["instruction"] = phase_prompt(project_instruction_focus, project_runtime.state)
+        project_phase_prompt_section = build_project_focus_prompt(effective_project_focus, active_project_sources)
+        prompt_parts.append(project_phase_prompt_section)
     suppress_task_runtime_tools = should_suppress_task_runtime_tools_for_app_skill(
         preselected_skills,
         user_requested_skills_only=user_requested_skills_only,
@@ -3605,6 +3625,7 @@ async def handle_main_processing(
             settings_and_memories_prompt_section.append(f"- {key}: {value_str}")
         prompt_parts.append("\n".join(settings_and_memories_prompt_section))
 
+    active_focus_definition = None
     active_focus_prompt_text: Optional[str] = None
     active_focus_prompt_section: Optional[str] = None
     translation_service = TranslationService()
@@ -3616,6 +3637,7 @@ async def handle_main_processing(
             if app_metadata_for_focus and app_metadata_for_focus.focuses:
                 for focus_def in app_metadata_for_focus.focuses:
                     if focus_def.id == focus_id_in_app:
+                        active_focus_definition = focus_def
                         active_focus_prompt_text = focus_def.system_prompt
                         # Translation-backed focuses must be resolved on every request,
                         # not only when proposing activation. See apps/focus-modes-implementation.md.
@@ -3636,6 +3658,14 @@ async def handle_main_processing(
         if not active_focus_prompt_text:
             logger.error("%s Active focus has no resolvable instruction: %s", log_prefix, request_data.active_focus_id)
             raise ValueError("Active focus instructions are unavailable")
+    if active_focus_definition and active_focus_definition.phases:
+        catalog_runtime = FocusPhaseRuntime(active_focus_definition,
+            restore_state(active_focus_definition, focus_id=request_data.active_focus_id,
+                chat_id=request_data.chat_id, saved=phase_state_in.get(request_data.active_focus_id)),
+            redis=phase_redis, owner_id=request_data.user_id)
+        await catalog_runtime.load()
+        focus_phase_runtimes.append(catalog_runtime)
+        active_focus_prompt_text = phase_prompt(active_focus_definition, catalog_runtime.state)
     if active_focus_prompt_text:
         if request_data.active_focus_id == "web-research" and chat_depth > 0:
             active_focus_prompt_text += DELEGATED_DEEP_RESEARCH_INSTRUCTION
@@ -4478,6 +4508,84 @@ async def handle_main_processing(
         return True
     
     max_iterations_with_recovery = MAX_TOOL_CALL_ITERATIONS + MAX_ANSWER_ONLY_RECOVERY_ITERATIONS
+    async def evaluate_active_phases(boundary, boundary_id, evidence):
+        nonlocal full_system_prompt, active_focus_prompt_section, project_phase_prompt_section
+        nonlocal available_tools_for_llm, allowed_tool_names
+        changed = False
+        for runtime in focus_phase_runtimes:
+            changed = await runtime.evaluate(boundary=boundary, boundary_id=boundary_id,
+                turn_id=request_data.message_id, latest_user=request_data.current_user_content,
+                messages=evidence, secrets_manager=secrets_manager) or changed
+        if changed:
+            for runtime in focus_phase_runtimes:
+                instruction = phase_prompt(runtime.focus, runtime.state)
+                if runtime.state.focus_id == request_data.active_focus_id:
+                    section = f"--- Active Focus: {request_data.active_focus_id} ---\n{instruction}\n--- End Active Focus ---"
+                    if active_focus_prompt_section:
+                        full_system_prompt = full_system_prompt.replace(active_focus_prompt_section, section, 1)
+                    active_focus_prompt_section = section
+                elif active_project_focus and runtime.state.focus_id == active_project_focus["focus_id"]:
+                    section = build_project_focus_prompt({**active_project_focus, "instruction": instruction}, active_project_sources)
+                    if project_phase_prompt_section:
+                        full_system_prompt = full_system_prompt.replace(project_phase_prompt_section, section, 1)
+                    project_phase_prompt_section = section
+        if changed and not user_requested_skills_only:
+            # Reuse the existing discovered (availability-filtered) app catalog.
+            # Adding a candidate never bypasses dispatch permissions or Project policy.
+            candidate_apps = set(assigned_app_ids)
+            for runtime in focus_phase_runtimes:
+                candidate_apps.update(runtime.focus.allowed_apps or [])
+            candidate_skill_ids = {f"{app_id}-{skill.id}" for app_id in candidate_apps
+                if app_id in discovered_apps_metadata
+                for skill in discovered_apps_metadata[app_id].skills or []}
+            candidate_tools = generate_tools_from_apps(discovered_apps_metadata=discovered_apps_metadata,
+                assigned_app_ids=list(candidate_apps), preselected_skills=list(candidate_skill_ids),
+                translation_service=translation_service)
+            if task_queue_blocks_plan_tools:
+                candidate_tools = [tool for tool in candidate_tools
+                    if not str(tool.get("function", {}).get("name") or "").startswith("plans-")]
+            selected = await reselect_phase_tools(
+                phase_instructions="\n\n".join(phase_prompt(r.focus, r.state) for r in focus_phase_runtimes),
+                latest_user=request_data.current_user_content, candidates=candidate_tools,
+                secrets_manager=secrets_manager)
+            if selected is not None:
+                # Preserve internal lifecycle/task/context tools installed by this
+                # request. Refresh the generated app skills and existing workflow tools.
+                generated_names = {t.get("function", {}).get("name") for t in candidate_tools}
+                available_tools_for_llm = [t for t in available_tools_for_llm
+                    if t.get("function", {}).get("name") not in generated_names] + selected
+                allowed_tool_names = set()
+                for tool in available_tools_for_llm:
+                    name = str(tool.get("function", {}).get("name") or "")
+                    allowed_tool_names.add(_canonicalize_tool_name(name))
+                    allowed_tool_names.update(task_tool_name_variants(name))
+        request_data.focus_phase_state = {r.state.focus_id: r.state.model_dump() for r in focus_phase_runtimes}
+        return changed
+
+    def phase_state_marker():
+        if active_project_focus:
+            project_state = (request_data.focus_phase_state or {}).get(active_project_focus["focus_id"])
+            if project_state:
+                for event in project_state.get("transitions", []):
+                    event["project_id"] = active_project_focus["project_id"]
+        return {"__focus_phases_updated__": True, "states": request_data.focus_phase_state or {}}
+
+    if focus_phase_runtimes:
+        if not getattr(request_data, "is_focus_mode_continuation", False):
+            await evaluate_active_phases("user", f"{request_data.message_id}:user", current_message_history)
+        else:
+            request_data.focus_phase_state = {r.state.focus_id: r.state.model_dump() for r in focus_phase_runtimes}
+        yield phase_state_marker()
+        # Report the effective phase after the user gate, matching actual inference.
+        yield {"__debug_metadata__": True, "system_prompt": full_system_prompt,
+            "system_prompt_char_count": len(full_system_prompt),
+            "available_tools": [{"name": t.get("function", {}).get("name", "unknown"),
+                "description_preview": str(t.get("function", {}).get("description", ""))[:TOOL_DESCRIPTION_PREVIEW_LENGTH]}
+                for t in available_tools_for_llm],
+            "available_tools_count": len(available_tools_for_llm),
+            "message_history_sent_to_llm": debug_message_history,
+            "message_history_total_count": len(current_message_history)}
+
     for iteration in range(max_iterations_with_recovery):
         logger.info(f"{log_prefix} LLM call iteration {iteration + 1}/{max_iterations_with_recovery}, total_skill_calls={total_skill_calls}")
         # Capture newly completed results before context fitting can drop older
@@ -5605,6 +5713,11 @@ async def handle_main_processing(
                 yield INVALID_TOOL_FALLBACK_MESSAGE
                 force_no_tools = True
                 break
+            if focus_phase_runtimes and await evaluate_active_phases(
+                "assistant", f"{request_data.message_id}:{iteration}:assistant",
+                [*current_message_history, {"role": "assistant", "content": final_buffered_text_for_turn}],
+            ):
+                yield phase_state_marker()
             break
 
         # This iteration produced tool calls — the loop will continue with at least one
@@ -6750,6 +6863,9 @@ async def handle_main_processing(
                         logger.info(f"{log_prefix} [FOCUS_MODE] Deactivating focus mode: {previous_focus_id}")
                         
                         # Clear active_focus_id
+                        await invalidate_phase_runtime(phase_redis, owner_id=request_data.user_id,
+                            chat_id=request_data.chat_id, focus_id=request_data.active_focus_id or "")
+                        focus_phase_runtimes[:] = [r for r in focus_phase_runtimes if r.state.focus_id != request_data.active_focus_id]
                         request_data.active_focus_id = None
                         
                         # Clear focus_id in cache and Directus
@@ -9379,6 +9495,11 @@ async def handle_main_processing(
                 "ignore_fields_for_inference": ignore_fields_for_inference  # Store for follow-up requests
             }
             current_message_history.append(tool_response_message)
+
+        if focus_phase_runtimes and await evaluate_active_phases(
+            "tools", f"{request_data.message_id}:{iteration}:tools", current_message_history,
+        ):
+            yield phase_state_marker()
 
         # === MAX ITERATIONS HANDLING ===
         # If we're on the second-to-last iteration and the LLM is still requesting tools,

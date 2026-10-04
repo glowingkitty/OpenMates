@@ -730,7 +730,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
               "ai_response_storage_confirmed",
               "chat_compression_started", "chat_compression_completed",
               "encrypted_metadata_stored", "post_processing_metadata_stored",
-              "focus_mode_activated",
+              "focus_mode_activated", "focus_phases_updated",
               "spawn_sub_chats", "sub_chat_confirmation_required",
               "sub_chat_confirmation_resolved", "sub_chat_progress", "sub_chat_stopped", "sub_chat_completed",
               "ai_background_response_completed":

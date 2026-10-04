@@ -10115,6 +10115,23 @@
       }
     }
   },
+  "focus_phases": {
+    "phases": {
+      "text": "Fasi"
+    },
+    "requirements": {
+      "text": "Requisiti"
+    },
+    "confirmation": {
+      "text": "È necessaria la tua conferma"
+    },
+    "switched": {
+      "text": "Fase di concentrazione:"
+    },
+    "returned": {
+      "text": "Ritorno alla fase di concentrazione:"
+    }
+  },
   "footer": {
     "language_selector": {
       "label": {

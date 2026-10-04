@@ -83,6 +83,7 @@ class AskSkillRequest(BaseModel):
     is_external: bool = Field(default=False, description="Whether this is an external API request. External requests skip cache warming, vault lookup, and storage.")
     mate_id: Optional[str] = Field(default=None, description="The ID of the Mate to use. If None, AI will select.")
     active_focus_id: Optional[str] = Field(default=None, description="The ID of the currently active focus, if any.")
+    focus_phase_state: Optional[Dict[str, Any]] = Field(default=None, description="Client-decrypted phase state; transient inference context only.")
     current_project: Optional[Dict[str, Any]] = Field(default=None, description="Server-derived current Project routing metadata for this chat.")
     project_focus_candidates: List[Dict[str, Any]] = Field(default_factory=list, max_length=40, description="Client-decrypted Project names for routing only; server ownership checks precede selection. No file contents or instructions.")
     project_access_declined: bool = Field(default=False, description="Internal continuation guard: do not request Project access again after this turn's declined consent.")
