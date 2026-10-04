@@ -432,3 +432,17 @@ diagnostics and safe handling of the source-bound synthetic fixture are being
 prepared before another run. The legal draft now passes four rendered-copy tests
 and fresh 21-locale generation; source configuration and statutory duties are
 distinguished without changing runtime retention or deleting historical records.
+
+### Directus private-receipt ownership failure
+
+The corrected P-1 source `1f755c3c165e95a3814f7311419907db2486fd40`
+used trusted dev `d0dee04a6e69c2bade6bc4f89586b0cb69c33b98`.
+Run `37163387116` made one attempt and failed at the private receipt read;
+artifact retention separately reported `PermissionError` on that same file.
+The API-container-owned mode-0600 receipt was unreadable by the host test and
+collector. The probe subprocess and cleanup returned successfully, but the
+receipt predicates were not verified and no audit-overhead result is claimed.
+The repair must transfer only the exact newly created receipt to the guarded
+host runner identity, preserving mode 0600, exclusive creation, path checks,
+all product-history and audit assertions, and disposable-fixture cleanup.
+No product policy change is justified by this verification failure.

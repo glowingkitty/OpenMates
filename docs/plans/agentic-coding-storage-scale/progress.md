@@ -1,11 +1,11 @@
 # Storage implementation progress
 
-Snapshot: 2026-10-03. OpenMates Tasks owns work status and dependencies.
+Snapshot: 2026-10-04. OpenMates Tasks owns work status and dependencies.
 
 ## Published to dev
 
 Specification, Plan, Apple handoff, synthetic crypto fixture and scoped CI tooling.
-Latest trusted tooling: `b5c7c0decb8b5ac36ad937a01e6c85b54f4001bc`.
+Latest trusted tooling: `d0dee04a6e69c2bade6bc4f89586b0cb69c33b98`.
 The main storage/API implementation is still in private candidates. No real-user
 migration, pruning, new S3 charge or protected unpaid-data expiration is active.
 
@@ -17,7 +17,7 @@ migration, pruning, new S3 charge or protected unpaid-data expiration is active.
 | PostgreSQL/S3 | Bounded queries, indexed pages, large payloads, copy/verify/fences, initial 24-hour buffer | Reader compatibility and real-data rollout |
 | Unattended output | Durable sealed messages, child results, embeds/diffs and checkpoints; pause on failed save | Updated restart/browser checks and native clients |
 | Artifact versions | Paginated graph metadata, S3 payloads, periodic snapshots and bounded patches | First-version processing failure; account-wide growth of current-head SQL payloads |
-| Directus | Five-collection tracking policy; intentional product history preserved | Actual write/receipt comparison failed; diagnostics and corrected verification pending |
+| Directus | Five-collection tracking policy; intentional product history preserved | Verification could not read the container-owned private receipt; fix host/container ownership and rerun the full comparison |
 | Billing | Logical S3 metering, frozen weekly settlement, retries and delivered-warning clocks | Exact billing review, Team payer, integrated proof and protected expiration implementation |
 | Legal | Storage, encryption, deletion and cost copy corrected; retention-law claims corrected | Coordinated publication with matching behavior |
 
@@ -30,6 +30,12 @@ migration, pruning, new S3 charge or protected unpaid-data expiration is active.
   browser cases and diagnostic processing pilot are still under verification.
 - Source 998c: Directus integration failed at receipt validation after startup;
   no measured tracking/storage improvement is claimed from that run.
+- Source 1f755, trusted harness d0dee: the corrected single-attempt Directus run
+  failed while reading its private receipt. The host test and artifact collector
+  could not read the container-owned mode-0600 file. The probe subprocess and
+  cleanup returned successfully, but the receipt assertions were not verified.
+  Preserve private permissions and fix only the guarded receipt's ownership;
+  no tracking or write-overhead pass is claimed yet.
 - Latest legal draft: four rendered-copy unit cases and 21-locale generation passed.
 - The accepted 1000-heavy-user/500-active-execution capacity target has not run.
   The current CI worker profile cannot admit 500 active prefork tasks.
