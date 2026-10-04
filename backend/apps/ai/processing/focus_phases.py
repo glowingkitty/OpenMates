@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import re
 import uuid
 import time
 from typing import Any, Literal
@@ -19,6 +20,11 @@ from backend.apps.ai.processing.jev_decisions import evaluate_jev_decisions, cho
 
 logger = logging.getLogger(__name__)
 MODEL = "typesafe/jev-1.13"
+EVIDENCE_CONTENT_LIMIT = 4000
+_EVIDENCE_TRUNCATION = "\n[... content truncated for phase evidence ...]\n"
+_FENCED_BLOCK = re.compile(r"(?m)^```([^\n]*)\r?\n(.*?)^```[ \t]*(?=\r?\n|\Z)", re.DOTALL)
+_TRANSPORT_APP_ID = re.compile(r"(?m)^[ \t]*app_id:[ \t]*\S+")
+_TRANSPORT_SKILL_ID = re.compile(r"(?m)^[ \t]*skill_id:[ \t]*\S+")
 CAS = """
 local current = redis.call('GET', KEYS[1])
 if (current or '') ~= ARGV[1] then return 0 end
@@ -121,6 +127,36 @@ def decision_questions(focus: AppFocusDefinition, state: FocusPhaseState, bounda
     return questions
 
 
+def _is_assistant_transport_fence(label: str, body: str) -> bool:
+    language = label.strip().split(" ", 1)[0].lower()
+    if language == "toon":
+        return bool(_TRANSPORT_APP_ID.search(body) and _TRANSPORT_SKILL_ID.search(body))
+    if language == "app_skill_use":
+        return True
+    if language not in {"json", "json_embed"}:
+        return False
+    try:
+        return isinstance((payload := json.loads(body)), dict) and payload.get("type") == "app_skill_use"
+    except ValueError:
+        return False
+
+
+def _project_evidence_content(role: str, content: Any) -> str:
+    text = str(content or "")
+    if role == "assistant":
+        # Expanded search results and app-skill embeds are transport artifacts in
+        # assistant history. Keep ordinary code fences and all tool-role evidence.
+        text = _FENCED_BLOCK.sub(
+            lambda match: "\n" if _is_assistant_transport_fence(match.group(1), match.group(2)) else match.group(0),
+            text,
+        ).strip()
+    if len(text) <= EVIDENCE_CONTENT_LIMIT:
+        return text
+    budget = EVIDENCE_CONTENT_LIMIT - len(_EVIDENCE_TRUNCATION)
+    start = budget // 2
+    return text[:start] + _EVIDENCE_TRUNCATION + text[-(budget - start):]
+
+
 async def evaluate_boundary(focus: AppFocusDefinition, state: FocusPhaseState, *,
                             boundary: str, boundary_id: str, turn_id: str,
                             latest_user: str, messages: list[Any], secrets_manager: Any,
@@ -137,7 +173,7 @@ async def evaluate_boundary(focus: AppFocusDefinition, state: FocusPhaseState, *
     for message in messages[-12:]:
         m = message if isinstance(message, dict) else message.model_dump()
         if m.get("role") in {"user", "assistant", "tool"}:
-            evidence.append({"role": m["role"], "content": str(m.get("content") or "")[:4000]})
+            evidence.append({"role": m["role"], "content": _project_evidence_content(m["role"], m.get("content"))})
     try:
         response = await evaluator(state={"current_phase": phases[index].title,
             "boundary": boundary, "current_phase_instructions": phases[index].instructions,

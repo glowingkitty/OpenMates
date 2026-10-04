@@ -56,6 +56,7 @@ from backend.apps.ai.utils.mate_utils import load_mates_config, MateConfig
 from backend.apps.ai.utils.model_selector import DEFAULT_FALLBACK_MODEL
 from backend.apps.ai.processing.preprocessor import handle_preprocessing, PreprocessingResult
 from backend.apps.ai.processing.plan_focus_routing import route_plan_focus
+from backend.apps.ai.processing.focus_phase_history import filter_focus_phase_history
 from backend.apps.ai.processing.artifact_ledger import (
     build_historical_artifact_context,
     load_and_merge_artifact_ledger,
@@ -899,6 +900,11 @@ async def _async_process_ai_skill_ask_task(
     Returns a dictionary with processing results and status flags.
     """
     logger.info(f"[Task ID: {task_id}] Async task execution started.")
+    # Phase transition JSON is stored as an encrypted system message for chat UI.
+    # The phase state is supplied separately, so these notices need no model role.
+    request_data.message_history = filter_focus_phase_history(
+        request_data.message_history, chat_id=request_data.chat_id,
+    )
     # These fields are client-constructible on the request model, so never trust
     # their inbound values. Only a validated marker below may repopulate them.
     request_data.live_mock_mode = None

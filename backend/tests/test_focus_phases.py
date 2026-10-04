@@ -328,6 +328,88 @@ def test_provider_failure_retains_phase():
     assert result == s
 
 
+# contract-test: supporting surface=rest_api assertions=focus-modes.phases,focus-modes.full-instruction
+def test_assistant_advice_after_long_transport_fence_reaches_jev():
+    paths = ("Direction A: Developer education fits the user's teaching experience. "
+             "Direction B: Developer enablement fits their engineering experience.")
+    recommendation = "I recommend testing Direction A with one small article first."
+    assistant = ("```toon\napp_id: web\nskill_id: search\nresults: " + "x" * 6000
+                 + "\n```\n\n" + paths + "\n" + "Additional tradeoffs. " * 300
+                 + "\n" + recommendation)
+    observed = {}
+
+    async def decide(**kwargs):
+        observed.update(kwargs["state"])
+        content = kwargs["state"]["evidence"][0]["content"]
+        choice = "met" if paths in content and recommendation in content else "unmet"
+        return await evaluator({"requirement_understood": choice})(**kwargs)
+
+    result = asyncio.run(evaluate_boundary(
+        focus(), state(), boundary="assistant", boundary_id="assistant-advice",
+        turn_id="turn-advice", latest_user="Please compare my options.",
+        messages=[{"role": "assistant", "content": assistant}], secrets_manager=None,
+        evaluator=decide,
+    ))
+    projected = observed["evidence"][0]["content"]
+    assert result.phase_id == "confirm"
+    assert paths in projected and recommendation in projected
+    assert "results: " not in projected
+    assert len(projected) <= 4000
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.phases,focus-modes.full-instruction
+def test_jev_evidence_keeps_normal_code_and_tool_text_with_bounded_tail():
+    assistant = ("```python\nprint('ordinary code')\n```\n"
+                 "```toon\ntype: code\ncontent: ordinary TOON artifact\n```\n" + "A" * 5000
+                 + "\nFinal recommendation: try the small experiment.")
+    tool = "Tool result starts here. " + "B" * 5000 + " Final tool detail."
+    observed = {}
+
+    async def decide(**kwargs):
+        observed.update(kwargs["state"])
+        return await evaluator({"requirement_understood": "unmet"})(**kwargs)
+
+    asyncio.run(evaluate_boundary(
+        focus(), state(), boundary="assistant", boundary_id="assistant-code",
+        turn_id="turn-code", latest_user="Show the result.",
+        messages=[{"role": "assistant", "content": assistant},
+                  {"role": "tool", "content": tool}], secrets_manager=None,
+        evaluator=decide,
+    ))
+    assistant_evidence, tool_evidence = observed["evidence"]
+    assert "```python\nprint('ordinary code')\n```" in assistant_evidence["content"]
+    assert "```toon\ntype: code\ncontent: ordinary TOON artifact\n```" in assistant_evidence["content"]
+    assert "Final recommendation: try the small experiment." in assistant_evidence["content"]
+    assert "Tool result starts here." in tool_evidence["content"]
+    assert "Final tool detail." in tool_evidence["content"]
+    assert all(len(message["content"]) <= 4000 for message in observed["evidence"])
+    assert all("truncated" in message["content"] for message in observed["evidence"])
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.phases,focus-modes.full-instruction
+def test_jev_evidence_removes_only_assistant_app_skill_transport():
+    embed = '```json\n{"type":"app_skill_use","embed_id":"result-1"}\n```'
+    normal_json = '```json\n{"example":"ordinary code"}\n```'
+    observed = {}
+
+    async def decide(**kwargs):
+        observed.update(kwargs["state"])
+        return await evaluator({"requirement_understood": "unmet"})(**kwargs)
+
+    asyncio.run(evaluate_boundary(
+        focus(), state(), boundary="assistant", boundary_id="assistant-embed",
+        turn_id="turn-embed", latest_user="Show the result.",
+        messages=[{"role": "assistant", "content": embed + "\n" + normal_json + "\nThe answer."},
+                  {"role": "tool", "content": embed}], secrets_manager=None,
+        evaluator=decide,
+    ))
+    assistant_evidence, tool_evidence = observed["evidence"]
+    assert embed not in assistant_evidence["content"]
+    assert normal_json in assistant_evidence["content"]
+    assert "The answer." in assistant_evidence["content"]
+    assert embed in tool_evidence["content"]
+
+
 # contract-test: supporting surface=rest_api assertions=focus-modes.phases
 def test_late_decision_cannot_overwrite_newer_run():
     class Redis:

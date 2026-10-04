@@ -53,11 +53,14 @@ profile confirmation explicitly; the assistant keeps assumptions visible.
 
 Implementation is deployed to dev. The focused backend suite has 80 passing
 checks, including 29 phase cases and six processor transition regressions.
-Isolated CI passes two CLI transport tests, three phase component tests and four
-settings browser tests. Real CLI inference now uses the documented personal dev
-test account in isolated state. It exposed automatic planning overriding explicit
-focus selection (repaired) and missing focus fields in cache warming (being
-repaired). The required eight-turn CLI and web conversations remain in progress.
-Native build/test execution is unavailable: the remote helper
-rejects build/test operations and existing workflows have no macOS runner. The
-Plan remains implementing; source inspection does not establish native proof.
+A further 27 restoration checks and six CLI transport cases pass after real
+personal-account usage exposed missing encrypted fields and competing completion
+claims. Isolated CI also passes three phase component tests and four settings
+browser tests. The real CLI conversation verified sequential questions, batching,
+skipping, profile correction, confirmation and actual web research across seven
+messages. Direction selection exposed an evidence-projection bug: expanded search
+transport data consumed Jev's bounded input before the assistant's career advice.
+That repair and complete CLI/web reruns remain in progress.
+Native build/test execution is unavailable: the remote helper rejects staging,
+build and test operations, and existing workflows have no macOS runner. The Plan
+remains implementing; source inspection does not establish native proof.

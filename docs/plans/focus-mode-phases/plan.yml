@@ -132,9 +132,10 @@ tests:
       status: pending
       timestamp: '2026-10-04T13:57:20.960644+00:00'
       actor: Codex
-      reason: Documented personal dev account authenticated in isolated state; real eight-turn CLI and
-        web conversations are running after explicit focus routing repair.
-      subject_commit: 2eac4d5e532b618bc726062924b729b75bdf4c09
+      reason: 'Seven-turn real CLI conversation passed clarification batching, skipping, confirmation
+        and research, but retained Explore after direction selection: expanded search data filled the
+        bounded Jev evidence before the assistant advice. Repair and full CLI/web reruns remain required.'
+      subject_commit: 6039c6fa5618c55e0a17441b83aa97395fc7c439
       artifact: /tmp/focus-live-907d/evidence.json
 - id: T-PHASE-3
   type: playwright
@@ -206,12 +207,13 @@ tests:
       status: pending
       timestamp: '2026-10-04T13:57:20.960680+00:00'
       actor: Codex
-      reason: Documented personal dev account authenticated in isolated state; real eight-turn CLI and
-        web conversations are running after explicit focus routing repair.
-      subject_commit: 2eac4d5e532b618bc726062924b729b75bdf4c09
+      reason: 'Seven-turn real CLI conversation passed clarification batching, skipping, confirmation
+        and research, but retained Explore after direction selection: expanded search data filled the
+        bounded Jev evidence before the assistant advice. Repair and full CLI/web reruns remain required.'
+      subject_commit: 6039c6fa5618c55e0a17441b83aa97395fc7c439
       artifact: /tmp/focus-live-907d/evidence.json
 implementation_state:
-  subject_commit: 2eac4d5e532b618bc726062924b729b75bdf4c09
+  subject_commit: 6039c6fa5618c55e0a17441b83aa97395fc7c439
 approvals:
   specification:
     status: approved
@@ -297,14 +299,22 @@ attempts:
     explicit-focus guard and five production-guard regression variants. Personal account login was recovered
     with the documented misspelled env keys, without changing global CLI state.
   recorded_at: '2026-10-04'
+- id: ATT-3
+  task_id: TASK-6202
+  outcome: succeeded
+  approach: Real CLI exposed competing completion claims and missing focus ciphertext in core/full warming
+    and REST. Repaired both; six CLI transport cases pass isolated CI and 27 backend restoration cases
+    pass. A subsequent seven-turn conversation exposed search transport data starving Jev evidence; that
+    repair is underway.
+  recorded_at: '2026-10-04'
 handoff:
   current_task_id: TASK-6202
   next_action: Finish and inspect the personal dev account eight-turn CLI and web real inference conversations;
     then verify Apple on an admitted Mac runner.
-  command: python3 /tmp/focus-live-907d/runner.py 2eac4d5e532b618bc726062924b729b75bdf4c09
+  command: python3 /tmp/focus-live-907d/runner.py 6039c6fa5618c55e0a17441b83aa97395fc7c439
   expected_outcome: Real inference and native evidence meet all required criteria; Plan remains implementing
     until that evidence exists.
-  last_verified_commit: 2eac4d5e532b618bc726062924b729b75bdf4c09
+  last_verified_commit: 6039c6fa5618c55e0a17441b83aa97395fc7c439
   blocker:
     requires_user_input: true
     task_id: TASK-7858
@@ -351,3 +361,32 @@ verification_receipts:
     previous_guard_failure_confirmed: true
     backend_status: Coordinated dev runtime healthy
     issue_fixed: Automatic planning no longer overrides an explicit focus mention.
+  restoration_and_completion:
+    commit: 6039c6fa5618c55e0a17441b83aa97395fc7c439
+    focused_backend_passed: 27
+    cli_run_id: '37208924402'
+    cli_url: https://github.com/glowingkitty/OpenMates/actions/runs/37208924402
+    cli_tests_passed: 6
+    cli_tests_skipped: 0
+    cli_source_commit: e26297e587899555849fafc264494947cd6fb0ff
+    issues_fixed:
+    - Core/full warming and REST retain encrypted focus and phase fields.
+    - CLI handles competing completion claims with bounded retries and strict identity checks.
+  real_cli_failed_gate:
+    commit: 6039c6fa5618c55e0a17441b83aa97395fc7c439
+    artifact: /tmp/focus-live-907d/seven-failure-evidence.json
+    turns_completed: 7
+    failed_assertion: Chosen direction should advance Explore to Next steps.
+    root_cause: Expanded toon search payload occupied the first 4000 characters; Jev did not receive assistant
+      advice.
+    status: repaired_pending_full_rerun
+  jev_projection_replay:
+    artifact: /tmp/focus-live-907d/jev-fixed-projection.log
+    original_phase: explore
+    fixed_phase: next_steps
+    original_paths_decision: unmet
+    fixed_paths_decision: met
+    fixed_paths_confidence: 0.98
+    assistant_evidence_character_limit: 4000
+    summary: Real Jev replay of the expanded persisted history reproduced the gate failure; production
+      projection repair preserves advice and advances correctly without lowering decision thresholds.
