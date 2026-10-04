@@ -431,6 +431,64 @@ asyncio.run(main())
     return receipt
 
 
+def run_isolated_legacy_claim_probe() -> dict:
+    """Prove epoch-zero claim fences before this disposable stack activates v1."""
+    require_runner()
+    profile = json.loads(COMPOSE_PATH.read_text())
+    api_env = profile["services"]["api"]["environment"]
+    expected = {
+        "OPENMATES_CI_ISOLATED": "1",
+        "OPENMATES_STORAGE_CAPACITY_FIXTURES": "true",
+        "MOCK_EXTERNAL_APIS": "true",
+        "SERVER_ENVIRONMENT": "development",
+        "S3_ENDPOINT_URL": "http://storage.ci.test:9000",
+        "CMS_URL": "http://cms:8055",
+        "VAULT_URL": "http://vault:8200",
+    }
+    if any(api_env.get(key) != value for key, value in expected.items()):
+        raise RuntimeError("Legacy claim probe requires the exact isolated capacity profile")
+    private = _private_evidence_dir("ci-capacity-private")
+    try:
+        result = compose(
+            "exec", "-T", "-e", "OPENMATES_CI_LEGACY_CLAIM_PROBE=1", "api",
+            "python", "/app/scripts/storage_archive_integration.py",
+            capture=True, timeout=300,
+        )
+    except subprocess.CalledProcessError as exc:
+        stderr = exc.stderr if isinstance(exc.stderr, str) else ""
+        (private / "legacy-claim-probe.stderr.log").write_text(
+            stderr[-100_000:], encoding="utf-8",
+        )
+        reason = sanitize_archive_probe_failure(stderr).replace(
+            "Disposable archive DB/S3 transaction probe",
+            "Disposable legacy claim SQL probe",
+        )
+        raise RuntimeError(reason) from None
+    try:
+        line = result.stdout.splitlines()[-1]
+        if len(line) > 4096:
+            raise ValueError("oversized receipt")
+        receipt = json.loads(line)
+    except (IndexError, json.JSONDecodeError, ValueError) as exc:
+        raise RuntimeError("Disposable legacy claim SQL probe omitted a bounded receipt") from exc
+    counts = receipt.get("legacy_claim_sql_races") if isinstance(receipt, dict) else None
+    if not isinstance(receipt, dict) or receipt.get("passed") is not True or not isinstance(counts, dict) or (
+        set(counts) != {"ordinary", "batch", "lifecycle_retired", "chat_deleted", "account_deleted"}
+        or any(type(counts[key]) is not int or counts[key] < 1 for key in counts)
+        or counts["ordinary"] != counts["batch"]
+        or counts["lifecycle_retired"] != counts["ordinary"] + counts["batch"]
+        or counts["chat_deleted"] != counts["ordinary"]
+        or counts["account_deleted"] != counts["batch"]
+    ):
+        raise RuntimeError("Disposable legacy claim SQL probe was incomplete")
+    path = private / "legacy-claim-probe.json"
+    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    with os.fdopen(descriptor, "w", encoding="utf-8") as output:
+        os.fchmod(output.fileno(), 0o600)
+        json.dump(receipt, output, sort_keys=True)
+    return receipt
+
+
 def pace_signup():
     """Respect the real shared-IP limit without disabling product rate limits."""
     global _last_signup_started
@@ -843,6 +901,7 @@ def run_e2e(
                 from ci_visual_smoke import capture
                 results.extend(capture(specs, WEB, RESULTS))
                 return results
+            capacity_epoch_receipt = None
             for index, name in enumerate(specs):
                 source = (WEB / "tests" / name).read_text()
                 env = {**os.environ, "PLAYWRIGHT_TEST_API_URL": API}
@@ -874,7 +933,10 @@ def run_e2e(
                         primary["OPENMATES_TEST_ACCOUNT_API_KEY"] = provision_api_key(primary)
                     secondary = provision_account(15, identity_index=2 * index + 1)
                     if name in CAPACITY_EPOCH_SPECS:
-                        recovery_epoch_receipt = activate_isolated_recovery_epoch()
+                        if capacity_epoch_receipt is None:
+                            run_isolated_legacy_claim_probe()
+                            capacity_epoch_receipt = activate_isolated_recovery_epoch()
+                        recovery_epoch_receipt = capacity_epoch_receipt
                     env.update(primary)
                     if local_signup_assertion:
                         # The backend and browser share only this runner-generated

@@ -88,6 +88,61 @@ def test_recovery_epoch_fixture_requires_exact_disposable_profile(tmp_path, monk
     assert len(calls) == 1
 
 
+def test_legacy_claim_sql_probe_runs_only_on_exact_fresh_profile_before_epoch(tmp_path, monkeypatch):
+    runner = _load_bound_runner(monkeypatch)
+    profile = compose_profile(
+        "candidate-sha", storage_capacity=True, account_emails=["ci-one@example.com"],
+    )
+    compose_path = tmp_path / "compose.json"
+    compose_path.write_text(json.dumps(profile))
+    monkeypatch.setattr(runner, "COMPOSE_PATH", compose_path)
+    monkeypatch.setattr(runner, "RESULTS", tmp_path)
+    monkeypatch.setattr(runner, "require_runner", lambda: None)
+    calls = []
+    counts = {"ordinary": 4, "batch": 4, "lifecycle_retired": 8,
+              "chat_deleted": 4, "account_deleted": 4}
+    receipt = {"passed": True, "legacy_claim_sql_races": counts}
+    monkeypatch.setattr(runner, "compose", lambda *args, **kwargs: (
+        calls.append(args) or SimpleNamespace(stdout=json.dumps(receipt))
+    ))
+    assert runner.run_isolated_legacy_claim_probe() == receipt
+    assert calls == [("exec", "-T", "-e", "OPENMATES_CI_LEGACY_CLAIM_PROBE=1",
+                      "api", "python", "/app/scripts/storage_archive_integration.py")]
+    private = tmp_path / "ci-capacity-private" / "legacy-claim-probe.json"
+    assert json.loads(private.read_text()) == receipt
+    assert private.stat().st_mode & 0o777 == 0o600
+
+    profile["services"]["api"]["environment"]["OPENMATES_CI_ISOLATED"] = "0"
+    compose_path.write_text(json.dumps(profile))
+    with pytest.raises(RuntimeError, match="exact isolated capacity profile"):
+        runner.run_isolated_legacy_claim_probe()
+    assert len(calls) == 1
+
+
+def test_legacy_claim_sql_probe_rejects_partial_receipt_and_precedes_epoch(tmp_path, monkeypatch):
+    runner = _load_bound_runner(monkeypatch)
+    profile = compose_profile(
+        "candidate-sha", storage_capacity=True, account_emails=["ci-one@example.com"],
+    )
+    compose_path = tmp_path / "compose.json"
+    compose_path.write_text(json.dumps(profile))
+    monkeypatch.setattr(runner, "COMPOSE_PATH", compose_path)
+    monkeypatch.setattr(runner, "RESULTS", tmp_path)
+    monkeypatch.setattr(runner, "require_runner", lambda: None)
+    monkeypatch.setattr(runner, "compose", lambda *args, **kwargs: SimpleNamespace(
+        stdout=json.dumps({"passed": True, "legacy_claim_sql_races": {
+            "ordinary": 4, "batch": 4, "lifecycle_retired": 7,
+            "chat_deleted": 4, "account_deleted": 4,
+        }})
+    ))
+    with pytest.raises(RuntimeError, match="incomplete"):
+        runner.run_isolated_legacy_claim_probe()
+    source = Path(runner.__file__).read_text()
+    activation_block = source.split("if name in CAPACITY_EPOCH_SPECS:")[-1]
+    assert activation_block.index("run_isolated_legacy_claim_probe()") < activation_block.index(
+        "activate_isolated_recovery_epoch()")
+
+
 def test_recovery_epoch_child_program_compiles_and_uses_only_cutover_dependencies(monkeypatch) -> None:
     runner = _load_bound_runner(monkeypatch)
     tree = ast.parse(Path(runner.__file__).read_text())
