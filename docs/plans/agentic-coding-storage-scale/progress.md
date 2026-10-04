@@ -4,34 +4,41 @@ Snapshot: 2026-10-04. OpenMates Tasks owns work status and dependencies.
 
 ## Current release status
 
-- The first database update is published and live on development: all nine
-  reviewed PostgreSQL query indexes are nonunique, valid, ready and independently
-  verified by their exact definitions. The API remains healthy. The five
-  high-write Directus tracking policies are also active.
-- The current historical-retention privacy correction is published. Its focused
-  browser check passed with matching source/harness and verified cleanup.
-- The broader archive/recovery/version implementation remains private. Candidate
-  `1212f0e2` passed the actual PostgreSQL canonical completion, lifecycle retirement
-  and permanent replay exclusion checks, then failed a deletion probe expectation.
-  Production correctly retains a completed claim as an at-most-once marker;
-  separate account/chat fences exclude late execution. The corrected probe keeps
-  both protections explicit. Its 36 focused tests passed. Candidate `3e283ddc`
-  then passed the actual PostgreSQL/S3 probes and encrypted browser turn1/1,
-  with matching harness `d84085c9` and verified disposable cleanup. The small
-  processing workload reached20/60 rounds,8/8 embeds and2/8 exact-content versions
-  before its requested child turn failed. Source/log review confirms the child
-  completed, but the CLI discarded its completion because the frame names the
-  child in `chat_id` and the active parent in `parent_id`. The narrow routing fix
-  passes26 focused WebSocket tests; both corrected fixtures fail against the
-  original code. This is not a capacity or latency pass.
-- Remaining release gates are the database/processing pilot, focused browser
-  recovery cases and supported-client compatibility. Current Apple clients need
-  the published handoff's new write and recovery contracts before strict API
-  activation. The large target benchmark is deferred under the user's publication
-  priority; no full-scale readiness claim is made.
-- Real-data archival/pruning and expanded storage billing remain off. Reference-safe
-  unpaid expiration is incomplete. The two authorized post-deploy live turns
-  (one CLI, one web) remain unused. No real user content has been migrated.
+- The five high-write Directus tracking policies are active and independently
+  verified; TASK-7570 is complete. All nine nonunique PostgreSQL indexes and
+  scalar chat message counts are also live. Historical audit rows are retained.
+- The main release includes bounded Redis contexts, PostgreSQL cursor readers,
+  encrypted S3 pages and version payloads, sealed unattended-output recovery,
+  pending-write journals, reference/deletion fences and the initial 24-hour
+  source-copy buffer. Publication is separate from CMS/schema and API/worker
+  activation; archive copy/read/prune and expanded billing switches remain off.
+- Focus-mode code and evidence are already published through `61cb0eea` and are
+  preserved. The focused recovery harness is public as `4559bc93`. Two final
+  canonical-receipt browser cases are selected from `d2903a48` under that trusted
+  harness; the final result is recorded below when retrieved. The already green
+  saved-bundle, detached Docs, exact-request rejection and PostgreSQL/S3 safety
+  proofs are retained without broad reruns.
+- The two missing development setup-container SQL mounts are repaired. Its
+  focused packaging regression identified exactly those missing mounts before
+  the repair and passes after it. Generated English/German locales retain all
+  105 published Apple widget/menu/activity values each; no public native
+  translation work is lost.
+- The user explicitly confirmed on 2026-10-04 that Apple has no testers besides
+  them and needs no backward compatibility for this dev rollout. Updated
+  native embed writers must use the matching canonical receipt contract;
+  unsupported writes fail closed. Full native typed-recovery/reader evidence
+  remains required before affected payload pruning. Production is unchanged.
+- The two authorized final live turns, one CLI and one web, run only after core
+  activation. No architecture/capacity run uses real inference. Full P-7 remains
+  deferred under the user's publication priority and is still a first-real-prune
+  gate; the small processing replay is not a capacity or latency pass.
+- Expanded billing and unpaid expiration remain disabled. The delivered-warning
+  clocks exist, but exact notified chargeable-object selection and invoice
+  closure are unresolved; aggregate invoices cannot safely select deletions.
+  Team payer/allowance remains unresolved. Current privacy disclosures describe
+  active behavior; no new charge or unpaid deletion is claimed.
+
+## Earlier release and verification history
 
 ## Published to dev
 
@@ -653,3 +660,24 @@ both final real-inference CLI/web turns remain unused.
   flags remain OFF. Reference-safe unpaid expiry and Team billing remain open.
   No real user data has been moved or deleted. The two final real CLI/web turns
   remain unused and will follow the core API activation.
+## Exact recovery race follow-up and activation order — 2026-10-04
+
+The current exact two-case recovery CI completed only after flaky first attempts;
+it is not a stable first-attempt pass. The bounded review identified a same-embed
+canonical write race, missing correlation on a canonical denial, and a test
+catalog-context mismatch. The correlation repair and focused backend regression
+are included in the next candidate together with the frontend same-embed race
+and catalog-context repair. Its focused unit selection passed 13/13: canonical
+reuse, bounded v1 history when the head is v2, exact wrappers, no new journal or
+head overwrite for a verified recovered event, and shared local-preparation lease
+with exact acknowledgement are covered. The two exact browser cases remain
+pending, so this is unit-ready rather than a stable critical recovery pass.
+
+After publication and proof, development activation order is a coordinated
+`cms-setup --build` first, followed by one coordinated rebuild/restart of `cms`,
+`api`, and `app-ai-worker`. The setup step creates the additive columns and
+indexes before new application code starts; its authenticated health check uses
+the existing v1 metadata read. Archive, prune, and expanded billing flags remain
+OFF. The development-only Apple rollout decision permits web, CLI, and backend
+activation after critical proof; native typed-reader support remains a pruning
+gate. No activation has been performed here.

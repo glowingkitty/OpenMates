@@ -11,6 +11,7 @@ import sys
 import hashlib
 import importlib
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 from fastapi import HTTPException, Response
@@ -41,6 +42,7 @@ class _FakeDirectusService:
             get_chat_metadata=self.get_chat_metadata,
             get_all_messages_for_chat=self.get_all_messages_for_chat,
             get_message_window_for_chat=self.get_message_window_for_chat,
+            get_message_for_chat_by_client_id=self.get_message_for_chat_by_client_id,
             get_message_count_for_chat=self.get_message_count_for_chat,
             delete_all_messages_for_chat=self.delete_all_messages_for_chat,
             delete_all_drafts_for_chat=self.delete_all_drafts_for_chat,
@@ -54,15 +56,22 @@ class _FakeDirectusService:
         self.chat_key_wrapper = SimpleNamespace(
             get_wrappers_by_hashed_chat_ids_batch=self.get_wrappers_by_hashed_chat_ids_batch,
             list_authorized_wrappers=self.list_authorized_wrappers,
+            get_sync_wrapper_window_for_chat=self.get_sync_wrapper_window_for_chat,
         )
         self.suggestion_queries = []
         self.chat_metadata_queries = []
         self.chat_key_wrapper_queries = []
         self.message_window_queries = []
         self.full_message_reads = 0
+        self.exact_message = {
+            "id": "row-1", "client_message_id": "message-1", "chat_id": "chat-1",
+            "encrypted_content": "cipher-content", "created_at": 50,
+        }
         self.ownership_allowed = True
         self.embed_owner_allowed = True
         self.deleted_chat_id = None
+        self.events = []
+        self.deletion_fences = set()
         self.compression_checkpoints = [
             {
                 "id": "checkpoint-1",
@@ -70,6 +79,7 @@ class _FakeDirectusService:
                 "hashed_user_id": hashlib.sha256(b"user-1").hexdigest(),
                 "encrypted_summary": "cipher-summary",
                 "compressed_up_to_timestamp": 10,
+                "created_at": 20,
             }
         ]
         self.chat_key_wrappers = [
@@ -137,17 +147,31 @@ class _FakeDirectusService:
     async def get_message_count_for_chat(self, chat_id):
         return 101 if chat_id == "chat-1" else 0
 
+    async def get_message_for_chat_by_client_id(self, chat_id, message_id):
+        if chat_id == "chat-1" and message_id == "message-1":
+            return self.exact_message
+        return None
+
     async def delete_all_messages_for_chat(self, chat_id):
+        self.events.append("delete_messages")
         self.deleted_chat_id = chat_id
         return True
 
     async def delete_all_drafts_for_chat(self, chat_id):
+        self.events.append("delete_drafts")
         self.deleted_chat_id = chat_id
         return True
 
     async def persist_delete_chat(self, chat_id):
+        self.events.append("delete_chat")
         self.deleted_chat_id = chat_id
         return True
+
+    async def create_chat_in_directus(self, payload):
+        chat_id = str(payload.get("id") or payload.get("chat_id"))
+        if chat_id in self.deletion_fences:
+            return None, False
+        return payload, False
 
     async def get_embeds_by_hashed_chat_id(self, hashed_chat_id):
         assert len(hashed_chat_id) == 64
@@ -168,6 +192,11 @@ class _FakeDirectusService:
             and (hashed_user_id is None or wrapper["hashed_user_id"] == hashed_user_id)
         ]
 
+    async def get_sync_wrapper_window_for_chat(self, hashed_chat_id, *, hashed_user_id, before_id=None):
+        rows = await self.get_wrappers_by_hashed_chat_ids_batch([hashed_chat_id], hashed_user_id=hashed_user_id)
+        return {"wrappers": rows, "has_more_before": False,
+                "start_cursor": rows[-1]["id"] if rows else None, "oversized_wrapper_id": None}
+
     async def list_authorized_wrappers(self, chat_id, user_id):
         if not await self.check_chat_ownership(chat_id, user_id):
             return []
@@ -178,12 +207,13 @@ class _FakeDirectusService:
     async def get_items(self, collection, params=None, **kwargs):
         if collection == "chat_compression_checkpoints":
             filters = (params or {}).get("filter") or {}
-            chat_id = filters.get("chat_id", {}).get("_eq")
-            hashed_user_id = filters.get("hashed_user_id", {}).get("_eq")
+            scope = filters.get("_and", [filters])[0]
+            chat_id = scope.get("chat_id", {}).get("_eq")
+            hashed_user_id = scope.get("hashed_user_id", {}).get("_eq")
             return [
                 checkpoint for checkpoint in self.compression_checkpoints
                 if checkpoint["chat_id"] == chat_id
-                and checkpoint["hashed_user_id"] == hashed_user_id
+                and (hashed_user_id is None or checkpoint["hashed_user_id"] == hashed_user_id)
             ]
         if collection == "embeds":
             if not self.embed_owner_allowed:
@@ -687,6 +717,7 @@ async def test_sdk_chat_list_uses_admin_directus_read_after_api_key_auth(monkeyp
             "id": "chat-1",
             "encrypted_title": "cipher-title",
             "chat_key_wrappers": request.app.state.directus_service.chat_key_wrappers,
+            "chat_key_wrapper_window": {"has_more_before": False, "start_cursor": "chat-wrapper-1", "oversized_wrapper_id": None},
         }
     ]
     assert request.app.state.directus_service.chat_metadata_queries == [
@@ -822,8 +853,19 @@ async def test_sdk_dispatch_billing_usage_details_and_chat_total_reuse_settings_
 
 
 @pytest.mark.anyio
-async def test_sdk_dispatch_chat_delete_requires_ownership_and_deletes_chat():
+async def test_sdk_dispatch_chat_delete_requires_durable_fence_before_mutation(monkeypatch):
     request = _FakeRequest(method="DELETE")
+    directus = request.app.state.directus_service
+
+    async def persist_fence(service, chat_id, hashed_user_id):
+        assert service is directus
+        assert hashed_user_id == hashlib.sha256(b"user-1").hexdigest()
+        service.events.append("fence")
+        service.deletion_fences.add(chat_id)
+        return {"chat_deletion_fenced": True, "chat_id": chat_id}
+
+    fence = AsyncMock(side_effect=persist_fence)
+    monkeypatch.setattr(sdk_routes, "_require_sdk_chat_deletion_fence", fence)
 
     result = await _dispatch_sdk_surface(
         request,
@@ -834,6 +876,7 @@ async def test_sdk_dispatch_chat_delete_requires_ownership_and_deletes_chat():
     )
 
     assert result == {"success": True, "chat_id": "chat-1"}
+    assert directus.events == ["fence", "delete_messages", "delete_drafts", "delete_chat"]
     assert request.app.state.directus_service.deleted_chat_id == "chat-1"
     assert request.app.state.cache_service.removed_chat_ids == [("user-1", "chat-1")]
     assert request.app.state.cache_service.deleted_app_data == [("user-1", "chat-1")]
@@ -845,6 +888,29 @@ async def test_sdk_dispatch_chat_delete_requires_ownership_and_deletes_chat():
             None,
         )
     ]
+    request.app.state.cache_service = _FakeCacheService()  # Simulate all Redis tombstones expiring.
+    recreated, existed = await directus.create_chat_in_directus({"id": "chat-1"})
+    assert (recreated, existed) == (None, False)
+
+
+@pytest.mark.anyio
+async def test_sdk_dispatch_chat_delete_fence_failure_has_no_delete_or_ack(monkeypatch):
+    request = _FakeRequest(method="DELETE")
+    fence = AsyncMock(side_effect=HTTPException(
+        status_code=503, detail={"error": "chat_deletion_fence_unavailable"},
+    ))
+    monkeypatch.setattr(sdk_routes, "_require_sdk_chat_deletion_fence", fence)
+
+    with pytest.raises(HTTPException) as exc:
+        await _dispatch_sdk_surface(
+            request, {"user_id": "user-1"}, "chats", "chat-1", None,
+        )
+
+    assert exc.value.status_code == 503
+    assert request.app.state.directus_service.events == []
+    assert request.app.state.directus_service.deleted_chat_id is None
+    assert request.app.state.cache_service.removed_chat_ids == []
+    assert request.app.state.connection_manager.broadcasts == []
 
 
 @pytest.mark.asyncio
@@ -947,7 +1013,7 @@ async def test_sdk_chat_messages_returns_bounded_encrypted_window_after_ownershi
         {
             "chat_id": "chat-1",
             "direction": "latest",
-            "limit": sdk_routes.DEFAULT_SDK_MESSAGE_WINDOW_LIMIT,
+            "limit": 20,
             "before_timestamp": None,
             "before_message_id": None,
             "after_timestamp": None,
@@ -957,6 +1023,31 @@ async def test_sdk_chat_messages_returns_bounded_encrypted_window_after_ownershi
         }
     ]
     assert request.app.state.directus_service.full_message_reads == 0
+
+
+# contract-test: supporting surface=rest_api assertions=storage.cold.independent-message-pages,sdk.auth.approved-api-key-device
+@pytest.mark.anyio
+async def test_sdk_exact_message_requires_owner_and_caps_selected_ciphertext(monkeypatch):
+    async def fake_authenticate(_request):
+        return {"user_id": "user-1", "api_key_metadata": {"full_access": True}}
+
+    monkeypatch.setattr(sdk_routes, "_authenticate_sdk_request", fake_authenticate)
+    request = _FakeRequest(method="GET")
+    result = await sdk_routes.get_exact_sdk_chat_message(request, "chat-1", "message-1")
+    assert result["message"]["encrypted_content"] == "cipher-content"
+    assert result["storage_tier"] == "hot"
+    assert request.app.state.directus_service.full_message_reads == 0
+
+    request.app.state.directus_service.ownership_allowed = False
+    with pytest.raises(HTTPException) as denied:
+        await sdk_routes.get_exact_sdk_chat_message(request, "chat-1", "message-1")
+    assert denied.value.status_code == 404
+
+    request.app.state.directus_service.ownership_allowed = True
+    request.app.state.directus_service.exact_message["encrypted_content"] = "A" * (2 * 1024 * 1024)
+    with pytest.raises(HTTPException) as too_large:
+        await sdk_routes.get_exact_sdk_chat_message(request, "chat-1", "message-1")
+    assert too_large.value.status_code == 413
 
 
 @pytest.mark.anyio

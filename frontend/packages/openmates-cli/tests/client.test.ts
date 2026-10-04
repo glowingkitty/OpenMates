@@ -1670,7 +1670,11 @@ describe("CLI streamed embed persistence", () => {
     const chatKey = new Uint8Array(32).fill(7);
     const frames: { type: string; payload: Record<string, any> }[] = [];
     const ws = {
-      waitForMessage: async () => undefined,
+      waitForMessage: async (type: string) => ({
+        payload: type === "store_embed_keys_confirmed"
+          ? { created_count: 2, failed_count: 0 }
+          : {},
+      }),
       sendAsync: async (type: string, payload: Record<string, any>) => {
         frames.push({ type, payload });
       },

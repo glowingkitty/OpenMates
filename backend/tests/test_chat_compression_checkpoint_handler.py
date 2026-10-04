@@ -66,6 +66,9 @@ class FakeChatMethods:
     async def check_chat_ownership(self, chat_id: str, user_id: str) -> bool:
         return chat_id == "chat-123" and user_id == "user-123"
 
+    async def get_chat_metadata(self, chat_id: str, admin_required: bool = False):
+        return {"id": chat_id, "archived_message_count": 0}
+
     async def get_messages_for_chat_before_timestamp(
         self,
         chat_id: str,
@@ -109,16 +112,19 @@ class FakeDirectusService:
     def __init__(self) -> None:
         self.chat = FakeChatMethods()
         self.created: list[tuple[str, dict, bool]] = []
+        self.checkpoint_exists = True
+        self.existing_manifest = None
 
     async def get_items(self, collection: str, *args, **kwargs):
         params = kwargs.get("params") or (args[0] if args else {}) or {}
         checkpoint_filter = params.get("filter") or {}
-        if collection == CHECKPOINT_COLLECTION and "hashed_user_id" in checkpoint_filter:
+        if collection == CHECKPOINT_COLLECTION and "hashed_user_id" in checkpoint_filter and self.checkpoint_exists:
             return [{
                 "id": CHECKPOINT_ID,
                 "chat_id": "chat-123",
                 "hashed_user_id": "user-hash",
                 "compressed_up_to_timestamp": 80,
+                "covered_message_ids": self.existing_manifest,
             }]
         return []
 
@@ -135,6 +141,7 @@ class FakeManager:
         self.messages.append(message)
 
 
+# contract-test: supporting surface=rest_api assertions=storage.compression.incremental-archive
 def test_store_checkpoint_rejects_vault_ciphertext_before_directus_write():
     directus = FakeDirectusService()
     manager = FakeManager()
@@ -159,6 +166,7 @@ def test_store_checkpoint_rejects_vault_ciphertext_before_directus_write():
     assert directus.created == []
 
 
+# contract-test: supporting surface=rest_api assertions=storage.compression.incremental-archive
 def test_store_checkpoint_rejects_non_uuid_checkpoint_id_before_directus_write():
     directus = FakeDirectusService()
     manager = FakeManager()
@@ -184,8 +192,10 @@ def test_store_checkpoint_rejects_non_uuid_checkpoint_id_before_directus_write()
     assert manager.messages[0]["payload"]["message"] == "Compression checkpoint ID must be a UUID."
 
 
+# contract-test: supporting surface=rest_api assertions=storage.compression.incremental-archive
 def test_store_checkpoint_persists_client_encrypted_summary():
     directus = FakeDirectusService()
+    directus.checkpoint_exists = False
     manager = FakeManager()
 
     asyncio.run(
@@ -213,6 +223,59 @@ def test_store_checkpoint_persists_client_encrypted_summary():
     assert manager.messages[0]["type"] == "chat_compression_checkpoint_stored"
 
 
+# contract-test: supporting surface=rest_api assertions=storage.compression.incremental-archive
+def test_checkpoint_manifest_is_exact_bounded_and_immutable():
+    directus = FakeDirectusService()
+    directus.checkpoint_exists = False
+    manager = FakeManager()
+    base = {
+        "chat_id": "chat-123", "checkpoint_id": CHECKPOINT_ID,
+        "encrypted_summary": "T00xYTViM2I3YzAwMDAwMDAwMDAwMGNpcGhlcnRleHQtb2s=",
+        "compressed_up_to_message_id": "msg-2",
+    }
+
+    async def store(extra):
+        await handle_store_chat_compression_checkpoint(
+            cache_service=None, directus_service=directus, manager=manager,
+            user_id="user-123", user_id_hash="user-hash",
+            device_fingerprint_hash="device-123", payload={**base, **extra},
+        )
+
+    asyncio.run(store({"covered_message_ids": ["msg-1", "msg-2"]}))
+    assert directus.created[0][1]["covered_message_ids"] == ["msg-1", "msg-2"]
+    directus.checkpoint_exists = True
+    directus.existing_manifest = ["msg-1", "msg-2"]
+    asyncio.run(store({"covered_message_ids": ["msg-1", "msg-3"]}))
+    assert manager.messages[-1]["type"] == "error"
+    assert len(directus.created) == 1
+    asyncio.run(store({"covered_message_ids": ["msg-2", "msg-1"]}))
+    assert manager.messages[-1]["type"] == "error"
+    assert len(directus.created) == 1
+    with pytest.raises(ValueError, match="source manifest"):
+        checkpoint_handler._validated_covered_message_ids([f"msg-{index:05d}" for index in range(20_001)])
+    with pytest.raises(ValueError, match="too large"):
+        checkpoint_handler._validated_covered_message_ids([
+            f"{index:05d}" + "x" * 250 for index in range(4_200)
+        ])
+
+
+# contract-test: supporting surface=rest_api assertions=storage.compression.incremental-archive
+def test_legacy_checkpoint_without_manifest_still_persists():
+    directus = FakeDirectusService()
+    directus.checkpoint_exists = False
+    manager = FakeManager()
+    asyncio.run(handle_store_chat_compression_checkpoint(
+        cache_service=None, directus_service=directus, manager=manager,
+        user_id="user-123", user_id_hash="user-hash", device_fingerprint_hash="device-123",
+        payload={
+            "chat_id": "chat-123", "checkpoint_id": CHECKPOINT_ID,
+            "encrypted_summary": "T00xYTViM2I3YzAwMDAwMDAwMDAwMGNpcGhlcnRleHQtb2s=",
+        },
+    ))
+    assert directus.created[0][1]["covered_message_ids"] is None
+
+
+# contract-test: supporting surface=rest_api assertions=storage.compression.incremental-archive
 def test_get_old_messages_returns_bounded_page_with_cursor_metadata():
     directus = FakeDirectusService()
     manager = FakeManager()
@@ -242,6 +305,7 @@ def test_get_old_messages_returns_bounded_page_with_cursor_metadata():
     assert payload["next_before_message_id"] == "msg-71"
 
 
+# contract-test: supporting surface=rest_api assertions=storage.compression.incremental-archive
 def test_get_old_messages_defaults_to_thirty_message_pages():
     directus = FakeDirectusService()
     manager = FakeManager()
@@ -268,6 +332,7 @@ def test_get_old_messages_defaults_to_thirty_message_pages():
     assert payload["has_more"] is True
 
 
+# contract-test: supporting surface=rest_api assertions=storage.compression.incremental-archive
 def test_get_old_messages_clamps_requests_to_checkpoint_boundary():
     directus = FakeDirectusService()
     manager = FakeManager()
@@ -294,6 +359,7 @@ def test_get_old_messages_clamps_requests_to_checkpoint_boundary():
     assert payload["checkpoint_boundary_timestamp"] == 80
 
 
+# contract-test: supporting surface=rest_api assertions=storage.compression.incremental-archive
 def test_get_old_messages_can_target_a_forgotten_message():
     directus = FakeDirectusService()
     manager = FakeManager()
@@ -321,6 +387,7 @@ def test_get_old_messages_can_target_a_forgotten_message():
     assert payload["messages"][-1].find('"message_id": "msg-42"') != -1
 
 
+# contract-test: supporting surface=rest_api assertions=storage.compression.incremental-archive
 def test_get_old_messages_compound_cursor_preserves_duplicate_timestamps():
     directus = FakeDirectusService()
     directus.chat.messages = [
@@ -353,6 +420,7 @@ def test_get_old_messages_compound_cursor_preserves_duplicate_timestamps():
     assert [json.loads(message)["message_id"] for message in payload["messages"]] == ["msg-a", "msg-b"]
 
 
+# contract-test: supporting surface=rest_api assertions=storage.compression.incremental-archive
 def test_get_old_messages_enforces_checkpoint_ownership():
     directus = FakeDirectusService()
     manager = FakeManager()

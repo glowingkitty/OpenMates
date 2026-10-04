@@ -26,6 +26,7 @@ from backend.shared.python_schemas.app_metadata_schemas import (
 from backend.core.api.app.services.translations import TranslationService
 from backend.core.api.app.utils.config_manager import config_manager
 from backend.apps.ai.processing.rate_limiting import RateLimitScheduledException
+from backend.shared.python_utils.chat_recovery_context import RequiredRecoveryOutputError
 
 logger = logging.getLogger(__name__)
 
@@ -637,6 +638,8 @@ class BaseApp:
                         else:
                             # Execute method expects the Pydantic model directly (or Union type)
                             response = await skill_instance.execute(request_obj, **supported_skill_kwargs)
+                    except RequiredRecoveryOutputError:
+                        raise
                     except HTTPException:
                         raise
                     except Exception as validation_error:
@@ -777,6 +780,8 @@ class BaseApp:
                 "message": "Request scheduled due to rate limit. I'll let you know once completed.",
                 "wait_time_seconds": rate_limit_e.wait_time
             }
+        except RequiredRecoveryOutputError:
+            raise
         except HTTPException:
             raise
         except Exception as exec_e:

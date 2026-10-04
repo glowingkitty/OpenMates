@@ -162,6 +162,8 @@ export interface ChatCompressionCheckpoint {
   encrypted_summary?: string;
   summary?: string;
   compressed_up_to_timestamp: number;
+  compressed_up_to_message_id?: string;
+  covered_message_ids?: string[] | null;
   compressed_message_count: number;
   summary_token_estimate?: number;
   key_version?: number | null;
@@ -437,6 +439,10 @@ export interface Chat {
   ideabucket_triggered_at?: number | null; // Unix timestamp when IdeaBucket sent this chat, if already processed.
 
   messages_v: number; // Client's current version for messages for this chat
+  message_window_has_more_before?: boolean; // Latest sync loaded a bounded window; older ciphertext remains available by cursor.
+  message_window_start_cursor?: { created_at: number; message_id: string } | null;
+  embed_window_has_more_before?: boolean; // Earlier encrypted embeds can be requested by cursor.
+  embed_window_start_cursor?: { created_at: number; id: string } | null;
   title_v: number; // Client's current version for title for this chat
   metadata_v?: number; // Server-authoritative version for encrypted title + summary; legacy chats fall back to title_v
 
@@ -502,6 +508,11 @@ export interface Chat {
   shared_message_window_has_more_before?: boolean; // Shared-chat import loaded a bounded window and can fetch older pages from the public share endpoint.
   shared_message_window_next_before_timestamp?: number | null; // Cursor for the next older shared-chat message window.
   shared_message_window_next_before_message_id?: string | null; // Message-id tie breaker for older shared-chat windows with duplicate timestamps.
+  shared_auxiliary_windows?: Partial<Record<"message_highlights" | "code_run_outputs" | "notebook_run_outputs", {
+    has_more_before: boolean;
+    start_cursor: { timestamp: number; id: string } | null;
+    oversized_id: string | null;
+  }>>; // Explicit public-share ciphertext continuation; loaded only on request.
 
   // Incognito mode field
   is_incognito?: boolean; // True if this chat was created in incognito mode (not synced, not stored in Directus, cleared on tab close)
@@ -1104,11 +1115,17 @@ export interface Phase1bChatContentPayload {
     messages: (Message | string)[] | null;
     compression_checkpoints?: ChatCompressionCheckpoint[];
     server_message_count: number;
+    message_window?: { has_more_before: boolean; start_cursor?: { created_at: number; message_id: string } | null; oversized_message?: boolean; oversized_message_cursor?: { created_at: number; message_id: string } | null } | null;
   }>;
   embeds?: SyncEmbed[];
+  embed_windows_by_chat_id?: Record<string, { has_more_before: boolean; start_cursor?: { created_at: number; id: string } | null; oversized_embed_id?: string | null; oversized_embed_cursor?: { created_at: number; id: string } | null }>;
   embed_keys?: EmbedKeyEntry[];
+  embed_key_windows_by_chat_id?: Record<string, { embed_ids: string[]; has_more_after: boolean; end_cursor?: string | null; oversized_key_id?: string | null }>;
+  chat_key_wrapper_windows_by_chat_id?: Record<string, { has_more_before: boolean; start_cursor?: string | null; oversized_wrapper_id?: string | null }>;
   code_run_outputs?: SyncCodeRunOutput[];
+  code_run_output_windows_by_chat_id?: Record<string, { has_more_before: boolean; start_cursor?: { updated_at: number; id: string } | null; oversized_output?: { id: string; updated_at: number; embed_id?: string | null } | null }>;
   notebook_run_outputs?: SyncNotebookRunOutput[];
+  notebook_run_output_windows_by_chat_id?: Record<string, { has_more_before: boolean; start_cursor?: { updated_at: number; id: string } | null; oversized_output?: { id: string; updated_at: number; embed_id?: string | null } | null }>;
 }
 
 /**
@@ -1125,17 +1142,23 @@ export interface BackgroundMessageSyncPayload {
     compression_checkpoints?: ChatCompressionCheckpoint[];
     server_message_count: number;
     messages_v: number;
+    message_window?: { has_more_before: boolean; start_cursor?: { created_at: number; message_id: string } | null; oversized_message?: boolean; oversized_message_cursor?: { created_at: number; message_id: string } | null } | null;
   }>;
   batch_number: number;
   is_last_batch: boolean;
   /** Embeds for this batch's chats — stored in IndexedDB for offline access */
   embeds?: SyncEmbed[];
+  embed_windows_by_chat_id?: Record<string, { has_more_before: boolean; start_cursor?: { created_at: number; id: string } | null; oversized_embed_id?: string | null; oversized_embed_cursor?: { created_at: number; id: string } | null }>;
   /** Embed encryption keys for this batch's chats */
   embed_keys?: EmbedKeyEntry[];
+  embed_key_windows_by_chat_id?: Record<string, { embed_ids: string[]; has_more_after: boolean; end_cursor?: string | null; oversized_key_id?: string | null }>;
+  chat_key_wrapper_windows_by_chat_id?: Record<string, { has_more_before: boolean; start_cursor?: string | null; oversized_wrapper_id?: string | null }>;
   /** Encrypted Code Run terminal-output sidecars for this batch's code embeds */
   code_run_outputs?: SyncCodeRunOutput[];
+  code_run_output_windows_by_chat_id?: Record<string, { has_more_before: boolean; start_cursor?: { updated_at: number; id: string } | null; oversized_output?: { id: string; updated_at: number; embed_id?: string | null } | null }>;
   /** Encrypted notebook cell-output sidecars for this batch's notebook embeds */
   notebook_run_outputs?: SyncNotebookRunOutput[];
+  notebook_run_output_windows_by_chat_id?: Record<string, { has_more_before: boolean; start_cursor?: { updated_at: number; id: string } | null; oversized_output?: { id: string; updated_at: number; embed_id?: string | null } | null }>;
 }
 
 export interface CachePrimedPayload {
@@ -1182,6 +1205,8 @@ export interface ChatContentBatchResponsePayload {
   next_embed_offset?: number | null;
   error?: string;
   messages_by_chat_id: Record<string, (ServerBatchMessageFormat | string)[]>; // Messages may be JSON strings (from sync cache) or objects
+  message_windows_by_chat_id?: Record<string, { has_more_before: boolean; start_cursor?: { created_at: number; message_id: string } | null; oversized_message?: boolean; oversized_message_cursor?: { created_at: number; message_id: string } | null }>;
+  embed_windows_by_chat_id?: Record<string, { has_more_before: boolean; start_cursor?: { created_at: number; id: string } | null; oversized_embed_id?: string | null; oversized_embed_cursor?: { created_at: number; id: string } | null }>;
   versions_by_chat_id?: Record<
     string,
     { messages_v: number; server_message_count: number }
@@ -1192,8 +1217,12 @@ export interface ChatContentBatchResponsePayload {
   >;
   embeds?: SyncEmbed[]; // On-demand embeds for requested chats
   embed_keys?: EmbedKeyEntry[]; // Embed keys for decryption
+  embed_key_windows_by_chat_id?: Record<string, { embed_ids: string[]; has_more_after: boolean; end_cursor?: string | null; oversized_key_id?: string | null }>;
+  chat_key_wrapper_windows_by_chat_id?: Record<string, { has_more_before: boolean; start_cursor?: string | null; oversized_wrapper_id?: string | null }>;
   code_run_outputs?: SyncCodeRunOutput[];
+  code_run_output_windows_by_chat_id?: Record<string, { has_more_before: boolean; start_cursor?: { updated_at: number; id: string } | null; oversized_output?: { id: string; updated_at: number; embed_id?: string | null } | null }>;
   notebook_run_outputs?: SyncNotebookRunOutput[];
+  notebook_run_output_windows_by_chat_id?: Record<string, { has_more_before: boolean; start_cursor?: { updated_at: number; id: string } | null; oversized_output?: { id: string; updated_at: number; embed_id?: string | null } | null }>;
 }
 
 export interface OfflineSyncCompletePayload {
@@ -1254,6 +1283,8 @@ export interface Phase2RecentChatsPayload {
   authoritative?: boolean;
   authoritative_chat_ids?: string[];
   deleted_chat_ids?: string[];
+  /** Tombstones with explicit deletion authority, distinct from inferred absence. */
+  explicit_deleted_chat_ids?: string[];
 }
 
 /**

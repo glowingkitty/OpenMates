@@ -16,8 +16,11 @@ from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.handlers.websocket_handlers.chat_compression_checkpoint_handler import (
     get_latest_chat_compression_checkpoint,
 )
-from backend.core.api.app.routes.handlers.websocket_handlers.notebook_run_output_handlers import (
-    fetch_notebook_run_outputs_for_chats,
+from backend.core.api.app.routes.handlers.websocket_handlers.sync_sidecar_hydration import (
+    load_sync_sidecars_for_chats,
+)
+from backend.core.api.app.routes.handlers.websocket_handlers.sync_message_hydration import (
+    load_bounded_sync_message_window,
 )
 
 logger = logging.getLogger(__name__)
@@ -112,73 +115,6 @@ async def _send_apps_legacy_embed_page(
     )
 
 
-async def _fetch_complete_embeds_for_chat(
-    cache_service: CacheService,
-    directus_service: DirectusService,
-    chat_id: str,
-    hashed_chat_id: str,
-) -> List[Dict[str, Any]]:
-    """Merge live cached embeds with the authoritative persisted chat graph.
-
-    The sync cache stores each embed in a separate expiring key. A non-empty
-    cache result can therefore still be incomplete when a parent or child key
-    has expired. Directus rows replace stale cached copies with the same
-    ``embed_id`` while cached-only rows remain available during persistence.
-    """
-    try:
-        cached_embeds = await cache_service.get_sync_embeds_for_chat(chat_id) or []
-    except Exception:
-        cached_embeds = []
-        logger.warning("Batch handler: sync embed cache read failed; using persisted rows")
-
-    try:
-        persisted_embeds = await directus_service.embed.get_embeds_by_hashed_chat_id(
-            hashed_chat_id
-        ) or []
-    except Exception:
-        if cached_embeds:
-            logger.warning("Batch handler: persisted embed read failed; using cached rows")
-            return cached_embeds
-        raise
-
-    merged_by_id: Dict[str, Dict[str, Any]] = {}
-    for embed in cached_embeds:
-        embed_id = embed.get("embed_id")
-        if embed_id:
-            merged_by_id[embed_id] = embed
-    for embed in persisted_embeds:
-        embed_id = embed.get("embed_id")
-        if embed_id:
-            merged_by_id[embed_id] = embed
-    return list(merged_by_id.values())
-
-
-async def _fetch_code_run_outputs_for_chats(
-    directus_service: DirectusService,
-    chat_ids: List[str],
-    user_id: str,
-) -> List[Dict[str, Any]]:
-    """Fetch encrypted Code Run output sidecars for requested on-demand chats."""
-    if not chat_ids:
-        return []
-    try:
-        rows = await directus_service.get_items(
-            "code_run_outputs",
-            params={
-                "filter[chat_id][_in]": ",".join(chat_ids),
-                "filter[author_user_id][_eq]": user_id,
-                "fields": "id,chat_id,embed_id,author_user_id,key_version,encrypted_payload,created_at,updated_at",
-                "sort": "-updated_at",
-                "limit": -1,
-            },
-            admin_required=True,
-        ) or []
-        return rows if isinstance(rows, list) else []
-    except Exception as exc:
-        logger.warning("Failed to fetch Code Run outputs for on-demand sync: %s", exc, exc_info=True)
-        return []
-
-
 async def handle_chat_content_batch(
     cache_service: CacheService,
     directus_service: DirectusService,
@@ -187,7 +123,9 @@ async def handle_chat_content_batch(
     user_id: str,
     device_fingerprint_hash: str,
     payload: Dict[str, Any],
-    user_otel_attrs: dict = None,) -> None:
+    user_otel_attrs: dict = None,
+    archive_service: Any = None,
+) -> None:
     """
     Handles a client's request to fetch full message content for a batch of chat IDs.
     Triggered when the client detects a data inconsistency (local message count < server count)
@@ -237,6 +175,24 @@ async def handle_chat_content_batch(
             )
             return
 
+        chat_ids = list(dict.fromkeys(chat_ids))
+        if len(chat_ids) > 5:
+            # Older clients may request many chats in one frame. Preserve their
+            # complete result by emitting several bounded response frames.
+            for offset in range(0, len(chat_ids), 5):
+                await handle_chat_content_batch(
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service,
+                    manager=manager,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload={**payload, "chat_ids": chat_ids[offset:offset + 5]},
+                    user_otel_attrs=user_otel_attrs,
+                    archive_service=archive_service,
+                )
+            return
+
         logger.info(
             f"User {user_id}, Device {device_fingerprint_hash}: "
             f"Handling 'request_chat_content_batch' for {len(chat_ids)} chats."
@@ -245,10 +201,12 @@ async def handle_chat_content_batch(
         messages_by_chat_id: Dict[str, List[str]] = {}
         versions_by_chat_id: Dict[str, Dict[str, Any]] = {}
         compression_checkpoints_by_chat_id: Dict[str, List[Dict[str, Any]]] = {}
+        message_windows_by_chat_id: Dict[str, Dict[str, Any]] = {}
         errors_occurred = False
         import hashlib
         user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
 
+        authorized_chat_ids: List[str] = []
         for chat_id in chat_ids:
             try:
                 # Verify chat ownership
@@ -259,37 +217,25 @@ async def handle_chat_content_batch(
                     )
                     messages_by_chat_id[chat_id] = []
                     continue
+                authorized_chat_ids.append(chat_id)
 
-                # --- Fetch messages: try sync cache first, fall back to Directus ---
-                messages_data: List[str] = []
-
-                # 1. Try sync cache (pre-serialized JSON strings with encrypted fields)
-                cached_messages = await cache_service.get_sync_messages_history(user_id, chat_id)
-                if cached_messages:
-                    messages_data = cached_messages
-                    logger.debug(
-                        f"User {user_id}, Chat {chat_id}: "
-                        f"Fetched {len(messages_data)} messages from sync cache for batch response."
-                    )
-                else:
-                    # 2. Fall back to Directus (also returns JSON-serialized strings)
-                    directus_messages = await directus_service.chat.get_all_messages_for_chat(
-                        chat_id=chat_id,
-                        decrypt_content=False,  # Zero-knowledge: keep encrypted
-                    )
-                    if directus_messages is not None:
-                        messages_data = directus_messages
-                        logger.debug(
-                            f"User {user_id}, Chat {chat_id}: "
-                            f"Fetched {len(messages_data)} messages from Directus for batch response."
-                        )
-                    else:
-                        logger.info(
-                            f"User {user_id}, Chat {chat_id}: "
-                            f"No messages found for batch response."
-                        )
-
+                window = await load_bounded_sync_message_window(
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    user_id=user_id,
+                    chat_id=chat_id,
+                    log_prefix="[CHAT_CONTENT_BATCH]",
+                    user_otel_attrs=user_otel_attrs,
+                    archive_service=archive_service,
+                )
+                messages_data = window["messages"]
                 messages_by_chat_id[chat_id] = messages_data
+                message_windows_by_chat_id[chat_id] = {
+                    "has_more_before": window["has_more_before"],
+                    "start_cursor": window["start_cursor"],
+                    "oversized_message": window["oversized_message"],
+                    "oversized_message_cursor": window.get("oversized_message_cursor"),
+                }
 
                 # --- Fetch messages_v: try cache first, fall back to Directus ---
                 messages_v = 0
@@ -304,7 +250,7 @@ async def handle_chat_content_batch(
 
                 # Use max of messages_v and actual message count to handle async gaps
                 # (Celery may have updated messages but not yet incremented messages_v)
-                server_message_count = len(messages_data)
+                server_message_count = window["server_message_count"]
                 effective_messages_v = max(messages_v, server_message_count)
 
                 versions_by_chat_id[chat_id] = {
@@ -336,18 +282,32 @@ async def handle_chat_content_batch(
         seen_embed_ids: set = set()
         seen_key_ids: set = set()
         hashed_ids_for_keys: List[str] = []
+        embed_windows_by_chat_id: Dict[str, Dict[str, Any]] = {}
+        embed_key_windows_by_chat_id: Dict[str, Dict[str, Any]] = {}
 
-        for chat_id in chat_ids:
+        for chat_id in authorized_chat_ids:
             hashed_id = hashlib.sha256(chat_id.encode()).hexdigest()
             hashed_ids_for_keys.append(hashed_id)
 
             try:
-                embeds = await _fetch_complete_embeds_for_chat(
-                    cache_service,
-                    directus_service,
-                    chat_id,
-                    hashed_id,
+                embed_window = await directus_service.embed.get_embed_window_by_hashed_chat_id(hashed_id)
+                embeds = embed_window["embeds"]
+                embed_windows_by_chat_id[chat_id] = {
+                    "has_more_before": embed_window["has_more_before"],
+                    "start_cursor": embed_window["start_cursor"],
+                    "oversized_embed_id": embed_window["oversized_embed_id"],
+                    "oversized_embed_cursor": embed_window.get("oversized_embed_cursor"),
+                }
+                page_hashes = [
+                    embed.get("hashed_embed_id") or hashlib.sha256(embed["embed_id"].encode()).hexdigest()
+                    for embed in embeds if embed.get("embed_id")
+                ]
+                key_window = await directus_service.embed.get_sync_embed_key_window_for_page(
+                    hashed_id, user_id_hash, page_hashes,
                 )
+                keys = key_window["embed_keys"]
+                embed_key_windows_by_chat_id[chat_id] = {**key_window, "embed_ids": [embed["embed_id"] for embed in embeds if embed.get("embed_id")]}
+                embed_key_windows_by_chat_id[chat_id].pop("embed_keys")
                 if embeds:
                     for embed in embeds:
                         embed_id = embed.get("embed_id")
@@ -355,45 +315,49 @@ async def handle_chat_content_batch(
                         if embed_id and embed_id not in seen_embed_ids and embed_status not in ("error", "cancelled"):
                             all_embeds.append(embed)
                             seen_embed_ids.add(embed_id)
+                for key_entry in keys:
+                    key_id = key_entry.get("id")
+                    if key_id and key_id not in seen_key_ids:
+                        all_embed_keys.append(key_entry)
+                        seen_key_ids.add(key_id)
             except Exception as e:
+                errors_occurred = True
                 logger.warning(f"Batch handler: Error fetching embeds for {chat_id}: {e}")
 
-        if hashed_ids_for_keys:
-            try:
-                batch_keys = await directus_service.embed.get_embed_keys_by_hashed_chat_ids_batch(hashed_ids_for_keys)
-                if batch_keys:
-                    for key_entry in batch_keys:
-                        key_id = key_entry.get("id")
-                        if key_id and key_id not in seen_key_ids:
-                            all_embed_keys.append(key_entry)
-                            seen_key_ids.add(key_id)
-            except Exception as e:
-                logger.warning(f"Batch handler: Error fetching embed_keys: {e}")
-
-        code_run_outputs = await _fetch_code_run_outputs_for_chats(
-            directus_service,
-            chat_ids,
-            user_id,
+        code_run_outputs, code_windows = await load_sync_sidecars_for_chats(
+            directus_service, collection="code_run_outputs", chat_ids=authorized_chat_ids, user_id=user_id,
         )
-        notebook_run_outputs = await fetch_notebook_run_outputs_for_chats(
-            directus_service,
-            chat_ids,
-            user_id,
+        notebook_run_outputs, notebook_windows = await load_sync_sidecars_for_chats(
+            directus_service, collection="notebook_run_outputs", chat_ids=authorized_chat_ids, user_id=user_id,
         )
-        chat_key_wrappers = await directus_service.chat_key_wrapper.get_wrappers_by_hashed_chat_ids_batch(
-            hashed_ids_for_keys,
-            hashed_user_id=hashlib.sha256(user_id.encode()).hexdigest(),
-        ) if hashed_ids_for_keys else []
+        chat_key_wrappers: List[Dict[str, Any]] = []
+        wrapper_windows: Dict[str, Dict[str, Any]] = {}
+        for chat_id, hashed_id in zip(authorized_chat_ids, hashed_ids_for_keys):
+            page = await directus_service.chat_key_wrapper.get_sync_wrapper_window_for_chat(
+                hashed_id, hashed_user_id=user_id_hash,
+            )
+            chat_key_wrappers.extend(page["wrappers"])
+            wrapper_windows[chat_id] = {
+                "has_more_before": page["has_more_before"],
+                "start_cursor": page["start_cursor"],
+                "oversized_wrapper_id": page["oversized_wrapper_id"],
+            }
 
         response_payload_data: Dict[str, Any] = {
             "messages_by_chat_id": messages_by_chat_id,
+            "message_windows_by_chat_id": message_windows_by_chat_id,
+            "embed_windows_by_chat_id": embed_windows_by_chat_id,
             "versions_by_chat_id": versions_by_chat_id,
             "compression_checkpoints_by_chat_id": compression_checkpoints_by_chat_id,
             "embeds": all_embeds,
             "embed_keys": all_embed_keys,
+            "embed_key_windows_by_chat_id": embed_key_windows_by_chat_id,
             "chat_key_wrappers": chat_key_wrappers,
+            "chat_key_wrapper_windows_by_chat_id": wrapper_windows,
             "code_run_outputs": code_run_outputs,
+            "code_run_output_windows_by_chat_id": code_windows,
             "notebook_run_outputs": notebook_run_outputs,
+            "notebook_run_output_windows_by_chat_id": notebook_windows,
         }
 
         if errors_occurred:

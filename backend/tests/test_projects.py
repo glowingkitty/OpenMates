@@ -26,6 +26,7 @@ from backend.core.api.app.routes.projects import (  # noqa: E402 - optional depe
     ProjectItemMoveRequest,
     ProjectRestoreRequest,
     ProjectSettingsUpdateRequest,
+    _validate_project_target,
     ask_projects,
     create_project,
     delete_project,
@@ -45,6 +46,62 @@ from backend.core.api.app.services.project_remote_access_service import ProjectR
 
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+# contract-test: supporting surface=rest_api assertions=projects.access.explicit-context,projects.surface.semantic-parity
+@pytest.mark.anyio
+@pytest.mark.parametrize("identity_field", ["id", "embed_id"])
+async def test_project_upload_target_requires_owned_unambiguous_identity(identity_field: str) -> None:
+    upload = {"id": "upload-row-1", "embed_id": "upload-embed-1", "user_id": "user-1"}
+    target_id = upload[identity_field]
+    directus = SimpleNamespace(get_items=AsyncMock(return_value=[upload]))
+
+    await _validate_project_target("upload", target_id, "user-1", directus)
+
+    directus.get_items.assert_awaited_once_with(
+        "upload_files",
+        params={
+            "filter": {"_or": [{"id": {"_eq": target_id}}, {"embed_id": {"_eq": target_id}}]},
+            "fields": "id,embed_id,user_id",
+            "limit": 2,
+        },
+        no_cache=True,
+        admin_required=True,
+        raise_on_error=True,
+    )
+
+
+# contract-test: supporting surface=rest_api assertions=projects.access.explicit-context,projects.surface.semantic-parity
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    "uploads",
+    [
+        [],
+        [{"id": "upload-row-1", "embed_id": "upload-embed-1", "user_id": "other-user"}],
+        [
+            {"id": "shared-target", "embed_id": "upload-embed-1", "user_id": "user-1"},
+            {"id": "upload-row-2", "embed_id": "shared-target", "user_id": "other-user"},
+        ],
+    ],
+)
+async def test_project_upload_target_rejects_missing_foreign_or_ambiguous_rows(uploads: list[dict]) -> None:
+    directus = SimpleNamespace(get_items=AsyncMock(return_value=uploads))
+
+    with pytest.raises(HTTPException) as exc_info:
+        await _validate_project_target("upload", "shared-target", "user-1", directus)
+
+    assert exc_info.value.status_code == 404
+
+
+# contract-test: supporting surface=rest_api assertions=projects.access.explicit-context,projects.surface.semantic-parity
+@pytest.mark.anyio
+async def test_project_upload_target_fails_closed_when_lookup_is_unavailable() -> None:
+    directus = SimpleNamespace(get_items=AsyncMock(side_effect=RuntimeError("Directus unavailable")))
+
+    with pytest.raises(HTTPException) as exc_info:
+        await _validate_project_target("upload", "upload-row-1", "user-1", directus)
+
+    assert exc_info.value.status_code == 503
 
 
 def make_request(method: str = "POST") -> Request:

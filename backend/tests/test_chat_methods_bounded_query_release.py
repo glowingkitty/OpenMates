@@ -10,19 +10,30 @@ from backend.core.api.app.services.directus.chat_methods import ChatMethods
 # contract-test: supporting surface=rest_api assertions=storage.cold.discoverable-bounded
 @pytest.mark.asyncio
 async def test_hot_message_count_uses_filtered_aggregate_without_id_transfer() -> None:
+    collections = []
+
     class Directus:
         async def get_items(self, collection, *, params, admin_required, no_cache, raise_on_error):
-            assert collection == "messages"
-            assert params == {
-                "filter[chat_id][_eq]": "chat-1",
-                "aggregate[count]": "*",
-            }
+            collections.append(collection)
             assert admin_required is True
             assert no_cache is True
             assert raise_on_error is True
-            return [{"count": "143"}]
+            if collection == "messages":
+                assert params == {
+                    "filter[chat_id][_eq]": "chat-1",
+                    "aggregate[count]": "*",
+                }
+                return [{"count": "143"}]
+            assert collection == "chats"
+            assert params == {
+                "filter[id][_eq]": "chat-1",
+                "fields": "archived_message_count",
+                "limit": 1,
+            }
+            return [{"archived_message_count": 7}]
 
-    assert await ChatMethods(Directus()).get_message_count_for_chat("chat-1") == 143
+    assert await ChatMethods(Directus()).get_message_count_for_chat("chat-1") == 150
+    assert collections == ["messages", "chats"]
 
 
 # contract-test: supporting surface=rest_api assertions=storage.cold.discoverable-bounded

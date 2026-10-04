@@ -244,6 +244,66 @@ describe("ChatSynchronizationService reconnect sync state", () => {
     expect(startPhasedSync).toHaveBeenCalledTimes(1);
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted,chats.completion.lease-fenced
+  it("retries a zero-chat synthetic completion only after a current-connection count", async () => {
+    mocks.authStore.subscribe.mockImplementation(run => {
+      run({ isAuthenticated: true });
+      return () => undefined;
+    });
+    vi.spyOn(chatSyncService, "startPhasedSync").mockResolvedValue(undefined);
+    const retry = vi.spyOn(chatSyncService as unknown as {
+      retryPendingMessages: (afterCurrent?: boolean) => Promise<void>;
+    }, "retryPendingMessages").mockResolvedValue(undefined);
+    const timeoutComplete = () => chatSyncService.dispatchEvent(new CustomEvent("phasedSyncComplete", {
+      detail: { synthetic: true, reason: "timeout" },
+    }));
+    mocks.emitWebSocketStatus("connected");
+    retry.mockClear(); // The completed-session reconnect has its own ordinary retry.
+    timeoutComplete();
+    expect(retry).not.toHaveBeenCalled(); // The numeric default zero is not evidence.
+
+    chatSyncService.cacheStatusServerChatCount_FOR_HANDLERS_ONLY = Number.NaN;
+    timeoutComplete();
+    expect(retry).not.toHaveBeenCalled();
+    chatSyncService.cacheStatusServerChatCount_FOR_HANDLERS_ONLY = 0;
+    mocks.emitWebSocketStatus("connected"); // Same socket status publication keeps its receipt.
+    retry.mockClear();
+    timeoutComplete();
+    expect(retry).toHaveBeenCalledOnce();
+
+    mocks.emitWebSocketStatus("disconnected");
+    mocks.emitWebSocketStatus("connected");
+    retry.mockClear();
+    timeoutComplete();
+    expect(retry).not.toHaveBeenCalled(); // The prior socket's zero was revoked.
+    chatSyncService.cacheStatusServerChatCount_FOR_HANDLERS_ONLY = 2;
+    timeoutComplete();
+    expect(retry).not.toHaveBeenCalled();
+    chatSyncService.cacheStatusServerChatCount_FOR_HANDLERS_ONLY = 0;
+    timeoutComplete();
+    expect(retry).toHaveBeenCalledOnce();
+
+    window.dispatchEvent(new Event("userLoggingOut"));
+    retry.mockClear();
+    timeoutComplete();
+    expect(retry).not.toHaveBeenCalled();
+    mocks.authStore.subscribe.mockImplementation(run => {
+      run({ isAuthenticated: false });
+      return () => undefined;
+    });
+    chatSyncService.cacheStatusServerChatCount_FOR_HANDLERS_ONLY = 0;
+    timeoutComplete();
+    expect(retry).not.toHaveBeenCalled(); // A stale status cannot authorize a logged-out actor.
+    mocks.authStore.subscribe.mockImplementation(run => {
+      run({ isAuthenticated: true });
+      return () => undefined;
+    });
+    chatSyncService.dispatchEvent(new CustomEvent("phasedSyncComplete", {
+      detail: { synthetic: true, reason: "error" },
+    }));
+    expect(retry).not.toHaveBeenCalled();
+  });
+
   // contract-test: supporting surface=gui.web assertions=sync.startup.bounded-phases
   it("does not force a reconnect when installing clients before the socket opens or repeating the same install", () => {
     const projectFileExecutor = { stop: vi.fn() };

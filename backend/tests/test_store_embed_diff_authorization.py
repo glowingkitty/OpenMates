@@ -158,7 +158,7 @@ async def test_store_embed_diff_confirms_request_after_persisting_row():
         directus_service=directus,
         user_id=OWNER_ID,
         device_fingerprint_hash="device-1",
-        payload=diff_payload(request_id="request-1", version_number=2),
+        payload=diff_payload(request_id="request-1", version_number=2, encrypted_snapshot=None, encrypted_patch="encrypted-patch"),
     )
 
     assert len(directus.rows) == 1
@@ -171,12 +171,38 @@ async def test_store_embed_diff_confirms_request_after_persisting_row():
                     "request_id": "request-1",
                     "embed_id": "embed-1",
                     "version_number": 2,
+                    "canonical_digest": hashlib.sha256(b'[null,"encrypted-patch"]').hexdigest(),
+                    "canonical_source": "version_row",
                 },
             },
             OWNER_ID,
             "device-1",
         )
     ]
+
+
+# contract-test: supporting surface=rest_api assertions=storage.versions.metadata-and-payload
+@pytest.mark.asyncio
+async def test_store_embed_diff_retry_without_timestamp_returns_canonical_digest():
+    manager = FakeConnectionManager()
+    directus = FakeDirectusService(
+        existing_embed={"embed_id": "embed-1", "hashed_user_id": OWNER_HASH}
+    )
+    directus.rows.append({
+        "id": "row-1", "embed_id": "embed-1", "version_number": 1,
+        "encrypted_snapshot": "encrypted-snapshot", "encrypted_patch": None,
+        "hashed_user_id": OWNER_HASH, "created_at": 123,
+    })
+    await get_handle_store_embed_diff()(
+        websocket=None, manager=manager, cache_service=None,
+        directus_service=directus, user_id=OWNER_ID,
+        device_fingerprint_hash="device-1",
+        payload=diff_payload(created_at=None, request_id="retry-1"),
+    )
+    assert len(directus.rows) == 1
+    assert manager.personal_messages[0][0]["payload"]["canonical_digest"] == hashlib.sha256(
+        b'["encrypted-snapshot",null]'
+    ).hexdigest()
 
 
 # contract-test: supporting surface=rest_api assertions=projects.files.hosted-ciphertext-commit
@@ -229,7 +255,7 @@ async def test_store_embed_diff_rejects_unencrypted_or_empty_row():
 
 # contract-test: supporting surface=rest_api assertions=projects.files.hosted-ciphertext-commit
 @pytest.mark.asyncio
-async def test_store_embed_diff_upserts_existing_version_row_ciphertext():
+async def test_store_embed_diff_rejects_mutation_of_existing_version_ciphertext():
     manager = FakeConnectionManager()
     directus = FakeDirectusService(
         existing_embed={"embed_id": "embed-1", "hashed_user_id": OWNER_HASH}
@@ -258,10 +284,10 @@ async def test_store_embed_diff_upserts_existing_version_row_ciphertext():
     )
 
     assert len(directus.rows) == 1
-    assert directus.rows[0]["encrypted_snapshot"] == "new-ciphertext"
+    assert directus.rows[0]["encrypted_snapshot"] == "encrypted-snapshot"
     assert directus.rows[0]["encrypted_patch"] is None
-    assert manager.personal_messages == []
-    assert len(manager.broadcasts) == 1
+    assert manager.personal_messages[0][0]["payload"]["message"] == "Immutable embed version mismatch"
+    assert manager.broadcasts == []
 
 
 # contract-test: supporting surface=rest_api assertions=projects.files.hosted-ciphertext-commit,projects.files.concurrent-chat-safety

@@ -17,7 +17,7 @@ const render = (locale: "en" | "de" | "fr"): string => buildPrivacyPolicyContent
   locale,
 });
 
-describe("public historical Directus retention disclosure", () => {
+describe("historical database retention disclosure", () => {
   // contract-test: supporting surface=gui.web assertions=storage.privacy.ciphertext-boundary
   it("renders history separately from active-record deletion in English and German", () => {
     for (const locale of ["en", "de"] as const) {
@@ -47,9 +47,9 @@ describe("public historical Directus retention disclosure", () => {
 
   // contract-test: supporting surface=gui.web assertions=storage.privacy.ciphertext-boundary
   it("keeps the canonical public policy and existing backup boundary aligned", () => {
-    expect(canonical.quick_answers.deletion).toContain("Earlier database revision and activity records");
-    expect(canonical.data_retention.historical_directus_history.period).toContain("No enforced automatic expiry");
-    expect(canonical.limitations_of_erasure_items.historical_directus_history.scope).toContain("account-profile fields");
+    expect(canonical.quick_answers.deletion).toContain("Historical database revision and activity records");
+    expect(canonical.data_retention.historical_directus_records.period).toContain("no enforced automatic expiry");
+    expect(canonical.limitations_of_erasure_items.historical_directus_records.scope).toContain("account-profile fields");
     expect(canonical.limitations_of_erasure_items.audit_logs.retention).not.toBe("2 years");
     expect(canonical.data_retention.user_data_backups.period).toContain("60 days");
     expect(render("en")).toContain("60 days via S3 lifecycle");

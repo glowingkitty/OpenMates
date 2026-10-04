@@ -2435,6 +2435,77 @@
       }
     }
   },
+  "apple": {
+    "tasks_widget": {
+      "title": {
+        "text": "Aufgaben"
+      },
+      "description": {
+        "text": "Deine Aufgaben nach Status, mit Schnelllinks zum Öffnen und Erstellen."
+      },
+      "status_parameter": {
+        "text": "Status"
+      },
+      "all": {
+        "text": "Alle"
+      },
+      "empty": {
+        "text": "Keine Aufgaben mit diesem Status"
+      },
+      "open_app": {
+        "text": "Öffne OpenMates, um deine Aufgaben zu laden"
+      },
+      "new_task": {
+        "text": "Neue Aufgabe"
+      }
+    },
+    "workflows_widget": {
+      "title": {
+        "text": "Workflows"
+      },
+      "description": {
+        "text": "Wähle einen zeitgesteuerten Workflow, um ihn manuell zu starten."
+      },
+      "workflow_parameter": {
+        "text": "Workflow"
+      },
+      "choose": {
+        "text": "Wähle einen Workflow in den Widget-Einstellungen."
+      },
+      "open_app": {
+        "text": "OpenMates öffnen"
+      },
+      "run": {
+        "text": "Workflow starten"
+      }
+    },
+    "active_chats_widget": {
+      "description": {
+        "text": "Aktuell laufende Chats mit Schnelllinks zu jedem Chat."
+      },
+      "total_one": {
+        "text": "1 Chat wird verarbeitet"
+      },
+      "total": {
+        "text": "{count} Chats werden verarbeitet"
+      },
+      "chat": {
+        "text": "Chat {number}"
+      },
+      "empty": {
+        "text": "Zurzeit laufen keine Chats"
+      },
+      "open_app": {
+        "text": "Öffne OpenMates, um aktive Chats zu laden"
+      },
+      "view_all": {
+        "text": "Alle aktiven Chats anzeigen"
+      },
+      "stale": {
+        "text": "Warte auf Aktualisierung der App"
+      }
+    }
+  },
   "apps": {
     "file": {
       "text": "Datei",
@@ -2886,15 +2957,6 @@
       "manual_intro": {
         "text": "Nutze diesen Skill direkt, indem du unten deine Anfrage eingibst."
       },
-      "requirements": {
-        "text": "Anforderungen"
-      },
-      "optional": {
-        "text": "(optional)"
-      },
-      "requirements_placeholder": {
-        "text": "Beschreibe, was die Ergebnisse erfüllen sollen."
-      },
       "via": {
         "text": "über"
       },
@@ -2987,6 +3049,15 @@
       },
       "validation_pattern": {
         "text": "Gib das erwartete Format ein"
+      },
+      "requirements": {
+        "text": "Anforderungen"
+      },
+      "optional": {
+        "text": "(optional)"
+      },
+      "requirements_placeholder": {
+        "text": "Beschreibe, was die Ergebnisse erfüllen sollen."
       }
     }
   },
@@ -3096,6 +3167,15 @@
     "request_error": {
       "text": "Die Anfrage konnte nicht abgeschlossen werden. Du kannst es erneut versuchen."
     },
+    "viewer_read_only": {
+      "text": "Deine Teamrolle erlaubt dir, Ergebnisse anzusehen. Bitte ein Teammitglied, diesen Skill auszuführen."
+    },
+    "not_found": {
+      "text": "Diese App oder dieser Skill ist nicht verfügbar."
+    },
+    "result_unavailable": {
+      "text": "Dieses Ergebnis konnte nicht geöffnet werden."
+    },
     "saving": {
       "text": "Ergebnisse werden gespeichert…"
     },
@@ -3111,14 +3191,29 @@
     "saving_results": {
       "text": "Noch zu speichernde Ergebnisse"
     },
-    "viewer_read_only": {
-      "text": "Deine Teamrolle erlaubt dir, Ergebnisse anzusehen. Bitte ein Teammitglied, diesen Skill auszuführen."
+    "inspiration_search_phrase": {
+      "text": "Finde Informationen direkt mit einem App-Skill und bewahre die Ergebnisse für später auf."
     },
-    "not_found": {
-      "text": "Diese App oder dieser Skill ist nicht verfügbar."
+    "inspiration_search_title": {
+      "text": "Einen Skill direkt verwenden"
     },
-    "result_unavailable": {
-      "text": "Dieses Ergebnis konnte nicht geöffnet werden."
+    "inspiration_search_feature_title": {
+      "text": "Im Web suchen"
+    },
+    "inspiration_search_feature_description": {
+      "text": "Suche, ohne einen Chat zu starten."
+    },
+    "inspiration_weather_phrase": {
+      "text": "Prüfe die Wettervorhersage, bevor du Pläne machst. Deine gespeicherten Ergebnisse bleiben in Apps zusammen."
+    },
+    "inspiration_weather_title": {
+      "text": "Nach dem Wetter planen"
+    },
+    "inspiration_weather_feature_title": {
+      "text": "Wettervorhersage"
+    },
+    "inspiration_weather_feature_description": {
+      "text": "Wähle einen Ort und die gewünschten Tage."
     }
   },
   "audio": {
@@ -3985,6 +4080,20 @@
         "body": {
           "text": "Wenn du weißt, was du als Nächstes tun möchtest, geben OpenMates Apps der KI bessere Werkzeuge für Aufgaben wie Programmieren, Recherche, Events, Shopping, Schreiben oder Planen."
         }
+      }
+    },
+    "send_storage_errors": {
+      "missing_attachment_content": {
+        "text": "Ein Anhang ist noch nicht zum Speichern bereit. Bitte bereite ihn erneut vor."
+      },
+      "stale_attachment_reference": {
+        "text": "Ein Anhang gehört zu einem vorherigen Konto oder Arbeitsbereich. Bitte wähle ihn erneut aus."
+      },
+      "changed_attachment_reference": {
+        "text": "Der Anhang wurde bearbeitet. Bitte bereite ihn vor dem Senden erneut vor."
+      },
+      "retry_context_changed": {
+        "text": "Dieser gespeicherte Sendeversuch passt nicht mehr zum aktuellen Chat oder zu den Anhängen. Lade den Chat vor einem erneuten Versuch neu."
       }
     },
     "suggestions": {
@@ -4866,6 +4975,12 @@
       "report_description": {
         "text": "A chat processing error happened. I consent to include the current chat context for debugging this incident."
       }
+    },
+    "watch_older_messages": {
+      "text": "Ältere Nachrichten"
+    },
+    "watch_newer_messages": {
+      "text": "Neuere Nachrichten"
     }
   },
   "common": {
@@ -8252,6 +8367,27 @@
       "hours_minutes": {
         "text": "{hours} Std. {minutes} Min."
       }
+    },
+    "watch_preview_unavailable": {
+      "text": "Vorschau nicht verfügbar"
+    },
+    "watch_sheet_cells": {
+      "text": "{count} Zellen"
+    },
+    "add_memory": {
+      "text": "Erinnerung hinzufügen"
+    },
+    "forget_memory": {
+      "text": "Vergessen"
+    },
+    "event": {
+      "text": "Veranstaltung"
+    },
+    "online_event": {
+      "text": "Online-Veranstaltung"
+    },
+    "travel_connection": {
+      "text": "Reiseverbindung"
     }
   },
   "enter_message": {
@@ -12616,14 +12752,26 @@
         "user_data_backups": {
           "text": "**Benutzerdatensicherungen:** 60 Tage via S3-Lifecycle; Backups enthalten nur mit deinem eigenen Schlüssel verschlüsselten Geheimtext"
         },
-        "content_history_v1": {
-          "text": "Inhalt: Aktuelle Datensätze bleiben bis zu ihrer Löschung oder bis zur Schließung des Kontos bestehen; Backup-Zyklen bleiben vorbehalten. Ältere Datenbank-Änderungs- und Aktivitätsdatensätze können nach dem Löschen aktueller Datensätze bestehen bleiben und werden unten gesondert beschrieben."
+        "content_v2": {
+          "text": "Persönliche Inhalte: Sie bleiben erhalten, bis du sie löschst oder dein Konto schließt. Betroffene kostenpflichtige hochgeladene oder erzeugte Dateien können jedoch nach wiederholten Hinweisen auf unbezahlten Speicher gelöscht werden. Eine für die Offline-Wiederherstellung mit einem öffentlichen Client-Schlüssel versiegelte ausstehende Assistentenantwort bleibt verfügbar, bis ein berechtigter Client ihre normale clientseitig verschlüsselte Speicherung überprüft und bestätigt oder der zugehörige Chat beziehungsweise das Konto gelöscht wird. Der Ablauf einer Wiederholungsfrist oder des KI-Arbeits-Caches allein entfernt diese ausstehende versiegelte Kopie nicht. Inhalte, die einem anderen berechtigten Eigentümer oder Team erhalten bleiben, stehen diesem Eigentümer weiter zur Verfügung."
         },
-        "historical_directus_history": {
-          "text": "Historische Datenbankdatensätze: Ältere allgemeine Änderungs- und Aktivitätsdatensätze können nach dem Löschen aktueller Datensätze noch Kontoprofilfelder oder verschlüsselte Momentaufnahmen von Chats und Artefakten enthalten. Für sie gibt es derzeit keinen durchgesetzten automatischen Ablauf. Der 60-Tage-Lebenszyklus verschlüsselter Backups gilt nicht für diesen Verlauf."
+        "deletion_markers_v1": {
+          "text": "Löschmarker: Um zu verhindern, dass eine verzögerte Synchronisierung gelöschte Daten wiederherstellt, speichert OpenMates inhaltsfreie Marker mit Kennungen, Verweisen auf Eigentümer oder Teams und Löschzeitpunkten. Diese Marker enthalten keine gelöschten Inhalte und laufen derzeit nicht automatisch ab; sie können daher nach der Löschung von Chat-Inhalten oder eines Kontos bestehen bleiben."
         },
-        "compliance_logs_history_v1": {
-          "text": "Compliance-Protokolle: Sicherheits- und Rechenschaftsprotokolle können für ihre jeweiligen Zwecke bestehen bleiben. Für historische Datenbank-Änderungs- und Aktivitätsdatensätze gibt es derzeit keinen durchgesetzten automatischen Ablauf nach zwei Jahren. Für Finanz-Compliance-Unterlagen gelten gesondert die einschlägigen steuer- und handelsrechtlichen Fristen."
+        "payments_and_invoices_v2": {
+          "text": "Zahlungen, Rechnungen und Finanz-Audit-Unterlagen: Die aktuelle Speicherkonfiguration bewahrt diese bis zu 10 Jahre auf. Gesetzliche Aufbewahrungspflichten in Deutschland hängen von der Art der Unterlage ab: grundsätzlich acht Jahre für Rechnungen und Buchungsbelege und zehn Jahre für Handelsbücher und Jahresabschlüsse; die gesetzliche Frist beginnt am Ende des maßgeblichen Kalenderjahrs. Rechtliche Aufbewahrungsanordnungen oder laufende Steuerverfahren können die erforderliche Aufbewahrung verlängern."
+        },
+        "compliance_logs_v2": {
+          "text": "Compliance-Protokolle: Sicherheits- und Rechenschaftsprotokolle sind für bis zu zwei Jahre konfiguriert, Finanztransaktionsprotokolle für bis zu zehn Jahre. Diese konfigurierten Fristen sind von den gesetzlichen Pflichten zu unterscheiden, die von der Art der Unterlage abhängen."
+        },
+        "content_v3": {
+          "text": "Aktuelle persönliche Chat- und Artefaktdatensätze bleiben bestehen, bis du sie löschst oder dein Konto schließt. Eine mit einem öffentlichen Client-Schlüssel versiegelte ausstehende Assistentenantwort bleibt verfügbar, bis ein berechtigter Client ihre normale clientseitig verschlüsselte Speicherung überprüft und bestätigt oder der zugehörige Chat beziehungsweise das Konto gelöscht wird. Der Ablauf einer Wiederholungsfrist oder des KI-Arbeitscaches allein entfernt diese ausstehende Kopie nicht. Ein anderer berechtigter Eigentümer oder ein Team kann gemeinsam genutzte Inhalte behalten. Ältere Datenbank-Änderungs- und Aktivitätsdatensätze können nach dem Löschen aktueller Datensätze bestehen bleiben; sie werden unten gesondert beschrieben."
+        },
+        "historical_snapshots_v1": {
+          "text": "Historische Datenbank-Änderungs- und Aktivitätsdatensätze: Der allgemeine Änderungs- und Aktivitätsverlauf kann nach dem Löschen aktueller Datensätze noch frühere Kontoprofilfelder oder verschlüsselte Momentaufnahmen von Chats und Artefakten enthalten. Für diesen historischen Verlauf gibt es derzeit keinen durchgesetzten automatischen Ablauf. Er ist kein inhaltsfreier Löschmarker."
+        },
+        "compliance_logs_v3": {
+          "text": "Compliance-Protokolle: Für historische Datenbank-Änderungs- und Aktivitätsdatensätze gibt es derzeit keinen durchgesetzten automatischen Ablauf nach zwei Jahren. Finanztransaktionsdaten sind vorbehaltlich der unten beschriebenen, datensatzspezifischen gesetzlichen Pflichten und Aufbewahrungsanordnungen für bis zu zehn Jahre konfiguriert."
         }
       },
       "legal_basis": {
@@ -12784,6 +12932,9 @@
         },
         "summary": {
           "text": "OpenMates ist so konzipiert, dass die meisten deiner Daten auf deinem Gerät verschlüsselt werden, bevor sie unsere Server erreichen. Dies ist **keine** Ende-zu-Ende-Verschlüsselung: Unsere Server entschlüsseln deine Inhalte kurzzeitig im Arbeitsspeicher, um KI-Antworten zu generieren, Rechnungen zu erstellen und Erinnerungen zuzustellen. Wir schreiben entschlüsselte Inhalte jedoch niemals auf die Festplatte, in Logs oder Traces. Wenn du dein Konto löschst, vernichten wir den Verschlüsselungsschlüssel, der deine Daten schützt – dadurch wird jedes verschlüsselte Feld, das wir noch halten, kryptografisch vernichtet."
+        },
+        "summary_v2": {
+          "text": "Strukturierte Chatdaten werden auf deinem Gerät vor der Synchronisierung verschlüsselt. Uploads und Aufnahmen werden stattdessen über TLS übertragen und vor der dauerhaften Speicherung von unserem Dienst verschlüsselt. KI-Anfragen können eine vorübergehende Entschlüsselung im Arbeitsspeicher erfordern; einen separaten, kurzlebigen Vault-verschlüsselten KI-Cache können OpenMates-Server lesen. Bei der Kontolöschung werden Inhalte im Zuständigkeitsbereich dieses Kontos entfernt und seine Kontoschlüssel vernichtet; Inhalte, die einem anderen berechtigten Eigentümer oder Team erhalten bleiben, können weiter verfügbar sein."
         }
       },
       "quick_answers": {
@@ -12889,9 +13040,19 @@
             "text": "Wenn du sehr hohe Datenschutzanforderungen hast, kannst du erwägen, OpenMates selbst zu hosten und lokale oder offline laufende KI-Modelle statt Drittanbieter-KI-Anbietern zu verwenden. Das gibt dir mehr Kontrolle über Infrastruktur, Modellauswahl, Logs, Backups und Anbieter-Exposition. Es erfordert technische Erfahrung, laufende Wartung, sichere Serveradministration und ausreichend Hardware für brauchbare lokale KI-Inferenz. Self-Hosting macht nicht automatisch alles privat: Du musst Server, Backups, Geheimnisse, Netzwerkzugriff, Logs und alle aktivierten externen Anbieter trotzdem absichern."
           }
         },
-        "deletion_history_v1": {
+        "storage_protection_v2": {
           "answer": {
-            "text": "Wenn du Chats oder dein Konto löschst, entfernt OpenMates die aktuellen Datensätze, die dieser Löschung unterliegen. Bei der Kontolöschung werden auch vom Konto kontrollierte Verschlüsselungsschlüssel vernichtet; Daten, die ausschließlich durch diese Schlüssel geschützt sind, werden dadurch unlesbar. Ältere Datenbank-Änderungs- und Aktivitätsdatensätze können nach dem Löschen aktueller Datensätze noch Kontoprofilfelder oder verschlüsselte Momentaufnahmen von Chats und Artefakten enthalten. Diese historischen Datensätze sind von kurzzeitig gespeicherten verschlüsselten Backups zu unterscheiden und laufen derzeit nicht automatisch ab. Rechnungen, Zahlungsdaten, Sicherheitsprotokolle und Daten bei Anbietern können für ihre jeweiligen Zwecke ebenfalls bestehen bleiben."
+            "text": "Gespeicherte Chats, Artefaktversionen, Einstellungen und Erinnerungen liegen als Geheimtext vor. PostgreSQL enthält diese für berechtigte Clients verschlüsselten Datensätze. Hochgeladene Dateien und Aufnahmen liegen getrennt davon als verschlüsselte Objekte im S3-Speicher. Ein separater, kurzlebiger KI-Kontext-Cache ist mit serverseitigen Vault-Schlüsseln verschlüsselt und kann während der Bearbeitung deiner Anfrage von OpenMates-Servern gelesen werden. Eine für die Offline- Wiederherstellung mit einem öffentlichen Client-Schlüssel versiegelte Assistentenantwort bleibt verfügbar, bis ein berechtigter Client ihre normale clientseitig verschlüsselte Speicherung überprüft und bestätigt oder der zugehörige Chat beziehungsweise das Konto gelöscht wird. Große versiegelte Antworten können im regionalen S3-Objektspeicher liegen. Der Ablauf einer Wiederholungsfrist oder des KI-Arbeits-Caches allein entfernt die ausstehende versiegelte Kopie nicht. Ohne berechtigten Client kann der Server fehlenden lesbaren KI-Kontext nicht aus dem clientseitig verschlüsselten Verlauf wiederherstellen."
+          }
+        },
+        "deletion_v2": {
+          "answer": {
+            "text": "Wenn du einen Chat oder dein Konto löschst, entfernt OpenMates Datensätze, die dieser Löschung unterliegen, und veranlasst die Entfernung nicht gemeinsam genutzter S3-Objekte in den konfigurierten Regionen. Verschlüsselte regionale Kopien können verbleiben, bis ihre überprüfte physische Löschung abgeschlossen ist. Die Vernichtung des Kontoschlüssels macht zudem verbleibende, mit diesem Schlüssel verschlüsselte Inhalte unlesbar. Inhalte, die einem anderen berechtigten Eigentümer oder Team erhalten bleiben, werden durch die Kontolöschung eines Mitglieds nicht entfernt. Rechnungen, Zahlungsdaten, Audit-Protokolle und Daten bei Anbietern können für die unten genannten Fristen bestehen bleiben. Inhaltsfreie Löschmarker können ebenfalls bestehen bleiben, wie im Abschnitt zur Aufbewahrung beschrieben."
+          }
+        },
+        "deletion_v3": {
+          "answer": {
+            "text": "Beim Löschen eines Chats oder Kontos entfernt OpenMates die aktuellen Datensätze, die dieser Löschung unterliegen, und veranlasst die Entfernung nicht gemeinsam genutzter regionaler S3-Objekte. Verschlüsselte regionale Kopien können verbleiben, bis ihre überprüfte physische Löschung abgeschlossen ist. Ältere Datenbank-Änderungs- und Aktivitätsdatensätze können danach noch Angaben zum Kontoprofil oder verschlüsselte Momentaufnahmen von Chats und Artefakten enthalten. Diese historischen Datensätze sind keine inhaltsfreien Löschmarker und laufen derzeit nicht automatisch ab. Die Vernichtung des Kontoschlüssels macht nur Inhalte unlesbar, die ausschließlich durch diesen Schlüssel geschützt sind. Inhalte eines anderen berechtigten Eigentümers oder Teams sowie Finanzunterlagen und Daten bei Anbietern können wie unten beschrieben ebenfalls bestehen bleiben."
           }
         }
       },
@@ -13001,6 +13162,9 @@
           },
           "description": {
             "text": "Wenn du dein Konto löschst, werden im ersten Schritt deine Verschlüsselungsschlüssel vernichtet. Jeglicher verbleibende Geheimtext in Backups, Caches oder Audit-Logs wird dauerhaft unlesbar gemacht – kein Schlüssel, kein Inhalt."
+          },
+          "description_v2": {
+            "text": "Bei der Kontolöschung vernichtet OpenMates die vom Konto kontrollierten Verschlüsselungsschlüssel. Verbleibender Geheimtext, der nur durch diese Schlüssel geschützt ist, wird unlesbar. Gemeinsam genutzte Inhalte, die einem anderen berechtigten Eigentümer oder Team erhalten bleiben, sowie gesondert gesetzlich aufzubewahrende Datensätze können bestehen bleiben."
           }
         },
         "argon2_password_hashing": {
@@ -13081,6 +13245,9 @@
           },
           "description": {
             "text": "Rechnungen, Gutschriften und Finanz-Compliance-Protokolleinträge werden gemäß DSGVO Art. 17(3)(b) – rechtliche Verpflichtung (deutsches Steuer- und Handelsrecht, AO §147 und HGB §257) – bis zu 10 Jahre lang aufbewahrt. Die aufbewahrten Unterlagen enthalten nur Transaktions-Metadaten, eine Rechnungsnummer und eine Benutzerkennung – keine Chat-Inhalte oder andere personenbezogene Daten."
+          },
+          "description_v2": {
+            "text": "Rechnungen, Gutschriften und Finanz-Audit-Einträge können nach der Kontolöschung bestehen bleiben. Die aktuelle Speicherkonfiguration verwendet bis zu zehn Jahre; gesetzliche Fristen in Deutschland hängen von der Art der Unterlage ab: grundsätzlich acht Jahre für Rechnungen und Buchungsbelege und zehn Jahre für Handelsbücher und Jahresabschlüsse. Finanzunterlagen können Angaben zur Rechnungsidentität, Transaktionsmetadaten, Rechnungsnummern und Benutzerkennungen enthalten. Sie sind von Chat-Inhalten getrennt. DSGVO Artikel 17 Absatz 3 Buchstabe b gilt, soweit die Aufbewahrung gesetzlich erforderlich ist."
           }
         },
         "audit_logs": {
@@ -13090,8 +13257,11 @@
           "description": {
             "text": "Audit-Protokolle für Authentifizierung und Datenzugriff werden gemäß BSI §34 BDSG (deutsche Sicherheitsaudit-Verpflichtungen) für 2 Jahre aufbewahrt. Diese Protokolle enthalten Zeitstempel, Benutzerkennung, Ereignistyp und Status – keinen Inhalt."
           },
-          "description_history_v1": {
-            "text": "Audit-Protokolle für Authentifizierung und Datenzugriff können Zeitstempel, Benutzerkennungen, Ereignistypen und Status enthalten. Für historische Datenbank-Änderungs- und Aktivitätsdatensätze gibt es derzeit keinen durchgesetzten automatischen Ablauf nach zwei Jahren. Allgemeine Verlaufsdaten mit älteren Datensatz-Momentaufnahmen werden unten gesondert beschrieben; eine allgemeine gesetzliche Zweijahrespflicht wird nicht behauptet."
+          "description_v2": {
+            "text": "Audit-Protokolle für Authentifizierung und Datenzugriff sind derzeit für bis zu zwei Jahre für Sicherheit, Betrugsprävention und Rechenschaftspflichten konfiguriert. Sie können Zeitstempel, Benutzerkennungen, Ereignistypen und Status enthalten. Diese konfigurierte Aufbewahrung ist keine allgemeine gesetzliche Zweijahrespflicht."
+          },
+          "description_v3": {
+            "text": "Audit-Protokolle für Authentifizierung und Datenzugriff können Zeitstempel, Benutzerkennungen, Ereignistypen und Status enthalten. Für historische Datenbank-Änderungs- und Aktivitätsdatensätze gilt derzeit kein durchgesetzter automatischer Ablauf nach zwei Jahren. Dieser Verlauf kann frühere Datensatz-Momentaufnahmen enthalten und wird unten gesondert beschrieben; für Finanzunterlagen gelten die jeweiligen datensatzspezifischen Aufbewahrungsregeln."
           }
         },
         "third_party_ai_logs": {
@@ -13118,15 +13288,18 @@
             "text": "Geheimtext-Backups deiner eigenen Datenexporte verbleiben über eine Lifecycle-Regel für 60 Tage in S3, damit du einen Export wiederherstellen kannst, falls dein Gerät verloren geht. Da wir deinen Verschlüsselungsschlüssel bei der Kontolöschung vernichtet haben, können auch wir diese Backups nicht entschlüsseln – sie sind praktisch inaktiver Geheimtext, bis sie ablaufen."
           }
         },
-        "intro_history_v1": {
-          "text": "Wenn du dein Konto löschst, vernichten wir die vom Konto kontrollierten Verschlüsselungsschlüssel und entfernen aktuelle Kontodatensätze. Ältere Datenbank-Änderungs- und Aktivitätsdatensätze können nach der Löschung dieser Datensätze bestehen bleiben. Weitere Daten, die für Sicherheits-, Finanz-, Anbieter- oder Backup-Zwecke aufbewahrt werden, sind unten gesondert aufgeführt:"
+        "intro_v2": {
+          "text": "Wenn du dein Konto löschst, vernichten wir seine vom Konto kontrollierten Verschlüsselungsschlüssel und entfernen Datensätze im Zuständigkeitsbereich dieser Löschung. Gemeinsam genutzte Inhalte, die einem anderen berechtigten Eigentümer oder Team erhalten bleiben, können bestehen bleiben. Auch einige gesondert gesetzlich aufbewahrte oder außerhalb unseres unmittelbaren Einflusses liegende Daten können bestehen bleiben:"
         },
-        "historical_directus_history": {
+        "intro_v3": {
+          "text": "Wenn du dein Konto löschst, vernichten wir seine vom Konto kontrollierten Verschlüsselungsschlüssel und entfernen aktuelle Datensätze im Zuständigkeitsbereich dieser Löschung. Gemeinsam genutzte Inhalte eines anderen berechtigten Eigentümers oder Teams, historische Datenbank-Änderungs- und Aktivitätsdatensätze sowie manche Daten unter gesonderter rechtlicher Grundlage oder außerhalb unserer unmittelbaren Kontrolle können bestehen bleiben:"
+        },
+        "historical_snapshots": {
           "heading": {
             "text": "Historische Datenbank-Änderungen und Aktivitäten"
           },
-          "description": {
-            "text": "Historische Datenbank-Änderungs- und Aktivitätsdatensätze, die vor dem Löschen eines Chats oder Kontos entstanden sind, können frühere Kontoprofilfelder oder verschlüsselte Momentaufnahmen von Chats und Artefakten enthalten. Das Löschen aktueller Datensätze entfernt oder neutralisiert diese historischen Datensätze nicht automatisch und unwiderruflich. Für sie gibt es derzeit keinen durchgesetzten automatischen Ablauf. Sie sind vom 60-Tage-Lebenszyklus verschlüsselter Backups sowie von gesonderten Sicherheits- oder Finanzunterlagen zu unterscheiden."
+          "description_v2": {
+            "text": "Historische Datenbank-Änderungs- und Aktivitätsdatensätze, die vor dem Löschen eines Chats oder Kontos entstanden sind, können frühere Kontoprofilfelder oder verschlüsselte Momentaufnahmen von Chats und Artefakten enthalten. Das Löschen der aktuellen Datensätze entfernt oder neutralisiert diese Verlaufsdaten nicht automatisch und unwiderruflich. Für sie gibt es derzeit keinen durchgesetzten automatischen Ablauf. Sie sind vom 60-Tage-Lebenszyklus verschlüsselter Backups, von inhaltsfreien Löschmarkern sowie von gesonderten Finanz- oder Sicherheitsprotokollen zu unterscheiden."
           }
         }
       },
@@ -13338,6 +13511,50 @@
       "follow_up_6": {
         "text": "Welche Daten werden mit KI-Anbietern geteilt?"
       }
+    }
+  },
+  "live_activities": {
+    "downloads_title": {
+      "text": "Modell-Downloads"
+    },
+    "upcoming_title": {
+      "text": "Bevorstehender gespeicherter Eintrag"
+    },
+    "upcoming_detail": {
+      "text": "OpenMates öffnen, um die Details anzusehen."
+    },
+    "upcoming_previous": {
+      "text": "Vorheriger Eintrag"
+    },
+    "upcoming_next": {
+      "text": "Nächster Eintrag"
+    },
+    "upcoming_position": {
+      "text": "{number} von {count}"
+    },
+    "upcoming_total": {
+      "text": "{count} bevorstehend"
+    },
+    "upcoming_view_all": {
+      "text": "Alle anzeigen"
+    },
+    "download_complete": {
+      "text": "{model} ist für Offline-Tests bereit."
+    },
+    "transfer": {
+      "text": "Wird heruntergeladen"
+    },
+    "verifying": {
+      "text": "Wird überprüft"
+    },
+    "waiting": {
+      "text": "Wartet auf Verbindung"
+    },
+    "retrying": {
+      "text": "Download wird erneut versucht"
+    },
+    "multiple_downloads": {
+      "text": "{count} Modell-Downloads"
     }
   },
   "login": {
@@ -14106,6 +14323,9 @@
     }
   },
   "projects": {
+    "workspace_readme_create_coming_soon": {
+      "text": "Das Erstellen von READMEs direkt in OpenMates ist bald verfügbar."
+    },
     "workspace_remote_preview_pending": {
       "text": "Zur Vorschau öffnen"
     },
@@ -16957,7 +17177,7 @@
         "text": "Lokales Modelllabor"
       },
       "description": {
-        "text": "Optionale Tests auf diesem Gerät. Modelle einmal herunterladen, dann ohne Netzwerk testen. Es werden keine Credits berechnet."
+        "text": "Optionale Tests auf diesem Gerät. Installierte Systemstimmen verwenden oder Modelle einmal herunterladen, dann ohne Netzwerk testen. Es werden keine Credits berechnet."
       },
       "toggle": {
         "text": "Lokale Modelle in diesem Labor verwenden"
@@ -16995,20 +17215,11 @@
       "audio_ready": {
         "text": "Audio bereit: {seconds} Sekunden"
       },
-      "speech_input": {
-        "text": "Englischer Text für Sprachausgabe"
-      },
       "privacy_input": {
         "text": "Text auf personenbezogene Daten prüfen"
       },
       "input_placeholder": {
         "text": "Temporären Testtext eingeben"
-      },
-      "play": {
-        "text": "Erzeugte Sprache abspielen"
-      },
-      "stop_playback": {
-        "text": "Wiedergabe stoppen"
       },
       "running": {
         "text": "Lokaler Test läuft …"
@@ -17061,9 +17272,6 @@
       "whisper": {
         "text": "WhisperKit large-v3 turbo · Sprache zu Text"
       },
-      "kokoro": {
-        "text": "Kokoro · englische Sprachausgabe"
-      },
       "privacy_filter": {
         "text": "OpenAI Privacy Filter · personenbezogene Daten"
       },
@@ -17076,29 +17284,89 @@
       "revision": {
         "text": "Revision"
       },
-      "waveform": {
-        "text": "Wellenform der erzeugten Audiodatei"
-      },
       "cancelled": {
         "text": "Download abgebrochen"
       },
       "not_enough_space": {
         "text": "Nicht genug freier Speicher für dieses Modell"
       },
-      "kokoro_os_error": {
-        "text": "Kokoro ist unter iOS und macOS 27 oder neuer derzeit nicht verfügbar, da die zugrunde liegende Laufzeit abstürzen kann. Ein anderes Modell oder eine frühere unterstützte Betriebssystemversion verwenden."
-      },
       "peak_memory": {
-        "text": "Maximaler residenter App-Speicher"
-      },
-      "verifying": {
-        "text": "Installierte Dateien werden lokal geprüft …"
-      },
-      "kokoro_input_limits": {
-        "text": "Kurzen, einfachen englischen Text verwenden. Dezimalzahlen, Geldbeträge und Uhrzeiten in Worten ausschreiben. Nicht unterstützte Formate und fremdsprachige Zeichen werden abgelehnt. Dieses Labor enthält nicht die vollständige Textnormalisierung des Ursprungsprojekts."
+        "text": "Gemessener maximaler App-Speicher im Test"
       },
       "architecture_unavailable": {
         "text": "Diese lokalen Modelle benötigen ein iPhone, iPad oder einen Mac mit Apple-Chip. Intel-Macs und Apple Watch werden nicht unterstützt; Downloads und Tests sind deaktiviert."
+      },
+      "phase_submission": {
+        "text": "Lokaler Test wird vorbereitet …"
+      },
+      "phase_tokenizer": {
+        "text": "Tokenizer wird vorbereitet …"
+      },
+      "phase_model_loading": {
+        "text": "Modell wird geladen …"
+      },
+      "phase_transcription": {
+        "text": "Audio wird transkribiert …"
+      },
+      "phase_cleanup": {
+        "text": "Ressourcen werden entladen …"
+      },
+      "phase_completion": {
+        "text": "Lokaler Test abgeschlossen"
+      },
+      "phase_warning": {
+        "text": "Dieser Schritt dauert länger als erwartet. Abbrechen ist möglich; das native Aufräumen kann dauern."
+      },
+      "phase_duration": {
+        "text": "{phase}: {seconds} s"
+      },
+      "verifying_progress": {
+        "text": "Heruntergeladene Dateien werden überprüft: {percent}%"
+      },
+      "baseline_memory": {
+        "text": "Speicher vor dem Test"
+      },
+      "end_memory": {
+        "text": "Speicher nach dem Entladen"
+      },
+      "phase_inference": {
+        "text": "Personenbezogene Daten werden erkannt …"
+      },
+      "waiting_for_connection": {
+        "text": "Warten auf Verbindung · {percent}% heruntergeladen. Abbrechen ist möglich."
+      },
+      "retrying_download": {
+        "text": "Unterbrochener Download wird erneut versucht · {percent}% heruntergeladen"
+      },
+      "pocket_tts": {
+        "text": "Pocket TTS · Englisch"
+      },
+      "pocket_description": {
+        "text": "Entwicklertest: Englische Sprache mit Alba, nach dem Download vollständig auf diesem Gerät. Die Sprachausgabe im Chat bleibt unverändert. Mehrsprachige Modelle werden von dieser Laufzeit nicht unterstützt."
+      },
+      "pocket_voice": {
+        "text": "Stimme"
+      },
+      "pocket_attribution": {
+        "text": "Alba MacKenna: Quellenangabe und Lizenz"
+      },
+      "pocket_input": {
+        "text": "Text für Sprachausgabe"
+      },
+      "pocket_input_limit": {
+        "text": "Bis zu 600 UTF-8-Bytes und 4 kurze Sätze. Jeder Satz ist auf 160 Bytes und 64 Modell-Tokens begrenzt. Längere Eingaben werden abgelehnt."
+      },
+      "pocket_synthesis": {
+        "text": "Sprache wird auf diesem Gerät erzeugt…"
+      },
+      "pocket_cancelling": {
+        "text": "Abbruch nach Abschluss des aktuellen Satzes und Entladen des Modells…"
+      },
+      "pocket_play": {
+        "text": "Erzeugtes Audio abspielen"
+      },
+      "pocket_stop": {
+        "text": "Audio stoppen"
       }
     },
     "open_settings_menu": {
@@ -18111,6 +18379,18 @@
         },
         "composer_suggestion_description": {
           "text": "Lade das optionale On-Device-Modell herunter, um vor dem Senden mehr persönliche Details zu erkennen. Dein Text bleibt lokal."
+        },
+        "regex_fallback": {
+          "text": "Mustererkennung und deine eigenen Einträge bleiben aktiv, während das optionale Modell nicht verfügbar ist oder lädt. Hauptschalter, Kategorien und Ausnahmen gelten weiterhin."
+        },
+        "diagnostic_title": {
+          "text": "Erweiterte Erkennung lokal testen"
+        },
+        "diagnostic_description": {
+          "text": "Teste das installierte Datenschutzmodell auf diesem Gerät. Testtext bleibt lokal und wird beim Verlassen gelöscht. Dieser Test ändert deine Anonymisierungseinstellungen nicht."
+        },
+        "verifying": {
+          "text": "Personenbezogene Daten werden auf diesem Gerät geprüft…"
         }
       },
       "connected_accounts": {
@@ -20810,6 +21090,32 @@
       "storage_delete_error": {
         "text": "Fehler beim Löschen der Dateien. Bitte versuche es erneut."
       }
+    },
+    "watch_whisper": {
+      "title": {
+        "text": "Watch-Labor für tiny Whisper"
+      },
+      "experiment": {
+        "text": "Test im Vordergrund. Tempo, Speicher, Genauigkeit und Akkuverbrauch auf der echten Watch sind nicht bestätigt. Chat-Einstellungen bleiben unverändert."
+      },
+      "enable": {
+        "text": "Diesen Test aktivieren"
+      },
+      "disable": {
+        "text": "Diesen Test deaktivieren"
+      },
+      "record_limit": {
+        "text": "Bis zu 30 Sekunden aufnehmen. Diese Seite während des Tests geöffnet lassen."
+      },
+      "metrics": {
+        "text": "Laden {load}s · Transkribieren {transcribe}s · Entladen {unload}s"
+      },
+      "memory": {
+        "text": "Residentes RAM: Start {start}, abgetastete Spitze {peak}, Ende {end}"
+      },
+      "fixture": {
+        "text": "Temporäre Audio-Testdatei"
+      }
     }
   },
   "signup": {
@@ -21614,104 +21920,16 @@
     }
   },
   "tasks": {
-    "blocked_heading": {
-      "text": "Grund der Blockierung"
-    },
-    "blocked_reason": {
-      "needs_user_input": {
-        "text": "Weitere Informationen von dir werden benoetigt, bevor diese Aufgabe fortgesetzt werden kann."
-      },
-      "waiting_for_approval": {
-        "text": "Diese Aufgabe wartet auf eine Freigabe."
-      },
-      "missing_credentials": {
-        "text": "Zugangsdaten werden benoetigt, bevor diese Aufgabe fortgesetzt werden kann."
-      },
-      "ambiguous_requirement": {
-        "text": "Eine Anforderung muss geklaert werden, bevor diese Aufgabe fortgesetzt werden kann."
-      },
-      "external_dependency": {
-        "text": "Diese Aufgabe wartet auf eine externe Abhaengigkeit."
-      },
-      "environment_unavailable": {
-        "text": "Die erforderliche Umgebung ist derzeit nicht verfuegbar."
-      },
-      "verification_failed": {
-        "text": "Die Ueberpruefung ist fehlgeschlagen und muss vor der Fortsetzung behoben werden."
-      },
-      "other": {
-        "text": "Diese Aufgabe benoetigt Aufmerksamkeit, bevor sie fortgesetzt werden kann."
-      }
-    },
-    "activity": {
-      "title": {
-        "text": "Aktivitaet"
-      },
-      "placeholder": {
-        "text": "Kommentar hinzufuegen..."
-      },
-      "send": {
-        "text": "Senden"
-      },
-      "sending": {
-        "text": "Wird gesendet..."
-      },
-      "attach": {
-        "text": "Dateien anhaengen"
-      },
-      "voice": {
-        "text": "Sprache aufnehmen"
-      },
-      "loading": {
-        "text": "Aktivitaet wird geladen..."
-      },
-      "empty": {
-        "text": "Noch keine Aktivitaet."
-      },
-      "user": {
-        "text": "Benutzer"
-      },
-      "via_cli": {
-        "text": "ueber OpenMates CLI"
-      },
-      "via_sdk": {
-        "text": "ueber OpenMates SDK"
-      },
-      "tombstone": {
-        "text": "Kommentar von {author}, geloescht von {deleter}"
-      },
-      "delete": {
-        "text": "Kommentar loeschen"
-      },
-      "delete_confirm": {
-        "text": "Diesen Kommentar loeschen?"
-      },
-      "uploading": {
-        "text": "Anhang wird hochgeladen..."
-      },
-      "transcribing": {
-        "text": "Aufnahme wird transkribiert..."
-      },
-      "processing_error": {
-        "text": "Die Verarbeitung des Anhangs ist fehlgeschlagen. Entferne ihn oder versuche es erneut."
-      },
-      "load_error": {
-        "text": "Aktivitaet konnte nicht geladen werden."
-      },
-      "create_error": {
-        "text": "Der Kommentar konnte nicht gesendet werden."
-      },
-      "attachment_error": {
-        "text": "Der Anhang konnte nicht verarbeitet werden."
-      },
-      "delete_error": {
-        "text": "Der Kommentar konnte nicht geloescht werden."
-      },
-      "key_error": {
-        "text": "Mindestens ein Aktivitaetsanhang konnte nicht entschluesselt werden."
-      }
-    },
     "workspace": {
+      "drag": {
+        "text": "Aufgabe in einen anderen Status ziehen"
+      },
+      "move_failed": {
+        "text": "Die Aufgabe konnte nicht verschoben werden. Erneut versuchen."
+      },
+      "drop_to_mark": {
+        "text": "Ablegen, um als {status} zu markieren"
+      },
       "greeting": {
         "text": "Hallo!"
       },
@@ -21927,6 +22145,15 @@
       }
     },
     "detail": {
+      "edit_failed": {
+        "text": "Die Aufgabe konnte nicht gespeichert werden. Deine Änderungen bleiben erhalten."
+      },
+      "edit_conflict": {
+        "text": "Diese Aufgabe wurde an anderer Stelle geändert. Lade sie neu, bevor du deine Änderungen speicherst."
+      },
+      "priority": {
+        "text": "Priorität"
+      },
       "priority_none": {
         "text": "Keine Priorität"
       },
@@ -21959,6 +22186,103 @@
       },
       "created_by": {
         "text": "{created} von {creator}"
+      }
+    },
+    "blocked_heading": {
+      "text": "Grund der Blockierung"
+    },
+    "blocked_reason": {
+      "needs_user_input": {
+        "text": "Weitere Informationen von dir werden benoetigt, bevor diese Aufgabe fortgesetzt werden kann."
+      },
+      "waiting_for_approval": {
+        "text": "Diese Aufgabe wartet auf eine Freigabe."
+      },
+      "missing_credentials": {
+        "text": "Zugangsdaten werden benoetigt, bevor diese Aufgabe fortgesetzt werden kann."
+      },
+      "ambiguous_requirement": {
+        "text": "Eine Anforderung muss geklaert werden, bevor diese Aufgabe fortgesetzt werden kann."
+      },
+      "external_dependency": {
+        "text": "Diese Aufgabe wartet auf eine externe Abhaengigkeit."
+      },
+      "environment_unavailable": {
+        "text": "Die erforderliche Umgebung ist derzeit nicht verfuegbar."
+      },
+      "verification_failed": {
+        "text": "Die Ueberpruefung ist fehlgeschlagen und muss vor der Fortsetzung behoben werden."
+      },
+      "other": {
+        "text": "Diese Aufgabe benoetigt Aufmerksamkeit, bevor sie fortgesetzt werden kann."
+      }
+    },
+    "activity": {
+      "title": {
+        "text": "Aktivitaet"
+      },
+      "placeholder": {
+        "text": "Kommentar hinzufuegen..."
+      },
+      "send": {
+        "text": "Senden"
+      },
+      "sending": {
+        "text": "Wird gesendet..."
+      },
+      "attach": {
+        "text": "Dateien anhaengen"
+      },
+      "voice": {
+        "text": "Sprache aufnehmen"
+      },
+      "loading": {
+        "text": "Aktivitaet wird geladen..."
+      },
+      "empty": {
+        "text": "Noch keine Aktivitaet."
+      },
+      "user": {
+        "text": "Benutzer"
+      },
+      "via_cli": {
+        "text": "ueber OpenMates CLI"
+      },
+      "via_sdk": {
+        "text": "ueber OpenMates SDK"
+      },
+      "tombstone": {
+        "text": "Kommentar von {author}, geloescht von {deleter}"
+      },
+      "delete": {
+        "text": "Kommentar loeschen"
+      },
+      "delete_confirm": {
+        "text": "Diesen Kommentar loeschen?"
+      },
+      "uploading": {
+        "text": "Anhang wird hochgeladen..."
+      },
+      "transcribing": {
+        "text": "Aufnahme wird transkribiert..."
+      },
+      "processing_error": {
+        "text": "Die Verarbeitung des Anhangs ist fehlgeschlagen. Entferne ihn oder versuche es erneut."
+      },
+      "load_error": {
+        "text": "Aktivitaet konnte nicht geladen werden."
+      },
+      "create_error": {
+        "text": "Der Kommentar konnte nicht gesendet werden."
+      },
+      "attachment_error": {
+        "text": "Der Anhang konnte nicht verarbeitet werden."
+      },
+      "delete_error": {
+        "text": "Der Kommentar konnte nicht geloescht werden."
+      },
+      "key_error": {
+        "text": "Mindestens ein Aktivitaetsanhang konnte nicht entschluesselt werden."
       }
     },
     "plan": {
@@ -22031,6 +22355,12 @@
       },
       "manual": {
         "text": "Manuell"
+      },
+      "my_workflows": {
+        "text": "Meine Workflows"
+      },
+      "templates": {
+        "text": "Vorlagen"
       }
     },
     "home": {
@@ -22044,7 +22374,10 @@
         "text": "Was möchtest du als Nächstes automatisieren?"
       },
       "show_all": {
-        "text": "Alle anzeigen"
+        "text": "Meine Workflows anzeigen"
+      },
+      "show_templates": {
+        "text": "Vorlagen anzeigen"
       },
       "back_to_recent": {
         "text": "Zurück zu den letzten Workflows"

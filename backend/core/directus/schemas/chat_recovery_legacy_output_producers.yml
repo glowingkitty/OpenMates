@@ -1,0 +1,72 @@
+# Exact epoch-zero admission proof for a detached saved-chat producer.
+# It grants no v2 recovery public key or sealed-output storage.
+chat_recovery_legacy_output_producers:
+  type: collection
+  meta:
+    accountability: null
+  fields:
+    id:
+      type: uuid
+      primary: true
+    task_name:
+      type: string
+      length: 160
+      required: true
+    kwargs_binding:
+      type: string
+      length: 64
+      required: true
+    actor_user_id:
+      type: uuid
+      required: true
+    hashed_user_id:
+      type: string
+      length: 64
+      required: true
+    hashed_team_id:
+      type: string
+      length: 64
+      nullable: true
+    legacy_task_identity:
+      type: string
+      length: 64
+      required: true
+    root_chat_id:
+      type: uuid
+      required: true
+    target_chat_id:
+      type: uuid
+      required: true
+    root_turn_id:
+      type: uuid
+      nullable: true
+    root_user_message_id:
+      type: string
+      length: 255
+      required: true
+    primary_message_id:
+      type: string
+      length: 255
+      required: true
+    primary_embed_id:
+      type: uuid
+      required: true
+    state:
+      type: string
+      length: 16
+      required: true
+    registered_at:
+      type: datetime
+      required: true
+    expires_at:
+      type: datetime
+      required: true
+    started_at:
+      type: datetime
+      nullable: true
+    completed_at:
+      type: datetime
+      nullable: true
+    invalidated_at:
+      type: datetime
+      nullable: true

@@ -97,6 +97,10 @@ export async function mergeServerChatWithLocal(
       team_id: serverChat.team_id ?? null,
       encrypted_title: serverChat.encrypted_title ?? null,
       messages_v: serverChat.messages_v ?? 0,
+      message_window_has_more_before: serverChat.message_window_has_more_before,
+      message_window_start_cursor: serverChat.message_window_start_cursor,
+      embed_window_has_more_before: serverChat.embed_window_has_more_before,
+      embed_window_start_cursor: serverChat.embed_window_start_cursor,
       title_v: serverChat.title_v ?? 0,
       metadata_v: serverChat.metadata_v,
       draft_v: serverChat.draft_v ?? 0,
@@ -189,6 +193,14 @@ export async function mergeServerChatWithLocal(
       ? localChat.encrypted_title ?? null
       : serverChat.encrypted_title ?? localChat.encrypted_title ?? null,
     messages_v: serverChat.messages_v ?? localChat.messages_v ?? 0,
+    message_window_has_more_before:
+      serverChat.message_window_has_more_before ?? localChat.message_window_has_more_before,
+    message_window_start_cursor:
+      serverChat.message_window_start_cursor ?? localChat.message_window_start_cursor,
+    embed_window_has_more_before:
+      serverChat.embed_window_has_more_before ?? localChat.embed_window_has_more_before,
+    embed_window_start_cursor:
+      serverChat.embed_window_start_cursor ?? localChat.embed_window_start_cursor,
     title_v: serverChat.title_v ?? localChat.title_v ?? 0,
     metadata_v: serverChat.metadata_v ?? localChat.metadata_v,
     draft_v: serverClearsDraft

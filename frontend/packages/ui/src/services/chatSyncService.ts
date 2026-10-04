@@ -74,7 +74,7 @@ import * as aiHandlers from "./chatSyncServiceHandlersAI";
 import * as chatUpdateHandlers from "./chatSyncServiceHandlersChatUpdates";
 import * as coreSyncHandlers from "./chatSyncServiceHandlersCoreSync";
 import * as phasedSyncHandlers from "./chatSyncServiceHandlersPhasedSync";
-import { handleRecoveryJobsAvailableImpl } from "./chatSyncServiceHandlersRecovery";
+import { handleRecoveryJobsAvailableImpl, handleRecoveryOutputsAvailableImpl } from "./chatSyncServiceHandlersRecovery";
 import * as senders from "./chatSyncServiceSenders";
 import { flushPendingEmbedOperations } from "./embedSenders";
 import { sendOfflineChangesImpl } from "./chatSyncServiceSenders";
@@ -241,6 +241,7 @@ export class ChatSynchronizationService extends EventTarget {
   private cacheStatusRetryTimer: NodeJS.Timeout | null = null;
   private cacheStatusRetryCount = 0;
   private cacheStatusServerChatCount = 0;
+  private hasCurrentConnectionCacheStatusCount = false;
   private syncRecoveryNotificationId: string | null = null;
   private syncRecoveryNotificationShown = false;
   private readonly CACHE_STATUS_RETRY_INTERVAL_MS = 3000; // Poll every 3 seconds
@@ -307,6 +308,22 @@ export class ChatSynchronizationService extends EventTarget {
   constructor() {
     super();
     this.registerWebSocketHandlers();
+    // The connection event can precede chat-key hydration. Retry again after
+    // real phased sync, when the saved local keys and chat metadata are ready.
+    this.addEventListener("phasedSyncComplete", (event) => {
+      const detail = (event as CustomEvent<{ synthetic?: boolean; reason?: string }>).detail;
+      // A dropped first preflight leaves a new chat only in local encrypted
+      // storage. The server reports zero chats, so cache-status recovery ends
+      // with a synthetic timeout instead of a real phased-sync completion.
+      // Retry that local journal after the timeout; row-level key checks still
+      // keep unreadable messages pending. Other synthetic failures do not
+      // establish enough sync authority to dispatch a turn.
+      if (detail?.synthetic &&
+          (detail.reason !== "timeout" || !this.hasCurrentConnectionCacheStatusCount ||
+            this.cacheStatusServerChatCount !== 0 || !get(authStore).isAuthenticated ||
+            get(isLoggingOut) || get(forcedLogoutInProgress))) return;
+      void this.retryPendingMessages(true);
+    });
 
     // Activity must survive sidebar unmounts. Read only running chats and their
     // ancestors, independently of the sidebar's recent-chat pagination window.
@@ -401,6 +418,7 @@ export class ChatSynchronizationService extends EventTarget {
         });
       });
       window.addEventListener('focus', () => { if (this.webSocketConnected) void this.refreshChatActivity(); });
+      window.addEventListener('userLoggingOut', () => this.resetCacheStatusCountEvidence());
       window.addEventListener(TEAM_CONTEXT_CHANGED_EVENT, (event) => {
         const context = (event as CustomEvent<TeamContextSnapshot>).detail;
         void this.handleTeamContextChanged(context);
@@ -417,8 +435,12 @@ export class ChatSynchronizationService extends EventTarget {
     // any user events, just one microtask later.
     queueMicrotask(() => {
     websocketStatus.subscribe((storeState) => {
+      const wasWebSocketConnected = this.webSocketConnected;
       this.webSocketConnected = storeState.status === "connected";
       if (this.webSocketConnected) {
+        // A default zero or a prior socket's status cannot authorize a local
+        // pending turn after a synthetic completion.
+        if (!wasWebSocketConnected) this.resetCacheStatusCountEvidence();
         console.warn("[ChatSyncService] WebSocket connected.");
 
         // CRITICAL: Re-register handlers on connection if they were cleared
@@ -471,14 +493,14 @@ export class ChatSynchronizationService extends EventTarget {
         // Stop periodic retry since we're now connected
         this.stopPendingMessageRetry();
 
-        // CRITICAL: Retry sending pending messages when connection is restored
-        // This handles messages that were created while offline
-        this.retryPendingMessages().catch((error) => {
-          console.error(
-            "[ChatSyncService] Error retrying pending messages:",
-            error,
-          );
-        });
+        // On the first connection, wait for real phased-sync completion so
+        // saved chat keys are hydrated before decrypting pending user rows.
+        // Later reconnects already have the initial key/sync context.
+        if (this.hasCompletedInitialSync) {
+          this.retryPendingMessages().catch((error) => {
+            console.error("[ChatSyncService] Error retrying pending messages:", error);
+          });
+        }
 
         // Flush any encrypted embeds that couldn't be sent while offline
         flushPendingEmbedOperations().catch((error) => {
@@ -530,6 +552,7 @@ export class ChatSynchronizationService extends EventTarget {
           }, this.CACHE_STATUS_REQUEST_DELAY);
         }
       } else {
+        this.resetCacheStatusCountEvidence();
         console.warn(
           "[ChatSyncService] WebSocket disconnected or error.",
           { hasCompletedInitialSync: this.hasCompletedInitialSync },
@@ -1748,6 +1771,12 @@ export class ChatSynchronizationService extends EventTarget {
         payload as Parameters<typeof handleRecoveryJobsAvailableImpl>[1],
       ),
     );
+    webSocketService.on("recovery_outputs_available", (payload) =>
+      handleRecoveryOutputsAvailableImpl(
+        this,
+        payload as Parameters<typeof handleRecoveryOutputsAvailableImpl>[1],
+      ),
+    );
 
     // IMPORTANT: "request_app_settings_memories" and "dismiss_app_settings_memories_dialog"
     // are registered synchronously (not inside a dynamic import .then()) to avoid a race
@@ -2002,6 +2031,8 @@ export class ChatSynchronizationService extends EventTarget {
           compressed_message_count?: number;
           summary_token_estimate?: number;
           compressed_up_to_timestamp?: number;
+          compressed_up_to_message_id?: string;
+          covered_message_ids?: string[] | null;
           summary_message_id?: string;
           summary_content?: string;
           error?: string;
@@ -2231,7 +2262,17 @@ export class ChatSynchronizationService extends EventTarget {
     this.initialSyncAttempted = value;
   }
   public set cacheStatusServerChatCount_FOR_HANDLERS_ONLY(value: number) {
+    if (!Number.isSafeInteger(value) || value < 0) {
+      this.resetCacheStatusCountEvidence();
+      return;
+    }
     this.cacheStatusServerChatCount = value;
+    this.hasCurrentConnectionCacheStatusCount = true;
+  }
+
+  private resetCacheStatusCountEvidence(): void {
+    this.cacheStatusServerChatCount = 0;
+    this.hasCurrentConnectionCacheStatusCount = false;
   }
   /** Mark that a full phased sync completed this session. Reconnects will skip re-sync. */
   public markInitialSyncCompleted(): void {
@@ -2471,9 +2512,14 @@ export class ChatSynchronizationService extends EventTarget {
       );
       return false;
     }
-    const payload: RequestChatContentBatchPayload = { chat_ids };
     try {
-      await webSocketService.sendMessage("request_chat_content_batch", payload);
+      const uniqueChatIds = Array.from(new Set(chat_ids));
+      for (let offset = 0; offset < uniqueChatIds.length; offset += 5) {
+        const payload: RequestChatContentBatchPayload = {
+          chat_ids: uniqueChatIds.slice(offset, offset + 5),
+        };
+        await webSocketService.sendMessage("request_chat_content_batch", payload);
+      }
       return true;
     } catch {
       notificationStore.error(
@@ -3159,7 +3205,28 @@ export class ChatSynchronizationService extends EventTarget {
    * This is called automatically when WebSocket connection is restored
    * Messages are retried every few seconds until successfully sent or connection is lost again
    */
-  private async retryPendingMessages(): Promise<void> {
+  private pendingMessageRetryPromise: Promise<void> | null = null;
+  private pendingMessageRetryAfterCurrent = false;
+
+  private async retryPendingMessages(afterCurrent = false): Promise<void> {
+    if (this.pendingMessageRetryPromise) {
+      if (afterCurrent) this.pendingMessageRetryAfterCurrent = true;
+      return this.pendingMessageRetryPromise;
+    }
+    const run = this.retryPendingMessagesCore();
+    this.pendingMessageRetryPromise = run;
+    try {
+      await run;
+    } finally {
+      this.pendingMessageRetryPromise = null;
+      if (this.pendingMessageRetryAfterCurrent) {
+        this.pendingMessageRetryAfterCurrent = false;
+        queueMicrotask(() => { void this.retryPendingMessages(); });
+      }
+    }
+  }
+
+  private async retryPendingMessagesCore(): Promise<void> {
     if (!this.webSocketConnected) {
       console.warn(
         "[ChatSyncService] Skipping pending message retry - WebSocket not connected",
@@ -3172,93 +3239,55 @@ export class ChatSynchronizationService extends EventTarget {
         "[ChatSyncService] Retrying pending messages after connection restored...",
       );
 
-      // Get all messages from database
-      const allMessages = await chatDB.getAllMessages();
-
-      // Filter for messages that need to be retried
-      const pendingMessages = allMessages.filter(
-        (msg) =>
-          msg.status === "waiting_for_internet" ||
-          (msg.status === "sending" && msg.role === "user"),
-      );
-
-      if (pendingMessages.length === 0) {
-        console.warn("[ChatSyncService] No pending messages to retry");
-        return;
-      }
-
-      console.warn(
-        `[ChatSyncService] Found ${pendingMessages.length} pending message(s) to retry`,
-      );
-
-      // Update status to 'sending' and retry each message
-      for (const message of pendingMessages) {
-        try {
-          // CRITICAL FIX: Use updateMessageStatus() instead of saveMessage() for the
-          // status-only update before retrying. The old code used:
-          //   saveMessage({ ...message, status: "sending" })
-          // which calls encryptMessageFields() → getOrGenerateChatKey(). If the chat key
-          // is absent from the in-memory cache, a NEW random key is registered and all
-          // subsequent operations (embed encryption, etc.) use the wrong key, causing
-          // "[Content decryption failed]" on this device and any device that received the
-          // originally-keyed server copy.
-          //
-          // updateMessageStatus() patches only the status field in IndexedDB without
-          // touching encryption — safe by design.
-          await chatDB.updateMessageStatus(message.message_id, "sending");
-
-          // Dispatch event to update UI
-          this.dispatchEvent(
-            new CustomEvent("messageStatusChanged", {
-              detail: {
-                chatId: message.chat_id,
-                messageId: message.message_id,
-                status: "sending",
-              },
-            }),
-          );
-
-          // Retry sending the message (pass original `message` since it already has
-          // the correct encrypted/plaintext fields as stored in IndexedDB)
-          console.warn(
-            `[ChatSyncService] Retrying message ${message.message_id} for chat ${message.chat_id}`,
-          );
-          await this.sendNewMessage(message);
-        } catch (error) {
-          console.error(
-            `[ChatSyncService] Error retrying message ${message.message_id}:`,
-            error,
-          );
-
-          // Update status back to 'waiting_for_internet' if retry failed — status-only
-          // update, never needs encryption.
-          try {
-            await chatDB.updateMessageStatus(
-              message.message_id,
-              "waiting_for_internet",
-            );
-
-            this.dispatchEvent(
-              new CustomEvent("messageStatusChanged", {
-                detail: {
-                  chatId: message.chat_id,
-                  messageId: message.message_id,
-                  status: "waiting_for_internet",
-                },
-              }),
-            );
-          } catch (dbError) {
-            console.error(
-              `[ChatSyncService] Error updating message status after retry failure:`,
-              dbError,
-            );
+      const seen = new Set<string>();
+      let retried = 0;
+      // The numeric journal marker catches a turn that a generic metadata ACK
+      // already marked synced. Status indexes cover ordinary offline sends.
+      for (const kind of ["pending_turn", "waiting_for_internet", "sending"] as const) {
+        let cursor: [number | string, number, string] | null = null;
+        while (this.webSocketConnected) {
+          const page = await chatDB.getPendingMessageRetryPage(kind, cursor);
+          if (page.oversizedCount) {
+            console.error(`[ChatSyncService] ${page.oversizedCount} pending encrypted message row(s) exceed the retry admission limit and remain durable.`);
           }
+          for (const raw of page.rows) {
+            if (raw.role !== "user" || seen.has(raw.message_id)) continue;
+            seen.add(raw.message_id);
+            if (kind === "pending_turn" &&
+                typeof (raw as Message & { pending_encrypted_turn_preflight_v1?: unknown })
+                  .pending_encrypted_turn_preflight_v1 !== "string") continue;
+            if (kind === "pending_turn" &&
+                !["sending", "waiting_for_internet", "synced", "delivered", "processing"].includes(raw.status)) {
+              continue;
+            }
+            const message = await chatDB.decryptPendingMessageRetryRow(raw);
+            if (!message) continue; // Keep the durable row for the next key-ready pass.
+            try {
+              // Patch only status; never re-encrypt the retained ciphertext.
+              await chatDB.updateMessageStatus(message.message_id, "sending");
+              this.dispatchEvent(new CustomEvent("messageStatusChanged", {
+                detail: { chatId: message.chat_id, messageId: message.message_id, status: "sending" },
+              }));
+              await this.sendNewMessage(message);
+              retried++;
+            } catch (error) {
+              console.error(`[ChatSyncService] Error retrying message ${message.message_id}:`, error);
+              try {
+                await chatDB.updateMessageStatus(message.message_id, "waiting_for_internet");
+                this.dispatchEvent(new CustomEvent("messageStatusChanged", {
+                  detail: { chatId: message.chat_id, messageId: message.message_id, status: "waiting_for_internet" },
+                }));
+              } catch (dbError) {
+                console.error("[ChatSyncService] Error updating message status after retry failure:", dbError);
+              }
+            }
+          }
+          if (!page.nextCursor) break;
+          cursor = page.nextCursor;
+          await new Promise<void>((resolve) => setTimeout(resolve, 0));
         }
       }
-
-      console.warn(
-        `[ChatSyncService] Completed retry attempt for ${pendingMessages.length} pending message(s)`,
-      );
+      console.warn(`[ChatSyncService] Completed indexed pending retry for ${retried} message(s)`);
     } catch (error) {
       console.error("[ChatSyncService] Error in retryPendingMessages:", error);
     }

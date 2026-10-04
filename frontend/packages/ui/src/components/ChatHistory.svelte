@@ -2514,6 +2514,7 @@
       container &&
       container.scrollTop <= OLDER_MESSAGES_AUTOLOAD_THRESHOLD_PX &&
       hasOlderMessages &&
+      !isSharedChat &&
       !olderMessagesLoading
     ) {
       requestOlderMessages();
@@ -2872,6 +2873,16 @@
               data-rendered-message-count={virtualizedDisplayMessages.length}
              transition:fade={{ duration: 100 }} 
              onoutroend={handleOutroEnd}>
+
+            {#if isSharedChat && hasOlderMessages}
+              <button
+                type="button"
+                class="forgotten-messages-btn secondary"
+                data-testid="shared-message-load-more"
+                disabled={olderMessagesLoading}
+                onclick={requestOlderMessages}
+              >{$text('chats.loadMore.button')}</button>
+            {/if}
 
             <!-- "Show earlier messages" toggle: appears when compression summary exists.
                  When collapsed, messages before the summary are hidden. -->

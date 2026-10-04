@@ -22,6 +22,7 @@ DIAGRAMS_DISABLED_APP_YML = REPO_ROOT / "backend/apps/diagrams/app.disabled.yml"
 STREAM_CONSUMER = REPO_ROOT / "backend/apps/ai/tasks/stream_consumer.py"
 
 
+# contract-test: supporting surface=rest_api assertions=chats.rendering.assistant-document-convergence
 def test_mermaid_fence_detection_is_disabled() -> None:
     from backend.apps.ai.utils.mermaid_fences import (
         _extract_mermaid_metadata,
@@ -50,6 +51,7 @@ def test_mermaid_fence_detection_is_disabled() -> None:
     }
 
 
+# contract-test: supporting surface=rest_api assertions=chats.rendering.assistant-document-convergence
 def test_diagrams_app_definition_is_dormant() -> None:
     assert not DIAGRAMS_APP_YML.exists()
     app = yaml.safe_load(DIAGRAMS_DISABLED_APP_YML.read_text())
@@ -65,6 +67,7 @@ def test_diagrams_app_definition_is_dormant() -> None:
     assert app["instructions"] == []
 
 
+# contract-test: supporting surface=rest_api assertions=chats.streaming.ordered-final,chats.rendering.assistant-document-convergence
 def test_streaming_path_keeps_mermaid_branch_dormant() -> None:
     source = STREAM_CONSUMER.read_text(encoding="utf-8")
     multi_chunk_branch = source[source.index("is_mermaid_block_multi = _is_mermaid_fence(current_code_language)") :]
@@ -160,6 +163,10 @@ class FakeCacheService:
     async def client(self):
         return self._client
 
+    async def cache_required_ai_embed(self, user_id, chat_id, embed_id, encrypted_json, *, payload_ttl, index_ttl):
+        await self._client.set(f"embed:{embed_id}", encrypted_json, ex=payload_ttl)
+        return True
+
 
 class FakeEncryptionService:
     async def encrypt_with_user_key(self, content: str, vault_key_id: str):
@@ -169,6 +176,7 @@ class FakeEncryptionService:
         return encrypted_content
 
 
+# contract-test: supporting surface=rest_api assertions=chats.streaming.ordered-final,chats.rendering.assistant-document-convergence
 @pytest.mark.asyncio
 async def test_embed_service_creates_and_updates_mermaid_payload() -> None:
     cache = FakeCacheService()

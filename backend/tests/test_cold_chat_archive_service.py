@@ -183,13 +183,15 @@ async def test_complete_graph_verifies_every_region_before_hot_child_deletion() 
 
 # contract-test: direct surface=rest_api assertions=storage.cold.atomic-eligible-graphs,storage-resilience.core.s3-is-noncritical
 def test_celery_archive_uses_storage_clients_without_remote_reconciliation(monkeypatch) -> None:
-    """A failing control plane must not prevent the durable archive task from running."""
+    """An enabled bounded archive task uses clients without remote setup."""
     from backend.core.api.app.tasks import base_task, storage_tasks
+    from backend.core.api.app.services import chat_message_archive_service
 
     directus = FakeDirectus()
     storage = FakeS3()
     cache_checks: list[str] = []
     init_modes: list[bool] = []
+    archive_calls: list[str] = []
 
     async def initialize_storage(*, configure_buckets: bool = True) -> None:
         init_modes.append(configure_buckets)
@@ -208,7 +210,17 @@ def test_celery_archive_uses_storage_clients_without_remote_reconciliation(monke
     async def cleanup_services(_task) -> None:
         pass
 
+    class ArchiveService:
+        def __init__(self, *, directus_service, s3_service):
+            assert directus_service is directus and s3_service is storage
+
+        async def copy_segment(self, *, chat_id):
+            archive_calls.append(chat_id)
+            return {"state": "copied", "verified_regions": ["fsn1", "hel1", "nbg1"]}
+
     storage.initialize = initialize_storage
+    monkeypatch.setenv("CHAT_MESSAGE_ARCHIVE_COPY_ENABLED", "1")
+    monkeypatch.setattr(chat_message_archive_service, "ChatMessageArchiveService", ArchiveService)
     monkeypatch.setattr(base_task, "S3UploadService", lambda **_kwargs: storage)
     monkeypatch.setattr(base_task.BaseServiceTask, "initialize_core_services", initialize_core_services)
     monkeypatch.setattr(base_task.BaseServiceTask, "cleanup_services", cleanup_services)
@@ -223,10 +235,9 @@ def test_celery_archive_uses_storage_clients_without_remote_reconciliation(monke
     result = task.run(chat_id="chat-1")
 
     assert init_modes == [False]
-    assert result["state"] == "cold"
-    assert result["verified_regions"] == ["fsn1", "hel1", "nbg1"]
-    assert cache_checks
-    assert directus.collections["messages"] == []
+    assert result == {"state": "copied", "verified_regions": ["fsn1", "hel1", "nbg1"]}
+    assert cache_checks == ["chat-1"]
+    assert archive_calls == ["chat-1"]
 
 
 @pytest.mark.asyncio

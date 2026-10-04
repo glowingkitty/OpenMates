@@ -26,6 +26,9 @@ from backend.shared.python_utils.generated_assets import (
     index_generated_asset,
 )
 from backend.shared.python_utils.media_encryption import encrypt_media_variants, load_media_write_version
+from backend.shared.python_utils.chat_recovery_context import (
+    RequiredRecoveryOutputError, active_verified_output_producer,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -188,6 +191,11 @@ async def store_generated_audio_asset(
     """Store encrypted generated audio and return result/embed metadata."""
     if not user_id:
         raise ValueError("Generated audio storage requires user_id")
+    producer = active_verified_output_producer.get()
+    if producer is not None and producer.classification == "registered_ai" and (
+        external_request or not chat_id or not message_id
+    ):
+        raise RequiredRecoveryOutputError("Registered audio output lacks its bound chat embed context")
     if not audio_bytes:
         raise ValueError("Generated audio bytes are empty")
 
@@ -318,6 +326,7 @@ async def store_generated_audio_asset(
             updated_at=now_ts,
             log_prefix=log_prefix,
             check_cache_status=False,
+            producer_final_children=[],
         )
 
     rest_files_metadata = {

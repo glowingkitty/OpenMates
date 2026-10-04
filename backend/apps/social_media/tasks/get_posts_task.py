@@ -25,6 +25,9 @@ from backend.apps.social_media.result_payload import build_social_media_task_res
 from backend.core.api.app.services.embed_service import EmbedService
 from backend.core.api.app.tasks.base_task import BaseServiceTask
 from backend.core.api.app.tasks.celery_config import app
+from backend.shared.python_utils.chat_recovery_context import (
+    RequiredRecoveryOutputError, active_verified_output_producer,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -67,8 +70,16 @@ async def _async_get_posts(task: BaseServiceTask, app_id: str, skill_id: str, ar
         await task.initialize_services()
         user_vault_key_id = arguments.get("user_vault_key_id")
         chat_embed_mode = bool(embed_id and user_id and chat_id and message_id and user_vault_key_id and not external_request)
+        producer = active_verified_output_producer.get()
+        if producer is not None and producer.classification == "registered_ai" and not chat_embed_mode:
+            raise RequiredRecoveryOutputError("Registered social output lacks its bound chat embed context")
         if not external_request and not chat_embed_mode:
             raise ValueError("Missing required task context for social media embed update")
+        if chat_embed_mode:
+            await EmbedService.assert_registered_output_can_generate(
+                task._directus_service, embed_id=embed_id, chat_id=chat_id,
+                message_id=message_id, owner_hash=hashlib.sha256(user_id.encode()).hexdigest(),
+            )
 
         started = datetime.now(timezone.utc)
         reddit_proxy_url = await _get_webshare_proxy_url(task)
@@ -143,6 +154,8 @@ async def _async_get_posts(task: BaseServiceTask, app_id: str, skill_id: str, ar
         logger.info("%s Completed with %s result groups and %s provider requests", log_prefix, len(results), total_requests)
         result_payload["continuation_task_id"] = continuation_task_id
         return result_payload
+    except RequiredRecoveryOutputError:
+        raise
     except Exception as exc:
         logger.error("%s Failed: %s", log_prefix, exc, exc_info=True)
         if embed_id and user_id and chat_id and message_id:

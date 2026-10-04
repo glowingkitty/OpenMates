@@ -10,6 +10,7 @@ Future client-facing routes can reuse these helpers for wrapper-first reads.
 from __future__ import annotations
 
 import hashlib
+import json
 import logging
 import time
 from typing import Any
@@ -31,6 +32,8 @@ CHAT_BACKFILL_FIELDS = "id,hashed_user_id,encrypted_chat_key"
 MASTER_KEY_TYPE = "master"
 TEAM_KEY_TYPE = "team"
 WRAPPER_VERSION = 1
+SYNC_WRAPPER_PAGE_LIMIT = 20
+SYNC_WRAPPER_PAGE_MAX_BYTES = 64 * 1024
 
 
 def _hash_identifier(value: str) -> str:
@@ -40,6 +43,94 @@ def _hash_identifier(value: str) -> str:
 class ChatKeyWrapperMethods:
     def __init__(self, directus_service_instance: "DirectusService") -> None:
         self.directus_service = directus_service_instance
+
+    async def get_sync_wrapper_window_for_chat(
+        self,
+        hashed_chat_id: str,
+        *,
+        hashed_user_id: str | None = None,
+        hashed_team_id: str | None = None,
+        before_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Read one bounded wrapper page for an already authorized chat."""
+        if not hashed_chat_id or bool(hashed_user_id) == bool(hashed_team_id):
+            raise ValueError("A chat and exactly one wrapper principal are required")
+        filters: dict[str, Any] = {"hashed_chat_id": {"_eq": hashed_chat_id}}
+        if hashed_team_id:
+            filters["hashed_team_id"] = {"_eq": hashed_team_id}
+        else:
+            filters["hashed_user_id"] = {"_eq": hashed_user_id}
+        if before_id:
+            filters["id"] = {"_lt": before_id}
+        rows = await self.directus_service.get_items(
+            CHAT_KEY_WRAPPERS_COLLECTION,
+            params={
+                "filter": filters,
+                "fields": CHAT_WRAPPER_FIELDS,
+                "sort": ["-id"],
+                "limit": SYNC_WRAPPER_PAGE_LIMIT + 1,
+            },
+            no_cache=True,
+            admin_required=True,
+            raise_on_error=True,
+        )
+        if not isinstance(rows, list):
+            raise RuntimeError("Chat key wrapper page unavailable")
+        has_more_before = len(rows) > SYNC_WRAPPER_PAGE_LIMIT
+        selected: list[dict[str, Any]] = []
+        payload_bytes = 0
+        oversized_wrapper_id = None
+        for row in rows[:SYNC_WRAPPER_PAGE_LIMIT]:
+            row_bytes = len(json.dumps(row, separators=(",", ":")).encode("utf-8"))
+            if row_bytes > SYNC_WRAPPER_PAGE_MAX_BYTES and not selected:
+                oversized_wrapper_id = row["id"]
+                has_more_before = True
+                break
+            if payload_bytes + row_bytes > SYNC_WRAPPER_PAGE_MAX_BYTES:
+                has_more_before = True
+                break
+            selected.append(row)
+            payload_bytes += row_bytes
+        return {
+            "wrappers": selected,
+            "has_more_before": has_more_before,
+            "start_cursor": selected[-1]["id"] if selected else None,
+            "oversized_wrapper_id": oversized_wrapper_id,
+            "payload_bytes": payload_bytes,
+        }
+
+    async def get_sync_wrapper_by_id(
+        self,
+        hashed_chat_id: str,
+        wrapper_id: str,
+        *,
+        hashed_user_id: str | None = None,
+        hashed_team_id: str | None = None,
+    ) -> dict[str, Any] | None:
+        """Fetch a specifically requested wrapper after caller verifies chat ownership."""
+        if bool(hashed_user_id) == bool(hashed_team_id):
+            raise ValueError("Exactly one wrapper principal is required")
+        principal_filter = {"hashed_team_id": {"_eq": hashed_team_id}} if hashed_team_id else {
+            "hashed_user_id": {"_eq": hashed_user_id}
+        }
+        rows = await self.directus_service.get_items(
+            CHAT_KEY_WRAPPERS_COLLECTION,
+            params={
+                "filter": {
+                    "id": {"_eq": wrapper_id},
+                    "hashed_chat_id": {"_eq": hashed_chat_id},
+                    **principal_filter,
+                },
+                "fields": CHAT_WRAPPER_FIELDS,
+                "limit": 1,
+            },
+            no_cache=True,
+            admin_required=True,
+            raise_on_error=True,
+        )
+        if not isinstance(rows, list):
+            raise RuntimeError("Chat key wrapper unavailable")
+        return rows[0] if rows else None
 
     async def list_authorized_wrappers(
         self,
@@ -57,20 +148,17 @@ class ChatKeyWrapperMethods:
             "filter[hashed_chat_id][_eq]": _hash_identifier(chat_id),
             "filter[hashed_user_id][_eq]": _hash_identifier(user_id),
             "fields": CHAT_WRAPPER_FIELDS,
-            "limit": -1,
         }
         if key_type:
             params["filter[key_type][_eq]"] = key_type
 
-        wrappers = await self.directus_service.get_items(
+        from backend.core.api.app.services.scoped_directus_pagination import read_complete_scoped_records
+        return await read_complete_scoped_records(
+            self.directus_service,
             CHAT_KEY_WRAPPERS_COLLECTION,
             params=params,
-            no_cache=True,
             admin_required=True,
         )
-        if not wrappers or not isinstance(wrappers, list):
-            return []
-        return wrappers
 
     async def get_wrappers_by_hashed_chat_ids_batch(
         self,
@@ -90,16 +178,16 @@ class ChatKeyWrapperMethods:
             params: dict[str, Any] = {
                 "filter[hashed_chat_id][_in]": ",".join(chunk),
                 "fields": CHAT_WRAPPER_FIELDS,
-                "limit": -1,
             }
             if hashed_team_id:
                 params["filter[hashed_team_id][_eq]"] = hashed_team_id
             elif hashed_user_id:
                 params["filter[hashed_user_id][_eq]"] = hashed_user_id
-            batch = await self.directus_service.get_items(
+            from backend.core.api.app.services.scoped_directus_pagination import read_complete_scoped_records
+            batch = await read_complete_scoped_records(
+                self.directus_service,
                 CHAT_KEY_WRAPPERS_COLLECTION,
                 params=params,
-                no_cache=True,
                 admin_required=True,
             )
             if batch and isinstance(batch, list):

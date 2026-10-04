@@ -45,7 +45,7 @@ def test_directus_image_bakes_extension_and_fails_closed() -> None:
     assert "chat-recovery-transaction" in dockerfile
     assert "openmates-directus-health" in dockerfile
     assert "pg_indexes" in dockerfile
-    assert len(required_indexes) == 11
+    assert len(required_indexes) == len(set(required_indexes)) == 17
     assert all(index_name in dockerfile for index_name in required_indexes)
     assert len(sub_chat_indexes) == 20
     assert all(index_name in dockerfile for index_name in sub_chat_indexes)

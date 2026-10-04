@@ -66,7 +66,7 @@ def _validate_client_encrypted_message_content(message_id: str, encrypted_conten
 # Define metadata fields to fetch (exclude large content fields)
 # NOTE: user_id is NOT included here to avoid permission issues on public share endpoints
 # Use hashed_user_id for ownership verification instead
-CHAT_METADATA_FIELDS = "id,hashed_user_id,hashed_team_id,encrypted_title,encrypted_slug,slug_lookup_hash,created_at,updated_at,messages_v,title_v,metadata_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_share_cta_text,encrypted_chat_tags,encrypted_follow_up_request_suggestions,encrypted_top_recommended_apps_for_chat,encrypted_quick_tip_slugs,encrypted_active_focus_id,encrypted_focus_phase_state,encrypted_auto_speak_response,encrypted_chat_key,encrypted_icon,encrypted_category,encrypted_shared_short_url,is_private,is_shared,share_pii,share_highlights,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_share_cta_text,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_image_bubbles,pinned,parent_id,is_sub_chat,budget_limit,budget_spent"
+CHAT_METADATA_FIELDS = "id,hashed_user_id,hashed_team_id,encrypted_title,encrypted_slug,slug_lookup_hash,created_at,updated_at,messages_v,archived_message_count,title_v,metadata_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_share_cta_text,encrypted_chat_tags,encrypted_follow_up_request_suggestions,encrypted_top_recommended_apps_for_chat,encrypted_quick_tip_slugs,encrypted_active_focus_id,encrypted_focus_phase_state,encrypted_auto_speak_response,encrypted_chat_key,encrypted_icon,encrypted_category,encrypted_shared_short_url,is_private,is_shared,share_pii,share_highlights,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_share_cta_text,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_image_bubbles,pinned,parent_id,is_sub_chat,budget_limit,budget_spent"
 CHAT_METADATA_FIELDS_WITHOUT_OPTIONAL_SHARE_FLAGS = "id,hashed_user_id,hashed_team_id,encrypted_title,encrypted_slug,slug_lookup_hash,created_at,updated_at,messages_v,title_v,metadata_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_share_cta_text,encrypted_chat_tags,encrypted_follow_up_request_suggestions,encrypted_top_recommended_apps_for_chat,encrypted_quick_tip_slugs,encrypted_active_focus_id,encrypted_focus_phase_state,encrypted_auto_speak_response,encrypted_chat_key,encrypted_icon,encrypted_category,encrypted_shared_short_url,is_private,is_shared,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_share_cta_text,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_image_bubbles,pinned,parent_id,is_sub_chat,budget_limit,budget_spent"
 CHAT_METADATA_FIELDS_WITHOUT_METADATA_VERSION = ",".join(
     field for field in CHAT_METADATA_FIELDS.split(",") if field != "metadata_v"
@@ -105,6 +105,7 @@ CORE_CHAT_FIELDS_FOR_WARMING = (
     "title_v,"
     "metadata_v,"
     "messages_v,"
+    "archived_message_count,"
     "unread_count,"
     "encrypted_chat_summary,"
     "encrypted_share_cta_text,"
@@ -901,12 +902,37 @@ class ChatMethods:
         chat_id: str,
         decrypt_content: bool = False
     ) -> Optional[List[Union[str, Dict[str, Any]]]]:
+        """Explicit complete-history compatibility read with bounded SQL batches.
+
+        Interactive and startup paths use message windows. This method retains
+        the legacy complete response without asking Directus for limit=-1.
+        Cold-aware callers additionally merge the indexed archive pages.
         """
-        Fetches all messages for a given chat_id from Directus.
-        DEPRECATED in favor of get_messages_for_chats.
-        """
-        result_dict = await self.get_messages_for_chats([chat_id], decrypt_content)
-        return result_dict.get(chat_id)
+        result: List[Union[str, Dict[str, Any]]] = []
+        cursor = None
+        fields = MESSAGE_ALL_FIELDS
+        while True:
+            message_filter = self._cursor_after_filter(chat_id, cursor[0], cursor[1]) if cursor else {'chat_id': {'_eq': chat_id}}
+            params = {'filter': message_filter, 'fields': fields,
+                      'sort': ['created_at', 'client_message_id', 'id'], 'limit': 20}
+            rows = await self.directus_service.get_items('messages', params=params, admin_required=True,
+                                                        return_none_on_403=True, raise_on_error=True)
+            if rows is None and fields != MESSAGE_FIELDS_NO_THINKING:
+                fields = MESSAGE_FIELDS_NO_THINKING
+                continue
+            if not isinstance(rows, list):
+                raise RuntimeError('COMPLETE_MESSAGE_HISTORY_UNAVAILABLE')
+            if not rows:
+                return result
+            for row in self._normalize_message_window_rows(rows):
+                result.append(json.dumps(row))
+            last = rows[-1]
+            next_cursor = (int(last['created_at']), str(last['message_id']))
+            if cursor is not None and next_cursor <= cursor:
+                raise RuntimeError('COMPLETE_MESSAGE_HISTORY_CURSOR_DID_NOT_ADVANCE')
+            cursor = next_cursor
+            if len(rows) < 20:
+                return result
 
     async def check_messages_exist_for_chat(self, chat_id: str) -> bool:
         """
@@ -930,7 +956,7 @@ class ChatMethods:
         Get the count of messages for a chat.
         
         Uses a filtered Directus aggregate so long chats never transfer one ID
-        per message to compute their hot canonical count.
+        per message, then adds the persisted count of archived messages.
         
         Used for client-side validation to detect data inconsistencies where
         version numbers match but message counts don't (indicating missing messages).
@@ -941,6 +967,11 @@ class ChatMethods:
         Returns:
             The number of messages in the chat, or None if an error occurs
         """
+        breakdown = await self.get_message_count_breakdown_for_chat(chat_id)
+        return sum(breakdown) if breakdown is not None else None
+
+    async def get_message_count_breakdown_for_chat(self, chat_id: str) -> Optional[tuple[int, int]]:
+        """Return hot aggregate and pruned archive count without ID materialization."""
         try:
             params = {
                 'filter[chat_id][_eq]': chat_id,
@@ -959,11 +990,29 @@ class ChatMethods:
             )
             if not isinstance(aggregate, list) or len(aggregate) != 1:
                 raise ValueError('Canonical message count aggregate unavailable')
-            count = int(aggregate[0]['count'])
-            if count < 0:
+            hot_count = int(aggregate[0]['count'])
+            if hot_count < 0:
                 raise ValueError('Canonical message count aggregate is negative')
-            logger.debug("Hot message count for chat %s: %s", chat_id, count)
-            return count
+            chat_rows = await self.directus_service.get_items(
+                'chats',
+                params={
+                    'filter[id][_eq]': chat_id,
+                    'fields': 'archived_message_count',
+                    'limit': 1,
+                },
+                admin_required=True,
+                no_cache=True,
+                raise_on_error=True,
+            )
+            if not isinstance(chat_rows, list) or len(chat_rows) != 1:
+                raise ValueError('Chat archive count unavailable')
+            if 'archived_message_count' not in chat_rows[0]:
+                raise ValueError('Chat archive count field unavailable')
+            archived_count = int(chat_rows[0]['archived_message_count'] or 0)
+            if archived_count < 0:
+                raise ValueError('Chat archive count is negative')
+            logger.debug("Message count for chat %s: hot=%s archived=%s", chat_id, hot_count, archived_count)
+            return hot_count, archived_count
         except Exception as e:
             logger.warning(f"Error getting message count for chat {chat_id}: {e}")
             return None
@@ -1676,7 +1725,7 @@ class ChatMethods:
             logger.error(f"Error deleting message {client_message_id} from chat {chat_id}: {e}", exc_info=True)
             return False
 
-    async def persist_delete_chat(self, chat_id: str) -> bool:
+    async def persist_delete_chat(self, chat_id: str, *, hashed_user_id: str | None = None) -> bool:
         """
         Deletes a chat item from the 'chats' collection.
         NOTE: This method ONLY deletes the chat record itself.
@@ -1684,6 +1733,11 @@ class ChatMethods:
         """
         logger.info(f"Attempting to delete chat {chat_id} from Directus.")
         try:
+            from backend.core.api.app.services.chat_deletion_fence import require_chat_deletion_fence
+
+            await require_chat_deletion_fence(
+                self.directus_service, chat_id, hashed_user_id=hashed_user_id,
+            )
             await self.cleanup_assistant_speech_for_chat(chat_id)
             success = await self.directus_service.delete_item(collection='chats', item_id=chat_id)
             if success:

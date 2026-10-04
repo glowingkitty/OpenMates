@@ -42,15 +42,17 @@ from backend.core.api.app.utils.report_issue_ids import (
 from backend.core.api.app.utils.issue_report_contact_email import resolve_account_contact_email
 from backend.core.api.app.utils.issue_report_text import normalize_issue_report_error_sentinels
 from backend.core.api.app.services.api_key_authorization import ApiKeyAuthorizationService
+from backend.core.api.app.services.chat_recovery_service import (
+    ChatRecoveryProtocolError,
+    assert_no_pending_team_account_recovery,
+)
 from backend.core.api.app.services.session_security_state import (
     get_session_state_cached,
     require_recent_strong_proof,
     token_hash,
 )
-from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError
 from backend.core.api.app.utils.issue_report_auth import resolve_issue_report_user_id
 from backend.core.api.app.routes.handlers.websocket_handlers.chat_recovery_job_handlers import (
-    invalidate_recovery_jobs_for_account_deletion,
     invalidate_recovery_leases_for_device,
 )
 from backend.shared.python_utils.invoice_ciphertext_versions import (
@@ -4369,14 +4371,19 @@ async def delete_account(
         
         # Trigger Celery task for account deletion
         try:
-            await invalidate_recovery_jobs_for_account_deletion(
+            await assert_no_pending_team_account_recovery(
                 directus_service=directus_service,
                 user_id_hash=user_id_hash,
             )
         except ChatRecoveryProtocolError as recovery_error:
-            if recovery_error.status_code != 404:
-                raise
-            logger.info("Recovery extension unavailable; account invalidation is a safe no-op")
+            if recovery_error.status_code == 409 and recovery_error.code == "pending_team_recovery":
+                raise HTTPException(
+                    status_code=409,
+                    detail="Save pending Team chat output before deleting this account.",
+                ) from recovery_error
+            # An unavailable extension cannot prove the surviving Team has a
+            # canonical copy; keep this authenticated account recoverable.
+            raise
 
         from backend.core.api.app.tasks.celery_config import app
         task_result = app.send_task(
@@ -6459,7 +6466,9 @@ async def delete_old_chats(
         deleted_ids: list[str] = []
         for chat_id in chat_ids_to_delete:
             try:
-                success = await directus_service.chat.persist_delete_chat(chat_id)
+                success = await directus_service.chat.persist_delete_chat(
+                    chat_id, hashed_user_id=hashed_user_id,
+                )
                 if success:
                     deleted_ids.append(chat_id)
                 else:

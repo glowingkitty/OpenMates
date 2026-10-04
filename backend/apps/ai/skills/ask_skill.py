@@ -5,6 +5,7 @@ import asyncio
 import logging
 from typing import List, Dict, Any, Optional, Union
 from fastapi import HTTPException
+from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 import time
@@ -102,8 +103,10 @@ class AskSkillRequest(BaseModel):
     team_workspace_type: Optional[str] = Field(default="chat", description="Team workspace type used for team usage attribution.")
     team_object_id_hash: Optional[str] = Field(default=None, description="Hashed team object id for usage attribution.")
     recovery_task_id: Optional[str] = Field(default=None, description="Stable epoch-1 task ID reserved by durable chat preflight.")
-    recovery_inference_task_id: Optional[str] = Field(default=None, description="Original durable inference identity reused only when an internal continuation seals a new assistant response.")
+    recovery_inference_task_id: Optional[str] = Field(default=None, description="Durable inference identity for a dispatched child or an internal continuation.")
     legacy_cutover_task_id: Optional[str] = Field(default=None, description="Stable epoch-0 task ID owning one durable cutover admission.")
+    root_user_message_id: Optional[str] = Field(default=None, description="Server-carried root user message for child legacy admission.")
+    root_legacy_cutover_task_id: Optional[str] = Field(default=None, description="Root epoch-0 admission inherited by a prepared child; never the child Celery ID.")
     recovery_preflight_id: Optional[str] = Field(default=None, description="Durable epoch-1 preflight identity.")
     recovery_turn_id: Optional[str] = Field(default=None, description="Stable user-turn identity for sealed recovery.")
     recovery_public_key: Optional[str] = Field(default=None, description="Raw X25519 recovery public key encoded as unpadded base64url.")
@@ -116,6 +119,7 @@ class AskSkillRequest(BaseModel):
     async_skill_task_id: Optional[str] = Field(default=None, description="Stable async operation or execution id completed by this continuation.")
     awaiting_async_skill_continuation: bool = Field(default=False, description="True when this response dispatched a client job and must not seal the interim assistant output as terminal recovery.")
     is_sub_chat_continuation: bool = Field(default=False, description="True if this task is a continuation after waited sub-chats completed. The user message was already persisted before the sub-chat pause.")
+    recovery_consumed_child_ids: List[str] = Field(default_factory=list, description="Internal child identities whose sealed synthesis inputs are carried by this continuation.")
     is_anonymous: bool = Field(default=False, description="True for official-cloud anonymous free usage. Skips user-vault lookup and user-balance charging.")
     anonymous_reservation_id: Optional[str] = Field(default=None, description="Anonymous budget reservation ID for server-side reconciliation.")
     continuation_message_id: Optional[str] = Field(default=None, description="When set, the continuation task reuses this as the AI message_id instead of generating a new one from the Celery task_id. This ensures the continuation response is appended to the same message bubble as the focus mode embed.")
@@ -152,7 +156,8 @@ class AskSkillRequest(BaseModel):
         """Return the durable inference identity for initial or internal continuation tasks."""
         if self.recovery_task_id:
             return self.recovery_task_id
-        if (self.is_sub_chat_continuation or self.is_focus_mode_continuation
+        if ((self.is_sub_chat and self.recovery_preflight_id)
+                or self.is_sub_chat_continuation or self.is_focus_mode_continuation
                 or self.is_async_skill_continuation
                 or self.is_app_settings_memories_continuation):
             return self.recovery_inference_task_id
@@ -391,6 +396,72 @@ class AskSkill(BaseSkill):
             # It ensures proper routing and task registration
             # Explicitly set exchange and routing_key to match the queue declaration in celery_config.py
             # This ensures the task is routed to the correct queue and consumed by app-ai-worker, not app-web-worker
+            from backend.shared.python_utils.volatile_embed_authority import (
+                MAIN_HEADER, active_authenticated_volatile_ai, make_main_header,
+            )
+            dispatch_task_id = request.recovery_task_id or request.legacy_cutover_task_id or str(uuid.uuid4())
+            if (request.legacy_cutover_task_id and not request.is_sub_chat
+                    and not any((
+                        request.is_sub_chat_continuation,
+                        request.is_focus_mode_continuation,
+                        request.is_app_settings_memories_continuation,
+                        request.is_connected_account_permission_continuation,
+                        request.is_async_skill_continuation,
+                    ))):
+                from backend.shared.python_utils.embed_producer_dispatch import bind_task_invocation
+                from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+                from backend.core.api.app.services.directus import DirectusService
+                ordinary_binding = bind_task_invocation(
+                    task_name="apps.ai.tasks.skill_ask",
+                    task_uuid=dispatch_task_id,
+                    args=[],
+                    kwargs={
+                        "request_data_dict": request_data_dict,
+                        "skill_config_dict": skill_config_dict,
+                    },
+                )
+                ordinary_directus = DirectusService()
+                try:
+                    ordinary_bound = await ChatRecoveryService(ordinary_directus).execute(
+                        "bind_ordinary_legacy_dispatch", {
+                            "protocol_version": 1,
+                            "task_identity": request.legacy_cutover_task_id,
+                            "actor_user_id": request.user_id,
+                            "hashed_user_id": request.user_id_hash,
+                            "chat_id": request.chat_id,
+                            "first_message_id": request.message_id,
+                            "hashed_team_id": request.team_id_hash,
+                            "broker_task_id": dispatch_task_id,
+                            "dispatch_binding": ordinary_binding,
+                        },
+                    )
+                finally:
+                    await ordinary_directus.close()
+                if (ordinary_bound.get("bound") is not True
+                        or ordinary_bound.get("enqueue_allowed") is not True):
+                    raise HTTPException(
+                        status_code=409,
+                        detail="Legacy turn is already claimed or its broker binding changed",
+                    )
+            principal = active_authenticated_volatile_ai.get()
+            headers = {}
+            if request.is_incognito or (request.is_external and not request.recovery_task_id):
+                if request.is_anonymous:
+                    # Anonymous policy has no detached artifact skills.
+                    if principal is not None:
+                        raise ValueError("Anonymous AI cannot borrow volatile authority")
+                else:
+                    if principal is None:
+                        raise ValueError("Authenticated volatile AI authority is missing")
+                    expected_mode = "external" if request.is_external else "incognito"
+                    if principal.mode != expected_mode:
+                        raise ValueError("Volatile AI request mode mismatch")
+                    headers[MAIN_HEADER] = make_main_header(
+                        principal, owner_id=request.user_id,
+                        owner_hash=request.user_id_hash, chat_id=request.chat_id,
+                        message_id=request.message_id, main_task_id=dispatch_task_id,
+                        hashed_team_id=request.team_id_hash,
+                    )
             task_signature = process_ai_skill_ask_task.apply_async(
                 kwargs={
                     "request_data_dict": request_data_dict,
@@ -399,10 +470,13 @@ class AskSkill(BaseSkill):
                 queue="app_ai",  # Route to the 'app_ai' queue, as configured in celery_config.py
                 exchange="app_ai",  # Match the exchange declared in celery_config.py task_queues
                 routing_key="app_ai",  # Match the routing_key declared in celery_config.py task_queues
-                task_id=request.recovery_task_id or request.legacy_cutover_task_id,
+                task_id=dispatch_task_id,
+                headers=headers,
             )
             task_id = task_signature.id
             logger.info(f"Celery task 'apps.ai.tasks.skill_ask' dispatched by AskSkill with ID: {task_id} for message_id: {request.message_id} to queue 'app_ai'.")
+        except (HTTPException, ChatRecoveryProtocolError):
+            raise
         except Exception as e:
             logger.error(f"AskSkill failed to dispatch Celery task 'apps.ai.tasks.skill_ask': {e}", exc_info=True)
             await notify_chat_failure(
@@ -430,15 +504,36 @@ class AskSkill(BaseSkill):
         internal_request = await self._transform_openai_to_internal(request)
 
         if request.stream:
+            from backend.shared.python_utils.volatile_embed_authority import (
+                active_authenticated_volatile_ai,
+            )
+            principal = active_authenticated_volatile_ai.get()
             # Handle streaming response
             return StreamingResponse(
-                self._stream_openai_response(internal_request, request),
+                self._stream_openai_response_with_authority(
+                    internal_request, request, principal,
+                ),
                 media_type="text/plain",
                 headers={"Cache-Control": "no-cache", "Connection": "keep-alive"}
             )
         else:
             # Handle non-streaming response
             return await self._handle_openai_sync_response(internal_request, request)
+
+    async def _stream_openai_response_with_authority(
+        self, internal_request: AskSkillRequest, request: OpenAICompletionRequest,
+        principal: Any,
+    ):
+        """Retain the authenticated REST principal until lazy streaming dispatch."""
+        from backend.shared.python_utils.volatile_embed_authority import (
+            active_authenticated_volatile_ai,
+        )
+        token = active_authenticated_volatile_ai.set(principal)
+        try:
+            async for chunk in self._stream_openai_response(internal_request, request):
+                yield chunk
+        finally:
+            active_authenticated_volatile_ai.reset(token)
 
     async def _transform_openai_to_internal(self, openai_request: OpenAICompletionRequest) -> AskSkillRequest:
         """

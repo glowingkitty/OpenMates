@@ -42,8 +42,9 @@ class TeamDataPortabilityError(ValueError):
 
 
 class TeamDataPortabilityService:
-    def __init__(self, directus_service: Any) -> None:
+    def __init__(self, directus_service: Any, *, s3_service: Any | None = None) -> None:
         self.directus_service = directus_service
+        self.s3_service = s3_service
 
     async def export_team_data(self, team_id: str, actor_user_id: str, *, export_id: str | None = None, created_at: int | None = None) -> dict[str, Any]:
         await self.directus_service.team.require_team_role(team_id, actor_user_id, {"owner", "admin"})
@@ -57,21 +58,33 @@ class TeamDataPortabilityService:
             "collections": {},
         }
         collections = artifact["collections"]
-        team_rows = await self.directus_service.get_items(
-            "teams",
-            params={"filter[hashed_team_id][_eq]": team_hash, "limit": -1},
-            no_cache=True,
-            admin_required=True,
-        )
-        collections["teams"] = [self._redact_row(row) for row in team_rows if isinstance(row, dict)] if isinstance(team_rows, list) else []
+        from backend.core.api.app.services.account_export_service import AccountExportService
+
+        export = AccountExportService(self.directus_service, s3_service=self.s3_service)
+        collections["teams"] = [self._redact_row(row) async for row in export._iter_items_bounded(
+            collection="teams", params={"filter[hashed_team_id][_eq]": team_hash, "sort": "id"}, admin_required=True,
+        ) if row.get("hashed_team_id") == team_hash]
         for collection in TEAM_SCOPED_COLLECTIONS:
-            rows = await self.directus_service.get_items(
-                collection,
-                params={"filter[hashed_team_id][_eq]": team_hash, "limit": -1},
-                no_cache=True,
-                admin_required=True,
-            )
-            collections[collection] = [self._redact_row(row) for row in rows if isinstance(row, dict)] if isinstance(rows, list) else []
+            collections[collection] = [self._redact_row(row) async for row in export._iter_items_bounded(
+                collection=collection, params={"filter[hashed_team_id][_eq]": team_hash, "sort": "id"}, admin_required=True,
+            ) if row.get("hashed_team_id") == team_hash]
+        # Reuse the account export's bounded, integrity checked ciphertext readers.
+        # The Team role gate above grants this scope; importing these records still
+        # requires the destination Team to rewrap its client ciphertext.
+        for key in ("chats", "chat_message_archive_pages", "embeds", "embed_diffs"):
+            collections[key] = []
+        async for chunk in export._chats_payload_chunks(user_id=actor_user_id, team_id=team_id, filters={}):
+            collections["chats"].extend(chunk.get("items") or [])
+        async for embed in export._iter_export_embeds(user_id=actor_user_id, team_id=team_id):
+            collections["embeds"].append(self._redact_row(embed))
+        async for chunk in export._message_archive_payload_chunks(user_id=actor_user_id, team_id=team_id, filters={}):
+            if chunk.get("failures"):
+                raise TeamDataPortabilityError("Team message archive is incomplete or corrupt")
+            collections["chat_message_archive_pages"].extend(chunk.get("items") or [])
+        async for chunk in export._embed_version_payload_chunks(user_id=actor_user_id, team_id=team_id):
+            if chunk.get("failures"):
+                raise TeamDataPortabilityError("Team version archive is incomplete or corrupt")
+            collections["embed_diffs"].extend(chunk.get("items") or [])
         artifact_hash = hashlib.sha256(repr(artifact).encode()).hexdigest()
         await self.directus_service.create_item(
             "team_data_exports",

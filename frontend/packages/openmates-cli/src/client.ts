@@ -22,6 +22,7 @@ import {
   decryptBytesWithAesGcm,
   deriveChatCompletionRecoveryKeypair,
   openChatCompletionRecoveryEnvelope,
+  openRecoveryOutputEnvelope,
   deriveEmbedKeyFromChatKey,
   deriveEmailEncryptionKeyB64,
   encryptWithAesGcmCombined,
@@ -44,6 +45,7 @@ import {
   type RecoveryKeyMaterial,
   type ApiKeyCryptoMaterial,
   type ChatCompletionRecoveryEnvelope,
+  type RecoveryOutputKind,
   type SignupCryptoMaterial,
 } from "./crypto.js";
 import { buildMemoryRequestMessage, coalesceMemoryRequestMessages } from "../../ui/src/utils/appMemoryRequests.js";
@@ -84,6 +86,7 @@ import {
   type SubChatEvent,
   type TaskEventFrame,
   type PendingTaskUpdateJobFrame,
+  type AvailableRecoveryOutputFrame,
   type TaskProposalEvent,
   type TaskUpdateProposalEvent,
 } from "./ws.js";
@@ -96,6 +99,8 @@ import {
   createEmbedJsonReferenceBlock,
   createEmbedRef,
   encryptEmbed,
+  assertCompleteEncryptedEmbedBundle,
+  classifyMessageEmbedAvailability,
   toonEncodeContent,
 } from "./embedCreator.js";
 import { processFiles } from "./fileEmbed.js";
@@ -2510,6 +2515,9 @@ export interface ChatMessageWindowResult {
   endCursor: ChatMessageWindowCursor | null;
   anchorFound: boolean;
   serverMessageCount: number | null;
+  storageTier?: 'hot' | 'archive' | 'mixed';
+  archivePageIds?: string[];
+  archivePayloadCache?: 'disabled';
 }
 
 export interface ChatForkResult {
@@ -2559,7 +2567,14 @@ export interface EmbedVersionsResponse {
   embed_id: string;
   current_version: number;
   versions: EmbedVersionMeta[];
+  next_cursor?: number | null;
   readonly: boolean;
+}
+
+export interface EmbedVersionReadContext {
+  chatId?: string;
+  projectId?: string;
+  teamId?: string;
 }
 
 export interface EmbedVersionContentResponse {
@@ -5631,7 +5646,6 @@ export class OpenMatesClient {
           messageId,
           ownerId,
         );
-        if (!encrypted) continue;
 
         const storeRequestId = randomUUID();
         const stored = ws.waitForMessage(
@@ -5671,7 +5685,10 @@ export class OpenMatesClient {
           request_id: keysRequestId,
           keys: encrypted.embed_keys,
         });
-        await keysStored;
+        const keysReceipt = (await keysStored).payload as Record<string, unknown>;
+        if (keysReceipt.failed_count !== 0 || keysReceipt.created_count !== encrypted.embed_keys.length) {
+          throw new Error(`IdeaBucket embed ${encrypted.embed_id} key wrappers were not durably stored.`);
+        }
       }
     } finally {
       ws.close();
@@ -6295,6 +6312,9 @@ export class OpenMatesClient {
       end_cursor?: ChatMessageWindowCursor | null;
       anchor_found?: boolean;
       server_message_count?: number | null;
+      storage_tier?: 'hot' | 'archive' | 'mixed';
+      archive_page_ids?: string[];
+      archive_payload_cache?: 'disabled';
     }>(
       this.appendTeamQuery(`/v1/chats/${encodeURIComponent(chatId)}/messages/window?${params.toString()}`, { teamId }),
       this.getCliRequestHeaders(),
@@ -6311,6 +6331,9 @@ export class OpenMatesClient {
       endCursor: response.data.end_cursor ?? null,
       anchorFound: response.data.anchor_found !== false,
       serverMessageCount: typeof response.data.server_message_count === "number" ? response.data.server_message_count : null,
+      storageTier: response.data.storage_tier,
+      archivePageIds: Array.isArray(response.data.archive_page_ids) ? response.data.archive_page_ids : [],
+      archivePayloadCache: response.data.archive_payload_cache,
     };
   }
 
@@ -6885,13 +6908,579 @@ export class OpenMatesClient {
     return [];
   }
 
+  private async persistAvailableRecoveryOutputs(
+    ws: OpenMatesWsClient,
+    ownerId: string,
+    cache: SyncCache,
+    outputs: AvailableRecoveryOutputFrame[],
+    teamId: string | null,
+  ): Promise<number> {
+    if (outputs.length > 100) throw new Error("Recovery output discovery exceeded the bounded batch size.");
+    const order: Record<RecoveryOutputKind, number> = { message: 0, embed: 1, diff: 2, summary: 3, checkpoint: 4 };
+    const ordered = [...outputs].sort((a, b) => order[a.output_kind] - order[b.output_kind]
+      || (a.output_kind === "message" && b.output_kind === "message"
+        ? (a.message_role === "user" ? 0 : 1) - (b.message_role === "user" ? 0 : 1) : 0)
+      || a.output_version - b.output_version);
+    const masterKey = this.getMasterKeyBytes();
+    const wrappingKey = await this.getChatWrappingKey(teamId, masterKey);
+    let acknowledged = 0;
+    const request = async (type: string, responseType: string, recordId: string, payload: Record<string, unknown>) => {
+      const requestId = randomUUID();
+      const response = ws.waitForMessage(responseType, (value) => {
+        const frame = value as Record<string, unknown>;
+        return (frame.record_id === recordId || frame.job_id === recordId) && frame.request_id === requestId;
+      }, 20_000);
+      void response.catch(() => {});
+      await ws.sendAsync(type, { protocol_version: 1, record_id: recordId, request_id: requestId, ...payload });
+      return (await response).payload as Record<string, unknown>;
+    };
+    const storeWithReceipt = async (
+      type: string, responseType: string, embedId: string, payload: Record<string, unknown>,
+      recoveryRecordId: string, version?: number,
+    ): Promise<Record<string, unknown>> => {
+      const requestId = randomUUID();
+      const receipt = ws.waitForMessage(responseType, (value) => {
+        const frame = value as Record<string, unknown>;
+        return frame.request_id === requestId && frame.embed_id === embedId
+          && (version === undefined || frame.version_number === version);
+      }, 30_000);
+      void receipt.catch(() => {});
+      await ws.sendAsync(type, { ...payload, request_id: requestId, recovery_record_id: recoveryRecordId });
+      return (await receipt).payload as Record<string, unknown>;
+    };
+    for (const output of ordered) {
+      if (output.root_hashed_team_id !== undefined
+        && output.root_hashed_team_id !== (teamId ? computeSHA256(teamId) : null)) {
+        throw new Error(`Recovery output ${output.record_id} Team key context is unavailable; output remains pending.`);
+      }
+      let root = cache.chats.find((chat) => String(chat.details.id ?? "") === output.root_chat_id);
+      let rootKey = root ? await this.resolveChatKey(cache, root, wrappingKey, teamId) : null;
+      if (!rootKey) {
+        const response = await this.http.get<{ wrappers?: Array<Record<string, unknown>> }>(
+          `/v1/chats/${encodeURIComponent(output.root_chat_id)}/wrappers/window`
+            + (teamId ? `?team_id=${encodeURIComponent(teamId)}` : ""),
+          this.getCliRequestHeaders(),
+        );
+        if (!response.ok) throw new Error(`Recovery root key lookup failed (HTTP ${response.status}); output remains pending.`);
+        const keyType = teamId ? "team" : "master";
+        const wrapper = (response.data.wrappers ?? []).find((item) => item.key_type === keyType
+          && typeof item.encrypted_chat_key === "string" && item.encrypted_chat_key);
+        if (!wrapper) throw new Error(`Recovery root chat ${output.root_chat_id} key wrapper is unavailable.`);
+        cache.chatKeyWrappers ??= [];
+        cache.chatKeyWrappers.push(wrapper);
+        if (!root) {
+          root = { details: { id: output.root_chat_id, encrypted_chat_key: wrapper.encrypted_chat_key }, messages: [] };
+          cache.chats.push(root);
+        }
+        rootKey = await this.resolveChatKey(cache, root, wrappingKey, teamId);
+      }
+      if (!rootKey) throw new Error(`Recovery root chat ${output.root_chat_id} key is unavailable.`);
+      const ready = await request("recovery_output_get", "recovery_output_ready", output.record_id, {});
+      for (const field of ["record_id", "root_chat_id", "target_chat_id", "turn_id", "subject_id", "output_kind", "output_version", "chat_key_version"] as const) {
+        if (ready[field] !== output[field]) throw new Error(`Recovery output ${output.record_id} identity mismatch: ${field}.`);
+      }
+      if (output.root_hashed_team_id !== undefined && ready.root_hashed_team_id !== output.root_hashed_team_id) {
+        throw new Error(`Recovery output ${output.record_id} Team identity changed after discovery.`);
+      }
+      const messageRole = output.message_role ?? "assistant";
+      if (output.output_kind === "message" && (ready.message_role ?? "assistant") !== messageRole) {
+        throw new Error("Recovery message role changed after discovery.");
+      }
+      if (typeof ready.sealed_payload !== "string" || !Number.isSafeInteger(ready.messages_v)) {
+        throw new Error("Recovery output has invalid envelope or chat version.");
+      }
+      const keypair = await deriveChatCompletionRecoveryKeypair(bytesToBase64Url(rootKey), output.root_chat_id, output.chat_key_version);
+      const plaintext = await openRecoveryOutputEnvelope(
+        JSON.parse(ready.sealed_payload) as ChatCompletionRecoveryEnvelope,
+        {
+          recoveryPrivateKey: keypair.privateKey, ownerId,
+          rootChatId: output.root_chat_id, targetChatId: output.target_chat_id,
+          turnId: output.turn_id, recordId: output.record_id, subjectId: output.subject_id,
+          outputKind: output.output_kind, outputVersion: output.output_version,
+          keyVersion: output.chat_key_version,
+        },
+      );
+      const recovered = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(plaintext)) as Record<string, unknown>;
+      if (recovered.record_id !== output.record_id || recovered.target_chat_id !== output.target_chat_id
+        || recovered.subject_id !== output.subject_id || recovered.output_kind !== output.output_kind
+        || recovered.output_version !== output.output_version || !recovered.content
+        || typeof recovered.content !== "object" || Array.isArray(recovered.content)) {
+        throw new Error("Recovery output plaintext identity mismatch.");
+      }
+      const content = recovered.content as Record<string, unknown>;
+      const childKey = rootKey;
+      const now = Math.floor(Date.now() / 1000);
+      const encryptedChatKey = typeof ready.encrypted_chat_key === "string" && ready.encrypted_chat_key
+        ? ready.encrypted_chat_key : await encryptBytesWithAesGcm(childKey, wrappingKey);
+      const encryptedTitle = typeof ready.encrypted_title === "string" && ready.encrypted_title
+        ? ready.encrypted_title : await encryptWithAesGcmCombined("Sub-chat", childKey);
+      if (output.output_kind === "message") {
+        if (typeof content.content !== "string" || (content.category != null && typeof content.category !== "string")
+          || (content.model_name != null && typeof content.model_name !== "string")
+          || (content.role !== undefined && content.role !== messageRole)) {
+          throw new Error("Recovery message content was invalid.");
+        }
+        const createdAt = normalizeUnixSeconds(content.created_at, now);
+        const encryptedMessage = {
+          client_message_id: output.subject_id, chat_id: output.target_chat_id,
+          role: messageRole, encrypted_content: await encryptWithAesGcmCombined(content.content, childKey),
+          ...(messageRole === "assistant" ? {
+            encrypted_sender_name: await encryptWithAesGcmCombined(
+              typeof content.category === "string" ? MATE_NAMES[content.category] ?? "Assistant" : "Assistant", childKey,
+            ),
+            ...(typeof content.category === "string" ? { encrypted_category: await encryptWithAesGcmCombined(content.category, childKey) } : {}),
+            ...(typeof content.model_name === "string" ? { encrypted_model_name: await encryptWithAesGcmCombined(content.model_name, childKey) } : {}),
+          } : {}),
+          created_at: createdAt, updated_at: createdAt,
+        };
+        const persist = (version: number) => request("recovery_output_persist_message", "recovery_output_persisted", output.record_id, {
+          expected_messages_v: version,
+          [messageRole === "user" ? "encrypted_user_message" : "encrypted_assistant_message"]: encryptedMessage,
+          ...(ready.encrypted_chat_key ? {} : { encrypted_chat_key: encryptedChatKey, encrypted_title: encryptedTitle }),
+        });
+        let result: Record<string, unknown>;
+        try { result = await persist(ready.messages_v as number); }
+        catch (error) {
+          if (!(error instanceof WebSocketProtocolError) || error.code !== "version_conflict") throw error;
+          const refreshed = await request("recovery_output_get", "recovery_output_ready", output.record_id, {});
+          if (!Number.isSafeInteger(refreshed.messages_v)) throw error;
+          result = await persist(refreshed.messages_v as number);
+        }
+        if (result.state !== "ACKNOWLEDGED") throw new Error("Recovery message persistence was not acknowledged.");
+      } else if (output.output_kind === "summary") {
+        if (typeof content.summary !== "string" || !Number.isSafeInteger(ready.metadata_v)) throw new Error("Recovery summary was invalid.");
+        const encryptedSummary = await encryptWithAesGcmCombined(content.summary, childKey);
+        const persist = (version: number) => request("recovery_output_persist_summary", "recovery_output_summary_persisted", output.record_id, {
+          expected_metadata_v: version, encrypted_summary: encryptedSummary,
+        });
+        let result: Record<string, unknown>;
+        try { result = await persist(ready.metadata_v as number); }
+        catch (error) {
+          if (!(error instanceof WebSocketProtocolError) || error.code !== "version_conflict") throw error;
+          const refreshed = await request("recovery_output_get", "recovery_output_ready", output.record_id, {});
+          if (!Number.isSafeInteger(refreshed.metadata_v)) throw error;
+          result = await persist(refreshed.metadata_v as number);
+        }
+        if (result.state !== "ACKNOWLEDGED") throw new Error("Recovery summary persistence was not acknowledged.");
+      } else if (output.output_kind === "checkpoint") {
+        if (content.summary_message_id !== output.subject_id || typeof content.summary_content !== "string"
+          || typeof content.compressed_up_to_timestamp !== "number"
+          || typeof content.compressed_up_to_message_id !== "string" || !content.compressed_up_to_message_id
+          || typeof content.compressed_message_count !== "number" || typeof content.summary_token_estimate !== "number"
+          || !Array.isArray(content.covered_message_ids) || content.covered_message_ids.length === 0
+          || content.covered_message_ids.some((id) => typeof id !== "string" || !id)) {
+          throw new Error("Recovery checkpoint boundary was invalid.");
+        }
+        const coveredMessageIds = content.covered_message_ids as string[];
+        if (coveredMessageIds.length > 20_000
+          || Buffer.byteLength(JSON.stringify(coveredMessageIds), "utf8") > 1_048_576
+          || coveredMessageIds.some((id, index) => id.length > 255 || (index > 0 && coveredMessageIds[index - 1] >= id))) {
+          throw new Error("Recovery checkpoint source manifest was not sorted and unique.");
+        }
+        const encryptedSummary = await encryptWithAesGcmCombined(content.summary_content, childKey);
+        const stored = ws.waitForMessage("chat_compression_checkpoint_stored", (value) => {
+          const frame = value as Record<string, unknown>;
+          const checkpoint = frame.checkpoint as Record<string, unknown> | undefined;
+          return frame.chat_id === output.target_chat_id && checkpoint?.id === output.subject_id;
+        }, 20_000);
+        void stored.catch(() => {});
+        await ws.sendAsync("store_chat_compression_checkpoint", {
+          chat_id: output.target_chat_id, checkpoint_id: output.subject_id, encrypted_summary: encryptedSummary,
+          compressed_up_to_timestamp: content.compressed_up_to_timestamp,
+          compressed_up_to_message_id: content.compressed_up_to_message_id,
+          covered_message_ids: coveredMessageIds,
+          compressed_message_count: content.compressed_message_count,
+          summary_token_estimate: content.summary_token_estimate, key_version: output.chat_key_version, created_at: now,
+        });
+        const receipt = (await stored).payload as Record<string, unknown>;
+        const checkpoint = receipt.checkpoint as Record<string, unknown>;
+        const canonicalEncryptedSummary = checkpoint.encrypted_summary;
+        if (typeof canonicalEncryptedSummary !== "string"
+          || checkpoint.compressed_up_to_message_id !== content.compressed_up_to_message_id
+          || JSON.stringify(checkpoint.covered_message_ids ?? null) !== JSON.stringify(coveredMessageIds)) {
+          throw new Error("Canonical checkpoint receipt did not match recovered output.");
+        }
+        const result = await request("recovery_output_ack_checkpoint", "recovery_output_checkpoint_acknowledged", output.record_id, {
+          encrypted_summary: canonicalEncryptedSummary, compressed_up_to_message_id: content.compressed_up_to_message_id,
+          covered_message_ids: coveredMessageIds,
+        });
+        if (result.state !== "ACKNOWLEDGED") throw new Error("Recovery checkpoint was not acknowledged.");
+      } else {
+        if (content.embed_id !== output.subject_id) throw new Error("Recovery embed identity mismatch.");
+        const embedPath = `/v1/embeds/chats/${encodeURIComponent(output.target_chat_id)}/embeds/${encodeURIComponent(output.subject_id)}`
+          + (teamId ? `?team_id=${encodeURIComponent(teamId)}` : "");
+        const canonicalBefore = await this.http.get<{ embed?: Record<string, unknown>; embed_keys?: Array<Record<string, unknown>> }>(
+          embedPath, this.getCliRequestHeaders(),
+        );
+        let parentId = typeof content.parent_embed_id === "string" ? content.parent_embed_id : null;
+        if (canonicalBefore.ok) {
+          const canonical = canonicalBefore.data?.embed;
+          if (!canonical || canonical.hashed_chat_id !== computeSHA256(output.target_chat_id)) {
+            throw new Error("Canonical recovery embed chat identity was invalid.");
+          }
+          const canonicalParent = typeof canonical.parent_embed_id === "string" ? canonical.parent_embed_id : null;
+          if (parentId && parentId !== canonicalParent) {
+            throw new Error("Canonical recovery embed parent identity was invalid.");
+          }
+          parentId = canonicalParent;
+        } else if (output.output_kind === "diff" || canonicalBefore.status !== 404) {
+          throw new Error(`Canonical recovery embed read failed (HTTP ${canonicalBefore.status}); output remains pending.`);
+        }
+        const embedKey = await deriveEmbedKeyFromChatKey(childKey, parentId || output.subject_id);
+        const hashedUserId = computeSHA256(ownerId);
+        let canonicalDigest: string;
+        let canonicalSource: "head" | "version_row" = output.output_kind === "diff" ? "version_row" : "head";
+        if (output.output_kind === "diff") {
+          if (content.version_number !== output.output_version) throw new Error("Recovery diff version mismatch.");
+          if ((output.output_version === 1 && (typeof content.snapshot !== "string" || typeof content.patch === "string"))
+            || (output.output_version > 1 && typeof content.patch !== "string")) {
+            throw new Error("Recovery diff lacked its required snapshot or patch.");
+          }
+          const query = new URLSearchParams({ capability: "bounded-v1", chat_id: output.target_chat_id });
+          if (teamId) query.set("team_id", teamId);
+          const existing = await this.http.get<{ rows?: Array<{ version_number: number; encrypted_snapshot?: string | null; encrypted_patch?: string | null }> }>(
+            `/v1/embeds/${encodeURIComponent(output.subject_id)}/versions/${output.output_version}?${query}`,
+            this.getCliRequestHeaders(),
+          );
+          if (existing.ok) {
+            const row = existing.data?.rows?.find((candidate) => candidate.version_number === output.output_version);
+            if (!row) throw new Error("Canonical recovery diff version was missing from bounded read.");
+            const snapshot = row.encrypted_snapshot ? await decryptWithAesGcmCombined(row.encrypted_snapshot, embedKey) : null;
+            const patch = row.encrypted_patch ? await decryptWithAesGcmCombined(row.encrypted_patch, embedKey) : null;
+            if (snapshot !== (content.snapshot ?? null) || patch !== (content.patch ?? null)) {
+              throw new Error("Existing canonical recovery diff does not match sealed output.");
+            }
+            canonicalDigest = computeSHA256(JSON.stringify([row.encrypted_snapshot ?? null, row.encrypted_patch ?? null]));
+          } else if (existing.status === 404) {
+            const encryptedSnapshot = typeof content.snapshot === "string" ? await encryptWithAesGcmCombined(content.snapshot, embedKey) : null;
+            const encryptedPatch = typeof content.patch === "string" ? await encryptWithAesGcmCombined(content.patch, embedKey) : null;
+            const receipt = await storeWithReceipt("store_embed_diff", "store_embed_diff_confirmed", output.subject_id, {
+              embed_id: output.subject_id, version_number: output.output_version,
+              encrypted_snapshot: encryptedSnapshot, encrypted_patch: encryptedPatch,
+              hashed_user_id: hashedUserId,
+              created_at: typeof content.created_at === "number" ? content.created_at : now,
+            }, output.record_id, output.output_version);
+            if (receipt.canonical_source !== "version_row" || typeof receipt.canonical_digest !== "string"
+              || !/^[0-9a-f]{64}$/.test(receipt.canonical_digest)) {
+              throw new Error("Canonical recovery diff receipt was incomplete.");
+            }
+            canonicalDigest = receipt.canonical_digest;
+          } else {
+            throw new Error(`Canonical recovery diff read failed (HTTP ${existing.status}); output remains pending.`);
+          }
+        } else {
+          if (content.version_number !== undefined && content.version_number !== output.output_version) throw new Error("Recovery embed version mismatch.");
+          if (typeof content.content !== "string" || typeof content.type !== "string" || typeof content.message_id !== "string") {
+            throw new Error("Recovery embed content was invalid.");
+          }
+          const existing = canonicalBefore;
+          if (existing.ok) {
+            const row = existing.data?.embed;
+            if (!row || row.hashed_chat_id !== computeSHA256(output.target_chat_id)
+              || row.hashed_message_id !== computeSHA256(content.message_id)
+              || typeof row.encrypted_content !== "string" || typeof row.encrypted_type !== "string") {
+              throw new Error("Existing canonical recovery embed identity was invalid.");
+            }
+            const headVersion = Number(row.version_number || 1);
+            if (!Number.isSafeInteger(headVersion) || headVersion < output.output_version) {
+              throw new Error("Canonical recovery embed head is behind the sealed output.");
+            }
+            if (headVersion === output.output_version) {
+              const existingContent = await decryptWithAesGcmCombined(row.encrypted_content, embedKey);
+              const existingType = await decryptWithAesGcmCombined(row.encrypted_type, embedKey);
+              if (existingContent !== content.content || existingType !== content.type) {
+                throw new Error("Existing canonical recovery embed does not match sealed output.");
+              }
+              canonicalDigest = computeSHA256(row.encrypted_content);
+            } else {
+              const query = new URLSearchParams({ capability: "bounded-v1", chat_id: output.target_chat_id });
+              if (teamId) query.set("team_id", teamId);
+              const history = await this.http.get<{
+                embed_id?: string; version_number?: number;
+                rows?: Array<{ version_number: number; encrypted_snapshot?: string | null; encrypted_patch?: string | null }>;
+              }>(`/v1/embeds/${encodeURIComponent(output.subject_id)}/versions/${output.output_version}?${query}`,
+                this.getCliRequestHeaders());
+              if (!history.ok || history.data?.embed_id !== output.subject_id
+                || history.data.version_number !== output.output_version
+                || !Array.isArray(history.data.rows) || history.data.rows.length < 1
+                || history.data.rows.length > 33) {
+                throw new Error("Bounded canonical recovery embed history is unavailable.");
+              }
+              let historicalContent: string | null = null;
+              let previousVersion = history.data.rows[0].version_number - 1;
+              for (const versionRow of history.data.rows) {
+                if (versionRow.version_number !== previousVersion + 1) {
+                  throw new Error("Canonical recovery embed history has a version gap.");
+                }
+                if (typeof versionRow.encrypted_snapshot === "string") {
+                  historicalContent = await decryptWithAesGcmCombined(versionRow.encrypted_snapshot, embedKey);
+                } else if (typeof versionRow.encrypted_patch === "string" && historicalContent !== null) {
+                  const patch = await decryptWithAesGcmCombined(versionRow.encrypted_patch, embedKey);
+                  historicalContent = applyUnifiedDiffForEmbedVersion(historicalContent, patch ?? "");
+                } else {
+                  throw new Error("Canonical recovery embed history lacks a starting snapshot.");
+                }
+                previousVersion = versionRow.version_number;
+              }
+              const targetRow = history.data.rows[history.data.rows.length - 1];
+              const { decode } = await import("@toon-format/toon");
+              const decoded = decode(content.content);
+              if (!decoded || typeof decoded !== "object" || Array.isArray(decoded)
+                || (decoded as Record<string, unknown>).type !== content.type) {
+                throw new Error("Sealed recovery embed lacked its historical source.");
+              }
+              const sealedEmbed = decoded as Record<string, unknown>;
+              let sealedSource: string;
+              if (content.type === "mail") {
+                const fields = ["receiver", "subject", "content", "footer"] as const;
+                if (fields.some((field) => sealedEmbed[field] != null && typeof sealedEmbed[field] !== "string")) {
+                  throw new Error("Sealed recovery mail had invalid historical fields.");
+                }
+                const receiver = String(sealedEmbed.receiver ?? "");
+                const subject = String(sealedEmbed.subject ?? "");
+                const body = String(sealedEmbed.content ?? "");
+                const footer = String(sealedEmbed.footer ?? "");
+                sealedSource = [
+                  ...(receiver ? [`to: ${receiver}`] : []),
+                  ...(subject ? [`subject: ${subject}`] : []),
+                  "content:", ...(body ? [body] : []),
+                  ...(footer ? ["footer:", footer] : []),
+                ].join("\n");
+              } else if (content.type === "document" || content.type === "notebook") {
+                if (content.type === "document" && typeof sealedEmbed.html === "string" && sealedEmbed.html) {
+                  sealedSource = sealedEmbed.html;
+                } else {
+                  const model = content.type === "document" ? sealedEmbed.docx_model : sealedEmbed.notebook;
+                  if (model && typeof model === "object" && !Array.isArray(model)) {
+                    sealedSource = JSON.stringify(model, null, 2);
+                  } else if (content.type === "notebook" && typeof sealedEmbed.content === "string") {
+                    sealedSource = sealedEmbed.content;
+                  } else {
+                    throw new Error("Sealed recovery document lacks its historical source.");
+                  }
+                }
+              } else {
+                const historicalFieldByType: Record<string, string> = {
+                  code: "code", pcb_schematic: "code", sheet: "table", mermaid: "diagram_code",
+                };
+                const field = historicalFieldByType[content.type];
+                if (!field || typeof sealedEmbed[field] !== "string") {
+                  throw new Error("Recovery cannot verify this embed's historical source format.");
+                }
+                sealedSource = sealedEmbed[field] as string;
+              }
+              if (targetRow.version_number !== output.output_version
+                || historicalContent !== sealedSource) {
+                throw new Error("Canonical historical recovery embed does not match sealed output.");
+              }
+              canonicalDigest = computeSHA256(JSON.stringify([
+                targetRow.encrypted_snapshot ?? null, targetRow.encrypted_patch ?? null,
+              ]));
+              canonicalSource = "version_row";
+            }
+          } else if (existing.status === 404) {
+            const storePayload = {
+              embed_id: output.subject_id, encrypted_content: await encryptWithAesGcmCombined(content.content, embedKey),
+              encrypted_type: await encryptWithAesGcmCombined(content.type, embedKey),
+              ...(typeof content.text_preview === "string" ? { encrypted_text_preview: await encryptWithAesGcmCombined(content.text_preview, embedKey) } : {}),
+              status: "finished", hashed_chat_id: computeSHA256(output.target_chat_id),
+              hashed_message_id: computeSHA256(content.message_id), hashed_user_id: hashedUserId,
+              version_number: output.output_version, ...(parentId ? { parent_embed_id: parentId } : {}),
+              ...(Array.isArray(content.embed_ids) ? { embed_ids: content.embed_ids } : {}),
+              is_private: content.is_private === true, is_shared: content.is_shared === true,
+              created_at: typeof content.createdAt === "number" ? content.createdAt : now,
+              updated_at: typeof content.updatedAt === "number" ? content.updatedAt : now,
+            };
+            const receipt = await storeWithReceipt(
+              "store_embed", "store_embed_confirmed", output.subject_id, storePayload, output.record_id,
+            );
+            if (receipt.canonical_source !== "head" || typeof receipt.canonical_digest !== "string"
+              || !/^[0-9a-f]{64}$/.test(receipt.canonical_digest)) {
+              throw new Error("Canonical recovery embed receipt was incomplete.");
+            }
+            canonicalDigest = receipt.canonical_digest;
+          } else {
+            throw new Error(`Canonical recovery embed read failed (HTTP ${existing.status}); output remains pending.`);
+          }
+        }
+        const keySubject = parentId || output.subject_id;
+        const keyPath = `/v1/embeds/chats/${encodeURIComponent(output.target_chat_id)}/embeds/${encodeURIComponent(keySubject)}`
+          + (teamId ? `?team_id=${encodeURIComponent(teamId)}` : "");
+        const keyPage = keySubject === output.subject_id && canonicalBefore.ok
+          ? canonicalBefore
+          : await this.http.get<{ embed?: Record<string, unknown>; embed_keys?: Array<Record<string, unknown>> }>(
+            keyPath, this.getCliRequestHeaders(),
+          );
+        if (!keyPage.ok || keyPage.data?.embed?.hashed_chat_id !== computeSHA256(output.target_chat_id)) {
+          throw new Error("Canonical recovery parent embed key scope was unavailable.");
+        }
+        const hashedKeySubject = computeSHA256(keySubject);
+        const hashedTargetChat = computeSHA256(output.target_chat_id);
+        const verifiedKeyTypes = async (rows: Array<Record<string, unknown>>) => {
+          const types = new Set<string>();
+          for (const row of rows) {
+            const type = row.key_type;
+            if (type !== "master" && type !== "chat") continue;
+            if (row.hashed_embed_id !== hashedKeySubject
+              || (type === "chat" && row.hashed_chat_id !== hashedTargetChat)
+              || typeof row.encrypted_embed_key !== "string" || !row.encrypted_embed_key) {
+              throw new Error("Canonical recovery embed key wrapper identity was invalid.");
+            }
+            const unwrapped = await decryptBytesWithAesGcm(
+              row.encrypted_embed_key, type === "master" ? masterKey : childKey,
+            );
+            if (!unwrapped || !Buffer.from(unwrapped).equals(Buffer.from(embedKey))) {
+              throw new Error("Canonical recovery embed key wrapper does not match the sealed output.");
+            }
+            if (types.has(type)) throw new Error("Canonical recovery embed key wrappers were duplicated.");
+            types.add(type);
+          }
+          return types;
+        };
+        const existingTypes = await verifiedKeyTypes(keyPage.data?.embed_keys ?? []);
+        const keys = [
+          { hashed_embed_id: hashedKeySubject, key_type: "master", hashed_chat_id: null,
+            encrypted_embed_key: await encryptBytesWithAesGcm(embedKey, masterKey), hashed_user_id: hashedUserId, created_at: now },
+          { hashed_embed_id: hashedKeySubject, key_type: "chat", hashed_chat_id: hashedTargetChat,
+            encrypted_embed_key: await encryptBytesWithAesGcm(embedKey, childKey), hashed_user_id: hashedUserId, created_at: now },
+        ].filter((key) => !existingTypes.has(key.key_type));
+        if (keys.length > 0) {
+          const requestId = randomUUID();
+          const receipt = ws.waitForMessage("store_embed_keys_confirmed", (value) => (value as Record<string, unknown>).request_id === requestId, 30_000);
+          void receipt.catch(() => {});
+          await ws.sendAsync("store_embed_keys", {
+            request_id: requestId, recovery_record_id: output.record_id, keys,
+          });
+          const result = (await receipt).payload as Record<string, unknown>;
+          if (result.failed_count !== 0 || result.created_count !== keys.length
+            || result.requested_count !== keys.length) {
+            throw new Error("Recovery embed key wrappers were not exactly confirmed.");
+          }
+          const durable = await this.http.get<{ embed_keys?: Array<Record<string, unknown>> }>(
+            keyPath, this.getCliRequestHeaders(),
+          );
+          if (!durable.ok) throw new Error("Recovery embed key wrappers were not readable after store.");
+          const durableTypes = await verifiedKeyTypes(durable.data?.embed_keys ?? []);
+          if (!durableTypes.has("master") || !durableTypes.has("chat")) {
+            throw new Error("Recovery embed key wrappers are not both durable.");
+          }
+        }
+        const canonicalAfter = await this.http.get<{ embed?: Record<string, unknown> }>(
+          embedPath, this.getCliRequestHeaders(),
+        );
+        if (!canonicalAfter.ok || canonicalAfter.data?.embed?.hashed_chat_id !== computeSHA256(output.target_chat_id)) {
+          throw new Error("Canonical recovery embed reread failed before acknowledgement.");
+        }
+        if (canonicalSource === "head") {
+          const ciphertext = canonicalAfter.data.embed?.encrypted_content;
+          if (typeof ciphertext !== "string" || computeSHA256(ciphertext) !== canonicalDigest
+            || await decryptWithAesGcmCombined(ciphertext, embedKey) !== content.content) {
+            throw new Error("Canonical recovery embed reread did not match its receipt.");
+          }
+        } else {
+          const query = new URLSearchParams({ capability: "bounded-v1", chat_id: output.target_chat_id });
+          if (teamId) query.set("team_id", teamId);
+          const history = await this.http.get<{ rows?: Array<Record<string, unknown>> }>(
+            `/v1/embeds/${encodeURIComponent(output.subject_id)}/versions/${output.output_version}?${query}`,
+            this.getCliRequestHeaders(),
+          );
+          const row = history.data?.rows?.find((candidate) => candidate.version_number === output.output_version);
+          if (!history.ok || !row || computeSHA256(JSON.stringify([
+            row.encrypted_snapshot ?? null, row.encrypted_patch ?? null,
+          ])) !== canonicalDigest) {
+            throw new Error("Canonical recovery version reread did not match its receipt.");
+          }
+        }
+        const result = await request("recovery_output_ack_embed", "recovery_output_embed_acknowledged", output.record_id, {
+          canonical_digest: canonicalDigest, canonical_source: canonicalSource,
+        });
+        if (result.state !== "ACKNOWLEDGED") throw new Error("Recovery embed was not acknowledged.");
+      }
+      acknowledged += 1;
+    }
+    return acknowledged;
+  }
+
+  private async replayAvailableRecoveryOutputs(
+    ws: OpenMatesWsClient,
+    ownerId: string,
+    outputs: AvailableRecoveryOutputFrame[],
+    currentCache: SyncCache,
+    currentTeamId: string | null,
+  ): Promise<number> {
+    if (outputs.length === 0) return 0;
+    const teamIdsByHash = new Map<string, string>();
+    if (currentTeamId) teamIdsByHash.set(computeSHA256(currentTeamId), currentTeamId);
+    const unresolvedHashes = new Set(outputs.flatMap((output) => output.root_hashed_team_id
+      && !teamIdsByHash.has(output.root_hashed_team_id) ? [output.root_hashed_team_id] : []));
+    if (unresolvedHashes.size > 0) {
+      const response = await this.http.get<{ teams?: TeamRecord[] }>("/v1/teams", this.getCliRequestHeaders());
+      if (!response.ok || !Array.isArray(response.data?.teams) || response.data.teams.length > 500) {
+        throw new Error("Recovery Team list is unavailable or exceeds the bounded lookup; outputs remain pending.");
+      }
+      for (const team of response.data.teams) {
+        if (typeof team.team_id !== "string") continue;
+        const hash = computeSHA256(team.team_id);
+        if (!unresolvedHashes.has(hash)) continue;
+        await this.cacheTeamKeyFromRecord(team);
+        teamIdsByHash.set(hash, team.team_id);
+        unresolvedHashes.delete(hash);
+      }
+      if (unresolvedHashes.size > 0) {
+        throw new Error("Recovery Team identity is no longer available; outputs remain pending.");
+      }
+    }
+    const groups = new Map<string | null, AvailableRecoveryOutputFrame[]>();
+    const currentRootIds = new Set(currentCache.chats.map((chat) => String(chat.details.id ?? "")));
+    for (const output of outputs) {
+      const teamId = output.root_hashed_team_id
+        ? teamIdsByHash.get(output.root_hashed_team_id) ?? null
+        : output.root_hashed_team_id === undefined && currentTeamId && currentRootIds.has(output.root_chat_id)
+          ? currentTeamId : null;
+      const group = groups.get(teamId) ?? [];
+      group.push(output);
+      groups.set(teamId, group);
+    }
+    let acknowledged = 0;
+    for (const [teamId, group] of groups) {
+      const cache = teamId === currentTeamId ? currentCache : loadSyncCache(teamId) ?? {
+        syncedAt: Date.now(), totalChatCount: 0, loadedChatCount: 0,
+        chats: [], embeds: [], embedKeys: [], chatKeyWrappers: [],
+      };
+      try {
+        acknowledged += await this.persistAvailableRecoveryOutputs(ws, ownerId, cache, group, teamId);
+      } finally {
+        clearSyncCache(teamId);
+      }
+    }
+    return acknowledged;
+  }
+
+  private async replayRecoveryOutputPages(
+    ws: OpenMatesWsClient,
+    ownerId: string,
+    pages: AvailableRecoveryOutputFrame[][],
+    cache: SyncCache,
+    teamId: string | null,
+  ): Promise<number> {
+    let acknowledged = 0;
+    for (const page of pages) {
+      acknowledged += await this.replayAvailableRecoveryOutputs(ws, ownerId, page, cache, teamId);
+    }
+    return acknowledged;
+  }
+
   async sendMessage(params: {
     message: string;
+    /** Isolated, credential-free storage-capacity replay only. */
+    testMockMarker?: string;
     chatId?: string;
     /** Explicit user-selected Project; activates its focus before inference preflight. */
     projectId?: string;
     onProjectWriteApproval?: (request: ProjectWriteApprovalRequest) => boolean | Promise<boolean>;
     onProjectReadApproval?: (request: ProjectReadApprovalRequest) => boolean | Promise<boolean>;
+    /** Observe committed hosted Project file versions after the normal approval flow. */
+    onHostedVersionCommitted?: (result: { embed_id: string; revision: number }) => void | Promise<void>;
     onRemoteCommandReview?: (review: RemoteCommandReview) => RemoteCommandApprovalChoice | null | undefined | Promise<RemoteCommandApprovalChoice | null | undefined>;
     onRemoteCommandEvent?: (event: DecryptedRemoteCommandEvent) => void | Promise<void>;
     /** Client-generated ID for a new chat, allowing cleanup after an uncertain send outcome. */
@@ -7077,6 +7666,14 @@ export class OpenMatesClient {
       ws.close();
       throw new Error("Authenticated user identity is required for saved chat recovery.");
     }
+    if (!params.incognito) {
+      try {
+        await ws.waitForRecoveryOutputDiscovery();
+      } catch (error) {
+        ws.close();
+        throw error;
+      }
+    }
 
     const messageId = randomUUID();
     const createdAt = Math.floor(Date.now() / 1000);
@@ -7250,6 +7847,7 @@ export class OpenMatesClient {
         piiMappings, memories: availableMemories,
         requestApproval: params.onProjectWriteApproval,
         requestReadApproval: params.onProjectReadApproval,
+        onHostedVersionCommitted: params.onHostedVersionCommitted,
       });
       clientCapabilities.push("project_file_jobs");
       registerRemoteCommandOriginClient({ ws, client: this, chatId, onReview: params.onRemoteCommandReview, onEvent: params.onRemoteCommandEvent });
@@ -7275,6 +7873,14 @@ export class OpenMatesClient {
         chat_has_title: Boolean(params.chatId),
       },
     };
+    if (params.testMockMarker !== undefined) {
+      const { capacityReplayMarker } = await import("./capacityReplayMarker.js");
+      messagePayload.test_mock_marker = capacityReplayMarker(
+        params.testMockMarker,
+        this.apiUrl,
+        process.env.OPENMATES_CAPACITY_CLIENT_REPLAY === "1",
+      );
+    }
 
     if (isNewChat && encryptedChatKey) {
       messagePayload.encrypted_chat_key = encryptedChatKey;
@@ -7331,8 +7937,38 @@ export class OpenMatesClient {
       if (!ownerId) {
         throw new Error("Authenticated user identity is required to encrypt embeds.");
       }
+      if (!chatKeyBytes) {
+        throw new Error("Saved chat key is required to encrypt every prepared embed.");
+      }
+      if (new Set(params.preparedEmbeds.map((embed) => embed.embedId)).size !== params.preparedEmbeds.length) {
+        throw new Error("Prepared message embed IDs must be unique.");
+      }
+      const preparedIds = params.preparedEmbeds.map((embed) => embed.embedId);
+      if (preparedIds.some((id) => !id || id.length > 128)) {
+        throw new Error("Prepared message embed ID is invalid.");
+      }
+      const canonicalReady = new Set<string>();
+      for (let offset = 0; offset < preparedIds.length; offset += 20) {
+        const selectedIds = preparedIds.slice(offset, offset + 20);
+        if (Buffer.byteLength(JSON.stringify({ embed_ids: selectedIds }), "utf8") > 4096) {
+          throw new Error("Message embed availability request exceeds its byte limit.");
+        }
+        const path = this.appendTeamQuery(
+          `/v1/embeds/chats/${encodeURIComponent(chatId)}/references/availability`,
+          { teamId },
+        );
+        const availability = await this.http.post<{
+          results?: Array<{ embed_id?: string; state?: string }>;
+        }>(path, { embed_ids: selectedIds }, this.getCliRequestHeaders());
+        if (!availability.ok) {
+          throw new Error(`Message embed availability lookup failed with HTTP ${availability.status}.`);
+        }
+        const page = classifyMessageEmbedAvailability(selectedIds, availability.data.results);
+        for (const id of page.ready) canonicalReady.add(id);
+      }
       const masterKey = this.getMasterKeyBytes();
       for (const embed of params.preparedEmbeds) {
+        if (canonicalReady.has(embed.embedId)) continue;
         const encrypted = await encryptEmbed(
           embed,
           masterKey,
@@ -7341,8 +7977,17 @@ export class OpenMatesClient {
           messageId,
           ownerId,
         );
-        if (encrypted) encryptedEmbeds.push(encrypted);
+        if (!encrypted?.encrypted_content || !encrypted.encrypted_type
+          || encrypted.embed_keys.length !== 2) {
+          throw new Error(`Prepared message embed ${embed.embedId} is missing required ciphertext or key wrappers.`);
+        }
+        encryptedEmbeds.push(encrypted);
       }
+    }
+
+    if (!params.incognito && encryptedEmbeds.length > 0) {
+      if (!ownerId) throw new Error("Authenticated owner identity is required for encrypted message embeds.");
+      assertCompleteEncryptedEmbedBundle(encryptedEmbeds, { chatId, messageId, ownerId });
     }
 
     // Attach encrypted client-created embeds if present.
@@ -7881,6 +8526,24 @@ export class OpenMatesClient {
       }
     } else {
       try {
+        const recoverCurrentTurnOutputs = async () => {
+          const pages = ws.drainAvailableRecoveryOutputPages();
+          if (pages.length === 0) return;
+          if (!ownerId) throw new Error("Saved chat recovery output requires the owner identity.");
+          if (pages.some((page) => page.some((output) => output.root_chat_id === chatId)) && (!chatKeyBytes || !encryptedChatKey)) {
+            throw new Error("Saved chat recovery output requires the root chat key.");
+          }
+          const cache: SyncCache = loadSyncCache(teamId) ?? {
+            syncedAt: Date.now(), totalChatCount: 0, loadedChatCount: 0,
+            chats: [], embeds: [], embedKeys: [], chatKeyWrappers: [],
+          };
+          if (encryptedChatKey) {
+            const root = cache.chats.find((chat) => String(chat.details.id ?? "") === chatId);
+            if (root) root.details.encrypted_chat_key = encryptedChatKey;
+            else cache.chats.push({ details: { id: chatId, encrypted_chat_key: encryptedChatKey }, messages: [] });
+          }
+          await this.replayRecoveryOutputPages(ws, ownerId, pages, cache, teamId);
+        };
         const resp = await (precollectedResponse ?? ws.collectAiResponse(messageId, chatId, {
           ...streamOpts,
           timeoutMs: params.responseTimeoutMs,
@@ -7901,6 +8564,7 @@ export class OpenMatesClient {
 
         if (resp.status === "waiting_for_user") {
           await persistTaskEventSystemMessages(taskEvents);
+          await recoverCurrentTurnOutputs();
           return {
             status: resp.status,
             chatId,
@@ -8014,6 +8678,7 @@ export class OpenMatesClient {
             clearSyncCache(teamId);
             await persistCompressionCheckpoints(resp.compressionCheckpoints);
             await persistTaskEventSystemMessages(taskEvents);
+            await recoverCurrentTurnOutputs();
             await focusPersistence;
             if (focusPersistenceError) throw focusPersistenceError;
             const mateName = category ? (MATE_NAMES[category] ?? null) : null;
@@ -8237,6 +8902,7 @@ export class OpenMatesClient {
             pendingTaskUpdateJobs = pendingTaskUpdateJobs.filter((job) => !persistedTaskJobIds.has(job.job_id));
           }
           await persistTaskEventSystemMessages(taskEvents);
+          await recoverCurrentTurnOutputs();
           clearSyncCache(teamId);
         }
       } finally {
@@ -8711,7 +9377,10 @@ export class OpenMatesClient {
           30_000,
         );
         await params.ws.sendAsync("store_embed_keys", { request_id: keysRequestId, keys });
-        await keysConfirmed;
+        const keysReceipt = (await keysConfirmed).payload as Record<string, unknown>;
+        if (keysReceipt.failed_count !== 0 || keysReceipt.created_count !== keys.length) {
+          throw new Error(`Embed ${embed.embed_id} key wrappers were not durably stored.`);
+        }
       }
       // Descendants inherit this same key even when their parent is a child.
       parentKeys.set(embed.embed_id, embedKey);
@@ -12605,16 +13274,40 @@ export class OpenMatesClient {
     return buildEmbedShareUrl(origin, embedId, blob);
   }
 
-  async listEmbedVersions(embedIdOrShort: string): Promise<EmbedVersionsResponse> {
+  private embedVersionReadQuery(context?: EmbedVersionReadContext): URLSearchParams {
+    if (context?.chatId && context.projectId) throw new Error('Choose one embed version read scope.');
+    if (context?.teamId && !context.chatId && !context.projectId) throw new Error('Team version reads require a chat or Project scope.');
+    const params = new URLSearchParams();
+    if (context?.chatId) params.set('chat_id', context.chatId);
+    if (context?.projectId) params.set('project_id', context.projectId);
+    if (context?.teamId) params.set('team_id', context.teamId);
+    return params;
+  }
+
+  async listEmbedVersions(embedIdOrShort: string, context?: EmbedVersionReadContext): Promise<EmbedVersionsResponse> {
     const embedId = await this.resolveEmbedId(embedIdOrShort);
-    const response = await this.http.get<EmbedVersionsResponse>(
-      `/v1/embeds/${encodeURIComponent(embedId)}/versions`,
-      this.getCliRequestHeaders(),
-    );
-    if (!response.ok || !response.data) {
-      throw new Error(this.formatEmbedVersionError(response.data, `Failed to list embed versions (HTTP ${response.status})`));
-    }
-    return response.data;
+    const path = `/v1/embeds/${encodeURIComponent(embedId)}/versions`;
+    const scope = this.embedVersionReadQuery(context);
+    let cursor: number | null = null;
+    let combined: EmbedVersionsResponse | null = null;
+    do {
+      const params = new URLSearchParams(scope);
+      if (cursor !== null) params.set('cursor', String(cursor));
+      const response: HttpResponse<EmbedVersionsResponse> = await this.http.get<EmbedVersionsResponse>(
+        `${path}${params.size ? `?${params}` : ''}`,
+        this.getCliRequestHeaders(),
+      );
+      if (!response.ok || !response.data) {
+        throw new Error(this.formatEmbedVersionError(response.data, `Failed to list embed versions (HTTP ${response.status})`));
+      }
+      const page: EmbedVersionsResponse = response.data;
+      combined = combined ? { ...page, versions: [...combined.versions, ...page.versions] } : page;
+      if (page.next_cursor != null && (page.versions.length === 0 || page.next_cursor <= (cursor ?? 0))) {
+        throw new Error('Invalid embed version cursor');
+      }
+      cursor = page.next_cursor ?? null;
+    } while (cursor !== null);
+    return combined!;
   }
 
   async startApplicationPreview(params: ApplicationPreviewStartParams): Promise<ApplicationPreviewStartResponse> {
@@ -12669,22 +13362,58 @@ export class OpenMatesClient {
     return response.data;
   }
 
-  async getEmbedVersion(embedIdOrShort: string, version: number): Promise<EmbedVersionContentResponse> {
+  async getEmbedVersion(embedIdOrShort: string, version: number, context?: EmbedVersionReadContext): Promise<EmbedVersionContentResponse> {
     const embedId = await this.resolveEmbedId(embedIdOrShort);
-    const response = await this.http.get<EmbedVersionContentResponse>(
-      `/v1/embeds/${encodeURIComponent(embedId)}/versions/${version}`,
+    const path = `/v1/embeds/${encodeURIComponent(embedId)}/versions/${version}`;
+    const scope = this.embedVersionReadQuery(context);
+    const bounded = new URLSearchParams(scope);
+    bounded.set('capability', 'bounded-v1');
+    let response = await this.http.get<EmbedVersionContentResponse>(
+      `${path}?${bounded}`,
       this.getCliRequestHeaders(),
     );
+    if (response.status === 409) {
+      response = await this.http.get<EmbedVersionContentResponse>(
+        `${path}${scope.size ? `?${scope}` : ''}`, this.getCliRequestHeaders(),
+      );
+    }
     if (!response.ok || !response.data) {
       throw new Error(this.formatEmbedVersionError(response.data, `Failed to load embed version ${version} (HTTP ${response.status})`));
     }
     if (typeof response.data.content === "string" || !Array.isArray(response.data.rows)) {
       return response.data;
     }
+    const content = await this.reconstructEncryptedEmbedVersion(embedId, response.data.rows, context);
+    if (response.data.rows.length > 32 && response.data.readonly === false) {
+      void this.publishEmbedSnapshotFromContent(embedId, version, response.data.current_version, content, context);
+    }
     return {
       ...response.data,
-      content: await this.reconstructEncryptedEmbedVersion(embedId, response.data.rows),
+      content,
     };
+  }
+
+  private async publishEmbedSnapshotFromContent(
+    embedId: string, version: number, currentVersion: number, content: string,
+    context?: EmbedVersionReadContext,
+  ): Promise<void> {
+    try {
+      const key = await this.resolveVersionEmbedKey(embedId, context);
+      if (!key) return;
+      await this.http.post(
+        `/v1/embeds/${encodeURIComponent(embedId)}/versions/${version}/snapshot`,
+        {
+          encrypted_snapshot: await encryptWithAesGcmCombined(content, key),
+          expected_revision: currentVersion,
+          operation_id: `snapshot.v${version}`,
+          ...(context?.projectId ? { project_id: context.projectId } : {}),
+          ...(context?.projectId && context.teamId ? { team_id: context.teamId } : {}),
+        },
+        this.getCliRequestHeaders(),
+      );
+    } catch {
+      // Read-only or raced clients leave the legacy source untouched.
+    }
   }
 
   async restoreEmbedVersion(embedIdOrShort: string, version: number): Promise<EmbedVersionRestoreResponse> {
@@ -12743,6 +13472,9 @@ export class OpenMatesClient {
       newVersion,
     );
     const encryptedPatch = await encryptWithAesGcmCombined(restorePatch, embedKey);
+    const encryptedSnapshot = newVersion % 32 === 0
+      ? await encryptWithAesGcmCombined(target.content, embedKey)
+      : null;
     const contentHash = computeSHA256(target.content);
     const now = Math.floor(Date.now() / 1000);
 
@@ -12796,7 +13528,7 @@ export class OpenMatesClient {
         request_id: diffRequestId,
         embed_id: embedId,
         version_number: newVersion,
-        encrypted_snapshot: null,
+        encrypted_snapshot: encryptedSnapshot,
         encrypted_patch: encryptedPatch,
         hashed_user_id: embed.hashed_user_id,
         created_at: now,
@@ -12819,25 +13551,9 @@ export class OpenMatesClient {
   private async reconstructEncryptedEmbedVersion(
     embedId: string,
     rows: EmbedVersionMeta[],
+    context?: EmbedVersionReadContext,
   ): Promise<string> {
-    const cache = await this.ensureSynced();
-    const masterKey = this.getMasterKeyBytes();
-    const embed = cache.embeds.find(
-      (entry) => String(entry.embed_id ?? entry.id ?? "") === embedId,
-    );
-    if (!embed) {
-      throw new Error(`Embed '${embedId}' not found in local cache. Run 'openmates chats list' to sync first.`);
-    }
-
-    const { createHash } = await import("node:crypto");
-    const hashedEmbedId = createHash("sha256").update(embedId).digest("hex");
-    const embedKey = await this.resolveEmbedKey(
-      cache,
-      masterKey,
-      embed,
-      embedId,
-      hashedEmbedId,
-    );
+    const embedKey = await this.resolveVersionEmbedKey(embedId, context);
     if (!embedKey) {
       throw new Error("Could not resolve embed encryption key for version history.");
     }
@@ -12858,6 +13574,35 @@ export class OpenMatesClient {
       throw new Error("Version history is missing the initial snapshot");
     }
     return content;
+  }
+
+  private async resolveVersionEmbedKey(embedId: string, context?: EmbedVersionReadContext): Promise<Uint8Array | null> {
+    if (context?.projectId) {
+      const scope = { teamId: context.teamId ?? null, personal: !context.teamId };
+      const detail = await this.getProject(context.projectId, scope);
+      const projectKey = await this.decryptProjectKey(detail.project, scope);
+      const head = await this.readEncryptedProjectFile(context.projectId, embedId, projectKey, scope);
+      return head.embedKey;
+    }
+    const cache = await this.ensureSynced();
+    const masterKey = this.getMasterKeyBytes();
+    const embed = cache.embeds.find(
+      (entry) => String(entry.embed_id ?? entry.id ?? "") === embedId,
+    );
+    if (!embed) {
+      throw new Error(`Embed '${embedId}' not found in local cache. Run 'openmates chats list' to sync first.`);
+    }
+
+    const { createHash } = await import("node:crypto");
+    const hashedEmbedId = createHash("sha256").update(embedId).digest("hex");
+    const embedKey = await this.resolveEmbedKey(
+      cache,
+      masterKey,
+      embed,
+      embedId,
+      hashedEmbedId,
+    );
+    return embedKey;
   }
 
   private formatEmbedVersionError(data: unknown, fallback: string): string {
@@ -13549,8 +14294,21 @@ export class OpenMatesClient {
 
     let persistedTaskJobIds = new Set<string>();
     let persistedWorkflowDeliveryCount = 0;
+    let recoveredOutputCount = 0;
     try {
       await this.persistPendingAIResponsesFromSync(ws, chats, pendingAIResponses, teamId);
+      // Reconnect discovery runs concurrently with phased sync. Wait for its
+      // last cursor page before snapshotting identities or closing this socket.
+      await ws.waitForRecoveryOutputDiscovery();
+      const pages = ws.drainAvailableRecoveryOutputPages();
+      if (pages.length > 0) {
+        if (!ownerId) throw new Error("Authenticated owner identity is required for recovery output replay.");
+        const currentCache: SyncCache = {
+          syncedAt: Date.now(), totalChatCount, loadedChatCount: chats.length,
+          chats, embeds, embedKeys, chatKeyWrappers,
+        };
+        recoveredOutputCount = await this.replayRecoveryOutputPages(ws, ownerId, pages, currentCache, teamId);
+      }
       // Normal user-key chat encryption is an owner-device operation. Do not mix
       // personal workflow delivery keys into an active team's cache/key context.
       if (!teamId && ownerId) {
@@ -13571,7 +14329,7 @@ export class OpenMatesClient {
       ws.close();
     }
 
-    if (persistedTaskJobIds.size > 0 || persistedWorkflowDeliveryCount > 0) {
+    if (persistedTaskJobIds.size > 0 || persistedWorkflowDeliveryCount > 0 || recoveredOutputCount > 0) {
       clearSyncCache(teamId);
       return this.ensureSynced(true, refreshChatIds, { teamId });
     }

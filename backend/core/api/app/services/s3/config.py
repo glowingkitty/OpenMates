@@ -192,7 +192,7 @@ BUCKETS = {
     'cold_archives': {
         'name': 'openmates-cold-archives',
         'dev_name': 'dev-openmates-cold-archives',
-        'allowed_types': ['application/gzip'],
+        'allowed_types': ['application/gzip', 'application/json', 'application/octet-stream'],
         'max_size': 500 * 1024 * 1024,
         'access': 'private',
         'lifecycle_policy': None,

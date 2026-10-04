@@ -174,6 +174,7 @@ from backend.apps.ai.processing.skill_executor import (
     generate_skill_task_id,
     DEFAULT_SKILL_TIMEOUT
 )
+from backend.shared.python_utils.chat_recovery_context import RequiredRecoveryOutputError
 # Import billing utilities
 from backend.shared.python_utils.billing_utils import calculate_total_credits, MINIMUM_CREDITS_CHARGED
 from backend.shared.python_utils.skill_provider_attribution import resolve_skill_usage_provider_id
@@ -4038,7 +4039,7 @@ async def handle_main_processing(
         }
     }
 
-    if should_expose_subchat_tool(
+    if not request_data.is_incognito and should_expose_subchat_tool(
         enable_subchats=enable_subchats_results,
         chat_depth=chat_depth,
         is_sub_chat_continuation=request_data.is_sub_chat_continuation,
@@ -6929,6 +6930,18 @@ async def handle_main_processing(
                         continue
 
                     elif skill_id == "start_sub_chats":
+                        if request_data.is_incognito:
+                            current_message_history.append({
+                                "tool_call_id": tool_call_id,
+                                "role": "tool",
+                                "name": tool_name,
+                                "content": json.dumps({
+                                    "status": "rejected",
+                                    "reason": "incognito_sub_chats_unavailable",
+                                    "message": "Continue this work in the incognito chat without sub-chats.",
+                                }),
+                            })
+                            continue
                         if chat_depth >= 2 or is_sub_chat_continuation(request_data):
                             tool_result_content_str = json.dumps({
                                 "status": "rejected",
@@ -7778,6 +7791,8 @@ async def handle_main_processing(
                                 )
                         except Exception as status_error:
                             logger.error(f"{log_prefix} Error publishing cancelled status: {status_error}")
+                except RequiredRecoveryOutputError:
+                    raise
                 except Exception as skill_error:
                     # CRITICAL: Handle skill execution failures gracefully
                     # When a skill fails (HTTP error, timeout, rate limit, etc.), we:

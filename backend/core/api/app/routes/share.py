@@ -22,8 +22,6 @@ from backend.core.api.app.services import cache_config
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user, get_current_user_or_api_key
 from backend.core.api.app.models.user import User
-from backend.core.api.app.services.user_plan_share_bundle import get_shared_chat_plans
-from backend.core.api.app.services.user_task_share_bundle import get_shared_chat_tasks
 
 logger = logging.getLogger(__name__)
 CHAT_COMPRESSION_CHECKPOINT_COLLECTION = "chat_compression_checkpoints"
@@ -127,7 +125,7 @@ def generate_dummy_encrypted_data(chat_id: str) -> Dict[str, Any]:
 
 async def get_shared_chat_or_dummy(chat_id: str, directus_service: DirectusService) -> tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
     chat = await directus_service.chat.get_chat_metadata(chat_id, admin_required=True)
-    if not chat or chat.get("is_private", False):
+    if not chat or chat.get("storage_state") == "deleting" or chat.get("is_private", False):
         dummy_data = generate_dummy_encrypted_data(chat_id)
         dummy_data.pop("is_dummy", None)
         return None, dummy_data
@@ -233,42 +231,59 @@ async def get_shared_chat_auxiliary_payload(
     if share_highlights is None:
         share_highlights = True
 
-    embeds, embed_keys = await get_shared_chat_embeds_and_keys(hashed_chat_id, directus_service)
-    message_highlights = []
-    if share_highlights:
-        message_highlights = await directus_service.get_items(
-            "message_highlights",
-            params={
-                "filter[chat_id][_eq]": chat_id,
-                "fields": "id,chat_id,message_id,author_user_id,key_version,encrypted_payload,created_at,updated_at",
-                "sort": "created_at",
-                "limit": -1,
-            },
-            admin_required=True,
-        ) or []
-    code_run_outputs = await directus_service.get_items(
-        "code_run_outputs",
-        params={
-            "filter[chat_id][_eq]": chat_id,
-            "fields": "id,chat_id,embed_id,author_user_id,key_version,encrypted_payload,created_at,updated_at",
-            "sort": "-updated_at",
-            "limit": -1,
-        },
-        admin_required=True,
-    ) or []
-    sub_chats = await get_shared_sub_chats(chat_id, directus_service)
-    shared_plans = await get_shared_chat_plans(chat_id, hashed_chat_id, directus_service)
-    shared_tasks = await get_shared_chat_tasks(chat_id, hashed_chat_id, directus_service)
+    embed_page = await directus_service.embed.get_embed_window_by_hashed_chat_id(hashed_chat_id)
+    embeds = embed_page["embeds"]
+    page_hashes = [embed.get("hashed_embed_id") or hashlib.sha256(embed["embed_id"].encode()).hexdigest()
+                   for embed in embeds if embed.get("embed_id")]
+    key_page = await directus_service.embed.get_sync_embed_key_window_for_page(
+        hashed_chat_id, "", page_hashes, include_master_keys=False,
+    )
+    embed_keys = key_page["embed_keys"]
+    from backend.core.api.app.services.shared_auxiliary_window import shared_auxiliary_window
+    message_highlight_page = (await shared_auxiliary_window(
+        directus_service, chat_id=chat_id, kind="message_highlights",
+    )) if share_highlights else {"items": [], "has_more_before": False, "start_cursor": None,
+                                  "oversized_id": None, "payload_bytes": 0}
+    code_output_page = await shared_auxiliary_window(
+        directus_service, chat_id=chat_id, kind="code_run_outputs",
+    )
+    notebook_output_page = await shared_auxiliary_window(
+        directus_service, chat_id=chat_id, kind="notebook_run_outputs",
+    )
+    sub_chat_page = await shared_auxiliary_window(
+        directus_service, chat_id=chat_id, kind="sub_chats",
+    )
+    from backend.core.api.app.services.shared_plan_task_window import shared_plan_task_window
+    shared_plans = await shared_plan_task_window(directus_service, chat_id=chat_id, kind="plans")
+    shared_tasks = await shared_plan_task_window(directus_service, chat_id=chat_id, kind="tasks")
     return {
         "embeds": embeds or [],
         "embed_keys": embed_keys,
-        "sub_chats": sub_chats,
-        "plans": shared_plans["plans"],
-        "plan_key_wrappers": shared_plans["plan_key_wrappers"],
-        "tasks": shared_tasks["tasks"],
-        "task_key_wrappers": shared_tasks["task_key_wrappers"],
-        "code_run_outputs": code_run_outputs,
-        "message_highlights": message_highlights,
+        "embed_window": {
+            "has_more_before": embed_page["has_more_before"],
+            "start_cursor": embed_page["start_cursor"],
+            "oversized_embed_id": embed_page["oversized_embed_id"],
+            "oversized_embed_cursor": embed_page.get("oversized_embed_cursor"),
+        },
+        "embed_key_window": {
+            "has_more_after": key_page["has_more_after"],
+            "end_cursor": key_page["end_cursor"],
+            "oversized_key_id": key_page["oversized_key_id"],
+        },
+        "sub_chats": sub_chat_page["items"],
+        "sub_chat_window": {key: value for key, value in sub_chat_page.items() if key != "items"},
+        "plans": shared_plans["items"],
+        "plan_key_wrappers": shared_plans["key_wrappers"],
+        "plan_window": {key: value for key, value in shared_plans.items() if key not in {"items", "key_wrappers"}},
+        "tasks": shared_tasks["items"],
+        "task_key_wrappers": shared_tasks["key_wrappers"],
+        "task_window": {key: value for key, value in shared_tasks.items() if key not in {"items", "key_wrappers"}},
+        "code_run_outputs": code_output_page["items"],
+        "code_run_output_window": {key: value for key, value in code_output_page.items() if key != "items"},
+        "notebook_run_outputs": notebook_output_page["items"],
+        "notebook_run_output_window": {key: value for key, value in notebook_output_page.items() if key != "items"},
+        "message_highlights": message_highlight_page["items"],
+        "message_highlight_window": {key: value for key, value in message_highlight_page.items() if key != "items"},
         "share_highlights": bool(share_highlights),
     }
 
@@ -283,16 +298,8 @@ async def get_shared_chat_compression_checkpoints(
     shared chat id. The server returns only client-encrypted checkpoint summaries
     and boundary metadata; the share URL fragment key remains client-only.
     """
-    return await directus_service.get_items(
-        CHAT_COMPRESSION_CHECKPOINT_COLLECTION,
-        params={
-            "filter": {"chat_id": {"_eq": chat_id}},
-            "fields": "id,chat_id,encrypted_summary,compressed_up_to_timestamp,compressed_message_count,summary_token_estimate,key_version,created_at,updated_at",
-            "sort": "created_at",
-            "limit": -1,
-        },
-        admin_required=True,
-    ) or []
+    from backend.core.api.app.services.chat_checkpoint_pagination import checkpoint_window
+    return (await checkpoint_window(directus_service, chat_id=chat_id))["checkpoints"]
 
 
 
@@ -330,6 +337,7 @@ async def get_shared_chat(
     - Returns consistent dummy data for non-existent chats
     - Only returns real data if is_private = false
     """
+    public_chat_verified = False
     try:
         # Fetch chat from database
         chat = await directus_service.chat.get_chat_metadata(chat_id, admin_required=True)
@@ -344,12 +352,13 @@ async def get_shared_chat(
         
         # Check if chat is private (unshared)
         is_private = chat.get("is_private", False)
-        if is_private:
+        if is_private or chat.get("storage_state") == "deleting":
             # Chat was unshared - return dummy data
             logger.debug(f"Chat {chat_id} is private (unshared), returning dummy data")
             dummy_data = generate_dummy_encrypted_data(chat_id)
             dummy_data.pop("is_dummy", None)
             return dummy_data
+        public_chat_verified = True
         
         share_pii = bool(chat.get("share_pii", False))
         share_highlights = chat.get("share_highlights", True)
@@ -362,10 +371,12 @@ async def get_shared_chat(
         logger.debug(f"Returning real encrypted data for shared chat {chat_id}")
         
         # Get messages for the chat (encrypted, as stored in database)
-        messages = await directus_service.chat.get_all_messages_for_chat(
-            chat_id=chat_id,
-            decrypt_content=False  # Return encrypted messages
-        )
+        if int(chat.get("archived_message_count") or 0):
+            from backend.core.api.app.services.chat_message_archive_service import ChatMessageArchiveService
+            archive = ChatMessageArchiveService(directus_service=directus_service, s3_service=request.app.state.s3_service)
+            messages = [row async for row in archive.iter_history(chat_id=chat_id)]
+        else:
+            messages = await directus_service.chat.get_all_messages_for_chat(chat_id=chat_id, decrypt_content=False)
         if not share_pii and messages:
             import json
             sanitized_messages = []
@@ -438,7 +449,9 @@ async def get_shared_chat(
         
     except Exception as e:
         logger.error(f"Error fetching shared chat {chat_id}: {e}", exc_info=True)
-        # On error, return dummy data to prevent information leakage
+        if public_chat_verified:
+            raise HTTPException(status_code=503, detail="SHARED_CHAT_UNAVAILABLE") from e
+        # Preserve indistinguishable missing/private behavior before visibility is known.
         dummy_data = generate_dummy_encrypted_data(chat_id)
         dummy_data.pop("is_dummy", None)
         return dummy_data
@@ -451,20 +464,216 @@ async def get_shared_chat_manifest(
     directus_service: DirectusService = Depends(get_directus_service)
 ) -> Dict[str, Any]:
     """Get shared-chat metadata and auxiliary encrypted records without messages."""
+    chat, dummy = await get_shared_chat_or_dummy(chat_id, directus_service)
+    if dummy is not None or chat is None:
+        return dummy or generate_dummy_encrypted_data(chat_id)
     try:
-        chat, dummy = await get_shared_chat_or_dummy(chat_id, directus_service)
-        if dummy is not None or chat is None:
-            return dummy or generate_dummy_encrypted_data(chat_id)
         payload = shared_chat_metadata_payload(chat_id, chat)
         payload.update(await get_shared_chat_auxiliary_payload(chat_id, chat, directus_service))
-        payload["compression_checkpoints"] = await get_shared_chat_compression_checkpoints(chat_id, directus_service)
+        from backend.core.api.app.services.chat_checkpoint_pagination import checkpoint_window
+        checkpoint_page = await checkpoint_window(directus_service, chat_id=chat_id)
+        payload["compression_checkpoints"] = checkpoint_page["checkpoints"]
+        payload["compression_checkpoint_window"] = {
+            key: value for key, value in checkpoint_page.items() if key != "checkpoints"
+        }
         payload["messages"] = []
         return payload
     except Exception as e:
         logger.error(f"Error fetching shared chat manifest {chat_id}: {e}", exc_info=True)
-        dummy_data = generate_dummy_encrypted_data(chat_id)
-        dummy_data.pop("is_dummy", None)
-        return dummy_data
+        raise HTTPException(status_code=503, detail="SHARED_MANIFEST_UNAVAILABLE") from e
+
+
+@router.get("/chat/{chat_id}/embeds/{embed_id}")
+@limiter.limit("60/minute")
+async def get_shared_chat_embed_by_id(
+    request: Request, chat_id: str, embed_id: str,
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> Dict[str, Any]:
+    """Selected ciphertext and chat wrappers for a currently shared chat."""
+    chat, dummy = await get_shared_chat_or_dummy(chat_id, directus_service)
+    if dummy is not None or chat is None:
+        raise HTTPException(status_code=404, detail="Shared embed not found")
+    embed = await directus_service.embed.get_sync_embed_by_id(embed_id)
+    hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+    if not embed or (embed.get("hashed_chat_id") != hashed_chat_id and embed.get("is_private") is not False):
+        raise HTTPException(status_code=404, detail="Shared embed not found")
+    if len(json.dumps(embed, separators=(",", ":"), ensure_ascii=False).encode()) > 2 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="EMBED_REQUIRES_BOUNDED_READER")
+    embed_hash = embed.get("hashed_embed_id") or hashlib.sha256(embed_id.encode()).hexdigest()
+    page = await directus_service.embed.get_sync_embed_key_window_for_page(
+        hashed_chat_id, "", [embed_hash], include_master_keys=False,
+    )
+    if embed.get("hashed_chat_id") != hashed_chat_id and not (page["embed_keys"] or page["has_more_after"]):
+        raise HTTPException(status_code=404, detail="Shared embed not found")
+    output_ids: Dict[str, str | None] = {}
+    for kind, field in (("code_run_outputs", "embed_id"), ("notebook_run_outputs", "notebook_embed_id")):
+        rows = await directus_service.get_items(kind, params={
+            "filter": {"chat_id": {"_eq": chat_id}, field: {"_eq": embed_id}},
+            "fields": "id", "sort": ["-updated_at", "-id"], "limit": 1,
+        }, admin_required=True, no_cache=True, raise_on_error=True)
+        if not isinstance(rows, list):
+            raise HTTPException(status_code=503, detail="SHARED_EMBED_SIDECAR_UNAVAILABLE")
+        output_ids[kind] = rows[0]["id"] if rows else None
+    return {"embed": embed, "embed_keys": page["embed_keys"],
+            "embed_keys_has_more_after": page["has_more_after"],
+            "embed_keys_end_cursor": page["end_cursor"],
+            "oversized_embed_key_id": page["oversized_key_id"],
+            "code_run_output_id": output_ids["code_run_outputs"],
+            "notebook_run_output_id": output_ids["notebook_run_outputs"]}
+
+
+@router.get("/chat/{chat_id}/auxiliary/{kind}")
+@limiter.limit("60/minute")
+async def get_shared_chat_auxiliary_window(
+    request: Request, chat_id: str,
+    kind: Literal["sub_chats", "message_highlights", "code_run_outputs", "notebook_run_outputs", "plans", "tasks"],
+    before_timestamp: int | None = None, before_id: str | None = None,
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> Dict[str, Any]:
+    chat, dummy = await get_shared_chat_or_dummy(chat_id, directus_service)
+    if dummy is not None or chat is None:
+        raise HTTPException(status_code=404, detail="Shared chat not found")
+    if kind == "message_highlights" and chat.get("share_highlights") is False:
+        return {"items": [], "has_more_before": False, "start_cursor": None,
+                "oversized_id": None, "payload_bytes": 0}
+    try:
+        if kind in {"plans", "tasks"}:
+            from backend.core.api.app.services.shared_plan_task_window import shared_plan_task_window
+            return await shared_plan_task_window(directus_service, chat_id=chat_id, kind=kind,
+                                                 before_timestamp=before_timestamp, before_id=before_id)
+        from backend.core.api.app.services.shared_auxiliary_window import shared_auxiliary_window
+        return await shared_auxiliary_window(directus_service, chat_id=chat_id, kind=kind,
+                                             before_timestamp=before_timestamp, before_id=before_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Invalid auxiliary cursor") from exc
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="SHARED_AUXILIARY_PAGE_UNAVAILABLE") from exc
+
+
+@router.get("/chat/{chat_id}/auxiliary/{kind}/{record_id}")
+@limiter.limit("60/minute")
+async def get_shared_chat_auxiliary_by_id(
+    request: Request, chat_id: str,
+    kind: Literal["sub_chats", "message_highlights", "code_run_outputs", "notebook_run_outputs", "plans", "tasks"],
+    record_id: str,
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> Dict[str, Any]:
+    chat, dummy = await get_shared_chat_or_dummy(chat_id, directus_service)
+    if dummy is not None or chat is None or (kind == "message_highlights" and chat.get("share_highlights") is False):
+        raise HTTPException(status_code=404, detail="Shared auxiliary record not found")
+    try:
+        if kind in {"plans", "tasks"}:
+            from backend.core.api.app.services.shared_plan_task_window import shared_plan_task_by_id
+            item = await shared_plan_task_by_id(directus_service, chat_id=chat_id, kind=kind, record_id=record_id)
+            if not item:
+                raise HTTPException(status_code=404, detail="Shared auxiliary record not found")
+            return item
+        from backend.core.api.app.services.shared_auxiliary_window import shared_auxiliary_by_id
+        item = await shared_auxiliary_by_id(directus_service, chat_id=chat_id, kind=kind, record_id=record_id)
+        if not item:
+            raise HTTPException(status_code=404, detail="Shared auxiliary record not found")
+        return {"item": item}
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Invalid shared auxiliary record") from exc
+    except OverflowError as exc:
+        raise HTTPException(status_code=413, detail="SHARED_AUXILIARY_REQUIRES_BOUNDED_READER") from exc
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="SHARED_AUXILIARY_RECORD_UNAVAILABLE") from exc
+
+
+@router.get("/chat/{chat_id}/auxiliary/{kind}/keys/window")
+@limiter.limit("120/minute")
+async def get_shared_plan_task_key_window(
+    request: Request, chat_id: str, kind: Literal["plans", "tasks"], item_ids: str,
+    after_key_id: str | None = None, key_id: str | None = None,
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> Dict[str, Any]:
+    chat, dummy = await get_shared_chat_or_dummy(chat_id, directus_service)
+    if dummy is not None or chat is None:
+        raise HTTPException(status_code=404, detail="Shared chat not found")
+    selected_ids = item_ids.split(",")
+    try:
+        from backend.core.api.app.services.shared_plan_task_window import shared_plan_task_key_window
+        page = await shared_plan_task_key_window(
+            directus_service, chat_id=chat_id, kind=kind, item_ids=selected_ids,
+            after_key_id=after_key_id, key_id=key_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Invalid shared key cursor") from exc
+    except OverflowError as exc:
+        raise HTTPException(status_code=413, detail="SHARED_KEY_REQUIRES_BOUNDED_READER") from exc
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="SHARED_KEY_PAGE_UNAVAILABLE") from exc
+    if key_id and not page["key_wrappers"]:
+        raise HTTPException(status_code=404, detail="Shared key not found")
+    return page
+
+
+@router.get("/chat/{chat_id}/embeds/{embed_id}/keys/window")
+@limiter.limit("120/minute")
+async def get_shared_chat_embed_key_window(
+    request: Request, chat_id: str, embed_id: str,
+    after_key_id: str | None = None, key_id: str | None = None,
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> Dict[str, Any]:
+    """Continue one selected embed's public chat wrappers without master keys."""
+    if (after_key_id and key_id or any(value is not None and (not value or len(value) > 128)
+                                       for value in (after_key_id, key_id))):
+        raise HTTPException(status_code=400, detail="Invalid embed key cursor")
+    chat, dummy = await get_shared_chat_or_dummy(chat_id, directus_service)
+    if dummy is not None or chat is None:
+        raise HTTPException(status_code=404, detail="Shared embed not found")
+    hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+    embed = await directus_service.embed.get_sync_embed_by_id(embed_id)
+    if not embed or (embed.get("hashed_chat_id") != hashed_chat_id and embed.get("is_private") is not False):
+        raise HTTPException(status_code=404, detail="Shared embed not found")
+    embed_hash = embed.get("hashed_embed_id") or hashlib.sha256(embed_id.encode()).hexdigest()
+    initial_page = await directus_service.embed.get_sync_embed_key_window_for_page(
+        hashed_chat_id, "", [embed_hash], include_master_keys=False,
+    )
+    if embed.get("hashed_chat_id") != hashed_chat_id and not (initial_page["embed_keys"] or initial_page["has_more_after"]):
+        raise HTTPException(status_code=404, detail="Shared embed not found")
+    if key_id:
+        key = await directus_service.embed.get_sync_embed_key_by_id(
+            hashed_chat_id, "", [embed_hash], key_id, include_master_keys=False,
+        )
+        if not key:
+            raise HTTPException(status_code=404, detail="Shared embed key not found")
+        if len(json.dumps(key, separators=(",", ":"), ensure_ascii=False).encode()) > 2 * 1024 * 1024:
+            raise HTTPException(status_code=413, detail="EMBED_KEY_REQUIRES_BOUNDED_READER")
+        return {"embed_keys": [key], "has_more_after": False, "end_cursor": key_id,
+                "oversized_key_id": None}
+    page = await directus_service.embed.get_sync_embed_key_window_for_page(
+        hashed_chat_id, "", [embed_hash], after_key_id=after_key_id, include_master_keys=False,
+    )
+    return page
+
+@router.get("/chat/{chat_id}/compression-checkpoints")
+@limiter.limit("60/minute")
+async def get_shared_checkpoint_window(request: Request, chat_id: str,
+    before_timestamp: int | None = Query(default=None), before_id: str | None = Query(default=None),
+    limit: int = Query(default=20, ge=1, le=20),
+    directus_service: DirectusService = Depends(get_directus_service)) -> Dict[str, Any]:
+    chat, dummy = await get_shared_chat_or_dummy(chat_id, directus_service)
+    if not chat or dummy is not None:
+        return {"checkpoints": [], "has_more_before": False, "start_cursor": None}
+    from backend.core.api.app.services.chat_checkpoint_pagination import checkpoint_window
+    return await checkpoint_window(directus_service, chat_id=chat_id,
+                                   before_timestamp=before_timestamp, before_id=before_id, limit=limit)
+
+
+@router.get("/chat/{chat_id}/compression-checkpoints/{checkpoint_id}")
+@limiter.limit("60/minute")
+async def get_shared_checkpoint_by_id(request: Request, chat_id: str, checkpoint_id: str,
+    directus_service: DirectusService = Depends(get_directus_service)) -> Dict[str, Any]:
+    chat, dummy = await get_shared_chat_or_dummy(chat_id, directus_service)
+    if not chat or dummy is not None:
+        return {"checkpoint": None}
+    from backend.core.api.app.services.chat_checkpoint_pagination import checkpoint_by_id
+    return await checkpoint_by_id(directus_service, chat_id=chat_id, checkpoint_id=checkpoint_id)
+
 
 @router.get("/chat/{chat_id}/messages")
 @limiter.limit("60/minute")
@@ -480,6 +689,9 @@ async def get_shared_chat_message_window(
 ) -> Dict[str, Any]:
     """Get a bounded encrypted shared-chat message window."""
     try:
+        from backend.core.api.app.services.bounded_message_window import (
+            MESSAGE_WINDOW_LIMIT, bound_encrypted_message_window,
+        )
         if not isinstance(before_message_id, str):
             before_message_id = None
         if not isinstance(target_message_id, str):
@@ -489,6 +701,7 @@ async def get_shared_chat_message_window(
         chat, dummy = await get_shared_chat_or_dummy(chat_id, directus_service)
         if dummy is not None or chat is None:
             return {"chat_id": chat_id, "messages": (dummy or {}).get("messages", []), "has_more": False, "next_before_timestamp": None}
+        limit = min(limit, MESSAGE_WINDOW_LIMIT)
         checkpoint_boundary_timestamp = None
         if checkpoint_id:
             checkpoint_rows = await directus_service.get_items(
@@ -519,24 +732,52 @@ async def get_shared_chat_message_window(
                 chat_id=chat_id,
                 message_id=target_message_id,
             )
+            if target_message is None and int(chat.get("archived_message_count") or 0):
+                from backend.core.api.app.services.chat_message_archive_service import ChatMessageArchiveService
+                target_message = await ChatMessageArchiveService(
+                    directus_service=directus_service, s3_service=request.app.state.s3_service,
+                ).find_message(chat_id=chat_id, message_id=target_message_id)
             if target_message:
                 before_timestamp = min(int(before_timestamp), int(target_message.get("created_at") or before_timestamp))
         if checkpoint_boundary_timestamp:
             before_timestamp = min(int(before_timestamp), checkpoint_boundary_timestamp)
         messages = await directus_service.chat.get_messages_for_chat_before_timestamp(
-            chat_id=chat_id,
-            before_timestamp=before_timestamp,
-            before_message_id=before_message_id,
-            limit=limit + 1,
+            chat_id=chat_id, before_timestamp=before_timestamp,
+            before_message_id=before_message_id, limit=limit + 1,
         )
         has_more = len(messages) > limit
         if has_more:
             messages = messages[1:]
+        archive_window: Dict[str, Any] = {}
+        if int(chat.get("archived_message_count") or 0):
+            from backend.core.api.app.services.chat_message_archive_service import ChatMessageArchiveService
+            service = ChatMessageArchiveService(directus_service=directus_service, s3_service=request.app.state.s3_service)
+            archive_window = await service.merge_window(chat_id=chat_id,
+                hot={"messages": messages, "has_more_before": has_more}, direction="before", limit=limit,
+                before=(int(before_timestamp), before_message_id or "\uffff"))
+            messages = [json.dumps(row) for row in archive_window["messages"]]
+            has_more = bool(archive_window["has_more_before"])
         messages = sanitize_shared_pii(messages, bool(chat.get("share_pii", False)))
+        wire_messages = []
+        for message in messages:
+            row = json.loads(message) if isinstance(message, str) else dict(message)
+            if not isinstance(row, dict):
+                raise ValueError("Invalid shared encrypted message")
+            row.pop("content", None)
+            row.pop("text", None)
+            row["message_id"] = row.get("message_id") or row.get("client_message_id") or row.get("id")
+            wire_messages.append(row)
+        bounded = bound_encrypted_message_window(
+            {"messages": wire_messages, "has_more_before": has_more,
+             "oversized_message": bool(archive_window.get("oversized_message")),
+             "oversized_message_cursor": archive_window.get("oversized_message_cursor")},
+            direction="before",
+        )
+        messages = [json.dumps(row, separators=(",", ":"), ensure_ascii=False) for row in bounded["messages"]]
+        has_more = bool(bounded["has_more_before"])
         next_before_timestamp = None
         next_before_message_id = None
         if has_more and messages:
-            import json
             try:
                 first_message = json.loads(messages[0])
                 next_before_timestamp = int(first_message.get("created_at"))
@@ -555,12 +796,48 @@ async def get_shared_chat_message_window(
             "checkpoint_boundary_timestamp": checkpoint_boundary_timestamp,
             "is_forgotten_page": bool(checkpoint_id),
             "messages_v": chat.get("messages_v"),
+            "oversized_message_cursor": bounded["oversized_message_cursor"],
+            "oversized_message": bounded["oversized_message"],
+            "payload_bytes": bounded["payload_bytes"],
         }
     except Exception as e:
         logger.error(f"Error fetching shared chat messages {chat_id}: {e}", exc_info=True)
-        dummy_data = generate_dummy_encrypted_data(chat_id)
-        dummy_data.pop("is_dummy", None)
-        return {"chat_id": chat_id, "messages": dummy_data.get("messages", []), "has_more": False, "next_before_timestamp": None}
+        raise HTTPException(status_code=503, detail="SHARED_MESSAGE_WINDOW_UNAVAILABLE") from e
+
+
+@router.get("/chat/{chat_id}/messages/{message_id}")
+@limiter.limit("60/minute")
+async def get_shared_chat_message_by_id(
+    request: Request, chat_id: str, message_id: str,
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> Dict[str, Any]:
+    """Read one selected public-share ciphertext after checking current visibility."""
+    from backend.core.api.app.services.bounded_message_window import EXACT_MESSAGE_BYTES, encrypted_message_bytes
+    chat, dummy = await get_shared_chat_or_dummy(chat_id, directus_service)
+    if dummy is not None or chat is None:
+        raise HTTPException(status_code=404, detail="Shared message not found")
+    row = await directus_service.chat.get_message_for_chat_by_client_id(chat_id, message_id)
+    if row is None and int(chat.get("archived_message_count") or 0):
+        from backend.core.api.app.services.chat_message_archive_service import ChatMessageArchiveService
+        from backend.core.api.app.services.bounded_archive_io import ArchiveIntegrityError
+        try:
+            row = await ChatMessageArchiveService(
+                directus_service=directus_service, s3_service=request.app.state.s3_service,
+            ).find_message(chat_id=chat_id, message_id=message_id)
+        except ArchiveIntegrityError as exc:
+            raise HTTPException(status_code=503, detail="ARCHIVE_PAGE_UNAVAILABLE") from exc
+    if row is None:
+        raise HTTPException(status_code=404, detail="Shared message not found")
+    payload = sanitize_shared_pii([row], bool(chat.get("share_pii", False)))[0]
+    payload = json.loads(payload) if isinstance(payload, str) else dict(payload)
+    payload.pop("content", None)
+    payload.pop("text", None)
+    payload["message_id"] = payload.get("message_id") or payload.get("client_message_id") or payload.get("id")
+    if payload["message_id"] != message_id:
+        raise HTTPException(status_code=503, detail="MESSAGE_IDENTITY_MISMATCH")
+    if encrypted_message_bytes(payload) > EXACT_MESSAGE_BYTES:
+        raise HTTPException(status_code=413, detail="MESSAGE_REQUIRES_BOUNDED_READER")
+    return {"message": payload}
 
 @router.get("/chat/{chat_id}/og-metadata")
 @limiter.limit("60/minute")  # Higher limit since this is used for every share page load
@@ -1542,7 +1819,7 @@ async def _build_shared_chat_metadata(
         "image_bubbles": [],
     }
     chat = await directus_service.chat.get_chat_metadata(chat_id, admin_required=True)
-    if not chat or chat.get("is_private", False):
+    if not chat or chat.get("storage_state") == "deleting" or chat.get("is_private", False):
         return fallback
 
     title = await _decrypt_shared_metadata(chat.get("shared_encrypted_title"), DEFAULT_CHAT_TITLE, encryption_service)

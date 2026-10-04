@@ -25,6 +25,7 @@ import { isPublicChat } from "../../demo_chats/convertToChat";
 import { isAnonymousChatId } from "../anonymousChatIds";
 import { unwrapTeamChatKey, wrapTeamChatKey } from "../teamService";
 import { invalidateRecentChatWindow } from "../recentChatWindowCache";
+import { computeSHA256 } from "../../message_parsing/utils";
 
 // Type for ChatDatabase instance to avoid circular import
 // Only includes properties/methods needed by this module.
@@ -44,6 +45,144 @@ interface ChatDatabaseInstance {
 
 // Store name constant for messages (needed for deleteChat)
 const MESSAGES_STORE_NAME = "messages";
+const EMBEDS_STORE_NAME = "embeds";
+const EMBED_KEYS_STORE_NAME = "embed_keys";
+const MAX_INFERRED_DELETE_EMBEDS = 100;
+const MAX_INFERRED_DELETE_PENDING_PROBE = 256;
+const MAX_INFERRED_DELETE_KEYS_PER_EMBED = 100;
+
+/**
+ * Apply Phase 2's inferred absence only when the same IndexedDB transaction
+ * proves there is no sealed turn awaiting a canonical acknowledgement.
+ * Explicit server tombstones use deleteChat instead. The four stores share one
+ * transaction, so a new journal/head cannot arrive between the guard and
+ * cleanup. Admission limits retain the local chat when absence is uncertain.
+ */
+export async function deleteChatIfNoPendingTurn(
+  dbInstance: ChatDatabaseInstance,
+  chatId: string,
+): Promise<{ deleted: boolean; deletedEmbedIds: string[] }> {
+  await dbInstance.init();
+  const hashedChatId = await computeSHA256(chatId);
+  // Crypto is asynchronous. Prepare hashed embed IDs before opening the write
+  // transaction, then verify these exact heads again under its store lock.
+  const candidateTx = await dbInstance.getTransaction(EMBEDS_STORE_NAME, "readonly");
+  const candidateRequest = candidateTx.objectStore(EMBEDS_STORE_NAME)
+    .index("hashed_chat_id").getAll(hashedChatId, MAX_INFERRED_DELETE_EMBEDS + 1);
+  const candidates = await new Promise<Array<Record<string, unknown>>>((resolve, reject) => {
+    candidateRequest.onsuccess = () => resolve(candidateRequest.result as Array<Record<string, unknown>>);
+    candidateRequest.onerror = () => reject(candidateRequest.error);
+  });
+  if (candidates.length > MAX_INFERRED_DELETE_EMBEDS ||
+      candidates.some((head) => typeof head.embed_id !== "string" ||
+        typeof head.contentRef !== "string")) {
+    return { deleted: false, deletedEmbedIds: [] };
+  }
+  const candidatesByRef = new Map<string, { head: Record<string, unknown>; hash: string }>();
+  for (const head of candidates) {
+    candidatesByRef.set(head.contentRef as string, {
+      head, hash: await computeSHA256(head.embed_id as string),
+    });
+  }
+
+  const tx = await dbInstance.getTransaction(
+    [dbInstance.CHATS_STORE_NAME, MESSAGES_STORE_NAME, EMBEDS_STORE_NAME, EMBED_KEYS_STORE_NAME],
+    "readwrite",
+  );
+  const messages = tx.objectStore(MESSAGES_STORE_NAME);
+  const chats = tx.objectStore(dbInstance.CHATS_STORE_NAME);
+  const embeds = tx.objectStore(EMBEDS_STORE_NAME);
+  const keys = tx.objectStore(EMBED_KEYS_STORE_NAME);
+  return new Promise((resolve, reject) => {
+    let deleted = false;
+    let scanned = 0;
+    const deletedEmbedIds: string[] = [];
+    const headsToDelete: string[] = [];
+    const keysToDelete: string[] = [];
+    tx.oncomplete = () => {
+      if (deleted) invalidateRecentChatWindow(chatId);
+      resolve({ deleted, deletedEmbedIds });
+    };
+    tx.onerror = () => reject(tx.error ?? new Error("Inferred chat deletion failed"));
+    tx.onabort = () => reject(tx.error ?? new Error("Inferred chat deletion aborted"));
+
+    const pending = messages.index("pending_turn_created_at_message_id").openCursor(
+      IDBKeyRange.bound([1, 0, ""], [1, Number.MAX_SAFE_INTEGER, "\uffff"]),
+    );
+    pending.onerror = () => tx.abort();
+    pending.onsuccess = () => {
+      const cursor = pending.result;
+      if (!cursor) { verifyHeads(); return; }
+      const row = cursor.value as Message & Record<string, unknown>;
+      if (row.chat_id === chatId &&
+          typeof row.pending_encrypted_turn_preflight_v1 === "string" &&
+          row.pending_encrypted_turn_preflight_v1.length > 0) return;
+      if (++scanned >= MAX_INFERRED_DELETE_PENDING_PROBE) return;
+      cursor.continue();
+    };
+
+    function verifyHeads(): void {
+      const request = embeds.index("hashed_chat_id")
+        .getAll(hashedChatId, MAX_INFERRED_DELETE_EMBEDS + 1);
+      request.onerror = () => tx.abort();
+      request.onsuccess = () => {
+        const current = request.result as Array<Record<string, unknown>>;
+        if (current.length !== candidatesByRef.size) return;
+        for (const head of current) {
+          const prepared = candidatesByRef.get(String(head.contentRef));
+          if (!prepared || head.embed_id !== prepared.head.embed_id ||
+              head.encrypted_content !== prepared.head.encrypted_content ||
+              head.version_number !== prepared.head.version_number ||
+              head.hashed_chat_id !== hashedChatId) return;
+        }
+        inspectKeys(current, 0);
+      };
+    }
+
+    function inspectKeys(current: Array<Record<string, unknown>>, index: number): void {
+      if (index === current.length) { deleteChatAndMessages(); return; }
+      const head = current[index];
+      const prepared = candidatesByRef.get(String(head.contentRef));
+      if (!prepared) return;
+      const request = keys.index("hashed_embed_id")
+        .getAll(prepared.hash, MAX_INFERRED_DELETE_KEYS_PER_EMBED + 1);
+      request.onerror = () => tx.abort();
+      request.onsuccess = () => {
+        const wrappers = request.result as Array<Record<string, unknown>>;
+        if (wrappers.length > MAX_INFERRED_DELETE_KEYS_PER_EMBED ||
+            wrappers.some((wrapper) => typeof wrapper.id !== "string")) return;
+        const shared = wrappers.some((wrapper) => wrapper.key_type === "chat" &&
+          typeof wrapper.hashed_chat_id === "string" &&
+          wrapper.hashed_chat_id !== hashedChatId);
+        if (shared) {
+          for (const wrapper of wrappers) {
+            if (wrapper.key_type === "chat" && wrapper.hashed_chat_id === hashedChatId)
+              keysToDelete.push(wrapper.id as string);
+          }
+        } else {
+          headsToDelete.push(head.contentRef as string);
+          for (const wrapper of wrappers) keysToDelete.push(wrapper.id as string);
+          deletedEmbedIds.push(head.embed_id as string);
+        }
+        inspectKeys(current, index + 1);
+      };
+    }
+
+    function deleteChatAndMessages(): void {
+      for (const contentRef of headsToDelete) embeds.delete(contentRef);
+      for (const id of keysToDelete) keys.delete(id);
+      chats.delete(chatId);
+      const cursorRequest = messages.index("chat_id").openCursor(IDBKeyRange.only(chatId));
+      cursorRequest.onerror = () => tx.abort();
+      cursorRequest.onsuccess = () => {
+        const cursor = cursorRequest.result;
+        if (!cursor) { deleted = true; return; }
+        cursor.delete();
+        cursor.continue();
+      };
+    }
+  });
+}
 
 // Maximum candidate keys stored per chat — prevents unbounded IDB growth
 const MAX_CANDIDATE_KEYS = 5;

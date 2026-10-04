@@ -8,6 +8,14 @@ chats:
   meta:
     accountability: null
   fields:
+    archived_message_count:
+      type: integer
+      default: 0
+      note: "Canonical message count retained after atomic verified archive-page pruning."
+    archive_mutation_v:
+      type: integer
+      default: 0
+      note: "Server-fenced generation incremented when a message archive page is restored and retired."
     id: # chat_id
       type: uuid
       note: "Primary Key - Unique identifier for the chat (chat_id)"
@@ -236,6 +244,21 @@ chats:
       type: boolean
       default: false
       note: "True if this chat is a sub-chat of another chat"
+
+    child_result_delivered_at:
+      type: datetime
+      nullable: true
+      note: "Server-fenced timestamp after sealed child output was delivered into parent synthesis context."
+
+    child_parent_consumed_at:
+      type: datetime
+      nullable: true
+      note: "Server-fenced timestamp after parent continuation accepted the copied child synthesis context."
+
+    child_canonical_acknowledged_at:
+      type: datetime
+      nullable: true
+      note: "Server-fenced timestamp after all sealed child outputs have canonical client-encrypted acknowledgement and the child chat key wrapper exists."
 
     sub_chat_settings:
       type: json

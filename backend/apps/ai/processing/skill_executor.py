@@ -65,6 +65,7 @@ from backend.shared.python_utils.app_skill_output_safety import (  # noqa: E402
     sanitize_app_skill_output,
 )
 from backend.shared.python_utils.anonymous_inline_execution import anonymous_inline_execution  # noqa: E402
+from backend.shared.python_utils.chat_recovery_context import RequiredRecoveryOutputError  # noqa: E402
 
 # Re-export helper functions and exceptions for backward compatibility
 # TODO(audit-2026-03-19): Move check_rate_limit, wait_for_rate_limit, sanitize_external_content, execute_skill_via_celery
@@ -340,6 +341,11 @@ async def execute_skill(
             break
 
         except SkillCancelledException:
+            raise
+        except RequiredRecoveryOutputError:
+            # Required detached output admission is a turn-level durability
+            # failure. Retrying the same skill or feeding an error tool result
+            # back to the model could launch dependent work without a producer.
             raise
         except HTTPException as e:
             # 4xx errors are deterministic — don't retry. 5xx might be transient.

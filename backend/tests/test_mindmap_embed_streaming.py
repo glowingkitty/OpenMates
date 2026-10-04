@@ -37,6 +37,7 @@ def _valid_source() -> str:
     )
 
 
+# contract-test: supporting surface=rest_api assertions=chats.rendering.assistant-document-convergence
 def test_mindmap_fence_detection_and_validation() -> None:
     from backend.apps.ai.utils.mindmap_fences import (
         normalize_mindmap_source,
@@ -91,6 +92,7 @@ def test_mindmap_fence_detection_and_validation() -> None:
     assert no_valid_nodes.model is None
 
 
+# contract-test: supporting surface=rest_api assertions=chats.rendering.assistant-document-convergence
 def test_mindmaps_app_definition_registers_direct_embed_type() -> None:
     app = yaml.safe_load(MINDMAPS_APP_YML.read_text())
 
@@ -105,6 +107,7 @@ def test_mindmaps_app_definition_registers_direct_embed_type() -> None:
     assert "openmates_mindmap" in app["instructions"][0]["instruction"]
 
 
+# contract-test: supporting surface=rest_api assertions=chats.streaming.ordered-final,chats.rendering.assistant-document-convergence
 def test_streaming_path_handles_mindmap_branches() -> None:
     source = STREAM_CONSUMER.read_text(encoding="utf-8")
 
@@ -186,6 +189,10 @@ class FakeCacheService:
     async def client(self):
         return self._client
 
+    async def cache_required_ai_embed(self, user_id, chat_id, embed_id, encrypted_json, *, payload_ttl, index_ttl):
+        await self._client.set(f"embed:{embed_id}", encrypted_json, ex=payload_ttl)
+        return True
+
 
 class FakeEncryptionService:
     async def encrypt_with_user_key(self, content: str, vault_key_id: str):
@@ -195,6 +202,7 @@ class FakeEncryptionService:
         return encrypted_content
 
 
+# contract-test: supporting surface=rest_api assertions=chats.streaming.ordered-final,chats.rendering.assistant-document-convergence
 @pytest.mark.asyncio
 async def test_embed_service_creates_and_updates_mindmap_payload() -> None:
     cache = FakeCacheService()

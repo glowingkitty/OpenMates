@@ -128,6 +128,63 @@ export interface EmbedKeyWrapper {
   created_at: number;
 }
 
+/** Reject an incomplete caller-provided or prepared bundle before durable message preflight. */
+export function assertCompleteEncryptedEmbedBundle(
+  embeds: EncryptedEmbed[],
+  scope: { chatId: string; messageId: string; ownerId: string },
+): void {
+  const ids = new Set<string>();
+  for (const embed of embeds) {
+    if (!embed?.embed_id || ids.has(embed.embed_id)
+      || !embed.encrypted_content || !embed.encrypted_type
+      || !embed.hashed_chat_id || !embed.hashed_message_id || !embed.hashed_user_id
+      || !Array.isArray(embed.embed_keys) || embed.embed_keys.length !== 2) {
+      throw new Error(`Encrypted message embed ${embed?.embed_id ?? "unknown"} is incomplete or duplicated.`);
+    }
+    ids.add(embed.embed_id);
+    if (
+      embed.hashed_chat_id !== computeSHA256(scope.chatId)
+      || embed.hashed_message_id !== computeSHA256(scope.messageId)
+      || embed.hashed_user_id !== computeSHA256(scope.ownerId)
+    ) {
+      throw new Error(`Encrypted message embed ${embed.embed_id} belongs to another chat, message, or owner.`);
+    }
+    const wrappers = new Map(embed.embed_keys.map((key) => [key?.key_type, key]));
+    const master = wrappers.get("master");
+    const chat = wrappers.get("chat");
+    if (wrappers.size !== 2 || !master?.encrypted_embed_key || !chat?.encrypted_embed_key
+      || master.hashed_embed_id !== chat.hashed_embed_id
+      || master.hashed_embed_id !== computeSHA256(embed.embed_id)
+      || master.hashed_user_id !== embed.hashed_user_id
+      || chat.hashed_user_id !== embed.hashed_user_id
+      || master.hashed_chat_id !== null || chat.hashed_chat_id !== embed.hashed_chat_id) {
+      throw new Error(`Encrypted message embed ${embed.embed_id} has incomplete key wrappers.`);
+    }
+  }
+}
+
+export function classifyMessageEmbedAvailability(
+  selectedIds: string[],
+  results: Array<{ embed_id?: string; state?: string }> | undefined,
+): { ready: Set<string>; missing: Set<string> } {
+  if (!Array.isArray(results) || results.length !== selectedIds.length) {
+    throw new Error("Message embed availability result is incomplete.");
+  }
+  const ready = new Set<string>();
+  const missing = new Set<string>();
+  for (let index = 0; index < selectedIds.length; index++) {
+    const result = results[index];
+    const embedId = selectedIds[index];
+    if (result?.embed_id !== embedId) throw new Error("Message embed availability result changed identity.");
+    if (result.state === "ready") ready.add(embedId);
+    else if (result.state === "missing") missing.add(embedId);
+    else if (result.state === "unusable") {
+      throw new Error(`Canonical embed ${embedId} has no usable key for this chat.`);
+    } else throw new Error("Message embed availability result has an unknown state.");
+  }
+  return { ready, missing };
+}
+
 // ── Public functions ───────────────────────────────────────────────────
 
 /**
@@ -204,6 +261,7 @@ export function createEmbedJsonReferenceBlock(type: string, embedId: string): st
  * @param messageId The message UUID
  * @param userId The authenticated user's UUID
  * @returns Fully encrypted embed ready for WebSocket payload
+ * @throws When any required ciphertext or key wrapper cannot be prepared.
  */
 export async function encryptEmbed(
   embed: PreparedEmbed,
@@ -212,7 +270,7 @@ export async function encryptEmbed(
   chatId: string,
   messageId: string,
   userId: string,
-): Promise<EncryptedEmbed | null> {
+): Promise<EncryptedEmbed> {
   try {
     // 1. Generate unique embed key
     const embedKey = generateEmbedKey();
@@ -274,7 +332,6 @@ export async function encryptEmbed(
     };
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
-    process.stderr.write(`\x1b[31mError:\x1b[0m Failed to encrypt embed: ${msg}\n`);
-    return null;
+    throw new Error(`Failed to encrypt embed ${embed.embedId}: ${msg}`, { cause: error });
   }
 }

@@ -3171,6 +3171,7 @@ export async function handleEmbedUpdateImpl(
 
             // Create key wrappers (only for parent embeds)
             const isChildEmbed = !!existingEmbed.parent_embed_id;
+            let embedKeysForServer: Array<Record<string, unknown>> = [];
 
             if (!isChildEmbed) {
               // Create master key wrapper
@@ -3236,38 +3237,10 @@ export async function handleEmbedUpdateImpl(
               ];
 
               await embedStore.storeEmbedKeys(embedKeysForStorage);
+              embedKeysForServer = embedKeysForStorage;
               console.info(
                 `[ChatSyncService:AI] embed_update: ✅ Stored key wrappers for ${payload.embed_id} to IndexedDB`,
               );
-
-              // Also send key wrappers to server
-              try {
-                const sendersModule = await import("./chatSyncServiceSenders");
-                const sendStoreEmbedKeysFunction =
-                  sendersModule.sendStoreEmbedKeysImpl ||
-                  (
-                    sendersModule as {
-                      default?: {
-                        sendStoreEmbedKeysImpl?: typeof sendersModule.sendStoreEmbedKeysImpl;
-                      };
-                    }
-                  ).default?.sendStoreEmbedKeysImpl;
-
-                if (typeof sendStoreEmbedKeysFunction === "function") {
-                  await sendStoreEmbedKeysFunction(serviceInstance, {
-                    keys: embedKeysForStorage,
-                  });
-                  console.debug(
-                    `[ChatSyncService:AI] embed_update: Sent key wrappers to server for ${payload.embed_id}`,
-                  );
-                }
-              } catch (sendError) {
-                // Non-fatal - keys are stored locally
-                console.warn(
-                  `[ChatSyncService:AI] embed_update: Failed to send key wrappers to server:`,
-                  sendError,
-                );
-              }
             }
 
             // Update the embed with encrypted content
@@ -3350,7 +3323,8 @@ export async function handleEmbedUpdateImpl(
                   created_at: normalizeToUnixSeconds(createdAt, nowSecs),
                   updated_at: normalizeToUnixSeconds(updatedAt, nowSecs),
                 };
-                await sendStoreFunction(serviceInstance, storePayload);
+                await sendStoreFunction(serviceInstance, storePayload,
+                  embedKeysForServer.length ? { keys: embedKeysForServer } : undefined);
                 console.debug(
                   `[ChatSyncService:AI] embed_update: Sent encrypted embed to server for ${payload.embed_id}`,
                 );
@@ -4188,6 +4162,13 @@ export async function handleSendEmbedDataImpl(
         return;
       }
 
+      // Include local ciphertext/key preparation in the same per-embed lease as
+      // the canonical head and wrapper receipts. Recovery holds this lease
+      // through its exact typed ACK, so neither path can prepare or publish a
+      // competing ciphertext midway through the other's commit.
+      const { hasAcknowledgedRecoveredEmbed, withCanonicalEmbedWrite } =
+        await import("./canonicalEmbedWriteCoordinator");
+      await withCanonicalEmbedWrite(embedData.embed_id, async (canonicalLease) => {
       // Generate embed key, encrypt content, store locally, send to Directus
       console.info(
         `[ChatSyncService:AI] Embed ${embedData.embed_id} is finalized (status=${embedData.status}) - encrypting and persisting`,
@@ -4356,6 +4337,32 @@ export async function handleSendEmbedDataImpl(
           console.debug(
             `[ChatSyncService:AI] ✅ Pre-cached parent key for children: ${embedData.embed_ids.join(", ")}`,
           );
+        }
+      }
+
+      // A typed recovery may have committed this exact finished version while
+      // this ordinary event waited for the lease. Reuse its authenticated
+      // canonical ciphertext and wrappers, including an advanced head, before
+      // any new IV, local replacement, or pending server operation is created.
+      if (!isLocalOnlyEmbed && hasAcknowledgedRecoveredEmbed(
+        canonicalLease, embedData.chat_id, embedData.version_number ?? 1,
+      )) {
+        const chatKeyForReuse = chatKeyManager.getKeySync(embedData.chat_id)
+          || await chatKeyManager.getKey(embedData.chat_id);
+        if (!chatKeyForReuse || !(await ensureChatKeySafeForWrite(
+          embedData.chat_id, chatKeyForReuse, "acknowledged embed recovery reuse",
+        ))) throw new Error("Recovered embed chat key was unavailable for canonical reuse.");
+        const { reuseAcknowledgedRecoveredEmbed } = await import("./chatSyncServiceHandlersRecovery");
+        if (await reuseAcknowledgedRecoveredEmbed(
+          canonicalLease, embedData, embedKey, chatKeyForReuse,
+        )) {
+          serviceInstance.dispatchEvent(new CustomEvent("embedUpdated", {
+            detail: { embed_id: embedData.embed_id, type: embedData.type,
+              chat_id: embedData.chat_id, message_id: embedData.message_id,
+              status: embedData.status, version_number: embedData.version_number,
+              child_embed_ids: embedData.embed_ids, isProcessing: false },
+          }));
+          return;
         }
       }
 
@@ -4621,6 +4628,12 @@ export async function handleSendEmbedDataImpl(
         created_at: normalizeToUnixSeconds(embedData.createdAt, nowSeconds),
         updated_at: normalizeToUnixSeconds(embedData.updatedAt, nowSeconds),
       };
+      const embedKeysPayload = !isChildEmbed && wrappedMasterKey && wrappedChatKey ? { keys: [
+        { hashed_embed_id: hashedEmbedId, key_type: "master" as const, hashed_chat_id: null,
+          encrypted_embed_key: wrappedMasterKey, hashed_user_id: hashedUserId, created_at: nowSeconds },
+        { hashed_embed_id: hashedEmbedId, key_type: "chat" as const, hashed_chat_id: hashedChatId,
+          encrypted_embed_key: wrappedChatKey, hashed_user_id: hashedUserId, created_at: nowSeconds },
+      ] } : undefined;
 
       if (!isLocalOnlyEmbed) {
         const sendersModule = await import("./chatSyncServiceSenders");
@@ -4638,7 +4651,7 @@ export async function handleSendEmbedDataImpl(
           throw new Error("sendStoreEmbedImpl function not found");
         }
 
-        await sendStoreFunction(serviceInstance, storePayload);
+        await sendStoreFunction(serviceInstance, storePayload, embedKeysPayload, canonicalLease);
         console.info(
           `[ChatSyncService:AI] Sent encrypted embed ${embedData.embed_id} to Directus`,
         );
@@ -4650,51 +4663,8 @@ export async function handleSendEmbedDataImpl(
           hashedUserId,
         );
 
-        // 10. Send key wrappers to server for embed_keys collection (ONLY for parent embeds)
-        // Child embeds don't have their own key wrappers - they use the parent's key
-        if (!isChildEmbed && wrappedMasterKey && wrappedChatKey) {
-          const now = Math.floor(Date.now() / 1000);
-          const embedKeysForStorage = [
-            {
-              hashed_embed_id: hashedEmbedId,
-              key_type: "master" as const,
-              hashed_chat_id: null,
-              encrypted_embed_key: wrappedMasterKey,
-              hashed_user_id: hashedUserId,
-              created_at: now,
-            },
-            {
-              hashed_embed_id: hashedEmbedId,
-              key_type: "chat" as const,
-              hashed_chat_id: hashedChatId,
-              encrypted_embed_key: wrappedChatKey,
-              hashed_user_id: hashedUserId,
-              created_at: now,
-            },
-          ];
-
-          const embedKeysPayload = { keys: embedKeysForStorage };
-
-          const sendStoreEmbedKeysFunction =
-            sendersModule.sendStoreEmbedKeysImpl ||
-            (
-              sendersModule as {
-                default?: {
-                  sendStoreEmbedKeysImpl?: typeof sendersModule.sendStoreEmbedKeysImpl;
-                };
-              }
-            ).default?.sendStoreEmbedKeysImpl;
-
-          if (typeof sendStoreEmbedKeysFunction !== "function") {
-            throw new Error("sendStoreEmbedKeysImpl function not found");
-          }
-
-          await sendStoreEmbedKeysFunction(serviceInstance, embedKeysPayload);
-          console.info(
-            `[ChatSyncService:AI] [EMBED_EVENT] ✅ Sent key wrappers for parent embed ${embedData.embed_id} to Directus ` +
-              `(master + chat). This should only happen ONCE per finalized embed!`,
-          );
-        } else if (isChildEmbed) {
+        // Parent wrappers travel with the head in the durable sender queue.
+        if (isChildEmbed) {
           console.debug(
             `[ChatSyncService:AI] Skipping key wrapper sending for child embed ${embedData.embed_id} (uses parent key)`,
           );
@@ -4759,6 +4729,7 @@ export async function handleSendEmbedDataImpl(
           },
         }),
       );
+      });
     }
   } catch (error) {
     // If a finalized embed failed anywhere after being marked as processed,
@@ -5198,10 +5169,7 @@ async function persistInspirations(
             updated_at: Math.floor(nowMs / 1000),
           };
 
-          await sendersModule.sendStoreEmbedImpl(serviceInstance, storePayload);
-
-          // Send embed key wrappers to server
-          await sendersModule.sendStoreEmbedKeysImpl(serviceInstance, {
+          await sendersModule.sendStoreEmbedImpl(serviceInstance, storePayload, {
             keys: embedKeysForStorage,
           });
 
@@ -5376,6 +5344,8 @@ export function handleChatCompressionCompletedImpl(
     compressed_message_count?: number;
     summary_token_estimate?: number;
     compressed_up_to_timestamp?: number;
+    compressed_up_to_message_id?: string;
+    covered_message_ids?: string[] | null;
     summary_message_id?: string;
     summary_content?: string;
     error?: string;
@@ -5411,6 +5381,8 @@ async function persistClientEncryptedCompressionCheckpoint(payload: {
   compressed_message_count?: number;
   summary_token_estimate?: number;
   compressed_up_to_timestamp?: number;
+  compressed_up_to_message_id?: string;
+  covered_message_ids?: string[] | null;
   summary_message_id?: string;
   summary_content?: string;
 }): Promise<void> {
@@ -5430,6 +5402,8 @@ async function persistClientEncryptedCompressionCheckpoint(payload: {
     encrypted_summary: encryptedSummary,
     summary: payload.summary_content,
     compressed_up_to_timestamp: payload.compressed_up_to_timestamp || 0,
+    compressed_up_to_message_id: payload.compressed_up_to_message_id,
+    covered_message_ids: payload.covered_message_ids,
     compressed_message_count: payload.compressed_message_count || 0,
     summary_token_estimate: payload.summary_token_estimate,
     key_version: chat.key_version ?? null,
@@ -5441,6 +5415,8 @@ async function persistClientEncryptedCompressionCheckpoint(payload: {
     checkpoint_id: checkpoint.id,
     encrypted_summary: encryptedSummary,
     compressed_up_to_timestamp: checkpoint.compressed_up_to_timestamp,
+    compressed_up_to_message_id: checkpoint.compressed_up_to_message_id,
+    covered_message_ids: checkpoint.covered_message_ids,
     compressed_message_count: checkpoint.compressed_message_count,
     summary_token_estimate: checkpoint.summary_token_estimate,
     key_version: checkpoint.key_version,
@@ -5457,11 +5433,14 @@ export async function handleChatCompressionCheckpointStoredImpl(
   if (chatKey && checkpoint.encrypted_summary && !checkpoint.summary) {
     checkpoint.summary = await decryptWithChatKey(checkpoint.encrypted_summary, chatKey) || undefined;
   }
-  await chatDB.saveChatCompressionCheckpoint(checkpoint);
-  await chatDB.deleteMessagesForChatAtOrBefore(
-    payload.chat_id,
-    checkpoint.compressed_up_to_timestamp,
-  );
+  // Source IDs are an archival audit manifest; UI history needs only the
+  // encrypted summary and cursor, so do not replicate the list into IndexedDB.
+  const localCheckpoint = { ...checkpoint };
+  delete localCheckpoint.covered_message_ids;
+  await chatDB.saveChatCompressionCheckpoint(localCheckpoint);
+  if (checkpoint.covered_message_ids?.length) {
+    await chatDB.deleteCoveredMessagesForChat(payload.chat_id, checkpoint.covered_message_ids);
+  }
   serviceInstance.dispatchEvent(
     new CustomEvent("chatCompressionCheckpointStored", { detail: payload }),
   );

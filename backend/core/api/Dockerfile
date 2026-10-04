@@ -33,6 +33,7 @@ COPY backend /app/backend
 COPY scripts/verify_storage_lifecycle_api.py /app/scripts/verify_storage_lifecycle_api.py
 COPY scripts/verify_storage_replication_cli_chat.py /app/scripts/verify_storage_replication_cli_chat.py
 COPY scripts/audit_object_storage_inventory.py /app/scripts/audit_object_storage_inventory.py
+COPY scripts/storage_rollout.py /app/scripts/storage_rollout.py
 COPY config/media_encryption_rollout.yml /app/config/media_encryption_rollout.yml
 COPY frontend/apps/web_app/static/favicon.png /app/frontend/apps/web_app/static/favicon.png
 COPY frontend/packages/ui/src/i18n/locales /app/frontend/packages/ui/src/i18n/locales

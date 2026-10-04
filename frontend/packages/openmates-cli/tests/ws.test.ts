@@ -942,6 +942,29 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
       setTimeout(() => {
         socket.send(
           JSON.stringify({
+            type: "sub_chat_completed",
+            payload: {
+              chat_id: "unrelated-child",
+              parent_id: "unrelated-parent",
+              task_id: "unrelated-task",
+            },
+          }),
+        );
+        socket.send(
+          JSON.stringify({
+            type: "sub_chat_completed",
+            payload: {
+              chat_id: "child-chat-1",
+              parent_id: chatId,
+              task_id: "task-child-1",
+            },
+          }),
+        );
+      }, 60);
+
+      setTimeout(() => {
+        socket.send(
+          JSON.stringify({
             type: "ai_background_response_completed",
             payload: {
               user_message_id: "server-side-continuation-message",
@@ -992,6 +1015,7 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
           "sub_chat_progress",
           "sub_chat_confirmation_required",
           "awaiting_sub_chats_completion",
+          "sub_chat_completed",
         ],
       );
       assert.equal(receivedEvents[0]?.payload.chat_id, chatId);
@@ -999,6 +1023,8 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
         (receivedEvents[0]?.payload.sub_chats as Array<unknown> | undefined)?.length,
         1,
       );
+      assert.equal(receivedEvents[4]?.payload.chat_id, "child-chat-1");
+      assert.equal(receivedEvents[4]?.payload.parent_id, chatId);
     } finally {
       client.close();
     }
@@ -1047,7 +1073,7 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
       setTimeout(() => {
         socket.send(JSON.stringify({
           type: "sub_chat_completed",
-          payload: { chat_id: chatId, task_id: "task-child" },
+          payload: { chat_id: "child-recovery", parent_id: chatId, task_id: "task-child" },
         }));
         socket.send(JSON.stringify({
           type: "recovery_jobs_available",
@@ -1097,6 +1123,7 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
       assert.equal(response.content, "## Short Answer\n\nFinal sourced synthesis.");
       assert.equal(response.messageId, "assistant-final");
       assert.equal(response.recoveryJobId, "recovery-job-final");
+      assert.equal(response.subChatEvents.find((event) => event.type === "sub_chat_completed")?.payload.chat_id, "child-recovery");
     } finally {
       client.close();
     }

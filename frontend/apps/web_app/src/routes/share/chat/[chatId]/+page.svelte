@@ -75,9 +75,6 @@
 	// Get chat ID from URL params
 	let chatId = $derived($page.params.chatId);
 	const SHARED_MESSAGE_WINDOW_LIMIT = 30;
-	const SHARED_INTERACTIVE_CONTEXT_PAGE_LIMIT = 4;
-	const INTERACTIVE_QUESTION_BLOCK_RE = /```interactive_question\s*([\s\S]*?)\s*```/g;
-	const INTERACTIVE_RESPONSE_BLOCK_RE = /```interactive_response\s*([\s\S]*?)\s*```/g;
 
 	// State
 	let isLoading = $state(true);
@@ -170,10 +167,16 @@
 		messages?: Array<string | ShareChatServerMessage>;
 		embeds?: ShareChatEmbedLike[];
 		embed_keys?: ShareChatEmbedKey[];
+		embed_window?: { has_more_before?: boolean; start_cursor?: { created_at: number; id: string } | null };
 		sub_chats?: ShareChatSubChat[];
 		code_run_outputs?: ShareChatCodeRunOutput[];
+		notebook_run_outputs?: ShareChatCodeRunOutput[];
+		code_run_output_window?: { has_more_before: boolean; start_cursor: { timestamp: number; id: string } | null; oversized_id: string | null };
+		notebook_run_output_window?: { has_more_before: boolean; start_cursor: { timestamp: number; id: string } | null; oversized_id: string | null };
+		message_highlight_window?: { has_more_before: boolean; start_cursor: { timestamp: number; id: string } | null; oversized_id: string | null };
 		message_highlights?: ShareChatHighlight[];
 		compression_checkpoints?: ShareChatCompressionCheckpoint[];
+		compression_checkpoint_window?: { has_more_before?: boolean; start_cursor?: { created_at: number; id: string } | null; oversized_checkpoint_id?: string | null };
 		share_pii?: boolean;
 		share_highlights?: boolean;
 		message_window?: { has_more?: boolean; next_before_timestamp?: number | null; next_before_message_id?: string | null };
@@ -186,11 +189,6 @@
 		next_before_message_id: string | null;
 	};
 
-	type DecryptWithChatKey = (
-		ciphertext: string,
-		keyBytes: Uint8Array,
-		context?: { chatId?: string; fieldName?: string }
-	) => Promise<string | null>;
 
 	/**
 	 * Extract the encryption key and message ID from the URL fragment
@@ -285,124 +283,6 @@
 		};
 	}
 
-	function extractInteractiveIds(content: string, pattern: RegExp): Set<string> {
-		const ids = new Set<string>();
-		pattern.lastIndex = 0;
-		let match = pattern.exec(content);
-		while (match) {
-			try {
-				const parsed = JSON.parse(match[1]) as { id?: unknown };
-				if (typeof parsed.id === 'string' && parsed.id.trim()) ids.add(parsed.id);
-			} catch {
-				// Ignore malformed historic blocks; rendering already has its own fallback.
-			}
-			match = pattern.exec(content);
-		}
-		return ids;
-	}
-
-	async function findMissingInteractiveQuestionIds(
-		messages: Message[],
-		keyBytes: Uint8Array,
-		decryptWithChatKey: DecryptWithChatKey
-	): Promise<Set<string>> {
-		const seenQuestionIds = new Set<string>();
-		const missingQuestionIds = new Set<string>();
-		const chronologicalMessages = [...messages].sort(
-			(a, b) => (a.created_at ?? 0) - (b.created_at ?? 0) || a.message_id.localeCompare(b.message_id)
-		);
-
-		for (const message of chronologicalMessages) {
-			if (!message.encrypted_content) continue;
-			const plaintext = await decryptWithChatKey(message.encrypted_content, keyBytes, {
-				chatId: message.chat_id,
-				fieldName: 'shared_interactive_question_context'
-			});
-			if (!plaintext) continue;
-
-			if (message.role === 'assistant') {
-				for (const id of extractInteractiveIds(plaintext, INTERACTIVE_QUESTION_BLOCK_RE)) {
-					seenQuestionIds.add(id);
-					missingQuestionIds.delete(id);
-				}
-			} else if (message.role === 'user') {
-				for (const id of extractInteractiveIds(plaintext, INTERACTIVE_RESPONSE_BLOCK_RE)) {
-					if (!seenQuestionIds.has(id)) missingQuestionIds.add(id);
-				}
-			}
-		}
-
-		return missingQuestionIds;
-	}
-
-	function mergeOlderSharedMessages(olderMessages: Message[], currentMessages: Message[]): Message[] {
-		const seen = new Set<string>();
-		return [...olderMessages, ...currentMessages].filter((message) => {
-			if (seen.has(message.message_id)) return false;
-			seen.add(message.message_id);
-			return true;
-		}).sort((a, b) => (a.created_at ?? 0) - (b.created_at ?? 0) || a.message_id.localeCompare(b.message_id));
-	}
-
-	async function expandSharedInteractiveQuestionContext(
-		chatId: string,
-		messages: Message[],
-		chat: Chat,
-		keyBytes: Uint8Array
-	): Promise<Message[]> {
-		const { decryptWithChatKey } = await import('@repo/ui');
-		let expandedMessages = messages;
-		let hasMoreBefore = !!chat.shared_message_window_has_more_before;
-		let nextBeforeTimestamp = chat.shared_message_window_next_before_timestamp ?? null;
-		let nextBeforeMessageId = chat.shared_message_window_next_before_message_id ?? null;
-
-		for (let page = 0; page < SHARED_INTERACTIVE_CONTEXT_PAGE_LIMIT; page += 1) {
-			const missingQuestionIds = await findMissingInteractiveQuestionIds(expandedMessages, keyBytes, decryptWithChatKey as DecryptWithChatKey);
-			if (missingQuestionIds.size === 0 || !hasMoreBefore || nextBeforeTimestamp === null) {
-				break;
-			}
-
-			const params = new URLSearchParams({
-				limit: String(SHARED_MESSAGE_WINDOW_LIMIT),
-				before_timestamp: String(nextBeforeTimestamp)
-			});
-			if (nextBeforeMessageId) params.set('before_message_id', nextBeforeMessageId);
-
-			try {
-				const response = await fetch(getApiEndpoint(`/v1/share/chat/${chatId}/messages?${params.toString()}`));
-				if (!response.ok) {
-					console.warn('[ShareChat] Failed to expand interactive question context:', response.status);
-					break;
-				}
-				const payload = await response.json();
-				const olderWindow = parseSharedMessageWindow(payload, chatId);
-				if (olderWindow.messages.length === 0) {
-					hasMoreBefore = false;
-					break;
-				}
-				expandedMessages = mergeOlderSharedMessages(olderWindow.messages, expandedMessages);
-				hasMoreBefore = olderWindow.has_more;
-				nextBeforeTimestamp = olderWindow.next_before_timestamp;
-				nextBeforeMessageId = olderWindow.next_before_message_id;
-			} catch (error) {
-				console.warn('[ShareChat] Error expanding interactive question context:', error);
-				break;
-			}
-		}
-
-		chat.shared_message_window_has_more_before = hasMoreBefore;
-		chat.shared_message_window_next_before_timestamp = nextBeforeTimestamp;
-		chat.shared_message_window_next_before_message_id = nextBeforeMessageId;
-		chat.messages_v = expandedMessages.length;
-
-		const unresolvedIds = await findMissingInteractiveQuestionIds(expandedMessages, keyBytes, decryptWithChatKey as DecryptWithChatKey);
-		if (unresolvedIds.size > 0) {
-			console.warn('[ShareChat] Interactive responses still missing prior questions after bounded expansion:', [...unresolvedIds]);
-		}
-
-		return expandedMessages;
-	}
-
 	/**
 	 * Fetch chat data from server
 	 * Returns chat, messages, embeds, and embed_keys for the wrapped key architecture
@@ -417,6 +297,7 @@
 		embeds: ShareChatEmbedLike[];
 		embed_keys: ShareChatEmbedKey[];
 		code_run_outputs: ShareChatCodeRunOutput[];
+		notebook_run_outputs: ShareChatCodeRunOutput[];
 		message_highlights: ShareChatHighlight[];
 		compression_checkpoints: ShareChatCompressionCheckpoint[];
 	}> {
@@ -435,23 +316,39 @@
 					throw new Error(`Windowed share endpoints returned ${manifestResponse.status}/${messagesResponse.status}`);
 				}
 				const manifestData = await manifestResponse.json();
+				if (manifestData.compression_checkpoint_window?.oversized_checkpoint_id) {
+					const selectedId = manifestData.compression_checkpoint_window.oversized_checkpoint_id;
+					const exactResponse = await fetch(getApiEndpoint(
+						`/v1/share/chat/${encodeURIComponent(chatId)}/compression-checkpoints/${encodeURIComponent(selectedId)}`
+					));
+					if (!exactResponse.ok) throw new Error(`Selected shared checkpoint failed (${exactResponse.status})`);
+					const exact = await exactResponse.json();
+					if (exact.checkpoint?.id !== selectedId) throw new Error('Selected shared checkpoint identity mismatch');
+					manifestData.compression_checkpoints = [exact.checkpoint];
+				}
 				const messageWindowData = await messagesResponse.json();
+				const selectedMessages = Array.isArray(messageWindowData.messages) ? [...messageWindowData.messages] : [];
+				if (messageWindowData.oversized_message_cursor?.message_id) {
+					const selectedId = messageWindowData.oversized_message_cursor.message_id;
+					const exactResponse = await fetch(getApiEndpoint(
+						`/v1/share/chat/${encodeURIComponent(chatId)}/messages/${encodeURIComponent(selectedId)}`
+					));
+					if (!exactResponse.ok) throw new Error(`Selected shared message failed (${exactResponse.status})`);
+					const exact = await exactResponse.json();
+					if (exact.message?.message_id !== selectedId) throw new Error('Selected shared message identity mismatch');
+					selectedMessages.push(exact.message);
+				}
 				data = {
 					...manifestData,
-					messages: messageWindowData.messages || [],
+					messages: selectedMessages,
 					message_window: {
 						has_more: !!messageWindowData.has_more,
-						next_before_timestamp: messageWindowData.next_before_timestamp ?? null,
-						next_before_message_id: messageWindowData.next_before_message_id ?? null
+						next_before_timestamp: messageWindowData.next_before_timestamp ?? messageWindowData.oversized_message_cursor?.created_at ?? null,
+						next_before_message_id: messageWindowData.next_before_message_id ?? messageWindowData.oversized_message_cursor?.message_id ?? null
 					}
 				};
 			} catch (windowedError) {
-				console.warn('[ShareChat] Windowed share load failed, falling back to legacy full payload:', windowedError);
-				const response = await fetch(getApiEndpoint(`/v1/share/chat/${chatId}`));
-				if (!response.ok) {
-					throw new Error(`Server returned ${response.status}`);
-				}
-				data = await response.json();
+				throw new Error(`Windowed shared chat unavailable: ${windowedError instanceof Error ? windowedError.message : String(windowedError)}`);
 			}
 
 			// Check if this is dummy data (non-existent chat)
@@ -531,6 +428,13 @@
 				shared_message_window_has_more_before: messageWindow.has_more,
 				shared_message_window_next_before_timestamp: messageWindow.next_before_timestamp,
 				shared_message_window_next_before_message_id: messageWindow.next_before_message_id,
+				shared_auxiliary_windows: {
+					message_highlights: data.message_highlight_window ?? { has_more_before: false, start_cursor: null, oversized_id: null },
+					code_run_outputs: data.code_run_output_window ?? { has_more_before: false, start_cursor: null, oversized_id: null },
+					notebook_run_outputs: data.notebook_run_output_window ?? { has_more_before: false, start_cursor: null, oversized_id: null }
+				},
+				embed_window_has_more_before: !!data.embed_window?.has_more_before,
+				embed_window_start_cursor: data.embed_window?.start_cursor ?? null,
 				group_key: 'shared_by_others'
 			};
 
@@ -567,12 +471,13 @@
 				embeds: (data.embeds || []) as ShareChatEmbedLike[],
 				embed_keys: (data.embed_keys || []) as ShareChatEmbedKey[],
 				code_run_outputs: (data.code_run_outputs || []) as ShareChatCodeRunOutput[],
+				notebook_run_outputs: (data.notebook_run_outputs || []) as ShareChatCodeRunOutput[],
 				message_highlights: (data.message_highlights || []) as ShareChatHighlight[],
 				compression_checkpoints: (data.compression_checkpoints || []) as ShareChatCompressionCheckpoint[]
 			};
 		} catch (error) {
 			console.error('[ShareChat] Error fetching chat from server:', error);
-			return { chat: null, messages: [], subChats: [], embeds: [], embed_keys: [], code_run_outputs: [], message_highlights: [], compression_checkpoints: [] };
+			return { chat: null, messages: [], subChats: [], embeds: [], embed_keys: [], code_run_outputs: [], notebook_run_outputs: [], message_highlights: [], compression_checkpoints: [] };
 		}
 	}
 
@@ -729,6 +634,7 @@
 				embeds: fetchedEmbeds,
 				embed_keys: fetchedEmbedKeys,
 				code_run_outputs: fetchedCodeRunOutputs,
+				notebook_run_outputs: fetchedNotebookRunOutputs,
 				message_highlights: fetchedMessageHighlights,
 				compression_checkpoints: fetchedCompressionCheckpoints
 			} = await fetchChatFromServer(chatId, messageId);
@@ -742,7 +648,7 @@
 			// Convert the chat encryption key from base64 string to Uint8Array
 			// The key is stored as base64 in the blob, but chatDB expects Uint8Array
 			const keyBytes = Uint8Array.from(atob(result.chatEncryptionKey), (c) => c.charCodeAt(0));
-			let messagesToStore = fetchedMessages;
+			const messagesToStore = fetchedMessages;
 
 			// The API deliberately returns deterministic dummy ciphertext for missing/unshared
 			// chats to prevent ID enumeration. Validate that the URL key can decrypt at
@@ -765,12 +671,6 @@
 				}
 			}
 
-			messagesToStore = await expandSharedInteractiveQuestionContext(
-				chatId,
-				messagesToStore,
-				fetchedChat,
-				keyBytes
-			);
 
 			// Set the chat encryption key in the database cache BEFORE storing chat
 			// This allows the chat to be decrypted when stored.
@@ -987,6 +887,12 @@
 					await handleCodeRunOutputSyncedImpl(output);
 				}
 				console.debug(`[ShareChat] Stored ${fetchedCodeRunOutputs.length} code run outputs`);
+			}
+			if (fetchedNotebookRunOutputs.length > 0) {
+				const { handleNotebookRunOutputSyncedImpl } = await import('@repo/ui');
+				for (const output of fetchedNotebookRunOutputs) {
+					await handleNotebookRunOutputSyncedImpl(output);
+				}
 			}
 
 			await validateSharedEmbedRefs(chatId, messagesToStore, keyBytes);

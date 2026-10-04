@@ -677,6 +677,16 @@ export async function handlePhase1bChatContentImpl(
   let phase1bFailed = false;
 
   try {
+    for (const [chatId, embedWindow] of Object.entries(payload.embed_windows_by_chat_id ?? {})) {
+      const chat = await chatDB.getChat(chatId);
+      if (chat) {
+        await chatDB.addChat({
+          ...chat,
+          embed_window_has_more_before: embedWindow.has_more_before,
+          embed_window_start_cursor: embedWindow.start_cursor ?? null,
+        }, undefined, { isFromSync: true });
+      }
+    }
     // Store messages for each chat (encrypted, no decryption)
     for (const chatData of payload.chats || []) {
       if (
@@ -685,6 +695,20 @@ export async function handlePhase1bChatContentImpl(
       ) {
         for (const checkpoint of chatData.compression_checkpoints) {
           await chatDB.saveChatCompressionCheckpoint(checkpoint);
+        }
+      }
+
+      // A recent sync page is not proof that the older transcript is local.
+      // Persist the boundary so opening a full local window can still
+      // offer authenticated cursor scrollback.
+      if (chatData.message_window) {
+        const existingChat = await chatDB.getChat(chatData.chat_id);
+        if (existingChat) {
+          await chatDB.addChat({
+            ...existingChat,
+            message_window_has_more_before: chatData.message_window.has_more_before,
+            message_window_start_cursor: chatData.message_window.start_cursor ?? null,
+          }, undefined, { isFromSync: true });
         }
       }
 
@@ -992,6 +1016,16 @@ export async function handleChatContentBatchResponseImpl(
   }
 
   const chatIdsWithMessages = Object.keys(payload.messages_by_chat_id);
+  for (const [chatId, embedWindow] of Object.entries(payload.embed_windows_by_chat_id ?? {})) {
+    const chat = await chatDB.getChat(chatId);
+    if (chat) {
+      await chatDB.addChat({
+        ...chat,
+        embed_window_has_more_before: embedWindow.has_more_before,
+        embed_window_start_cursor: embedWindow.start_cursor ?? null,
+      }, undefined, { isFromSync: true });
+    }
+  }
   let updatedChatCount = 0;
 
   // PERFORMANCE FIX: Prioritize the active chat so its messages render first,
@@ -1018,6 +1052,18 @@ export async function handleChatContentBatchResponseImpl(
       payload.compression_checkpoints_by_chat_id?.[chatId] || [];
     for (const checkpoint of compressionCheckpoints) {
       await chatDB.saveChatCompressionCheckpoint(checkpoint);
+    }
+
+    const messageWindow = payload.message_windows_by_chat_id?.[chatId];
+    if (messageWindow) {
+      const existingChat = await chatDB.getChat(chatId);
+      if (existingChat) {
+        await chatDB.addChat({
+          ...existingChat,
+          message_window_has_more_before: messageWindow.has_more_before,
+          message_window_start_cursor: messageWindow.start_cursor ?? null,
+        }, undefined, { isFromSync: true });
+      }
     }
 
     if (!rawMessages || rawMessages.length === 0) {

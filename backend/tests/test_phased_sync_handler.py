@@ -54,23 +54,24 @@ async def test_chat_key_wrapper_fetch_uses_team_scope_for_team_sync() -> None:
     calls = []
 
     class FakeChatKeyWrapper:
-        async def get_wrappers_by_hashed_chat_ids_batch(
+        async def get_sync_wrapper_window_for_chat(
             self,
-            hashed_chat_ids,
+            hashed_chat_id,
             *,
             hashed_user_id=None,
             hashed_team_id=None,
         ):
             calls.append({
-                "hashed_chat_ids": hashed_chat_ids,
+                "hashed_chat_id": hashed_chat_id,
                 "hashed_user_id": hashed_user_id,
                 "hashed_team_id": hashed_team_id,
             })
-            return [{"id": "team-wrapper"}]
+            return {"wrappers": [{"id": "team-wrapper"}], "has_more_before": False,
+                    "start_cursor": "team-wrapper", "oversized_wrapper_id": None}
 
     directus = SimpleNamespace(chat_key_wrapper=FakeChatKeyWrapper())
 
-    wrappers = await phased_sync_handler._fetch_chat_key_wrappers_for_chats(
+    wrappers, windows = await phased_sync_handler._fetch_chat_key_wrappers_for_chats(
         directus,
         ["chat-1"],
         "user-1",
@@ -78,8 +79,9 @@ async def test_chat_key_wrapper_fetch_uses_team_scope_for_team_sync() -> None:
     )
 
     assert wrappers == [{"id": "team-wrapper"}]
+    assert windows["chat-1"]["start_cursor"] == "team-wrapper"
     assert calls == [{
-        "hashed_chat_ids": [_hash("chat-1")],
+        "hashed_chat_id": _hash("chat-1"),
         "hashed_user_id": None,
         "hashed_team_id": _hash("team-1"),
     }]
@@ -800,15 +802,20 @@ async def test_phase1b_refetches_directus_when_sync_cache_is_partial(monkeypatch
         async def get_message_count_for_chat(self, chat_id):
             return 2
 
-        async def get_all_messages_for_chat(self, chat_id, decrypt_content=False):
-            return ["directus-user-message", "directus-assistant-message"]
+        async def get_message_window_for_chat(self, **kwargs):
+            return {
+                "messages": ["directus-user-message", "directus-assistant-message"],
+                "has_more_before": False,
+                "start_cursor": {"created_at": 1, "message_id": "msg-1"},
+            }
 
     class FakeDirectusEmbed:
-        async def get_embeds_by_hashed_chat_id(self, hashed_chat_id):
-            return []
+        async def get_embed_window_by_hashed_chat_id(self, hashed_chat_id):
+            return {"embeds": [], "has_more_before": False, "start_cursor": None, "oversized_embed_id": None}
 
-        async def get_embed_keys_by_hashed_chat_ids_batch(self, hashed_chat_ids):
-            return []
+        async def get_sync_embed_key_window_for_page(self, hashed_chat_id, hashed_user_id, hashed_embed_ids):
+            return {"embed_keys": [], "has_more_after": False, "end_cursor": None,
+                    "oversized_key_id": None, "payload_bytes": 0}
 
     class FakeDirectus:
         def __init__(self):
@@ -819,13 +826,13 @@ async def test_phase1b_refetches_directus_when_sync_cache_is_partial(monkeypatch
         return None
 
     async def fake_code_outputs(*args, **kwargs):
-        return []
+        return [], {}
 
     async def fake_key_wrappers(*args, **kwargs):
-        return []
+        return [], {}
 
     monkeypatch.setattr(phased_sync_handler, "get_latest_chat_compression_checkpoint", fake_checkpoint)
-    monkeypatch.setattr(phased_sync_handler, "_fetch_code_run_outputs_for_chats", fake_code_outputs)
+    monkeypatch.setattr(phased_sync_handler, "load_sync_sidecars_for_chats", fake_code_outputs)
     monkeypatch.setattr(phased_sync_handler, "_fetch_chat_key_wrappers_for_chats", fake_key_wrappers)
 
     manager = SimpleNamespace(sent=[])
@@ -849,6 +856,7 @@ async def test_phase1b_refetches_directus_when_sync_cache_is_partial(monkeypatch
     payload_chat = manager.sent[0]["payload"]["chats"][0]
     assert payload_chat["messages"] == ["directus-user-message", "directus-assistant-message"]
     assert payload_chat["server_message_count"] == 2
+    assert payload_chat["message_window"]["has_more_before"] is False
 
 
 @pytest.mark.anyio

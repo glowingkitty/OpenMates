@@ -39,6 +39,7 @@ export interface EmbedVersionsResponse {
 	embed_id: string;
 	current_version: number;
 	versions: EmbedVersionMeta[];
+	next_cursor?: number | null;
 	readonly: boolean;
 }
 
@@ -62,6 +63,7 @@ export interface EmbedVersionRestoreResponse {
 export interface RestoreEmbedVersionOptions {
 	currentVersion: number;
 	currentContent: string;
+	chatId?: string;
 	buildRestoredContent: (restoredContent: string, newVersion: number) => Record<string, unknown>;
 }
 
@@ -79,6 +81,15 @@ function embedVersionError(data: unknown, fallback: string): Error {
 	return new Error(fallback);
 }
 
+async function versionReadScope(chatId?: string): Promise<URLSearchParams> {
+	const params = new URLSearchParams();
+	if (!chatId) return params;
+	params.set('chat_id', chatId);
+	const chat = await chatDB.getChat(chatId);
+	if (chat?.team_id) params.set('team_id', chat.team_id);
+	return params;
+}
+
 async function readJsonResponse<T>(response: Response, fallback: string): Promise<T> {
 	let data: unknown = {};
 	try {
@@ -90,21 +101,56 @@ async function readJsonResponse<T>(response: Response, fallback: string): Promis
 	return data as T;
 }
 
-export async function fetchEmbedVersions(embedId: string): Promise<EmbedVersionsResponse> {
-	const response = await fetch(getApiEndpoint(`/v1/embeds/${encodeURIComponent(embedId)}/versions`), {
-		credentials: 'include'
-	});
-	return readJsonResponse<EmbedVersionsResponse>(response, `Failed to load embed versions (${response.status})`);
+export async function fetchEmbedVersions(
+	embedId: string,
+	pageOptions?: { cursor?: number; limit?: number; order?: 'asc' | 'desc'; chatId?: string }
+): Promise<EmbedVersionsResponse> {
+	const path = `/v1/embeds/${encodeURIComponent(embedId)}/versions`;
+	const scope = await versionReadScope(pageOptions?.chatId);
+	if (pageOptions) {
+		const params = new URLSearchParams(scope);
+		params.set('order', pageOptions.order ?? 'desc');
+		params.set('limit', String(pageOptions.limit ?? 32));
+		if (pageOptions.cursor !== undefined) params.set('cursor', String(pageOptions.cursor));
+		const response = await fetch(getApiEndpoint(`${path}?${params}`), { credentials: 'include' });
+		return readJsonResponse<EmbedVersionsResponse>(response, `Failed to load embed versions (${response.status})`);
+	}
+	let cursor: number | null = null;
+	let combined: EmbedVersionsResponse | null = null;
+	do {
+		const params = new URLSearchParams(scope);
+		if (cursor !== null) params.set('cursor', String(cursor));
+		const response = await fetch(getApiEndpoint(`${path}${params.size ? `?${params}` : ''}`), {
+			credentials: 'include'
+		});
+		const page = await readJsonResponse<EmbedVersionsResponse>(response, `Failed to load embed versions (${response.status})`);
+		combined = combined ? { ...page, versions: [...combined.versions, ...page.versions] } : page;
+		if (page.next_cursor != null && (page.versions.length === 0 || page.next_cursor <= (cursor ?? 0))) {
+			throw new Error('Invalid embed version cursor');
+		}
+		cursor = page.next_cursor ?? null;
+	} while (cursor !== null);
+	return combined!;
 }
 
 export async function fetchEmbedVersionContent(
 	embedId: string,
-	versionNumber: number
+	versionNumber: number,
+	chatId?: string
 ): Promise<EmbedVersionContentResponse> {
-	const response = await fetch(
-		getApiEndpoint(`/v1/embeds/${encodeURIComponent(embedId)}/versions/${versionNumber}`),
+	const path = `/v1/embeds/${encodeURIComponent(embedId)}/versions/${versionNumber}`;
+	const scope = await versionReadScope(chatId);
+	const bounded = new URLSearchParams(scope);
+	bounded.set('capability', 'bounded-v1');
+	let response = await fetch(
+		getApiEndpoint(`${path}?${bounded}`),
 		{ credentials: 'include' }
 	);
+	// Older histories remain readable while a write-authorized client supplies
+	// checkpoints. Their PostgreSQL source payloads cannot be evicted yet.
+	if (response.status === 409) {
+		response = await fetch(getApiEndpoint(`${path}${scope.size ? `?${scope}` : ''}`), { credentials: 'include' });
+	}
 	const responseData = await readJsonResponse<EmbedVersionContentResponse>(
 		response,
 		`Failed to load embed version ${versionNumber} (${response.status})`
@@ -112,7 +158,25 @@ export async function fetchEmbedVersionContent(
 	if (typeof responseData.content === 'string') return responseData;
 	if (!Array.isArray(responseData.rows)) return responseData;
 	const content = await reconstructEncryptedVersion(embedId, responseData.rows);
+	if (responseData.rows.length > 32 && responseData.readonly === false) {
+		void publishClientSnapshot(embedId, versionNumber, responseData.current_version, content);
+	}
 	return { ...responseData, content };
+}
+
+async function publishClientSnapshot(embedId: string, versionNumber: number, currentVersion: number, content: string): Promise<void> {
+	try {
+		const key = await embedStore.getEmbedKey(embedId);
+		if (!key) return;
+		const encrypted = await encryptWithEmbedKey(content, key);
+		if (!encrypted) return;
+		await fetch(getApiEndpoint(`/v1/embeds/${encodeURIComponent(embedId)}/versions/${versionNumber}/snapshot`), {
+			method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ encrypted_snapshot: encrypted, expected_revision: currentVersion, operation_id: `snapshot.v${versionNumber}` })
+		});
+	} catch {
+		// A read-only device or concurrent edit cannot publish; the source stays hot.
+	}
 }
 
 export async function restoreEmbedVersion(
@@ -127,7 +191,7 @@ export async function restoreEmbedVersion(
 		throw new Error('Selected version is already current');
 	}
 
-	const response = await fetchEmbedVersionContent(embedId, versionNumber);
+	const response = await fetchEmbedVersionContent(embedId, versionNumber, options.chatId);
 	if (typeof response.content !== 'string') {
 		throw new Error('Version content was not available for restore');
 	}
@@ -152,6 +216,9 @@ export async function restoreEmbedVersion(
 	const restorePatch = buildUnifiedDiff(options.currentContent, restoredContent, options.currentVersion, newVersion);
 	const encryptedPatch = await encryptWithEmbedKey(restorePatch, embedKey);
 	if (!encryptedPatch) throw new Error('Failed to encrypt restore patch');
+	const encryptedSnapshot = newVersion % 32 === 0
+		? await encryptWithEmbedKey(restoredContent, embedKey)
+		: null;
 
 	const createdAt = Math.floor(Date.now() / 1000);
 	await storeEmbedDiff({
@@ -159,10 +226,11 @@ export async function restoreEmbedVersion(
 		embed_id: embedId,
 		version_number: newVersion,
 		encrypted_patch: encryptedPatch,
+		...(encryptedSnapshot ? { encrypted_snapshot: encryptedSnapshot } : {}),
 		created_at: createdAt
 	});
 
-	await syncEncryptedRestore(embedId, newVersion, encryptedPatch, createdAt, updateResult.storePayload);
+	await syncEncryptedRestore(embedId, newVersion, encryptedPatch, encryptedSnapshot, createdAt, updateResult.storePayload);
 
 	return {
 		embed_id: embedId,
@@ -196,6 +264,7 @@ async function syncEncryptedRestore(
 	embedId: string,
 	versionNumber: number,
 	encryptedPatch: string,
+	encryptedSnapshot: string | null,
 	createdAt: number,
 	storePayload: StoreEmbedPayload
 ): Promise<void> {
@@ -207,7 +276,7 @@ async function syncEncryptedRestore(
 	await sendersModule.sendStoreEmbedDiffImpl(chatSyncService, {
 		embed_id: embedId,
 		version_number: versionNumber,
-		encrypted_snapshot: null,
+		encrypted_snapshot: encryptedSnapshot,
 		encrypted_patch: encryptedPatch,
 		hashed_user_id: storePayload.hashed_user_id,
 		created_at: createdAt
@@ -217,6 +286,10 @@ async function syncEncryptedRestore(
 async function reconstructEncryptedVersion(embedId: string, rows: EmbedVersionMeta[]): Promise<string> {
 	const embedKey = await embedStore.getEmbedKey(embedId);
 	if (!embedKey) throw new Error('Embed key not available for version history');
+	return reconstructEncryptedVersionRows(rows, embedKey);
+}
+
+export async function reconstructEncryptedVersionRows(rows: EmbedVersionMeta[], embedKey: Uint8Array): Promise<string> {
 	const sortedRows = [...rows].sort((a, b) => a.version_number - b.version_number);
 	let content: string | null = null;
 	for (const row of sortedRows) {

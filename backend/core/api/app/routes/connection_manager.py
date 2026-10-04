@@ -1,10 +1,68 @@
 import asyncio
+import hashlib
+import hmac
 import logging
+import secrets
 from fastapi import WebSocket
 from starlette.websockets import WebSocketState
-from typing import Dict, Tuple, Optional
+from typing import Awaitable, Callable, Dict, Tuple, Optional
 
 logger = logging.getLogger(__name__)
+VOLATILE_AI_LIVE_PREFIX = "volatile_ai_live:v1:"
+VOLATILE_AI_LIVE_TTL_SECONDS = 90
+
+
+def volatile_ai_live_key(session_nonce: str) -> str:
+    return f"{VOLATILE_AI_LIVE_PREFIX}{session_nonce}"
+
+
+async def register_volatile_ai_live_session(
+    cache_service: object, session_nonce: str, owner_user_id: str,
+) -> bool:
+    """Publish content-free presence only after authenticated socket creation."""
+    client = await cache_service.client
+    if client is None:
+        return False
+    owner_hash = hashlib.sha256(owner_user_id.encode()).hexdigest()
+    created = await client.set(
+        volatile_ai_live_key(session_nonce),
+        owner_hash,
+        ex=VOLATILE_AI_LIVE_TTL_SECONDS,
+        nx=True,
+    )
+    return bool(created)
+
+
+async def refresh_volatile_ai_live_session(
+    cache_service: object, session_nonce: str, owner_user_id: str,
+) -> bool:
+    """Refresh only the exact server-minted nonce and authenticated owner."""
+    client = await cache_service.client
+    if client is None:
+        return False
+    key = volatile_ai_live_key(session_nonce)
+    stored = await client.get(key)
+    if isinstance(stored, bytes):
+        stored = stored.decode("utf-8")
+    owner_hash = hashlib.sha256(owner_user_id.encode()).hexdigest()
+    if not isinstance(stored, str) or not hmac.compare_digest(stored, owner_hash):
+        return False
+    return bool(await client.expire(key, VOLATILE_AI_LIVE_TTL_SECONDS))
+
+
+async def revoke_volatile_ai_live_session(
+    cache_service: object, session_nonce: str,
+) -> None:
+    client = await cache_service.client
+    if client is not None:
+        await client.delete(volatile_ai_live_key(session_nonce))
+
+
+def permits_canonical_embed_write(
+    *, supports_receipts: bool, supports_typed_outputs: bool, recovery_record_id: object,
+) -> bool:
+    """Require receipt semantics for every WS embed write and typed semantics for recovery."""
+    return supports_receipts and (not recovery_record_id or supports_typed_outputs)
 
 
 def _safe_message_summary(message: object) -> str:
@@ -92,6 +150,15 @@ class ConnectionManager:
         self.project_file_job_capability: Dict[Tuple[str, str], bool] = {}
         # Clients that implement reviewed, client-encrypted remote commands.
         self.remote_command_job_capability: Dict[Tuple[str, str], bool] = {}
+        self.canonical_embed_receipt_capability: Dict[Tuple[str, str], bool] = {}
+        self.typed_recovery_output_capability: Dict[Tuple[str, str], bool] = {}
+        # Nonces are bound to one concrete WebSocket object. Reconnection never
+        # inherits the old socket's volatile execution authority.
+        self.volatile_session_nonce_by_ws: Dict[int, str] = {}
+        self.confirmed_volatile_session_ws: set[int] = set()
+        self.volatile_session_revoker_by_ws: Dict[
+            int, Callable[[str], Awaitable[None]]
+        ] = {}
         # Structure: {(user_id, device_fingerprint_hash): asyncio.Task} for disconnect grace period tasks
         self.grace_period_tasks: Dict[Tuple[str, str], asyncio.Task] = {}
 
@@ -105,6 +172,9 @@ class ConnectionManager:
         supports_chat_metadata_recovery: bool = False,
         supports_project_file_jobs: bool = False,
         supports_remote_command_jobs: bool = False,
+        supports_canonical_embed_receipts: bool = False,
+        supports_typed_recovery_outputs: bool = False,
+        volatile_session_revoker: Callable[[str], Awaitable[None]] | None = None,
     ):
         await websocket.accept()
         connection_key = (user_id, device_fingerprint_hash)
@@ -120,6 +190,17 @@ class ConnectionManager:
         if user_id in self.active_connections and device_fingerprint_hash in self.active_connections[user_id]:
             old_websocket = self.active_connections[user_id][device_fingerprint_hash]
             old_ws_id = id(old_websocket)
+            if old_ws_id != new_ws_id:
+                try:
+                    await self.revoke_volatile_session(old_websocket)
+                except Exception:
+                    # The old nonce remains bounded by its Redis TTL and workers
+                    # fail closed while Redis is unavailable. Do not strand
+                    # ordinary saved-chat WebSocket access during that outage.
+                    logger.warning(
+                        "Could not revoke replaced volatile AI live session",
+                        exc_info=True,
+                    )
             if old_ws_id != new_ws_id and old_ws_id in self.reverse_lookup:
                 del self.reverse_lookup[old_ws_id]
                 logger.debug(f"Cleaned up reverse_lookup for old ws_id {old_ws_id} during connect.")
@@ -141,8 +222,71 @@ class ConnectionManager:
         self.chat_metadata_recovery_capability[connection_key] = supports_chat_metadata_recovery
         self.project_file_job_capability[connection_key] = supports_project_file_jobs
         self.remote_command_job_capability[connection_key] = supports_remote_command_jobs
+        self.canonical_embed_receipt_capability[connection_key] = supports_canonical_embed_receipts
+        self.typed_recovery_output_capability[connection_key] = supports_typed_recovery_outputs
+        session_nonce = secrets.token_urlsafe(32)
+        self.volatile_session_nonce_by_ws[new_ws_id] = session_nonce
+        if volatile_session_revoker is not None:
+            self.volatile_session_revoker_by_ws[new_ws_id] = volatile_session_revoker
+        return session_nonce
+
+    def confirm_volatile_session(self, websocket: WebSocket, session_nonce: str) -> bool:
+        ws_id = id(websocket)
+        connection_key = self.reverse_lookup.get(ws_id)
+        if (
+            connection_key is None
+            or self.volatile_session_nonce_by_ws.get(ws_id) != session_nonce
+            or self.active_connections.get(connection_key[0], {}).get(connection_key[1])
+            is not websocket
+            or not _ws_is_live(websocket)
+        ):
+            return False
+        self.confirmed_volatile_session_ws.add(ws_id)
+        return True
+
+    def mark_volatile_session_unavailable(self, websocket: WebSocket) -> None:
+        self.confirmed_volatile_session_ws.discard(id(websocket))
+
+    def get_volatile_session_nonce(
+        self, user_id: str, device_fingerprint_hash: str,
+    ) -> str | None:
+        websocket = self.active_connections.get(user_id, {}).get(device_fingerprint_hash)
+        if websocket is None or not _ws_is_live(websocket):
+            return None
+        ws_id = id(websocket)
+        if ws_id not in self.confirmed_volatile_session_ws:
+            return None
+        return self.volatile_session_nonce_by_ws.get(ws_id)
+
+    def _pop_volatile_session(
+        self, websocket: WebSocket,
+    ) -> tuple[str | None, Callable[[str], Awaitable[None]] | None]:
+        ws_id = id(websocket)
+        self.confirmed_volatile_session_ws.discard(ws_id)
+        return (
+            self.volatile_session_nonce_by_ws.pop(ws_id, None),
+            self.volatile_session_revoker_by_ws.pop(ws_id, None),
+        )
+
+    async def revoke_volatile_session(self, websocket: WebSocket) -> None:
+        nonce, revoker = self._pop_volatile_session(websocket)
+        if nonce is not None and revoker is not None:
+            await revoker(nonce)
+
+    @staticmethod
+    def _log_volatile_revoke_result(task: asyncio.Task) -> None:
+        try:
+            task.result()
+        except asyncio.CancelledError:
+            return
+        except Exception:
+            logger.warning("Could not revoke volatile AI live session", exc_info=True)
 
     def disconnect(self, websocket: WebSocket, reason: str = "Unknown"):
+        nonce, revoker = self._pop_volatile_session(websocket)
+        if nonce is not None and revoker is not None:
+            task = asyncio.create_task(revoker(nonce))
+            task.add_done_callback(self._log_volatile_revoke_result)
         ws_id = id(websocket)
         if ws_id not in self.reverse_lookup:
             # This can happen if disconnect is called multiple times for the same ws_id after it's been processed by the first call
@@ -226,6 +370,8 @@ class ConnectionManager:
                 self.chat_metadata_recovery_capability.pop(connection_key, None)
                 self.project_file_job_capability.pop(connection_key, None)
                 self.remote_command_job_capability.pop(connection_key, None)
+                self.canonical_embed_receipt_capability.pop(connection_key, None)
+                self.typed_recovery_output_capability.pop(connection_key, None)
             else:
                 # This case should ideally be caught by the check at the beginning of this method.
                 logger.warning(f"Finalize disconnect for {user_id}/{device_fingerprint_hash}: ws_id {ws_id_to_finalize} was expected, but found ws_id {id(user_connections[device_fingerprint_hash])}. Session might have been rapidly replaced. Reverse lookup for {ws_id_to_finalize} cleaned if it was still pointing here.")
@@ -438,6 +584,18 @@ class ConnectionManager:
         if not self.is_connection_completion_capable(user_id, device_fingerprint_hash):
             return False
         return self.task_update_job_capability.get(connection_key, False)
+
+    def supports_canonical_embed_receipts(self, user_id: str, device_fingerprint_hash: str) -> bool:
+        connection_key = (user_id, device_fingerprint_hash)
+        if not self.is_connection_completion_capable(user_id, device_fingerprint_hash):
+            return False
+        return self.canonical_embed_receipt_capability.get(connection_key, False)
+
+    def supports_typed_recovery_outputs(self, user_id: str, device_fingerprint_hash: str) -> bool:
+        connection_key = (user_id, device_fingerprint_hash)
+        if not self.is_connection_completion_capable(user_id, device_fingerprint_hash):
+            return False
+        return self.typed_recovery_output_capability.get(connection_key, False)
 
     def supports_project_file_jobs(self, user_id: str, device_fingerprint_hash: str) -> bool:
         """True for a foreground connection that advertises Project execution."""

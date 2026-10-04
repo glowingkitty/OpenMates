@@ -97,6 +97,8 @@ export function registerCliProjectFileExecutor(options: {
   memories?: Array<{ id: string; app_id: string; item_type: string; data: unknown }>;
   requestApproval?: (request: ProjectWriteApprovalRequest) => boolean | Promise<boolean>;
   requestReadApproval?: (request: ProjectReadApprovalRequest) => boolean | Promise<boolean>;
+  /** Observes a hosted commit after the normal Project focus, approval and WS receipt flow. */
+  onHostedVersionCommitted?: (result: { embed_id: string; revision: number }) => void | Promise<void>;
 }) {
   let closed = false;
   const privacyContexts = new Map<string, Promise<ProjectFilePrivacy>>();
@@ -173,7 +175,7 @@ export function registerCliProjectFileExecutor(options: {
             context,
             ...(approvedIgnoredRead ? { approvedIgnoredRead } : {}),
           });
-          return executeHostedProjectFileJob({
+          const result = await executeHostedProjectFileJob({
             projectId: job.project_id, projectKey, chatKey: options.chatKey, teamId: focus.team_id,
             privatePaths,
             isIgnoredReadApproved: (path, approvalJob) => Boolean(approvedIgnoredRead
@@ -207,6 +209,10 @@ export function registerCliProjectFileExecutor(options: {
               return (await pending).payload as Record<string, unknown>;
             },
           }, currentJob, mutation);
+          if (typeof result.embed_id === 'string' && typeof result.revision === 'number') {
+            await options.onHostedVersionCommitted?.({ embed_id: result.embed_id, revision: result.revision });
+          }
+          return result;
         },
       };
     },

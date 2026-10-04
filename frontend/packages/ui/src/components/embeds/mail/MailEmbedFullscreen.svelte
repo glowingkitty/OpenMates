@@ -256,8 +256,9 @@
         </section>
       {/if}
       {#if embedId && versionNumber > 1}
-        <EmbedVersionTimeline
+      <EmbedVersionTimeline
           {embedId}
+          {chatId}
           currentVersion={versionNumber}
           currentContent={latestMailContent}
           buildRestoredContent={(versionContent, newVersion) => ({

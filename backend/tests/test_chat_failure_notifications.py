@@ -423,7 +423,28 @@ def test_task_wrapper_completed_envelope_with_terminal_error_queues_once(monkeyp
     monkeypatch.setattr(ask_skill_task, "notify_chat_failure", notify)
     monkeypatch.setattr(ask_skill_task.process_ai_skill_ask_task, "update_state", Mock())
 
-    result = ask_skill_task.process_ai_skill_ask_task.run(_wrapper_request(), {})
+    from backend.shared.python_utils import embed_producer_dispatch, volatile_embed_authority
+
+    owner_hash = hashlib.sha256(b"user-1").hexdigest()
+    signed_request = {**_wrapper_request(), "user_id_hash": owner_hash,
+                      "is_incognito": False, "is_external": True}
+    principal = volatile_embed_authority.AuthenticatedVolatileAI(
+        owner_id="user-1", owner_hash=owner_hash, mode="external",
+    )
+    monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "test-only-volatile-signing-token")
+    signed_header = volatile_embed_authority.make_main_header(
+        principal, owner_id="user-1", owner_hash=owner_hash,
+        chat_id="chat-1", message_id="message-1", main_task_id="task-1",
+    )
+    actor_check = AsyncMock(return_value={"authorized": True})
+    monkeypatch.setattr(embed_producer_dispatch, "_transaction", actor_check)
+    task = ask_skill_task.process_ai_skill_ask_task
+    task.push_request(id="task-1", headers={volatile_embed_authority.MAIN_HEADER: signed_header})
+    try:
+        result = task.run(signed_request, {})
+    finally:
+        task.pop_request()
 
     assert result == terminal_result
+    actor_check.assert_awaited_once()
     notify.assert_awaited_once_with("chat-1:message-1", stage="inference")

@@ -11814,14 +11814,20 @@
         "user_data_backups": {
           "text": "**用户数据备份：** 通过 S3 生命周期保留 60 天；备份仅包含使用您自己的密钥加密的密文"
         },
-        "content_history_v1": {
-          "text": "Content: Current records are retained until you delete them or close the account, subject to backup cycles. Earlier database revision and activity records can remain after current records are deleted, as described separately below."
+        "payments_and_invoices_v2": {
+          "text": "Payments, invoices and financial audit records: The current storage configuration retains these for up to 10 years. German retention duties depend on the record type: generally eight years for invoices and accounting vouchers, and ten years for accounting books and annual accounts, with the statutory period starting at the end of the relevant calendar year. Legal holds or ongoing tax proceedings can extend required retention."
         },
-        "historical_directus_history": {
-          "text": "Historical database records: Earlier generic revision and activity rows may retain account-profile fields or encrypted chat and artifact snapshots after deletion of current records. They currently have no enforced automatic expiry. The 60-day encrypted-backup lifecycle does not apply to this history."
+        "compliance_logs_v2": {
+          "text": "Compliance logs: Security and accountability audit logs are configured for up to two years; financial transaction logs for up to ten years. These configured periods are distinct from the statutory duties that depend on the record type."
         },
-        "compliance_logs_history_v1": {
-          "text": "Compliance logs: Security and accountability logs can remain for their purposes. Historical database revision and activity records have no enforced automatic two-year expiry today. Financial compliance records retain their separate applicable tax and commercial-law periods."
+        "content_v3": {
+          "text": "Current personal chat and artifact records remain until you delete them or close your account. A pending assistant response sealed to a client public key remains available until an authorized client verifies and confirms its normal client-encrypted save, or the related chat or account is deleted. Retry-lease or AI working-cache expiry alone does not remove that pending copy. Another authorized owner or Team can retain shared content. Earlier database revision and activity records can remain after current records are deleted, as described separately below."
+        },
+        "historical_snapshots_v1": {
+          "text": "Historical database revision and activity records: Earlier revision and activity history may retain earlier account-profile fields or encrypted chat and artifact snapshots after deletion of the current records. There is currently no enforced automatic expiry for that historical history. It is not a content-free deletion marker."
+        },
+        "compliance_logs_v3": {
+          "text": "Compliance logs: Security and accountability records do not currently have an enforced automatic two-year expiry for historical database revision and activity records. Financial transaction records are configured for up to ten years, subject to the record-specific legal duties and holds described below."
         }
       },
       "legal_basis": {
@@ -11982,6 +11988,9 @@
         },
         "summary": {
           "text": "OpenMates 的设计理念是，你的大部分数据在到达我们的服务器之前就在你的设备上完成加密。这**不是**端到端加密：我们的服务器会在内存中短暂解密你的内容，以生成 AI 响应、呈现发票和发送提醒。但我们绝不会将解密后的内容写入磁盘、日志或追踪记录。当你删除账户时，我们会销毁保护你数据的加密密钥——从密码学上粉碎我们仍持有的每一个加密字段。"
+        },
+        "summary_v2": {
+          "text": "Structured chat data is encrypted on your device before sync. Uploads and recordings instead travel over TLS and are encrypted by our service before durable storage. AI requests can require transient in-memory decryption, and a separate short-lived Vault-encrypted AI cache can be read by OpenMates servers. Account deletion removes content under that account's authority and destroys its account encryption keys; content retained by another authorized owner or Team can remain available."
         }
       },
       "quick_answers": {
@@ -12087,9 +12096,9 @@
             "text": "如果你有非常高的隐私要求，可以考虑自行托管 OpenMates，并使用本地或离线 AI 模型，而不是第三方 AI 提供商。这让你对基础设施、模型选择、日志、备份和提供商暴露有更多控制。它需要技术经验、持续维护、安全的服务器管理，以及足够的硬件来进行有用的本地 AI 推理。自托管不会自动让一切变得私密：你仍需保护服务器、备份、密钥、网络访问、日志和任何启用的外部提供商。"
           }
         },
-        "deletion_history_v1": {
+        "deletion_v3": {
           "answer": {
-            "text": "When you delete chats or your account, OpenMates deletes the current records under that deletion’s authority. Account deletion also destroys account-controlled encryption keys, making data protected solely by those keys unreadable. Earlier database revision and activity records may still contain account-profile fields or encrypted chat and artifact snapshots after current records are deleted. Those historical records are separate from short-lived encrypted backups and have no enforced automatic expiry today. Invoices, payment records, security logs and provider-held data may also remain for their applicable purposes."
+            "text": "Deletion of a chat or account removes its current records under that deletion’s authority and schedules removal of unshared regional S3 objects. Encrypted regional copies can remain while verified physical deletion completes. Earlier database revision and activity records can still retain account-profile details or encrypted chat and artifact snapshots after the current records are deleted. Those historical records are separate from content-free deletion markers and currently have no automatic expiry. Account-key destruction makes only content protected solely by that key unreadable. Content retained by another authorized owner or Team, financial records, and provider-held data can also remain as described below."
           }
         }
       },
@@ -12199,6 +12208,9 @@
           },
           "description": {
             "text": "当你注销账户时，第一步是销毁你的加密密钥。备份、缓存或审计日志中残留的任何密文都将永久无法读取——没有密钥，就没有内容。"
+          },
+          "description_v2": {
+            "text": "On account deletion, OpenMates destroys the account-controlled encryption keys. Residual ciphertext protected only by those keys becomes unreadable. Shared content retained by another authorized owner or Team, and records held under separate legal authority, can remain."
           }
         },
         "argon2_password_hashing": {
@@ -12279,6 +12291,9 @@
           },
           "description": {
             "text": "根据 GDPR 第 17(3)(b) 条——法律义务（德国税务和商业法，AO §147 和 HGB §257），发票、贷记单和财务合规日志条目将保留最长 10 年。保留的记录仅包含交易元数据、发票号码和用户标识符，不包含聊天内容或任何其他个人数据。"
+          },
+          "description_v2": {
+            "text": "Invoices, credit notes and financial audit entries can remain after account deletion. The current storage configuration uses up to ten years; statutory German periods vary by record type, generally eight years for invoices and accounting vouchers and ten years for accounting books and annual accounts. Financial records can contain billing identity details, transaction metadata, invoice numbers and user identifiers. They are separate from chat content. GDPR Article 17(3)(b) applies where retention is required by law."
           }
         },
         "audit_logs": {
@@ -12288,8 +12303,11 @@
           "description": {
             "text": "根据 BSI §34 BDSG（德国安全审计义务），身份验证和数据访问审计日志将保留 2 年。这些日志包含时间戳、用户标识符、事件类型和状态，不包含内容。"
           },
-          "description_history_v1": {
-            "text": "Authentication and data-access audit logs can contain timestamps, user identifiers, event types and status. No enforced automatic two-year expiry for historical database revision and activity records exists today. Generic history with earlier record snapshots is described separately below; no general two-year statutory duty is claimed."
+          "description_v2": {
+            "text": "Authentication and data-access audit logs are currently configured for up to two years for security, fraud prevention and accountability. They can contain timestamps, user identifiers, event types and status. Their configured retention is not a general statutory two-year requirement."
+          },
+          "description_v3": {
+            "text": "Authentication and data-access audit logs can contain timestamps, user identifiers, event types and status. No enforced automatic two-year expiry for historical database revision and activity records is currently in place. That history can contain prior record snapshots and is described separately below; financial retention follows the applicable record-specific rules."
           }
         },
         "third_party_ai_logs": {
@@ -12316,15 +12334,18 @@
             "text": "您自己导出的数据密文备份通过生命周期规则在 S3 中保存 60 天，以便在设备丢失时检索导出内容。由于我们在您注销账号时已销毁了您的加密密钥，我们也无法解密这些备份——在过期之前，它们实际上是无效的密文。"
           }
         },
-        "intro_history_v1": {
-          "text": "When you delete your account, we destroy account-controlled encryption keys and remove current account records. Earlier database revision and activity records may remain after those records are deleted. Other data retained for security, financial, provider or backup purposes is listed separately below:"
+        "intro_v2": {
+          "text": "When you delete your account, we destroy its account-controlled encryption keys and remove records under that deletion's authority. Shared content retained by another authorized owner or Team can remain. Some records held under separate legal authority or outside our immediate control may also remain:"
         },
-        "historical_directus_history": {
+        "intro_v3": {
+          "text": "When you delete your account, we destroy its account-controlled encryption keys and remove current records under that deletion’s authority. Shared content retained by another authorized owner or Team, historical database revision and activity records, and some records held under separate legal authority or outside our immediate control can remain:"
+        },
+        "historical_snapshots": {
           "heading": {
             "text": "Historical database revisions and activity"
           },
-          "description": {
-            "text": "Historical database revision and activity records created before a chat or account is deleted can retain earlier account-profile fields or encrypted chat and artifact snapshots. Deleting the current records does not automatically purge or irreversibly neutralize those historical rows. They currently have no enforced automatic expiry and are separate from the 60-day encrypted-backup lifecycle and dedicated security or financial records."
+          "description_v2": {
+            "text": "Historical database revision and activity records created before a chat or account is deleted can retain earlier account-profile fields or encrypted chat and artifact snapshots. Deleting the current records does not automatically purge or irreversibly neutralize those rows. They currently have no enforced automatic expiry and are distinct from the 60-day encrypted-backup lifecycle, content-free deletion markers, and dedicated financial or security logs."
           }
         }
       },

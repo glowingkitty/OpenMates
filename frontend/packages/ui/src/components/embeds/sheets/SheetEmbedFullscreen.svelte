@@ -590,6 +590,7 @@
     {#if embedId && versionNumber > 1}
       <EmbedVersionTimeline
         {embedId}
+        {chatId}
         currentVersion={versionNumber}
         currentContent={latestTableContent}
         buildRestoredContent={(content, newVersion) => ({ ...dc, table: content, version_number: newVersion })}

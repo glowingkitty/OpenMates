@@ -212,6 +212,7 @@ TASK_CONFIG = [
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.storage_billing_tasks'},  # Storage billing tasks (routed to persistence queue)
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.billing_settlement_tasks'},
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.storage_tasks'},
+    {'name': 'persistence', 'module': 'backend.core.api.app.tasks.embed_version_archive_tasks'},
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.auto_delete_tasks'},  # Auto-delete tasks (routed to persistence queue)
     {'name': 'app_pdf',     'module': 'backend.apps.pdf.tasks'},  # PDF OCR + screenshot + TOC processing tasks
     {'name': 'app_docs',    'module': 'backend.apps.docs.tasks'},  # DOCX artifact + preview generation tasks
@@ -1440,8 +1441,8 @@ app.conf.beat_schedule = {
     },
     'sweep-due-storage-jobs': {
         'task': 'storage.sweep_due_jobs',
-        'schedule': timedelta(minutes=5),
-        'options': {'queue': 'persistence', 'expires': 240},
+        'schedule': timedelta(minutes=1),
+        'options': {'queue': 'persistence', 'expires': 50},
     },
     'sweep-pending-billing-settlements': {
         'task': 'billing.sweep_pending_settlements',
@@ -1733,4 +1734,28 @@ app.conf.beat_schedule = {
         'options': {'queue': 'email'},
     },
 }
+
+# Copying is safe and non-destructive, but rollout stays opt-in until the
+# isolated version-reader and storage capacity gates have passed.
+if os.getenv("EMBED_VERSION_ARCHIVE_COPY_ENABLED") == "1":
+    app.conf.beat_schedule['copy-older-embed-version-payloads'] = {
+        'task': 'storage.copy_embed_version_payloads',
+        'schedule': timedelta(minutes=30),
+        'options': {'queue': 'persistence', 'expires': 1500},
+    }
+if (os.getenv("EMBED_VERSION_ARCHIVE_COPY_ENABLED") == "1"
+        and os.getenv("EMBED_VERSION_ARCHIVE_READ_ENABLED") == "1"):
+    app.conf.beat_schedule['activate-verified-embed-version-readers'] = {
+        'task': 'storage.activate_embed_version_readers',
+        'schedule': timedelta(minutes=30),
+        'options': {'queue': 'persistence', 'expires': 1500},
+    }
+if (os.getenv("EMBED_VERSION_ARCHIVE_COPY_ENABLED") == "1"
+        and os.getenv("EMBED_VERSION_ARCHIVE_READ_ENABLED") == "1"
+        and os.getenv("EMBED_VERSION_ARCHIVE_PRUNE_ENABLED") == "1"):
+    app.conf.beat_schedule['prune-verified-embed-version-payloads'] = {
+        'task': 'storage.prune_embed_version_payloads',
+        'schedule': timedelta(minutes=30),
+        'options': {'queue': 'persistence', 'expires': 1500},
+    }
 app.conf.timezone = 'UTC'

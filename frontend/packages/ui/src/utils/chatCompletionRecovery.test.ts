@@ -1,3 +1,4 @@
+// contract-test-file: infrastructure
 /**
  * Shared immutable vectors for browser chat completion recovery crypto.
  *
@@ -15,6 +16,7 @@ import {
   buildRecoveryAssociatedData,
   deriveChatCompletionRecoveryKeypair,
   openChatCompletionRecoveryEnvelope,
+  openRecoveryOutputEnvelope,
   sealChatCompletionRecoveryPayload,
   sealChatCompletionRecoveryPayloadForTest,
 } from "./chatCompletionRecovery";
@@ -27,6 +29,10 @@ const vectors = JSON.parse(
     "utf8",
   ),
 ).vectors;
+const outputV2 = JSON.parse(readFileSync(
+  new URL("../../../../../backend/tests/fixtures/chat_recovery_output_v2.json", import.meta.url),
+  "utf8",
+));
 
 beforeAll(() => {
   Object.defineProperty(globalThis, "crypto", { value: webcrypto, writable: true });
@@ -34,6 +40,26 @@ beforeAll(() => {
 
 afterAll(() => {
   Object.defineProperty(globalThis, "crypto", { value: mockedCrypto, writable: true });
+});
+
+it("opens Python-sealed v2 child output and rejects revision substitution", async () => {
+  const identity = {
+    recoveryPrivateKey: outputV2.recovery_private_key,
+    ownerId: outputV2.identity.owner_id,
+    rootChatId: outputV2.identity.root_chat_id,
+    targetChatId: outputV2.identity.target_chat_id,
+    turnId: outputV2.identity.turn_id,
+    recordId: outputV2.identity.record_id,
+    subjectId: outputV2.identity.subject_id,
+    outputKind: outputV2.identity.output_kind as "message",
+    outputVersion: outputV2.identity.output_version,
+    keyVersion: outputV2.identity.key_version,
+  };
+  const opened = await openRecoveryOutputEnvelope(outputV2.envelope, identity);
+  expect(new TextDecoder().decode(opened)).toBe(outputV2.plaintext);
+  await expect(openRecoveryOutputEnvelope(outputV2.envelope, {
+    ...identity, outputVersion: 2,
+  })).rejects.toThrow();
 });
 
 describe("chat completion recovery shared vectors", () => {

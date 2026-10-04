@@ -8,13 +8,16 @@ and retries preserve job and assistant identities.
 """
 
 import json
+import pytest
 
 from backend.shared.python_utils.chat_completion_recovery import (
     derive_recovery_keypair,
     open_recovery_envelope,
+    open_recovery_output,
 )
 from backend.shared.python_utils.chat_completion_recovery_job import (
     build_sealed_recovery_job_data,
+    build_sealed_recovery_output_data,
 )
 
 
@@ -101,3 +104,33 @@ def test_continuation_can_seal_under_distinct_assistant_identity() -> None:
 
     assert data["inference_task_id"] == original_inference_task_id
     assert data["assistant_message_id"] == continuation_task_id
+
+
+def test_typed_child_output_is_bound_to_root_key_and_exact_version() -> None:
+    root_chat_id = "22222222-2222-4222-8222-222222222222"
+    child_chat_id = "99999999-9999-4999-8999-999999999999"
+    owner_id = "11111111-1111-4111-8111-111111111111"
+    private_key, public_key = derive_recovery_keypair(
+        "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8", root_chat_id, 7
+    )
+    data = build_sealed_recovery_output_data(
+        owner_id=owner_id, owner_hash="owner-hash", root_chat_id=root_chat_id,
+        target_chat_id=child_chat_id, turn_id="33333333-3333-4333-8333-333333333333",
+        preflight_id="77777777-7777-4777-8777-777777777777",
+        inference_task_id="66666666-6666-4666-8666-666666666666",
+        recovery_public_key=public_key, chat_key_version=7,
+        subject_id="88888888-8888-4888-8888-888888888888",
+        output_kind="diff", output_version=3, content={"patch": "secret child diff"},
+    )
+    assert "secret child diff" not in json.dumps(data)
+    identity = {
+        "owner_id": owner_id, "root_chat_id": root_chat_id,
+        "target_chat_id": child_chat_id, "turn_id": data["turn_id"],
+        "record_id": data["record_id"], "subject_id": data["subject_id"],
+        "output_kind": "diff", "output_version": 3, "key_version": 7,
+    }
+    envelope = json.loads(data["sealed_payload"])
+    payload = json.loads(open_recovery_output(envelope, recovery_private_key=private_key, **identity))
+    assert payload["content"] == {"patch": "secret child diff"}
+    with pytest.raises(Exception):
+        open_recovery_output(envelope, recovery_private_key=private_key, **{**identity, "output_version": 4})

@@ -10,7 +10,9 @@ Run: python3 -m pytest backend/tests/test_account_export_streaming_storage.py
 from __future__ import annotations
 
 from collections import defaultdict
+import gzip
 import hashlib
+import json
 from typing import Any
 
 import pytest
@@ -21,6 +23,7 @@ from backend.core.api.app.services.account_export_service import (
     AccountExportNotFoundError,
     AccountExportService,
 )
+from backend.core.api.app.services.team_data_portability_service import TeamDataPortabilityError, TeamDataPortabilityService
 
 
 class TeamService:
@@ -86,6 +89,21 @@ class PersistentDirectus:
         self.updated_users.append((user_id, payload))
 
 
+class ArchiveBytes:
+    environment = "development"
+    region_clients = {"nbg1": object()}
+
+    def __init__(self) -> None:
+        self.objects: dict[str, bytes] = {}
+
+    async def get_replicated_file_stream(self, *, object_key: str, **_kwargs: Any):
+        if object_key in self.objects:
+            yield self.objects[object_key]
+
+    async def get_file(self, _bucket: str, key: str) -> bytes | None:
+        return self.objects.get(key)
+
+
 def _hash(value: str) -> str:
     return hashlib.sha256(value.encode()).hexdigest()
 
@@ -126,6 +144,49 @@ def _seed_personal_chats(directus: PersistentDirectus, *, count: int) -> None:
         directus.collections["messages"].append(
             {"id": f"message-{index}", "chat_id": chat_id, "client_message_id": f"msg-{index}"}
         )
+
+
+def _seed_new_archive_data(
+    directus: PersistentDirectus, storage: ArchiveBytes, *, team_id: str | None = None,
+) -> None:
+    owner = _hash("user-1")
+    team_hash = _hash(team_id) if team_id else None
+    directus.collections["chats"].append({
+        "id": "chat-archived", "hashed_user_id": owner, "hashed_team_id": team_hash,
+        "archived_message_count": 1, "encrypted_title": "cipher-title", "encrypted_chat_key": "secret-key-wrapper",
+    })
+    record = {"id": "message-archived", "chat_id": "chat-archived", "client_message_id": "m-archived",
+              "created_at": 1, "encrypted_content": "cipher-archived"}
+    page_content = gzip.compress(json.dumps({"format_version": 2, "chat_id": "chat-archived", "records": [record]}).encode())
+    storage.objects["message-pages/page.json.gz"] = page_content
+    directus.collections["chat_message_archive_pages"].append({
+        "id": "page-1", "chat_id": "chat-archived", "page_number": 1,
+        "hashed_user_id": owner, "published": True, "read_enabled": True, "pruned": True,
+        "object_key": "message-pages/page.json.gz", "checksum": hashlib.sha256(page_content).hexdigest(),
+        "size_bytes": len(page_content), "verified_regions": ["nbg1"], "message_count": 1,
+        "message_ids": ["m-archived"], "first_timestamp": 1, "first_message_id": "m-archived",
+    })
+    directus.collections["embeds"].append({
+        "id": "embed-row-1", "embed_id": "embed-1", "hashed_chat_id": _hash("chat-archived"),
+        "hashed_user_id": owner,
+    })
+    envelope = {"version_number": 1, "encrypted_snapshot": "cipher-version", "encrypted_patch": None}
+    version_content = json.dumps(envelope).encode()
+    storage.objects["embed-versions/version.json"] = version_content
+    directus.collections["embed_diffs"].append({
+        "id": "diff-1", "embed_id": "embed-1", "hashed_user_id": owner, "version_number": 1,
+        "encrypted_snapshot": None, "encrypted_patch": None, "archive_object_key": "embed-versions/version.json",
+        "archive_checksum": hashlib.sha256(version_content).hexdigest(), "archive_regions": ["nbg1"],
+    })
+    if not team_id:
+        sealed = b"cipher-sealed-output"
+        storage.objects["chat-recovery/output.json"] = sealed
+        directus.collections["chat_recovery_outputs"].append({
+            "id": "output-1", "hashed_user_id": owner, "target_chat_id": "chat-archived",
+            "state": "PENDING", "deleted_at": None, "payload_storage": "s3",
+            "payload_s3_key": "chat-recovery/output.json", "payload_size_bytes": len(sealed),
+            "sealed_payload_digest": hashlib.sha256(sealed).hexdigest(), "payload_verified_regions": ["nbg1"],
+        })
 
 
 class NonListReadDirectus(PersistentDirectus):
@@ -456,3 +517,95 @@ async def test_team_export_rechecks_authorization_on_resume_and_part_download() 
             export_id=job["export_id"],
             chunk_id=chunks[0]["chunk_id"],
         )
+
+
+# contract-test: direct surface=rest_api assertions=storage.export.persisted-bounded-complete,storage.privacy.ciphertext-boundary
+@pytest.mark.asyncio
+async def test_export_includes_verified_message_version_and_pending_sealed_ciphertext() -> None:
+    directus = PersistentDirectus(forbid_unbounded_reads=True)
+    storage = ArchiveBytes()
+    _seed_new_archive_data(directus, storage)
+    service = AccountExportService(directus_service=directus, s3_service=storage)
+
+    job = await service.start_export(user_id="user-1", domains=["chats", "embeds"])
+    chunks = await service.list_chunks(user_id="user-1", export_id=job["export_id"])
+    by_source = {chunk["payload"]["source"]: chunk["payload"] for chunk in chunks}
+
+    assert by_source["chat_message_archive_pages"]["items"][0]["messages"][0]["encrypted_content"] == "cipher-archived"
+    assert by_source["chats+messages+embeds"]["items"][0]["encrypted_title"] == "cipher-title"
+    assert "encrypted_chat_key" not in repr(by_source["chats+messages+embeds"])
+    assert by_source["embed_diffs"]["items"][0]["encrypted_snapshot"] == "cipher-version"
+    assert by_source["chat_recovery_outputs"]["items"][0]["sealed_payload"] == "cipher-sealed-output"
+    assert "object_key" not in repr(by_source["chat_message_archive_pages"])
+    assert "payload_s3_key" not in repr(by_source["chat_recovery_outputs"])
+    assert job["failures"] == []
+
+
+# contract-test: direct surface=rest_api assertions=storage.export.persisted-bounded-complete,storage.integrity.observable-reconcilable
+@pytest.mark.asyncio
+async def test_corrupt_or_unpublished_pruned_page_marks_export_partial() -> None:
+    directus = PersistentDirectus()
+    storage = ArchiveBytes()
+    _seed_new_archive_data(directus, storage)
+    page = directus.collections["chat_message_archive_pages"][0]
+    page["checksum"] = "0" * 64
+    service = AccountExportService(directus_service=directus, s3_service=storage)
+
+    job = await service.start_export(user_id="user-1", domains=["chats"])
+
+    assert job["status"] == "partial"
+    assert any(failure["reason"] == "archive_page_integrity_failed" for failure in job["failures"])
+    page["published"] = False
+    second = await service.start_export(user_id="user-1", domains=["chats"])
+    assert any(failure["reason"] == "pruned_archive_page_unreadable" for failure in second["failures"])
+
+
+# contract-test: direct surface=rest_api assertions=storage.export.persisted-bounded-complete,storage.background.saved-output-retention
+@pytest.mark.asyncio
+async def test_missing_version_and_sealed_output_cannot_complete_export() -> None:
+    directus = PersistentDirectus()
+    storage = ArchiveBytes()
+    _seed_new_archive_data(directus, storage)
+    storage.objects.pop("embed-versions/version.json")
+    storage.objects.pop("chat-recovery/output.json")
+    service = AccountExportService(directus_service=directus, s3_service=storage)
+
+    job = await service.start_export(user_id="user-1", domains=["chats", "embeds"])
+    completed = await service.mark_complete(user_id="user-1", export_id=job["export_id"])
+
+    assert completed["status"] == "partial"
+    assert {failure["reason"] for failure in completed["failures"]} == {
+        "version_archive_integrity_failed", "sealed_recovery_integrity_failed",
+    }
+    assert directus.updated_users == []
+
+
+# contract-test: direct surface=rest_api assertions=storage.export.persisted-bounded-complete,storage.cold.shared-team-authorized
+@pytest.mark.asyncio
+async def test_team_portability_exports_only_its_verified_archive_ciphertext() -> None:
+    directus = PersistentDirectus(forbid_unbounded_reads=True)
+    directus.team.roles[("team-1", "user-1")] = "owner"
+    storage = ArchiveBytes()
+    _seed_new_archive_data(directus, storage, team_id="team-1")
+    directus.collections["chats"].append({
+        "id": "other-team-chat", "hashed_team_id": _hash("team-2"), "hashed_user_id": _hash("user-2"),
+    })
+
+    artifact = (await TeamDataPortabilityService(directus, s3_service=storage).export_team_data(
+        "team-1", "user-1",
+    ))["artifact"]
+
+    assert [row["id"] for row in artifact["collections"]["chats"]] == ["chat-archived"]
+    assert artifact["collections"]["embeds"][0]["embed_id"] == "embed-1"
+    assert artifact["collections"]["chat_message_archive_pages"][0]["messages"][0]["encrypted_content"] == "cipher-archived"
+    assert artifact["collections"]["embed_diffs"][0]["encrypted_snapshot"] == "cipher-version"
+    personal = await AccountExportService(directus_service=directus, s3_service=storage).start_export(
+        user_id="user-1", domains=["embeds"],
+    )
+    personal_chunks = await AccountExportService(directus_service=directus, s3_service=storage).list_chunks(
+        user_id="user-1", export_id=personal["export_id"],
+    )
+    assert all(not chunk["payload"].get("items") for chunk in personal_chunks)
+    storage.objects.pop("message-pages/page.json.gz")
+    with pytest.raises(TeamDataPortabilityError, match="archive is incomplete"):
+        await TeamDataPortabilityService(directus, s3_service=storage).export_team_data("team-1", "user-1")

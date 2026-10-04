@@ -10,8 +10,20 @@ REDUCED_ACCOUNTABILITY = {
     "chats": None,
     "messages": None,
     "embeds": None,
-    "embed_diffs": None,
     "test_results": None,
+    "chat_message_archive_segments": None,
+    "chat_message_archive_pages": None,
+    "embed_diffs": None,
+    "chat_recovery_outputs": None,
+    "chat_recovery_account_fences": None,
+    "chat_recovery_chat_deletion_fences": None,
+    "chat_recovery_output_producers": None,
+    "chat_recovery_output_producer_children": None,
+    "chat_recovery_authorized_rerenders": None,
+    "chat_recovery_authorized_direct_skills": None,
+    "chat_recovery_legacy_output_producers": None,
+    "chat_recovery_legacy_batch_claims": None,
+    "chat_compression_checkpoints": None,
 }
 
 

@@ -333,6 +333,39 @@ def test_persisted_ai_message_broadcast_preserves_parent_user_message_id_and_cre
     assert event["message"]["user_message_id"] == request_data.message_id
 
 
+# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+def test_non_recovery_metadata_update_publishes_through_cache_once() -> None:
+    request_data = _ask_request()
+    directus = _MetadataDirectus()
+    cache = _PersistCache()
+    cache.increment_chat_component_version = AsyncMock(return_value=13)
+
+    asyncio.run(
+        stream_consumer._update_chat_metadata(
+            request_data=request_data,
+            category="general_knowledge",
+            timestamp=101,
+            content_markdown="assistant response",
+            content_tiptap="assistant response",
+            directus_service=directus,
+            cache_service=cache,
+            encryption_service=_Encryption(),
+            user_vault_key_id="vault-key",
+            task_id="11111111-1111-4111-8111-111111111111",
+            log_prefix="test",
+            model_name="test-model",
+        )
+    )
+
+    cache.increment_chat_component_version.assert_awaited_once_with(
+        request_data.user_id, request_data.chat_id, "messages_v",
+    )
+    assert directus.updates[0]["messages_v"] == 13
+    assert len(cache.saved_messages) == 1
+    assert cache.saved_messages[0]["explicit_messages_v"] == 13
+    assert len(cache.events) == 1
+
+
 # contract-test: supporting surface=rest_api assertions=chats.completion.recovery-takeover,chats.persistence.client-encrypted
 @pytest.mark.parametrize("response_kind", ["harmful", "simple"])
 def test_fake_stream_includes_recovery_job_before_final_marker(monkeypatch, response_kind) -> None:
@@ -616,6 +649,69 @@ def test_sub_chat_parent_continuation_preserves_inference_without_reusing_execut
     assert request_payload["budget_spent"] == original_request.budget_spent
 
 
+# contract-test: supporting surface=rest_api assertions=storage.validation.synthetic-capacity
+def test_capacity_parent_continuation_preserves_signed_replay(monkeypatch) -> None:
+    from backend.shared.testing.mock_context import (
+        activate_mock_mode, deactivate_mock_mode, detect_live_marker,
+    )
+
+    monkeypatch.setenv("SERVER_ENVIRONMENT", "development")
+    monkeypatch.setenv("MOCK_EXTERNAL_APIS", "true")
+    monkeypatch.setenv("OPENMATES_CI_ISOLATED", "1")
+    monkeypatch.setenv("OPENMATES_STORAGE_CAPACITY_FIXTURES", "true")
+    monkeypatch.setenv("DAILY_AI_TEST_CONTEXT_SECRET", "disposable-unit-secret")
+    request = AskSkillRequest(
+        chat_id="22222222-2222-4222-8222-222222222222",
+        message_id="33333333-3333-4333-8333-333333333333",
+        user_id="44444444-4444-4444-8444-444444444444",
+        user_id_hash="a" * 64,
+        message_history=[AIHistoryMessage(
+            role="user", content="STORAGE_CAPACITY_SCENARIO:child", created_at=100,
+        )],
+    )
+    request.live_mock_mode = "mock"
+    request.live_mock_group = "storage_capacity_v1"
+
+    class PendingCache:
+        payload = None
+
+        async def set(self, _key, payload, *, ttl):
+            assert ttl == stream_consumer.SUB_CHAT_PENDING_TTL_SECONDS
+            self.payload = payload
+
+    cache = PendingCache()
+    activate_mock_mode("mock", "storage_capacity_v1")
+    try:
+        asyncio.run(stream_consumer._store_sub_chat_pending_context(
+            cache_service=cache, parent_request_data=request, parent_task_id="parent-task",
+            sub_chats=[{"id": "child-1"}], report_trigger="all",
+            skill_config_dict={}, log_prefix="test",
+        ))
+    finally:
+        deactivate_mock_mode()
+    assert detect_live_marker(cache.payload["capacity_replay_marker"], request.user_id)
+
+    sent = {}
+
+    def fake_send_task(*, name, kwargs, queue, task_id=None):
+        sent.update(name=name, kwargs=kwargs, queue=queue)
+        return SimpleNamespace(id="continuation-task")
+
+    monkeypatch.setattr(stream_consumer.celery_config.app, "send_task", fake_send_task)
+    cache.payload["completed"] = {"child-1": {"summary": "Synthetic child result"}}
+    asyncio.run(stream_consumer._dispatch_sub_chat_parent_continuation(
+        pending_context=cache.payload, parent_chat_id=request.chat_id, log_prefix="test",
+    ))
+    content = sent["kwargs"]["request_data_dict"]["message_history"][-1]["content"]
+    assert detect_live_marker(content, request.user_id).group_id == "storage_capacity_v1"
+
+    cache.payload.pop("capacity_replay_marker")
+    with pytest.raises(RuntimeError, match="no isolated replay context"):
+        asyncio.run(stream_consumer._dispatch_sub_chat_parent_continuation(
+            pending_context=cache.payload, parent_chat_id=request.chat_id, log_prefix="test",
+        ))
+
+
 def test_persist_sealed_recovery_job_skips_continuation_without_recovery_identity(monkeypatch) -> None:
     request_data = AskSkillRequest(
         chat_id="22222222-2222-4222-8222-222222222222",
@@ -758,6 +854,24 @@ def test_memory_continuation_seals_under_original_inference_identity():
     request = AskSkillRequest(chat_id="chat-1", message_id="message-1", user_id="user-1", user_id_hash="hash-1", message_history=[], is_app_settings_memories_continuation=True, recovery_inference_task_id="original-task-1")
     assert request.resolved_recovery_inference_task_id() == "original-task-1"
     request.is_app_settings_memories_continuation = False
+    assert request.resolved_recovery_inference_task_id() is None
+
+
+# contract-test: supporting surface=rest_api assertions=chats.completion.recovery-takeover,storage.background.complete-sealed-recovery
+def test_initial_child_resolves_dispatched_inference_identity_for_assistant_and_summary():
+    request = AskSkillRequest(
+        chat_id="child-chat-1", message_id="child-prompt-1",
+        user_id="user-1", user_id_hash="hash-1", message_history=[],
+        is_sub_chat=True, recovery_preflight_id="parent-preflight-1",
+        recovery_inference_task_id="stable-child-task-1",
+    )
+    assert request.resolved_recovery_inference_task_id() == "stable-child-task-1"
+    assert stream_consumer._recovery_inference_task_id(request) == "stable-child-task-1"
+
+    request.recovery_preflight_id = None
+    assert request.resolved_recovery_inference_task_id() is None
+    request.recovery_preflight_id = "parent-preflight-1"
+    request.is_sub_chat = False
     assert request.resolved_recovery_inference_task_id() is None
 
 

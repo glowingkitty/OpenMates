@@ -76,10 +76,23 @@ class ChatRecoveryCutoverController:
             (await self.get_state(authoritative=authoritative)).get("protocol_epoch", 0)
         )
 
-    async def admit_legacy_inference(self, task_identity: str) -> dict[str, Any]:
+    async def admit_legacy_inference(
+        self, task_identity: str, *, actor_user_id: str | None = None,
+        hashed_user_id: str | None = None, chat_id: str | None = None,
+        first_message_id: str | None = None, hashed_team_id: str | None = None,
+    ) -> dict[str, Any]:
+        data: dict[str, Any] = {"protocol_version": 1, "task_identity": task_identity}
+        if actor_user_id is not None:
+            data.update({
+                "actor_user_id": actor_user_id,
+                "hashed_user_id": hashed_user_id,
+                "chat_id": chat_id,
+                "first_message_id": first_message_id,
+                "hashed_team_id": hashed_team_id,
+            })
         result = await self.recovery_service.execute(
             "admit_legacy_inference",
-            {"protocol_version": 1, "task_identity": task_identity},
+            data,
         )
         await self._cache_state(result)
         return result

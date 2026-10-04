@@ -17,7 +17,7 @@ test('logged-out privacy policy distinguishes deleted records from retained data
 	await expect(policy.getByText('Historical database revisions and activity', { exact: true }))
 		.toBeVisible({ timeout: 15_000 });
 
-	await expect(policy).toContainText('remove current account records');
+	await expect(policy).toContainText('removes its current records');
 	await expect(policy).toContainText('earlier account-profile fields or encrypted chat and artifact snapshots');
 	await expect(policy).toContainText('Deleting the current records does not automatically purge');
 	await expect(policy).toContainText('no enforced automatic expiry');

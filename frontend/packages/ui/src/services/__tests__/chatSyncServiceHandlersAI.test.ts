@@ -14,6 +14,7 @@ import {
   handleAIResponseStorageFailedImpl,
   handleAITypingStartedImpl,
   handleAwaitingSubChatsCompletionImpl,
+  handleChatCompressionCheckpointStoredImpl,
   handleEmbedUpdateImpl,
   handlePostProcessingCompletedImpl,
   handleSendEmbedDataImpl,
@@ -35,6 +36,8 @@ const mockChatDB = vi.hoisted(() => ({
   getMessage: vi.fn(),
   getMessagesForChat: vi.fn(),
   addChat: vi.fn(),
+  saveChatCompressionCheckpoint: vi.fn(),
+  deleteCoveredMessagesForChat: vi.fn(),
 }));
 
 const mockEmbedStore = vi.hoisted(() => ({
@@ -316,6 +319,34 @@ describe("sub-chat lifecycle metadata", () => {
     expect(activeAITasks.has("parent-chat")).toBe(false);
     expect(mockAiTypingStore.clearTypingForChat).toHaveBeenCalledWith("parent-chat");
     expect(service.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({ type: "aiTaskEnded" }));
+  });
+});
+
+describe("compression checkpoint source manifest", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockChatKeyManager.getKey.mockResolvedValue(null);
+    mockChatDB.saveChatCompressionCheckpoint.mockResolvedValue(undefined);
+    mockChatDB.deleteCoveredMessagesForChat.mockResolvedValue(1);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=storage.compression.incremental-archive
+  it("removes only covered local messages and does not persist the archival manifest", async () => {
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    const checkpoint = {
+      id: "checkpoint-1", chat_id: "chat-1", encrypted_summary: "ciphertext",
+      compressed_up_to_timestamp: 200, compressed_message_count: 2,
+      covered_message_ids: ["message-1"], created_at: 201,
+    };
+    await handleChatCompressionCheckpointStoredImpl(service, { chat_id: "chat-1", checkpoint });
+    expect(mockChatDB.deleteCoveredMessagesForChat).toHaveBeenCalledWith("chat-1", ["message-1"]);
+    expect(mockChatDB.saveChatCompressionCheckpoint).toHaveBeenCalledWith(
+      expect.not.objectContaining({ covered_message_ids: expect.anything() }),
+    );
+    await handleChatCompressionCheckpointStoredImpl(service, {
+      chat_id: "chat-1", checkpoint: { ...checkpoint, id: "legacy", covered_message_ids: null },
+    });
+    expect(mockChatDB.deleteCoveredMessagesForChat).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -1086,6 +1117,7 @@ describe("handleSendEmbedDataImpl", () => {
         parent_embed_id: "parent-1",
         ...parentIndexes,
       }),
+      undefined,
     );
   });
 
@@ -1167,6 +1199,10 @@ describe("handleSendEmbedDataImpl", () => {
         embed_id: "embed-1",
         status: "finished",
       }),
+      expect.objectContaining({ keys: expect.arrayContaining([
+        expect.objectContaining({ key_type: "master" }),
+        expect.objectContaining({ key_type: "chat" }),
+      ]) }),
     );
     expect(service.dispatchEvent).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -1258,6 +1294,10 @@ describe("handleSendEmbedDataImpl", () => {
     expect(mockSendStoreEmbed).toHaveBeenCalledWith(
       service,
       expect.not.objectContaining({ owner_pii_mappings: expect.anything() }),
+      expect.objectContaining({ keys: expect.arrayContaining([
+        expect.objectContaining({ key_type: "master" }),
+        expect.objectContaining({ key_type: "chat" }),
+      ]) }),
     );
   });
 
@@ -1341,6 +1381,10 @@ describe("handleSendEmbedDataImpl", () => {
           hashed_message_id: HASHED_MESSAGE_ID,
           hashed_user_id: HASHED_USER_ID,
         }),
+        expect.objectContaining({ keys: expect.arrayContaining([
+          expect.objectContaining({ key_type: "master" }),
+          expect.objectContaining({ key_type: "chat" }),
+        ]) }),
       );
     } finally {
       vi.useRealTimers();
@@ -1426,6 +1470,10 @@ describe("handleSendEmbedDataImpl", () => {
           hashed_message_id: HASHED_MESSAGE_ID,
           hashed_user_id: HASHED_USER_ID,
         }),
+        expect.objectContaining({ keys: expect.arrayContaining([
+          expect.objectContaining({ key_type: "master" }),
+          expect.objectContaining({ key_type: "chat" }),
+        ]) }),
       );
     } finally {
       vi.useRealTimers();

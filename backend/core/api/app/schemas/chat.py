@@ -27,6 +27,7 @@ class AIHistoryMessage(MessageBase):
     Content is markdown string, decrypted from server cache (encryption_key_user_server).
     """
     sender_name: Optional[str] = None
+    message_id: Optional[str] = None  # Canonical client ID; synthetic summaries have no source ID
     created_at: int # Integer Unix timestamp
 
 class ChatBase(BaseModel):

@@ -2451,6 +2451,77 @@
       }
     }
   },
+  "apple": {
+    "tasks_widget": {
+      "title": {
+        "text": "Tasks"
+      },
+      "description": {
+        "text": "Your tasks by status, with quick links to open and create tasks."
+      },
+      "status_parameter": {
+        "text": "Status"
+      },
+      "all": {
+        "text": "All"
+      },
+      "empty": {
+        "text": "No tasks in this status"
+      },
+      "open_app": {
+        "text": "Open OpenMates to load your tasks"
+      },
+      "new_task": {
+        "text": "New task"
+      }
+    },
+    "workflows_widget": {
+      "title": {
+        "text": "Workflows"
+      },
+      "description": {
+        "text": "Choose a scheduled workflow to run manually."
+      },
+      "workflow_parameter": {
+        "text": "Workflow"
+      },
+      "choose": {
+        "text": "Choose a workflow in widget settings."
+      },
+      "open_app": {
+        "text": "Open OpenMates"
+      },
+      "run": {
+        "text": "Run workflow"
+      }
+    },
+    "active_chats_widget": {
+      "description": {
+        "text": "Currently running chats, with quick links to each chat."
+      },
+      "total_one": {
+        "text": "1 chat processing"
+      },
+      "total": {
+        "text": "{count} chats processing"
+      },
+      "chat": {
+        "text": "Chat {number}"
+      },
+      "empty": {
+        "text": "No chats are currently running"
+      },
+      "open_app": {
+        "text": "Open OpenMates to load active chats"
+      },
+      "view_all": {
+        "text": "View all active chats"
+      },
+      "stale": {
+        "text": "Waiting for app update"
+      }
+    }
+  },
   "apps": {
     "file": {
       "text": "File",
@@ -2902,15 +2973,6 @@
       "manual_intro": {
         "text": "Use this skill directly by entering your request below."
       },
-      "requirements": {
-        "text": "Requirements"
-      },
-      "optional": {
-        "text": "(optional)"
-      },
-      "requirements_placeholder": {
-        "text": "Describe what the results should match."
-      },
       "via": {
         "text": "via"
       },
@@ -3003,6 +3065,15 @@
       },
       "validation_pattern": {
         "text": "enter the expected format"
+      },
+      "requirements": {
+        "text": "Requirements"
+      },
+      "optional": {
+        "text": "(optional)"
+      },
+      "requirements_placeholder": {
+        "text": "Describe what the results should match."
       }
     }
   },
@@ -3112,6 +3183,15 @@
     "request_error": {
       "text": "The request could not finish. You can try again."
     },
+    "viewer_read_only": {
+      "text": "Your team role allows viewing results. Ask a team member to run this skill."
+    },
+    "not_found": {
+      "text": "This app or skill is unavailable."
+    },
+    "result_unavailable": {
+      "text": "This result could not be opened."
+    },
     "saving": {
       "text": "Saving results…"
     },
@@ -3127,14 +3207,29 @@
     "saving_results": {
       "text": "Results awaiting save"
     },
-    "viewer_read_only": {
-      "text": "Your team role allows viewing results. Ask a team member to run this skill."
+    "inspiration_search_phrase": {
+      "text": "Find information directly with an app skill, and keep the results for later."
     },
-    "not_found": {
-      "text": "This app or skill is unavailable."
+    "inspiration_search_title": {
+      "text": "Use a Skill Directly"
     },
-    "result_unavailable": {
-      "text": "This result could not be opened."
+    "inspiration_search_feature_title": {
+      "text": "Search the web"
+    },
+    "inspiration_search_feature_description": {
+      "text": "Search without starting a chat."
+    },
+    "inspiration_weather_phrase": {
+      "text": "Check the forecast before making plans. Your saved results stay together in Apps."
+    },
+    "inspiration_weather_title": {
+      "text": "Plan Around the Weather"
+    },
+    "inspiration_weather_feature_title": {
+      "text": "Weather forecast"
+    },
+    "inspiration_weather_feature_description": {
+      "text": "Choose a location and dates."
     }
   },
   "audio": {
@@ -4001,6 +4096,20 @@
         "body": {
           "text": "When you know what you want to do next, OpenMates apps can give the AI better tools for tasks like coding, research, events, shopping, writing, or planning."
         }
+      }
+    },
+    "send_storage_errors": {
+      "missing_attachment_content": {
+        "text": "An attachment is not ready to save. Please prepare it again."
+      },
+      "stale_attachment_reference": {
+        "text": "An attachment belongs to a previous account or workspace. Please select it again."
+      },
+      "changed_attachment_reference": {
+        "text": "The attachment was edited. Please prepare it again before sending."
+      },
+      "retry_context_changed": {
+        "text": "This saved send no longer matches the current chat or attachments. Reload the chat before retrying."
       }
     },
     "suggestions": {
@@ -4906,6 +5015,12 @@
       "report_description": {
         "text": "A chat processing error happened. I consent to include the current chat context for debugging this incident."
       }
+    },
+    "watch_older_messages": {
+      "text": "Older messages"
+    },
+    "watch_newer_messages": {
+      "text": "Newer messages"
     }
   },
   "common": {
@@ -8292,6 +8407,27 @@
       "hours_minutes": {
         "text": "{hours} h {minutes} min"
       }
+    },
+    "watch_preview_unavailable": {
+      "text": "Preview not available"
+    },
+    "watch_sheet_cells": {
+      "text": "{count} cells"
+    },
+    "add_memory": {
+      "text": "Add memory"
+    },
+    "forget_memory": {
+      "text": "Forget"
+    },
+    "event": {
+      "text": "Event"
+    },
+    "online_event": {
+      "text": "Online event"
+    },
+    "travel_connection": {
+      "text": "Travel connection"
     }
   },
   "enter_message": {
@@ -12855,14 +12991,26 @@
         "user_data_backups": {
           "text": "**User data backups:** 60 days via S3 lifecycle; backups contain only ciphertext encrypted with your own key"
         },
-        "content_history_v1": {
-          "text": "Content: Current records are retained until you delete them or close the account, subject to backup cycles. Earlier database revision and activity records can remain after current records are deleted, as described separately below."
+        "content_v2": {
+          "text": "Personal content: Retained until you delete it or close your account, except affected chargeable uploaded or generated files may be deleted after repeated unpaid-storage notices. A pending assistant response sealed to a client public key for offline recovery remains available until an authorized client verifies and confirms its normal client-encrypted save, or the related chat or account is deleted. A retry lease or AI working-cache expiry alone does not remove that pending sealed copy. Content retained by another authorized owner or Team remains available to that owner."
         },
-        "historical_directus_history": {
-          "text": "Historical database records: Earlier generic revision and activity rows may retain account-profile fields or encrypted chat and artifact snapshots after deletion of current records. They currently have no enforced automatic expiry. The 60-day encrypted-backup lifecycle does not apply to this history."
+        "deletion_markers_v1": {
+          "text": "Deletion markers: To prevent delayed synchronization from restoring deleted data, OpenMates retains content-free markers containing identifiers, owner or Team references, and deletion times. These markers contain no deleted content and currently do not expire automatically, so they may remain after chat content or an account is deleted."
         },
-        "compliance_logs_history_v1": {
-          "text": "Compliance logs: Security and accountability logs can remain for their purposes. Historical database revision and activity records have no enforced automatic two-year expiry today. Financial compliance records retain their separate applicable tax and commercial-law periods."
+        "payments_and_invoices_v2": {
+          "text": "Payments, invoices and financial audit records: The current storage configuration retains these for up to 10 years. German retention duties depend on the record type: generally eight years for invoices and accounting vouchers, and ten years for accounting books and annual accounts, with the statutory period starting at the end of the relevant calendar year. Legal holds or ongoing tax proceedings can extend required retention."
+        },
+        "compliance_logs_v2": {
+          "text": "Compliance logs: Security and accountability audit logs are configured for up to two years; financial transaction logs for up to ten years. These configured periods are distinct from the statutory duties that depend on the record type."
+        },
+        "content_v3": {
+          "text": "Current personal chat and artifact records remain until you delete them or close your account. A pending assistant response sealed to a client public key remains available until an authorized client verifies and confirms its normal client-encrypted save, or the related chat or account is deleted. Retry-lease or AI working-cache expiry alone does not remove that pending copy. Another authorized owner or Team can retain shared content. Earlier database revision and activity records can remain after current records are deleted, as described separately below."
+        },
+        "historical_snapshots_v1": {
+          "text": "Historical database revision and activity records: Earlier revision and activity history may retain earlier account-profile fields or encrypted chat and artifact snapshots after deletion of the current records. There is currently no enforced automatic expiry for that historical history. It is not a content-free deletion marker."
+        },
+        "compliance_logs_v3": {
+          "text": "Compliance logs: Security and accountability records do not currently have an enforced automatic two-year expiry for historical database revision and activity records. Financial transaction records are configured for up to ten years, subject to the record-specific legal duties and holds described below."
         }
       },
       "legal_basis": {
@@ -13023,6 +13171,9 @@
         },
         "summary": {
           "text": "OpenMates is designed so that most of your data is encrypted on your device before it reaches our servers. This is **not** end-to-end encryption: our servers briefly decrypt your content in memory to run AI responses, render invoices, and deliver reminders. But we never write decrypted content to disk, logs, or traces, and when you delete your account we destroy the encryption key that protects your data — cryptographically shredding every encrypted field we still hold."
+        },
+        "summary_v2": {
+          "text": "Structured chat data is encrypted on your device before sync. Uploads and recordings instead travel over TLS and are encrypted by our service before durable storage. AI requests can require transient in-memory decryption, and a separate short-lived Vault-encrypted AI cache can be read by OpenMates servers. Account deletion removes content under that account's authority and destroys its account encryption keys; content retained by another authorized owner or Team can remain available."
         }
       },
       "quick_answers": {
@@ -13144,9 +13295,19 @@
             "text": "Audio travels over TLS through the OpenMates backend hosted by Hetzner and is sent to Mistral for transcription. Realtime audio is streamed; uploaded recordings are encrypted by our upload service before durable storage and decrypted only in server memory for transcription. The raw transcript is then sent to Google Gemini to correct obvious transcription errors and create a title. Audio and raw transcripts do not receive the placeholder substitution used for eligible typed chat messages. OpenMates stores recordings and transcripts as encrypted account content, but Mistral and Google may retain API request data under their own policies."
           }
         },
-        "deletion_history_v1": {
+        "storage_protection_v2": {
           "answer": {
-            "text": "When you delete chats or your account, OpenMates deletes the current records under that deletion’s authority. Account deletion also destroys account-controlled encryption keys, making data protected solely by those keys unreadable. Earlier database revision and activity records may still contain account-profile fields or encrypted chat and artifact snapshots after current records are deleted. Those historical records are separate from short-lived encrypted backups and have no enforced automatic expiry today. Invoices, payment records, security logs and provider-held data may also remain for their applicable purposes."
+            "text": "Saved chats, artifact history, settings, and memories are stored as ciphertext. PostgreSQL holds their records; these records are encrypted for authorized clients. Uploaded files and recordings are kept separately as encrypted objects in S3. A separate short-lived AI context cache is encrypted with server-side Vault keys and can be read by OpenMates servers while processing your request. A pending assistant response sealed to a client public key for offline recovery remains available until an authorized client verifies and confirms its normal client-encrypted save, or the related chat or account is deleted. Large sealed responses may be stored in regional S3 object storage. Expiry of a retry lease or the AI working cache alone does not remove the pending sealed copy. The server cannot rebuild missing readable AI context from client-encrypted history without an authorized client."
+          }
+        },
+        "deletion_v2": {
+          "answer": {
+            "text": "When you delete a chat or your account, OpenMates removes records under that deletion's authority and schedules removal of unshared S3 objects in the configured regions. Encrypted regional copies may remain while verified physical deletion completes. Account key destruction also makes remaining content encrypted with that account key unreadable. Content retained by another authorized owner or Team is not erased by one member's account deletion. Invoices, payment records, audit logs, and provider-held data may remain for the periods described below. Content-free deletion markers may also remain as described in the retention section."
+          }
+        },
+        "deletion_v3": {
+          "answer": {
+            "text": "Deletion of a chat or account removes its current records under that deletion’s authority and schedules removal of unshared regional S3 objects. Encrypted regional copies can remain while verified physical deletion completes. Earlier database revision and activity records can still retain account-profile details or encrypted chat and artifact snapshots after the current records are deleted. Those historical records are separate from content-free deletion markers and currently have no automatic expiry. Account-key destruction makes only content protected solely by that key unreadable. Content retained by another authorized owner or Team, financial records, and provider-held data can also remain as described below."
           }
         }
       },
@@ -13256,6 +13417,9 @@
           },
           "description": {
             "text": "When you delete your account, the first step destroys your encryption keys. Any residual ciphertext in backups, caches, or audit logs is rendered permanently unreadable — no key, no content."
+          },
+          "description_v2": {
+            "text": "On account deletion, OpenMates destroys the account-controlled encryption keys. Residual ciphertext protected only by those keys becomes unreadable. Shared content retained by another authorized owner or Team, and records held under separate legal authority, can remain."
           }
         },
         "argon2_password_hashing": {
@@ -13352,6 +13516,9 @@
           },
           "description": {
             "text": "Invoices, credit notes, and financial compliance log entries are retained for up to 10 years under GDPR Art. 17(3)(b) — legal obligation (German tax and commercial law, AO §147 and HGB §257). The retained records contain only transaction metadata, an invoice number, and a user identifier — not chat content or any other personal data."
+          },
+          "description_v2": {
+            "text": "Invoices, credit notes and financial audit entries can remain after account deletion. The current storage configuration uses up to ten years; statutory German periods vary by record type, generally eight years for invoices and accounting vouchers and ten years for accounting books and annual accounts. Financial records can contain billing identity details, transaction metadata, invoice numbers and user identifiers. They are separate from chat content. GDPR Article 17(3)(b) applies where retention is required by law."
           }
         },
         "audit_logs": {
@@ -13361,8 +13528,11 @@
           "description": {
             "text": "Authentication and data-access audit logs are retained for 2 years under BSI §34 BDSG (German security audit obligations). These logs contain timestamp, user identifier, event type, and status — no content."
           },
-          "description_history_v1": {
-            "text": "Authentication and data-access audit logs can contain timestamps, user identifiers, event types and status. No enforced automatic two-year expiry for historical database revision and activity records exists today. Generic history with earlier record snapshots is described separately below; no general two-year statutory duty is claimed."
+          "description_v2": {
+            "text": "Authentication and data-access audit logs are currently configured for up to two years for security, fraud prevention and accountability. They can contain timestamps, user identifiers, event types and status. Their configured retention is not a general statutory two-year requirement."
+          },
+          "description_v3": {
+            "text": "Authentication and data-access audit logs can contain timestamps, user identifiers, event types and status. No enforced automatic two-year expiry for historical database revision and activity records is currently in place. That history can contain prior record snapshots and is described separately below; financial retention follows the applicable record-specific rules."
           }
         },
         "third_party_ai_logs": {
@@ -13397,15 +13567,18 @@
             "text": "AI providers retain request logs under their own policies, independently of OpenMates, and we cannot delete data from their systems. Retention is provider-specific; for example, Mistral states 30 rolling days for ordinary API input and output unless zero-data retention is active, while Google's current Gemini abuse-monitoring documentation states 55 days for logged prompts, context, and outputs. Eligible typed chat uses client-side placeholder substitution, which reduces exposure but may miss data and does not cover voice audio, raw transcripts, uploaded or reference files, connected-account content, or structured skill inputs unless a feature explicitly says otherwise."
           }
         },
-        "intro_history_v1": {
-          "text": "When you delete your account, we destroy account-controlled encryption keys and remove current account records. Earlier database revision and activity records may remain after those records are deleted. Other data retained for security, financial, provider or backup purposes is listed separately below:"
+        "intro_v2": {
+          "text": "When you delete your account, we destroy its account-controlled encryption keys and remove records under that deletion's authority. Shared content retained by another authorized owner or Team can remain. Some records held under separate legal authority or outside our immediate control may also remain:"
         },
-        "historical_directus_history": {
+        "intro_v3": {
+          "text": "When you delete your account, we destroy its account-controlled encryption keys and remove current records under that deletion’s authority. Shared content retained by another authorized owner or Team, historical database revision and activity records, and some records held under separate legal authority or outside our immediate control can remain:"
+        },
+        "historical_snapshots": {
           "heading": {
             "text": "Historical database revisions and activity"
           },
-          "description": {
-            "text": "Historical database revision and activity records created before a chat or account is deleted can retain earlier account-profile fields or encrypted chat and artifact snapshots. Deleting the current records does not automatically purge or irreversibly neutralize those historical rows. They currently have no enforced automatic expiry and are separate from the 60-day encrypted-backup lifecycle and dedicated security or financial records."
+          "description_v2": {
+            "text": "Historical database revision and activity records created before a chat or account is deleted can retain earlier account-profile fields or encrypted chat and artifact snapshots. Deleting the current records does not automatically purge or irreversibly neutralize those rows. They currently have no enforced automatic expiry and are distinct from the 60-day encrypted-backup lifecycle, content-free deletion markers, and dedicated financial or security logs."
           }
         }
       },
@@ -13620,6 +13793,50 @@
       "follow_up_6": {
         "text": "What data is shared with AI providers?"
       }
+    }
+  },
+  "live_activities": {
+    "downloads_title": {
+      "text": "Model downloads"
+    },
+    "upcoming_title": {
+      "text": "Upcoming saved item"
+    },
+    "upcoming_detail": {
+      "text": "Open OpenMates to view the details."
+    },
+    "upcoming_previous": {
+      "text": "Previous item"
+    },
+    "upcoming_next": {
+      "text": "Next item"
+    },
+    "upcoming_position": {
+      "text": "{number} of {count}"
+    },
+    "upcoming_total": {
+      "text": "{count} upcoming"
+    },
+    "upcoming_view_all": {
+      "text": "View all"
+    },
+    "download_complete": {
+      "text": "{model} is ready for offline tests."
+    },
+    "transfer": {
+      "text": "Downloading"
+    },
+    "verifying": {
+      "text": "Verifying"
+    },
+    "waiting": {
+      "text": "Waiting for connection"
+    },
+    "retrying": {
+      "text": "Retrying download"
+    },
+    "multiple_downloads": {
+      "text": "{count} model downloads"
     }
   },
   "login": {
@@ -14687,6 +14904,9 @@
     },
     "workspace_voice_unavailable": {
       "text": "Voice input for projects is coming soon."
+    },
+    "workspace_readme_create_coming_soon": {
+      "text": "Creating READMEs directly in OpenMates is coming soon."
     },
     "workspace_inspiration_brief": {
       "text": "Start every project with a short brief: goal, audience, deadline, and the first concrete next step."
@@ -17740,7 +17960,7 @@
         "text": "Local models lab"
       },
       "description": {
-        "text": "Optional on-device experiments. Download models once, then test without a network connection. No credits are charged."
+        "text": "Optional on-device experiments. Use installed system voices or download models once, then test without a network connection. No credits are charged."
       },
       "toggle": {
         "text": "Use local models in this lab"
@@ -17778,20 +17998,11 @@
       "audio_ready": {
         "text": "Audio ready: {seconds} seconds"
       },
-      "speech_input": {
-        "text": "English text to speak"
-      },
       "privacy_input": {
         "text": "Text to inspect for personal data"
       },
       "input_placeholder": {
         "text": "Enter disposable test text"
-      },
-      "play": {
-        "text": "Play generated speech"
-      },
-      "stop_playback": {
-        "text": "Stop playback"
       },
       "running": {
         "text": "Running locally…"
@@ -17844,9 +18055,6 @@
       "whisper": {
         "text": "WhisperKit large-v3 turbo · speech to text"
       },
-      "kokoro": {
-        "text": "Kokoro · English text to speech"
-      },
       "privacy_filter": {
         "text": "OpenAI Privacy Filter · personal data"
       },
@@ -17859,29 +18067,89 @@
       "revision": {
         "text": "Revision"
       },
-      "waveform": {
-        "text": "Generated audio waveform"
-      },
       "cancelled": {
         "text": "Download cancelled"
       },
       "not_enough_space": {
         "text": "Not enough free storage for this model"
       },
-      "kokoro_os_error": {
-        "text": "Kokoro is currently unavailable on iOS and macOS 27 or later because its upstream runtime can crash. Try another model or an earlier supported OS."
-      },
       "peak_memory": {
-        "text": "App peak resident memory"
-      },
-      "verifying": {
-        "text": "Verifying installed files locally…"
-      },
-      "kokoro_input_limits": {
-        "text": "Use short, simple English text. Spell out decimals, currency amounts and times in words. Unsupported formats and foreign characters are rejected. This lab does not include the full upstream text normalization pipeline."
+        "text": "Sampled app peak memory during test"
       },
       "architecture_unavailable": {
         "text": "These local models require an iPhone, iPad or Apple silicon Mac. Intel Macs and Apple Watch are unsupported; downloads and tests are disabled."
+      },
+      "phase_submission": {
+        "text": "Preparing local test…"
+      },
+      "phase_tokenizer": {
+        "text": "Preparing tokenizer…"
+      },
+      "phase_model_loading": {
+        "text": "Loading model…"
+      },
+      "phase_transcription": {
+        "text": "Transcribing audio…"
+      },
+      "phase_cleanup": {
+        "text": "Unloading resources…"
+      },
+      "phase_completion": {
+        "text": "Local test completed"
+      },
+      "phase_warning": {
+        "text": "This stage is taking longer than expected. You can cancel; native cleanup may take time."
+      },
+      "phase_duration": {
+        "text": "{phase}: {seconds} s"
+      },
+      "verifying_progress": {
+        "text": "Verifying downloaded files {percent}%"
+      },
+      "baseline_memory": {
+        "text": "Memory before test"
+      },
+      "end_memory": {
+        "text": "Memory after unloading"
+      },
+      "phase_inference": {
+        "text": "Detecting personal data…"
+      },
+      "waiting_for_connection": {
+        "text": "Waiting for connection · {percent}% downloaded. You can cancel."
+      },
+      "retrying_download": {
+        "text": "Retrying interrupted download · {percent}% downloaded"
+      },
+      "pocket_tts": {
+        "text": "Pocket TTS · English"
+      },
+      "pocket_description": {
+        "text": "Developer test: English speech with the Alba voice, entirely on this device after download. Chat speech stays unchanged. Multilingual models are not supported by this runtime."
+      },
+      "pocket_voice": {
+        "text": "Voice"
+      },
+      "pocket_attribution": {
+        "text": "Alba MacKenna voice attribution and license"
+      },
+      "pocket_input": {
+        "text": "Text to speak"
+      },
+      "pocket_input_limit": {
+        "text": "Up to 600 UTF-8 bytes and 4 short sentences. Each sentence is limited to 160 bytes and 64 model tokens. Longer input is rejected."
+      },
+      "pocket_synthesis": {
+        "text": "Generating speech on this device…"
+      },
+      "pocket_cancelling": {
+        "text": "Cancelling after the current sentence finishes and the model unloads…"
+      },
+      "pocket_play": {
+        "text": "Play generated audio"
+      },
+      "pocket_stop": {
+        "text": "Stop audio"
       }
     },
     "open_settings_menu": {
@@ -18894,6 +19162,18 @@
         },
         "composer_suggestion_description": {
           "text": "Download the optional on-device model to catch more personal details before sending. Your text stays local."
+        },
+        "regex_fallback": {
+          "text": "Basic pattern detection and your custom entries stay active while the optional model is unavailable or loading. Your master switch, category choices, and exclusions still apply."
+        },
+        "diagnostic_title": {
+          "text": "Test enhanced detection locally"
+        },
+        "diagnostic_description": {
+          "text": "Test the installed privacy model on this device. Test text stays local and is cleared when you leave. This test does not change your anonymization settings."
+        },
+        "verifying": {
+          "text": "Checking personal data on this device…"
         }
       },
       "connected_accounts": {
@@ -21602,6 +21882,32 @@
       "storage_delete_error": {
         "text": "Failed to delete files. Please try again."
       }
+    },
+    "watch_whisper": {
+      "title": {
+        "text": "Watch tiny Whisper lab"
+      },
+      "experiment": {
+        "text": "Foreground experiment. Physical Watch speed, memory, accuracy and battery use are unverified. Chat settings stay unchanged."
+      },
+      "enable": {
+        "text": "Enable this experiment"
+      },
+      "disable": {
+        "text": "Disable this experiment"
+      },
+      "record_limit": {
+        "text": "Record up to 30 seconds. Keep this page open while testing."
+      },
+      "metrics": {
+        "text": "Load {load}s · Transcribe {transcribe}s · Unload {unload}s"
+      },
+      "memory": {
+        "text": "Resident memory: start {start}, sampled peak {peak}, end {end}"
+      },
+      "fixture": {
+        "text": "Disposable audio fixture"
+      }
     }
   },
   "signup": {
@@ -22439,104 +22745,16 @@
     }
   },
   "tasks": {
-    "blocked_heading": {
-      "text": "Blocked reason"
-    },
-    "blocked_reason": {
-      "needs_user_input": {
-        "text": "More information is needed from you before this Task can continue."
-      },
-      "waiting_for_approval": {
-        "text": "This Task is waiting for approval."
-      },
-      "missing_credentials": {
-        "text": "Credentials are required before this Task can continue."
-      },
-      "ambiguous_requirement": {
-        "text": "A requirement needs clarification before this Task can continue."
-      },
-      "external_dependency": {
-        "text": "This Task is waiting for an external dependency."
-      },
-      "environment_unavailable": {
-        "text": "The required environment is currently unavailable."
-      },
-      "verification_failed": {
-        "text": "Verification failed and must be resolved before this Task can continue."
-      },
-      "other": {
-        "text": "This Task needs attention before it can continue."
-      }
-    },
-    "activity": {
-      "title": {
-        "text": "Activity"
-      },
-      "placeholder": {
-        "text": "Add a comment..."
-      },
-      "send": {
-        "text": "Send"
-      },
-      "sending": {
-        "text": "Sending..."
-      },
-      "attach": {
-        "text": "Attach files"
-      },
-      "voice": {
-        "text": "Record voice"
-      },
-      "loading": {
-        "text": "Loading Activity..."
-      },
-      "empty": {
-        "text": "No Activity yet."
-      },
-      "user": {
-        "text": "User"
-      },
-      "via_cli": {
-        "text": "via OpenMates CLI"
-      },
-      "via_sdk": {
-        "text": "via OpenMates SDK"
-      },
-      "tombstone": {
-        "text": "Comment by {author} deleted by {deleter}"
-      },
-      "delete": {
-        "text": "Delete comment"
-      },
-      "delete_confirm": {
-        "text": "Delete this comment?"
-      },
-      "uploading": {
-        "text": "Uploading attachment..."
-      },
-      "transcribing": {
-        "text": "Transcribing recording..."
-      },
-      "processing_error": {
-        "text": "Attachment processing failed. Remove or retry it before sending."
-      },
-      "load_error": {
-        "text": "Activity could not be loaded."
-      },
-      "create_error": {
-        "text": "The comment could not be sent."
-      },
-      "attachment_error": {
-        "text": "The attachment could not be processed."
-      },
-      "delete_error": {
-        "text": "The comment could not be deleted."
-      },
-      "key_error": {
-        "text": "One or more Activity attachments could not be decrypted."
-      }
-    },
     "workspace": {
+      "drag": {
+        "text": "Drag task to another status"
+      },
+      "move_failed": {
+        "text": "The task could not be moved. Try again."
+      },
+      "drop_to_mark": {
+        "text": "Drop to mark {status}"
+      },
       "greeting": {
         "text": "Hey there!"
       },
@@ -22752,6 +22970,15 @@
       }
     },
     "detail": {
+      "edit_failed": {
+        "text": "Could not save the task. Your changes are still here."
+      },
+      "edit_conflict": {
+        "text": "This task changed elsewhere. Reload it before saving your changes."
+      },
+      "priority": {
+        "text": "Priority"
+      },
       "priority_none": {
         "text": "No priority"
       },
@@ -22784,6 +23011,103 @@
       },
       "created_by": {
         "text": "{created} by {creator}"
+      }
+    },
+    "blocked_heading": {
+      "text": "Blocked reason"
+    },
+    "blocked_reason": {
+      "needs_user_input": {
+        "text": "More information is needed from you before this Task can continue."
+      },
+      "waiting_for_approval": {
+        "text": "This Task is waiting for approval."
+      },
+      "missing_credentials": {
+        "text": "Credentials are required before this Task can continue."
+      },
+      "ambiguous_requirement": {
+        "text": "A requirement needs clarification before this Task can continue."
+      },
+      "external_dependency": {
+        "text": "This Task is waiting for an external dependency."
+      },
+      "environment_unavailable": {
+        "text": "The required environment is currently unavailable."
+      },
+      "verification_failed": {
+        "text": "Verification failed and must be resolved before this Task can continue."
+      },
+      "other": {
+        "text": "This Task needs attention before it can continue."
+      }
+    },
+    "activity": {
+      "title": {
+        "text": "Activity"
+      },
+      "placeholder": {
+        "text": "Add a comment..."
+      },
+      "send": {
+        "text": "Send"
+      },
+      "sending": {
+        "text": "Sending..."
+      },
+      "attach": {
+        "text": "Attach files"
+      },
+      "voice": {
+        "text": "Record voice"
+      },
+      "loading": {
+        "text": "Loading Activity..."
+      },
+      "empty": {
+        "text": "No Activity yet."
+      },
+      "user": {
+        "text": "User"
+      },
+      "via_cli": {
+        "text": "via OpenMates CLI"
+      },
+      "via_sdk": {
+        "text": "via OpenMates SDK"
+      },
+      "tombstone": {
+        "text": "Comment by {author} deleted by {deleter}"
+      },
+      "delete": {
+        "text": "Delete comment"
+      },
+      "delete_confirm": {
+        "text": "Delete this comment?"
+      },
+      "uploading": {
+        "text": "Uploading attachment..."
+      },
+      "transcribing": {
+        "text": "Transcribing recording..."
+      },
+      "processing_error": {
+        "text": "Attachment processing failed. Remove or retry it before sending."
+      },
+      "load_error": {
+        "text": "Activity could not be loaded."
+      },
+      "create_error": {
+        "text": "The comment could not be sent."
+      },
+      "attachment_error": {
+        "text": "The attachment could not be processed."
+      },
+      "delete_error": {
+        "text": "The comment could not be deleted."
+      },
+      "key_error": {
+        "text": "One or more Activity attachments could not be decrypted."
       }
     },
     "plan": {
@@ -22856,6 +23180,12 @@
       },
       "manual": {
         "text": "Manual"
+      },
+      "my_workflows": {
+        "text": "My workflows"
+      },
+      "templates": {
+        "text": "Templates"
       }
     },
     "home": {
@@ -22869,7 +23199,10 @@
         "text": "What do you want to automate next?"
       },
       "show_all": {
-        "text": "Show all"
+        "text": "Show my workflows"
+      },
+      "show_templates": {
+        "text": "Show templates"
       },
       "back_to_recent": {
         "text": "Back to recent"

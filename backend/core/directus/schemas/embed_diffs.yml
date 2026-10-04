@@ -23,11 +23,89 @@ embed_diffs:
 
     encrypted_snapshot:
       type: textfield
-      note: "[Encrypted] Full content snapshot for v=1 only. Null for v>1. Encrypted with same embed_key as parent."
+      note: "[Encrypted] Client-created full content snapshot; v=1 is required, later periodic snapshots use the same embed key. Nullable after verified archive promotion."
 
     encrypted_patch:
       type: textfield
-      note: "[Encrypted] Unified diff patch (v>1 only). Null for v=1. Encrypted with same embed_key as parent."
+      note: "[Encrypted] Unified diff patch for v>1. Nullable after verified archive promotion."
+
+    has_snapshot:
+      type: boolean
+      note: "Metadata-only snapshot presence, retained after ciphertext is archived. Legacy v=1 is treated as a snapshot."
+
+    has_patch:
+      type: boolean
+      note: "Metadata-only patch presence, retained after ciphertext is archived. Legacy v>1 is treated as a patch."
+
+    snapshot_operation_id:
+      type: string
+      nullable: true
+      note: "Idempotency key for a later client snapshot at this immutable version."
+
+    snapshot_digest:
+      type: string
+      nullable: true
+      note: "SHA-256 of the exact encrypted snapshot for idempotent replay."
+
+    archive_state:
+      type: string
+      nullable: true
+      note: "null/hot, stale, copied, or ready; never implies PostgreSQL payload removal without a verified copy and compatible readers."
+
+    archive_object_key:
+      type: string
+      nullable: true
+      note: "Private immutable S3 key for archived ciphertext envelope; never returned to clients."
+
+    archive_pending_object_key:
+      type: string
+      nullable: true
+      note: "Durable proposed immutable S3 key, inventoried before the copy writer uploads any bytes."
+
+    archive_pending_checksum:
+      type: string
+      nullable: true
+      note: "Source ciphertext envelope SHA-256 fenced to the pending copy intent."
+
+    archive_copy_lease_until:
+      type: integer
+      nullable: true
+      note: "UTC seconds when the bounded pending copy writer lease ends; deletion waits an additional 90 seconds."
+
+    archive_superseded_object_key:
+      type: string
+      nullable: true
+      note: "Prior immutable S3 locator retained for regional deletion after a client adds a snapshot."
+
+    archive_checksum:
+      type: string
+      nullable: true
+      note: "SHA-256 of the exact archived ciphertext envelope."
+
+    archive_regions:
+      type: json
+      nullable: true
+      note: "Configured regions with verified durable copies."
+
+    archive_copied_at:
+      type: integer
+      nullable: true
+      note: "UTC seconds when the current ciphertext envelope was copied and fenced."
+
+    archive_reader_activated_at:
+      type: integer
+      nullable: true
+      note: "UTC seconds when a verified S3 read became authoritative for this version."
+
+    archive_source_copy_until:
+      type: integer
+      nullable: true
+      note: "Minimum UTC second before PostgreSQL ciphertext may be pruned."
+
+    archive_pruned_at:
+      type: integer
+      nullable: true
+      note: "UTC seconds when PostgreSQL ciphertext was removed after all gates."
 
     hashed_user_id:
       type: string
@@ -41,6 +119,21 @@ embed_diffs:
   indexes:
     - fields: [embed_id, version_number]
       unique: true
+    - fields: [embed_id, hashed_user_id, version_number]
+    - fields: [archive_state, version_number]
+
+embed_version_archive_rollout:
+  type: collection
+  note: "Internal version reader/prune receipts; disabled until reviewed evidence is recorded."
+  fields:
+    id: {type: string, primary: true}
+    read_enabled: {type: boolean, default: false}
+    pruning_enabled: {type: boolean, default: false}
+    initial_cohort: {type: boolean, default: true}
+    compatibility_verified: {type: boolean, default: false}
+    reader_receipt: {type: text}
+    validation_receipt: {type: text}
+    failure_code: {type: string}
 
 # Idempotency receipts for atomic Project file publications. These records contain
 # opaque commitments/digests and scope hashes only; no plaintext file hash/content.

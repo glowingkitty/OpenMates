@@ -51,17 +51,20 @@ except ImportError as _exc:
 # ---------------------------------------------------------------------------
 
 
+# contract-test: supporting surface=rest_api assertions=storage.warm.bounded-chat-tail
 def test_admin_compression_threshold_key_matches_worker_reader():
     """Admin overrides must be written to the exact Redis key the worker reads."""
     assert _compression_threshold_cache_key("user-123") == f"{WORKER_THRESHOLD_CACHE_KEY}:user-123"
 
 
+# contract-test: supporting surface=rest_api assertions=storage.compression.incremental-archive
 def test_compression_model_uses_approved_gemini_flash_lite_path():
     """Real long-chat validation must use the cheap Gemini compression path."""
     assert COMPRESSION_MODEL_ID == "gemini-3.5-flash-lite"
 
 
 @pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=storage.warm.bounded-chat-tail
 async def test_get_admin_compression_threshold_uses_cache_client_property():
     class FakeRedis:
         async def get(self, key: str):
@@ -108,22 +111,26 @@ def _make_history(n: int, chars_per_msg: int = 100) -> list:
 # ===========================================================================
 
 class TestEstimateTokensForMessage:
+    # contract-test: supporting surface=rest_api assertions=storage.compression.incremental-archive
     def test_string_content(self):
         msg = _msg("hello world")  # 11 chars
         tokens = estimate_tokens_for_message(msg)
         # base 4 + 11/4.0 = 4 + 2.75 = 6.75 -> int(6.75) = 6
         assert tokens == int(4 + len("hello world") / AVG_CHARS_PER_TOKEN)
 
+    # contract-test: supporting surface=rest_api assertions=storage.compression.incremental-archive
     def test_empty_string(self):
         msg = _msg("")
         tokens = estimate_tokens_for_message(msg)
         assert tokens == 4  # base overhead only
 
+    # contract-test: supporting surface=rest_api assertions=storage.compression.incremental-archive
     def test_missing_content_key(self):
         msg = {"role": "user"}
         tokens = estimate_tokens_for_message(msg)
         assert tokens == 4  # base overhead, no content
 
+    # contract-test: supporting surface=rest_api assertions=storage.compression.incremental-archive
     def test_multimodal_list_content(self):
         msg = {
             "role": "user",
@@ -137,6 +144,7 @@ class TestEstimateTokensForMessage:
         expected = int(4 + len("Describe this image") / AVG_CHARS_PER_TOKEN)
         assert tokens == expected
 
+    # contract-test: supporting surface=rest_api assertions=storage.compression.incremental-archive
     def test_multimodal_no_text_parts(self):
         msg = {
             "role": "user",
@@ -147,6 +155,7 @@ class TestEstimateTokensForMessage:
         tokens = estimate_tokens_for_message(msg)
         assert tokens == 4  # only base overhead, no text
 
+    # contract-test: supporting surface=rest_api assertions=storage.warm.bounded-chat-tail
     def test_long_content(self):
         content = "a" * 40000  # 10,000 tokens
         msg = _msg(content)
@@ -159,13 +168,16 @@ class TestEstimateTokensForMessage:
 # ===========================================================================
 
 class TestEstimateTotalTokens:
+    # contract-test: supporting surface=rest_api assertions=storage.warm.bounded-chat-tail
     def test_empty_history(self):
         assert estimate_total_tokens([]) == 0
 
+    # contract-test: supporting surface=rest_api assertions=storage.compression.incremental-archive
     def test_single_message(self):
         history = [_msg("hello")]
         assert estimate_total_tokens(history) == estimate_tokens_for_message(history[0])
 
+    # contract-test: supporting surface=rest_api assertions=storage.compression.incremental-archive
     def test_multiple_messages(self):
         history = [_msg("aaa"), _msg("bbb"), _msg("ccc")]
         total = estimate_total_tokens(history)
@@ -178,15 +190,18 @@ class TestEstimateTotalTokens:
 # ===========================================================================
 
 class TestShouldCompress:
+    # contract-test: supporting surface=rest_api assertions=storage.warm.bounded-chat-tail
     def test_empty_history_returns_false(self):
         assert should_compress([]) is False
 
+    # contract-test: supporting surface=rest_api assertions=storage.warm.bounded-chat-tail
     def test_below_threshold_returns_false(self):
         # Small message: ~4 + 10/4 = ~6 tokens per message
         # 10 messages = ~60 tokens + 15k overhead = ~15060, well below 100k
         history = [_msg("short text") for _ in range(10)]
         assert should_compress(history) is False
 
+    # contract-test: supporting surface=rest_api assertions=storage.warm.bounded-chat-tail
     def test_above_threshold_returns_true(self):
         # Each message ~4 + 100000/4 = 25004 tokens
         # 4 messages = ~100016 tokens + 15k overhead = ~115016 > 100k
@@ -194,21 +209,25 @@ class TestShouldCompress:
         history = [_msg(big_msg) for _ in range(4)]
         assert should_compress(history) is True
 
+    # contract-test: supporting surface=rest_api assertions=storage.warm.bounded-chat-tail
     def test_custom_threshold_lower(self):
         # With a low threshold, even small messages should trigger
         history = [_msg("hello world") for _ in range(5)]
         assert should_compress(history, compression_threshold=10) is True
 
+    # contract-test: supporting surface=rest_api assertions=storage.warm.bounded-chat-tail
     def test_many_short_messages_do_not_trigger_by_count_only(self):
         history = [_msg("short text", created_at=index) for index in range(500)]
         assert should_compress(history) is False
 
+    # contract-test: supporting surface=rest_api assertions=storage.warm.bounded-chat-tail
     def test_custom_threshold_higher(self):
         # With a very high threshold, even big messages should not trigger
         big_msg = "x" * 100000
         history = [_msg(big_msg) for _ in range(4)]
         assert should_compress(history, compression_threshold=999_999_999) is False
 
+    # contract-test: supporting surface=rest_api assertions=storage.warm.bounded-chat-tail
     def test_overhead_is_included(self):
         """Verify that ESTIMATED_SYSTEM_PROMPT_OVERHEAD is factored into the threshold check."""
         # Create messages whose tokens alone are below threshold,
@@ -227,17 +246,20 @@ class TestShouldCompress:
 # ===========================================================================
 
 class TestSplitHistoryForCompression:
+    # contract-test: supporting surface=rest_api assertions=storage.warm.bounded-chat-tail
     def test_empty_history(self):
         to_compress, recent = split_history_for_compression([])
         assert to_compress == []
         assert recent == []
 
+    # contract-test: supporting surface=rest_api assertions=storage.warm.bounded-chat-tail
     def test_keeps_minimum_recent_messages(self):
         """Must always keep at least RECENT_WINDOW_MIN_MESSAGES (6) in recent."""
         history = _make_history(20, chars_per_msg=100)
         to_compress, recent = split_history_for_compression(history)
         assert len(recent) >= RECENT_WINDOW_MIN_MESSAGES
 
+    # contract-test: supporting surface=rest_api assertions=storage.warm.bounded-chat-tail
     def test_fewer_than_min_messages_all_recent(self):
         """If history has fewer messages than the minimum, they're all in recent."""
         history = _make_history(4, chars_per_msg=100)
@@ -246,6 +268,7 @@ class TestSplitHistoryForCompression:
         assert len(recent) == 4
         assert len(to_compress) == 0
 
+    # contract-test: supporting surface=rest_api assertions=storage.warm.bounded-chat-tail
     def test_respects_token_budget(self):
         """Recent messages should not exceed RECENT_WINDOW_TOKEN_BUDGET."""
         # Create 30 messages with ~400 chars each (~104 tokens each)
@@ -258,6 +281,7 @@ class TestSplitHistoryForCompression:
         recent_tokens = sum(estimate_tokens_for_message(m) for m in recent)
         assert recent_tokens <= RECENT_WINDOW_TOKEN_BUDGET + 500  # allow small overshoot from min messages
 
+    # contract-test: supporting surface=rest_api assertions=storage.warm.bounded-chat-tail
     def test_compression_summary_excluded_from_recent(self):
         """Existing compression summaries must land in to_compress, not recent."""
         history = _make_history(10, chars_per_msg=100)
@@ -270,6 +294,7 @@ class TestSplitHistoryForCompression:
         for msg in recent:
             assert msg.get("category") != COMPRESSION_SUMMARY_CATEGORY
 
+    # contract-test: supporting surface=rest_api assertions=storage.warm.bounded-chat-tail
     def test_split_preserves_all_messages(self):
         """Every non-summary message appears in either to_compress or recent."""
         history = _make_history(15, chars_per_msg=100)
@@ -284,6 +309,7 @@ class TestSplitHistoryForCompression:
         )
         assert len(to_compress) + len(recent) >= non_summary_count - 1  # summary may be in to_compress
 
+    # contract-test: supporting surface=rest_api assertions=storage.compression.incremental-archive
     def test_chronological_order_preserved(self):
         """to_compress contains older messages, recent contains newer ones."""
         history = _make_history(20, chars_per_msg=100)
@@ -293,6 +319,7 @@ class TestSplitHistoryForCompression:
             newest_compressed = max(m["created_at"] for m in to_compress)
             assert newest_compressed <= oldest_recent
 
+    # contract-test: supporting surface=rest_api assertions=storage.compression.incremental-archive
     def test_keeps_latest_assistant_and_follow_up_even_when_tail_exceeds_budget(self):
         history = _make_history(20, chars_per_msg=2000)
         latest_assistant = _msg(
@@ -314,6 +341,7 @@ class TestSplitHistoryForCompression:
         assert latest_assistant not in to_compress
         assert follow_up not in to_compress
 
+    # contract-test: supporting surface=rest_api assertions=storage.warm.bounded-chat-tail
     def test_forced_tail_split_keeps_latest_user_prompt_with_assistant_response(self):
         history = _make_history(12, chars_per_msg=400)
         latest_user = _msg("latest user prompt", role="user", created_at=10_000)
@@ -330,6 +358,7 @@ class TestSplitHistoryForCompression:
         assert latest_user not in to_compress
         assert latest_assistant not in to_compress
 
+    # contract-test: supporting surface=rest_api assertions=storage.warm.bounded-chat-tail
     def test_forced_tail_split_compresses_older_messages_when_all_fit_recent_budget(self):
         history = _make_history(12, chars_per_msg=400)
         latest_assistant = _msg("latest assistant", role="assistant", created_at=10_000)
@@ -350,10 +379,12 @@ class TestSplitHistoryForCompression:
 # ===========================================================================
 
 class TestFindExistingSummary:
+    # contract-test: supporting surface=rest_api assertions=storage.compression.incremental-archive
     def test_no_summary_returns_none(self):
         history = [_msg("hello"), _msg("world")]
         assert _find_existing_summary(history) is None
 
+    # contract-test: supporting surface=rest_api assertions=storage.compression.incremental-archive
     def test_finds_summary(self):
         history = [
             _msg("hello"),
@@ -362,6 +393,7 @@ class TestFindExistingSummary:
         ]
         assert _find_existing_summary(history) == "Found this summary"
 
+    # contract-test: supporting surface=rest_api assertions=storage.warm.bounded-chat-tail
     def test_returns_most_recent_summary(self):
         history = [
             _compression_summary_msg("Old summary", created_at=100),
@@ -370,6 +402,7 @@ class TestFindExistingSummary:
         ]
         assert _find_existing_summary(history) == "New summary"
 
+    # contract-test: supporting surface=rest_api assertions=storage.compression.incremental-archive
     def test_ignores_system_messages_without_category(self):
         history = [
             {"role": "system", "content": "You are a helpful assistant"},
@@ -377,6 +410,7 @@ class TestFindExistingSummary:
         ]
         assert _find_existing_summary(history) is None
 
+    # contract-test: supporting surface=rest_api assertions=storage.compression.incremental-archive
     def test_ignores_wrong_category(self):
         history = [
             {"role": "system", "content": "Not a summary", "category": "something_else"},
@@ -389,39 +423,46 @@ class TestFindExistingSummary:
 # ===========================================================================
 
 class TestFormatRelativeTime:
+    # contract-test: supporting surface=rest_api assertions=storage.compression.incremental-archive
     def test_just_now(self):
         now = 1000
         assert _format_relative_time(now, now) == "just now"
         assert _format_relative_time(now - 30, now) == "just now"
         assert _format_relative_time(now - 59, now) == "just now"
 
+    # contract-test: supporting surface=rest_api assertions=storage.compression.incremental-archive
     def test_minutes(self):
         now = 10000
         assert _format_relative_time(now - 60, now) == "~1 min ago"
         assert _format_relative_time(now - 120, now) == "~2 min ago"
         assert _format_relative_time(now - 3599, now) == "~59 min ago"
 
+    # contract-test: supporting surface=rest_api assertions=storage.compression.incremental-archive
     def test_hours(self):
         now = 100000
         assert _format_relative_time(now - 3600, now) == "~1h ago"
         assert _format_relative_time(now - 7200, now) == "~2h ago"
         assert _format_relative_time(now - 86399, now) == "~23h ago"
 
+    # contract-test: supporting surface=rest_api assertions=storage.compression.incremental-archive
     def test_days(self):
         now = 1000000
         assert _format_relative_time(now - 86400, now) == "~1d ago"
         assert _format_relative_time(now - 172800, now) == "~2d ago"
 
+    # contract-test: supporting surface=rest_api assertions=storage.compression.incremental-archive
     def test_boundary_60_seconds(self):
         """Exactly 60 seconds should be '~1 min ago', not 'just now'."""
         now = 10000
         assert _format_relative_time(now - 60, now) == "~1 min ago"
 
+    # contract-test: supporting surface=rest_api assertions=storage.compression.incremental-archive
     def test_boundary_3600_seconds(self):
         """Exactly 3600 seconds should be '~1h ago', not minutes."""
         now = 100000
         assert _format_relative_time(now - 3600, now) == "~1h ago"
 
+    # contract-test: supporting surface=rest_api assertions=storage.compression.incremental-archive
     def test_boundary_86400_seconds(self):
         """Exactly 86400 seconds should be '~1d ago', not hours."""
         now = 1000000
@@ -433,6 +474,7 @@ class TestFormatRelativeTime:
 # ===========================================================================
 
 class TestBuildCompressionPrompt:
+    # contract-test: supporting surface=rest_api assertions=storage.compression.incremental-archive
     def test_basic_prompt_construction(self):
         messages = [
             _msg("Hello, I need help", role="user", created_at=9000, sender_name="Alice"),
@@ -446,17 +488,20 @@ class TestBuildCompressionPrompt:
         assert "Alice" in formatted[0]["content"]
         assert "Toon" in formatted[1]["content"]
 
+    # contract-test: supporting surface=rest_api assertions=storage.compression.incremental-archive
     def test_previous_summary_included(self):
         messages = [_msg("test", created_at=9000)]
         system_prompt, _ = _build_compression_prompt(messages, "Old summary content", 10000)
         assert "Old summary content" in system_prompt
         assert "previous compression summary" in system_prompt.lower()
 
+    # contract-test: supporting surface=rest_api assertions=storage.compression.incremental-archive
     def test_no_previous_summary(self):
         messages = [_msg("test", created_at=9000)]
         system_prompt, _ = _build_compression_prompt(messages, None, 10000)
         assert "PREVIOUS SUMMARY" not in system_prompt
 
+    # contract-test: supporting surface=rest_api assertions=storage.compression.incremental-archive
     def test_compression_summary_messages_excluded(self):
         """Old compression summaries in the message list should be skipped."""
         messages = [
@@ -470,6 +515,7 @@ class TestBuildCompressionPrompt:
         for fm in formatted:
             assert "Old Summary" not in fm["content"]
 
+    # contract-test: supporting surface=rest_api assertions=storage.compression.incremental-archive
     def test_non_string_content_skipped(self):
         messages = [
             _msg("text msg", created_at=9000),
@@ -481,6 +527,7 @@ class TestBuildCompressionPrompt:
         # Only "text msg" should be formatted (non-string, None, empty are skipped)
         assert len(formatted) == 1
 
+    # contract-test: supporting surface=rest_api assertions=storage.compression.incremental-archive
     def test_relative_timestamps_in_messages(self):
         now = 10000
         messages = [
@@ -502,6 +549,7 @@ class TestCompressChatHistory:
         return MagicMock()
 
     @pytest.mark.anyio
+    # contract-test: supporting surface=rest_api assertions=storage.warm.bounded-chat-tail
     async def test_below_threshold_returns_not_compressed(self, mock_secrets):
         """When history is below threshold, should return immediately without calling LLM."""
         history = [_msg("short") for _ in range(3)]
@@ -514,6 +562,7 @@ class TestCompressChatHistory:
         assert result.error is None
 
     @pytest.mark.anyio
+    # contract-test: supporting surface=rest_api assertions=storage.compression.incremental-archive
     async def test_success_path(self, mock_secrets, monkeypatch):
         """Primary LLM succeeds: should return compressed result with correct metadata."""
         # Create a history that exceeds threshold with custom low threshold
@@ -547,6 +596,57 @@ class TestCompressChatHistory:
         assert result.error is None
 
     @pytest.mark.anyio
+    # contract-test: supporting surface=rest_api assertions=storage.compression.incremental-archive
+    async def test_compression_cursor_uses_stable_message_id_on_timestamp_ties(self, mock_secrets, monkeypatch):
+        history = _make_history(20, chars_per_msg=2000)
+        for index, message in enumerate(history):
+            message["created_at"] = 1000
+            message["client_message_id"] = f"message-{index:03d}"
+        response = MagicMock(success=True, direct_message_content="## Conversation History Summary\nSynthetic")
+
+        async def fake_google_llm(**_kwargs):
+            return response
+
+        monkeypatch.setattr(
+            "backend.apps.ai.llm_providers.google_client.invoke_google_ai_studio_chat_completions",
+            fake_google_llm,
+        )
+        result = await compress_chat_history(
+            message_history=history, task_id="tie", secrets_manager=mock_secrets,
+            compression_threshold=100,
+        )
+        assert result.was_compressed is True
+        assert result.compressed_up_to_timestamp == 1000
+        assert result.compressed_up_to_message_id == f"message-{result.compressed_message_count - 1:03d}"
+        assert result.covered_message_ids == [
+            f"message-{index:03d}" for index in range(result.compressed_message_count)
+        ]
+
+    @pytest.mark.anyio
+    # contract-test: supporting surface=rest_api assertions=storage.compression.incremental-archive
+    async def test_missing_source_id_disables_archive_manifest(self, mock_secrets, monkeypatch):
+        history = _make_history(20, chars_per_msg=2000)
+        for index, message in enumerate(history):
+            message["message_id"] = f"message-{index:03d}"
+        history[0].pop("message_id")
+        response = MagicMock(success=True, direct_message_content="## Conversation History Summary\nSynthetic")
+
+        async def fake_google_llm(**_kwargs):
+            return response
+
+        monkeypatch.setattr(
+            "backend.apps.ai.llm_providers.google_client.invoke_google_ai_studio_chat_completions",
+            fake_google_llm,
+        )
+        result = await compress_chat_history(
+            message_history=history, task_id="missing-id", secrets_manager=mock_secrets,
+            compression_threshold=100,
+        )
+        assert result.was_compressed is True
+        assert result.covered_message_ids is None
+
+    @pytest.mark.anyio
+    # contract-test: supporting surface=rest_api assertions=storage.compression.incremental-archive
     async def test_primary_fails_fallback_succeeds(self, mock_secrets, monkeypatch):
         """Primary LLM fails, Cerebras fallback succeeds."""
         history = _make_history(20, chars_per_msg=2000)
@@ -591,6 +691,7 @@ class TestCompressChatHistory:
         assert fallback_model_ids == [CEREBRAS_COMPRESSION_FALLBACK_MODEL_ID]
 
     @pytest.mark.anyio
+    # contract-test: supporting surface=rest_api assertions=storage.compression.incremental-archive
     async def test_both_llms_fail(self, mock_secrets, monkeypatch):
         """Both primary and fallback LLM fail: should return error."""
         history = _make_history(20, chars_per_msg=2000)
@@ -635,6 +736,7 @@ class TestCompressChatHistory:
         assert "Cerebras API error" in result.error
 
     @pytest.mark.anyio
+    # contract-test: supporting surface=rest_api assertions=storage.compression.incremental-archive
     async def test_primary_raises_exception(self, mock_secrets, monkeypatch):
         """Primary LLM raises an exception: should return error without crashing."""
         history = _make_history(20, chars_per_msg=2000)
@@ -659,6 +761,7 @@ class TestCompressChatHistory:
         assert "Network failure" in result.error
 
     @pytest.mark.anyio
+    # contract-test: supporting surface=rest_api assertions=storage.compression.incremental-archive
     async def test_no_formattable_messages(self, mock_secrets):
         """History exceeds threshold but all messages have non-string content."""
         # Create messages with list content (multimodal) that _build_compression_prompt skips

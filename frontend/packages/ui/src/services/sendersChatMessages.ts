@@ -40,6 +40,7 @@ import { deriveChatCompletionRecoveryKeypair } from "../utils/chatCompletionReco
 import { generateUUID } from "../message_parsing/utils";
 import { isTeamAIInvocation } from "./teamService";
 import type { EmbedType } from "../message_parsing/types";
+import { getApiEndpoint } from "../config/api";
 import {
 	activateProjectFocusForSend,
 	isProjectFocusId,
@@ -55,12 +56,465 @@ const CHAT_RECOVERY_PROTOCOL_VERSION = 1;
 const CHAT_RECOVERY_KEY_VERSION = 1;
 const SEND_EMBED_LOAD_RETRY_ATTEMPTS = 12;
 const SEND_EMBED_LOAD_RETRY_DELAY_MS = 500;
+const MESSAGE_EMBED_BUNDLE_FIELD = "pending_encrypted_embed_bundle_v1";
+const MESSAGE_TURN_PREFLIGHT_FIELD = "pending_encrypted_turn_preflight_v1";
 const DEFINITIVE_TEAM_PREFLIGHT_ERRORS = new Set([
 	"immutable_chat_key_mismatch", "message_identity_mismatch", "preflight_mismatch",
 	"recovery_key_mismatch", "team_chat_scope_mismatch", "version_conflict"
 ]);
 
 const teamPreflightConfirmListeners = new Map<string, (payload: unknown) => void>();
+const embedBundleConfirmListeners = new Map<string, (payload: unknown) => void>();
+const turnPreflightConfirmListeners = new Map<string, (payload: unknown) => void>();
+
+interface EncryptedEmbedForDirectus {
+	embed_id: string;
+	encrypted_type: string;
+	encrypted_content: string;
+	encrypted_text_preview?: string;
+	status: string;
+	hashed_chat_id: string;
+	hashed_message_id: string;
+	hashed_user_id: string;
+	embed_ids?: string[];
+	created_at: number;
+	updated_at: number;
+	embed_keys?: Array<{
+		hashed_embed_id: string;
+		key_type: "master" | "chat";
+		hashed_chat_id: string | null;
+		encrypted_embed_key: string;
+		hashed_user_id: string;
+		created_at: number;
+	}>;
+}
+
+type MessageEmbedKeyWrapper = NonNullable<EncryptedEmbedForDirectus["embed_keys"]>[number];
+
+/** A new local encrypted head must remain decryptable after a tab closes. */
+export async function persistRetainedMessageEmbedKeys(
+	entries: EncryptedEmbedForDirectus[],
+	keyStore: {
+		storeEmbedKeys(keys: MessageEmbedKeyWrapper[]): Promise<void>;
+		getEmbedKeyEntries(hashedEmbedId: string): Promise<MessageEmbedKeyWrapper[]>;
+	},
+): Promise<void> {
+	const wrappers: MessageEmbedKeyWrapper[] = [];
+	for (const entry of entries) {
+		if (!entry.embed_keys || entry.embed_keys.length !== 2) {
+			throw new Error("Retained message embed has no complete local key wrappers.");
+		}
+		wrappers.push(...entry.embed_keys);
+	}
+	if (wrappers.length === 0) return;
+	await keyStore.storeEmbedKeys(wrappers);
+	// A fresh read transaction cannot observe the preceding write until it
+	// commits. This fences storeEmbedKeys implementations that resolve on put
+	// request success before IndexedDB fires transaction completion.
+	for (const hashedEmbedId of new Set(wrappers.map((key) => key.hashed_embed_id))) {
+		const durable = await keyStore.getEmbedKeyEntries(hashedEmbedId);
+		for (const expected of wrappers.filter((key) => key.hashed_embed_id === hashedEmbedId)) {
+			if (!durable.some((actual) => actual.key_type === expected.key_type &&
+				actual.hashed_chat_id === expected.hashed_chat_id &&
+				actual.hashed_user_id === expected.hashed_user_id &&
+				actual.encrypted_embed_key === expected.encrypted_embed_key)) {
+				throw new Error("Retained message embed key did not commit locally.");
+			}
+		}
+	}
+}
+
+/** Reject a cache-only embed write before the original editor source is replaced. */
+export async function verifyRetainedMessageEmbedHeads(
+	entries: EncryptedEmbedForDirectus[],
+	openTransaction: () => Promise<IDBTransaction> = () => chatDB.getTransaction("embeds", "readonly"),
+): Promise<void> {
+	if (entries.length === 0) return;
+	const transaction = await openTransaction();
+	const store = transaction.objectStore("embeds");
+	await Promise.all(entries.map((expected) => new Promise<void>((resolve, reject) => {
+		const request = store.get(`embed:${expected.embed_id}`);
+		request.onerror = () => reject(request.error);
+		request.onsuccess = () => {
+			const row = request.result as Record<string, unknown> | undefined;
+			if (row?.embed_id !== expected.embed_id ||
+				row.encrypted_content !== expected.encrypted_content ||
+				row.encrypted_type !== expected.encrypted_type ||
+				row.hashed_chat_id !== expected.hashed_chat_id ||
+				row.hashed_user_id !== expected.hashed_user_id) {
+				reject(new Error("Retained message embed head did not commit locally."));
+				return;
+			}
+			resolve();
+		};
+	})));
+}
+
+interface MessageEmbedIntent {
+	embed_id: string;
+	type: string;
+	content: string;
+	text_preview?: string;
+	status?: string;
+	embed_ids?: string[];
+}
+
+/** A retry of the same editor message must address the same embed head. */
+export async function stableMessageEmbedId(
+	chatKey: Uint8Array, chatId: string, messageId: string,
+	kind: "code" | "sheet", sourceStart: number, source: string,
+): Promise<string> {
+	const key = await crypto.subtle.importKey(
+		"raw", new Uint8Array(chatKey), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
+	);
+	const bytes = new TextEncoder().encode(JSON.stringify([
+		"message-embed-v1", chatId, messageId, kind, sourceStart, source,
+	]));
+	const digest = new Uint8Array(await crypto.subtle.sign("HMAC", key, bytes));
+	const id = digest.slice(0, 16);
+	// UUID version 8 denotes a private, deterministic HMAC name mapping.
+	id[6] = (id[6] & 0x0f) | 0x80;
+	id[8] = (id[8] & 0x3f) | 0x80;
+	const hex = Array.from(id, (byte) => byte.toString(16).padStart(2, "0")).join("");
+	return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+/** Bind the encrypted canonical row to the exact content used by inference. */
+export function canonicalUserMessageForSend(message: Message, finalContent: string | undefined): Message {
+	return { ...message, content: finalContent };
+}
+
+/** Keep the optimistic IDB row aligned with the ciphertext committed by preflight. */
+export async function reconcileOptimisticUserCiphertext(
+	chatId: string,
+	messageId: string,
+	createdAt: number,
+	canonicalCiphertext: string,
+	openTransaction: () => Promise<IDBTransaction> = () => chatDB.getTransaction("messages", "readwrite"),
+): Promise<void> {
+	if (!canonicalCiphertext) throw new Error("Canonical user message ciphertext is missing.");
+	const transaction = await openTransaction();
+	const store = transaction.objectStore("messages");
+	return new Promise<void>((resolve, reject) => {
+		transaction.oncomplete = () => resolve();
+		transaction.onabort = () => reject(transaction.error ?? new Error("Optimistic message reconciliation aborted."));
+		transaction.onerror = () => reject(transaction.error ?? new Error("Optimistic message reconciliation failed."));
+		const request = store.get(messageId);
+		request.onerror = () => reject(request.error);
+		request.onsuccess = () => {
+			const row = request.result as (Message & Record<string, unknown>) | undefined;
+			if (!row || row.chat_id !== chatId || row.message_id !== messageId ||
+				row.role !== "user" || row.created_at !== createdAt) {
+				transaction.abort();
+				return;
+			}
+			if (row.encrypted_content === canonicalCiphertext) return;
+			// The row contains ciphertext only. Preserve status and both exact retry
+			// journals while replacing the original editor fence with the ref.
+			row.encrypted_content = canonicalCiphertext;
+			store.put(row);
+		};
+	});
+}
+
+interface MessageEmbedBundleIdentity {
+	accountId: string;
+	chatId: string;
+	messageId: string;
+	chatKey: Uint8Array;
+	embeds: MessageEmbedIntent[];
+}
+
+function messageEmbedBundleStorageKey(identity: Pick<MessageEmbedBundleIdentity, "accountId" | "chatId" | "messageId">): string {
+	return `${identity.accountId}:${identity.chatId}:${identity.messageId}`;
+}
+
+async function readPendingMessageJournal(chatId: string, messageId: string, field: string): Promise<string | null> {
+	const transaction = await chatDB.getTransaction("messages", "readonly");
+	const request = transaction.objectStore("messages").get(messageId);
+	const row = await new Promise<Record<string, unknown> | undefined>((resolve, reject) => {
+		request.onsuccess = () => resolve(request.result as Record<string, unknown> | undefined);
+		request.onerror = () => reject(request.error);
+	});
+	if (!row || row.chat_id !== chatId) throw new Error("Pending message row is unavailable for durable embed preparation.");
+	const saved = row[field];
+	if (saved === undefined) return null;
+	if (typeof saved !== "string") throw new Error("Pending message embed bundle is invalid.");
+	return saved;
+}
+
+const readPendingMessageEmbedBundle = (chatId: string, messageId: string) =>
+	readPendingMessageJournal(chatId, messageId, MESSAGE_EMBED_BUNDLE_FIELD);
+
+async function commitPendingMessageJournal(chatId: string, messageId: string, field: string, candidate: string): Promise<string> {
+	const transaction = await chatDB.getTransaction("messages", "readwrite");
+	const store = transaction.objectStore("messages");
+	let committed: string | null = null;
+	return new Promise<string>((resolve, reject) => {
+		transaction.oncomplete = () => {
+			if (committed === null) reject(new Error("Pending message embed bundle was not committed."));
+			else resolve(committed);
+		};
+		transaction.onabort = () => reject(transaction.error ?? new Error("Pending message embed bundle transaction aborted."));
+		transaction.onerror = () => reject(transaction.error ?? new Error("Pending message embed bundle transaction failed."));
+		const request = store.get(messageId);
+		request.onerror = () => reject(request.error);
+		request.onsuccess = () => {
+			const row = request.result as Record<string, unknown> | undefined;
+			if (!row || row.chat_id !== chatId) {
+				transaction.abort();
+				return;
+			}
+			const existing = row[field];
+			if (existing !== undefined && typeof existing !== "string") {
+				transaction.abort();
+				return;
+			}
+			if (typeof existing === "string") {
+				committed = existing;
+				if (field === MESSAGE_TURN_PREFLIGHT_FIELD && row.pending_turn_preflight_v1 !== 1) {
+					row.pending_turn_preflight_v1 = 1;
+					store.put(row);
+				}
+				return;
+			}
+			row[field] = candidate;
+			if (field === MESSAGE_TURN_PREFLIGHT_FIELD) row.pending_turn_preflight_v1 = 1;
+			committed = candidate;
+			store.put(row);
+		};
+	});
+}
+
+const commitPendingMessageEmbedBundle = (chatId: string, messageId: string, candidate: string) =>
+	commitPendingMessageJournal(chatId, messageId, MESSAGE_EMBED_BUNDLE_FIELD, candidate);
+
+async function clearPendingMessageJournal(chatId: string, messageId: string, field: string): Promise<void> {
+	const transaction = await chatDB.getTransaction("messages", "readwrite");
+	const store = transaction.objectStore("messages");
+	return new Promise<void>((resolve, reject) => {
+		transaction.oncomplete = () => resolve();
+		transaction.onabort = () => reject(transaction.error ?? new Error("Pending message bundle cleanup aborted."));
+		transaction.onerror = () => reject(transaction.error ?? new Error("Pending message bundle cleanup failed."));
+		const request = store.get(messageId);
+		request.onerror = () => reject(request.error);
+		request.onsuccess = () => {
+			const row = request.result as Record<string, unknown> | undefined;
+			if (!row || row.chat_id !== chatId || row[field] === undefined) return;
+			delete row[field];
+			if (field === MESSAGE_TURN_PREFLIGHT_FIELD) delete row.pending_turn_preflight_v1;
+			store.put(row);
+		};
+	});
+}
+
+const clearPendingMessageEmbedBundle = (chatId: string, messageId: string) =>
+	clearPendingMessageJournal(chatId, messageId, MESSAGE_EMBED_BUNDLE_FIELD);
+
+async function messageEmbedBundleMac(chatKey: Uint8Array, value: unknown): Promise<string> {
+	const key = await crypto.subtle.importKey(
+		"raw", new Uint8Array(chatKey), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
+	);
+	const signed = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(JSON.stringify(value)));
+	return Array.from(new Uint8Array(signed), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+interface DurableTurnPreflightIdentity {
+	accountId: string;
+	chatId: string;
+	messageId: string;
+	createdAt: number;
+	finalContent: string | undefined;
+	chatKey: Uint8Array;
+	encryptedChatKey: string;
+	recoveryPublicKey: string;
+}
+
+interface DurableTurnPreflightStorage {
+	read: () => Promise<string | null>;
+	commit: (candidate: string) => Promise<string>;
+}
+
+/**
+ * An uncertain preflight ACK must replay the original turn, user ciphertext,
+ * and inference commitment. The whole request is AES-GCM sealed in the local
+ * message row because its inference_request may contain authorized plaintext.
+ */
+export async function retainOrReuseDurableTurnPreflight(
+	identity: DurableTurnPreflightIdentity,
+	candidate: Record<string, unknown>,
+	storage: DurableTurnPreflightStorage,
+): Promise<{ payload: Record<string, unknown>; sealed: string }> {
+	const intentMac = await messageEmbedBundleMac(identity.chatKey, [
+		"turn-preflight-v1", identity.accountId, identity.chatId, identity.messageId,
+		identity.createdAt, identity.finalContent, identity.encryptedChatKey,
+		identity.recoveryPublicKey,
+	]);
+	const previous = await storage.read();
+	const proposed = previous ?? await encryptWithChatKey(JSON.stringify({
+		version: 1, account_id: identity.accountId, chat_id: identity.chatId,
+		message_id: identity.messageId, intent_mac: intentMac, payload: candidate,
+	}), identity.chatKey);
+	// Atomic get/put picks the first journal if another tab wins the race.
+	const sealed = await storage.commit(proposed);
+	const plaintext = await decryptWithChatKey(sealed, identity.chatKey, {
+		chatId: identity.chatId, fieldName: MESSAGE_TURN_PREFLIGHT_FIELD,
+	});
+	if (!plaintext) throw new Error("Stored turn preflight cannot be decrypted with the current chat key.");
+	let snapshot: Record<string, unknown>;
+	try { snapshot = JSON.parse(plaintext) as Record<string, unknown>; }
+	catch { throw new Error("Stored turn preflight is invalid."); }
+	const payload = snapshot.payload as Record<string, unknown> | undefined;
+	const userMessage = payload?.encrypted_user_message as Record<string, unknown> | undefined;
+	const inference = payload?.inference_request as Record<string, unknown> | undefined;
+	const inferenceMessage = inference?.message as Record<string, unknown> | undefined;
+	if (snapshot.version !== 1 || snapshot.account_id !== identity.accountId ||
+		snapshot.chat_id !== identity.chatId || snapshot.message_id !== identity.messageId ||
+		snapshot.intent_mac !== intentMac || !payload ||
+		payload.chat_id !== identity.chatId || payload.message_id !== identity.messageId ||
+		payload.encrypted_chat_key !== identity.encryptedChatKey ||
+		payload.recovery_public_key !== identity.recoveryPublicKey ||
+		typeof payload.turn_id !== "string" || !payload.turn_id ||
+		typeof payload.expected_messages_v !== "number" ||
+		!Number.isSafeInteger(payload.expected_messages_v) ||
+		payload.expected_messages_v < 0 ||
+		userMessage?.chat_id !== identity.chatId ||
+		userMessage?.client_message_id !== identity.messageId ||
+		userMessage?.role !== "user" ||
+		typeof userMessage.encrypted_content !== "string" || !userMessage.encrypted_content ||
+		inference?.chat_id !== identity.chatId ||
+		inference?.turn_id !== payload.turn_id ||
+		inferenceMessage?.message_id !== identity.messageId) {
+		throw new Error("Stored turn preflight changed account, key, scope, content, or ciphertext.");
+	}
+	return { payload, sealed };
+}
+
+/**
+ * Keep the exact randomized ciphertext for a same-message retry. The snapshot
+ * contains only encrypted embed fields and keyed digests of the plaintext intent.
+ */
+export async function retainOrReuseEncryptedMessageEmbedBundle(
+	identity: MessageEmbedBundleIdentity,
+	prepare: () => Promise<EncryptedEmbedForDirectus[]>,
+	storage: Pick<Storage, "getItem" | "setItem">,
+): Promise<EncryptedEmbedForDirectus[]> {
+	const key = messageEmbedBundleStorageKey(identity);
+	const intentMac = await messageEmbedBundleMac(identity.chatKey, [
+		identity.accountId, identity.chatId, identity.messageId,
+		identity.embeds.map(({ embed_id, type, content, text_preview, status, embed_ids }) =>
+			[embed_id, type, content, text_preview ?? null, status ?? null, embed_ids ?? null]),
+	]);
+	const expectedIds = new Set(identity.embeds.map((embed) => embed.embed_id));
+	const validEntries = (entries: unknown): entries is EncryptedEmbedForDirectus[] =>
+		Array.isArray(entries) && entries.every((entry) =>
+			entry && typeof entry === "object" &&
+			typeof entry.embed_id === "string" && expectedIds.has(entry.embed_id) &&
+			typeof entry.encrypted_content === "string" && !!entry.encrypted_content &&
+			typeof entry.encrypted_type === "string" && !!entry.encrypted_type &&
+			Array.isArray(entry.embed_keys) && entry.embed_keys.length === 2 &&
+			new Set(entry.embed_keys.map((wrapper: { key_type?: string }) => wrapper?.key_type)).size === 2 &&
+			entry.embed_keys.every((wrapper: { key_type?: string; encrypted_embed_key?: string }) =>
+				(wrapper?.key_type === "master" || wrapper?.key_type === "chat") &&
+				typeof wrapper.encrypted_embed_key === "string" && !!wrapper.encrypted_embed_key)
+		) && new Set(entries.map((entry) => entry.embed_id)).size === entries.length;
+	const savedRaw = storage.getItem(key);
+	if (savedRaw !== null) {
+		let saved: { version?: number; intent_mac?: string; bundle_mac?: string; encrypted_embeds?: unknown };
+		try { saved = JSON.parse(savedRaw) as typeof saved; }
+		catch { throw new Error("Stored message embed bundle is invalid."); }
+		if (saved.version !== 1 || saved.intent_mac !== intentMac ||
+			!validEntries(saved.encrypted_embeds) ||
+			saved.bundle_mac !== await messageEmbedBundleMac(identity.chatKey, [intentMac, saved.encrypted_embeds])) {
+			throw new Error("Message embed retry changed account, key, scope, content, or ciphertext.");
+		}
+		return saved.encrypted_embeds;
+	}
+	const entries = await prepare();
+	if (!validEntries(entries)) throw new Error("Message embed bundle preparation was incomplete.");
+	storage.setItem(key, JSON.stringify({
+		version: 1, intent_mac: intentMac,
+		bundle_mac: await messageEmbedBundleMac(identity.chatKey, [intentMac, entries]),
+		encrypted_embeds: entries,
+	}));
+	return entries;
+}
+
+export function selectRequiredMessageEmbedEntries(
+	embeds: MessageEmbedIntent[],
+	encryptedEmbeds: EncryptedEmbedForDirectus[],
+	canonicalIds: ReadonlySet<string>,
+): EncryptedEmbedForDirectus[] {
+	const entries = new Map(encryptedEmbeds.map((entry) => [entry.embed_id, entry]));
+	const required: EncryptedEmbedForDirectus[] = [];
+	for (const embedId of new Set(embeds.map((embed) => embed.embed_id))) {
+		const entry = entries.get(embedId);
+		// A same-message retry must keep the original preflight bundle even when
+		// its first attempt already persisted the canonical head.
+		if (entry) required.push(entry);
+		else if (!canonicalIds.has(embedId)) {
+			throw new Error(`Message embed ${embedId} has no canonical head or retained encrypted bundle.`);
+		}
+	}
+	return required;
+}
+
+export function watchMessageEmbedBundleConfirmation(
+	identity: MessageEmbedBundleIdentity, committedMessagesVersion: number,
+	clearJournal: () => Promise<void> = () =>
+		clearPendingMessageEmbedBundle(identity.chatId, identity.messageId),
+): void {
+	const key = messageEmbedBundleStorageKey(identity);
+	const { chatId, messageId } = identity;
+	if (embedBundleConfirmListeners.has(key)) return;
+	const confirmed = (payload: unknown) => {
+		const value = payload as { chat_id?: string; message_id?: string; new_messages_v?: number };
+		if (value?.chat_id !== chatId || value.message_id !== messageId ||
+			value.new_messages_v !== committedMessagesVersion) return;
+		void clearJournal().catch((error) =>
+			console.warn("[ChatSyncService:Senders] Could not clear confirmed embed bundle", error));
+		webSocketService.off("chat_message_confirmed", confirmed);
+		embedBundleConfirmListeners.delete(key);
+	};
+	embedBundleConfirmListeners.set(key, confirmed);
+	webSocketService.on("chat_message_confirmed", confirmed);
+}
+
+export function watchDurableTurnPreflightConfirmation(
+	chatId: string, messageId: string, committedMessagesVersion: number,
+	clearJournal: () => Promise<void> = () =>
+		clearPendingMessageJournal(chatId, messageId, MESSAGE_TURN_PREFLIGHT_FIELD),
+): void {
+	const key = `${chatId}:${messageId}`;
+	if (turnPreflightConfirmListeners.has(key)) return;
+	const confirmed = (payload: unknown) => {
+		const value = payload as { chat_id?: string; message_id?: string; new_messages_v?: number };
+		// Legacy metadata ACKs can name this user row before the durable turn is
+		// admitted. The versioned message_received ACK follows enqueue_chat_turn.
+		if (value?.chat_id !== chatId || value.message_id !== messageId ||
+			value.new_messages_v !== committedMessagesVersion) return;
+		void clearJournal().catch((error) =>
+			console.warn("[ChatSyncService:Senders] Could not clear confirmed turn preflight", error));
+		webSocketService.off("chat_message_confirmed", confirmed);
+		turnPreflightConfirmListeners.delete(key);
+	};
+	turnPreflightConfirmListeners.set(key, confirmed);
+	webSocketService.on("chat_message_confirmed", confirmed);
+}
+
+if (typeof window !== "undefined") {
+	window.addEventListener("userLoggingOut", () => {
+		// The account logout path deletes chatDB, including pending message rows.
+		for (const [key, listener] of embedBundleConfirmListeners) {
+			webSocketService.off("chat_message_confirmed", listener);
+			embedBundleConfirmListeners.delete(key);
+		}
+		for (const [key, listener] of turnPreflightConfirmListeners) {
+			webSocketService.off("chat_message_confirmed", listener);
+			turnPreflightConfirmListeners.delete(key);
+		}
+	});
+}
 function watchOrdinaryTeamConfirmation(chatId: string, messageId: string): void {
 	const key = ordinaryTeamPreflightStorageKey(chatId, messageId);
 	if (teamPreflightConfirmListeners.has(key)) return;
@@ -404,6 +858,17 @@ export async function sendNewMessageImpl(
 	// Client creates embeds locally, encrypts them, and sends everything in one request.
 	// ========================================================================
 	let processedContent = message.content;
+	// Saved-message embed IDs are keyed by the chat secret. This keeps retries
+	// stable without exposing a public plaintext guessing oracle in embed IDs.
+	const extractionChatKey = isIncognitoChat ? null :
+		(chatKeyManager.getKeySync(message.chat_id) || await chatKeyManager.getKey(message.chat_id));
+	if (!isIncognitoChat && !extractionChatKey) {
+		throw new Error(`Saved chat ${message.chat_id} has no chat key for stable embed IDs.`);
+	}
+	const extractedEmbedId = async (kind: "code" | "sheet", start: number, source: string) =>
+		extractionChatKey
+			? stableMessageEmbedId(extractionChatKey, message.chat_id, message.message_id, kind, start, source)
+			: generateUUID();
 	const extractedCodeEmbeds: Array<{
 		embed_id: string;
 		type: string;
@@ -417,7 +882,6 @@ export async function sendNewMessageImpl(
 	// Only extract code blocks if content contains potential code blocks (performance optimization)
 	if (processedContent && processedContent.includes("```")) {
 		const { encode: toonEncode } = await import("@toon-format/toon");
-		const { generateUUID } = await import("../message_parsing/utils");
 		const { embedStore } = await import("./embedStore");
 
 		// Regex to match markdown code blocks: ```language:filename\ncontent\n``` or ```language\ncontent\n```
@@ -468,7 +932,7 @@ export async function sendNewMessageImpl(
 			}
 
 			// Generate embed ID
-			const embedId = generateUUID();
+			const embedId = await extractedEmbedId("code", match.index, fullMatch);
 
 			// Create embed content structure
 			const embedContent = {
@@ -574,7 +1038,6 @@ export async function sendNewMessageImpl(
 	// Only extract tables if content contains potential tables (lines starting with |)
 	if (processedContent && processedContent.includes("|")) {
 		const { encode: toonEncode } = await import("@toon-format/toon");
-		const { generateUUID } = await import("../message_parsing/utils");
 		const { embedStore } = await import("./embedStore");
 
 		// Pattern to match markdown table rows (lines starting and ending with |)
@@ -617,7 +1080,7 @@ export async function sendNewMessageImpl(
 
 					if (rows >= 0 && cols > 0) {
 						// Valid table
-						const embedId = generateUUID();
+						const embedId = await extractedEmbedId("sheet", tableStart, tableContent);
 
 						// Check for title comment before table
 						let title: string | undefined;
@@ -714,7 +1177,7 @@ export async function sendNewMessageImpl(
 			const cols = (headerLine.match(/\|/g) || []).length - 1;
 
 			if (rows >= 0 && cols > 0) {
-				const embedId = generateUUID();
+				const embedId = await extractedEmbedId("sheet", tableStart, tableContent);
 
 				const embedContent = {
 					type: "sheet",
@@ -1225,6 +1688,7 @@ export async function sendNewMessageImpl(
 		);
 	}
 
+	let pendingBundleConfirmationIdentity: MessageEmbedBundleIdentity | null = null;
 	// Include embeds if any were found in the message
 	if (embeds.length > 0) {
 		payload.embeds = embeds; // Send embeds as cleartext (server will encrypt for cache)
@@ -1264,52 +1728,73 @@ export async function sendNewMessageImpl(
 					chatKeyManager.getKeySync(message.chat_id) ||
 					(await chatKeyManager.getKey(message.chat_id));
 				if (!chatKey) {
-					console.error(
-						`[ChatSyncService:Senders] No chat key available for embed key wrapping (chat ${message.chat_id}). Embeds will not be encrypted.`
-					);
+					throw new Error(`Saved chat ${message.chat_id} has no chat key for required embed storage.`);
 				}
-				const chatKeySafeForEmbedStorage = chatKey
-					? await ensureChatKeySafeForWrite(
-							message.chat_id,
-							chatKey,
-							"direct message embed storage"
-						)
-					: false;
-				if (chatKey && !chatKeySafeForEmbedStorage) {
-					console.error(
-						`[ChatSyncService:Senders] Skipping direct embed storage for ${message.chat_id} because chat key validation failed.`
-					);
+				const chatKeySafeForEmbedStorage = await ensureChatKeySafeForWrite(
+					message.chat_id,
+					chatKey,
+					"direct message embed storage"
+				);
+				if (!chatKeySafeForEmbedStorage) {
+					throw new Error(`Saved chat ${message.chat_id} has no safe chat key for required embed storage.`);
 				}
 
-				// Only proceed if we have a chat key (user_id is optional - server fills it in)
-				if (chatKey && chatKeySafeForEmbedStorage) {
+				// A reused canonical reference stays in the AI context, but must not
+				// overwrite an embed head that may have advanced since local hydration.
+				const canonicalEmbedIds = new Set<string>();
+				const referencedIds = [...new Set(embeds.map((embed) => embed.embed_id))];
+				if (referencedIds.some((id) => !id || id.length > 128)) {
+					throw new Error("Message embed reference has an invalid embed ID.");
+				}
+				for (let offset = 0; offset < referencedIds.length; offset += 20) {
+					const selectedIds = referencedIds.slice(offset, offset + 20);
+					const body = JSON.stringify({ embed_ids: selectedIds });
+					if (new TextEncoder().encode(body).byteLength > 4096) {
+						throw new Error("Message embed availability request exceeds its byte limit.");
+					}
+					const query = chat?.team_id ? `?team_id=${encodeURIComponent(chat.team_id)}` : "";
+					const response = await fetch(getApiEndpoint(
+						`/v1/embeds/chats/${encodeURIComponent(message.chat_id)}/references/availability${query}`
+					), {
+						method: "POST", credentials: "include",
+						headers: { "Content-Type": "application/json" }, body,
+					});
+					if (!response.ok) throw new Error(`Message embed availability lookup failed (${response.status}).`);
+					const page = await response.json() as {
+						results?: Array<{ embed_id?: string; state?: string }>;
+					};
+					if (!Array.isArray(page.results) || page.results.length !== selectedIds.length) {
+						throw new Error("Message embed availability result is incomplete.");
+					}
+					for (let index = 0; index < selectedIds.length; index++) {
+						const result = page.results[index];
+						if (result?.embed_id !== selectedIds[index]) {
+							throw new Error("Message embed availability result changed identity.");
+						}
+						if (result.state === "ready") canonicalEmbedIds.add(selectedIds[index]);
+						else if (result.state === "unusable") {
+							throw new Error(`Canonical embed ${selectedIds[index]} has no usable key for this chat.`);
+						} else if (result.state !== "missing") {
+							throw new Error("Message embed availability result has an unknown state.");
+						}
+					}
+				}
+
+				const bundleIdentity: MessageEmbedBundleIdentity = {
+					accountId: userId, chatId: message.chat_id, messageId: message.message_id,
+					chatKey, embeds,
+				};
+				const savedSnapshot = await readPendingMessageEmbedBundle(message.chat_id, message.message_id);
+				let proposedSnapshot: string | null = null;
+				await retainOrReuseEncryptedMessageEmbedBundle(bundleIdentity, async () => {
 					// Prepare encrypted embeds for Directus storage
 					// IMPORTANT: Use snake_case for Directus fields (created_at, updated_at)
 					// and Unix timestamps in SECONDS (not milliseconds)
-					interface EncryptedEmbedForDirectus {
-						embed_id: string;
-						encrypted_type: string;
-						encrypted_content: string;
-						encrypted_text_preview?: string;
-						status: string;
-						hashed_chat_id: string;
-						hashed_message_id: string;
-						hashed_user_id: string;
-						embed_ids?: string[];
-						created_at: number; // Unix timestamp in SECONDS (snake_case for Directus)
-						updated_at: number; // Unix timestamp in SECONDS (snake_case for Directus)
-						embed_keys?: Array<{
-							hashed_embed_id: string;
-							key_type: "master" | "chat";
-							hashed_chat_id: string | null;
-							encrypted_embed_key: string;
-							hashed_user_id: string;
-							created_at: number;
-						}>;
-					}
 					const encryptedEmbeds: EncryptedEmbedForDirectus[] = [];
 
 					for (const embed of embeds) {
+						if (canonicalEmbedIds.has(embed.embed_id) ||
+							encryptedEmbeds.some((entry) => entry.embed_id === embed.embed_id)) continue;
 						try {
 							// CRITICAL LOGGING: Track embed_keys generation for debugging
 							console.info(
@@ -1324,18 +1809,10 @@ export async function sendNewMessageImpl(
 
 							// Validate embed has required fields
 							if (!embed.embed_id) {
-								console.error(
-									`[ChatSyncService:Senders] Embed missing embed_id, skipping:`,
-									embed
-								);
-								continue;
+								throw new Error("Message embed is missing embed_id.");
 							}
 							if (!embed.content) {
-								console.error(
-									`[ChatSyncService:Senders] Embed missing content, skipping:`,
-									embed.embed_id
-								);
-								continue;
+								throw new Error(`Message embed ${embed.embed_id} has no content.`);
 							}
 
 							// Derive embed key deterministically from chat key — all tabs produce the same result.
@@ -1368,15 +1845,7 @@ export async function sendNewMessageImpl(
 							);
 
 							if (!wrappedWithMaster || !wrappedWithChat) {
-								console.error(
-									`[ChatSyncService:Senders] ❌ CRITICAL: Failed to wrap embed key for ${embed.embed_id}, skipping Directus storage`,
-									{
-										wrappedWithMaster: !!wrappedWithMaster,
-										wrappedWithChat: !!wrappedWithChat,
-										hasChatKey: !!chatKey
-									}
-								);
-								continue;
+								throw new Error(`Message embed ${embed.embed_id} has no durable master and chat key wrappers.`);
 							}
 
 							console.info(
@@ -1413,14 +1882,6 @@ export async function sendNewMessageImpl(
 								}
 							];
 
-							// Cache the embed key locally for future use
-							embedStore.setEmbedKeyInCache(embed.embed_id, embedKey, hashedChatId);
-							embedStore.setEmbedKeyInCache(
-								embed.embed_id,
-								embedKey,
-								undefined
-							); // Master fallback
-
 							// Log embed_keys that will be stored
 							console.info(
 								`[ChatSyncService:Senders] 🔑 Created ${embedKeys.length} embed_keys for ${embed.embed_id}:`,
@@ -1450,12 +1911,6 @@ export async function sendNewMessageImpl(
 									: nowSeconds,
 								embed_keys: embedKeys
 							};
-							await embedStore.putEncrypted(
-								`embed:${embed.embed_id}`,
-								encryptedEmbed,
-								embed.type as EmbedType,
-								embed.content
-							);
 							encryptedEmbeds.push(encryptedEmbed);
 
 							console.info(
@@ -1466,28 +1921,61 @@ export async function sendNewMessageImpl(
 								`[ChatSyncService:Senders] Error encrypting embed ${embed.embed_id}:`,
 								embedError
 							);
-							// Continue with other embeds
+							throw embedError;
 						}
 					}
+					return encryptedEmbeds;
+				}, {
+					getItem: () => savedSnapshot,
+					setItem: (_key, value) => { proposedSnapshot = value; },
+				});
+				const durableSnapshot = await commitPendingMessageEmbedBundle(
+					message.chat_id, message.message_id, proposedSnapshot ?? savedSnapshot ?? ""
+				);
+				const retainedEmbeds = await retainOrReuseEncryptedMessageEmbedBundle(
+					bundleIdentity,
+					async () => { throw new Error("Committed message embed bundle was lost."); },
+					{ getItem: () => durableSnapshot, setItem: () => { throw new Error("Committed message embed bundle was lost."); } },
+				);
+				const encryptedEmbeds = selectRequiredMessageEmbedEntries(
+					embeds, retainedEmbeds, canonicalEmbedIds
+				);
+				// The raw editor fence can disappear after message reconciliation.
+				// Commit both existing wrappers before replacing the local embed's
+				// master-encrypted source with its canonical encrypted head.
+				await persistRetainedMessageEmbedKeys(encryptedEmbeds, embedStore);
+				for (const encryptedEmbed of encryptedEmbeds) {
+					const source = embeds.find((embed) => embed.embed_id === encryptedEmbed.embed_id);
+					if (!source) throw new Error("Prepared embed plaintext metadata was lost.");
+					const embedKey = await deriveEmbedKeyFromChatKey(chatKey, encryptedEmbed.embed_id);
+					embedStore.setEmbedKeyInCache(encryptedEmbed.embed_id, embedKey, hashedChatId);
+					embedStore.setEmbedKeyInCache(encryptedEmbed.embed_id, embedKey, undefined);
+					await embedStore.putEncrypted(
+						`embed:${encryptedEmbed.embed_id}`, encryptedEmbed,
+						source.type as EmbedType, source.content
+					);
+				}
+				await verifyRetainedMessageEmbedHeads(encryptedEmbeds);
+				if (encryptedEmbeds.length > 0) pendingBundleConfirmationIdentity = bundleIdentity;
 
-					// Add encrypted embeds to payload for direct Directus storage
-					if (encryptedEmbeds.length > 0) {
-						(
-							payload as SendMessagePayload & {
-								encrypted_embeds?: EncryptedEmbedForDirectus[];
-							}
-						).encrypted_embeds = encryptedEmbeds;
-						console.info(
-							`[ChatSyncService:Senders] Including ${encryptedEmbeds.length} client-encrypted embeds for direct Directus storage`
-						);
-					}
+				// Add encrypted embeds to payload for direct Directus storage.
+				if (encryptedEmbeds.length > 0) {
+					(
+						payload as SendMessagePayload & {
+							encrypted_embeds?: EncryptedEmbedForDirectus[];
+						}
+					).encrypted_embeds = encryptedEmbeds;
+					console.info(
+						`[ChatSyncService:Senders] Including ${encryptedEmbeds.length} client-encrypted embeds for direct Directus storage`
+					);
 				}
 			} catch (encryptError) {
 				console.error(
 					"[ChatSyncService:Senders] Error preparing encrypted embeds:",
 					encryptError
 				);
-				// Non-fatal: embeds will still be cached server-side for AI, just not stored in Directus
+				encryptSpan.end();
+				throw encryptError;
 			}
 		}
 		encryptSpan.end();
@@ -1544,7 +2032,13 @@ export async function sendNewMessageImpl(
 			message.chat_id,
 			CHAT_RECOVERY_KEY_VERSION
 		);
-		const encryptedFields = await chatDB.getEncryptedFields(message, message.chat_id);
+		// The canonical user row must encrypt the same markdown that inference
+		// receives. Code/table extraction replaces source blocks with embed refs;
+		// encrypting the original editor markdown leaves the saved transcript
+		// unable to render its otherwise durable encrypted embed after reload.
+		const encryptedFields = await chatDB.getEncryptedFields(
+			canonicalUserMessageForSend(message, contentForServer), message.chat_id
+		);
 		if (!encryptedFields.encrypted_content) {
 			throw new Error("Durable chat preflight requires encrypted user content.");
 		}
@@ -1629,7 +2123,7 @@ export async function sendNewMessageImpl(
 				preflightPayload = await retainOrReuseOrdinaryTeamPreflight({
 					accountId, teamId: chat.team_id, chatId: message.chat_id,
 					messageId: message.message_id, role: message.role, createdAt: message.created_at,
-					content: message.content, senderName: message.sender_name,
+					content: contentForServer, senderName: message.sender_name,
 					chatKey, encryptedChatKey,
 				}, preflightPayload);
 				payload = preflightPayload.inference_request as SendMessagePayload;
@@ -1639,6 +2133,47 @@ export async function sendNewMessageImpl(
 				await updateMessageStatusForSendRetry(serviceInstance, message, "failed");
 				throw error;
 			}
+		}
+		if (!chat?.team_id || shouldInvokeTeamAI) {
+			try {
+				const { userDB } = await import("./userDB");
+				const accountId = (await userDB.getUserProfile())?.user_id;
+				if (!accountId) throw new Error("Durable turn preflight requires an authenticated account.");
+				const retained = await retainOrReuseDurableTurnPreflight({
+					accountId, chatId: message.chat_id, messageId: message.message_id,
+					createdAt: message.created_at, finalContent: contentForServer,
+					chatKey, encryptedChatKey, recoveryPublicKey: recoveryKeypair.publicKey,
+				}, preflightPayload, {
+					read: () => readPendingMessageJournal(message.chat_id, message.message_id, MESSAGE_TURN_PREFLIGHT_FIELD),
+					commit: (candidate) => commitPendingMessageJournal(
+						message.chat_id, message.message_id, MESSAGE_TURN_PREFLIGHT_FIELD, candidate
+					),
+				});
+				preflightPayload = retained.payload;
+				payload = preflightPayload.inference_request as SendMessagePayload;
+				turnId = preflightPayload.turn_id as string;
+				watchDurableTurnPreflightConfirmation(
+					message.chat_id, message.message_id,
+					Number(preflightPayload.expected_messages_v) + 1,
+				);
+			} catch (error) {
+				await updateMessageStatusForSendRetry(serviceInstance, message, "failed");
+				throw error;
+			}
+		}
+		if (message.content !== contentForServer) {
+			const canonicalCiphertext = (preflightPayload.encrypted_user_message as
+				{ encrypted_content?: string } | undefined)?.encrypted_content;
+			await reconcileOptimisticUserCiphertext(
+				message.chat_id, message.message_id, message.created_at,
+				canonicalCiphertext ?? "",
+			);
+		}
+		if (pendingBundleConfirmationIdentity) {
+			watchMessageEmbedBundleConfirmation(
+				pendingBundleConfirmationIdentity,
+				Number(preflightPayload.expected_messages_v) + 1,
+			);
 		}
 		try {
 			const { preflight_id } = await runSerializedPreflight(async () => {

@@ -76,6 +76,8 @@ class CompressionResult(BaseModel):
     summary_token_estimate: int = 0  # Estimated tokens in the summary
     recent_messages: Optional[List[Dict[str, Any]]] = None  # Messages kept in full
     compressed_up_to_timestamp: Optional[int] = None  # Timestamp of newest compressed message
+    compressed_up_to_message_id: Optional[str] = None  # Stable tie-breaker at that timestamp
+    covered_message_ids: Optional[List[str]] = None  # Exact source messages represented by this summary
     model_id: Optional[str] = None
     input_tokens: int = 0
     output_tokens: int = 0
@@ -489,12 +491,34 @@ async def compress_chat_history(
     if previous_summary:
         logger.info(f"{log_prefix} Found existing compression summary to incorporate.")
 
-    # Calculate the timestamp of the newest compressed message
-    compressed_up_to_timestamp = max(
-        (msg.get("created_at", 0) for msg in messages_to_compress
-         if msg.get("role") != "system" or msg.get("category") != COMPRESSION_SUMMARY_CATEGORY),
-        default=0
-    )
+    # Preserve the stable ordering fence used by archive readers. A timestamp
+    # alone can include a newer, uncompressed message with the same second.
+    compressed_sources = [
+        msg for msg in messages_to_compress
+        if msg.get("category") != COMPRESSION_SUMMARY_CATEGORY
+    ]
+    compressed_up_to_timestamp = max((msg.get("created_at", 0) for msg in compressed_sources), default=0)
+    latest_sources = [msg for msg in compressed_sources if msg.get("created_at", 0) == compressed_up_to_timestamp]
+    latest_ids = [
+        str(msg.get("message_id") or msg.get("client_message_id") or msg.get("id") or "")
+        for msg in latest_sources
+    ]
+    # If any latest source lacks an ID, the caller must not infer a safe cursor.
+    compressed_up_to_message_id = max(latest_ids) if latest_ids and all(latest_ids) else None
+    source_ids = [
+        next((value for value in (msg.get("message_id"), msg.get("client_message_id"), msg.get("id"))
+              if isinstance(value, str) and value and len(value) <= 255), None)
+        for msg in compressed_sources
+    ]
+    # A partial list would falsely claim that the summary covers only selected
+    # source rows. Keep ordinary compression working, but make archival ineligible.
+    covered_message_ids = None
+    if (source_ids and all(source_ids)
+            and all(isinstance(msg.get("content"), str) and msg["content"] for msg in compressed_sources)
+            and len(set(source_ids)) == len(source_ids) and len(source_ids) <= 20_000):
+        sorted_ids = sorted(source_ids)
+        if len(json.dumps(sorted_ids, separators=(",", ":"), ensure_ascii=False).encode("utf-8")) <= 1_048_576:
+            covered_message_ids = sorted_ids
 
     now_timestamp = int(time.time())
 
@@ -520,7 +544,9 @@ async def compress_chat_history(
             f"{len(formatted_messages)} messages to summarize."
         )
 
-        response = await invoke_google_ai_studio_chat_completions(
+        from backend.apps.ai.testing.caching_llm_wrapper import replay_capacity_direct_provider
+
+        response = await replay_capacity_direct_provider(invoke_google_ai_studio_chat_completions,
             task_id=f"{task_id}_compression",
             model_id=COMPRESSION_MODEL_ID,
             messages=llm_messages,
@@ -539,7 +565,7 @@ async def compress_chat_history(
                 logger.info(f"{log_prefix} Attempting fallback to Cerebras Qwen 3 for compression.")
                 from backend.apps.ai.llm_providers.cerebras_wrapper import invoke_cerebras_chat_completions
 
-                response = await invoke_cerebras_chat_completions(
+                response = await replay_capacity_direct_provider(invoke_cerebras_chat_completions,
                     task_id=f"{task_id}_compression_fallback",
                     model_id=CEREBRAS_COMPRESSION_FALLBACK_MODEL_ID,
                     messages=llm_messages,
@@ -582,6 +608,8 @@ async def compress_chat_history(
             summary_token_estimate=summary_token_estimate,
             recent_messages=[msg for msg in recent_messages],
             compressed_up_to_timestamp=compressed_up_to_timestamp,
+            compressed_up_to_message_id=compressed_up_to_message_id,
+            covered_message_ids=covered_message_ids,
             model_id=f"{used_provider}/{str(getattr(response, 'model_id', None) or COMPRESSION_MODEL_ID).split('/')[-1]}",
             input_tokens=input_tokens,
             output_tokens=output_tokens,

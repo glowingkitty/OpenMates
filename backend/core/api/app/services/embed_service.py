@@ -41,6 +41,11 @@ from backend.core.api.app.utils.text_sanitization import (
     sanitize_text_simple,
 )
 from backend.apps.ai.utils.mindmap_fences import normalize_mindmap_source
+from backend.shared.python_utils.chat_recovery_context import (
+    RequiredRecoveryOutputError,
+    active_recovery_output_context,
+    active_verified_output_producer,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -961,10 +966,7 @@ class EmbedService:
                 "updated_at": int(datetime.now().timestamp())
             }
 
-            # Cache
-            await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
-
-            # Send plaintext TOON to client via WebSocket
+            # Seal and deliver before the finished cache becomes visible.
             await self.send_embed_data_to_client(
                 embed_id=embed_id,
                 embed_type="focus_mode_activation",
@@ -980,7 +982,9 @@ class EmbedService:
                 created_at=embed_data["created_at"],
                 updated_at=embed_data["updated_at"],
                 log_prefix=log_prefix,
-                check_cache_status=False
+                check_cache_status=False,
+                finished_cache_data=embed_data,
+                finished_cache_vault_key_id=user_vault_key_id,
             )
 
             # Build embed reference JSON for the message markdown
@@ -1006,6 +1010,8 @@ class EmbedService:
                 "embed_reference": embed_reference
             }
 
+        except RequiredRecoveryOutputError:
+            raise
         except Exception as e:
             logger.error(f"{log_prefix} Error creating focus mode activation embed: {e}", exc_info=True)
             return None
@@ -1278,6 +1284,8 @@ class EmbedService:
                     if isinstance(existing_content, dict):
                         filename = existing_content.get("filename") or filename
                         embed_ref = existing_content.get("embed_ref")
+                except RequiredRecoveryOutputError:
+                    raise
                 except Exception as e:
                     logger.warning(f"{log_prefix} Failed to decode existing notebook embed content: {e}")
 
@@ -1321,8 +1329,9 @@ class EmbedService:
 
             current_status = cached_embed.get("status", "processing")
             should_send_event = not (status == "finished" and current_status == "finished" and version_number is None)
-            await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
-            if should_send_event:
+            if status != "finished":
+                await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+            if should_send_event or (status == "finished" and self._finished_recovery_required()):
                 await self.send_embed_data_to_client(
                     embed_id=embed_id,
                     embed_type="notebook",
@@ -1342,9 +1351,15 @@ class EmbedService:
                     updated_at=updated_embed_data["updated_at"],
                     log_prefix=log_prefix,
                     check_cache_status=False,
+                    finished_cache_data=updated_embed_data if status == "finished" else None,
+                    finished_cache_vault_key_id=user_vault_key_id,
                 )
+            if status == "finished" and not (should_send_event or self._finished_recovery_required()):
+                await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
             logger.info(f"{log_prefix} Updated notebook embed {embed_id} with status {status}")
             return True
+        except RequiredRecoveryOutputError:
+            raise
         except Exception as e:
             logger.error(f"{log_prefix} Error updating notebook embed content: {e}", exc_info=True)
             return False
@@ -1581,6 +1596,8 @@ class EmbedService:
                     language = existing_content.get("language", "")
                     filename = existing_content.get("filename")
                     embed_ref = existing_content.get("embed_ref")
+                except RequiredRecoveryOutputError:
+                    raise
                 except Exception as e:
                     logger.warning(f"{log_prefix} Failed to decode existing code embed content: {e}")
                     language = ""
@@ -1688,16 +1705,44 @@ class EmbedService:
                     f"(current_status={current_status}, new_status={status})"
                 )
 
+            # A newly completed code artifact needs a v1 client-encrypted
+            # snapshot even when it never receives a later diff edit. A later
+            # edit must not re-encrypt an already canonical v1 row: ciphertext
+            # encryption is randomized, so that would violate immutability.
+            history_rows_to_send = version_history_rows
+            if (status == "finished" and should_send_event and not history_rows_to_send
+                    and version_number in (None, 1)
+                    and cached_embed.get("version_number") in (None, 1)):
+                history_rows_to_send = [{
+                    "embed_id": embed_id, "version_number": 1,
+                    "snapshot": code_content,
+                    "created_at": updated_embed_data["updated_at"],
+                }]
+            elif (status == "finished" and history_rows_to_send
+                  and any(row.get("version_number") == 1 for row in history_rows_to_send)
+                  and hasattr(self.directus_service, "get_items")):
+                prior_v1 = await self.directus_service.get_items(
+                    "embed_diffs", params={
+                        "filter[embed_id][_eq]": embed_id,
+                        "filter[hashed_user_id][_eq]": user_id_hash,
+                        "filter[version_number][_eq]": 1,
+                        "fields": "id", "limit": 1,
+                    }, admin_required=True, no_cache=True, raise_on_error=True,
+                )
+                if not isinstance(prior_v1, list):
+                    raise RuntimeError("Canonical v1 history lookup failed")
+                if prior_v1:
+                    history_rows_to_send = [row for row in history_rows_to_send
+                                            if row.get("version_number") != 1]
+
             # Update cache
-            await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+            if status != "finished":
+                await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
 
             # Send updated content to client via WebSocket (only if not a duplicate finalization)
-            if should_send_event:
-                # CRITICAL FIX: Pass check_cache_status=False because we already checked the cache
-                # status above (at line 440). The cache was updated at line 451 BEFORE this call,
-                # so send_embed_data_to_client's default cache check would see the NEW status
-                # ("finished") and incorrectly skip sending. This was causing embeds to never
-                # be finalized on the frontend because the "finished" event was being dropped.
+            if should_send_event or (status == "finished" and self._finished_recovery_required()):
+                # The cache has already been read; the send saves and caches
+                # finished content before publishing the client event.
                 await self.send_embed_data_to_client(
                     embed_id=embed_id,
                     embed_type="code",
@@ -1712,12 +1757,16 @@ class EmbedService:
                     is_shared=cached_embed.get("is_shared", False),
                     version_number=version_number,
                     content_hash=content_hash,
-                    version_history_rows=version_history_rows,
+                    version_history_rows=history_rows_to_send,
                     created_at=cached_embed.get("created_at"),
                     updated_at=updated_embed_data["updated_at"],
                     log_prefix=log_prefix,
-                    check_cache_status=False  # Already checked above, cache was just updated
+                    check_cache_status=False,  # Cache state was checked before this update
+                    finished_cache_data=updated_embed_data if status == "finished" else None,
+                    finished_cache_vault_key_id=user_vault_key_id,
                 )
+            if status == "finished" and not (should_send_event or self._finished_recovery_required()):
+                await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
 
             logger.debug(f"{log_prefix} Updated code embed {embed_id} with {len(code_content)} chars (status: {status})")
 
@@ -1727,6 +1776,8 @@ class EmbedService:
 
             return True
 
+        except RequiredRecoveryOutputError:
+            raise
         except Exception as e:
             logger.error(f"{log_prefix} Error updating code embed content: {e}", exc_info=True)
             return False
@@ -1866,6 +1917,8 @@ class EmbedService:
                     decoded = decode(existing_toon)
                     if isinstance(decoded, dict):
                         existing_content = decoded
+                except RequiredRecoveryOutputError:
+                    raise
                 except Exception as e:
                     logger.warning(f"{log_prefix} Failed to decode existing PCB schematic content: {e}")
 
@@ -1931,8 +1984,9 @@ class EmbedService:
                 and compile_status is None
                 and version_number is None
             )
-            await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
-            if should_send_event:
+            if status != "finished":
+                await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+            if should_send_event or (status == "finished" and self._finished_recovery_required()):
                 await self.send_embed_data_to_client(
                     embed_id=embed_id,
                     embed_type="pcb_schematic",
@@ -1952,10 +2006,16 @@ class EmbedService:
                     updated_at=updated_embed_data["updated_at"],
                     log_prefix=log_prefix,
                     check_cache_status=False,
+                    finished_cache_data=updated_embed_data if status == "finished" else None,
+                    finished_cache_vault_key_id=user_vault_key_id,
                 )
+            if status == "finished" and not (should_send_event or self._finished_recovery_required()):
+                await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
             if status == "finished":
                 self._schedule_embed_persistence_fallback(embed_id)
             return True
+        except RequiredRecoveryOutputError:
+            raise
         except Exception as e:
             logger.error(f"{log_prefix} Error updating PCB schematic embed content: {e}", exc_info=True)
             return False
@@ -2060,6 +2120,7 @@ class EmbedService:
         files: Optional[Dict[str, Any]] = None,
         thumbnail: Optional[Dict[str, Any]] = None,
         log_prefix: str = "",
+        final_producer_output: bool = False,
     ) -> bool:
         """Update a videos.create embed with source, render status, and artifacts."""
         try:
@@ -2069,11 +2130,34 @@ class EmbedService:
             if not cached_embed:
                 logger.warning(f"{log_prefix} Remotion video embed {embed_id} not found in cache")
                 return False
+            next_embed_version = None
+            producer = active_verified_output_producer.get()
+            if (status == "finished" and final_producer_output and producer is not None
+                    and producer.classification == "authorized_direct" and producer.intent_kind == "rerender"):
+                if (producer.primary_embed_id != embed_id or producer.target_chat_id != chat_id
+                        or producer.owner_hash != user_id_hash or producer.primary_message_id != message_id
+                        or not isinstance(producer.expected_embed_version, int)):
+                    raise RequiredRecoveryOutputError("Remotion rerender producer identity mismatch")
+                canonical = await self.directus_service.get_items(
+                    "embeds", params={
+                        "filter[embed_id][_eq]": embed_id,
+                        "filter[hashed_user_id][_eq]": user_id_hash,
+                        "fields": "id,version_number,hashed_chat_id",
+                        "limit": 2,
+                    }, admin_required=True, no_cache=True, raise_on_error=True,
+                )
+                if (not isinstance(canonical, list) or len(canonical) != 1
+                        or canonical[0].get("hashed_chat_id") != hashlib.sha256(chat_id.encode()).hexdigest()
+                        or int(canonical[0].get("version_number") or 1) != producer.expected_embed_version):
+                    raise RequiredRecoveryOutputError("Remotion rerender canonical version changed")
+                next_embed_version = producer.expected_embed_version + 1
             existing_toon = await self._get_cached_embed_toon(embed_id, user_vault_key_id, log_prefix)
             existing_content: Dict[str, Any] = {}
             if existing_toon:
                 try:
                     existing_content = decode(existing_toon)
+                except RequiredRecoveryOutputError:
+                    raise
                 except Exception as exc:
                     logger.warning(f"{log_prefix} Failed to decode Remotion embed content: {exc}")
             normalized_filename = normalize_remotion_filename(filename or existing_content.get("filename"))
@@ -2112,7 +2196,10 @@ class EmbedService:
                 "status": status,
                 "updated_at": updated_at,
             }
-            await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+            if next_embed_version is not None:
+                updated_embed_data["version_number"] = next_embed_version
+            if status != "finished":
+                await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
             await self.send_embed_data_to_client(
                 embed_id=embed_id,
                 embed_type="app_skill_use",
@@ -2131,10 +2218,16 @@ class EmbedService:
                 check_cache_status=False,
                 app_id="videos",
                 skill_id="create",
+                version_number=next_embed_version,
+                producer_final_children=[] if final_producer_output and status == "finished" else None,
+                finished_cache_data=updated_embed_data if status == "finished" else None,
+                finished_cache_vault_key_id=user_vault_key_id,
             )
             if status in {"finished", "error", "cancelled", "needs_rerender"}:
                 self._schedule_embed_persistence_fallback(embed_id)
             return True
+        except RequiredRecoveryOutputError:
+            raise
         except Exception as e:
             logger.error(f"{log_prefix} Error updating Remotion video embed content: {e}", exc_info=True)
             return False
@@ -2213,9 +2306,7 @@ class EmbedService:
                 "updated_at": created_at,
             }
 
-            await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
-
-            await self.send_embed_data_to_client(
+            delivered = await self.send_embed_data_to_client(
                 embed_id=embed_id,
                 embed_type="application",
                 content_toon=content_toon,
@@ -2233,7 +2324,11 @@ class EmbedService:
                 check_cache_status=False,
                 app_id="code",
                 skill_id="application",
+                finished_cache_data=embed_data,
+                finished_cache_vault_key_id=user_vault_key_id,
             )
+            if not delivered:
+                raise RuntimeError("Generated application embed was not cached and delivered")
 
             self._schedule_embed_persistence_fallback(embed_id)
             logger.info(
@@ -2252,6 +2347,8 @@ class EmbedService:
                 "embed_reference": embed_reference,
                 "child_embed_ids": child_embed_ids,
             }
+        except RequiredRecoveryOutputError:
+            raise
         except Exception as e:
             logger.error(f"{log_prefix} Error creating application embed: {e}", exc_info=True)
             return None
@@ -2357,14 +2454,6 @@ class EmbedService:
                 "version_number": version_number,
                 "updated_at": updated_at,
             }
-            await self._cache_embed(
-                embed_id,
-                updated_embed_data,
-                chat_id,
-                user_id_hash,
-                user_vault_key_id,
-                user_id,
-            )
             published = await self.send_embed_data_to_client(
                 embed_id=embed_id,
                 embed_type="application",
@@ -2385,11 +2474,15 @@ class EmbedService:
                 check_cache_status=False,
                 app_id="code",
                 skill_id="application",
+                finished_cache_data=updated_embed_data,
+                finished_cache_vault_key_id=user_vault_key_id,
             )
             self._schedule_embed_persistence_fallback(embed_id)
             if not published:
                 logger.warning(f"{log_prefix} Application thumbnail refresh queued for fallback delivery for {embed_id}")
             return True
+        except RequiredRecoveryOutputError:
+            raise
         except Exception as exc:
             logger.error(f"{log_prefix} Error updating application embed thumbnail: {exc}", exc_info=True)
             return False
@@ -2401,6 +2494,8 @@ class EmbedService:
                     lock_key,
                     lock_token,
                 )
+            except RequiredRecoveryOutputError:
+                raise
             except Exception as exc:
                 logger.warning(f"{log_prefix} Failed to release application thumbnail lock for {embed_id}: {exc}")
 
@@ -2688,6 +2783,8 @@ class EmbedService:
                         existing_content = decode(existing_toon)
                         title = existing_content.get("title", "")
                         embed_ref = existing_content.get("embed_ref")
+                    except RequiredRecoveryOutputError:
+                        raise
                     except Exception:
                         title = ""
                         embed_ref = None
@@ -2700,6 +2797,8 @@ class EmbedService:
                     try:
                         existing_content = decode(existing_toon)
                         embed_ref = existing_content.get("embed_ref")
+                    except RequiredRecoveryOutputError:
+                        raise
                     except Exception:
                         embed_ref = None
 
@@ -2751,9 +2850,10 @@ class EmbedService:
                     f"already-finalized table embed {embed_id}"
                 )
 
-            await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+            if status != "finished":
+                await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
 
-            if should_send_event:
+            if should_send_event or (status == "finished" and self._finished_recovery_required()):
                 await self.send_embed_data_to_client(
                     embed_id=embed_id,
                     embed_type="sheet",
@@ -2772,8 +2872,12 @@ class EmbedService:
                     created_at=cached_embed.get("created_at"),
                     updated_at=updated_embed_data["updated_at"],
                     log_prefix=log_prefix,
-                    check_cache_status=False
+                    check_cache_status=False,
+                    finished_cache_data=updated_embed_data if status == "finished" else None,
+                    finished_cache_vault_key_id=user_vault_key_id,
                 )
+            if status == "finished" and not (should_send_event or self._finished_recovery_required()):
+                await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
 
             logger.debug(f"{log_prefix} Updated table embed {embed_id} ({row_count} rows, {col_count} cols, status: {status})")
 
@@ -2782,6 +2886,8 @@ class EmbedService:
 
             return True
 
+        except RequiredRecoveryOutputError:
+            raise
         except Exception as e:
             logger.error(f"{log_prefix} Error updating table embed content: {e}", exc_info=True)
             return False
@@ -2926,6 +3032,8 @@ class EmbedService:
                 try:
                     existing_content = decode(existing_toon)
                     embed_ref = existing_content.get("embed_ref")
+                except RequiredRecoveryOutputError:
+                    raise
                 except Exception:
                     embed_ref = None
 
@@ -2954,7 +3062,8 @@ class EmbedService:
                 "updated_at": int(datetime.now().timestamp())
             }
 
-            await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+            if status != "finished":
+                await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
 
             await self.send_embed_data_to_client(
                 embed_id=embed_id,
@@ -2971,7 +3080,9 @@ class EmbedService:
                 created_at=cached_embed.get("created_at"),
                 updated_at=updated_embed_data["updated_at"],
                 log_prefix=log_prefix,
-                check_cache_status=False
+                check_cache_status=False,
+                finished_cache_data=updated_embed_data if status == "finished" else None,
+                finished_cache_vault_key_id=user_vault_key_id,
             )
 
             logger.info(f"{log_prefix} Updated math-plot embed {embed_id} (expr len={len(expression)}, status: {status})")
@@ -2981,6 +3092,8 @@ class EmbedService:
 
             return True
 
+        except RequiredRecoveryOutputError:
+            raise
         except Exception as e:
             logger.error(f"{log_prefix} Error updating math-plot embed content: {e}", exc_info=True)
             return False
@@ -3110,6 +3223,8 @@ class EmbedService:
                     decoded = decode(existing_toon)
                     if isinstance(decoded, dict):
                         existing_content = decoded
+                except RequiredRecoveryOutputError:
+                    raise
                 except Exception as e:
                     logger.warning(f"{log_prefix} Failed to decode existing Mermaid content: {e}")
 
@@ -3155,8 +3270,9 @@ class EmbedService:
 
             current_status = cached_embed.get("status", "processing")
             should_send_event = not (status == "finished" and current_status == "finished" and version_number is None)
-            await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
-            if should_send_event:
+            if status != "finished":
+                await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+            if should_send_event or (status == "finished" and self._finished_recovery_required()):
                 await self.send_embed_data_to_client(
                     embed_id=embed_id,
                     embed_type="mermaid",
@@ -3176,7 +3292,11 @@ class EmbedService:
                     updated_at=updated_embed_data["updated_at"],
                     log_prefix=log_prefix,
                     check_cache_status=False,
+                    finished_cache_data=updated_embed_data if status == "finished" else None,
+                    finished_cache_vault_key_id=user_vault_key_id,
                 )
+            if status == "finished" and not (should_send_event or self._finished_recovery_required()):
+                await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
 
             logger.info(
                 f"{log_prefix} Updated Mermaid embed {embed_id} "
@@ -3185,6 +3305,8 @@ class EmbedService:
             if status == "finished":
                 self._schedule_embed_persistence_fallback(embed_id)
             return True
+        except RequiredRecoveryOutputError:
+            raise
         except Exception as e:
             logger.error(f"{log_prefix} Error updating Mermaid embed content: {e}", exc_info=True)
             return False
@@ -3315,6 +3437,8 @@ class EmbedService:
                     decoded = decode(existing_toon)
                     if isinstance(decoded, dict):
                         existing_content = decoded
+                except RequiredRecoveryOutputError:
+                    raise
                 except Exception as e:
                     logger.warning(f"{log_prefix} Failed to decode existing mind map content: {e}")
 
@@ -3366,8 +3490,9 @@ class EmbedService:
 
             current_status = cached_embed.get("status", "processing")
             should_send_event = not (status == "finished" and current_status == "finished" and version_number is None)
-            await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
-            if should_send_event:
+            if status != "finished":
+                await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+            if should_send_event or (status == "finished" and self._finished_recovery_required()):
                 await self.send_embed_data_to_client(
                     embed_id=embed_id,
                     embed_type="mindmap",
@@ -3387,7 +3512,11 @@ class EmbedService:
                     updated_at=updated_embed_data["updated_at"],
                     log_prefix=log_prefix,
                     check_cache_status=False,
+                    finished_cache_data=updated_embed_data if status == "finished" else None,
+                    finished_cache_vault_key_id=user_vault_key_id,
                 )
+            if status == "finished" and not (should_send_event or self._finished_recovery_required()):
+                await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
 
             logger.info(
                 f"{log_prefix} Updated mind map embed {embed_id} "
@@ -3396,6 +3525,8 @@ class EmbedService:
             if status == "finished":
                 self._schedule_embed_persistence_fallback(embed_id)
             return True
+        except RequiredRecoveryOutputError:
+            raise
         except Exception as e:
             logger.error(f"{log_prefix} Error updating mind map embed content: {e}", exc_info=True)
             return False
@@ -3537,6 +3668,8 @@ class EmbedService:
                 try:
                     existing_content = decode(existing_toon)
                     embed_ref = existing_content.get("embed_ref")
+                except RequiredRecoveryOutputError:
+                    raise
                 except Exception:
                     embed_ref = None
 
@@ -3577,9 +3710,10 @@ class EmbedService:
             current_status = cached_embed.get("status", "processing")
             should_send_event = not (status == "finished" and current_status == "finished" and version_number is None)
 
-            await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+            if status != "finished":
+                await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
 
-            if should_send_event:
+            if should_send_event or (status == "finished" and self._finished_recovery_required()):
                 await self.send_embed_data_to_client(
                     embed_id=embed_id,
                     embed_type="mail",
@@ -3599,7 +3733,11 @@ class EmbedService:
                     updated_at=updated_embed_data["updated_at"],
                     log_prefix=log_prefix,
                     check_cache_status=False,
+                    finished_cache_data=updated_embed_data if status == "finished" else None,
+                    finished_cache_vault_key_id=user_vault_key_id,
                 )
+            if status == "finished" and not (should_send_event or self._finished_recovery_required()):
+                await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
 
             if status == "finished":
                 self._schedule_embed_persistence_fallback(embed_id)
@@ -3609,6 +3747,8 @@ class EmbedService:
             )
             return True
 
+        except RequiredRecoveryOutputError:
+            raise
         except Exception as e:
             logger.error(f"{log_prefix} Error updating mail embed content: {e}", exc_info=True)
             return False
@@ -3807,6 +3947,8 @@ class EmbedService:
                             filename = existing_content.get("filename")
                         if docx_model is None:
                             docx_model = existing_content.get("docx_model")
+                    except RequiredRecoveryOutputError:
+                        raise
                     except Exception as e:
                         logger.warning(f"{log_prefix} Failed to decode existing document embed content: {e}")
             else:
@@ -3814,6 +3956,8 @@ class EmbedService:
                 if existing_toon:
                     try:
                         existing_content = decode(existing_toon)
+                    except RequiredRecoveryOutputError:
+                        raise
                     except Exception as e:
                         logger.warning(f"{log_prefix} Failed to decode existing document embed content: {e}")
 
@@ -3893,10 +4037,11 @@ class EmbedService:
                 )
 
             # Update cache
-            await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+            if status != "finished":
+                await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
 
             # Send updated content to client via WebSocket (only if not a duplicate finalization)
-            if should_send_event:
+            if should_send_event or (status == "finished" and self._finished_recovery_required()):
                 await self.send_embed_data_to_client(
                     embed_id=embed_id,
                     embed_type="document",
@@ -3915,8 +4060,12 @@ class EmbedService:
                     created_at=cached_embed.get("created_at"),
                     updated_at=updated_embed_data["updated_at"],
                     log_prefix=log_prefix,
-                    check_cache_status=False  # Already checked above, cache was just updated
+                    check_cache_status=False,  # Cache state was checked before this update
+                    finished_cache_data=updated_embed_data if status == "finished" else None,
+                    finished_cache_vault_key_id=user_vault_key_id,
                 )
+            if status == "finished" and not (should_send_event or self._finished_recovery_required()):
+                await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
 
             logger.debug(f"{log_prefix} Updated document embed {embed_id} with {len(html_content)} chars, {word_count} words (status: {status})")
 
@@ -3926,6 +4075,8 @@ class EmbedService:
 
             return True
 
+        except RequiredRecoveryOutputError:
+            raise
         except Exception as e:
             logger.error(f"{log_prefix} Error updating document embed content: {e}", exc_info=True)
             return False
@@ -5246,6 +5397,8 @@ class EmbedService:
                     request_metadata=request_metadata,
                     hosting_group=hosting_group if hosting_graph else None,
                 )
+            except RequiredRecoveryOutputError:
+                raise
             except Exception as e:
                 logger.error(f"{log_prefix} Error finalizing 0-result embed {embed_id}: {e}", exc_info=True)
                 return None
@@ -5280,7 +5433,7 @@ class EmbedService:
                 logger.warning(f"{log_prefix} Could not retrieve original embed metadata for {embed_id} and no request_metadata provided")
 
             if is_composite:
-                for result in embed_results:
+                for child_index, result in enumerate(embed_results):
                     # Determine per-result child type (may override default for YouTube URLs in web search)
                     child_type = EmbedService._get_per_result_child_type(
                         default_child_type, result, app_id, skill_id
@@ -5291,7 +5444,7 @@ class EmbedService:
                     )
 
                     # Generate embed_id for child
-                    child_embed_id = str(uuid.uuid4())
+                    child_embed_id = self._registered_child_embed_id(embed_id, child_index)
 
                     # DEBUG: Log the result BEFORE flattening to see if thumbnail/meta_url exist
                     logger.info(
@@ -5373,13 +5526,9 @@ class EmbedService:
                     )
                     child_embed_data["encrypted_content"] = encrypted_content
 
-                    # Cache child embed (server-side, vault-encrypted)
-                    await self._cache_embed(child_embed_id, child_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
-
                     # SEND PLAINTEXT TOON TO CLIENT via WebSocket
                     # CRITICAL: Pass parent_embed_id so child embeds can use parent's key (key inheritance - Option A)
-                    # CRITICAL: Pass check_cache_status=False because child embeds are already cached with status="finished"
-                    # above. Without this, the duplicate prevention check would skip sending these newly created embeds!
+                    # The send seals and caches the finished child before publishing.
                     await self.send_embed_data_to_client(
                         embed_id=child_embed_id,
                         embed_type=child_type,
@@ -5397,7 +5546,10 @@ class EmbedService:
                         log_prefix=log_prefix,
                         check_cache_status=False,  # Skip cache check - we just created this embed
                         app_id=app_id,  # Pass app_id so frontend can route to correct renderer
-                        skill_id=child_type  # Use child_type as skill_id (e.g. "image_result", "web_result")
+                        skill_id=child_type,  # Use child_type as skill_id (e.g. "image_result", "web_result")
+                        producer_child_index=child_index,
+                        finished_cache_data=child_embed_data,
+                        finished_cache_vault_key_id=user_vault_key_id,
                     )
 
                     child_embed_ids.append(child_embed_id)
@@ -5486,7 +5638,13 @@ class EmbedService:
                     log_prefix=log_prefix,
                     check_cache_status=True,  # Enable deduplication check (will pass since cache still has "processing")
                     app_id=app_id,
-                    skill_id=skill_id
+                    skill_id=skill_id,
+                    producer_final_children=[
+                        {"subject_id": child_id, "output_kind": "embed", "output_version": 1}
+                        for child_id in child_embed_ids
+                    ],
+                    finished_cache_data=updated_embed_data,
+                    finished_cache_vault_key_id=user_vault_key_id,
                 )
                 if not send_ok:
                     logger.error(
@@ -5494,9 +5652,6 @@ class EmbedService:
                         f"(status=finished, children={len(child_embed_ids)}). Client will not receive the finalized embed — "
                         f"relying on client-side stale recovery (request_embed after 5s)."
                     )
-
-                # Update cache AFTER sending (overwrites placeholder with finished status)
-                await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
 
                 logger.info(f"{log_prefix} Updated embed {embed_id} with {len(child_embed_ids)} child embeds (send_ok={send_ok})")
 
@@ -5607,7 +5762,10 @@ class EmbedService:
                     created_at=updated_at,
                     updated_at=updated_at,
                     owner_pii_mappings=owner_pii_mappings,
-                    log_prefix=log_prefix
+                    log_prefix=log_prefix,
+                    producer_final_children=[],
+                    finished_cache_data=updated_embed_data,
+                    finished_cache_vault_key_id=user_vault_key_id,
                 )
                 if not send_ok:
                     logger.error(
@@ -5615,9 +5773,6 @@ class EmbedService:
                         f"(status=finished). Client will not receive the finalized embed — "
                         f"relying on client-side stale recovery (request_embed after 5s)."
                     )
-
-                # Update cache AFTER sending (overwrites placeholder with finished status)
-                await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
 
                 logger.info(f"{log_prefix} Updated single embed {embed_id} (send_ok={send_ok})")
 
@@ -5630,6 +5785,8 @@ class EmbedService:
                     "status": "finished"
                 }
 
+        except RequiredRecoveryOutputError:
+            raise
         except Exception as e:
             logger.error(f"{log_prefix} Error updating embed {embed_id} with results: {e}", exc_info=True)
             return None
@@ -5742,6 +5899,8 @@ class EmbedService:
                 "status": "error"
             }
             
+        except RequiredRecoveryOutputError:
+            raise
         except Exception as e:
             logger.error(f"{log_prefix} Error updating embed {embed_id} to error status: {e}", exc_info=True)
             return None
@@ -5846,9 +6005,286 @@ class EmbedService:
                 "status": "cancelled"
             }
             
+        except RequiredRecoveryOutputError:
+            raise
         except Exception as e:
             logger.error(f"{log_prefix} Error updating embed {embed_id} to cancelled status: {e}", exc_info=True)
             return None
+
+    @staticmethod
+    def _finished_recovery_required() -> bool:
+        producer = active_verified_output_producer.get()
+        return active_recovery_output_context.get() is not None or (
+            producer is not None and (
+                producer.classification in {"registered_ai", "authorized_direct", "authorized_legacy"}
+                or (
+                    producer.classification == "authorized_volatile"
+                    and producer.intent_kind == "incognito"
+                )
+            )
+        )
+
+    @staticmethod
+    def _volatile_incognito_publication_required() -> bool:
+        producer = active_verified_output_producer.get()
+        return bool(
+            producer is not None
+            and producer.classification == "authorized_volatile"
+            and producer.intent_kind == "incognito"
+        )
+
+    @staticmethod
+    async def _require_live_volatile_publication(user_id_hash: str) -> None:
+        producer = active_verified_output_producer.get()
+        if not (
+            producer is not None
+            and producer.classification == "authorized_volatile"
+            and producer.intent_kind == "incognito"
+        ):
+            return
+        if (
+            not isinstance(producer.session_nonce, str) or not producer.session_nonce
+            or producer.owner_hash != user_id_hash
+        ):
+            raise RequiredRecoveryOutputError("Incognito embed publication identity is invalid")
+        from backend.shared.python_utils.volatile_embed_authority import require_live_incognito_session
+        try:
+            await require_live_incognito_session(producer.session_nonce, producer.owner_hash)
+        except Exception as exc:
+            raise RequiredRecoveryOutputError("Incognito embed session is no longer live") from exc
+
+    async def _require_claimed_direct_publication(self, user_id_hash: str) -> None:
+        """Recheck a claimed non-v2 producer after work and before publication."""
+        producer = active_verified_output_producer.get()
+        if producer is None or producer.classification not in {"authorized_direct", "authorized_legacy"}:
+            return
+        if (
+            producer.owner_hash != user_id_hash
+            or not producer.intent_id or not producer.task_id
+            or not producer.task_name or not producer.kwargs_binding or not producer.intent_kind
+        ):
+            raise RequiredRecoveryOutputError("Claimed embed producer identity is invalid")
+        from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+        try:
+            result = await ChatRecoveryService(self.directus_service).execute(
+                "verify_claimed_output_producer", {
+                    "protocol_version": 1,
+                    "task_uuid": producer.task_id,
+                    "task_name": producer.task_name,
+                    "kwargs_binding": producer.kwargs_binding,
+                },
+            )
+        except Exception as exc:
+            raise RequiredRecoveryOutputError("Claimed embed producer authority check failed") from exc
+        if (
+            not isinstance(result, dict)
+            or result.get("authorized") is not True
+            or result.get("status") != "RUNNING"
+            or result.get("producer_intent_id") != producer.intent_id
+            or result.get("intent_kind") != producer.intent_kind
+        ):
+            raise RequiredRecoveryOutputError("Claimed embed producer is no longer authorized")
+
+    async def _require_finished_publication_authority(self, user_id_hash: str) -> None:
+        await self._require_live_volatile_publication(user_id_hash)
+        await self._require_claimed_direct_publication(user_id_hash)
+
+    @staticmethod
+    def _registered_child_embed_id(parent_embed_id: str, child_index: int) -> str:
+        producer = active_verified_output_producer.get()
+        if producer is None or producer.classification != "registered_ai":
+            return str(uuid.uuid4())
+        if child_index >= 32 or parent_embed_id != producer.primary_embed_id:
+            raise RequiredRecoveryOutputError("Composite embed exceeds its registered producer intent")
+        return str(uuid.uuid5(uuid.UUID(producer.intent_id), f"embed-child:{child_index}"))
+
+    @staticmethod
+    async def assert_registered_output_can_generate(
+        directus_service: DirectusService, *, embed_id: str, chat_id: str,
+        message_id: str, owner_hash: str,
+    ) -> None:
+        """Fence detached paid generation against its durable primary output intent."""
+        producer = active_verified_output_producer.get()
+        if producer is None or producer.classification != "registered_ai":
+            return
+        if (embed_id != producer.primary_embed_id or chat_id != producer.target_chat_id
+                or message_id != producer.primary_message_id or owner_hash != producer.owner_hash):
+            raise RequiredRecoveryOutputError("Registered embed producer identity mismatch")
+        from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+        try:
+            existing = await ChatRecoveryService(directus_service).execute("get_producer_output", {
+                "protocol_version": 1,
+                "producer_intent_id": producer.intent_id,
+                "task_name": producer.task_name,
+                "kwargs_binding": producer.kwargs_binding,
+                "ordinal": 0,
+            })
+        except Exception as exc:
+            raise RequiredRecoveryOutputError("Registered embed output status is unavailable") from exc
+        if not isinstance(existing, dict) or existing.get("status") != "ABSENT":
+            raise RequiredRecoveryOutputError("Registered embed output already has a durable intent or receipt")
+
+    async def _save_completed_embed_recovery(
+        self, payload: dict[str, Any], *, producer_child_index: int | None = None,
+        producer_final_children: list[dict[str, Any]] | None = None,
+    ) -> None:
+        """Save each finished AI embed/version before exposing it to downstream work."""
+        context = active_recovery_output_context.get()
+        producer = active_verified_output_producer.get()
+        if producer is not None and producer.classification == "registered_ai" and context is None:
+            raise RequiredRecoveryOutputError("Registered embed producer lacks a recovery context")
+        if context is None:
+            return
+        data = payload["payload"]
+        if data.get("chat_id") != context.target_chat_id:
+            raise RequiredRecoveryOutputError("Embed recovery chat identity mismatch")
+        if data.get("user_id") != context.owner_id:
+            raise RequiredRecoveryOutputError("Embed recovery owner identity mismatch")
+        if producer is not None and producer.classification == "registered_ai":
+            if data.get("message_id") != producer.primary_message_id:
+                raise RequiredRecoveryOutputError("Embed recovery message identity mismatch")
+            primary = data.get("embed_id") == producer.primary_embed_id
+            child_matches = (
+                producer_child_index is not None and 0 <= producer_child_index < 32
+                and data.get("embed_id") == self._registered_child_embed_id(producer.primary_embed_id, producer_child_index)
+            )
+            if (producer.target_chat_id != data.get("chat_id") or producer.owner_hash != context.owner_hash
+                    or not primary and not child_matches or primary and producer_child_index is not None):
+                raise RequiredRecoveryOutputError("Embed producer intent identity mismatch")
+        # A Project file requires its approved atomic commit envelope. A bare
+        # embed replay would bypass that revision fence, so stop the producer
+        # before publishing any dependent output when a Project owns this ID.
+        project_memberships = await self.directus_service.get_items(
+            "project_items", params={
+                "filter[item_type][_eq]": "embed",
+                "filter[target_id_hash][_eq]": hashlib.sha256(data["embed_id"].encode()).hexdigest(),
+                "fields": "id", "limit": 1,
+            }, admin_required=True, no_cache=True,
+        )
+        if project_memberships is None or project_memberships:
+            raise RequiredRecoveryOutputError("Project embed lacks approved atomic recovery envelope")
+        if not await self.cache_service.mark_ai_context_pending_persistence(
+            context.owner_hash, context.target_chat_id,
+        ):
+            raise RequiredRecoveryOutputError("Embed recovery working context could not be pinned")
+        from backend.shared.python_utils.chat_completion_recovery_job import build_sealed_recovery_output_data
+        from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+
+        outputs = [("embed", int(data.get("version_number") or 1), data)]
+        for row in data.get("version_history_rows") or []:
+            if isinstance(row, dict) and isinstance(row.get("version_number"), int):
+                outputs.append(("diff", row["version_number"], row))
+        recovery_service = ChatRecoveryService(self.directus_service)
+        for output_kind, output_version, clear_content in outputs:
+            owned_secrets_manager = None
+            try:
+                stable_content = {k: v for k, v in clear_content.items() if k not in ("createdAt", "updatedAt")}
+                canonical_bytes = json.dumps(
+                    {"subject_id": data["embed_id"], "kind": output_kind,
+                     "version": output_version, "content": stable_content},
+                    sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+                ).encode("utf-8")
+                commitment = recovery_service.content_commitment(canonical_bytes)
+                producer_fields = {"content_commitment": commitment}
+                if producer is not None and producer.classification == "registered_ai":
+                    if output_kind == "embed" and producer_child_index is None and data["embed_id"] == producer.primary_embed_id:
+                        ordinal = 0
+                    else:
+                        registered = await recovery_service.execute("register_output_producer_child", {
+                            "protocol_version": 1,
+                            "producer_intent_id": producer.intent_id,
+                            "task_name": producer.task_name,
+                            "kwargs_binding": producer.kwargs_binding,
+                            "subject_id": data["embed_id"],
+                            "output_kind": output_kind,
+                            "output_version": output_version,
+                        })
+                        ordinal = registered["ordinal"]
+                    producer_fields.update({
+                        "producer_intent_id": producer.intent_id,
+                        "producer_ordinal": ordinal,
+                        "producer_task_name": producer.task_name,
+                        "producer_kwargs_binding": producer.kwargs_binding,
+                    })
+                    existing = await recovery_service.execute("get_producer_output", {
+                        "protocol_version": 1,
+                        "producer_intent_id": producer.intent_id,
+                        "task_name": producer.task_name,
+                        "kwargs_binding": producer.kwargs_binding,
+                        "ordinal": ordinal,
+                        "content_commitment": commitment,
+                    })
+                    if existing["status"] in ("PENDING", "ACKNOWLEDGED"):
+                        continue
+                    if existing["status"] != "ABSENT":
+                        raise RequiredRecoveryOutputError("Embed recovery output is still preparing")
+                else:
+                    record_id = str(uuid.uuid5(
+                        uuid.UUID(context.turn_id),
+                        f"{context.target_chat_id}:{data['embed_id']}:{output_kind}:{output_version}",
+                    ))
+                    existing = await recovery_service.execute("get_replay_output", {
+                        "protocol_version": 1,
+                        "record_id": record_id,
+                        "hashed_user_id": context.owner_hash,
+                        "preflight_id": context.preflight_id,
+                        "root_chat_id": context.root_chat_id,
+                        "target_chat_id": context.target_chat_id,
+                        "subject_id": data["embed_id"],
+                        "output_kind": output_kind,
+                        "output_version": output_version,
+                        "content_commitment": commitment,
+                    })
+                    if existing["status"] in ("PENDING", "ACKNOWLEDGED"):
+                        continue
+                    if existing["status"] != "ABSENT":
+                        raise RequiredRecoveryOutputError("Embed recovery output is still preparing")
+                output = build_sealed_recovery_output_data(
+                    owner_id=context.owner_id, owner_hash=context.owner_hash,
+                    root_chat_id=context.root_chat_id, target_chat_id=context.target_chat_id,
+                    turn_id=context.turn_id, preflight_id=context.preflight_id,
+                    inference_task_id=context.inference_task_id,
+                    recovery_public_key=context.public_key, chat_key_version=context.key_version,
+                    subject_id=data["embed_id"], output_kind=output_kind,
+                    output_version=output_version, content=clear_content,
+                )
+                output.update(producer_fields)
+                s3_service = None
+                if len(str(output["sealed_payload"]).encode("utf-8")) > 256 * 1024:
+                    from backend.core.api.app.services.s3.service import S3UploadService
+                    from backend.core.api.app.utils.secrets_manager import SecretsManager
+
+                    owned_secrets_manager = SecretsManager()
+                    await owned_secrets_manager.initialize()
+                    s3_service = S3UploadService(owned_secrets_manager, self.directus_service)
+                    await s3_service.initialize(configure_buckets=False)
+                await recovery_service.save_sealed_output(output, s3_service=s3_service)
+            except Exception as exc:
+                raise RequiredRecoveryOutputError("Finished embed recovery save failed") from exc
+            finally:
+                if owned_secrets_manager is not None:
+                    await owned_secrets_manager.close()
+        if producer_final_children is not None:
+            if producer is None or producer.classification != "registered_ai":
+                return
+            if data["embed_id"] != producer.primary_embed_id or producer_child_index is not None:
+                raise RequiredRecoveryOutputError("Only the final primary output can close its producer intent")
+            expected_children = list(producer_final_children)
+            expected_children.extend({
+                "subject_id": data["embed_id"], "output_kind": "diff",
+                "output_version": row["version_number"],
+            } for row in data.get("version_history_rows") or []
+                if isinstance(row, dict) and isinstance(row.get("version_number"), int))
+            try:
+                await recovery_service.execute("close_output_producer", {
+                    "protocol_version": 1,
+                    "producer_intent_id": producer.intent_id,
+                    "task_name": producer.task_name,
+                    "kwargs_binding": producer.kwargs_binding,
+                    "expected_children": expected_children,
+                })
+            except Exception as exc:
+                raise RequiredRecoveryOutputError("Finished embed producer manifest could not close") from exc
 
     async def send_embed_data_to_client(
         self,
@@ -5879,6 +6315,10 @@ class EmbedService:
         app_id: Optional[str] = None,  # App ID for renderer routing (child embeds)
         skill_id: Optional[str] = None,  # Skill ID for renderer routing (child embeds)
         owner_pii_mappings: Optional[List[Dict[str, str]]] = None,
+        producer_child_index: int | None = None,
+        producer_final_children: list[dict[str, Any]] | None = None,
+        finished_cache_data: dict[str, Any] | None = None,
+        finished_cache_vault_key_id: str | None = None,
     ) -> bool:
         """
         Send PLAINTEXT TOON embed content to client via WebSocket for client-side encryption and storage.
@@ -5915,7 +6355,12 @@ class EmbedService:
         Returns:
             True if event was published successfully, False otherwise
         """
+        required_delivery = False
         try:
+            required_delivery = (
+                status == "finished" and encryption_mode == "client" and self._finished_recovery_required()
+            ) or self._volatile_incognito_publication_required()
+            await self._require_finished_publication_authority(user_id_hash)
             if embed_type == "app_skill_use":
                 content_toon = EmbedService._sanitize_finance_check_accounts_toon(content_toon)
 
@@ -5943,9 +6388,15 @@ class EmbedService:
                                     f"'{current_status}' → '{status}' for embed {embed_id}. "
                                     f"This prevents duplicate or out-of-order status events."
                                 )
-                                return False
+                                if required_delivery and current_status != "finished":
+                                    raise RequiredRecoveryOutputError("Required embed has an invalid cached state transition")
+                                if not required_delivery:
+                                    return False
+                except RequiredRecoveryOutputError:
+                    raise
                 except Exception as e:
-                    # If cache check fails, log but continue (don't block the send)
+                    if required_delivery:
+                        raise RequiredRecoveryOutputError("Required embed cache state check failed") from e
                     logger.debug(f"{log_prefix} [EMBED_EVENT] Could not check cache status for state validation: {e}, proceeding with send")
             
             # Auto-calculate text_length_chars if not provided
@@ -6002,7 +6453,24 @@ class EmbedService:
             if owner_pii_mappings:
                 payload["payload"]["owner_pii_mappings"] = owner_pii_mappings
 
+            if status == "finished" and encryption_mode == "client":
+                await self._save_completed_embed_recovery(
+                    payload, producer_child_index=producer_child_index,
+                    producer_final_children=producer_final_children,
+                )
+            if status == "finished" and finished_cache_data is not None:
+                if (finished_cache_data.get("embed_id") != embed_id
+                        or finished_cache_data.get("status") != "finished"
+                        or finished_cache_data.get("chat_id", chat_id) != chat_id
+                        or finished_cache_data.get("message_id", message_id) != message_id):
+                    raise RequiredRecoveryOutputError("Finished embed cache identity mismatch")
+                await self._cache_embed(
+                    embed_id, finished_cache_data, chat_id, user_id_hash,
+                    finished_cache_vault_key_id, user_id,
+                )
+
             # Publish to Redis for WebSocket delivery
+            await self._require_finished_publication_authority(user_id_hash)
             client = await self.cache_service.client
             if client:
                 import json as json_lib
@@ -6014,23 +6482,29 @@ class EmbedService:
                 )
 
                 # Track finished embeds as pending client encryption
-                if status == "finished" and chat_id and message_id:
+                if status == "finished" and chat_id and message_id and not self._volatile_incognito_publication_required():
                     await self._track_pending_embed(user_id, embed_id, log_prefix)
 
                 return True
             else:
                 logger.warning(f"{log_prefix} Redis client not available, skipping send_embed_data event")
+                if required_delivery:
+                    raise RequiredRecoveryOutputError("Required finished embed delivery is unavailable")
                 return False
 
+        except RequiredRecoveryOutputError:
+            raise
         except Exception as e:
             logger.error(f"{log_prefix} Error sending embed data to client: {e}", exc_info=True)
+            if required_delivery:
+                raise RequiredRecoveryOutputError("Required finished embed delivery failed") from e
             return False
 
     async def _track_pending_embed(
         self,
         user_id: str,
         embed_id: str,
-        log_prefix: str = ""
+        log_prefix: str = "",
     ) -> None:
         """
         Add an embed to the pending encryption tracking set.
@@ -6049,6 +6523,8 @@ class EmbedService:
         try:
             await self.cache_service.add_pending_embed(user_id, embed_id)
         except Exception as e:
+            if self._finished_recovery_required():
+                raise RequiredRecoveryOutputError("Required finished embed tracking failed") from e
             # Non-critical: don't fail embed delivery if tracking fails.
             # The existing fallback task still provides a safety net.
             logger.warning(
@@ -6126,9 +6602,11 @@ class EmbedService:
             if is_composite:
                 # CRITICAL: Generate parent_embed_id FIRST so child embeds can reference it
                 # This enables key inheritance: child embeds use parent's encryption key
-                parent_embed_id = str(uuid.uuid4())
+                producer = active_verified_output_producer.get()
+                parent_embed_id = (producer.primary_embed_id if producer is not None and producer.classification == "registered_ai"
+                                   else str(uuid.uuid4()))
                 
-                for result in embed_results:
+                for child_index, result in enumerate(embed_results):
                     # Determine per-result child type (may override default for YouTube URLs in web search)
                     child_type = EmbedService._get_per_result_child_type(
                         default_child_type, result, app_id, skill_id
@@ -6139,7 +6617,7 @@ class EmbedService:
                     )
 
                     # Generate embed_id for child
-                    child_embed_id = str(uuid.uuid4())
+                    child_embed_id = self._registered_child_embed_id(parent_embed_id, child_index)
 
                     # Use pre-generated embed_ref from result dict if present (single source of truth).
                     # main_processor.py pre-generates slugs in results_with_refs BEFORE building
@@ -6205,13 +6683,8 @@ class EmbedService:
                     )
                     child_embed_data["encrypted_content"] = encrypted_content
                     
-                    # Cache child embed (server-side, vault-encrypted)
-                    await self._cache_embed(child_embed_id, child_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
-                    
                     # CRITICAL: Send child embed to client via WebSocket for client-side encryption and storage
-                    # Without this, child embeds only exist in server cache and won't be stored in Directus
-                    # CRITICAL: Pass check_cache_status=False because child embeds are already cached with status="finished"
-                    # above. Without this, the duplicate prevention check would skip sending these newly created embeds!
+                    # The send seals and caches it before the client event.
                     await self.send_embed_data_to_client(
                         embed_id=child_embed_id,
                         embed_type=child_type,
@@ -6227,7 +6700,10 @@ class EmbedService:
                         updated_at=created_at,
                         parent_embed_id=parent_embed_id,  # Set parent_embed_id so frontend can use parent key
                         log_prefix=log_prefix,
-                        check_cache_status=False  # Skip cache check - we just created this embed
+                        check_cache_status=False,  # Skip cache check - we just created this embed
+                        producer_child_index=child_index,
+                        finished_cache_data=child_embed_data,
+                        finished_cache_vault_key_id=user_vault_key_id,
                     )
                     
                     child_embed_ids.append(child_embed_id)
@@ -6326,11 +6802,17 @@ class EmbedService:
                     text_length_chars=parent_text_length_chars,
                     created_at=parent_created_at,
                     updated_at=parent_created_at,
-                    log_prefix=log_prefix
+                    log_prefix=log_prefix,
+                    producer_final_children=(
+                        [{"subject_id": child_id, "output_kind": "embed", "output_version": 1}
+                         for child_id in child_embed_ids]
+                        if hosting_status == "finished" else None
+                    ),
+                    finished_cache_data=parent_embed_data if hosting_status == "finished" else None,
+                    finished_cache_vault_key_id=user_vault_key_id,
                 )
-                
-                # Cache parent embed AFTER sending
-                await self._cache_embed(parent_embed_id, parent_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+                if hosting_status != "finished":
+                    await self._cache_embed(parent_embed_id, parent_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
                 
                 logger.info(f"{log_prefix} Created parent embed {parent_embed_id} with {len(child_embed_ids)} child embeds")
 
@@ -6367,7 +6849,9 @@ class EmbedService:
             else:
                 # Non-composite result - create single app_skill_use embed
                 # All skills return results as an array, so we always structure it consistently
-                embed_id = str(uuid.uuid4())
+                producer = active_verified_output_producer.get()
+                embed_id = (producer.primary_embed_id if producer is not None and producer.classification == "registered_ai"
+                            else str(uuid.uuid4()))
 
                 # Generate embed_ref for this single embed (injected inside encrypted TOON).
                 # For single results, derive the slug from the first result.
@@ -6451,11 +6935,11 @@ class EmbedService:
                     created_at=single_created_at,
                     updated_at=single_created_at,
                     owner_pii_mappings=owner_pii_mappings,
-                    log_prefix=log_prefix
+                    log_prefix=log_prefix,
+                    producer_final_children=[],
+                    finished_cache_data=embed_data,
+                    finished_cache_vault_key_id=user_vault_key_id,
                 )
-                
-                # Cache embed AFTER sending
-                await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
                 
                 logger.info(f"{log_prefix} Created single embed {embed_id}")
 
@@ -6484,6 +6968,8 @@ class EmbedService:
                     "child_embed_ids": []
                 }
         
+        except RequiredRecoveryOutputError:
+            raise
         except Exception as e:
             logger.error(f"{log_prefix} Error creating embeds from skill results: {e}", exc_info=True)
             return None
@@ -6587,10 +7073,13 @@ class EmbedService:
             check_cache_status=True,
             app_id=app_id,
             skill_id=skill_id,
+            producer_final_children=[] if final_status == "finished" else None,
+            finished_cache_data=updated_embed_data if final_status == "finished" else None,
+            finished_cache_vault_key_id=user_vault_key_id,
         )
 
-        # Update cache (overwrites processing placeholder with finished status)
-        await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+        if final_status != "finished":
+            await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
 
         # Schedule fallback persistence
         self._schedule_embed_persistence_fallback(embed_id)
@@ -6625,10 +7114,8 @@ class EmbedService:
                               vault-encrypted content and re-send it to the client.
             user_id: Plaintext user ID (UUID) for fallback re-send via WebSocket pub/sub.
         """
+        await self._require_finished_publication_authority(user_id_hash)
         try:
-            # Cache key: embed:{embed_id} (global cache, one entry per embed)
-            cache_key = f"embed:{embed_id}"
-            
             # Include vault_key_id and user_id in cached data for fallback persistence support.
             # The fallback task needs:
             # - vault_key_id: to decrypt the vault-encrypted TOON content
@@ -6647,22 +7134,22 @@ class EmbedService:
                 if embed_data.get("status") == "finished"
                 else EMBED_CACHE_TTL_SECONDS
             )
-            client = await self.cache_service.client
-            if client:
-                await client.set(cache_key, embed_json, ex=cache_ttl)
-
-                # Add to chat index for eviction tracking
-                chat_embed_index_key = f"chat:{chat_id}:embed_ids"
-                await client.sadd(chat_embed_index_key, embed_id)
-                await client.expire(chat_embed_index_key, EMBED_CACHE_TTL_SECONDS)
-                
-                logger.debug(f"Cached embed {embed_id} at {cache_key}")
-            else:
-                logger.warning(f"Redis client not available, skipping embed cache for {embed_id}")
+            admitted = await self.cache_service.cache_required_ai_embed(
+                user_id_hash, chat_id, embed_id, embed_json,
+                payload_ttl=cache_ttl,
+                index_ttl=EMBED_CACHE_TTL_SECONDS,
+            )
+            if not admitted:
+                raise RuntimeError(f"Required AI embed cache budget or availability rejected {embed_id}")
+            logger.debug(f"Cached embed {embed_id} at embed:{embed_id}")
         
         except Exception as e:
             logger.error(f"Error caching embed {embed_id}: {e}", exc_info=True)
-            # Don't fail embed creation if caching fails
+            # A caller must not publish or depend on an embed with no retained
+            # working copy. The surrounding task can pause or retry safely.
+            if embed_data.get("status") == "finished" and self._finished_recovery_required():
+                raise RequiredRecoveryOutputError("Required finished embed cache write failed") from e
+            raise
 
     def _schedule_embed_persistence_fallback(
         self,
@@ -6682,6 +7169,8 @@ class EmbedService:
                               Must be long enough for the client to complete normal persistence,
                               but short enough that it runs well before the 72h cache TTL.
         """
+        if self._volatile_incognito_publication_required():
+            return
         try:
             from backend.core.api.app.tasks.celery_config import app as celery_app
             celery_app.send_task(

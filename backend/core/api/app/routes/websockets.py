@@ -13,7 +13,13 @@ from backend.core.api.app.services.chat_recovery_cutover import ChatRecoveryCuto
 from backend.core.api.app.services.notification_event_service import NotificationEventService
 from backend.core.api.app.utils.encryption import EncryptionService
 # Import ConnectionManager from the new module
-from .connection_manager import ConnectionManager
+from .connection_manager import (
+    ConnectionManager,
+    permits_canonical_embed_write,
+    refresh_volatile_ai_live_session,
+    register_volatile_ai_live_session,
+    revoke_volatile_ai_live_session,
+)
 from .auth_ws import get_current_user_ws
 from .handlers.websocket_handlers.title_update_handler import handle_update_title
 from .handlers.websocket_handlers.draft_update_handler import handle_update_draft
@@ -62,7 +68,13 @@ from .handlers.websocket_handlers.chat_recovery_job_handlers import (
     handle_recovery_job_claim,
     handle_recovery_job_persist,
     handle_recovery_job_renew,
+    handle_recovery_output_get,
+    handle_recovery_output_persist_message,
+    handle_recovery_output_persist_summary,
+    handle_recovery_output_ack_checkpoint,
+    handle_recovery_output_ack_embed,
     send_available_recovery_jobs,
+    send_available_recovery_outputs,
 )
 from .handlers.websocket_handlers.workflow_chat_delivery_handlers import (
     handle_workflow_chat_delivery_ack,
@@ -187,6 +199,11 @@ async def _send_available_recovery_jobs_for_final_stream(
         directus_service=directus_service,
         user_id=user_id,
         user_id_hash=user_id_hash,
+        device_fingerprint_hash=device_fingerprint_hash,
+    )
+    await send_available_recovery_outputs(
+        manager=manager, directus_service=directus_service,
+        user_id=user_id, user_id_hash=user_id_hash,
         device_fingerprint_hash=device_fingerprint_hash,
     )
 
@@ -683,7 +700,7 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                     continue
 
                 event_type = redis_payload.get("type")
-                if event_type in ("spawn_sub_chats", "sub_chat_confirmation_required", "awaiting_sub_chats_completion", "sub_chat_completed", "sub_chat_progress", "awaiting_user_input"):
+                if event_type in ("spawn_sub_chats", "sub_chat_confirmation_required", "awaiting_sub_chats_completion", "sub_chat_completed", "sub_chat_progress", "awaiting_user_input", "recovery_output_paused"):
                     user_id_uuid = redis_payload.get("user_id_uuid")
                     chat_id_from_payload = redis_payload.get("parent_id") or redis_payload.get("chat_id")
                     
@@ -1411,6 +1428,8 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                             "compressed_message_count": redis_payload.get("compressed_message_count"),
                             "summary_token_estimate": redis_payload.get("summary_token_estimate"),
                             "compressed_up_to_timestamp": redis_payload.get("compressed_up_to_timestamp"),
+                            "compressed_up_to_message_id": redis_payload.get("compressed_up_to_message_id"),
+                            "covered_message_ids": redis_payload.get("covered_message_ids"),
                             "summary_message_id": redis_payload.get("summary_message_id"),
                             "summary_content": redis_payload.get("summary_content"),
                         }
@@ -2392,6 +2411,8 @@ async def websocket_endpoint(
     supports_task_update_jobs = "task_update_jobs" in connection_capabilities
     supports_project_file_jobs = "project_file_jobs" in connection_capabilities
     supports_remote_command_jobs = "remote_command_jobs" in connection_capabilities
+    supports_canonical_embed_receipts = "canonical_embed_receipts_v1" in connection_capabilities
+    supports_typed_recovery_outputs = "typed_recovery_outputs_v2" in connection_capabilities
 
     # Extract user OTel attributes for privacy tier resolution (OTEL-02, OTEL-06).
     # These are set once per connection and passed to every handler span.
@@ -2406,7 +2427,7 @@ async def websocket_endpoint(
     is_allowlisted_test_account = is_configured_test_account_profile(_user_data)
 
     logger.info(f"WebSocket connection established for user_id={user_id}, device={device_fingerprint_hash}")
-    await manager.connect(
+    volatile_session_nonce = await manager.connect(
         websocket,
         user_id,
         device_fingerprint_hash,
@@ -2414,6 +2435,11 @@ async def websocket_endpoint(
         supports_chat_metadata_recovery=supports_chat_metadata_recovery,
         supports_project_file_jobs=supports_project_file_jobs,
         supports_remote_command_jobs=supports_remote_command_jobs,
+        supports_canonical_embed_receipts=supports_canonical_embed_receipts,
+        supports_typed_recovery_outputs=supports_typed_recovery_outputs,
+        volatile_session_revoker=lambda nonce: revoke_volatile_ai_live_session(
+            cache_service, nonce,
+        ),
     )
 
     # A live socket must close at its absolute session deadline even if idle.
@@ -2458,12 +2484,14 @@ async def websocket_endpoint(
     phased_sync_tail_task: asyncio.Task | None = None
     phased_sync_context: tuple[Optional[str], Optional[int]] | None = None
 
+    recovery_epoch_lookup_failed = False
     try:
         recovery_epoch = await ChatRecoveryCutoverController(
             cache_service, directus_service
         ).get_epoch(authoritative=True)
     except Exception as exc:
         logger.error("Authoritative recovery discovery epoch read failed", exc_info=exc)
+        recovery_epoch_lookup_failed = True
         recovery_epoch = 0
     if recovery_epoch >= 1:
         asyncio.create_task(
@@ -2475,6 +2503,24 @@ async def websocket_endpoint(
                 device_fingerprint_hash=device_fingerprint_hash,
                 user_otel_attrs=user_otel_attrs,
             )
+        )
+        if supports_typed_recovery_outputs:
+            asyncio.create_task(send_available_recovery_outputs(
+                manager=manager, directus_service=directus_service,
+                user_id=user_id, user_id_hash=user_id_hash,
+                device_fingerprint_hash=device_fingerprint_hash,
+            ))
+        else:
+            await manager.send_personal_message(
+                {"type": "recovery_outputs_discovery_complete", "payload": {"status": "disabled"}},
+                user_id, device_fingerprint_hash,
+            )
+    else:
+        await manager.send_personal_message(
+            {"type": "recovery_outputs_discovery_complete", "payload": {
+                "status": "failed" if recovery_epoch_lookup_failed else "disabled",
+            }},
+            user_id, device_fingerprint_hash,
         )
 
     asyncio.create_task(
@@ -2542,8 +2588,33 @@ async def websocket_endpoint(
     # it works across all devices via the normal message sync infrastructure.
 
     try:
+        volatile_session_registered = await register_volatile_ai_live_session(
+            cache_service, volatile_session_nonce, user_id,
+        )
+    except Exception:
+        volatile_session_registered = False
+        logger.warning("Could not register volatile AI live session", exc_info=True)
+    if volatile_session_registered:
+        manager.confirm_volatile_session(websocket, volatile_session_nonce)
+    else:
+        manager.mark_volatile_session_unavailable(websocket)
+
+    try:
         while True:
             data = await websocket.receive_json()
+            try:
+                volatile_session_live = await refresh_volatile_ai_live_session(
+                    cache_service, volatile_session_nonce, user_id,
+                )
+            except Exception:
+                volatile_session_live = False
+                logger.warning("Could not refresh volatile AI live session", exc_info=True)
+            if not volatile_session_live:
+                # This socket must reconnect for a new nonce. Ordinary saved-chat
+                # traffic remains available; incognito dispatch fails closed.
+                manager.mark_volatile_session_unavailable(websocket)
+            else:
+                manager.confirm_volatile_session(websocket, volatile_session_nonce)
             logger.debug(
                 f"Received message from User {user_id}, Device {device_fingerprint_hash}. "
                 f"Envelope summary: {_safe_payload_summary(data)}"
@@ -2671,6 +2742,42 @@ async def websocket_endpoint(
                     user_otel_attrs=user_otel_attrs,
                 )
 
+            elif message_type == "recovery_output_get":
+                await handle_recovery_output_get(
+                    manager=manager, directus_service=directus_service,
+                    s3_service=getattr(websocket.app.state, "s3_service", None),
+                    user_id=user_id, user_id_hash=user_id_hash,
+                    device_fingerprint_hash=device_fingerprint_hash, payload=payload,
+                )
+
+            elif message_type == "recovery_output_persist_message":
+                await handle_recovery_output_persist_message(
+                    manager=manager, directus_service=directus_service,
+                    user_id=user_id, user_id_hash=user_id_hash,
+                    device_fingerprint_hash=device_fingerprint_hash, payload=payload,
+                )
+
+            elif message_type == "recovery_output_persist_summary":
+                await handle_recovery_output_persist_summary(
+                    manager=manager, directus_service=directus_service,
+                    user_id=user_id, user_id_hash=user_id_hash,
+                    device_fingerprint_hash=device_fingerprint_hash, payload=payload,
+                )
+
+            elif message_type == "recovery_output_ack_checkpoint":
+                await handle_recovery_output_ack_checkpoint(
+                    manager=manager, directus_service=directus_service,
+                    user_id=user_id, user_id_hash=user_id_hash,
+                    device_fingerprint_hash=device_fingerprint_hash, payload=payload,
+                )
+
+            elif message_type == "recovery_output_ack_embed":
+                await handle_recovery_output_ack_embed(
+                    manager=manager, directus_service=directus_service,
+                    user_id=user_id, user_id_hash=user_id_hash,
+                    device_fingerprint_hash=device_fingerprint_hash, payload=payload,
+                )
+
             elif message_type == "recovery_job_renew":
                 await handle_recovery_job_renew(
                     manager=manager,
@@ -2772,6 +2879,18 @@ async def websocket_endpoint(
             elif message_type == "chat_message_added":
                 # This now handles new messages sent by the client.
                 # The handler itself was refactored to include logic from the old handle_new_message.
+                if (payload.get("is_incognito")
+                        and manager.get_volatile_session_nonce(
+                            user_id, device_fingerprint_hash,
+                        ) is None):
+                    await websocket.send_json({
+                        "type": "error",
+                        "payload": {
+                            "code": "volatile_live_session_required",
+                            "message": "Incognito AI requires a live authenticated session.",
+                        },
+                    })
+                    continue
                 await handle_message_received(
                     websocket=websocket,
                     manager=manager,
@@ -3000,6 +3119,8 @@ async def websocket_endpoint(
                     user_otel_attrs=user_otel_attrs,
                 )
             elif message_type == "request_chat_content_batch":
+                from backend.core.api.app.services.chat_message_archive_service import ChatMessageArchiveService
+
                 await handle_chat_content_batch(
                     cache_service=cache_service,
                     directus_service=directus_service,
@@ -3009,6 +3130,10 @@ async def websocket_endpoint(
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload,
                     user_otel_attrs=user_otel_attrs,
+                    archive_service=ChatMessageArchiveService(
+                        directus_service=directus_service,
+                        s3_service=getattr(websocket.app.state, "s3_service", None),
+                    ),
                 )
             elif message_type == "store_chat_compression_checkpoint":
                 await handle_store_chat_compression_checkpoint(
@@ -3031,6 +3156,7 @@ async def websocket_endpoint(
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload,
                     user_otel_attrs=user_otel_attrs,
+                    s3_service=getattr(websocket.app.state, "s3_service", None),
                 )
             elif message_type == "set_active_chat":
                 active_chat_id = payload.get("chat_id") # Can be None to indicate no chat is active
@@ -3456,6 +3582,18 @@ async def websocket_endpoint(
                     logger.error(f"User {user_id}: Failed to update read status: {str(e)}")
 
             elif message_type == "store_embed":
+                if not permits_canonical_embed_write(
+                    supports_receipts=supports_canonical_embed_receipts,
+                    supports_typed_outputs=supports_typed_recovery_outputs,
+                    recovery_record_id=payload.get("recovery_record_id"),
+                ):
+                    await manager.send_personal_message(
+                        {"type": "error", "payload": {"code": "client_capability_required",
+                         "request_id": payload.get("request_id"),
+                         "message": "Canonical embed writes require an updated client."}},
+                        user_id, device_fingerprint_hash,
+                    )
+                    continue
                 # Handle storing encrypted embed in Directus (zero-knowledge)
                 await handle_store_embed(
                     websocket=websocket,
@@ -3468,6 +3606,18 @@ async def websocket_endpoint(
                     user_otel_attrs=user_otel_attrs,
                 )
             elif message_type == "store_embed_keys":
+                if not permits_canonical_embed_write(
+                    supports_receipts=supports_canonical_embed_receipts,
+                    supports_typed_outputs=supports_typed_recovery_outputs,
+                    recovery_record_id=payload.get("recovery_record_id"),
+                ):
+                    await manager.send_personal_message(
+                        {"type": "error", "payload": {"code": "client_capability_required",
+                         "request_id": payload.get("request_id"),
+                         "message": "Canonical embed writes require an updated client."}},
+                        user_id, device_fingerprint_hash,
+                    )
+                    continue
                 # Handle storing wrapped embed keys in Directus embed_keys collection (zero-knowledge)
                 # This implements the wrapped key architecture for offline sharing and cross-chat access
                 await handle_store_embed_keys(
@@ -3481,6 +3631,18 @@ async def websocket_endpoint(
                     user_otel_attrs=user_otel_attrs,
                 )
             elif message_type == "store_embed_diff":
+                if not permits_canonical_embed_write(
+                    supports_receipts=supports_canonical_embed_receipts,
+                    supports_typed_outputs=supports_typed_recovery_outputs,
+                    recovery_record_id=payload.get("recovery_record_id"),
+                ):
+                    await manager.send_personal_message(
+                        {"type": "error", "payload": {"code": "client_capability_required",
+                         "request_id": payload.get("request_id"),
+                         "message": "Canonical embed writes require an updated client."}},
+                        user_id, device_fingerprint_hash,
+                    )
+                    continue
                 # Handle storing encrypted embed version rows in Directus (zero-knowledge)
                 await handle_store_embed_diff(
                     websocket=websocket,
@@ -3493,6 +3655,18 @@ async def websocket_endpoint(
                     user_otel_attrs=user_otel_attrs,
                 )
             elif message_type == "commit_embed_revision":
+                if not permits_canonical_embed_write(
+                    supports_receipts=supports_canonical_embed_receipts,
+                    supports_typed_outputs=supports_typed_recovery_outputs,
+                    recovery_record_id=payload.get("recovery_record_id"),
+                ):
+                    await manager.send_personal_message(
+                        {"type": "error", "payload": {"code": "client_capability_required",
+                         "request_id": payload.get("request_id"),
+                         "message": "Canonical embed writes require an updated client."}},
+                        user_id, device_fingerprint_hash,
+                    )
+                    continue
                 await handle_commit_embed_revision(
                     manager=manager,
                     cache_service=cache_service,
@@ -3856,6 +4030,13 @@ async def websocket_endpoint(
             # Ensure cleanup happens even with unexpected errors, passing the reason.
             manager.disconnect(websocket, reason=unexpected_error_reason)
     finally:
+        # Volatile authority ends immediately even though ordinary connection
+        # metadata intentionally remains in the manager's 30 second grace.
+        manager.mark_volatile_session_unavailable(websocket)
+        try:
+            await revoke_volatile_ai_live_session(cache_service, volatile_session_nonce)
+        except Exception:
+            logger.warning("Could not remove volatile AI live session", exc_info=True)
         try:
             await clear_presence(cache_service, user_id, presence_connection_id)
         except Exception:

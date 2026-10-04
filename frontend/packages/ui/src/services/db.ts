@@ -28,6 +28,7 @@ import type {
 
 // Import extracted modules for delegation
 import * as newChatSuggestionsOps from "./db/newChatSuggestions";
+import { putPendingEmbedOperation } from "./db/pendingEmbedQueue";
 import * as appSettingsMemoriesOps from "./db/appSettingsMemories";
 import * as chatKeyManagementOps from "./db/chatKeyManagement";
 import * as messageOps from "./db/messageOperations";
@@ -145,7 +146,9 @@ class ChatDatabase {
   //             bounded chat viewing windows, explicitly separate from messages_v.
   // Version 31: notebook_run_outputs store — encrypted sidecar rows for Jupyter
   //             notebook cell outputs, separate from canonical notebook source.
-  private readonly VERSION = 31;
+  // Version 32: bounded pending-message retry indexes. Backfill the numeric
+  // pending-turn marker from existing encrypted preflight journals.
+  private readonly VERSION = 32;
   public readonly MESSAGE_HIGHLIGHTS_STORE_NAME = "message_highlights";
   public readonly EMBED_DIFFS_STORE_NAME = "embed_diffs";
   public readonly CODE_RUN_OUTPUTS_STORE_NAME = "code_run_outputs";
@@ -175,6 +178,7 @@ class ChatDatabase {
     Record<string, readonly string[]>
   > = {
     [this.CHATS_STORE_NAME]: ["last_edited_overall_timestamp"],
+    [this.MESSAGES_STORE_NAME]: ["status_created_at_message_id", "pending_turn_created_at_message_id"],
   };
   private readonly DATA_BEARING_STORE_NAMES = [
     ...this.REQUIRED_STORE_NAMES,
@@ -576,6 +580,13 @@ class ChatDatabase {
         for (const storeName of storeNames) {
           const store = transaction.objectStore(storeName);
           for (const record of snapshot[storeName] ?? []) {
+            if (storeName === this.MESSAGES_STORE_NAME && record && typeof record === "object") {
+              const row = record as Record<string, unknown>;
+              if (typeof row.pending_encrypted_turn_preflight_v1 === "string") {
+                store.put({ ...row, pending_turn_preflight_v1: 1 });
+                continue;
+              }
+            }
             store.put(record);
           }
         }
@@ -1280,25 +1291,49 @@ class ChatDatabase {
       );
       messagesStore.createIndex("chat_id", "chat_id", { unique: false });
       messagesStore.createIndex("created_at", "created_at", { unique: false });
-    } else if (transaction && oldVersion < 7) {
+      messagesStore.createIndex("status_created_at_message_id", ["status", "created_at", "message_id"], { unique: false });
+      messagesStore.createIndex("pending_turn_created_at_message_id", ["pending_turn_preflight_v1", "created_at", "message_id"], { unique: false });
+    } else if (transaction) {
       const messagesStore = transaction.objectStore(this.MESSAGES_STORE_NAME);
-      if (messagesStore.indexNames.contains("chat_id_timestamp")) {
-        messagesStore.deleteIndex("chat_id_timestamp");
+      if (oldVersion < 7) {
+        if (messagesStore.indexNames.contains("chat_id_timestamp")) {
+          messagesStore.deleteIndex("chat_id_timestamp");
+        }
+        if (messagesStore.indexNames.contains("timestamp")) {
+          messagesStore.deleteIndex("timestamp");
+        }
+        if (!messagesStore.indexNames.contains("chat_id_created_at")) {
+          messagesStore.createIndex(
+            "chat_id_created_at",
+            ["chat_id", "created_at"],
+            { unique: false },
+          );
+        }
+        if (!messagesStore.indexNames.contains("created_at")) {
+          messagesStore.createIndex("created_at", "created_at", {
+            unique: false,
+          });
+        }
       }
-      if (messagesStore.indexNames.contains("timestamp")) {
-        messagesStore.deleteIndex("timestamp");
+      if (!messagesStore.indexNames.contains("status_created_at_message_id")) {
+        messagesStore.createIndex("status_created_at_message_id", ["status", "created_at", "message_id"], { unique: false });
       }
-      if (!messagesStore.indexNames.contains("chat_id_created_at")) {
-        messagesStore.createIndex(
-          "chat_id_created_at",
-          ["chat_id", "created_at"],
-          { unique: false },
-        );
-      }
-      if (!messagesStore.indexNames.contains("created_at")) {
-        messagesStore.createIndex("created_at", "created_at", {
-          unique: false,
-        });
+      if (!messagesStore.indexNames.contains("pending_turn_created_at_message_id")) {
+        messagesStore.createIndex("pending_turn_created_at_message_id", ["pending_turn_preflight_v1", "created_at", "message_id"], { unique: false });
+        // This upgrade runs once. Only the encrypted journal's presence is
+        // inspected; the journal ciphertext is never copied into an index.
+        const cursorRequest = messagesStore.openCursor();
+        cursorRequest.onsuccess = () => {
+          const cursor = cursorRequest.result;
+          if (!cursor) return;
+          const row = cursor.value as Record<string, unknown>;
+          if (typeof row.pending_encrypted_turn_preflight_v1 === "string" &&
+              row.pending_turn_preflight_v1 !== 1) {
+            row.pending_turn_preflight_v1 = 1;
+            cursor.update(row);
+          }
+          cursor.continue();
+        };
       }
     }
 
@@ -2006,6 +2041,17 @@ class ChatDatabase {
     return chatCrudOps.deleteChat(this, chat_id, transaction);
   }
 
+  async deleteChatIfNoPendingTurn(chatId: string): Promise<{ deleted: boolean; deletedEmbedIds: string[] }> {
+    const result = await chatCrudOps.deleteChatIfNoPendingTurn(this, chatId);
+    if (result.deleted && result.deletedEmbedIds.length > 0) {
+      const { embedStore } = await import("./embedStore");
+      for (const embedId of result.deletedEmbedIds) {
+        embedStore.removeFromMemoryCache(`embed:${embedId}`);
+      }
+    }
+    return result;
+  }
+
   async getChatDescendantIds(chatId: string): Promise<string[]> {
     try {
       const allChats = await this.getAllChats();
@@ -2149,6 +2195,18 @@ class ChatDatabase {
     return messageOps.getAllMessages(this, duringInit);
   }
 
+  async getPendingMessageRetryPage(
+    kind: messageOps.PendingMessageRetryKind,
+    after: messageOps.PendingMessageRetryCursor | null = null,
+  ): Promise<{ rows: Message[]; nextCursor: messageOps.PendingMessageRetryCursor | null; oversizedCount: number }> {
+    return messageOps.getPendingMessageRetryPage(this, kind, after);
+  }
+
+
+  async decryptPendingMessageRetryRow(raw: Message): Promise<Message | null> {
+    return messageOps.decryptPendingMessageRetryRow(this, raw);
+  }
+
   /**
    * Update only the status field of a message without re-encrypting any content.
    *
@@ -2224,6 +2282,30 @@ class ChatDatabase {
         cursor.continue();
       };
       request.onerror = () => reject(request.error);
+    });
+  }
+
+  async deleteCoveredMessagesForChat(
+    chat_id: string,
+    message_ids: string[],
+  ): Promise<number> {
+    await this.init();
+    const transaction = await this.getTransaction(this.MESSAGES_STORE_NAME, "readwrite");
+    const store = transaction.objectStore(this.MESSAGES_STORE_NAME);
+    return new Promise((resolve, reject) => {
+      let deleted = 0;
+      transaction.oncomplete = () => resolve(deleted);
+      transaction.onerror = () => reject(transaction.error);
+      transaction.onabort = () => reject(transaction.error);
+      for (const messageId of new Set(message_ids)) {
+        const request = store.get(messageId);
+        request.onsuccess = () => {
+          const message = request.result as Message | undefined;
+          if (message?.chat_id !== chat_id) return;
+          store.delete(messageId);
+          deleted += 1;
+        };
+      }
     });
   }
 
@@ -2817,14 +2899,7 @@ class ChatDatabase {
       this.PENDING_EMBED_OPERATIONS_STORE_NAME,
       "readwrite",
     );
-    return new Promise((resolve, reject) => {
-      const store = transaction.objectStore(
-        this.PENDING_EMBED_OPERATIONS_STORE_NAME,
-      );
-      const request = store.put(operation);
-      request.onsuccess = () => resolve();
-      request.onerror = () => reject(request.error);
-    });
+    return putPendingEmbedOperation(transaction, this.PENDING_EMBED_OPERATIONS_STORE_NAME, operation);
   }
 
   /**

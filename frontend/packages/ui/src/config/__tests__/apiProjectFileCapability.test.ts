@@ -15,13 +15,13 @@ describe("Project file WebSocket capability", () => {
   // contract-test: supporting surface=gui.web assertions=projects.files.executor-wait,projects.files.no-server-decryption-authority
   it("advertises Project file jobs only while a browser executor is installed", () => {
     expect(getWebSocketUrl("session", "token")).not.toContain(
-      "client_capabilities=project_file_jobs",
+      "client_capabilities=canonical_embed_receipts_v1,typed_recovery_outputs_v2,project_file_jobs",
     );
 
     setProjectFileJobsCapabilityEnabled(true);
 
     expect(getWebSocketUrl("session", "token")).toContain(
-      "client_capabilities=project_file_jobs",
+      "client_capabilities=canonical_embed_receipts_v1,typed_recovery_outputs_v2,project_file_jobs",
     );
   });
 
@@ -33,7 +33,7 @@ describe("Project file WebSocket capability", () => {
     setRemoteCommandJobsCapabilityEnabled(true);
 
     expect(getWebSocketUrl()).toContain(
-      "client_capabilities=project_file_jobs,remote_command_jobs",
+      "client_capabilities=canonical_embed_receipts_v1,typed_recovery_outputs_v2,project_file_jobs,remote_command_jobs",
     );
   });
 });

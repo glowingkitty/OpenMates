@@ -33,6 +33,7 @@ from backend.core.api.app.tasks.base_task import BaseServiceTask
 from backend.core.api.app.utils.image_processing import process_svg_for_storage
 from backend.shared.providers.recraft.recraft import vectorize_image_recraft
 from backend.core.api.app.services.s3.config import get_bucket_name
+from backend.shared.python_utils.chat_recovery_context import RequiredRecoveryOutputError
 
 logger = logging.getLogger(__name__)
 
@@ -426,6 +427,11 @@ async def _async_vectorize_image(
         # 3. Get or generate embed_id for the result
         embed_id = arguments.get("embed_id") or str(uuid.uuid4())
         logger.info(f"{log_prefix} Using result embed_id: {embed_id}")
+        from backend.core.api.app.services.embed_service import EmbedService
+        await EmbedService.assert_registered_output_can_generate(
+            task._directus_service, embed_id=embed_id, chat_id=chat_id,
+            message_id=message_id, owner_hash=_hash_value(user_id),
+        )
 
         # 4. Decrypt the source image from the embed cache
         logger.info(
@@ -657,6 +663,7 @@ async def _async_vectorize_image(
             updated_at=now_ts,
             log_prefix=log_prefix,
             check_cache_status=False,
+            producer_final_children=[],
         )
 
         # 12. Prepare result for API response / task polling
@@ -685,6 +692,8 @@ async def _async_vectorize_image(
         )
         return result_data
 
+    except RequiredRecoveryOutputError:
+        raise
     except Exception as e:
         logger.error(
             f"{log_prefix} Vectorize task failed: {e}", exc_info=True

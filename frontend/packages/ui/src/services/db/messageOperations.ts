@@ -898,6 +898,102 @@ export async function getAllMessages(
   });
 }
 
+export type PendingMessageRetryKind = "pending_turn" | "waiting_for_internet" | "sending";
+export type PendingMessageRetryCursor = [number | string, number, string];
+const MAX_PENDING_RETRY_PAGE_BYTES = 4 * 1024 * 1024;
+// A single legitimate sealed turn can exceed a page. Process it alone, up to
+// the recovery payload ceiling; larger rows remain durable and are reported.
+const MAX_PENDING_RETRY_SINGLE_ROW_BYTES = 24 * 1024 * 1024;
+
+export async function decryptPendingMessageRetryRow(
+  dbInstance: ChatDatabaseInstance, raw: Message,
+): Promise<Message | null> {
+  try {
+    const message = await dbInstance.decryptMessageFields(raw, raw.chat_id);
+    if (typeof message.content !== "string" || !message.content ||
+        message.content === "[Decrypting...]" ||
+        message.content === "[Content decryption failed]" ||
+        (message as Message & { _decryptionPending?: boolean })._decryptionPending) return null;
+    return message;
+  } catch (error) {
+    console.warn("[ChatDatabase] Pending message key is not ready:", error);
+    return null;
+  }
+}
+
+/**
+ * Read one bounded page of pending raw user rows from a secondary index.
+ * The caller decrypts each row independently after the IDB transaction closes.
+ * A pending sealed turn is included even if an unrelated metadata event changed
+ * its display status before the exact committed-version acknowledgement.
+ */
+export async function getPendingMessageRetryPage(
+  dbInstance: ChatDatabaseInstance,
+  kind: PendingMessageRetryKind,
+  after: PendingMessageRetryCursor | null = null,
+  limit = 20,
+): Promise<{ rows: Message[]; nextCursor: PendingMessageRetryCursor | null; oversizedCount: number }> {
+  if (!Number.isSafeInteger(limit) || limit < 1 || limit > 20) {
+    throw new Error("Pending message retry page limit is invalid.");
+  }
+  const indexName = kind === "pending_turn"
+    ? "pending_turn_created_at_message_id"
+    : "status_created_at_message_id";
+  const key: number | string = kind === "pending_turn" ? 1 : kind;
+  if (after && (after[0] !== key || !Number.isSafeInteger(after[1]) ||
+      typeof after[2] !== "string")) {
+    throw new Error("Pending message retry cursor changed scope.");
+  }
+  const transaction = await dbInstance.getTransaction(MESSAGES_STORE_NAME, "readonly");
+  const index = transaction.objectStore(MESSAGES_STORE_NAME).index(indexName);
+  const range = IDBKeyRange.bound(
+    after ?? [key, 0, ""], [key, Number.MAX_SAFE_INTEGER, "\uffff"],
+    after !== null, false,
+  );
+  return new Promise((resolve, reject) => {
+    const rows: Message[] = [];
+    let bytes = 0;
+    let scanned = 0;
+    let oversizedCount = 0;
+    let lastKey: PendingMessageRetryCursor | null = null;
+    const request = index.openCursor(range);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      const cursor = request.result;
+      if (!cursor) { resolve({ rows, nextCursor: null, oversizedCount }); return; }
+      const row = cursor.value as Message & Record<string, unknown>;
+      const cursorKey = cursor.key;
+      if (!Array.isArray(cursorKey) || cursorKey.length !== 3 ||
+          cursorKey[0] !== key || typeof cursorKey[1] !== "number" ||
+          typeof cursorKey[2] !== "string") {
+        reject(new Error("Pending message retry index has an invalid key."));
+        return;
+      }
+      const rowBytes = (row.encrypted_content?.length ?? 0) +
+        (typeof row.pending_encrypted_turn_preflight_v1 === "string"
+          ? row.pending_encrypted_turn_preflight_v1.length : 0) +
+        (typeof row.pending_encrypted_embed_bundle_v1 === "string"
+          ? row.pending_encrypted_embed_bundle_v1.length : 0) + 1024;
+      if (rows.length > 0 && bytes + rowBytes > MAX_PENDING_RETRY_PAGE_BYTES) {
+        resolve({ rows, nextCursor: lastKey, oversizedCount });
+        return;
+      }
+      if (rowBytes > MAX_PENDING_RETRY_SINGLE_ROW_BYTES) oversizedCount++;
+      else {
+        rows.push(row);
+        bytes += rowBytes;
+      }
+      scanned++;
+      lastKey = [cursorKey[0], cursorKey[1], cursorKey[2]];
+      if (scanned >= limit) {
+        resolve({ rows, nextCursor: lastKey, oversizedCount });
+      } else {
+        cursor.continue();
+      }
+    };
+  });
+}
+
 /**
  * Save a single message to the database
  * Handles duplicate detection and status priority
@@ -1068,22 +1164,44 @@ export async function saveMessage(
   ): Promise<void> => {
     return new Promise((resolve, reject) => {
       const store = currentTransaction.objectStore(MESSAGES_STORE_NAME);
-      const request = store.put(encryptedMessage); // Store encrypted message
-
-      request.onsuccess = () => {
-        console.debug(
-          `[ChatDatabase] ✅ Encrypted message saved/updated successfully (queued): ${message.message_id} (chat: ${message.chat_id})`,
-        );
-        if (!resolveOnComplete) {
-          resolve();
+      // Pending embed and sealed preflight journals hold the exact randomized
+      // ciphertext for a same-ID retry. Preserve the current raw row's values
+      // until chat_message_confirmed clears them, in the same IDB transaction.
+      const getRequest = store.get(message.message_id);
+      getRequest.onerror = () => reject(getRequest.error);
+      getRequest.onsuccess = () => {
+        const previous = getRequest.result as (Message & Record<string, unknown>) | undefined;
+        const next = encryptedMessage as Message & Record<string, unknown>;
+        // The caller may hold a stale decrypted copy from before ACK cleanup.
+        // Only the current raw row may authorize retaining this field.
+        for (const field of ["pending_encrypted_embed_bundle_v1", "pending_encrypted_turn_preflight_v1"]) {
+          delete next[field];
+          if (previous?.chat_id === message.chat_id &&
+              Object.prototype.hasOwnProperty.call(previous, field)) {
+            next[field] = previous[field];
+          }
         }
-      };
-      request.onerror = () => {
-        console.error(
-          `[ChatDatabase] ❌ Error in message store.put operation for ${message.message_id}:`,
-          request.error,
-        );
-        reject(request.error);
+        // The numeric secondary-index marker follows the winning raw journal,
+        // never a stale decrypted caller or a pre-ACK copy.
+        if (typeof next.pending_encrypted_turn_preflight_v1 === "string") {
+          next.pending_turn_preflight_v1 = 1;
+        } else {
+          delete next.pending_turn_preflight_v1;
+        }
+        const request = store.put(next);
+        request.onsuccess = () => {
+          console.debug(
+            `[ChatDatabase] ✅ Encrypted message saved/updated successfully (queued): ${message.message_id} (chat: ${message.chat_id})`,
+          );
+          if (!resolveOnComplete) resolve();
+        };
+        request.onerror = () => {
+          console.error(
+            `[ChatDatabase] ❌ Error in message store.put operation for ${message.message_id}:`,
+            request.error,
+          );
+          reject(request.error);
+        };
       };
 
       if (resolveOnComplete) {
@@ -1462,22 +1580,44 @@ export async function batchSaveMessages(
   return new Promise((resolve, reject) => {
     const store = writeTransaction.objectStore(MESSAGES_STORE_NAME);
 
-    // Queue all put operations synchronously (no await between them)
-    // This keeps the transaction active until all operations are queued
-    const requests: IDBRequest[] = [];
-    for (const { encrypted } of preparedMessages) {
-      const request = store.put(encrypted);
-      requests.push(request);
+    // Queue every read synchronously. Each callback queues its matching put
+    // in this same transaction, preserving pending ciphertext retry journals
+    // when phased sync replaces an existing message row by ID.
+    for (const { message, encrypted } of preparedMessages) {
+      const getRequest = store.get(message.message_id);
+      getRequest.onerror = () => {
+        console.error(`[ChatDatabase] batchSaveMessages: Read failed for ${message.message_id}:`, getRequest.error);
+      };
+      getRequest.onsuccess = () => {
+        const previous = getRequest.result as (Message & Record<string, unknown>) | undefined;
+        const next = encrypted as Message & Record<string, unknown>;
+        for (const field of ["pending_encrypted_embed_bundle_v1", "pending_encrypted_turn_preflight_v1"]) {
+          delete next[field];
+          if (previous?.chat_id === message.chat_id &&
+              Object.prototype.hasOwnProperty.call(previous, field)) {
+            next[field] = previous[field];
+          }
+        }
+        if (typeof next.pending_encrypted_turn_preflight_v1 === "string") {
+          next.pending_turn_preflight_v1 = 1;
+        } else {
+          delete next.pending_turn_preflight_v1;
+        }
+        const putRequest = store.put(next);
+        putRequest.onerror = () => {
+          console.error(`[ChatDatabase] batchSaveMessages: Write failed for ${message.message_id}:`, putRequest.error);
+        };
+      };
     }
 
     console.debug(
-      `[ChatDatabase] batchSaveMessages: Queued ${requests.length} put operations in transaction`,
+      `[ChatDatabase] batchSaveMessages: Queued ${preparedMessages.length} guarded writes in transaction`,
     );
 
     // Wait for transaction to complete
     writeTransaction.oncomplete = () => {
       console.debug(
-        `[ChatDatabase] batchSaveMessages: Transaction completed successfully for ${requests.length} messages`,
+        `[ChatDatabase] batchSaveMessages: Transaction completed successfully for ${preparedMessages.length} messages`,
       );
       for (const chatId of new Set(preparedMessages.map(({ message }) => message.chat_id))) invalidateRecentChatWindow(chatId);
       resolve();
@@ -1496,16 +1636,6 @@ export async function batchSaveMessages(
       reject(new Error("Transaction aborted"));
     };
 
-    // Check for any request errors
-    for (const request of requests) {
-      request.onerror = () => {
-        console.error(
-          `[ChatDatabase] batchSaveMessages: Request error for message:`,
-          request.error,
-        );
-        // Don't reject here - let transaction error handler handle it
-      };
-    }
   });
 }
 

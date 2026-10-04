@@ -3,6 +3,7 @@
 
 import logging
 import hashlib
+import os
 import re
 import time
 import json
@@ -21,7 +22,20 @@ from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.services.translations import TranslationService
 from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
 from backend.core.api.app.services.sub_chat_orchestration_service import SubChatOrchestrationService
-from backend.shared.python_utils.chat_completion_recovery_job import build_sealed_recovery_job_data
+from backend.shared.python_utils.chat_completion_recovery_job import (
+    build_sealed_recovery_job_data,
+    build_sealed_recovery_output_data,
+)
+from backend.shared.python_utils.chat_recovery_context import (
+    RequiredRecoveryOutputError, active_recovery_output_context,
+    active_legacy_output_context,
+)
+from backend.shared.python_utils.embed_producer_dispatch import (
+    dispatch_recoverable_embed_task, dispatch_legacy_embed_task,
+    dispatch_volatile_embed_task,
+)
+from backend.shared.python_utils.volatile_embed_authority import active_volatile_ai_context
+
 
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
 from backend.apps.ai.assistant_speech.projection import (
@@ -35,7 +49,11 @@ from backend.core.api.app.schemas.chat import AIHistoryMessage
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML
 from backend.apps.ai.utils.mate_utils import MateConfig
 from backend.apps.ai.processing.main_processor import handle_main_processing, INTERNAL_API_BASE_URL, INTERNAL_API_SHARED_TOKEN
-from backend.apps.ai.sub_chat_orchestration import build_sequential_child_prompt, dispatch_sub_chat_task
+from backend.apps.ai.sub_chat_orchestration import (
+    build_sequential_child_prompt,
+    dispatch_sub_chat_task,
+    signed_capacity_replay_marker,
+)
 from backend.core.api.app.utils.override_parser import UserOverrides
 from backend.apps.ai.utils.llm_utils import log_main_llm_stream_aggregated_output, STANDARDIZED_USER_ERROR_MESSAGE
 from backend.apps.ai.utils.main_processing_failure import main_processing_failure_reason
@@ -113,6 +131,81 @@ ASSISTANT_RESPONSE_TIMESTAMP_OFFSET_SECONDS = 1
 SUB_CHAT_PENDING_TTL_SECONDS = 60 * 60 * 24
 SUB_CHAT_PENDING_KEY_PREFIX = "sub_chat_pending"
 SUB_CHAT_PARENT_STATUS_MESSAGE = "I've started the sub-chats and will continue once they finish."
+
+
+async def _dispatch_ai_embed_task(
+    name: str, *, args: list[dict[str, Any]], queue: str,
+    output_kind: str = "embed", output_version: int = 1,
+) -> Any:
+    """Publish a detached artifact only after its admitted turn is registered."""
+    context = active_recovery_output_context.get()
+    if len(args) != 1 or not isinstance(args[0], dict):
+        raise RequiredRecoveryOutputError("Detached artifact invocation is invalid")
+    envelope = args[0]
+    identity = {
+        "owner_id": envelope.get("user_id", ""),
+        "target_chat_id": envelope.get("chat_id", ""),
+        "message_id": envelope.get("message_id", ""),
+        "embed_id": envelope.get("embed_id", ""),
+    }
+    if context is not None:
+        return await dispatch_recoverable_embed_task(
+            celery_config.app, task_name=name, queue=queue, args=args,
+            output_kind=output_kind, output_version=output_version, **identity,
+        )
+    if active_legacy_output_context.get() is not None:
+        return await dispatch_legacy_embed_task(
+            celery_config.app, task_name=name, queue=queue, args=args, **identity,
+        )
+    if active_volatile_ai_context.get() is not None:
+        return await dispatch_volatile_embed_task(
+            celery_config.app, task_name=name, queue=queue, args=args, **identity,
+        )
+    raise RequiredRecoveryOutputError("Detached artifact lacks authenticated output admission")
+
+
+def _isolated_capacity_replay_enabled() -> bool:
+    return (
+        os.getenv("OPENMATES_CI_ISOLATED") == "1"
+        and os.getenv("OPENMATES_STORAGE_CAPACITY_FIXTURES") == "true"
+        and os.getenv("SERVER_ENVIRONMENT", "production").lower() not in {"production", "prod"}
+    )
+
+
+def _capacity_scenario_in_history(request_data: AskSkillRequest) -> bool:
+    return any(
+        "STORAGE_CAPACITY_SCENARIO:" in str(message.content)
+        for message in request_data.message_history
+        if message.role == "user"
+    )
+
+
+def _capacity_pending_marker(request_data: AskSkillRequest) -> str | None:
+    if not _isolated_capacity_replay_enabled():
+        return None
+    marker = signed_capacity_replay_marker(
+        request_data, ttl_seconds=SUB_CHAT_PENDING_TTL_SECONDS,
+    )
+    if _capacity_scenario_in_history(request_data) and not marker:
+        raise RuntimeError("Synthetic parent continuation requires active signed replay")
+    return marker
+
+
+def _capacity_continuation_marker(
+    pending_context: dict[str, Any], original_request: AskSkillRequest,
+) -> str | None:
+    marker = pending_context.get("capacity_replay_marker")
+    if marker is None and not (
+        _isolated_capacity_replay_enabled() and _capacity_scenario_in_history(original_request)
+    ):
+        return None
+    if not _isolated_capacity_replay_enabled() or not isinstance(marker, str):
+        raise RuntimeError("Synthetic parent continuation has no isolated replay context")
+    from backend.shared.testing.mock_context import resolve_live_marker_or_raise
+    validated = resolve_live_marker_or_raise(marker, original_request.user_id)
+    if not validated or validated.mode != "mock" or not validated.group_id.startswith("storage_capacity_"):
+        raise RuntimeError("Synthetic parent continuation marker is invalid")
+    return marker
 
 
 def _sub_chat_completion_summary(
@@ -369,6 +462,9 @@ async def _store_sub_chat_pending_context(
         "report_trigger": report_trigger,
         "created_at": int(time.time()),
     }
+    capacity_marker = _capacity_pending_marker(parent_request_data)
+    if capacity_marker:
+        payload["capacity_replay_marker"] = capacity_marker
     await cache_service.set(
         _sub_chat_pending_key(parent_request_data.chat_id),
         payload,
@@ -471,6 +567,20 @@ async def _record_sub_chat_completion_and_maybe_continue_parent(
         completed = {}
     completed[request_data.chat_id] = completion_entry
     pending_context["completed"] = completed
+
+    # The parent synthesis input is durably staged in the pending context only
+    # after the child's sealed result has already committed.
+    await cache_service.set(pending_key, pending_context, ttl=SUB_CHAT_PENDING_TTL_SECONDS)
+    if terminal_state == "completed" and request_data.recovery_preflight_id:
+        directus_service = DirectusService()
+        try:
+            await ChatRecoveryService(directus_service).execute("mark_child_result_delivered", {
+                "protocol_version": 1, "hashed_user_id": request_data.user_id_hash,
+                "child_chat_id": request_data.chat_id,
+                "root_chat_id": request_data.root_chat_id,
+            })
+        finally:
+            await directus_service.close()
 
     expected_ids = [str(chat_id) for chat_id in pending_context.get("expected_sub_chat_ids", [])]
     if not expected_ids:
@@ -644,6 +754,7 @@ async def _dispatch_sub_chat_parent_continuation(
         return
 
     original_request = AskSkillRequest(**request_payload)
+    capacity_marker = _capacity_continuation_marker(pending_context, original_request)
     continuation_task_id = None
     orchestration_service = None
     directus_service = None
@@ -676,6 +787,8 @@ async def _dispatch_sub_chat_parent_continuation(
             created_at=int(time.time()),
         )
     )
+    if capacity_marker:
+        continuation_history[-1].content = f"{continuation_history[-1].content} {capacity_marker}"
 
     continuation_request = AskSkillRequest(
         chat_id=original_request.chat_id,
@@ -715,6 +828,10 @@ async def _dispatch_sub_chat_parent_continuation(
         app_settings_memories_metadata=original_request.app_settings_memories_metadata,
         mentioned_settings_memories_cleartext=original_request.mentioned_settings_memories_cleartext,
         is_sub_chat_continuation=True,
+        recovery_consumed_child_ids=[
+            child_chat_id for child_chat_id, completion in (pending_context.get("completed") or {}).items()
+            if isinstance(completion, dict) and not completion.get("failed") and not completion.get("cancelled")
+        ],
         embed_file_path_index=original_request.embed_file_path_index,
         has_image_upload_embed=getattr(original_request, "has_image_upload_embed", False),
     )
@@ -1294,6 +1411,7 @@ async def _apply_diff_block_to_existing_embed(
         "embed_id": target_embed_id,
         "version_number": new_version,
         "patch": diff_content,
+        **({"snapshot": patch_result.new_content} if new_version % 32 == 0 else {}),
         "created_at": now,
     })
 
@@ -1305,6 +1423,8 @@ async def _apply_diff_block_to_existing_embed(
         if version_history_rows and version_history_rows[0].get("snapshot") == current_content:
             version_history_rows[0]["snapshot"] = capped_current_content
         version_history_rows[-1]["patch"] = capped_diff_content
+        if new_version % 32 == 0:
+            version_history_rows[-1]["snapshot"] = capped_new_content
         new_content_hash = hashlib.sha256(capped_new_content.encode("utf-8")).hexdigest()
         await embed_service.update_code_embed_content(
             embed_id=target_embed_id,
@@ -1341,6 +1461,8 @@ async def _apply_diff_block_to_existing_embed(
         if version_history_rows and version_history_rows[0].get("snapshot") == current_content:
             version_history_rows[0]["snapshot"] = capped_current_content
         version_history_rows[-1]["patch"] = capped_diff_content
+        if new_version % 32 == 0:
+            version_history_rows[-1]["snapshot"] = capped_new_content
         new_content_hash = hashlib.sha256(capped_new_content.encode("utf-8")).hexdigest()
         doc_title, doc_filename, docx_model = _extract_document_title_and_filename("docx_model", capped_new_content)
         await embed_service.update_document_embed_content(
@@ -1360,7 +1482,7 @@ async def _apply_diff_block_to_existing_embed(
             learning_mode_metadata=learning_mode_metadata,
             log_prefix=log_prefix
         )
-        celery_config.app.send_task(
+        await _dispatch_ai_embed_task(
             "apps.docs.tasks.generate_docx",
             args=[{
                 "embed_id": target_embed_id,
@@ -1375,6 +1497,7 @@ async def _apply_diff_block_to_existing_embed(
                 "file_path_index": file_path_index,
             }],
             queue="app_docs",
+            output_kind="diff", output_version=new_version,
         )
     elif embed_type == "sheet":
         table_row_count = max(0, len(patch_result.new_content.splitlines()) - 2)
@@ -1394,6 +1517,8 @@ async def _apply_diff_block_to_existing_embed(
         if version_history_rows and version_history_rows[0].get("snapshot") == current_content:
             version_history_rows[0]["snapshot"] = capped_current_table
         version_history_rows[-1]["patch"] = capped_diff_content
+        if new_version % 32 == 0:
+            version_history_rows[-1]["snapshot"] = capped_table_content
         new_content_hash = hashlib.sha256(capped_table_content.encode("utf-8")).hexdigest()
         await embed_service.update_table_embed_content(
             embed_id=target_embed_id,
@@ -2376,6 +2501,58 @@ def _build_sub_chat_batch_marker(
     return f"\n\n```json\n{json.dumps(marker, separators=(',', ':'))}\n```\n\n"
 
 
+async def _persist_sealed_typed_output(
+    *, directus_service: DirectusService, request_data: AskSkillRequest,
+    cache_service: CacheService | None, inference_task_id: str,
+    subject_id: str, output_kind: str, output_version: int, content: object,
+    message_role: str | None = None,
+) -> dict[str, Any]:
+    if not request_data.recovery_preflight_id \
+            or not request_data.recovery_turn_id or not request_data.recovery_public_key \
+            or not request_data.chat_key_version:
+        raise RuntimeError("Typed output lacks root recovery identity")
+    if cache_service is None or not await cache_service.mark_ai_context_pending_persistence(
+        request_data.user_id_hash, request_data.chat_id,
+    ):
+        raise RuntimeError("Recovery context could not be pinned before durable save")
+    # The child's prompt is sealed before ask_skill_task activates its signed
+    # replay context. Verify the marker here, at the durable-save gate, so the
+    # provider-free failure fixture can exercise that gate before inference.
+    if message_role == "user" and request_data.is_sub_chat:
+        from backend.apps.ai.testing.capacity_fixtures import should_fail_child_prompt_save
+
+        first_message = request_data.message_history[0] if request_data.message_history else None
+        prompt = first_message.content if first_message is not None else ""
+        if should_fail_child_prompt_save(prompt, request_data.user_id):
+            raise RequiredRecoveryOutputError("Synthetic sealed output durability unavailable")
+    data = build_sealed_recovery_output_data(
+        owner_id=request_data.user_id, owner_hash=request_data.user_id_hash,
+        root_chat_id=request_data.root_chat_id or request_data.chat_id,
+        target_chat_id=request_data.chat_id,
+        turn_id=request_data.recovery_turn_id,
+        preflight_id=request_data.recovery_preflight_id,
+        inference_task_id=inference_task_id,
+        recovery_public_key=request_data.recovery_public_key,
+        chat_key_version=request_data.chat_key_version,
+        subject_id=subject_id, output_kind=output_kind,
+        output_version=output_version, content=content, message_role=message_role,
+    )
+    s3_service = None
+    owned_secrets_manager = None
+    try:
+        if len(str(data["sealed_payload"]).encode("utf-8")) > 256 * 1024:
+            from backend.core.api.app.services.s3.service import S3UploadService
+
+            owned_secrets_manager = SecretsManager()
+            await owned_secrets_manager.initialize()
+            s3_service = S3UploadService(owned_secrets_manager, directus_service)
+            await s3_service.initialize(configure_buckets=False)
+        return await ChatRecoveryService(directus_service).save_sealed_output(data, s3_service=s3_service)
+    finally:
+        if owned_secrets_manager is not None:
+            await owned_secrets_manager.close()
+
+
 async def _persist_sealed_recovery_job(
     *,
     directus_service: DirectusService,
@@ -2384,6 +2561,7 @@ async def _persist_sealed_recovery_job(
     content: str,
     category: str | None,
     model_name: str | None,
+    cache_service: CacheService | None = None,
 ) -> dict[str, Any] | None:
     inference_task_id = _recovery_inference_task_id(request_data)
     if not inference_task_id:
@@ -2396,6 +2574,16 @@ async def _persist_sealed_recovery_job(
     }
     if any(value is None for value in required.values()):
         raise RuntimeError("Epoch-1 task is missing sealed recovery context")
+    if request_data.is_sub_chat:
+        result = await _persist_sealed_typed_output(
+            directus_service=directus_service, request_data=request_data,
+            cache_service=cache_service, inference_task_id=inference_task_id,
+            subject_id=_assistant_message_id(task_id, request_data),
+            output_kind="message", output_version=request_data.assistant_response_source_revision,
+            content={"content": content, "category": category, "model_name": model_name, "role": "assistant"},
+            message_role="assistant",
+        )
+        return {"output_id": result["record_id"], "protocol_version": 2}
     data = build_sealed_recovery_job_data(
         owner_id=request_data.user_id,
         owner_hash=request_data.user_id_hash,
@@ -3397,6 +3585,7 @@ async def _generate_fake_stream_for_harmful_content(
             content=predefined_response,
             category=category,
             model_name=model_name,
+            cache_service=cache_service,
         )
 
     # Publish final marker
@@ -3408,8 +3597,12 @@ async def _generate_fake_stream_for_harmful_content(
         category=category,
     )
     if recovery_job:
-        final_payload["recovery_job_id"] = recovery_job["job_id"]
-        final_payload["recovery_protocol_version"] = 1
+        if "output_id" in recovery_job:
+            final_payload["recovery_output_id"] = recovery_job["output_id"]
+            final_payload["recovery_protocol_version"] = 2
+        else:
+            final_payload["recovery_job_id"] = recovery_job["job_id"]
+            final_payload["recovery_protocol_version"] = 1
     await _publish_to_redis(
         cache_service, redis_channel, final_payload, log_prefix,
         f"Published final marker to '{redis_channel}'"
@@ -3523,6 +3716,7 @@ async def _generate_fake_stream_for_simple_message(
             content=message_text,
             category=category,
             model_name=model_name,
+            cache_service=cache_service,
         )
 
     final_payload = _create_redis_payload(
@@ -3534,8 +3728,12 @@ async def _generate_fake_stream_for_simple_message(
         category=category,
     )
     if recovery_job:
-        final_payload["recovery_job_id"] = recovery_job["job_id"]
-        final_payload["recovery_protocol_version"] = 1
+        if "output_id" in recovery_job:
+            final_payload["recovery_output_id"] = recovery_job["output_id"]
+            final_payload["recovery_protocol_version"] = 2
+        else:
+            final_payload["recovery_job_id"] = recovery_job["job_id"]
+            final_payload["recovery_protocol_version"] = 1
     await _publish_to_redis(
         cache_service, redis_channel, final_payload, log_prefix,
         f"Published final marker to '{redis_channel}'"
@@ -4845,7 +5043,7 @@ async def _create_remotion_video_embed_reference(
         source_version=1,
         log_prefix=log_prefix,
     )
-    celery_config.app.send_task(
+    await _dispatch_ai_embed_task(
         "apps.videos.tasks.render_remotion",
         args=[{
             "embed_id": embed_id,
@@ -6287,7 +6485,7 @@ async def _consume_main_processing_stream(
                                             learning_mode_metadata=learning_mode_metadata,
                                             log_prefix=log_prefix
                                         )
-                                        celery_config.app.send_task(
+                                        await _dispatch_ai_embed_task(
                                             "apps.docs.tasks.generate_docx",
                                             args=[{
                                                 "embed_id": current_code_embed_id,
@@ -6574,6 +6772,8 @@ async def _consume_main_processing_stream(
                                                     current_code_filename = None
                                                     current_code_content = ""
                                                     current_code_embed_id = None
+                            except RequiredRecoveryOutputError:
+                                raise
                             except Exception as e:
                                 logger.error(f"{log_prefix} Error creating embed for complete block: {e}", exc_info=True)
                                 # Continue with original chunk if embed creation fails
@@ -7603,6 +7803,8 @@ async def _consume_main_processing_stream(
                                     user_vault_key_id=user_vault_key_id,
                                     log_prefix=log_prefix,
                                 )
+                            except RequiredRecoveryOutputError:
+                                raise
                             except Exception as e:
                                 logger.error(f"{log_prefix} Error creating Remotion video embed: {e}", exc_info=True)
                                 chunk = f"```{current_code_language or ''}\n{current_code_content}```\n\n"
@@ -7876,7 +8078,7 @@ async def _consume_main_processing_stream(
                                         learning_mode_metadata=learning_mode_metadata,
                                         log_prefix=log_prefix
                                     )
-                                    celery_config.app.send_task(
+                                    await _dispatch_ai_embed_task(
                                         "apps.docs.tasks.generate_docx",
                                         args=[{
                                             "embed_id": current_code_embed_id,
@@ -8120,6 +8322,8 @@ async def _consume_main_processing_stream(
                                                 f"{log_prefix} Published streaming generated application embed reference "
                                                 f"after {len(generated_code_file_embeds)} file embed(s)"
                                             )
+                            except RequiredRecoveryOutputError:
+                                raise
                             except Exception as e:
                                 logger.error(f"{log_prefix} Error finalizing embed: {e}", exc_info=True)
                         
@@ -9693,6 +9897,21 @@ async def _consume_main_processing_stream(
             content=aggregated_response,
             category=preprocessing_result.category or "general_knowledge",
             model_name=stream_model_name,
+            cache_service=cache_service,
+        )
+    completion_summary = _sub_chat_completion_summary(
+        explicit_summary=explicit_sub_chat_completion_summary,
+        aggregated_response=aggregated_response,
+        awaiting_sub_chats_completion=awaiting_sub_chats_completion,
+    )
+    if completion_summary is not None and request_data.is_sub_chat and _recovery_inference_task_id(request_data):
+        await _persist_sealed_typed_output(
+            directus_service=directus_service, request_data=request_data,
+            cache_service=cache_service,
+            inference_task_id=_recovery_inference_task_id(request_data),
+            subject_id=_assistant_message_id(task_id, request_data),
+            output_kind="summary", output_version=request_data.assistant_response_source_revision,
+            content={"summary": completion_summary},
         )
     
     billing_info = {}
@@ -9852,8 +10071,12 @@ async def _consume_main_processing_stream(
         if anonymous_embeds:
             final_payload["anonymous_embeds"] = anonymous_embeds
     if recovery_job:
-        final_payload["recovery_job_id"] = recovery_job["job_id"]
-        final_payload["recovery_protocol_version"] = 1
+        if "output_id" in recovery_job:
+            final_payload["recovery_output_id"] = recovery_job["output_id"]
+            final_payload["recovery_protocol_version"] = 2
+        else:
+            final_payload["recovery_job_id"] = recovery_job["job_id"]
+            final_payload["recovery_protocol_version"] = 1
     with ai_phase_span("finalize.marker"):
         await _publish_to_redis(
             cache_service, redis_channel_name, final_payload, log_prefix,
@@ -9862,11 +10085,6 @@ async def _consume_main_processing_stream(
         if completion_timing:
             completion_timing.mark_final_marker()
     
-    completion_summary = _sub_chat_completion_summary(
-        explicit_summary=explicit_sub_chat_completion_summary,
-        aggregated_response=aggregated_response,
-        awaiting_sub_chats_completion=awaiting_sub_chats_completion,
-    )
     if completion_summary is not None:
         await _record_sub_chat_completion_and_maybe_continue_parent(
             cache_service=cache_service,

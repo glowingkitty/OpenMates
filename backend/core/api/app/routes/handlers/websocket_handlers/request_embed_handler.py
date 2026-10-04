@@ -1,4 +1,5 @@
 import logging
+import hashlib
 from datetime import datetime
 from typing import Dict, Any, Optional
 from fastapi import WebSocket
@@ -49,7 +50,7 @@ async def handle_request_embed(
     """
     _otel_span, _otel_token = None, None
     try:
-        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span, end_ws_handler_span
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span
         _otel_span, _otel_token = start_ws_handler_span("request_embed", user_id, payload, user_otel_attrs)
     except Exception:
         pass
@@ -61,8 +62,72 @@ async def handle_request_embed(
             logger.error(f"{log_prefix}Missing embed_id in request from user {user_id}")
             return
 
+        async def not_found() -> None:
+            await manager.send_personal_message(
+                {"type": "error", "payload": {"message": "Embed not found", "status": 404}},
+                user_id, device_fingerprint_hash,
+            )
+
+        # A requested ID alone is not authority to read cached plaintext or
+        # persisted ciphertext. Verify the current chat and principal first.
+        chat_id = payload.get("chat_id")
+        team_id = payload.get("team_id")
+        hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
+        directus_embed = None
+        if chat_id:
+            hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+            if team_id:
+                from backend.core.api.app.services.directus.team_methods import TeamPermissionError, hash_id
+                try:
+                    await directus_service.team.require_team_role(
+                        team_id, user_id, {"owner", "admin", "member", "viewer"},
+                    )
+                except TeamPermissionError:
+                    await not_found()
+                    return
+                chat = await directus_service.chat.get_chat_metadata(chat_id, admin_required=True)
+                if not chat or chat.get("hashed_team_id") != hash_id(team_id):
+                    await not_found()
+                    return
+            elif not await directus_service.chat.check_chat_ownership(chat_id, user_id):
+                await not_found()
+                return
+            directus_embed = await directus_service.embed.get_embed_by_id(embed_id)
+            if directus_embed and directus_embed.get("hashed_chat_id") != hashed_chat_id:
+                legacy_owner_embed = (
+                    not team_id and not directus_embed.get("hashed_chat_id")
+                    and directus_embed.get("hashed_user_id") == hashed_user_id
+                )
+                if not legacy_owner_embed:
+                    await not_found()
+                    return
+        else:
+            # Legacy clients omit chat_id. Restrict their fallback to a
+            # persisted embed explicitly owned by this account.
+            directus_embed = await directus_service.embed.get_embed_by_id(embed_id)
+            if not directus_embed or directus_embed.get("hashed_user_id") != hashed_user_id:
+                await not_found()
+                return
+            hashed_chat_id = directus_embed.get("hashed_chat_id")
+            if not hashed_chat_id:
+                await not_found()
+                return
+
         try:
             cached = await cache_service.get(f"embed:{embed_id}")
+            if cached:
+                cached_chat_id = cached.get("chat_id")
+                cached_hashed_chat_id = cached.get("hashed_chat_id")
+                if (cached_chat_id and cached_chat_id not in {chat_id, hashed_chat_id}
+                        and hashlib.sha256(str(cached_chat_id).encode()).hexdigest() != hashed_chat_id):
+                    await not_found()
+                    return
+                if cached_hashed_chat_id and cached_hashed_chat_id != hashed_chat_id:
+                    await not_found()
+                    return
+                if not cached_chat_id and not cached_hashed_chat_id and cached.get("hashed_user_id") != hashed_user_id:
+                    await not_found()
+                    return
 
             # If the cache shows "processing", the embed may have already finished but the
             # cache was never updated (the client that received the finished result encrypts
@@ -72,14 +137,17 @@ async def handle_request_embed(
                 logger.info(
                     f"{log_prefix}Cache has stale 'processing' status, checking Directus for authoritative data"
                 )
-                directus_embed = await directus_service.embed.get_embed_by_id(embed_id)
                 if directus_embed and directus_embed.get("status") == "finished":
                     logger.info(
                         f"{log_prefix}Directus confirms embed is 'finished' - serving client-encrypted data from Directus"
                     )
                     # Fetch embed_keys so the requesting device can decrypt the content.
                     # Without these keys, the client has no way to derive the embed key.
-                    embed_keys = await directus_service.embed.get_embed_keys_by_embed_id(embed_id)
+                    key_window = await directus_service.embed.get_sync_embed_key_window_for_page(
+                        hashed_chat_id, hashed_user_id,
+                        [directus_embed.get("hashed_embed_id") or hashlib.sha256(embed_id.encode()).hexdigest()],
+                    )
+                    embed_keys = key_window["embed_keys"]
                     if embed_keys:
                         logger.info(f"{log_prefix}Including {len(embed_keys)} embed_keys in response")
                     else:
@@ -118,6 +186,9 @@ async def handle_request_embed(
                             # Include embed_keys so the requesting device can decrypt
                             # the content using its chat key or master key
                             "embed_keys": embed_keys if embed_keys else [],
+                            "embed_keys_has_more_after": key_window["has_more_after"],
+                            "embed_keys_end_cursor": key_window["end_cursor"],
+                            "oversized_embed_key_id": key_window["oversized_key_id"],
                         }
                     }
 
@@ -186,11 +257,14 @@ async def handle_request_embed(
             if not cached:
                 # If not in cache at all, check Directus as a last resort
                 logger.warning(f"{log_prefix}Embed not found in cache, checking Directus")
-                directus_embed = await directus_service.embed.get_embed_by_id(embed_id)
                 if directus_embed and directus_embed.get("status") == "finished":
                     logger.info(f"{log_prefix}Found finished embed in Directus (not in cache)")
                     # Fetch embed_keys so the requesting device can decrypt the content
-                    embed_keys = await directus_service.embed.get_embed_keys_by_embed_id(embed_id)
+                    key_window = await directus_service.embed.get_sync_embed_key_window_for_page(
+                        hashed_chat_id, hashed_user_id,
+                        [directus_embed.get("hashed_embed_id") or hashlib.sha256(embed_id.encode()).hexdigest()],
+                    )
+                    embed_keys = key_window["embed_keys"]
                     if embed_keys:
                         logger.info(f"{log_prefix}Including {len(embed_keys)} embed_keys in response (Directus fallback)")
                     else:
@@ -223,6 +297,9 @@ async def handle_request_embed(
                             # Include embed_keys so the requesting device can decrypt
                             # the content using its chat key or master key
                             "embed_keys": embed_keys if embed_keys else [],
+                            "embed_keys_has_more_after": key_window["has_more_after"],
+                            "embed_keys_end_cursor": key_window["end_cursor"],
+                            "oversized_embed_key_id": key_window["oversized_key_id"],
                         }
                     }
                     await manager.send_personal_message(send_payload, user_id, device_fingerprint_hash)
@@ -230,6 +307,7 @@ async def handle_request_embed(
                     return
 
                 logger.warning(f"{log_prefix}Embed not found in cache or Directus")
+                await not_found()
                 return
 
             # Cache has non-processing embed data (e.g. vault-encrypted content from

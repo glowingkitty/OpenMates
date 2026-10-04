@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import importlib
 import sys
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
@@ -38,8 +39,8 @@ sys.modules.setdefault("slowapi", slowapi_module)
 sys.modules.setdefault("slowapi.util", slowapi_util_module)
 
 from backend.core.api.app.routes import apps_api  # noqa: E402
-from backend.core.api.app.services import skill_registry  # noqa: E402
 from backend.shared.python_utils.app_skill_output_safety import is_central_app_skill_dispatch  # noqa: E402
+from backend.shared.python_utils.chat_recovery_context import active_authenticated_direct_skill  # noqa: E402
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML  # noqa: E402
 
 
@@ -51,6 +52,7 @@ class FakeRegistry:
     async def dispatch_skill(self, app_id: str, skill_id: str, request: dict[str, Any]) -> dict[str, Any]:
         self.calls.append((app_id, skill_id, request))
         self.central_dispatch_active = is_central_app_skill_dispatch()
+        self.direct_principal = active_authenticated_direct_skill.get()
         return {"success": True, "results": []}
 
     def get_metadata(self, app_id: str):
@@ -80,7 +82,8 @@ async def test_raw_rest_opt_out_survives_typed_request_validation():
 # contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
 async def test_call_app_skill_passes_user_vault_key_context(monkeypatch: pytest.MonkeyPatch) -> None:
     registry = FakeRegistry()
-    monkeypatch.setattr(skill_registry, "get_global_registry", lambda: registry)
+    monkeypatch.setattr(importlib.import_module("backend.core.api.app.services.skill_registry"),
+                        "get_global_registry", lambda: registry)
     monkeypatch.setattr(apps_api, "assert_rest_skill_execution_allowed", lambda *_args, **_kwargs: None)
 
     result = await apps_api.call_app_skill(
@@ -113,6 +116,11 @@ async def test_call_app_skill_passes_user_vault_key_context(monkeypatch: pytest.
         )
     ]
     assert registry.central_dispatch_active is True
+    assert registry.direct_principal is not None
+    assert registry.direct_principal.owner_id == "user-1"
+    assert registry.direct_principal.app_id == "tasks"
+    assert registry.direct_principal.skill_id == "create"
+    assert active_authenticated_direct_skill.get() is None
 
 
 @pytest.mark.anyio
@@ -123,7 +131,8 @@ async def test_call_app_skill_preserves_stable_output_safety_errors(monkeypatch:
     async def fail_safety(_result: Any, _context: Any) -> Any:
         raise RuntimeError("OUTPUT_SAFETY_TIMEOUT")
 
-    monkeypatch.setattr(skill_registry, "get_global_registry", lambda: registry)
+    monkeypatch.setattr(importlib.import_module("backend.core.api.app.services.skill_registry"),
+                        "get_global_registry", lambda: registry)
     monkeypatch.setattr(apps_api, "assert_rest_skill_execution_allowed", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(apps_api, "sanitize_app_skill_output", fail_safety)
 
@@ -146,7 +155,8 @@ async def test_call_app_skill_consumes_security_opt_out_before_skill_dispatch(
         captured_contexts.append(context)
         return result
 
-    monkeypatch.setattr(skill_registry, "get_global_registry", lambda: registry)
+    monkeypatch.setattr(importlib.import_module("backend.core.api.app.services.skill_registry"),
+                        "get_global_registry", lambda: registry)
     monkeypatch.setattr(apps_api, "assert_rest_skill_execution_allowed", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(apps_api, "sanitize_app_skill_output", fake_safety)
 
@@ -186,7 +196,8 @@ async def test_call_app_skill_passes_output_safety_dependencies(
         captured_contexts.append(context)
         return result
 
-    monkeypatch.setattr(skill_registry, "get_global_registry", lambda: registry)
+    monkeypatch.setattr(importlib.import_module("backend.core.api.app.services.skill_registry"),
+                        "get_global_registry", lambda: registry)
     monkeypatch.setattr(apps_api, "assert_rest_skill_execution_allowed", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(apps_api, "sanitize_app_skill_output", fake_safety)
 
@@ -217,7 +228,8 @@ async def test_call_app_skill_blocks_internal_skills_before_dispatch(
 ) -> None:
     registry = FakeRegistry(skills=[SimpleNamespace(id="run", internal=True, api_config=None)])
 
-    monkeypatch.setattr(skill_registry, "get_global_registry", lambda: registry)
+    monkeypatch.setattr(importlib.import_module("backend.core.api.app.services.skill_registry"),
+                        "get_global_registry", lambda: registry)
 
     with pytest.raises(HTTPException) as exc_info:
         await apps_api.call_app_skill(
@@ -238,7 +250,8 @@ async def test_chat_workflow_skills_deny_generic_rest_before_dispatch(monkeypatc
     config_path = Path(__file__).resolve().parents[1] / "apps" / "workflows" / "app.yml"
     metadata = AppYAML.model_validate(yaml.safe_load(config_path.read_text(encoding="utf-8")))
     registry = FakeRegistry(skills=metadata.skills)
-    monkeypatch.setattr(skill_registry, "get_global_registry", lambda: registry)
+    monkeypatch.setattr(importlib.import_module("backend.core.api.app.services.skill_registry"),
+                        "get_global_registry", lambda: registry)
 
     for skill_id, body in (
         ("run", {"workflow_id": "wf-1", "chat_id": "spoofed-chat",

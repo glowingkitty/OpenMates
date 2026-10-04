@@ -1,0 +1,67 @@
+# Small indexes and durable copy work; ciphertext bodies remain in regional S3.
+chat_message_archive_segments:
+  type: collection
+  meta: {accountability: null}
+  fields:
+    id: {type: uuid, primary: true}
+    chat_id: {type: string, required: true}
+    chat_hash: {type: string, length: 64, required: true}
+    hashed_user_id: {type: string, length: 64, nullable: true}
+    hashed_team_id: {type: string, length: 64}
+    checkpoint_id: {type: string, required: true}
+    source_message_ids: {type: json}
+    start_timestamp: {type: integer, required: true}
+    start_message_id: {type: string}
+    end_timestamp: {type: integer, required: true}
+    end_message_id: {type: string, required: true}
+    state: {type: string, required: true, default: copying}
+    version: {type: integer, required: true, default: 1}
+    page_count: {type: integer, required: true, default: 0}
+    lease_until: {type: integer, required: true}
+    created_at: {type: integer, required: true}
+    verified_at: {type: integer}
+    reader_activated_at: {type: integer}
+    source_copy_until: {type: integer}
+chat_message_archive_pages:
+  type: collection
+  meta: {accountability: null}
+  fields:
+    id: {type: uuid, primary: true}
+    segment_id: {type: uuid, required: true}
+    chat_id: {type: string, required: true}
+    hashed_user_id: {type: string, length: 64, nullable: true}
+    hashed_team_id: {type: string, length: 64, nullable: true}
+    page_number: {type: integer, required: true}
+    first_timestamp: {type: integer, required: true}
+    first_message_id: {type: string, required: true}
+    last_timestamp: {type: integer, required: true}
+    last_message_id: {type: string, required: true}
+    message_count: {type: integer, required: true}
+    message_ids: {type: json, required: true}
+    message_positions: {type: json}
+    source_fields: {type: json, required: true}
+    object_key: {type: text, required: true}
+    checksum: {type: string, length: 64, required: true}
+    source_checksum: {type: string, length: 64, required: true}
+    size_bytes: {type: integer, required: true}
+    raw_size_bytes: {type: integer, required: true}
+    verified_regions: {type: json, required: true}
+    large_objects: {type: json, required: true}
+    published: {type: boolean, default: false}
+    reader_verified: {type: boolean, default: false}
+    read_enabled: {type: boolean, default: false}
+    pruned: {type: boolean, default: false}
+    created_at: {type: integer, required: true}
+    pruned_at: {type: integer}
+chat_message_archive_rollout:
+  type: collection
+  note: "Internal rollout gates populated from reviewed exact-source CI and reader compatibility evidence."
+  fields:
+    id: {type: string, primary: true}
+    read_enabled: {type: boolean, default: false}
+    pruning_enabled: {type: boolean, default: false}
+    initial_cohort: {type: boolean, default: true}
+    compatibility_verified: {type: boolean, default: false}
+    reader_receipt: {type: text}
+    validation_receipt: {type: text}
+    failure_code: {type: string}

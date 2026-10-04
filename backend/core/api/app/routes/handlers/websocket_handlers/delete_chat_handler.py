@@ -9,7 +9,6 @@ from backend.core.api.app.services.directus.directus import DirectusService # Ke
 from backend.core.api.app.utils.encryption import EncryptionService # Keep for Celery task context if needed
 from backend.core.api.app.routes.connection_manager import ConnectionManager
 from backend.core.api.app.services.compliance import ComplianceService # For compliance logging
-from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError
 from backend.core.api.app.routes.handlers.websocket_handlers.chat_recovery_job_handlers import (
     invalidate_recovery_jobs_for_chat_deletion,
 )
@@ -140,16 +139,11 @@ async def handle_delete_chat(
                     return
 
             # Recovery access must disappear before chat/cache access is removed.
-            try:
-                await invalidate_recovery_jobs_for_chat_deletion(
-                    directus_service=directus_service,
-                    user_id_hash=hashlib.sha256(user_id.encode()).hexdigest(),
-                    chat_id=chat_id,
-                )
-            except ChatRecoveryProtocolError as recovery_error:
-                if recovery_error.status_code != 404:
-                    raise
-                logger.info("Recovery extension unavailable; chat invalidation is a safe no-op")
+            await invalidate_recovery_jobs_for_chat_deletion(
+                directus_service=directus_service,
+                user_id_hash=hashlib.sha256(user_id.encode()).hexdigest(),
+                chat_id=chat_id,
+            )
 
             # 1. Mark chat as deleted in general cache (tombstone)
             # Cached drafts will be allowed to expire naturally.

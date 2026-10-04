@@ -31,6 +31,11 @@ messages:
       type: textfield
       note: "[Client-encrypted permanent storage] Final message content, encrypted with the chat-specific key before storage in Directus. Content may be markdown/plain text or serialized JSON depending on the client payload."
 
+    assistant_source_revision:
+      type: integer
+      default: 1
+      note: "Metadata-only source revision of the encrypted assistant content; legacy assistant rows read as revision 1."
+
     role:
       type: string
       note: "[Indexed] Role of the sender: 'user', 'assistant', or 'system'."

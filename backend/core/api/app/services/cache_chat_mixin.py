@@ -1,13 +1,244 @@
+import asyncio
 import logging
+import os
+import time
+import secrets
+import json
+from contextlib import asynccontextmanager
 from typing import Any, Optional, Union, List, Tuple, Literal, Dict
 from datetime import datetime, timezone
 from backend.core.api.app.schemas.chat import CachedChatVersions, CachedChatListItemData, MessageInCache
 from backend.core.api.app.services.cache_reminder_mixin import PENDING_EMBED_KEY_PREFIX
 
 logger = logging.getLogger(__name__)
+_AI_LOCK_LOST_CANCEL = object()
 
 class ChatCacheMixin:
     """Mixin for new chat sync architecture caching methods"""
+
+    _APPEND_QUEUED_MESSAGE_LUA = """
+    local length = redis.call('LLEN', KEYS[1])
+    if length >= 64 then return redis.error_reply('queued_message_limit') end
+    local bytes = string.len(ARGV[1])
+    if bytes > 4194304 then return redis.error_reply('oversized_queued_message') end
+    for i = 0, length - 1 do
+      bytes = bytes + string.len(redis.call('LINDEX', KEYS[1], i))
+      if bytes > 8388608 then return redis.error_reply('queued_bytes_limit') end
+    end
+    local count = redis.call('RPUSH', KEYS[1], ARGV[1])
+    redis.call('EXPIRE', KEYS[1], ARGV[2])
+    if redis.call('EXISTS', KEYS[2]) == 1 then
+      redis.call('EXPIRE', KEYS[2], ARGV[2])
+    end
+    if redis.call('EXISTS', KEYS[3]) == 1 then
+      redis.call('EXPIRE', KEYS[3], ARGV[2])
+    end
+    return count
+    """
+
+    _LEASE_QUEUED_PREFIX_LUA = """
+    local queue_key, lease_key = KEYS[1], KEYS[2]
+    local limit, lease_ttl, proposed = tonumber(ARGV[1]), tonumber(ARGV[2]), ARGV[3]
+    local max_bytes = tonumber(ARGV[4])
+    local lease = redis.call('GET', lease_key)
+    local token, count
+    if lease then
+      token, count = string.match(lease, '^([^:]+):(%d+)$')
+      if not token then return redis.error_reply('invalid_queue_lease') end
+      count = tonumber(count)
+    else
+      local available = math.min(redis.call('LLEN', queue_key), limit)
+      count = 0
+      local total_bytes = 0
+      for i = 0, available - 1 do
+        local item = redis.call('LINDEX', queue_key, i)
+        total_bytes = total_bytes + string.len(item)
+        if total_bytes > max_bytes then
+          if i == 0 then return redis.error_reply('oversized_queued_message') end
+          break
+        end
+        count = count + 1
+      end
+      if count == 0 then return {} end
+      token = proposed
+      redis.call('SET', lease_key, token .. ':' .. count, 'EX', lease_ttl)
+      redis.call('EXPIRE', queue_key, lease_ttl)
+    end
+    if redis.call('LLEN', queue_key) < count then
+      return redis.error_reply('queued_prefix_changed')
+    end
+    local result = {token, tostring(count)}
+    local messages = redis.call('LRANGE', queue_key, 0, count - 1)
+    for i = 1, #messages do result[#result + 1] = messages[i] end
+    return result
+    """
+
+    _ACK_QUEUED_PREFIX_LUA = """
+    local queue_key, lease_key, receipt_key, paused_key = KEYS[1], KEYS[2], KEYS[3], KEYS[4]
+    local token, count = ARGV[1], tonumber(ARGV[2])
+    local function clear_matching_paused()
+      local value = redis.call('GET', paused_key)
+      if value then
+        local ok, record = pcall(cjson.decode, value)
+        if ok and record.lease_token == token then
+          redis.call('DEL', paused_key)
+        end
+      end
+    end
+    if redis.call('EXISTS', receipt_key) == 1 then
+      clear_matching_paused()
+      return 1
+    end
+    local lease = redis.call('GET', lease_key)
+    if lease ~= token .. ':' .. count then return 0 end
+    local actual = redis.call('LRANGE', queue_key, 0, count - 1)
+    if #actual ~= count then return 0 end
+    for i = 1, count do
+      if actual[i] ~= ARGV[i + 2] then return 0 end
+    end
+    redis.call('LTRIM', queue_key, count, -1)
+    redis.call('DEL', lease_key)
+    redis.call('SET', receipt_key, '1', 'EX', 3600)
+    clear_matching_paused()
+    return 1
+    """
+
+    _CLEAR_ACTIVE_IF_MATCHES_LUA = """
+    if redis.call('GET', KEYS[1]) ~= ARGV[1] then return 0 end
+    redis.call('DEL', KEYS[1], KEYS[2])
+    return 1
+    """
+
+    _COMPLETE_ACTIVE_IF_QUEUE_EMPTY_LUA = """
+    if redis.call('GET', KEYS[1]) ~= ARGV[1] then return 2 end
+    if redis.call('LLEN', KEYS[3]) ~= 0 then return 0 end
+    redis.call('DEL', KEYS[1], KEYS[2])
+    return 1
+    """
+
+    _TRANSFER_ACTIVE_TASK_LUA = """
+    if redis.call('GET', KEYS[1]) ~= ARGV[1] then return 0 end
+    redis.call('SET', KEYS[1], ARGV[2], 'EX', ARGV[3])
+    redis.call('DEL', KEYS[2])
+    redis.call('SET', KEYS[3], ARGV[4], 'EX', ARGV[3])
+    return 1
+    """
+
+    _AI_EMBED_COMMIT_LUA = """
+    if redis.call('GET', KEYS[1]) ~= ARGV[1] then return 0 end
+    redis.call('SADD', KEYS[2], ARGV[2])
+    redis.call('EXPIRE', KEYS[2], ARGV[3])
+    redis.call('SET', KEYS[3], ARGV[4], 'EX', ARGV[5])
+    return 1
+    """
+
+    _AI_CHILD_REGISTER_LUA = """
+    if redis.call('GET', KEYS[1]) ~= ARGV[1] then return 0 end
+    redis.call('ZADD', KEYS[2], ARGV[2], ARGV[3])
+    redis.call('ZREM', KEYS[3], ARGV[3])
+    return 1
+    """
+
+    _AI_CHILD_RELEASE_LUA = """
+    if redis.call('GET', KEYS[1]) ~= ARGV[1] then return 0 end
+    redis.call('DEL', KEYS[2], KEYS[3], KEYS[4])
+    redis.call('HDEL', KEYS[5], ARGV[2])
+    redis.call('HDEL', KEYS[6], ARGV[2])
+    redis.call('HDEL', KEYS[7], ARGV[2])
+    redis.call('ZREM', KEYS[8], ARGV[2])
+    return 1
+    """
+
+    _AI_LRU_ADMIT_LUA = """
+    if redis.call('GET', KEYS[1]) ~= ARGV[1] then return 0 end
+    local victims = cjson.decode(ARGV[5])
+    for i, chat_id in ipairs(victims) do
+      local first = 6 + (i - 1) * 3
+      redis.call('DEL', KEYS[first], KEYS[first + 1], KEYS[first + 2])
+      redis.call('HDEL', KEYS[3], chat_id)
+      redis.call('HDEL', KEYS[4], chat_id)
+      redis.call('HDEL', KEYS[5], chat_id)
+      redis.call('ZREM', KEYS[2], chat_id)
+    end
+    redis.call('ZADD', KEYS[2], ARGV[2], ARGV[3])
+    redis.call('EXPIRE', KEYS[2], ARGV[4])
+    return 1
+    """
+
+    _AI_MESSAGE_COMMIT_LUA = """
+    if redis.call('GET', KEYS[1]) ~= ARGV[1] then return 0 end
+    if ARGV[2] == 'replace' then
+      redis.call('DEL', KEYS[2])
+      for i = 11, #ARGV do redis.call('RPUSH', KEYS[2], ARGV[i]) end
+    else
+      redis.call('LPUSH', KEYS[2], ARGV[11])
+      local max_history = tonumber(ARGV[5])
+      if max_history > 0 then redis.call('LTRIM', KEYS[2], 0, max_history - 1) end
+    end
+    if redis.call('EXISTS', KEYS[2]) == 1 then redis.call('EXPIRE', KEYS[2], ARGV[4]) end
+    redis.call('HSET', KEYS[3], ARGV[3], ARGV[6])
+    redis.call('HSET', KEYS[4], ARGV[3], ARGV[7])
+    redis.call('HSET', KEYS[5], ARGV[3], ARGV[8])
+    redis.call('EXPIRE', KEYS[3], ARGV[10])
+    redis.call('EXPIRE', KEYS[4], ARGV[10])
+    redis.call('EXPIRE', KEYS[5], ARGV[10])
+    return 1
+    """
+
+    _ACTIVATE_COMPLETED_FOLLOWERS_LUA = """
+    if redis.call('GET', KEYS[7]) ~= ARGV[10] then return 0 end
+    local active = redis.call('GET', KEYS[1])
+    if active ~= ARGV[1] and not (ARGV[9] == '1' and not active) then return 0 end
+    if redis.call('EXISTS', KEYS[4]) == 1 then return 0 end
+    redis.call('SET', KEYS[4], ARGV[4], 'EX', ARGV[3])
+    redis.call('SET', KEYS[1], ARGV[2], 'EX', ARGV[3])
+    redis.call('DEL', KEYS[2])
+    redis.call('SET', KEYS[3], ARGV[5], 'EX', ARGV[3])
+    redis.call('HSET', KEYS[5], ARGV[5], ARGV[6])
+    redis.call('HSET', KEYS[6], ARGV[5], ARGV[7])
+    redis.call('EXPIRE', KEYS[5], ARGV[8])
+    redis.call('EXPIRE', KEYS[6], ARGV[8])
+    return 1
+    """
+
+    _STORE_PAUSED_QUEUE_HANDOFF_LUA = """
+    if redis.call('GET', KEYS[5]) ~= ARGV[8] then return 0 end
+    if redis.call('GET', KEYS[2]) ~= ARGV[1] then return 0 end
+    if redis.call('EXISTS', KEYS[1]) == 1 then return 0 end
+    redis.call('SET', KEYS[1], ARGV[2], 'EX', ARGV[3])
+    redis.call('HSET', KEYS[3], ARGV[4], ARGV[5])
+    redis.call('HSET', KEYS[4], ARGV[4], ARGV[6])
+    redis.call('EXPIRE', KEYS[3], ARGV[7])
+    redis.call('EXPIRE', KEYS[4], ARGV[7])
+    return 1
+    """
+
+    _STORE_COMPLETED_QUEUE_CONTEXT_LUA = """
+    if redis.call('GET', KEYS[5]) ~= ARGV[9] then return 0 end
+    if redis.call('GET', KEYS[2]) ~= ARGV[1] then return 0 end
+    local old = redis.call('GET', KEYS[1])
+    if ARGV[2] == '' then
+      if old then return 0 end
+    elseif old ~= ARGV[2] then
+      return 0
+    end
+    redis.call('SET', KEYS[1], ARGV[3], 'EX', ARGV[7])
+    redis.call('HSET', KEYS[3], ARGV[4], ARGV[5])
+    redis.call('HSET', KEYS[4], ARGV[4], ARGV[6])
+    redis.call('EXPIRE', KEYS[3], ARGV[8])
+    redis.call('EXPIRE', KEYS[4], ARGV[8])
+    return 1
+    """
+
+    _DISCARD_PAUSED_HANDOFF_LUA = """
+    local value = redis.call('GET', KEYS[1])
+    if not value then return 0 end
+    local ok, record = pcall(cjson.decode, value)
+    if not ok or record.task_id ~= ARGV[1] then return 0 end
+    redis.call('DEL', KEYS[1])
+    return 1
+    """
+
 
     _INCREMENT_DRAFT_VERSION_LUA = """
     local dedicated = tonumber(redis.call('HGET', KEYS[1], 'draft_v') or '0') or 0
@@ -1405,8 +1636,260 @@ class ChatCacheMixin:
         return f"user:{user_id}:chat:{chat_id}:messages:ai"
 
     def _get_ai_cache_lru_key(self, user_id: str) -> str:
-        """Returns cache key for tracking which chats have AI cache (sorted set by last activity)"""
+        """Recent main-chat contexts only; child contexts have a separate index."""
         return f"user:{user_id}:ai_cache_lru"
+
+    def _get_active_ai_children_key(self, user_id: str) -> str:
+        return f"user:{user_id}:ai_active_children"
+
+    def _get_ai_cache_bytes_key(self, user_id: str) -> str:
+        return f"user:{user_id}:ai_cache_payload_bytes"
+
+    def _get_ai_queue_completion_bytes_key(self, user_id: str) -> str:
+        return f"user:{user_id}:ai_queue_completion_bytes"
+
+    def _get_ai_queue_paused_bytes_key(self, user_id: str) -> str:
+        return f"user:{user_id}:ai_queue_paused_bytes"
+
+    def _get_ai_pending_contexts_key(self, user_id: str) -> str:
+        return f"user:{user_id}:ai_pending_persistence"
+
+    async def mark_ai_context_pending_persistence(self, user_id: str, chat_id: str) -> bool:
+        """Pin context before producing output awaiting canonical client persistence."""
+        client = await self.client
+        if not client:
+            return False
+        try:
+            await client.zadd(self._get_ai_pending_contexts_key(user_id), {chat_id: time.time()})
+            return True
+        except Exception as exc:
+            logger.error("Could not pin pending AI context %s: %s", chat_id, exc)
+            return False
+
+    async def acknowledge_ai_context_persistence(self, user_id: str, chat_id: str) -> bool:
+        """Unpin only after every required normal client-encrypted record is acknowledged."""
+        client = await self.client
+        if not client:
+            return False
+        try:
+            await client.zrem(self._get_ai_pending_contexts_key(user_id), chat_id)
+            return True
+        except Exception as exc:
+            logger.error("Could not unpin AI context %s: %s", chat_id, exc)
+            return False
+
+    @staticmethod
+    def _ai_cache_limit(name: str, default: int) -> int:
+        """Positive deployment-configured payload-byte/count limit, fail closed on bad config."""
+        try:
+            value = int(os.environ.get(name, str(default)))
+            return value if value > 0 else 0
+        except ValueError:
+            logger.error("Invalid AI cache limit %s", name)
+            return 0
+
+    async def _ai_context_bytes(self, client, user_id: str, chat_id: str) -> int:
+        """Measure ciphertext including expired auxiliary correction.
+
+        Reads never repair the ledger: a reader whose lock lease expires must
+        not overwrite counters from a newer fenced writer.
+        """
+        measured = await client.hget(self._get_ai_cache_bytes_key(user_id), chat_id)
+        completion_bytes = await client.strlen(self._get_completed_queue_context_key(chat_id))
+        paused_bytes = await client.strlen(self._get_paused_queue_handoff_key(chat_id))
+        if measured is not None and await client.exists(self._get_ai_messages_key(user_id, chat_id)):
+            accounted_completion = int(
+                await client.hget(self._get_ai_queue_completion_bytes_key(user_id), chat_id) or 0
+            )
+            accounted_paused = int(
+                await client.hget(self._get_ai_queue_paused_bytes_key(user_id), chat_id) or 0
+            )
+            message_bytes = int(measured) - accounted_completion - accounted_paused
+            if message_bytes < 0:
+                # Malformed legacy counters cannot authorize an undercount.
+                messages = await client.lrange(self._get_ai_messages_key(user_id, chat_id), 0, -1)
+                message_bytes = sum(len(message) for message in messages)
+            return message_bytes + completion_bytes + paused_bytes
+        if measured is not None:
+            return completion_bytes + paused_bytes
+        messages = await client.lrange(self._get_ai_messages_key(user_id, chat_id), 0, -1)
+        return sum(len(message) for message in messages) + completion_bytes + paused_bytes
+
+    @staticmethod
+    def _decode_cache_id(value) -> str:
+        return value.decode("utf-8") if isinstance(value, bytes) else str(value)
+
+    AI_CACHE_ADMISSION_LOCK_SECONDS = 15
+    AI_CACHE_ADMISSION_RENEW_SECONDS = 5
+
+    @asynccontextmanager
+    async def _ai_cache_admission_lock(self, client, user_id: str):
+        """Keep the per-user budget lease owned for the full read/check/write.
+
+        A fixed Redis lock TTL can expire during measured reads or embed eviction,
+        allowing another chat to pass the same budget. Renewal failure cancels the
+        current writer before it can continue with a stale admission decision.
+        """
+        lock = client.lock(
+            f"user:{user_id}:ai_cache_admission_lock",
+            timeout=self.AI_CACHE_ADMISSION_LOCK_SECONDS,
+            blocking_timeout=5,
+        )
+        async with lock:
+            owner = asyncio.current_task()
+            stopped = asyncio.Event()
+            lease_lost = False
+
+            async def renew() -> None:
+                nonlocal lease_lost
+                while not stopped.is_set():
+                    try:
+                        await asyncio.wait_for(
+                            stopped.wait(), timeout=self.AI_CACHE_ADMISSION_RENEW_SECONDS,
+                        )
+                        return
+                    except TimeoutError:
+                        pass
+                    try:
+                        if await lock.extend(
+                            self.AI_CACHE_ADMISSION_LOCK_SECONDS, replace_ttl=True,
+                        ):
+                            continue
+                    except Exception:
+                        pass
+                    lease_lost = True
+                    if owner is not None:
+                        owner.cancel(_AI_LOCK_LOST_CANCEL)
+                    return
+
+            renewal = asyncio.create_task(renew())
+            try:
+                yield lock
+                if lease_lost or not await lock.owned():
+                    raise RuntimeError("AI cache admission lock expired")
+            except asyncio.CancelledError as exc:
+                if (lease_lost and owner is not None and owner.cancelling() == 1
+                        and len(exc.args) == 1 and exc.args[0] is _AI_LOCK_LOST_CANCEL):
+                    owner.uncancel()
+                    raise RuntimeError("AI cache admission lock expired") from exc
+                raise
+            finally:
+                stopped.set()
+                renewal.cancel()
+                try:
+                    await renewal
+                except asyncio.CancelledError:
+                    # Awaiting our cancelled renewal is expected; a cancellation
+                    # of the owner task must still propagate to its caller.
+                    if owner is not None and owner.cancelling():
+                        raise
+
+    async def register_active_ai_child_context(self, user_id: str, chat_id: str) -> bool:
+        """Admit a child before dispatch. Membership persists until persistence acknowledgement."""
+        client = await self.client
+        if not client:
+            return False
+        key = self._get_active_ai_children_key(user_id)
+        try:
+            async with self._ai_cache_admission_lock(client, user_id) as admission:
+                if await client.zscore(key, chat_id) is not None:
+                    return True
+                max_children = self._ai_cache_limit("AI_ACTIVE_CHILD_CONTEXT_MAX_COUNT", 8)
+                if await client.zcard(key) >= max_children:
+                    return False
+                # A pre-existing context cannot bypass the byte budget at registration.
+                child_ids = [self._decode_cache_id(value) for value in await client.zrange(key, 0, -1)]
+                used = sum([await self._ai_context_bytes(client, user_id, value) for value in child_ids])
+                incoming = await self._ai_context_bytes(client, user_id, chat_id)
+                if used + incoming > self._ai_cache_limit("AI_ACTIVE_CHILD_CONTEXT_MAX_BYTES", 64 * 1024 * 1024):
+                    return False
+                main_ids = [self._decode_cache_id(value) for value in await client.zrange(
+                    self._get_ai_cache_lru_key(user_id), 0, -1,
+                )]
+                other_ids = (set(main_ids) | set(child_ids)) - {chat_id}
+                other_bytes = sum([
+                    await self._ai_context_bytes(client, user_id, value)
+                    for value in other_ids
+                ])
+                if incoming + other_bytes > self._ai_cache_limit(
+                    "AI_USER_CONTEXT_MAX_BYTES", 64 * 1024 * 1024,
+                ):
+                    return False
+                return bool(await client.eval(
+                    self._AI_CHILD_REGISTER_LUA, 3,
+                    admission.name, key, self._get_ai_cache_lru_key(user_id),
+                    admission.local.token, time.time(), chat_id,
+                ))
+        except Exception as exc:
+            logger.error("Could not admit active AI child context %s: %s", chat_id, exc)
+            return False
+
+    async def release_active_ai_child_context(self, user_id: str, chat_id: str) -> bool:
+        """Release after all output is durably sealed and parent synthesis is done.
+
+        Client persistence acknowledgement remains a separate archive/prune gate.
+        """
+        client = await self.client
+        if not client:
+            return False
+        try:
+            async with self._ai_cache_admission_lock(client, user_id) as admission:
+                return bool(await client.eval(
+                    self._AI_CHILD_RELEASE_LUA, 8,
+                    admission.name,
+                    self._get_ai_messages_key(user_id, chat_id),
+                    self._get_completed_queue_context_key(chat_id),
+                    self._get_paused_queue_handoff_key(chat_id),
+                    self._get_ai_cache_bytes_key(user_id),
+                    self._get_ai_queue_completion_bytes_key(user_id),
+                    self._get_ai_queue_paused_bytes_key(user_id),
+                    self._get_active_ai_children_key(user_id),
+                    admission.local.token, chat_id,
+                ))
+        except Exception as exc:
+            logger.error("Could not release active AI child context %s: %s", chat_id, exc)
+            return False
+
+    async def cache_required_ai_embed(
+        self, user_id: str, chat_id: str, embed_id: str, encrypted_json: str,
+        *, payload_ttl: int, index_ttl: int,
+    ) -> bool:
+        """Admit an indexed, Vault-encrypted embed under a separate byte budget.
+
+        The caller must pause dependent work on False; content is never truncated.
+        Pending client-encryption embeds are counted and never evicted for admission.
+        """
+        client = await self.client
+        if not client:
+            return False
+        payload_bytes = len(encrypted_json.encode("utf-8"))
+        if payload_bytes > self._ai_cache_limit("AI_REQUIRED_EMBED_MAX_ITEM_BYTES", 8 * 1024 * 1024):
+            return False
+        try:
+            async with self._ai_cache_admission_lock(client, user_id) as admission:
+                main_ids = await client.zrange(self._get_ai_cache_lru_key(user_id), 0, -1)
+                child_ids = await client.zrange(self._get_active_ai_children_key(user_id), 0, -1)
+                embed_ids = {
+                    self._decode_cache_id(value)
+                    for value in await client.zrange(f"{PENDING_EMBED_KEY_PREFIX}{user_id}", 0, -1)
+                }
+                for raw_chat_id in [*main_ids, *child_ids, chat_id]:
+                    indexed = await client.smembers(f"chat:{self._decode_cache_id(raw_chat_id)}:embed_ids")
+                    embed_ids.update(self._decode_cache_id(value) for value in indexed)
+                embed_ids.discard(embed_id)
+                used = sum([await client.strlen(f"embed:{value}") for value in embed_ids])
+                if used + payload_bytes > self._ai_cache_limit("AI_REQUIRED_EMBED_MAX_BYTES", 32 * 1024 * 1024):
+                    return False
+                index_key = f"chat:{chat_id}:embed_ids"
+                return bool(await client.eval(
+                    self._AI_EMBED_COMMIT_LUA, 3,
+                    admission.name, index_key, f"embed:{embed_id}",
+                    admission.local.token, embed_id, max(index_ttl, payload_ttl),
+                    encrypted_json, payload_ttl,
+                ))
+        except Exception as exc:
+            logger.error("Could not cache required AI embed %s: %s", embed_id, exc)
+            return False
     
     def _get_sync_messages_key(self, user_id: str, chat_id: str) -> str:
         """Returns cache key for client sync messages (client-encrypted, last 100 chats, 1h TTL)"""
@@ -1417,20 +1900,16 @@ class ChatCacheMixin:
         return f"user:{user_id}:chat:{chat_id}:messages:ai"  # Default to AI for backwards compat
 
     async def add_message_to_chat_history(self, user_id: str, chat_id: str, encrypted_message_json: str, max_history_length: Optional[int] = None) -> bool:
-        """Adds an encrypted message (JSON string) to the chat's history (prepends). Optionally trims list."""
-        client = await self.client
-        if not client:
-            return False
-        key = self._get_chat_messages_key(user_id, chat_id)
-        try:
-            await client.lpush(key, encrypted_message_json)
-            if max_history_length is not None and max_history_length > 0:
-                await client.ltrim(key, 0, max_history_length - 1)
-            await client.expire(key, self.CHAT_MESSAGES_TTL)
-            return True
-        except Exception as e:
-            logger.error(f"Error adding message to {key}: {e}")
-            return False
+        """Compatibility entry point for Vault-encrypted AI context re-caching.
+
+        Client-supplied history is re-encrypted with the user Vault key before
+        this call. It must share admission and byte accounting with normal AI
+        context writes because it targets the same Redis list.
+        """
+        return await self.add_ai_message_to_history(
+            user_id, chat_id, encrypted_message_json,
+            max_history_length=max_history_length if max_history_length is not None else 500,
+        )
 
     async def get_chat_messages_history(self, user_id: str, chat_id: str, start: int = 0, end: int = -1) -> List[str]:
         """Gets encrypted messages (JSON strings) from chat history. Returns newest first if LPUSHed."""
@@ -1675,16 +2154,27 @@ class ChatCacheMixin:
             return False
         key = self._get_ai_messages_key(user_id, chat_id)
         try:
-            await client.lpush(key, encrypted_message_json)
-            if max_history_length > 0:
-                await client.ltrim(key, 0, max_history_length - 1)
-            await client.expire(key, self.CHAT_MESSAGES_TTL)  # 72 hours
-            logger.debug(f"Added AI message to cache for chat {chat_id}")
-
-            # Track activity and enforce LRU limit (TOP_N_MESSAGES_COUNT)
-            await self._track_ai_cache_activity(user_id, chat_id)
-
-            return True
+            async with self._ai_cache_admission_lock(client, user_id) as admission:
+                existing = await client.lrange(key, 0, -1)
+                message = encrypted_message_json.encode("utf-8")
+                candidate = [message, *existing]
+                if max_history_length > 0:
+                    candidate = candidate[:max_history_length]
+                completion_bytes = await client.strlen(self._get_completed_queue_context_key(chat_id))
+                paused_bytes = await client.strlen(self._get_paused_queue_handoff_key(chat_id))
+                candidate_bytes = sum(map(len, candidate)) + completion_bytes + paused_bytes
+                if not await self._admit_ai_context_locked(client, user_id, chat_id, candidate_bytes, admission):
+                    return False
+                return bool(await client.eval(
+                    self._AI_MESSAGE_COMMIT_LUA, 5,
+                    admission.name, key,
+                    self._get_ai_cache_bytes_key(user_id),
+                    self._get_ai_queue_completion_bytes_key(user_id),
+                    self._get_ai_queue_paused_bytes_key(user_id),
+                    admission.local.token, "append", chat_id, self.CHAT_MESSAGES_TTL,
+                    max_history_length, candidate_bytes, completion_bytes, paused_bytes,
+                    "", self.CHAT_MESSAGES_TTL, encrypted_message_json,
+                ))
         except Exception as e:
             logger.error(f"Error adding AI message to {key}: {e}")
             return False
@@ -1718,83 +2208,129 @@ class ChatCacheMixin:
             return False
         key = self._get_ai_messages_key(user_id, chat_id)
         try:
-            await client.delete(key)
-            if encrypted_messages_json_list:
-                await client.rpush(key, *encrypted_messages_json_list)
-            await client.expire(key, ttl if ttl is not None else self.CHAT_MESSAGES_TTL)
-            logger.debug(f"Set {len(encrypted_messages_json_list)} AI messages for chat {chat_id}")
-
-            # Track activity and enforce LRU limit (TOP_N_MESSAGES_COUNT)
-            await self._track_ai_cache_activity(user_id, chat_id)
-
-            return True
+            async with self._ai_cache_admission_lock(client, user_id) as admission:
+                completion_bytes = await client.strlen(self._get_completed_queue_context_key(chat_id))
+                paused_bytes = await client.strlen(self._get_paused_queue_handoff_key(chat_id))
+                candidate_bytes = sum(len(message.encode("utf-8")) for message in encrypted_messages_json_list) + completion_bytes + paused_bytes
+                if not await self._admit_ai_context_locked(client, user_id, chat_id, candidate_bytes, admission):
+                    return False
+                return bool(await client.eval(
+                    self._AI_MESSAGE_COMMIT_LUA, 5,
+                    admission.name, key,
+                    self._get_ai_cache_bytes_key(user_id),
+                    self._get_ai_queue_completion_bytes_key(user_id),
+                    self._get_ai_queue_paused_bytes_key(user_id),
+                    admission.local.token, "replace", chat_id,
+                    ttl if ttl is not None else self.CHAT_MESSAGES_TTL,
+                    0, candidate_bytes, completion_bytes, paused_bytes,
+                    "", self.CHAT_MESSAGES_TTL, *encrypted_messages_json_list,
+                ))
         except Exception as e:
             logger.error(f"Error setting AI messages for {key}: {e}")
             return False
 
+    async def _admit_ai_context_locked(self, client, user_id: str, chat_id: str, candidate_bytes: int, admission) -> bool:
+        """Admit a measured ciphertext payload without evicting active or pending work.
+
+        Caller holds the per-user Redis lock across this check and the list mutation.
+        A refused write leaves the previous context intact for retry or safe pause.
+        """
+        per_context = self._ai_cache_limit("AI_CONTEXT_MAX_BYTES", 16 * 1024 * 1024)
+        if candidate_bytes > per_context:
+            return False
+        child_key = self._get_active_ai_children_key(user_id)
+        is_child = await client.zscore(child_key, chat_id) is not None
+        child_ids = [self._decode_cache_id(value) for value in await client.zrange(child_key, 0, -1)]
+        lru_key = self._get_ai_cache_lru_key(user_id)
+        main_ids = [self._decode_cache_id(value) for value in await client.zrange(lru_key, 0, -1)]
+        user_limit = self._ai_cache_limit("AI_USER_CONTEXT_MAX_BYTES", 64 * 1024 * 1024)
+        if is_child:
+            used = sum([await self._ai_context_bytes(client, user_id, value) for value in child_ids if value != chat_id])
+            if used + candidate_bytes > self._ai_cache_limit("AI_ACTIVE_CHILD_CONTEXT_MAX_BYTES", 64 * 1024 * 1024):
+                return False
+            other_ids = (set(main_ids) | set(child_ids)) - {chat_id}
+            other_bytes = sum([
+                await self._ai_context_bytes(client, user_id, value)
+                for value in other_ids
+            ])
+            return other_bytes + candidate_bytes <= user_limit
+
+        # The current writer is active even before its task marker has been set.
+        remaining = [value for value in main_ids if value != chat_id and value not in child_ids]
+        child_bytes = sum([
+            await self._ai_context_bytes(client, user_id, value)
+            for value in set(child_ids) - {chat_id}
+        ])
+        pending_embed_ids = {
+            self._decode_cache_id(value)
+            for value in await client.zrange(f"{PENDING_EMBED_KEY_PREFIX}{user_id}", 0, -1)
+        }
+        main_limit = self._ai_cache_limit("AI_MAIN_CONTEXT_MAX_BYTES", 48 * 1024 * 1024)
+        planned_victims = []
+        while len(remaining) + 1 > self.TOP_N_MESSAGES_COUNT or (
+            candidate_bytes + sum([await self._ai_context_bytes(client, user_id, value) for value in remaining]) > main_limit
+        ) or (
+            candidate_bytes + child_bytes + sum([
+                await self._ai_context_bytes(client, user_id, value) for value in remaining
+            ]) > user_limit
+        ):
+            victim = None
+            for value in remaining:
+                if await client.exists(self._get_active_task_key(value)):
+                    continue
+                if await client.exists(self._get_paused_queue_handoff_key(value)):
+                    continue
+                if (await client.exists(self._get_completed_queue_context_key(value))
+                        and await client.llen(self._get_chat_queue_key(value))):
+                    continue
+                if await client.zscore(self._get_ai_pending_contexts_key(user_id), value) is not None:
+                    continue
+                embed_ids = {self._decode_cache_id(item) for item in await client.smembers(f"chat:{value}:embed_ids")}
+                if embed_ids.intersection(pending_embed_ids):
+                    continue
+                victim = value
+                break
+            if victim is None:
+                return False
+            remaining.remove(victim)
+            planned_victims.append(victim)
+        keys = [
+            admission.name, lru_key, self._get_ai_cache_bytes_key(user_id),
+            self._get_ai_queue_completion_bytes_key(user_id),
+            self._get_ai_queue_paused_bytes_key(user_id),
+        ]
+        for victim in planned_victims:
+            keys.extend((
+                self._get_ai_messages_key(user_id, victim),
+                self._get_completed_queue_context_key(victim),
+                self._get_paused_queue_handoff_key(victim),
+            ))
+        if not await client.eval(
+            self._AI_LRU_ADMIT_LUA, len(keys), *keys,
+            admission.local.token, time.time(), chat_id, self.CHAT_MESSAGES_TTL,
+            json.dumps(planned_victims),
+        ):
+            return False
+        for victim in planned_victims:
+            # Payload admission is already fenced. Embed cleanup is best effort
+            # and must stop if ownership changes during a slow Redis operation.
+            if not await admission.owned():
+                return False
+            await self._evict_chat_embeds(client, victim, set(remaining) | {chat_id} | set(child_ids), pending_embed_ids)
+            logger.info("[AI_CACHE_LRU] Evicted inactive main-chat context %s", victim)
+        return True
+
     async def _track_ai_cache_activity(self, user_id: str, chat_id: str) -> None:
-        """
-        Updates the AI cache LRU sorted set to track which chats have AI cache.
-        Score is current timestamp (for LRU ordering).
-        Also enforces TOP_N_MESSAGES_COUNT limit by evicting oldest chats and their embeds.
-        """
+        """Compatibility entry point for already-cached contexts."""
         client = await self.client
         if not client:
             return
-
-        lru_key = self._get_ai_cache_lru_key(user_id)
         try:
-            import time
-            current_timestamp = time.time()
-
-            # Add/update this chat in the LRU set with current timestamp as score
-            await client.zadd(lru_key, {chat_id: current_timestamp})
-            await client.expire(lru_key, self.CHAT_MESSAGES_TTL)  # Same TTL as AI cache
-
-            # Check if we need to evict old chats (enforce TOP_N_MESSAGES_COUNT limit)
-            total_chats = await client.zcard(lru_key)
-            if total_chats > self.TOP_N_MESSAGES_COUNT:
-                # Get chats to evict (oldest ones beyond the limit)
-                # ZRANGE with scores sorted ascending (oldest first)
-                chats_to_evict = await client.zrange(
-                    lru_key,
-                    0,
-                    total_chats - self.TOP_N_MESSAGES_COUNT - 1
-                )
-
-                # Get the remaining top N chat IDs (for embed cross-reference checking)
-                remaining_chat_ids_bytes = await client.zrange(
-                    lru_key,
-                    total_chats - self.TOP_N_MESSAGES_COUNT,
-                    -1
-                )
-                remaining_chat_ids = {
-                    cid.decode('utf-8') if isinstance(cid, bytes) else cid
-                    for cid in remaining_chat_ids_bytes
-                }
-
-                # Pending client encryption is not an ordinary inference cache.
-                # Keep its original bounded TTL until store_embed acknowledges it.
-                pending_embed_ids = {
-                    value.decode("utf-8") if isinstance(value, bytes) else value
-                    for value in await client.zrange(f"{PENDING_EMBED_KEY_PREFIX}{user_id}", 0, -1)
-                }
-                for evict_chat_id_bytes in chats_to_evict:
-                    evict_chat_id = evict_chat_id_bytes.decode('utf-8') if isinstance(evict_chat_id_bytes, bytes) else evict_chat_id_bytes
-
-                    # Delete the AI cache for this chat
-                    ai_cache_key = self._get_ai_messages_key(user_id, evict_chat_id)
-                    await client.delete(ai_cache_key)
-
-                    # Evict embeds that are only used by this chat
-                    await self._evict_chat_embeds(client, evict_chat_id, remaining_chat_ids, pending_embed_ids)
-
-                    # Remove from LRU tracking
-                    await client.zrem(lru_key, evict_chat_id)
-                    logger.info(f"[AI_CACHE_LRU] Evicted AI cache for chat {evict_chat_id} (user {user_id[:8]}...) - exceeded TOP_N_MESSAGES_COUNT ({self.TOP_N_MESSAGES_COUNT})")
-
-        except Exception as e:
-            logger.error(f"Error tracking AI cache activity for user {user_id[:8]}..., chat {chat_id}: {e}")
+            async with self._ai_cache_admission_lock(client, user_id) as admission:
+                size = await self._ai_context_bytes(client, user_id, chat_id)
+                await self._admit_ai_context_locked(client, user_id, chat_id, size, admission)
+        except Exception as exc:
+            logger.error("Could not track AI cache activity for %s: %s", chat_id, exc)
 
     async def _evict_chat_embeds(self, client, evict_chat_id: str, remaining_chat_ids: set, pending_embed_ids: set) -> None:
         """
@@ -1852,6 +2388,7 @@ class ChatCacheMixin:
         try:
             await client.delete(key)
             await client.zrem(lru_key, chat_id)
+            await client.hdel(self._get_ai_cache_bytes_key(user_id), chat_id)
             logger.debug(f"Deleted AI messages history for chat {chat_id}")
             return True
         except Exception as e:
@@ -1968,6 +2505,12 @@ class ChatCacheMixin:
     def _get_chat_queue_key(self, chat_id: str) -> str:
         """Returns the cache key for queued messages for a chat."""
         return f"chat:{chat_id}:message_queue"
+
+    def _get_paused_queue_handoff_key(self, chat_id: str) -> str:
+        return f"chat:{chat_id}:paused_queue_handoff"
+
+    def _get_completed_queue_context_key(self, chat_id: str) -> str:
+        return f"chat:{chat_id}:queued_completion"
     
     def _get_active_task_key(self, chat_id: str) -> str:
         """Returns the cache key for tracking active AI task for a chat."""
@@ -2080,7 +2623,7 @@ class ChatCacheMixin:
         client = await self.client
         if not client:
             return False
-        
+
         key = self._get_active_task_key(chat_id)
         try:
             # We need to find the task_id to clear the reverse mapping
@@ -2096,6 +2639,82 @@ class ChatCacheMixin:
         except Exception as e:
             logger.error(f"Error clearing active AI task for chat {chat_id}: {e}", exc_info=True)
             return False
+
+    async def clear_active_ai_task_if_matches(self, chat_id: str, task_id: str) -> bool:
+        """Finish only this task's active marker, never a newer handoff marker."""
+        client = await self.client
+        if client is None:
+            raise RuntimeError("Active task cache unavailable")
+        return bool(await client.eval(
+            self._CLEAR_ACTIVE_IF_MATCHES_LUA, 2,
+            self._get_active_task_key(chat_id),
+            self._get_task_chat_mapping_key(task_id), task_id,
+        ))
+
+    async def complete_active_ai_task_if_queue_empty(
+        self, chat_id: str, task_id: str,
+    ) -> int:
+        """Atomically clear a finished marker only when no message raced into its queue.
+
+        Returns 1 when cleared, 0 when a new queued message requires handoff, or
+        2 when a different task already owns the marker.
+        """
+        client = await self.client
+        if client is None:
+            raise RuntimeError("Active task cache unavailable")
+        return int(await client.eval(
+            self._COMPLETE_ACTIVE_IF_QUEUE_EMPTY_LUA, 3,
+            self._get_active_task_key(chat_id),
+            self._get_task_chat_mapping_key(task_id),
+            self._get_chat_queue_key(chat_id), task_id,
+        ))
+
+    async def transfer_active_ai_task(
+        self, chat_id: str, prior_task_id: str, next_task_id: str,
+    ) -> bool:
+        """Reserve the next task atomically while new socket messages keep queueing."""
+        client = await self.client
+        if client is None:
+            raise RuntimeError("Active task cache unavailable")
+        return bool(await client.eval(
+            self._TRANSFER_ACTIVE_TASK_LUA, 3,
+            self._get_active_task_key(chat_id),
+            self._get_task_chat_mapping_key(prior_task_id),
+            self._get_task_chat_mapping_key(next_task_id),
+            prior_task_id, next_task_id, 600, chat_id,
+        ))
+
+    async def activate_completed_queue_followers(
+        self, user_id: str, chat_id: str, prior_task_id: str,
+        next_task_id: str, sealed_handoff: Dict[str, Any],
+        *, allow_missing_active: bool = False,
+    ) -> bool:
+        """Publish the next paused handoff and transfer the active fence atomically."""
+        client = await self.client
+        if client is None:
+            raise RuntimeError("Queued follower handoff cache unavailable")
+        encoded = self._encoded_sealed_queue_handoff(sealed_handoff)
+        async with self._ai_cache_admission_lock(client, user_id) as admission:
+            if await client.exists(self._get_paused_queue_handoff_key(chat_id)):
+                return False
+            messages = await client.lrange(self._get_ai_messages_key(user_id, chat_id), 0, -1)
+            completion_bytes = await client.strlen(self._get_completed_queue_context_key(chat_id))
+            candidate_bytes = sum(map(len, messages)) + completion_bytes + len(encoded.encode("utf-8"))
+            await self._admit_queue_aux_locked(client, user_id, chat_id, candidate_bytes, admission)
+            return bool(await client.eval(
+                self._ACTIVATE_COMPLETED_FOLLOWERS_LUA, 7,
+                self._get_active_task_key(chat_id),
+                self._get_task_chat_mapping_key(prior_task_id),
+                self._get_task_chat_mapping_key(next_task_id),
+                self._get_paused_queue_handoff_key(chat_id),
+                self._get_ai_cache_bytes_key(user_id),
+                self._get_ai_queue_paused_bytes_key(user_id),
+                admission.name,
+                prior_task_id, next_task_id, 600, encoded, chat_id,
+                candidate_bytes, len(encoded.encode("utf-8")), self.CHAT_MESSAGES_TTL,
+                "1" if allow_missing_active else "0",
+                admission.local.token,
+            ))
     
     async def queue_message(self, chat_id: str, message_data: Dict[str, Any], ttl: int = 600) -> bool:
         """
@@ -2115,14 +2734,18 @@ class ChatCacheMixin:
             logger.error("Redis client not available for queue_message")
             return False
         
+        if ttl != 600:
+            raise ValueError("Queued AI messages require the fixed lease-compatible TTL")
         key = self._get_chat_queue_key(chat_id)
         try:
-            import json
-            # Use Redis list to store queued messages
-            message_json = json.dumps(message_data)
-            await client.rpush(key, message_json)
-            await client.expire(key, ttl)  # Set TTL on the list
-            queue_length = await client.llen(key)
+            message_json = json.dumps(message_data, separators=(",", ":"))
+            if len(message_json.encode("utf-8")) > 4 * 1024 * 1024:
+                return False
+            queue_length = await client.eval(
+                self._APPEND_QUEUED_MESSAGE_LUA, 3, key, f"{key}:lease",
+                self._get_paused_queue_handoff_key(chat_id),
+                message_json, ttl,
+            )
             logger.info(f"Queued message for chat {chat_id}. Queue length: {queue_length}")
             return True
         except Exception as e:
@@ -2130,44 +2753,226 @@ class ChatCacheMixin:
             return False
     
     async def get_queued_messages(self, chat_id: str) -> List[Dict[str, Any]]:
-        """
-        Get all queued messages for a chat and clear the queue.
-        Messages are returned in order and then removed from the queue.
-        
-        Args:
-            chat_id: The chat ID
-        
-        Returns:
-            List of queued message dictionaries
-        """
+        raise RuntimeError("Use bounded queue lease and ACK for queued messages")
+
+    async def has_queued_messages(self, chat_id: str) -> bool:
         client = await self.client
-        if not client:
-            return []
-        
-        key = self._get_chat_queue_key(chat_id)
+        if client is None:
+            raise RuntimeError("Queued message state unavailable")
+        return bool(await client.llen(self._get_chat_queue_key(chat_id)))
+
+    async def lease_queued_message_prefix(
+        self, chat_id: str, *, limit: int = 32, lease_ttl: int = 600,
+    ) -> Optional[Dict[str, Any]]:
+        """Read an exact bounded prefix without removing any queued message."""
+        if not 1 <= limit <= 32 or lease_ttl != 600:
+            raise ValueError("Invalid queued-prefix lease bounds")
+        client = await self.client
+        if client is None:
+            raise RuntimeError("Queue lease store unavailable")
+        queue_key = self._get_chat_queue_key(chat_id)
+        lease_key = f"{queue_key}:lease"
+        raw = await client.eval(
+            self._LEASE_QUEUED_PREFIX_LUA, 2, queue_key, lease_key,
+            limit, lease_ttl, secrets.token_hex(16), 4 * 1024 * 1024,
+        )
+        if not raw:
+            return None
+        token = raw[0].decode() if isinstance(raw[0], bytes) else str(raw[0])
+        count = int(raw[1])
+        if count < 1 or count > limit or len(raw) != count + 2:
+            raise RuntimeError("Queue lease returned an invalid prefix")
+        raw_messages = [
+            item.decode("utf-8") if isinstance(item, bytes) else str(item)
+            for item in raw[2:]
+        ]
+        if sum(len(item.encode("utf-8")) for item in raw_messages) > 4 * 1024 * 1024:
+            raise RuntimeError("Queued prefix exceeds bounded dispatch size")
         try:
-            import json
-            # Get all messages from the list
-            messages_json = await client.lrange(key, 0, -1)
-            if not messages_json:
-                return []
-            
-            # Parse messages
-            messages = []
-            for msg_json in messages_json:
+            messages = [json.loads(item) for item in raw_messages]
+        except (TypeError, ValueError) as exc:
+            raise RuntimeError("Queued prefix contains malformed request data") from exc
+        if not all(isinstance(item, dict) for item in messages):
+            raise RuntimeError("Queued prefix contains non-object request data")
+        return {"token": token, "raw_messages": raw_messages, "messages": messages}
+
+    async def acknowledge_queued_message_prefix(
+        self, chat_id: str, lease: Dict[str, Any],
+    ) -> bool:
+        """Remove only the broker-accepted leased prefix; keep later arrivals."""
+        client = await self.client
+        if client is None:
+            raise RuntimeError("Queue ACK store unavailable")
+        token = lease["token"]
+        raw_messages = lease["raw_messages"]
+        if not isinstance(token, str) or not raw_messages or len(raw_messages) > 32:
+            raise ValueError("Invalid queued-prefix ACK")
+        queue_key = self._get_chat_queue_key(chat_id)
+        return bool(await client.eval(
+            self._ACK_QUEUED_PREFIX_LUA, 4,
+            queue_key, f"{queue_key}:lease", f"{queue_key}:ack:{token}",
+            self._get_paused_queue_handoff_key(chat_id),
+            token, len(raw_messages), *raw_messages,
+        ))
+
+    @staticmethod
+    def _encoded_sealed_queue_handoff(handoff: Dict[str, Any]) -> str:
+        if (set(handoff) != {"task_id", "lease_token", "vault_key_id", "ciphertext"}
+                or not isinstance(handoff.get("task_id"), str)
+                or not isinstance(handoff.get("lease_token"), str)
+                or not isinstance(handoff.get("vault_key_id"), str)
+                or not isinstance(handoff.get("ciphertext"), str)
+                or not handoff["ciphertext"].startswith("vault:v")):
+            raise RuntimeError("Queued handoff requires a Vault ciphertext")
+        encoded = json.dumps(handoff, separators=(",", ":"))
+        if len(encoded.encode("utf-8")) > 8 * 1024 * 1024:
+            raise RuntimeError("Queued handoff exceeds bounded Redis size")
+        return encoded
+
+    async def store_paused_queue_handoff(
+        self, user_id: str, chat_id: str, active_task_id: str,
+        sealed_handoff: Dict[str, Any],
+    ) -> bool:
+        """Admit one Vault-sealed broker envelope under the AI context budget."""
+        client = await self.client
+        if client is None:
+            raise RuntimeError("Queued handoff store unavailable")
+        encoded = self._encoded_sealed_queue_handoff(sealed_handoff)
+        key = self._get_paused_queue_handoff_key(chat_id)
+        async with self._ai_cache_admission_lock(client, user_id) as admission:
+            prior = await client.get(key)
+            if prior is not None:
+                if isinstance(prior, bytes):
+                    prior = prior.decode("utf-8")
+                if prior != encoded:
+                    raise RuntimeError("A different queued handoff is already pending")
+                return False
+            messages = await client.lrange(self._get_ai_messages_key(user_id, chat_id), 0, -1)
+            completion_bytes = await client.strlen(self._get_completed_queue_context_key(chat_id))
+            candidate_bytes = sum(map(len, messages)) + completion_bytes + len(encoded.encode("utf-8"))
+            await self._admit_queue_aux_locked(client, user_id, chat_id, candidate_bytes, admission)
+            committed = await client.eval(
+                self._STORE_PAUSED_QUEUE_HANDOFF_LUA, 5,
+                key, self._get_active_task_key(chat_id),
+                self._get_ai_cache_bytes_key(user_id),
+                self._get_ai_queue_paused_bytes_key(user_id),
+                admission.name,
+                active_task_id, encoded, 600, chat_id,
+                candidate_bytes, len(encoded.encode("utf-8")), self.CHAT_MESSAGES_TTL,
+                admission.local.token,
+            )
+            if not committed:
+                raise RuntimeError("Queued handoff active fence changed")
+            return True
+
+    async def get_paused_queue_handoff(self, chat_id: str) -> Optional[Dict[str, Any]]:
+        client = await self.client
+        if client is None:
+            raise RuntimeError("Queued handoff store unavailable")
+        value = await client.get(self._get_paused_queue_handoff_key(chat_id))
+        if value is None:
+            return None
+        parsed = json.loads(value)
+        if not isinstance(parsed, dict):
+            raise RuntimeError("Queued handoff record is malformed")
+        return parsed
+
+    async def store_completed_queue_context(
+        self, user_id: str, chat_id: str, task_id: str,
+        vault_key_id: str, encrypted_context: str,
+    ) -> bool:
+        """Admit one short-lived Vault ciphertext under the AI working-context budget."""
+        client = await self.client
+        if client is None:
+            raise RuntimeError("Queued completion cache unavailable")
+        if (not isinstance(encrypted_context, str)
+                or not encrypted_context.startswith("vault:v")
+                or not isinstance(vault_key_id, str) or not vault_key_id):
+            raise RuntimeError("Queued completion requires a Vault ciphertext and key")
+        encoded = json.dumps({
+            "task_id": task_id, "vault_key_id": vault_key_id,
+            "ciphertext": encrypted_context,
+        }, separators=(",", ":"))
+        key = self._get_completed_queue_context_key(chat_id)
+        async with self._ai_cache_admission_lock(client, user_id) as admission:
+            prior = await client.get(key)
+            if prior is not None:
+                if isinstance(prior, bytes):
+                    prior = prior.decode("utf-8")
+                if prior == encoded:
+                    return False
                 try:
-                    messages.append(json.loads(msg_json.decode('utf-8')))
-                except Exception as e:
-                    logger.warning(f"Error parsing queued message: {e}")
-            
-            # Clear the queue after retrieving
-            await client.delete(key)
-            logger.info(f"Retrieved and cleared {len(messages)} queued messages for chat {chat_id}")
-            return messages
-        except Exception as e:
-            logger.error(f"Error getting queued messages for chat {chat_id}: {e}", exc_info=True)
-            return []
-    
+                    prior_task_id = json.loads(prior).get("task_id")
+                except (TypeError, ValueError, AttributeError):
+                    raise RuntimeError("Queued completion context is malformed") from None
+                active_task = await client.get(self._get_active_task_key(chat_id))
+                if (prior_task_id == task_id or active_task is None
+                        or self._decode_cache_id(active_task) != task_id):
+                    raise RuntimeError("Queued completion context changed outside active handoff")
+            messages = await client.lrange(self._get_ai_messages_key(user_id, chat_id), 0, -1)
+            paused_bytes = await client.strlen(self._get_paused_queue_handoff_key(chat_id))
+            candidate_bytes = sum(len(item) for item in messages) + paused_bytes + len(encoded.encode("utf-8"))
+            await self._admit_queue_aux_locked(client, user_id, chat_id, candidate_bytes, admission)
+            committed = await client.eval(
+                self._STORE_COMPLETED_QUEUE_CONTEXT_LUA, 5,
+                key, self._get_active_task_key(chat_id),
+                self._get_ai_cache_bytes_key(user_id),
+                self._get_ai_queue_completion_bytes_key(user_id),
+                admission.name,
+                task_id, prior or "", encoded, chat_id, candidate_bytes,
+                len(encoded.encode("utf-8")), 600, self.CHAT_MESSAGES_TTL,
+                admission.local.token,
+            )
+            if not committed:
+                raise RuntimeError("Queued completion active fence changed")
+            return True
+
+    async def _admit_queue_aux_locked(
+        self, client, user_id: str, chat_id: str, candidate_bytes: int, admission,
+    ) -> None:
+        """Share the measured AI context and global user admission for queue state."""
+        main_ids = await client.zrange(self._get_ai_cache_lru_key(user_id), 0, -1)
+        child_ids = await client.zrange(self._get_active_ai_children_key(user_id), 0, -1)
+        other_ids = {
+            self._decode_cache_id(item) for item in [*main_ids, *child_ids]
+        } - {chat_id}
+        other_bytes = sum([
+            await self._ai_context_bytes(client, user_id, other_id)
+            for other_id in other_ids
+        ])
+        if candidate_bytes + other_bytes > self._ai_cache_limit(
+            "AI_USER_CONTEXT_MAX_BYTES", 64 * 1024 * 1024,
+        ):
+            raise RuntimeError("Queued state exceeds user AI context budget")
+        if not await self._admit_ai_context_locked(client, user_id, chat_id, candidate_bytes, admission):
+            raise RuntimeError("Queued state exceeds AI working-context budget")
+
+    async def get_completed_queue_context(
+        self, chat_id: str, task_id: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        client = await self.client
+        if client is None:
+            raise RuntimeError("Queued completion cache unavailable")
+        value = await client.get(self._get_completed_queue_context_key(chat_id))
+        if value is None:
+            return None
+        parsed = json.loads(value)
+        if not isinstance(parsed, dict):
+            raise RuntimeError("Queued completion context is malformed")
+        return parsed if task_id is None or parsed.get("task_id") == task_id else None
+
+    async def discard_paused_queue_handoff_if_matches(
+        self, chat_id: str, task_id: str,
+    ) -> bool:
+        """Rollback a replay envelope only when no broker dispatch was attempted."""
+        client = await self.client
+        if client is None:
+            raise RuntimeError("Queued handoff store unavailable")
+        return bool(await client.eval(
+            self._DISCARD_PAUSED_HANDOFF_LUA, 1,
+            self._get_paused_queue_handoff_key(chat_id), task_id,
+        ))
+
     # Embed caching methods
     def _get_embed_cache_key(self, embed_id: str) -> str:
         """Returns the cache key for an embed (global cache, one entry per embed)."""

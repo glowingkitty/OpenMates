@@ -191,6 +191,19 @@ interface AvailableRecoveryJobFrame {
   chat_key_version: number;
 }
 
+export interface AvailableRecoveryOutputFrame {
+  record_id: string;
+  root_chat_id: string;
+  target_chat_id: string;
+  turn_id: string;
+  subject_id: string;
+  output_kind: "message" | "embed" | "diff" | "summary" | "checkpoint";
+  output_version: number;
+  chat_key_version: number;
+  message_role?: "user" | "assistant" | null;
+  root_hashed_team_id?: string | null;
+}
+
 const SUB_CHAT_EVENT_TYPES = new Set<string>([
   "spawn_sub_chats",
   "sub_chat_progress",
@@ -396,12 +409,34 @@ function parseAvailableRecoveryJobs(value: unknown): AvailableRecoveryJobFrame[]
   });
 }
 
+function parseAvailableRecoveryOutputs(value: unknown): AvailableRecoveryOutputFrame[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item): AvailableRecoveryOutputFrame[] => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) return [];
+    const raw = item as Record<string, unknown>;
+    if (![
+      "record_id", "root_chat_id", "target_chat_id", "turn_id", "subject_id",
+    ].every((field) => typeof raw[field] === "string" && Boolean(raw[field]))
+      || !["message", "embed", "diff", "summary", "checkpoint"].includes(String(raw.output_kind))
+      || !Number.isSafeInteger(raw.output_version) || Number(raw.output_version) < 1
+      || !Number.isSafeInteger(raw.chat_key_version) || Number(raw.chat_key_version) < 1) return [];
+    if (raw.message_role != null && raw.message_role !== "user" && raw.message_role !== "assistant") return [];
+    if (raw.root_hashed_team_id !== undefined && raw.root_hashed_team_id !== null
+      && (typeof raw.root_hashed_team_id !== "string" || !/^[0-9a-f]{64}$/.test(raw.root_hashed_team_id))) return [];
+    return [raw as unknown as AvailableRecoveryOutputFrame];
+  });
+}
+
 export class OpenMatesWsClient {
   private readonly interactiveHuman: boolean;
   private activeHumanChatId: string | null = null;
   private presenceTimer: ReturnType<typeof setInterval> | null = null;
   private readonly socket: InstanceType<typeof WebSocket>;
   private readonly passiveTaskUpdateJobs = new Map<string, PendingTaskUpdateJobFrame>();
+  private readonly availableRecoveryOutputPages: AvailableRecoveryOutputFrame[][] = [];
+  private readonly queuedRecoveryOutputIds = new Set<string>();
+  private recoveryOutputDiscoveryError: Error | null = null;
+  private recoveryOutputDiscoveryComplete = false;
   private readonly remoteCommandReviewDeferredHandlers = new Set<(payload: Record<string, unknown>) => void>();
   private activeResponseCollectors = 0;
 
@@ -427,6 +462,8 @@ export class OpenMatesWsClient {
       token,
     });
     const clientCapabilities = [
+      "canonical_embed_receipts_v1",
+      "typed_recovery_outputs_v2",
       ...(options.taskUpdateJobs !== false ? ["task_update_jobs"] : []),
       ...(options.projectFileJobs === true ? ["project_file_jobs"] : []),
       ...(options.remoteCommandJobs === true ? ["remote_command_jobs"] : []),
@@ -457,6 +494,7 @@ export class OpenMatesWsClient {
     });
     this.socket.on("message", (rawData: RawData) => {
       if (this.handleForceLogout(rawData, options.onForceLogout)) return;
+      this.bufferRecoveryOutputs(rawData);
       if (this.activeResponseCollectors > 0) return;
       this.bufferPassiveTaskUpdateJobs(rawData);
     });
@@ -676,6 +714,76 @@ export class OpenMatesWsClient {
     const jobs = [...this.passiveTaskUpdateJobs.values()];
     this.passiveTaskUpdateJobs.clear();
     return jobs;
+  }
+
+  private bufferRecoveryOutputs(rawData: RawData): void {
+    try {
+      const frame = JSON.parse(rawData.toString()) as WsEnvelope<Record<string, unknown>>;
+      if (frame.type === "recovery_outputs_discovery_complete") {
+        const status = frame.payload?.status;
+        if (status === "completed" || status === "disabled") {
+          this.recoveryOutputDiscoveryComplete = true;
+        } else {
+          this.recoveryOutputDiscoveryError = new Error("Recovery output discovery did not complete; outputs remain pending.");
+        }
+        return;
+      }
+      if (frame.type !== "recovery_outputs_available") return;
+      if (!Array.isArray(frame.payload?.outputs) || frame.payload.outputs.length > 100) {
+        this.recoveryOutputDiscoveryError = new Error("Recovery output discovery exceeded the bounded batch size.");
+        return;
+      }
+      const outputs = parseAvailableRecoveryOutputs(frame.payload.outputs);
+      if (outputs.length !== frame.payload.outputs.length) {
+        this.recoveryOutputDiscoveryError = new Error("Recovery output discovery contained invalid identity data.");
+        return;
+      }
+      const seenIds = new Set(this.queuedRecoveryOutputIds);
+      const page = outputs.filter((output) => {
+        if (seenIds.has(output.record_id)) return false;
+        seenIds.add(output.record_id);
+        return true;
+      });
+      if (page.length) {
+        // Only ciphertext identities are buffered; sealed bodies are fetched one at a time.
+        // Excess pages fail closed and remain pending for a later reconnect.
+        if (this.availableRecoveryOutputPages.length >= 100) {
+          this.recoveryOutputDiscoveryError = new Error("Recovery output discovery exceeded the bounded page queue.");
+          return;
+        }
+        for (const output of page) this.queuedRecoveryOutputIds.add(output.record_id);
+        this.availableRecoveryOutputPages.push(page);
+      }
+    } catch {
+      // Invalid discovery frames cannot be trusted as recovery identities.
+    }
+  }
+
+  drainAvailableRecoveryOutputPages(rootChatId?: string): AvailableRecoveryOutputFrame[][] {
+    if (this.recoveryOutputDiscoveryError) throw this.recoveryOutputDiscoveryError;
+    const drained: AvailableRecoveryOutputFrame[][] = [];
+    const remaining: AvailableRecoveryOutputFrame[][] = [];
+    for (const page of this.availableRecoveryOutputPages) {
+      const selected = rootChatId ? page.filter((output) => output.root_chat_id === rootChatId) : page;
+      const kept = rootChatId ? page.filter((output) => output.root_chat_id !== rootChatId) : [];
+      if (selected.length) drained.push(selected);
+      if (kept.length) remaining.push(kept);
+      for (const output of selected) this.queuedRecoveryOutputIds.delete(output.record_id);
+    }
+    this.availableRecoveryOutputPages.splice(0, this.availableRecoveryOutputPages.length, ...remaining);
+    return drained;
+  }
+
+  drainAvailableRecoveryOutputs(rootChatId?: string): AvailableRecoveryOutputFrame[] {
+    return this.drainAvailableRecoveryOutputPages(rootChatId).flat();
+  }
+
+  async waitForRecoveryOutputDiscovery(timeoutMs = 90_000): Promise<void> {
+    if (this.recoveryOutputDiscoveryError) throw this.recoveryOutputDiscoveryError;
+    if (!this.recoveryOutputDiscoveryComplete) {
+      await this.waitForMessage("recovery_outputs_discovery_complete", undefined, timeoutMs);
+    }
+    if (this.recoveryOutputDiscoveryError) throw this.recoveryOutputDiscoveryError;
   }
 
   waitForMessage(
@@ -1089,14 +1197,14 @@ export class OpenMatesWsClient {
           p.payload && typeof p.payload === "object" && !Array.isArray(p.payload)
             ? (p.payload as Record<string, unknown>)
             : p;
+        // Child lifecycle frames carry the child's chat_id but arrive on the
+        // parent channel. Use their parent_id to scope the active response.
         const eventChatId =
-          type === "awaiting_user_input" && typeof eventPayload.parent_id === "string"
+          typeof eventPayload.parent_id === "string"
             ? eventPayload.parent_id
             : typeof eventPayload.chat_id === "string"
               ? eventPayload.chat_id
-              : typeof eventPayload.parent_id === "string"
-                ? eventPayload.parent_id
-                : null;
+              : null;
         if (eventChatId && eventChatId !== chatId) return;
 
         const event = { type: type as SubChatEventType, payload: eventPayload };

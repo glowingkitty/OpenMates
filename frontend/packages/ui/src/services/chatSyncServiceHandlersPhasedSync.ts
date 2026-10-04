@@ -234,16 +234,31 @@ function yieldToMainThread(): Promise<void> {
 async function applyAuthoritativeDeletedChats(
   serviceInstance: ChatSynchronizationService,
   deletedChatIds: string[] | undefined,
+  explicitDeletedChatIds: string[] | undefined,
 ): Promise<void> {
   const uniqueDeletedChatIds = Array.from(new Set(deletedChatIds ?? [])).filter(
     Boolean,
   );
   if (uniqueDeletedChatIds.length === 0) return;
 
+  // A legacy server does not distinguish tombstones from an absent, still
+  // uncommitted new chat. Keep legacy deletion semantics in that case.
+  const explicitIds = explicitDeletedChatIds === undefined
+    ? new Set(uniqueDeletedChatIds)
+    : new Set(explicitDeletedChatIds);
+
   for (const chatId of uniqueDeletedChatIds) {
     try {
+      if (!explicitIds.has(chatId)) {
+        // An inferred absence cannot erase the sole local sealed copy while
+        // its exact preflight is awaiting canonical acknowledgement. The
+        // guard and every local deletion share one IndexedDB transaction.
+        const result = await chatDB.deleteChatIfNoPendingTurn(chatId);
+        if (!result.deleted) continue;
+      } else {
+        await chatDB.deleteChat(chatId);
+      }
       chatListCache.removeChat(chatId);
-      await chatDB.deleteChat(chatId);
       serviceInstance.dispatchEvent(
         new CustomEvent("chatDeleted", {
           detail: { chat_id: chatId },
@@ -295,8 +310,8 @@ export async function handlePhase2RecentChatsImpl(
       }
       if (!isActiveTeamContext(payload.team_id ?? null, payload.context_epoch)) return;
     }
-    const { chats, chat_count, total_chat_count, deleted_chat_ids } = payload;
-    await applyAuthoritativeDeletedChats(serviceInstance, deleted_chat_ids);
+    const { chats, chat_count, total_chat_count, deleted_chat_ids, explicit_deleted_chat_ids } = payload;
+    await applyAuthoritativeDeletedChats(serviceInstance, deleted_chat_ids, explicit_deleted_chat_ids);
 
     // Cache warming notification (no actual chats) — ignore
     if (!chats || !Array.isArray(chats)) {
@@ -532,10 +547,30 @@ export async function handleBackgroundMessageSyncImpl(
   );
 
   try {
+    for (const [chatId, embedWindow] of Object.entries(payload.embed_windows_by_chat_id ?? {})) {
+      const chat = await chatDB.getChat(chatId);
+      if (chat) {
+        await chatDB.addChat({
+          ...chat,
+          embed_window_has_more_before: embedWindow.has_more_before,
+          embed_window_start_cursor: embedWindow.start_cursor ?? null,
+        }, undefined, { isFromSync: true });
+      }
+    }
     for (const chatData of payload.chats || []) {
       if (chatData.compression_checkpoints && chatData.compression_checkpoints.length > 0) {
         for (const checkpoint of chatData.compression_checkpoints) {
           await chatDB.saveChatCompressionCheckpoint(checkpoint);
+        }
+      }
+      if (chatData.message_window) {
+        const existingChat = await chatDB.getChat(chatData.chat_id);
+        if (existingChat) {
+          await chatDB.addChat({
+            ...existingChat,
+            message_window_has_more_before: chatData.message_window.has_more_before,
+            message_window_start_cursor: chatData.message_window.start_cursor ?? null,
+          }, undefined, { isFromSync: true });
         }
       }
       if (!chatData.messages || chatData.messages.length === 0) continue;

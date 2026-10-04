@@ -1,0 +1,58 @@
+# Authenticated non-AI Remotion render authorization, bound to a canonical head.
+# No recovery public key is inferred from task kwargs or auto_started.
+chat_recovery_authorized_rerenders:
+  type: collection
+  meta:
+    accountability: null
+  fields:
+    id:
+      type: uuid
+      primary: true
+    task_name:
+      type: string
+      length: 160
+      required: true
+    kwargs_binding:
+      type: string
+      length: 64
+      required: true
+    hashed_user_id:
+      type: string
+      length: 64
+      required: true
+    hashed_team_id:
+      type: string
+      length: 64
+      nullable: true
+    target_chat_id:
+      type: uuid
+      required: true
+    primary_embed_id:
+      type: uuid
+      required: true
+    primary_message_id:
+      type: string
+      length: 255
+      nullable: true
+    source_version:
+      type: integer
+      required: true
+    expected_embed_version:
+      type: integer
+      required: true
+    state:
+      type: string
+      length: 16
+      required: true
+    registered_at:
+      type: datetime
+      required: true
+    started_at:
+      type: datetime
+      nullable: true
+    completed_at:
+      type: datetime
+      nullable: true
+    invalidated_at:
+      type: datetime
+      nullable: true

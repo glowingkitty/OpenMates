@@ -9,6 +9,7 @@
   Architecture: docs/architecture/messaging/embed-diff-editing.md
 -->
 <script lang="ts">
+	import { text } from '../../../i18n/translations';
 	import {
 		fetchEmbedVersionContent,
 		fetchEmbedVersions,
@@ -19,15 +20,18 @@
 
 	interface Props {
 		embedId: string;
+		chatId?: string;
 		currentVersion: number;
 		currentContent: string;
 		buildRestoredContent?: (restoredContent: string, newVersion: number) => Record<string, unknown>;
 		onVersionSelect: (version: number, content: string | null) => void;
 	}
 
-	let { embedId, currentVersion, currentContent, buildRestoredContent, onVersionSelect }: Props = $props();
+	let { embedId, chatId, currentVersion, currentContent, buildRestoredContent, onVersionSelect }: Props = $props();
 
 	let versions: EmbedVersionMeta[] = $state([]);
+	let nextCursor: number | null = $state(null);
+	let loadingMore: boolean = $state(false);
 	let selectedVersion: number = $state(0);
 	let activeCurrentVersion: number = $state(0);
 	let loading: boolean = $state(true);
@@ -56,8 +60,9 @@
 		loading = true;
 		errorMessage = '';
 		try {
-			const response = await fetchEmbedVersions(embedId);
+			const response = await fetchEmbedVersions(embedId, { order: 'desc', limit: 32, chatId });
 			versions = response.versions;
+			nextCursor = response.next_cursor ?? null;
 			readonly = response.readonly;
 			activeCurrentVersion = response.current_version;
 		} catch (e) {
@@ -69,12 +74,29 @@
 				has_snapshot: version.encrypted_snapshot !== undefined && version.encrypted_snapshot !== null,
 				has_patch: version.encrypted_patch !== undefined && version.encrypted_patch !== null
 			}));
+			nextCursor = null;
 			readonly = false;
 			if (versions.length === 0) {
 				errorMessage = e instanceof Error ? e.message : 'Failed to load versions';
 			}
 		}
 		loading = false;
+	}
+
+	async function loadMoreVersions() {
+		if (loadingMore || nextCursor === null) return;
+		loadingMore = true;
+		errorMessage = '';
+		try {
+			const response = await fetchEmbedVersions(embedId, { order: 'desc', limit: 32, cursor: nextCursor, chatId });
+			const known = new Set(versions.map((row) => row.version_number));
+			versions = [...versions, ...response.versions.filter((row) => !known.has(row.version_number))];
+			nextCursor = response.next_cursor ?? null;
+		} catch (e) {
+			errorMessage = e instanceof Error ? e.message : 'Failed to load older versions';
+		} finally {
+			loadingMore = false;
+		}
 	}
 
 	async function selectVersion(version: number) {
@@ -91,7 +113,7 @@
 		selectedContent = null;
 		loadingContent = true;
 		try {
-			const response = await fetchEmbedVersionContent(embedId, version);
+			const response = await fetchEmbedVersionContent(embedId, version, chatId);
 			if (requestId !== contentRequestId) return;
 			selectedContent = response.content;
 			onVersionSelect(version, response.content);
@@ -117,6 +139,7 @@
 			const response = await restoreEmbedVersion(embedId, selectedVersion, {
 				currentVersion: activeCurrentVersion,
 				currentContent,
+				chatId,
 				buildRestoredContent
 			});
 			activeCurrentVersion = response.version_number;
@@ -166,7 +189,7 @@
 
 {#if loading}
 	<div class="version-timeline" data-testid="embed-version-timeline-loading">Loading version history...</div>
-{:else if versions.length <= 1}
+{:else if versions.length <= 1 && nextCursor === null}
 	<div class="version-timeline" data-testid="embed-version-timeline-empty">
 		{errorMessage || 'No version history available yet.'}
 	</div>
@@ -174,11 +197,11 @@
 	<div class="version-timeline" data-testid="embed-version-timeline">
 		<div class="timeline-header">
 			<span class="timeline-label">Version history</span>
-			<span class="version-count">{versions.length} versions</span>
+			<span class="version-count">{versions.length}{nextCursor !== null ? ` of ${activeCurrentVersion}` : ''} versions</span>
 		</div>
 
 		<div class="timeline-track">
-			{#each versions as version, idx}
+			{#each [...versions].reverse() as version, idx}
 				{@const isSelected = version.version_number === selectedVersion}
 				{@const isCurrent = version.version_number === activeCurrentVersion}
 				<button
@@ -199,6 +222,11 @@
 				{/if}
 			{/each}
 		</div>
+		{#if nextCursor !== null}
+			<button class="load-more-btn" data-testid="embed-version-load-more" disabled={loadingMore} onclick={loadMoreVersions}>
+				{loadingMore ? 'Loading...' : $text('chats.loadMore.button')}
+			</button>
+		{/if}
 
 		<div class="timeline-footer">
 			<span class="timestamp">
@@ -262,13 +290,13 @@
 	}
 
 	.timeline-label {
-		font-size: 12px;
+		font-size: var(--font-size-xxs);
 		font-weight: 500;
 		color: var(--color-font-secondary, #555);
 	}
 
 	.version-count {
-		font-size: 11px;
+		font-size: var(--font-size-tiny);
 		color: var(--color-font-tertiary, #888);
 	}
 
@@ -276,6 +304,16 @@
 		display: flex;
 		align-items: center;
 		gap: 0;
+		padding: 4px 0;
+		overflow-x: auto;
+	}
+
+	.load-more-btn {
+		border: none;
+		background: none;
+		color: var(--color-button-primary, #6366f1);
+		font-size: var(--font-size-tiny);
+		cursor: pointer;
 		padding: 4px 0;
 	}
 
@@ -319,7 +357,7 @@
 	}
 
 	.version-label {
-		font-size: 10px;
+		font-size: calc(var(--font-size-tiny) - 0.0625rem);
 		color: var(--color-button-primary, #6366f1);
 		font-weight: 500;
 		white-space: nowrap;
@@ -340,16 +378,16 @@
 	}
 
 	.timestamp {
-		font-size: 11px;
+		font-size: var(--font-size-tiny);
 		color: var(--color-font-tertiary, #888);
 	}
 
 	.restore-btn,
 	.changes-btn {
-		font-size: 11px;
+		font-size: var(--font-size-tiny);
 		font-weight: 500;
 		padding: 4px 10px;
-		border-radius: 6px;
+		border-radius: var(--radius-2);
 		border: 1px solid var(--color-button-primary, #6366f1);
 		background: transparent;
 		color: var(--color-button-primary, #6366f1);
@@ -368,10 +406,10 @@
 		padding: 8px;
 		max-height: 180px;
 		overflow: auto;
-		border-radius: 6px;
+		border-radius: var(--radius-2);
 		background: var(--color-grey-0, #fff);
 		border: 1px solid var(--color-grey-20, #e8e8e8);
-		font-size: 11px;
+		font-size: var(--font-size-tiny);
 		line-height: 1.45;
 		white-space: pre-wrap;
 	}
@@ -396,7 +434,7 @@
 	.timeline-note,
 	.timeline-error {
 		margin-top: 6px;
-		font-size: 11px;
+		font-size: var(--font-size-tiny);
 	}
 
 	.timeline-note {

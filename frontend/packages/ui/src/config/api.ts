@@ -124,6 +124,8 @@ export function getWebSocketUrl(sessionId?: string, token?: string): string {
     params.push(`token=${encodeURIComponent(token)}`);
   }
   const clientCapabilities = [
+    "canonical_embed_receipts_v1",
+    "typed_recovery_outputs_v2",
     ...(projectFileJobsCapabilityEnabled ? ["project_file_jobs"] : []),
     ...(remoteCommandJobsCapabilityEnabled ? ["remote_command_jobs"] : []),
   ];

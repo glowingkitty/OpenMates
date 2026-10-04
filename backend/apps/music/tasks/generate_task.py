@@ -33,6 +33,7 @@ from backend.shared.python_utils.media_generation_safety import (
     validate_media_generation_request,
 )
 from backend.shared.python_utils.storage_availability import initialize_task_storage, require_storage_available
+from backend.shared.python_utils.chat_recovery_context import RequiredRecoveryOutputError
 
 logger = logging.getLogger(__name__)
 
@@ -341,6 +342,11 @@ async def _async_generate_music(task: BaseServiceTask, app_id: str, skill_id: st
 
         if not prompt or not user_id:
             raise ValueError("Missing required prompt or user_id")
+        from backend.core.api.app.services.embed_service import EmbedService
+        await EmbedService.assert_registered_output_can_generate(
+            task._directus_service, embed_id=embed_id, chat_id=chat_id,
+            message_id=message_id, owner_hash=_hash_value(user_id),
+        )
 
         media_decision = validate_media_generation_request(
             media_type="music",
@@ -552,6 +558,7 @@ async def _async_generate_music(task: BaseServiceTask, app_id: str, skill_id: st
                 updated_at=now_ts,
                 log_prefix=log_prefix,
                 check_cache_status=False,
+                producer_final_children=[],
             )
 
         rest_files_metadata = {
@@ -599,6 +606,8 @@ async def _async_generate_music(task: BaseServiceTask, app_id: str, skill_id: st
         logger.warning("%s Music generation rejected by media safety gate: %s", log_prefix, exc.decision.category)
         try:
             await _send_music_safety_rejection_embed(task, app_id, skill_id, arguments, exc, log_prefix)
+        except RequiredRecoveryOutputError:
+            raise
         except Exception as embed_exc:
             logger.error("%s Failed to send music safety rejection embed: %s", log_prefix, embed_exc, exc_info=True)
         return {
@@ -606,6 +615,8 @@ async def _async_generate_music(task: BaseServiceTask, app_id: str, skill_id: st
             "status": "rejected",
             **exc.decision.to_rejection_payload(),
         }
+    except RequiredRecoveryOutputError:
+        raise
     except Exception as exc:
         logger.error("%s Music generation task failed: %s", log_prefix, exc, exc_info=True)
         try:

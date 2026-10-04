@@ -178,6 +178,7 @@ export * from "./src/services/workflowTemplateService";
 export { default as TasksPage } from "./src/components/tasks/TasksPage.svelte";
 export { default as TaskProposalReview } from "./src/components/tasks/TaskProposalReview.svelte";
 export { handleCodeRunOutputSyncedImpl } from "./src/services/handlersCodeRunOutputs";
+export { handleNotebookRunOutputSyncedImpl } from "./src/services/handlersNotebookRunOutputs";
 export { handleMessageHighlightAddedImpl } from "./src/services/handlersMessageHighlights";
 export { shareMetadataQueue } from "./src/services/shareMetadataQueue"; // Export share metadata queue service
 export { pushNotificationService } from "./src/services/pushNotificationService"; // Export push notification service

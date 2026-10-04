@@ -165,6 +165,7 @@ const SERIALIZED_PHASED_SYNC_MESSAGE_TYPES = new Set<string>([
 
 const REPLAYABLE_EARLY_MESSAGE_TYPES = new Set<string>([
   "recovery_jobs_available",
+  "recovery_outputs_available",
 ]);
 
 type NetworkInformationLike = {
@@ -1524,7 +1525,11 @@ class WebSocketService extends EventTarget {
           const tracing = await import("./tracing/wsSpans").catch(() => null);
           if (tracing) {
             await tracing.withActiveWsSpan(`send.${type}`, () => {
-              tracing.injectTraceparent(message.payload as Record<string, unknown>);
+              // A saved turn preflight is replayed byte-for-byte from its sealed
+              // local journal. A new span would change its committed payload.
+              if (type !== "chat_turn_preflight") {
+                tracing.injectTraceparent(message.payload as Record<string, unknown>);
+              }
               if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
                 throw new Error("WebSocket changed before message dispatch");
               }

@@ -23,6 +23,7 @@ import os
 import re
 import threading
 import time
+from urllib.parse import urlsplit
 from dataclasses import dataclass, field
 from decimal import ROUND_CEILING, Decimal, InvalidOperation
 from functools import lru_cache
@@ -86,6 +87,8 @@ class _LiveMockReceiptState:
     cache_hits: int = 0
     cache_misses: int = 0
     real_provider_calls: int = 0
+    blocked_provider_calls: int = 0
+    started_at_monotonic_ns: int = field(default_factory=time.monotonic_ns)
 
 
 real_budget_state_var: contextvars.ContextVar[Optional[_RealBudgetState]] = contextvars.ContextVar(
@@ -246,6 +249,8 @@ def activate_mock_mode(
     resolved_candidate_root = candidate_root.resolve() if candidate_root else None
     budget_state = _new_real_budget_state() if mode in {"record", "real"} else None
     _install_raw_http_guard_once()
+    if group_id.startswith("storage_capacity_") and mode != "mock":
+        raise DailyAITestBudgetExceeded("Storage capacity fixtures require replay-only mode")
     mock_mode_var.set(mode)
     mock_group_var.set(group_id)
     mock_candidate_root_var.set(resolved_candidate_root)
@@ -315,6 +320,13 @@ def record_real_provider_call() -> None:
         state.real_provider_calls += 1
 
 
+def record_blocked_provider_call() -> None:
+    """Count a replay miss or raw transport rejection before any provider dispatch."""
+    state = live_mock_receipt_var.get()
+    if state is not None:
+        state.blocked_provider_calls += 1
+
+
 def get_live_mock_receipt() -> dict[str, Any]:
     """Return content-free counters for the active live-test task."""
     state = live_mock_receipt_var.get()
@@ -328,7 +340,7 @@ def get_live_mock_receipt() -> dict[str, Any]:
             "cache_misses": 0,
             "real_provider_calls": 0,
         }
-    return {
+    receipt = {
         "mode": state.mode,
         "run_id": state.run_id,
         "task_id": state.task_id,
@@ -337,12 +349,32 @@ def get_live_mock_receipt() -> dict[str, Any]:
         "real_provider_calls": state.real_provider_calls,
         "estimated_eur": budget.get("reserved_eur", 0.0),
     }
+    if mock_group_var.get().startswith("storage_capacity_"):
+        receipt["blocked_provider_calls"] = state.blocked_provider_calls
+        receipt["started_at_monotonic_ns"] = state.started_at_monotonic_ns
+        receipt["finished_at_monotonic_ns"] = time.monotonic_ns()
+    return receipt
 
 
 def write_live_mock_receipt() -> Optional[Path]:
     """Persist one content-free receipt under the selected candidate run."""
     state = live_mock_receipt_var.get()
     root = mock_candidate_root_var.get()
+    if state is not None and mock_group_var.get().startswith("storage_capacity_"):
+        receipt_root = os.getenv("OPENMATES_CAPACITY_RECEIPT_ROOT")
+        if not receipt_root or not state.task_id or not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", state.task_id):
+            raise RuntimeError("Capacity replay requires a task ID and private receipt root")
+        # Full target receipts are sharded by immutable task ID.
+        receipt_dir = Path(receipt_root) / hashlib.sha256(state.task_id.encode()).hexdigest()[:2]
+        receipt_dir.mkdir(parents=True, exist_ok=True)
+        receipt_path = receipt_dir / f"{state.task_id}.json"
+        temporary_path = receipt_path.with_suffix(".tmp")
+        temporary_path.write_text(
+            json.dumps(get_live_mock_receipt(), sort_keys=True, separators=(",", ":")),
+            encoding="utf-8",
+        )
+        temporary_path.replace(receipt_path)
+        return receipt_path
     if state is None or root is None or not state.run_id or not state.task_id:
         return None
     run_root = root.parent
@@ -372,6 +404,34 @@ def _install_raw_http_guard_once() -> None:
         _raw_http_guard_installed = True
 
 
+def _allow_isolated_capacity_internal(raw_url: Any) -> bool:
+    """Permit exact internal CMS/Vault transport during isolated capacity replay."""
+    receipt = live_mock_receipt_var.get()
+    if not (
+        mock_mode_var.get() == "mock"
+        and mock_group_var.get().startswith("storage_capacity_")
+        and receipt is not None
+        and receipt.task_id
+        and os.getenv("OPENMATES_CI_ISOLATED") == "1"
+        and os.getenv("OPENMATES_STORAGE_CAPACITY_FIXTURES") == "true"
+        and os.getenv("MOCK_EXTERNAL_APIS") == "true"
+        and os.getenv("S3_ENDPOINT_URL") == "http://storage.ci.test:9000"
+        and not _is_production_environment()
+        and os.getenv("CMS_URL") == "http://cms:8055"
+        and os.getenv("VAULT_URL") == "http://vault:8200"
+    ):
+        return False
+    try:
+        url = urlsplit(str(raw_url))
+    except (TypeError, ValueError):
+        return False
+    if url.scheme != "http" or url.username or url.password or url.fragment:
+        return False
+    if url.netloc == "cms:8055":
+        return True
+    return url.netloc == "vault:8200" and url.path.startswith("/v1/")
+
+
 def _install_httpx_transport_guard() -> None:
     try:
         import httpx
@@ -384,12 +444,14 @@ def _install_httpx_transport_guard() -> None:
     original_sync = httpx.HTTPTransport.handle_request
 
     async def guarded_async(transport: Any, request: Any) -> Any:
-        if is_mock_active():
+        if is_mock_active() and not _allow_isolated_capacity_internal(request.url):
+            record_blocked_provider_call()
             raise DailyAITestBudgetExceeded(_raw_http_guard_message(request))
         return await original_async(transport, request)
 
     def guarded_sync(transport: Any, request: Any) -> Any:
-        if is_mock_active():
+        if is_mock_active() and not _allow_isolated_capacity_internal(request.url):
+            record_blocked_provider_call()
             raise DailyAITestBudgetExceeded(_raw_http_guard_message(request))
         return original_sync(transport, request)
 
@@ -412,7 +474,8 @@ def _install_aiohttp_request_guard() -> None:
         return
 
     async def guarded_request(session: Any, method: Any, url: Any, **kwargs: Any) -> Any:
-        if is_mock_active():
+        if is_mock_active() and not _allow_isolated_capacity_internal(url):
+            record_blocked_provider_call()
             raise DailyAITestBudgetExceeded(_raw_http_guard_message(method, url))
         return await original_request(session, method, url, **kwargs)
 
@@ -434,12 +497,14 @@ def _install_requests_request_guard() -> None:
         return
 
     def guarded_request(session: Any, method: Any, url: Any, **kwargs: Any) -> Any:
-        if is_mock_active():
+        if is_mock_active() and not _allow_isolated_capacity_internal(url):
+            record_blocked_provider_call()
             raise DailyAITestBudgetExceeded(_raw_http_guard_message(method, url))
         return original_request(session, method, url, **kwargs)
 
     def guarded_send(session: Any, request: Any, **kwargs: Any) -> Any:
-        if is_mock_active():
+        if is_mock_active() and not _allow_isolated_capacity_internal(request.url):
+            record_blocked_provider_call()
             raise DailyAITestBudgetExceeded(_raw_http_guard_message(request))
         return original_send(session, request, **kwargs)
 

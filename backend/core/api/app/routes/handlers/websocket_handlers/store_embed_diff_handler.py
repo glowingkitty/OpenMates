@@ -7,6 +7,7 @@ they are sent back for Directus storage.
 """
 
 import hashlib
+import json
 import logging
 from typing import Any, Dict
 
@@ -54,6 +55,7 @@ async def _send_store_embed_diff_confirmed(
     request_id: Any,
     embed_id: str,
     version_number: int,
+    canonical_digest: str,
 ) -> None:
     if not request_id:
         return
@@ -64,6 +66,8 @@ async def _send_store_embed_diff_confirmed(
                 "request_id": request_id,
                 "embed_id": embed_id,
                 "version_number": version_number,
+                "canonical_digest": canonical_digest,
+                "canonical_source": "version_row",
             },
         },
         user_id,
@@ -101,7 +105,7 @@ async def handle_store_embed_diff(
         embed_id = str(payload.get("embed_id") or "")
         request_id = payload.get("request_id")
         version_number = payload.get("version_number")
-        if not embed_id or not isinstance(version_number, int):
+        if not embed_id or not isinstance(version_number, int) or isinstance(version_number, bool) or version_number < 1:
             logger.warning("Invalid store_embed_diff payload from user %s", user_id)
             await manager.send_personal_message(
                 {"type": "error", "payload": {"message": "Invalid embed diff payload"}},
@@ -125,7 +129,9 @@ async def handle_store_embed_diff(
 
         encrypted_snapshot = payload.get("encrypted_snapshot")
         encrypted_patch = payload.get("encrypted_patch")
-        if not isinstance(encrypted_snapshot, str) and not isinstance(encrypted_patch, str):
+        if (not isinstance(encrypted_snapshot, str) and not isinstance(encrypted_patch, str)) or (
+            version_number == 1 and (not isinstance(encrypted_snapshot, str) or encrypted_patch is not None)
+        ) or (version_number > 1 and not isinstance(encrypted_patch, str)):
             logger.warning("Rejected unencrypted/empty embed diff row for embed %s", embed_id)
             await manager.send_personal_message(
                 {"type": "error", "payload": {"message": "Embed diff row must be encrypted"}},
@@ -156,11 +162,18 @@ async def handle_store_embed_diff(
             "encrypted_patch": encrypted_patch if isinstance(encrypted_patch, str) else None,
             "hashed_user_id": authenticated_user_hash,
             "created_at": int(payload.get("created_at") or 0),
+            "has_snapshot": isinstance(encrypted_snapshot, str),
+            "has_patch": isinstance(encrypted_patch, str),
         }
         if row["created_at"] <= 0:
             import time
 
             row["created_at"] = int(time.time())
+
+        canonical_digest = hashlib.sha256(json.dumps(
+            [row["encrypted_snapshot"], row["encrypted_patch"]],
+            separators=(",", ":"), ensure_ascii=False,
+        ).encode("utf-8")).hexdigest()
 
         existing = await _read_existing_row(
             directus_service,
@@ -169,41 +182,17 @@ async def handle_store_embed_diff(
             authenticated_user_hash,
         )
         if existing:
-            existing_id = existing.get("id")
-            if not existing_id:
-                logger.warning(
-                    "Embed diff row exists without id: embed=%s version=%s",
-                    embed_id,
-                    version_number,
-                )
-                return
-            updated = await directus_service.update_item("embed_diffs", existing_id, row)
-            if not updated:
-                logger.error(
-                    "Failed to update encrypted embed diff row embed=%s version=%s",
-                    embed_id,
-                    version_number,
-                )
+            # History rows are immutable. Snapshot backfills use the fenced
+            # transaction endpoint, never this legacy WebSocket writer.
+            if (any(existing.get(field) != row[field] for field in (
+                "encrypted_snapshot", "encrypted_patch",
+            )) or (payload.get("created_at") and existing.get("created_at") != row["created_at"])):
                 await manager.send_personal_message(
-                    {"type": "error", "payload": {"message": "Failed to update embed diff row"}},
+                    {"type": "error", "payload": {"message": "Immutable embed version mismatch"}},
                     user_id,
                     device_fingerprint_hash,
                 )
                 return
-            logger.info(
-                "Updated encrypted embed diff row embed=%s version=%s",
-                embed_id,
-                version_number,
-            )
-            await manager.broadcast_to_user(
-                message={
-                    "type": "embed_diff_stored",
-                    "event_for_client": "embed_diff_stored",
-                    **row,
-                },
-                user_id=user_id,
-                exclude_device_hash=device_fingerprint_hash,
-            )
             await _send_store_embed_diff_confirmed(
                 manager,
                 user_id,
@@ -211,6 +200,7 @@ async def handle_store_embed_diff(
                 request_id,
                 embed_id,
                 version_number,
+                canonical_digest,
             )
             return
 
@@ -233,6 +223,7 @@ async def handle_store_embed_diff(
             request_id,
             embed_id,
             version_number,
+            canonical_digest,
         )
     finally:
         if _otel_span is not None:

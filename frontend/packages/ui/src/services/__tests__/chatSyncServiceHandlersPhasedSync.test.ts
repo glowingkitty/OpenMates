@@ -15,12 +15,15 @@ const mocks = vi.hoisted(() => ({
     batchSaveMetadataChats: vi.fn(),
     getMessageCountForChat: vi.fn(),
     getMetadataOnlyChatIds: vi.fn(),
+    deleteChatIfNoPendingTurn: vi.fn(),
+    deleteChat: vi.fn(),
   },
   userDB: {
     getUserProfile: vi.fn(),
   },
   chatListCache: {
     upsertChat: vi.fn(),
+    removeChat: vi.fn(),
   },
   unreadMessagesStore: {
     setUnread: vi.fn(),
@@ -127,6 +130,8 @@ beforeEach(() => {
   mocks.pendingChatDeletions.getPendingChatDeletionsSet.mockReturnValue(new Set());
   mocks.chatDB.getChat.mockResolvedValue(null);
   mocks.chatDB.batchSaveMetadataChats.mockResolvedValue(0);
+  mocks.chatDB.deleteChatIfNoPendingTurn.mockResolvedValue({ deleted: true, deletedEmbedIds: [] });
+  mocks.chatDB.deleteChat.mockResolvedValue({ deletedEmbedIds: [] });
 });
 
 describe("handleSyncStatusResponseImpl", () => {
@@ -167,6 +172,25 @@ describe("handleSyncStatusResponseImpl", () => {
 });
 
 describe("handlePhase2RecentChatsImpl", () => {
+  // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
+  it.each([
+    { explicit: [], pending: true, deletes: false, probes: true },
+    { explicit: [], pending: false, deletes: true, probes: true },
+    { explicit: ["draft-chat"], pending: true, deletes: true, probes: false },
+    { explicit: undefined, pending: true, deletes: true, probes: false },
+  ])("retains only inferred absent chats with sealed pending turns: %j", async ({ explicit, pending, deletes, probes }) => {
+    mocks.chatDB.deleteChatIfNoPendingTurn.mockResolvedValue({ deleted: !pending, deletedEmbedIds: [] });
+    const service = createService();
+    await handlePhase2RecentChatsImpl(
+      service as unknown as ChatSynchronizationService,
+      { chats: [], chat_count: 0, total_chat_count: 0, phase: "phase2",
+        deleted_chat_ids: ["draft-chat"], explicit_deleted_chat_ids: explicit },
+    );
+    expect(mocks.chatDB.deleteChatIfNoPendingTurn).toHaveBeenCalledTimes(probes ? 1 : 0);
+    expect(mocks.chatDB.deleteChat).toHaveBeenCalledTimes(deletes && !probes ? 1 : 0);
+    if (!deletes) expect(mocks.chatListCache.removeChat).not.toHaveBeenCalled();
+  });
+
 	// contract-test: direct surface=gui.web assertions=teams.context.full-switch-local,teams.collaboration.realtime-team-sync
 	it("does not inject a Team key after the active context epoch changes", async () => {
 		let resolveKey: ((key: Uint8Array) => void) | undefined;

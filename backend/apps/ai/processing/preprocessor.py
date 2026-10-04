@@ -3293,6 +3293,11 @@ async def handle_preprocessing(
         logger.info(
             f"{log_prefix} Deep research focus mode active; enabling sub-chats deterministically."
         )
+    if request_data.is_incognito:
+        # Child orchestration writes canonical chat rows. Incognito has no
+        # durable child implementation, so keep its work in the main turn.
+        enable_subchats_val = False
+        llm_analysis_args["enable_subchats"] = False
     
     # --- Rule-based skill forcing based on embed type in message history ---
     # The preprocessing LLM occasionally fails to select the correct skills when the

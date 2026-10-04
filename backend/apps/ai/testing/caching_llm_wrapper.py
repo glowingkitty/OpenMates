@@ -31,7 +31,9 @@ from backend.shared.testing.mock_context import (
     is_mock_active,
     is_real_mode,
     is_record_mode,
+    record_blocked_provider_call,
     record_cache_miss,
+    record_cache_hit,
     record_real_provider_call,
     reserve_real_provider_call,
 )
@@ -106,7 +108,9 @@ def wrap_provider_with_cache(
             tool_choice=tool_choice,
         )
         # Recording always captures a fresh live response and never reads cassettes.
-        cached = None if is_record_mode() else cache.load(group_id, category, fingerprint)
+        cached = None if is_record_mode() else _generated_capacity_fixture(category, kwargs)
+        if cached is None and not is_record_mode():
+            cached = cache.load(group_id, category, fingerprint)
         if cached is not None:
             response_data = cached.get("response", {})
             response_body = response_data.get("body", "")
@@ -127,6 +131,7 @@ def wrap_provider_with_cache(
 
         # Cache miss
         if not is_record_mode():
+            record_blocked_provider_call()
             raise MockCacheMiss(
                 category=category,
                 fingerprint=fingerprint,
@@ -177,11 +182,14 @@ def wrap_provider_with_cache(
             temperature=kwargs.get("temperature"),
             tool_choice=kwargs.get("tool_choice"),
         )
-        cached = None if is_record_mode() else cache.load(group_id, category, fingerprint)
+        cached = None if is_record_mode() else _generated_capacity_fixture(category, kwargs)
+        if cached is None and not is_record_mode():
+            cached = cache.load(group_id, category, fingerprint)
         if cached is not None:
             return _deserialize_non_stream_response(cached.get("response", {}))
 
         if not is_record_mode():
+            record_blocked_provider_call()
             raise MockCacheMiss(
                 category=category,
                 fingerprint=fingerprint,
@@ -205,6 +213,23 @@ def wrap_provider_with_cache(
     setattr(cached_provider, "_live_mock_cache_wrapped", True)
     setattr(cached_provider, "_live_mock_original_provider", provider_fn)
     return cached_provider
+
+
+async def replay_capacity_direct_provider(provider_fn: Callable, **kwargs: Any) -> Any:
+    """Replay a direct non-stream compression call in signed capacity mock context.
+
+    Compression historically invokes its provider outside llm_utils' wrapped
+    registry. This explicit seam keeps that path covered without globally
+    replacing provider functions used by unrelated requests.
+    """
+    if not (is_mock_active() and get_mock_group().startswith("storage_capacity_")):
+        return await provider_fn(**kwargs)
+    if is_record_mode() or is_real_mode() or kwargs.get("stream") is not False:
+        raise RuntimeError("Storage capacity compression requires non-stream replay")
+    from backend.shared.testing.api_response_cache import get_shared_cache
+
+    wrapped = wrap_provider_with_cache(provider_fn, get_shared_cache())
+    return await wrapped(**kwargs)
 
 def _save_to_cache(
     cache: ApiResponseCache,
@@ -508,6 +533,20 @@ def _model_from_kwargs(kwargs: dict[str, Any]) -> str:
     """Return the provider model name regardless of the caller's parameter spelling."""
     model = kwargs.get("model") or kwargs.get("model_id") or "unknown"
     return str(model)
+
+
+def _generated_capacity_fixture(category: str, kwargs: dict[str, Any]) -> dict[str, Any] | None:
+    """Use only explicitly supported synthetic capacity phases after cache miss."""
+    import os
+    if (not get_mock_group().startswith("storage_capacity_")
+            or os.getenv("OPENMATES_STORAGE_CAPACITY_FIXTURES") != "true"):
+        return None
+    from backend.apps.ai.testing.capacity_fixtures import generate_fixture
+
+    response = generate_fixture(category, kwargs)
+    if response is not None:
+        record_cache_hit()
+    return response
 
 
 async def _reserve_real_llm_call(kwargs: dict[str, Any], category_prefix: str) -> str:

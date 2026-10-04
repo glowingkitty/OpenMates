@@ -93,6 +93,12 @@ async def _async_generate_model(
         raise ValueError("models3d generation requires one or more image references")
 
     await task.initialize_core_services()
+    from backend.core.api.app.services.embed_service import EmbedService
+    await EmbedService.assert_registered_output_can_generate(
+        task._directus_service, embed_id=embed_id, chat_id=chat_id,
+        message_id=message_id,
+        owner_hash=hashlib.sha256(user_id.encode("utf-8")).hexdigest(),
+    )
     s3_service = await initialize_task_storage(task)
     await require_storage_available(s3_service)
     await ensure_credit_headroom(
@@ -279,6 +285,7 @@ async def _async_generate_model(
         updated_at=now_ts,
         log_prefix=log_prefix,
         check_cache_status=False,
+        producer_final_children=[],
     )
     return {
         "embed_id": embed_id,

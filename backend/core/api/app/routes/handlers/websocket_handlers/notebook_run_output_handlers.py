@@ -16,6 +16,9 @@ from uuid import uuid4
 from fastapi import WebSocket
 
 from backend.core.api.app.routes.connection_manager import ConnectionManager
+from backend.core.api.app.routes.handlers.websocket_handlers.sync_sidecar_hydration import (
+    load_sync_sidecars_for_chats,
+)
 
 if TYPE_CHECKING:
     from backend.core.api.app.services.cache import CacheService
@@ -222,21 +225,7 @@ async def fetch_notebook_run_outputs_for_chats(
     chat_ids: List[str],
     user_id: str,
 ) -> List[Dict[str, Any]]:
-    if not chat_ids:
-        return []
-    try:
-        rows = await directus_service.get_items(
-            COLLECTION,
-            params={
-                "filter[chat_id][_in]": ",".join(chat_ids),
-                "filter[author_user_id][_eq]": user_id,
-                "fields": "id,chat_id,notebook_embed_id,author_user_id,source_version,key_version,encrypted_payload,created_at,updated_at",
-                "sort": "-updated_at",
-                "limit": -1,
-            },
-            admin_required=True,
-        ) or []
-        return rows if isinstance(rows, list) else []
-    except Exception as exc:
-        logger.warning("Failed to fetch notebook outputs for sync: %s", exc, exc_info=True)
-        return []
+    outputs, _ = await load_sync_sidecars_for_chats(
+        directus_service, collection=COLLECTION, chat_ids=chat_ids, user_id=user_id,
+    )
+    return outputs

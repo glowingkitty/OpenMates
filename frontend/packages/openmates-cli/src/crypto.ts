@@ -160,10 +160,46 @@ export interface ChatCompletionRecoveryIdentity {
 }
 
 export interface ChatCompletionRecoveryEnvelope {
-  v: number;
+  v: 1 | 2;
   epk: string;
   nonce: string;
   ciphertext: string;
+}
+
+export type RecoveryOutputKind = "message" | "embed" | "diff" | "summary" | "checkpoint";
+
+export interface RecoveryOutputIdentity {
+  ownerId: string;
+  rootChatId: string;
+  targetChatId: string;
+  turnId: string;
+  recordId: string;
+  subjectId: string;
+  outputKind: RecoveryOutputKind;
+  outputVersion: number;
+  keyVersion: number;
+}
+
+function recoveryOutputAssociatedData(identity: RecoveryOutputIdentity): Uint8Array {
+  if (!["message", "embed", "diff", "summary", "checkpoint"].includes(identity.outputKind)) {
+    throw new Error("unsupported recovery output kind");
+  }
+  if (!Number.isSafeInteger(identity.outputVersion) || identity.outputVersion < 1) {
+    throw new Error("output version must be positive");
+  }
+  const subject = new TextEncoder().encode(identity.subjectId);
+  if (!subject.length || subject.length > 255 || Array.from(identity.subjectId).some((character) => character.charCodeAt(0) < 0x20)) {
+    throw new Error("subjectId must be a bounded stable identifier");
+  }
+  return concatBytes(
+    new TextEncoder().encode("OMCR2"),
+    ...[identity.ownerId, identity.rootChatId, identity.targetChatId, identity.turnId, identity.recordId]
+      .map((value) => lengthPrefix(canonicalUuid(value, "recovery_identity"))),
+    lengthPrefix(subject),
+    lengthPrefix(new TextEncoder().encode(identity.outputKind)),
+    recoveryKeyVersion(identity.keyVersion),
+    uint32(identity.outputVersion, "output_version"),
+  );
 }
 
 export async function deriveChatCompletionRecoveryKeypair(
@@ -330,6 +366,49 @@ export async function openChatCompletionRecoveryEnvelope(
     envelopeKey,
     toArrayBuffer(ciphertext),
   ));
+}
+
+export async function openRecoveryOutputEnvelope(
+  envelope: ChatCompletionRecoveryEnvelope,
+  options: RecoveryOutputIdentity & { recoveryPrivateKey: string },
+): Promise<Uint8Array> {
+  if (!envelope || Object.keys(envelope).sort().join(",") !== "ciphertext,epk,nonce,v" || envelope.v !== 2) {
+    throw new Error("invalid recovery output envelope fields or version");
+  }
+  const privateKey = base64UrlToBytes(options.recoveryPrivateKey, "recovery_private_key", CHAT_RECOVERY_KEY_BYTES);
+  const epk = base64UrlToBytes(envelope.epk, "epk", CHAT_RECOVERY_KEY_BYTES);
+  const nonce = base64UrlToBytes(envelope.nonce, "nonce", CHAT_RECOVERY_NONCE_BYTES);
+  const ciphertext = base64UrlToBytes(envelope.ciphertext, "ciphertext");
+  if (ciphertext.length < 16 || ciphertext.length - 16 > CHAT_RECOVERY_MAX_PAYLOAD_BYTES) {
+    throw new Error("ciphertext payload size is invalid");
+  }
+  const aad = recoveryOutputAssociatedData(options);
+  const sharedSecret = nacl.scalarMult(privateKey, epk);
+  const keyBytes = await recoveryEnvelopeKey(sharedSecret, aad);
+  const key = await cryptoApi.subtle.importKey("raw", toArrayBuffer(keyBytes), { name: "AES-GCM" }, false, ["decrypt"]);
+  return new Uint8Array(await cryptoApi.subtle.decrypt(
+    { name: "AES-GCM", iv: toArrayBuffer(nonce), additionalData: toArrayBuffer(aad) },
+    key, toArrayBuffer(ciphertext),
+  ));
+}
+
+/** Deterministic v2 sealing exists solely for cross-client protocol fixtures. */
+export async function sealRecoveryOutputEnvelopeForTest(
+  plaintext: Uint8Array,
+  options: RecoveryOutputIdentity & { recoveryPublicKey: string; ephemeralPrivateKey: string; nonce: string },
+): Promise<ChatCompletionRecoveryEnvelope> {
+  if (plaintext.length > CHAT_RECOVERY_MAX_PAYLOAD_BYTES) throw new Error("recovery output plaintext exceeds limit");
+  const publicKey = base64UrlToBytes(options.recoveryPublicKey, "recovery_public_key", CHAT_RECOVERY_KEY_BYTES);
+  const ephemeralPrivateKey = base64UrlToBytes(options.ephemeralPrivateKey, "ephemeral_private_key", CHAT_RECOVERY_KEY_BYTES);
+  const nonce = base64UrlToBytes(options.nonce, "nonce", CHAT_RECOVERY_NONCE_BYTES);
+  const aad = recoveryOutputAssociatedData(options);
+  const keyBytes = await recoveryEnvelopeKey(nacl.scalarMult(ephemeralPrivateKey, publicKey), aad);
+  const key = await cryptoApi.subtle.importKey("raw", toArrayBuffer(keyBytes), { name: "AES-GCM" }, false, ["encrypt"]);
+  const ciphertext = new Uint8Array(await cryptoApi.subtle.encrypt(
+    { name: "AES-GCM", iv: toArrayBuffer(nonce), additionalData: toArrayBuffer(aad) },
+    key, toArrayBuffer(plaintext),
+  ));
+  return { v: 2, epk: bytesToBase64Url(nacl.scalarMult.base(ephemeralPrivateKey)), nonce: bytesToBase64Url(nonce), ciphertext: bytesToBase64Url(ciphertext) };
 }
 
 export function generateSalt(length = EMAIL_SALT_LENGTH): Uint8Array {

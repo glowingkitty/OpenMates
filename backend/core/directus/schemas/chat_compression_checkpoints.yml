@@ -4,6 +4,10 @@
 # original messages server-side for on-demand viewing.
 chat_compression_checkpoints:
   type: collection
+  # The canonical client-encrypted summary and coverage remain in this collection.
+  # Generic Directus snapshots would duplicate them without a product reader.
+  meta:
+    accountability: null
   fields:
     id:
       type: string
@@ -26,6 +30,14 @@ chat_compression_checkpoints:
     compressed_up_to_timestamp:
       type: integer
       note: "Messages at or before this timestamp are represented by the summary for inference."
+
+    compressed_up_to_message_id:
+      type: string
+      note: "Stable client message ID at the timestamp boundary. Legacy timestamp-only checkpoints never permit payload pruning."
+
+    covered_message_ids:
+      type: json
+      note: "Immutable sorted client IDs of source messages actually represented by this summary. Missing on legacy checkpoints; required for payload archival."
 
     compressed_message_count:
       type: integer

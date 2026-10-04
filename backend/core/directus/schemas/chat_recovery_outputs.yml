@@ -1,0 +1,105 @@
+# Versioned client-key-sealed unattended outputs pending canonical persistence.
+# Only authenticated clients can open sealed_payload; this index holds no plaintext.
+chat_recovery_outputs:
+  type: collection
+  meta:
+    accountability: null
+  note: "Durable typed recovery records; never expire before canonical acknowledgement"
+  fields:
+    id:
+      type: uuid
+      primary: true
+    hashed_user_id:
+      type: string
+      length: 64
+      required: true
+    root_chat_id:
+      type: uuid
+      required: true
+    root_hashed_team_id:
+      type: string
+      length: 64
+      nullable: true
+    target_chat_id:
+      type: uuid
+      required: true
+    turn_id:
+      type: uuid
+      required: true
+    preflight_id:
+      type: uuid
+      required: true
+    producer_intent_id:
+      type: uuid
+      nullable: true
+    producer_ordinal:
+      type: integer
+      nullable: true
+    content_commitment:
+      type: string
+      length: 64
+      nullable: true
+      note: "Server-keyed HMAC of canonical private output; never a bare content hash"
+    inference_task_id:
+      type: uuid
+      required: true
+    subject_id:
+      type: string
+      length: 255
+      required: true
+    output_kind:
+      type: string
+      length: 24
+      required: true
+    message_role:
+      type: string
+      length: 16
+      nullable: true
+    output_version:
+      type: integer
+      required: true
+    chat_key_version:
+      type: integer
+      required: true
+    sealed_payload:
+      type: text
+      nullable: true
+    sealed_payload_digest:
+      type: string
+      length: 64
+      required: true
+    payload_storage:
+      type: string
+      length: 16
+      required: true
+    payload_s3_key:
+      type: string
+      length: 512
+      nullable: true
+    payload_size_bytes:
+      type: integer
+      required: true
+    payload_verified_regions:
+      type: json
+      nullable: true
+    state:
+      type: string
+      length: 16
+      required: true
+    writer_lease_until:
+      type: datetime
+      nullable: true
+      note: "PREPARING regional object writer fence; deletion waits this lease plus settlement grace."
+    created_at:
+      type: datetime
+      required: true
+    acknowledged_at:
+      type: datetime
+      nullable: true
+    canonical_digest:
+      type: string
+      length: 64
+      nullable: true
+    deleted_at:
+      type: datetime
+      nullable: true

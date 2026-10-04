@@ -8,7 +8,7 @@ from typing import Optional, Dict, Any, TYPE_CHECKING
 import asyncio # Keep asyncio import if initialize_services uses it
 
 from celery import Task # Import Task for context
-from celery.exceptions import Ignore
+from celery.exceptions import Ignore, MaxRetriesExceededError
 
 # Import necessary services and utilities
 from backend.core.api.app.services.cache import CacheService # Added for CacheService
@@ -122,15 +122,66 @@ class DedupedTask(Task):
     # task does not get its lock evicted before completion.
     dedup_ttl_seconds: int = DEFAULT_DEDUP_TTL_SECONDS
 
+    def _call_with_output_producer(self, args: tuple, kwargs: dict):
+        """Resolve broker intent after dedup and before provider or billing work."""
+        from backend.shared.python_utils.embed_producer_worker import (
+            PROTECTED_EMBED_TASK_NAMES, ProducerHold, bound_output_producer,
+            verify_output_producer,
+        )
+        from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError
+
+        task_id = getattr(self.request, "id", None)
+        if self.name not in PROTECTED_EMBED_TASK_NAMES:
+            return super().__call__(*args, **kwargs)
+        if not task_id:
+            logger.warning("Detached output task held without broker identity")
+            raise Ignore()
+
+        try:
+            producer, recovery = asyncio.run(verify_output_producer(
+                task_name=self.name, task_id=task_id, args=args, kwargs=kwargs,
+                headers=getattr(self.request, "headers", None),
+            ))
+        except ProducerHold as exc:
+            logger.warning("Detached output task held before execution: %s", exc)
+            if str(exc) in {
+                "producer_already_completed",
+                "sealed_result_recovery_pending",
+            }:
+                # COMPLETED and SEALED recovery holds both follow provider work.
+                # A broker redelivery must preserve any stored SUCCESS and must
+                # not manufacture a result when the backend no longer has one.
+                raise Ignore() from exc
+            self.update_state(state="FAILURE", meta={
+                "exc_type": "OutputProducerHeld", "exc_message": str(exc),
+            })
+            raise Ignore() from exc
+        except Exception as exc:
+            # Missing/expired/spoofed intents are permanent. Network and
+            # authoritative-store failures get a bounded retry, releasing the
+            # dedup lock through on_retry before the next delivery.
+            if isinstance(exc, ChatRecoveryProtocolError) and exc.status_code < 500:
+                logger.warning("Detached output task rejected: %s", exc.code)
+                raise Ignore() from exc
+            attempts = getattr(self.request, "retries", 0) or 0
+            try:
+                raise self.retry(exc=exc, countdown=min(2 ** (attempts + 1), 30), max_retries=3)
+            except MaxRetriesExceededError as final_exc:
+                logger.error("Detached output admission unavailable after bounded retries")
+                raise Ignore() from final_exc
+
+        with bound_output_producer(producer, recovery):
+            return super().__call__(*args, **kwargs)
+
     def __call__(self, *args, **kwargs):
         # Skip dedup entirely for opted-out tasks.
         if not self.dedup_enabled:
-            return super().__call__(*args, **kwargs)
+            return self._call_with_output_producer(args, kwargs)
 
         task_id = getattr(self.request, "id", None)
-        # No task_id → direct/eager invocation, not real broker delivery.
+        # Protected producers still require a registered broker identity.
         if not task_id:
-            return super().__call__(*args, **kwargs)
+            return self._call_with_output_producer(args, kwargs)
 
         # Resolve broker URL via celery_config so we hit the same Dragonfly
         # the broker uses (env CELERY_BROKER_URL is typically unset; the URL
@@ -185,7 +236,7 @@ class DedupedTask(Task):
             f"lock (key={DEDUP_KEY_PREFIX}{task_id}, "
             f"ttl={self.dedup_ttl_seconds}s)"
         )
-        return super().__call__(*args, **kwargs)
+        return self._call_with_output_producer(args, kwargs)
 
     def on_retry(self, exc, task_id, args, kwargs, einfo):
         """
@@ -229,6 +280,78 @@ class BaseServiceTask(DedupedTask):
     _cache_service: Optional[CacheService] = None # Added CacheService
     _payment_service: Optional[PaymentService] = None # Add PaymentService attribute
     _service_loop: Optional[asyncio.AbstractEventLoop] = None
+
+    async def _complete_successful_standalone_asset(
+        self, *, task_id: str, args: tuple, kwargs: dict, asset_id: str,
+    ) -> None:
+        """Close a no-chat direct intent after Celery has stored SUCCESS."""
+        from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+        from backend.shared.python_utils.embed_producer_dispatch import bind_task_invocation
+
+        await self.initialize_core_services()
+        try:
+            result = await ChatRecoveryService(self.directus_service).execute(
+                "complete_authorized_standalone_asset",
+                {
+                    "protocol_version": 1,
+                    "task_uuid": task_id,
+                    "task_name": self.name,
+                    "kwargs_binding": bind_task_invocation(
+                        task_name=self.name,
+                        task_uuid=task_id,
+                        args=list(args),
+                        kwargs=kwargs,
+                    ),
+                    "asset_id": asset_id,
+                },
+            )
+            if (
+                not isinstance(result, dict)
+                or result.get("status") != "COMPLETED"
+                or result.get("asset_id") != asset_id
+            ):
+                raise RuntimeError("Standalone asset completion receipt is invalid")
+        finally:
+            await self.cleanup_services()
+
+    def on_success(self, retval, task_id, args, kwargs):
+        """Complete immutable standalone assets without changing the stored task result."""
+        try:
+            from backend.shared.python_utils.embed_producer_dispatch import PRODUCER_HEADER
+            from backend.shared.python_utils.embed_producer_worker import (
+                PROTECTED_EMBED_TASK_NAMES,
+                _envelope_identity,
+            )
+
+            headers = getattr(self.request, "headers", None)
+            identity = _envelope_identity(self.name, tuple(args), kwargs) \
+                if self.name in PROTECTED_EMBED_TASK_NAMES else None
+            asset_id = retval.get("embed_id") if isinstance(retval, dict) else None
+            if (
+                identity is not None
+                and not identity["chat_id"]
+                and not identity["message_id"]
+                and isinstance(headers, dict)
+                and headers.get(PRODUCER_HEADER) is not None
+                and isinstance(asset_id, str)
+                and asset_id == identity["embed_id"]
+                and retval.get("status") == "finished"
+            ):
+                asyncio.run(self._complete_successful_standalone_asset(
+                    task_id=task_id,
+                    args=tuple(args),
+                    kwargs=kwargs,
+                    asset_id=asset_id,
+                ))
+        except Exception:
+            # The Celery SUCCESS result is already stored at this point. Keep it
+            # unchanged and leave the intent RUNNING for an operator to reconcile
+            # from that exact result; asset indexing alone is not completion proof.
+            logger.exception(
+                "Standalone asset completion deferred after successful task %s; "
+                "intent remains RUNNING and provider work must not be replayed", task_id,
+            )
+        super().on_success(retval, task_id, args, kwargs)
 
     def _drop_loop_bound_services_for_new_loop(self, current_loop: asyncio.AbstractEventLoop) -> None:
         if self._service_loop is None or self._service_loop is current_loop:

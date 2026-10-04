@@ -17,7 +17,8 @@ import io
 import json
 import re
 import hashlib
-from fastapi import APIRouter, HTTPException, Request, Depends, Path, Query
+from typing import Any
+from fastapi import APIRouter, HTTPException, Request, Depends, Path, Query, Body
 from fastapi.responses import StreamingResponse
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
@@ -82,6 +83,294 @@ def _hash_value(value: str) -> str:
     return hashlib.sha256(value.encode('utf-8')).hexdigest()
 
 
+async def _require_chat_embed_read(
+    chat_id: str, team_id: str | None, current_user: User,
+    directus_service: DirectusService,
+) -> None:
+    chat = directus_service.chat
+    if team_id:
+        try:
+            await directus_service.team.require_team_role(
+                team_id, current_user.id, {"owner", "admin", "member", "viewer"},
+            )
+        except TeamPermissionError as exc:
+            raise HTTPException(status_code=404, detail="Chat not found") from exc
+        metadata = await chat.get_chat_metadata(chat_id, admin_required=True)
+        if not metadata or metadata.get("hashed_team_id") != _hash_value(team_id):
+            raise HTTPException(status_code=404, detail="Chat not found")
+    elif not await chat.check_chat_ownership(chat_id, current_user.id):
+        raise HTTPException(status_code=404, detail="Chat not found")
+
+
+_REFERENCE_PROBE_LIMIT = 20
+_REFERENCE_PROBE_REQUEST_BYTES = 4 * 1024
+_REFERENCE_PROBE_RESPONSE_BYTES = 8 * 1024
+
+
+async def _reference_target_scope(
+    chat_id: str, team_id: str | None, current_user: User,
+    directus_service: DirectusService, *, write_required: bool = True,
+) -> tuple[str, str, bool, bool]:
+    """Check one existing or not-yet-created destination without cache authority."""
+    if not re.fullmatch(r"[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}", chat_id):
+        raise HTTPException(status_code=404, detail="Chat not found")
+    actor_hash = _hash_value(current_user.id)
+    team_hash = _hash_value(team_id) if team_id else None
+    if team_id:
+        try:
+            await directus_service.team.require_team_role(
+                team_id, current_user.id,
+                {"owner", "admin", "member"} if write_required
+                else {"owner", "admin", "member", "viewer"},
+            )
+        except TeamPermissionError as exc:
+            raise HTTPException(status_code=404, detail="Chat not found") from exc
+        except Exception as exc:
+            raise HTTPException(status_code=503, detail="Reference authorization unavailable") from exc
+    try:
+        rows = await directus_service.get_items(
+            "chats", params={"filter": {"id": {"_eq": chat_id}},
+                             "fields": "id,hashed_user_id,hashed_team_id,storage_state", "limit": 2},
+            no_cache=True, admin_required=True, raise_on_error=True,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="Reference authorization unavailable") from exc
+    if not isinstance(rows, list) or len(rows) > 1:
+        raise HTTPException(status_code=503, detail="Reference authorization unavailable")
+    if rows:
+        row = rows[0]
+        if (row.get("id") != chat_id or row.get("storage_state") == "deleting"
+                or (row.get("hashed_team_id") or None) != team_hash
+                or not team_hash and row.get("hashed_user_id") != actor_hash):
+            raise HTTPException(status_code=404, detail="Chat not found")
+    return _hash_value(chat_id), actor_hash, bool(team_id), bool(rows)
+
+
+async def _reference_availability(
+    embed_ids: list[str], chat_hash: str, actor_hash: str, is_team: bool,
+    directus_service: DirectusService, *, team_target_live: bool = True,
+) -> list[dict[str, str]]:
+    """Read bounded metadata only; mask foreign heads unless a Team chat key grants access."""
+    embed_filter = {"embed_id": {"_in": embed_ids}}
+    try:
+        heads = await directus_service.get_items(
+            "embeds", params={"filter": embed_filter,
+                              "fields": "embed_id,hashed_embed_id,hashed_user_id,hashed_chat_id,status",
+                              "limit": _REFERENCE_PROBE_LIMIT + 1},
+            no_cache=True, admin_required=True, raise_on_error=True,
+        )
+        ready_heads = await directus_service.get_items(
+            "embeds", params={"filter": {**embed_filter,
+                "encrypted_content": {"_nempty": True},
+                "encrypted_type": {"_nempty": True}, "status": {"_eq": "finished"}},
+                "fields": "embed_id", "limit": _REFERENCE_PROBE_LIMIT + 1},
+            no_cache=True, admin_required=True, raise_on_error=True,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="Reference lookup unavailable") from exc
+    if (not isinstance(heads, list) or len(heads) > _REFERENCE_PROBE_LIMIT
+            or not isinstance(ready_heads, list) or len(ready_heads) > _REFERENCE_PROBE_LIMIT):
+        raise HTTPException(status_code=503, detail="Reference lookup unavailable")
+    by_id = {row.get("embed_id"): row for row in heads if isinstance(row, dict)}
+    if len(by_id) != len(heads):
+        raise HTTPException(status_code=503, detail="Reference lookup unavailable")
+    ready_ids = {row.get("embed_id") for row in ready_heads if isinstance(row, dict)}
+    hashes = [row.get("hashed_embed_id") or _hash_value(embed_id)
+              for embed_id, row in by_id.items() if embed_id in ready_ids]
+    keys: list[dict[str, Any]] = []
+    if hashes:
+        chat_key = {"key_type": {"_eq": "chat"}, "hashed_chat_id": {"_eq": chat_hash}}
+        if not is_team:
+            chat_key["hashed_user_id"] = {"_eq": actor_hash}
+        key_scope = chat_key if is_team else {"_or": [chat_key, {
+            "key_type": {"_eq": "master"}, "hashed_user_id": {"_eq": actor_hash},
+        }]}
+        try:
+            keys = await directus_service.get_items(
+                "embed_keys", params={"filter": {
+                    "hashed_embed_id": {"_in": hashes}, "encrypted_embed_key": {"_nempty": True},
+                    **key_scope,
+                }, "fields": "hashed_embed_id,hashed_user_id,hashed_chat_id,key_type",
+                    "limit": 2 * _REFERENCE_PROBE_LIMIT + 1},
+                no_cache=True, admin_required=True, raise_on_error=True,
+            )
+        except Exception as exc:
+            raise HTTPException(status_code=503, detail="Reference key lookup unavailable") from exc
+        if not isinstance(keys, list) or len(keys) > 2 * _REFERENCE_PROBE_LIMIT:
+            raise HTTPException(status_code=503, detail="Reference key lookup unavailable")
+    key_hashes = {row.get("hashed_embed_id") for row in keys if isinstance(row, dict)}
+    result: list[dict[str, str]] = []
+    for embed_id in embed_ids:
+        head = by_id.get(embed_id)
+        own_head = bool(head and head.get("hashed_user_id") == actor_hash)
+        embed_hash = (head.get("hashed_embed_id") or _hash_value(embed_id)) if head else None
+        can_read = bool(head and embed_id in ready_ids and embed_hash in key_hashes
+                        and (not is_team or team_target_live))
+        state = "ready" if can_read and (is_team or own_head) else "unusable" if own_head else "missing"
+        result.append({"embed_id": embed_id, "state": state})
+    return result
+
+
+@router.post("/chats/{chat_id}/references/availability")
+@limiter.limit("120/minute")
+async def get_embed_reference_availability(
+    chat_id: str,
+    request: Request,
+    payload: dict[str, Any] = Body(...),
+    team_id: str | None = None,
+    current_user: User = Depends(get_current_user_or_api_key),
+    directus_service: DirectusService = Depends(get_directus_service),
+):
+    """Tell a sender which references are readable without returning ciphertext."""
+    ids = payload.get("embed_ids") if isinstance(payload, dict) and set(payload) == {"embed_ids"} else None
+    if (not isinstance(ids, list) or not 1 <= len(ids) <= _REFERENCE_PROBE_LIMIT
+            or any(not isinstance(value, str) or not value
+                   or len(value.encode("utf-8")) > 512 for value in ids)
+            or len(set(ids)) != len(ids)
+            or len(json.dumps(payload, separators=(",", ":")).encode("utf-8")) > _REFERENCE_PROBE_REQUEST_BYTES):
+        raise HTTPException(status_code=400, detail="Invalid embed reference probe")
+    chat_hash, actor_hash, is_team, target_live = await _reference_target_scope(
+        chat_id, team_id, current_user, directus_service,
+    )
+    results = await _reference_availability(
+        ids, chat_hash, actor_hash, is_team, directus_service, team_target_live=target_live,
+    )
+    response = {"results": results}
+    if len(json.dumps(response, separators=(",", ":")).encode("utf-8")) > _REFERENCE_PROBE_RESPONSE_BYTES:
+        raise HTTPException(status_code=413, detail="Embed reference probe exceeds response limit")
+    return response
+
+
+@router.get("/chats/{chat_id}/window")
+@limiter.limit("120/minute")
+async def get_chat_embed_window(
+    chat_id: str,
+    request: Request,
+    before_created_at: int | None = None,
+    before_id: str | None = None,
+    team_id: str | None = None,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+):
+    """Return one bounded ciphertext/key page after fresh Personal or Team access."""
+    if (before_created_at is None) != (before_id is None) or (
+        before_created_at is not None and before_created_at < 0
+    ) or (before_id is not None and (not before_id or len(before_id) > 128)):
+        raise HTTPException(status_code=400, detail="Invalid embed cursor")
+    await _require_chat_embed_read(chat_id, team_id, current_user, directus_service)
+
+    hashed_chat_id = _hash_value(chat_id)
+    page = await directus_service.embed.get_embed_window_by_hashed_chat_id(
+        hashed_chat_id, before_created_at=before_created_at, before_id=before_id,
+    )
+    rows = page["embeds"]
+    hashes = [row.get("hashed_embed_id") or _hash_value(row["embed_id"])
+              for row in rows if row.get("embed_id")]
+    key_page = await directus_service.embed.get_sync_embed_key_window_for_page(
+        hashed_chat_id, _hash_value(current_user.id), hashes,
+    )
+    return {
+        "chat_id": chat_id,
+        "embeds": rows,
+        "embed_keys": key_page["embed_keys"],
+        "embed_keys_has_more_after": key_page["has_more_after"],
+        "embed_keys_end_cursor": key_page["end_cursor"],
+        "oversized_embed_key_id": key_page["oversized_key_id"],
+        "has_more_before": page["has_more_before"],
+        "start_cursor": page["start_cursor"],
+        "oversized_embed_id": page["oversized_embed_id"],
+        "oversized_embed_cursor": page.get("oversized_embed_cursor"),
+    }
+
+
+@router.get("/chats/{chat_id}/keys/window")
+@limiter.limit("120/minute")
+async def get_chat_embed_key_window(
+    chat_id: str,
+    request: Request,
+    embed_ids: str,
+    after_key_id: str | None = None,
+    key_id: str | None = None,
+    team_id: str | None = None,
+    current_user: User = Depends(get_current_user_or_api_key),
+    directus_service: DirectusService = Depends(get_directus_service),
+):
+    """Continue wrappers for a checked embed page without exposing other chats' keys."""
+    selected = embed_ids.split(",")
+    if (not 1 <= len(selected) <= 30 or any(not value or len(value) > 128 for value in selected)
+            or len(set(selected)) != len(selected) or after_key_id and key_id
+            or any(value is not None and (not value or len(value) > 128) for value in (after_key_id, key_id))):
+        raise HTTPException(status_code=400, detail="Invalid embed key cursor")
+    await _require_chat_embed_read(chat_id, team_id, current_user, directus_service)
+    hashed_chat_id = _hash_value(chat_id)
+    try:
+        hashes = await directus_service.embed.validate_embed_ids_in_chat(hashed_chat_id, selected)
+    except ValueError:
+        hashes = []
+    if not hashes:
+        scope_hash, actor_hash, is_team, target_live = await _reference_target_scope(
+            chat_id, team_id, current_user, directus_service, write_required=False,
+        )
+        states = await _reference_availability(
+            selected, scope_hash, actor_hash, is_team, directus_service,
+            team_target_live=target_live,
+        )
+        if any(item["state"] != "ready" for item in states):
+            raise HTTPException(status_code=404, detail="Embed page not found")
+        hashes = [_hash_value(value) for value in selected]
+    if not hashes:
+        raise HTTPException(status_code=404, detail="Embed page not found")
+    if key_id:
+        key = await directus_service.embed.get_sync_embed_key_by_id(
+            hashed_chat_id, _hash_value(current_user.id), hashes, key_id,
+        )
+        if not key:
+            raise HTTPException(status_code=404, detail="Embed key not found")
+        return {"embed_keys": [key], "has_more_after": False, "end_cursor": key_id,
+                "oversized_key_id": None}
+    page = await directus_service.embed.get_sync_embed_key_window_for_page(
+        hashed_chat_id, _hash_value(current_user.id), hashes,
+        after_key_id=after_key_id,
+    )
+    return {"embed_keys": page["embed_keys"], "has_more_after": page["has_more_after"],
+            "end_cursor": page["end_cursor"], "oversized_key_id": page["oversized_key_id"]}
+
+
+@router.get("/chats/{chat_id}/embeds/{embed_id}")
+@limiter.limit("120/minute")
+async def get_chat_embed_by_id(
+    chat_id: str,
+    embed_id: str,
+    request: Request,
+    team_id: str | None = None,
+    current_user: User = Depends(get_current_user_or_api_key),
+    directus_service: DirectusService = Depends(get_directus_service),
+):
+    """Load ciphertext only after current chat and readable-wrapper checks."""
+    hashed_chat_id, actor_hash, is_team, target_live = await _reference_target_scope(
+        chat_id, team_id, current_user, directus_service, write_required=False,
+    )
+    states = await _reference_availability(
+        [embed_id], hashed_chat_id, actor_hash, is_team, directus_service,
+        team_target_live=target_live,
+    )
+    if states[0]["state"] != "ready":
+        raise HTTPException(status_code=404, detail="Embed not found")
+    embed = await directus_service.embed.get_sync_embed_by_id(embed_id)
+    if not embed or (not is_team and embed.get("hashed_user_id") != actor_hash):
+        raise HTTPException(status_code=404, detail="Embed not found")
+    key_page = await directus_service.embed.get_sync_embed_key_window_for_page(
+        hashed_chat_id, actor_hash, [_hash_value(embed_id)],
+        include_master_keys=not is_team,
+    )
+    if not key_page["embed_keys"] and not key_page["oversized_key_id"]:
+        raise HTTPException(status_code=404, detail="Embed not found")
+    return {"embed": embed, "embed_keys": key_page["embed_keys"],
+            "embed_keys_has_more_after": key_page["has_more_after"],
+            "embed_keys_end_cursor": key_page["end_cursor"],
+            "oversized_embed_key_id": key_page["oversized_key_id"]}
+
+
 async def _get_user_vault_key_id(directus_service: DirectusService, user_id: str) -> str:
     """Load the user's Vault key id needed to decrypt server-side version rows."""
     success, profile, error_msg = await directus_service.get_user_profile(user_id)
@@ -103,11 +392,54 @@ async def _assert_embed_owner(
     return embed
 
 
+async def _authorize_version_read(
+    embed_id: str,
+    current_user: User,
+    directus_service: DirectusService,
+    project_id: str | None,
+    team_id: str | None,
+    chat_id: str | None,
+) -> dict:
+    """Resolve the stored owner only after checking live Project membership."""
+    if team_id and not (project_id or chat_id):
+        raise HTTPException(status_code=400, detail="Scoped context required")
+    if project_id and chat_id:
+        raise HTTPException(status_code=400, detail="Choose one version scope")
+    if not project_id and not chat_id:
+        return await _assert_embed_owner(embed_id, _hash_value(current_user.id), directus_service)
+    if project_id:
+        await _require_project_embed_access(
+            directus_service=directus_service, user_id=current_user.id,
+            project_id=project_id, embed_id=embed_id, team_id=team_id,
+        )
+    elif team_id:
+        try:
+            await directus_service.team.require_team_role(
+                team_id, current_user.id, {"owner", "admin", "member", "viewer"},
+            )
+        except TeamPermissionError as exc:
+            raise HTTPException(status_code=404, detail="Embed not found") from exc
+        metadata = await directus_service.chat.get_chat_metadata(chat_id, admin_required=True)
+        if not metadata or metadata.get("hashed_team_id") != _hash_value(team_id):
+            raise HTTPException(status_code=404, detail="Embed not found")
+    elif not await directus_service.chat.check_chat_ownership(chat_id, current_user.id):
+        raise HTTPException(status_code=404, detail="Embed not found")
+    embed = await directus_service.embed.get_embed_by_id(embed_id)
+    if (not embed or not isinstance(embed.get("hashed_user_id"), str)
+            or chat_id and embed.get("hashed_chat_id") != _hash_value(chat_id)):
+        raise HTTPException(status_code=404, detail="Embed not found")
+    return embed
+
+
 async def _read_version_rows(
     directus_service: DirectusService,
     embed_id: str,
     hashed_user_id: str,
     max_version: int | None = None,
+    min_version: int | None = None,
+    limit: int = 100,
+    descending: bool = False,
+    include_payload: bool = True,
 ) -> list[dict]:
     filters = {
         "embed_id": {"_eq": embed_id},
@@ -115,16 +447,32 @@ async def _read_version_rows(
     }
     if max_version is not None:
         filters["version_number"] = {"_lte": max_version}
+    if min_version is not None:
+        filters.setdefault("version_number", {})["_gte"] = min_version
     params = {
         "filter": filters,
-        "fields": "version_number,created_at,encrypted_snapshot,encrypted_patch",
-        "sort": ["version_number"],
+        "fields": ("version_number,created_at,has_snapshot,has_patch,archive_state,"
+                   "encrypted_snapshot,encrypted_patch,archive_object_key,archive_checksum"
+                   if include_payload else "version_number,created_at,has_snapshot,has_patch,archive_state"),
+        "sort": ["-version_number" if descending else "version_number"],
+        "limit": limit,
     }
     if hasattr(directus_service, "read_items"):
         rows = await directus_service.read_items("embed_diffs", params=params)
     else:
         rows = await directus_service.get_items("embed_diffs", params=params)
     return list(rows or [])
+
+
+def _version_meta(row: dict) -> dict:
+    version = int(row["version_number"])
+    return {
+        "version_number": version,
+        "created_at": row.get("created_at"),
+        "has_snapshot": bool(row.get("has_snapshot")) or version == 1 or row.get("encrypted_snapshot") is not None,
+        "has_patch": bool(row.get("has_patch")) or version > 1 or row.get("encrypted_patch") is not None,
+        "archive_state": row.get("archive_state") or "hot",
+    }
 
 
 async def _require_project_embed_access(
@@ -318,27 +666,37 @@ async def list_embed_versions(
     request: Request,
     current_user: User = Depends(get_current_user_or_api_key),
     directus_service: DirectusService = Depends(get_directus_service),
+    cursor: int = 0,
+    limit: int = 100,
+    order: str = "asc",
+    project_id: str | None = None,
+    team_id: str | None = None,
+    chat_id: str | None = None,
 ):
-    """List encrypted version rows for an owned embed without server decryption."""
-    hashed_user_id = _hash_value(current_user.id)
-    embed = await _assert_embed_owner(embed_id, hashed_user_id, directus_service)
-    rows = await _read_version_rows(directus_service, embed_id, hashed_user_id)
-    versions = [
-        {
-            "version_number": row["version_number"],
-            "created_at": row.get("created_at"),
-            "has_snapshot": row.get("encrypted_snapshot") is not None,
-            "has_patch": row.get("encrypted_patch") is not None,
-            "encrypted_snapshot": row.get("encrypted_snapshot"),
-            "encrypted_patch": row.get("encrypted_patch"),
-        }
-        for row in rows
-    ]
+    """List one stable metadata page; ciphertext is never part of timeline pages."""
+    if cursor < 0 or not 1 <= limit <= 100 or order not in {"asc", "desc"}:
+        raise HTTPException(status_code=400, detail="Invalid version page")
+    embed = await _authorize_version_read(embed_id, current_user, directus_service, project_id, team_id, chat_id)
+    hashed_user_id = embed["hashed_user_id"]
+    if order == "desc":
+        rows = await _read_version_rows(
+            directus_service, embed_id, hashed_user_id,
+            max_version=(cursor - 1 if cursor else int(embed.get("version_number") or 1)),
+            limit=limit + 1, descending=True, include_payload=False,
+        )
+    else:
+        rows = await _read_version_rows(
+            directus_service, embed_id, hashed_user_id, min_version=cursor + 1,
+            limit=limit + 1, include_payload=False,
+        )
+    page = rows[:limit]
+    versions = [_version_meta(row) for row in page]
     current_version = embed.get("version_number") or (versions[-1]["version_number"] if versions else 1)
     return {
         "embed_id": embed_id,
         "current_version": current_version,
         "versions": versions,
+        "next_cursor": versions[-1]["version_number"] if len(rows) > limit else None,
         "readonly": False,
     }
 
@@ -351,20 +709,133 @@ async def get_embed_version(
     request: Request,
     current_user: User = Depends(get_current_user_or_api_key),
     directus_service: DirectusService = Depends(get_directus_service),
+    capability: str | None = None,
+    project_id: str | None = None,
+    team_id: str | None = None,
+    chat_id: str | None = None,
 ):
     """Return encrypted rows needed to reconstruct an owned historical version client-side."""
-    hashed_user_id = _hash_value(current_user.id)
-    embed = await _assert_embed_owner(embed_id, hashed_user_id, directus_service)
-    rows = await _read_version_rows(directus_service, embed_id, hashed_user_id, version_number)
+    if version_number < 1:
+        raise HTTPException(status_code=404, detail="Version not found")
+    embed = await _authorize_version_read(embed_id, current_user, directus_service, project_id, team_id, chat_id)
+    hashed_user_id = embed["hashed_user_id"]
+    if capability == "bounded-v1":
+        recent = await _read_version_rows(
+            directus_service, embed_id, hashed_user_id, max_version=version_number,
+            limit=33, descending=True, include_payload=False,
+        )
+        nearest = next((row["version_number"] for row in recent if _version_meta(row)["has_snapshot"]), None)
+        if nearest is None:
+            raise HTTPException(status_code=409, detail="snapshot_required")
+        rows = await _read_version_rows(
+            directus_service, embed_id, hashed_user_id, min_version=nearest,
+            max_version=version_number, limit=33,
+        )
+    else:
+        # Legacy readers keep their source payloads and old reconstruction path.
+        rows = []
+        cursor = 1
+        while cursor <= version_number:
+            page = await _read_version_rows(
+                directus_service, embed_id, hashed_user_id,
+                min_version=cursor, max_version=version_number, limit=100,
+            )
+            if not page:
+                break
+            rows.extend(page)
+            cursor = int(page[-1]["version_number"]) + 1
+            if len(rows) > 10000:
+                raise HTTPException(status_code=413, detail="Version chain exceeds legacy read budget")
     if not rows or rows[-1].get("version_number") != version_number:
         raise HTTPException(status_code=404, detail="Version not found")
+    expected = int(rows[0]["version_number"])
+    for row in rows:
+        if row["version_number"] != expected:
+            raise HTTPException(status_code=409, detail="Version chain is incomplete")
+        expected += 1
+        if row.get("archive_state") in {"reader_active", "pruned"}:
+            from backend.core.api.app.services.embed_version_archive_service import read_archived_version
+            try:
+                archived = await read_archived_version(s3_service=get_s3_service(request), row=row)
+                # A later snapshot publication may have raced a copy. Until
+                # P-6 cutover, prefer the unchanged authoritative hot row.
+                if any(row.get(field) and row[field] != archived.get(field) for field in (
+                    "encrypted_snapshot", "encrypted_patch",
+                )):
+                    raise RuntimeError("Archived ciphertext is older than the hot row")
+                row.update(archived)
+            except Exception:
+                if row.get("archive_state") == "pruned" or (
+                    not row.get("encrypted_snapshot") and not row.get("encrypted_patch")
+                ):
+                    raise HTTPException(status_code=503, detail="Version archive temporarily unavailable")
+        elif not row.get("encrypted_snapshot") and not row.get("encrypted_patch"):
+            raise HTTPException(status_code=503, detail="Version source missing before reader activation")
+    if not rows[0].get("encrypted_snapshot"):
+        raise HTTPException(status_code=409, detail="Version chain has no starting snapshot")
+    public_rows = [{
+        "version_number": row["version_number"],
+        "created_at": row.get("created_at"),
+        "encrypted_snapshot": row.get("encrypted_snapshot"),
+        "encrypted_patch": row.get("encrypted_patch"),
+    } for row in rows]
     return {
         "embed_id": embed_id,
         "version_number": version_number,
         "current_version": embed.get("version_number") or version_number,
-        "rows": rows,
+        "rows": public_rows,
+        "bounded": capability == "bounded-v1",
         "readonly": False,
     }
+
+
+@router.post("/{embed_id}/versions/{version_number}/snapshot")
+@limiter.limit("20/minute")
+async def publish_embed_version_snapshot(
+    embed_id: str,
+    version_number: int,
+    request: Request,
+    payload: dict[str, Any] = Body(...),
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+):
+    """Publish a client-encrypted checkpoint with current authorization and a head fence."""
+    if set(payload) - {"encrypted_snapshot", "expected_revision", "operation_id", "project_id", "team_id"}:
+        raise HTTPException(status_code=400, detail="Invalid snapshot request")
+    snapshot = payload.get("encrypted_snapshot")
+    expected = payload.get("expected_revision")
+    operation = payload.get("operation_id")
+    if (not isinstance(snapshot, str) or not snapshot or len(snapshot.encode()) > 4 * 1024 * 1024
+            or not isinstance(expected, int) or isinstance(expected, bool)
+            or not isinstance(operation, str) or not re.fullmatch(r"[A-Za-z0-9._:-]{1,128}", operation)):
+        raise HTTPException(status_code=400, detail="Invalid snapshot request")
+    project_id = payload.get("project_id")
+    team_id = payload.get("team_id")
+    if project_id:
+        await _require_project_embed_access(
+            directus_service=directus_service, user_id=current_user.id,
+            project_id=project_id, embed_id=embed_id, team_id=team_id,
+        )
+    else:
+        await _assert_embed_owner(embed_id, _hash_value(current_user.id), directus_service)
+    token = os.getenv("INTERNAL_API_SHARED_TOKEN")
+    if not token:
+        raise HTTPException(status_code=503, detail="Snapshot publication unavailable")
+    body = {
+        "embed_id": embed_id, "version_number": version_number,
+        "expected_revision": expected, "encrypted_snapshot": snapshot,
+        "operation_id": operation, "actor_user_hash": _hash_value(current_user.id),
+        "project_id": project_id, "team_id": team_id,
+    }
+    response = await directus_service._make_api_request(
+        "POST", f"{directus_service.base_url.rstrip('/')}/embed-version-transaction/snapshots",
+        headers={"X-Internal-Service-Token": token}, json=body,
+    )
+    result = response.json() if response.status_code == 200 else None
+    if response.status_code != 200 or not isinstance(result, dict) or not isinstance(result.get("data"), dict):
+        raise HTTPException(status_code=response.status_code if response.status_code < 500 else 503,
+                            detail="Snapshot publication failed")
+    return result["data"]
 
 
 @router.post("/{embed_id}/versions/{version_number}/restore")

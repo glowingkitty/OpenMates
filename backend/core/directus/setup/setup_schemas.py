@@ -60,6 +60,22 @@ CHAT_RECOVERY_INDEXES = (
     'chat_recovery_jobs_preflight_uq',
     'chat_recovery_jobs_task_uq',
     'chat_recovery_jobs_assistant_message_uq',
+    'chat_recovery_chat_deletion_owner_chat_uq',
+    'chat_recovery_output_producer_child_ordinal_uq',
+    'chat_recovery_output_producer_child_subject_uq',
+    'chat_recovery_output_producer_output_ordinal_uq',
+    'chat_recovery_output_producer_preflight_idx',
+    'chat_recovery_authorized_rerender_owner_chat_idx',
+    'chat_recovery_authorized_direct_skill_owner_chat_idx',
+    'chat_recovery_authorized_direct_skill_embed_idx',
+    'chat_recovery_authorized_rerender_embed_idx',
+    'chat_recovery_authorized_direct_skill_pending_idx',
+    'chat_recovery_authorized_rerender_pending_idx',
+    'chat_recovery_legacy_producer_identity_idx',
+    'chat_recovery_legacy_producer_owner_embed_idx',
+    'chat_recovery_legacy_batch_task_uq',
+    'chat_recovery_legacy_batch_active_idx',
+    'chat_recovery_legacy_batch_owner_chat_idx',
 )
 STORAGE_REPLICATION_MIGRATION_PATH = os.getenv(
     'STORAGE_REPLICATION_MIGRATION_PATH',
@@ -86,6 +102,52 @@ STORAGE_QUERY_INDEXES = (
     'chat_key_wrappers_user_cursor_idx',
     'chat_key_wrappers_team_cursor_idx',
     'chats_owner_main_hot_recency_idx',
+)
+CHAT_MESSAGE_ARCHIVE_MIGRATION_PATH = os.getenv(
+    'CHAT_MESSAGE_ARCHIVE_MIGRATION_PATH',
+    '/usr/src/app/migrations/migrate_chat_message_archive_indexes.sql',
+)
+CHAT_MESSAGE_ARCHIVE_INDEXES = (
+    'chat_message_archive_segments_checkpoint_uq',
+    'chat_message_archive_segments_state_idx',
+    'chat_message_archive_segments_prune_due_idx',
+    'chat_message_archive_pages_number_uq',
+    'chat_message_archive_pages_window_idx',
+    'chat_message_archive_pages_first_window_idx',
+    'chat_message_archive_pages_position_missing_idx',
+    'chat_message_archive_pages_owner_idx',
+    'chat_message_archive_pages_team_owner_idx',
+    'chat_message_archive_segments_team_owner_idx',
+    'chat_message_archive_pages_ids_idx',
+    'chat_message_archive_pages_reader_pending_idx',
+    'chat_message_archive_pages_prune_pending_idx',
+    'chat_compression_checkpoints_archive_pending_idx',
+    'chats_storage_hashed_id_idx',
+    'project_items_chat_target_guard_idx',
+    'upload_files_storage_hashed_id_idx',
+    'upload_files_storage_hashed_embed_idx',
+    'project_items_upload_target_guard_idx',
+    'embeds_storage_hashed_id_idx',
+    'project_items_embed_target_guard_idx',
+    'embed_keys_storage_reference_guard_idx',
+)
+CHAT_RECOVERY_OUTPUTS_MIGRATION_PATH = os.getenv(
+    'CHAT_RECOVERY_OUTPUTS_MIGRATION_PATH',
+    '/usr/src/app/migrations/migrate_chat_recovery_outputs_indexes.sql',
+)
+CHAT_RECOVERY_OUTPUTS_INDEXES = (
+    'chat_recovery_outputs_owner_pending_idx',
+    'chat_recovery_outputs_root_state_idx',
+    'chat_recovery_outputs_target_state_idx',
+    'chat_recovery_outputs_identity_uq',
+    'chat_recovery_outputs_s3_locator_idx',
+    'chat_recovery_outputs_pending_target_chat_idx',
+    'chat_recovery_outputs_pending_root_chat_idx',
+    'chat_completion_recovery_jobs_pending_chat_idx',
+    'chat_turn_preflights_active_chat_idx',
+    'chat_recovery_outputs_owner_active_idx',
+    'chat_recovery_jobs_owner_active_idx',
+    'chat_recovery_preflights_owner_active_idx',
 )
 WORKFLOW_RUNTIME_MIGRATION_PATH = os.getenv(
     'WORKFLOW_RUNTIME_MIGRATION_PATH',
@@ -247,6 +309,12 @@ BACKEND_PERMISSION_COLLECTIONS = (
     'user_chat_preferences',
     'user_plan_revisions',
     'user_work_dependencies',
+    'chat_message_archive_segments',
+    'chat_message_archive_pages',
+    'chat_message_archive_rollout',
+    'embed_version_archive_rollout',
+    'chat_recovery_outputs',
+    'chat_recovery_account_fences',
 )
 BACKEND_PERMISSION_ACTIONS = ('create', 'read', 'update', 'delete')
 BACKEND_PERMISSION_POLICY_NAMES = ('Backend API', 'Administrator')
@@ -1315,6 +1383,64 @@ def apply_and_verify_storage_query_indexes(*, bounded: bool = False):
     print(f"Verified {len(STORAGE_QUERY_INDEXES)} storage query indexes")
 
 
+def apply_and_verify_chat_message_archive_indexes():
+    """Install indexes required by bounded chat message archive processing."""
+    if not os.path.isfile(CHAT_MESSAGE_ARCHIVE_MIGRATION_PATH):
+        raise RuntimeError(
+            f"Required chat message archive migration is missing: {CHAT_MESSAGE_ARCHIVE_MIGRATION_PATH}"
+        )
+    with open(CHAT_MESSAGE_ARCHIVE_MIGRATION_PATH, 'r', encoding='utf-8') as migration_file:
+        migration_sql = migration_file.read()
+    with connect_database() as connection:
+        connection.autocommit = True
+        with connection.cursor() as cursor:
+            cursor.execute(migration_sql)
+            cursor.execute(
+                """
+                SELECT indexname FROM pg_indexes
+                WHERE schemaname = 'public' AND indexname = ANY(%s)
+                """,
+                (list(CHAT_MESSAGE_ARCHIVE_INDEXES),),
+            )
+            installed_indexes = {row[0] for row in cursor.fetchall()}
+    missing_indexes = set(CHAT_MESSAGE_ARCHIVE_INDEXES) - installed_indexes
+    if missing_indexes:
+        raise RuntimeError(
+            "Chat message archive index verification failed: "
+            + ", ".join(sorted(missing_indexes))
+        )
+    print(f"Verified {len(CHAT_MESSAGE_ARCHIVE_INDEXES)} chat message archive indexes")
+
+
+def apply_and_verify_chat_recovery_outputs_indexes():
+    """Install typed recovery output claim and identity indexes."""
+    if not os.path.isfile(CHAT_RECOVERY_OUTPUTS_MIGRATION_PATH):
+        raise RuntimeError(
+            f"Required chat recovery output migration is missing: {CHAT_RECOVERY_OUTPUTS_MIGRATION_PATH}"
+        )
+    with open(CHAT_RECOVERY_OUTPUTS_MIGRATION_PATH, 'r', encoding='utf-8') as migration_file:
+        migration_sql = migration_file.read()
+    with connect_database() as connection:
+        connection.autocommit = True
+        with connection.cursor() as cursor:
+            cursor.execute(migration_sql)
+            cursor.execute(
+                """
+                SELECT indexname FROM pg_indexes
+                WHERE schemaname = 'public' AND indexname = ANY(%s)
+                """,
+                (list(CHAT_RECOVERY_OUTPUTS_INDEXES),),
+            )
+            installed_indexes = {row[0] for row in cursor.fetchall()}
+    missing_indexes = set(CHAT_RECOVERY_OUTPUTS_INDEXES) - installed_indexes
+    if missing_indexes:
+        raise RuntimeError(
+            "Chat recovery output index verification failed: "
+            + ", ".join(sorted(missing_indexes))
+        )
+    print(f"Verified {len(CHAT_RECOVERY_OUTPUTS_INDEXES)} chat recovery output indexes")
+
+
 def apply_and_verify_workflow_runtime_indexes():
     """Apply the Workflow runtime migration before its scheduler can be enabled."""
     if not os.path.isfile(WORKFLOW_RUNTIME_MIGRATION_PATH):
@@ -1779,6 +1905,15 @@ def setup_schemas():
 
         print("\n--- Applying storage replication database indexes ---")
         apply_and_verify_storage_replication_indexes()
+
+        print("\n--- Applying storage query database indexes ---")
+        apply_and_verify_storage_query_indexes()
+
+        print("\n--- Applying chat message archive database indexes ---")
+        apply_and_verify_chat_message_archive_indexes()
+
+        print("\n--- Applying chat recovery output database indexes ---")
+        apply_and_verify_chat_recovery_outputs_indexes()
 
         print("\n--- Verifying chat recovery Directus endpoint ---")
         verify_chat_recovery_endpoint()

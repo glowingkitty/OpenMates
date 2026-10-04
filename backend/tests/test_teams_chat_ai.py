@@ -219,11 +219,10 @@ def test_ordinary_team_transport_confirms_origin_before_early_return() -> None:
         'message_id = message_payload_from_client.get("message_id")', 1
     )[0]
 
-    assert "await _store_client_encrypted_embeds(" in ordinary_branch
+    bundle_gate = source.index('encrypted_embeds_from_client = payload.get("encrypted_embeds", [])')
+    ordinary_start = source.index("if is_team_chat and not team_transport.should_trigger_ai:")
+    assert bundle_gate < source.index("await broadcast_team_event(") < ordinary_start
     assert "await _send_origin_chat_message_confirmed(" in ordinary_branch
-    assert ordinary_branch.index("await _store_client_encrypted_embeds(") < ordinary_branch.index(
-        "await _send_origin_chat_message_confirmed("
-    )
     assert ordinary_branch.index("await _send_origin_chat_message_confirmed(") < ordinary_branch.index("return")
 
 

@@ -630,9 +630,15 @@
                 // Deep copy to avoid modifying the original prop
                 const newContent = JSON.parse(JSON.stringify(inputContent));
                 
-                // Check if the first paragraph contains markdown-like text
+                // Only a legacy document containing one raw markdown text node
+                // needs reparsing. ChatHistory supplies fully parsed documents
+                // whose later paragraphs and embed nodes must remain intact.
                 const firstParagraph = newContent?.content?.[0];
-                if (firstParagraph?.type === 'paragraph' && firstParagraph?.content?.[0]?.type === 'text') {
+                if (newContent.content?.length === 1 &&
+                    firstParagraph?.type === 'paragraph' &&
+                    firstParagraph.content?.length === 1 &&
+                    firstParagraph.content[0]?.type === 'text' &&
+                    !firstParagraph.content[0]?.marks?.length) {
                     const textContent = firstParagraph.content[0].text;
                     
                     if (textContent === 'chat.an_error_occured') {
@@ -1519,6 +1525,13 @@
     }
 
     /* Preserve embed styles */
+    /* ProseMirror uses pre-wrap for message text. Its whitespace also reaches
+       nested Svelte preview markup, creating a line box before the card layout
+       and clipping the fixed-height footer. Code blocks set their own pre mode. */
+    :global(.read-only-message .unified-embed-preview) {
+        white-space: normal;
+    }
+
     :global(.read-only-message .preview-container) {
         pointer-events: all;
         cursor: pointer;

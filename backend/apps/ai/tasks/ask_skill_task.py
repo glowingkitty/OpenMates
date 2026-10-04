@@ -24,6 +24,9 @@ import asyncio
 import time
 import os
 import uuid
+import hashlib
+import hmac
+import json
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 from pydantic import ValidationError
@@ -41,6 +44,9 @@ from backend.core.api.app.services.chat_recovery_cutover import (
     legacy_completion_requires_persistence as completion_requires_persistence,
 )
 from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+from backend.shared.python_utils.chat_recovery_context import (
+    RecoveryOutputContext, RequiredRecoveryOutputError, active_recovery_output_context,
+)
 from backend.core.api.app.services.sub_chat_orchestration_service import SubChatOrchestrationService
 from backend.core.api.app.services.user_task_queue_service import UserTaskQueueService
 from backend.core.api.app.utils.encryption import EncryptionService
@@ -79,7 +85,7 @@ from backend.shared.python_utils.tracing.ai_observability import (
     record_ai_completion_timing,
     record_ai_queue_span,
 )
-from .stream_consumer import _consume_main_processing_stream
+from .stream_consumer import _consume_main_processing_stream, _persist_sealed_typed_output
 
 # Import override parser for @ mentioning syntax (e.g., @ai-model:claude-opus-4-5)
 from backend.core.api.app.utils.override_parser import parse_overrides, parse_overrides_from_messages, UserOverrides
@@ -100,6 +106,385 @@ from backend.core.api.app.schemas.chat import AIHistoryMessage, MessageInCache
 
 
 logger = logging.getLogger(__name__)
+
+
+def _validated_queued_messages(request_data: AskSkillRequest, lease: dict) -> tuple[list[str], list[str]]:
+    """Reject a mixed or malformed leased batch instead of silently dropping members."""
+    messages = lease.get("messages")
+    raw_messages = lease.get("raw_messages")
+    if (not isinstance(messages, list) or not isinstance(raw_messages, list)
+            or not 1 <= len(messages) <= 20 or len(messages) != len(raw_messages)):
+        raise RequiredRecoveryOutputError("Queued batch has invalid member count")
+    scope_fields = (
+        "chat_id", "user_id", "user_id_hash", "is_incognito", "is_external",
+        "is_anonymous", "team_id", "team_id_hash", "team_workspace_type",
+        "team_object_id_hash",
+    )
+    ids: list[str] = []
+    contents: list[str] = []
+    for member in messages:
+        if not isinstance(member, dict):
+            raise RequiredRecoveryOutputError("Queued batch contains a malformed member")
+        if any(member.get(field) != getattr(request_data, field, None) for field in scope_fields):
+            raise RequiredRecoveryOutputError("Queued batch owner, chat, Team or mode mismatch")
+        if member.get("recovery_task_id") or member.get("recovery_preflight_id"):
+            raise RequiredRecoveryOutputError("Durable recovery turn cannot enter legacy queue")
+        message_id = member.get("message_id")
+        history = member.get("message_history")
+        if (not isinstance(message_id, str) or not 1 <= len(message_id) <= 255
+                or message_id in ids or not isinstance(history, list) or not history):
+            raise RequiredRecoveryOutputError("Queued batch member identity is invalid")
+        current = history[-1]
+        if (not isinstance(current, dict) or current.get("role") != "user"
+                or current.get("message_id") != message_id
+                or not isinstance(current.get("content"), str) or not current["content"]):
+            raise RequiredRecoveryOutputError("Queued batch member has no matching user content")
+        ids.append(message_id)
+        contents.append(current["content"])
+    return ids, contents
+
+
+def _legacy_queued_batch_proof(
+    request_data: AskSkillRequest, lease: dict, message_ids: list[str],
+) -> dict:
+    """Bind the exact Redis bytes to one immutable, domain-separated legacy batch."""
+    secret = os.getenv("INTERNAL_API_SHARED_TOKEN")
+    if not secret or len(secret) < 16:
+        raise RequiredRecoveryOutputError("Queued batch signing authority unavailable")
+    key = secret.encode("utf-8")
+    raw_messages = lease["raw_messages"]
+    members = [
+        {
+            "message_id": message_id,
+            "chat_id": request_data.chat_id,
+            "hashed_user_id": request_data.user_id_hash,
+            "payload_commitment": hmac.new(
+                key, b"openmates:legacy-queue-member:v1\0" + raw.encode("utf-8"),
+                hashlib.sha256,
+            ).hexdigest(),
+        }
+        for message_id, raw in zip(message_ids, raw_messages)
+    ]
+    aggregate = json.dumps({
+        "actor_user_id": request_data.user_id,
+        "chat_id": request_data.chat_id,
+        "members": [
+            {"message_id": member["message_id"],
+             "payload_commitment": member["payload_commitment"]}
+            for member in members
+        ],
+    }, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    commitment = hmac.new(
+        key, b"openmates:legacy-queue-batch:v1\0" + aggregate,
+        hashlib.sha256,
+    ).hexdigest()
+    first_message_id = message_ids[0]
+    return {
+        "protocol_version": 1,
+        "actor_user_id": request_data.user_id,
+        "hashed_user_id": request_data.user_id_hash,
+        "hashed_team_id": request_data.team_id_hash,
+        "chat_id": request_data.chat_id,
+        "first_message_id": first_message_id,
+        "task_identity": hashlib.sha256(
+            f"{request_data.user_id}:{request_data.chat_id}:{first_message_id}".encode()
+        ).hexdigest(),
+        "celery_task_id": str(uuid.uuid5(uuid.NAMESPACE_URL, commitment)),
+        "members": members,
+        "batch_commitment": commitment,
+    }
+
+
+def _verify_legacy_batch_proof(
+    proof: object, request_data: AskSkillRequest, task_id: str,
+) -> dict:
+    if not isinstance(proof, dict):
+        raise RequiredRecoveryOutputError("Queued legacy task lacks batch proof")
+    members = proof.get("members")
+    if not isinstance(members, list) or not 1 <= len(members) <= 20:
+        raise RequiredRecoveryOutputError("Queued legacy batch member count invalid")
+    if (proof.get("actor_user_id") != request_data.user_id
+            or proof.get("hashed_user_id") != request_data.user_id_hash
+            or proof.get("hashed_team_id") != request_data.team_id_hash
+            or proof.get("chat_id") != request_data.chat_id
+            or proof.get("first_message_id") != request_data.message_id
+            or proof.get("task_identity") != request_data.legacy_cutover_task_id
+            or proof.get("celery_task_id") != task_id):
+        raise RequiredRecoveryOutputError("Queued legacy task identity mismatch")
+    ids = [member.get("message_id") for member in members if isinstance(member, dict)]
+    if (len(ids) != len(members) or any(not isinstance(item, str) for item in ids)
+            or len(set(ids)) != len(ids) or ids[0] != request_data.message_id):
+        raise RequiredRecoveryOutputError("Queued legacy member identities invalid")
+    if any(
+        member.get("chat_id") != request_data.chat_id
+        or member.get("hashed_user_id") != request_data.user_id_hash
+        or not isinstance(member.get("payload_commitment"), str)
+        or len(member["payload_commitment"]) != 64
+        for member in members
+    ):
+        raise RequiredRecoveryOutputError("Queued legacy member scope invalid")
+    secret = os.getenv("INTERNAL_API_SHARED_TOKEN")
+    if not secret or len(secret) < 16:
+        raise RequiredRecoveryOutputError("Queued batch signing authority unavailable")
+    aggregate = json.dumps({
+        "actor_user_id": request_data.user_id,
+        "chat_id": request_data.chat_id,
+        "members": [
+            {"message_id": member["message_id"],
+             "payload_commitment": member["payload_commitment"]}
+            for member in members
+        ],
+    }, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    expected = hmac.new(
+        secret.encode("utf-8"), b"openmates:legacy-queue-batch:v1\0" + aggregate,
+        hashlib.sha256,
+    ).hexdigest()
+    if (not isinstance(proof.get("batch_commitment"), str)
+            or not hmac.compare_digest(proof["batch_commitment"], expected)
+            or task_id != str(uuid.uuid5(uuid.NAMESPACE_URL, expected))):
+        raise RequiredRecoveryOutputError("Queued legacy batch commitment mismatch")
+    return proof
+
+
+async def _seal_legacy_queue_handoff(
+    handoff: dict, *, vault_key_id: str, cache_service: CacheService,
+    encryption_service: Optional[EncryptionService] = None,
+) -> dict:
+    encryption_service = encryption_service or EncryptionService(cache_service=cache_service)
+    plaintext = json.dumps(handoff, separators=(",", ":"))
+    ciphertext, _ = await encryption_service.encrypt_with_user_key(
+        plaintext, vault_key_id,
+    )
+    if not ciphertext.startswith("vault:v"):
+        raise RequiredRecoveryOutputError("Queued handoff Vault encryption failed")
+    return {
+        "task_id": handoff["task_id"],
+        "lease_token": handoff["lease"]["token"],
+        "vault_key_id": vault_key_id,
+        "ciphertext": ciphertext,
+    }
+
+
+async def _open_legacy_queue_handoff(
+    sealed: dict, cache_service: CacheService,
+) -> dict:
+    if (not isinstance(sealed.get("task_id"), str)
+            or not isinstance(sealed.get("lease_token"), str)
+            or not isinstance(sealed.get("vault_key_id"), str)
+            or not isinstance(sealed.get("ciphertext"), str)
+            or not sealed["ciphertext"].startswith("vault:v")):
+        raise RequiredRecoveryOutputError("Queued handoff has no Vault envelope")
+    plaintext = await EncryptionService(cache_service=cache_service).decrypt_with_user_key(
+        sealed["ciphertext"], sealed["vault_key_id"],
+    )
+    if not plaintext:
+        raise RequiredRecoveryOutputError("Queued handoff Vault envelope cannot be opened")
+    handoff = json.loads(plaintext)
+    if (not isinstance(handoff, dict)
+            or handoff.get("task_id") != sealed["task_id"]
+            or handoff.get("lease", {}).get("token") != sealed["lease_token"]):
+        raise RequiredRecoveryOutputError("Queued handoff Vault identity mismatch")
+    return handoff
+
+
+async def _advance_completed_legacy_followers(
+    *, cache_service: CacheService, directus_service: DirectusService,
+    chat_id: str, task_id: str, actor_user_id: str, hashed_team_id: Optional[str],
+    completed_verified: bool = False,
+) -> str:
+    """Move followers behind a completed batch under the same active-task fence."""
+    sealed_context = await cache_service.get_completed_queue_context(chat_id, task_id)
+    if (not isinstance(sealed_context, dict)
+            or not isinstance(sealed_context.get("vault_key_id"), str)
+            or not isinstance(sealed_context.get("ciphertext"), str)
+            or not sealed_context["ciphertext"].startswith("vault:v")):
+        raise RequiredRecoveryOutputError("Completed queued turn has no Vault context")
+    encryption_service = EncryptionService(cache_service=cache_service)
+    plaintext = await encryption_service.decrypt_with_user_key(
+        sealed_context["ciphertext"], sealed_context["vault_key_id"],
+    )
+    if not plaintext:
+        raise RequiredRecoveryOutputError("Completed queued turn context cannot be opened")
+    context = json.loads(plaintext)
+    if (not isinstance(context, dict) or context.get("task_id") != task_id
+            or context.get("chat_id") != chat_id
+            or context.get("owner_id") != actor_user_id
+            or context.get("hashed_team_id") != hashed_team_id
+            or not isinstance(context.get("assistant_response"), str)):
+        raise RequiredRecoveryOutputError("Completed queued turn has no verified follower context")
+    prior_request = AskSkillRequest(**context["request_data_dict"])
+    prior_proof = _verify_legacy_batch_proof(
+        context.get("legacy_batch_proof"), prior_request, task_id,
+    )
+    if (prior_request.user_id != actor_user_id
+            or prior_request.team_id_hash != hashed_team_id
+            or prior_request.chat_id != chat_id):
+        raise RequiredRecoveryOutputError("Completed queued follower scope changed")
+    if not completed_verified:
+        completed = await ChatRecoveryService(directus_service).execute(
+            "prepare_legacy_batch", prior_proof,
+        )
+        if (completed.get("task_identity") != prior_proof["task_identity"]
+                or completed.get("status") != "COMPLETED"
+                or completed.get("execution_claimed") is not True
+                or completed.get("idempotent") is not True):
+            raise RequiredRecoveryOutputError("Queued follower completion is not authoritative")
+    active_task_id = await cache_service.get_active_ai_task(chat_id)
+    if active_task_id not in (task_id, None):
+        raise RequiredRecoveryOutputError("Completed queued follower active fence changed")
+    follower_lease = None
+    for _attempt in range(3):
+        follower_lease = await cache_service.lease_queued_message_prefix(chat_id, limit=20)
+        if follower_lease:
+            break
+        state = await cache_service.complete_active_ai_task_if_queue_empty(chat_id, task_id)
+        if state == 1 or state == 2:
+            return task_id
+    if follower_lease is None:
+        raise RequiredRecoveryOutputError("Completed queued follower raced with active task release")
+    ids, contents = _validated_queued_messages(prior_request, follower_lease)
+    message_id = ids[0]
+    history = [
+        item.model_dump() if hasattr(item, "model_dump") else dict(item)
+        for item in prior_request.message_history
+    ]
+    if context["assistant_response"]:
+        history.append({
+            "role": "assistant", "content": context["assistant_response"],
+            "created_at": int(time.time()), "sender_name": "assistant",
+        })
+    history.append({
+        "role": "user", "message_id": message_id,
+        "content": "\n\n".join(contents), "created_at": int(time.time()),
+        "sender_name": "user",
+    })
+    next_request_data = prior_request.model_dump()
+    next_request_data.update({
+        "message_id": message_id,
+        "current_user_content": "\n\n".join(contents),
+        "message_history": history,
+        "chat_has_title": follower_lease["messages"][0].get("chat_has_title", True),
+        "active_focus_id": follower_lease["messages"][0].get("active_focus_id"),
+        "root_user_message_id": message_id,
+    })
+    next_request = AskSkillRequest(**next_request_data)
+    next_proof = _legacy_queued_batch_proof(next_request, follower_lease, ids)
+    next_request.legacy_cutover_task_id = next_proof["task_identity"]
+    next_task_id = next_proof["celery_task_id"]
+    next_handoff = {
+        "task_id": next_task_id, "chat_id": chat_id,
+        "owner_id": actor_user_id, "hashed_team_id": hashed_team_id,
+        "request_data_dict": next_request.model_dump(),
+        "skill_config_dict": context["skill_config_dict"],
+        "legacy_batch_proof": next_proof,
+        "lease": {
+            "token": follower_lease["token"],
+            "raw_messages": follower_lease["raw_messages"],
+        },
+    }
+    sealed_next = await _seal_legacy_queue_handoff(
+        next_handoff, vault_key_id=sealed_context["vault_key_id"],
+        cache_service=cache_service,
+    )
+    if not await cache_service.activate_completed_queue_followers(
+        actor_user_id, chat_id, task_id, next_task_id, sealed_next,
+        allow_missing_active=active_task_id is None,
+    ):
+        current = await cache_service.get_active_ai_task(chat_id)
+        pending = await cache_service.get_paused_queue_handoff(chat_id)
+        if current != next_task_id or pending is None:
+            raise RequiredRecoveryOutputError("Completed queued follower transfer lost its fence")
+        recovered = await _open_legacy_queue_handoff(pending, cache_service)
+        if recovered != next_handoff:
+            raise RequiredRecoveryOutputError("Completed queued follower handoff changed")
+    resumed_id = await resume_legacy_queued_handoff(
+        cache_service=cache_service, directus_service=directus_service,
+        chat_id=chat_id, actor_user_id=actor_user_id,
+        hashed_team_id=hashed_team_id,
+    )
+    if resumed_id != next_task_id:
+        raise RequiredRecoveryOutputError("Completed queued follower was not dispatched")
+    return next_task_id
+
+
+async def resume_legacy_queued_handoff(
+    *, cache_service: CacheService, directus_service: DirectusService,
+    chat_id: str, actor_user_id: str, hashed_team_id: Optional[str],
+) -> Optional[str]:
+    """Retry only the exact first paused batch; later queue entries remain followers."""
+    sealed_handoff = await cache_service.get_paused_queue_handoff(chat_id)
+    if sealed_handoff is None:
+        active_task_id = await cache_service.get_active_ai_task(chat_id)
+        context = await cache_service.get_completed_queue_context(chat_id, active_task_id)
+        if context and (active_task_id is None or context.get("task_id") == active_task_id):
+            return await _advance_completed_legacy_followers(
+                cache_service=cache_service, directus_service=directus_service,
+                chat_id=chat_id, task_id=context["task_id"],
+                actor_user_id=actor_user_id, hashed_team_id=hashed_team_id,
+            )
+        return None
+    handoff = await _open_legacy_queue_handoff(sealed_handoff, cache_service)
+    task_id = handoff.get("task_id")
+    if (handoff.get("chat_id") != chat_id
+            or handoff.get("owner_id") != actor_user_id
+            or handoff.get("hashed_team_id") != hashed_team_id
+            or not isinstance(task_id, str)
+            or await cache_service.get_active_ai_task(chat_id) != task_id):
+        raise RequiredRecoveryOutputError("Paused queued handoff scope or active fence changed")
+    queued_lease = await cache_service.lease_queued_message_prefix(chat_id, limit=20)
+    if (queued_lease is None
+            or queued_lease.get("token") != handoff.get("lease", {}).get("token")
+            or queued_lease.get("raw_messages") != handoff.get("lease", {}).get("raw_messages")):
+        raise RequiredRecoveryOutputError("Paused queued prefix changed before replay")
+    request_data = AskSkillRequest(**handoff["request_data_dict"])
+    ids, _ = _validated_queued_messages(request_data, queued_lease)
+    proof = _legacy_queued_batch_proof(request_data, queued_lease, ids)
+    if proof != handoff.get("legacy_batch_proof"):
+        raise RequiredRecoveryOutputError("Paused queued batch proof changed")
+    _verify_legacy_batch_proof(proof, request_data, task_id)
+    prepared = await ChatRecoveryService(directus_service).execute(
+        "prepare_legacy_batch", proof,
+    )
+    if prepared.get("task_identity") != proof["task_identity"]:
+        raise RequiredRecoveryOutputError("Paused queued batch admission unavailable")
+    if prepared.get("status") in {"CLAIMED", "COMPLETED"}:
+        # The exact immutable batch reached the worker after broker acceptance,
+        # but this Redis prefix may not have been ACKed before the sender died.
+        # Reconcile the unchanged lease without submitting another paid task.
+        if (prepared.get("execution_claimed") is not True
+                or prepared.get("idempotent") is not True):
+            raise RequiredRecoveryOutputError("Paused queued batch claim is unverified")
+        if not await cache_service.acknowledge_queued_message_prefix(
+            chat_id, queued_lease,
+        ):
+            raise RequiredRecoveryOutputError("Paused queued prefix ACK failed")
+        if prepared["status"] == "COMPLETED":
+            return await _advance_completed_legacy_followers(
+                cache_service=cache_service, directus_service=directus_service,
+                chat_id=chat_id, task_id=task_id,
+                actor_user_id=actor_user_id, hashed_team_id=hashed_team_id,
+                completed_verified=True,
+            )
+        return task_id
+    if (prepared.get("status") != "PREPARED"
+            or prepared.get("execution_claimed") is not False):
+        raise RequiredRecoveryOutputError("Paused queued batch admission unavailable")
+    result = celery_config.app.send_task(
+        name="apps.ai.tasks.skill_ask",
+        kwargs={
+            "request_data_dict": handoff["request_data_dict"],
+            "skill_config_dict": handoff["skill_config_dict"],
+            "legacy_batch_proof": proof,
+        },
+        queue="app_ai", task_id=task_id,
+    )
+    if not result or result.id != task_id:
+        raise RuntimeError("Paused queued broker returned a different task ID")
+    if not await cache_service.acknowledge_queued_message_prefix(
+        chat_id, queued_lease,
+    ):
+        raise RequiredRecoveryOutputError("Paused queued prefix ACK failed")
+    return task_id
 
 
 def _bounded_identity_component(value: object) -> Optional[str]:
@@ -678,8 +1063,9 @@ async def _mark_sub_chat_terminal_failure(
     task_id: str,
     *,
     cancelled: bool,
+    pause_parent: bool = False,
 ) -> None:
-    """Settle failed child lifecycle and let the parent synthesize partial results."""
+    """Settle child lifecycle; a required durable-save failure stops synthesis."""
     if not request_data.orchestration_id:
         return
     if not request_data.is_sub_chat:
@@ -692,6 +1078,21 @@ async def _mark_sub_chat_terminal_failure(
                     "orchestration_id": request_data.orchestration_id,
                     "hashed_user_id": request_data.user_id_hash,
                     "state": "cancelled" if cancelled else "failed",
+                },
+            )
+        finally:
+            await directus_service.close()
+        return
+    if pause_parent:
+        directus_service = DirectusService()
+        try:
+            await SubChatOrchestrationService(directus_service).execute(
+                "transition_child", {
+                    "protocol_version": 1,
+                    "orchestration_id": request_data.orchestration_id,
+                    "hashed_user_id": request_data.user_id_hash,
+                    "child_chat_id": request_data.chat_id,
+                    "state": "failed",
                 },
             )
         finally:
@@ -720,6 +1121,24 @@ async def _mark_sub_chat_terminal_failure(
         await cache_service.close()
 
 
+async def _publish_recovery_output_pause(request_data: AskSkillRequest, task_id: str) -> None:
+    """Tell capable clients that dependent work stopped at the durable-save gate."""
+    cache_service = CacheService()
+    try:
+        root_chat_id = request_data.root_chat_id or request_data.chat_id
+        await cache_service.publish_event(f"chat_stream::{root_chat_id}", {
+            "type": "recovery_output_paused", "chat_id": root_chat_id,
+            "child_chat_id": request_data.chat_id if request_data.is_sub_chat else None,
+            "user_id_uuid": request_data.user_id,
+            "user_id_hash": request_data.user_id_hash,
+            "message_id": request_data.message_id,
+            "task_id": task_id,
+            "reason_code": "durable_output_unavailable",
+        })
+    finally:
+        await cache_service.close()
+
+
 async def _finalize_legacy_cutover_admission(
     request_data: AskSkillRequest,
     inference_completed: bool,
@@ -742,6 +1161,10 @@ async def _finalize_legacy_cutover_admission(
         await directus_service.close()
 
 
+class RecoveryCheckpointPersistenceError(RuntimeError):
+    """A required client-key-sealed checkpoint was not durably saved."""
+
+
 async def _compress_for_selected_model(
     *,
     task_id: str,
@@ -751,6 +1174,7 @@ async def _compress_for_selected_model(
     encryption_service: EncryptionService,
     user_vault_key_id: str,
     secrets_manager: SecretsManager,
+    directus_service: DirectusService | None = None,
 ) -> bool:
     """Compress once the actual main model is known; failures remain non-fatal."""
     if not request_data.message_history or request_data.is_external:
@@ -761,6 +1185,7 @@ async def _compress_for_selected_model(
             "role": msg.role,
             "content": msg.content,
             "created_at": msg.created_at,
+            "message_id": getattr(msg, "message_id", None),
             "category": getattr(msg, "category", None),
             "sender_name": getattr(msg, "sender_name", None),
         }
@@ -770,6 +1195,14 @@ async def _compress_for_selected_model(
     threshold = model_compression_threshold(
         selected_model_id, celery_config.config_manager, threshold_override=admin_threshold
     )
+    recovery_checkpoint_fixture = False
+    if os.getenv("OPENMATES_STORAGE_CAPACITY_FIXTURES") == "true":
+        from backend.shared.testing.mock_context import get_mock_group, is_mock_active
+        if is_mock_active() and get_mock_group() == "storage_capacity_v1" \
+                and any("STORAGE_CAPACITY_SCENARIO:recovery_checkpoint" in msg.content
+                        for msg in request_data.message_history if msg.role == "user"):
+            threshold = 1
+            recovery_checkpoint_fixture = True
     if admin_threshold is not None:
         logger.info("[Task ID: %s] Using admin compression threshold: %s tokens", task_id, threshold)
     if not should_compress(history, threshold):
@@ -798,6 +1231,7 @@ async def _compress_for_selected_model(
             task_id=task_id,
             secrets_manager=secrets_manager,
             compression_threshold=threshold,
+            force=recovery_checkpoint_fixture,
         )
     if not result.was_compressed or not result.summary_content:
         if result.error and request_data.user_id_hash:
@@ -812,7 +1246,14 @@ async def _compress_for_selected_model(
             })
         return False
 
-    summary_message_id = str(uuid.uuid4())
+    if request_data.resolved_recovery_inference_task_id() and (
+        not result.compressed_up_to_message_id or not result.covered_message_ids
+    ):
+        raise RecoveryCheckpointPersistenceError("Recovery checkpoint lacks a stable source message manifest")
+    checkpoint_boundary = result.compressed_up_to_message_id or str(result.compressed_up_to_timestamp)
+    summary_message_id = str(uuid.uuid5(
+        uuid.NAMESPACE_URL, f"openmates:compression:{task_id}:{checkpoint_boundary}",
+    ))
     summary_timestamp = int(time.time())
     encrypted_summary, _ = await encryption_service.encrypt_with_user_key(
         result.summary_content,
@@ -837,12 +1278,18 @@ async def _compress_for_selected_model(
     )]
     for recent in result.recent_messages or []:
         recent_content = recent.get("content", "")
+        recent_message_id = next(
+            (value for value in (
+                recent.get("message_id"), recent.get("client_message_id"), recent.get("id"),
+            ) if isinstance(value, str) and value),
+            None,
+        )
         encrypted_recent, _ = await encryption_service.encrypt_with_user_key(
             recent_content,
             user_vault_key_id,
         )
         cache_messages.append(MessageInCache(
-            id=f"recent_{uuid.uuid4().hex[:8]}",
+            id=recent_message_id or f"recent_{uuid.uuid4().hex[:8]}",
             chat_id=request_data.chat_id,
             role=recent.get("role", "user"),
             category=recent.get("category"),
@@ -852,11 +1299,36 @@ async def _compress_for_selected_model(
             status="sent",
         ).model_dump_json())
         compressed_history.append(AIHistoryMessage(
+            message_id=recent_message_id,
             content=recent_content,
             role=recent.get("role", "user"),
             category=recent.get("category"),
             created_at=recent.get("created_at", summary_timestamp),
         ))
+
+    if request_data.resolved_recovery_inference_task_id():
+        if directus_service is None:
+            raise RecoveryCheckpointPersistenceError("Checkpoint lacks durable recovery service")
+        try:
+            await _persist_sealed_typed_output(
+                directus_service=directus_service,
+                request_data=request_data,
+                cache_service=cache_service,
+                inference_task_id=request_data.resolved_recovery_inference_task_id(),
+                subject_id=summary_message_id,
+                output_kind="checkpoint", output_version=1,
+                content={
+                    "summary_message_id": summary_message_id,
+                    "summary_content": result.summary_content,
+                    "compressed_message_count": result.compressed_message_count,
+                    "summary_token_estimate": result.summary_token_estimate,
+                    "compressed_up_to_timestamp": result.compressed_up_to_timestamp,
+                    "compressed_up_to_message_id": result.compressed_up_to_message_id,
+                    "covered_message_ids": result.covered_message_ids,
+                },
+            )
+        except Exception as exc:
+            raise RecoveryCheckpointPersistenceError("Checkpoint recovery save failed") from exc
 
     await cache_service.set_ai_messages_history(
         user_id=request_data.user_id,
@@ -882,6 +1354,8 @@ async def _compress_for_selected_model(
             "compressed_message_count": result.compressed_message_count,
             "summary_token_estimate": result.summary_token_estimate,
             "compressed_up_to_timestamp": result.compressed_up_to_timestamp,
+            "compressed_up_to_message_id": result.compressed_up_to_message_id,
+            "covered_message_ids": result.covered_message_ids,
             "summary_message_id": summary_message_id,
             "summary_content": result.summary_content,
         })
@@ -893,6 +1367,7 @@ async def _async_process_ai_skill_ask_task(
     request_data: AskSkillRequest,
     skill_config: AskSkillDefaultConfig,
     completion_timing: Optional[AICompletionTiming] = None,
+    legacy_batch_proof: Optional[dict] = None,
 ):
     """
     Asynchronous core logic for processing the AI skill ask task.
@@ -951,6 +1426,23 @@ async def _async_process_ai_skill_ask_task(
             )
             logger.info(f"[Task ID: {task_id}] DirectusService initialized.")
 
+        if request_data.is_sub_chat_continuation and request_data.recovery_consumed_child_ids:
+            if not request_data.recovery_preflight_id or not request_data.orchestration_id:
+                raise RequiredRecoveryOutputError("Parent continuation lacks durable child recovery identity")
+            recovery_service = ChatRecoveryService(directus_service_instance)
+            for child_chat_id in request_data.recovery_consumed_child_ids:
+                await recovery_service.execute("mark_child_parent_consumed", {
+                    "protocol_version": 1,
+                    "hashed_user_id": request_data.user_id_hash,
+                    "child_chat_id": child_chat_id,
+                    "root_chat_id": request_data.root_chat_id or request_data.chat_id,
+                    "continuation_task_id": task_id,
+                })
+                if not await cache_service_instance.release_active_ai_child_context(
+                    request_data.user_id_hash, child_chat_id,
+                ):
+                    raise RequiredRecoveryOutputError("Parent consumed child but its working context could not be released")
+
         if request_data.is_sub_chat:
             if not all((
                 request_data.orchestration_id,
@@ -994,6 +1486,20 @@ async def _async_process_ai_skill_ask_task(
                     "interrupted_by_revocation": False,
                     "_celery_task_state": "SUCCESS",
                 }
+            if request_data.recovery_preflight_id and not request_data.is_sub_chat_continuation:
+                first_message = request_data.message_history[0] if request_data.message_history else None
+                if (first_message is None or first_message.role != "user"
+                        or first_message.message_id != request_data.message_id):
+                    raise RequiredRecoveryOutputError("Child prompt lacks stable recovery identity")
+                await _persist_sealed_typed_output(
+                    directus_service=directus_service_instance, request_data=request_data,
+                    cache_service=cache_service_instance, inference_task_id=task_id,
+                    subject_id=request_data.message_id, output_kind="message", output_version=1,
+                    message_role="user",
+                    content={"role": "user", "content": first_message.content,
+                             "category": None, "model_name": None,
+                             "created_at": first_message.created_at},
+                )
 
         if request_data.recovery_task_id:
             if request_data.recovery_task_id != task_id:
@@ -1045,6 +1551,8 @@ async def _async_process_ai_skill_ask_task(
             except Exception:
                 pass
                 
+        if isinstance(e, RequiredRecoveryOutputError):
+            raise
         raise RuntimeError(f"Service initialization failed: {e}")
 
     # NOTE: Idempotency dedup is performed by `DedupedTask.__call__` (the
@@ -1763,8 +2271,11 @@ async def _async_process_ai_skill_ask_task(
                     encryption_service=encryption_service_instance,
                     user_vault_key_id=user_vault_key_id,
                     secrets_manager=secrets_manager,
+                    directus_service=directus_service_instance,
                 )
             except Exception as compression_error:
+                if isinstance(compression_error, RecoveryCheckpointPersistenceError):
+                    raise
                 logger.error(
                     "[Task ID: %s] Model-aware chat compression failed non-fatally: %s",
                     task_id,
@@ -2188,15 +2699,34 @@ async def _async_process_ai_skill_ask_task(
                 logger.error(f"[Task ID: {task_id}] Error during main processing stream execution: {e}", exc_info=True)
             raise RuntimeError(f"Main processing stream execution failed: {e}") # Re-raise for sync wrapper
 
+    if legacy_batch_proof is not None:
+        if cache_service_instance is None:
+            raise RequiredRecoveryOutputError("Queued completion context cache unavailable")
+        completion_plaintext = json.dumps({
+                "task_id": task_id,
+                "chat_id": request_data.chat_id,
+                "owner_id": request_data.user_id,
+                "hashed_team_id": request_data.team_id_hash,
+                "request_data_dict": request_data.model_dump(),
+                "skill_config_dict": skill_config.model_dump(),
+                "legacy_batch_proof": legacy_batch_proof,
+                "assistant_response": aggregated_final_response,
+            }, separators=(",", ":"))
+        completion_ciphertext, _ = await encryption_service_instance.encrypt_with_user_key(
+            completion_plaintext, user_vault_key_id,
+        )
+        if not completion_ciphertext.startswith("vault:v"):
+            raise RequiredRecoveryOutputError("Queued completion Vault encryption failed")
+        await cache_service_instance.store_completed_queue_context(
+            request_data.user_id, request_data.chat_id, task_id,
+            user_vault_key_id, completion_ciphertext,
+        )
+
     # --- Queue Processing (after main processing, before post-processing) ---
     # Process queued messages immediately after main processing completes
     # This allows the next message to start processing while post-processing continues in parallel
     # Post-processing is independent (only generates suggestions) and doesn't conflict with starting new tasks
     if cache_service_instance:
-        # Clear the active task marker for this chat
-        # This allows new messages to be processed immediately instead of queued
-        await cache_service_instance.clear_active_ai_task(request_data.chat_id)
-        logger.debug(f"[Task ID: {task_id}] Cleared active AI task marker for chat {request_data.chat_id} after main processing")
         from backend.apps.ai.tasks.async_skill_continuation import (
             dispatch_deferred_async_skill_continuations,
         )
@@ -2208,42 +2738,40 @@ async def _async_process_ai_skill_ask_task(
         
         # Check for queued messages and process them
         # This implements the queue system: when main processing completes, process any queued messages
-        queued_messages = await cache_service_instance.get_queued_messages(request_data.chat_id)
+        queued_lease = None
+        for _attempt in range(3):
+            queued_lease = await cache_service_instance.lease_queued_message_prefix(
+                request_data.chat_id, limit=20,
+            )
+            if queued_lease:
+                break
+            empty_status = await cache_service_instance.complete_active_ai_task_if_queue_empty(
+                request_data.chat_id, task_id,
+            )
+            if empty_status != 0:
+                break
+        else:
+            raise RequiredRecoveryOutputError(
+                "Queued message raced with active task completion repeatedly"
+            )
+        queued_messages = queued_lease["messages"] if queued_lease else []
         
         if queued_messages and len(queued_messages) > 0:
             logger.info(f"[Task ID: {task_id}] Found {len(queued_messages)} queued message(s) for chat {request_data.chat_id}. Processing combined message (post-processing will continue in parallel).")
             
             # Combine multiple queued messages into one
             # If user sent "Also explain docker" then "and Ruby", combine to "Also explain docker\n\nand Ruby"
-            combined_content_parts = []
-            combined_message_ids = []
-            combined_user_id = None
-            combined_user_id_hash = None
+            combined_message_ids, combined_content_parts = _validated_queued_messages(
+                request_data, queued_lease,
+            )
+            combined_user_id = request_data.user_id
+            combined_user_id_hash = request_data.user_id_hash
             combined_chat_id = request_data.chat_id
             combined_active_focus_id = None
             combined_chat_has_title = True  # Default to True since we're in an existing chat
             
-            # Process each queued message
-            for queued_msg in queued_messages:
-                # Extract content from the queued message
-                # The queued message has the same structure as AskSkillRequest
-                if isinstance(queued_msg, dict):
-                    msg_content = queued_msg.get("message_history", [])
-                    if msg_content and len(msg_content) > 0:
-                        # Get the last message (the user's message) from history
-                        last_msg = msg_content[-1] if isinstance(msg_content, list) else None
-                        if last_msg and isinstance(last_msg, dict):
-                            content = last_msg.get("content", "")
-                            if content:
-                                combined_content_parts.append(content)
-                                combined_message_ids.append(queued_msg.get("message_id", ""))
-                                
-                                # Capture user info from first message
-                                if combined_user_id is None:
-                                    combined_user_id = queued_msg.get("user_id")
-                                    combined_user_id_hash = queued_msg.get("user_id_hash")
-                                    combined_active_focus_id = queued_msg.get("active_focus_id")
-                                    combined_chat_has_title = queued_msg.get("chat_has_title", True)
+            combined_active_focus_id = queued_messages[0].get("active_focus_id")
+            combined_chat_has_title = queued_messages[0].get("chat_has_title", True)
             
             if combined_content_parts:
                 # Combine messages with double newline separator
@@ -2267,6 +2795,7 @@ async def _async_process_ai_skill_ask_task(
                             # AIHistoryMessage Pydantic model - convert to dict
                             updated_message_history.append({
                                 "role": msg.role,
+                                "message_id": getattr(msg, "message_id", None),
                                 "content": msg.content,
                                 "created_at": msg.created_at,
                                 "sender_name": getattr(msg, 'sender_name', msg.role),
@@ -2285,6 +2814,7 @@ async def _async_process_ai_skill_ask_task(
                 # Add the combined user message(s) to history
                 updated_message_history.append({
                     "role": "user",
+                    "message_id": combined_message_id,
                     "content": combined_content,
                     "created_at": int(time.time()),
                     "sender_name": "user"
@@ -2299,6 +2829,7 @@ async def _async_process_ai_skill_ask_task(
                 for msg_dict in updated_message_history:
                     history_objects.append(AIHistoryMessage(
                         role=msg_dict.get("role", "user"),
+                        message_id=msg_dict.get("message_id"),
                         content=msg_dict.get("content", ""),
                         created_at=msg_dict.get("created_at", int(time.time())),
                         sender_name=msg_dict.get("sender_name", msg_dict.get("role", "user")),
@@ -2316,12 +2847,20 @@ async def _async_process_ai_skill_ask_task(
                     user_id=combined_user_id or request_data.user_id,
                     user_id_hash=combined_user_id_hash or request_data.user_id_hash,
                     message_history=history_objects,
+                    current_user_content=combined_content,
                     chat_has_title=combined_chat_has_title,
                     mate_id=current_mate_id,  # Preserve current mate instead of forcing re-selection
                     active_focus_id=combined_active_focus_id or request_data.active_focus_id,
                     user_preferences={},
                     embed_file_path_index=request_data.embed_file_path_index,
                     has_image_upload_embed=getattr(request_data, "has_image_upload_embed", False),
+                    is_incognito=request_data.is_incognito,
+                    is_external=request_data.is_external,
+                    is_anonymous=request_data.is_anonymous,
+                    team_id=request_data.team_id,
+                    team_id_hash=request_data.team_id_hash,
+                    team_workspace_type=request_data.team_workspace_type,
+                    team_object_id_hash=request_data.team_object_id_hash,
                 )
                 
                 # Dispatch a new Celery task for the combined queued message
@@ -2332,23 +2871,169 @@ async def _async_process_ai_skill_ask_task(
                     
                     # Dispatch new task via Celery
                     with ai_phase_span("queue_handoff"):
-                        new_task_result = celery_config.app.send_task(
-                            name='apps.ai.tasks.skill_ask',
-                            kwargs={
-                                "request_data_dict": combined_request.model_dump(),
-                                "skill_config_dict": skill_config_dict
-                            },
-                            queue='app_ai'
+                        legacy_batch_proof = None
+                        if (not combined_request.is_incognito
+                                and not combined_request.is_external
+                                and not combined_request.is_anonymous):
+                            if (not request_data.legacy_cutover_task_id
+                                    or request_data.recovery_task_id):
+                                raise RequiredRecoveryOutputError(
+                                    "Queued saved turn lacks epoch-0 admission authority"
+                                )
+                            legacy_batch_proof = _legacy_queued_batch_proof(
+                                combined_request, queued_lease, combined_message_ids,
+                            )
+                            combined_request.legacy_cutover_task_id = (
+                                legacy_batch_proof["task_identity"]
+                            )
+                            combined_request.root_user_message_id = combined_message_id
+                            queued_task_id = legacy_batch_proof["celery_task_id"]
+                        else:
+                            queued_task_id = str(uuid.uuid5(
+                                uuid.NAMESPACE_URL,
+                                "volatile-queue:" + hashlib.sha256(
+                                    json.dumps({
+                                        "user_id": combined_request.user_id,
+                                        "chat_id": combined_request.chat_id,
+                                        "raw": queued_lease["raw_messages"],
+                                    }, sort_keys=True, separators=(",", ":")).encode()
+                                ).hexdigest(),
+                            ))
+                        queued_headers = {}
+                        from backend.shared.python_utils.volatile_embed_authority import (
+                            MAIN_HEADER, AuthenticatedVolatileAI,
+                            active_volatile_ai_context, make_main_header,
+                            require_live_incognito_session,
                         )
+                        volatile_parent = active_volatile_ai_context.get()
+                        if combined_request.is_incognito or combined_request.is_external:
+                            if (
+                                volatile_parent is None
+                                or combined_request.user_id != volatile_parent.owner_id
+                                or combined_request.chat_id != volatile_parent.chat_id
+                            ):
+                                raise RequiredRecoveryOutputError(
+                                    "Queued volatile turn lacks authenticated parent"
+                                )
+                            if volatile_parent.mode == "incognito":
+                                await require_live_incognito_session(
+                                    volatile_parent.session_nonce or "",
+                                    volatile_parent.owner_hash,
+                                )
+                            queued_headers[MAIN_HEADER] = make_main_header(
+                                AuthenticatedVolatileAI(
+                                    owner_id=combined_request.user_id,
+                                    owner_hash=combined_request.user_id_hash,
+                                    mode=volatile_parent.mode,
+                                    chat_id=combined_request.chat_id,
+                                    message_id=combined_request.message_id,
+                                    session_nonce=volatile_parent.session_nonce,
+                                    hashed_team_id=volatile_parent.hashed_team_id,
+                                ),
+                                owner_id=combined_request.user_id,
+                                owner_hash=combined_request.user_id_hash,
+                                chat_id=combined_request.chat_id,
+                                message_id=combined_request.message_id,
+                                main_task_id=queued_task_id,
+                                hashed_team_id=combined_request.team_id_hash,
+                                expires_at=volatile_parent.expires_at,
+                            )
+                        if legacy_batch_proof is not None:
+                            paused_handoff = {
+                                "task_id": queued_task_id,
+                                "chat_id": combined_chat_id,
+                                "owner_id": combined_request.user_id,
+                                "hashed_team_id": combined_request.team_id_hash,
+                                "request_data_dict": combined_request.model_dump(),
+                                "skill_config_dict": skill_config_dict,
+                                "legacy_batch_proof": legacy_batch_proof,
+                                "lease": {
+                                    "token": queued_lease["token"],
+                                    "raw_messages": queued_lease["raw_messages"],
+                                },
+                            }
+                            sealed_handoff = await _seal_legacy_queue_handoff(
+                                paused_handoff, vault_key_id=user_vault_key_id,
+                                cache_service=cache_service_instance,
+                                encryption_service=encryption_service_instance,
+                            )
+                            paused_handoff_created = await cache_service_instance.store_paused_queue_handoff(
+                                combined_request.user_id, combined_chat_id,
+                                task_id, sealed_handoff,
+                            )
+                        if not await cache_service_instance.transfer_active_ai_task(
+                            combined_chat_id, task_id, queued_task_id,
+                        ):
+                            if legacy_batch_proof is not None and paused_handoff_created:
+                                await cache_service_instance.discard_paused_queue_handoff_if_matches(
+                                    combined_chat_id, queued_task_id,
+                                )
+                            raise RequiredRecoveryOutputError(
+                                "Queued handoff lost the active chat task fence"
+                            )
+                        if legacy_batch_proof is not None:
+                            resumed_id = await resume_legacy_queued_handoff(
+                                cache_service=cache_service_instance,
+                                directus_service=directus_service_instance,
+                                chat_id=combined_chat_id,
+                                actor_user_id=combined_request.user_id,
+                                hashed_team_id=combined_request.team_id_hash,
+                            )
+                            if resumed_id != queued_task_id:
+                                raise RequiredRecoveryOutputError(
+                                    "Queued legacy handoff was not dispatched"
+                                )
+                        else:
+                            try:
+                                new_task_result = celery_config.app.send_task(
+                                    name='apps.ai.tasks.skill_ask',
+                                    kwargs={
+                                        "request_data_dict": combined_request.model_dump(),
+                                        "skill_config_dict": skill_config_dict,
+                                        "legacy_batch_proof": legacy_batch_proof,
+                                    },
+                                    queue='app_ai',
+                                    task_id=queued_task_id,
+                                    headers=queued_headers,
+                                )
+                                if not new_task_result or new_task_result.id != queued_task_id:
+                                    raise RuntimeError("Queued broker dispatch returned a different task ID")
+                            except Exception:
+                                await cache_service_instance.clear_active_ai_task_if_matches(
+                                    combined_chat_id, queued_task_id,
+                                )
+                                raise
+                            if not await cache_service_instance.acknowledge_queued_message_prefix(
+                                combined_chat_id, queued_lease,
+                            ):
+                                raise RequiredRecoveryOutputError(
+                                    "Queued broker accepted task but exact prefix ACK failed"
+                                )
                     
-                    logger.info(f"[Task ID: {task_id}] Dispatched new Celery task {new_task_result.id} for combined queued message(s) in chat {combined_chat_id} (post-processing continues in parallel)")
-                    
-                    # Mark the new task as active
-                    await cache_service_instance.set_active_ai_task(combined_chat_id, new_task_result.id)
+                    logger.info(f"[Task ID: {task_id}] Dispatched new Celery task {queued_task_id} for combined queued message(s) in chat {combined_chat_id} (post-processing continues in parallel)")
                     
                 except Exception as e_queue:
                     logger.error(f"[Task ID: {task_id}] Failed to dispatch queued message task: {e_queue}", exc_info=True)
-                    # Don't fail the current task if queue processing fails
+                    await cache_service_instance.publish_event(
+                        f"chat_stream::{combined_chat_id}", {
+                            "type": "error",
+                            "code": "ai_dispatch_failed",
+                            "message": "Queued message remains saved for retry; AI start was not confirmed.",
+                            "chat_id": combined_chat_id,
+                            "user_message_id": combined_message_id,
+                            "message_id": combined_message_id,
+                            "retryable": True,
+                        },
+                    )
+                    await cache_service_instance.publish_event(
+                        f"chat_stream::{combined_chat_id}", {
+                            "type": "queued_handoff_paused",
+                            "chat_id": combined_chat_id,
+                            "user_id_uuid": request_data.user_id,
+                            "user_id_hash": request_data.user_id_hash,
+                            "reason_code": "queued_handoff_unavailable",
+                        },
+                    )
             else:
                 logger.warning(f"[Task ID: {task_id}] Queued messages found but could not extract content for combining")
         else:
@@ -2728,7 +3413,10 @@ async def _async_process_ai_skill_ask_task(
     retry_jitter=False,
     countdown=1
 )
-def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: dict):
+def process_ai_skill_ask_task(
+    self, request_data_dict: dict, skill_config_dict: dict,
+    legacy_batch_proof: Optional[dict] = None,
+):
     task_id = self.request.id
     record_ai_queue_span(
         (getattr(self.request, "headers", None) or {}).get(AI_QUEUE_ENQUEUED_AT_HEADER)
@@ -2791,7 +3479,159 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
     task_result_dict: Optional[Dict[str, Any]] = None
     legacy_completion_requires_persistence = False
     terminal_class = "worker_interrupted"
+    recovery_context_token = None
+    legacy_context_token = None
+    volatile_context_token = None
+    legacy_batch_claimed = False
+    legacy_ordinary_claimed = False
     try:
+        from backend.shared.python_utils.chat_recovery_context import (
+            LegacyOutputContext, active_legacy_output_context,
+        )
+        from backend.shared.python_utils.volatile_embed_authority import (
+            MAIN_HEADER, active_volatile_ai_context, verify_main_header,
+            require_live_incognito_session,
+        )
+        volatile_header = (getattr(self.request, "headers", None) or {}).get(MAIN_HEADER)
+        requires_volatile = (
+            not request_data.is_anonymous
+            and (request_data.is_incognito or
+                 (request_data.is_external and not request_data.recovery_task_id))
+        )
+        if requires_volatile:
+            if volatile_header is None:
+                raise RequiredRecoveryOutputError("Volatile AI task lacks signed request authority")
+            volatile_context = verify_main_header(
+                volatile_header, owner_id=request_data.user_id,
+                owner_hash=request_data.user_id_hash,
+                chat_id=request_data.chat_id, message_id=request_data.message_id,
+                main_task_id=task_id,
+                hashed_team_id=request_data.team_id_hash,
+            )
+            expected_mode = "external" if request_data.is_external else "incognito"
+            if volatile_context.mode != expected_mode:
+                raise RequiredRecoveryOutputError("Volatile AI task mode mismatch")
+            if volatile_context.mode == "incognito":
+                loop.run_until_complete(require_live_incognito_session(
+                    volatile_context.session_nonce or "", volatile_context.owner_hash,
+                ))
+            from backend.shared.python_utils.embed_producer_dispatch import _transaction
+            volatile_actor = loop.run_until_complete(_transaction(
+                "verify_volatile_output_actor", {
+                    "protocol_version": 1,
+                    "actor_user_id": request_data.user_id,
+                    "hashed_user_id": request_data.user_id_hash,
+                    "target_chat_id": None,
+                    "hashed_team_id": volatile_context.hashed_team_id,
+                },
+            ))
+            if volatile_actor.get("authorized") is not True:
+                raise RequiredRecoveryOutputError("Volatile AI actor no longer authorized")
+            volatile_context_token = active_volatile_ai_context.set(volatile_context)
+        elif volatile_header is not None:
+            raise RequiredRecoveryOutputError("Saved AI task carries volatile authority")
+        recovery_inference_id = request_data.resolved_recovery_inference_task_id()
+        if recovery_inference_id:
+            if not all((request_data.recovery_preflight_id, request_data.recovery_turn_id,
+                        request_data.recovery_public_key, request_data.chat_key_version)):
+                raise RequiredRecoveryOutputError("Admitted task lacks sealed output recovery identity")
+            recovery_context_token = active_recovery_output_context.set(RecoveryOutputContext(
+                owner_id=request_data.user_id,
+                owner_hash=request_data.user_id_hash,
+                root_chat_id=request_data.root_chat_id or request_data.chat_id,
+                target_chat_id=request_data.chat_id,
+                turn_id=request_data.recovery_turn_id,
+                preflight_id=request_data.recovery_preflight_id,
+                inference_task_id=recovery_inference_id,
+                public_key=request_data.recovery_public_key,
+                key_version=request_data.chat_key_version,
+            ))
+        elif not requires_volatile:
+            legacy_identity = (
+                request_data.root_legacy_cutover_task_id
+                or request_data.legacy_cutover_task_id
+            )
+            if legacy_identity:
+                root_chat_id = request_data.root_chat_id or request_data.chat_id
+                root_message_id = request_data.root_user_message_id or request_data.message_id
+                expected_identity = hashlib.sha256(
+                    f"{request_data.user_id}:{root_chat_id}:{root_message_id}".encode()
+                ).hexdigest()
+                if legacy_identity != expected_identity:
+                    raise RequiredRecoveryOutputError("Legacy AI root admission mismatch")
+                if (legacy_batch_proof is None and not request_data.is_sub_chat
+                        and not any((
+                            request_data.is_sub_chat_continuation,
+                            request_data.is_focus_mode_continuation,
+                            request_data.is_app_settings_memories_continuation,
+                            request_data.is_connected_account_permission_continuation,
+                            request_data.is_async_skill_continuation,
+                        ))):
+                    if task_id != legacy_identity:
+                        raise RequiredRecoveryOutputError("Legacy root task ID mismatch")
+                    from backend.shared.python_utils.embed_producer_dispatch import bind_task_invocation
+                    ordinary_binding = bind_task_invocation(
+                        task_name="apps.ai.tasks.skill_ask",
+                        task_uuid=task_id,
+                        args=[],
+                        kwargs={
+                            "request_data_dict": request_data_dict,
+                            "skill_config_dict": skill_config_dict,
+                        },
+                    )
+                    admission_directus = DirectusService()
+                    try:
+                        start_proof = loop.run_until_complete(
+                            ChatRecoveryService(admission_directus).execute(
+                                "claim_legacy_inference_start", {
+                                    "protocol_version": 1,
+                                    "task_identity": legacy_identity,
+                                    "actor_user_id": request_data.user_id,
+                                    "hashed_user_id": request_data.user_id_hash,
+                                    "chat_id": root_chat_id,
+                                    "first_message_id": root_message_id,
+                                    "hashed_team_id": request_data.team_id_hash,
+                                    "broker_task_id": task_id,
+                                    "dispatch_binding": ordinary_binding,
+                                },
+                            )
+                        )
+                    finally:
+                        loop.run_until_complete(admission_directus.close())
+                    if (start_proof.get("authorized") is not True
+                            or start_proof.get("claimed") is not True
+                            or start_proof.get("status") != "RUNNING"):
+                        raise RequiredRecoveryOutputError(
+                            "Legacy root inference admission is not current"
+                        )
+                    legacy_ordinary_claimed = True
+                legacy_context_token = active_legacy_output_context.set(LegacyOutputContext(
+                    owner_id=request_data.user_id,
+                    owner_hash=request_data.user_id_hash,
+                    legacy_task_identity=legacy_identity,
+                    root_chat_id=root_chat_id,
+                    root_turn_id=request_data.root_turn_id,
+                    root_user_message_id=root_message_id,
+                    target_chat_id=request_data.chat_id,
+                ))
+            elif not request_data.is_anonymous:
+                raise RequiredRecoveryOutputError("Saved AI task lacks durable admission authority")
+        if legacy_batch_proof is not None:
+            if (requires_volatile or request_data.is_anonymous or request_data.is_sub_chat
+                    or request_data.recovery_task_id
+                    or not request_data.legacy_cutover_task_id):
+                raise RequiredRecoveryOutputError("Queued legacy proof on wrong execution mode")
+            proof = _verify_legacy_batch_proof(legacy_batch_proof, request_data, task_id)
+            batch_directus = DirectusService()
+            try:
+                claim = loop.run_until_complete(ChatRecoveryService(batch_directus).execute(
+                    "claim_legacy_batch", proof,
+                ))
+            finally:
+                loop.run_until_complete(batch_directus.close())
+            if claim.get("claimed") is not True:
+                raise RequiredRecoveryOutputError("Queued legacy batch already claimed or revoked")
+            legacy_batch_claimed = True
         # Update progress before calling async helper
         self.update_state(state='PROGRESS', meta={'step': 'preprocessing', 'status': 'started'})
 
@@ -2801,6 +3641,7 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
                 request_data,
                 skill_config,
                 completion_timing=completion_timing,
+                legacy_batch_proof=legacy_batch_proof,
             )
         )
         from backend.apps.ai.utils.preprocessing_history import STANDARDIZED_USER_ERROR_MESSAGE
@@ -2955,6 +3796,7 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
             ))
         except Exception as cleanup_err:
             logger.error(f"[Task ID: {task_id}] Error cleaning up after RuntimeError: {cleanup_err}")
+        recovery_pause_settled = False
         if not was_revoked:
             loop.run_until_complete(notify_chat_failure(
                 f"{request_data.chat_id}:{request_data.message_id}",
@@ -2966,9 +3808,16 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
                 request_data,
                 task_id,
                 cancelled=bool(was_revoked),
+                pause_parent=isinstance(e, (RequiredRecoveryOutputError, RecoveryCheckpointPersistenceError)),
             ))
+            recovery_pause_settled = True
         except Exception as sub_chat_err:
             logger.error(f"[Task ID: {task_id}] Failed to settle sub-chat after RuntimeError: {sub_chat_err}")
+        if recovery_pause_settled and isinstance(e, (RequiredRecoveryOutputError, RecoveryCheckpointPersistenceError)):
+            try:
+                loop.run_until_complete(_publish_recovery_output_pause(request_data, task_id))
+            except Exception as pause_err:
+                logger.error(f"[Task ID: {task_id}] Failed to publish durable-output pause: {pause_err}")
         try:
             loop.run_until_complete(_mark_recovery_inference_failed(
                 request_data,
@@ -3055,12 +3904,19 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
             })
         raise Ignore()
     finally:
+        if recovery_context_token is not None:
+            active_recovery_output_context.reset(recovery_context_token)
+        if legacy_context_token is not None:
+            active_legacy_output_context.reset(legacy_context_token)
+        if volatile_context_token is not None:
+            active_volatile_ai_context.reset(volatile_context_token)
         if (
             "request_data" in locals()
             and not request_data.is_incognito
             and not request_data.is_external
             and not request_data.recovery_task_id
             and request_data.legacy_cutover_task_id
+            and (legacy_batch_claimed or legacy_ordinary_claimed)
         ):
             try:
                 loop.run_until_complete(
@@ -3077,8 +3933,11 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
         # Clean up live mock context vars (no-op if not activated)
         if os.getenv("MOCK_EXTERNAL_APIS") == "true":
             try:
-                from backend.shared.testing.mock_context import deactivate_mock_mode
-                deactivate_mock_mode()
+                from backend.shared.testing.mock_context import deactivate_mock_mode, write_live_mock_receipt
+                try:
+                    write_live_mock_receipt()
+                finally:
+                    deactivate_mock_mode()
             except ImportError:
                 pass
         record_ai_completion_timing(

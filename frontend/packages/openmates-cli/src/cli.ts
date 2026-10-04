@@ -10226,6 +10226,17 @@ function decodeBase32(input: string): Buffer {
   return Buffer.from(bytes);
 }
 
+/** Keep E2E auto-generated setup codes away from the TOTP rollover. */
+export async function waitForSafeE2ETotpWindow(
+  now: () => number = Date.now,
+  sleep: (milliseconds: number) => Promise<void> = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)),
+): Promise<void> {
+  const millisecondsRemaining = 30_000 - (now() % 30_000);
+  if (millisecondsRemaining < 2_000) {
+    await sleep(millisecondsRemaining + 50);
+  }
+}
+
 async function generateTotpCode(secret: string): Promise<string> {
   const { createHmac } = await import("node:crypto");
   const counter = Math.floor(Date.now() / 1000 / 30);
@@ -10235,6 +10246,11 @@ async function generateTotpCode(secret: string): Promise<string> {
   const offset = hmac[hmac.length - 1] & 0x0f;
   const code = (hmac.readUInt32BE(offset) & 0x7fffffff) % 1_000_000;
   return String(code).padStart(6, "0");
+}
+
+async function generateSafeE2ETotpCode(secret: string): Promise<string> {
+  await waitForSafeE2ETotpWindow();
+  return generateTotpCode(secret);
 }
 
 async function runSecuritySetup(client: OpenMatesClient, flags: Record<string, string | boolean>, options: { autoGenerateTotp?: boolean } = {}): Promise<{
@@ -10262,7 +10278,7 @@ async function runSecuritySetup(client: OpenMatesClient, flags: Record<string, s
     const code = typeof process.env.OPENMATES_CLI_SIGNUP_TOTP_CODE === "string"
       ? process.env.OPENMATES_CLI_SIGNUP_TOTP_CODE
       : options.autoGenerateTotp && setup.secret
-        ? await generateTotpCode(setup.secret)
+        ? await generateSafeE2ETotpCode(setup.secret)
         : await promptLine("Enter current 2FA code: ");
     await client.verifyTotpSetup(code);
     const provider = typeof flags.provider === "string" ? flags.provider : "Authenticator app";

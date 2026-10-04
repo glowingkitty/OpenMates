@@ -14,6 +14,15 @@ from typing import Any, Dict, List, Optional
 
 from backend.apps.ai.utils.remotion_fences import normalize_remotion_filename
 from backend.apps.base_skill import BaseSkill
+from backend.shared.python_utils.chat_recovery_context import (
+    active_authenticated_direct_skill, active_recovery_output_context,
+    active_legacy_output_context, RequiredRecoveryOutputError,
+)
+from backend.shared.python_utils.embed_producer_dispatch import (
+    dispatch_authorized_direct_skill_task, dispatch_recoverable_embed_task,
+    dispatch_legacy_embed_task, dispatch_volatile_embed_task,
+)
+from backend.shared.python_utils.volatile_embed_authority import active_volatile_ai_context
 
 
 logger = logging.getLogger(__name__)
@@ -89,12 +98,45 @@ class CreateSkill(BaseSkill):
                     record_task_owner, task_id, user_id, self.celery_producer.conf.broker_url
                 )
                 dispatch_options["task_id"] = task_id
-            task_signature = self.celery_producer.send_task(
-                "apps.videos.tasks.render_remotion",
-                args=[task_args],
-                queue="app_videos",
-                **dispatch_options,
-            )
+            if active_recovery_output_context.get() is not None:
+                task_signature = await dispatch_recoverable_embed_task(
+                    self.celery_producer,
+                    task_name="apps.videos.tasks.render_remotion",
+                    queue="app_videos", args=[task_args],
+                    owner_id=task_args["user_id"], target_chat_id=task_args["chat_id"],
+                    message_id=task_args["message_id"], embed_id=embed_id,
+                    task_uuid=dispatch_options.get("task_id"),
+                )
+            elif active_authenticated_direct_skill.get() is not None:
+                task_signature = await dispatch_authorized_direct_skill_task(
+                    self.celery_producer,
+                    task_name="apps.videos.tasks.render_remotion",
+                    queue="app_videos", args=[task_args],
+                    owner_id=task_args["user_id"], embed_id=embed_id,
+                    target_chat_id=task_args["chat_id"],
+                    message_id=task_args["message_id"],
+                    task_uuid=dispatch_options.get("task_id"),
+                )
+            elif active_legacy_output_context.get() is not None:
+                task_signature = await dispatch_legacy_embed_task(
+                    self.celery_producer, task_name="apps.videos.tasks.render_remotion",
+                    queue="app_videos", args=[task_args], owner_id=task_args["user_id"],
+                    target_chat_id=task_args["chat_id"],
+                    message_id=task_args["message_id"], embed_id=embed_id,
+                    task_uuid=dispatch_options.get("task_id"),
+                )
+            elif active_volatile_ai_context.get() is not None:
+                task_signature = await dispatch_volatile_embed_task(
+                    self.celery_producer, task_name="apps.videos.tasks.render_remotion",
+                    queue="app_videos", args=[task_args], owner_id=task_args["user_id"],
+                    target_chat_id=task_args["chat_id"],
+                    message_id=task_args["message_id"], embed_id=embed_id,
+                    task_uuid=dispatch_options.get("task_id"),
+                )
+            else:
+                raise RequiredRecoveryOutputError("Remotion render lacks authenticated output admission")
+        except RequiredRecoveryOutputError:
+            raise
         except Exception as exc:
             logger.error("Failed to dispatch Remotion render task: %s", exc, exc_info=True)
             return {"error": f"Failed to start Remotion render: {exc}"}

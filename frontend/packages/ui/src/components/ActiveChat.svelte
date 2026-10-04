@@ -6,6 +6,7 @@
     import type { Content } from '@tiptap/core';
     import CodeFullscreen from './fullscreen_previews/CodeFullscreen.svelte';
     import ChatHistory from './ChatHistory.svelte';
+    import SharedAuxiliaryLoadButton from './SharedAuxiliaryLoadButton.svelte';
     import ChatProcessingIndicator from './ChatProcessingIndicator.svelte';
     import AssistantSpeechPlayer from './AssistantSpeechPlayer.svelte';
     import NewChatSuggestions from './NewChatSuggestions.svelte';
@@ -5429,6 +5430,31 @@
      let currentCompressionCheckpoints = $state<ChatCompressionCheckpoint[]>(initialRecentChatSelection?.window.compressionCheckpoints ?? initialPublicCompressionCheckpoints);
       let currentMessageWindowHasMoreBefore = $state(initialRecentChatSelection?.window.hasMoreBefore ?? false);
       let olderMessageWindowLoading = $state(false);
+      let olderSharedInteractiveContextFailed = $state(false);
+      let olderSharedAuxiliaryLoading = $state(false);
+      let olderSharedAuxiliaryFailed = $state(false);
+      let hasOlderSharedAuxiliary = $derived(!!currentChat?.is_shared_by_others &&
+          Object.values(currentChat.shared_auxiliary_windows ?? {}).some((window) => window?.has_more_before));
+      let hasUnmatchedSharedInteractiveResponse = $derived.by(() => {
+          if (!currentChat?.is_shared_by_others || !currentChat.shared_message_window_has_more_before) return false;
+          const questions = new Set<string>();
+          const responses = new Set<string>();
+          for (const message of currentMessages) {
+              if (typeof message.content !== 'string') continue;
+              const pattern = message.role === 'assistant'
+                  ? /```interactive_question\s*([\s\S]*?)\s*```/g
+                  : message.role === 'user' ? /```interactive_response\s*([\s\S]*?)\s*```/g : null;
+              if (!pattern) continue;
+              for (const match of message.content.matchAll(pattern)) {
+                  try {
+                      const id = (JSON.parse(match[1]) as { id?: unknown }).id;
+                      if (typeof id !== 'string' || !id) continue;
+                      (message.role === 'assistant' ? questions : responses).add(id);
+                  } catch { /* Malformed historic blocks are not searchable. */ }
+              }
+          }
+          return [...responses].some((id) => !questions.has(id));
+      });
       let lastBoundChatHistoryRef = $state<ChatHistoryRef | null>(null);
       function pruneCurrentDecryptedMessageWindow(messages: ChatMessageModel[]): ChatMessageModel[] {
         const prunedWindow = pruneDecryptedMessageWindow(messages, {
@@ -5558,6 +5584,56 @@
                 return checkpoint;
             }
         }));
+    }
+
+    const olderCheckpointHistoryExhausted = new Set<string>();
+
+    async function loadOlderCompressionCheckpointsForVisibleHistory(chatId: string, oldestVisibleTimestamp: number): Promise<void> {
+        if (olderCheckpointHistoryExhausted.has(chatId)) return;
+        const local = await chatDB.getChatCompressionCheckpoints(chatId);
+        const earliest = [...local].sort((a, b) => a.created_at - b.created_at || a.id.localeCompare(b.id))[0];
+        if (earliest && oldestVisibleTimestamp > earliest.created_at) return;
+        const params = new URLSearchParams({ limit: '20' });
+        if (earliest) {
+            params.set('before_timestamp', String(earliest.created_at));
+            params.set('before_id', earliest.id);
+        }
+        const shared = currentChat?.chat_id === chatId && currentChat.is_shared_by_others;
+        const teamId = currentChat?.chat_id === chatId ? currentChat.team_id : null;
+        if (!shared && teamId) params.set('team_id', teamId);
+        const path = shared
+            ? `/v1/share/chat/${encodeURIComponent(chatId)}/compression-checkpoints`
+            : `/v1/chats/${encodeURIComponent(chatId)}/compression-checkpoints`;
+        const response = await fetch(getApiEndpoint(`${path}?${params}`), { credentials: 'include' });
+        if (!response.ok) throw new Error(`Authenticated checkpoint-window fetch failed: ${response.status}`);
+        const page = await response.json() as {
+            checkpoints?: ChatCompressionCheckpoint[];
+            has_more_before?: boolean;
+            oversized_checkpoint_id?: string | null;
+        };
+        if (page.oversized_checkpoint_id) {
+            const exactPath = shared
+                ? `/v1/share/chat/${encodeURIComponent(chatId)}/compression-checkpoints/${encodeURIComponent(page.oversized_checkpoint_id)}`
+                : `/v1/chats/${encodeURIComponent(chatId)}/compression-checkpoints/${encodeURIComponent(page.oversized_checkpoint_id)}`;
+            const exactParams = new URLSearchParams();
+            if (!shared && teamId) exactParams.set('team_id', teamId);
+            const exactResponse = await fetch(getApiEndpoint(`${exactPath}${exactParams.size ? `?${exactParams}` : ''}`), {
+                credentials: 'include',
+            });
+            if (!exactResponse.ok) throw new Error(`Selected checkpoint fetch failed: ${exactResponse.status}`);
+            const exact = await exactResponse.json() as { checkpoint?: ChatCompressionCheckpoint };
+            if (!exact.checkpoint || exact.checkpoint.id !== page.oversized_checkpoint_id) {
+                throw new Error('Selected checkpoint identity mismatch');
+            }
+            await chatDB.saveChatCompressionCheckpoint(exact.checkpoint);
+        }
+        for (const checkpoint of page.checkpoints || []) {
+            await chatDB.saveChatCompressionCheckpoint(checkpoint);
+        }
+        if (page.has_more_before === false) olderCheckpointHistoryExhausted.add(chatId);
+        if (currentChat?.chat_id === chatId) {
+            currentCompressionCheckpoints = await loadCompressionCheckpointsForChat(chatId);
+        }
     }
 
     let startNewChatPlaceholderMode = $derived(
@@ -6864,7 +6940,10 @@
                                     await incognitoChatService.storeMessages(updatedUserMessage.chat_id, existingMessages);
                                 }
                             } else {
-                                await saveMessageToCurrentStorage(updatedUserMessage);
+                                // The in-memory user message may still contain the editor's
+                                // original code fence. The sender has already committed the
+                                // canonical encrypted embed reference in IndexedDB.
+                                await chatDB.updateMessageStatus(updatedUserMessage.message_id, userMessageStatus);
                             }
                             console.debug('[ActiveChat] Updated user message status to synced:', updatedUserMessage.message_id);
                             
@@ -8243,7 +8322,6 @@
                         encryptWithEmbedKey,
                     } = await import('../services/cryptoService');
                     const {
-                        sendStoreEmbedKeysImpl,
                         sendStoreEmbedImpl,
                     } = await import('../services/chatSyncServiceSenders');
 
@@ -8328,27 +8406,22 @@
                     ];
                     await embedStore.storeEmbedKeys(embedKeysForStorage);
 
-                    // Send key wrappers to Directus (the dedup logic on the server will
-                    // skip the master key if it already exists and create the new chat key)
                     const { chatSyncService: syncService } = await import('../services/chatSyncService');
-                    if (syncService) {
-                        await sendStoreEmbedKeysImpl(syncService, {
-                            keys: embedKeysForStorage,
-                        });
-                    }
-
-                    // Update the embed's hashed_chat_id and hashed_message_id in Directus
-                    // so the phased sync pipeline can discover it when syncing this chat.
-                    // If we also need to re-encrypt (cache miss), include the new encrypted content.
+                    // Publish a complete encrypted head before its new chat wrapper.
+                    // The offline sender queues both until the canonical receipts arrive.
                     const embedUpdatePayload: Record<string, unknown> = {
                         embed_id: reusedEmbedId,
+                        status: 'finished',
                         hashed_chat_id: hashedChatId,
                         hashed_message_id: hashedMessageId,
                         hashed_user_id: hashedUserId,
+                        is_private: false,
+                        is_shared: false,
+                        created_at: embedKeyTimestamp,
                         updated_at: embedKeyTimestamp,
                     };
 
-                    if (needsReEncrypt && inspiration.video) {
+                    if (inspiration.video) {
                         const video = inspiration.video;
                         const videoUrl = `https://www.youtube.com/watch?v=${video.youtube_id}`;
                         let durationFmt: string | null = null;
@@ -8385,8 +8458,11 @@
                         const encPreview = await encryptWithEmbedKey(
                             video.title || 'YouTube Video', embedKeyForWrap,
                         );
-                        if (encContent) embedUpdatePayload.encrypted_content = encContent;
-                        if (encType) embedUpdatePayload.encrypted_type = encType;
+                        if (!encContent || !encType) {
+                            throw new Error('Failed to encrypt reused inspiration embed before publishing its chat wrapper');
+                        }
+                        embedUpdatePayload.encrypted_content = encContent;
+                        embedUpdatePayload.encrypted_type = encType;
                         if (encPreview) embedUpdatePayload.encrypted_text_preview = encPreview;
                     }
 
@@ -8394,6 +8470,7 @@
                         await sendStoreEmbedImpl(
                             syncService,
                             embedUpdatePayload as unknown as import('../types/chat').StoreEmbedPayload,
+                            { keys: embedKeysForStorage.map((key) => ({ ...key })) },
                         );
                     }
 
@@ -8413,8 +8490,7 @@
                     // request_embed.
                     try {
                         // Get or create the encrypted embed fields for the sync payload.
-                        // If needsReEncrypt was true, embedUpdatePayload already has them.
-                        // Otherwise, encrypt the content with the embed key now.
+                        // The canonical head was encrypted before its wrappers were queued.
                         let encEmbedContent = embedUpdatePayload.encrypted_content as string | undefined;
                         let encEmbedType = embedUpdatePayload.encrypted_type as string | undefined;
                         let encEmbedPreview = embedUpdatePayload.encrypted_text_preview as string | undefined;
@@ -9127,7 +9203,8 @@
                 } else {
                     const freshWindow = await chatDB.getMessageWindowForChat(incomingChatId, { direction: 'latest' });
                     freshMessages = freshWindow.messages;
-                    freshHasMoreBefore = freshWindow.hasMoreBefore;
+                    freshHasMoreBefore = freshWindow.hasMoreBefore ||
+                        !!(currentChat.is_shared_by_others && currentChat.shared_message_window_has_more_before);
                 }
                 if (currentChat?.chat_id !== incomingChatId || !isRecentChatReadCurrent(incomingChatId, readEpoch, readRevision)) return;
                 currentMessageWindowHasMoreBefore = freshHasMoreBefore;
@@ -9183,7 +9260,8 @@
             console.debug(`[ActiveChat] Reloading messages for chat: ${currentChat.chat_id}`);
             const messageWindow = await chatDB.getMessageWindowForChat(currentChat.chat_id, { direction: 'latest' });
             currentMessages = messageWindow.messages;
-            currentMessageWindowHasMoreBefore = messageWindow.hasMoreBefore;
+            currentMessageWindowHasMoreBefore = messageWindow.hasMoreBefore ||
+                !!(currentChat.is_shared_by_others && currentChat.shared_message_window_has_more_before);
             if (chatHistoryRef) {
                 chatHistoryRef.updateMessages(currentMessages);
             }
@@ -9314,6 +9392,7 @@
         start_cursor?: { created_at?: number; message_id?: string } | null;
         end_cursor?: { created_at?: number; message_id?: string } | null;
         anchor_found?: boolean;
+        oversized_message_cursor?: { created_at: number; message_id: string } | null;
     };
 
     function normalizeServerMessage(raw: string | Record<string, unknown>, chatId: string): ChatMessageModel | null {
@@ -9365,6 +9444,7 @@
         if (typeof options.beforeTimestamp === 'number') params.set('before_timestamp', String(options.beforeTimestamp));
         if (options.beforeMessageId) params.set('before_message_id', options.beforeMessageId);
         if (options.anchorMessageId) params.set('anchor_message_id', options.anchorMessageId);
+        if (currentChat?.chat_id === chatId && currentChat.team_id) params.set('team_id', currentChat.team_id);
 
         const response = await fetch(getApiEndpoint(`/v1/chats/${chatId}/messages/window?${params.toString()}`), {
             credentials: 'include',
@@ -9378,6 +9458,23 @@
             const normalized = normalizeServerMessage(raw, chatId);
             return normalized ? [normalized] : [];
         });
+        if (payload.oversized_message_cursor) {
+            const selectedId = payload.oversized_message_cursor.message_id;
+            const exactParams = new URLSearchParams();
+            if (currentChat?.chat_id === chatId && currentChat.team_id) exactParams.set('team_id', currentChat.team_id);
+            const exactPath = `/v1/chats/${encodeURIComponent(chatId)}/messages/${encodeURIComponent(selectedId)}`;
+            const exactResponse = await fetch(getApiEndpoint(`${exactPath}${exactParams.size ? `?${exactParams}` : ''}`), {
+                credentials: 'include',
+            });
+            if (!exactResponse.ok) throw new Error(`Selected message fetch failed: ${exactResponse.status}`);
+            const exactPayload = await exactResponse.json() as { message?: Record<string, unknown> };
+            const selected = exactPayload.message && normalizeServerMessage(exactPayload.message, chatId);
+            if (!selected || selected.message_id !== selectedId) throw new Error('Selected message identity mismatch');
+            parsedMessages.push(selected);
+        }
+        if (parsedMessages.length === 0 && payload.has_more_before) {
+            throw new Error('Message window continuation returned no selected ciphertext');
+        }
         if (parsedMessages.length > 0) {
             await chatDB.batchSaveMessages(parsedMessages);
         }
@@ -9411,6 +9508,75 @@
         Promise<Awaited<ReturnType<typeof fetchAuthenticatedMessageWindow>> | null>
     >();
 
+    async function loadOlderSharedAuxiliary(): Promise<void> {
+        if (!currentChat?.is_shared_by_others || olderSharedAuxiliaryLoading) return;
+        const chatId = currentChat.chat_id;
+        const kinds = ['message_highlights', 'code_run_outputs', 'notebook_run_outputs'] as const;
+        olderSharedAuxiliaryLoading = true;
+        olderSharedAuxiliaryFailed = false;
+        try {
+            const updatedWindows = { ...(currentChat.shared_auxiliary_windows ?? {}) };
+            for (const kind of kinds) {
+                const state = updatedWindows[kind];
+                if (!state?.has_more_before) continue;
+                let items: Record<string, unknown>[];
+                let nextState: typeof state;
+                if (state.oversized_id) {
+                    const response = await fetch(getApiEndpoint(
+                        `/v1/share/chat/${encodeURIComponent(chatId)}/auxiliary/${kind}/${encodeURIComponent(state.oversized_id)}`,
+                    ));
+                    if (!response.ok) throw new Error(`Selected shared ${kind} failed: ${response.status}`);
+                    const exact = await response.json() as { item?: Record<string, unknown> };
+                    if (!exact.item || exact.item.id !== state.oversized_id) throw new Error('Selected shared auxiliary identity mismatch');
+                    items = [exact.item];
+                    const timestamp = kind === 'message_highlights' ? exact.item.created_at : exact.item.updated_at;
+                    if (typeof timestamp !== 'number') throw new Error('Selected shared auxiliary cursor missing');
+                    nextState = { has_more_before: true, start_cursor: { timestamp, id: state.oversized_id }, oversized_id: null };
+                } else {
+                    const params = new URLSearchParams();
+                    if (state.start_cursor) {
+                        params.set('before_timestamp', String(state.start_cursor.timestamp));
+                        params.set('before_id', state.start_cursor.id);
+                    }
+                    const path = `/v1/share/chat/${encodeURIComponent(chatId)}/auxiliary/${kind}`;
+                    const response = await fetch(getApiEndpoint(`${path}${params.size ? `?${params}` : ''}`));
+                    if (!response.ok) throw new Error(`Shared ${kind} continuation failed: ${response.status}`);
+                    const page = await response.json() as {
+                        items?: Record<string, unknown>[]; has_more_before?: boolean;
+                        start_cursor?: { timestamp: number; id: string } | null; oversized_id?: string | null;
+                    };
+                    items = page.items ?? [];
+                    if (page.has_more_before && items.length === 0 && !page.oversized_id) {
+                        throw new Error('Shared auxiliary continuation did not select a record');
+                    }
+                    nextState = { has_more_before: !!page.has_more_before,
+                        start_cursor: page.start_cursor ?? state.start_cursor,
+                        oversized_id: page.oversized_id ?? null };
+                }
+                if (kind === 'message_highlights') {
+                    const { handleMessageHighlightAddedImpl } = await import('../services/handlersMessageHighlights');
+                    for (const item of items) await handleMessageHighlightAddedImpl(item);
+                } else if (kind === 'code_run_outputs') {
+                    const { handleCodeRunOutputSyncedImpl } = await import('../services/handlersCodeRunOutputs');
+                    for (const item of items) await handleCodeRunOutputSyncedImpl(item);
+                } else {
+                    const { handleNotebookRunOutputSyncedImpl } = await import('../services/handlersNotebookRunOutputs');
+                    for (const item of items) await handleNotebookRunOutputSyncedImpl(item);
+                }
+                updatedWindows[kind] = nextState;
+                if (currentChat?.chat_id === chatId) {
+                    currentChat = { ...currentChat, shared_auxiliary_windows: { ...updatedWindows } };
+                    await chatDB.updateChat(currentChat);
+                }
+            }
+        } catch (error) {
+            olderSharedAuxiliaryFailed = true;
+            console.error('[ActiveChat] Shared auxiliary continuation failed:', error);
+        } finally {
+            olderSharedAuxiliaryLoading = false;
+        }
+    }
+
     async function handleLoadOlderMessages(event: CustomEvent) {
         if (!currentChat?.chat_id || olderMessageWindowLoading) return;
         const openedChatId = currentChat.chat_id;
@@ -9419,7 +9585,16 @@
         if (isPublicChat(currentChat.chat_id) || currentChat.is_incognito) return;
 
         olderMessageWindowLoading = true;
+        olderSharedInteractiveContextFailed = false;
         try {
+            const oldestVisibleTimestamp = currentMessages[0]?.created_at;
+            if (typeof oldestVisibleTimestamp === 'number') {
+                try {
+                    await loadOlderCompressionCheckpointsForVisibleHistory(currentChat.chat_id, oldestVisibleTimestamp);
+                } catch (checkpointError) {
+                    console.error('[ActiveChat] Older checkpoint page unavailable:', checkpointError);
+                }
+            }
             if (currentChat.is_shared_by_others && currentChat.shared_message_window_has_more_before && currentChat.shared_message_window_next_before_timestamp && currentChat.shared_message_window_next_before_message_id) {
                 const params = new URLSearchParams({
                     before_timestamp: String(currentChat.shared_message_window_next_before_timestamp),
@@ -9433,9 +9608,26 @@
                     has_more?: boolean;
                     next_before_timestamp?: number | null;
                     next_before_message_id?: string | null;
+                    oversized_message_cursor?: { created_at: number; message_id: string } | null;
                 };
                 if (currentChat?.chat_id !== openedChatId || openedEpoch !== getWorkspaceCacheEpoch()) return;
-                const parsedMessages: ChatMessageModel[] = (payload.messages || []).flatMap((raw) => {
+                const selectedMessages = [...(payload.messages || [])];
+                if (payload.oversized_message_cursor) {
+                    const selectedId = payload.oversized_message_cursor.message_id;
+                    const exactResponse = await fetch(getApiEndpoint(
+                        `/v1/share/chat/${encodeURIComponent(currentChat.chat_id)}/messages/${encodeURIComponent(selectedId)}`,
+                    ));
+                    if (!exactResponse.ok) throw new Error(`Selected shared message fetch failed: ${exactResponse.status}`);
+                    if (currentChat?.chat_id !== openedChatId || openedEpoch !== getWorkspaceCacheEpoch()) return;
+                    const exact = await exactResponse.json() as { message?: Record<string, unknown> };
+                    const selected = exact.message;
+                    if (!selected || selected.message_id !== selectedId) throw new Error('Selected shared message identity mismatch');
+                    selectedMessages.push(selected);
+                }
+                if (selectedMessages.length === 0 && payload.has_more) {
+                    throw new Error('Shared message continuation returned no selected ciphertext');
+                }
+                const parsedMessages: ChatMessageModel[] = selectedMessages.flatMap((raw) => {
                     const messageObj = typeof raw === 'string' ? JSON.parse(raw) as Record<string, unknown> : raw;
                     const messageId = messageObj.client_message_id || messageObj.message_id || messageObj.id;
                     if (typeof messageId !== 'string') return [];
@@ -9460,8 +9652,8 @@
                     currentChat = {
                         ...currentChat,
                         shared_message_window_has_more_before: !!payload.has_more,
-                        shared_message_window_next_before_timestamp: payload.next_before_timestamp ?? null,
-                        shared_message_window_next_before_message_id: payload.next_before_message_id ?? null,
+                        shared_message_window_next_before_timestamp: payload.next_before_timestamp ?? payload.oversized_message_cursor?.created_at ?? null,
+                        shared_message_window_next_before_message_id: payload.next_before_message_id ?? payload.oversized_message_cursor?.message_id ?? null,
                     };
                     currentMessageWindowHasMoreBefore = !!payload.has_more;
                     await chatDB.updateChat(currentChat);
@@ -9478,6 +9670,8 @@
                     }
                 } else {
                     currentChat = { ...currentChat, shared_message_window_has_more_before: false, shared_message_window_next_before_timestamp: null, shared_message_window_next_before_message_id: null };
+                    currentMessageWindowHasMoreBefore = false;
+                    await chatDB.updateChat(currentChat);
                 }
                 return;
             }
@@ -9520,6 +9714,7 @@
                 if (currentChat?.chat_id === openedChatId && openedEpoch === getWorkspaceCacheEpoch()) chatHistoryRef?.restoreScrollPosition(restoreMessageId);
             }
         } catch (error) {
+            if (currentChat?.is_shared_by_others) olderSharedInteractiveContextFailed = true;
             console.error('[ActiveChat] Failed to load older message window:', error);
         } finally {
             olderMessageWindowLoading = false;
@@ -10239,7 +10434,8 @@
                                 : undefined,
                         });
                         newMessages = windowResult.messages;
-                        currentMessageWindowHasMoreBefore = windowResult.hasMoreBefore;
+                        currentMessageWindowHasMoreBefore = windowResult.hasMoreBefore ||
+                            !!(currentChat.is_shared_by_others && currentChat.shared_message_window_has_more_before);
                         console.debug(`[ActiveChat] Loaded ${newMessages.length} messages from IndexedDB for ${currentChat.chat_id}`);
                     } catch (error) {
                         // If database is unavailable, use empty messages
@@ -10337,7 +10533,9 @@
                         backgroundMessageWindowRepair = repairRequest;
                     }
                     newMessages = windowResult.messages;
-                    currentMessageWindowHasMoreBefore = windowResult.hasMoreBefore;
+                    currentMessageWindowHasMoreBefore = windowResult.hasMoreBefore ||
+                        (!options?.messageId && (!!currentChat.message_window_has_more_before ||
+                            !!(currentChat.is_shared_by_others && currentChat.shared_message_window_has_more_before)));
                     console.debug(`[ActiveChat] Loaded ${newMessages.length} messages from IndexedDB for ${currentChat.chat_id}`);
                 } catch (error) {
                     // If database is unavailable (e.g., being deleted during logout), use empty messages
@@ -12324,7 +12522,7 @@
                     // in sessionStorage via incognitoChatService, not in IndexedDB).
                     if (!currentChat?.is_incognito) {
                         try {
-                            await saveMessageToCurrentStorage(updatedMessage);
+                            await chatDB.updateMessageStatus(updatedMessage.message_id, 'processing');
                         } catch (error) {
                             console.error('[ActiveChat] Error updating user message status to processing in DB:', error);
                         }
@@ -12500,9 +12698,7 @@
                     // in sessionStorage via incognitoChatService, not in IndexedDB).
                     if (!currentChat?.is_incognito) {
                         try {
-                            // $state.snapshot() converts the Svelte proxy to a plain object —
-                            // IndexedDB structured clone cannot serialize $state proxies (DataCloneError).
-                            await saveMessageToCurrentStorage(updatedMessage);
+                            await chatDB.updateMessageStatus(updatedMessage.message_id, 'synced');
                         } catch (error) {
                             console.error('[ActiveChat] Error updating user message status to synced in DB:', error);
                         }
@@ -12921,7 +13117,11 @@
                         currentMessages[msgIndex] = finalized;
                     }
                     try {
-                        await saveMessageToCurrentStorage(finalized);
+                        if (msg.role === 'user' && !currentChat?.is_incognito) {
+                            await chatDB.updateMessageStatus(msg.message_id, 'synced');
+                        } else {
+                            await saveMessageToCurrentStorage(finalized);
+                        }
                         console.info(`[ActiveChat] Finalized interrupted ${msg.status} message ${msg.message_id} (${msg.content?.length || 0} chars saved)`);
                     } catch (error) {
                         console.error(`[ActiveChat] Error finalizing interrupted message ${msg.message_id}:`, error);
@@ -13173,7 +13373,8 @@
                 try {
                     const messageWindow = await chatDB.getMessageWindowForChat(readyChatId, { direction: 'latest' });
                     const freshMessages = messageWindow.messages;
-                    currentMessageWindowHasMoreBefore = messageWindow.hasMoreBefore;
+                    currentMessageWindowHasMoreBefore = messageWindow.hasMoreBefore ||
+                        !!(currentChat.is_shared_by_others && currentChat.shared_message_window_has_more_before);
                     if (freshMessages && freshMessages.length > 0) {
                         currentMessages = freshMessages;
                         if (chatHistoryRef) {
@@ -14383,6 +14584,29 @@
                          on:scrolledToBottom={handleScrolledToBottom}
                          />
                     {/key}
+
+                    {#if hasUnmatchedSharedInteractiveResponse}
+                        <div class="shared-auxiliary-load-position">
+                            <SharedAuxiliaryLoadButton
+                                testId="shared-interactive-context-load-more"
+                                loading={olderMessageWindowLoading}
+                                failed={olderSharedInteractiveContextFailed}
+                                onLoad={() => void handleLoadOlderMessages(new CustomEvent('loadOlderMessages', {
+                                    detail: { firstMessageId: currentMessages[0]?.message_id }
+                                }))}
+                            />
+                        </div>
+                    {/if}
+
+                    {#if hasOlderSharedAuxiliary}
+                        <div class="shared-auxiliary-load-position">
+                            <SharedAuxiliaryLoadButton
+                                loading={olderSharedAuxiliaryLoading}
+                                failed={olderSharedAuxiliaryFailed}
+                                onLoad={() => void loadOlderSharedAuxiliary()}
+                            />
+                        </div>
+                    {/if}
 
                     <!-- Scroll-to-top button: visible when not at top and chat has messages -->
                     {#if !showWelcome && !isAtTop}
@@ -16738,6 +16962,13 @@
         border-radius: var(--border-radius-full);
         background: var(--color-grey-10);
         cursor: pointer;
+    }
+
+    .shared-auxiliary-load-position {
+        position: absolute;
+        top: var(--spacing-16);
+        right: var(--spacing-4);
+        z-index: var(--z-index-raised-2);
     }
 
     @keyframes chat-history-loading-pulse {

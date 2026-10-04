@@ -27,6 +27,9 @@ RUN mkdir -p /directus/extensions/project-task-sync/dist \
     && mkdir -p /directus/extensions/embed-version-transaction/dist \
     && cp /directus/extensions/embed-version-transaction/src/*.js \
         /directus/extensions/embed-version-transaction/dist/ \
+    && mkdir -p /directus/extensions/chat-archive-transaction/dist \
+    && cp /directus/extensions/chat-archive-transaction/src/*.js \
+        /directus/extensions/chat-archive-transaction/dist/ \
     && mkdir -p /directus/extensions/workflow-authoring-transaction/dist \
     && cp /directus/extensions/workflow-authoring-transaction/src/*.js \
         /directus/extensions/workflow-authoring-transaction/dist/
@@ -251,9 +254,15 @@ index_count="$(PGCONNECT_TIMEOUT=5 PGPASSWORD="$DB_PASSWORD" psql \
         'chat_recovery_jobs_owner_chat_turn_uq',
         'chat_recovery_jobs_preflight_uq',
         'chat_recovery_jobs_task_uq',
-        'chat_recovery_jobs_assistant_message_uq'
+        'chat_recovery_jobs_assistant_message_uq',
+        'chat_recovery_chat_deletion_owner_chat_uq',
+        'chat_recovery_output_producer_child_ordinal_uq',
+        'chat_recovery_output_producer_child_subject_uq',
+        'chat_recovery_output_producer_output_ordinal_uq',
+        'chat_recovery_legacy_batch_task_uq',
+        'chat_recovery_legacy_broker_task_uq'
       );")"
-test "$index_count" = "11"
+test "$index_count" = "17"
 
 workflow_index_count="$(PGCONNECT_TIMEOUT=5 PGPASSWORD="$DB_PASSWORD" psql \
   --host "$DB_HOST" --port "$DB_PORT" --username "$DB_USER" --dbname "$DB_DATABASE" \

@@ -325,7 +325,14 @@ export async function executeHostedProjectFileJob(adapter: HostedProjectFileAdap
   if (creating || current?.revision === 1 && !current.hasInitialHistory) {
     historyRows.push({ version_number: 1, encrypted_snapshot: await adapter.encrypt(creating ? content : original, embedKey), created_at: now });
   }
-  if (!creating) historyRows.push({ version_number: revision, encrypted_patch: await adapter.encrypt(mutation.patch!, embedKey), created_at: now });
+  if (!creating) historyRows.push({
+    version_number: revision,
+    encrypted_patch: await adapter.encrypt(mutation.patch!, embedKey),
+    // The current authorized writer already has plaintext; checkpoint under the
+    // existing embed key in the same CAS transaction every 32 revisions.
+    ...(revision % 32 === 0 ? { encrypted_snapshot: await adapter.encrypt(content, embedKey) } : {}),
+    created_at: now,
+  });
   const payload: Record<string, unknown> = {
     operation_id: job.operation_id, embed_id: embedId, project_id: adapter.projectId, chat_id: job.chat_id,
     proposal_digest: digest, expected_revision: current?.revision ?? 0,

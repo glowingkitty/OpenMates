@@ -73,6 +73,8 @@ baseline:
     - Existing regional S3, private object upload, replication, checksum, tombstone, authorization, and reference tracking are reusable foundations.
     - Existing signed TEST_LIVE_MOCK runs full orchestration through cached LLM/HTTP boundaries and fails on cache misses; raw HTTP guards and per-task real-provider counters already exist. The faster mock_replay event path skips preprocessing/compression/main processing and cannot alone prove processing capacity.
     - Follow-up source audit on 2026-10-01 found client-public-key sealed recovery for final assistant text with a seven-day recovery lifetime; child dispatch lacks that recovery context, and the schema-1 sealed terminal payload does not cover child transcripts, separate embeds/diffs, or compression checkpoints.
+    - "2026-10-04: five reviewed tracking settings are active on dev after metadata-only coordinated setup and independent SQL readback. Fresh read-only database size is 7,505,277,487 bytes; revisions plus activity relations are approximately 77%, including indexes/TOAST. Historical rows are retained."
+    - "2026-10-04: directus_users update snapshots dominate that collection's historical audit payload. Preserve its current policy, security/admin paths and registration activity while reviewing a narrowly authorized routine-state writer; field-level byte contribution has not been measured."
 
 decisions:
   - id: D-1
@@ -116,6 +118,10 @@ decisions:
   - id: D-17
     decided_at: "2026-10-01"
     decision: For the initial small cohort, enable verified S3 reads after targeted zero-inference safety and client tests, then retain PostgreSQL source copies for a 24-hour rollback buffer after cutover. Prune only after the buffer and all per-unit durability, replication, authorized-read, acknowledgement, compatibility, generation/write-fence, and rollback checks pass. A failure pauses pruning and triggers the tested rollback path. Explicit deletion remains immediate. This buffer does not delay steady-state compression, subchat archival, or prompt processing; the separate seven-day rule applies only to superseded archive generations.
+
+  - id: D-18
+    decided_at: '2026-10-04'
+    decision: The user confirms that Apple apps have no testers besides them and backward compatibility is unnecessary for this development rollout. Release the matching web/CLI backend after its focused recovery proof; incompatible Apple embed writers fail closed until their matching update. This does not waive encryption, authorization, saved-copy durability, supported-reader proof before pruning, or the full P-7 first-real-prune gate. Production rollout is outside this development authorization.
 
 architecture:
   tiers:
@@ -205,6 +211,9 @@ implementation_phases:
       - Apply the same history limits to pinned and shared chats, preserving pin placement and gating shared-chat pruning on verified archive-aware authorization and revocation.
       - Archive finished subchats only after final delivery and all required client-encrypted persistence acknowledgements.
       - Extend the existing X25519/AES-GCM client-public-key sealed final-response recovery path with versioned records for every required unattended output, including child transcript messages, embeds/diffs, summaries, and compression checkpoints; propagate recovery identity and public keys into child dispatch.
+      - Carry that durable recovery identity across detached async app tasks, restore and clear their task-local context, and fence finished-output publication on successful sealing; absence of context cannot silently bypass recovery.
+      - Gate typed recovery consumption by explicit reader capability while preserving existing protocol-1 SDK admission and final-text recovery; a valid preflight recovery key remains sufficient to seal outputs for a later capable same-owner device.
+      - Protect durable uncommitted draft turns from reconciliation based only on absence from the server chat list, while preserving explicit deletion and generation fences.
       - Keep small indexed and fenced pending-recovery metadata in PostgreSQL, put large sealed payloads in existing regional S3, and use Redis only for working context; keep pending client finalization distinct from ordinary archive eligibility.
       - Save each required sealed output durably outside Redis before admitting dependent work; pause further work if safe persistence fails, while keeping execution inside its admitted budget and preserving idempotent recovery across retries.
       - Retain each sealed payload and durable recovery locator until its canonical client-encrypted persistence acknowledgement or authorized deletion; recovery job-lease or working-cache expiry cannot remove the only durable output. Large payloads may move to S3 while clients are offline without granting server decryption authority.
@@ -214,6 +223,8 @@ implementation_phases:
       - backend/core/api/app/routes/handlers/websocket_handlers/chat_compression_checkpoint_handler.py
       - backend/core/api/app/routes/handlers/websocket_handlers/chat_recovery_job_handlers.py
       - backend/core/api/app/services/chat_recovery_service.py
+      - backend/core/api/app/services/embed_service.py
+      - backend/shared/python_utils/chat_recovery_context.py
       - backend/core/api/app/routes/handlers/websocket_handlers/chat_turn_preflight_handler.py
       - backend/core/api/app/routes/handlers/websocket_handlers/chat_recovery_job_handlers.py
       - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
@@ -221,6 +232,7 @@ implementation_phases:
       - backend/apps/ai/processing/main_processor.py
       - backend/core/api/app/services/cache_chat_mixin.py
       - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
+      - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
       - frontend/packages/ui/src/utils/chatCompletionRecovery.ts
       - frontend/packages/ui/src/services/db/messageOperations.ts
     exit_evidence:
@@ -407,6 +419,14 @@ open_questions:
     question: Given few current users, should the initial rollout keep verified PostgreSQL rollback copies for 24 hours after enabling S3 reads, or permit pruning as soon as all required verification gates pass?
     recommendation: Enable the new reader after targeted correctness, authorization, replication, client-read, and rollback checks; retain PostgreSQL rollback copies for 24 hours before verified pruning. Sparse traffic makes a fixed seven-day wait weak evidence. The buffer affects redundant source-copy removal only.
     invariants: Every migrated unit still requires verified durable ciphertext, compatible authorized/decrypting readers, canonical persistence acknowledgements, current generation/write fences, and a tested rollback before pruning; elapsed time alone never suffices. Explicit deletion bypasses migration retention. This rollout-only window neither slows steady-state archival nor changes superseded-generation or pending-recovery retention.
+
+  - id: Q-artifact-head-warm-budget
+    topic: Account-wide artifact payload growth
+    status: pending
+    asked_at: "2026-10-04"
+    question: Should inactive current artifact contents also move to verified S3, while PostgreSQL retains identity, metadata, permissions and references?
+    recommendation: Refine D-9 with a configurable owner-wide warm-byte target and archive-aware exact readers; retain active/pending protections and the 24-hour verified-copy buffer. Do not prune heads under the current approval.
+    proposal: docs/plans/agentic-coding-storage-scale/artifact-head-followup.md
 
 documentation_maintenance:
   after_each_answer:

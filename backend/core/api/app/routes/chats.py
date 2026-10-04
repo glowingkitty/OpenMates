@@ -8,9 +8,10 @@ chats to avoid existence disclosure.
 
 import json
 import hashlib
+import os
 from typing import Any, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel, Field
 
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
@@ -22,12 +23,17 @@ from backend.core.api.app.routes.sdk import (
     _invalidate_rewound_chat_state,
     _load_owned_personal_sdk_chat,
     _message_slice_through_boundary,
+    _promote_rewound_tail,
     _sdk_message_id,
     _sdk_message_row_id,
     _validate_encrypted_fork_payload,
     _validate_encrypted_message_for_chat,
 )
 from backend.core.api.app.services.directus.team_methods import TeamPermissionError, hash_id
+from backend.core.api.app.services.bounded_message_window import (
+    EXACT_MESSAGE_BYTES, MESSAGE_WINDOW_LIMIT, bound_encrypted_message_window,
+    encrypted_message_bytes,
+)
 from backend.core.api.app.services.team_workspace_service import TeamWorkspaceMoveError, move_workspace_record_to_team
 from backend.shared.python_utils.encrypted_slug_metadata import DuplicateObjectSlugError
 
@@ -149,6 +155,7 @@ def _watch_chat_payload(chat: dict[str, Any]) -> dict[str, Any]:
         "encrypted_auto_speak_response": chat.get("encrypted_auto_speak_response"),
         "encrypted_chat_key": chat.get("encrypted_chat_key"),
         "chat_key_wrappers": chat.get("chat_key_wrappers") or [],
+        "chat_key_wrapper_window": chat.get("chat_key_wrapper_window"),
         "pinned": chat.get("pinned", False),
         "updated_at": _string_timestamp(chat.get("updated_at")),
         "last_message_at": _string_timestamp(chat.get("last_message_timestamp")),
@@ -193,26 +200,20 @@ async def _require_chat_read_access(request: Request, chat_id: str, team_id: str
         except TeamPermissionError as exc:
             raise HTTPException(status_code=403, detail="TEAM_PERMISSION_DENIED") from exc
         chat = await chat_service.get_chat_metadata(chat_id, admin_required=True)
-        if not chat or chat.get("hashed_team_id") != hash_id(team_id):
+        if not chat or chat.get("storage_state") == "deleting" or chat.get("hashed_team_id") != hash_id(team_id):
             raise HTTPException(status_code=404, detail="Chat not found")
         return chat
     if not await chat_service.check_chat_ownership(chat_id, user_id):
         raise HTTPException(status_code=404, detail="Chat not found")
-    return await chat_service.get_chat_metadata(chat_id, admin_required=True)
+    chat = await chat_service.get_chat_metadata(chat_id, admin_required=True)
+    if not chat or chat.get("storage_state") == "deleting":
+        raise HTTPException(status_code=404, detail="Chat not found")
+    return chat
 
 
 async def _get_chat_compression_checkpoints(request: Request, chat_id: str) -> list[dict[str, Any]]:
-    rows = await request.app.state.directus_service.get_items(
-        CHAT_COMPRESSION_CHECKPOINT_COLLECTION,
-        params={
-            "filter": {"chat_id": {"_eq": chat_id}},
-            "fields": "id,chat_id,encrypted_summary,compressed_up_to_timestamp,compressed_message_count,summary_token_estimate,key_version,created_at,updated_at",
-            "sort": "created_at",
-            "limit": -1,
-        },
-        admin_required=True,
-    )
-    return rows if isinstance(rows, list) else []
+    from backend.core.api.app.services.chat_checkpoint_pagination import checkpoint_window
+    return (await checkpoint_window(request.app.state.directus_service, chat_id=chat_id))["checkpoints"]
 
 
 def _latest_compression_boundary(checkpoints: list[dict[str, Any]]) -> int | None:
@@ -247,31 +248,77 @@ async def list_chats(
         admin_required=True,
         team_id=team_id,
     )
-    hashed_chat_ids = [
-        hashlib.sha256(str(chat.get("id")).encode()).hexdigest()
-        for chat in chats
-        if chat.get("id")
-    ]
-    if team_id:
-        wrappers = await request.app.state.directus_service.chat_key_wrapper.get_wrappers_by_hashed_chat_ids_batch(
-            hashed_chat_ids,
-            hashed_team_id=hash_id(team_id),
-        )
-    else:
-        wrappers = await request.app.state.directus_service.chat_key_wrapper.get_wrappers_by_hashed_chat_ids_batch(
-            hashed_chat_ids,
-            hashed_user_id=hashlib.sha256(current_user.id.encode()).hexdigest(),
-        )
-    wrappers_by_hash: dict[str, list[dict[str, Any]]] = {}
-    for wrapper in wrappers:
-        hashed_chat_id = wrapper.get("hashed_chat_id")
-        if isinstance(hashed_chat_id, str):
-            wrappers_by_hash.setdefault(hashed_chat_id, []).append(wrapper)
+    principal = {"hashed_team_id": hash_id(team_id)} if team_id else {
+        "hashed_user_id": hashlib.sha256(current_user.id.encode()).hexdigest()
+    }
     for chat in chats:
         chat_id = chat.get("id")
         if chat_id:
-            chat["chat_key_wrappers"] = wrappers_by_hash.get(hashlib.sha256(str(chat_id).encode()).hexdigest(), [])
+            page = await request.app.state.directus_service.chat_key_wrapper.get_sync_wrapper_window_for_chat(
+                hashlib.sha256(str(chat_id).encode()).hexdigest(), **principal,
+            )
+            chat["chat_key_wrappers"] = page["wrappers"]
+            chat["chat_key_wrapper_window"] = {
+                "has_more_before": page["has_more_before"],
+                "start_cursor": page["start_cursor"],
+                "oversized_wrapper_id": page["oversized_wrapper_id"],
+            }
     return {"chats": [_watch_chat_payload(chat) for chat in chats], "limit": limit}
+
+
+@router.get("/chats/{chat_id}/wrappers/window")
+async def get_chat_wrapper_window(
+    chat_id: str,
+    request: Request,
+    team_id: str | None = Query(default=None),
+    before_id: str | None = Query(default=None, max_length=128),
+    wrapper_id: str | None = Query(default=None, max_length=128),
+    current_user: User = Depends(get_current_user),
+    response: Response = None,
+) -> dict[str, Any]:
+    """Return one owner or Team scoped key wrapper page or selected large wrapper."""
+    if before_id and wrapper_id:
+        raise HTTPException(status_code=422, detail="Specify a cursor or one wrapper id")
+    await _require_chat_read_access(request, chat_id, team_id, current_user.id)
+    principal = {"hashed_team_id": hash_id(team_id)} if team_id else {
+        "hashed_user_id": hashlib.sha256(current_user.id.encode()).hexdigest()
+    }
+    wrappers_service = request.app.state.directus_service.chat_key_wrapper
+    hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+    if wrapper_id:
+        wrapper = await wrappers_service.get_sync_wrapper_by_id(
+            hashed_chat_id, wrapper_id, **principal,
+        )
+        if wrapper is None:
+            raise HTTPException(status_code=404, detail="Wrapper not found")
+        result = {"wrappers": [wrapper], "has_more_before": False, "start_cursor": None,
+                  "oversized_wrapper_id": None}
+    else:
+        result = await wrappers_service.get_sync_wrapper_window_for_chat(
+            hashed_chat_id, before_id=before_id, **principal,
+        )
+    if response is not None:
+        response.headers["Cache-Control"] = "private, no-store"
+    return result
+
+
+@router.get("/chats/{chat_id}/compression-checkpoints")
+async def get_checkpoint_window(chat_id: str, request: Request,
+    before_timestamp: int | None = Query(default=None), before_id: str | None = Query(default=None),
+    limit: int = Query(default=20, ge=1, le=20), team_id: str | None = Query(default=None),
+    current_user: User = Depends(get_current_user)) -> dict[str, Any]:
+    await _require_chat_read_access(request, chat_id, team_id, current_user.id)
+    from backend.core.api.app.services.chat_checkpoint_pagination import checkpoint_window
+    return await checkpoint_window(request.app.state.directus_service, chat_id=chat_id,
+                                   before_timestamp=before_timestamp, before_id=before_id, limit=limit)
+
+
+@router.get("/chats/{chat_id}/compression-checkpoints/{checkpoint_id}")
+async def get_checkpoint_by_id(chat_id: str, checkpoint_id: str, request: Request,
+    team_id: str | None = Query(default=None), current_user: User = Depends(get_current_user)) -> dict[str, Any]:
+    await _require_chat_read_access(request, chat_id, team_id, current_user.id)
+    from backend.core.api.app.services.chat_checkpoint_pagination import checkpoint_by_id
+    return await checkpoint_by_id(request.app.state.directus_service, chat_id=chat_id, checkpoint_id=checkpoint_id)
 
 
 @router.get("/chats/{chat_id}/messages")
@@ -281,20 +328,19 @@ async def list_chat_messages(
     team_id: str | None = Query(default=None),
     current_user: User = Depends(get_current_user),
 ) -> list[dict[str, Any]]:
-    chat_service = request.app.state.directus_service.chat
-    if team_id:
-        try:
-            await request.app.state.directus_service.team.require_team_role(team_id, current_user.id, {"owner", "admin", "member", "viewer"})
-        except TeamPermissionError as exc:
-            raise HTTPException(status_code=403, detail="TEAM_PERMISSION_DENIED") from exc
-        chat = await chat_service.get_chat_metadata(chat_id, admin_required=True)
-        if not chat or chat.get("hashed_team_id") != hash_id(team_id):
-            raise HTTPException(status_code=404, detail="Chat not found")
-    elif not await chat_service.check_chat_ownership(chat_id, current_user.id):
-        raise HTTPException(status_code=404, detail="Chat not found")
-    messages = await chat_service.get_all_messages_for_chat(chat_id, decrypt_content=False)
-    records = [_message_record(message) for message in messages or []]
-    return [_watch_message_payload(record) for record in records if record is not None]
+    chat = await _require_chat_read_access(request, chat_id, team_id, current_user.id)
+    from backend.core.api.app.services.chat_message_archive_service import ChatMessageArchiveService
+    from backend.core.api.app.services.bounded_archive_io import ArchiveIntegrityError
+    try:
+        if int((chat or {}).get("archived_message_count") or 0):
+            service = ChatMessageArchiveService(directus_service=request.app.state.directus_service,
+                                                s3_service=request.app.state.s3_service)
+            return [_watch_message_payload(row) async for row in service.iter_history(chat_id=chat_id)]
+        messages = await request.app.state.directus_service.chat.get_all_messages_for_chat(chat_id, decrypt_content=False)
+        records = [_message_record(message) for message in messages or []]
+        return [_watch_message_payload(record) for record in records if record is not None]
+    except ArchiveIntegrityError as exc:
+        raise HTTPException(status_code=503, detail="ARCHIVE_PAGE_UNAVAILABLE") from exc
 
 
 @router.get("/chats/{chat_id}/messages/window")
@@ -311,8 +357,9 @@ async def get_chat_message_window(
     respect_compression_boundary: bool = Query(default=True),
     team_id: str | None = Query(default=None),
     current_user: User = Depends(get_current_user),
+    response: Response = None,
 ) -> dict[str, Any]:
-    """Return a bounded first-party encrypted viewing window; sync APIs stay full-history."""
+    """First-party authenticated viewing; archives use current owner/Team checks."""
     chat = await _require_chat_read_access(request, chat_id, team_id, current_user.id)
     checkpoints = await _get_chat_compression_checkpoints(request, chat_id)
     compression_boundary_timestamp = _latest_compression_boundary(checkpoints)
@@ -320,7 +367,7 @@ async def get_chat_message_window(
     window = await request.app.state.directus_service.chat.get_message_window_for_chat(
         chat_id=chat_id,
         direction=direction,
-        limit=limit,
+        limit=min(limit, MESSAGE_WINDOW_LIMIT),
         before_timestamp=before_timestamp,
         before_message_id=before_message_id,
         after_timestamp=after_timestamp,
@@ -328,7 +375,31 @@ async def get_chat_message_window(
         anchor_message_id=anchor_message_id,
         lower_bound_timestamp=lower_bound_timestamp,
     )
-    messages = [_encrypted_message_payload(message) for message in window.get("messages", [])]
+    if os.getenv("CHAT_MESSAGE_ARCHIVE_READS_ENABLED") == "1" or int((chat or {}).get("archived_message_count") or 0):
+        from backend.core.api.app.services.chat_message_archive_service import ChatMessageArchiveService
+        from backend.core.api.app.services.bounded_archive_io import ArchiveIntegrityError
+
+        try:
+            window = await ChatMessageArchiveService(
+                directus_service=request.app.state.directus_service,
+                s3_service=request.app.state.s3_service,
+            ).merge_window(
+                chat_id=chat_id, hot=window, direction=direction, limit=min(limit, MESSAGE_WINDOW_LIMIT),
+                before=(before_timestamp, before_message_id or "\uffff") if before_timestamp is not None else None,
+                after=(after_timestamp, after_message_id or "") if after_timestamp is not None else None,
+                anchor_message_id=anchor_message_id, lower_bound_timestamp=lower_bound_timestamp,
+            )
+        except ArchiveIntegrityError as exc:
+            raise HTTPException(status_code=503, detail="ARCHIVE_PAGE_UNAVAILABLE") from exc
+    wire_messages = [_encrypted_message_payload(message) for message in window.get("messages", [])]
+    if any(message is None for message in wire_messages):
+        raise HTTPException(status_code=503, detail="MESSAGE_WINDOW_UNAVAILABLE")
+    window = bound_encrypted_message_window(
+        {**window, "messages": wire_messages}, direction=direction, anchor_message_id=anchor_message_id,
+    )
+    if response is not None:
+        response.headers["Cache-Control"] = "private, no-store"
+    messages = window.get("messages", [])
     server_message_count = None
     try:
         server_message_count = await request.app.state.directus_service.chat.get_message_count_for_chat(chat_id)
@@ -344,12 +415,54 @@ async def get_chat_message_window(
         "start_cursor": window.get("start_cursor"),
         "end_cursor": window.get("end_cursor"),
         "anchor_found": bool(window.get("anchor_found", True)),
+        "oversized_message": window["oversized_message"],
+        "oversized_message_cursor": window["oversized_message_cursor"],
+        "payload_bytes": window["payload_bytes"],
         "server_message_count": server_message_count,
         "messages_v": chat.get("messages_v") if chat else None,
         "compression_boundary_timestamp": compression_boundary_timestamp,
         "compression_checkpoints": checkpoints,
         "respect_compression_boundary": respect_compression_boundary,
+        "storage_tier": window.get("storage_tier", "hot"),
+        "archive_page_ids": window.get("archive_page_ids", []),
+        "archive_payload_cache": window.get("archive_payload_cache"),
     }
+
+
+@router.get("/chats/{chat_id}/messages/{message_id}")
+async def get_exact_chat_message(
+    chat_id: str, message_id: str, request: Request,
+    team_id: str | None = Query(default=None),
+    current_user: User = Depends(get_current_user),
+    response: Response = None,
+) -> dict[str, Any]:
+    """Read one selected ciphertext row after current owner or Team authorization."""
+    chat = await _require_chat_read_access(request, chat_id, team_id, current_user.id)
+    directus = request.app.state.directus_service
+    row = await directus.chat.get_message_for_chat_by_client_id(chat_id, message_id)
+    storage_tier = "hot"
+    if row is None and (os.getenv("CHAT_MESSAGE_ARCHIVE_READS_ENABLED") == "1"
+                        or int((chat or {}).get("archived_message_count") or 0)):
+        from backend.core.api.app.services.chat_message_archive_service import ChatMessageArchiveService
+        from backend.core.api.app.services.bounded_archive_io import ArchiveIntegrityError
+        try:
+            row = await ChatMessageArchiveService(
+                directus_service=directus, s3_service=request.app.state.s3_service,
+            ).find_message(chat_id=chat_id, message_id=message_id)
+        except ArchiveIntegrityError as exc:
+            raise HTTPException(status_code=503, detail="ARCHIVE_PAGE_UNAVAILABLE") from exc
+        if row is not None:
+            storage_tier = "archive"
+    if row is None:
+        raise HTTPException(status_code=404, detail="Message not found")
+    message = _encrypted_message_payload(row)
+    if message is None or message.get("message_id") != message_id:
+        raise HTTPException(status_code=503, detail="MESSAGE_IDENTITY_MISMATCH")
+    if encrypted_message_bytes(message) > EXACT_MESSAGE_BYTES:
+        raise HTTPException(status_code=413, detail="MESSAGE_REQUIRES_BOUNDED_READER")
+    if response is not None:
+        response.headers["Cache-Control"] = "private, no-store"
+    return {"message": message, "storage_tier": storage_tier}
 
 
 @router.post("/chats/{chat_id}/fork")
@@ -429,6 +542,7 @@ async def rewind_chat(
     if not body.confirm_destructive:
         raise HTTPException(status_code=400, detail={"error": "destructive_confirmation_required"})
 
+    await _promote_rewound_tail(request, user_id=current_user.id, chat_id=chat_id, tail=tail)
     invalidation = await _invalidate_rewound_chat_state(request, current_user.id, hashed_user_id, chat_id, remaining_messages_v)
     tail_row_ids = [_sdk_message_row_id(row) for row in tail if _sdk_message_row_id(row)]
     if tail_row_ids:

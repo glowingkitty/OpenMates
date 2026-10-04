@@ -10,6 +10,7 @@ Scalability notes:
     caching to eliminate double-fetch on update, added pagination to bulk fetches.
 """
 import logging
+import json
 from typing import List, Dict, Any, Optional, TYPE_CHECKING
 import hashlib
 import os
@@ -28,6 +29,10 @@ _EMBED_DIRECTUS_ID_CACHE_TTL: int = 7 * 86400  # 7 days in seconds
 # Maximum number of embeds returned per page in bulk-fetch methods.
 # Prevents unbounded memory usage when fetching embeds for many chats.
 _BULK_FETCH_PAGE_SIZE: int = 500
+SYNC_EMBED_PAGE_LIMIT: int = 30
+SYNC_EMBED_PAGE_MAX_BYTES: int = 256 * 1024
+SYNC_EMBED_KEY_PAGE_LIMIT: int = 60
+SYNC_EMBED_KEY_PAGE_MAX_BYTES: int = 128 * 1024
 _VAULT_CIPHERTEXT_PREFIX = "vault:v1:"
 
 
@@ -155,6 +160,19 @@ class EmbedMethods:
         except Exception as e:
             logger.error(f"Error fetching embed {embed_id}: {e}", exc_info=True)
             return None
+
+    async def get_sync_embed_by_id(self, embed_id: str) -> Optional[Dict[str, Any]]:
+        """Strict exact read for an authorized bounded reader."""
+        rows = await self.directus_service.get_items(
+            "embeds",
+            params={"filter[embed_id][_eq]": embed_id, "fields": EMBED_ALL_FIELDS, "limit": 1},
+            no_cache=True,
+            admin_required=True,
+            raise_on_error=True,
+        )
+        if not isinstance(rows, list):
+            raise RuntimeError("Exact embed unavailable")
+        return rows[0] if rows else None
     
     async def get_embeds_by_hashed_task_id(self, hashed_task_id: str) -> List[Dict[str, Any]]:
         """
@@ -192,10 +210,77 @@ class EmbedMethods:
         Returns:
             List of embeds for the chat
         """
-        # Domain-search parents can reference more children than Directus's
-        # default 100-row response. Reuse the bounded paginated chat reader so
-        # shares and owner reads retain the complete encrypted embed graph.
-        return await self.get_embeds_by_hashed_chat_ids([hashed_chat_id])
+        from backend.core.api.app.services.scoped_directus_pagination import read_complete_scoped_records
+
+        params = {
+            'filter[hashed_chat_id][_eq]': hashed_chat_id,
+            'fields': EMBED_ALL_FIELDS,
+        }
+        rows = await read_complete_scoped_records(self.directus_service, 'embeds', params=params)
+        return sorted(rows, key=lambda row: (int(row.get('created_at') or 0), row['id']), reverse=True)
+
+    async def get_embed_window_by_hashed_chat_id(
+        self,
+        hashed_chat_id: str,
+        *,
+        before_created_at: int | None = None,
+        before_id: str | None = None,
+    ) -> Dict[str, Any]:
+        """Fetch one stable, byte-bounded encrypted embed page for an authorized chat.
+
+        Authorization belongs to the caller's chat scope. The hash must be
+        derived from that checked chat, never supplied directly by a client.
+        """
+        embed_filter: Dict[str, Any] = {"hashed_chat_id": {"_eq": hashed_chat_id}}
+        if before_created_at is not None:
+            if not before_id:
+                raise ValueError("Embed continuation requires an id tie breaker")
+            embed_filter["_or"] = [
+                {"created_at": {"_lt": before_created_at}},
+                {"created_at": {"_eq": before_created_at}, "id": {"_lt": before_id}},
+            ]
+        rows = await self.directus_service.get_items(
+            "embeds",
+            params={
+                "filter": embed_filter,
+                "fields": EMBED_ALL_FIELDS,
+                "sort": ["-created_at", "-id"],
+                "limit": SYNC_EMBED_PAGE_LIMIT + 1,
+            },
+            no_cache=True,
+            raise_on_error=True,
+        )
+        if not isinstance(rows, list):
+            raise RuntimeError("Embed page unavailable")
+        has_more_before = len(rows) > SYNC_EMBED_PAGE_LIMIT
+        rows = rows[:SYNC_EMBED_PAGE_LIMIT]
+        kept: List[Dict[str, Any]] = []
+        payload_bytes = 0
+        oversized_embed_id: str | None = None
+        oversized_embed_cursor: Dict[str, Any] | None = None
+        for row in rows:
+            row_bytes = len(json.dumps(row, separators=(",", ":")).encode("utf-8"))
+            if row_bytes > SYNC_EMBED_PAGE_MAX_BYTES and not kept:
+                oversized_embed_id = row.get("embed_id")
+                oversized_embed_cursor = {"created_at": row["created_at"], "id": row["id"]}
+                has_more_before = True
+                break
+            if payload_bytes + row_bytes > SYNC_EMBED_PAGE_MAX_BYTES:
+                has_more_before = True
+                break
+            kept.append(row)
+            payload_bytes += row_bytes
+        oldest = kept[-1] if kept else None
+        return {
+            "embeds": kept,
+            "has_more_before": has_more_before,
+            "start_cursor": {
+                "created_at": oldest["created_at"], "id": oldest["id"],
+            } if oldest else None,
+            "oversized_embed_id": oversized_embed_id,
+            "oversized_embed_cursor": oversized_embed_cursor,
+            "payload_bytes": payload_bytes,
+        }
 
     async def get_embeds_by_hashed_chat_ids(self, hashed_chat_ids: List[str]) -> List[Dict[str, Any]]:
         """
@@ -258,6 +343,8 @@ class EmbedMethods:
         still scoped to the shared chat, so this lookup returns only encrypted
         embed rows addressable by those wrappers.
         """
+        from backend.core.api.app.services.scoped_directus_pagination import read_complete_scoped_records
+
         unique_hashes = [hashed for hashed in dict.fromkeys(hashed_embed_ids) if hashed]
         if not unique_hashes:
             return []
@@ -269,20 +356,10 @@ class EmbedMethods:
             params = {
                 'filter[hashed_embed_id][_in]': ','.join(chunk),
                 'fields': EMBED_ALL_FIELDS,
-                'limit': -1,
             }
-            try:
-                response = await self.directus_service.get_items(
-                    'embeds',
-                    params=params,
-                    no_cache=True,
-                    admin_required=True,
-                )
-            except Exception as e:
-                logger.error(f"Error fetching embeds by hashed_embed_ids: {e}", exc_info=True)
-                continue
-            if response and isinstance(response, list):
-                all_embeds.extend(response)
+            all_embeds.extend(await read_complete_scoped_records(
+                self.directus_service, 'embeds', params=params, admin_required=True,
+            ))
 
         logger.debug(f"Found {len(all_embeds)} embed(s) for {len(unique_hashes)} hashed_embed_ids")
         return all_embeds
@@ -450,50 +527,29 @@ class EmbedMethods:
         Returns:
             List of embed_keys entries for the chat (both chat and master key entries)
         """
-        logger.debug(f"Fetching embed_keys for hashed_chat_id: {hashed_chat_id[:16]}... (include_master_keys={include_master_keys})")
-        
-        all_embed_keys = []
-        
-        # First, fetch chat key entries (these have hashed_chat_id set)
+        from backend.core.api.app.services.scoped_directus_pagination import read_complete_scoped_records
+
         chat_key_params = {
             'filter[hashed_chat_id][_eq]': hashed_chat_id,
             'filter[key_type][_eq]': 'chat',
             'fields': EMBED_KEY_ALL_FIELDS,
-            'limit': -1
         }
-        try:
-            chat_key_response = await self.directus_service.get_items('embed_keys', params=chat_key_params, no_cache=True)
-            if chat_key_response and isinstance(chat_key_response, list):
-                logger.debug(f"Found {len(chat_key_response)} chat key entries for chat")
-                all_embed_keys.extend(chat_key_response)
-                
-                # If we should include master keys, fetch them using the hashed_embed_ids from chat keys
-                if include_master_keys and chat_key_response:
-                    # Get unique hashed_embed_ids from chat keys
-                    hashed_embed_ids = list(set(k.get('hashed_embed_id') for k in chat_key_response if k.get('hashed_embed_id')))
-                    
-                    if hashed_embed_ids:
-                        # Fetch master key entries for these embeds
-                        # Use _in filter to get all in one query
-                        master_key_params = {
-                            'filter[hashed_embed_id][_in]': ','.join(hashed_embed_ids),
-                            'filter[key_type][_eq]': 'master',
-                            'fields': EMBED_KEY_ALL_FIELDS,
-                            'limit': -1
-                        }
-                        try:
-                            master_key_response = await self.directus_service.get_items('embed_keys', params=master_key_params, no_cache=True)
-                            if master_key_response and isinstance(master_key_response, list):
-                                logger.debug(f"Found {len(master_key_response)} master key entries for chat embeds")
-                                all_embed_keys.extend(master_key_response)
-                        except Exception as e:
-                            logger.warning(f"Error fetching master key entries: {e}")
-            
-            logger.info(f"Total embed_keys for chat: {len(all_embed_keys)} (chat + master)")
-            return all_embed_keys
-        except Exception as e:
-            logger.error(f"Error fetching embed_keys by hashed_chat_id: {e}", exc_info=True)
-            return []
+        all_embed_keys = await read_complete_scoped_records(
+            self.directus_service, 'embed_keys', params=chat_key_params,
+        )
+        if include_master_keys:
+            hashed_embed_ids = list(dict.fromkeys(
+                key['hashed_embed_id'] for key in all_embed_keys if key.get('hashed_embed_id')
+            ))
+            for offset in range(0, len(hashed_embed_ids), self._EMBED_KEYS_BATCH_SIZE):
+                all_embed_keys.extend(await read_complete_scoped_records(
+                    self.directus_service, 'embed_keys', params={
+                        'filter[hashed_embed_id][_in]': ','.join(hashed_embed_ids[offset:offset + self._EMBED_KEYS_BATCH_SIZE]),
+                        'filter[key_type][_eq]': 'master',
+                        'fields': EMBED_KEY_ALL_FIELDS,
+                    },
+                ))
+        return all_embed_keys
 
     # Maximum number of hashed IDs per _in filter query parameter.
     # Each SHA256 hash is 64 chars + 1 comma separator = 65 chars per ID.
@@ -502,6 +558,140 @@ class EmbedMethods:
     # This prevents HTTP 431 (Request Header Fields Too Large) errors that
     # occurred when joining 100+ hashed IDs into a single GET parameter.
     _EMBED_KEYS_BATCH_SIZE: int = 20
+
+    async def get_sync_embed_keys_for_page(
+        self,
+        hashed_chat_id: str,
+        hashed_user_id: str,
+        hashed_embed_ids: List[str],
+    ) -> List[Dict[str, Any]]:
+        """Compatibility list for one page; raise if a caller cannot handle continuation."""
+        page = await self.get_sync_embed_key_window_for_page(
+            hashed_chat_id, hashed_user_id, hashed_embed_ids,
+        )
+        if page["has_more_after"]:
+            raise RuntimeError("Embed key page requires cursor continuation")
+        return page["embed_keys"]
+
+    async def validate_embed_ids_in_chat(
+        self, hashed_chat_id: str, embed_ids: List[str],
+    ) -> List[str]:
+        """Resolve client embed IDs in this chat to key hashes, including legacy rows."""
+        selected_ids = list(dict.fromkeys(value for value in embed_ids if value))
+        if not selected_ids or len(selected_ids) > SYNC_EMBED_PAGE_LIMIT:
+            raise ValueError("Invalid embed id page")
+        rows = await self.directus_service.get_items(
+            "embeds",
+            params={
+                "filter": {
+                    "hashed_chat_id": {"_eq": hashed_chat_id},
+                    "embed_id": {"_in": selected_ids},
+                },
+                "fields": "embed_id,hashed_embed_id",
+                "limit": SYNC_EMBED_PAGE_LIMIT,
+            },
+            no_cache=True,
+            raise_on_error=True,
+        )
+        if not isinstance(rows, list):
+            raise RuntimeError("Embed id validation unavailable")
+        found = {row.get("embed_id") for row in rows}
+        if set(selected_ids) != found:
+            raise ValueError("Embed id is not in the authorized chat")
+        by_id = {row["embed_id"]: row for row in rows}
+        return [by_id[embed_id].get("hashed_embed_id") or hashlib.sha256(embed_id.encode()).hexdigest()
+                for embed_id in selected_ids]
+
+    async def get_sync_embed_key_window_for_page(
+        self,
+        hashed_chat_id: str,
+        hashed_user_id: str,
+        hashed_embed_ids: List[str],
+        *,
+        after_key_id: str | None = None,
+        include_master_keys: bool = True,
+    ) -> Dict[str, Any]:
+        """Read a stable, byte-bounded key page for selected embed hashes."""
+        selected_hashes = list(dict.fromkeys(value for value in hashed_embed_ids if value))
+        if len(selected_hashes) > SYNC_EMBED_PAGE_LIMIT:
+            raise ValueError("Embed key request exceeds the sync page limit")
+        if not selected_hashes:
+            return {"embed_keys": [], "has_more_after": False, "end_cursor": None,
+                    "oversized_key_id": None, "payload_bytes": 0}
+        key_filter: Dict[str, Any] = {"hashed_embed_id": {"_in": selected_hashes}}
+        chat_scope = {"key_type": {"_eq": "chat"}, "hashed_chat_id": {"_eq": hashed_chat_id}}
+        key_filter.update({"_or": [chat_scope, {
+            "key_type": {"_eq": "master"}, "hashed_user_id": {"_eq": hashed_user_id},
+        }]} if include_master_keys else chat_scope)
+        if after_key_id:
+            key_filter["id"] = {"_gt": after_key_id}
+        rows = await self.directus_service.get_items(
+            "embed_keys",
+            params={
+                "filter": key_filter,
+                "fields": EMBED_KEY_ALL_FIELDS,
+                "sort": ["id"],
+                "limit": SYNC_EMBED_KEY_PAGE_LIMIT + 1,
+            },
+            no_cache=True,
+            raise_on_error=True,
+        )
+        if not isinstance(rows, list):
+            raise RuntimeError("Embed keys unavailable")
+        has_more_after = len(rows) > SYNC_EMBED_KEY_PAGE_LIMIT
+        kept: List[Dict[str, Any]] = []
+        payload_bytes = 0
+        oversized_key_id = None
+        for row in rows[:SYNC_EMBED_KEY_PAGE_LIMIT]:
+            row_bytes = len(json.dumps(row, separators=(",", ":")).encode("utf-8"))
+            if row_bytes > SYNC_EMBED_KEY_PAGE_MAX_BYTES and not kept:
+                oversized_key_id = row["id"]
+                has_more_after = True
+                break
+            if payload_bytes + row_bytes > SYNC_EMBED_KEY_PAGE_MAX_BYTES:
+                has_more_after = True
+                break
+            kept.append(row)
+            payload_bytes += row_bytes
+        return {
+            "embed_keys": kept,
+            "has_more_after": has_more_after,
+            "end_cursor": kept[-1]["id"] if kept else None,
+            "oversized_key_id": oversized_key_id,
+            "payload_bytes": payload_bytes,
+        }
+
+    async def get_sync_embed_key_by_id(
+        self, hashed_chat_id: str, hashed_user_id: str,
+        hashed_embed_ids: List[str], key_id: str, *, include_master_keys: bool = True,
+    ) -> Dict[str, Any] | None:
+        """Read one explicit large key after selected hashes are chat validated."""
+        selected_hashes = list(dict.fromkeys(value for value in hashed_embed_ids if value))
+        if not selected_hashes or len(selected_hashes) > SYNC_EMBED_PAGE_LIMIT:
+            raise ValueError("Invalid embed hash page")
+        key_scope = {"_or": [
+            {"key_type": {"_eq": "chat"}, "hashed_chat_id": {"_eq": hashed_chat_id}},
+            {"key_type": {"_eq": "master"}, "hashed_user_id": {"_eq": hashed_user_id}},
+        ]} if include_master_keys else {
+            "key_type": {"_eq": "chat"}, "hashed_chat_id": {"_eq": hashed_chat_id},
+        }
+        rows = await self.directus_service.get_items(
+            "embed_keys",
+            params={
+                "filter": {
+                    "id": {"_eq": key_id},
+                    "hashed_embed_id": {"_in": selected_hashes},
+                    **key_scope,
+                },
+                "fields": EMBED_KEY_ALL_FIELDS,
+                "limit": 1,
+            },
+            no_cache=True,
+            raise_on_error=True,
+        )
+        if not isinstance(rows, list):
+            raise RuntimeError("Embed key unavailable")
+        return rows[0] if rows else None
 
     async def get_embed_keys_by_hashed_chat_ids_batch(
         self,

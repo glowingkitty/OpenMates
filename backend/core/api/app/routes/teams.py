@@ -467,9 +467,11 @@ async def export_team_data(
     current_user: User = Depends(_current_user),
     directus_service: "DirectusService" = Depends(get_directus_service),
 ) -> dict[str, Any]:
-    del request, response
+    del response
     try:
-        return await TeamDataPortabilityService(directus_service).export_team_data(
+        return await TeamDataPortabilityService(
+            directus_service, s3_service=getattr(request.app.state, "s3_service", None),
+        ).export_team_data(
             team_id,
             current_user.id,
             export_id=body.export_id if body else None,

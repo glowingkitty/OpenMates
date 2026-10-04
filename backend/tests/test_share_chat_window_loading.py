@@ -6,6 +6,7 @@ trigger AI inference to create or exercise long chats.
 """
 
 import json
+import hashlib
 import importlib
 import inspect
 import sys
@@ -65,6 +66,28 @@ get_shared_chat_manifest = getattr(
     "__wrapped__",
     share_routes.get_shared_chat_manifest,
 )
+get_shared_chat_embed_by_id = getattr(
+    share_routes.get_shared_chat_embed_by_id,
+    "__wrapped__",
+    share_routes.get_shared_chat_embed_by_id,
+)
+get_shared_chat_message_by_id = getattr(
+    share_routes.get_shared_chat_message_by_id,
+    "__wrapped__",
+    share_routes.get_shared_chat_message_by_id,
+)
+get_shared_chat_auxiliary_window = getattr(
+    share_routes.get_shared_chat_auxiliary_window,
+    "__wrapped__", share_routes.get_shared_chat_auxiliary_window,
+)
+get_shared_chat_auxiliary_by_id = getattr(
+    share_routes.get_shared_chat_auxiliary_by_id,
+    "__wrapped__", share_routes.get_shared_chat_auxiliary_by_id,
+)
+get_shared_plan_task_key_window = getattr(
+    share_routes.get_shared_plan_task_key_window,
+    "__wrapped__", share_routes.get_shared_plan_task_key_window,
+)
 get_shared_chat = getattr(
     share_routes.get_shared_chat,
     "__wrapped__",
@@ -97,6 +120,28 @@ class FakeEmbedMethods:
     async def get_embeds_by_hashed_embed_ids(self, hashed_embed_ids: list[str]):
         requested = set(hashed_embed_ids)
         return [embed for embed in self.key_embeds if embed.get("hashed_embed_id") in requested]
+
+    async def get_embed_window_by_hashed_chat_id(self, hashed_chat_id: str):
+        rows = await self.get_embeds_by_hashed_chat_id(hashed_chat_id)
+        return {"embeds": rows, "has_more_before": False, "start_cursor": None,
+                "oversized_embed_id": None, "oversized_embed_cursor": None}
+
+    async def get_sync_embed_key_window_for_page(self, hashed_chat_id: str, hashed_user_id: str,
+                                                 hashes: list[str], *, include_master_keys: bool = True,
+                                                 after_key_id: str | None = None):
+        assert include_master_keys is False
+        keys = self.embed_keys or [{"id": "key-1", "hashed_chat_id": hashed_chat_id,
+                                    "key_type": "chat", "hashed_embed_id": value} for value in hashes]
+        selected = [key for key in keys if key.get("hashed_embed_id") in hashes
+                    and key.get("hashed_chat_id") == hashed_chat_id and key.get("key_type") == "chat"]
+        return {"embed_keys": selected, "has_more_after": False, "end_cursor": None,
+                "oversized_key_id": None}
+
+    async def get_embed_by_id(self, embed_id: str):
+        return next((embed for embed in [*self.chat_embeds, *self.key_embeds]
+                     if embed.get("embed_id") == embed_id), None)
+
+    get_sync_embed_by_id = get_embed_by_id
 
 
 class FakeChatMethods:
@@ -201,9 +246,13 @@ class FakeDirectusService:
         params: dict,
         admin_required: bool = False,
         return_none_on_403: bool = False,
+        no_cache: bool = False,
+        raise_on_error: bool = False,
     ):
         if collection == "message_highlights":
-            return [{"id": "highlight-1", "chat_id": "chat-shared"}]
+            return [{"id": "highlight-1", "chat_id": "chat-shared", "message_id": "msg-1",
+                     "author_user_id": "author", "encrypted_payload": "cipher-highlight",
+                     "created_at": 1, "updated_at": 1}]
         if collection == "code_run_outputs":
             return []
         if collection == "chats":
@@ -223,6 +272,7 @@ class FakeDirectusService:
         return []
 
 
+# contract-test: supporting surface=rest_api assertions=storage.warm.bounded-chat-tail,storage.cold.shared-team-authorized
 @pytest.mark.anyio
 async def test_shared_chat_manifest_omits_full_messages():
     directus = FakeDirectusService()
@@ -238,19 +288,53 @@ async def test_shared_chat_manifest_omits_full_messages():
     assert payload["embeds"]
     assert payload["embed_keys"]
     assert payload["message_highlights"]
+    assert payload["sub_chat_window"]["has_more_before"] is False
+    assert payload["message_highlight_window"]["payload_bytes"] > 0
 
 
+# contract-test: direct surface=rest_api assertions=storage.cold.discoverable-bounded,storage.cold.shared-team-authorized
 @pytest.mark.anyio
-async def test_shared_chat_manifest_includes_key_addressable_embeds():
+async def test_shared_manifest_reports_authorized_auxiliary_failure(monkeypatch):
+    directus = FakeDirectusService()
+
+    async def unavailable(*_args, **_kwargs):
+        raise RuntimeError("ciphertext page unavailable")
+
+    monkeypatch.setattr(share_routes, "get_shared_chat_auxiliary_payload", unavailable)
+    with pytest.raises(share_routes.HTTPException) as error:
+        await get_shared_chat_manifest(request=None, chat_id="chat-shared", directus_service=directus)
+    assert error.value.status_code == 503
+    assert error.value.detail == "SHARED_MANIFEST_UNAVAILABLE"
+
+
+# contract-test: direct surface=rest_api assertions=storage.cold.shared-team-authorized,storage.cold.independent-message-pages
+@pytest.mark.anyio
+async def test_shared_legacy_read_reports_authorized_storage_failure(monkeypatch):
+    directus = FakeDirectusService()
+
+    async def unavailable(*_args, **_kwargs):
+        raise RuntimeError("ciphertext unavailable")
+
+    monkeypatch.setattr(directus.chat, "get_all_messages_for_chat", unavailable)
+    with pytest.raises(share_routes.HTTPException) as error:
+        await get_shared_chat(request=None, chat_id="chat-shared", directus_service=directus)
+    assert error.value.status_code == 503
+    assert error.value.detail == "SHARED_CHAT_UNAVAILABLE"
+
+
+# contract-test: direct surface=rest_api assertions=storage.cold.shared-team-authorized,storage.cold.discoverable-bounded
+@pytest.mark.anyio
+async def test_shared_chat_manifest_resolves_key_addressable_embeds_on_demand():
     directus = FakeDirectusService()
     directus.embed.chat_embeds = [{"embed_id": "image-embed", "hashed_embed_id": "image-hash"}]
     directus.embed.key_embeds = [
         {"embed_id": "image-embed", "hashed_embed_id": "image-hash"},
-        {"embed_id": "pdf-embed", "hashed_embed_id": "pdf-hash", "encrypted_content": "cipher-pdf"},
+        {"embed_id": "pdf-embed", "hashed_embed_id": "pdf-hash", "encrypted_content": "cipher-pdf", "is_private": False},
     ]
     directus.embed.embed_keys = [
-        {"hashed_chat_id": "hashed-chat", "key_type": "chat", "hashed_embed_id": "image-hash"},
-        {"hashed_chat_id": "hashed-chat", "key_type": "chat", "hashed_embed_id": "pdf-hash"},
+        {"hashed_chat_id": hashlib.sha256(b"chat-shared").hexdigest(), "key_type": "chat", "hashed_embed_id": "image-hash"},
+        {"hashed_chat_id": hashlib.sha256(b"chat-shared").hexdigest(), "key_type": "chat", "hashed_embed_id": "pdf-hash"},
+        {"hashed_chat_id": hashlib.sha256(b"chat-shared").hexdigest(), "key_type": "master", "hashed_embed_id": "pdf-hash"},
     ]
 
     payload = await get_shared_chat_manifest(
@@ -259,9 +343,29 @@ async def test_shared_chat_manifest_includes_key_addressable_embeds():
         directus_service=directus,
     )
 
-    assert [embed["embed_id"] for embed in payload["embeds"]] == ["image-embed", "pdf-embed"]
+    assert [embed["embed_id"] for embed in payload["embeds"]] == ["image-embed"]
+    exact = await get_shared_chat_embed_by_id(request=None, chat_id="chat-shared",
+                                              embed_id="pdf-embed", directus_service=directus)
+    assert exact["embed"]["embed_id"] == "pdf-embed"
+    assert all(key["key_type"] == "chat" for key in exact["embed_keys"])
 
 
+# contract-test: direct surface=rest_api assertions=storage.cold.shared-team-authorized,storage.privacy.ciphertext-boundary
+@pytest.mark.anyio
+async def test_shared_exact_embed_denies_foreign_chat_without_scoped_key():
+    directus = FakeDirectusService()
+    directus.embed.chat_embeds = []
+    directus.embed.key_embeds = [{"embed_id": "foreign", "hashed_chat_id": "other-chat",
+                                  "hashed_embed_id": "foreign-hash", "is_private": False}]
+    directus.embed.embed_keys = [{"id": "master-key", "key_type": "master",
+                                  "hashed_embed_id": "foreign-hash"}]
+    with pytest.raises(share_routes.HTTPException) as error:
+        await get_shared_chat_embed_by_id(request=None, chat_id="chat-shared",
+                                          embed_id="foreign", directus_service=directus)
+    assert error.value.status_code == 404
+
+
+# contract-test: supporting surface=rest_api assertions=storage.cold.shared-team-authorized
 @pytest.mark.anyio
 async def test_shared_chat_manifest_includes_compression_checkpoints():
     directus = FakeDirectusService()
@@ -273,8 +377,25 @@ async def test_shared_chat_manifest_includes_compression_checkpoints():
     )
 
     assert payload["compression_checkpoints"] == directus.checkpoints
+    assert payload["compression_checkpoint_window"]["has_more_before"] is False
 
 
+# contract-test: direct surface=rest_api assertions=storage.cold.discoverable-bounded,storage.cold.shared-team-authorized
+@pytest.mark.anyio
+async def test_shared_manifest_exposes_exact_cursor_for_oversized_checkpoint():
+    directus = FakeDirectusService()
+    directus.checkpoints[0]["encrypted_summary"] = "x" * 140_000
+
+    payload = await get_shared_chat_manifest(
+        request=None, chat_id="chat-shared", directus_service=directus,
+    )
+
+    assert payload["compression_checkpoints"] == []
+    assert payload["compression_checkpoint_window"]["oversized_checkpoint_id"] == "checkpoint-1"
+    assert payload["compression_checkpoint_window"]["has_more_before"] is True
+
+
+# contract-test: supporting surface=rest_api assertions=storage.cold.shared-team-authorized
 @pytest.mark.anyio
 async def test_shared_chat_legacy_payload_includes_compression_checkpoints():
     directus = FakeDirectusService()
@@ -288,6 +409,7 @@ async def test_shared_chat_legacy_payload_includes_compression_checkpoints():
     assert payload["compression_checkpoints"] == directus.checkpoints
 
 
+# contract-test: supporting surface=rest_api assertions=storage.warm.bounded-chat-tail
 @pytest.mark.anyio
 async def test_shared_chat_message_window_default_limit_is_thirty():
     limit_default = inspect.signature(share_routes.get_shared_chat_message_window).parameters["limit"].default
@@ -296,6 +418,7 @@ async def test_shared_chat_message_window_default_limit_is_thirty():
     assert DEFAULT_SHARED_MESSAGE_WINDOW_LIMIT == 30
 
 
+# contract-test: direct surface=rest_api assertions=storage.warm.bounded-chat-tail,storage.cold.shared-team-authorized
 @pytest.mark.anyio
 async def test_shared_chat_message_window_is_bounded_and_sanitized():
     directus = FakeDirectusService()
@@ -316,6 +439,7 @@ async def test_shared_chat_message_window_is_bounded_and_sanitized():
     assert "encrypted_pii_mappings" not in payload["messages"][0]
 
 
+# contract-test: supporting surface=rest_api assertions=storage.warm.bounded-chat-tail
 @pytest.mark.anyio
 async def test_shared_chat_message_window_uses_durable_rows_when_messages_v_is_stale():
     directus = FakeDirectusService()
@@ -328,12 +452,96 @@ async def test_shared_chat_message_window_uses_durable_rows_when_messages_v_is_s
         directus_service=directus,
     )
 
-    assert directus.chat.requested_limits == [DEFAULT_SHARED_MESSAGE_WINDOW_LIMIT + 1]
-    assert len(payload["messages"]) == DEFAULT_SHARED_MESSAGE_WINDOW_LIMIT
+    assert directus.chat.requested_limits == [21]
+    assert len(payload["messages"]) == 20
     assert payload["has_more"] is True
     assert payload["messages_v"] == 82
 
 
+# contract-test: direct surface=rest_api assertions=storage.cold.independent-message-pages,storage.cold.shared-team-authorized
+@pytest.mark.anyio
+async def test_shared_large_message_uses_exact_cursor_without_full_replay():
+    directus = FakeDirectusService()
+    large = {"id": "db-large", "client_message_id": "msg-large", "chat_id": "chat-shared",
+             "role": "user", "created_at": 1000, "encrypted_content": "x" * 500_000,
+             "encrypted_pii_mappings": "private-pii"}
+    directus.chat.messages.append(large)
+    page = await get_shared_chat_message_window(
+        request=None, chat_id="chat-shared", before_timestamp=2000, limit=20,
+        directus_service=directus,
+    )
+    assert page["messages"] == []
+    assert page["oversized_message_cursor"] == {"created_at": 1000, "message_id": "msg-large"}
+    selected = await get_shared_chat_message_by_id(
+        request=None, chat_id="chat-shared", message_id="msg-large", directus_service=directus,
+    )
+    assert selected["message"]["message_id"] == "msg-large"
+    assert "encrypted_pii_mappings" not in selected["message"]
+
+
+# contract-test: direct surface=rest_api assertions=storage.cold.shared-team-authorized
+@pytest.mark.anyio
+async def test_shared_exact_message_denies_nonshared_chat():
+    directus = FakeDirectusService()
+    with pytest.raises(share_routes.HTTPException) as error:
+        await get_shared_chat_message_by_id(
+            request=None, chat_id="missing-chat", message_id="msg-1", directus_service=directus,
+        )
+    assert error.value.status_code == 404
+
+
+# contract-test: direct surface=rest_api assertions=storage.cold.discoverable-bounded,storage.cold.shared-team-authorized,storage.privacy.ciphertext-boundary
+@pytest.mark.anyio
+async def test_shared_plan_page_exact_and_keys_are_chat_scoped():
+    chat_hash = hashlib.sha256(b"chat-shared").hexdigest()
+    plan_hash = hashlib.sha256(b"plan-1").hexdigest()
+
+    class PlanDirectus(FakeDirectusService):
+        async def get_items(self, collection, params, **kwargs):
+            if collection == "user_plans":
+                assert params["filter"]["hashed_primary_chat_id"]["_eq"] == chat_hash
+                return [{"plan_id": "plan-1", "primary_chat_id": "chat-shared", "status": "active",
+                         "created_at": 1, "updated_at": 2, "encrypted_title": "cipher-plan"}]
+            if collection == "user_plan_key_wrappers":
+                assert params["filter"]["hashed_chat_id"]["_eq"] == chat_hash
+                assert params["filter"]["key_type"]["_eq"] == "chat"
+                assert plan_hash in params["filter"]["hashed_plan_id"]["_in"]
+                return [{"id": "wrapper-1", "hashed_plan_id": plan_hash, "hashed_chat_id": chat_hash,
+                         "key_type": "chat", "encrypted_plan_key": "cipher-key"}]
+            return await super().get_items(collection, params, **kwargs)
+
+    directus = PlanDirectus()
+    page = await get_shared_chat_auxiliary_window(
+        request=None, chat_id="chat-shared", kind="plans", before_timestamp=None,
+        before_id=None, directus_service=directus,
+    )
+    assert [item["plan_id"] for item in page["items"]] == ["plan-1"]
+    assert page["key_wrappers"][0]["key_type"] == "chat"
+    exact = await get_shared_chat_auxiliary_by_id(
+        request=None, chat_id="chat-shared", kind="plans", record_id="plan-1",
+        directus_service=directus,
+    )
+    assert exact["item"]["plan_id"] == "plan-1"
+    keys = await get_shared_plan_task_key_window(
+        request=None, chat_id="chat-shared", kind="plans", item_ids="plan-1",
+        after_key_id=None, key_id="wrapper-1", directus_service=directus,
+    )
+    assert [key["id"] for key in keys["key_wrappers"]] == ["wrapper-1"]
+
+
+# contract-test: direct surface=rest_api assertions=storage.cold.shared-team-authorized
+@pytest.mark.anyio
+async def test_shared_auxiliary_denies_missing_chat_before_plan_lookup():
+    directus = FakeDirectusService()
+    with pytest.raises(share_routes.HTTPException) as error:
+        await get_shared_chat_auxiliary_window(
+            request=None, chat_id="missing-chat", kind="tasks", before_timestamp=None,
+            before_id=None, directus_service=directus,
+        )
+    assert error.value.status_code == 404
+
+
+# contract-test: supporting surface=rest_api assertions=storage.cold.independent-message-pages
 @pytest.mark.anyio
 async def test_shared_chat_message_window_can_anchor_target_message():
     directus = FakeDirectusService()
@@ -351,6 +559,7 @@ async def test_shared_chat_message_window_can_anchor_target_message():
     assert json.loads(payload["messages"][-1])["message_id"] == "msg-42"
 
 
+# contract-test: supporting surface=rest_api assertions=storage.cold.independent-message-pages
 @pytest.mark.anyio
 async def test_shared_chat_message_window_can_page_forgotten_checkpoint_messages():
     directus = FakeDirectusService()
@@ -371,6 +580,7 @@ async def test_shared_chat_message_window_can_page_forgotten_checkpoint_messages
     assert json.loads(payload["messages"][-1])["message_id"] == "msg-80"
 
 
+# contract-test: supporting surface=rest_api assertions=storage.cold.independent-message-pages
 @pytest.mark.anyio
 async def test_shared_chat_message_window_compound_cursor_preserves_duplicate_timestamps():
     directus = FakeDirectusService()
@@ -393,6 +603,7 @@ async def test_shared_chat_message_window_compound_cursor_preserves_duplicate_ti
     assert [json.loads(message)["message_id"] for message in payload["messages"]] == ["msg-a", "msg-b"]
 
 
+# contract-test: supporting surface=rest_api assertions=storage.cold.shared-team-authorized
 @pytest.mark.anyio
 async def test_shared_chat_window_preserves_non_enumeration_dummy_response():
     directus = FakeDirectusService()
@@ -414,6 +625,7 @@ async def test_shared_chat_window_preserves_non_enumeration_dummy_response():
     assert messages["has_more"] is False
 
 
+# contract-test: supporting surface=rest_api assertions=storage.cold.shared-team-authorized
 @pytest.mark.anyio
 async def test_shared_sub_chats_retry_without_metadata_v_on_directus_permission_denial():
     class MetadataDeniedDirectus(FakeDirectusService):

@@ -1,7 +1,126 @@
 import type { ChatSynchronizationService } from "./chatSyncService";
 import { webSocketService } from "./websocketService";
 import type { StoreEmbedDiffPayload, StoreEmbedPayload } from "../types/chat";
-import { chatDB } from "./db";
+import { chatDB, type PendingEmbedOperation } from "./db";
+import { computeSHA256 } from "../message_parsing/utils";
+import {
+  assertCanonicalEmbedWriteLease, withCanonicalEmbedWrite,
+  type CanonicalEmbedWriteLease,
+} from "./canonicalEmbedWriteCoordinator";
+
+const EMBED_RECEIPT_TIMEOUT_MS = 30_000;
+const MAX_ACTIVE_EMBED_RECEIPTS = 32;
+const activePendingEmbedOperations = new Map<string, Promise<void>>();
+let pendingEmbedFlush: Promise<void> | null = null;
+let lastPendingEmbedOperationTime = 0;
+let capacityDeferred = false;
+let capacityDrainScheduled = false;
+
+function scheduleCapacityDrain(): void {
+  if (!capacityDeferred || capacityDrainScheduled) return;
+  capacityDeferred = false;
+  capacityDrainScheduled = true;
+  globalThis.setTimeout(() => {
+    capacityDrainScheduled = false;
+    void flushPendingEmbedOperations();
+  }, 0);
+}
+
+async function sendWithReceipt(
+  type: "store_embed" | "store_embed_keys",
+  confirmedType: "store_embed_confirmed" | "store_embed_keys_confirmed",
+  payload: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  const requestId = crypto.randomUUID();
+  let stop = () => {};
+  const confirmation = new Promise<Record<string, unknown>>((resolve, reject) => {
+    const timer = globalThis.setTimeout(() => {
+      stop();
+      reject(new Error(`Canonical ${type} confirmation timed out.`));
+    }, EMBED_RECEIPT_TIMEOUT_MS);
+    const onConfirmed = (raw: unknown) => {
+      const receipt = raw as Record<string, unknown>;
+      if (receipt.request_id !== requestId) return;
+      stop();
+      resolve(receipt);
+    };
+    const onClose = () => {
+      stop();
+      reject(new Error(`Connection closed before canonical ${type} confirmation.`));
+    };
+    stop = () => {
+      globalThis.clearTimeout(timer);
+      webSocketService.off(confirmedType, onConfirmed);
+      webSocketService.removeEventListener("close", onClose);
+    };
+    webSocketService.on(confirmedType, onConfirmed);
+    webSocketService.addEventListener("close", onClose);
+  });
+  void confirmation.catch(() => {});
+  try {
+    await webSocketService.sendMessage(type, { ...payload, request_id: requestId });
+    return await confirmation;
+  } finally {
+    stop();
+  }
+}
+
+async function persistCanonicalEmbedOperation(operation: PendingEmbedOperation): Promise<void> {
+  const head = operation.store_embed_payload;
+  const headReceipt = await sendWithReceipt("store_embed", "store_embed_confirmed", head as unknown as Record<string, unknown>);
+  const expectedDigest = await computeSHA256(head.encrypted_content);
+  if (headReceipt.embed_id !== head.embed_id || headReceipt.canonical_digest !== expectedDigest) {
+    throw new Error(`Canonical embed ${head.embed_id} receipt did not match its ciphertext.`);
+  }
+  const keys = operation.store_embed_keys_payload?.keys ?? [];
+  if (keys.length === 0) return;
+  const keyReceipt = await sendWithReceipt("store_embed_keys", "store_embed_keys_confirmed", { keys });
+  if (keyReceipt.failed_count !== 0 || keyReceipt.created_count !== keys.length) {
+    throw new Error(`Canonical embed ${head.embed_id} key wrappers were incomplete.`);
+  }
+}
+
+async function persistQueuedEmbedOperation(
+  operation: PendingEmbedOperation, lease?: CanonicalEmbedWriteLease,
+): Promise<void> {
+  const active = activePendingEmbedOperations.get(operation.operation_id);
+  if (active) {
+    try {
+      await active;
+      return;
+    } catch {
+      // The reconnect flush retries an operation whose previous socket closed.
+    }
+  }
+  if (activePendingEmbedOperations.size >= MAX_ACTIVE_EMBED_RECEIPTS) {
+    capacityDeferred = true;
+    throw new Error("Canonical embed receipt capacity is full; operation remains queued for retry.");
+  }
+  const persist = async () => {
+    const queued = (await chatDB.getPendingEmbedOperations())
+      .filter((candidate) => candidate.embed_id === operation.embed_id)
+      .sort((a, b) => a.created_at - b.created_at || a.operation_id.localeCompare(b.operation_id));
+    const position = queued.findIndex((candidate) => candidate.operation_id === operation.operation_id);
+    if (position < 0) return; // An earlier flush already committed this operation.
+    for (const earlier of queued.slice(0, position)) {
+      await persistCanonicalEmbedOperation(earlier);
+      await chatDB.removePendingEmbedOperation(earlier.operation_id);
+    }
+    await persistCanonicalEmbedOperation(operation);
+    await chatDB.removePendingEmbedOperation(operation.operation_id);
+  };
+  if (lease) assertCanonicalEmbedWriteLease(lease, operation.embed_id);
+  const run = lease ? persist() : withCanonicalEmbedWrite(operation.embed_id, persist);
+  activePendingEmbedOperations.set(operation.operation_id, run);
+  try {
+    await run;
+  } finally {
+    if (activePendingEmbedOperations.get(operation.operation_id) === run) {
+      activePendingEmbedOperations.delete(operation.operation_id);
+    }
+    if (activePendingEmbedOperations.size < MAX_ACTIVE_EMBED_RECEIPTS) scheduleCapacityDrain();
+  }
+}
 
 /**
  * Send encrypted embed to server for Directus storage.
@@ -12,26 +131,31 @@ export async function sendStoreEmbedImpl(
   serviceInstance: ChatSynchronizationService,
   payload: StoreEmbedPayload,
   embedKeysPayload?: { keys: Array<Record<string, unknown>> },
+  lease?: CanonicalEmbedWriteLease,
 ): Promise<void> {
+  if (lease) assertCanonicalEmbedWriteLease(lease, payload.embed_id);
+  const createdAt = Math.max(Date.now(), lastPendingEmbedOperationTime + 0.001);
+  lastPendingEmbedOperationTime = createdAt;
+  const operation: PendingEmbedOperation = {
+    operation_id: crypto.randomUUID(), embed_id: payload.embed_id,
+    store_embed_payload: payload, store_embed_keys_payload: embedKeysPayload,
+    created_at: createdAt,
+  };
+  await chatDB.addPendingEmbedOperation(operation);
   if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
     console.warn(
       `[EmbedSenders] WebSocket not connected - queuing embed ${payload.embed_id} for offline sync`,
     );
-    await _queuePendingEmbedOperation(payload, embedKeysPayload);
     return;
   }
 
   try {
-    console.debug(
-      `[EmbedSenders] Sending encrypted embed ${payload.embed_id} to server`,
-    );
-    await webSocketService.sendMessage("store_embed", payload);
+    await persistQueuedEmbedOperation(operation, lease);
   } catch (error) {
     console.error(
-      `[EmbedSenders] Error sending store_embed for ${payload.embed_id}, queuing for retry:`,
+      `[EmbedSenders] Canonical embed ${payload.embed_id} is pending retry:`,
       error,
     );
-    await _queuePendingEmbedOperation(payload, embedKeysPayload);
   }
 }
 
@@ -44,20 +168,11 @@ export async function sendStoreEmbedKeysImpl(
   payload: { keys: Array<Record<string, unknown>> },
 ): Promise<void> {
   if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
-    console.warn(
-      "[EmbedSenders] WebSocket not connected - embed keys will be sent with queued embed operation",
-    );
-    return;
+    throw new Error("Cannot store standalone embed keys while disconnected.");
   }
-
-  try {
-    console.debug(
-      `[EmbedSenders] Sending ${payload.keys.length} embed key wrapper(s) to server`,
-    );
-    await webSocketService.sendMessage("store_embed_keys", payload);
-  } catch (error) {
-    console.error("[EmbedSenders] Error sending store_embed_keys:", error);
-    // Keys will be re-sent when the embed operation is flushed from the queue
+  const receipt = await sendWithReceipt("store_embed_keys", "store_embed_keys_confirmed", payload);
+  if (receipt.failed_count !== 0 || receipt.created_count !== payload.keys.length) {
+    throw new Error("Canonical embed key wrappers were incomplete.");
   }
 }
 
@@ -91,34 +206,12 @@ export async function sendStoreEmbedDiffImpl(
 }
 
 /**
- * Queue an embed operation in IndexedDB for later retry.
- */
-async function _queuePendingEmbedOperation(
-  storePayload: StoreEmbedPayload,
-  keysPayload?: { keys: Array<Record<string, unknown>> },
-): Promise<void> {
-  try {
-    await chatDB.addPendingEmbedOperation({
-      operation_id: crypto.randomUUID(),
-      embed_id: storePayload.embed_id,
-      store_embed_payload: storePayload,
-      store_embed_keys_payload: keysPayload,
-      created_at: Date.now(),
-    });
-    console.info(
-      `[EmbedSenders] Queued embed ${storePayload.embed_id} for offline sync`,
-    );
-  } catch (error) {
-    console.error(`[EmbedSenders] Failed to queue embed operation:`, error);
-  }
-}
-
-/**
  * Flush all pending embed operations from IndexedDB.
  * Called on WebSocket reconnect.
  */
 export async function flushPendingEmbedOperations(): Promise<void> {
-  try {
+  if (pendingEmbedFlush) return pendingEmbedFlush;
+  pendingEmbedFlush = (async () => {
     const operations = await chatDB.getPendingEmbedOperations();
     if (operations.length === 0) return;
 
@@ -126,27 +219,9 @@ export async function flushPendingEmbedOperations(): Promise<void> {
       `[EmbedSenders] Flushing ${operations.length} pending embed operation(s)`,
     );
 
-    for (const op of operations) {
+    for (const op of operations.sort((a, b) => a.created_at - b.created_at)) {
       try {
-        // Send the encrypted embed
-        await webSocketService.sendMessage(
-          "store_embed",
-          op.store_embed_payload,
-        );
-
-        // Send keys if present
-        if (
-          op.store_embed_keys_payload &&
-          op.store_embed_keys_payload.keys.length > 0
-        ) {
-          await webSocketService.sendMessage(
-            "store_embed_keys",
-            op.store_embed_keys_payload,
-          );
-        }
-
-        // Remove from queue on success
-        await chatDB.removePendingEmbedOperation(op.operation_id);
+        await persistQueuedEmbedOperation(op);
         console.debug(
           `[EmbedSenders] Flushed embed operation ${op.embed_id}`,
         );
@@ -158,10 +233,11 @@ export async function flushPendingEmbedOperations(): Promise<void> {
         // Leave in queue for next reconnect attempt
       }
     }
-  } catch (error) {
+  })().catch((error) => {
     console.error(
       "[EmbedSenders] Error flushing pending embed operations:",
       error,
     );
-  }
+  }).finally(() => { pendingEmbedFlush = null; });
+  return pendingEmbedFlush;
 }

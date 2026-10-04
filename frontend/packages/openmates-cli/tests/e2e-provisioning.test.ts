@@ -1,3 +1,4 @@
+// contract-test-file: infrastructure
 /**
  * Unit tests for CLI E2E provisioning command guardrails.
  *
@@ -16,6 +17,34 @@ function runCli(args: string[]): string {
     env: { ...process.env, TERM: "dumb" },
   });
 }
+
+describe("E2E TOTP rollover guard", () => {
+  it("waits into the next period when a generated code has under two seconds left", async () => {
+    const { waitForSafeE2ETotpWindow } = await import(new URL("../dist/cli.js", import.meta.url).href);
+    let now = 42 * 30_000 + 29_972;
+    const sleeps: number[] = [];
+    await waitForSafeE2ETotpWindow(
+      () => now,
+      async (milliseconds) => {
+        sleeps.push(milliseconds);
+        now += milliseconds;
+      },
+    );
+    assert.deepEqual(sleeps, [78]);
+    assert.equal(Math.floor(now / 30_000), 43);
+  });
+
+  it("does not delay a code with two seconds or more left", async () => {
+    const { waitForSafeE2ETotpWindow } = await import(new URL("../dist/cli.js", import.meta.url).href);
+    const sleeps: number[] = [];
+    for (const now of [42 * 30_000, 42 * 30_000 + 28_000]) {
+      await waitForSafeE2ETotpWindow(() => now, async (milliseconds) => {
+        sleeps.push(milliseconds);
+      });
+    }
+    assert.deepEqual(sleeps, []);
+  });
+});
 
 describe("E2E provisioning command surface", () => {
   it("prints help without network access", () => {

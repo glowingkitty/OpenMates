@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import logging
 import json
+import os
 import uuid
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
@@ -19,6 +20,23 @@ if TYPE_CHECKING:
 CHECKPOINT_COLLECTION = "chat_compression_checkpoints"
 DEFAULT_OLD_MESSAGE_LIMIT = 30
 MAX_OLD_MESSAGE_LIMIT = 250
+MAX_COVERED_MESSAGE_IDS = 20_000
+MAX_COVERED_MESSAGE_IDS_BYTES = 1_048_576
+
+
+def _validated_covered_message_ids(value: Any) -> Optional[List[str]]:
+    """Validate an exact, immutable source manifest without interpreting legacy absence."""
+    if value is None:
+        return None
+    if not isinstance(value, list) or not value or len(value) > MAX_COVERED_MESSAGE_IDS:
+        raise ValueError("Invalid compression checkpoint source manifest.")
+    if any(not isinstance(item, str) or not item or len(item) > 255 for item in value):
+        raise ValueError("Invalid compression checkpoint source manifest.")
+    if value != sorted(set(value)):
+        raise ValueError("Invalid compression checkpoint source manifest.")
+    if len(json.dumps(value, separators=(",", ":"), ensure_ascii=False).encode("utf-8")) > MAX_COVERED_MESSAGE_IDS_BYTES:
+        raise ValueError("Compression checkpoint source manifest is too large.")
+    return value
 
 
 async def get_latest_chat_compression_checkpoint(
@@ -35,6 +53,7 @@ async def get_latest_chat_compression_checkpoint(
             },
             "sort": "-created_at",
             "limit": 1,
+            "fields": "id,chat_id,encrypted_summary,compressed_up_to_timestamp,compressed_up_to_message_id,compressed_message_count,summary_token_estimate,key_version,created_at,updated_at",
         },
         admin_required=True,
     )
@@ -121,13 +140,30 @@ async def _handle_store_chat_compression_checkpoint(
 
     _validate_client_encrypted_chat_payload(checkpoint_id, encrypted_summary)
 
+    try:
+        covered_message_ids = _validated_covered_message_ids(payload.get("covered_message_ids"))
+    except ValueError as exc:
+        await manager.send_personal_message(
+            {"type": "error", "payload": {"message": str(exc), "chat_id": chat_id}},
+            user_id,
+            device_fingerprint_hash,
+        )
+        return
+
     existing = await directus_service.get_items(
         CHECKPOINT_COLLECTION,
-        params={"filter": {"id": {"_eq": checkpoint_id}}, "limit": 1},
+        params={"filter": {"id": {"_eq": checkpoint_id}, "chat_id": {"_eq": chat_id}, "hashed_user_id": {"_eq": user_id_hash}}, "limit": 1},
         admin_required=True,
     )
     if existing:
         checkpoint = existing[0]
+        if covered_message_ids is not None and checkpoint.get("covered_message_ids") != covered_message_ids:
+            await manager.send_personal_message(
+                {"type": "error", "payload": {"message": "Compression checkpoint source manifest cannot change.", "chat_id": chat_id}},
+                user_id,
+                device_fingerprint_hash,
+            )
+            return
     else:
         now_ts = int(datetime.now(timezone.utc).timestamp())
         checkpoint_payload = {
@@ -136,6 +172,8 @@ async def _handle_store_chat_compression_checkpoint(
             "hashed_user_id": user_id_hash,
             "encrypted_summary": encrypted_summary,
             "compressed_up_to_timestamp": payload.get("compressed_up_to_timestamp") or 0,
+            "compressed_up_to_message_id": payload.get("compressed_up_to_message_id"),
+            "covered_message_ids": covered_message_ids,
             "compressed_message_count": payload.get("compressed_message_count") or 0,
             "summary_token_estimate": payload.get("summary_token_estimate") or 0,
             "key_version": payload.get("key_version"),
@@ -163,6 +201,14 @@ async def _handle_store_chat_compression_checkpoint(
         user_id,
         device_fingerprint_hash,
     )
+    if (os.getenv("CHAT_MESSAGE_ARCHIVE_COPY_ENABLED") == "1"
+            and checkpoint.get("compressed_up_to_message_id")
+            and checkpoint.get("covered_message_ids")):
+        from backend.core.api.app.tasks.storage_tasks import copy_chat_checkpoint_archive
+        copy_chat_checkpoint_archive.apply_async(
+            kwargs={"chat_id": chat_id, "checkpoint_id": checkpoint_id},
+            task_id=f"message-archive:{checkpoint_id}", queue="persistence",
+        )
 
 
 async def handle_get_compressed_chat_old_messages(
@@ -174,6 +220,7 @@ async def handle_get_compressed_chat_old_messages(
     device_fingerprint_hash: str,
     payload: Dict[str, Any],
     user_otel_attrs: dict = None,
+    s3_service: Any = None,
 ) -> None:
     from backend.shared.python_utils.tracing.ws_span_helper import end_ws_handler_span, start_ws_handler_span
 
@@ -193,6 +240,7 @@ async def handle_get_compressed_chat_old_messages(
             device_fingerprint_hash,
             payload,
             user_otel_attrs,
+            s3_service,
         )
     finally:
         end_ws_handler_span(_otel_span, _otel_token)
@@ -207,6 +255,7 @@ async def _handle_get_compressed_chat_old_messages(
     device_fingerprint_hash: str,
     payload: Dict[str, Any],
     user_otel_attrs: dict = None,
+    s3_service: Any = None,
 ) -> None:
     del cache_service, user_otel_attrs
     chat_id = payload.get("chat_id")
@@ -273,6 +322,16 @@ async def _handle_get_compressed_chat_old_messages(
     has_more = len(messages) > limit
     if has_more:
         messages = messages[1:]
+    chat_metadata = await directus_service.chat.get_chat_metadata(chat_id, admin_required=True)
+    if os.getenv("CHAT_MESSAGE_ARCHIVE_READS_ENABLED") == "1" or int((chat_metadata or {}).get("archived_message_count") or 0):
+        from backend.core.api.app.services.chat_message_archive_service import ChatMessageArchiveService
+        archive = await ChatMessageArchiveService(directus_service=directus_service, s3_service=s3_service).merge_window(
+            chat_id=chat_id, hot={"messages": messages, "has_more_before": has_more},
+            direction="before", limit=limit,
+            before=(int(before_timestamp), before_message_id or "\uffff"),
+        )
+        messages = [json.dumps({**r, "message_id": r.get("client_message_id") or r.get("id")}) for r in archive["messages"]]
+        has_more = archive["has_more_before"]
     next_before_timestamp = None
     next_before_message_id = None
     if has_more and messages:

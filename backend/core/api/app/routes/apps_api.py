@@ -1013,7 +1013,22 @@ async def call_app_skill(
 
     try:
         with central_app_skill_dispatch():
-            result = await registry.dispatch_skill(app_id, skill_id, request_payload)
+            from backend.shared.python_utils.chat_recovery_context import (
+                AuthenticatedDirectSkill, active_authenticated_direct_skill,
+            )
+
+            actor_id = str(user_info["user_id"])
+            team_id = user_info.get("team_id")
+            direct_token = active_authenticated_direct_skill.set(AuthenticatedDirectSkill(
+                owner_id=actor_id,
+                owner_hash=hashlib.sha256(actor_id.encode("utf-8")).hexdigest(),
+                app_id=app_id, skill_id=skill_id,
+                team_id=team_id if isinstance(team_id, str) and team_id else None,
+            ))
+            try:
+                result = await registry.dispatch_skill(app_id, skill_id, request_payload)
+            finally:
+                active_authenticated_direct_skill.reset(direct_token)
         return await sanitize_app_skill_output(
             result,
             AppSkillOutputSafetyContext(

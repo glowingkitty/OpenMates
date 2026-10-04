@@ -8,6 +8,7 @@ ciphertext produced by backend AI workers.
 
 import asyncio
 import base64
+import hashlib
 import json
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -18,12 +19,82 @@ pytest.importorskip("celery")
 
 from backend.core.api.app.tasks import persistence_tasks
 from backend.core.api.app.services import cache as cache_service_module
-from backend.core.api.app.services import chat_recovery_service
+from backend.core.api.app.services import chat_recovery_service, chat_deletion_fence
 
 
 def make_client_ciphertext() -> str:
     raw = b"OM" + bytes.fromhex("1a5b3b7c") + (b"0" * 12) + b"ciphertext-ok"
     return base64.b64encode(raw).decode("ascii")
+
+
+def canonical_assistant_row(ciphertext: str) -> dict:
+    return {
+        "client_message_id": "message-123", "chat_id": "chat-123",
+        "hashed_user_id": "user-hash", "role": "assistant",
+        "encrypted_content": ciphertext,
+    }
+
+
+def canonical_assistant_lookup(ciphertext: str) -> AsyncMock:
+    async def read(collection: str, *, params: dict, no_cache: bool) -> list[dict]:
+        assert collection == "messages" and no_cache is True
+        assert params["filter"] == {"client_message_id": {"_eq": "message-123"}}
+        assert params["limit"] == 1
+        return [canonical_assistant_row(ciphertext)]
+    return AsyncMock(side_effect=read)
+
+
+def expected_legacy_ack(ciphertext: str) -> dict:
+    return {
+        "protocol_version": 1, "task_identity": "message-123",
+        "chat_id": "chat-123", "hashed_user_id": "user-hash",
+        "assistant_message_id": "message-123",
+        "ciphertext_digest": hashlib.sha256(ciphertext.encode()).hexdigest(),
+    }
+
+
+def empty_chat_storage_inventory(monkeypatch, events: list[str]) -> None:
+    from backend.core.api.app.services import storage_reference_service
+
+    async def gate(*_args, **_kwargs) -> None:
+        events.append("storage-gate")
+
+    async def rows(*_args, **_kwargs) -> list:
+        return []
+
+    async def versions(*_args, **_kwargs) -> tuple[list, list]:
+        return [], []
+
+    for name in (
+        "fence_chat_for_deletion", "assert_no_active_chat_archive_writer_leases",
+        "assert_no_active_chat_embed_version_copy_leases",
+        "assert_no_active_chat_recovery_output_writer_leases",
+    ):
+        monkeypatch.setattr(storage_reference_service, name, gate)
+    for name in (
+        "persist_chat_message_archive_tombstones", "load_chat_embed_rows",
+        "delete_chat_message_archive_rows", "delete_embed_version_rows",
+        "activate_storage_tombstones",
+    ):
+        monkeypatch.setattr(storage_reference_service, name, rows)
+    monkeypatch.setattr(storage_reference_service, "prepare_orphan_embed_version_deletion", versions)
+
+
+def confirmed_chat_deletion_fence(events: list[str] | None = None):
+    class ConfirmedRecovery:
+        def __init__(self, _directus: object) -> None:
+            pass
+
+        async def execute(self, operation: str, data: dict) -> dict:
+            assert operation == "invalidate_deletion"
+            assert data == {
+                "protocol_version": 1, "scope": "chat", "chat_id": "source-chat",
+                "hashed_user_id": hashlib.sha256(b"owner").hexdigest(),
+            }
+            if events is not None:
+                events.append("deletion-fence")
+            return {"chat_deletion_fenced": True, "chat_id": "source-chat"}
+    return ConfirmedRecovery
 
 
 # contract-test: supporting surface=rest_api assertions=code-run.artifacts.chat-bound-versioned,chats.message.identity-idempotent
@@ -362,11 +433,13 @@ def test_persist_new_chat_message_sanitizes_optional_encrypted_pii_mappings(
 # contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
 async def test_existing_ai_response_acknowledges_legacy_persistence(monkeypatch) -> None:
     get_message_by_id = AsyncMock(return_value={"id": "message-123"})
-    acknowledge = AsyncMock(return_value={"acknowledged": True})
+    acknowledge = AsyncMock(return_value={"acknowledged": True, "output_receipt_verified": True})
 
     class FakeDirectusService:
         def __init__(self) -> None:
             self.chat = SimpleNamespace(get_message_by_id=get_message_by_id)
+
+            self.get_items = canonical_assistant_lookup("client-ciphertext")
 
         async def ensure_auth_token(self) -> None:
             return None
@@ -391,7 +464,7 @@ async def test_existing_ai_response_acknowledges_legacy_persistence(monkeypatch)
 
     acknowledge.assert_awaited_once_with(
         "acknowledge_legacy_persistence",
-        {"protocol_version": 1, "task_identity": "message-123"},
+        expected_legacy_ack("client-ciphertext"),
     )
 
 
@@ -402,12 +475,14 @@ async def test_existing_ai_response_retries_transient_legacy_acknowledgment_fail
 ) -> None:
     get_message_by_id = AsyncMock(return_value={"id": "message-123"})
     acknowledge = AsyncMock(
-        side_effect=[RuntimeError("transient acknowledgment failure"), {"acknowledged": True}]
+        side_effect=[RuntimeError("transient acknowledgment failure"), {"acknowledged": True, "output_receipt_verified": True}]
     )
 
     class FakeDirectusService:
         def __init__(self) -> None:
             self.chat = SimpleNamespace(get_message_by_id=get_message_by_id)
+
+            self.get_items = canonical_assistant_lookup("client-ciphertext")
 
         async def ensure_auth_token(self) -> None:
             return None
@@ -513,7 +588,7 @@ async def test_falsy_ai_response_create_result_raises_for_wrapper_retry(monkeypa
 @pytest.mark.anyio
 # contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
 async def test_created_ai_response_acknowledges_legacy_persistence(monkeypatch) -> None:
-    acknowledge = AsyncMock(return_value={"acknowledged": True})
+    acknowledge = AsyncMock(return_value={"acknowledged": True, "output_receipt_verified": True})
 
     class FakeDirectusService:
         def __init__(self) -> None:
@@ -521,6 +596,8 @@ async def test_created_ai_response_acknowledges_legacy_persistence(monkeypatch) 
                 get_message_by_id=AsyncMock(return_value=None),
                 create_message_in_directus=AsyncMock(return_value={"id": "message-123"}),
             )
+
+            self.get_items = canonical_assistant_lookup(make_client_ciphertext())
 
         async def ensure_auth_token(self) -> None:
             return None
@@ -554,14 +631,14 @@ async def test_created_ai_response_acknowledges_legacy_persistence(monkeypatch) 
 
     acknowledge.assert_awaited_once_with(
         "acknowledge_legacy_persistence",
-        {"protocol_version": 1, "task_identity": "message-123"},
+        expected_legacy_ack(make_client_ciphertext()),
     )
 
 
 @pytest.mark.anyio
 # contract-test: supporting surface=rest_api assertions=chats.message.identity-idempotent
 async def test_duplicate_ai_response_acknowledges_legacy_persistence(monkeypatch) -> None:
-    acknowledge = AsyncMock(return_value={"acknowledged": True})
+    acknowledge = AsyncMock(return_value={"acknowledged": True, "output_receipt_verified": True})
 
     class FakeDirectusService:
         def __init__(self) -> None:
@@ -571,6 +648,8 @@ async def test_duplicate_ai_response_acknowledges_legacy_persistence(monkeypatch
                     side_effect=RuntimeError("duplicate key")
                 ),
             )
+
+            self.get_items = canonical_assistant_lookup(make_client_ciphertext())
 
         async def ensure_auth_token(self) -> None:
             return None
@@ -596,7 +675,7 @@ async def test_duplicate_ai_response_acknowledges_legacy_persistence(monkeypatch
 
     acknowledge.assert_awaited_once_with(
         "acknowledge_legacy_persistence",
-        {"protocol_version": 1, "task_identity": "message-123"},
+        expected_legacy_ack(make_client_ciphertext()),
     )
 
 
@@ -611,7 +690,7 @@ async def test_delete_chat_fences_workflows_before_deleting_chat_content(monkeyp
             self.chat = SimpleNamespace(
                 delete_all_drafts_for_chat=AsyncMock(side_effect=lambda *_: events.append('drafts') or True),
                 delete_all_messages_for_chat=AsyncMock(side_effect=lambda *_: events.append('messages') or True),
-                persist_delete_chat=AsyncMock(side_effect=lambda *_: events.append('chat') or True),
+                persist_delete_chat=AsyncMock(side_effect=lambda chat_id, *, hashed_user_id: events.append('chat') or (chat_id == 'source-chat' and hashed_user_id == hashlib.sha256(b'owner').hexdigest())),
             )
             self.embed = SimpleNamespace(delete_all_embeds_for_chat=AsyncMock(return_value=(True, [])))
         async def ensure_auth_token(self):
@@ -627,10 +706,14 @@ async def test_delete_chat_fences_workflows_before_deleting_chat_content(monkeyp
         return 1
 
     monkeypatch.setattr(persistence_tasks, 'DirectusService', FakeDirectus)
+    monkeypatch.setattr(chat_deletion_fence, 'ChatRecoveryService', confirmed_chat_deletion_fence(events))
+    empty_chat_storage_inventory(monkeypatch, events)
     monkeypatch.setattr(persistence_tasks, 'SecretsManager', FakeSecrets)
     monkeypatch.setattr(workflow_tasks, 'get_workflow_service', lambda: SimpleNamespace(cleanup_chat_owned_workflows=cleanup))
     await persistence_tasks._async_persist_delete_chat('owner', 'source-chat')
-    assert events == ['workflow-fence', 'drafts', 'messages', 'chat']
+    assert events[:6] == ['deletion-fence', 'workflow-fence', 'storage-gate', 'storage-gate', 'storage-gate', 'storage-gate']
+    assert events.index('drafts') > events.index('storage-gate')
+    assert events[-3:] == ['drafts', 'messages', 'chat']
 
 
 # contract-test: supporting surface=rest_api assertions=workflows.chat.embedded-lifecycle
@@ -646,6 +729,7 @@ async def test_delete_chat_preserves_content_when_workflow_cleanup_fails(monkeyp
     def cleanup(*_args):
         raise RuntimeError('workflow cancellation fence unavailable')
     monkeypatch.setattr(persistence_tasks, 'DirectusService', lambda: fake_directus)
+    monkeypatch.setattr(chat_deletion_fence, 'ChatRecoveryService', confirmed_chat_deletion_fence())
     monkeypatch.setattr(workflow_tasks, 'get_workflow_service', lambda: SimpleNamespace(cleanup_chat_owned_workflows=cleanup))
     with pytest.raises(RuntimeError, match='fence unavailable'):
         await persistence_tasks._async_persist_delete_chat('owner', 'source-chat')

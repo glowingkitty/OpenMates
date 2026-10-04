@@ -234,6 +234,7 @@ async function loginCliViaPair(page: any, apiUrl: string, baseUrl: string, log: 
 test.describe('CLI Embed Diff Versions', () => {
 	test.setTimeout(360_000);
 
+	// contract-test: direct surface=cli assertions=storage.versions.metadata-and-payload,storage.versions.bounded-reconstruction
 	test('code embed version history can be listed, shown, and restored through encrypted CLI flow', async ({ page }) => {
 		test.slow();
 		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
@@ -281,6 +282,9 @@ test.describe('CLI Embed Diff Versions', () => {
 		expect(versions.versions.map((version: any) => version.version_number)).toEqual(
 			expect.arrayContaining([1, 2])
 		);
+		expect(versions.versions.every((version: any) =>
+			!Object.hasOwn(version, 'encrypted_snapshot') && !Object.hasOwn(version, 'encrypted_patch')
+		)).toBe(true);
 
 		const version1 = await runCliJson(
 			apiUrl,

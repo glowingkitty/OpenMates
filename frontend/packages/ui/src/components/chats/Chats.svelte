@@ -12,6 +12,9 @@
 	import { authStore } from '../../stores/authStore';
 	import { chatDB } from '../../services/db';
 	import { chatKeyManager } from '../../services/encryption/ChatKeyManager';
+	import { getSharedChatUrl, saveSharedChatKey } from '../../services/sharedChatKeyStorage';
+	import { loadSharedSubChatPage, type SharedChatCursor, type SharedSubChatRow } from '../../services/sharedChatDetailsService';
+	import SharedAuxiliaryLoadButton from '../SharedAuxiliaryLoadButton.svelte';
 	import { draftEditorUIState } from '../../services/drafts/draftState'; // Renamed import
 	import { isPersistedDraftOnlyChat } from '../../utils/chatDraftState';
 	import { recordE2EDraftSelectionDecision, waitForE2EDraftSelectionCommit } from '../../services/e2eTestHooks';
@@ -221,11 +224,85 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 	let selectedChatIds = $state<Set<string>>(new Set()); // Set of selected chat IDs
 	let lastSelectedChatId: string | null = $state(null); // Track last selected chat for range selection
 	let expandedSubChatParentIds = $state<Set<string>>(new Set());
+	type SharedSubChatLoadState = {
+		initialized: boolean;
+		loading: boolean;
+		error: boolean;
+		hasMoreBefore: boolean;
+		cursor: SharedChatCursor | null;
+	};
+	let sharedSubChatLoads = $state<Record<string, SharedSubChatLoadState>>({});
+
+	function sharedSubChatToChat(row: SharedSubChatRow, parent: ChatType): ChatType {
+		const createdAt = row.created_at;
+		return {
+			chat_id: row.id,
+			encrypted_title: row.encrypted_title ?? null,
+			messages_v: row.messages_v ?? 0,
+			title_v: row.title_v ?? 0,
+			metadata_v: row.metadata_v,
+			last_edited_overall_timestamp: row.last_edited_overall_timestamp ?? row.updated_at ?? createdAt,
+			unread_count: row.unread_count ?? 0,
+			created_at: createdAt,
+			updated_at: row.updated_at ?? createdAt,
+			encrypted_chat_summary: row.encrypted_chat_summary ?? null,
+			encrypted_icon: row.encrypted_icon ?? null,
+			encrypted_category: row.encrypted_category ?? null,
+			parent_id: parent.chat_id,
+			is_sub_chat: true,
+			is_shared_by_others: true,
+			share_pii: parent.share_pii ?? false,
+			share_highlights: parent.share_highlights ?? true,
+			group_key: 'shared_by_others',
+			budget_limit: row.budget_limit ?? null,
+			budget_spent: row.budget_spent ?? 0
+		};
+	}
+
+	async function loadSharedSubChats(parent: ChatType): Promise<void> {
+		const chatId = parent.chat_id;
+		const current = sharedSubChatLoads[chatId];
+		if (current?.loading || (current?.initialized && !current.hasMoreBefore && !current.error)) return;
+		const cursor = current?.initialized ? current.cursor : null;
+		sharedSubChatLoads = { ...sharedSubChatLoads, [chatId]: {
+			initialized: current?.initialized ?? false, loading: true, error: false,
+			hasMoreBefore: current?.hasMoreBefore ?? true, cursor
+		} };
+		try {
+			const key = await chatKeyManager.getKey(chatId);
+			if (!key) throw new Error('Shared chat key is unavailable');
+			const originalShareUrl = await getSharedChatUrl(chatId);
+			const page = await loadSharedSubChatPage(chatId, cursor);
+			for (const row of page.items) {
+				if (!chatDB.setChatKey(row.id, key, 'share_link')) throw new Error('Shared child key was rejected');
+				if (allChatsFromDB.some(chat => chat.chat_id === row.id)) continue;
+				const existing = await chatDB.getChat(row.id);
+				if (existing) {
+					upsertLocalChatList(existing);
+					continue;
+				}
+				const child = sharedSubChatToChat(row, parent);
+				await saveSharedChatKey(row.id, key, originalShareUrl);
+				await chatDB.addChat(child);
+				upsertLocalChatList(child);
+			}
+			sharedSubChatLoads = { ...sharedSubChatLoads, [chatId]: {
+				initialized: true, loading: false, error: false,
+				hasMoreBefore: page.hasMoreBefore, cursor: page.nextCursor
+			} };
+		} catch (error) {
+			console.warn('[Chats] Shared subchat page failed:', error);
+			sharedSubChatLoads = { ...sharedSubChatLoads, [chatId]: {
+				initialized: current?.initialized ?? false, loading: false, error: true,
+				hasMoreBefore: current?.hasMoreBefore ?? true, cursor
+			} };
+		}
+	}
 
 	// Hidden Chats State
 	let showHiddenChatUnlock = $state(false); // Show unlock modal (for context menu hide action)
 
-	function toggleSubChatsForParent(chatId: string): void {
+	function toggleSubChatsForParent(chatId: string, parent?: ChatType): void {
 		const next = new Set(expandedSubChatParentIds);
 		if (next.has(chatId)) {
 			next.delete(chatId);
@@ -233,6 +310,12 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 			next.add(chatId);
 		}
 		expandedSubChatParentIds = next;
+		if (next.has(chatId)) {
+			const chat = parent ?? allChatsFromDB.find(item => item.chat_id === chatId);
+			if (chat?.is_shared_by_others && !chat.parent_id && !sharedSubChatLoads[chatId]?.initialized) {
+				void loadSharedSubChats(chat);
+			}
+		}
 	}
 	let isFirstTimeUnlock = $state(false); // True if setting code for first time
 	let chatIdToHideAfterUnlock: string | null = $state(null); // Chat ID to hide after unlock
@@ -3966,9 +4049,9 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 									activeChatId={selectedChatId}
 									selectMode={selectMode}
 									selectedChatIds={selectedChatIds}
-									hasSubChats={subChats.length > 0}
+									hasSubChats={subChats.length > 0 || (chat.is_shared_by_others && !chat.parent_id)}
 									subChatsExpanded={expandedSubChatParentIds.has(chat.chat_id)}
-									onToggleSubChats={toggleSubChatsForParent}
+									onToggleSubChats={(chatId: string) => toggleSubChatsForParent(chatId, chat)}
 									onToggleSelection={(chatId: string) => {
 										if (selectedChatIds.has(chatId)) {
 											selectedChatIds.delete(chatId);
@@ -3985,7 +4068,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 								{/if}
 							</div>
 							<!-- Nested Sub-chats (Tier 1 & Tier 2) -->
-							{#if subChats.length > 0 && expandedSubChatParentIds.has(chat.chat_id)}
+							{#if expandedSubChatParentIds.has(chat.chat_id) && (subChats.length > 0 || (chat.is_shared_by_others && !chat.parent_id))}
 								<div class="sub-chats-container" style="padding-left: 16px; margin-left: 12px; border-left: 1.5px solid var(--grey30); display: flex; flex-direction: column; gap: 4px; position: relative;">
 									{#each subChats as subChat (subChat.chat_id)}
 										<div
@@ -4051,6 +4134,20 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 											</div>
 										{/if}
 									{/each}
+									{#if chat.is_shared_by_others && !chat.parent_id}
+										{#if sharedSubChatLoads[chat.chat_id]?.loading}
+											<div data-testid="shared-subchats-loading" aria-live="polite">{$text('common.loading')}</div>
+										{:else if sharedSubChatLoads[chat.chat_id]?.error}
+											<div data-testid="shared-subchats-error" role="alert">{$text('common.detail_load_error', { values: { item: $text('common.chats') } })}</div>
+										{/if}
+										{#if sharedSubChatLoads[chat.chat_id]?.error || sharedSubChatLoads[chat.chat_id]?.hasMoreBefore}
+											<SharedAuxiliaryLoadButton
+												failed={!!sharedSubChatLoads[chat.chat_id]?.error}
+												loading={!!sharedSubChatLoads[chat.chat_id]?.loading}
+												onLoad={() => void loadSharedSubChats(chat)}
+											/>
+										{/if}
+									{/if}
 								</div>
 							{/if}
 						{/each}

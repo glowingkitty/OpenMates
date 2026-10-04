@@ -9,6 +9,15 @@ import logging
 from typing import Dict, Any, Optional
 
 from backend.shared.python_utils.task_ownership import record_task_owner
+from backend.shared.python_utils.chat_recovery_context import (
+    active_authenticated_direct_skill, active_recovery_output_context,
+    active_legacy_output_context, RequiredRecoveryOutputError,
+)
+from backend.shared.python_utils.embed_producer_dispatch import (
+    dispatch_authorized_direct_skill_task, dispatch_recoverable_embed_task,
+    dispatch_legacy_embed_task, dispatch_volatile_embed_task,
+)
+from backend.shared.python_utils.volatile_embed_authority import active_volatile_ai_context
 
 logger = logging.getLogger(__name__)
 
@@ -72,18 +81,52 @@ async def execute_skill_via_celery(
             await asyncio.to_thread(record_task_owner, task_id, user_id, celery_producer.conf.broker_url)
             dispatch_options["task_id"] = task_id
 
-        # Dispatch the task to the app's queue
-        # The task will be executed in the app's Celery worker container
-        task_signature = celery_producer.send_task(
-            name=task_name,
-            kwargs={
+        task_kwargs = {
                 "app_id": app_id,
                 "skill_id": skill_id,
                 "arguments": arguments
-            },
-            queue=queue_name,
-            **dispatch_options,
-        )
+        }
+        recovery_context = active_recovery_output_context.get()
+        if recovery_context is not None:
+            # The detached worker cannot inherit ContextVar state. Register its
+            # exact invocation and primary embed before publishing to broker.
+            task_signature = await dispatch_recoverable_embed_task(
+                celery_producer, task_name=task_name, queue=queue_name,
+                kwargs=task_kwargs, owner_id=arguments.get("user_id", ""),
+                target_chat_id=arguments.get("chat_id", ""),
+                message_id=arguments.get("message_id", ""),
+                embed_id=arguments.get("embed_id", ""),
+                task_uuid=dispatch_options.get("task_id"),
+            )
+        elif active_authenticated_direct_skill.get() is not None:
+            task_signature = await dispatch_authorized_direct_skill_task(
+                celery_producer, task_name=task_name, queue=queue_name,
+                kwargs=task_kwargs, owner_id=arguments.get("user_id", ""),
+                target_chat_id=arguments.get("chat_id"),
+                message_id=arguments.get("message_id"),
+                embed_id=arguments.get("embed_id", ""),
+                task_uuid=dispatch_options.get("task_id"),
+            )
+        elif active_legacy_output_context.get() is not None:
+            task_signature = await dispatch_legacy_embed_task(
+                celery_producer, task_name=task_name, queue=queue_name,
+                kwargs=task_kwargs, owner_id=arguments.get("user_id", ""),
+                target_chat_id=arguments.get("chat_id", ""),
+                message_id=arguments.get("message_id", ""),
+                embed_id=arguments.get("embed_id", ""),
+                task_uuid=dispatch_options.get("task_id"),
+            )
+        elif active_volatile_ai_context.get() is not None:
+            task_signature = await dispatch_volatile_embed_task(
+                celery_producer, task_name=task_name, queue=queue_name,
+                kwargs=task_kwargs, owner_id=arguments.get("user_id", ""),
+                target_chat_id=arguments.get("chat_id", ""),
+                message_id=arguments.get("message_id", ""),
+                embed_id=arguments.get("embed_id", ""),
+                task_uuid=dispatch_options.get("task_id"),
+            )
+        else:
+            raise RequiredRecoveryOutputError("Detached skill lacks authenticated output admission")
         
         task_id = task_signature.id
         logger.info(
@@ -93,6 +136,8 @@ async def execute_skill_via_celery(
         
         return task_id
         
+    except RequiredRecoveryOutputError:
+        raise
     except Exception as e:
         error_msg = f"Failed to dispatch Celery task for skill '{app_id}.{skill_id}': {e}"
         logger.error(error_msg, exc_info=True)

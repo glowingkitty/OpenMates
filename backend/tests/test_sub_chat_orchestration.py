@@ -24,6 +24,22 @@ from backend.apps.ai.sub_chat_orchestration import (
     validate_sub_chat_capacity,
 )
 
+
+# contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery
+def test_incognito_subchat_rejects_before_any_durable_write() -> None:
+    class NoDirectusAccess:
+        def __getattr__(self, name):
+            raise AssertionError(f"Unexpected durable access: {name}")
+
+    request = SimpleNamespace(is_incognito=True)
+    with pytest.raises(RuntimeError, match="Incognito sub-chats cannot create durable"):
+        asyncio.run(create_sub_chat_records(
+            directus_service=NoDirectusAccess(),
+            request_data=request,
+            spawned_sub_chats=[{"id": "child-1", "prompt": "Research"}],
+            log_prefix="[incognito-test]",
+        ))
+
 try:
     from backend.apps.ai.processing import main_processor
     from backend.apps.ai.processing.main_processor import (
@@ -254,6 +270,7 @@ def test_focus_activation_continuation_can_reuse_root_orchestration_envelope() -
         "orchestration_id": "orchestration-id",
         "root_chat_id": "root-chat-id",
         "root_turn_id": "root-turn-id",
+        "root_user_message_id": "initial-root-message-id",
         "chat_id": "root-chat-id",
         "message_id": "focus-continuation-message-id",
         "user_id_hash": "owner-hash",
@@ -265,6 +282,7 @@ def test_focus_activation_continuation_can_reuse_root_orchestration_envelope() -
     assert request_data.orchestration_id == "orchestration-id"
     assert request_data.root_chat_id == "root-chat-id"
     assert request_data.root_turn_id == "root-turn-id"
+    assert request_data.root_user_message_id == "initial-root-message-id"
     assert request_data.sub_chat_depth == 0
 
 
@@ -279,6 +297,7 @@ def test_root_orchestration_identity_is_stable_across_reconstructed_retries() ->
             "orchestration_id": None,
             "root_chat_id": None,
             "root_turn_id": None,
+            "root_user_message_id": None,
             "chat_id": "11111111-1111-4111-8111-111111111111",
             "message_id": "22222222-2222-4222-8222-222222222222",
             "user_id_hash": "owner-hash",
@@ -292,6 +311,7 @@ def test_root_orchestration_identity_is_stable_across_reconstructed_retries() ->
 
     assert first.orchestration_id == second.orchestration_id
     assert first.root_turn_id == second.root_turn_id
+    assert first.root_user_message_id == second.root_user_message_id == first.message_id
 
 
 class _Response:
@@ -331,6 +351,7 @@ def test_child_batch_is_prepared_without_private_content_before_dispatch(monkeyp
         "orchestration_id": None,
         "root_chat_id": None,
         "root_turn_id": None,
+        "root_user_message_id": None,
         "sub_chat_depth": 0,
         "orchestration_dispatch_token": None,
         "orchestration_descendant_limit": 3,

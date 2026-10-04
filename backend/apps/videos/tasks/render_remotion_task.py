@@ -32,6 +32,7 @@ from backend.shared.python_utils.storage_availability import (
     initialize_task_storage,
     require_storage_available,
 )
+from backend.shared.python_utils.chat_recovery_context import RequiredRecoveryOutputError
 
 
 logger = logging.getLogger(__name__)
@@ -208,6 +209,11 @@ async def _async_render_remotion(task: BaseServiceTask, arguments: dict[str, Any
             log_prefix=log_prefix,
         )
 
+        await EmbedService.assert_registered_output_can_generate(
+            task._directus_service, embed_id=embed_id, chat_id=chat_id,
+            message_id=message_id, owner_hash=user_id_hash,
+        )
+
         rendered = render_remotion_in_e2b(
             source=source,
             filename=filename,
@@ -288,7 +294,7 @@ async def _async_render_remotion(task: BaseServiceTask, arguments: dict[str, Any
             raise RuntimeError("Failed to index Remotion video in account storage")
         await cache_s3_file_keys(task, embed_id=embed_id, files_metadata=files_metadata, log_prefix=log_prefix)
 
-        await embed_service.update_remotion_video_embed_content(
+        completed = await embed_service.update_remotion_video_embed_content(
             embed_id=embed_id,
             remotion_source=source,
             chat_id=str(chat_id or ""),
@@ -310,12 +316,17 @@ async def _async_render_remotion(task: BaseServiceTask, arguments: dict[str, Any
             files=files_metadata,
             thumbnail=files_metadata["thumbnail"],
             log_prefix=log_prefix,
+            final_producer_output=True,
         )
+        if not completed:
+            raise RequiredRecoveryOutputError("Finished Remotion embed was not durably delivered")
         return {
             "status": "finished", "embed_id": embed_id, "runtime_seconds": runtime_seconds,
             "charged_credits": credits,
             **({"team_id": arguments["team_id"]} if arguments.get("team_id") else {}),
         }
+    except RequiredRecoveryOutputError:
+        raise
     except Exception as exc:
         logger.error("%s Remotion render failed: %s", log_prefix, exc, exc_info=True)
         try:

@@ -13,6 +13,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from datetime import datetime, timedelta, timezone
 import hashlib
+import json
 import uuid
 from typing import Any
 
@@ -127,6 +128,19 @@ FORBIDDEN_EXPORT_SECRET_FIELDS = {
     "workflow_secret_key",
 }
 
+# These fields contain client-encrypted user data, not reusable key material.
+EXPORT_CIPHERTEXT_FIELDS = {
+    "encrypted_content", "encrypted_snapshot", "encrypted_patch", "encrypted_diff",
+    "encrypted_type", "encrypted_text_preview", "encrypted_title", "encrypted_slug",
+    "encrypted_summary", "encrypted_chat_summary", "encrypted_listing_metadata",
+    "encrypted_sender_name", "encrypted_category", "encrypted_model_name",
+    "encrypted_thinking_content", "encrypted_thinking_signature", "encrypted_pii_mappings",
+    "encrypted_active_focus_id", "encrypted_auto_speak_response", "encrypted_share_cta_text",
+    "encrypted_chat_tags", "encrypted_follow_up_request_suggestions",
+    "encrypted_top_recommended_apps_for_chat", "encrypted_quick_tip_slugs",
+    "encrypted_icon", "encrypted_shared_short_url", "encrypted_settings_memories_suggestions",
+}
+
 
 class AccountExportError(ValueError):
     """Base error for account export contract violations."""
@@ -157,8 +171,10 @@ class AccountExportService:
         *,
         jobs: dict[str, dict[str, Any]] | None = None,
         part_item_limit: int = DEFAULT_EXPORT_PART_ITEM_LIMIT,
+        s3_service: Any | None = None,
     ) -> None:
         self.directus_service = directus_service
+        self.s3_service = s3_service
         self._jobs = jobs if jobs is not None else {}
         if part_item_limit <= 0:
             raise ValueError("Account export part item limit must be positive")
@@ -437,19 +453,24 @@ class AccountExportService:
         if domain == "chats":
             async for payload in self._chats_payload_chunks(user_id=user_id, team_id=team_id, filters=filters):
                 yield payload
+            async for payload in self._message_archive_payload_chunks(user_id=user_id, team_id=team_id, filters=filters):
+                yield payload
+            if not team_id:
+                async for payload in self._recovery_output_payload_chunks(user_id=user_id):
+                    yield payload
             async for payload in self._cold_archive_payload_chunks(user_id=user_id, team_id=team_id, domain=domain, filters=filters):
                 yield payload
             return
         if domain == "embeds":
-            async for payload in self._scoped_row_payload_chunks(
-                collection="embeds",
-                user_field="hashed_user_id",
-                user_id=user_id,
-                team_id=team_id,
-                domain=domain,
-                filters=filters,
-                source="embeds",
-            ):
+            buffer: list[dict[str, Any]] = []
+            async for embed in self._iter_export_embeds(user_id=user_id, team_id=team_id):
+                buffer.append(_redact_for_export(embed))
+                if len(buffer) >= self.part_item_limit:
+                    yield {"source": "embeds", "items": buffer}
+                    buffer = []
+            if buffer:
+                yield {"source": "embeds", "items": buffer}
+            async for payload in self._embed_version_payload_chunks(user_id=user_id, team_id=team_id):
                 yield payload
             return
         if domain == "referenced_uploads":
@@ -615,8 +636,8 @@ class AccountExportService:
         ):
             chats = payload["items"]
             chat_ids = [str(chat["id"]) for chat in chats if chat.get("id")]
-            messages = await self._get_related_rows(collection="messages", field="chat_id", values=chat_ids)
-            embeds = await self._get_related_rows(collection="embeds", field="hashed_chat_id", values=[_hash_id(chat_id) for chat_id in chat_ids])
+            messages = await self._get_related_rows(collection="messages", field="chat_id", values=chat_ids, team_id=team_id)
+            embeds = await self._get_related_rows(collection="embeds", field="hashed_chat_id", values=[_hash_id(chat_id) for chat_id in chat_ids], team_id=team_id)
             messages_by_chat: dict[str, list[dict[str, Any]]] = {}
             for message in messages:
                 messages_by_chat.setdefault(str(message.get("chat_id")), []).append(_redact_for_export(message))
@@ -628,6 +649,163 @@ class AccountExportService:
                 chat["messages"] = messages_by_chat.get(chat_id, [])
                 chat["embeds"] = embeds_by_hash.get(_hash_id(chat_id), [])
             yield payload
+
+    async def _message_archive_payload_chunks(
+        self, *, user_id: str, team_id: str | None, filters: dict[str, Any],
+    ) -> AsyncIterator[dict[str, Any]]:
+        """Read independently verified ciphertext pages only for authorized chats."""
+        from backend.core.api.app.services.chat_message_archive_service import ChatMessageArchiveService
+
+        reader = ChatMessageArchiveService(directus_service=self.directus_service, s3_service=self.s3_service) if self.s3_service else None
+        async for chat in self._iter_scoped_rows(collection="chats", user_field="hashed_user_id", user_id=user_id, team_id=team_id):
+            if filters and not _matches_export_filters(chat, filters):
+                continue
+            chat_id = str(chat.get("id") or "")
+            if not chat_id:
+                continue
+            pruned_count = 0
+            pages = self._iter_items_bounded(
+                collection="chat_message_archive_pages",
+                params={"filter": {"chat_id": {"_eq": chat_id}}, "sort": "first_timestamp,first_message_id", "fields": "*"},
+                admin_required=True,
+            )
+            async for page in pages:
+                if page.get("chat_id") != chat_id:
+                    raise AccountExportError("Archive page escaped authorized chat scope")
+                if page.get("pruned"):
+                    pruned_count += int(page.get("message_count") or 0)
+                if not page.get("published") or not page.get("read_enabled"):
+                    if page.get("pruned"):
+                        yield {"source": "chat_message_archive_pages", "items": [], "failures": [{
+                            "domain": "chats", "item_id": str(page.get("id")), "reason": "pruned_archive_page_unreadable",
+                        }]}
+                    continue
+                if reader is None:
+                    yield {"source": "chat_message_archive_pages", "items": [], "failures": [{
+                        "domain": "chats", "item_id": str(page.get("id")), "reason": "archive_storage_unavailable",
+                    }]}
+                    continue
+                try:
+                    records = await reader.read_page(page)
+                    messages = []
+                    for record in records:
+                        messages.extend(await reader.hydrate_records([record]))
+                except Exception:
+                    yield {"source": "chat_message_archive_pages", "items": [], "failures": [{
+                        "domain": "chats", "item_id": str(page.get("id")), "reason": "archive_page_integrity_failed",
+                    }]}
+                    continue
+                yield {"source": "chat_message_archive_pages", "items": [{
+                    "chat_id": chat_id, "page_id": page.get("id"), "pruned": bool(page.get("pruned")),
+                    "messages": [_redact_for_export(message) for message in messages],
+                }]}
+            expected = chat.get("archived_message_count")
+            if expected is not None and int(expected) != pruned_count:
+                yield {"source": "chat_message_archive_pages", "items": [], "failures": [{
+                    "domain": "chats", "item_id": chat_id, "reason": "archive_page_count_mismatch",
+                }]}
+
+    async def _embed_version_payload_chunks(
+        self, *, user_id: str, team_id: str | None,
+    ) -> AsyncIterator[dict[str, Any]]:
+        """Export version history through each authorized embed's identity."""
+        from backend.core.api.app.services.embed_version_archive_service import read_archived_version
+
+        async for embed in self._iter_export_embeds(user_id=user_id, team_id=team_id):
+            embed_id = str(embed.get("embed_id") or embed.get("id") or "")
+            if not embed_id:
+                continue
+            versions = self._iter_items_bounded(
+                collection="embed_diffs",
+                params={"filter": {"embed_id": {"_eq": embed_id}}, "sort": "version_number", "fields": "*"},
+                admin_required=True,
+            )
+            async for row in versions:
+                if row.get("embed_id") != embed_id or (not team_id and row.get("hashed_user_id") != _hash_id(user_id)):
+                    raise AccountExportError("Version escaped authorized embed scope")
+                version = dict(row)
+                if row.get("archive_object_key"):
+                    try:
+                        if self.s3_service is None:
+                            raise RuntimeError("Archive storage unavailable")
+                        archive = await read_archived_version(s3_service=self.s3_service, row=row)
+                        for field in ("encrypted_snapshot", "encrypted_patch"):
+                            if version.get(field) and archive.get(field) and version[field] != archive[field]:
+                                raise RuntimeError("Archive differs from current ciphertext")
+                            version[field] = version.get(field) or archive.get(field)
+                    except Exception:
+                        yield {"source": "embed_diffs", "items": [], "failures": [{
+                            "domain": "embeds", "item_id": str(row.get("id")), "reason": "version_archive_integrity_failed",
+                        }]}
+                        continue
+                if not version.get("encrypted_snapshot") and not version.get("encrypted_patch"):
+                    yield {"source": "embed_diffs", "items": [], "failures": [{
+                        "domain": "embeds", "item_id": str(row.get("id")), "reason": "version_ciphertext_missing",
+                    }]}
+                    continue
+                version.pop("archive_object_key", None)
+                version.pop("archive_superseded_object_key", None)
+                yield {"source": "embed_diffs", "items": [_redact_for_export(version)]}
+
+    async def _iter_export_embeds(self, *, user_id: str, team_id: str | None) -> AsyncIterator[dict[str, Any]]:
+        # Embeds have hashed_chat_id but no hashed_team_id. The authorized chat
+        # graph supplies the scope; hashed_user_id alone can include Team data.
+        async for chat in self._iter_scoped_rows(
+            collection="chats", user_field="hashed_user_id", user_id=user_id, team_id=team_id,
+        ):
+            chat_hash = _hash_id(str(chat["id"]))
+            async for embed in self._iter_items_bounded(
+                collection="embeds", params={
+                    "filter": {"hashed_chat_id": {"_eq": chat_hash}}, "sort": "id", "fields": "*",
+                }, admin_required=True,
+            ):
+                if embed.get("hashed_chat_id") != chat_hash:
+                    raise AccountExportError("Embed escaped authorized chat scope")
+                if not team_id and embed.get("hashed_user_id") != _hash_id(user_id):
+                    raise AccountExportError("Embed escaped personal owner scope")
+                yield embed
+        if not team_id:
+            async for embed in self._iter_scoped_rows(
+                collection="embeds", user_field="hashed_user_id", user_id=user_id, team_id=None,
+            ):
+                if not embed.get("hashed_chat_id"):
+                    yield embed
+
+    async def _recovery_output_payload_chunks(self, *, user_id: str) -> AsyncIterator[dict[str, Any]]:
+        """Pending sealed output is exportable to its owner without server decryption."""
+        from backend.core.api.app.services.bounded_archive_io import read_verified_bytes
+
+        async for row in self._iter_scoped_rows(collection="chat_recovery_outputs", user_field="hashed_user_id", user_id=user_id, team_id=None):
+            if row.get("state") != "PENDING" or row.get("deleted_at"):
+                continue
+            output = dict(row)
+            try:
+                if output.get("payload_storage") == "s3":
+                    if self.s3_service is None:
+                        raise RuntimeError("Archive storage unavailable")
+                    regions = output.get("payload_verified_regions")
+                    if isinstance(regions, str):
+                        regions = json.loads(regions)
+                    raw = await read_verified_bytes(
+                        self.s3_service, output["payload_s3_key"],
+                        checksum=output["sealed_payload_digest"],
+                        size_bytes=int(output["payload_size_bytes"]),
+                        regions=regions, max_bytes=24 * 1024 * 1024,
+                    )
+                    output["sealed_payload"] = raw.decode("utf-8")
+                else:
+                    raw = output["sealed_payload"].encode("utf-8")
+                    if len(raw) != int(output["payload_size_bytes"]):
+                        raise RuntimeError("Recovery output size mismatch")
+                if hashlib.sha256(raw).hexdigest() != output.get("sealed_payload_digest"):
+                    raise RuntimeError("Recovery output checksum mismatch")
+            except Exception:
+                yield {"source": "chat_recovery_outputs", "items": [], "failures": [{
+                    "domain": "chats", "item_id": str(row.get("id")), "reason": "sealed_recovery_integrity_failed",
+                }]}
+                continue
+            output.pop("payload_s3_key", None)
+            yield {"source": "chat_recovery_outputs", "items": [_redact_for_export(output)]}
 
     async def _referenced_uploads_payload_chunks(self, *, user_id: str, team_id: str | None) -> AsyncIterator[dict[str, Any]]:
         buffer: list[dict[str, Any]] = []
@@ -776,8 +954,8 @@ class AccountExportService:
         chats = await self._get_scoped_rows(collection="chats", user_field="hashed_user_id", user_id=user_id, team_id=team_id)
         chats = self._apply_domain_filters("chats", chats, filters)
         chat_ids = [str(chat["id"]) for chat in chats if chat.get("id")]
-        messages = await self._get_related_rows(collection="messages", field="chat_id", values=chat_ids)
-        embeds = await self._get_related_rows(collection="embeds", field="hashed_chat_id", values=[_hash_id(chat_id) for chat_id in chat_ids])
+        messages = await self._get_related_rows(collection="messages", field="chat_id", values=chat_ids, team_id=team_id)
+        embeds = await self._get_related_rows(collection="embeds", field="hashed_chat_id", values=[_hash_id(chat_id) for chat_id in chat_ids], team_id=team_id)
         messages_by_chat: dict[str, list[dict[str, Any]]] = {}
         for message in messages:
             messages_by_chat.setdefault(str(message.get("chat_id")), []).append(_redact_for_export(message))
@@ -824,7 +1002,7 @@ class AccountExportService:
             deduped[str(archive["archive_s3_key"])] = archive
         return list(deduped.values())
 
-    async def _get_related_rows(self, *, collection: str, field: str, values: list[str]) -> list[dict[str, Any]]:
+    async def _get_related_rows(self, *, collection: str, field: str, values: list[str], team_id: str | None = None) -> list[dict[str, Any]]:
         if not values:
             return []
         rows: list[dict[str, Any]] = []
@@ -835,6 +1013,8 @@ class AccountExportService:
                 params={"filter": {field: {"_in": batch}}, "fields": "*"},
             )
             rows.extend(result or [])
+        if team_id:
+            return [_redact_for_export(row) for row in rows if collection in {"messages", "embeds"} or _is_team_row(row, team_id=team_id)]
         return [_redact_for_export(row) for row in rows if _is_personal_row(row)]
 
     async def _safe_profile_payload(self, *, user_id: str) -> dict[str, Any]:
@@ -1028,6 +1208,21 @@ class AccountExportService:
                 break
             offset += DIRECTUS_EXPORT_PAGE_SIZE
         return rows
+
+    async def _iter_items_bounded(
+        self, *, collection: str, params: dict[str, Any], admin_required: bool = False,
+    ) -> AsyncIterator[dict[str, Any]]:
+        offset = 0
+        while True:
+            page = await self._directus_get_items(
+                collection, {**params, "limit": DIRECTUS_EXPORT_PAGE_SIZE, "offset": offset},
+                admin_required=admin_required,
+            )
+            for row in page:
+                yield row
+            if len(page) < DIRECTUS_EXPORT_PAGE_SIZE:
+                return
+            offset += DIRECTUS_EXPORT_PAGE_SIZE
 
     async def _directus_get_items(
         self,
@@ -1539,7 +1734,9 @@ def _redact_for_export(value: Any) -> Any:
     redacted: dict[str, Any] = {}
     for key, item in value.items():
         normalized_key = key.lower()
-        if normalized_key.startswith("encrypted_") or normalized_key in FORBIDDEN_EXPORT_SECRET_FIELDS or normalized_key.endswith("_secret"):
+        if normalized_key in FORBIDDEN_EXPORT_SECRET_FIELDS or normalized_key.endswith("_secret"):
+            continue
+        if normalized_key.startswith("encrypted_") and normalized_key not in EXPORT_CIPHERTEXT_FIELDS:
             continue
         redacted[key] = _redact_for_export(item)
     return redacted

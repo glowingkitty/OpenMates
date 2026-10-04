@@ -114,6 +114,7 @@ def get_account_export_service(
     return AccountExportService(
         directus_service=directus_service,
         jobs=request.app.state.account_export_jobs,
+        s3_service=getattr(request.app.state, "s3_service", None),
     )
 
 

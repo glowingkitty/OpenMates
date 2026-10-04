@@ -1703,6 +1703,32 @@ async def _validate_project_target(
         if not embed or embed.get("hashed_user_id") != hash_id(user_id):
             raise HTTPException(status_code=404, detail="Embed not found")
         return
+    if item_type == "upload":
+        # Upload links may use either the Directus row id or its public embed id.
+        # Resolve both without an owner filter so an identity collision cannot
+        # make a foreign row look like an unambiguous owned target.
+        try:
+            uploads = await directus_service.get_items(
+                "upload_files",
+                params={
+                    "filter": {"_or": [{"id": {"_eq": target_id}}, {"embed_id": {"_eq": target_id}}]},
+                    "fields": "id,embed_id,user_id",
+                    "limit": 2,
+                },
+                no_cache=True,
+                admin_required=True,
+                raise_on_error=True,
+            )
+        except Exception as exc:
+            raise HTTPException(status_code=503, detail="Upload lookup unavailable") from exc
+        if not isinstance(uploads, list):
+            raise HTTPException(status_code=503, detail="Upload lookup unavailable")
+        if len(uploads) != 1 or not isinstance(uploads[0], dict):
+            raise HTTPException(status_code=404, detail="Upload not found")
+        upload = uploads[0]
+        if upload.get("user_id") != user_id or target_id not in (upload.get("id"), upload.get("embed_id")):
+            raise HTTPException(status_code=404, detail="Upload not found")
+        return
     if item_type == "workflow":
         try:
             await run_in_threadpool(WorkflowService(DirectusWorkflowRepository()).get_workflow, target_id, user_id)

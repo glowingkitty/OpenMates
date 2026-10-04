@@ -24,6 +24,7 @@ from backend.core.api.app.tasks.celery_config import app
 from backend.shared.providers.elevenlabs import ElevenLabsClient
 from backend.shared.python_utils.media_generation_safety import validate_media_generation_request
 from backend.shared.python_utils.storage_availability import initialize_task_storage, require_storage_available
+from backend.shared.python_utils.chat_recovery_context import RequiredRecoveryOutputError
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +70,11 @@ async def _async_generate_audio(
 
     try:
         await task.initialize_core_services()
+        from backend.core.api.app.services.embed_service import EmbedService
+        await EmbedService.assert_registered_output_can_generate(
+            task._directus_service, embed_id=embed_id, chat_id=chat_id,
+            message_id=message_id, owner_hash=hash_value(user_id),
+        )
         if not prompt or not user_id or not embed_id:
             raise ValueError("Missing required audio.generate task context")
 
@@ -182,6 +188,8 @@ async def _async_generate_audio(
             request_metadata={"prompt": prompt, "provider": "ElevenLabs"},
         )
         return result_payload
+    except RequiredRecoveryOutputError:
+        raise
     except Exception as exc:
         logger.error("%s Audio generation task failed: %s", log_prefix, exc, exc_info=True)
         result_payload = {

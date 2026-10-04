@@ -898,6 +898,7 @@ ${downloadHtmlContent}
     {#if embedId && versionNumber > 1}
       <EmbedVersionTimeline
         {embedId}
+        {chatId}
         currentVersion={versionNumber}
         currentContent={latestHtmlContent}
         buildRestoredContent={(content, newVersion) => ({ ...dc, html: content, version_number: newVersion })}

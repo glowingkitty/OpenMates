@@ -16,6 +16,9 @@ import { generateUUID } from "../message_parsing/utils";
 import { normalizeEmbedType } from "../data/embedRegistry.generated";
 import { authStore } from "../stores/authState";
 import { get } from "svelte/store";
+import { activeChatStore } from "../stores/activeChatStore";
+import { activeTeamId } from "../stores/teamStore";
+import { getApiEndpoint } from "../config/api";
 
 /**
  * Tracks embed IDs that are known to be in an error or cancelled state.
@@ -41,6 +44,115 @@ const requestedEmbeds = new Map<
   string,
   { requestedAt: number; promise: Promise<void> | null; reason: string }
 >();
+
+async function fetchEncryptedEmbedForChat(embedId: string, chatId: string, teamId: string | null, shared = false): Promise<boolean> {
+  const scope = new URLSearchParams();
+  if (teamId) scope.set("team_id", teamId);
+  const suffix = scope.size ? `?${scope}` : "";
+  const path = shared
+    ? `/v1/share/chat/${encodeURIComponent(chatId)}/embeds/${encodeURIComponent(embedId)}`
+    : `/v1/embeds/chats/${encodeURIComponent(chatId)}/embeds/${encodeURIComponent(embedId)}`;
+  const response = await fetch(getApiEndpoint(`${path}${suffix}`), { credentials: "include" });
+  if (response.status === 404) return false;
+  if (!response.ok) throw new Error(`Embed read failed (${response.status})`);
+  const page = await response.json();
+  const embed = page?.embed;
+  if (!embed || embed.embed_id !== embedId) throw new Error("Embed read returned a different ID");
+  if (embed.status === "processing" || embed.status === "error" || embed.status === "cancelled"
+      || embed.encryption_mode === "vault") return false;
+
+  await embedStore.storeEmbedKeys(page.embed_keys || []);
+  let cursor: string | null = page.embed_keys_end_cursor ?? null;
+  let hasMore = page.embed_keys_has_more_after === true;
+  let oversizedId: string | null = page.oversized_embed_key_id ?? null;
+  while (hasMore) {
+    const keyParams = new URLSearchParams(scope);
+    if (!shared) keyParams.set("embed_ids", embedId);
+    if (oversizedId) keyParams.set("key_id", oversizedId);
+    else if (cursor) keyParams.set("after_key_id", cursor);
+    else throw new Error("Embed key continuation is missing its cursor");
+    const keyPath = shared
+      ? `/v1/share/chat/${encodeURIComponent(chatId)}/embeds/${encodeURIComponent(embedId)}/keys/window`
+      : `/v1/embeds/chats/${encodeURIComponent(chatId)}/keys/window`;
+    const keyResponse = await fetch(getApiEndpoint(`${keyPath}?${keyParams}`), { credentials: "include" });
+    if (!keyResponse.ok) throw new Error(`Embed key read failed (${keyResponse.status})`);
+    const keyPage = await keyResponse.json();
+    if (oversizedId && (!Array.isArray(keyPage.embed_keys)
+        || keyPage.embed_keys.length !== 1
+        || keyPage.embed_keys[0]?.id !== oversizedId)) {
+      throw new Error("Selected embed key identity mismatch");
+    }
+    await embedStore.storeEmbedKeys(keyPage.embed_keys || []);
+    if (oversizedId) {
+      cursor = oversizedId;
+      oversizedId = null;
+      continue;
+    }
+    const nextCursor = keyPage.end_cursor ?? null;
+    if (keyPage.has_more_after && nextCursor === cursor && !keyPage.oversized_key_id) {
+      throw new Error("Embed key continuation did not advance");
+    }
+    cursor = nextCursor;
+    oversizedId = keyPage.oversized_key_id ?? null;
+    hasMore = keyPage.has_more_after === true;
+  }
+
+  await embedStore.putEncrypted(`embed:${embedId}`, {
+    ...embed,
+    createdAt: embed.createdAt || embed.created_at,
+    updatedAt: embed.updatedAt || embed.updated_at,
+  }, (embed.encrypted_type ? "app-skill-use" : embed.embed_type || "app-skill-use") as EmbedType,
+  undefined, undefined, { skipMetadataExtraction: true });
+  if (shared) {
+    for (const [kind, selectedId, identityField] of [
+      ["code_run_outputs", page.code_run_output_id, "embed_id"],
+      ["notebook_run_outputs", page.notebook_run_output_id, "notebook_embed_id"],
+    ] as const) {
+      if (typeof selectedId !== "string" || !selectedId) continue;
+      const sidecarResponse = await fetch(getApiEndpoint(
+        `/v1/share/chat/${encodeURIComponent(chatId)}/auxiliary/${kind}/${encodeURIComponent(selectedId)}`,
+      ));
+      if (!sidecarResponse.ok) throw new Error(`Shared embed output failed (${sidecarResponse.status})`);
+      const selected = await sidecarResponse.json() as { item?: Record<string, unknown> };
+      if (selected.item?.id !== selectedId || selected.item?.[identityField] !== embedId) {
+        throw new Error("Shared embed output identity mismatch");
+      }
+      if (kind === "code_run_outputs") {
+        const { handleCodeRunOutputSyncedImpl } = await import("./handlersCodeRunOutputs");
+        await handleCodeRunOutputSyncedImpl(selected.item);
+      } else {
+        const { handleNotebookRunOutputSyncedImpl } = await import("./handlersNotebookRunOutputs");
+        await handleNotebookRunOutputSyncedImpl(selected.item);
+      }
+    }
+  }
+  const { chatSyncService } = await import("./chatSyncService");
+  chatSyncService.dispatchEvent(new CustomEvent("embedUpdated", {
+    detail: { embed_id: embedId, chat_id: chatId, status: embed.status || "finished" },
+  }));
+  return true;
+}
+
+async function fetchEncryptedEmbedForActiveChat(embedId: string): Promise<boolean> {
+  const activeChatId = activeChatStore.get();
+  if (!activeChatId) return false;
+  const { chatDB } = await import("./db");
+  const activeChat = await chatDB.getChat(activeChatId);
+  if (activeChat?.is_shared_by_others) {
+    return fetchEncryptedEmbedForChat(embedId, activeChatId, null, true);
+  }
+  const candidates = [activeChatId, activeChat?.parent_id].filter(
+    (id): id is string => typeof id === "string" && id.length > 0,
+  );
+  for (const chatId of new Set(candidates)) {
+    const chat = chatId === activeChatId ? activeChat : await chatDB.getChat(chatId);
+    const teamId = chat?.team_id !== undefined
+      ? chat.team_id
+      : (chatId === activeChatId ? get(activeTeamId) : null);
+    if (await fetchEncryptedEmbedForChat(embedId, chatId, teamId)) return true;
+  }
+  return false;
+}
 
 function normalizeEmbedId(embedId: string): string {
   return embedId.startsWith("embed:") ? embedId.slice("embed:".length) : embedId;
@@ -95,13 +207,6 @@ export async function requestEmbedFromServerOnce(
   }
 
   const isAuthenticated = get(authStore).isAuthenticated;
-  if (!isAuthenticated) {
-    console.debug(
-      "[embedResolver] User not authenticated, skipping WebSocket request for embed:",
-      bareId,
-    );
-    return false;
-  }
 
   const now = Date.now();
   const existing = requestedEmbeds.get(bareId);
@@ -125,9 +230,26 @@ export async function requestEmbedFromServerOnce(
       bareId,
     );
 
-    const promise = webSocketService.sendMessage("request_embed", {
-      embed_id: bareId,
-    });
+    const promise = (async () => {
+      if (!isAuthenticated) {
+        await fetchEncryptedEmbedForActiveChat(bareId);
+        return;
+      }
+      try {
+        if (await fetchEncryptedEmbedForActiveChat(bareId)) return;
+      } catch (error) {
+        console.warn("[embedResolver] Authenticated embed read failed:", error);
+      }
+      const activeChatId = activeChatStore.get();
+      const { chatDB } = await import("./db");
+      const activeChat = activeChatId ? await chatDB.getChat(activeChatId) : null;
+      if (activeChat?.is_shared_by_others) return;
+      await webSocketService.sendMessage("request_embed", {
+        embed_id: bareId,
+        chat_id: activeChatId,
+        team_id: activeChat?.team_id !== undefined ? activeChat.team_id : get(activeTeamId),
+      });
+    })();
     requestedEmbeds.set(bareId, { requestedAt: now, promise, reason });
 
     await promise;
@@ -339,6 +461,7 @@ export async function resolveEmbed(
       // transient state retryable instead of poisoning the permanent error set.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- runtime-only flag from EmbedStore
       if ((cachedEmbed as any)._decryptionPending) {
+        void requestEmbedFromServerOnce(bareId, "missing-embed-key");
         return null;
       }
       // If decryption failed (key mismatch), register as known error to stop the infinite
@@ -346,6 +469,14 @@ export async function resolveEmbed(
       // _decryptionFailed flag and retry decryption endlessly (see embedStore.ts Fix 1).
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- _decryptionFailed is a runtime-only flag set on EmbedStoreEntry by embedStore.getFromSeparateFields()
       if ((cachedEmbed as any)._decryptionFailed) {
+        const recovery = requestedEmbeds.get(bareId);
+        if (!recovery) {
+          void requestEmbedFromServerOnce(bareId, "embed-key-recovery");
+          return null;
+        }
+        if (recovery.promise || Date.now() - recovery.requestedAt < EMBED_REQUEST_COOLDOWN_MS) {
+          return null;
+        }
         knownErrorEmbeds.set(bareId, {
           status: "error",
           timestamp: Date.now(),

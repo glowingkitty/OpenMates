@@ -26,6 +26,7 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from backend.shared.python_utils.media_encryption import encrypt_media_variants, load_media_write_version
 from backend.shared.python_utils.storage_availability import initialize_task_storage, require_storage_available
+from backend.shared.python_utils.chat_recovery_context import RequiredRecoveryOutputError
 
 from backend.core.api.app.tasks.celery_config import app
 from backend.core.api.app.tasks.base_task import BaseServiceTask
@@ -746,6 +747,11 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
         # 3. Get embed_id from arguments (passed by the skill) or generate new one
         embed_id = arguments.get("embed_id") or str(uuid.uuid4())
         logger.info(f"{log_prefix} Using embed_id: {embed_id}")
+        from backend.core.api.app.services.embed_service import EmbedService
+        await EmbedService.assert_registered_output_can_generate(
+            task._directus_service, embed_id=embed_id, chat_id=chat_id,
+            message_id=message_id, owner_hash=_hash_value(user_id),
+        )
 
         media_decision = validate_media_generation_request(
             media_type="image",
@@ -1410,7 +1416,8 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
             created_at=now_ts,
             updated_at=now_ts,
             log_prefix=log_prefix,
-            check_cache_status=False  # Skip dedup check - we know this is the first "finished" event
+            check_cache_status=False,  # Skip dedup check - we know this is the first "finished" event
+            producer_final_children=[],
         )
         
         # 12. NOTE: embed_update event is NO LONGER published here.
@@ -1463,6 +1470,8 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
         logger.info(f"{log_prefix} Image generation task completed successfully. Embed ID: {embed_id}")
         return result_data
 
+    except RequiredRecoveryOutputError:
+        raise
     except Exception as e:
         logger.error(f"{log_prefix} Image generation task failed: {e}", exc_info=True)
         

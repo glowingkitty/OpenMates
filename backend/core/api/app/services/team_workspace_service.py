@@ -10,7 +10,7 @@ from __future__ import annotations
 import time
 from typing import Any, Literal
 
-from backend.core.api.app.services.directus.team_methods import hash_id
+from backend.core.api.app.services.directus.team_methods import TeamPermissionError, hash_id
 from backend.shared.python_utils.encrypted_slug_metadata import (
     DuplicateObjectSlugError,
     is_slug_unique_violation,
@@ -156,7 +156,28 @@ async def move_workspace_record_to_team(
         record_json = {**rows[0]["record_json"], **patch, "owner_hash": _workspace_user_hash(workspace_type, actor_user_id)}
         update_patch["record_json"] = record_json
     try:
-        updated = await directus_service.update_item(collection, rows[0]["id"], update_patch, admin_required=True)
+        if workspace_type == "chat":
+            from backend.core.api.app.services.chat_message_archive_service import ChatMessageArchiveService
+            from backend.core.api.app.services.bounded_archive_io import ArchiveIntegrityError
+
+            try:
+                result = await ChatMessageArchiveService(
+                    directus_service=directus_service, s3_service=None,
+                ).transaction("transfer_chat_to_team", {
+                    "chat_id": rows[0]["id"],
+                    "expected_hashed_user_id": _workspace_user_hash(workspace_type, actor_user_id),
+                    "hashed_team_id": patch["hashed_team_id"],
+                    "updated_at": patch["updated_at"],
+                    **({"encrypted_slug": patch["encrypted_slug"]} if "encrypted_slug" in patch else {}),
+                    **({"slug_lookup_hash": patch["slug_lookup_hash"]} if "slug_lookup_hash" in patch else {}),
+                })
+            except ArchiveIntegrityError as exc:
+                if str(exc) == "team_write_permission_changed":
+                    raise TeamPermissionError("Team permission denied") from exc
+                raise TeamWorkspaceMoveError("Chat move must be retried after storage settles") from exc
+            updated = result.get("chat")
+        else:
+            updated = await directus_service.update_item(collection, rows[0]["id"], update_patch, admin_required=True)
     except DuplicateObjectSlugError:
         raise
     except Exception as exc:

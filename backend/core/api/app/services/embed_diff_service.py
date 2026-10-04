@@ -507,27 +507,38 @@ class EmbedDiffService:
         embed_id: str,
         hashed_user_id: str,
         user_vault_key_id: str,
-        log_prefix: str = ""
+        log_prefix: str = "",
+        cursor: int = 0,
+        limit: int = 100,
     ) -> List[Dict[str, Any]]:
         """
-        Fetch all versions for an embed (for timeline display).
+        Fetch one metadata-only page for the timeline.
         Returns list of {version_number, created_at, has_snapshot, patch_preview}.
         Does NOT decrypt full content — just metadata for timeline rendering.
         """
         try:
-            items = await self._read_version_rows(
-                embed_id=embed_id,
-                hashed_user_id=hashed_user_id,
-                fields=["version_number", "created_at", "encrypted_snapshot", "encrypted_patch"],
-            )
+            if cursor < 0 or not 1 <= limit <= 100:
+                raise ValueError("Invalid version page")
+            params = {
+                "filter": {
+                    "embed_id": {"_eq": embed_id},
+                    "hashed_user_id": {"_eq": hashed_user_id},
+                    "version_number": {"_gt": cursor},
+                },
+                "fields": ["version_number", "created_at", "has_snapshot", "has_patch", "archive_state"],
+                "sort": ["version_number"], "limit": limit,
+            }
+            read = getattr(self.directus_service, "read_items", None) or self.directus_service.get_items
+            items = await read("embed_diffs", params=params)
 
             versions = []
             for item in (items or []):
                 versions.append({
                     "version_number": item["version_number"],
                     "created_at": item["created_at"],
-                    "has_snapshot": item.get("encrypted_snapshot") is not None,
-                    "has_patch": item.get("encrypted_patch") is not None,
+                    "has_snapshot": bool(item.get("has_snapshot")) or item["version_number"] == 1,
+                    "has_patch": bool(item.get("has_patch")) or item["version_number"] > 1,
+                    "archive_state": item.get("archive_state") or "hot",
                 })
 
             return versions
