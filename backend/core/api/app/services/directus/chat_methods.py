@@ -925,8 +925,8 @@ class ChatMethods:
         """
         Get the count of messages for a chat.
         
-        This is a lightweight query that only requests message IDs to count them,
-        avoiding the overhead of fetching encrypted content.
+        Uses a filtered Directus aggregate so long chats never transfer one ID
+        per message to compute their hot canonical count.
         
         Used for client-side validation to detect data inconsistencies where
         version numbers match but message counts don't (indicating missing messages).
@@ -940,22 +940,25 @@ class ChatMethods:
         try:
             params = {
                 'filter[chat_id][_eq]': chat_id,
-                'fields': 'id',  # Only request ID field for minimal data transfer
-                'limit': -1  # Get all messages to count them
+                'aggregate[count]': '*',
             }
             # CRITICAL: Must use admin_required=True here to match the permissions used in
             # get_messages_for_chats(). Without this, the count query may return fewer messages
             # than the fetch query (e.g. thinking metadata fields require elevated permissions),
             # causing the client to perpetually detect "DATA INCONSISTENCY DETECTED".
-            messages_from_db = await self.directus_service.get_items(
+            aggregate = await self.directus_service.get_items(
                 'messages',
                 params=params,
-                admin_required=True
+                admin_required=True,
+                no_cache=True,
+                raise_on_error=True,
             )
-            if messages_from_db is None:
-                return 0
-            count = len(messages_from_db) if isinstance(messages_from_db, list) else 0
-            logger.debug(f"Message count for chat {chat_id}: {count}")
+            if not isinstance(aggregate, list) or len(aggregate) != 1:
+                raise ValueError('Canonical message count aggregate unavailable')
+            count = int(aggregate[0]['count'])
+            if count < 0:
+                raise ValueError('Canonical message count aggregate is negative')
+            logger.debug("Hot message count for chat %s: %s", chat_id, count)
             return count
         except Exception as e:
             logger.warning(f"Error getting message count for chat {chat_id}: {e}")
@@ -1187,9 +1190,11 @@ class ChatMethods:
                 'limit': limit,
             },
             admin_required=True,
+            no_cache=True,
+            raise_on_error=True,
         )
-        if not rows or not isinstance(rows, list):
-            return []
+        if not isinstance(rows, list):
+            raise RuntimeError('Canonical message window unavailable')
         return self._normalize_message_window_rows(rows)
 
     async def get_message_window_for_chat(
