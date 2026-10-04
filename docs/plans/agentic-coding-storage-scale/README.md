@@ -4,6 +4,36 @@ This approved plan keeps the current PostgreSQL, Directus, Redis/Dragonfly, and 
 
 > “what i care about is having a proper reliable efficient and scalable solution that is still reasonable to implement in terms of effort and minimal migration risk.”
 
+## Latest verified change — 2026-10-04
+
+Live on development:
+
+- Five high-write Directus tracking policies reduce future generic revisions and activity. Existing historical rows remain.
+- Nine PostgreSQL query indexes are installed and independently verified for exact definitions and ready/valid flags.
+- Commit `e1aa61e796d878bad05a42b954d3a3e8d99b3287` replaces message-ID downloads with a filtered scalar count and makes existing bounded window reads report database failures. Four new focused cases, one existing compatibility case, specification and lint gates pass. Coordinated operation `docker-9478fcad` restarted the API and dependent workers; all report healthy. This slice preserves successful client response shapes and requires no data migration. It does not implement the full bounded startup-sync cutover.
+- The published privacy correction distinguishes historical database records from current-record deletion and the separate backup lifecycle.
+
+The archive, new recovery writers and version cutover remain private. Actual
+PostgreSQL/S3 safety probes passed, and the saved-bundle browser gate passed3/3.
+Recovery/deletion run `37201164890` eventually passed all six cases, with two
+first-attempt acknowledgement timeouts; it is not a stable reliability pass.
+Source inspection found a recovery protocol field leaking into the embed
+transaction. Its narrow handler repair passes8 focused tests. The Docs fixture
+also required correct reconnect sequencing while retaining its exact
+prepublication seal and subsequent canonical acknowledgement checks.
+Candidate `bd7ea2bd5700a81903d32f0d3e372abfa93dd386` is queued for only Docs and
+recovery/deletion. Other completed evidence is retained with its actual source.
+
+The remaining release work is the receipt fix verification, reconciliation with
+current dev, and supported Apple/client compatibility before the writer cutover.
+After coordinated core deployment, run the two authorized real chat turns total:
+one CLI and one web. Neither has been spent on intermediate releases. The large
+zero-inference benchmark remains deferred under the user's publication priority
+and is still required before real-data pruning. Archive/prune and expanded
+weekly billing stay off. Reference-safe unpaid expiry and Team billing remain
+incomplete; no storage charges or real-user data migration are claimed.
+[Current progress](progress.md) records receipts and remaining gates.
+
 ## Why this work exists
 
 The development database measured 6.54 GiB on 2026-09-25. `directus_revisions` used 4.53 GiB (69%) and `directus_activity` used 469 MiB (7%), although those collections contain more than agentic coding data. There were no cold manifests in development.
@@ -413,7 +443,7 @@ bounded pending-turn discovery, retry after real phased sync, exact committed
 ACK journal clearing, a real browser v31-to-v32 IndexedDB upgrade fixture, and
 private first-version pilot diagnostics. It preserves billing@5 and excludes
 new billing, legal and Apple product changes. Selected UI run `37162606370`
-passed 24/24 cases across five suites. The three signed bundle browser cases
+passed 24/24 cases across two selected files. The three signed bundle browser cases
 and diagnostic pilot remain under verification; the unchanged four-case
 recovery pass is separate source-specific evidence.
 
