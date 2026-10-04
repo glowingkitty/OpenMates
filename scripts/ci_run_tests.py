@@ -46,6 +46,7 @@ CAPACITY_EPOCH_SPECS = frozenset({
     "storage-message-embed-bundle.spec.ts",
     "storage-capacity-target.spec.ts",
     "storage-recovery-replay.spec.ts",
+    "storage-detached-producer.spec.ts",
 })
 CAPACITY_WORKLOAD_SPECS = frozenset({
     "storage-capacity-replay.spec.ts", "storage-capacity-target.spec.ts",
@@ -855,6 +856,11 @@ def run_e2e(
                 if name in CAPACITY_EPOCH_SPECS:
                     env["E2E_STORAGE_CAPACITY"] = "1"
                     env["E2E_STORAGE_CAPACITY_TARGET"] = "1" if name == "storage-capacity-target.spec.ts" else "0"
+                if name == "storage-detached-producer.spec.ts":
+                    env["E2E_STORAGE_DETACHED_COMPOSE_FILE"] = str(COMPOSE_PATH)
+                    env["E2E_STORAGE_DETACHED_SOURCE_COMMIT"] = json.loads(
+                        COMPOSE_PATH.read_text()
+                    )["services"]["api"]["environment"]["BUILD_COMMIT_SHA"]
                 local_signup_assertion = not (component or artifact) and name == "signup-skip-2fa-flow.spec.ts" and "mailpit" in profile["services"]
                 account_free = component or artifact or name == ACCOUNTABILITY_SPEC or (
                     "// playwright-account: not_required reason=isolated_component_preview"

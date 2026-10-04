@@ -461,7 +461,8 @@
         "storage-capacity-replay.spec.ts",
         "storage-message-embed-bundle.spec.ts",
         "storage-capacity-target.spec.ts",
-        "storage-recovery-replay.spec.ts"
+        "storage-recovery-replay.spec.ts",
+        "storage-detached-producer.spec.ts"
       ]
     },
     "storage_accountability_integration": {

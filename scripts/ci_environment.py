@@ -25,6 +25,7 @@ STORAGE_CAPACITY_SPECS = frozenset({
     "storage-message-embed-bundle.spec.ts",
     "storage-capacity-target.spec.ts",
     "storage-recovery-replay.spec.ts",
+    "storage-detached-producer.spec.ts",
 })
 ACCOUNTABILITY_SPEC = "storage-accountability-integration.spec.ts"
 CAPACITY_WORKLOAD_SPECS = frozenset({
@@ -141,6 +142,7 @@ def compose_profile(
     mail_capture: bool = False,
     credential_overrides: dict[str, str] | None = None,
     storage_capacity: bool = False,
+    detached_docs: bool = False,
     storage_accountability: bool = False,
     capacity_concurrency: int = 2,
 ) -> dict:
@@ -153,6 +155,8 @@ def compose_profile(
         raise ValueError("Storage accountability requires a nonroot isolated runner owner")
     if storage_capacity and public_provider:
         raise ValueError("Storage capacity cannot enable public-provider proxy")
+    if detached_docs and not storage_capacity:
+        raise ValueError("Detached Docs worker requires isolated storage capacity profile")
     if storage_capacity and not 1 <= capacity_concurrency <= 500:
         raise ValueError("Capacity worker concurrency must be 1..500")
     isolate_backend = ai_fixtures or object_storage or offline_preview or mail_capture or storage_accountability
@@ -479,6 +483,15 @@ def compose_profile(
         if storage_capacity:
             ai_worker["command"] = [part.replace("--concurrency=1", f"--concurrency={capacity_concurrency}")
                                     for part in ai_worker["command"]]
+    if detached_docs:
+        # The signed recovery scenario dispatches the actual local DOCX worker.
+        # It generates no paid provider output and uses the isolated Vault/S3.
+        docs_queues = f"{QUEUES},app_docs"
+        worker["environment"]["CELERY_QUEUES"] = docs_queues
+        worker["command"] = [
+            part.replace(f"--queues={QUEUES}", f"--queues={docs_queues}")
+            for part in worker["command"]
+        ]
     if isolate_backend:
         api.pop("ports")
         services["cms"].pop("ports")
@@ -714,7 +727,7 @@ def main():
             for relative in ("backend/core/api/app/services/s3/service.py", "backend/upload/services/s3_upload.py"):
                 if "S3_ENDPOINT_URL" not in (Path(SOURCE) / relative).read_text():
                     raise RuntimeError("Candidate lacks isolated storage endpoint support; publish reviewed current-base integration before testing")
-        data = compose_profile(source, ai_fixtures=bool(fixture_specs.intersection(selected)), object_storage=needs_storage, uploads=needs_uploads, public_provider=needs_public_provider, workflows=needs_workflows, account_emails=account_emails, offline_preview=offline_preview, mail_capture=bool(mail_specs.intersection(selected)), storage_capacity=storage_capacity, storage_accountability=storage_accountability, capacity_concurrency=min(4, int(os.environ.get("CI_STORAGE_CAPACITY_CONCURRENCY", "500" if capacity_target else "2"))))
+        data = compose_profile(source, ai_fixtures=bool(fixture_specs.intersection(selected)), object_storage=needs_storage, uploads=needs_uploads, public_provider=needs_public_provider, workflows=needs_workflows, account_emails=account_emails, offline_preview=offline_preview, mail_capture=bool(mail_specs.intersection(selected)), storage_capacity=storage_capacity, detached_docs="storage-detached-producer.spec.ts" in selected, storage_accountability=storage_accountability, capacity_concurrency=min(4, int(os.environ.get("CI_STORAGE_CAPACITY_CONCURRENCY", "500" if capacity_target else "2"))))
         if os.environ.get("GITHUB_OUTPUT"):
             with Path(os.environ["GITHUB_OUTPUT"]).open("a") as output:
                 output.write(f"uploads={'true' if needs_uploads else 'false'}\n")
