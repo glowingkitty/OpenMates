@@ -11796,6 +11796,15 @@
         },
         "user_data_backups": {
           "text": "**用户数据备份：** 通过 S3 生命周期保留 60 天；备份仅包含使用您自己的密钥加密的密文"
+        },
+        "content_history_v1": {
+          "text": "Content: Current records are retained until you delete them or close the account, subject to backup cycles. Earlier database revision and activity records can remain after current records are deleted, as described separately below."
+        },
+        "historical_directus_history": {
+          "text": "Historical database records: Earlier generic revision and activity rows may retain account-profile fields or encrypted chat and artifact snapshots after deletion of current records. They currently have no enforced automatic expiry. The 60-day encrypted-backup lifecycle does not apply to this history."
+        },
+        "compliance_logs_history_v1": {
+          "text": "Compliance logs: Security and accountability logs can remain for their purposes. Historical database revision and activity records have no enforced automatic two-year expiry today. Financial compliance records retain their separate applicable tax and commercial-law periods."
         }
       },
       "legal_basis": {
@@ -12060,6 +12069,11 @@
           "answer": {
             "text": "如果你有非常高的隐私要求，可以考虑自行托管 OpenMates，并使用本地或离线 AI 模型，而不是第三方 AI 提供商。这让你对基础设施、模型选择、日志、备份和提供商暴露有更多控制。它需要技术经验、持续维护、安全的服务器管理，以及足够的硬件来进行有用的本地 AI 推理。自托管不会自动让一切变得私密：你仍需保护服务器、备份、密钥、网络访问、日志和任何启用的外部提供商。"
           }
+        },
+        "deletion_history_v1": {
+          "answer": {
+            "text": "When you delete chats or your account, OpenMates deletes the current records under that deletion’s authority. Account deletion also destroys account-controlled encryption keys, making data protected solely by those keys unreadable. Earlier database revision and activity records may still contain account-profile fields or encrypted chat and artifact snapshots after current records are deleted. Those historical records are separate from short-lived encrypted backups and have no enforced automatic expiry today. Invoices, payment records, security logs and provider-held data may also remain for their applicable purposes."
+          }
         }
       },
       "protection": {
@@ -12256,6 +12270,9 @@
           },
           "description": {
             "text": "根据 BSI §34 BDSG（德国安全审计义务），身份验证和数据访问审计日志将保留 2 年。这些日志包含时间戳、用户标识符、事件类型和状态，不包含内容。"
+          },
+          "description_history_v1": {
+            "text": "Authentication and data-access audit logs can contain timestamps, user identifiers, event types and status. No enforced automatic two-year expiry for historical database revision and activity records exists today. Generic history with earlier record snapshots is described separately below; no general two-year statutory duty is claimed."
           }
         },
         "third_party_ai_logs": {
@@ -12280,6 +12297,17 @@
           },
           "description": {
             "text": "您自己导出的数据密文备份通过生命周期规则在 S3 中保存 60 天，以便在设备丢失时检索导出内容。由于我们在您注销账号时已销毁了您的加密密钥，我们也无法解密这些备份——在过期之前，它们实际上是无效的密文。"
+          }
+        },
+        "intro_history_v1": {
+          "text": "When you delete your account, we destroy account-controlled encryption keys and remove current account records. Earlier database revision and activity records may remain after those records are deleted. Other data retained for security, financial, provider or backup purposes is listed separately below:"
+        },
+        "historical_directus_history": {
+          "heading": {
+            "text": "Historical database revisions and activity"
+          },
+          "description": {
+            "text": "Historical database revision and activity records created before a chat or account is deleted can retain earlier account-profile fields or encrypted chat and artifact snapshots. Deleting the current records does not automatically purge or irreversibly neutralize those historical rows. They currently have no enforced automatic expiry and are separate from the 60-day encrypted-backup lifecycle and dedicated security or financial records."
           }
         }
       },

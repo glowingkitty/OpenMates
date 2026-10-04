@@ -12574,6 +12574,15 @@
         },
         "user_data_backups": {
           "text": "**Benutzerdatensicherungen:** 60 Tage via S3-Lifecycle; Backups enthalten nur mit deinem eigenen Schlüssel verschlüsselten Geheimtext"
+        },
+        "content_history_v1": {
+          "text": "Inhalt: Aktuelle Datensätze bleiben bis zu ihrer Löschung oder bis zur Schließung des Kontos bestehen; Backup-Zyklen bleiben vorbehalten. Ältere Datenbank-Änderungs- und Aktivitätsdatensätze können nach dem Löschen aktueller Datensätze bestehen bleiben und werden unten gesondert beschrieben."
+        },
+        "historical_directus_history": {
+          "text": "Historische Datenbankdatensätze: Ältere allgemeine Änderungs- und Aktivitätsdatensätze können nach dem Löschen aktueller Datensätze noch Kontoprofilfelder oder verschlüsselte Momentaufnahmen von Chats und Artefakten enthalten. Für sie gibt es derzeit keinen durchgesetzten automatischen Ablauf. Der 60-Tage-Lebenszyklus verschlüsselter Backups gilt nicht für diesen Verlauf."
+        },
+        "compliance_logs_history_v1": {
+          "text": "Compliance-Protokolle: Sicherheits- und Rechenschaftsprotokolle können für ihre jeweiligen Zwecke bestehen bleiben. Für historische Datenbank-Änderungs- und Aktivitätsdatensätze gibt es derzeit keinen durchgesetzten automatischen Ablauf nach zwei Jahren. Für Finanz-Compliance-Unterlagen gelten gesondert die einschlägigen steuer- und handelsrechtlichen Fristen."
         }
       },
       "legal_basis": {
@@ -12838,6 +12847,11 @@
           "answer": {
             "text": "Wenn du sehr hohe Datenschutzanforderungen hast, kannst du erwägen, OpenMates selbst zu hosten und lokale oder offline laufende KI-Modelle statt Drittanbieter-KI-Anbietern zu verwenden. Das gibt dir mehr Kontrolle über Infrastruktur, Modellauswahl, Logs, Backups und Anbieter-Exposition. Es erfordert technische Erfahrung, laufende Wartung, sichere Serveradministration und ausreichend Hardware für brauchbare lokale KI-Inferenz. Self-Hosting macht nicht automatisch alles privat: Du musst Server, Backups, Geheimnisse, Netzwerkzugriff, Logs und alle aktivierten externen Anbieter trotzdem absichern."
           }
+        },
+        "deletion_history_v1": {
+          "answer": {
+            "text": "Wenn du Chats oder dein Konto löschst, entfernt OpenMates die aktuellen Datensätze, die dieser Löschung unterliegen. Bei der Kontolöschung werden auch vom Konto kontrollierte Verschlüsselungsschlüssel vernichtet; Daten, die ausschließlich durch diese Schlüssel geschützt sind, werden dadurch unlesbar. Ältere Datenbank-Änderungs- und Aktivitätsdatensätze können nach dem Löschen aktueller Datensätze noch Kontoprofilfelder oder verschlüsselte Momentaufnahmen von Chats und Artefakten enthalten. Diese historischen Datensätze sind von kurzzeitig gespeicherten verschlüsselten Backups zu unterscheiden und laufen derzeit nicht automatisch ab. Rechnungen, Zahlungsdaten, Sicherheitsprotokolle und Daten bei Anbietern können für ihre jeweiligen Zwecke ebenfalls bestehen bleiben."
+          }
         }
       },
       "protection": {
@@ -13034,6 +13048,9 @@
           },
           "description": {
             "text": "Audit-Protokolle für Authentifizierung und Datenzugriff werden gemäß BSI §34 BDSG (deutsche Sicherheitsaudit-Verpflichtungen) für 2 Jahre aufbewahrt. Diese Protokolle enthalten Zeitstempel, Benutzerkennung, Ereignistyp und Status – keinen Inhalt."
+          },
+          "description_history_v1": {
+            "text": "Audit-Protokolle für Authentifizierung und Datenzugriff können Zeitstempel, Benutzerkennungen, Ereignistypen und Status enthalten. Für historische Datenbank-Änderungs- und Aktivitätsdatensätze gibt es derzeit keinen durchgesetzten automatischen Ablauf nach zwei Jahren. Allgemeine Verlaufsdaten mit älteren Datensatz-Momentaufnahmen werden unten gesondert beschrieben; eine allgemeine gesetzliche Zweijahrespflicht wird nicht behauptet."
           }
         },
         "third_party_ai_logs": {
@@ -13058,6 +13075,17 @@
           },
           "description": {
             "text": "Geheimtext-Backups deiner eigenen Datenexporte verbleiben über eine Lifecycle-Regel für 60 Tage in S3, damit du einen Export wiederherstellen kannst, falls dein Gerät verloren geht. Da wir deinen Verschlüsselungsschlüssel bei der Kontolöschung vernichtet haben, können auch wir diese Backups nicht entschlüsseln – sie sind praktisch inaktiver Geheimtext, bis sie ablaufen."
+          }
+        },
+        "intro_history_v1": {
+          "text": "Wenn du dein Konto löschst, vernichten wir die vom Konto kontrollierten Verschlüsselungsschlüssel und entfernen aktuelle Kontodatensätze. Ältere Datenbank-Änderungs- und Aktivitätsdatensätze können nach der Löschung dieser Datensätze bestehen bleiben. Weitere Daten, die für Sicherheits-, Finanz-, Anbieter- oder Backup-Zwecke aufbewahrt werden, sind unten gesondert aufgeführt:"
+        },
+        "historical_directus_history": {
+          "heading": {
+            "text": "Historische Datenbank-Änderungen und Aktivitäten"
+          },
+          "description": {
+            "text": "Historische Datenbank-Änderungs- und Aktivitätsdatensätze, die vor dem Löschen eines Chats oder Kontos entstanden sind, können frühere Kontoprofilfelder oder verschlüsselte Momentaufnahmen von Chats und Artefakten enthalten. Das Löschen aktueller Datensätze entfernt oder neutralisiert diese historischen Datensätze nicht automatisch und unwiderruflich. Für sie gibt es derzeit keinen durchgesetzten automatischen Ablauf. Sie sind vom 60-Tage-Lebenszyklus verschlüsselter Backups sowie von gesonderten Sicherheits- oder Finanzunterlagen zu unterscheiden."
           }
         }
       },

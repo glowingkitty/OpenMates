@@ -11796,6 +11796,15 @@
         },
         "user_data_backups": {
           "text": "**Kullanıcı verisi yedekleri:** S3 yaşam döngüsü aracılığıyla 60 gün; yedekler yalnızca kendi anahtarınla şifrelenmiş şifreli metinleri içerir"
+        },
+        "content_history_v1": {
+          "text": "Content: Current records are retained until you delete them or close the account, subject to backup cycles. Earlier database revision and activity records can remain after current records are deleted, as described separately below."
+        },
+        "historical_directus_history": {
+          "text": "Historical database records: Earlier generic revision and activity rows may retain account-profile fields or encrypted chat and artifact snapshots after deletion of current records. They currently have no enforced automatic expiry. The 60-day encrypted-backup lifecycle does not apply to this history."
+        },
+        "compliance_logs_history_v1": {
+          "text": "Compliance logs: Security and accountability logs can remain for their purposes. Historical database revision and activity records have no enforced automatic two-year expiry today. Financial compliance records retain their separate applicable tax and commercial-law periods."
         }
       },
       "legal_basis": {
@@ -12060,6 +12069,11 @@
           "answer": {
             "text": "Çok yüksek gizlilik gereksinimleriniz varsa, üçüncü taraf AI sağlayıcıları yerine OpenMates'i kendiniz barındırmayı ve yerel veya çevrimdışı AI modelleri kullanmayı değerlendirin. Bu altyapı, model seçimi, günlükler, yedekler ve sağlayıcı maruziyeti üzerinde daha fazla kontrol sağlar. Teknik deneyim, sürekli bakım, güvenli sunucu yönetimi ve yararlı yerel AI çıkarımı için yeterli donanım gerektirir. Kendi barındırma her şeyi otomatik olarak özel yapmaz: sunucuyu, yedekleri, sırları, ağ erişimini, günlükleri ve etkinleştirdiğiniz harici sağlayıcıları yine güvence altına almalısınız."
           }
+        },
+        "deletion_history_v1": {
+          "answer": {
+            "text": "When you delete chats or your account, OpenMates deletes the current records under that deletion’s authority. Account deletion also destroys account-controlled encryption keys, making data protected solely by those keys unreadable. Earlier database revision and activity records may still contain account-profile fields or encrypted chat and artifact snapshots after current records are deleted. Those historical records are separate from short-lived encrypted backups and have no enforced automatic expiry today. Invoices, payment records, security logs and provider-held data may also remain for their applicable purposes."
+          }
         }
       },
       "protection": {
@@ -12256,6 +12270,9 @@
           },
           "description": {
             "text": "Kimlik doğrulama ve veri erişimi denetim günlükleri, BSI §34 BDSG (Alman güvenlik denetimi yükümlülükleri) uyarınca 2 yıl boyunca saklanır. Bu günlükler zaman damgası, kullanıcı tanımlayıcısı, olay türü ve durum içerir; içerik içermez."
+          },
+          "description_history_v1": {
+            "text": "Authentication and data-access audit logs can contain timestamps, user identifiers, event types and status. No enforced automatic two-year expiry for historical database revision and activity records exists today. Generic history with earlier record snapshots is described separately below; no general two-year statutory duty is claimed."
           }
         },
         "third_party_ai_logs": {
@@ -12280,6 +12297,17 @@
           },
           "description": {
             "text": "Kendi veri dışa aktarımlarının şifreli metin yedekleri, bir yaşam döngüsü kuralı aracılığıyla 60 gün boyunca S3'te tutulur, böylece cihazın kaybolursa bir dışa aktarımı geri alabilirsin. Hesabını sildiğinde şifreleme anahtarını imha ettiğimiz için bu yedeklerin şifresini biz de çözemeyiz; bunlar süreleri dolana kadar etkisiz şifreli metinlerdir."
+          }
+        },
+        "intro_history_v1": {
+          "text": "When you delete your account, we destroy account-controlled encryption keys and remove current account records. Earlier database revision and activity records may remain after those records are deleted. Other data retained for security, financial, provider or backup purposes is listed separately below:"
+        },
+        "historical_directus_history": {
+          "heading": {
+            "text": "Historical database revisions and activity"
+          },
+          "description": {
+            "text": "Historical database revision and activity records created before a chat or account is deleted can retain earlier account-profile fields or encrypted chat and artifact snapshots. Deleting the current records does not automatically purge or irreversibly neutralize those historical rows. They currently have no enforced automatic expiry and are separate from the 60-day encrypted-backup lifecycle and dedicated security or financial records."
           }
         }
       },

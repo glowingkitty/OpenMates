@@ -11796,6 +11796,15 @@
         },
         "user_data_backups": {
           "text": "**Backup dei dati utente:** 60 giorni tramite ciclo di vita S3; i backup contengono solo testo cifrato con la tua chiave"
+        },
+        "content_history_v1": {
+          "text": "Content: Current records are retained until you delete them or close the account, subject to backup cycles. Earlier database revision and activity records can remain after current records are deleted, as described separately below."
+        },
+        "historical_directus_history": {
+          "text": "Historical database records: Earlier generic revision and activity rows may retain account-profile fields or encrypted chat and artifact snapshots after deletion of current records. They currently have no enforced automatic expiry. The 60-day encrypted-backup lifecycle does not apply to this history."
+        },
+        "compliance_logs_history_v1": {
+          "text": "Compliance logs: Security and accountability logs can remain for their purposes. Historical database revision and activity records have no enforced automatic two-year expiry today. Financial compliance records retain their separate applicable tax and commercial-law periods."
         }
       },
       "legal_basis": {
@@ -12060,6 +12069,11 @@
           "answer": {
             "text": "Se hai requisiti di privacy molto elevati, considera di ospitare OpenMates autonomamente e usare modelli IA locali o offline invece di fornitori IA terzi. Questo ti dà più controllo su infrastruttura, scelta dei modelli, log, backup ed esposizione ai fornitori. Richiede esperienza tecnica, manutenzione continua, amministrazione sicura del server e hardware sufficiente per inferenza IA locale utile. Il self-hosting non rende automaticamente tutto privato: devi comunque proteggere server, backup, segreti, accesso di rete, log e qualsiasi fornitore esterno che abiliti."
           }
+        },
+        "deletion_history_v1": {
+          "answer": {
+            "text": "When you delete chats or your account, OpenMates deletes the current records under that deletion’s authority. Account deletion also destroys account-controlled encryption keys, making data protected solely by those keys unreadable. Earlier database revision and activity records may still contain account-profile fields or encrypted chat and artifact snapshots after current records are deleted. Those historical records are separate from short-lived encrypted backups and have no enforced automatic expiry today. Invoices, payment records, security logs and provider-held data may also remain for their applicable purposes."
+          }
         }
       },
       "protection": {
@@ -12256,6 +12270,9 @@
           },
           "description": {
             "text": "I log di audit per l'autenticazione e l'accesso ai dati vengono conservati per 2 anni ai sensi del BSI §34 BDSG (obblighi di audit di sicurezza tedeschi). Questi log contengono timestamp, identificativo utente, tipo di evento e stato — nessun contenuto."
+          },
+          "description_history_v1": {
+            "text": "Authentication and data-access audit logs can contain timestamps, user identifiers, event types and status. No enforced automatic two-year expiry for historical database revision and activity records exists today. Generic history with earlier record snapshots is described separately below; no general two-year statutory duty is claimed."
           }
         },
         "third_party_ai_logs": {
@@ -12280,6 +12297,17 @@
           },
           "description": {
             "text": "I backup in testo cifrato delle tue esportazioni di dati risiedono in S3 per 60 giorni tramite una regola del ciclo di vita, in modo che tu possa recuperare un'esportazione in caso di smarrimento del dispositivo. Poiché abbiamo distrutto la tua chiave di crittografia quando hai cancellato l'account, non possiamo decifrare nemmeno questi backup — sono a tutti gli effetti testo cifrato inerte fino alla loro scadenza."
+          }
+        },
+        "intro_history_v1": {
+          "text": "When you delete your account, we destroy account-controlled encryption keys and remove current account records. Earlier database revision and activity records may remain after those records are deleted. Other data retained for security, financial, provider or backup purposes is listed separately below:"
+        },
+        "historical_directus_history": {
+          "heading": {
+            "text": "Historical database revisions and activity"
+          },
+          "description": {
+            "text": "Historical database revision and activity records created before a chat or account is deleted can retain earlier account-profile fields or encrypted chat and artifact snapshots. Deleting the current records does not automatically purge or irreversibly neutralize those historical rows. They currently have no enforced automatic expiry and are separate from the 60-day encrypted-backup lifecycle and dedicated security or financial records."
           }
         }
       },

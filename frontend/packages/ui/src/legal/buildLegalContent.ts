@@ -135,7 +135,9 @@ export function buildPrivacyPolicyContent(
   for (const item of quickAnswerItems) {
     lines.push(`### ${t(`legal.privacy.quick_answers.${item}.question`)}`);
     lines.push("");
-    lines.push(t(`legal.privacy.quick_answers.${item}.answer`));
+    lines.push(t(item === "deletion"
+      ? "legal.privacy.quick_answers.deletion_history_v1.answer"
+      : `legal.privacy.quick_answers.${item}.answer`));
     lines.push("");
   }
 
@@ -490,9 +492,10 @@ export function buildPrivacyPolicyContent(
   lines.push(`- ${t("legal.privacy.data_retention.account")}`);
   lines.push(`- ${t("legal.privacy.data_retention.usage_and_logs")}`);
   lines.push(`- ${t("legal.privacy.data_retention.device_fingerprints")}`);
-  lines.push(`- ${t("legal.privacy.data_retention.content")}`);
+  lines.push(`- ${t("legal.privacy.data_retention.content_history_v1")}`);
+  lines.push(`- ${t("legal.privacy.data_retention.historical_directus_history")}`);
   lines.push(`- ${t("legal.privacy.data_retention.payments_and_invoices")}`);
-  lines.push(`- ${t("legal.privacy.data_retention.compliance_logs")}`);
+  lines.push(`- ${t("legal.privacy.data_retention.compliance_logs_history_v1")}`);
   lines.push(`- ${t("legal.privacy.data_retention.observability_traces")}`);
   lines.push(`- ${t("legal.privacy.data_retention.user_data_backups")}`);
   lines.push("");
@@ -502,11 +505,12 @@ export function buildPrivacyPolicyContent(
   // ──────────────────────────────────────────────────────────────
   lines.push(`## ${t("legal.privacy.limitations_of_erasure.heading")}`);
   lines.push("");
-  lines.push(t("legal.privacy.limitations_of_erasure.intro"));
+  lines.push(t("legal.privacy.limitations_of_erasure.intro_history_v1"));
   lines.push("");
   const limitationItems = [
     "financial_records",
     "audit_logs",
+    "historical_directus_history",
     "third_party_ai_logs_v2",
     "observability_traces",
     "user_data_backups",
@@ -514,7 +518,9 @@ export function buildPrivacyPolicyContent(
   for (const item of limitationItems) {
     lines.push(`### ${t(`legal.privacy.limitations_of_erasure.${item}.heading`)}`);
     lines.push("");
-    lines.push(t(`legal.privacy.limitations_of_erasure.${item}.description`));
+    lines.push(t(item === "audit_logs"
+      ? "legal.privacy.limitations_of_erasure.audit_logs.description_history_v1"
+      : `legal.privacy.limitations_of_erasure.${item}.description`));
     lines.push("");
   }
 

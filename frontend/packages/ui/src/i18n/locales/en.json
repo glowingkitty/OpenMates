@@ -12813,6 +12813,15 @@
         },
         "user_data_backups": {
           "text": "**User data backups:** 60 days via S3 lifecycle; backups contain only ciphertext encrypted with your own key"
+        },
+        "content_history_v1": {
+          "text": "Content: Current records are retained until you delete them or close the account, subject to backup cycles. Earlier database revision and activity records can remain after current records are deleted, as described separately below."
+        },
+        "historical_directus_history": {
+          "text": "Historical database records: Earlier generic revision and activity rows may retain account-profile fields or encrypted chat and artifact snapshots after deletion of current records. They currently have no enforced automatic expiry. The 60-day encrypted-backup lifecycle does not apply to this history."
+        },
+        "compliance_logs_history_v1": {
+          "text": "Compliance logs: Security and accountability logs can remain for their purposes. Historical database revision and activity records have no enforced automatic two-year expiry today. Financial compliance records retain their separate applicable tax and commercial-law periods."
         }
       },
       "legal_basis": {
@@ -13093,6 +13102,11 @@
           "answer": {
             "text": "Audio travels over TLS through the OpenMates backend hosted by Hetzner and is sent to Mistral for transcription. Realtime audio is streamed; uploaded recordings are encrypted by our upload service before durable storage and decrypted only in server memory for transcription. The raw transcript is then sent to Google Gemini to correct obvious transcription errors and create a title. Audio and raw transcripts do not receive the placeholder substitution used for eligible typed chat messages. OpenMates stores recordings and transcripts as encrypted account content, but Mistral and Google may retain API request data under their own policies."
           }
+        },
+        "deletion_history_v1": {
+          "answer": {
+            "text": "When you delete chats or your account, OpenMates deletes the current records under that deletion’s authority. Account deletion also destroys account-controlled encryption keys, making data protected solely by those keys unreadable. Earlier database revision and activity records may still contain account-profile fields or encrypted chat and artifact snapshots after current records are deleted. Those historical records are separate from short-lived encrypted backups and have no enforced automatic expiry today. Invoices, payment records, security logs and provider-held data may also remain for their applicable purposes."
+          }
         }
       },
       "protection": {
@@ -13305,6 +13319,9 @@
           },
           "description": {
             "text": "Authentication and data-access audit logs are retained for 2 years under BSI §34 BDSG (German security audit obligations). These logs contain timestamp, user identifier, event type, and status — no content."
+          },
+          "description_history_v1": {
+            "text": "Authentication and data-access audit logs can contain timestamps, user identifiers, event types and status. No enforced automatic two-year expiry for historical database revision and activity records exists today. Generic history with earlier record snapshots is described separately below; no general two-year statutory duty is claimed."
           }
         },
         "third_party_ai_logs": {
@@ -13337,6 +13354,17 @@
           },
           "description": {
             "text": "AI providers retain request logs under their own policies, independently of OpenMates, and we cannot delete data from their systems. Retention is provider-specific; for example, Mistral states 30 rolling days for ordinary API input and output unless zero-data retention is active, while Google's current Gemini abuse-monitoring documentation states 55 days for logged prompts, context, and outputs. Eligible typed chat uses client-side placeholder substitution, which reduces exposure but may miss data and does not cover voice audio, raw transcripts, uploaded or reference files, connected-account content, or structured skill inputs unless a feature explicitly says otherwise."
+          }
+        },
+        "intro_history_v1": {
+          "text": "When you delete your account, we destroy account-controlled encryption keys and remove current account records. Earlier database revision and activity records may remain after those records are deleted. Other data retained for security, financial, provider or backup purposes is listed separately below:"
+        },
+        "historical_directus_history": {
+          "heading": {
+            "text": "Historical database revisions and activity"
+          },
+          "description": {
+            "text": "Historical database revision and activity records created before a chat or account is deleted can retain earlier account-profile fields or encrypted chat and artifact snapshots. Deleting the current records does not automatically purge or irreversibly neutralize those historical rows. They currently have no enforced automatic expiry and are separate from the 60-day encrypted-backup lifecycle and dedicated security or financial records."
           }
         }
       },

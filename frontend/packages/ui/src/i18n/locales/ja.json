@@ -11796,6 +11796,15 @@
         },
         "user_data_backups": {
           "text": "**ユーザーデータバックアップ：** S3 ライフサイクルにより60日間。バックアップには、ユーザー自身のキーで暗号化された暗号文のみが含まれます。"
+        },
+        "content_history_v1": {
+          "text": "Content: Current records are retained until you delete them or close the account, subject to backup cycles. Earlier database revision and activity records can remain after current records are deleted, as described separately below."
+        },
+        "historical_directus_history": {
+          "text": "Historical database records: Earlier generic revision and activity rows may retain account-profile fields or encrypted chat and artifact snapshots after deletion of current records. They currently have no enforced automatic expiry. The 60-day encrypted-backup lifecycle does not apply to this history."
+        },
+        "compliance_logs_history_v1": {
+          "text": "Compliance logs: Security and accountability logs can remain for their purposes. Historical database revision and activity records have no enforced automatic two-year expiry today. Financial compliance records retain their separate applicable tax and commercial-law periods."
         }
       },
       "legal_basis": {
@@ -12060,6 +12069,11 @@
           "answer": {
             "text": "非常に高いプライバシー要件がある場合、サードパーティ AI プロバイダーではなく、OpenMates をセルフホストし、ローカルまたはオフライン AI モデルを使うことを検討できます。これにより、インフラ、モデル選択、ログ、バックアップ、プロバイダーへの露出をより制御できます。ただし技術経験、継続的な保守、安全なサーバー管理、有用なローカル AI 推論に十分なハードウェアが必要です。セルフホストしてもすべてが自動的にプライベートになるわけではありません。サーバー、バックアップ、秘密情報、ネットワークアクセス、ログ、有効化した外部プロバイダーを保護する必要があります。"
           }
+        },
+        "deletion_history_v1": {
+          "answer": {
+            "text": "When you delete chats or your account, OpenMates deletes the current records under that deletion’s authority. Account deletion also destroys account-controlled encryption keys, making data protected solely by those keys unreadable. Earlier database revision and activity records may still contain account-profile fields or encrypted chat and artifact snapshots after current records are deleted. Those historical records are separate from short-lived encrypted backups and have no enforced automatic expiry today. Invoices, payment records, security logs and provider-held data may also remain for their applicable purposes."
+          }
         }
       },
       "protection": {
@@ -12256,6 +12270,9 @@
           },
           "description": {
             "text": "認証およびデータアクセス監査ログは、BSI §34 BDSG（ドイツのセキュリティ監査義務）に基づき、2年間保持されます。これらのログには、タイムスタンプ、ユーザー識別子、イベントタイプ、ステータスが含まれますが、コンテンツは含まれません。"
+          },
+          "description_history_v1": {
+            "text": "Authentication and data-access audit logs can contain timestamps, user identifiers, event types and status. No enforced automatic two-year expiry for historical database revision and activity records exists today. Generic history with earlier record snapshots is described separately below; no general two-year statutory duty is claimed."
           }
         },
         "third_party_ai_logs": {
@@ -12280,6 +12297,17 @@
           },
           "description": {
             "text": "ユーザー自身のデータエクスポートの暗号文バックアップは、ライフサイクルルールにより S3 に60日間保存されるため、デバイスを紛失した場合でもエクスポートを復元できます。アカウント削除時に暗号化キーを破棄しているため、当社もこれらのバックアップを復号することはできません。これらは期限が切れるまで、実質的に機能しない暗号文として存在します。"
+          }
+        },
+        "intro_history_v1": {
+          "text": "When you delete your account, we destroy account-controlled encryption keys and remove current account records. Earlier database revision and activity records may remain after those records are deleted. Other data retained for security, financial, provider or backup purposes is listed separately below:"
+        },
+        "historical_directus_history": {
+          "heading": {
+            "text": "Historical database revisions and activity"
+          },
+          "description": {
+            "text": "Historical database revision and activity records created before a chat or account is deleted can retain earlier account-profile fields or encrypted chat and artifact snapshots. Deleting the current records does not automatically purge or irreversibly neutralize those historical rows. They currently have no enforced automatic expiry and are separate from the 60-day encrypted-backup lifecycle and dedicated security or financial records."
           }
         }
       },

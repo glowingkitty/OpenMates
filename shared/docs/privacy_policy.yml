@@ -99,12 +99,15 @@ quick_answers:
     and chat content. Browser stability logs are sanitized, use temporary
     session identifiers, and can be disabled in privacy settings.
   deletion: >
-    When users delete chats or their account, OpenMates deletes the corresponding
-    data according to the retention rules. For account deletion, OpenMates also
-    destroys encryption keys so remaining encrypted data in backups or caches
-    becomes unreadable ciphertext. Some records may remain for legal or
-    operational reasons, such as invoices, payment records, audit logs,
-    third-party provider logs, or short-lived encrypted backups.
+    When users delete chats or their account, OpenMates deletes the current
+    records according to the retention rules. Account deletion also destroys
+    account-controlled encryption keys, making data protected solely by those
+    keys unreadable. Earlier database revision and activity records
+    may still contain account-profile fields or encrypted chat and artifact
+    snapshots after the current records are deleted. These historical records
+    are separate from short-lived encrypted backups and have no enforced
+    automatic expiry today. Invoices, payment records, security logs, and
+    third-party provider data may also remain for their applicable purposes.
   open_source: >
     Open source means the OpenMates software code is public and can be inspected
     by others. It does not mean private user data is public. Chats, account
@@ -1249,11 +1252,13 @@ data_retention:
   device_fingerprints:
     period: Until account deletion, manual removal from account settings, or 90 days of inactivity (enforced by a daily cleanup task)
   content:
-    period: Until the user deletes the content or closes the account, subject to backup cycles
+    period: Current content remains until the user deletes it or closes the account, subject to backup cycles. Earlier database revision and activity history may remain as described separately below.
   payments_and_invoices:
     period: Up to 10 years where required by tax/commercial law (AO §147 and HGB §257)
+  historical_directus_history:
+    period: Earlier generic revision and activity rows may retain account-profile fields or encrypted chat and artifact snapshots after deletion of current records. No enforced automatic expiry exists for these historical rows today; the 60-day backup lifecycle does not apply to them.
   compliance_logs:
-    audit: 2 years (GDPR accountability + BSI §34 BDSG)
+    audit: Security and accountability logs can remain for their purposes. No enforced automatic two-year expiry exists for historical database revision and activity records today.
     financial: 10 years (AO §147 and HGB §257)
   observability_traces:
     period: Up to 30 days; user IDs in traces use a hash that rotates every 24 hours, so older traces cannot be joined to a specific user
@@ -1264,9 +1269,10 @@ data_retention:
 # Section 7 — What survives an account deletion and why
 # ==========================================================================
 limitations_of_erasure: >
-  When you delete your account we destroy your encryption key and remove your
-  rows from our database. A small number of things outside our immediate
-  control are retained for limited, legally-justified reasons:
+  When you delete your account we destroy account-controlled encryption keys
+  and remove current account records. Earlier database revision and activity history may
+  remain after those records are deleted. Other data retained for security,
+  financial, provider or backup purposes is listed separately below:
 limitations_of_erasure_items:
   financial_records:
     what: Invoices, credit notes, and financial compliance log entries
@@ -1275,9 +1281,14 @@ limitations_of_erasure_items:
     scope: The retained records contain transaction metadata, an invoice number, and a user identifier — not chat content or any other personal data
   audit_logs:
     what: Authentication and data-access audit logs
-    retention: 2 years
-    reason: BSI §34 BDSG — security audit obligations
-    scope: Timestamp, user identifier, event type, status — no content
+    retention: No enforced automatic two-year expiry for historical database revision and activity records currently exists
+    reason: Security, fraud prevention and accountability; no general two-year statutory duty is claimed
+    scope: Timestamps, user identifiers, event types and status; generic history with prior snapshots is described separately
+  historical_directus_history:
+    what: Historical database revision and activity records created before chat or account deletion
+    retention: No enforced automatic expiry currently exists; the 60-day backup lifecycle is separate
+    reason: Deleting current records does not automatically purge or irreversibly neutralize historical generic rows
+    scope: Earlier account-profile fields or encrypted chat and artifact snapshots may remain
   third_party_ai_logs:
     what: Request logs retained by the AI providers we send your prompts to
     retention: Provider-specific. For example, Mistral states 30 rolling days for ordinary API input/output unless zero-data retention is active; Google's current Gemini abuse-monitoring documentation states 55 days for logged prompts, context, and outputs.
