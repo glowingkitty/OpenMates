@@ -837,3 +837,62 @@ def test_accountability_schema_matrix_is_exact_and_preserves_embed_history() -> 
     assert "directus_users" not in declared
     # Product version history remains a normal collection with its payload/indexes.
     assert "encrypted_snapshot" in yaml.safe_load((schemas / "embed_diffs.yml").read_text())["embed_diffs"]["fields"]
+
+
+def test_storage_query_index_only_runs_exact_nonunique_sql_and_readback(monkeypatch, tmp_path) -> None:
+    setup = load_setup_schemas_module()
+    migration = Path(__file__).resolve().parents[1] / "core/directus/setup/migrate_storage_query_indexes.sql"
+    sql = migration.read_text(encoding="utf-8")
+    assert sql.count("CREATE INDEX IF NOT EXISTS") == len(setup.STORAGE_QUERY_INDEXES) == 9
+    assert "CREATE UNIQUE INDEX" not in sql
+    assert "CREATE TRIGGER" not in sql
+    assert "ALTER TABLE" not in sql
+    assert "DROP " not in sql
+
+    events = []
+
+    class Cursor:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def execute(self, command, params=None):
+            events.append((command, params))
+
+        def fetchall(self):
+            return [(name,) for name in setup.STORAGE_QUERY_INDEXES]
+
+    class Connection:
+        autocommit = False
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def cursor(self):
+            return Cursor()
+
+    monkeypatch.setattr(setup, "STORAGE_QUERY_MIGRATION_PATH", str(migration))
+    monkeypatch.setattr(setup, "connect_database", Connection)
+    for name in ("setup_schemas", "activate_prepared_schema", "reconcile_accountability_only"):
+        monkeypatch.setattr(setup, name, lambda: pytest.fail("full setup or another mode ran"))
+    setup.run_cli(["--storage-query-indexes-only"])
+    assert events[0] == ("SET lock_timeout = '5s'", None)
+    assert events[1] == ("SET statement_timeout = '5min'", None)
+    assert events[2] == (sql, None)
+    assert "FROM pg_indexes" in events[3][0]
+    assert events[3][1] == (list(setup.STORAGE_QUERY_INDEXES),)
+
+
+def test_storage_query_index_only_rejects_other_mode_and_missing_migration(monkeypatch, tmp_path) -> None:
+    setup = load_setup_schemas_module()
+    monkeypatch.setattr(setup, "connect_database", lambda: pytest.fail("database opened"))
+    monkeypatch.setattr(setup, "STORAGE_QUERY_MIGRATION_PATH", str(tmp_path / "missing.sql"))
+    with pytest.raises(SystemExit, match="2"):
+        setup.run_cli(["--storage-query-indexes-only", "--accountability-only"])
+    with pytest.raises(RuntimeError, match="Required storage query migration is missing"):
+        setup.run_cli(["--storage-query-indexes-only"])

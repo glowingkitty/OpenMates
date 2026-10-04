@@ -72,6 +72,21 @@ STORAGE_REPLICATION_INDEXES = (
     'storage_deletion_tombstones_due_idx',
     'storage_region_health_region_uq',
 )
+STORAGE_QUERY_MIGRATION_PATH = os.getenv(
+    'STORAGE_QUERY_MIGRATION_PATH',
+    '/usr/src/app/migrations/migrate_storage_query_indexes.sql',
+)
+STORAGE_QUERY_INDEXES = (
+    'messages_chat_created_client_id_idx',
+    'embeds_hashed_chat_created_cursor_idx',
+    'embed_keys_hashed_chat_type_embed_idx',
+    'embed_keys_user_type_embed_cursor_idx',
+    'code_run_outputs_sync_cursor_idx',
+    'notebook_run_outputs_sync_cursor_idx',
+    'chat_key_wrappers_user_cursor_idx',
+    'chat_key_wrappers_team_cursor_idx',
+    'chats_owner_main_hot_recency_idx',
+)
 WORKFLOW_RUNTIME_MIGRATION_PATH = os.getenv(
     'WORKFLOW_RUNTIME_MIGRATION_PATH',
     '/usr/src/app/migrations/migrate_workflow_runtime_indexes.sql',
@@ -1264,6 +1279,42 @@ def apply_and_verify_storage_replication_indexes():
     print(f"Verified {len(STORAGE_REPLICATION_INDEXES)} storage replication indexes")
 
 
+def apply_and_verify_storage_query_indexes(*, bounded: bool = False):
+    """Install the bounded chat/embed cursor indexes after schema creation."""
+    if not os.path.isfile(STORAGE_QUERY_MIGRATION_PATH):
+        raise RuntimeError(
+            f"Required storage query migration is missing: {STORAGE_QUERY_MIGRATION_PATH}"
+        )
+
+    with open(STORAGE_QUERY_MIGRATION_PATH, 'r', encoding='utf-8') as migration_file:
+        migration_sql = migration_file.read()
+
+    with connect_database() as connection:
+        connection.autocommit = True
+        with connection.cursor() as cursor:
+            if bounded:
+                cursor.execute("SET lock_timeout = '5s'")
+                cursor.execute("SET statement_timeout = '5min'")
+            cursor.execute(migration_sql)
+            cursor.execute(
+                """
+                SELECT indexname
+                FROM pg_indexes
+                WHERE schemaname = 'public' AND indexname = ANY(%s)
+                """,
+                (list(STORAGE_QUERY_INDEXES),),
+            )
+            installed_indexes = {row[0] for row in cursor.fetchall()}
+
+    missing_indexes = set(STORAGE_QUERY_INDEXES) - installed_indexes
+    if missing_indexes:
+        raise RuntimeError(
+            "Storage query index verification failed: "
+            + ", ".join(sorted(missing_indexes))
+        )
+    print(f"Verified {len(STORAGE_QUERY_INDEXES)} storage query indexes")
+
+
 def apply_and_verify_workflow_runtime_indexes():
     """Apply the Workflow runtime migration before its scheduler can be enabled."""
     if not os.path.isfile(WORKFLOW_RUNTIME_MIGRATION_PATH):
@@ -1884,13 +1935,21 @@ def reconcile_accountability_only() -> None:
     print(f"Verified accountability metadata for {len(reviewed)} existing collections")
 
 
-if __name__ == "__main__":
+def run_cli(argv=None):
     parser = argparse.ArgumentParser(description="Directus schema setup")
-    parser.add_argument("--accountability-only", action="store_true")
-    options = parser.parse_args()
-    if options.accountability_only:
+    modes = parser.add_mutually_exclusive_group()
+    modes.add_argument("--accountability-only", action="store_true")
+    modes.add_argument("--storage-query-indexes-only", action="store_true")
+    options = parser.parse_args(argv)
+    if options.storage_query_indexes_only:
+        apply_and_verify_storage_query_indexes(bounded=True)
+    elif options.accountability_only:
         reconcile_accountability_only()
     elif CI_PREPARED_SCHEMA:
         activate_prepared_schema()
     else:
         setup_schemas()
+
+
+if __name__ == "__main__":
+    run_cli()

@@ -1207,3 +1207,46 @@ def test_recovery_snapshot_rejects_redis_error_even_with_zero_exit(monkeypatch, 
     monkeypatch.setattr(sessions, "_recovery_backup_run", lambda *args, **kwargs: SimpleNamespace(stdout=next(replies)))
     with pytest.raises(RuntimeError, match="did not acknowledge"):
         sessions._recovery_backup_snapshot_cache("cache", tmp_path, {}, timeout=1, poll=1)
+
+
+def test_storage_query_index_setup_requires_exact_cms_service_before_operation(monkeypatch):
+    monkeypatch.setattr(sessions, "_docker_checkout_root", lambda _session: pytest.fail("operation began"))
+    for services in (["vault-setup"], ["cms-setup", "vault-setup"], ["cms-setup", "cms-setup"]):
+        args = argparse.Namespace(session="abcd", service=services, storage_query_indexes_only=True,
+                                  timeout=1, poll=1, build=False)
+        with pytest.raises(RuntimeError, match="exactly one cms-setup"):
+            sessions.cmd_docker_run_setup(args)
+
+
+def test_storage_query_index_setup_forces_fresh_image_and_fixed_command(monkeypatch, tmp_path):
+    checkout_root = tmp_path / "agent-abcd"
+    checkout_root.mkdir()
+    configure_runtime_checkout(monkeypatch, checkout_root)
+    events = []
+    monkeypatch.setattr(sessions, "available_docker_setup_services", lambda _root: {"cms-setup"})
+    monkeypatch.setattr(sessions, "request_docker_restart", lambda *_args: {"id": "op-1"})
+    monkeypatch.setattr(sessions, "_wait_and_acquire_session_lock", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(sessions, "wait_for_docker_test_leases", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(sessions, "_acquire_session_lock", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(sessions, "_release_session_lock", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(sessions, "update_docker_operation", lambda operation_id, status, **_kwargs: {"id": operation_id, "status": status})
+    monkeypatch.setattr(sessions, "_docker_compose_command", lambda *args, checkout_root: [str(checkout_root), *args])
+    monkeypatch.setattr(sessions, "_run_cmd_with_heartbeat", lambda command, *, cwd, **_kwargs: events.append((Path(cwd), command)) or (0, "", ""))
+    args = argparse.Namespace(session="abcd", service=["cms-setup"], storage_query_indexes_only=True,
+                              timeout=1, poll=1, build=False)
+    sessions.cmd_docker_run_setup(args)
+    assert events == [(checkout_root, [str(checkout_root), "run", "--rm", "--build", "cms-setup",
+                                      "python", "setup_schemas.py", "--storage-query-indexes-only"])]
+
+
+def test_storage_query_index_setup_rejects_mixed_mode_and_parser_conflict(monkeypatch):
+    monkeypatch.setattr(sessions, "_docker_checkout_root", lambda _session: pytest.fail("operation began"))
+    args = argparse.Namespace(session="abcd", service=["cms-setup"], storage_query_indexes_only=True,
+                              accountability_only=True, timeout=1, poll=1, build=False)
+    with pytest.raises(RuntimeError, match="mutually exclusive"):
+        sessions.cmd_docker_run_setup(args)
+    monkeypatch.setattr(sys, "argv", ["sessions.py", "docker", "run-setup", "--service", "cms-setup",
+                                       "--storage-query-indexes-only", "--accountability-only"])
+    with pytest.raises(SystemExit) as error:
+        sessions.main()
+    assert error.value.code == 2
