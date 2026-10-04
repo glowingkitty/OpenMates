@@ -144,6 +144,8 @@ def _watch_chat_payload(chat: dict[str, Any]) -> dict[str, Any]:
         "encrypted_slug": chat.get("encrypted_slug"),
         "slug_lookup_hash": chat.get("slug_lookup_hash"),
         "encrypted_chat_summary": chat.get("encrypted_chat_summary"),
+        "encrypted_active_focus_id": chat.get("encrypted_active_focus_id"),
+        "encrypted_focus_phase_state": chat.get("encrypted_focus_phase_state"),
         "encrypted_auto_speak_response": chat.get("encrypted_auto_speak_response"),
         "encrypted_chat_key": chat.get("encrypted_chat_key"),
         "chat_key_wrappers": chat.get("chat_key_wrappers") or [],

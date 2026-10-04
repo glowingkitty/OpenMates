@@ -61,7 +61,7 @@ acceptance_criteria:
   text: Real dev CLI chat advances, restores phase state, honors skipping and batching questions, and
     returns on request.
   required: true
-  status: blocked
+  status: pending
   coverage_status: covered
   verification_scope: cli
   verification_ids:
@@ -72,7 +72,7 @@ acceptance_criteria:
     real multi-message web conversations honor sequential questions, batching, skipping, confirmation
     and rewind.
   required: true
-  status: blocked
+  status: pending
   coverage_status: covered
   verification_scope: playwright
   verification_ids:
@@ -129,14 +129,13 @@ tests:
     required: true
     expected: pass
     evidence:
-      status: blocked
-      timestamp: '2026-10-04T12:00:19.810837+00:00'
+      status: pending
+      timestamp: '2026-10-04T13:57:20.960644+00:00'
       actor: Codex
-      reason: Configured disposable dev accounts 1 and 10 reject 2FA codes despite synchronized clocks.
-        No real inference conversations have run.
-      next_action: Use current disposable dev credentials, then run both eight-turn conversations with
-        the coordinator leases and inspect responses/phase history.
-      subject_commit: 1aedbfdb4a72e8cb946cbe14a2c86870dfd889e7
+      reason: Documented personal dev account authenticated in isolated state; real eight-turn CLI and
+        web conversations are running after explicit focus routing repair.
+      subject_commit: 2eac4d5e532b618bc726062924b729b75bdf4c09
+      artifact: /tmp/focus-live-907d/evidence.json
 - id: T-PHASE-3
   type: playwright
   covers:
@@ -204,16 +203,15 @@ tests:
     required: true
     expected: pass
     evidence:
-      status: blocked
-      timestamp: '2026-10-04T12:00:19.810837+00:00'
+      status: pending
+      timestamp: '2026-10-04T13:57:20.960680+00:00'
       actor: Codex
-      reason: Configured disposable dev accounts 1 and 10 reject 2FA codes despite synchronized clocks.
-        No real inference conversations have run.
-      next_action: Use current disposable dev credentials, then run both eight-turn conversations with
-        the coordinator leases and inspect responses/phase history.
-      subject_commit: 1aedbfdb4a72e8cb946cbe14a2c86870dfd889e7
+      reason: Documented personal dev account authenticated in isolated state; real eight-turn CLI and
+        web conversations are running after explicit focus routing repair.
+      subject_commit: 2eac4d5e532b618bc726062924b729b75bdf4c09
+      artifact: /tmp/focus-live-907d/evidence.json
 implementation_state:
-  subject_commit: 1aedbfdb4a72e8cb946cbe14a2c86870dfd889e7
+  subject_commit: 2eac4d5e532b618bc726062924b729b75bdf4c09
 approvals:
   specification:
     status: approved
@@ -227,7 +225,7 @@ approvals:
 tasks:
 - id: TASK-6202
   title: Phased focus implementation surface
-  status: blocked
+  status: in_progress
   phase: working_tasks
   covers:
     scenarios:
@@ -241,16 +239,14 @@ tasks:
   - T-PHASE-1
   - T-PHASE-2
   dependencies: []
-  blockers:
-  - Configured disposable dev accounts 1 and 10 reject 2FA codes despite synchronized clocks. No real
-    inference conversations have run.
+  blockers: []
   follow_up_tasks: []
   ownership:
     files: *id001
     shared_files: []
 - id: TASK-4703
   title: Phased focus implementation surface
-  status: blocked
+  status: in_progress
   phase: working_tasks
   covers:
     scenarios:
@@ -262,9 +258,7 @@ tasks:
   verification_ids:
   - T-PHASE-3
   dependencies: []
-  blockers:
-  - Configured disposable dev accounts 1 and 10 reject 2FA codes despite synchronized clocks. No real
-    inference conversations have run.
+  blockers: []
   follow_up_tasks: []
   ownership:
     files: *id002
@@ -296,21 +290,26 @@ attempts:
   approach: Implement strict YAML definitions and completed-boundary gates, then client parity and focused
     evidence.
   recorded_at: '2026-10-04'
+- id: ATT-2
+  task_id: TASK-6202
+  outcome: succeeded
+  approach: Real CLI @focus Career Insights exposed automatic planner routing taking precedence. Added
+    explicit-focus guard and five production-guard regression variants. Personal account login was recovered
+    with the documented misspelled env keys, without changing global CLI state.
+  recorded_at: '2026-10-04'
 handoff:
   current_task_id: TASK-6202
-  next_action: Use current disposable dev credentials to complete the eight-turn CLI and web real inference
-    conversations; then verify Apple on an approved Mac build/test runner.
-  command: FOCUS_TEST_SLOT=<valid-slot> python3 /tmp/focus-live-907d/runner.py 1aedbfdb4a72e8cb946cbe14a2c86870dfd889e7
+  next_action: Finish and inspect the personal dev account eight-turn CLI and web real inference conversations;
+    then verify Apple on an admitted Mac runner.
+  command: python3 /tmp/focus-live-907d/runner.py 2eac4d5e532b618bc726062924b729b75bdf4c09
   expected_outcome: Real inference and native evidence meet all required criteria; Plan remains implementing
     until that evidence exists.
-  last_verified_commit: 1aedbfdb4a72e8cb946cbe14a2c86870dfd889e7
+  last_verified_commit: 2eac4d5e532b618bc726062924b729b75bdf4c09
   blocker:
     requires_user_input: true
-    task_id: TASK-6202
-    reason: Configured disposable dev accounts 1 and 10 reject 2FA codes despite synchronized clocks.
-      No real inference conversations have run.
-    requested_input: Current disposable dev credential configuration path or valid slot, plus an approved
-      Mac runner.
+    task_id: TASK-7858
+    reason: Configured remote Mac transport admits diagnostics only and rejects staging/build/test.
+    requested_input: An admitted Mac build/test runner.
 verification_receipts:
   deployment:
     commit: 1aedbfdb4a72e8cb946cbe14a2c86870dfd889e7
@@ -346,3 +345,9 @@ verification_receipts:
     passed: 3
     skipped: 0
     flaky: 0
+  explicit_focus_precedence:
+    commit: 2eac4d5e532b618bc726062924b729b75bdf4c09
+    focused_passed: 9
+    previous_guard_failure_confirmed: true
+    backend_status: Coordinated dev runtime healthy
+    issue_fixed: Automatic planning no longer overrides an explicit focus mention.

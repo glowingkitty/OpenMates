@@ -54,8 +54,10 @@ profile confirmation explicitly; the assistant keeps assumptions visible.
 Implementation is deployed to dev. The focused backend suite has 80 passing
 checks, including 29 phase cases and six processor transition regressions.
 Isolated CI passes two CLI transport tests, three phase component tests and four
-settings browser tests. Real multi-message CLI/web inference has not run because
-configured disposable dev credentials are rejected; current credentials are
-required. Native build/test execution is also unavailable: the remote helper
+settings browser tests. Real CLI inference now uses the documented personal dev
+test account in isolated state. It exposed automatic planning overriding explicit
+focus selection (repaired) and missing focus fields in cache warming (being
+repaired). The required eight-turn CLI and web conversations remain in progress.
+Native build/test execution is unavailable: the remote helper
 rejects build/test operations and existing workflows have no macOS runner. The
 Plan remains implementing; source inspection does not establish native proof.

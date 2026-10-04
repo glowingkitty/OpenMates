@@ -35,9 +35,17 @@ after(() => {
 });
   // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   // contract-test: supporting surface=cli assertions=focus-modes.full-instruction,focus-modes.restoration
-  for (const restoredFocus of ["jobs-career_insights", null]) {
+  const cases: Array<{ restoredFocus: string | null; claimOutcome: "leased" | "terminal-after-conflict" | "foreign-terminal" | "generic-error" | "foreign-conflict" }> = [
+    { restoredFocus: "jobs-career_insights", claimOutcome: "leased" },
+    { restoredFocus: null, claimOutcome: "leased" },
+    { restoredFocus: "jobs-career_insights", claimOutcome: "terminal-after-conflict" },
+    { restoredFocus: "jobs-career_insights", claimOutcome: "foreign-terminal" },
+    { restoredFocus: "jobs-career_insights", claimOutcome: "generic-error" },
+    { restoredFocus: "jobs-career_insights", claimOutcome: "foreign-conflict" },
+  ];
+  for (const { restoredFocus, claimOutcome } of cases) {
   // contract-test: supporting surface=cli assertions=focus-modes.phases,focus-modes.restoration,focus-modes.history-events
-  it(`restores encrypted phase progress and persists live history for saved chats (${restoredFocus ?? "off"})`, async () => {
+  it(`restores encrypted phase progress and persists live history for saved chats (${restoredFocus ?? "off"}, ${claimOutcome})`, async () => {
     const chatId = "11111111-1111-4111-8111-111111111111";
     const ownerId = "22222222-2222-4222-8222-222222222222";
     const assistantMessageId = "33333333-3333-4333-8333-333333333333";
@@ -79,6 +87,7 @@ after(() => {
       frameTypes: string[];
     } = { frameTypes: [], phaseMessages: [] };
     let sealedPayloadForTest: string | null = null;
+    let claimCount = 0;
     const wss = new WebSocketServer({ noServer: true });
     const server = createServer((request: IncomingMessage, response: ServerResponse) => {
       if (request.method === "POST" && request.url === "/v1/auth/session") {
@@ -194,16 +203,40 @@ after(() => {
             }, 30);
           }
           if (frame.type === "recovery_job_claim") {
+            claimCount += 1;
+            if (claimOutcome === "generic-error" || claimOutcome === "foreign-conflict") {
+              ws.send(JSON.stringify({ type: "error", payload: {
+                code: claimOutcome === "generic-error" ? "recovery_job_expired" : "lease_conflict",
+                message: "Encrypted completion recovery was rejected.",
+                job_id: claimOutcome === "foreign-conflict" ? "other-job-id" : recoveryJobId,
+                request_id: frame.payload.request_id,
+              } }));
+              if (claimOutcome === "foreign-conflict") {
+                ws.send(JSON.stringify({ type: "error", payload: {
+                  code: "recovery_job_expired", message: "Encrypted completion recovery was rejected.",
+                  job_id: recoveryJobId, request_id: frame.payload.request_id,
+                } }));
+              }
+              return;
+            }
+            if (claimOutcome !== "leased" && claimCount === 1) {
+              ws.send(JSON.stringify({ type: "error", payload: {
+                code: "lease_conflict", message: "Encrypted completion recovery was rejected.",
+                job_id: recoveryJobId, request_id: frame.payload.request_id,
+              } }));
+              return;
+            }
             assert.ok(sealedPayloadForTest);
             ws.send(JSON.stringify({
               type: "recovery_job_claimed",
               payload: {
                 job_id: recoveryJobId,
-                state: "LEASED",
+                request_id: frame.payload.request_id,
+                state: claimOutcome === "leased" ? "LEASED" : "TERMINAL",
                 lease_token: "lease-token-old-chat",
                 lease_generation: 2,
                 sealed_payload: sealedPayloadForTest,
-                chat_id: chatId,
+                chat_id: claimOutcome === "foreign-terminal" ? "other-chat-id" : chatId,
                 turn_id: captured.preflightPayload?.turn_id,
                 assistant_message_id: assistantMessageId,
                 chat_key_version: 1,
@@ -229,7 +262,23 @@ after(() => {
       writeLegacySession(`http://127.0.0.1:${address.port}`);
       const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
       // This fixture tests request/recovery metadata; it has no phased-sync history server.
-      await client.sendMessage({ message: "Continue this old chat", chatId, messageHistory: [] });
+      if (claimOutcome === "foreign-terminal" || claimOutcome === "generic-error" || claimOutcome === "foreign-conflict") {
+        await assert.rejects(
+          client.sendMessage({ message: "Continue this old chat", chatId, messageHistory: [] }),
+          (error: Error) => {
+            assert.match(error.message, claimOutcome === "foreign-terminal"
+              ? /invalid lease or identity data/
+              : /Encrypted completion recovery was rejected/);
+            return true;
+          },
+        );
+        assert.equal(claimCount, claimOutcome === "foreign-terminal" ? 2 : 1);
+        assert.equal(captured.persistPayload, undefined);
+        return;
+      }
+      const result = await client.sendMessage({ message: "Continue this old chat", chatId, messageHistory: [] });
+      assert.equal(result.status, "completed");
+      assert.equal(claimCount, claimOutcome === "terminal-after-conflict" ? 2 : 1);
 
       assert.equal(captured.messagePayload?.active_focus_id, restoredFocus);
       assert.equal(captured.focusUpdate?.chat_id, chatId);
@@ -259,9 +308,13 @@ after(() => {
       assert.equal(captured.messagePayload?.recovery_public_key, captured.preflightPayload.recovery_public_key);
       assert.equal(captured.messagePayload?.chat_key_version, 1);
       assert.equal(captured.frameTypes.includes("ai_response_completed"), false);
-      assert.equal(captured.persistPayload?.expected_messages_v, 9);
-      assert.equal(captured.persistPayload?.lease_token, "lease-token-old-chat");
-      assert.equal(captured.persistPayload?.lease_generation, 2);
+      if (claimOutcome === "leased") {
+        assert.equal(captured.persistPayload?.expected_messages_v, 9);
+        assert.equal(captured.persistPayload?.lease_token, "lease-token-old-chat");
+        assert.equal(captured.persistPayload?.lease_generation, 2);
+      } else {
+        assert.equal(captured.persistPayload, undefined, "another device already persisted this completion");
+      }
     } finally {
       rmSync(join(stateDir, "sync_cache.json"), { force: true });
       wss.close();
@@ -270,4 +323,3 @@ after(() => {
     }
   });
   }
-

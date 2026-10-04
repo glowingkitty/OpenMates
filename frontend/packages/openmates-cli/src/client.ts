@@ -7926,16 +7926,62 @@ export class OpenMatesClient {
             throw new Error("Saved chat completion did not include recoverable terminal identity.");
           }
           const recoveryJobId = resp.recoveryJobId;
-          const claimPromise = ws.waitForMessage(
-            "recovery_job_claimed",
-            (payload) => (payload as Record<string, unknown>).job_id === recoveryJobId,
-            20_000,
-          );
-          await ws.sendAsync("recovery_job_claim", {
-            protocol_version: 1,
-            job_id: recoveryJobId,
-          });
-          const claim = (await claimPromise).payload as Record<string, unknown>;
+          // A different signed-in device may hold this exact job briefly and
+          // commit it while we are claiming. Recheck the same job for TERMINAL
+          // within a small part of the caller's response budget.
+          let claimRetryDeadline: number | null = null;
+          let claim: Record<string, unknown>;
+          let claimRetryDelayMs = 500;
+          while (true) {
+            const requestId = randomUUID();
+            let matchingLeaseConflict = false;
+            const stopWatchingErrors = ws.onMessageType<Record<string, unknown>>("error", (payload) => {
+              if (payload?.code === "lease_conflict"
+                && payload.job_id === recoveryJobId
+                && payload.request_id === requestId) {
+                matchingLeaseConflict = true;
+              }
+            });
+            const claimPromise = ws.waitForMessage(
+              "recovery_job_claimed",
+              (payload) => {
+                const received = payload as Record<string, unknown>;
+                return received.job_id === recoveryJobId
+                  && (received.request_id === undefined || received.request_id === requestId);
+              },
+              claimRetryDeadline === null
+                ? 20_000
+                : Math.min(20_000, Math.max(1, claimRetryDeadline - Date.now())),
+            );
+            try {
+              try {
+                await ws.sendAsync("recovery_job_claim", {
+                  protocol_version: 1,
+                  job_id: recoveryJobId,
+                  request_id: requestId,
+                });
+              } catch (error) {
+                void claimPromise.catch(() => {});
+                throw error;
+              }
+              claim = (await claimPromise).payload as Record<string, unknown>;
+              break;
+            } catch (error) {
+              if (!(error instanceof WebSocketProtocolError)
+                || error.code !== "lease_conflict"
+                || !matchingLeaseConflict) throw error;
+              claimRetryDeadline ??= Date.now() + Math.min(
+                10_000,
+                Math.max(0, params.responseTimeoutMs ?? 90_000),
+              );
+              const remainingMs = claimRetryDeadline - Date.now();
+              if (remainingMs <= claimRetryDelayMs) throw error;
+              await new Promise((resolve) => setTimeout(resolve, claimRetryDelayMs));
+              claimRetryDelayMs = Math.min(claimRetryDelayMs * 2, 2_000);
+            } finally {
+              stopWatchingErrors();
+            }
+          }
           const leaseToken = typeof claim.lease_token === "string" ? claim.lease_token : null;
           const leaseGeneration = typeof claim.lease_generation === "number"
             && Number.isSafeInteger(claim.lease_generation)
@@ -7968,6 +8014,8 @@ export class OpenMatesClient {
             clearSyncCache(teamId);
             await persistCompressionCheckpoints(resp.compressionCheckpoints);
             await persistTaskEventSystemMessages(taskEvents);
+            await focusPersistence;
+            if (focusPersistenceError) throw focusPersistenceError;
             const mateName = category ? (MATE_NAMES[category] ?? null) : null;
             return {
               status: "completed",

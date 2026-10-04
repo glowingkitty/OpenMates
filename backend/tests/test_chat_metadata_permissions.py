@@ -10,6 +10,7 @@ missing chat.
 # contract-test-file: infrastructure
 
 import hashlib
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -75,6 +76,23 @@ class TeamChatSyncDirectus:
         if collection == "drafts":
             return []
         return [{"id": "team-chat", "hashed_team_id": params["filter[hashed_team_id][_eq]"]}]
+
+
+class FocusCiphertextDirectus:
+    def __init__(self) -> None:
+        self.chat_fields: set[str] = set()
+
+    async def get_items(self, collection, params, **_kwargs):
+        if collection == "drafts":
+            return []
+        assert collection == "chats"
+        self.chat_fields = set(params["fields"].split(","))
+        stored = {
+            "id": "saved-focus-chat",
+            "encrypted_active_focus_id": "opaque-focus-id",
+            "encrypted_focus_phase_state": "opaque-phase-state",
+        }
+        return [{field: value for field, value in stored.items() if field in self.chat_fields}]
 
 
 @pytest.mark.anyio
@@ -184,3 +202,27 @@ async def test_team_chat_cache_warming_uses_admin_access_with_hashed_team_filter
     assert chat_call["params"]["filter[hashed_team_id][_eq]"] == hashlib.sha256("team-1".encode()).hexdigest()
     assert "filter[hashed_user_id][_eq]" not in chat_call["params"]
     assert chat_call["kwargs"]["admin_required"] is True
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.restoration
+@pytest.mark.anyio
+@pytest.mark.parametrize("warming_method", ["core", "full"])
+async def test_forced_chat_cache_warming_preserves_saved_focus_ciphertext(warming_method: str):
+    directus = FocusCiphertextDirectus()
+    chat_methods = ChatMethods(directus)
+    if warming_method == "core":
+        chat_methods.get_all_user_drafts = AsyncMock(return_value={})
+        wrappers = await chat_methods.get_core_chats_and_user_drafts_for_cache_warming("user-1")
+        chat = wrappers[0]["chat_details"]
+    else:
+        chat_methods.get_messages_for_chats = AsyncMock(return_value={"saved-focus-chat": []})
+        chat_methods._get_user_draft_for_chat = AsyncMock(return_value=None)
+        wrapper = await chat_methods.get_full_chat_and_user_draft_details_for_cache_warming(
+            "user-1", "saved-focus-chat"
+        )
+        assert wrapper is not None
+        chat = wrapper["chat_details"]
+
+    assert {"encrypted_active_focus_id", "encrypted_focus_phase_state"} <= directus.chat_fields
+    assert chat["encrypted_active_focus_id"] == "opaque-focus-id"
+    assert chat["encrypted_focus_phase_state"] == "opaque-phase-state"

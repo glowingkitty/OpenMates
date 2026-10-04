@@ -14,7 +14,7 @@ import pytest
 from fastapi import HTTPException
 
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
-from backend.core.api.app.routes.chats import DEFAULT_MESSAGE_WINDOW_LIMIT, get_chat_message_window, list_chat_messages, list_chats, router
+from backend.core.api.app.routes.chats import DEFAULT_MESSAGE_WINDOW_LIMIT, _watch_chat_payload, get_chat_message_window, list_chat_messages, list_chats, router
 
 
 def _request(chat_service, chat_key_wrapper_service=None, get_items=None, team_service=None):
@@ -42,6 +42,18 @@ def test_native_chat_routes_require_session_authentication() -> None:
     for path in ("/v1/chats", "/v1/chats/{chat_id}/messages", "/v1/chats/{chat_id}/messages/window"):
         dependency_calls = [dependency.call for dependency in routes[path].dependant.dependencies]
         assert get_current_user in dependency_calls
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.restoration
+def test_native_chat_payload_preserves_saved_focus_ciphertext() -> None:
+    payload = _watch_chat_payload({
+        "id": "saved-focus-chat",
+        "encrypted_active_focus_id": "opaque-focus-id",
+        "encrypted_focus_phase_state": "opaque-phase-state",
+    })
+
+    assert payload["encrypted_active_focus_id"] == "opaque-focus-id"
+    assert payload["encrypted_focus_phase_state"] == "opaque-phase-state"
 
 
 # contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted
@@ -82,9 +94,13 @@ async def test_list_chats_returns_bounded_encrypted_metadata() -> None:
                 "title_v": None,
                 "metadata_v": None,
                 "encrypted_title": "cipher-title",
+                "encrypted_category": None,
+                "encrypted_icon": None,
                 "encrypted_slug": None,
                 "slug_lookup_hash": None,
                 "encrypted_chat_summary": "cipher-summary",
+                "encrypted_active_focus_id": None,
+                "encrypted_focus_phase_state": None,
                 "encrypted_chat_key": "wrapped-chat-key",
                 "chat_key_wrappers": [],
                 "encrypted_auto_speak_response": None,
