@@ -3763,7 +3763,7 @@ async def handle_main_processing(
         assigned_app_ids=assigned_app_ids,
         preselected_skills=preselected_skills,
         translation_service=translation_service
-    )
+    ) if assigned_app_ids != [] else []
 
     if task_queue_blocks_plan_tools:
         original_tool_count = len(available_tools_for_llm)
@@ -4509,7 +4509,8 @@ async def handle_main_processing(
     
     max_iterations_with_recovery = MAX_TOOL_CALL_ITERATIONS + MAX_ANSWER_ONLY_RECOVERY_ITERATIONS
     async def evaluate_active_phases(boundary, boundary_id, evidence):
-        nonlocal full_system_prompt, active_focus_prompt_section, project_phase_prompt_section
+        nonlocal full_system_prompt, answer_recovery_system_prompt
+        nonlocal active_focus_prompt_section, project_phase_prompt_section
         nonlocal available_tools_for_llm, allowed_tool_names
         changed = False
         for runtime in focus_phase_runtimes:
@@ -4523,24 +4524,28 @@ async def handle_main_processing(
                     section = f"--- Active Focus: {request_data.active_focus_id} ---\n{instruction}\n--- End Active Focus ---"
                     if active_focus_prompt_section:
                         full_system_prompt = full_system_prompt.replace(active_focus_prompt_section, section, 1)
+                        answer_recovery_system_prompt = answer_recovery_system_prompt.replace(active_focus_prompt_section, section, 1)
                     active_focus_prompt_section = section
                 elif active_project_focus and runtime.state.focus_id == active_project_focus["focus_id"]:
                     section = build_project_focus_prompt({**active_project_focus, "instruction": instruction}, active_project_sources)
                     if project_phase_prompt_section:
                         full_system_prompt = full_system_prompt.replace(project_phase_prompt_section, section, 1)
+                        answer_recovery_system_prompt = answer_recovery_system_prompt.replace(project_phase_prompt_section, section, 1)
                     project_phase_prompt_section = section
         if changed and not user_requested_skills_only:
             # Reuse the existing discovered (availability-filtered) app catalog.
             # Adding a candidate never bypasses dispatch permissions or Project policy.
-            candidate_apps = set(assigned_app_ids)
-            for runtime in focus_phase_runtimes:
-                candidate_apps.update(runtime.focus.allowed_apps or [])
+            # None means inherited access; [] means no Mate app tools. Focus
+            # metadata can guide relevance but cannot widen the Mate allowlist.
+            candidate_apps = set(discovered_apps_metadata if assigned_app_ids is None else assigned_app_ids)
             candidate_skill_ids = {f"{app_id}-{skill.id}" for app_id in candidate_apps
                 if app_id in discovered_apps_metadata
                 for skill in discovered_apps_metadata[app_id].skills or []}
+            # The legacy generator interprets an empty list as all apps, so
+            # avoid it when the explicit allowlist contains no candidates.
             candidate_tools = generate_tools_from_apps(discovered_apps_metadata=discovered_apps_metadata,
                 assigned_app_ids=list(candidate_apps), preselected_skills=list(candidate_skill_ids),
-                translation_service=translation_service)
+                translation_service=translation_service) if candidate_apps else []
             if task_queue_blocks_plan_tools:
                 candidate_tools = [tool for tool in candidate_tools
                     if not str(tool.get("function", {}).get("name") or "").startswith("plans-")]

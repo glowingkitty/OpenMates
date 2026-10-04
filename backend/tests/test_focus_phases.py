@@ -408,3 +408,93 @@ def test_career_pilot_is_phased_and_user_overridable():
         and "skip remaining" in f.phases[0].instructions
     )
     assert all("five" not in r.text for p in f.phases for r in p.requirements)
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.phases,focus-modes.full-instruction
+@pytest.mark.parametrize("assigned_apps", [None, ["web"], []])
+@pytest.mark.parametrize("project", [False, True])
+def test_main_transition_preserves_mate_permissions_and_recovery_prompt(assigned_apps, project):
+    """Execute the actual processor transition helper with a real phase runtime.
+
+    Only tool generation/selection are replaced; the platform phase decision,
+    prompt refresh, permission inputs and tool merge execute production code.
+    This supporting check does not replace real multi-message inference.
+    """
+    import ast
+    from types import SimpleNamespace
+    from backend.apps.ai.processing.project_file_tools import build_project_focus_prompt
+
+    class Runtime(FocusPhaseRuntime):
+        async def evaluate(self, **kwargs):
+            return await super().evaluate(**kwargs, evaluator=evaluator())
+
+    f = focus().model_copy(update={"allowed_apps": ["jobs"]})
+    focus_id = "project-sample" if project else "jobs-sample"
+    runtime = Runtime(f, restore_state(f, focus_id=focus_id, chat_id="chat-a"))
+    request = SimpleNamespace(active_focus_id=None if project else focus_id,
+                              message_id="turn-1", current_user_content="Skip remaining questions and proceed.")
+    project_focus = {"focus_id": focus_id, "project_id": "project-a", "name": "Sample",
+                     "instruction": phase_prompt(f, runtime.state)} if project else None
+    old_section = (build_project_focus_prompt(project_focus, []) if project else
+                   f"--- Active Focus: {focus_id} ---\n{phase_prompt(f, runtime.state)}\n--- End Active Focus ---")
+    generated = []
+
+    def generate(**kwargs):
+        # The production generator interprets [] as all apps. An explicit empty
+        # Mate allowlist must avoid invoking it, rather than widening that scope.
+        apps = kwargs["assigned_app_ids"]
+        assert apps != []
+        permitted = set(kwargs["discovered_apps_metadata"]) if apps is None else set(apps)
+        generated.append(permitted)
+        return [{"function": {"name": app + "-search"}} for app in permitted]
+
+    async def select(**kwargs):
+        assert "PRIVATE_SECOND_PHASE_INSTRUCTION" in kwargs["phase_instructions"]
+        return kwargs["candidates"]
+
+    source = Path(__file__).parents[1] / "apps/ai/processing/main_processor.py"
+    tree = ast.parse(source.read_text())
+    processor = next(n for n in tree.body if isinstance(n, ast.AsyncFunctionDef)
+                     and n.name == "handle_main_processing")
+    helper = next(n for n in processor.body if isinstance(n, ast.AsyncFunctionDef)
+                  and n.name == "evaluate_active_phases")
+    wrapper = ast.parse("""async def exercise(full_system_prompt, answer_recovery_system_prompt,
+            active_focus_prompt_section, project_phase_prompt_section,
+            available_tools_for_llm, allowed_tool_names):
+        pass
+        changed = await evaluate_active_phases('user', 'turn-1:user',
+            [{'role': 'user', 'content': 'Skip remaining questions and proceed.'}])
+        return changed, full_system_prompt, answer_recovery_system_prompt, available_tools_for_llm
+""")
+    wrapper.body[0].body[0] = helper
+    scope = dict(focus_phase_runtimes=[runtime], request_data=request, secrets_manager=None,
+        phase_prompt=phase_prompt, active_project_focus=project_focus, active_project_sources=[],
+        build_project_focus_prompt=build_project_focus_prompt, user_requested_skills_only=False,
+        assigned_app_ids=assigned_apps, discovered_apps_metadata={app: SimpleNamespace(
+            skills=[SimpleNamespace(id="search")]) for app in ["web", "code", "jobs"]},
+        generate_tools_from_apps=generate, translation_service=None, task_queue_blocks_plan_tools=False,
+        reselect_phase_tools=select, _canonicalize_tool_name=lambda name: name,
+        task_tool_name_variants=lambda name: {name})
+    # Include production initial generation so an empty Mate cannot retain
+    # preselected app tools simply because the old generator treats [] as inherit.
+    initial = next(n for n in processor.body if isinstance(n, ast.Assign)
+                   and any(isinstance(t, ast.Name) and t.id == "available_tools_for_llm" for t in n.targets))
+    scope["preselected_skills"] = ["web-search"]
+    exec(compile(ast.fix_missing_locations(ast.Module(body=[initial], type_ignores=[])),
+                 str(source), "exec"), scope)
+    initial_tools = scope["available_tools_for_llm"] + [{"function": {"name": "internal-lifecycle"}}]
+    generated.clear()
+    exec(compile(ast.fix_missing_locations(wrapper), str(source), "exec"), scope)
+    result = asyncio.run(scope["exercise"]("Base\n" + old_section, "Recovery\n" + old_section,
+        None if project else old_section, old_section if project else None,
+        initial_tools, {t["function"]["name"] for t in initial_tools}))
+    changed, prompt, recovery, tools = result
+    assert changed and runtime.state.phase_id == "confirm"
+    assert request.focus_phase_state[focus_id]["phase_id"] == "confirm"
+    assert "PRIVATE_SECOND_PHASE_INSTRUCTION" in prompt
+    assert "PRIVATE_SECOND_PHASE_INSTRUCTION" in recovery
+    assert "Ask five questions by default; honor skip or all-at-once." not in recovery
+    permitted = {"web", "code", "jobs"} if assigned_apps is None else set(assigned_apps)
+    assert generated == ([permitted] if permitted else [])
+    assert {tool["function"]["name"] for tool in tools} == {
+        "internal-lifecycle", *(app + "-search" for app in permitted)}
