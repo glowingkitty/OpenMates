@@ -285,7 +285,7 @@ test('OpenMates app does not offer the retired Welcome focus mode', async ({ pag
 	await openSettingsPanel(page, logCheckpoint);
 	await navigateToAppStore(page, logCheckpoint);
 	await openAllAppsList(page, logCheckpoint);
-	await navigateToApp(page, 'openmates', logCheckpoint, false);
+	await navigateToApp(page, 'openmates', logCheckpoint);
 	const appCards = page.getByTestId('app-store-card');
 	await expect(appCards.filter({ hasText: /Plan/i }).first()).toBeVisible();
 	await expect(appCards.filter({ hasText: /^Welcome$/i })).toHaveCount(0);
