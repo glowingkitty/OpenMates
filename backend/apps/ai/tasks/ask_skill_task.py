@@ -1659,7 +1659,13 @@ async def _async_process_ai_skill_ask_task(
                 focus.startswith("project-")
                 for focus in (preprocessing_result.relevant_focus_modes or [])
             )
-            if plan_route.should_plan and plan_route.active_focus_id and not request_data.active_focus_id and not project_focus_selected:
+            if (
+                plan_route.should_plan
+                and plan_route.active_focus_id
+                and not request_data.active_focus_id
+                and not project_focus_selected
+                and not getattr(preprocessing_result, "user_requested_focus_only", False)
+            ):
                 request_data.active_focus_id = plan_route.active_focus_id
                 logger.info(
                     f"[Task ID: {task_id}] PLAN_ROUTING: Set active_focus_id='{plan_route.active_focus_id}' "
