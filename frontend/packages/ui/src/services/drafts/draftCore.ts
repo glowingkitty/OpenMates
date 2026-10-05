@@ -25,7 +25,11 @@ export function shouldPreserveSameChatDraftRestore(
 
 	return state.hasUnsavedChanges ||
 		state.isSaveInProgress ||
-		(state.lastSavedContentMarkdown !== null && currentEditorMarkdown !== state.lastSavedContentMarkdown);
+		// A remounted composer is empty while its saved chat state survives.
+		// Only meaningful local content can imply an edit without save flags;
+		// explicit flags above still protect an intentional empty edit.
+		(currentEditorMarkdown.trim().length > 0 && state.lastSavedContentMarkdown !== null &&
+			currentEditorMarkdown !== state.lastSavedContentMarkdown);
 }
 
 export function reconcilePreservedDraftVersion(

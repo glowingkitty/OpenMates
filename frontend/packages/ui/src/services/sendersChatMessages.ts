@@ -1414,6 +1414,7 @@ export async function sendNewMessageImpl(
 
 	// Phase 1 payload: ONLY fields needed for AI processing
 	interface SendMessagePayload {
+		preserve_draft?: boolean;
 		protocol_version?: number;
 		preflight_id?: string;
 		turn_id?: string;
@@ -1473,6 +1474,7 @@ export async function sendNewMessageImpl(
 		test_mock_marker?: string;
 	}
 	let payload: SendMessagePayload = {
+		...(message.preserve_draft === true ? { preserve_draft: true } : {}),
 		chat_id: message.chat_id,
 		parent_id: chat?.parent_id || null,
 		broadcast: ((message as unknown) as Record<string, unknown>).broadcast as boolean || false,

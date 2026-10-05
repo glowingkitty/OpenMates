@@ -10951,3 +10951,412 @@ travel_connection:
   en: "Travel connection"
   de: "Reiseverbindung"
   verified_by_human: []
+
+wiki.learn_more:
+  context: 'Wikipedia fullscreen learning action: learn more'
+  en: Learn more
+  de: Mehr erfahren
+  zh: Learn more
+  es: Aprender más
+  fr: En savoir plus
+  pt: Learn more
+  ru: Learn more
+  ja: Learn more
+  ko: Learn more
+  it: Learn more
+  tr: Learn more
+  vi: Learn more
+  id: Learn more
+  pl: Learn more
+  nl: Learn more
+  ar: Learn more
+  hi: Learn more
+  th: Learn more
+  cs: Learn more
+  sv: Learn more
+  he: Learn more
+  verified_by_human: []
+wiki.login_learning:
+  context: 'Wikipedia fullscreen learning action: login learning'
+  en: Log in to ask questions and save this topic
+  de: Anmelden, um Fragen zu stellen und das Thema zu speichern
+  zh: Log in to ask questions and save this topic
+  es: Inicia sesión para preguntar y guardar este tema
+  fr: Connectez-vous pour poser des questions et enregistrer ce sujet
+  pt: Log in to ask questions and save this topic
+  ru: Log in to ask questions and save this topic
+  ja: Log in to ask questions and save this topic
+  ko: Log in to ask questions and save this topic
+  it: Log in to ask questions and save this topic
+  tr: Log in to ask questions and save this topic
+  vi: Log in to ask questions and save this topic
+  id: Log in to ask questions and save this topic
+  pl: Log in to ask questions and save this topic
+  nl: Log in to ask questions and save this topic
+  ar: Log in to ask questions and save this topic
+  hi: Log in to ask questions and save this topic
+  th: Log in to ask questions and save this topic
+  cs: Log in to ask questions and save this topic
+  sv: Log in to ask questions and save this topic
+  he: Log in to ask questions and save this topic
+  verified_by_human: []
+wiki.interest_saved:
+  context: 'Wikipedia fullscreen learning action: interest saved'
+  en: Saved to your learning goals
+  de: In deinen Lernzielen gespeichert
+  zh: Saved to your learning goals
+  es: Guardado en tus objetivos de aprendizaje
+  fr: Enregistré dans vos objectifs d’apprentissage
+  pt: Saved to your learning goals
+  ru: Saved to your learning goals
+  ja: Saved to your learning goals
+  ko: Saved to your learning goals
+  it: Saved to your learning goals
+  tr: Saved to your learning goals
+  vi: Saved to your learning goals
+  id: Saved to your learning goals
+  pl: Saved to your learning goals
+  nl: Saved to your learning goals
+  ar: Saved to your learning goals
+  hi: Saved to your learning goals
+  th: Saved to your learning goals
+  cs: Saved to your learning goals
+  sv: Saved to your learning goals
+  he: Saved to your learning goals
+  verified_by_human: []
+wiki.edit_interest:
+  context: 'Wikipedia fullscreen learning action: edit interest'
+  en: Edit learning goal
+  de: Lernziel bearbeiten
+  zh: Edit learning goal
+  es: Editar objetivo
+  fr: Modifier l’objectif
+  pt: Edit learning goal
+  ru: Edit learning goal
+  ja: Edit learning goal
+  ko: Edit learning goal
+  it: Edit learning goal
+  tr: Edit learning goal
+  vi: Edit learning goal
+  id: Edit learning goal
+  pl: Edit learning goal
+  nl: Edit learning goal
+  ar: Edit learning goal
+  hi: Edit learning goal
+  th: Edit learning goal
+  cs: Edit learning goal
+  sv: Edit learning goal
+  he: Edit learning goal
+  verified_by_human: []
+wiki.saving_interest:
+  context: 'Wikipedia fullscreen learning action: saving interest'
+  en: Saving…
+  de: Wird gespeichert…
+  zh: Saving…
+  es: Guardando…
+  fr: Enregistrement…
+  pt: Saving…
+  ru: Saving…
+  ja: Saving…
+  ko: Saving…
+  it: Saving…
+  tr: Saving…
+  vi: Saving…
+  id: Saving…
+  pl: Saving…
+  nl: Saving…
+  ar: Saving…
+  hi: Saving…
+  th: Saving…
+  cs: Saving…
+  sv: Saving…
+  he: Saving…
+  verified_by_human: []
+wiki.save_interest:
+  context: 'Wikipedia fullscreen learning action: save interest'
+  en: I want to learn more about this
+  de: Darüber möchte ich mehr lernen
+  zh: I want to learn more about this
+  es: Quiero aprender más sobre esto
+  fr: Je veux en apprendre davantage
+  pt: I want to learn more about this
+  ru: I want to learn more about this
+  ja: I want to learn more about this
+  ko: I want to learn more about this
+  it: I want to learn more about this
+  tr: I want to learn more about this
+  vi: I want to learn more about this
+  id: I want to learn more about this
+  pl: I want to learn more about this
+  nl: I want to learn more about this
+  ar: I want to learn more about this
+  hi: I want to learn more about this
+  th: I want to learn more about this
+  cs: I want to learn more about this
+  sv: I want to learn more about this
+  he: I want to learn more about this
+  verified_by_human: []
+wiki.memory_privacy:
+  context: 'Wikipedia fullscreen learning action: memory privacy'
+  en: Saved privately. Your existing memory-sharing settings still apply.
+  de: Privat gespeichert. Deine bestehenden Freigabeeinstellungen für Erinnerungen gelten weiterhin.
+  zh: Saved privately. Your existing memory-sharing settings still apply.
+  es: Guardado de forma privada. Se mantienen tus ajustes para compartir recuerdos.
+  fr: Enregistré en privé. Vos réglages de partage des souvenirs restent applicables.
+  pt: Saved privately. Your existing memory-sharing settings still apply.
+  ru: Saved privately. Your existing memory-sharing settings still apply.
+  ja: Saved privately. Your existing memory-sharing settings still apply.
+  ko: Saved privately. Your existing memory-sharing settings still apply.
+  it: Saved privately. Your existing memory-sharing settings still apply.
+  tr: Saved privately. Your existing memory-sharing settings still apply.
+  vi: Saved privately. Your existing memory-sharing settings still apply.
+  id: Saved privately. Your existing memory-sharing settings still apply.
+  pl: Saved privately. Your existing memory-sharing settings still apply.
+  nl: Saved privately. Your existing memory-sharing settings still apply.
+  ar: Saved privately. Your existing memory-sharing settings still apply.
+  hi: Saved privately. Your existing memory-sharing settings still apply.
+  th: Saved privately. Your existing memory-sharing settings still apply.
+  cs: Saved privately. Your existing memory-sharing settings still apply.
+  sv: Saved privately. Your existing memory-sharing settings still apply.
+  he: Saved privately. Your existing memory-sharing settings still apply.
+  verified_by_human: []
+wiki.loading_questions:
+  context: 'Wikipedia fullscreen learning action: loading questions'
+  en: Preparing questions…
+  de: Fragen werden vorbereitet…
+  zh: Preparing questions…
+  es: Preparando preguntas…
+  fr: Préparation des questions…
+  pt: Preparing questions…
+  ru: Preparing questions…
+  ja: Preparing questions…
+  ko: Preparing questions…
+  it: Preparing questions…
+  tr: Preparing questions…
+  vi: Preparing questions…
+  id: Preparing questions…
+  pl: Preparing questions…
+  nl: Preparing questions…
+  ar: Preparing questions…
+  hi: Preparing questions…
+  th: Preparing questions…
+  cs: Preparing questions…
+  sv: Preparing questions…
+  he: Preparing questions…
+  verified_by_human: []
+wiki.guide_error:
+  context: 'Wikipedia fullscreen learning action: guide error'
+  en: Questions are unavailable right now. You can still read or save this article.
+  de: Fragen sind gerade nicht verfügbar. Du kannst den Artikel weiterhin lesen oder speichern.
+  zh: Questions are unavailable right now. You can still read or save this article.
+  es: Las preguntas no están disponibles. Puedes leer o guardar el artículo.
+  fr: Les questions sont indisponibles. Vous pouvez lire ou enregistrer l’article.
+  pt: Questions are unavailable right now. You can still read or save this article.
+  ru: Questions are unavailable right now. You can still read or save this article.
+  ja: Questions are unavailable right now. You can still read or save this article.
+  ko: Questions are unavailable right now. You can still read or save this article.
+  it: Questions are unavailable right now. You can still read or save this article.
+  tr: Questions are unavailable right now. You can still read or save this article.
+  vi: Questions are unavailable right now. You can still read or save this article.
+  id: Questions are unavailable right now. You can still read or save this article.
+  pl: Questions are unavailable right now. You can still read or save this article.
+  nl: Questions are unavailable right now. You can still read or save this article.
+  ar: Questions are unavailable right now. You can still read or save this article.
+  hi: Questions are unavailable right now. You can still read or save this article.
+  th: Questions are unavailable right now. You can still read or save this article.
+  cs: Questions are unavailable right now. You can still read or save this article.
+  sv: Questions are unavailable right now. You can still read or save this article.
+  he: Questions are unavailable right now. You can still read or save this article.
+  verified_by_human: []
+wiki.retry_questions:
+  context: 'Wikipedia fullscreen learning action: retry questions'
+  en: Try again
+  de: Erneut versuchen
+  zh: Try again
+  es: Reintentar
+  fr: Réessayer
+  pt: Try again
+  ru: Try again
+  ja: Try again
+  ko: Try again
+  it: Try again
+  tr: Try again
+  vi: Try again
+  id: Try again
+  pl: Try again
+  nl: Try again
+  ar: Try again
+  hi: Try again
+  th: Try again
+  cs: Try again
+  sv: Try again
+  he: Try again
+  verified_by_human: []
+wiki.questions:
+  context: 'Wikipedia fullscreen learning action: questions'
+  en: Explore with a question
+  de: Mit einer Frage weiterlernen
+  zh: Explore with a question
+  es: Explorar con una pregunta
+  fr: Explorer avec une question
+  pt: Explore with a question
+  ru: Explore with a question
+  ja: Explore with a question
+  ko: Explore with a question
+  it: Explore with a question
+  tr: Explore with a question
+  vi: Explore with a question
+  id: Explore with a question
+  pl: Explore with a question
+  nl: Explore with a question
+  ar: Explore with a question
+  hi: Explore with a question
+  th: Explore with a question
+  cs: Explore with a question
+  sv: Explore with a question
+  he: Explore with a question
+  verified_by_human: []
+wiki.question_existing_chat:
+  context: 'Wikipedia fullscreen learning action: question existing chat'
+  en: Choose a question to send it in this chat. Your draft will be kept.
+  de: Wähle eine Frage, um sie in diesem Chat zu senden. Dein Entwurf bleibt erhalten.
+  zh: Choose a question to send it in this chat. Your draft will be kept.
+  es: Elige una pregunta para enviarla en este chat. Se conservará tu borrador.
+  fr: Choisissez une question à envoyer dans ce chat. Votre brouillon sera conservé.
+  pt: Choose a question to send it in this chat. Your draft will be kept.
+  ru: Choose a question to send it in this chat. Your draft will be kept.
+  ja: Choose a question to send it in this chat. Your draft will be kept.
+  ko: Choose a question to send it in this chat. Your draft will be kept.
+  it: Choose a question to send it in this chat. Your draft will be kept.
+  tr: Choose a question to send it in this chat. Your draft will be kept.
+  vi: Choose a question to send it in this chat. Your draft will be kept.
+  id: Choose a question to send it in this chat. Your draft will be kept.
+  pl: Choose a question to send it in this chat. Your draft will be kept.
+  nl: Choose a question to send it in this chat. Your draft will be kept.
+  ar: Choose a question to send it in this chat. Your draft will be kept.
+  hi: Choose a question to send it in this chat. Your draft will be kept.
+  th: Choose a question to send it in this chat. Your draft will be kept.
+  cs: Choose a question to send it in this chat. Your draft will be kept.
+  sv: Choose a question to send it in this chat. Your draft will be kept.
+  he: Choose a question to send it in this chat. Your draft will be kept.
+  verified_by_human: []
+wiki.question_new_chat:
+  context: 'Wikipedia fullscreen learning action: question new chat'
+  en: Choose a question to start a new learning chat.
+  de: Wähle eine Frage, um einen neuen Lernchat zu starten.
+  zh: Choose a question to start a new learning chat.
+  es: Elige una pregunta para iniciar un nuevo chat de aprendizaje.
+  fr: Choisissez une question pour démarrer un nouveau chat d’apprentissage.
+  pt: Choose a question to start a new learning chat.
+  ru: Choose a question to start a new learning chat.
+  ja: Choose a question to start a new learning chat.
+  ko: Choose a question to start a new learning chat.
+  it: Choose a question to start a new learning chat.
+  tr: Choose a question to start a new learning chat.
+  vi: Choose a question to start a new learning chat.
+  id: Choose a question to start a new learning chat.
+  pl: Choose a question to start a new learning chat.
+  nl: Choose a question to start a new learning chat.
+  ar: Choose a question to start a new learning chat.
+  hi: Choose a question to start a new learning chat.
+  th: Choose a question to start a new learning chat.
+  cs: Choose a question to start a new learning chat.
+  sv: Choose a question to start a new learning chat.
+  he: Choose a question to start a new learning chat.
+  verified_by_human: []
+wiki.related_articles:
+  context: 'Wikipedia fullscreen learning action: related articles'
+  en: Related articles
+  de: Verwandte Artikel
+  zh: Related articles
+  es: Artículos relacionados
+  fr: Articles connexes
+  pt: Related articles
+  ru: Related articles
+  ja: Related articles
+  ko: Related articles
+  it: Related articles
+  tr: Related articles
+  vi: Related articles
+  id: Related articles
+  pl: Related articles
+  nl: Related articles
+  ar: Related articles
+  hi: Related articles
+  th: Related articles
+  cs: Related articles
+  sv: Related articles
+  he: Related articles
+  verified_by_human: []
+wiki.question_error:
+  context: 'Wikipedia fullscreen learning action: question error'
+  en: The question could not be sent. Return to the original chat and try again.
+  de: Die Frage konnte nicht gesendet werden. Kehre zum ursprünglichen Chat zurück und versuche es erneut.
+  zh: The question could not be sent. Return to the original chat and try again.
+  es: No se pudo enviar la pregunta. Vuelve al chat original y reintenta.
+  fr: La question n’a pas pu être envoyée. Revenez au chat d’origine et réessayez.
+  pt: The question could not be sent. Return to the original chat and try again.
+  ru: The question could not be sent. Return to the original chat and try again.
+  ja: The question could not be sent. Return to the original chat and try again.
+  ko: The question could not be sent. Return to the original chat and try again.
+  it: The question could not be sent. Return to the original chat and try again.
+  tr: The question could not be sent. Return to the original chat and try again.
+  vi: The question could not be sent. Return to the original chat and try again.
+  id: The question could not be sent. Return to the original chat and try again.
+  pl: The question could not be sent. Return to the original chat and try again.
+  nl: The question could not be sent. Return to the original chat and try again.
+  ar: The question could not be sent. Return to the original chat and try again.
+  hi: The question could not be sent. Return to the original chat and try again.
+  th: The question could not be sent. Return to the original chat and try again.
+  cs: The question could not be sent. Return to the original chat and try again.
+  sv: The question could not be sent. Return to the original chat and try again.
+  he: The question could not be sent. Return to the original chat and try again.
+  verified_by_human: []
+wiki.save_error:
+  context: 'Wikipedia fullscreen learning action: save error'
+  en: This topic could not be saved. Please try again.
+  de: Das Thema konnte nicht gespeichert werden. Bitte versuche es erneut.
+  zh: This topic could not be saved. Please try again.
+  es: No se pudo guardar el tema. Reintenta.
+  fr: Ce sujet n’a pas pu être enregistré. Réessayez.
+  pt: This topic could not be saved. Please try again.
+  ru: This topic could not be saved. Please try again.
+  ja: This topic could not be saved. Please try again.
+  ko: This topic could not be saved. Please try again.
+  it: This topic could not be saved. Please try again.
+  tr: This topic could not be saved. Please try again.
+  vi: This topic could not be saved. Please try again.
+  id: This topic could not be saved. Please try again.
+  pl: This topic could not be saved. Please try again.
+  nl: This topic could not be saved. Please try again.
+  ar: This topic could not be saved. Please try again.
+  hi: This topic could not be saved. Please try again.
+  th: This topic could not be saved. Please try again.
+  cs: This topic could not be saved. Please try again.
+  sv: This topic could not be saved. Please try again.
+  he: This topic could not be saved. Please try again.
+  verified_by_human: []
+wiki.source_attribution:
+  context: 'Wikipedia fullscreen learning action: source attribution'
+  en: 'Source: Wikipedia — CC BY-SA 4.0'
+  de: 'Quelle: Wikipedia — CC BY-SA 4.0'
+  zh: 'Source: Wikipedia — CC BY-SA 4.0'
+  es: 'Fuente: Wikipedia — CC BY-SA 4.0'
+  fr: 'Source : Wikipédia — CC BY-SA 4.0'
+  pt: 'Source: Wikipedia — CC BY-SA 4.0'
+  ru: 'Source: Wikipedia — CC BY-SA 4.0'
+  ja: 'Source: Wikipedia — CC BY-SA 4.0'
+  ko: 'Source: Wikipedia — CC BY-SA 4.0'
+  it: 'Source: Wikipedia — CC BY-SA 4.0'
+  tr: 'Source: Wikipedia — CC BY-SA 4.0'
+  vi: 'Source: Wikipedia — CC BY-SA 4.0'
+  id: 'Source: Wikipedia — CC BY-SA 4.0'
+  pl: 'Source: Wikipedia — CC BY-SA 4.0'
+  nl: 'Source: Wikipedia — CC BY-SA 4.0'
+  ar: 'Source: Wikipedia — CC BY-SA 4.0'
+  hi: 'Source: Wikipedia — CC BY-SA 4.0'
+  th: 'Source: Wikipedia — CC BY-SA 4.0'
+  cs: 'Source: Wikipedia — CC BY-SA 4.0'
+  sv: 'Source: Wikipedia — CC BY-SA 4.0'
+  he: 'Source: Wikipedia — CC BY-SA 4.0'
+  verified_by_human: []

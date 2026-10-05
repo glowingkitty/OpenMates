@@ -126,6 +126,8 @@
     import { downloadChatAsZip } from '../services/zipExportService'; // For context menu download action
     import { notificationStore } from '../stores/notificationStore'; // For context menu action feedback
     import { appSettingsMemoriesStore } from '../stores/appSettingsMemoriesStore';
+    import { findWikipediaStudyInterest, saveWikipediaStudyInterest } from '../services/wikipediaStudyInterest';
+    import type { WikipediaArticleIdentity, WikipediaRelatedArticle } from '../utils/wikipediaLearning';
     import { convertDemoChatToChat } from '../demo_chats/convertToChat'; // Import conversion function
     import { incognitoChatService } from '../services/incognitoChatService'; // Import incognito chat service
     import { anonymousChatStorage } from '../services/anonymousChatStorage';
@@ -318,6 +320,7 @@
     };
 
     type MessageInputFieldRef = {
+        sendPublicQuestion: (question: string, article: WikipediaArticleIdentity, targetChatId: string | null) => Promise<boolean>;
         setDraftContent: (chatId: string | null, content: Content | null, version: number, isRemote: boolean) => void;
         setSuggestionText: (text: string) => void;
         replaceDraftWithPlainText?: (chatId: string | null, text: string, version: number, shouldPersist?: boolean) => Promise<void>;
@@ -923,8 +926,10 @@
 
     // Wikipedia fullscreen — triggered by clicking a wiki inline link in an assistant message
     let showWikiFullscreen = $state(false);
+    let wikiOriginChatId = $state<string | null>(null);
     let wikiFullscreenData = $state<{
         wikiTitle: string;
+        language?: string | null;
         wikidataId?: string | null;
         displayText: string;
         thumbnailUrl?: string | null;
@@ -1756,6 +1761,7 @@
     function handleWikiFullscreen(event: CustomEvent) {
         const detail = event.detail as {
             wikiTitle: string;
+            language?: string | null;
             wikidataId?: string | null;
             displayText: string;
             thumbnailUrl?: string | null;
@@ -1769,8 +1775,39 @@
         }
         wikiFullscreenData = detail;
         wikiFullscreenHasChatContext = detail.hasChatContext ?? (!showWelcome && !!currentChat?.chat_id);
+        wikiOriginChatId = wikiFullscreenHasChatContext && currentChat?.chat_id && !isPublicChat(currentChat.chat_id)
+            && !currentChat.is_shared_by_others ? currentChat.chat_id : null;
+        wikiFullscreenHasChatContext = !!wikiOriginChatId;
         showWikiFullscreen = true;
         console.debug('[ActiveChat] Opening Wikipedia fullscreen for:', detail.wikiTitle);
+    }
+
+    async function sendWikiQuestion(question: string, article: WikipediaArticleIdentity): Promise<boolean> {
+        if (!$authStore.isAuthenticated || !messageInputFieldRef) return false;
+        if (wikiOriginChatId && currentChat?.chat_id !== wikiOriginChatId) return false;
+        return messageInputFieldRef.sendPublicQuestion(question, article, wikiOriginChatId);
+    }
+
+    function openRelatedWikiArticle(article: WikipediaRelatedArticle) {
+        // Keep the chat captured when the first article was opened.
+        wikiFullscreenData = { wikiTitle: article.canonical_title, displayText: article.title,
+            language: article.language, description: article.description };
+    }
+
+    async function openWikiStudyInterest(id: string) {
+        const owner = $userProfile.user_id;
+        const openingArticle = wikiFullscreenData;
+        const openingChatId = currentChat?.chat_id;
+        if (!$authStore.isAuthenticated || !owner) return;
+        // Opening the Apps editor replaces the composer and cancels pending
+        // debounced saves. Persist its draft before changing the workspace.
+        await messageInputFieldRef?.flushCurrentDraft?.();
+        if (!$authStore.isAuthenticated || $userProfile.user_id !== owner
+            || wikiFullscreenData !== openingArticle || currentChat?.chat_id !== openingChatId) return;
+        showWikiFullscreen = false;
+        wikiFullscreenData = null;
+        settingsDeepLink.set(`apps/study/settings_memories/learning_goals/entry/${id}/edit`);
+        panelState.openSettings();
     }
 
     // Handler for embed fullscreen events (from embed renderers)
@@ -14900,18 +14937,28 @@
                     <!-- Key on wikiTitle so clicking another wiki link remounts the fullscreen
                          with the new article (fresh fetch, reset state) — same pattern as
                          regular embed fullscreen keyed on ${embedId}:${focusChildEmbedId}. -->
-                    {#key wikiFullscreenData.wikiTitle}
+                    {#key `${wikiFullscreenData.language || ""}:${wikiFullscreenData.wikiTitle}`}
+                        {@const openedWikiArticle = wikiFullscreenData}
                         {#await loadWikipediaFullscreenComponent() then module}
                             {#if module}
                             <module.default
                                 wikiTitle={wikiFullscreenData.wikiTitle}
+                                language={wikiFullscreenData.language}
+                                isAuthenticated={$authStore.isAuthenticated}
+                                hasChatContext={wikiFullscreenHasChatContext}
+                                onSendQuestion={sendWikiQuestion}
+                                onSaveInterest={saveWikipediaStudyInterest}
+                                onFindInterest={findWikipediaStudyInterest}
+                                onOpenInterest={openWikiStudyInterest}
+                                onRelatedArticle={openRelatedWikiArticle}
+                                onAuthenticate={() => { showWikiFullscreen = false; wikiFullscreenData = null; loginInterfaceOpen.set(true); }}
                                 wikidataId={wikiFullscreenData.wikidataId}
                                 displayText={wikiFullscreenData.displayText}
                                 thumbnailUrl={wikiFullscreenData.thumbnailUrl}
                                 description={wikiFullscreenData.description}
                                 showChatButton={showChatButtonInFullscreen}
                                 onShowChat={handleShowChat}
-                                onClose={() => { showWikiFullscreen = false; wikiFullscreenData = null; wikiFullscreenHasChatContext = false; }}
+                                onClose={() => { if (wikiFullscreenData === openedWikiArticle) { showWikiFullscreen = false; wikiFullscreenData = null; wikiFullscreenHasChatContext = false; } }}
                             />
                             {:else}
                                 <div class="embed-fullscreen-fallback">

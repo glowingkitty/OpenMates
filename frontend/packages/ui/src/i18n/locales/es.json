@@ -312,13 +312,13 @@
       "learn_topic": {
         "text": "Aprender tema",
         "description": {
-          "text": "Aprende con lecciones adaptativas y recordatorios."
+          "text": "Comprende, practica y comprueba lo que puedes explicar por ti mismo."
         }
       },
       "test_knowledge": {
         "text": "Probar conocimiento",
         "description": {
-          "text": "Pon a prueba tu conocimiento con un quiz."
+          "text": "Comprueba tu comprensión, detecta lagunas y practica con nuevas preguntas."
         }
       },
       "socratic_questioning": {
@@ -7507,6 +7507,57 @@
       },
       "source_wikipedia": {
         "text": "Fuente: Wikipedia — contenido bajo CC BY-SA 4.0"
+      },
+      "learn_more": {
+        "text": "Aprender más"
+      },
+      "login_learning": {
+        "text": "Inicia sesión para preguntar y guardar este tema"
+      },
+      "interest_saved": {
+        "text": "Guardado en tus objetivos de aprendizaje"
+      },
+      "edit_interest": {
+        "text": "Editar objetivo"
+      },
+      "saving_interest": {
+        "text": "Guardando…"
+      },
+      "save_interest": {
+        "text": "Quiero aprender más sobre esto"
+      },
+      "memory_privacy": {
+        "text": "Guardado de forma privada. Se mantienen tus ajustes para compartir recuerdos."
+      },
+      "loading_questions": {
+        "text": "Preparando preguntas…"
+      },
+      "guide_error": {
+        "text": "Las preguntas no están disponibles. Puedes leer o guardar el artículo."
+      },
+      "retry_questions": {
+        "text": "Reintentar"
+      },
+      "questions": {
+        "text": "Explorar con una pregunta"
+      },
+      "question_existing_chat": {
+        "text": "Elige una pregunta para enviarla en este chat. Se conservará tu borrador."
+      },
+      "question_new_chat": {
+        "text": "Elige una pregunta para iniciar un nuevo chat de aprendizaje."
+      },
+      "related_articles": {
+        "text": "Artículos relacionados"
+      },
+      "question_error": {
+        "text": "No se pudo enviar la pregunta. Vuelve al chat original y reintenta."
+      },
+      "save_error": {
+        "text": "No se pudo guardar el tema. Reintenta."
+      },
+      "source_attribution": {
+        "text": "Fuente: Wikipedia — CC BY-SA 4.0"
       }
     },
     "music_generate": {

@@ -312,13 +312,13 @@
       "learn_topic": {
         "text": "Thema lernen",
         "description": {
-          "text": "Lerne mit adaptiven Lektionen und Erinnerungen."
+          "text": "Verstehen, üben und prüfen, was du selbst erklären kannst."
         }
       },
       "test_knowledge": {
         "text": "Wissen testen",
         "description": {
-          "text": "Teste dein Wissen mit Quiz-Fragen."
+          "text": "Prüfe dein Verständnis, finde Lücken und übe mit neuen Fragen."
         }
       },
       "socratic_questioning": {
@@ -8353,6 +8353,57 @@
       },
       "source_wikipedia": {
         "text": "Quelle: Wikipedia — Inhalte unter CC BY-SA 4.0"
+      },
+      "learn_more": {
+        "text": "Mehr erfahren"
+      },
+      "login_learning": {
+        "text": "Anmelden, um Fragen zu stellen und das Thema zu speichern"
+      },
+      "interest_saved": {
+        "text": "In deinen Lernzielen gespeichert"
+      },
+      "edit_interest": {
+        "text": "Lernziel bearbeiten"
+      },
+      "saving_interest": {
+        "text": "Wird gespeichert…"
+      },
+      "save_interest": {
+        "text": "Darüber möchte ich mehr lernen"
+      },
+      "memory_privacy": {
+        "text": "Privat gespeichert. Deine bestehenden Freigabeeinstellungen für Erinnerungen gelten weiterhin."
+      },
+      "loading_questions": {
+        "text": "Fragen werden vorbereitet…"
+      },
+      "guide_error": {
+        "text": "Fragen sind gerade nicht verfügbar. Du kannst den Artikel weiterhin lesen oder speichern."
+      },
+      "retry_questions": {
+        "text": "Erneut versuchen"
+      },
+      "questions": {
+        "text": "Mit einer Frage weiterlernen"
+      },
+      "question_existing_chat": {
+        "text": "Wähle eine Frage, um sie in diesem Chat zu senden. Dein Entwurf bleibt erhalten."
+      },
+      "question_new_chat": {
+        "text": "Wähle eine Frage, um einen neuen Lernchat zu starten."
+      },
+      "related_articles": {
+        "text": "Verwandte Artikel"
+      },
+      "question_error": {
+        "text": "Die Frage konnte nicht gesendet werden. Kehre zum ursprünglichen Chat zurück und versuche es erneut."
+      },
+      "save_error": {
+        "text": "Das Thema konnte nicht gespeichert werden. Bitte versuche es erneut."
+      },
+      "source_attribution": {
+        "text": "Quelle: Wikipedia — CC BY-SA 4.0"
       }
     },
     "music_generate": {

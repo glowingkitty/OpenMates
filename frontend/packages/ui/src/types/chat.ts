@@ -72,6 +72,8 @@ export type ProcessingPhase =
   | null;
 
 export interface Message {
+  /** Separate submission, such as a wiki question, that retains the encrypted composer draft. */
+  preserve_draft?: boolean;
   message_id: string; // Unique message identifier (Format: {last_10_chars_of_chat_id}-{uuid_v4})
   chat_id: string; // Identifier of the chat this message belongs to
   role: MessageRole; // 'user' for user messages, 'assistant' for AI/mate messages

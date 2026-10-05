@@ -143,6 +143,11 @@
 		const kitHash = page.url.hash;
 		untrack(() => { workspaceHash = browser ? window.location.hash : kitHash; });
 	});
+	$effect(() => {
+		// Workspace navigation unmounts ActiveChat. Its replacement must load
+		// the selected chat again, including the encrypted composer draft.
+		if (workspaceHashRoute.workspace !== 'chats') lastLoadedChatId = null;
+	});
 
 	const SHORTCUT_OPEN_SEARCH_KEY = 'f';
 	const SHORTCUT_TOGGLE_CHATS_CODE = 'Backslash';

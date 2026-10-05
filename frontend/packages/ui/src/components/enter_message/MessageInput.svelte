@@ -2,6 +2,7 @@
 <script lang="ts">
     import { onMount, onDestroy, tick, untrack } from 'svelte';
     import { Editor } from '@tiptap/core';
+    import type { WikipediaArticleIdentity } from '../../utils/wikipediaLearning';
     import { createEventDispatcher } from 'svelte';
     import { tooltip } from '../../actions/tooltip';
     import { sanitizeText } from '../../utils/textSanitizer';
@@ -5689,6 +5690,43 @@
     export function flushCurrentDraft(): Promise<void> | undefined {
         return flushCurrentEditorDraft(currentChatId);
     }
+    /** Submit a public wiki question through the normal encrypted send path without editing the composer. */
+    export async function sendPublicQuestion(question: string, article: WikipediaArticleIdentity, targetChatId: string | null): Promise<boolean> {
+        if (!$authStore.isAuthenticated || sendClickInProgress || !editor || editor.isDestroyed) return false;
+        if (targetChatId && currentChatId !== targetChatId) return false;
+        const owner = $userProfile.user_id;
+        if (!owner) return false;
+        sendClickInProgress = true;
+        let questionEditor: Editor | null = null;
+        try {
+            await flushCurrentEditorDraft(currentChatId);
+            let selection = modelSelection;
+            const userId = $userProfile.user_id;
+            if (userId && targetChatId) selection = await recoverModelSelection('send', selection, userId, targetChatId);
+            if (!$authStore.isAuthenticated || $userProfile.user_id !== owner) return false;
+            if (targetChatId && currentChatId !== targetChatId) return false;
+            let text = `@wikipedia:${article.language}:${article.canonical_title.replaceAll(' ', '_')} ${question}`;
+            if (selection !== 'auto') {
+                const separator = selection.indexOf('/');
+                if (separator > 0) text = `@ai-model:${selection.slice(separator + 1)}:${selection.slice(0, separator)} ${text}`;
+            }
+            questionEditor = new Editor({
+                extensions: getEditorExtensions(),
+                content: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text }] }] },
+            });
+            // A new chat is selected only after this separate submission is accepted.
+            const pendingEvents: Array<{ type: string; detail?: Record<string, unknown> }> = [];
+            const questionDispatch = targetChatId ? dispatch : (type: string, detail?: Record<string, unknown>) => {
+                pendingEvents.push({ type, detail });
+            };
+            const accepted = await handleSend(questionEditor, questionDispatch, () => {}, targetChatId || crypto.randomUUID(),
+                new Set(), false, () => false, undefined, undefined, { preserveDraft: true });
+            if (accepted === true) for (const event of pendingEvents) dispatch(event.type, event.detail);
+            return accepted === true;
+        } catch { return false; }
+        finally { questionEditor?.destroy(); sendClickInProgress = false; }
+    }
+
     export function sendCurrentMessage() { return handleSendMessage(); }
     export function setSuggestionText(text: string) {
         console.debug('[MessageInput] setSuggestionText called with:', text);

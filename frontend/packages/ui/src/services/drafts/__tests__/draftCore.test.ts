@@ -162,6 +162,31 @@ describe('draftCore setCurrentChatContext', () => {
 });
 
 describe('shouldPreserveSameChatDraftRestore', () => {
+  it('restores a saved same-chat draft into a fresh empty editor', () => {
+    expect(shouldPreserveSameChatDraftRestore('chat-1', 'saved text', '', {
+      currentChatId: 'chat-1',
+      currentUserDraftVersion: 1,
+      hasUnsavedChanges: false,
+      lastSavedContentMarkdown: 'saved text',
+      isSwitchingContext: false,
+      isSaveInProgress: false,
+      newlyCreatedChatIdToSelect: null,
+    })).toBe(false);
+  });
+
+  it.each(['hasUnsavedChanges', 'isSaveInProgress'] as const)('preserves an intentional empty edit while %s', flag => {
+    expect(shouldPreserveSameChatDraftRestore('chat-1', 'saved text', '', {
+      currentChatId: 'chat-1',
+      currentUserDraftVersion: 1,
+      hasUnsavedChanges: false,
+      lastSavedContentMarkdown: 'saved text',
+      isSwitchingContext: false,
+      isSaveInProgress: false,
+      newlyCreatedChatIdToSelect: null,
+      [flag]: true,
+    })).toBe(true);
+  });
+
   it('preserves the editor when a same-chat snapshot is already displayed', () => {
     expect(shouldPreserveSameChatDraftRestore('chat-1', 'saved text', 'saved text', {
       currentChatId: 'chat-1',

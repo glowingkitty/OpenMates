@@ -312,13 +312,13 @@
       "learn_topic": {
         "text": "Learn topic",
         "description": {
-          "text": "Learn with adaptive lessons and reminders."
+          "text": "Build understanding, practise, and check what you can explain yourself."
         }
       },
       "test_knowledge": {
         "text": "Test knowledge",
         "description": {
-          "text": "Test your knowledge with quiz-style questions."
+          "text": "Check your understanding, find gaps, and practise with fresh questions."
         }
       },
       "socratic_questioning": {
@@ -8393,6 +8393,57 @@
       },
       "source_wikipedia": {
         "text": "Source: Wikipedia — content available under CC BY-SA 4.0"
+      },
+      "learn_more": {
+        "text": "Learn more"
+      },
+      "login_learning": {
+        "text": "Log in to ask questions and save this topic"
+      },
+      "interest_saved": {
+        "text": "Saved to your learning goals"
+      },
+      "edit_interest": {
+        "text": "Edit learning goal"
+      },
+      "saving_interest": {
+        "text": "Saving…"
+      },
+      "save_interest": {
+        "text": "I want to learn more about this"
+      },
+      "memory_privacy": {
+        "text": "Saved privately. Your existing memory-sharing settings still apply."
+      },
+      "loading_questions": {
+        "text": "Preparing questions…"
+      },
+      "guide_error": {
+        "text": "Questions are unavailable right now. You can still read or save this article."
+      },
+      "retry_questions": {
+        "text": "Try again"
+      },
+      "questions": {
+        "text": "Explore with a question"
+      },
+      "question_existing_chat": {
+        "text": "Choose a question to send it in this chat. Your draft will be kept."
+      },
+      "question_new_chat": {
+        "text": "Choose a question to start a new learning chat."
+      },
+      "related_articles": {
+        "text": "Related articles"
+      },
+      "question_error": {
+        "text": "The question could not be sent. Return to the original chat and try again."
+      },
+      "save_error": {
+        "text": "This topic could not be saved. Please try again."
+      },
+      "source_attribution": {
+        "text": "Source: Wikipedia — CC BY-SA 4.0"
       }
     },
     "music_generate": {

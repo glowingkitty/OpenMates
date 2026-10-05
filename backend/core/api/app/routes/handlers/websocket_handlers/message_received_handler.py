@@ -7,6 +7,7 @@
 
 from backend.shared.python_utils.chat_failure_notifications import notify_chat_failure
 
+from backend.core.api.app.routes.handlers.websocket_handlers.draft_submission import clear_sent_message_draft
 import logging
 import json
 import hashlib # Import hashlib for hashing user_id
@@ -1231,46 +1232,12 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             
             logger.debug(f"Saved encrypted message {message_id} to cache for chat {chat_id} by user {user_id}. New messages_v: {new_messages_v}")
 
-        # DELETE DRAFT FROM CACHE when message is sent
-        # This ensures draft is not restored on next login (zero-knowledge architecture)
-        # The client will also send a delete_draft message, but we do it here preemptively
-        # to avoid race conditions between message send and draft delete
-        # Skip for incognito chats (drafts are not saved for incognito chats)
-        if not is_incognito:
-            try:
-                deleted_draft_v = await cache_service.increment_and_tombstone_user_draft(
-                    user_id,
-                    chat_id,
-                )
-                if deleted_draft_v is not None:
-                    logger.info(f"Successfully tombstoned draft at version {deleted_draft_v} for chat {chat_id} after message {message_id} was sent")
-                else:
-                    logger.warning(f"Failed to create versioned draft tombstone for chat {chat_id} after message {message_id} was sent")
-                
-                # CRITICAL FIX: ALWAYS broadcast draft deletion to other devices when a message is sent.
-                # This ensures consistent state across all user devices, even if the draft was never
-                # stored on the server (e.g., server cache expired, or draft was only saved locally).
-                # Other devices might have a locally cached draft that needs to be cleared.
-                # The broadcast is intentionally OUTSIDE the inner try/except so that if it throws,
-                # the failure propagates to the outer except (logged as a warning) rather than being
-                # silently swallowed — making broadcast failures visible in logs.
-                if deleted_draft_v is not None:
-                    await manager.broadcast_to_user(
-                        message={
-                            "type": "draft_deleted",
-                            "payload": {"chat_id": chat_id, "draft_v": deleted_draft_v},
-                        },
-                        user_id=user_id,
-                        exclude_device_hash=device_fingerprint_hash
-                    )
-                    logger.info(f"Broadcasted draft_deleted event for chat {chat_id} to other user devices after message send")
-            except Exception as e_draft_delete:
-                # Non-critical error — draft will expire via TTL or be overwritten by the client's
-                # subsequent delete_draft WebSocket message. The reconnect reconciliation
-                # (get_draft_versions) also acts as a fallback for devices that come back online later.
-                logger.warning(f"Error during draft cache deletion or broadcast for chat {chat_id} after message send: {e_draft_delete}")
-        else:
-            logger.debug(f"Skipping draft deletion for incognito chat {chat_id} - drafts are not saved for incognito chats")
+        # A separate submission retains the composer draft on every device.
+        await clear_sent_message_draft(
+            cache_service=cache_service, manager=manager, user_id=user_id,
+            chat_id=chat_id, message_id=message_id, device_hash=device_fingerprint_hash,
+            is_incognito=is_incognito, preserve_draft=payload.get("preserve_draft"),
+        )
 
         # ENCRYPTED MESSAGE FOR AI PROCESSING
         # This handler receives cleartext messages from client for AI inference

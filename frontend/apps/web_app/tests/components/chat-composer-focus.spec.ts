@@ -1,6 +1,7 @@
 // playwright-account: not_required reason=isolated_component_preview
 import { test, expect } from '../helpers/cookie-audit';
 import { waitForComponentPreview } from '../helpers/component-preview';
+import { dismissComposerFocus } from '../helpers/composer-focus';
 
 function preview(component: string, width = 680, variant?: string, theme = 'light') {
   return `/dev/preview/${component}?${new URLSearchParams({ theme, background: theme === 'dark' ? '#171717' : '#dbeafe', width: String(width), chrome: '0', ...(variant ? { variant } : {}) })}`;
@@ -188,7 +189,7 @@ test.describe('Chat composer focus and draft preservation', () => {
       return Math.max(Math.abs(box.width - parent.width), Math.abs(box.height - parent.height));
     })).toBeLessThanOrEqual(1);
     await page.screenshot({ path: test.info().outputPath(`chat-welcome-focused-${width}.png`) });
-    await backdrop.click({ position: { x: 40, y: 40 } });
+    await dismissComposerFocus(page);
     await expect(field).toHaveAttribute('data-focused', 'false');
     await expect(side).not.toHaveAttribute('inert', '');
     await expect(side).toHaveCSS('opacity', '1');

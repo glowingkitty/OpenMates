@@ -297,6 +297,7 @@
 	 * These were not migrated in OPE-276 and still take flat props directly.
 	 */
 	const NEVER_WRAP_FULLSCREEN_PATHS = new Set([
+		'embeds/wiki/WikipediaFullscreen',
 		'apps/AppsResultFullscreen',
 		'embeds/news/NewsEmbedFullscreen',
 		'embeds/pdf/PdfReadEmbedFullscreen',

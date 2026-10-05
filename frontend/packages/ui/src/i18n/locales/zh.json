@@ -312,13 +312,13 @@
       "learn_topic": {
         "text": "学习主题",
         "description": {
-          "text": "通过自适应课程和提醒进行学习。"
+          "text": "建立理解、进行练习，并检验你能否独立解释。"
         }
       },
       "test_knowledge": {
         "text": "测试知识",
         "description": {
-          "text": "通过测验式问题测试你的知识。"
+          "text": "检验理解、发现知识盲点，并通过新问题练习。"
         }
       },
       "socratic_questioning": {
@@ -7507,6 +7507,57 @@
       },
       "source_wikipedia": {
         "text": "来源：维基百科 — 内容依据 CC BY-SA 4.0 许可"
+      },
+      "learn_more": {
+        "text": "Learn more"
+      },
+      "login_learning": {
+        "text": "Log in to ask questions and save this topic"
+      },
+      "interest_saved": {
+        "text": "Saved to your learning goals"
+      },
+      "edit_interest": {
+        "text": "Edit learning goal"
+      },
+      "saving_interest": {
+        "text": "Saving…"
+      },
+      "save_interest": {
+        "text": "I want to learn more about this"
+      },
+      "memory_privacy": {
+        "text": "Saved privately. Your existing memory-sharing settings still apply."
+      },
+      "loading_questions": {
+        "text": "Preparing questions…"
+      },
+      "guide_error": {
+        "text": "Questions are unavailable right now. You can still read or save this article."
+      },
+      "retry_questions": {
+        "text": "Try again"
+      },
+      "questions": {
+        "text": "Explore with a question"
+      },
+      "question_existing_chat": {
+        "text": "Choose a question to send it in this chat. Your draft will be kept."
+      },
+      "question_new_chat": {
+        "text": "Choose a question to start a new learning chat."
+      },
+      "related_articles": {
+        "text": "Related articles"
+      },
+      "question_error": {
+        "text": "The question could not be sent. Return to the original chat and try again."
+      },
+      "save_error": {
+        "text": "This topic could not be saved. Please try again."
+      },
+      "source_attribution": {
+        "text": "Source: Wikipedia — CC BY-SA 4.0"
       }
     },
     "music_generate": {

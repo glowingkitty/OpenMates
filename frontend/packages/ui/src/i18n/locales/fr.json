@@ -312,13 +312,13 @@
       "learn_topic": {
         "text": "Apprendre un sujet",
         "description": {
-          "text": "Apprenez avec des leçons adaptatives et rappels."
+          "text": "Comprenez, pratiquez et vérifiez ce que vous pouvez expliquer vous-même."
         }
       },
       "test_knowledge": {
         "text": "Tester les connaissances",
         "description": {
-          "text": "Testez vos connaissances avec des questions quiz."
+          "text": "Vérifiez votre compréhension, repérez les lacunes et pratiquez avec de nouvelles questions."
         }
       },
       "socratic_questioning": {
@@ -7507,6 +7507,57 @@
       },
       "source_wikipedia": {
         "text": "Source : Wikipédia — contenu sous CC BY-SA 4.0"
+      },
+      "learn_more": {
+        "text": "En savoir plus"
+      },
+      "login_learning": {
+        "text": "Connectez-vous pour poser des questions et enregistrer ce sujet"
+      },
+      "interest_saved": {
+        "text": "Enregistré dans vos objectifs d’apprentissage"
+      },
+      "edit_interest": {
+        "text": "Modifier l’objectif"
+      },
+      "saving_interest": {
+        "text": "Enregistrement…"
+      },
+      "save_interest": {
+        "text": "Je veux en apprendre davantage"
+      },
+      "memory_privacy": {
+        "text": "Enregistré en privé. Vos réglages de partage des souvenirs restent applicables."
+      },
+      "loading_questions": {
+        "text": "Préparation des questions…"
+      },
+      "guide_error": {
+        "text": "Les questions sont indisponibles. Vous pouvez lire ou enregistrer l’article."
+      },
+      "retry_questions": {
+        "text": "Réessayer"
+      },
+      "questions": {
+        "text": "Explorer avec une question"
+      },
+      "question_existing_chat": {
+        "text": "Choisissez une question à envoyer dans ce chat. Votre brouillon sera conservé."
+      },
+      "question_new_chat": {
+        "text": "Choisissez une question pour démarrer un nouveau chat d’apprentissage."
+      },
+      "related_articles": {
+        "text": "Articles connexes"
+      },
+      "question_error": {
+        "text": "La question n’a pas pu être envoyée. Revenez au chat d’origine et réessayez."
+      },
+      "save_error": {
+        "text": "Ce sujet n’a pas pu être enregistré. Réessayez."
+      },
+      "source_attribution": {
+        "text": "Source : Wikipédia — CC BY-SA 4.0"
       }
     },
     "music_generate": {

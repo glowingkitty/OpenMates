@@ -502,6 +502,7 @@ export async function handleSend(
   isSendCancelled: (chatId: string) => boolean = () => false,
   e2eServerContentOverride?: E2ESendServerContentOverride,
   projectFocusDocumentAtSendRequest?: unknown,
+  options: { preserveDraft?: boolean } = {},
 ) {
   const editorTextLength = editor && !editor.isDestroyed ? editor.getText().length : 0;
   console.info("[handleSend] Send invoked", {
@@ -576,7 +577,7 @@ export async function handleSend(
   // content as a draft. The server also clears drafts on message receipt, but
   // the client's debounced save fires afterwards and re-creates the draft.
   console.debug("[handleSend] Preparing draft/deferred checks", { currentChatId });
-  saveDraftDebounced.cancel();
+  if (!options.preserveDraft) saveDraftDebounced.cancel();
   const draftStateBeforeSend = get(draftEditorUIState);
   recordSendDebugStep("draft_state_read", {
     currentChatId,
@@ -1420,7 +1421,7 @@ export async function handleSend(
         },
       });
       sendAccepted = true;
-      if (JSON.stringify(editor.getJSON()) === submittedEditorDocument) {
+      if (!options.preserveDraft && JSON.stringify(editor.getJSON()) === submittedEditorDocument) {
         setHasContent(false);
         resetEditorContent(editor, false);
         await clearCurrentDraft();
@@ -1595,6 +1596,7 @@ export async function handleSend(
       piiMappingsForStorage,
     );
     didCreateMessagePayload = true;
+    if (options.preserveDraft) messagePayload.preserve_draft = true;
     ((messagePayload as unknown) as Record<string, unknown>).broadcast = broadcastToSiblings;
 
     // Optimistically cache the last message so the chat list can show "Sending..." immediately
@@ -1871,14 +1873,13 @@ export async function handleSend(
             messagePayload.created_at;
           existingChat.updated_at = Math.floor(Date.now() / 1000);
 
-          // Clear draft fields after message is sent (especially important for draft chats)
-          existingChat.cleared_draft_v = Math.max(
-            existingChat.cleared_draft_v ?? 0,
-            existingChat.draft_v ?? 0,
-          );
-          existingChat.encrypted_draft_md = null;
-          existingChat.encrypted_draft_preview = null;
-          existingChat.draft_v = 0;
+          // A wiki question is a separate submission, so the composer's draft stays intact.
+          if (!options.preserveDraft) {
+            existingChat.cleared_draft_v = Math.max(existingChat.cleared_draft_v ?? 0, existingChat.draft_v ?? 0);
+            existingChat.encrypted_draft_md = null;
+            existingChat.encrypted_draft_preview = null;
+            existingChat.draft_v = 0;
+          }
 
           await chatDB.updateChat(existingChat);
           chatToUpdate = existingChat;
@@ -1942,7 +1943,7 @@ export async function handleSend(
     // When the user edits a previous message, we need to delete all messages
     // from that point onward (inclusive) so the backend sees a clean history.
     const editState = get(editMessageStore);
-    const isEditSend = !!(editState && editState.chatId === chatIdToUse);
+    const isEditSend = !options.preserveDraft && !!(editState && editState.chatId === chatIdToUse);
     let editCreatedAt: number | undefined;
     if (isEditSend && editState) {
       editCreatedAt = editState.createdAt;
@@ -2020,7 +2021,7 @@ export async function handleSend(
 
       // If a new chat was created, signal it through draftEditorUIState
       // This is what Chats.svelte listens to for selecting new chats.
-      if (isNewChatCreation) {
+      if (isNewChatCreation && !options.preserveDraft) {
         draftEditorUIState.update((state) => ({
           ...state,
           newlyCreatedChatIdToSelect: chatIdToUse,
@@ -2102,6 +2103,16 @@ export async function handleSend(
 			undefined,
 			projectFocusIntent ?? undefined,
 		);
+    if (options.preserveDraft) {
+      // A local admission guard can resolve sendNewMessage after marking the
+      // message failed. Separate wiki submissions must retain their fullscreen
+      // on this rejection rather than reporting acceptance to the caller.
+      const submittedMessage = await chatDB.getMessage(messagePayload.message_id);
+      if (submittedMessage?.status === 'failed') {
+        wsSpan.end();
+        return false;
+      }
+    }
     sendAccepted = true;
 		recordSendDebugStep("send_new_message_complete", {
 			chatIdToUse,
@@ -2130,7 +2141,7 @@ export async function handleSend(
     wsSpan.end();
 
     const composerStillContainsSentDocument = JSON.stringify(editor.getJSON()) === submittedEditorDocument;
-    if (!wasCancelledAfterSend && composerStillContainsSentDocument) {
+    if (!options.preserveDraft && !wasCancelledAfterSend && composerStillContainsSentDocument) {
       setHasContent(false);
       resetEditorContent(editor, false);
     }
@@ -2140,7 +2151,7 @@ export async function handleSend(
     // After successfully sending the message, clear the draft for this chat
     // Ensure we only clear if the message was for the chat currently in the draft editor's context
     const currentDraftState = get(draftEditorUIState);
-    if (!isSendCancelled(chatIdToUse) && composerStillContainsSentDocument && chatIdToUse && currentDraftState.currentChatId === chatIdToUse) {
+    if (!options.preserveDraft && !isSendCancelled(chatIdToUse) && composerStillContainsSentDocument && chatIdToUse && currentDraftState.currentChatId === chatIdToUse) {
       console.info(
         `[handleSend] Message sent for chat ${chatIdToUse}, clearing its draft.`,
       );
