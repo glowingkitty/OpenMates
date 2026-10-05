@@ -6,6 +6,7 @@
 # that bypass prompt injection detection but are processed by LLMs.
 # See: docs/architecture/prompt_injection_protection.md
 
+import asyncio
 import json
 import logging
 import re
@@ -1667,7 +1668,6 @@ async def handle_preprocessing(
                     # Returns True only if a Stripe charge was actually initiated.
                     # Returns False if the top-up was skipped (cooldown, missing config, etc.),
                     # in which case we must NOT sleep — the credits haven't changed.
-                    import asyncio
                     charge_initiated = await billing_service._trigger_low_balance_topup(request_data.user_id, cached_user)
 
                     if charge_initiated:

@@ -1145,6 +1145,16 @@ async def call_preprocessing_llm(
                             "count": len(sanitized_args["decisions"]),
                             "content": "[REDACTED_CONTENT]",
                         }
+                    if (
+                        observability_purpose == "chat_direction_review"
+                        and isinstance(sanitized_args.get("instruction"), str)
+                    ):
+                        # A correction can repeat private goal or Task context. This
+                        # copy is for dev logging only; delivery uses the original.
+                        sanitized_args["instruction"] = {
+                            "length": len(sanitized_args["instruction"]),
+                            "content": "[REDACTED_CONTENT]",
+                        }
                     tc_dict["function_arguments_parsed"] = sanitized_args
                 # Also sanitize function_arguments_raw if it's a string that might contain sensitive data
                 if "function_arguments_raw" in tc_dict and isinstance(tc_dict["function_arguments_raw"], str):

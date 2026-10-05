@@ -103,16 +103,21 @@ async def evaluate_cases(secrets_manager: SecretsManager, *, model_id: str = MOD
             recent_actions=[{"kind": "checkpoint", "summary": action}],
         )
         assessment = DirectionAssessment(outcome, context.fingerprint)
+        failure_code = None
         try:
             review = await review_chat_direction(context, assessment, task_id=case_id,
                 model_id=review_model_id, secrets_manager=secrets_manager)
             actual = review.warranted and bool(review.instruction.strip())
             verified = review.provider_verified
-        except Exception:
+            if not verified:
+                failure_code = "invalid_or_failed_provider_result"
+        except Exception as exc:
             actual, verified = False, False
+            failure_code = type(exc).__name__
         results.append({"case": case_id, "kind": "generative_review", "expected": expected, "actual": actual,
                         "provider_verified": verified, "label_match": actual == expected,
-                        "latency_ms": round((time.perf_counter() - started) * 1000)})
+                        "latency_ms": round((time.perf_counter() - started) * 1000),
+                        "failure_code": failure_code})
     failures = sum(not row["label_match"] or row.get("provider_verified") is False for row in results)
     latencies = sorted(row["latency_ms"] for row in results)
     return {"status": "pass" if not failures else "fail", "case_count": len(results),
