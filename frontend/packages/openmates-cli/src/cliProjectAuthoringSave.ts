@@ -94,7 +94,17 @@ export async function persistCliProjectAuthoringJob(client: OpenMatesClient, job
     expected_base: await projectFileContentHash(original), patch: authoringReplacementPatch(path, original, markdown) }
     : { operation: 'create_file', operation_id: operationId, path, expected_base: null, content: markdown };
   const digest = await projectFileMutationDigest(projectKey, projectId, chatId, mutation);
-  const receipt = await client.getProjectFileRevisionReceipt(projectId, embedId, operationId, chatId, digest, options);
+  let receipt: Record<string, unknown> | null;
+  try {
+    receipt = await client.getProjectFileRevisionReceipt(projectId, embedId, operationId, chatId, digest, options);
+  } catch (error) {
+    // Existing files require a write grant even for receipt lookup. Before the
+    // exact Save click, this one denial means there is no reusable receipt yet.
+    if (settings.write_mode !== 'always_ask' || !error || typeof error !== 'object'
+      || !('code' in error) || error.code !== 'PROJECT_WRITE_APPROVAL_REQUIRED'
+      || !('status' in error) || error.status !== 409) throw error;
+    receipt = null;
+  }
   if (receipt?.status !== 'committed' && settings.write_mode === 'always_ask') {
     if (approvedDigest !== digest) throw new AuthoringSaveApprovalRequired(digest, mutation);
     await fresh();

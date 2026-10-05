@@ -152,3 +152,58 @@ it('updates an exact Focus item/head revision, then retries its receipt without 
   await assert.rejects(persistCliProjectAuthoringJob(client as never, job), /head changed/);
   assert.equal(writes, 1); assert.equal(f.acknowledgements.length, 2);
 });
+
+// contract-test: supporting surface=cli assertions=focus-modes.project-authoring-persistence,focus-modes.project-authoring-click
+it('reviews an Update after only the typed pre-approval receipt denial, then commits on exact Save', async () => {
+  const f = await fixture('always_ask');
+  f.items.push({ project_item_id: 'result', item_type: 'embed', updated_at: 1,
+    target_id_encrypted: await encryptWithAesGcmCombined('existing-embed', key),
+    encrypted_metadata: await encryptWithAesGcmCombined(JSON.stringify({ path: '.openmates/focuses/result/SKILL.md' }), key) });
+  const job = { ...draftJob(), action: 'update', expected_revision: projectItemRevision(f.items[0]),
+    draft: { ...draftJob().draft, expected_embed_revision: 1 } };
+  let approved = false, committed = false, writes = 0, acknowledgements = 0;
+  const denial = (code: string) => Object.assign(new Error(code), { code, status: 409 });
+  const client = { ...f.client,
+    async readEncryptedProjectFile() { return { revision: 1, embedKey: key, content: { code: 'Old Focus content.\n' }, hasInitialHistory: true }; },
+    async getProjectFileRevisionReceipt() {
+      if (!approved) throw denial('PROJECT_WRITE_APPROVAL_REQUIRED');
+      return committed ? { status: 'committed', current_revision: 2 } : null;
+    },
+    async approveProjectWrite(_project: string, input: Record<string, unknown>) {
+      assert.equal(input.operation_id, job.draft.save_operation_id); approved = true;
+    },
+    async commitHostedProjectFileRevision(payload: Record<string, unknown>) {
+      writes++; assert.equal(payload.expected_revision, 1); committed = true;
+      return { status: 'committed', current_revision: 2 };
+    },
+    async updateProjectItemMetadata(_project: string, _id: string, ciphertext: string) {
+      f.items[0].encrypted_metadata = ciphertext;
+      f.items[0].updated_at = 2;
+    },
+    async acknowledgeProjectAuthoringSave() { acknowledgements++; return { status: 'ready' }; },
+  };
+  let proposal: AuthoringSaveApprovalRequired | undefined;
+  await assert.rejects(persistCliProjectAuthoringJob(client as never, job), error => {
+    assert.ok(error instanceof AuthoringSaveApprovalRequired); proposal = error; return true;
+  });
+  assert.equal(approved, false); assert.equal(writes, 0); assert.equal(acknowledgements, 0);
+  assert.equal((await persistCliProjectAuthoringJob(client as never, job, proposal!.digest)).status, 'ready');
+  assert.equal(approved, true); assert.equal(writes, 1); assert.equal(acknowledgements, 1);
+});
+
+// contract-test: supporting surface=cli assertions=focus-modes.project-authoring-persistence
+it('does not treat an unrelated receipt 409 as Save approval or acknowledge it', async () => {
+  const f = await fixture('always_ask');
+  let approvals = 0, acknowledgements = 0;
+  const client = { ...f.client,
+    async getProjectFileRevisionReceipt() {
+      throw Object.assign(new Error('PROJECT_WRITE_APPROVAL_MISMATCH'),
+        { code: 'PROJECT_WRITE_APPROVAL_MISMATCH', status: 409 });
+    },
+    async approveProjectWrite() { approvals++; },
+    async acknowledgeProjectAuthoringSave() { acknowledgements++; return { status: 'ready' }; },
+  };
+  await assert.rejects(persistCliProjectAuthoringJob(client as never, draftJob()),
+    /PROJECT_WRITE_APPROVAL_MISMATCH/);
+  assert.equal(approvals, 0); assert.equal(acknowledgements, 0);
+});

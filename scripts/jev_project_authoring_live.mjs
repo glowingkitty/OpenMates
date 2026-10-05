@@ -97,6 +97,24 @@ client.requestProjectAuthoringRecommendations = async (projectId, input) => {
   });
   return requestRecommendations(projectId, input);
 };
+for (const method of ['listNotifications', 'getProjectSettings', 'getChatEncryptionKey', 'getProjectFileRevisionReceipt', 'readEncryptedProjectFile', 'approveProjectWrite', 'commitHostedProjectFileRevision', 'acknowledgeProjectAuthoringSave', 'updateProjectItemMetadata']) {
+  const original = client[method].bind(client);
+  client[method] = async (...arguments_) => {
+    record('encrypted_save_stage_started', { method });
+    try {
+      const result = await original(...arguments_);
+      record('encrypted_save_stage_returned', { method,
+        ...(typeof result?.status === 'string' && /^[a-z_]{1,40}$/.test(result.status) ? { status: result.status } : {}),
+        ...(typeof result?.code === 'string' && /^[A-Z][A-Z0-9_]{1,100}$/.test(result.code) ? { code: result.code } : {}) });
+      return result;
+    } catch (error) {
+      record('encrypted_save_stage_failed', { method, ...(typeof error?.cause?.code === 'string' && /^[A-Z][A-Z0-9_]{1,100}$/.test(error.cause.code) ? { cause_code: error.cause.code } : {}), error_class: ['Error', 'TypeError', 'SyntaxError', 'WebSocketProtocolError'].includes(error?.name) ? error.name : 'other',
+        ...(Number.isSafeInteger(error?.status) ? { http_status: error.status } : {}),
+        ...(typeof error?.code === 'string' && /^[A-Z][A-Z0-9_]{1,100}$/.test(error.code) ? { code: error.code } : {}) });
+      throw error;
+    }
+  };
+}
 async function waitUntil(probe, code, timeout = 300_000) {
   const deadline = Date.now() + timeout;
   while (Date.now() < deadline) { const value = await probe(); if (value) return value; await delay(1_500); }
@@ -226,7 +244,8 @@ async function persist(job) {
   requireValue(ready.status === 'ready', 'server_ready_ack_required');
   const notification = await waitUntil(async () => {
     const data = await client.listNotifications();
-    return data.events?.find(event => event.type === 'project.authoring_ready' && event.routing?.job_id === job.job_id);
+    requireValue(Array.isArray(data?.events), 'notification_events_shape_required');
+    return data.events.find(event => event.type === 'project.authoring_ready' && event.routing?.job_id === job.job_id);
   }, 'ready_notification_required', 30_000);
   requireValue(notification.routing.project_id === fixture.projectId && notification.routing.result_id === ready.result_id,
     'notification_saved_result_identity_required');
@@ -324,7 +343,7 @@ try {
   succeeded = true;
 } catch (error) {
   failure = typeof error?.code === 'string' ? error.code : 'live_authoring_step_failed';
-  record('failure', { code: failure });
+  record('failure', { code: failure, error_class: ['Error', 'TypeError', 'SyntaxError', 'WebSocketProtocolError'].includes(error?.name) ? error.name : 'other' });
 } finally {
   stopFileExecutor?.();
   fileSocket?.close();

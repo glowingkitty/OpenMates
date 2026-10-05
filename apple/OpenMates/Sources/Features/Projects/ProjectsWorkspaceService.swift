@@ -1246,10 +1246,16 @@ final class NativeProjectAuthoringClient: ObservableObject {
             : ["path": path, "expected_base": ProjectHostedFileExecutor.sha256(original), "patch": Self.replacementPatch(path: path, old: original, next: markdown)])
         let descriptor = ProjectFileJob(authoringOperationID: operationID, chatID: job.chatID, projectID: project.id, mutation: mutation)
         let digest = try mutation.commitment(projectID: project.id, chatID: job.chatID, key: project.key)
-        let storedReceipt = try await adapter.receipt(embedID: embedID, job: descriptor, digest: digest)
-        let receipt = storedReceipt?["status"] as? String == "committed" ? storedReceipt : nil
         let settings = try await service.settings(project: project, fence: job.fence)
         guard !settings.selectionRequired else { throw ProjectsWorkspaceError.invalidContext }
+        let storedReceipt: [String: Any]?
+        do {
+            storedReceipt = try await adapter.receipt(embedID: embedID, job: descriptor, digest: digest)
+        } catch where Self.isPreapprovalReceiptDenial(error, writeMode: settings.writeMode) {
+            // The server requires explicit write approval even for this receipt lookup.
+            storedReceipt = nil
+        }
+        let receipt = storedReceipt?["status"] as? String == "committed" ? storedReceipt : nil
         if receipt == nil && settings.writeMode == .alwaysAsk {
             guard approved else { throw ProjectsWorkspaceError.invalidContext }
             try await fresh(focus, chatID: job.chatID, projectID: project.id, fence: job.fence)
@@ -1272,6 +1278,12 @@ final class NativeProjectAuthoringClient: ObservableObject {
         guard let saved = (try await detail(project, fence: job.fence)).first(where: { $0["project_item_id"] as? String == id }) else { throw ProjectsWorkspaceError.invalidResponse }
         return ["save_operation_id": operationID, "project_item_id": id, "embed_id": embedID,
                 "saved_revision": Self.itemRevision(saved), "expected_revision": job.value["expected_revision"] ?? NSNull()]
+    }
+
+    static func isPreapprovalReceiptDenial(_ error: Error, writeMode: ProjectWorkspaceWriteMode) -> Bool {
+        guard writeMode == .alwaysAsk,
+              case APIError.httpError(let status, let message) = error else { return false }
+        return status == 409 && message == "PROJECT_WRITE_APPROVAL_REQUIRED"
     }
 
     private func historicalText(embedID: String, revision: Int, key: SymmetricKey,

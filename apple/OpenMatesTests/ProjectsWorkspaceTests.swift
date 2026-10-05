@@ -4,6 +4,19 @@ import XCTest
 
 @MainActor
 final class ProjectsWorkspaceTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=focus-modes.project-authoring-persistence,focus-modes.project-authoring-click
+    func testFocusSavePreapprovalReceiptDenialOnlyAcceptsTheTypedApprovalError() {
+        let approvalRequired = APIError.httpError(status: 409, message: "PROJECT_WRITE_APPROVAL_REQUIRED")
+        XCTAssertTrue(ProjectsWorkspaceService.isPreapprovalReceiptDenial(approvalRequired, writeMode: .alwaysAsk))
+        XCTAssertFalse(ProjectsWorkspaceService.isPreapprovalReceiptDenial(approvalRequired, writeMode: .applyAndShow))
+        XCTAssertFalse(ProjectsWorkspaceService.isPreapprovalReceiptDenial(
+            APIError.httpError(status: 409, message: "PROJECT_REVISION_CONFLICT"), writeMode: .alwaysAsk))
+        XCTAssertFalse(ProjectsWorkspaceService.isPreapprovalReceiptDenial(
+            APIError.httpError(status: 403, message: "PROJECT_WRITE_APPROVAL_REQUIRED"), writeMode: .alwaysAsk))
+        XCTAssertFalse(ProjectsWorkspaceService.isPreapprovalReceiptDenial(
+            ProjectsWorkspaceError.invalidContext, writeMode: .alwaysAsk))
+    }
+
     // contract-test: supporting surface=gui.apple assertions=projects.keys.client-wrapped,projects.access.explicit-context
     func testTeamProjectRecordDecodesWithoutPersonalKeyWrapper() throws {
         let decoder = JSONDecoder(); decoder.keyDecodingStrategy = .convertFromSnakeCase
