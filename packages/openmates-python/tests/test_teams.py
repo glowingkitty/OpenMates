@@ -142,7 +142,7 @@ def test_pip_sdk_team_profile_image_helpers_encrypt_generated_metadata(monkeypat
 
     def fake_get(url, *, headers, timeout):
         requests_seen.append({"method": "GET", "url": url})
-        assert headers["Authorization"] == f"Bearer {api_key}"
+        assert headers["Authorization"] == "Bearer " + api_key.partition(".")[0]
         assert headers["X-OpenMates-SDK"] == "pip"
         if url.endswith("/v1/teams/team-1/profile-image"):
             return FakeResponse(content=b"\x89PNG", headers={"content-type": "image/png", "content-disposition": 'attachment; filename="team.png"'})
@@ -154,7 +154,7 @@ def test_pip_sdk_team_profile_image_helpers_encrypt_generated_metadata(monkeypat
     def fake_post(url, *, json, headers, timeout):
         nonlocal stored_team
         requests_seen.append({"method": "POST", "url": url, "json": json})
-        assert headers["Authorization"] == f"Bearer {api_key}"
+        assert headers["Authorization"] == "Bearer " + api_key.partition(".")[0]
         assert headers["X-OpenMates-SDK"] == "pip"
         if url.endswith("/v1/sdk/session"):
             return FakeResponse({"key_wrapper": {"encrypted_key": material["encrypted_master_key"], "salt": material["salt"], "key_iv": material["key_iv"]}})
@@ -166,7 +166,7 @@ def test_pip_sdk_team_profile_image_helpers_encrypt_generated_metadata(monkeypat
     def fake_patch(url, *, json, headers, timeout):
         nonlocal stored_team
         requests_seen.append({"method": "PATCH", "url": url, "json": json})
-        assert headers["Authorization"] == f"Bearer {api_key}"
+        assert headers["Authorization"] == "Bearer " + api_key.partition(".")[0]
         assert headers["X-OpenMates-SDK"] == "pip"
         if url.endswith("/v1/teams/team-1"):
             stored_team = {**(stored_team or {}), **json}

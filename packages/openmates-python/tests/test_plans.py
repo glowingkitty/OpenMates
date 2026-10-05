@@ -75,7 +75,7 @@ def test_pip_sdk_user_plan_methods_use_shared_plans_api(monkeypatch):
 
     def fake_get(url, *, headers, timeout):
         requests_seen.append({"method": "GET", "url": url})
-        assert headers["Authorization"] == f"Bearer {api_key}"
+        assert headers["Authorization"] == "Bearer " + api_key.partition(".")[0]
         if url.endswith("/v1/sdk/chats/chat-1"):
             return FakeResponse({"chat": {"id": "chat-1", "encrypted_chat_key": encrypted_chat_key, "encrypted_title": _encrypt_aes_gcm_text("Chat", chat_key)}})
         if url.endswith("/v1/sdk/chats?limit=0&offset=0"):
@@ -100,7 +100,7 @@ def test_pip_sdk_user_plan_methods_use_shared_plans_api(monkeypatch):
 
     def fake_post(url, *, json, headers, timeout):
         requests_seen.append({"method": "POST", "url": url, "json": json})
-        assert headers["Authorization"] == f"Bearer {api_key}"
+        assert headers["Authorization"] == "Bearer " + api_key.partition(".")[0]
         if url.endswith("/v1/sdk/session"):
             return FakeResponse({"key_wrapper": {"encrypted_key": material["encrypted_master_key"], "salt": material["salt"], "key_iv": material["key_iv"]}})
         if url.endswith("/learnings/create-tasks"):
@@ -119,7 +119,7 @@ def test_pip_sdk_user_plan_methods_use_shared_plans_api(monkeypatch):
 
     def fake_patch(url, *, json, headers, timeout):
         requests_seen.append({"method": "PATCH", "url": url, "json": json})
-        assert headers["Authorization"] == f"Bearer {api_key}"
+        assert headers["Authorization"] == "Bearer " + api_key.partition(".")[0]
         if "/learnings/" in url:
             return FakeResponse({"learning": json})
         if "/criteria/" in url:
@@ -233,7 +233,7 @@ def test_pip_sdk_plan_add_to_project_encrypts_linked_project_ids(monkeypatch):
             return self._payload
 
     def fake_get(url, *, headers, timeout):
-        assert headers["Authorization"] == f"Bearer {api_key}"
+        assert headers["Authorization"] == "Bearer " + api_key.partition(".")[0]
         if url.endswith("/v1/user-plans/plan-1"):
             return FakeResponse({"plan": plan})
         if url.endswith("/v1/user-plans?active_only=False"):
@@ -245,13 +245,13 @@ def test_pip_sdk_plan_add_to_project_encrypts_linked_project_ids(monkeypatch):
         raise AssertionError(f"Unexpected GET {url}")
 
     def fake_post(url, *, json, headers, timeout):
-        assert headers["Authorization"] == f"Bearer {api_key}"
+        assert headers["Authorization"] == "Bearer " + api_key.partition(".")[0]
         if url.endswith("/v1/sdk/session"):
             return FakeResponse({"key_wrapper": {"encrypted_key": material["encrypted_master_key"], "salt": material["salt"], "key_iv": material["key_iv"]}})
         raise AssertionError(f"Unexpected POST {url}")
 
     def fake_patch(url, *, json, headers, timeout):
-        assert headers["Authorization"] == f"Bearer {api_key}"
+        assert headers["Authorization"] == "Bearer " + api_key.partition(".")[0]
         assert url.endswith("/v1/user-plans/plan-1")
         seen_patch.update(json)
         plan.update(json)
@@ -304,13 +304,13 @@ def test_pip_sdk_plan_show_resolves_encrypted_slug_from_raw_list(monkeypatch):
             return self._payload
 
     def fake_get(url, *, headers, timeout):
-        assert headers["Authorization"] == f"Bearer {api_key}"
+        assert headers["Authorization"] == "Bearer " + api_key.partition(".")[0]
         if url.endswith("/v1/user-plans?active_only=False"):
             return FakeResponse({"plans": [plan]})
         raise AssertionError(f"Unexpected GET {url}")
 
     def fake_post(url, *, json, headers, timeout):
-        assert headers["Authorization"] == f"Bearer {api_key}"
+        assert headers["Authorization"] == "Bearer " + api_key.partition(".")[0]
         if url.endswith("/v1/sdk/session"):
             return FakeResponse({"key_wrapper": {"encrypted_key": material["encrypted_master_key"], "salt": material["salt"], "key_iv": material["key_iv"]}})
         raise AssertionError(f"Unexpected POST {url}")

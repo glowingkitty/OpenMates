@@ -302,7 +302,7 @@ def test_pip_sdk_workflow_template_sharing_transport_uses_shared_api(monkeypatch
     def fake_get(url, *, headers, timeout):
         requests_seen.append({"method": "GET", "url": url})
         if url.endswith("/v1/workflows"):
-            assert headers["Authorization"] == f"Bearer {api_key}"
+            assert headers["Authorization"] == "Bearer " + api_key.partition(".")[0]
             return FakeResponse({"workflows": [{"id": "wf-1", "title": "Morning"}]})
         assert url.endswith("/v1/workflows/template-projections/tpl-1")
         assert "Authorization" not in headers
