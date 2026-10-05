@@ -1,7 +1,6 @@
 // playwright-account: not_required reason=isolated_component_preview
 import { test, expect } from '../helpers/cookie-audit';
 import { waitForComponentPreview } from '../helpers/component-preview';
-import { dismissComposerFocus } from '../helpers/composer-focus';
 
 function preview(component: string, width = 680, variant?: string, theme = 'light') {
   return `/dev/preview/${component}?${new URLSearchParams({ theme, background: theme === 'dark' ? '#171717' : '#dbeafe', width: String(width), chrome: '0', ...(variant ? { variant } : {}) })}`;
@@ -155,14 +154,35 @@ test.describe('Chat composer focus and draft preservation', () => {
     await expect(page.getByTestId('chat-header-title')).toContainText('Writing preferences');
   });
 
+  // contract-test: supporting surface=gui.web assertions=message-input.send.ownership
+  test('shows the first message while the generated chat title is pending', async ({ page }) => {
+    await page.goto(preview('ChatHistory', 390, 'titlePending'));
+    await waitForComponentPreview(page);
+    await expect(page.getByTestId('chat-header-provisional-title')).toHaveText(
+      'Help me reply to a photography enquiry using my saved writing preferences.'
+    );
+    await expect(page.getByTestId('chat-header-banner')).not.toContainText('Creating new chat');
+    await page.goto(preview('ChatHistory', 390, 'titleReady'));
+    await waitForComponentPreview(page);
+    await expect(page.getByTestId('chat-header-title')).toHaveText('Photography reply');
+    await expect(page.getByTestId('chat-header-provisional-title')).toHaveCount(0);
+  });
+
   for (const width of [390, 1280]) {
   // contract-test: direct surface=gui.web assertions=message-input.actions.visibility,message-input.layout.responsive-parity
   test(`deep-link prefill hides the empty-chat workspace and outside/Cancel restores it at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
-    await page.goto(preview('ActiveChat', Math.min(width, 1100), undefined, width === 390 ? 'dark' : 'light'));
+    await page.goto(preview('ActiveChatFocusFixture', Math.min(width, 1100), undefined, width === 390 ? 'dark' : 'light'));
     await waitForComponentPreview(page);
     const side = page.getByTestId('chat-side');
     const field = page.getByTestId('message-field');
+    // The first guest intro intentionally covers the composer until the visitor
+    // advances. Exercise focus restoration on the normal welcome surface.
+    await expect(page.getByTestId('landing-intro-expanded')).toBeVisible();
+    await page.getByTestId('daily-inspiration-next').click();
+    await expect(page.getByTestId('landing-intro-expanded')).toHaveCount(0);
+    await expect(page.locator('.chat-wrapper.landing-intro-content-covered')).toHaveCount(0);
+    await expect(page.getByTestId('message-input-wrapper')).toHaveCSS('opacity', '1');
     await expect(field).toBeVisible();
     await page.evaluate(() => window.dispatchEvent(new CustomEvent('docsMessagePrefill', { detail: { text: 'Unsent deep link\nKeep this second line', autoSend: false } })));
     await expect(field).toHaveAttribute('data-focused', 'true');
@@ -189,11 +209,15 @@ test.describe('Chat composer focus and draft preservation', () => {
       return Math.max(Math.abs(box.width - parent.width), Math.abs(box.height - parent.height));
     })).toBeLessThanOrEqual(1);
     await page.screenshot({ path: test.info().outputPath(`chat-welcome-focused-${width}.png`) });
-    await dismissComposerFocus(page);
+    // Dismiss on the touch gesture itself: iOS may suppress the synthetic click
+    // after preventDefault() on pointerdown.
+    await backdrop.dispatchEvent('pointerdown', { pointerType: 'touch', button: 0 });
+    await expect(backdrop).toHaveCount(0);
     await expect(field).toHaveAttribute('data-focused', 'false');
     await expect(side).not.toHaveAttribute('inert', '');
     await expect(side).toHaveCSS('opacity', '1');
     await expect(side).toBeVisible();
+    await expect(page.getByTestId('message-input-wrapper')).toHaveCSS('opacity', '1');
     await page.screenshot({ path: test.info().outputPath(`chat-welcome-restored-${width}.png`) });
     await expect(page.getByTestId('message-editor').locator('.ProseMirror')).toContainText('Keep this second line');
     await page.evaluate(() => window.dispatchEvent(new CustomEvent('docsMessagePrefill', { detail: { text: 'Unsent deep link\nKeep this second line', autoSend: false } })));

@@ -9,6 +9,10 @@ export default {
 };
 
 export const variants = {
+  inlineCompact: {
+    showActionButtons: false,
+    inlineCompact: true,
+  },
   projectSpecialist: {
     showActionButtons: false,
     activeFocusId: 'code-debugging',

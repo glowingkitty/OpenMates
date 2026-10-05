@@ -1152,6 +1152,7 @@
     // chatTitle / chatCategory / chatIcon are the decrypted metadata once received.
     // isNewChatGeneratingTitle=true shows the "Generating title..." placeholder instead.
     chatTitle = '',
+    provisionalChatTitle = '',
     chatCategory = null,
     chatIcon = null,
     chatSummary = null,
@@ -1193,6 +1194,7 @@
 
     /** Decrypted title to show in the permanent header card (new chats only). */
     chatTitle?: string;
+    provisionalChatTitle?: string;
     /** Decrypted category (e.g. "technology") for the gradient circle (new chats only). */
     chatCategory?: string | null;
     /** Decrypted icon name (e.g. "cpu") for the category circle (new chats only). */
@@ -2833,6 +2835,7 @@
             {#key `${currentChatId ?? 'new'}:${chatHeaderRenderKey}`}
             <ChatHeader
                 title={chatTitle}
+                {provisionalChatTitle}
                 {currentChatId}
                 category={chatCategory}
                 icon={chatIcon}

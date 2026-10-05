@@ -740,6 +740,7 @@
     // Draft preview mode is only for text drafts. Embed-only drafts must keep the
     // editor visible so audio/file preview controls remain reachable after blur.
     let isDraftPreview = $derived(!!draftPreviewSummary && hasContent && !hasEmbedContent && !hasDraftPreviewEmbeds && !isMessageFieldFocused && !isFullscreen && !forceDraftActionsVisible);
+    let isInlineCompact = $derived(inlineCompact && !isFullscreen && !shouldShowActionButtons && !isMessageFieldFocused && (!hasSendableDraft || isDraftPreview) && !$recordingState.showRecordAudioUI);
 
     // Computed state for showing action buttons
     // In extended/fullscreen mode: always visible (no tap required).
@@ -2126,7 +2127,7 @@
         if ($recordingState.showRecordAudioUI || $recordingState.isRecordingActive) {
             return `height: ${MESSAGE_FIELD_RECORDING_HEIGHT}px; max-height: ${MESSAGE_FIELD_RECORDING_HEIGHT}px;`;
         }
-        if (inlineCompact && !shouldShowActionButtons && !isMessageFieldFocused && !hasSendableDraft && !$recordingState.showRecordAudioUI) {
+        if (isInlineCompact) {
             return 'height: 48px; max-height: 48px;';
         }
         return `height: auto; max-height: ${MESSAGE_FIELD_MAX_HEIGHT}px;`;
@@ -3742,6 +3743,9 @@
         if (chatId === currentChatId) {
             console.debug('[MessageInput] AI task ended for current chat, updating UI');
             updateActiveAITaskStatus();
+            // A late completion for an older turn must leave the replacement task
+            // cancellable and preserve its queued draft/restore state.
+            if (taskId && activeAITaskId && taskId !== activeAITaskId) return;
             // Clear queued message text when task ends
             queuedMessageText = null;
             if (status !== 'cancelled') {
@@ -6436,7 +6440,7 @@
         data-focused={isMessageFieldFocused}
         class:drag-over={isDragging}
         class:has-focus-pill={showFocusPill || showIncognitoPill || showIdeaBucketPill}
-        class:inline-compact={inlineCompact && !isFullscreen && !shouldShowActionButtons && !isMessageFieldFocused && !hasSendableDraft && !$recordingState.showRecordAudioUI}
+        class:inline-compact={isInlineCompact}
         class:placeholder-fading={isPlaceholderFading}
         class:empty-welcome-field={showEmptyInputAffordances}
         style={containerStyle}
@@ -6778,7 +6782,8 @@
 
     .draft-preview-summary-text {
         display: block;
-        width: 100%;
+        flex: 1;
+        width: 0;
         min-width: 0;
         overflow: hidden;
         text-overflow: ellipsis;

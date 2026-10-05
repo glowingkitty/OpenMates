@@ -5410,6 +5410,14 @@
     // Add state for current chat and messages using $state - MUST be declared before $derived that uses them
      let currentChat = $state<Chat | null>(initialPublicChat ?? initialAnonymousChat ?? initialRecentChatSelection?.chat ?? null);
       let currentMessages = $state<ChatMessageModel[]>(initialRecentChatSelection?.window.messages ?? initialPublicMessages); // Holds messages for the currentChat - MUST use $state for Svelte 5 reactivity
+      // A display-only first-message prefix fills the header until generated
+      // encrypted title metadata arrives; it never becomes saved chat metadata.
+      let provisionalChatTitle = $derived.by(() => {
+          const firstUserMessage = currentMessages.find(message => message.chat_id === currentChat?.chat_id && message.role === 'user');
+          return typeof firstUserMessage?.content === 'string'
+              ? formatDraftPreview(firstUserMessage.content).slice(0, 80)
+              : '';
+      });
       let assistantSpeechOverlayHeight = $state(0);
       let autoSpeakResponse = $state(false);
       let assistantSpeechPreferenceLoad = 0;
@@ -14592,6 +14600,7 @@
                          {processingPhase}
                          {thinkingContentByTask}
                          chatTitle={activeChatDecryptedTitle}
+                         {provisionalChatTitle}
                          chatCategory={activeChatDecryptedCategory}
                          chatIcon={activeChatDecryptedIcon}
                           chatSummary={activeChatDecryptedSummary}
@@ -14680,7 +14689,10 @@
                 {#if messageInputFocused}
                     <button type="button" class="composer-focus-backdrop" data-testid="chat-composer-focus-backdrop"
                         data-composer-focus-control aria-label={$text('common.cancel')}
-                        onpointerdown={(event) => event.preventDefault()}
+                        onpointerdown={(event) => {
+                            event.preventDefault();
+                            messageInputFieldRef?.dismissFocus();
+                        }}
                         onclick={() => messageInputFieldRef?.dismissFocus()}></button>
                 {/if}
 

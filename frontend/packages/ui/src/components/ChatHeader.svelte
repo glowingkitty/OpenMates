@@ -58,6 +58,7 @@
 
   let {
     title = '',
+    provisionalChatTitle = '',
     currentChatId: _currentChatId = null,
     category = null,
     icon = null,
@@ -106,6 +107,8 @@
     onSaveDescription,
   }: {
     title?: string;
+    /** Display-only first user text while generated encrypted metadata is pending. */
+    provisionalChatTitle?: string;
     currentChatId?: string | null;
     category?: string | null;
     icon?: string | null;
@@ -750,7 +753,7 @@
   {#if isLoading && !isCreditsError && !isIncognito}
     <div class="processing-content">
       <div class="processing-ai-icon"></div>
-      <span class="processing-text">{$text('chat.creating_new_chat')}</span>
+      <span class="processing-text" data-testid="chat-header-provisional-title">{provisionalChatTitle || $text('chat.creating_new_chat')}</span>
       {#if showHighlightPill}
         <button
           class="highlight-count-pill"

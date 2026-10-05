@@ -6,6 +6,7 @@
  */
 import { expect, test } from './helpers/cookie-audit';
 import type { Locator } from '@playwright/test';
+import { waitForComponentPreview } from './helpers/component-preview';
 
 // playwright-account: not_required reason=isolated_component_preview
 
@@ -82,7 +83,7 @@ const MESSAGE_INPUT_PROOF = defineVideoProof({
 		{
 			id: 'message-input.layout.responsive-parity',
 			checkpoint: 'expanded',
-			visual: 'The complete microphone permission warning stays within the viewport beside the expanded composer.',
+			visual: 'After a denied microphone press, the complete warning notification stays within the viewport.',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
@@ -120,8 +121,94 @@ const MESSAGE_INPUT_PROOF = defineVideoProof({
 });
 
 test.describe('MessageInput component preview', () => {
+	for (const { viewportWidth, fieldWidth } of [
+		{ viewportWidth: 390, fieldWidth: 330 },
+		{ viewportWidth: 1280, fieldWidth: 680 }
+	]) {
+		// contract-test: direct surface=gui.web assertions=message-input.actions.visibility,message-input.layout.responsive-parity
+		test(`minimizes a text draft and restores it beside the expand control at ${viewportWidth}px`, async ({ page }) => {
+			await page.setViewportSize({ width: viewportWidth, height: 844 });
+			const params = new URLSearchParams({
+				theme: 'dark', background: '#dbeafe', width: String(fieldWidth), chrome: '0', variant: 'inlineCompact'
+			});
+			await page.goto(`/dev/preview/enter_message/MessageInput?${params}`);
+			await waitForComponentPreview(page);
+			const field = page.getByTestId('message-field');
+			const editor = page.getByTestId('message-editor').locator('.ProseMirror');
+			await expect(field).toBeVisible();
+			await field.click();
+			const draft = 'What events are upcoming in Berlin this week? Include the venue, date and time for each event.';
+			await editor.fill(draft);
+			await expect(field).toHaveAttribute('data-focused', 'true');
+			await page.mouse.click(4, 4);
+			await expect(field).toHaveAttribute('data-focused', 'false');
+			await expect.poll(() => field.evaluate((element) => element.getBoundingClientRect().height)).toBe(48);
+			const summary = page.getByTestId('message-draft-summary-text');
+			await expect(summary).toBeVisible();
+			await expect(summary).toHaveText(draft);
+			await expect(summary).toHaveCSS('text-overflow', 'ellipsis');
+			await expect(summary).toHaveCSS('white-space', 'nowrap');
+			const bounds = await summary.evaluate((element) => ({
+				width: element.clientWidth, textWidth: element.scrollWidth,
+				right: element.getBoundingClientRect().right, viewport: window.innerWidth
+			}));
+			expect(bounds.width).toBeGreaterThan(0);
+			expect(bounds.textWidth).toBeGreaterThan(bounds.width);
+			expect(bounds.right).toBeLessThanOrEqual(bounds.viewport);
+			await expect(page.getByTestId('action-buttons')).toHaveCount(0);
+			await page.screenshot({ path: test.info().outputPath(`message-input-minimized-draft-${viewportWidth}.png`) });
+			await field.click();
+			await expect(field).toHaveAttribute('data-focused', 'true');
+			await expect(summary).toHaveCount(0);
+			await expect(editor).toHaveText(draft);
+			await expect.poll(() => field.evaluate((element) => element.getBoundingClientRect().height)).toBeGreaterThanOrEqual(180);
+			const actions = page.getByTestId('action-buttons');
+			await expect(actions).toBeVisible();
+			const focusedBounds = await editor.evaluate((element) => {
+				const fieldElement = element.closest('[data-testid="message-field"]')!;
+				const field = fieldElement.getBoundingClientRect();
+				const actions = fieldElement.querySelector('[data-testid="action-buttons"]')!.getBoundingClientRect();
+				const expand = fieldElement.querySelector('[data-testid="message-expand-button"]')!.getBoundingClientRect();
+				const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+				const textRects: DOMRect[] = [];
+				while (walker.nextNode()) {
+					const range = document.createRange();
+					range.selectNodeContents(walker.currentNode);
+					textRects.push(...Array.from(range.getClientRects()).filter((rect) => rect.width > 0 && rect.height > 0));
+				}
+				const overlapsExpand = textRects.some((rect) => rect.left < expand.right && rect.right > expand.left
+					&& rect.top < expand.bottom && rect.bottom > expand.top);
+				return { textRects: textRects.length, textTop: Math.min(...textRects.map((rect) => rect.top)),
+					textBottom: Math.max(...textRects.map((rect) => rect.bottom)),
+					textLeft: Math.min(...textRects.map((rect) => rect.left)),
+					textRight: Math.max(...textRects.map((rect) => rect.right)),
+					fieldTop: field.top, fieldLeft: field.left, fieldRight: field.right,
+					expandLeft: expand.left, expandBottom: expand.bottom,
+					actionsTop: actions.top, overlapsExpand };
+			});
+			expect(focusedBounds.textRects).toBeGreaterThan(0);
+			expect(focusedBounds.textTop).toBeGreaterThanOrEqual(focusedBounds.fieldTop);
+			expect(focusedBounds.textLeft).toBeGreaterThanOrEqual(focusedBounds.fieldLeft);
+			expect(focusedBounds.textRight).toBeLessThanOrEqual(focusedBounds.fieldRight);
+			expect(focusedBounds.textBottom).toBeLessThanOrEqual(focusedBounds.actionsTop);
+			expect(focusedBounds.overlapsExpand).toBe(false);
+			expect(focusedBounds.textRight).toBeLessThanOrEqual(focusedBounds.expandLeft - 8);
+			expect(focusedBounds.textTop).toBeLessThan(focusedBounds.expandBottom);
+			await page.screenshot({ path: test.info().outputPath(`message-input-focused-draft-${viewportWidth}.png`) });
+		});
+	}
+
 	// contract-test: direct surface=gui.web assertions=message-input.actions.visibility,message-input.layout.responsive-parity,assistant-speech.preference.chat-scoped-default-off,ai-model-routing.composer.mention-to-exact-selection,ai-model-routing.composer.responsive-actions
 	test('moves from minimized to expanded interactive states', async ({ page }, testInfo) => {
+		await page.addInitScript(() => {
+			const originalQuery = navigator.permissions.query.bind(navigator.permissions);
+			Object.defineProperty(navigator.permissions, 'query', {
+				configurable: true,
+				value: (descriptor: PermissionDescriptor) => descriptor.name === 'microphone'
+					? Promise.resolve({ state: 'denied', onchange: null } as PermissionStatus)
+					: originalQuery(descriptor)
+			});
+		});
 		const proof = createVideoProofRuntime(MESSAGE_INPUT_PROOF, {
 			device: PROOF_DEVICE,
 			attach: testInfo.attach.bind(testInfo)
@@ -133,7 +220,7 @@ test.describe('MessageInput component preview', () => {
 			chrome: '0'
 		});
 
-		await page.goto(`/dev/preview/enter_message/MessageInput?${params}`, {
+		await page.goto(`/dev/preview/enter_message/MessageInputNotificationPreview?${params}`, {
 			waitUntil: 'networkidle'
 		});
 		await expect(page.getByTestId('component-preview-canvas')).toHaveAttribute(
@@ -158,10 +245,11 @@ test.describe('MessageInput component preview', () => {
 			await expect(page.getByTestId('composer-model-selector')).toBeVisible();
 		});
 		await proof.assert('message-input.layout.responsive-parity', async () => {
+			await page.getByTestId('record-audio-button').click();
 			const warning = page.getByText('Microphone blocked - enable it in browser settings', { exact: true });
 			await expect(warning).toBeVisible();
-			// Measure the text as well as the pill: a max-width pill can still let
-			// non-wrapping text paint outside the viewport.
+			await expect(page.getByTestId('notification').filter({ hasText: 'Microphone blocked' })).toBeVisible();
+			// Measure the actual rendered notification text, not just its container.
 			const bounds = await warning.evaluate((element) => {
 				const range = document.createRange();
 				range.selectNodeContents(element);

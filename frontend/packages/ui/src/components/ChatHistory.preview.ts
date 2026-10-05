@@ -20,4 +20,6 @@ export default props;
 export const variants = {
   reversed: { ...props, sourceMessages: [user, known, unknown] },
   draftOnly: { ...props, isDraftOnly: true, chatTitle: '{"type":"image","embed_id":"fictional-image"}', sourceMessages: [] },
+  titlePending: { ...props, chatTitle: '', provisionalChatTitle: user.content, isNewChatGeneratingTitle: true, sourceMessages: [user] },
+  titleReady: { ...props, chatTitle: 'Photography reply', provisionalChatTitle: user.content, isNewChatGeneratingTitle: false, sourceMessages: [user] },
 };

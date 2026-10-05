@@ -142,7 +142,11 @@ test.describe('Actual workspace composer layout', () => {
       await expect(page.getByTestId('chat-welcome-suggestions')).toHaveAttribute('inert', '');
       await expect(page.getByTestId('new-chat-suggestion-card').first()).toBeHidden();
       await page.screenshot({ path: test.info().outputPath(`chat-welcome-focused-390x${height}.png`), fullPage: true });
-      await page.getByTestId('input-dismiss-button').click();
+      // A touch pointerdown must restore the background even if Safari does not
+      // synthesize a click after the backdrop cancels the default focus action.
+      await page.getByTestId('chat-composer-focus-backdrop').dispatchEvent('pointerdown', { pointerType: 'touch', button: 0 });
+      await expect(page.getByTestId('chat-composer-focus-backdrop')).toHaveCount(0);
+      await expect(field).toHaveAttribute('data-focused', 'false');
       await expect(background).not.toHaveAttribute('inert', '');
       await expect(background).toHaveCSS('opacity', '1');
       await expect(background).toHaveCSS('visibility', 'visible');
@@ -163,7 +167,8 @@ test.describe('Actual workspace composer layout', () => {
       await expect(background).toHaveCSS('visibility', 'visible');
       await expect(transcript).toBeVisible();
       await page.screenshot({ path: test.info().outputPath(`chat-example-focused-390x${height}.png`), fullPage: true });
-      await page.getByTestId('input-dismiss-button').click();
+      await page.getByTestId('chat-composer-focus-backdrop').dispatchEvent('pointerdown', { pointerType: 'touch', button: 0 });
+      await expect(page.getByTestId('chat-composer-focus-backdrop')).toHaveCount(0);
       await expect(background).not.toHaveAttribute('inert', '');
       await expect(background).toHaveCSS('opacity', '1');
       await expect(background).toHaveCSS('visibility', 'visible');

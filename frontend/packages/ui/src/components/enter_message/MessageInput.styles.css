@@ -238,6 +238,14 @@
      The .message-field already transitions border-radius 0.3s ease-in-out. */
 }
 
+.message-field.inline-compact.draft-preview .scrollable-content {
+  max-height: 48px;
+}
+
+.message-field.inline-compact.draft-preview .content-wrapper {
+  min-height: 48px;
+}
+
 .message-field.inline-compact .scrollable-content {
   padding-top: 0;
 }
@@ -439,6 +447,11 @@
   overflow-x: hidden;
   box-sizing: border-box;
   transition: max-height 0.3s ease-in-out;
+}
+
+/* Reserve a right-hand column for the expand control beside the editable text. */
+.message-field:has(> .fullscreen-button) .content-wrapper {
+  padding-right: 3.5rem;
 }
 
 /* Editor content wrapper */

@@ -355,6 +355,7 @@ async function getAnonymousIndexedDbState(page: any) {
 }
 
 test.describe('Anonymous free chat', () => {
+	// contract-test: supporting surface=gui.web assertions=message-input.send.ownership
 	test('guest Learning Mode sends anonymous request context', async ({ page }: { page: any }) => {
 		test.setTimeout(60000);
 		await page.setViewportSize({ width: 390, height: 844 });
@@ -385,6 +386,7 @@ test.describe('Anonymous free chat', () => {
 		});
 	});
 
+	// contract-test: supporting surface=gui.web assertions=message-input.privacy-context
 	test('anonymous text chat shows terms reminder before send and feature notice in chat', async ({
 		page
 	}: {
@@ -567,6 +569,7 @@ test.describe('Anonymous free chat', () => {
 		await assertNoMissingTranslations(page);
 	});
 
+	// contract-test: supporting surface=gui.web assertions=message-input.send.ownership
 	test('anonymous text send creates local chat UI before delayed response completes', async ({
 		page
 	}: {
@@ -610,6 +613,7 @@ test.describe('Anonymous free chat', () => {
 		await assertNoMissingTranslations(page);
 	});
 
+	// contract-test: supporting surface=gui.web assertions=message-input.send.ownership
 	test('anonymous text send streams chunks and updates chat header before completion', async ({
 		page
 	}: {
@@ -628,8 +632,11 @@ test.describe('Anonymous free chat', () => {
 		await page.locator('[data-action="send-message"]').click();
 
 		await expect.poll(() => anonymousRequests.length, { timeout: 5000 }).toBe(1);
-		await expect(page.getByTestId('chat-header-banner')).toContainText('Creating new chat', { timeout: 2000 });
+		await expect(page.getByTestId('chat-header-provisional-title')).toContainText(
+			'Stream anonymously like regular chat', { timeout: 2000 }
+		);
 		await expect(page.getByTestId('chat-header-title')).toContainText('Anonymous stream title', { timeout: 5000 });
+		await expect(page.getByTestId('chat-header-provisional-title')).toHaveCount(0);
 		await expect(page.getByTestId('typing-indicator')).toContainText('George is typing', { timeout: 5000 });
 		await expect(page.getByTestId('message-assistant').filter({ hasText: 'Partial anonymous stream' })).toBeVisible({
 			timeout: 5000
@@ -691,6 +698,7 @@ test.describe('Anonymous free chat', () => {
 		await assertNoMissingTranslations(page);
 	});
 
+	// contract-test: supporting surface=gui.web assertions=message-input.send.ownership
 	test('live anonymous text stream updates header and typing before terminal response', async ({
 		page
 	}: {
@@ -744,6 +752,7 @@ test.describe('Anonymous free chat', () => {
 		await assertNoMissingTranslations(page);
 	});
 
+	// contract-test: supporting surface=gui.web assertions=message-input.privacy-context
 	test('anonymous text send becomes signup CTA when device budget is exhausted', async ({
 		page
 	}: {
@@ -769,6 +778,7 @@ test.describe('Anonymous free chat', () => {
 		await assertNoMissingTranslations(page);
 	});
 
+	// contract-test: supporting surface=gui.web assertions=message-input.drafts.preview-persistence,message-input.send.ownership
 	test('anonymous stream budget rejection keeps draft and does not create chat', async ({
 		page
 	}: {
@@ -878,6 +888,7 @@ test.describe('Anonymous free chat', () => {
 		await assertNoMissingTranslations(page);
 	});
 
+	// contract-test: supporting surface=gui.web assertions=message-input.privacy-context
 	test('previously authenticated devices are not eligible for anonymous text send', async ({
 		page
 	}: {
@@ -908,6 +919,7 @@ test.describe('Anonymous free chat', () => {
 		await assertNoMissingTranslations(page);
 	});
 
+	// contract-test: supporting surface=gui.web assertions=message-input.embeds.gated-send
 	test('anonymous file attachment is signup-gated without uploading file bytes', async ({
 		page
 	}: {
