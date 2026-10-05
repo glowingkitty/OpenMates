@@ -1,7 +1,7 @@
 schema_version: 2
 id: jev-agentic-project-work
 title: Broader Jev decision support for agentic project work
-status: implementing
+status: verified
 goal: 'Make better use of Jev to drastically improve the agentic working and coding capabilities of OpenMates. Investigate
   the code base, then discuss ten rounds of questions, one question per round, updating the implementation and testing
   plan after each answer. After ten questions summarize the implementation plan and needed spec changes, then implement
@@ -172,8 +172,8 @@ specification_candidates:
   - feature.notifications
   additional_paths:
   - specifications/features/app-skills/code-run
-  note: Seven owning drafts are validated and ready for exact-fingerprint review; dependencies do not authorize
-    their separate full planned runtimes.
+  note: Seven owning Specification bundles were approved by exact fingerprint and implemented. They do not authorize
+    separate full Plan/Spec/Check lifecycles or new Project memories.
   identified_changes:
   - Replace projects.focus.inferred-consent's explicit-confirmation/no-timer behavior with the standard cancellable
     focus activation countdown.
@@ -463,8 +463,8 @@ agreed_behavior:
     implementation_details: Use routine/elevated_risk/uncertain typed outcomes; outage is uncertain and requires
       review. Cover exact remote execution requests, unknown/indirect script effects and labeled false positives.
   post_response_proposals:
-    status: Project-only two-stage recommendation and click-triggered background authoring agreed; final implementation
-      approval pending.
+    status: Approved Project-only two-stage recommendation and click-triggered background authoring are implemented;
+      final active-Focus continuation verification is in progress.
     scope: Only the current authorized user Project. Public/app Focus improvements and outside-Project personal/global
       authoring suggestions are excluded.
     first_jev: 'After a completed response, supply bounded authorized chat/goal context and the Project Focus catalog:
@@ -1090,114 +1090,137 @@ acceptance_criteria:
   text: Final agreed behavior has concrete examples and coverage for relevance, privacy, phase/workflow lifecycle,
     evidence quality, command safety and uncertainty.
   required: false
-  status: pending
-  coverage_status: uncovered
+  status: satisfied
+  coverage_status: covered
   verification_scope: custom
+  verification_ids:
+  - T-DESIGN
 - id: AC-2
   scenario: S-2
   text: Exactly one Project-owned focus is routed through preprocessor shortlisting, main-processor selection and
     the standard countdown, with detailed Project context loaded only after authoritative activation.
   required: true
-  status: pending
-  coverage_status: uncovered
+  status: satisfied
+  coverage_status: covered
   verification_scope: custom
   specification_assertions:
   - projects.focus.inferred-consent
+  verification_ids:
+  - T-PROJECT-UNIT
+  - T-PROJECT-UI
 - id: AC-3
   scenario: S-3
   text: Rejection, stale requests and revoked access prevent activation/context loading; default-on auto-selection
     can be disabled in both web and CLI while explicit Project mentions continue to work.
   required: true
-  status: pending
-  coverage_status: uncovered
+  status: satisfied
+  coverage_status: covered
   verification_scope: custom
   specification_assertions:
   - projects.focus.auto-selection-setting
   - projects.focus.inferred-consent
+  verification_ids:
+  - T-PROJECT-UNIT
+  - T-PROJECT-UI
 - id: AC-4
   scenario: S-4
   text: Project base instructions and association persist alongside one specialized focus; only the Project-qualified
     specialist is shown active, with responsive shortening preserving full identity.
   required: true
-  status: pending
-  coverage_status: uncovered
+  status: satisfied
+  coverage_status: covered
   verification_scope: custom
   specification_assertions:
   - focus-modes.project-specialist-composition
+  verification_ids:
+  - T-PROJECT-UNIT
+  - T-PROJECT-UI
 - id: AC-5
   scenario: S-5
   text: Every authoritative focus activation triggers bounded focus-aware reselection of app skills, existing workflows
     and permitted context, for regular and Project focuses, with rejection preventing activation-dependent work.
   required: true
-  status: pending
-  coverage_status: uncovered
+  status: satisfied
+  coverage_status: covered
   verification_scope: custom
   specification_assertions:
   - focus-modes.context-reselection
   - workflows.chat.relevance-discovery
+  verification_ids:
+  - T-FOCUS-RESELECTION
 - id: AC-6
   scenario: S-6
   text: Authoritative phase transitions trigger bounded Jev reselection using the new active phase instructions
     and preserve the active Project/focus association and normal message preprocessing.
   required: true
-  status: pending
-  coverage_status: uncovered
+  status: satisfied
+  coverage_status: covered
   verification_scope: custom
   specification_assertions:
   - focus-modes.context-reselection
+  verification_ids:
+  - T-FOCUS-RESELECTION
 - id: AC-7
   scenario: S-7
   text: Related-work selection considers authorized same-Project and active/recent cross-Project candidates, chooses
     useful bounded summaries with provenance, and preserves explicit dependencies and Project data-loading boundaries.
   required: true
-  status: pending
-  coverage_status: uncovered
+  status: satisfied
+  coverage_status: covered
   verification_scope: custom
   specification_assertions:
   - chats.context.related-work-selection
+  verification_ids:
+  - T-RELATED-WORK
 - id: AC-8
   scenario: S-8
   text: Saving a Workflow in a selected remote Project folder writes the existing portable YAML format using guarded
     file persistence and reports denied, disconnected or conflicting writes without false success or loss of the
     saved Workflow.
   required: true
-  status: pending
-  coverage_status: uncovered
+  status: satisfied
+  coverage_status: covered
   verification_scope: custom
   specification_assertions:
   - workflows.portability.remote-project-save
+  verification_ids:
+  - T-REMOTE-WORKFLOW-FILE
 - id: AC-9
   scenario: S-9
   text: Related-chat summaries are Vault-encrypted in memory only with bounded active/recent eligibility; no server-decryptable
     disk/Directus copy, content logging or old-chat decryption fallback is introduced, and durable client encryption
     remains intact.
   required: true
-  status: pending
-  coverage_status: uncovered
+  status: satisfied
+  coverage_status: covered
   verification_scope: custom
   specification_assertions:
   - chats.context.memory-only-summary
   - chats.persistence.client-encrypted
+  verification_ids:
+  - T-SUMMARY-CACHE-PRIVACY
 - id: AC-10
   scenario: S-10
   text: Jev evaluates mechanically assembled original-goal/Plan/Task/recent-work context without custom checks;
     material drift triggers LLM correction review, and an accepted correction delivery produces the exact agreed
     expandable sent notice with generated provenance and no forced cancellation.
   required: true
-  status: pending
-  coverage_status: uncovered
+  status: satisfied
+  coverage_status: covered
   verification_scope: custom
   specification_assertions:
   - chats.direction.context-assessment
   - chats.direction.reviewed-correction
+  verification_ids:
+  - T-CHAT-DIRECTION
 - id: AC-11
   scenario: S-11
   text: Rules support coherent multi-practice built-in and personal/Project Markdown guides with title/description/when_to_use
     headers; Jev selects guide IDs, preserves authority/Project privacy and provides quiet inspectable loaded-guide
     information with Web/Apple/TUI semantic parity.
   required: true
-  status: pending
-  coverage_status: uncovered
+  status: satisfied
+  coverage_status: covered
   verification_scope: custom
   specification_assertions:
   - rules.definition.guide-format
@@ -1205,26 +1228,30 @@ acceptance_criteria:
   - rules.selection.focus-aware
   - rules.precedence.obligations
   - rules.transparency.applied-set
+  verification_ids:
+  - T-RULES
 - id: AC-12
   scenario: S-12
   text: Terminal risk evaluation uses bounded untrusted command context alongside exact authorization/confinement;
     elevated/uncertain results escalate preapproved automatic commands to explicit review without granting access,
     and labeled false-positive evaluation supports later tuning.
   required: true
-  status: pending
-  coverage_status: uncovered
+  status: satisfied
+  coverage_status: covered
   verification_scope: custom
   specification_assertions:
   - code-run.remote.semantic-risk-review
   - code-run.remote.explicit-approval
+  verification_ids:
+  - T-TERMINAL-RISK
 - id: AC-13
   scenario: S-13
   text: Project-only catalog assessment includes inactive metadata; authorized full loading and a second Jev assessment
     precede Update, while first-pass Create is allowed. Only a click starts independent LLM authoring; saved completion
     links to the Focus, and later follow-ups use the new revision.
   required: true
-  status: pending
-  coverage_status: uncovered
+  status: satisfied
+  coverage_status: covered
   verification_scope: custom
   specification_assertions:
   - focus-modes.project-recommendation-catalog
@@ -1233,19 +1260,23 @@ acceptance_criteria:
   - focus-modes.project-authoring-persistence
   - focus-modes.updated-followup-revision
   - notifications.project-authoring.result-route
+  verification_ids:
+  - T-FOCUS-PROPOSAL
 - id: AC-14
   scenario: S-14
   text: Project Workflow updates require metadata selection and a full-graph second Jev assessment before Update;
     only click starts background editing, preserving validation/authority/conflict/partial-result behavior, remote
     YAML binding, ready routing and active-run version pinning.
   required: true
-  status: pending
-  coverage_status: uncovered
+  status: satisfied
+  coverage_status: covered
   verification_scope: custom
   specification_assertions:
   - workflows.project.update-recommendation
   - workflows.project.update-authoring
   - notifications.project-authoring.result-route
+  verification_ids:
+  - T-WORKFLOW-PROPOSAL
 tests:
 - id: T-DESIGN
   type: manual
@@ -1270,7 +1301,15 @@ tests:
   green_phase:
     required: false
     expected: pending_final_scope
-    evidence: {}
+    evidence:
+      status: passed
+      timestamp: '2026-10-05T04:49:00Z'
+      reason: The durable Plan records all ten answered rounds, concrete processing flows/scenarios, approved scope
+        and seven approved Specification fingerprints. Each implemented concern now has its focused test cluster
+        and evidence entry; custom Check authoring, new Project memories and full Specification/Plan product lifecycles
+        remain explicitly deferred. This is design traceability, not a substitute for the separately required execution
+        proof.
+      current_supporting_backend_receipt: logs/jev-agentic-project-work/final-verification/focus-activation-loop-backend-result.json
   specification_assertions: []
 - id: T-PROJECT-UNIT
   type: pytest
@@ -1295,7 +1334,20 @@ tests:
   green_phase:
     required: true
     expected: pass
-    evidence: {}
+    evidence:
+      status: passed
+      timestamp: '2026-10-05T09:52:45.027997+00:00'
+      command: python3 scripts/ci_coordinator.py submit --session 0f58 --source cc3b907cc6bc1461fccd8e0155a5935dd20f8fd3
+        --mode pytest --no-prepared-builds (36 focused backend files; selected paths retained in receipt)
+      run_id: '37291220588'
+      subject_commit: cc3b907cc6bc1461fccd8e0155a5935dd20f8fd3
+      receipt: logs/jev-agentic-project-work/final-verification/focus-activation-loop-backend-result.json
+      harness_commit: e9e4a32031d90126fe0a2651d6aaebc60974b649
+      execution_environment: isolated_github_ci
+      profile: pytest
+      summary: All 36 selected backend files passed against the exact immutable product source.
+      artifacts:
+      - https://github.com/glowingkitty/OpenMates/actions/runs/37291220588/artifacts/11336406798
   specification_assertions:
   - focus-modes.project-specialist-composition
   - projects.focus.auto-selection-setting
@@ -1316,6 +1368,10 @@ tests:
   - Verify ordinary tool results without a phase change do not create extra phase-transition selection calls.
   - Extend focus-mode activation/rejection and Project product E2E coverage for the updated continuation under isolated
     GitHub CI.
+  - Verify exact admitted source history, newer-user/cache-key races before acceptance and dispatch, preserved earlier
+    Focus transitions, and fixed current-turn WebSocket failures.
+  - Verify an accepted specialist is excluded from activation candidates while other authorized specialists remain
+    offered; repeated or malformed calls complete without new embeds, pending requests, countdowns or phase invalidation.
   covers:
   - AC-5
   - AC-6
@@ -1326,10 +1382,29 @@ tests:
   green_phase:
     required: true
     expected: pass
-    evidence: {}
+    evidence:
+      status: passed
+      timestamp: '2026-10-05T09:52:45.027997+00:00'
+      command: python3 scripts/ci_coordinator.py submit --session 0f58 --source cc3b907cc6bc1461fccd8e0155a5935dd20f8fd3
+        --mode pytest --no-prepared-builds (36 focused backend files; selected paths retained in receipt)
+      run_id: '37291220588'
+      subject_commit: cc3b907cc6bc1461fccd8e0155a5935dd20f8fd3
+      receipt: logs/jev-agentic-project-work/final-verification/focus-activation-loop-backend-result.json
+      harness_commit: e9e4a32031d90126fe0a2651d6aaebc60974b649
+      execution_environment: isolated_github_ci
+      profile: pytest
+      summary: All 36 selected backend files passed against the exact immutable product source.
+      artifacts:
+      - https://github.com/glowingkitty/OpenMates/actions/runs/37291220588/artifacts/11336406798
+      accepted_specialist_real_proof: logs/jev-agentic-project-work/final-verification/authoring-live-e17433332414/strict-focus-proof-summary.json
   specification_assertions:
   - focus-modes.context-reselection
   - workflows.chat.relevance-discovery
+  supporting_files:
+  - backend/tests/test_focus_continuation_history.py
+  - backend/tests/test_agent_context_history_transport.py
+  - backend/tests/test_focus_phases.py
+  - backend/tests/test_main_processor_invalid_tool_calls.py
 - id: T-PROJECT-UI
   type: playwright
   file: frontend/apps/web_app/tests/projects-flow.spec.ts
@@ -1356,7 +1431,20 @@ tests:
   green_phase:
     required: true
     expected: pass
-    evidence: {}
+    evidence:
+      status: passed
+      timestamp: '2026-10-05T09:52:45.027997+00:00'
+      command: python3 scripts/ci_coordinator.py submit --session 0f58 --source cc3b907cc6bc1461fccd8e0155a5935dd20f8fd3
+        --mode e2e --no-prepared-builds --spec projects-flow.spec.ts
+      run_id: '37291226144'
+      subject_commit: cc3b907cc6bc1461fccd8e0155a5935dd20f8fd3
+      execution_environment: isolated_github_ci
+      harness_commit: e9e4a32031d90126fe0a2651d6aaebc60974b649
+      profile: e2e
+      receipt: logs/jev-agentic-project-work/final-verification/focus-activation-loop-projects-result.json
+      summary: 3 passed; zero failed/skipped/flaky; complete coverage and verified cleanup.
+      artifacts:
+      - https://github.com/glowingkitty/OpenMates/actions/runs/37291226144/artifacts/11337556062
   specification_assertions:
   - focus-modes.project-specialist-composition
   - projects.focus.auto-selection-setting
@@ -1392,7 +1480,20 @@ tests:
   green_phase:
     required: true
     expected: pass
-    evidence: {}
+    evidence:
+      status: passed
+      timestamp: '2026-10-05T09:52:45.027997+00:00'
+      command: python3 scripts/ci_coordinator.py submit --session 0f58 --source cc3b907cc6bc1461fccd8e0155a5935dd20f8fd3
+        --mode pytest --no-prepared-builds (36 focused backend files; selected paths retained in receipt)
+      run_id: '37291220588'
+      subject_commit: cc3b907cc6bc1461fccd8e0155a5935dd20f8fd3
+      receipt: logs/jev-agentic-project-work/final-verification/focus-activation-loop-backend-result.json
+      harness_commit: e9e4a32031d90126fe0a2651d6aaebc60974b649
+      execution_environment: isolated_github_ci
+      profile: pytest
+      summary: All 36 selected backend files passed against the exact immutable product source.
+      artifacts:
+      - https://github.com/glowingkitty/OpenMates/actions/runs/37291220588/artifacts/11336406798
   specification_assertions:
   - chats.context.related-work-selection
 - id: T-REMOTE-WORKFLOW-FILE
@@ -1413,7 +1514,20 @@ tests:
   green_phase:
     required: true
     expected: pass
-    evidence: {}
+    evidence:
+      status: passed
+      timestamp: '2026-10-05T04:03:42.476255+00:00'
+      reason: Thirteen focused Save-context units pass. Cold isolated CLI Workflow CI passes all three cases with
+        no failures, skips or flaky results; actual physical YAML update, saved/online/matched binding, external-edit
+        conflict and cleanup are verified. Publication candidate differs from tested source only in generated assertion
+        metadata. Existing Workflow portability CLI/Web coverage remains supporting proof.
+      subject_commit: 8b8580cfef1bf3db7eb7134c81d9a723c50012a8
+      run_id: '37260311714'
+      receipt: logs/jev-agentic-project-work/final-verification/workflow-save-context-result.json
+      source_audit: logs/jev-agentic-project-work/final-verification/workflow-save-test-source-identity.json
+      artifacts:
+      - https://github.com/glowingkitty/OpenMates/actions/runs/37260311714/artifacts/11324557650
+      current_supporting_backend_receipt: logs/jev-agentic-project-work/final-verification/focus-activation-loop-backend-result.json
   specification_assertions:
   - workflows.portability.remote-project-save
 - id: T-SUMMARY-CACHE-PRIVACY
@@ -1437,7 +1551,16 @@ tests:
   green_phase:
     required: true
     expected: pass
-    evidence: {}
+    evidence:
+      status: passed
+      timestamp: '2026-10-05T03:50:09.765151+00:00'
+      subject_commit: 4798673c36e56bd91aa180cf518f2b0b03b3060e
+      receipt: logs/jev-agentic-project-work/final-verification/recommendation-fix-backend-result.json
+      reason: Reviewed memory-only cache and internal IPC boundaries. Isolated backend CI 37259312298 passes ciphertext-only
+        storage, expiry/nonrenewal, owner/key isolation, in-flight revocation, completion-ticket fencing and no
+        old-chat fallback. Public HTTP rejection passes isolated API CI 37250592356 (actual source 5d59dea); no
+        disk/Redis/Directus persistence is used for this cache.
+      current_supporting_backend_receipt: logs/jev-agentic-project-work/final-verification/focus-activation-loop-backend-result.json
   specification_assertions:
   - chats.context.memory-only-summary
   - chats.persistence.client-encrypted
@@ -1468,7 +1591,18 @@ tests:
   green_phase:
     required: true
     expected: pass
-    evidence: {}
+    evidence:
+      status: passed
+      timestamp: '2026-10-05T03:50:09.765151+00:00'
+      subject_commit: 4798673c36e56bd91aa180cf518f2b0b03b3060e
+      receipt: logs/jev-agentic-project-work/final-verification/recommendation-fix-backend-result.json
+      reason: Isolated backend CI 37259312298 passes bounded original-goal/clarification/task projections, optional
+        approved Plan context, typed assessment, separate generative reviewer, atomic delivered-instruction/deduplication
+        and stale/outage guards. Actual published-source provider corpus passes eight direction and two reviewer
+        cases. Web disclosure passes component CI 37248813832; CLI/TUI tests pass supporting UI unit CI 37248772709.
+        Native runtime verification is the user-accepted TASK-5592 handoff.
+      provider_receipt: logs/jev-agentic-project-work/final-verification/provider-live.json
+      current_supporting_backend_receipt: logs/jev-agentic-project-work/final-verification/focus-activation-loop-backend-result.json
   specification_assertions:
   - chats.direction.context-assessment
   - chats.direction.reviewed-correction
@@ -1496,7 +1630,17 @@ tests:
   green_phase:
     required: true
     expected: pass
-    evidence: {}
+    evidence:
+      status: passed
+      timestamp: '2026-10-05T03:50:09.765151+00:00'
+      subject_commit: 4798673c36e56bd91aa180cf518f2b0b03b3060e
+      receipt: logs/jev-agentic-project-work/final-verification/recommendation-fix-backend-result.json
+      reason: Isolated backend CI 37259312298 passes guide parsing, coherent guide counting, authorized Rule selection,
+        precedence and applied-set identity. Supporting UI unit CI 37248772709 and components 37248813832/37248888230
+        pass encrypted editing, changed-set notices and disclosures; public privacy boundaries pass 37250592356.
+        Six guides were researched from primary sources. Native runtime verification remains the accepted TASK-5592
+        handoff.
+      current_supporting_backend_receipt: logs/jev-agentic-project-work/final-verification/focus-activation-loop-backend-result.json
   specification_assertions:
   - rules.definition.guide-format
   - rules.ownership.encrypted-custom
@@ -1524,7 +1668,17 @@ tests:
   green_phase:
     required: true
     expected: pass
-    evidence: {}
+    evidence:
+      status: passed
+      timestamp: '2026-10-05T03:50:09.765151+00:00'
+      subject_commit: 4798673c36e56bd91aa180cf518f2b0b03b3060e
+      receipt: logs/jev-agentic-project-work/final-verification/recommendation-fix-backend-result.json
+      reason: Isolated backend CI 37259312298 passes deterministic authority, exact grants, changed argv/resources,
+        elevated/uncertain/outage escalation and untrusted injection text. Actual published-source corpus passes
+        15/15 risk cases, including seven benign cases, zero false positives and zero missed risky/unknown effects.
+        Semantic review never grants access.
+      provider_receipt: logs/jev-agentic-project-work/final-verification/provider-live.json
+      current_supporting_backend_receipt: logs/jev-agentic-project-work/final-verification/focus-activation-loop-backend-result.json
   specification_assertions:
   - code-run.remote.explicit-approval
   - code-run.remote.semantic-risk-review
@@ -1548,6 +1702,9 @@ tests:
   - Extend isolated product/UI coverage for button-triggered authoring, notification navigation, independent chat
     continuation and updated-instruction follow-up; real generation/inference evaluation runs on disposable dev
     state.
+  - Verify both Inspect and Update preserve complete canonical versioned phases, ordered semantic and user-confirmation
+    requirements; genuinely unversioned legacy phases share runtime identity and existing guidance. Malformed canonical
+    input cannot fall back to legacy and yields private-safe validation errors.
   covers:
   - AC-13
   red_phase:
@@ -1557,7 +1714,28 @@ tests:
   green_phase:
     required: true
     expected: pass
-    evidence: {}
+    evidence:
+      status: passed
+      timestamp: '2026-10-05T10:00:13.394Z'
+      subject_commit: 5962c9c304ede794ce5381fadcdceb23b91e3f7d
+      tested_product_source: cc3b907cc6bc1461fccd8e0155a5935dd20f8fd3
+      run_id: e17433332414
+      receipt: logs/jev-agentic-project-work/final-verification/authoring-live-e17433332414/authoring-evidence.json
+      runner_receipt: logs/jev-agentic-project-work/final-verification/authoring-live-e17433332414/runner-receipt.json
+      proof_summary: logs/jev-agentic-project-work/final-verification/authoring-live-e17433332414/strict-focus-proof-summary.json
+      watcher_receipt: logs/jev-agentic-project-work/final-verification/authoring-live-e17433332414/activation-watcher-receipt.json
+      client_preflight: logs/jev-agentic-project-work/final-verification/focus-live-active-exclusion-client-source-preflight.json
+      reason: Disposable dev real inference proves Create, exact client-encrypted Save/CAS and ready notification;
+        inactive catalog plus selected full-definition Jev Update assessment; genuine old saved specialist countdown
+        acceptance and completed continuation; click-triggered Update/replay idempotency, exact approved encrypted
+        Save and ready notification; fresh saved revision2 in follow-up context and the same authoritative specialist;
+        an unhinted literal SOURCE-PROVENANCE-47 answer, identical streamed/returned/saved response hashes and different
+        activation response. One activation only. Owned chat/Project/folder/isolated state removed and both leases
+        released. Workflow deliberately skipped; its independent retained proof is separate. Strict harness126dc061,
+        launcher3e72aa03, run collector78292fe4 and actual client9007626a provenance verified. Scoped client equality
+        covers11 live helpers/19 relevant methods, with unrelated Wikipedia/Study differences disclosed.
+      current_supporting_backend_receipt: logs/jev-agentic-project-work/final-verification/focus-activation-loop-backend-result.json
+      phase_transport_api_receipt: logs/jev-agentic-project-work/final-verification/focus-update-phase-transport-api-result.json
   specification_assertions:
   - focus-modes.project-authoring-click
   - focus-modes.project-authoring-persistence
@@ -1592,7 +1770,21 @@ tests:
   green_phase:
     required: true
     expected: pass
-    evidence: {}
+    evidence:
+      status: passed
+      timestamp: '2026-10-05T04:39:49.806Z'
+      subject_commit: 5df32f6c00975317099d4058c5646bcd4a4afd0d
+      receipt: logs/jev-agentic-project-work/final-verification/authoring-live-a5a2d226e20e/authoring-evidence.json
+      runner_receipt: logs/jev-agentic-project-work/final-verification/authoring-live-a5a2d226e20e/runner-receipt.json
+      reason: Disposable dev real inference proves inactive disabled Workflow catalog/full assessment, click/replay
+        idempotency, the existing Jev + LLM WorkflowInputService engine, saved version advance preserving disabled
+        state, actual selected-folder YAML send_chat_message bytes, encrypted binding CAS, ready ACK and matching
+        completion notification. A second real update after external file editing produces conflict, preserves exact
+        external bytes and emits no ready notification. All owned fixtures/state are removed and both leases released.
+        Focus was explicitly skipped in this independent proof; automated authoring/revocation/version-pinning tests
+        remain supporting evidence.
+      current_supporting_backend_receipt: logs/jev-agentic-project-work/final-verification/focus-activation-loop-backend-result.json
+      authoring_source_equivalence: logs/jev-agentic-project-work/final-verification/workflow-final-activation-loop-source-equivalence.json
   specification_assertions:
   - notifications.project-authoring.result-route
   - workflows.project.update-authoring
@@ -1660,7 +1852,7 @@ tasks:
     shared_files: []
 - id: TASK-3783
   title: Load coherent Rule guides and show applied Rules
-  status: in_progress
+  status: done
   phase: working_tasks
   covers:
     acceptance_criteria:
@@ -1679,7 +1871,7 @@ tasks:
     shared_files: []
 - id: TASK-4326
   title: Activate Projects with Focus countdown and refresh phase context
-  status: in_progress
+  status: done
   phase: working_tasks
   covers:
     acceptance_criteria:
@@ -1706,7 +1898,7 @@ tasks:
     - backend/apps/ai/processing/main_processor.py
 - id: TASK-4880
   title: Select related work from memory-only recent summaries
-  status: in_progress
+  status: done
   phase: working_tasks
   covers:
     acceptance_criteria:
@@ -1727,7 +1919,7 @@ tasks:
     shared_files: []
 - id: TASK-1119
   title: Correct material chat drift with inspectable instructions
-  status: in_progress
+  status: done
   phase: working_tasks
   covers:
     acceptance_criteria:
@@ -1747,7 +1939,7 @@ tasks:
     - backend/apps/ai/processing/main_processor.py
 - id: TASK-599
   title: Discover saved Workflows and save their remote YAML files
-  status: in_progress
+  status: done
   phase: working_tasks
   covers:
     acceptance_criteria:
@@ -1768,7 +1960,7 @@ tasks:
     shared_files: []
 - id: TASK-5367
   title: Escalate terminal risk using Jev under exact grants
-  status: in_progress
+  status: done
   phase: working_tasks
   covers:
     acceptance_criteria:
@@ -1787,7 +1979,7 @@ tasks:
     shared_files: []
 - id: TASK-8917
   title: Recommend and author Project Focus and Workflow updates
-  status: in_progress
+  status: done
   phase: working_tasks
   covers:
     acceptance_criteria:
@@ -1810,8 +2002,11 @@ tasks:
     files: *id007
     shared_files: []
 implementation_state:
-  subject_commit: dddd8603019aa93a83f294c660e56cfe61da337d
+  subject_commit: cc3b907cc6bc1461fccd8e0155a5935dd20f8fd3
   product_changes_made: true
+  published_commit: 5962c9c304ede794ce5381fadcdceb23b91e3f7d
+  publication_source_audit: logs/jev-agentic-project-work/final-verification/publication-focus-activation-loop-source-identity.json
+  publication_candidate: cc3b907cc6bc1461fccd8e0155a5935dd20f8fd3
 approvals:
   specification:
     status: approved
@@ -1957,6 +2152,16 @@ decisions:
   reason: User explicitly requested an Apple-focused separate-agent handoff after deploy when existing typed build
     helper rejected Xcode/Simulator operations.
   decided_at: '2026-10-04T23:43:35.446010+00:00'
+- id: D-PRIVATE-FOCUS-PHASE-COMPATIBILITY
+  status: active
+  decision: New Project Focus authoring uses the existing strict versioned runtime phase contract; unphased guides
+    omit phase fields. Explicit legacy-format compatibility preserves supplied guidance and stable phase identity,
+    deriving only completion of the existing instructions as a semantic condition, with no additional user-confirmation
+    requirement or execution permission. Private validation exceptions carry fixed safe codes.
+  reason: Real saved-revision follow-up exposed a producer/consumer mismatch that rejected private Focus instructions
+    before inference and included synthetic private phase text in validation logs. This repairs the already approved
+    phase behavior and privacy boundary without weakening strict versioned validation.
+  decided_at: '2026-10-05T06:32:32.286230+00:00'
 attempts:
 - id: ATTEMPT-1
   task_id: TASK-8443
@@ -1965,12 +2170,12 @@ attempts:
   recorded_at: '2026-10-02T00:00:00Z'
 handoff:
   current_task_id: TASK-8443
-  next_action: Implement approved slices, run focused isolated product checks and disposable real inference, then
-    verify all required acceptance criteria.
+  next_action: Publish the final verification records and strict collector; close parent TASK-8443 after publication.
+    Apple compile/runtime follow-up remains TASK-5592.
   command: openmates tasks show TASK-8443
   expected_outcome: One explicit approval of the Plan and linked Specification revisions authorizes implementation;
     do not repeat settled design questions.
-  last_verified_commit: dddd8603019aa93a83f294c660e56cfe61da337d
+  last_verified_commit: 5962c9c304ede794ce5381fadcdceb23b91e3f7d
   blocker: null
 implementation_sequence:
 - step: 1
@@ -2116,8 +2321,10 @@ review_validation:
     - 'Focus modes page 18: catalog/full-assessment requirements with adjacent examples.'
     - 'Workflows page 26: full-graph recommendation and existing Jev + LLM authoring reuse with example.'
     - 'Rules page 3: coherent guide definition and readable example.'
-  product_implementation: in_progress
-  product_tests: focused_units_passed_isolated_and_live_pending
+  product_implementation: passed_accepted_scope
+  product_tests: passed_focused_isolated_and_real_inference_native_deferred_user_accepted
+  plan_complete_phase: passed
+  plan_verification_receipt: logs/jev-agentic-project-work/final-verification/plan-complete-verification.log
 approved_by_user: true
 implementation_progress:
   workspace_migration:
@@ -2157,3 +2364,368 @@ progress:
     focus_bundle_fingerprint: e1fd1d92eae1614b98c24c4b63b15408b481c1425ef780c85eff9ec6a4360b6c
     outcome: Retained every published Study assertion/example and all seven approved Project Focus assertions. CI
       candidate includes all changed source; deploy inventory explicitly tracks transport, schema and history sanitization.
+  dev_publication:
+    commit: e10c7f5afc3bcf34e20e03b4547c483824e5885c
+    source_gate: passed
+    backend_gate: 56 test files passed
+    web_deployment: success
+    backend_runtime_refresh: 'passed: docker-9a7bb19f; later source refreshes are recorded below'
+    real_inference: superseded by the published-provider corpus and final authoring receipts recorded below
+    source_identity: Published product source matches tested 9d90b340. Difference consists only of test fixtures,
+      CI metadata and generated assertion metadata. Receipts retain their actual source hashes.
+  corrective_publication:
+    commit: bd5ae06c236c4aefabcf2a67767dc063401e2c0a
+    private_source: deb225b306495f91386e142f66dde376194e4bba
+    source_lint_gates: passed
+    backend_gate: 10 regression files passed
+    isolated_backend_ci: 33 files passed; run 37257591650
+    runtime_refresh: 'passed: docker-25c6de6b; all services running/healthy; 12 corrective backend files match published
+      bytes'
+    real_inference: 30/30 real-provider checks passed; full Focus/Workflow authoring and browser remote-save proof
+      pending
+    source_identity: Product source identical; additional integration changes are the independently published storage
+      documentation only.
+    web_deployment: success
+    provider_receipt: logs/jev-agentic-project-work/final-verification/provider-live.json
+    project_ui_ci: 3 passed; zero skipped/failed/flaky; isolated cold run 37258740969 source deb225b3
+    project_ui_receipt: logs/jev-agentic-project-work/final-verification/live-fix-projects-cold-result.json
+  recommendation_publication:
+    commit: 3ee69272a7d26b59c08ac630f0bee281d60cd1f8
+    private_source: 4798673c36e56bd91aa180cf518f2b0b03b3060e
+    source_identity: Exact tested source tree published unchanged
+    isolated_backend_ci: 33 files passed; run 37259312298
+    metadata_shortlist_min_noul: 0.7
+    create_and_confirmed_update_min_noul: 0.9
+    calibration: 11 synthetic cases pass; pending actual saved-source corpus and full authoring
+    runtime_refresh: 'passed: docker-2c1f4f9d; all running/healthy; actual backend bytes match publication'
+    authoring: Create encrypted Save/ready notification, inactive Focus full assessment and Update encrypted Save/fresh
+      content are proven; final active-before-update followup proof is running with corrected initial-only Project
+      selection.
+    web_deployment: success
+    actual_source_corpus: 11/11 real-provider cases passed
+    provider_receipt: logs/jev-agentic-project-work/final-verification/project-recommendation-live.json
+    authoring_receipt: logs/jev-agentic-project-work/final-verification/authoring-live-2f2f795279b6/authoring-evidence.json
+  workflow_browser_diagnosis:
+    source: e9ce0503183337dd7ab4e9d3cbc374af07c7a8a2
+    run_id: 37258694435
+    status: 2 passed, 1 failed
+    failure: project_focus_required; source online and fixture chat authoritative binding both confirmed
+    receipt: logs/jev-agentic-project-work/final-verification/workflow-remote-diagnostic-cold-result.json
+    repair: Restore explicit current Workflows hash chat context only if activeChatStore lacks ID; require existing
+      authoritative matching Project Focus; preserve all write guards.
+  workflow_save_publication:
+    timestamp: '2026-10-05T04:03:42.476255+00:00'
+    commit: 7c64393fc0c77c58bfa8be7df3eefedf80ec8f3d
+    source_tree_identical: true
+    unit_checks: 13 passed
+    product_ci: 3 passed, zero failed/skipped/flaky, physical YAML update and external-edit conflict; run37260311714
+    receipt: logs/jev-agentic-project-work/final-verification/workflow-save-context-result.json
+  notification_runtime_route:
+    timestamp: '2026-10-05T04:03:42.476255+00:00'
+    outcome: Missing published notification patterns added to exactly two live proxy matchers under exclusive dev-stack
+      lease and full-config ETag; unrelated routes preserved. Live config/autosave only; old startup file unchanged.
+    receipt: logs/jev-agentic-project-work/final-verification/notification-proxy-route-receipt.json
+  workflow_real_authoring:
+    status: passed
+    runtime_commit: 5df32f6c00975317099d4058c5646bcd4a4afd0d
+    published_client_source: 16b97dfe91ca2daa48c08c8e981eaff078300b89
+    evidence: logs/jev-agentic-project-work/final-verification/authoring-live-a5a2d226e20e/authoring-evidence.json
+    fixture_correction: Use current V2 trigger and supported send_chat_message authoring; no engine/schema expansion.
+  embed_history_repair:
+    status: published
+    published_commit: b3857334b216e57c646400f93edf175a90e6b1ab
+    private_source: 091495c666ce72b8e4288d1d5bb142d117e608db
+    cause: Later-version full replacements lacked the required patch; both producer branches now emit exact whole-file
+      patches and snapshots. Receiver encryption/authorization guards are unchanged.
+    backend_ci: '37264755259'
+    runtime_refresh: 'passed: docker-5e514c1e; all services running and healthy'
+    live_focus_followup: Streaming error cleared; Update encrypted Save, ready notification and latest document
+      retrieval passed. Corrected fixture now establishes genuine old-specialist activation before Update instead
+      of resetting the Project every turn.
+    runtime_source_audit: logs/jev-agentic-project-work/final-verification/runtime-embed-history-source-identity.json
+    projects_ci: '37264758038'
+  authoring_save_publication:
+    status: published
+    published_commit: 16b97dfe91ca2daa48c08c8e981eaff078300b89
+    private_source: 298ec5e8255e2305b502dd2cc2ce43b0d59916f0
+    source_audit: logs/jev-agentic-project-work/final-verification/publication-authoring-save-fix-source-identity.json
+    backend_ci: '37262234202'
+    projects_ci: '37262236812'
+    native_execution: user-accepted TASK-5592 handoff
+  focus_active_followup_diagnosis:
+    status: final_response_instruction_diagnosis
+    runtime_commit: b3857334b216e57c646400f93edf175a90e6b1ab
+    evidence: logs/jev-agentic-project-work/final-verification/authoring-live-d7bd7c419601/authoring-evidence.json
+    confirmed: Initial-only Project binding and genuine saved specialist activation produced pending and accepted
+      events. Its actual continuation never finished; CLI timed out before Update click. Create save/ready notification
+      and inactive full-definition recommendation passed; owned cleanup and lease release completed.
+    next: Implement exact current-source-turn reconstruction in accepted/rejected continuation paths, with prompt
+      current-context failure and stale/newer-turn suppression; test actual dispatch before scoped publication and
+      a corrected real Focus rerun.
+    acceptance: AC-5 remains pending for the real accepted-specialist continuation despite passing selection units;
+      AC-13 remains pending for the complete active-update/followup proof.
+    confirmed_stop: Auto-confirm accepts and publishes the saved specialist, removes one activation assistant message,
+      then aborts because rebuilt history still ends with assistant rather than the exact source user turn. No continuation
+      task is dispatched.
+    repair_boundary: Rebuild only the admitted current source turn; preserve newer-user, cancellation, revocation
+      and version fencing. Regression must cover multiple same-turn assistant/control rows and stale/newer user
+      turn rejection.
+    origin_limit: Cleanup removed the owned cache rows; logs do not identify whether the residual assistant was
+      same-turn output or reordered earlier history. No origin claim is made.
+    repair: Confirm/reject rebuild from exactly one admitted current source-user row, preserve earlier Focus transitions,
+      exclude provisional output, and surface current-turn failures through the owner-scoped WebSocket error protocol.
+      Cache/key and post-await dispatch races are being tested before publication.
+    latest_run: 5b266a3e38f0
+    latest_error: Actual active specialist activation/continuation, Update generation, exact encrypted Save, ready
+      notification, retained active identity and fresh selected document revision pass. Completed follow-up lacks
+      expected literal source-check identifier; final output/instruction diagnosis remains open. Fixtures/state
+      removed and both leases released.
+  focus_continuation_repair:
+    status: published
+    published_commit: 7fad99675d7a99d2e708fa6c4b6fe794e9249289
+    subject_commit: 890e7471e9d2fdb224bdd2a735c4464aada86d49
+    local_review_receipt: logs/jev-agentic-project-work/final-verification/focus-continuation-local-review.json
+    backend_result: logs/jev-agentic-project-work/final-verification/focus-continuation-backend-result.json
+    browser_status: passed
+    real_focus_status: failed_explicit_source_reconstruction_error
+    runtime_status: passed
+    runtime_commit: 7fad99675d7a99d2e708fa6c4b6fe794e9249289
+    runtime_receipt: logs/jev-agentic-project-work/final-verification/runtime-focus-continuation-source-identity.json
+    frontend_status: passed
+    frontend_receipt: logs/jev-agentic-project-work/final-verification/vercel-focus-continuation-fixes.log
+    real_focus_receipt: logs/jev-agentic-project-work/final-verification/authoring-live-11d86ac02c8e/authoring-evidence.json
+    browser_receipt: logs/jev-agentic-project-work/final-verification/focus-continuation-projects-result.json
+  current_message_recache_repair:
+    status: published
+    source: 8d42e3d6f0516c23b9aad1ea164fcf0bbf31ffa3
+    cause: Saved-chat prior-only client history replaced the AI cache after admitting the new user message, deleting
+      its exact source ID.
+    behavior: Preserve original Vault-encrypted current row newest, deduplicate its explicit supplied ID, and unconditionally
+      abort before inference on replacement failure even if error delivery raises.
+    local_review: logs/jev-agentic-project-work/final-verification/current-message-recache-local-review.json
+    adjacent_baseline: logs/jev-agentic-project-work/final-verification/recache-adjacent-published-baseline-result.json
+    published_commit: 63d5914c684e14d3e6ce5f26ce347e9340e0bba7
+    backend_result: logs/jev-agentic-project-work/final-verification/current-message-recache-backend-result.json
+    browser_status: passed
+    runtime_status: passed
+    runtime_commit: 63d5914c684e14d3e6ce5f26ce347e9340e0bba7
+    runtime_receipt: logs/jev-agentic-project-work/final-verification/runtime-current-message-recache-source-identity.json
+    real_focus_status: activation_update_save_and_fresh_revision_passed_response_marker_failed
+    frontend_status: passed
+    frontend_receipt: logs/jev-agentic-project-work/final-verification/vercel-current-message-recache-fixes.log
+    real_focus_receipt: logs/jev-agentic-project-work/final-verification/authoring-live-5b266a3e38f0/authoring-evidence.json
+    browser_receipt: logs/jev-agentic-project-work/final-verification/current-message-recache-projects-result.json
+  private_focus_phase_contract_repair:
+    status: published
+    cause: New authoring phases used id/name/instructions and omitted the strict runtime version/requirements; main
+      validation rejected fresh private documents before inference.
+    repair: Canonical new authoring uses the existing runtime phase schema; explicit validated legacy compatibility
+      retains active-phase guidance; empty phases are omitted; private validation errors become fixed safe exceptions.
+    fixture_alignment: The synthetic source-check identifier is explicitly a global invariant, so every active phase
+      can demonstrate updated instructions without exposing future phase bodies. Existing literal and saved-revision
+      assertions remain strict.
+    subject_commit: a8bc69da0b06fd3a719659b9c412accf2316eb51
+    base_commit: 911e2f0176a589a7e82894a0edb2ae33939e9a0f
+    local_checks: 97 passed; Ruff eight owned paths; four contract metadata checks; diff check
+    independent_review: No remaining findings after producer/authorization boolean-version guard.
+    local_receipt: logs/jev-agentic-project-work/final-verification/private-focus-phase-local-checks.json
+    privacy: Private phase titles/instructions stay outside Redis control state; owner UI projection supplies the
+      title from the current authorized definition. Private validation exceptions suppress input and traceback chains.
+    published_commit: 62f40e9f27a27778b60d6d7e5f6f69d3d57c4824
+    backend_result: logs/jev-agentic-project-work/final-verification/private-focus-phase-backend-result.json
+    browser_result: logs/jev-agentic-project-work/final-verification/private-focus-phase-projects-result.json
+    publication_source_audit: logs/jev-agentic-project-work/final-verification/publication-private-focus-phase-source-identity.json
+    runtime_status: passed
+    real_focus_status: failed_create_authoring_before_save
+    runtime_commit: 62f40e9f27a27778b60d6d7e5f6f69d3d57c4824
+    runtime_receipt: logs/jev-agentic-project-work/final-verification/runtime-private-focus-phase-source-identity.json
+    frontend_status: passed
+    frontend_receipt: logs/jev-agentic-project-work/final-verification/vercel-private-focus-phase-fixes.log
+    real_focus_receipt: logs/jev-agentic-project-work/final-verification/authoring-live-931e6b1491ed/authoring-evidence.json
+  focus_final_proof_setup:
+    status: provenance_verified_real_failure
+    run_id: 931e6b1491ed
+    actual_runtime: 62f40e9f27a27778b60d6d7e5f6f69d3d57c4824
+    issue: Launcher used an older ignored diagnostic collector while recording the current source harness hash;
+      mechanical collector regeneration and an identity preflight are required. Actual Create also failed before
+      the changed Update fixture, so the provider/product cause is being separately diagnosed before retry.
+    cleanup: Owned fixtures and isolated state removed; both leases released.
+    collector_audit: logs/jev-agentic-project-work/final-verification/collector-provenance-audit/source-identity.json
+    checks: Six stale/tampered semantic and preflight-before-credential/lease/login guards passed; actual executed
+      snapshot hashed.
+    strict_run: 5548ee702bac
+    next: One bounded synthetic provider diagnostic; no blind full-harness retry.
+  focus_provider_schema_repair:
+    status: published
+    cause: Own real Create failed at generateContent HTTP400 before result parsing; new raw author schema contains
+      unsupported literal const. Exact provider error body is not retained, so the specific rejected keyword is
+      an inference.
+    repair: Project Focus-only provider transport projection to official supported schema subset, literal const
+      to enum; retain strict authoritative document/runtime/authorization validation and billing/privacy fences.
+    primary_source: https://ai.google.dev/api/generate-content
+    scope:
+    - backend/core/api/app/services/project_authoring_service.py
+    - backend/tests/test_project_authoring.py
+    subject_commit: 4a2ed59ecd59902d448e4b3fa02a79c8bea30f34
+    local_review: logs/jev-agentic-project-work/final-verification/focus-provider-schema-local-review.json
+    local_checks: 24 focused tests, Ruff, contract metadata and diff check passed; independent review has zero findings.
+    published_commit: 2f7cdd16a7c0bee5cfca568ce9c160d3d9f5e16b
+    backend_result: logs/jev-agentic-project-work/final-verification/focus-provider-schema-backend-result.json
+    browser_result: logs/jev-agentic-project-work/final-verification/focus-provider-schema-projects-result.json
+    publication_source_audit: logs/jev-agentic-project-work/final-verification/publication-focus-provider-schema-source-identity.json
+    runtime_status: passed
+    real_focus_status: failed_create_authoring_before_save
+    runtime_commit: 2f7cdd16a7c0bee5cfca568ce9c160d3d9f5e16b
+    runtime_receipt: logs/jev-agentic-project-work/final-verification/runtime-focus-provider-schema-source-identity.json
+    frontend_status: passed
+    frontend_receipt: logs/jev-agentic-project-work/final-verification/vercel-focus-provider-schema-fixes.log
+    real_focus_receipt: logs/jev-agentic-project-work/final-verification/authoring-live-5548ee702bac/authoring-evidence.json
+    diagnosis: Verified collector still failed at Create; the schema projection alone did not resolve the actual
+      job. Isolate one direct synthetic provider response and the correlated job exception before further repair/retry.
+  focus_flat_transport_repair:
+    status: published
+    reason: Supported-key nested phase schema still returned provider HTTP400. The same model/envelope with a small
+      document_json schema returned HTTP200 and a canonical two-phase Focus passed strict validation. Adopt the
+      existing Workflow JSON-string transport pattern without changing canonical Focus models or Save authority.
+    probe_receipt: logs/jev-agentic-project-work/final-verification/focus-provider-probe-flat-document.json
+    probe_runtime_commit: 2f7cdd16a7c0bee5cfca568ce9c160d3d9f5e16b
+    focused_units: 36 passed; actual request-path envelope, canonical phases, clarification and fixed private errors
+    strict_guards: Duplicate keys at both JSON layers, non-finite values, extra/malformed fields, response size/depth,
+      phase identifiers/version/requirements remain rejected.
+    next: Review immutable source, run required CI, publish and refresh runtime, then one verified full Focus real-inference
+      proof.
+    subject_commit: 07e9fb6002688c140b18ae2f253c72047c2da2d8
+    base_commit: 2f7cdd16a7c0bee5cfca568ce9c160d3d9f5e16b
+    backend_result: logs/jev-agentic-project-work/final-verification/focus-flat-transport-backend-result.json
+    independent_review: logs/jev-agentic-project-work/final-verification/focus-flat-transport-independent-review.json
+    local_receipt: logs/jev-agentic-project-work/final-verification/focus-flat-transport-local-checks.json
+    workflow_source_audit: logs/jev-agentic-project-work/final-verification/workflow-final-flat-transport-source-equivalence.json
+    browser_result: logs/jev-agentic-project-work/final-verification/focus-flat-transport-projects-result.json
+    publication_candidate: c2ab43f58bdea0ce0508b49d069b20faa05a8eff
+    published_commit: 1e1be8b55f72c00712d3b7b124cec482dfa04f28
+    publication_source_audit: logs/jev-agentic-project-work/final-verification/publication-focus-flat-transport-source-identity.json
+    metadata_normalization: logs/jev-agentic-project-work/final-verification/focus-flat-transport-metadata-equivalence.json
+    publication_note: Publication gate required moving one contract annotation adjacent to the parameterized test.
+      Normalized candidate c2ab43f5 preserves all tested product bytes and the entire test AST from07e9fb60; only
+      test comment position and generated assertion index differ. Both original CI sources retained.
+    runtime_status: passed
+    runtime_commit: 1e1be8b55f72c00712d3b7b124cec482dfa04f28
+    runtime_receipt: logs/jev-agentic-project-work/final-verification/runtime-focus-flat-transport-source-identity.json
+    real_focus_status: passed_after_phase_target_and_activation_candidate_repairs
+    frontend_status: passed
+    frontend_receipt: logs/jev-agentic-project-work/final-verification/vercel-focus-flat-transport-fixes.log
+  focus_update_target_phase_transport:
+    status: published_verified_focus_activation_loop_discovered
+    evidence: Read-only cross-client audit confirmed all three existing parsers lose or reject canonical phase metadata.
+      Root-owned backend routes, service normalizer and runtime reuse are implemented; worker owns client serializers,
+      focused tests and API E2E coverage.
+    next: Verify refreshed source and health, then one frozen full Focus real-inference proof.
+    affected_clients:
+    - CLI
+    - Web
+    - Apple
+    repair: Shared client validation preserves canonical version1/title/all ordered requirements and truly unversioned
+      raw legacy phases. A single server normalizer reuses existing runtime legacy IDs and semantic completion conditions
+      for Inspect and Update; generated output stays strict. Private authoring request-validation errors become
+      fixed422 before shared error logging.
+    backend_tests: 107 focused authoring/phase/authorization tests passed; Ruff and contract metadata passed.
+    backend_receipt: logs/jev-agentic-project-work/final-verification/focus-update-phase-backend-local-checks.json
+    privacy: Authoring router converts union/model validation failures to fixed422 before response/logging; malformed
+      canonical input remains rejected without private phase/history text.
+    subject_commit: 4345dcf799805fef3e390a73fb079816ea23615d
+    base_commit: 1e1be8b55f72c00712d3b7b124cec482dfa04f28
+    owned_paths:
+    - backend/core/api/app/services/project_authoring_service.py
+    - backend/core/api/app/routes/project_authoring.py
+    - backend/apps/ai/processing/focus_phases.py
+    - backend/tests/test_project_authoring.py
+    - frontend/packages/openmates-cli/src/cliJevContext.ts
+    - frontend/packages/openmates-cli/tests/cliJevContext.test.ts
+    - frontend/packages/ui/src/services/agenticProjectContextService.ts
+    - frontend/packages/ui/src/services/__tests__/agenticProjectContextService.test.ts
+    - frontend/packages/ui/src/services/__tests__/projectAuthoringClientService.test.ts
+    - frontend/apps/web_app/tests/jev-project-context-api.spec.ts
+    - apple/OpenMates/Sources/Features/Projects/ProjectsWorkspaceService.swift
+    - apple/OpenMatesTests/FocusPhaseTests.swift
+    - frontend/packages/projectFocusDocument.ts
+    - specifications/generated/assertion-index.yml
+    client_tests: CLI11/11; Web14/14; shared helper strict tsc; final CLI ESM/DTS build; contract metadata checks
+      passed
+    client_delta_audit: logs/jev-agentic-project-work/final-verification/pre-focus-update-phase-transport-repair/delta-audit.json
+    native_runtime: Not executed; TASK-5592 accepted handoff includes new parser/serialization/Boolean-version regressions.
+    independent_review: logs/jev-agentic-project-work/final-verification/focus-update-phase-transport-independent-review.json
+    review_status: passed_zero_findings
+    backend_result: logs/jev-agentic-project-work/final-verification/focus-update-phase-transport-backend-result.json
+    browser_result: logs/jev-agentic-project-work/final-verification/focus-update-phase-transport-projects-result.json
+    api_result: logs/jev-agentic-project-work/final-verification/focus-update-phase-transport-api-result.json
+    ci_summary: 36 backend files; 3 Project browser cases; 3 Jev context API cases; all passed on4345dcf7 with verified
+      disposable cleanup.
+    published_commit: e9e4a32031d90126fe0a2651d6aaebc60974b649
+    publication_source_audit: logs/jev-agentic-project-work/final-verification/publication-focus-update-phase-transport-source-identity.json
+    runtime_commit: e9e4a32031d90126fe0a2651d6aaebc60974b649
+    runtime_status: passed
+    runtime_receipt: logs/jev-agentic-project-work/final-verification/runtime-focus-update-phase-transport-source-identity.json
+    client_live_preflight: logs/jev-agentic-project-work/final-verification/focus-live-phase-update-client-source-preflight.json
+    workflow_source_audit: logs/jev-agentic-project-work/final-verification/workflow-final-phase-update-transport-source-equivalence.json
+    frontend_status: passed
+    frontend_receipt: logs/jev-agentic-project-work/final-verification/vercel-focus-update-phase-transport-fixes.log
+    real_focus_status: passed_after_accepted_specialist_candidate_repair
+  focus_activation_loop_repair:
+    status: published_verified
+    observed_runtime: e9e4a32031d90126fe0a2651d6aaebc60974b649
+    failed_run_id: cafad5081ef5
+    evidence: Real Create, encrypted Save and notification passed. Inactive selected/full Update assessment passed.
+      Old saved specialist emitted repeated pending/activated events for the same source turn; no completed activation
+      response or Update click. Collector stopped to prevent paid looping; cleanup is owned by the collector worker.
+    cause: Main correctly loads accepted private Focus instructions, then retains that exact Focus in its activation
+      candidates. Repeated model selection restarts the countdown/continuation.
+    repair: Exclude the already active specialist after authorized candidate admission; dispatcher membership enforcement
+      then rejects repeated same-ID activation, preserving other specialist switches.
+    regression: Actual main provider tools/prompt, inactive/switch candidates and malicious repeated activation
+      with no countdown side effects. Existing strict live collector remains unchanged.
+    next: Finalize Plan evidence, completion record and accepted Apple handoff.
+    subject_commit: cc3b907cc6bc1461fccd8e0155a5935dd20f8fd3
+    base_commit: e9e4a32031d90126fe0a2651d6aaebc60974b649
+    local_units: 37 passed, including four actual main-loop activation regressions; Ruff/metadata/diff passed
+    local_receipt: logs/jev-agentic-project-work/final-verification/focus-activation-loop-unit-results.xml
+    independent_review: logs/jev-agentic-project-work/final-verification/focus-activation-loop-independent-review.json
+    failed_run_receipt: logs/jev-agentic-project-work/final-verification/authoring-live-cafad5081ef5/authoring-evidence.json
+    failed_run_cleanup: logs/jev-agentic-project-work/final-verification/authoring-live-cafad5081ef5/owned-interrupt-cleanup-final.json
+    cleanup_status: Owned looping chat deleted ACK, Focus deactivated, Project/folder/isolated state removed, all
+      four original and cleanup leases released.
+    failed_run_limitations: Observer did not retain the later activation admitted turn or pending request IDs. Completed
+      assessment IDs are separate and cannot substitute for activation IDs.
+    backend_result: logs/jev-agentic-project-work/final-verification/focus-activation-loop-backend-result.json
+    workflow_source_audit: logs/jev-agentic-project-work/final-verification/workflow-final-activation-loop-source-equivalence.json
+    browser_result: logs/jev-agentic-project-work/final-verification/focus-activation-loop-projects-result.json
+    published_commit: 5962c9c304ede794ce5381fadcdceb23b91e3f7d
+    publication_source_audit: logs/jev-agentic-project-work/final-verification/publication-focus-activation-loop-source-identity.json
+    client_preflight: logs/jev-agentic-project-work/final-verification/focus-live-active-exclusion-client-source-preflight.json
+    bounded_stop_guard: logs/jev-agentic-project-work/final-verification/watch-authoring-activation-0f58.py
+    runtime_status: passed
+    runtime_commit: 5962c9c304ede794ce5381fadcdceb23b91e3f7d
+    restart_operation: docker-636c456c
+    runtime_receipt: logs/jev-agentic-project-work/final-verification/runtime-focus-activation-loop-source-identity.json
+    real_focus_status: passed
+    real_focus_run: e17433332414
+    real_focus_receipt: logs/jev-agentic-project-work/final-verification/authoring-live-e17433332414/strict-focus-proof-summary.json
+    frontend_status: passed
+    frontend_receipt: logs/jev-agentic-project-work/final-verification/vercel-focus-activation-loop-fixes.log
+  final_focus_proof:
+    status: passed
+    run_id: e17433332414
+    actual_runtime_commit: 5962c9c304ede794ce5381fadcdceb23b91e3f7d
+    tested_product_source: cc3b907cc6bc1461fccd8e0155a5935dd20f8fd3
+    receipt: logs/jev-agentic-project-work/final-verification/authoring-live-e17433332414/strict-focus-proof-summary.json
+    cleanup: Owned chat, Project, folder and isolated state removed; both leases released without failure.
+    source_provenance: Actual source and client hashes retained; no earlier partial or failed run credited as the
+      final proof.
+  final_record_capacity_recovery:
+    status: passed
+    initial_failure: CI source helper refused a snapshot below its 30 GiB disk reserve; no reserve override used.
+    receipt: logs/jev-agentic-project-work/final-verification/capacity-final-record-recovery.json
+    package_cache_log: logs/jev-agentic-project-work/final-verification/capacity-pnpm-store-prune.log
+    free_gib_after: 33.19
+    retained: Active workspaces, user source/data, protected PII evaluation cache and recovery evidence.
+    method: Built-in pnpm store prune; exclusive dev-stack lease for unreferenced dangling-image prune and unused
+      Docker build cache older than24hours.
