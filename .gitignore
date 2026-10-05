@@ -251,6 +251,7 @@ privacy-video.mp4
 .claude/sessions.json.tmp
 .claude/sessions.tmp
 .claude/sessions.lock
+.claude/resource-budget/
 .claude/sessions.md
 .claude/project-index.json
 .claude/plane-states.json

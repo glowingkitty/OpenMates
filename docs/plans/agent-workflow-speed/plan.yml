@@ -29,4 +29,7 @@ decisions:
   - Schema cache publication runs independently of the self-host image workflow that cancels on every dev push, serialized by schema compatibility key.
 evidence:
   - Cold composer-workspace-layout.spec.ts passed in isolated run 37356953151; bootstrap 487.334 seconds, cms-setup 461.665 seconds.
-  - Coordinator restart preserved all 5261 durable queue jobs; bounded 12-job canary is in progress.
+  - Coordinator restart preserved all 5261 durable queue jobs; all 12 bounded canary checks passed, with peak 11 simultaneous executions.
+  - Independent schema publisher run 37360392442 found a compatible content-keyed image in six seconds.
+  - Corrected resource inventory reported 35.00 GiB of worktrees, 1.68 GiB of candidates, 12.49 GiB of results and zero eligible reclamation.
+  - Safe admission cleanup enabled after fresh matching review; no current payload was deleted. Fast activation review took 2.36 seconds and 94 resource/result checks passed.

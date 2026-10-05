@@ -1,8 +1,9 @@
 """Shared, fail-closed disk reservations and dry-run inventory for managed CI bytes.
 
-The inventory owns only extracted successful CI payloads. Worktree expiry owns
-worktree deletion; candidate patches and dependency copies are reported but kept.
-No background cleaner or implicit deletion runs from admission.
+Cleanup owns only proven disposable successful CI payloads and integrated,
+expired candidate patches. Worktree expiry owns worktree deletion; dependency
+copies are reported but kept. Admission cleanup requires explicit opt-in after
+dry-run review; no background cleaner runs.
 """
 
 from __future__ import annotations
@@ -126,19 +127,24 @@ def reserve(root: Path, amount: int, *, min_free: int = MIN_FREE,
             path.unlink(missing_ok=True)
 
 
-def _bytes(path: Path) -> tuple[int, bool]:
-    """Count allocated file bytes without following links; report unsafe types."""
+def _bytes(path: Path, *, seen: set[tuple[int, int]] | None = None) -> tuple[int, bool]:
+    """Count allocated inodes once without following links; report unsafe types."""
     total = 0
     safe = True
+    seen = seen if seen is not None else set()
     paths = [path]
     while paths:
         current = paths.pop()
         try:
             info = current.lstat()
             if stat.S_ISDIR(info.st_mode):
+                total += info.st_blocks * 512
                 paths.extend(current.iterdir())
             elif stat.S_ISREG(info.st_mode):
-                total += info.st_blocks * 512
+                key = (info.st_dev, info.st_ino)
+                if key not in seen:
+                    seen.add(key)
+                    total += info.st_blocks * 512
             else:
                 total += info.st_blocks * 512
                 safe = False
@@ -265,8 +271,8 @@ def _integrated_candidate(path: Path, root: Path, rows: list[dict] | None,
         return False
 
 
-def inventory(root: Path, *, now: float | None = None) -> dict:
-    """Return explicit dry-run paths and bytes; ambiguity always protects data."""
+def inventory(root: Path, *, now: float | None = None, count_bytes: bool = True) -> dict:
+    """Return a dry-run manifest; fast revalidation omits worktree byte walks."""
     root = root.resolve()
     now = time.time() if now is None else now
     rows = _queue_rows(root)
@@ -283,21 +289,30 @@ def inventory(root: Path, *, now: float | None = None) -> dict:
         "candidates": root / "logs/ci-candidates",
         "results": root / "test-results/ci-runs",
     }
+    category_inodes: dict[str, set[tuple[int, int]]] = {name: set() for name in categories}
+    dependency_inodes: set[tuple[int, int]] = set()
     for category, base in categories.items():
         if not base.is_dir():
             continue
         for path in sorted(base.iterdir()):
             if not path.is_dir() or path.is_symlink():
                 continue
-            size, safe = _bytes(path)
+            if category == "worktrees" and not count_bytes:
+                size, safe = None, True
+            else:
+                size, safe = _bytes(path, seen=category_inodes[category])
             item = {"category": category, "path": str(path), "bytes": size,
                     "action": "retain", "reason": "owner_or_recovery_state"}
             if category == "worktrees":
                 item["reason"] = "worktree_expiry_is_sole_owner"
-                deps = sum(_bytes(dep)[0] for dep in path.rglob("node_modules")
-                           if dep.is_dir() and not dep.is_symlink()
-                           and not any(part == "node_modules" for part in dep.relative_to(path).parts[:-1]))
-                item["dependency_bytes"] = deps
+                if count_bytes:
+                    item["dependency_bytes"] = sum(
+                        _bytes(dep, seen=dependency_inodes)[0] for dep in path.rglob("node_modules")
+                        if dep.is_dir() and not dep.is_symlink()
+                        and not any(part == "node_modules" for part in dep.relative_to(path).parts[:-1])
+                    )
+                else:
+                    item["dependency_bytes"] = None
             elif category == "candidates":
                 item["reason"] = "candidate_source_or_recovery_patch"
                 if safe and not runtime_busy and _integrated_candidate(path, root, rows, active_owners, now):
@@ -357,8 +372,10 @@ def inventory(root: Path, *, now: float | None = None) -> dict:
                         item["reason"] = "compact_receipt_only"
             entries.append(item)
     return {"dry_run": True, "root": str(root), "entries": entries,
+            "physical_bytes_counted": count_bytes,
             "runtime_leases": leases, "pending_ci_source_count": len(pending_sources),
-            "totals": {category: sum(item["bytes"] for item in entries if item["category"] == category)
+            "totals": {category: (None if category == "worktrees" and not count_bytes else
+                                  sum(item["bytes"] for item in entries if item["category"] == category))
                        for category in categories},
             "reclaim_bytes": sum(item.get("reclaim_bytes", 0) for item in entries)}
 
@@ -369,7 +386,7 @@ def cleanup(root: Path, *, manifest: dict) -> dict:
     if manifest.get("dry_run") is not True or manifest.get("root") != str(root):
         raise ValueError("Expected exact dry-run disk manifest")
     with _locked(root):
-        current = inventory(root)
+        current = inventory(root, count_bytes=False)
         allowed = {"remove_result_payload", "remove_candidate_patch"}
         approved = {entry["path"]: entry for entry in manifest.get("entries", [])
                     if entry.get("action") in allowed}
@@ -402,7 +419,7 @@ def enable_auto(root: Path, *, manifest: dict) -> None:
     if manifest.get("dry_run") is not True or manifest.get("root") != str(root):
         raise ValueError("Expected exact dry-run disk manifest")
     with _locked(root) as directory:
-        current = inventory(root)
+        current = inventory(root, count_bytes=False)
         reviewed = [(item["path"], item.get("action"), item.get("payload_snapshot"))
                     for item in manifest.get("entries", [])]
         fresh = [(item["path"], item.get("action"), item.get("payload_snapshot"))

@@ -29,7 +29,7 @@ def test_inventory_counts_other_files_after_unsafe_link_without_following_it(tmp
     link.symlink_to(external)
     count, safe = budget._bytes(own)
     assert safe is False
-    assert count == sum(item.lstat().st_blocks * 512 for item in (first, second, link))
+    assert count == sum(item.lstat().st_blocks * 512 for item in (own, first, second, link))
 
 
 def _queue(root: Path, rows: list[tuple[str, str, str]]) -> None:
@@ -243,3 +243,71 @@ def test_enable_rejects_stale_review(tmp_path):
     with pytest.raises(RuntimeError, match="changed since review"):
         budget.enable_auto(tmp_path, manifest=reviewed)
     assert not budget._auto_enabled(tmp_path)
+
+
+def test_fast_revalidation_keeps_eligibility_without_worktree_walk(tmp_path, monkeypatch):
+    source = "a" * 40
+    result = _result(tmp_path, "success01", source)
+    _queue(tmp_path, [("success01", source, "success")])
+    worktree = tmp_path / ".openmates-agent-worktrees/agent-fixture"
+    (worktree / "node_modules/package").mkdir(parents=True)
+    (worktree / "node_modules/package/index.js").write_text("fixture")
+
+    full = budget.inventory(tmp_path)
+    fast = budget.inventory(tmp_path, count_bytes=False)
+    def decisions(report):
+        return [(item["path"], item["action"], item.get("payload_snapshot"),
+                 item.get("reclaim_bytes")) for item in report["entries"]]
+
+    assert decisions(fast) == decisions(full)
+    assert fast["totals"]["worktrees"] is None
+    assert fast["totals"]["results"] == full["totals"]["results"]
+    assert fast["reclaim_bytes"] == full["reclaim_bytes"]
+
+    original_bytes = budget._bytes
+    original_rglob = Path.rglob
+
+    def no_worktree_bytes(path, **kwargs):
+        if path == worktree or path.is_relative_to(worktree):
+            raise AssertionError("fast revalidation walked worktree bytes")
+        return original_bytes(path, **kwargs)
+
+    def no_worktree_rglob(path, pattern):
+        if path == worktree or path.is_relative_to(worktree):
+            raise AssertionError("fast revalidation scanned worktree dependencies")
+        return original_rglob(path, pattern)
+
+    monkeypatch.setattr(budget, "_bytes", no_worktree_bytes)
+    monkeypatch.setattr(Path, "rglob", no_worktree_rglob)
+    budget.enable_auto(tmp_path, manifest=full)
+    assert budget.cleanup(tmp_path, manifest=full)["removed"] == [str(result)]
+    assert not (result / "test-results/large.webm").exists()
+
+
+def test_enable_still_rejects_new_inventory_entry(tmp_path):
+    source = "a" * 40
+    _result(tmp_path, "success01", source)
+    _queue(tmp_path, [("success01", source, "success")])
+    reviewed = budget.inventory(tmp_path)
+    new_candidate = tmp_path / "logs/ci-candidates" / ("b" * 40)
+    new_candidate.mkdir(parents=True)
+    (new_candidate / "candidate.patch").write_text("new source")
+    with pytest.raises(RuntimeError, match="changed since review"):
+        budget.enable_auto(tmp_path, manifest=reviewed)
+    assert not budget._auto_enabled(tmp_path)
+
+
+def test_inventory_counts_shared_worktree_inode_once(tmp_path):
+    first = tmp_path / ".openmates-agent-worktrees/agent-one"
+    second = tmp_path / ".openmates-agent-worktrees/agent-two"
+    first.mkdir(parents=True)
+    second.mkdir(parents=True)
+    (first / "shared.bin").write_bytes(b"x" * 4096)
+    os.link(first / "shared.bin", second / "shared.bin")
+    (second / "own.bin").write_bytes(b"y" * 4096)
+    report = budget.inventory(tmp_path)
+    expected = (first.stat().st_blocks + second.stat().st_blocks
+                + (first / "shared.bin").stat().st_blocks
+                + (second / "own.bin").stat().st_blocks) * 512
+    assert report["totals"]["worktrees"] == expected
+    assert all(item["action"] == "retain" for item in report["entries"])
