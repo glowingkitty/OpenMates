@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.chats@2
+specification: feature.chats@3
 
 encryption_boundary:
   - id: private-chat-durable-row
@@ -133,3 +133,40 @@ responsive_history:
   - id: regular-wide-history
     given: {web_viewport: [1440, 900], chat_container_width_above: 500}
     expect: {assistant_identity_beside_content: true, content_centered: true, content_max_width: 1000, horizontal_clipping: false}
+
+memory_only_summary:
+- id: summary-expiry-keeps-old-chat-private
+  assertion_ids:
+  - chats.context.memory-only-summary
+  given: A SocialHub response completes at 10:00 and produces a transient summary; the chat is no longer active.
+  when: Another chat selects context at 10:20, then tries again after the thirty-minute window and after a
+    cache restart.
+  then: Only the eligible Vault-encrypted memory copy can be used at 10:20. Reads do not extend eligibility;
+    expired/restarted copies stay unavailable and cannot be recovered from server-readable disk or old client-encrypted
+    chats.
+related_work_selection:
+- id: relevant-cross-project-work
+  assertion_ids:
+  - chats.context.related-work-selection
+  given: SocialHub debugging has a same-Project retry Task, a relevant shared-queue chat in another authorized
+    Project that finished ten minutes ago, and unrelated active design work.
+  when: Jev selects related summaries for the retry investigation.
+  then: Useful retry/queue context is included with status and freshness; unrelated work is excluded. The other
+    Project is not activated and its files/Tasks are not claimed.
+direction_assessment:
+- id: causal-discovery-versus-redesign
+  assertion_ids:
+  - chats.direction.context-assessment
+  given: The user goal and linked Plan are to fix duplicate scheduled posts.
+  when: The chat discovers a causal retry race, or creates Tasks for an unrelated dashboard redesign without
+    user direction.
+  then: The causal discovery can remain on track. Unrelated redesign can be material drift even if new Tasks
+    describe it; no custom Check definitions are authored.
+reviewed_correction:
+- id: truthful-expandable-correction
+  assertion_ids:
+  - chats.direction.reviewed-correction
+  given: Jev flags disconnected redesign work while the scheduling goal is unchanged.
+  when: The LLM chooses to correct course and its internal instruction is accepted by the current chat.
+  then: The exact sent notice appears and expands to the delivered instruction. If the LLM declines or delivery
+    fails, no notice claims that an instruction was sent.

@@ -81,6 +81,8 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { arch, platform } from "node:os";
 import { parse as parseYaml, parseDocument as parseYamlDocument, stringify as stringifyYaml } from "yaml";
 import { buildWorkflowFile, validateWorkflowFile, workflowFileName, WORKFLOW_FILE_MAX_BYTES } from "../../workflowFile.js";
+import { persistWorkflowRemoteFile, type WorkflowRemoteFileBinding } from '../../workflowRemoteFile.js';
+import { projectFileMutationDigest } from '../../ui/src/utils/projectFileMutationProtocol.js';
 import WebSocket from "ws";
 import {
   resolveStateDir,
@@ -2175,24 +2177,6 @@ function buildChatRemoteCopyMarkdown(chat: ChatListItem, messages: DecryptedMess
   return content;
 }
 
-function buildWorkflowRemoteCopyYaml(workflow: WorkflowDetail): string {
-  return serializeToYaml({
-    workflow: {
-      id: workflow.id,
-      title: workflow.title,
-      description: workflow.description ?? null,
-      status: workflow.status,
-      enabled: workflow.enabled,
-      lifecycle: workflow.lifecycle ?? null,
-      source_chat_id: workflow.source_chat_id ?? null,
-      current_version_id: workflow.current_version_id,
-      created_at: workflow.created_at,
-      updated_at: workflow.updated_at,
-    },
-    graph: workflow.graph,
-  });
-}
-
 function nowSeconds(): number {
   return Math.floor(Date.now() / 1000);
 }
@@ -3482,19 +3466,24 @@ async function handleProjects(
       else console.log(`Project focus activated for ${project.name} in chat ${chatId}.`);
       return;
     }
-    if (flags["write-policy"] === undefined) {
+    if (flags["write-policy"] === undefined && flags["auto-selection"] === undefined) {
       const settings = await client.getProjectSettings(project.projectId, context);
       if (flags.json === true) printJson({ project_id: project.projectId, settings });
-      else console.log(`Write policy: ${settings.write_mode ?? "selection required"}`);
+      else console.log(`Write policy: ${settings.write_mode ?? "selection required"}\nAutomatic focus selection: ${settings.auto_selection === false ? "off" : "on"}`);
       return;
     }
-    const writeMode = await resolveProjectWriteMode(flags, "Choose the Project write policy:");
+    const autoSelectionFlag = flags["auto-selection"];
+    if (autoSelectionFlag !== undefined && autoSelectionFlag !== "on" && autoSelectionFlag !== "off") {
+      throw new CliContractError("invalid_auto_selection", "--auto-selection must be on or off.");
+    }
+    const writeMode = flags["write-policy"] === undefined ? undefined : await resolveProjectWriteMode(flags, "Choose the Project write policy:");
     const settings = await client.updateProjectSettings(project.projectId, {
-      write_mode: writeMode,
+      ...(writeMode === undefined ? {} : { write_mode: writeMode }),
+      ...(autoSelectionFlag === undefined ? {} : { auto_selection: autoSelectionFlag === "on" }),
       updated_at: nowSeconds(),
     }, context);
     if (flags.json === true) printJson({ project_id: project.projectId, settings });
-    else console.log(`Write policy saved: ${settings.write_mode}`);
+    else console.log(`Project settings saved. Write policy: ${settings.write_mode}; automatic focus selection: ${settings.auto_selection === false ? "off" : "on"}.`);
     return;
   }
 
@@ -6885,6 +6874,58 @@ export async function waitForWorkflowRun(
   }
 }
 
+async function persistCliWorkflowFile(
+  client: OpenMatesClient, project: DecryptedProject, workflow: WorkflowDetail,
+  binding: WorkflowRemoteFileBinding, source: ProjectSourceRecord | null | undefined,
+  flags: Record<string, string | boolean>,
+): Promise<Awaited<ReturnType<typeof persistWorkflowRemoteFile>>> {
+  const context = teamContextFromFlags(flags);
+  const chatId = typeof flags['source-chat'] === 'string' ? flags['source-chat'] : workflow.source_chat_id;
+  const focus = chatId ? await client.getActiveProjectFocus(chatId) : null;
+  if (!source || source.source_id !== binding.source_id || !chatId || focus?.project_id !== project.projectId) {
+    return { status: 'pending', binding, error: !source ? 'source_selection_required' : 'project_focus_required' };
+  }
+  return persistWorkflowRemoteFile({ workflow: { ...workflow, graph: { ...workflow.graph, edges: workflow.graph.edges ?? [] } },
+    binding, expectedVersionId: workflow.current_version_id, operationId: randomUUID(), serialize: stringifyYaml,
+    currentVersion: async () => (await client.getWorkflow(workflow.id, context)).current_version_id,
+    execute: async mutation => {
+      const settings = await client.getProjectSettings(project.projectId, context);
+      if (!settings.write_mode) return { status: 'failed', error: 'write_policy_required' };
+      if (settings.write_mode === 'always_ask') {
+        const accepted = flags.yes === true || (process.stdin.isTTY && flags.json !== true
+          && await promptConfirmation(`Write Workflow YAML to ${mutation.path}?`));
+        if (!accepted) return { status: 'pending', error: 'write_approval_required' };
+        await client.approveProjectWrite(project.projectId, { chat_id: chatId, operation_id: mutation.operation_id,
+          proposal_digest: await projectFileMutationDigest(project.projectKey, project.projectId, chatId, mutation) }, context);
+      }
+      return await requestProjectRemoteOperation({ client, projectId: project.projectId, projectKey: project.projectKey,
+        source, operation: mutation.operation, arguments: { chat_id: chatId, mutation }, context }) as Record<string, unknown>;
+    },
+  });
+}
+
+async function syncCliBoundWorkflowFiles(client: OpenMatesClient, workflow: WorkflowDetail, flags: Record<string, string | boolean>) {
+  const results: Array<{ project_id: string; status: string; error?: string }> = [];
+  const context = teamContextFromFlags(flags);
+  for (const project of await loadProjects(client, client.getMasterKeyBytes(), flags, context)) {
+    const contents = await client.listProjectItems(project.projectId, context);
+    for (const item of contents.items.filter(item => item.item_type === 'workflow')) {
+      if (await decryptOptionalProjectField(item.target_id_encrypted, project.projectKey) !== workflow.id) continue;
+      const text = await decryptOptionalProjectField(item.encrypted_metadata, project.projectKey);
+      const metadata = text ? JSON.parse(text) as Record<string, unknown> : {};
+      const binding = metadata.remote_workflow_file as WorkflowRemoteFileBinding | undefined;
+      if (!binding) continue;
+      const source = (await client.listProjectSources(project.projectId, context)).find(item => item.source_id === binding.source_id);
+      const saved = await persistCliWorkflowFile(client, project, workflow, binding, source, flags);
+      await client.updateProjectItemMetadata(project.projectId, item.project_item_id,
+        await encryptWithAesGcmCombined(JSON.stringify({ ...metadata, remote_workflow_file: saved.binding,
+          remote_file_status: saved.status, remote_file_error: saved.error }), project.projectKey), context);
+      results.push({ project_id: project.projectId, status: saved.status, error: saved.error });
+    }
+  }
+  return results;
+}
+
 async function handleWorkflows(
   client: OpenMatesClient,
   subcommand: string | undefined,
@@ -6904,24 +6945,42 @@ async function handleWorkflows(
     const project = await requiredResolvedProject(client, masterKey, projectId, flags);
     const storageChoice = await resolveAddToProjectStorageChoice(client, project, flags, "workflow");
     const workflow = await client.getWorkflow(workflowId, teamContextFromFlags(flags));
-    const remoteCopyProposal = storageChoice.targetMode === "save_only_in_openmates"
-      ? null
-      : buildRemoteCopyProposal({
-        objectType: "workflow",
-        objectId: workflow.id,
-        title: workflow.title,
-        content: buildWorkflowRemoteCopyYaml(workflow),
-        source: storageChoice.source!,
-        targetMode: storageChoice.targetMode,
-      });
-    const item = await createEncryptedProjectItem(client, project, {
+    const context = teamContextFromFlags(flags);
+    const contents = await client.listProjectItems(project.projectId, context);
+    let existing: typeof contents.items[number] | undefined;
+    for (const item of contents.items.filter(item => item.item_type === 'workflow')) {
+      if (await decryptOptionalProjectField(item.target_id_encrypted, project.projectKey) === workflow.id) { existing = item; break; }
+    }
+    const metadataText = existing?.encrypted_metadata ? await decryptOptionalProjectField(existing.encrypted_metadata, project.projectKey) : '';
+    const metadata = metadataText ? JSON.parse(metadataText) as Record<string, unknown> : {};
+    let fileResult: Awaited<ReturnType<typeof persistWorkflowRemoteFile>> | null = null;
+    if (storageChoice.targetMode !== 'save_only_in_openmates' || (storageChoice.source && flags['openmates-only'] !== true)) {
+      const source = typeof flags.source === 'string'
+        ? (await client.listProjectSources(project.projectId, context)).find(item => item.source_id === flags.source)
+        : storageChoice.source;
+      const binding = metadata.remote_workflow_file as WorkflowRemoteFileBinding | undefined
+        ?? { project_id: project.projectId, source_id: source?.source_id ?? '', folder_path: typeof flags['remote-folder'] === 'string' ? flags['remote-folder'] : '' };
+      fileResult = await persistCliWorkflowFile(client, project, workflow, binding, source, flags);
+      metadata.remote_workflow_file = fileResult.binding;
+      metadata.remote_file_status = fileResult.status;
+      metadata.remote_file_error = fileResult.error;
+    }
+    const item = existing ?? await createEncryptedProjectItem(client, project, {
       itemType: "workflow",
       targetId: workflow.id,
       displayName: workflow.title,
       folderId: typeof flags.folder === "string" ? flags.folder : null,
-      metadata: { storage: storageChoice.targetMode, source: "cli_add_to_project", remote_copy_proposal: remoteCopyProposal ? { target_path: remoteCopyProposal.target_path, source_id: remoteCopyProposal.source_id } : null },
+      metadata: { ...metadata, storage: storageChoice.targetMode, source: "cli_add_to_project" },
     });
-    printAddToProjectResult({ objectType: "workflow", objectId: workflow.id, projectId: project.projectId, item, targetMode: storageChoice.targetMode, remoteCopyProposal }, flags);
+    if (existing) await client.updateProjectItemMetadata(project.projectId, existing.project_item_id,
+      await encryptWithAesGcmCombined(JSON.stringify(metadata), project.projectKey), context);
+    if (flags.json === true) printJson({ objectType: 'workflow', objectId: workflow.id, projectId: project.projectId, item,
+      remote_file: fileResult ? { status: fileResult.status, path: fileResult.binding.file_path ?? null, error: fileResult.error ?? null } : null });
+    else {
+      console.log(`Workflow linked to Project: ${project.projectId}`);
+      console.log(fileResult ? fileResult.status === 'saved' ? `Remote YAML saved: ${fileResult.binding.file_path}`
+        : `Remote YAML ${fileResult.status}: ${fileResult.error ?? 'Retry the file save.'}` : 'Storage: encrypted OpenMates Project link only');
+    }
     return;
   }
 
@@ -7088,12 +7147,14 @@ async function handleWorkflows(
     if (typeof flags.slug === "string") {
       result.workflow = await client.updateWorkflow(result.workflow.id, { slug: flags.slug });
     }
+    const remoteFileSaves = await syncCliBoundWorkflowFiles(client, result.workflow, flags);
     if (flags.json === true) {
-      printJson(result);
+      printJson({ ...result, remote_file_saves: remoteFileSaves });
     } else {
       printWorkflowDetail(result.workflow);
       kv("Ready to enable", result.validation.enable_ready ? "yes" : "no");
       printWorkflowAuthoringWarnings(result.warnings);
+      for (const save of remoteFileSaves) console.log(`Remote YAML ${save.status}: ${save.project_id}${save.error ? ` (${save.error})` : ''}`);
       for (const diagnostic of result.validation.diagnostics) {
         console.log(`  - ${String(diagnostic.path ?? "$")}: ${String(diagnostic.message ?? diagnostic.code ?? "input required")}`);
       }
@@ -14791,7 +14852,7 @@ function printProjectsHelp(): void {
   openmates projects show <project> [--personal|--team <team>] [--json]
   openmates projects open <project> [--personal|--team <team>] [--json]
   openmates projects create <name> [--write-policy apply_and_show|always_ask] [--description <text>] [--icon <name>] [--color <token>] [--pinned] [--personal|--team <team>] [--json]
-  openmates projects settings <project> [--write-policy apply_and_show|always_ask] [--personal|--team <team>] [--json]
+  openmates projects settings <project> [--write-policy apply_and_show|always_ask] [--auto-selection on|off] [--personal|--team <team>] [--json]
   openmates projects settings <project> focus activate|deactivate --chat <chat-id> [--personal|--team <team>] [--json]
   openmates projects settings <project> command-presets list|enable|disable [<preset-id>] [--source <source-id>|--path <folder>] [--json]
   openmates projects settings <project> command-resources list [--source <source-id>|--path <folder>] [--json]
@@ -14981,7 +15042,7 @@ function printWorkflowsHelp(): void {
   openmates workflows validate --file workflow.yml [--json]
   openmates workflows create --file workflow.yml [--json]
   openmates workflows update <workflow-id> --file workflow.yml [--json]
-  openmates workflows <workflow-id> add-to-project <project-id> [--folder <folder-id>] [--openmates-only|--repo-copy|--remote-cache-copy|--remote-copy] [--json]
+  openmates workflows <workflow-id> add-to-project <project-id> [--folder <folder-id>] [--source <source-id>] [--remote-folder <relative-path>] [--source-chat <chat-id>] [--yes] [--openmates-only|--repo-copy|--remote-cache-copy|--remote-copy] [--json]
   openmates workflows <workflow-id> remove-from-project <project-id> [--json]
   openmates workflows history <workflow-id> [--limit <n>] [--json]
   openmates workflows restore <workflow-id> --entry <history-entry-id> [--state before|after] [--json]

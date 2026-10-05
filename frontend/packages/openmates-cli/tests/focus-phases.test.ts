@@ -44,7 +44,7 @@ after(() => {
     { restoredFocus: "jobs-career_insights", claimOutcome: "foreign-conflict" },
   ];
   for (const { restoredFocus, claimOutcome } of cases) {
-  // contract-test: supporting surface=cli assertions=focus-modes.phases,focus-modes.restoration,focus-modes.history-events
+  // contract-test: supporting surface=cli assertions=focus-modes.phases,focus-modes.restoration,focus-modes.history-events,rules.transparency.applied-set,chats.direction.reviewed-correction,chats.direction.context-assessment
   it(`restores encrypted phase progress and persists live history for saved chats (${restoredFocus ?? "off"}, ${claimOutcome})`, async () => {
     const chatId = "11111111-1111-4111-8111-111111111111";
     const ownerId = "22222222-2222-4222-8222-222222222222";
@@ -60,8 +60,24 @@ after(() => {
       chat_id: chatId, focus_id: "jobs-career_insights", run_id: "new-run", version: 1,
       previous_phase_id: "confirm_profile", phase_id: "explore", phase_title: "Explore career directions",
       direction: "forward", created_at: 1770000000 };
+    const appliedRules = { type: "rules_loaded", event_id: "77777777-7777-4777-8777-777777777777", created_at: 1770000001,
+      count: 1, set_key: "applied-rule-set", rules: [{ id: "guide", title: "Python practices", source: "app", revision: "v1", body: "Use bounded inputs." }] };
+    const appliedCorrection = { type: "chat_direction_correction", event_id: "88888888-8888-4888-8888-888888888888", created_at: 1770000002,
+      notice: "Chat is drifting too far away from the goals. Correction instruction was sent.", instruction: "Return to the actual goal while preserving Project grants.", delivery_id: "actual-delivery" };
     const livePhases = { "jobs-career_insights": { ...initialPhase, run_id: "new-run", version: 1, transitions: [phaseEvent] },
       [projectFocusId]: { ...projectPhase, version: 3 } };
+    const planId = "99999999-9999-4999-8999-999999999999", planKey = new Uint8Array(32).fill(9);
+    const approvedPlan = { plan_id: planId, status: "active", version: 4, primary_chat_id: chatId,
+      approval_state: "approved", submitted_revision_id: "approved-plan-revision", approved_revision_id: "approved-plan-revision",
+      encrypted_title: await encryptWithAesGcmCombined("Accepted repair Plan", planKey),
+      encrypted_goal: await encryptWithAesGcmCombined("Fix the timeout while preserving access checks", planKey),
+      encrypted_constraints: await encryptWithAesGcmCombined("Keep the repair within existing scope", planKey),
+      key_wrappers: [{ key_type: "master", encrypted_plan_key: await encryptBytesWithAesGcm(planKey, new Uint8Array(32)) }] };
+    const taskId = "99999999-9999-4999-8999-888888888888";
+    const olderLinkedTask = { task_id: taskId, status: "blocked", version: 5, updated_at: 1, primary_chat_id: chatId,
+      encrypted_task_key: await encryptBytesWithAesGcm(planKey, new Uint8Array(32)),
+      encrypted_title: await encryptWithAesGcmCombined("Existing timeout repair", planKey),
+      encrypted_description: await encryptWithAesGcmCombined("Return to the repair already linked to this chat", planKey) };
     const encryptedChatKey = await encryptBytesWithAesGcm(rawChatKey, new Uint8Array(32));
     writeFileSync(join(stateDir, "sync_cache.json"), JSON.stringify({
       syncedAt: Date.now(),
@@ -112,11 +128,27 @@ after(() => {
         response.end(JSON.stringify({ messages: [], has_more_before: false, start_cursor: null }));
         return;
       }
+      if (request.method === "GET" && request.url?.startsWith("/v1/user-plans?chat_id=")) {
+        response.writeHead(200, { "content-type": "application/json" }); response.end(JSON.stringify({ plans: [approvedPlan] })); return;
+      }
+      if (request.method === "GET" && request.url === `/v1/user-plans/${planId}`) {
+        response.writeHead(200, { "content-type": "application/json" }); response.end(JSON.stringify({ plan: approvedPlan })); return;
+      }
+      if (request.method === "GET" && request.url?.startsWith("/v1/user-tasks?")) {
+        response.writeHead(200, { "content-type": "application/json" }); response.end(JSON.stringify({ tasks: [olderLinkedTask,
+          { ...olderLinkedTask, task_id: "older-unlinked", primary_chat_id: null }] })); return;
+      }
+      if (request.method === "GET" && request.url === `/v1/user-tasks/${taskId}/dependencies`) {
+        response.writeHead(200, { "content-type": "application/json" }); response.end(JSON.stringify({ dependencies: [], blockers: [] })); return;
+      }
       response.writeHead(404);
       response.end();
     });
     server.on("upgrade", (request, socket, head) => {
       wss.handleUpgrade(request, socket, head, (ws) => {
+        // Saved sends wait for the server's authoritative recovery discovery
+        // handshake before dispatching; this fixture has no older outputs.
+        ws.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
         ws.on("message", async (raw) => {
           const frame = JSON.parse(raw.toString()) as { type: string; payload: Record<string, unknown> };
           captured.frameTypes.push(frame.type);
@@ -169,6 +201,8 @@ after(() => {
             ws.send(JSON.stringify({ type: "focus_mode_activated", payload: { chat_id: chatId, focus_id: "jobs-career_insights" } }));
             if (restoredFocus) ws.send(JSON.stringify({ type: "focus_phases_updated", payload: { chat_id: chatId, states: livePhases } }));
             captured.messagePayload = frame.payload;
+            for (const event of [appliedRules, appliedRules, appliedCorrection, appliedCorrection]) ws.send(JSON.stringify({ type: "chat_context_applied", payload: { chat_id: chatId, event } }));
+            ws.send(JSON.stringify({ type: "chat_context_applied", payload: { chat_id: "unrelated", event: { ...appliedRules, event_id: "unrelated-event" } } }));
             const message = frame.payload.message as Record<string, unknown>;
             ws.send(JSON.stringify({
               type: "chat_message_confirmed",
@@ -264,7 +298,7 @@ after(() => {
       // This fixture tests request/recovery metadata; it has no phased-sync history server.
       if (claimOutcome === "foreign-terminal" || claimOutcome === "generic-error" || claimOutcome === "foreign-conflict") {
         await assert.rejects(
-          client.sendMessage({ message: "Continue this old chat", chatId, messageHistory: [] }),
+          client.sendMessage({ message: "Continue this old chat", chatId, messageHistory: [], jevContext: { custom_rule_documents: [{ id: "personal-guide", source: "personal", document: "---\nname: Personal practices\ndescription: Safe practices\n---\nKeep outputs bounded." }] } }),
           (error: Error) => {
             assert.match(error.message, claimOutcome === "foreign-terminal"
               ? /invalid lease or identity data/
@@ -276,7 +310,7 @@ after(() => {
         assert.equal(captured.persistPayload, undefined);
         return;
       }
-      const result = await client.sendMessage({ message: "Continue this old chat", chatId, messageHistory: [] });
+      const result = await client.sendMessage({ message: "Continue this old chat", chatId, messageHistory: [], jevContext: { custom_rule_documents: [{ id: "personal-guide", source: "personal", document: "---\nname: Personal practices\ndescription: Safe practices\n---\nKeep outputs bounded." }] } });
       assert.equal(result.status, "completed");
       assert.equal(claimCount, claimOutcome === "terminal-after-conflict" ? 2 : 1);
 
@@ -296,12 +330,24 @@ after(() => {
         assert.equal(saved[restoredFocus].run_id, "new-run");
         assert.equal(saved[restoredFocus].phase_id, "explore");
         assert.equal(saved[projectFocusId].version, 4, "Catalog activation retains newer Project phase progress");
-        assert.equal(captured.phaseMessages.length, 1);
-        const message = captured.phaseMessages[0].message as Record<string, unknown>;
+        assert.equal(captured.phaseMessages.length, 3);
+        const message = captured.phaseMessages.map(frame => frame.message as Record<string, unknown>).find(message => message.message_id === phaseEvent.event_id)!;
         assert.equal(message.role, "system");
         assert.equal(message.message_id, phaseEvent.event_id);
         assert.deepEqual(JSON.parse(await decryptWithAesGcmCombined(String(message.encrypted_content), rawChatKey)), phaseEvent);
       }
+      assert.deepEqual(captured.messagePayload?.accepted_plan_context, { plan_id: planId, version: 4,
+        approved_revision_id: "approved-plan-revision", summary: "Title: Accepted repair Plan\nGoal: Fix the timeout while preserving access checks\nConstraints: Keep the repair within existing scope" });
+      assert.deepEqual(captured.messagePayload?.related_task_candidates, [{ task_id: taskId, title: "Existing timeout repair",
+        summary: "Return to the repair already linked to this chat", project_id: null, status: "blocked", changed_at: 1,
+        revision: "5", explicit_dependency: false }]);
+      assert.deepEqual(captured.messagePayload?.custom_rule_documents, [{ id: "personal-guide", source: "personal", document: "---\nname: Personal practices\ndescription: Safe practices\n---\nKeep outputs bounded." }]);
+      for (const expected of [appliedRules, appliedCorrection]) {
+        const rows = captured.phaseMessages.map(frame => frame.message as Record<string, unknown>).filter(message => message.message_id === expected.event_id);
+        assert.equal(rows.length, 1, "Actual context is persisted exactly once despite duplicate delivery");
+        assert.deepEqual(JSON.parse(await decryptWithAesGcmCombined(String(rows[0].encrypted_content), rawChatKey)), expected);
+      }
+      assert.equal(captured.phaseMessages.some(frame => (frame.message as Record<string, unknown>).message_id === "unrelated-event"), false);
       assert.equal(captured.messagePayload?.protocol_version, 1);
       assert.equal(captured.messagePayload?.preflight_id, "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb");
       assert.equal(captured.messagePayload?.turn_id, captured.preflightPayload.turn_id);

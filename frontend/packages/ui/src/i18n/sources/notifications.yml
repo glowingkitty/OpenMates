@@ -887,6 +887,24 @@ security_reminder.action:
   verified_by_human: []
 
 # Credits depleted notification (shown when user balance transitions from >0 to 0)
+project_authoring.ready:
+  context: Safe notification after a private Project Focus or Workflow has been saved and is reachable.
+  en: Your Project result is ready.
+  de: Dein Projektergebnis ist bereit.
+  verified_by_human: []
+
+project_authoring.view:
+  context: Notification action opening the saved Project Focus or Workflow without creating a chat.
+  en: View result
+  de: Ergebnis ansehen
+  verified_by_human: []
+
+project_authoring.unavailable:
+  context: Authoring result notification target was deleted or current Project access was revoked.
+  en: This Project result is no longer available.
+  de: Dieses Projektergebnis ist nicht mehr verfügbar.
+  verified_by_human: []
+
 credits_depleted.message:
   context: Persistent notification message shown when user runs out of credits. Credits are needed for all chats and app skills.
   en: You ran out of credits. Buy more to continue using OpenMates.

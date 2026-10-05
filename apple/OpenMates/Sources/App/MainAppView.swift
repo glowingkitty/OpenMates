@@ -9,7 +9,9 @@
 // Specification: specifications/features/issue-reporting/specification.yml
 // Assertions: issue-reporting.entry.device-shake
 // Specification: specifications/features/chats/specification.yml
-// Assertions: chats.surface.semantic-parity
+// Assertions: chats.surface.semantic-parity, chats.direction.reviewed-correction
+// Specification: specifications/features/rules/specification.yml — rules.transparency.applied-set
+// Specification: specifications/features/focus-modes/specification.yml — focus-modes.project-authoring-click, focus-modes.project-authoring-persistence
 // Specification: specifications/features/apple-notifications/specification.yml
 // Assertions: apple-notifications.delivery.idempotent-visible
 // Specification: specifications/features/chat-navigation/specification.yml
@@ -827,6 +829,8 @@ struct MainAppView: View {
         .onChange(of: projectsStore.selectedProjectID) { _, _ in foregroundWorkspaceDidNavigate() }
         .onChange(of: tasksStore.selectedTaskID) { _, _ in foregroundWorkspaceDidNavigate() }
         .onChange(of: teamContext.contextEpoch) { _, _ in
+            PendingProjectFocusStore.shared.reset()
+            NativeProjectAuthoringClient.shared.reset()
             HighlightsManager.shared.reset()
             widgetRunningChatsOnly = false
             projectFullscreenEmbed = nil
@@ -857,6 +861,14 @@ struct MainAppView: View {
         }
         .onChange(of: deepLinkHandler.pendingWorkflowWidgetRun) { _, _ in
             openPendingWorkflowWidgetRun()
+        }
+        .onChange(of: deepLinkHandler.pendingProjectID) { _, id in
+            guard let id, isAuthenticated else { return }
+            openWorkspaceProject(id); deepLinkHandler.pendingProjectID = nil
+        }
+        .onChange(of: deepLinkHandler.pendingWorkflowID) { _, id in
+            guard let id, isAuthenticated else { return }
+            openWorkspaceWorkflow(id); deepLinkHandler.pendingWorkflowID = nil
         }
         .onChange(of: deepLinkHandler.pendingWorkflowsWorkspace) { _, requested in
             guard requested else { return }
@@ -1665,6 +1677,8 @@ struct MainAppView: View {
         projectTasksStore.reset(accountID: accountID)
         teamContext.reset(accountID: accountID)
         ProjectWorkspaceReviewRuntime.shared.reset()
+        NativeProjectAuthoringClient.shared.reset()
+        PendingProjectFocusStore.shared.reset()
         settingsProjectID = nil
         projectFullscreenEmbed = nil
         workflowTemplateLink = nil
@@ -4500,6 +4514,29 @@ struct MainAppView: View {
                 guard let payload = envelope.payload ?? envelope.data else { return }
                 applySyncedChatDeletion(payload.chatId)
 
+            case "focus_mode_pending":
+                guard isAuthenticated, let envelope = try JSONSerialization.jsonObject(with: raw) as? [String: Any],
+                      let payload = (envelope["payload"] ?? envelope["data"]) as? [String: Any] else { return }
+                configurePendingProjectFocus()
+                PendingProjectFocusStore.shared.ingest(fields: payload, scope: OfflineStore.shared.scopeGeneration)
+
+            case "chat_context_applied":
+                guard let envelope = try JSONSerialization.jsonObject(with: raw) as? [String: Any],
+                      let payload = (envelope["payload"] ?? envelope["data"]) as? [String: Any] else { return }
+                await applyChatContextReceipt(payload)
+
+            case "project_authoring_available":
+                guard let envelope = try JSONSerialization.jsonObject(with: raw) as? [String: Any],
+                      let frame = (envelope["payload"] ?? envelope["data"]) as? [String: Any],
+                      let chatID = frame["chat_id"] as? String else { return }
+                let events = try await NativeProjectAuthoringClient.shared.assess(frame, messages: chatStore.messages(for: chatID))
+                for event in events { await applyChatContextReceipt(["chat_id": chatID, "event": event]) }
+
+            case "new_system_message":
+                guard let envelope = try JSONSerialization.jsonObject(with: raw) as? [String: Any],
+                      let payload = (envelope["payload"] ?? envelope["data"]) as? [String: Any] else { return }
+                await applyEncryptedSystemMessage(payload)
+
             case "focus_mode_activated":
                 let envelope = try syncDecoder.decode(WSEnvelope<FocusModeActivatedPayload>.self, from: raw)
                 guard let payload = envelope.payload ?? envelope.data else { return }
@@ -4514,9 +4551,73 @@ struct MainAppView: View {
                 await loadInitialData()
             }
         } catch {
-            print("[MainApp] Failed to process chat update \(type): \(error)")
+            NativeDiagnostics.warning("Chat update unavailable: \(type)", category: "chat.sync")
             await loadInitialData()
         }
+    }
+
+    private func configurePendingProjectFocus() {
+        PendingProjectFocusStore.shared.configure(scope: OfflineStore.shared.scopeGeneration,
+            complete: { try await NativeProjectAuthoringClient.shared.completePendingFocus($0) },
+            reject: { try await NativeProjectAuthoringClient.shared.rejectPendingFocus($0) })
+    }
+
+    /// Persist only accepted live receipts through the existing chat ciphertext boundary.
+    private func applyChatContextReceipt(_ payload: [String: Any]) async {
+        guard isAuthenticated, let receipt = AppliedChatContextReceipt.parse(payload),
+              let accountID = authManager.currentUser?.id,
+              let chat = chatStore.chat(for: receipt.chatID),
+              let key = ChatKeyManager.shared.key(for: receipt.chatID),
+              ChatKeyManager.shared.encryptedKey(for: receipt.chatID) == chat.encryptedChatKey else { return }
+        let scope = OfflineStore.shared.scopeGeneration
+        let keyGeneration = ChatKeyManager.shared.cacheGeneration
+        let server = ServerProfile.current()
+        let transport = wsManager.transportGeneration
+        let contextIsCurrent = {
+            isAuthenticated && authManager.currentUser?.id == accountID && OfflineStore.shared.scopeGeneration == scope &&
+                ChatKeyManager.shared.cacheGeneration == keyGeneration && ServerProfile.current() == server && wsManager.transportGeneration == transport
+        }
+        guard !chatStore.messages(for: receipt.chatID).contains(where: { $0.id == receipt.messageID }) else { return }
+        do {
+            let encrypted = try await CryptoManager.shared.encryptContent(receipt.content, key: key)
+            guard contextIsCurrent(), !chatStore.messages(for: receipt.chatID).contains(where: { $0.id == receipt.messageID }) else { return }
+            let message = Message(id: receipt.messageID, chatId: receipt.chatID, role: .system,
+                content: receipt.content, encryptedContent: encrypted, createdAt: Self.isoString(fromUnixSeconds: receipt.createdAt),
+                updatedAt: nil, appId: nil, isStreaming: false, embedRefs: nil)
+            do {
+                _ = try await ChatSendPipeline().persistCompletedAssistantMessage(message, userMessageId: nil,
+                    wsManager: wsManager, chatStore: chatStore)
+            } catch {
+                guard contextIsCurrent() else { return }
+                PendingAssistantResponseQueue.shared.add(messageId: receipt.messageID, chatId: receipt.chatID)
+                NativeDiagnostics.warning("Applied context ciphertext queued for retry", category: "chat.context")
+            }
+        } catch {
+            NativeDiagnostics.warning("Applied context receipt encryption unavailable", category: "chat.context")
+        }
+    }
+
+    /// Other devices already persisted this record. Decrypt without replaying work or acknowledgments.
+    private func applyEncryptedSystemMessage(_ payload: [String: Any]) async {
+        guard isAuthenticated, let chatID = payload["chat_id"] as? String,
+              let record = payload["data"] as? [String: Any], record["role"] as? String == "system",
+              let id = record["message_id"] as? String, let encrypted = record["encrypted_content"] as? String,
+              let createdAt = record["created_at"] as? Int, let accountID = authManager.currentUser?.id else { return }
+        let scope = OfflineStore.shared.scopeGeneration
+        await loadChatKeyIfNeeded(chatId: chatID, encryptedChatKey: record["encrypted_chat_key"] as? String)
+        guard authManager.currentUser?.id == accountID, OfflineStore.shared.scopeGeneration == scope,
+              chatStore.chat(for: chatID) != nil, let key = ChatKeyManager.shared.key(for: chatID),
+              !chatStore.messages(for: chatID).contains(where: { $0.id == id }) else { return }
+        do {
+            let content = try await CryptoManager.shared.decryptContent(base64String: encrypted, key: key)
+            guard authManager.currentUser?.id == accountID, OfflineStore.shared.scopeGeneration == scope,
+                  !chatStore.messages(for: chatID).contains(where: { $0.id == id }) else { return }
+            chatStore.appendMessage(Message(id: id, chatId: chatID, role: .system, content: content, encryptedContent: encrypted,
+                createdAt: Self.isoString(fromUnixSeconds: createdAt), updatedAt: nil, appId: nil, isStreaming: false, embedRefs: nil), to: chatID)
+            if let versions = payload["versions"] as? [String: Any], let version = versions["messages_v"] as? Int {
+                chatStore.advanceMessagesVersion(chatId: chatID, to: version)
+            }
+        } catch { NativeDiagnostics.warning("Synced system receipt decryption unavailable", category: "chat.context") }
     }
 
     private func applyNewChatMessage(_ payload: NewChatMessagePayload) async {

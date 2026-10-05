@@ -3,6 +3,10 @@ import { parseEmbedContentObject, type OpenMatesClient, type UserTaskStatus } fr
 import { randomUUID } from "node:crypto";
 import type { TuiState, TuiScreen, TuiWorkspace } from "./tuiRenderer.js";
 import type { TuiTerminal, TerminalKey } from "./tuiTerminal.js";
+import { parseChatContextContent, chatContextDetails, chatContextSummary } from "./chatContextEvents.js";
+import { AuthoringSaveApprovalRequired, persistCliProjectAuthoringJob } from "./cliProjectAuthoringSave.js";
+import { registerCliProjectFileExecutor } from "./projectFileExecutor.js";
+import { boundedAuthoringHistory, startCliProjectAuthoring, type AuthoringRecommendation } from "./cliProjectAuthoring.js";
 import { buildTaskForm, filterTasks, loadTaskContext, submitTaskForm } from "./tuiTasksWorkspace.js";
 import { loadTuiProjects, loadTuiProject, loadTuiProjectFiles, readTuiProjectFile, buildProjectForm, submitProjectForm, filteredProjects, filteredProjectFiles, parentTuiProjectFolderId } from "./tuiProjectsWorkspace.js";
 import { buildWorkflowNodeForm, submitWorkflowNodeForm } from "./tuiWorkflowWorkspace.js";
@@ -42,6 +46,7 @@ function newChat(state: TuiState): void {
   route(state, "chats", "start");
   state.activeChatId = null; state.activeChat = null; state.activeExample = null;
   state.messages = []; state.headerState = "new"; state.headerError = null; state.followUpSuggestions = [];
+  state.projectFocusPending = null;
   state.input = state.drafts.new ?? "";
 }
 async function recent(context: WorkspaceContext): Promise<void> {
@@ -63,7 +68,8 @@ export async function openSavedChat(context: WorkspaceContext, id: string): Prom
   if (state.routeVersion !== request) return;
   state.activeChatId = result.chat.id; state.activeChat = result.chat; state.activeExample = null;
   state.selectedProjectId = null;
-  state.messages = result.messages.map((m) => ({role: m.role === "user" ? "user" : m.role === "system" ? "system" : "assistant", content: m.content, title: m.senderName, embedIds: m.embedIds}));
+  state.messages = result.messages.map((m) => ({id: m.id, role: m.role === "user" ? "user" : m.role === "system" ? "system" : "assistant", content: m.content, title: m.senderName, embedIds: m.embedIds}));
+  state.projectFocusPending = null;
   state.headerState = "ready"; state.headerError = null;
   const remoteDraft = state.drafts[id] === undefined && typeof client.getDraft === "function" ? await client.getDraft(result.chat.id) : null;
   if (state.routeVersion !== request) return;
@@ -111,12 +117,141 @@ async function openTask(context: WorkspaceContext, taskId: string): Promise<void
   render();
 }
 
+async function persistTuiAuthoring(context: WorkspaceContext, event: AuthoringRecommendation, job: Record<string, unknown>, approvedDigest?: string): Promise<Record<string, unknown>> {
+  const { state } = context;
+  try {
+    const saved = await persistCliProjectAuthoringJob(context.client, job, approvedDigest);
+    if (saved.status === "needs_input" && state.activeChatId === event.chat_id) {
+      const draft = saved.draft && typeof saved.draft === "object" ? saved.draft as Record<string, unknown> : {};
+      state.detailTitle = "Authoring needs your input";
+      state.detailLines = [typeof draft.question === "string" ? draft.question : "Open the Workflow input request to supply its missing details."];
+      state.screen = "embed"; state.scrollOffset = 0; state.focus = "content";
+    }
+    state.chatContextAuthoringJobs[event.event_id] = { projectId: event.project_id, jobId: String(saved.job_id), status: String(saved.status) };
+    return saved;
+  } catch (error) {
+    if (!(error instanceof AuthoringSaveApprovalRequired)) throw error;
+    state.chatContextAuthoringJobs[event.event_id] = { projectId: event.project_id, jobId: String(job.job_id), status: "needs_write_approval", ...(state.activeChatId === event.chat_id ? { approvalDigest: error.digest } : {}) };
+    if (state.activeChatId !== event.chat_id) return { ...job, status: "needs_write_approval" };
+    state.detailTitle = `Review generated ${event.kind === "focus" ? "Focus" : "Workflow"}`;
+    state.detailLines = [error.mutation.path, "", ...(error.mutation.content ?? error.mutation.patch ?? "").split("\n"), "", `Approve this exact write: /authoring-save ${contextIndex(state, event)}`];
+    state.screen = "embed"; state.scrollOffset = 0; state.focus = "content";
+    return { ...job, status: "needs_write_approval" };
+  }
+}
+function contextIndex(state: TuiState, event: AuthoringRecommendation): number {
+  return state.messages.filter(row => row.role === "system").map(row => parseChatContextContent(row.content)).filter(row => row !== null).findIndex(row => row.event_id === event.event_id) + 1;
+}
+function watchTuiAuthoring(context: WorkspaceContext, event: AuthoringRecommendation, jobId: string): void {
+  const control = context.state.chatContextAuthoringControls[event.event_id];
+  if (!control || control.watching || typeof context.client.getProjectAuthoringJob !== "function") return;
+  control.watching = true;
+  void (async () => {
+    // Source jobs deliver over the retained executor socket; polling also repairs a missed completion event.
+    for (let attempt = 0; attempt < 40 && context.state.chatContextAuthoringControls[event.event_id] === control; attempt++) {
+      await new Promise(resolve => { const timer = setTimeout(resolve, 3000); timer.unref(); });
+      if (context.state.chatContextAuthoringControls[event.event_id] !== control) return;
+      if (control.approve) return; // The exact source proposal is waiting for the displayed user action.
+      const job = await context.client.getProjectAuthoringJob(event.project_id, jobId);
+      const settled = await persistTuiAuthoring(context, event, job);
+      context.render();
+      if (!["queued", "running", "pending_file"].includes(String(settled.status))) {
+        if (settled.status !== "needs_write_approval" || !control.approve) control.stop();
+        return;
+      }
+    }
+    control.stop();
+  })().catch(() => {
+    const entry = context.state.chatContextAuthoringJobs[event.event_id];
+    if (entry) entry.status = "save_pending";
+    context.state.status = "Authoring needs attention. Refresh the job to retry its encrypted save.";
+    control.stop(); context.render();
+  }).finally(() => { control.watching = false; });
+}
+function showSourceAuthoringReview(context: WorkspaceContext, event: AuthoringRecommendation): void {
+  const control = context.state.chatContextAuthoringControls[event.event_id];
+  if (!control?.reviewLines) return;
+  context.state.detailTitle = "Review generated Workflow file";
+  context.state.detailLines = [...control.reviewLines, "", `Approve this exact write: /authoring-save ${contextIndex(context.state, event)}`];
+  control.reviewed = true;
+  context.state.screen = "embed"; context.state.scrollOffset = 0; context.state.focus = "content";
+}
+async function openTuiAuthoringExecutor(context: WorkspaceContext, event: AuthoringRecommendation): Promise<void> {
+  if (typeof context.client.openProjectAuthoringWebSocket !== "function") return;
+  const focus = await context.client.getActiveProjectFocus(event.chat_id!);
+  if (focus?.project_id !== event.project_id) throw new Error("This Project is no longer active in the chat.");
+  const key = await context.client.getChatEncryptionKey(event.chat_id!, { teamId: focus.team_id, personal: !focus.team_id });
+  const ws = await context.client.openProjectAuthoringWebSocket();
+  let approval: ((accepted: boolean) => void) | undefined;
+  const control = { reviewLines: undefined as string[] | undefined, reviewed: false, stop() { approval?.(false); executorStop?.(); ws.close(); if (context.state.chatContextAuthoringControls[event.event_id] === control) delete context.state.chatContextAuthoringControls[event.event_id]; }, approve: undefined as (() => void) | undefined };
+  context.state.chatContextAuthoringControls[event.event_id] = control;
+  const executorStop = registerCliProjectFileExecutor({ client: context.client, ws, chatId: event.chat_id!, chatKey: key,
+    requestApproval: request => new Promise<boolean>(resolve => {
+      if (approval) { resolve(false); return; }
+      approval = resolve;
+      control.approve = () => { approval = undefined; control.approve = undefined; resolve(true); };
+      const entry = context.state.chatContextAuthoringJobs[event.event_id]; if (entry) entry.status = "needs_write_approval";
+      control.reviewLines = [request.mutation.path, "", ...(request.mutation.content ?? request.mutation.patch ?? "").split("\n")];
+      if (context.state.activeChatId === event.chat_id) {
+        showSourceAuthoringReview(context, event); control.reviewed = true;
+      }
+      context.render();
+    }) });
+}
+
 export async function handleWorkspaceCommand(context: WorkspaceContext, command: string): Promise<boolean> {
   const {state, client, render} = context;
   const space = command.indexOf(" ");
   const name = space < 0 ? command : command.slice(0, space);
   const arg = space < 0 ? "" : command.slice(space + 1).trim();
   switch (name) {
+    case "/context": {
+      const events = state.messages.filter(message => message.role === "system").map(message => parseChatContextContent(message.content)).filter(event => event !== null);
+      const index = Number(arg || events.length) - 1;
+      const event = events[index];
+      if (!event) { state.status = "No applied context at that index."; render(); return true; }
+      state.detailTitle = chatContextSummary(event); state.detailLines = chatContextDetails(event);
+      state.screen = "embed"; state.scrollOffset = 0; state.focus = "content"; render(); return true;
+    }
+    case "/project-focus-reject": {
+      if (state.projectFocusPending) await state.projectFocusPending.reject();
+      state.projectFocusPending = null; render(); return true;
+    }
+    case "/focus-author":
+    case "/authoring-refresh":
+    case "/authoring-save": {
+      const events = state.messages.filter(message => message.role === "system").map(message => parseChatContextContent(message.content)).filter(event => event !== null);
+      const event = events[Number(arg || events.length) - 1];
+      if (!event || event.type !== "project_authoring_recommendation" || event.chat_id !== state.activeChatId) throw new Error("Choose a Project authoring recommendation in this chat.");
+      const existing = state.chatContextAuthoringJobs[event.event_id];
+      if (name === "/focus-author" && existing) { state.status = `Authoring: ${existing.status}`; render(); return true; }
+      if (name !== "/focus-author" && !existing?.jobId) throw new Error("This recommendation has no started authoring job.");
+      if (name === "/focus-author") state.chatContextAuthoringJobs[event.event_id] = { projectId: event.project_id, jobId: null, status: "starting" };
+      if (name !== "/focus-author" && state.chatContextAuthoringControls[event.event_id]?.approve
+          && (name === "/authoring-refresh" || !state.chatContextAuthoringControls[event.event_id].reviewed)) {
+        showSourceAuthoringReview(context, event); render(); return true;
+      }
+      if (name === "/authoring-save" && state.chatContextAuthoringControls[event.event_id]?.approve) {
+        state.chatContextAuthoringControls[event.event_id].approve?.();
+        if (existing) existing.status = "pending_file";
+        state.screen = "chat"; watchTuiAuthoring(context, event, existing!.jobId!); render(); return true;
+      }
+      render();
+      try {
+        if (name === "/focus-author") await openTuiAuthoringExecutor(context, event);
+        const job = name !== "/focus-author" ? await client.getProjectAuthoringJob(event.project_id, existing!.jobId!)
+          : await startCliProjectAuthoring(client, event, boundedAuthoringHistory(state.messages));
+        if (typeof job.job_id !== "string" || typeof job.status !== "string") throw new Error("Authoring job response is incomplete.");
+        const settled = await persistTuiAuthoring(context, event, job, name === "/authoring-save" ? existing?.approvalDigest : undefined);
+        state.status = `Authoring: ${String(settled.status)}`;
+        if (["queued", "running", "pending_file"].includes(String(settled.status))) watchTuiAuthoring(context, event, job.job_id);
+        else if (settled.status !== "needs_write_approval") state.chatContextAuthoringControls[event.event_id]?.stop();
+      } catch (error) {
+        if (name === "/focus-author") { delete state.chatContextAuthoringJobs[event.event_id]; state.chatContextAuthoringControls[event.event_id]?.stop(); }
+        throw error;
+      } finally { render(); }
+      return true;
+    }
     case "/browse": state.homeShowAll=!state.homeShowAll;state.selectedIndex=0;state.scrollOffset=0;state.focus="content";render();return true;
     case "/inspiration-next": {
       const count=workspaceInspirations(state).length;

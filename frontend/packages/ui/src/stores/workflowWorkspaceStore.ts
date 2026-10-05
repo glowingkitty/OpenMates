@@ -558,6 +558,7 @@ export const workflowWorkspaceStore = {
     assertCurrentGeneration(requestGeneration);
     const workflow = { ...data.workflow, authoring_warnings: data.warnings ?? [] };
     this.upsertWorkflow(workflow);
+    await (await import('../services/projectCreationNavigation')).syncBoundWorkflowRemoteFiles(workflow);
     return workflow;
   },
 
@@ -580,6 +581,7 @@ export const workflowWorkspaceStore = {
     );
     assertCurrentGeneration(requestGeneration);
     this.upsertWorkflow(data.workflow);
+    await (await import('../services/projectCreationNavigation')).syncBoundWorkflowRemoteFiles(data.workflow);
     return data.workflow;
   },
 

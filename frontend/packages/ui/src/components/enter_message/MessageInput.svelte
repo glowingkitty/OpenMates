@@ -194,6 +194,7 @@
         activeFocusAppId?: string | null;
         activeFocusModeMetadata?: FocusModeMetadata | null;
         activeProjectFocusName?: string | null;
+        activeSpecialistFocusName?: string | null;
         /**
          * Bounding rect of the parent ActiveChat container (the full-width card),
          * passed from ActiveChat so that when MessageInput is in fullscreen mode
@@ -244,6 +245,7 @@
         activeFocusAppId = null,
         activeFocusModeMetadata = null,
         activeProjectFocusName = null,
+        activeSpecialistFocusName = null,
         onFocusPillDeepLink = undefined,
         onFocusPillDeactivate = undefined,
         isIncognitoMode = false,
@@ -442,6 +444,10 @@
     // Derived: pill is visible when focus is active AND we are not in the middle of fading away.
     // Once deactivation fires (timer elapses), activeFocusId becomes null upstream, hiding the pill.
     let showFocusPill = $derived(!!activeFocusId);
+    let specialistName = $derived(activeSpecialistFocusName || (activeFocusModeMetadata ? $text(activeFocusModeMetadata.name_translation_key) : null));
+    let focusPillLabel = $derived(activeProjectFocusName
+        ? (specialistName ? `${activeProjectFocusName} | ${specialistName}` : $text('projects.focus_active', { values: { project: activeProjectFocusName } }))
+        : specialistName || $text('embeds.focus_mode.active_banner'));
 
     // --- Incognito Pill State ---
     // Visible when the current chat is an incognito chat. Toggle calls onIncognitoPillDeactivate.
@@ -6450,14 +6456,8 @@
                             aria-hidden="true"
                         ></span>
                     {/if}
-                    <span class="focus-pill-label" data-testid="focus-pill-label">
-                        {#if activeProjectFocusName}
-                            {$text('projects.focus_active', { values: { project: activeProjectFocusName } })}
-                        {:else if activeFocusModeMetadata}
-                            {$text(activeFocusModeMetadata.name_translation_key)}
-                        {:else}
-                            {$text('embeds.focus_mode.active_banner')}
-                        {/if}
+                    <span class="focus-pill-label" data-testid="focus-pill-label" title={focusPillLabel}>
+                        {focusPillLabel}
                     </span>
                     {#if !activeProjectFocusName}
                         <span class="focus-pill-on-text">{$text('embeds.focus_mode.focus_on')}</span>

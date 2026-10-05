@@ -59,7 +59,7 @@ export class FocusModeActivationRenderer implements EmbedRenderer {
     // activation state. A freshly suggested focus embed can be `finished` while
     // the user still has a chance to reject it.
     const chatId = activeChatStore.get() || "";
-    const projectId = focusId.startsWith("project-") ? focusId.slice("project-".length) : null;
+    const projectId = focusId.startsWith("project-") && !focusId.startsWith("project-focus:") ? focusId.slice("project-".length) : null;
     let alreadyActive = false;
     try {
       if (chatId) {
@@ -131,11 +131,11 @@ export class FocusModeActivationRenderer implements EmbedRenderer {
             const { chatSyncService } = await import("../../../../services/chatSyncService");
             try {
               await chatSyncService.applyConfirmedFocusActivation(chatId, activation.focus_id, activation.project_name);
+              await webSocketService.sendMessage("project_focus_decision", { chat_id: chatId, request_id: attrs.id, accepted: true });
             } catch (error) {
               await deactivateProjectFocus(chatId).catch(() => undefined);
               throw error;
             }
-            await webSocketService.sendMessage("project_focus_decision", { chat_id: chatId, request_id: attrs.id, accepted: true });
             pendingFocusActivationStore.clear(attrs.id || "");
           },
           onReject: (rejectedFocusId: string, rejectedName: string) => {
@@ -184,6 +184,10 @@ export class FocusModeActivationRenderer implements EmbedRenderer {
           },
           onDetails: (detailsFocusId: string, detailsAppId: string) => {
             if (projectId) { window.location.hash = `project-id=${encodeURIComponent(projectId)}`; return; }
+            if (detailsFocusId.startsWith("project-focus:")) {
+              window.location.hash = `project-id=${encodeURIComponent(detailsFocusId.split(":")[1])}`;
+              return;
+            }
             console.debug(
               "[FocusModeActivationRenderer] Focus mode details requested:",
               detailsFocusId,

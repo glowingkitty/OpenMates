@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.workflows
-version: 9
+version: 10
 status: draft
 title: Workflows
 summary: >
@@ -492,14 +492,62 @@ assertions:
     depends_on: [models.WorkflowChatOwnedDefinition, examples.chat_owned]
   - id: workflows.chat.invocation
     type: privacy
-    must: >
-      Authorized chats may run a saved Workflow or create-and-run a one-time definition with explicit typed start inputs. Capture initiating chat separately from current client navigation and owner-verify it and every selected Send destination. Per-invocation destination overrides are encrypted run state and never modify or export the saved graph. Existing six-second cancellation and idempotent admission semantics apply. Do not add workflow discovery preprocessing or Start AI chat in this release.
-    depends_on: [models.WorkflowInvocation, examples.invocation]
+    must: Authorized chats may run a saved Workflow or create-and-run a one-time definition with explicit typed
+      start inputs. Capture initiating chat separately from current client navigation and owner-verify it and
+      every selected Send destination. Per-invocation destination overrides are encrypted run state and never
+      modify or export the saved graph. Existing six-second cancellation and idempotent admission semantics apply.
+      Saved-Workflow relevance discovery is permitted without adding a Start AI chat node.
+    depends_on:
+    - models.WorkflowInvocation
+    - examples.invocation
   - id: workflows.chat.result-return
     type: behavior
     must: >
       A caller may select bounded typed outputs to return with run identity and terminal status via normal encrypted owner-chat delivery. No complete run context is exposed implicitly. A graph with a validated explicit caller-return projection may execute without Send message; ordinary scheduled runs retain their reachable delivery requirement. Retries use stable returned-message identities.
     depends_on: [models.WorkflowInvocation, examples.result_return]
+
+  - id: workflows.chat.relevance-discovery
+    type: behavior
+    must: Preprocessing and authoritative Focus/phase refresh may shortlist existing authorized saved Workflow
+      definitions for main processing to choose. Selection never executes or rewrites the deterministic graph.
+      Invocation can deliver through current-chat or authorized subchat destinations using existing per-run overrides
+      and normal cancellation/admission guards; it need not create a new regular chat. Bounded configured AI
+      Checks retain their declared inputs, branch outcomes and Unsure behavior.
+    depends_on:
+    - examples.relevance_discovery
+  - id: workflows.portability.remote-project-save
+    type: behavior
+    must: Saving a Workflow into a selected remote-access Project folder also writes its canonical portable YAML
+      definition to that folder through existing Project file authority, policy, expected-version and conflict
+      guards. Encrypted linking or a remote-copy proposal alone is not a successful file save. Later saves update
+      the bound file under the same guards; pending, denied, disconnected or conflicting writes remain visible
+      and recoverable without duplicate Workflows. External file edits require explicit import/reconciliation
+      rather than automatic overwriting.
+    depends_on:
+    - examples.remote_project_save
+
+  - id: workflows.project.update-recommendation
+    type: behavior
+    must: 'Project Workflow updates use the same two-stage recommendation logic as Project Focus updates: first
+      Jev assesses eligible Project Workflow titles/summaries, including inactive or disabled definitions, to
+      select existing candidates; authorized loading supplies full saved graph, inputs, configured Checks and
+      delivery settings for a second Jev comparison with chat context. Only confirmed useful improvement shows
+      Update. Neither assessment executes a graph, node or AI Check or starts authoring. Inaccessible, failed,
+      uncertain or no-change candidates show no Update.'
+    depends_on:
+    - examples.project_update_recommendation
+  - id: workflows.project.update-authoring
+    type: behavior
+    must: Only clicking a validated Project Workflow Update recommendation starts one background invocation of the existing AI-powered Workflow creation/editing Jev + LLM pipeline, not a separate authoring engine. Supply its editing
+      job with authorized chat history, dedicated editing instructions and full target/base revision. Chat continues
+      without a new regular chat. Reuse existing supported-capability, input/reference, whole-graph, atomic-update,
+      enabled-state, partial-result and conflict guards; no execution grant is created. Preserve existing Workflow
+      encryption and do not durably retain plaintext input chat history. A bound remote Project definition also
+      updates its selected-folder YAML under existing file guards. Complete saved reachable results notify with
+      a Workflow embed/Project link; partial, failed, pending-file or conflicting saves cannot claim complete
+      success. Future runs resolve the saved version and active runs keep their immutable pinned definition.
+    depends_on:
+    - examples.project_update_authoring
 
 applies_to:
   rest_api:
@@ -524,20 +572,43 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [activation_readiness, lifecycle, encrypted_retained_content, chat_delivery_private, chat_delivery_fencing, chat_delivery_encrypted_persistence, surface_parity, mvp_steps, schedule_recurrence, schedule_edges, skill_contract, filter, check, ai_check, ask_ai_execution, ask_ai_validation, typed_data, standard_message, selective_embeds, delivered_membership, delivery_reservations, delete_forgets, budgets, budget_notifications, access_boundaries, delivery_recovery, portable_definition, portable_privacy, portable_import, portable_cli, choice_check, for_each, chat_owned, invocation, result_return]
-
-approval:
-  source: user-approved workflow v1 implementation plan, Codex task 01a09f95-3e12-71d1-9243-6a3668c57d4b
-  date: "2026-09-14"
-  scope: Web, CLI, npm and Python SDK, required backend; privacy and encryption architecture preserved.
-
-verification_order:
-  - User explicitly authorized the connected global OpenMates CLI personal dev test account first; use its paired dev profile and dev API.
-  - Verify workflow setup, execution and CLI-owned encrypted automatic chat creation before browser product verification.
-  - Demo inputs are Berlin weather/events/apartments, Germany news, and maximum apartment price EUR 1200/month.
-
-implementation_amendment:
-  source: User instruction in Codex chat 01a0fd61-e139-7be2-b05a-77b54bf7acfe
-  date: '2026-10-02'
-  approval_basis: Explicit approval of the presented design and instruction to implement; this records the accepted scope without an additional approval round.
-  deferred: [jev_workflow_relevance_preprocessing, start_ai_chat, apple_native_implementation_until_web_confirmation]
+  required_groups:
+  - activation_readiness
+  - lifecycle
+  - encrypted_retained_content
+  - chat_delivery_private
+  - chat_delivery_fencing
+  - chat_delivery_encrypted_persistence
+  - surface_parity
+  - mvp_steps
+  - schedule_recurrence
+  - schedule_edges
+  - skill_contract
+  - filter
+  - check
+  - ai_check
+  - ask_ai_execution
+  - ask_ai_validation
+  - typed_data
+  - standard_message
+  - selective_embeds
+  - delivered_membership
+  - delivery_reservations
+  - delete_forgets
+  - budgets
+  - budget_notifications
+  - access_boundaries
+  - delivery_recovery
+  - portable_definition
+  - portable_privacy
+  - portable_import
+  - portable_cli
+  - choice_check
+  - for_each
+  - chat_owned
+  - invocation
+  - result_return
+  - relevance_discovery
+  - remote_project_save
+  - project_update_recommendation
+  - project_update_authoring

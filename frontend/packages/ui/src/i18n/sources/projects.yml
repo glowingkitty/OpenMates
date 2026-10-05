@@ -2,6 +2,26 @@ project_root:
   context: Root breadcrumb label in the Project file browser
   en: Project root
   verified_by_human: []
+auto_selection_label:
+  context: Per-Project setting allowing automatic focus selection
+  en: Automatically select this Project
+  verified_by_human: []
+manage_rules:
+  context: Open private Rule guide management in Project settings
+  en: Manage Rule guides
+  verified_by_human: []
+auto_selection_description:
+  context: Explain automatic Project focus countdown and manual mention access
+  en: Suggested Project work starts after a cancellable four-second countdown. When off, mention the Project to activate it yourself.
+  verified_by_human: []
+auto_selection_saved:
+  context: Acknowledgement after saving Project automatic selection
+  en: Project focus preference saved.
+  verified_by_human: []
+auto_selection_failed:
+  context: Error after saving Project automatic selection
+  en: Could not save the Project focus preference. Please try again.
+  verified_by_human: []
 search_current_folder:
   context: Heading for Project file search matches directly inside the open folder
   en: 'Current folder:'

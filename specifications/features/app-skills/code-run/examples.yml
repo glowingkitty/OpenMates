@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.app-skill.code-run@1
+specification: feature.app-skill.code-run@2
 
 remote_commands:
   - id: isolated-explanation-has-no-authority
@@ -406,3 +406,13 @@ boundary_cases:
       artifacts:
         - {path: outputs/chart.png, kind: image, size_bytes: 4096}
     forbidden: [bytes, aes_key, aes_nonce, vault_wrapped_aes_key, download_url, token, s3_key, sandbox_id]
+
+semantic_risk_review:
+- id: preapproved-command-risk-escalation
+  assertion_ids:
+  - code-run.remote.semantic-risk-review
+  given: Alice enabled an exact automatic command whose script can delete Project data; another permitted command
+    only searches source.
+  when: Jev assesses each exact request under existing confinement.
+  then: The elevated/uncertain destructive request requires review despite its list match. A routine search
+    keeps its existing permission behavior; a deterministically denied request remains denied.

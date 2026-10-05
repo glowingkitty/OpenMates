@@ -32,7 +32,7 @@
   import { notificationStore } from '../../stores/notificationStore';
   import { workflowWorkspaceStore } from '../../stores/workflowWorkspaceStore';
   import { readWorkflowFile } from '../../services/workflowFileService';
-  import { saveWorkflowToProjectTarget } from '../../services/projectCreationNavigation';
+  import { saveWorkflowToProjectTarget, WorkflowRemoteFilePendingError } from '../../services/projectCreationNavigation';
   import { authStore } from '../../stores/authStore';
   import { panelState } from '../../stores/panelStateStore';
   import { settingsDeepLink } from '../../stores/settingsDeepLinkStore';
@@ -950,7 +950,7 @@
         } catch (linkError) {
           console.error('[ProjectsPage] Workflow imported but project link failed:', linkError);
           notificationStore.addNotificationWithOptions('error', {
-            message: $text('workflows.builder.file_project_link_failed'),
+            message: linkError instanceof WorkflowRemoteFilePendingError ? linkError.message : $text('workflows.builder.file_project_link_failed'),
             messageSecondary: imported.title,
             duration: 0,
             onAction: () => window.location.assign(`/#workflow-id=${encodeURIComponent(imported.id)}&workflow-tab=details`),

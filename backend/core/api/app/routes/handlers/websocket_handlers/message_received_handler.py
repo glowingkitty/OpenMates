@@ -848,6 +848,9 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         else:
             content_plain = content_plain_raw
         
+        from backend.shared.python_utils.agent_context_history import sanitize_agent_context_message
+        content_plain = sanitize_agent_context_message({"role": role, "content": content_plain})["content"]
+
         # Determine if this is an existing chat by checking Directus messages_v
         # This is more reliable than client-provided chat_has_title, especially after server restarts
         is_existing_chat = False
@@ -1605,7 +1608,11 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         # Check if client provided chat history (for cache miss or stale cache scenarios)
         # For incognito chats OR duplicated demo chats, client MUST provide full history
         # (no server-side caching for these new/temp chats)
+        from backend.shared.python_utils.agent_context_history import project_agent_context_history, sanitize_agent_context_message
         client_provided_history = payload.get("message_history") or message_payload_from_client.get("message_history")
+        if isinstance(client_provided_history, list):
+            client_provided_history = project_agent_context_history(client_provided_history)
+
         
         history_start = time.time()
         try:
@@ -1781,6 +1788,9 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                             # CRITICAL: Resolve embed references in message content before adding to AI history
                             # According to embeds architecture, messages contain embed references (JSON blocks)
                             # that need to be replaced with actual embed content for LLM context
+                            decrypted_content = sanitize_agent_context_message({
+                                "role": history_role, "category": history_category, "content": decrypted_content,
+                            })["content"]
                             resolved_content = decrypted_content
                             try:
                                 from backend.core.api.app.services.embed_service import EmbedService
@@ -2253,6 +2263,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         # Routing names belong to the request envelope, like memories metadata.
         # They are candidates only; preprocessing validates Project ownership.
         project_candidates_from_client = payload.get("project_focus_candidates")
+        from backend.apps.ai.processing.accepted_plan_context import bounded_accepted_plan_snapshot
         ai_request_payload = AskSkillRequestSchema(
             chat_id=chat_id,
             message_id=message_id,
@@ -2277,6 +2288,12 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             project_focus_candidates=project_candidates_from_client[:40]
             if isinstance(project_candidates_from_client, list) else [],
             active_project_focus=active_project_focus,
+            accepted_plan_context=bounded_accepted_plan_snapshot(payload.get("accepted_plan_context")) if not is_incognito else None,
+            custom_rule_documents=(payload.get("custom_rule_documents") or [])[:24] if isinstance(payload.get("custom_rule_documents"), list) and not is_incognito else [],
+            project_focus_catalog=(payload.get("project_focus_catalog") or [])[:20] if isinstance(payload.get("project_focus_catalog"), list) and not is_incognito else [],
+            project_focus_documents=(payload.get("project_focus_documents") or [])[:8] if isinstance(payload.get("project_focus_documents"), list) and not is_incognito else [],
+            project_context_documents=(payload.get("project_context_documents") or [])[:20] if isinstance(payload.get("project_context_documents"), list) and not is_incognito else [],
+            related_task_candidates=(payload.get("related_task_candidates") or [])[:60] if isinstance(payload.get("related_task_candidates"), list) and not is_incognito else [],
             user_preferences=user_preferences_dict,
             learning_mode=learning_mode_context,
             app_settings_memories_metadata=app_settings_memories_metadata_from_client,  # Client-provided metadata (source of truth)
@@ -2316,10 +2333,19 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             # There's an active task - queue this message instead
             logger.info(f"Active AI task {active_task_id} exists for chat {chat_id}. Queueing message {message_id}.")
             
+            # Private references are API-memory only; durable queue metadata holds an opaque handle.
+            from backend.shared.python_utils.recent_work_summary_cache import PRIVATE_CONTEXT_FIELDS
+            from backend.shared.python_utils.recent_work_summary_client import seal_private_context_payload
+            queued_payload = ai_request_payload.model_dump()
+            try:
+                queued_payload = await seal_private_context_payload(queued_payload, request_id=message_id, ensure_turn_binding=True)
+            except RuntimeError:
+                logger.warning("Transient private context unavailable for queued turn; omitting optional references.")
+                queued_payload = {key: value for key, value in queued_payload.items() if key not in PRIVATE_CONTEXT_FIELDS}
             # Queue the message data for later processing
             queued_success = await cache_service.queue_message(
                 chat_id=chat_id,
-                message_data=ai_request_payload.model_dump()
+                message_data=queued_payload
             )
             
             if queued_success:

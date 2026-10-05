@@ -680,6 +680,8 @@ class WorkflowInputService:
         source_chat_id: str | None = None,
         execution_mode: Literal["saved", "run_once"] = "saved",
         return_outputs: dict[str, dict[str, str]] | None = None,
+        transient_context: dict[str, Any] | None = None,
+        expected_workflow_version: int | None = None,
     ) -> WorkflowInputSessionResult:
         if execution_mode == "run_once" and not source_chat_id:
             raise ValueError("One-time chat workflows require a source chat")
@@ -709,6 +711,10 @@ class WorkflowInputService:
         session["source_chat_id"] = source_chat_id
         session["execution_mode"] = execution_mode
         session["return_outputs"] = return_outputs or {}
+        # Authorized Project authoring history is provider context only. It
+        # must never enter the encrypted session/undo/input-text persistence.
+        session["_transient_authoring_context"] = transient_context or {}
+        session["_expected_workflow_version"] = expected_workflow_version
         session["_on_stream_event"] = on_event
         if on_event is not None:
             self._persist_session(session, resolved_vault_key_id)
@@ -736,6 +742,8 @@ class WorkflowInputService:
             session.pop("_batch_events", None)
             session.pop("_batch_owner_thread", None)
             session.pop("_on_stream_event", None)
+            session.pop("_transient_authoring_context", None)
+            session.pop("_expected_workflow_version", None)
         result.authoring_metrics = {
             **(result.authoring_metrics or {}),
             "service_seconds": round(time.perf_counter() - started, 3),
@@ -1075,6 +1083,15 @@ class WorkflowInputService:
             if session["status"] == "stopped":
                 return self._result(session)
             validated_plan = WORKFLOW_INPUT_PLAN_ADAPTER.validate_python(plan)
+            if session.get("_expected_workflow_version") is not None:
+                operations = validated_plan.operations if isinstance(validated_plan, (_BatchPlan, _PartialPlan)) else [validated_plan]
+                for operation in operations:
+                    if isinstance(operation, _UpdateWorkflowPlan):
+                        if (operation.workflow_id or session.get("selected_workflow_id")) != session.get("selected_workflow_id"):
+                            raise ValueError("Project authoring cannot update another Workflow")
+                        operation.expected_record_version = session["_expected_workflow_version"]
+                    elif not isinstance(operation, (_ClarificationPlan, _DraftPlan, _PartialPlan)):
+                        raise ValueError("Project Workflow recommendations authorize only the selected Workflow edit")
             if self._should_stop(session, vault_key_id) and not isinstance(validated_plan, _PartialPlan):
                 validated_plan = self._partial_from_checkpoints(session)
             if (getattr(self.planner, "atomic_authoring", False)
@@ -1082,6 +1099,9 @@ class WorkflowInputService:
                 validated_plan = _BatchPlan(action="batch", operations=[validated_plan])
             self._emit_stream(session, {"type": "progress", "phase": "validating"})
             self._append_event(session, "validation_passed", {}, vault_key_id=vault_key_id)
+            authorize_commit = (session.get("_transient_authoring_context") or {}).get("_authorize_commit")
+            if callable(authorize_commit):
+                authorize_commit()
             if isinstance(validated_plan, _PartialPlan):
                 self._emit_stream(session, {"type": "progress", "phase": "saving"})
                 return self._apply_partial(session, validated_plan, vault_key_id)
@@ -1579,6 +1599,9 @@ class WorkflowInputService:
         if selected_workflow_id:
             try:
                 detail = self.workflow_service.get_workflow(selected_workflow_id, session["user_id"], vault_key_id)
+                if (session.get("_expected_workflow_version") is not None
+                        and detail.version != session["_expected_workflow_version"]):
+                    raise ValueError("Workflow changed before Project authoring started")
                 session["_selected_workflow_detail"] = detail
                 selected_workflow = detail.model_dump(mode="json")
             except WorkflowNotFoundError:
@@ -1591,6 +1614,7 @@ class WorkflowInputService:
             "timezone": session.get("timezone"),
             "execution_mode": session.get("execution_mode", "saved"),
         }
+        context["_transient_authoring_context"] = session.get("_transient_authoring_context") or {}
         if getattr(self.planner, "atomic_authoring", False):
             # Private server-side billing identity. The planner passes only
             # explicit request/registry fields to Jev and Gemini.
@@ -1675,6 +1699,10 @@ class WorkflowInputService:
         if not isinstance(metadata, dict):
             raise ValueError("Workflow checkpoint metadata is missing")
         operation = checkpoint.get("operation")
+        if session.get("_expected_workflow_version") is not None and (
+                operation != "update" or metadata.get("workflow_id") != session.get("selected_workflow_id")
+                or metadata.get("expected_record_version") != session["_expected_workflow_version"]):
+            raise ValueError("Project authoring checkpoint changed its selected Workflow or base revision")
         if operation not in {"create", "update"}:
             raise ValueError("Workflow checkpoint operation is invalid")
         if operation == "update" and not isinstance(metadata.get("workflow_id"), str):

@@ -7,6 +7,7 @@ from types import SimpleNamespace
 import pytest
 from pydantic import ValidationError
 
+from backend.apps.code import terminal_command_risk
 from backend.core.api.app.routes.handlers.websocket_handlers import remote_command_handlers
 from backend.core.api.app.schemas.remote_command_schemas import RemoteCommandPolicy
 from backend.core.api.app.services.remote_command_service import (
@@ -14,6 +15,7 @@ from backend.core.api.app.services.remote_command_service import (
     RemoteCommandService,
     explain_remote_command,
 )
+from backend.shared.providers.typesafe.models import DecisionResponse
 
 
 class MemoryCache:
@@ -292,14 +294,15 @@ async def test_owned_running_command_can_be_stopped_after_focus_is_off_but_cross
     }
 
 
-# contract-test: supporting surface=cli assertions=code-run.remote.explicit-approval,projects.files.write-policy-enforcement
+# contract-test: supporting surface=cli assertions=code-run.remote.explicit-approval,projects.files.write-policy-enforcement,code-run.remote.semantic-risk-review
 @pytest.mark.anyio
-async def test_always_ask_write_rejects_preset_approval() -> None:
+@pytest.mark.parametrize("source_access", ["read_write", "read_only"])
+async def test_one_run_review_rejects_preset_for_manual_write_or_semantic_escalation(source_access: str) -> None:
     cache = MemoryCache()
     service = RemoteCommandService(cache)
     await service.create_review(
         user_id="user-1", chat_id="chat-1", project_id="project-1", focus_id="focus-1",
-        source_id="source-1", command={"argv": ["npm", "run", "format"]},
+        source_id="source-1", command={"argv": ["npm", "run", "format"], "source_access": source_access},
         explanation={"summary": "Formats files"}, continuation_task_id="continuation-2",
         message_id="message-1", wait_for_completion=True, one_run_required=True,
         execution_id="execution-2", now=100,
@@ -317,6 +320,41 @@ async def test_always_ask_write_rejects_preset_approval() -> None:
             approval={"kind": "preset", "preset_id": "format", "definition_digest": "d" * 64},
             binding=binding(), now=101,
         )
+
+
+# contract-test: supporting surface=cli assertions=code-run.remote.semantic-risk-review,code-run.remote.explicit-approval,code-run.remote.confinement
+@pytest.mark.anyio
+async def test_routine_assessment_cannot_grant_revoked_source_capability(monkeypatch) -> None:
+    async def evaluator(**kwargs):
+        return DecisionResponse.model_validate({"model": "jev", "answers": {"risk": {
+            "type": "choice", "choice": "routine", "confidence": 0.99, "probabilities": {"routine": 1.0},
+        }}})
+
+    monkeypatch.setattr(terminal_command_risk, "evaluate_jev_decisions", evaluator)
+    policy = RemoteCommandPolicy(argv=["rg", "TODO", "src"], cwd=".", deadline_ms=60_000)
+    risk = await terminal_command_risk.assess_terminal_command_risk(policy=policy, secrets_manager=None, task_id="test")
+    assert risk.outcome == "routine"
+    cache = MemoryCache()
+    service = RemoteCommandService(cache)
+    await service.create_review(
+        user_id="user-1", chat_id="chat-1", project_id="project-1", focus_id="focus-1",
+        source_id="source-1", command=policy.model_dump(), explanation={"summary": "Searches source"},
+        continuation_task_id="continuation-1", message_id="message-1", wait_for_completion=True,
+        one_run_required=risk.requires_one_run_review, execution_id="execution-1", now=100,
+        schedule_expiration=False,
+    )
+    await service.register_continuation(user_id="user-1", execution_id="execution-1", now=100)
+    review = cache.events[-1][1]["payload"]
+    with pytest.raises(RemoteCommandError, match="source_capability_denied"):
+        await service.prepare(
+            user_id="user-1", execution_id="execution-1", chat_id="chat-1", project_id="project-1",
+            source_id="source-1", review_token=review["review_token"], encrypted_request="ciphertext",
+            request_digest="hmac-" + "c" * 32, approval={"kind": "one_run"},
+            binding=binding(capabilities=["read"]), now=101,
+        )
+    job = await service.get_job(user_id="user-1", execution_id="execution-1")
+    assert job["state"] == "REVIEW_REQUIRED"
+    assert "approval" not in job
 
 
 # contract-test: supporting surface=cli assertions=code-run.remote.explicit-approval,code-run.execution.wait-or-continue

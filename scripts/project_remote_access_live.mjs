@@ -51,7 +51,7 @@ if ((mode === "chat-files" || mode === "chat-command") && !configuredStateDir) {
 }
 const cliStateDir = configuredStateDir ? resolve(configuredStateDir) : join(homedir(), ".openmates");
 
-if (!new Set(["api", "api-team", "cli", "cli-team", "serve", "serve-team", "chat-files", "chat-command"]).has(mode)) {
+if (!new Set(["api", "api-team", "cli", "cli-team", "serve", "serve-team", "serve-workflow", "chat-files", "chat-command"]).has(mode)) {
   throw new Error("Usage: project_remote_access_live.mjs <api|api-team|cli|cli-team|serve|serve-team|chat-files|chat-command> <api-url>");
 }
 
@@ -164,7 +164,7 @@ async function createFixture(client, teamId = null, teamKey = null, hosted = fal
   } else {
     await client.createProjectSource(projectId, sourcePayload);
   }
-  return { projectId, sourceId, projectKey: new Uint8Array(projectKey), teamId };
+  return { projectId, sourceId, projectKey: new Uint8Array(projectKey), teamId, defaultFocus };
 }
 
 async function deleteFixture(client, fixture) {
@@ -914,9 +914,39 @@ async function runServeFixture(client, fixture) {
     stdio: ["ignore", "pipe", "pipe"],
   });
   let bridgeStopped = false;
+  let workflowChatId = null;
   try {
     await waitForCliConnected(child);
     await waitForConnectedSource(client, fixture);
+    if (mode === "serve-workflow") {
+      // This owned encrypted chat is metadata-only: no model or provider runs.
+      workflowChatId = randomUUID();
+      const key = new Uint8Array(randomBytes(32));
+      const ws = makeWebSocket(client);
+      await ws.open();
+      try {
+        const stored = ws.waitForMessage("encrypted_metadata_stored", payload => payload.chat_id === workflowChatId, 20_000);
+        await ws.sendAsync("encrypted_chat_metadata", { chat_id: workflowChatId,
+          encrypted_chat_key: await encryptBytesWithAesGcm(key, client.getMasterKeyBytes()),
+          encrypted_title: await encryptWithAesGcmCombined("Disposable Workflow source context", key),
+          encrypted_icon: await encryptWithAesGcmCombined("folder", key),
+          encrypted_chat_category: await encryptWithAesGcmCombined("general_knowledge", key),
+          created_at: Math.floor(Date.now() / 1000), versions: { title_v: 1, messages_v: 0, metadata_v: 1 },
+        });
+        await stored;
+      } finally { ws.close(); }
+      const deadline = Date.now() + 20_000;
+      while (true) {
+        try {
+          await client.activateProjectFocus(fixture.projectId, { chat_id: workflowChatId,
+            focus_id: fixture.defaultFocus.focus_id, instruction: fixture.defaultFocus.instructions });
+          break;
+        } catch (error) {
+          if (Date.now() >= deadline) throw error;
+          await new Promise(resolvePromise => setTimeout(resolvePromise, 250));
+        }
+      }
+    }
     if (mode === "chat-files") {
       await verifyChatFileEdits(client, fixture, rootPath);
       return;
@@ -931,18 +961,26 @@ async function runServeFixture(client, fixture) {
       project_id: fixture.projectId,
       project_name: `Remote access live verification ${fixture.projectId.slice(0, 8)}`,
       source_id: fixture.sourceId,
+      ...(workflowChatId ? { chat_id: workflowChatId } : {}),
       team_id: fixture.teamId ?? null,
       path_privacy_verified: true,
     })}\n`);
     await new Promise((resolvePromise) => {
       process.on("SIGUSR2", () => {
-        const content = readFileSync(join(rootPath, "src", "remote-demo.ts"));
+        const path = mode === "serve-workflow" ? "src/portable_remote.workflow.yml" : "src/remote-demo.ts";
+        const content = readFileSync(join(rootPath, path));
         process.stdout.write(`${JSON.stringify({
           event: "remote_file_state",
-          path: "src/remote-demo.ts",
+          path,
           content_base64: content.toString("base64"),
           size_bytes: content.byteLength,
         })}\n`);
+      });
+      if (mode === "serve-workflow") process.on("SIGWINCH", () => {
+        const path = "src/portable_remote.workflow.yml";
+        const content = readFileSync(join(rootPath, path), "utf8") + "\n# External edit requires explicit reconciliation\n";
+        writeFileSync(join(rootPath, path), content);
+        process.stdout.write(`${JSON.stringify({ event: "workflow_external_edit", path })}\n`);
       });
       process.once("SIGUSR1", () => {
         void stopForegroundCli(child).then(() => {
@@ -958,6 +996,7 @@ async function runServeFixture(client, fixture) {
     if (originalSourceStore) writeFileSync(sourceStorePath, originalSourceStore);
     else rmSync(sourceStorePath, { force: true });
     rmSync(rootPath, { recursive: true, force: true });
+    if (workflowChatId) await client.deleteChat(workflowChatId, { personal: true });
   }
 }
 
@@ -1102,7 +1141,7 @@ async function verifyChatFileEdits(client, remoteFixture, remoteRoot) {
 }
 
 const isolatedApiMode = mode === "api" || mode === "api-team";
-const isolatedSessionMode = isolatedApiMode || mode === "serve" || mode === "serve-team" || mode === "chat-files" || mode === "chat-command";
+const isolatedSessionMode = isolatedApiMode || mode === "serve" || mode === "serve-team" || mode === "serve-workflow" || mode === "chat-files" || mode === "chat-command";
 const teamMode = mode === "api-team" || mode === "serve-team" || mode === "cli-team";
 const client = isolatedSessionMode ? loadIsolatedClient("OPENMATES_REMOTE_HOST_SESSION") : OpenMatesClient.load({ apiUrl });
 const requesterClient = isolatedApiMode ? loadIsolatedClient("OPENMATES_REMOTE_REQUESTER_SESSION") : client;

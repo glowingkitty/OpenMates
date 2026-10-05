@@ -287,7 +287,7 @@ export class ChatSynchronizationService extends EventTarget {
       if (chat.encrypted_focus_phase_state) {
         const text = await decryptWithChatKey(chat.encrypted_focus_phase_state, chatKey);
         const states = text ? JSON.parse(text) : {};
-        if (!focusId.startsWith("project-")) delete states[focusId];
+        if (!focusId.startsWith("project-") || focusId.startsWith("project-focus:")) delete states[focusId];
         chat.encrypted_focus_phase_state = await encryptWithChatKey(JSON.stringify(states), chatKey);
       }
       await chatDB.updateChat(chat);
@@ -434,6 +434,9 @@ export class ChatSynchronizationService extends EventTarget {
     // fully initialized. Behaviour is identical — the initial status check fires before
     // any user events, just one microtask later.
     queueMicrotask(() => {
+    void import("./projectAuthoringNotificationService")
+      .then(({ startProjectAuthoringNotifications }) => startProjectAuthoringNotifications())
+      .catch(() => console.warn("[ChatSyncService] Project completion notifications unavailable"));
     websocketStatus.subscribe((storeState) => {
       const wasWebSocketConnected = this.webSocketConnected;
       this.webSocketConnected = storeState.status === "connected";
@@ -1938,6 +1941,22 @@ export class ChatSynchronizationService extends EventTarget {
     // in real-time without requiring a page refresh.
     // IMPORTANT: Registered synchronously (not inside dynamic import .then()) to avoid
     // a race condition where the WebSocket event arrives before the dynamic import resolves.
+    webSocketService.on("chat_context_applied", async (payload) => {
+      try {
+        const { handleChatContextApplied } = await import("./chatSyncServiceHandlersAgentContext");
+        await handleChatContextApplied(this, payload as Parameters<typeof handleChatContextApplied>[1]);
+      } catch { console.warn("[ChatSyncService] Applied context receipt could not be persisted"); }
+    });
+    webSocketService.on("project_authoring_available", async (payload) => {
+      try {
+        const { assessProjectAuthoring } = await import("./projectAuthoringClientService");
+        const events = await assessProjectAuthoring(payload);
+        const { handleChatContextApplied } = await import("./chatSyncServiceHandlersAgentContext");
+        for (const event of events ?? []) {
+          await handleChatContextApplied(this, { chat_id: event.chat_id, event });
+        }
+      } catch { console.warn("[ChatSyncService] Project improvement assessment unavailable"); }
+    });
     webSocketService.on("focus_phases_updated", async (payload) => {
       try {
         const { handleFocusPhasesUpdated } = await import("./chatSyncServiceHandlersFocusPhases");

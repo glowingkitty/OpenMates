@@ -11,6 +11,7 @@
 # are registered with and executed by that worker.
 
 from backend.shared.python_utils.chat_metadata_recovery import persist_generated_metadata
+from backend.shared.python_utils.recent_work_summary_client import write_response_summary_completion
 from backend.shared.python_utils.chat_failure_notifications import (
     EXPECTED_REJECTIONS,
     failure_stage,
@@ -106,6 +107,50 @@ from backend.core.api.app.schemas.chat import AIHistoryMessage, MessageInCache
 
 
 logger = logging.getLogger(__name__)
+
+
+async def _publish_project_authoring_availability(request_data: AskSkillRequest, task_id: str,
+                                                  cache_service: Any, directus_service: Any) -> bool:
+    """Permit one recommendation assessment for a completed response; never author."""
+    from backend.core.api.app.services.project_recommendation_service import (
+        ProjectRecommendationService, RECOMMENDATION_TTL,
+    )
+    from backend.core.api.app.services.project_write_authorization_service import ProjectWriteAuthorizationService
+    if any(getattr(request_data, flag, False) for flag in ("is_external", "is_incognito", "is_anonymous")):
+        return False
+    project = getattr(request_data, "active_project_focus", None) or {}
+    project_id = project.get("project_id") or project.get("id")
+    from backend.shared.python_utils.recent_work_summary_client import authoritative_context_turn_id
+    from backend.apps.ai.tasks.async_skill_continuation import async_skill_latest_user_turn_key
+    message_id = authoritative_context_turn_id(request_data)
+    latest_turn_key = async_skill_latest_user_turn_key(request_data.user_id, request_data.chat_id)
+    if not project_id or not message_id:
+        return False
+    try:
+        authorization = ProjectWriteAuthorizationService(directus_service, cache_service)
+        binding = await cache_service.get(authorization._focus_key(request_data.user_id, request_data.chat_id))
+        if (not isinstance(binding, dict) or binding.get("project_id") != project_id
+                or binding.get("team_id") != request_data.team_id):
+            return False
+        await authorization._require_chat_access(request_data.user_id, request_data.chat_id, request_data.team_id)
+        await authorization._require_project_access(request_data.user_id, project_id, request_data.team_id, write=False)
+        if await cache_service.get(latest_turn_key) != message_id:
+            return False
+        stored = await cache_service.set(
+            ProjectRecommendationService.response_key(request_data.user_id, request_data.chat_id, message_id),
+            {"project_id": project_id, "team_id": request_data.team_id}, ttl=RECOMMENDATION_TTL,
+        )
+        if not stored or await cache_service.get(latest_turn_key) != message_id:
+            return False
+        await cache_service.publish_event(f"user_cache_events:{request_data.user_id}", {
+            "event_type": "project_authoring_available", "payload": {
+                "chat_id": request_data.chat_id, "project_id": project_id,
+                "user_message_id": message_id, "assistant_message_id": getattr(request_data, "continuation_message_id", None) or task_id,
+            },
+        })
+        return True
+    except Exception:
+        return False
 
 
 def _validated_queued_messages(request_data: AskSkillRequest, lease: dict) -> tuple[list[str], list[str]]:
@@ -366,6 +411,9 @@ async def _advance_completed_legacy_followers(
         "chat_has_title": follower_lease["messages"][0].get("chat_has_title", True),
         "active_focus_id": follower_lease["messages"][0].get("active_focus_id"),
         "root_user_message_id": message_id,
+        "agentic_context_ref": follower_lease["messages"][-1].get("agentic_context_ref"),
+        "agentic_context_request_id": follower_lease["messages"][-1].get("agentic_context_request_id"),
+        "agentic_context_turn_id": follower_lease["messages"][-1].get("agentic_context_turn_id"),
     })
     next_request = AskSkillRequest(**next_request_data)
     next_proof = _legacy_queued_batch_proof(next_request, follower_lease, ids)
@@ -1426,6 +1474,13 @@ async def _async_process_ai_skill_ask_task(
             )
             logger.info(f"[Task ID: {task_id}] DirectusService initialized.")
 
+        from backend.shared.python_utils.recent_work_summary_client import restore_private_context_payload, bind_restored_context_turn
+        from backend.shared.python_utils.recent_work_summary_cache import PRIVATE_CONTEXT_FIELDS
+        transient = await restore_private_context_payload(request_data.model_dump())
+        bind_restored_context_turn(request_data, transient)
+        for field in PRIVATE_CONTEXT_FIELDS:
+            setattr(request_data, field, transient.get(field, None if field == "accepted_plan_context" else []))
+
         if request_data.is_sub_chat_continuation and request_data.recovery_consumed_child_ids:
             if not request_data.recovery_preflight_id or not request_data.orchestration_id:
                 raise RequiredRecoveryOutputError("Parent continuation lacks durable child recovery identity")
@@ -1772,6 +1827,8 @@ async def _async_process_ai_skill_ask_task(
                         pass
                 raise RuntimeError(f"Failed to identify user or check credits: {e}")
 
+        from backend.shared.python_utils.recent_work_summary_client import mark_response_summary_active
+        await mark_response_summary_active(request_data, task_id)
         user_vault_key_id = cached_user_data.get("vault_key_id")
         if not user_vault_key_id:
             logger.error(f"[Task ID: {task_id}] vault_key_id not found for user {request_data.user_id}. Aborting.")
@@ -2848,6 +2905,9 @@ async def _async_process_ai_skill_ask_task(
                     user_id_hash=combined_user_id_hash or request_data.user_id_hash,
                     message_history=history_objects,
                     current_user_content=combined_content,
+                    agentic_context_ref=queued_messages[-1].get("agentic_context_ref"),
+                    agentic_context_request_id=queued_messages[-1].get("agentic_context_request_id"),
+                    agentic_context_turn_id=queued_messages[-1].get("agentic_context_turn_id"),
                     chat_has_title=combined_chat_has_title,
                     mate_id=current_mate_id,  # Preserve current mate instead of forcing re-selection
                     active_focus_id=combined_active_focus_id or request_data.active_focus_id,
@@ -3190,6 +3250,13 @@ async def _async_process_ai_skill_ask_task(
 
 
         if postprocessing_result and cache_service_instance:
+            if not task_was_revoked and not task_was_soft_limited:
+                # This new copy uses only the completed response's generated
+                # summary. Never reactivate an older client/preprocessing copy.
+                await write_response_summary_completion(request_data, task_id, postprocessing_result.chat_summary)
+                await _publish_project_authoring_availability(
+                    request_data, task_id, cache_service_instance, directus_service_instance,
+                )
             # Publish post-processing results to Redis for WebSocket delivery to client
             # Client will encrypt with chat-specific key and sync back to Directus
             # chat_summary: prefer post-processing version (includes latest exchange) over preprocessing

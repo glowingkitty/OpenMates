@@ -7,6 +7,9 @@
   import { flip } from 'svelte/animate';
   import { parseMemoryRequest, mergeMemoryRequests } from "../utils/appMemoryRequests";
   import ChatMessage from "./ChatMessage.svelte";
+  import AgentContextMessage from './AgentContextMessage.svelte';
+  import { parseAgentContextEvent, type ProjectAuthoringRecommendation } from '../utils/agentContextEvents';
+  import { projectAuthoringJobs, saveProjectAuthoring } from '../services/projectAuthoringClientService';
   import FollowUpSuggestions from './FollowUpSuggestions.svelte';
   import QuickTipsCard from './QuickTipsCard.svelte';
   import { fade } from "svelte/transition";
@@ -98,6 +101,12 @@
 
   const FORGOTTEN_MESSAGE_PAGE_LIMIT = NORMAL_MESSAGE_PAGE_LIMIT;
   const OLDER_MESSAGES_AUTOLOAD_THRESHOLD_PX = 180;
+
+  async function startContextAuthoring(recommendation: ProjectAuthoringRecommendation): Promise<void> {
+    if (!currentChatId || recommendation.chat_id !== currentChatId) throw new Error('authoring_chat_changed');
+    const { startProjectAuthoring } = await import('../services/projectAuthoringClientService');
+    await startProjectAuthoring(recommendation);
+  }
 
   type AppCardData = {
     component: new (...args: unknown[]) => SvelteComponent;
@@ -2923,6 +2932,7 @@
             {/if}
 
             {#each virtualizedDisplayMessages as msg, msgIndex (msg.id)}
+                {@const agentContext = msg.role === 'system' ? parseAgentContextEvent(msg.original_message?.content ?? msg.content) : null}
                 {@const speechContent = typeof msg.original_message?.content === 'string'
                   ? msg.original_message.content
                   : typeof msg.content === 'string' ? msg.content : null}
@@ -2946,6 +2956,9 @@
                       `}
                       in:fade={{ duration: (msg.status === 'streaming' || msg.status === 'processing') ? 0 : 300 }}
                       animate:flip={{ duration: (msg.status === 'streaming' || msg.status === 'processing') ? 0 : 250 }}>
+                    {#if agentContext}
+                      <AgentContextMessage event={agentContext} onAuthoring={startContextAuthoring} jobs={Object.values($projectAuthoringJobs)} onSaveJob={saveProjectAuthoring} />
+                    {:else}
                     <ChatMessage
                         role={msg.role}
                         category={msg.category}
@@ -2976,6 +2989,7 @@
                           ? () => onSpeakMessage(msg.id, speechContent)
                           : undefined}
                     />
+                    {/if}
 
                 </div>
             {/each}

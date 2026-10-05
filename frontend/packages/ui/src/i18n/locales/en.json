@@ -14564,6 +14564,17 @@
         "text": "Open security settings"
       }
     },
+    "project_authoring": {
+      "ready": {
+        "text": "Your Project result is ready."
+      },
+      "view": {
+        "text": "View result"
+      },
+      "unavailable": {
+        "text": "This Project result is no longer available."
+      }
+    },
     "credits_depleted": {
       "message": {
         "text": "You ran out of credits. Buy more to continue using OpenMates."
@@ -14607,6 +14618,21 @@
   "projects": {
     "project_root": {
       "text": "Project root"
+    },
+    "auto_selection_label": {
+      "text": "Automatically select this Project"
+    },
+    "manage_rules": {
+      "text": "Manage Rule guides"
+    },
+    "auto_selection_description": {
+      "text": "Suggested Project work starts after a cancellable four-second countdown. When off, mention the Project to activate it yourself."
+    },
+    "auto_selection_saved": {
+      "text": "Project focus preference saved."
+    },
+    "auto_selection_failed": {
+      "text": "Could not save the Project focus preference. Please try again."
     },
     "search_current_folder": {
       "text": "Current folder:"
@@ -15291,6 +15317,140 @@
       "repeat_heading": {
         "text": "Repeat?"
       }
+    }
+  },
+  "rules": {
+    "manage": {
+      "text": "Rule guides"
+    },
+    "guide_description": {
+      "text": "Save reusable practices as one guide. Required product behavior belongs in a Specification."
+    },
+    "scope": {
+      "text": "Rule scope"
+    },
+    "source_app": {
+      "text": "App guide"
+    },
+    "source_personal": {
+      "text": "Personal guides"
+    },
+    "source_project": {
+      "text": "Project guides"
+    },
+    "loaded": {
+      "text": "Loaded {count} rules."
+    },
+    "revision": {
+      "text": "Revision"
+    },
+    "project_storage": {
+      "text": "Project guides are encrypted Markdown files. They are applied only while this chat has active Project access."
+    },
+    "activation_required": {
+      "text": "Activate this Project in a chat before creating or editing its guides."
+    },
+    "title": {
+      "text": "Title"
+    },
+    "description": {
+      "text": "Description"
+    },
+    "when_to_use": {
+      "text": "When to use"
+    },
+    "practices": {
+      "text": "Practices (Markdown)"
+    },
+    "empty": {
+      "text": "No guides saved here yet."
+    },
+    "new": {
+      "text": "New guide"
+    },
+    "saved": {
+      "text": "Guide saved."
+    },
+    "invalid_document": {
+      "text": "Add a title, description, applicability and practices within the field limits."
+    },
+    "save_failed": {
+      "text": "Could not load or save the guides. Please try again."
+    },
+    "authoring_suggestions": {
+      "text": "Suggested Project improvements"
+    },
+    "create_focus": {
+      "text": "Create Focus"
+    },
+    "update_focus": {
+      "text": "Update Focus"
+    },
+    "create_workflow": {
+      "text": "Create Workflow"
+    },
+    "update_workflow": {
+      "text": "Update Workflow"
+    },
+    "authoring_started": {
+      "text": "Started"
+    },
+    "authoring_failed": {
+      "text": "Could not start this update. Please try again."
+    },
+    "expanded": {
+      "text": "Expanded"
+    },
+    "collapsed": {
+      "text": "Collapsed"
+    },
+    "authoring_save_failed": {
+      "text": "Could not save this draft. Please try again."
+    },
+    "review_draft": {
+      "text": "Review draft"
+    },
+    "save_draft": {
+      "text": "Save draft"
+    },
+    "job_running": {
+      "text": "Working on this improvement…"
+    },
+    "job_queued": {
+      "text": "Waiting to start."
+    },
+    "job_needs_input": {
+      "text": "More information is needed."
+    },
+    "job_needs_save": {
+      "text": "Draft ready for review and saving."
+    },
+    "job_needs_binding_save": {
+      "text": "Save the remaining Project file connection."
+    },
+    "job_pending_file": {
+      "text": "Waiting for the connected file."
+    },
+    "job_partial": {
+      "text": "Some changes completed. The remaining changes need attention."
+    },
+    "job_conflict": {
+      "text": "The source changed. Review the conflict before continuing."
+    },
+    "job_ready": {
+      "text": "Project improvement saved."
+    },
+    "job_failed": {
+      "text": "This improvement could not be completed."
+    },
+    "job_saved": {
+      "text": "Saved."
+    },
+    "job_cancelled": {
+      "text": "Cancelled."
+    },
+    "job_waiting": {
+      "text": "Waiting for a job update."
     }
   },
   "settings": {
@@ -23171,249 +23331,13 @@
     }
   },
   "workflows": {
-    "sidebar": {
-      "loading": {
-        "text": "Loading workflows..."
-      },
-      "empty": {
-        "text": "No workflows yet."
-      },
-      "manual": {
-        "text": "Manual"
-      },
-      "my_workflows": {
-        "text": "My workflows"
-      },
-      "templates": {
-        "text": "Templates"
-      }
-    },
-    "home": {
-      "greeting": {
-        "text": "Hey {name}!"
-      },
-      "fallback_name": {
-        "text": "there"
-      },
-      "subtitle": {
-        "text": "What do you want to automate next?"
-      },
-      "show_all": {
-        "text": "Show my workflows"
-      },
-      "show_templates": {
-        "text": "Show templates"
-      },
-      "back_to_recent": {
-        "text": "Back to recent"
-      },
-      "search": {
-        "text": "Search"
-      },
-      "search_unavailable": {
-        "text": "Workflow search is coming soon."
-      },
-      "retention_none": {
-        "text": "No durable run content"
-      },
-      "retention_last5": {
-        "text": "Keep latest 5 encrypted runs"
-      },
-      "badge_new": {
-        "text": "New"
-      },
-      "badge_enabled": {
-        "text": "Enabled"
-      },
-      "badge_paused": {
-        "text": "Paused"
-      },
-      "starter_badge": {
-        "text": "Starter"
-      },
-      "starter_rain_title": {
-        "text": "Daily weather and news"
-      },
-      "starter_rain_summary": {
-        "text": "Rain timing and the latest articles in a new chat"
-      },
-      "starter_news_title": {
-        "text": "Weekly AI events"
-      },
-      "starter_news_summary": {
-        "text": "Discover AI events for the upcoming week"
-      },
-      "starter_apartments_title": {
-        "text": "Find new apartments every hour"
-      },
-      "starter_apartments_summary": {
-        "text": "Only previously undelivered listings"
-      },
-      "inspiration_phrase": {
-        "text": "A useful workflow starts with one trigger, one decision, and one visible result."
-      },
-      "inspiration_title": {
-        "text": "Design a Workflow Trigger"
-      },
-      "inspiration_feature_title": {
-        "text": "Workflow planning tip"
-      },
-      "inspiration_feature_description": {
-        "text": "Start automation with a clear trigger."
-      }
-    },
-    "template_share": {
-      "title": {
-        "text": "Share as template"
-      },
-      "create_link": {
-        "text": "Create template link"
-      },
-      "import": {
-        "text": "Import template"
-      },
-      "complete_bindings": {
-        "text": "Complete requirements and enable"
-      },
-      "revoked": {
-        "text": "Template access revoked."
-      },
-      "owner_description": {
-        "text": "Recipients import a disabled copy and reconnect their own accounts, schedules, permissions, and notification preferences."
-      },
-      "preparing": {
-        "text": "Preparing..."
-      },
-      "copy_short": {
-        "text": "Copy short link"
-      },
-      "copy_offline": {
-        "text": "Copy offline link"
-      },
-      "revoke": {
-        "text": "Revoke template access"
-      },
-      "restore": {
-        "text": "Restore template access"
-      },
-      "link_created": {
-        "text": "Short template link created."
-      },
-      "link_copied": {
-        "text": "Link copied."
-      },
-      "access_restored": {
-        "text": "Template access restored. Create a new short link to share it again."
-      },
-      "preview_label": {
-        "text": "Workflow template"
-      },
-      "import_disabled": {
-        "text": "Imported workflows start disabled."
-      },
-      "preview_step_summary": {
-        "text": "{count} steps. Imported workflows start disabled."
-      },
-      "importing": {
-        "text": "Importing..."
-      },
-      "complete_before_enable": {
-        "text": "Complete before enabling"
-      },
-      "binding_explanation": {
-        "text": "This imported workflow remains disabled until these recipient-owned bindings are confirmed."
-      },
-      "binding_schedule": {
-        "text": "Choose your schedule and timezone"
-      },
-      "binding_app_skill": {
-        "text": "Connect"
-      },
-      "binding_notifications": {
-        "text": "Choose notification preferences"
-      },
-      "binding_other": {
-        "text": "Complete requirement"
-      },
-      "mark_complete": {
-        "text": "Mark complete"
-      },
-      "completed": {
-        "text": "Completed"
-      },
-      "enabling": {
-        "text": "Enabling..."
-      },
-      "enable": {
-        "text": "Enable workflow"
-      },
-      "import_done": {
-        "text": "Workflow imported disabled. Complete its binding requirements before enabling it."
-      },
-      "binding_done": {
-        "text": "Binding requirement completed."
-      }
-    },
-    "version_history": {
-      "title": {
-        "text": "Definition history"
-      },
-      "retention": {
-        "text": "Keeps up to {max} definitions"
-      },
-      "retention_loading": {
-        "text": "Loading retention..."
-      },
-      "loading": {
-        "text": "Loading definition history..."
-      },
-      "empty": {
-        "text": "No definition history is available yet."
-      },
-      "version": {
-        "text": "Version {version}"
-      },
-      "current": {
-        "text": "Current"
-      },
-      "restored": {
-        "text": "Restored"
-      },
-      "inspecting": {
-        "text": "Loading definition..."
-      },
-      "inspecting_version": {
-        "text": "Version {version} graph"
-      },
-      "nodes": {
-        "text": "nodes"
-      },
-      "restore_as_new": {
-        "text": "Restore version {version} as new current version"
-      },
-      "restore_explanation": {
-        "text": "This creates a new current version. The selected and existing versions remain unchanged."
-      },
-      "confirm_restore": {
-        "text": "Create new current version"
-      },
-      "restoring": {
-        "text": "Restoring..."
-      },
-      "restore_success": {
-        "text": "Restored version {version} as a new current version."
-      },
-      "load_failed": {
-        "text": "Failed to load definition history."
-      },
-      "inspect_failed": {
-        "text": "Failed to load the selected definition."
-      },
-      "restore_failed": {
-        "text": "Failed to restore the selected definition."
-      }
-    },
     "builder": {
+      "remote_file_conflict": {
+        "text": "Workflow saved in the Project. Its remote YAML has changed. Import or reconcile that file before retrying the save."
+      },
+      "remote_file_pending": {
+        "text": "Workflow saved in the Project. Its YAML file is pending. Reconnect the source or resolve the write approval, then retry from the Project chat."
+      },
       "new_workflow_placeholder": {
         "text": "Describe new workflow."
       },
@@ -24337,6 +24261,248 @@
       },
       "website_change_pending_limit": {
         "text": "Too many changes are waiting for evaluation or delivery. The last successful version was kept."
+      }
+    },
+    "sidebar": {
+      "loading": {
+        "text": "Loading workflows..."
+      },
+      "empty": {
+        "text": "No workflows yet."
+      },
+      "manual": {
+        "text": "Manual"
+      },
+      "my_workflows": {
+        "text": "My workflows"
+      },
+      "templates": {
+        "text": "Templates"
+      }
+    },
+    "home": {
+      "greeting": {
+        "text": "Hey {name}!"
+      },
+      "fallback_name": {
+        "text": "there"
+      },
+      "subtitle": {
+        "text": "What do you want to automate next?"
+      },
+      "show_all": {
+        "text": "Show my workflows"
+      },
+      "show_templates": {
+        "text": "Show templates"
+      },
+      "back_to_recent": {
+        "text": "Back to recent"
+      },
+      "search": {
+        "text": "Search"
+      },
+      "search_unavailable": {
+        "text": "Workflow search is coming soon."
+      },
+      "retention_none": {
+        "text": "No durable run content"
+      },
+      "retention_last5": {
+        "text": "Keep latest 5 encrypted runs"
+      },
+      "badge_new": {
+        "text": "New"
+      },
+      "badge_enabled": {
+        "text": "Enabled"
+      },
+      "badge_paused": {
+        "text": "Paused"
+      },
+      "starter_badge": {
+        "text": "Starter"
+      },
+      "starter_rain_title": {
+        "text": "Daily weather and news"
+      },
+      "starter_rain_summary": {
+        "text": "Rain timing and the latest articles in a new chat"
+      },
+      "starter_news_title": {
+        "text": "Weekly AI events"
+      },
+      "starter_news_summary": {
+        "text": "Discover AI events for the upcoming week"
+      },
+      "starter_apartments_title": {
+        "text": "Find new apartments every hour"
+      },
+      "starter_apartments_summary": {
+        "text": "Only previously undelivered listings"
+      },
+      "inspiration_phrase": {
+        "text": "A useful workflow starts with one trigger, one decision, and one visible result."
+      },
+      "inspiration_title": {
+        "text": "Design a Workflow Trigger"
+      },
+      "inspiration_feature_title": {
+        "text": "Workflow planning tip"
+      },
+      "inspiration_feature_description": {
+        "text": "Start automation with a clear trigger."
+      }
+    },
+    "template_share": {
+      "title": {
+        "text": "Share as template"
+      },
+      "create_link": {
+        "text": "Create template link"
+      },
+      "import": {
+        "text": "Import template"
+      },
+      "complete_bindings": {
+        "text": "Complete requirements and enable"
+      },
+      "revoked": {
+        "text": "Template access revoked."
+      },
+      "owner_description": {
+        "text": "Recipients import a disabled copy and reconnect their own accounts, schedules, permissions, and notification preferences."
+      },
+      "preparing": {
+        "text": "Preparing..."
+      },
+      "copy_short": {
+        "text": "Copy short link"
+      },
+      "copy_offline": {
+        "text": "Copy offline link"
+      },
+      "revoke": {
+        "text": "Revoke template access"
+      },
+      "restore": {
+        "text": "Restore template access"
+      },
+      "link_created": {
+        "text": "Short template link created."
+      },
+      "link_copied": {
+        "text": "Link copied."
+      },
+      "access_restored": {
+        "text": "Template access restored. Create a new short link to share it again."
+      },
+      "preview_label": {
+        "text": "Workflow template"
+      },
+      "import_disabled": {
+        "text": "Imported workflows start disabled."
+      },
+      "preview_step_summary": {
+        "text": "{count} steps. Imported workflows start disabled."
+      },
+      "importing": {
+        "text": "Importing..."
+      },
+      "complete_before_enable": {
+        "text": "Complete before enabling"
+      },
+      "binding_explanation": {
+        "text": "This imported workflow remains disabled until these recipient-owned bindings are confirmed."
+      },
+      "binding_schedule": {
+        "text": "Choose your schedule and timezone"
+      },
+      "binding_app_skill": {
+        "text": "Connect"
+      },
+      "binding_notifications": {
+        "text": "Choose notification preferences"
+      },
+      "binding_other": {
+        "text": "Complete requirement"
+      },
+      "mark_complete": {
+        "text": "Mark complete"
+      },
+      "completed": {
+        "text": "Completed"
+      },
+      "enabling": {
+        "text": "Enabling..."
+      },
+      "enable": {
+        "text": "Enable workflow"
+      },
+      "import_done": {
+        "text": "Workflow imported disabled. Complete its binding requirements before enabling it."
+      },
+      "binding_done": {
+        "text": "Binding requirement completed."
+      }
+    },
+    "version_history": {
+      "title": {
+        "text": "Definition history"
+      },
+      "retention": {
+        "text": "Keeps up to {max} definitions"
+      },
+      "retention_loading": {
+        "text": "Loading retention..."
+      },
+      "loading": {
+        "text": "Loading definition history..."
+      },
+      "empty": {
+        "text": "No definition history is available yet."
+      },
+      "version": {
+        "text": "Version {version}"
+      },
+      "current": {
+        "text": "Current"
+      },
+      "restored": {
+        "text": "Restored"
+      },
+      "inspecting": {
+        "text": "Loading definition..."
+      },
+      "inspecting_version": {
+        "text": "Version {version} graph"
+      },
+      "nodes": {
+        "text": "nodes"
+      },
+      "restore_as_new": {
+        "text": "Restore version {version} as new current version"
+      },
+      "restore_explanation": {
+        "text": "This creates a new current version. The selected and existing versions remain unchanged."
+      },
+      "confirm_restore": {
+        "text": "Create new current version"
+      },
+      "restoring": {
+        "text": "Restoring..."
+      },
+      "restore_success": {
+        "text": "Restored version {version} as a new current version."
+      },
+      "load_failed": {
+        "text": "Failed to load definition history."
+      },
+      "inspect_failed": {
+        "text": "Failed to load the selected definition."
+      },
+      "restore_failed": {
+        "text": "Failed to restore the selected definition."
       }
     },
     "runs": {

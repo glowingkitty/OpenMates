@@ -138,6 +138,9 @@ async def handle_delete_chat(
                     )
                     return
 
+            from backend.shared.python_utils.recent_work_summary_cache import recent_work_summary_cache
+            recent_work_summary_cache.revoke_chat(owner_id=user_id, chat_id=chat_id)
+
             # Recovery access must disappear before chat/cache access is removed.
             await invalidate_recovery_jobs_for_chat_deletion(
                 directus_service=directus_service,

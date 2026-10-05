@@ -6,7 +6,7 @@
  * These tests use Playwright only to authorize the CLI through pair login and,
  * for chat-delivery coverage, keep a browser device online to claim encrypted
  * pending Workflow deliveries. Workflow behavior is exercised through the real
- * CLI against the deployed dev backend.
+ * CLI against the coordinator's isolated backend.
  */
 export {};
 
@@ -52,6 +52,7 @@ function workflowCliEnv(apiUrl: string, homeDir: string): Record<string, string 
 	return {
 		...process.env,
 		HOME: homeDir,
+		OPENMATES_STATE_DIR: path.join(homeDir, '.openmates'),
 		OPENMATES_API_KEY: undefined,
 		OPENMATES_API_URL: apiUrl,
 		NODE_PATH: path.join(cliDir, 'node_modules'),

@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.projects
-version: 1
-status: approved
+version: 2
+status: draft
 title: Projects
 summary: >
   Projects are encrypted Personal or Team workspaces that organize OpenMates
@@ -201,7 +201,13 @@ assertions:
     must: The @ mention picker suggests accessible Projects. Sending a selected structured Project mention constitutes consent and activates that Project's current default focus before inference or file work. The named Work on (project) indicator and off control reflect the confirmed chat-bound authority; mention text or historical rendering alone cannot activate access. A different explicit Project selection switches the binding, and ambiguous multi-Project sends require disambiguation.
   - id: projects.focus.inferred-consent
     type: security
-    must: An authorized client may supply bounded decrypted Project names as transient routing metadata. The preprocessor filters and selects relevant permission-scoped candidates, and main processing may request a Project focus. Inferred access requires explicit user confirmation before the client loads that Project's default instructions or file content. Decline, expiry, changed user turn, another chat, or loss of Project permission cannot grant access or resume an old request. Confirmation converges on the same focus state, instructions, and file guards as explicit mentions. No timer auto-confirms Project access and no stored Project decryption key is given to the server.
+    must: 'An authorized client may supply bounded Project titles and summaries as transient routing metadata.
+      The preprocessor shortlists eligible Project Focuses and main processing may propose one. Use the standard
+      live cancellable Focus countdown: only authoritative completion without rejection activates the Project
+      and permits loading its full instructions and Project-specific context or running Project-specific selection.
+      Rejection, expiry, a changed user turn, another chat, or permission loss cannot activate or resume a stale
+      request. Completion converges on the same chat-bound Focus and file guards as explicit mentions. Project
+      decryption keys remain client-owned; metadata selection cannot grant filesystem authority.'
   - id: projects.focus.mention-history
     type: behavior
     must: A Project mention in user chat history renders as an inline mention chip with its authorized Project name. Clicking or keyboard-activating it opens that Project's page through existing authenticated access checks. Opening a Project page does not grant the chat access or reactivate a historical focus. Unavailable Project names use a stable fallback without disclosing private data.
@@ -262,6 +268,15 @@ assertions:
     must: While remote-access runs in the foreground, selected authorized Projects synchronize encrypted Task updates over the existing outbound connection to private account-scoped device caches. Atomic data and cursor commits preserve all Tasks, replay changes and removals after reconnect, and clear revoked scope. Cache views shorten only descriptions and the latest activity; server storage does not gain decrypted private content.
     depends_on: [examples.project_task_sync]
 
+  - id: projects.focus.auto-selection-setting
+    type: behavior
+    must: Project auto-selection defaults to enabled and is configurable per Project through web and CLI settings.
+      Disabled Projects cannot be automatically shortlisted or activated; a current structured Project mention
+      remains available under existing access checks. Existing Projects receive the same default without weakening
+      client encryption.
+    depends_on:
+    - examples.focus_auto_selection
+
 applies_to:
   rest_api:
     required: true
@@ -312,4 +327,24 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [project_focus_routing, project_executor_wait, project_encrypted_file_writes, project_file_freshness, project_file_recovery, project_file_recovery_authorization, project_file_concurrency, project_write_policy, project_default_focus, project_focus_writes, project_contexts, project_key_wrappers, project_item_links, project_surface_catalog, project_work_chain, project_check_catalog, project_item_presentation, project_uploads, project_surface_parity]
+  required_groups:
+  - project_focus_routing
+  - project_executor_wait
+  - project_encrypted_file_writes
+  - project_file_freshness
+  - project_file_recovery
+  - project_file_recovery_authorization
+  - project_file_concurrency
+  - project_write_policy
+  - project_default_focus
+  - project_focus_writes
+  - project_contexts
+  - project_key_wrappers
+  - project_item_links
+  - project_surface_catalog
+  - project_work_chain
+  - project_check_catalog
+  - project_item_presentation
+  - project_uploads
+  - project_surface_parity
+  - focus_auto_selection

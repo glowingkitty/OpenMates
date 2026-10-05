@@ -434,7 +434,7 @@ final class ProjectHostedFileExecutor {
         try await CryptoManager.shared.encryptWithMasterKey(value, masterKey: key)
     }
 
-    private static func identity(key: SymmetricKey, path: String, kind: String) throws -> String {
+    static func identity(key: SymmetricKey, path: String, kind: String) throws -> String {
         let values = ["openmates-hosted-file-v1", kind, path]
         let input = try JSONSerialization.data(withJSONObject: values, options: [.withoutEscapingSlashes])
         var bytes = Array(HMAC<SHA256>.authenticationCode(for: input, using: key).prefix(16))
@@ -450,7 +450,7 @@ final class ProjectHostedFileExecutor {
         return output
     }
 
-    private static func sha256(_ value: String) -> String {
+    static func sha256(_ value: String) -> String {
         SHA256.hash(data: Data(value.utf8)).map { String(format: "%02x", $0) }.joined()
     }
 

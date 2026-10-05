@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import re
 import uuid
+from copy import deepcopy
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
@@ -163,6 +164,8 @@ def _remap_value(value: Any, id_map: dict[str, str]) -> Any:
                 raise WorkflowFileImportError(f"Reference to unknown step: {node_id}")
             return id_map[node_id]
         value = _STRUCTURED_REF.sub(lambda match: "$nodes." + mapped(match.group(1)), value)
+        value = re.sub(r"\$items\.([A-Za-z0-9_-]+)(?=\.|\b)", lambda match: "$items." + mapped(match.group(1)), value)
+        value = re.sub(r"(\{\{\s*items\.)([A-Za-z0-9_-]+)(?=\.|\s*\}\})", lambda match: match.group(1) + mapped(match.group(2)), value)
         return _INLINE_REF.sub(lambda match: match.group(1) + mapped(match.group(2)), value)
     return value
 
@@ -186,6 +189,37 @@ def _remap_graph(graph: WorkflowGraph) -> WorkflowGraph:
 class WorkflowFileService:
     def __init__(self, workflow_service: WorkflowService) -> None:
         self.workflow_service = workflow_service
+
+    def export_document(self, workflow: WorkflowDetail) -> WorkflowFileDocument:
+        """Canonical portable definition: never include owner, runtime or chat IDs."""
+        graph = deepcopy(workflow.graph.model_dump(mode="json", by_alias=True))
+        id_map = {node["id"]: f"step_{index + 1}" for index, node in enumerate(graph["nodes"])}
+        for node in graph["nodes"]:
+            if node["type"] == WorkflowNodeType.SEND_CHAT_MESSAGE.value:
+                config = node["config"]
+                bound = config.pop("chat_id", None)
+                if bound or config.get("destination_required") or any(
+                    item.get("type") == "chat_destination" and item.get("node_id") == node["id"]
+                    for item in workflow.binding_requirements
+                ):
+                    config["destination_required"] = True
+        layout = graph.pop("ui_layout", {})
+        graph = _remap_value(graph, id_map)
+        graph["ui_layout"] = {id_map.get(key, key): _remap_value(child, id_map) for key, child in layout.items()}
+        graph["trigger_node_id"] = id_map.get(graph["trigger_node_id"]) if graph["trigger_node_id"] else None
+        for node in graph["nodes"]:
+            node["id"] = id_map[node["id"]]
+        for edge in graph["edges"]:
+            edge["from"], edge["to"] = id_map[edge["from"]], id_map[edge["to"]]
+        portable_graph = WorkflowGraph.model_validate(graph)
+        document = WorkflowFileDocument(
+            format="openmates-workflow", format_version=1,
+            workflow=WorkflowFileDefinition(title=workflow.title, description=workflow.description,
+                run_content_retention=workflow.run_content_retention.value, graph=graph),
+            binding_requirements=_derive_bindings(portable_graph),
+        )
+        self.validate_document(document)
+        return document
 
     def validate_document(self, payload: dict[str, Any] | WorkflowFileDocument) -> tuple[WorkflowFileDocument, WorkflowGraph]:
         try:

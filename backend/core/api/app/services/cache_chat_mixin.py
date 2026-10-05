@@ -3730,7 +3730,13 @@ class ChatCacheMixin:
         effective_ttl = ttl or self.PENDING_FOCUS_ACTIVATION_TTL
         try:
             import json
-            context_json = json.dumps(context)
+            # Only the main processor's parsed explicit Focus mention sets this
+            # flag; automatic suggestions retain the cancellable deadline.
+            from backend.shared.python_utils.recent_work_summary_client import seal_private_context_payload
+            context = await seal_private_context_payload(context, request_id=context.get("embed_id", ""))
+            if str(context.get("focus_id", "")).startswith("project-focus:"):
+                context["focus_prompt"] = ""
+            context_json = json.dumps({**context, "activate_at": time.time() + (0 if context.get("user_override") is True else 4)})
             await client.set(key, context_json, ex=effective_ttl)
             logger.info(f"[FOCUS_MODE] Stored pending focus activation context for chat {chat_id} with TTL {effective_ttl}s")
             return True
@@ -3740,7 +3746,9 @@ class ChatCacheMixin:
     
     async def get_and_delete_pending_focus_activation(
         self,
-        chat_id: str
+        chat_id: str,
+        *, user_id: str | None = None, focus_id: str | None = None,
+        embed_id: str | None = None, require_completed_countdown: bool = False,
     ) -> Optional[Dict[str, Any]]:
         """
         Atomically get and delete pending focus mode activation context.
@@ -3764,7 +3772,23 @@ class ChatCacheMixin:
             import json
             # GETDEL is atomic: returns the value AND deletes the key in one operation
             # This prevents both auto-confirm and rejection from processing the same context
-            data = await client.getdel(key)
+            if user_id is not None or focus_id is not None or embed_id is not None or require_completed_countdown:
+                # Compare the request identity before deleting. An old timer or
+                # historical rejection must never consume a newer proposal.
+                data = await client.eval("""
+                    local raw = redis.call('GET', KEYS[1])
+                    if not raw then return nil end
+                    local context = cjson.decode(raw)
+                    if ARGV[1] ~= '' and context.user_id ~= ARGV[1] then return nil end
+                    if ARGV[2] ~= '' and context.focus_id ~= ARGV[2] then return nil end
+                    if ARGV[3] ~= '' and context.embed_id ~= ARGV[3] then return nil end
+                    if ARGV[4] ~= '' and (not context.activate_at or tonumber(context.activate_at) > tonumber(ARGV[4])) then return nil end
+                    redis.call('DEL', KEYS[1])
+                    return raw
+                """, 1, key, user_id or "", focus_id or "", embed_id or "",
+                    str(time.time()) if require_completed_countdown else "")
+            else:
+                data = await client.getdel(key)
             if data:
                 context = json.loads(data.decode('utf-8') if isinstance(data, bytes) else data)
                 logger.info(f"[FOCUS_MODE] Retrieved and deleted pending focus activation context for chat {chat_id}")

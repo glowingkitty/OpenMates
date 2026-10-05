@@ -179,7 +179,14 @@ async def _trigger_continuation_without_focus(
             "chat_has_title": chat_has_title,
             "is_incognito": is_incognito,
             "mate_id": mate_id,
+            "agentic_context_ref": pending_context.get("agentic_context_ref"),
+            "agentic_context_request_id": pending_context.get("agentic_context_request_id"),
+            "agentic_context_turn_id": pending_context.get("agentic_context_turn_id"),
             "active_focus_id": None,  # Explicitly NO focus mode
+            **{key: pending_context.get(key, []) for key in (
+                "accepted_plan_context", "project_focus_catalog", "custom_rule_documents", "project_context_documents",
+                "related_task_candidates", "project_focus_candidates",
+            )},
             "recovery_inference_task_id": pending_context.get("recovery_inference_task_id"),
             "recovery_preflight_id": pending_context.get("recovery_preflight_id"),
             "recovery_turn_id": pending_context.get("recovery_turn_id"),
@@ -206,6 +213,8 @@ async def _trigger_continuation_without_focus(
             # Continuation creates its own assistant message. Client merges for display when previous was focus activation.
         }
         
+        from backend.shared.python_utils.recent_work_summary_client import seal_private_context_payload
+        request_data_dict = await seal_private_context_payload(request_data_dict, request_id=pending_context.get("embed_id", ""))
         task = process_ai_skill_ask_task.apply_async(
             kwargs={
                 "request_data_dict": request_data_dict,
@@ -284,7 +293,10 @@ async def handle_focus_mode_rejected(
 
             # Atomically get and delete the pending context
             # If auto-confirm already consumed it, this returns None
-            pending_context = await cache_service.get_and_delete_pending_focus_activation(chat_id)
+            pending_context = await cache_service.get_and_delete_pending_focus_activation(
+                chat_id, user_id=user_id, focus_id=focus_id,
+                embed_id=payload.get("embed_id"),
+            )
 
             if pending_context:
                 # Happy path: we got the context before auto-confirm
@@ -298,6 +310,17 @@ async def handle_focus_mode_rejected(
                     log_prefix=log_prefix,
                 )
             else:
+                if await cache_service.peek_pending_focus_activation(chat_id):
+                    # A different live proposal still exists. This rejection did
+                    # not match its identity, so it must not change current state.
+                    return
+                from backend.core.api.app.services.project_write_authorization_service import ProjectWriteAuthorizationService
+                specialist_key = ProjectWriteAuthorizationService._specialist_key(user_id, chat_id)
+                specialist = await cache_service.get(specialist_key)
+                if isinstance(specialist, dict):
+                    if specialist.get("focus_id") != focus_id or payload.get("embed_id") and specialist.get("request_id") != payload["embed_id"]:
+                        return
+                    await cache_service.delete(specialist_key)
                 # Auto-confirm already consumed it — focus mode is already active
                 # Fall back to the standard deactivation path
                 logger.info(f"{log_prefix} Pending context already consumed — falling back to deactivation")

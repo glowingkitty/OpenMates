@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.projects@1
+specification: feature.projects@2
 
 project_focus_routing:
   - id: explicit-mention
@@ -7,11 +7,15 @@ project_focus_routing:
     given: Alice can access a Project named Garden notes and this chat has no Project focus.
     when: Alice types @, selects Garden notes, and sends a request to update README.md.
     then: The current Project default focus activates before inference, the chat shows Work on Garden notes with an off control, and the saved write policy applies. The user message shows a clickable @Garden-notes chip that opens the Project page without changing focus authority.
-  - id: inferred-project-confirmation
-    assertion_ids: [projects.focus.inferred-consent]
-    given: Alice asks in natural language to update Garden notes without selecting a mention.
-    when: The preprocessor selects its authorized routing metadata and the main processor requests that Project focus.
-    then: A Grant access or Decline choice appears. No Project instructions or file content are loaded until explicit confirmation. Granting access shows the same named active focus and permits the requested work under current guards. Declining does not prompt again during this turn. Waiting beyond the ordinary focus countdown never grants Project access.
+  - id: inferred-project-countdown
+    assertion_ids:
+    - projects.focus.inferred-consent
+    given: Alice asks to update Garden notes without selecting a mention; Project auto-selection is enabled.
+    when: The preprocessor shortlists its permitted title/summary and the main processor requests that Project
+      Focus.
+    then: The usual cancellable Focus countdown appears. Instructions and Project-specific processing wait until
+      authoritative completion. Interruption loads neither; successful completion activates Work on Garden notes
+      with the existing encrypted file guards.
   - id: old-or-unauthorized-request
     assertion_ids: [projects.focus.inferred-consent]
     given: An access request belongs to an earlier user turn, another chat, an expired request, or a Project whose permission was revoked.
@@ -420,3 +424,12 @@ chat_organization_policy:
     given: The user wants to group Launch headlines and Launch schedule without enabling file work.
     when: They drag one chat onto the other.
     then: The new Project opens with both chats and pending file permissions. File focus and writes stay unavailable until an explicit policy choice.
+
+focus_auto_selection:
+- id: manual-only-project
+  assertion_ids:
+  - projects.focus.auto-selection-setting
+  given: SocialHub has the default enabled setting, and Alice turns it off in web Project settings.
+  when: A later CLI/chat request discusses SocialHub without mentioning it, then Alice explicitly selects @SocialHub.
+  then: No automatic proposal is made while disabled. The setting is visible in CLI settings and the explicit
+    mention activates its permitted Project Focus.

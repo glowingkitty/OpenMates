@@ -35,6 +35,7 @@ from backend.shared.python_utils.embed_producer_dispatch import (
     dispatch_volatile_embed_task,
 )
 from backend.shared.python_utils.volatile_embed_authority import active_volatile_ai_context
+from backend.shared.python_utils.recent_work_summary_client import mint_response_summary_completion
 
 
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
@@ -5658,6 +5659,16 @@ async def _consume_main_processing_stream(
                     })
                 continue
 
+            if isinstance(chunk, dict) and "__chat_context_applied__" in chunk:
+                receipt = chunk.get("receipt")
+                if cache_service and isinstance(receipt, dict) and receipt.get("chat_id") == request_data.chat_id:
+                    await cache_service.publish_event(f"user_cache_events:{request_data.user_id}", {
+                        "event_type": "chat_context_applied", "payload": {
+                            "chat_id": request_data.chat_id, "event": receipt,
+                        },
+                    })
+                continue
+
             # Check for debug metadata marker (system prompt, tools, message history)
             # This is yielded early by main_processor before the LLM call loop,
             # captured here and returned to ask_skill_task for debug cache enrichment.
@@ -10042,6 +10053,13 @@ async def _consume_main_processing_stream(
             was_soft_limited_during_stream=was_soft_limited_during_stream,
             log_prefix=log_prefix,
         )
+
+    # Mint an API-process-only completion ticket while this task still owns the
+    # chat. Postprocessing may finish after WebSocket/queue handling clears or
+    # transfers the marker; the ticket preserves the actual completion timestamp.
+    if (aggregated_response and not was_revoked_during_stream
+            and not was_soft_limited_during_stream and not terminal_failure_applies):
+        await mint_response_summary_completion(request_data, task_id)
 
     # Publish final marker only after the AI cache write has been attempted and
     # legacy recovery admission is authorized. The browser sends

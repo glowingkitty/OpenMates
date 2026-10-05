@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.focus-modes
-version: 1
+version: 2
 status: draft
 title: Focus Modes — Shared Operation and Display
 summary: Shared lifecycle, full system instruction application, system history, controls, restoration and historical
@@ -12,15 +12,16 @@ scope:
   - Web focus activation display, details/off interactions and Career insights banner placement.
   - Retirement of the Welcome focus mode and its dedicated Suki mate from new selection and routing.
   - Composition with individual focus-mode specifications.
+  - Project base/specialist display, Focus/phase context refresh and Project-only recommendation/background authoring lifecycle.
   - Project-owned focus activation as a necessary deterministic condition for chat file writes, and preservation
     of read access to files already shown in the chat after deactivation.
   - Learning follow-ups and phased Learn topic and Test knowledge tutoring that use learner attempts as evidence.
   excludes:
-  - Exact focus prompt wording, conversational tactics, and instruction authoring; these belong to app instruction
+  - Exact authored focus prompt wording and conversational tactics; these belong to app instruction
     implementation.
   - Changes to individual focus instruction content, career guidance/disclaimer policy, or selection of remaining
     models and mates.
-  - New endpoints, altered authentication, rate or credit limits, and changes to encryption protocol.
+  - New public access to private Focus content, bypassed authentication, altered rate/credit policy, and changes to encryption protocol.
 assertions:
 - id: focus-modes.project-write-gate
   type: security
@@ -144,6 +145,66 @@ assertions:
     requirement.
   depends_on:
   - examples.learning_progress
+- id: focus-modes.project-specialist-composition
+  type: behavior
+  must: An active Project base remains effective when one specialist Focus is activated or switched. Apply
+    both instruction layers, showing only the specialist as Project name | Focus name; shorten visually when
+    space requires while retaining full identity. Switching specialists retains Project authority. Turning
+    off the Project clears its specialist and future Project-only instructions/context; shared deactivation
+    guards still apply.
+  depends_on:
+  - examples.project_specialist
+- id: focus-modes.context-reselection
+  type: behavior
+  must: After any authoritative Focus activation or active-phase change, reselect relevant permitted app skills,
+    saved Workflows, Rule guides and available context before main processing continues. Use the effective
+    instructions and current phase. Rejected, stale or revoked activation cannot trigger Project-private loading;
+    unchanged-phase tool results do not add a phase-transition reselection. Selection never runs a Workflow
+    or grants access.
+  depends_on:
+  - examples.context_reselection
+- id: focus-modes.project-recommendation-catalog
+  type: behavior
+  must: After a completed assistant response in an authorized Project, Jev assesses chat context against the
+    eligible Project Focus catalog of titles and summaries, including inactive Focuses. It may select existing
+    IDs for full inspection or recommend a useful non-overlapping new Project Focus and expose Create directly.
+    Improvement proposals for public/app Focuses or personal/global Focuses outside Projects are excluded.
+    Catalog assessment performs no generative authoring.
+  depends_on:
+  - examples.recommendation_catalog
+- id: focus-modes.project-recommendation-full-assessment
+  type: behavior
+  must: For selected existing Project Focus candidates, authorized loading supplies their full instructions
+    to a second Jev assessment against chat context. Show Update only when that assessment confirms a useful
+    improvement. Unselected, inaccessible, unavailable, no-change or uncertain candidates cannot produce an
+    Update recommendation. Inspecting a Focus neither activates it nor starts authoring.
+  depends_on:
+  - examples.recommendation_full
+- id: focus-modes.project-authoring-click
+  type: behavior
+  must: Only pressing a validated Create or Update recommendation button starts the scoped background LLM authoring
+    request. Provide authorized chat history and dedicated Focus creation/update instructions, plus the full
+    target and expected revision for updates. Chat continues independently, and no separate regular chat is
+    created. Repeated delivery of the same click starts one job. A new Focus is not implicitly activated.
+  depends_on:
+  - examples.authoring_click
+- id: focus-modes.project-authoring-persistence
+  type: privacy
+  must: Background authoring validates the Focus document and current Project authority, preserves client-encrypted
+    durable content, and respects existing file-write and base-revision guards. Private chat/instruction text
+    cannot appear in plaintext durable job metadata or notifications. A result is ready only after saved content
+    is reachable in the Project workspace and Focus embed; revocation, failure or concurrent edits cannot produce
+    silent overwrite or false success.
+  depends_on:
+  - examples.authoring_persistence
+- id: focus-modes.updated-followup-revision
+  type: invariant
+  must: The next follow-up with an updated Focus active resolves and uses its saved revision, refreshing effective
+    instructions, phase compatibility and selected context. Already-running responses retain their original
+    instruction snapshot. Cache entries or historical activation events cannot restore an older definition.
+  depends_on:
+  - examples.updated_followup
+
 applies_to:
   rest_api:
     required: true
@@ -189,3 +250,10 @@ examples:
   - specializations
   - retirement
   - learning_progress
+  - project_specialist
+  - context_reselection
+  - recommendation_catalog
+  - recommendation_full
+  - authoring_click
+  - authoring_persistence
+  - updated_followup

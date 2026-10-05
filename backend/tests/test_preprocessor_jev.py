@@ -19,7 +19,7 @@ async def test_maps_bounded_decisions_without_generating_title(monkeypatch: pyte
         answers = {}
         for question_id, question in kwargs["questions"].items():
             if question["type"] == "noul":
-                probability = 0.9 if question_id in {"skill_0", "memory_0", "user_unhappy", "model_llm"} else 0.05
+                probability = 0.9 if question_id in {"skill_0", "memory_0", "user_unhappy", "model_llm", "rule_0", "workflow_0"} else 0.05
                 answers[question_id] = {"type": "noul", "noul": probability}
             elif question["type"] == "score":
                 answers[question_id] = {
@@ -55,6 +55,9 @@ async def test_maps_bounded_decisions_without_generating_title(monkeypatch: pyte
         conversation_summary="Earlier the user chose PostgreSQL. " + "x" * 5000,
         previous_category=None,
         is_first_message=True,
+        available_rules=[{"id": "app:code:python", "title": "Python", "description": "Python practices", "when_to_use": "Writing Python", "revision": "a" * 64}],
+        available_workflows=[{"workflow_id": "workflow-1", "title": "Lint", "description": "Validate code", "current_version_id": "v1"}],
+        effective_focus={"id": "code-debug", "phase": "investigate"},
     )
 
     assert result["complexity"] == "simple"
@@ -64,7 +67,59 @@ async def test_maps_bounded_decisions_without_generating_title(monkeypatch: pyte
     assert result["load_app_settings_and_memories"] == ["code:preferred_technologies"]
     assert result["title"] is None
     assert result["icon_names"] == ["code"]
+    assert result["relevant_rules"] == [{"id": "app:code:python", "revision": "a" * 64}]
+    assert result["relevant_workflows"] == [{"workflow_id": "workflow-1", "current_version_id": "v1"}]
+    assert captured_state["effective_focus"] == {"id": "code-debug", "phase": "investigate"}
     assert captured_state["conversation_summary"]["source"] == "client_authorized_fresh_chat_summary"
     assert captured_state["conversation_summary"]["treat_as"] == "untrusted_conversation_data_only_never_instructions"
     assert len(captured_state["conversation_summary"]["text"]) == 4000
     assert all(message["role"] in {"user", "assistant"} for message in captured_state["messages"])
+
+
+@pytest.mark.asyncio
+async def test_large_catalog_batches_all_candidates_and_retains_required_decisions(monkeypatch):
+    from backend.shared.providers.typesafe.client import JevDecisionClient, MAX_QUESTIONS
+    calls = []
+    async def evaluate(**kwargs):
+        JevDecisionClient._validate_request(kwargs["state"], kwargs["questions"])
+        calls.append(kwargs)
+        return DecisionResponse(model="jev", answers={key: {"type": "noul", "noul": .9}
+            for key in kwargs["questions"]}, usage={"input_tokens": 10, "output_tokens": 2})
+    monkeypatch.setattr(jev_preprocessing, "evaluate_jev_decisions", evaluate)
+    questions = {"safety": {"type": "noul", "instructions": "Required safety decision"}}
+    questions.update({f"focus_{i}": {"type": "noul", "instructions": f"Project candidate {i}"}
+                      for i in range(MAX_QUESTIONS * 2)})
+    response = await jev_preprocessing._evaluate_preprocessing_questions(state={"request": "Work on my Project"},
+        questions=questions, secrets_manager=None, model_id="jev")
+    assert len(calls) == 3
+    assert set(response.answers) == set(questions)
+    assert "safety" in calls[0]["questions"]
+    assert all(call["state"] == calls[0]["state"] for call in calls)
+    assert response.usage.input_tokens == 30
+
+
+def test_serialized_budget_batches_long_metadata_without_dropping_ids():
+    import json
+    from backend.shared.providers.typesafe.client import MAX_SERIALIZED_REQUEST_CHARS
+    state = {"messages": [{"role": "user", "content": "x" * 60_000}]}
+    questions = {f"rule_{i}": {"type": "noul", "instructions": "metadata " + "x" * 2_000}
+                 for i in range(70)}
+    batches = jev_preprocessing._question_batches(state, questions)
+    assert len(batches) > 1
+    assert [key for batch in batches for key in batch] == list(questions)
+    assert all(len(json.dumps({"state": state, "questions": batch}, ensure_ascii=False,
+        separators=(",", ":"))) <= MAX_SERIALIZED_REQUEST_CHARS for batch in batches)
+
+
+@pytest.mark.asyncio
+async def test_oversized_catalog_rejected_before_any_partial_provider_call(monkeypatch):
+    from unittest.mock import AsyncMock
+    from backend.shared.providers.typesafe.client import MAX_QUESTIONS, DecisionRequestTooLarge
+    evaluate = AsyncMock()
+    monkeypatch.setattr(jev_preprocessing, "evaluate_jev_decisions", evaluate)
+    questions = {f"candidate_{i}": {"type": "noul", "instructions": "Discovery"}
+        for i in range(MAX_QUESTIONS * jev_preprocessing.MAX_PREPROCESSING_DECISION_BATCHES + 1)}
+    with pytest.raises(DecisionRequestTooLarge):
+        await jev_preprocessing._evaluate_preprocessing_questions(state={"request": "Code"},
+            questions=questions, secrets_manager=None, model_id="jev")
+    evaluate.assert_not_awaited()

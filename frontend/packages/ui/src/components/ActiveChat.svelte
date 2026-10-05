@@ -33,7 +33,7 @@
     import { chatKeyManager } from '../services/encryption/ChatKeyManager';
     import { chatSyncService } from '../services/chatSyncService'; // Import chatSyncService
     import { deactivateFocusForChat, isProjectFocusId } from '../services/projectFocusSendPreflight';
-    import { getActiveProjectFocus, getProject } from '../services/projectService';
+    import { getActiveProjectFocus, getProject, getProjectContents } from '../services/projectService';
     import { activeChatFocusStore } from '../stores/activeChatFocusStore';
     import { assistantSpeechController } from '../services/assistantSpeechController';
     import { getAssistantSpeechPreference, setAssistantSpeechPreference } from '../services/assistantSpeechPreference';
@@ -1695,6 +1695,11 @@
      * Deep link format: apps/{appId}/focus/{focusModeId}
      */
     async function handleFocusModeDetailsNavigation(focusId: string, appId: string) {
+        if (focusId.startsWith('project-focus:')) {
+            settingsDeepLink.set(`projects/${focusId.split(':')[1]}`);
+            panelState.openSettings();
+            return;
+        }
         if (!focusId || !appId) return;
         
         // Extract the focus mode ID within the app (remove app prefix)
@@ -5707,6 +5712,8 @@
     // Used to render the "Focus active" header banner in the chat view.
     let activeFocusId = $state<string | null>(null);
     let activeProjectFocusName = $state<string | null>(null);
+    let activeSpecialistFocusName = $state<string | null>(null);
+    let activeFocusProjectId = $state<string | null>(null);
     // Guard flag: set by focusModeActivatedHandler to prevent the $effect async metadata
     // load from overwriting activeFocusId with a stale null when the WebSocket event
     // fires before the focus_id has been persisted to IndexedDB.
@@ -5717,9 +5724,10 @@
     let lastLoadedChatId: string | null = null;
     // App ID extracted from the active focus ID (e.g. "jobs" from "jobs-career_insights")
     let activeFocusIsProject = $derived(isProjectFocusId(activeFocusId));
-    let activeFocusAppId = $derived(activeFocusId && !activeFocusIsProject ? activeFocusId.split('-')[0] : null);
+    let activeFocusIsPrivateSpecialist = $derived(!!activeFocusId?.startsWith('project-focus:'));
+    let activeFocusAppId = $derived(activeFocusId && !activeFocusIsProject && !activeFocusIsPrivateSpecialist ? activeFocusId.split('-')[0] : null);
     // Focus mode key within the app (e.g. "career_insights" from "jobs-career_insights")
-    let activeFocusModeKey = $derived(activeFocusId && !activeFocusIsProject ? activeFocusId.split('-').slice(1).join('-') : null);
+    let activeFocusModeKey = $derived(activeFocusId && !activeFocusIsProject && !activeFocusIsPrivateSpecialist ? activeFocusId.split('-').slice(1).join('-') : null);
     // Resolved focus mode metadata for the banner name translation
     let activeFocusModeMetadata = $derived.by(() => {
         if (!activeFocusAppId || !activeFocusModeKey) return null;
@@ -6041,9 +6049,11 @@
     );
 
     async function refreshProjectFocusPresentation(chatId: string, focusId: string): Promise<void> {
-        if (!isProjectFocusId(focusId)) {
+        const privateSpecialist = focusId.startsWith('project-focus:');
+        if (currentChat?.chat_id === chatId && activeFocusId === focusId) {
             activeProjectFocusName = null;
-            return;
+            activeSpecialistFocusName = null;
+            activeFocusProjectId = null;
         }
         let activeProjectFocus: Awaited<ReturnType<typeof getActiveProjectFocus>>;
         try {
@@ -6051,14 +6061,18 @@
         } catch (error) {
             console.warn('[ActiveChat] Could not revalidate active Project focus:', error);
             if (currentChat?.chat_id === chatId && activeFocusId === focusId) {
-                activeProjectFocusName = 'Project';
+                activeProjectFocusName = null;
             }
             return;
         }
-        if (!activeProjectFocus || activeProjectFocus.focus_id !== focusId) {
+        if (!activeProjectFocus || (isProjectFocusId(focusId) && activeProjectFocus.focus_id !== focusId)
+            || (privateSpecialist && (focusId.split(':')[1] !== activeProjectFocus.project_id
+                || activeProjectFocus.specialist_focus_id !== focusId))) {
             if (currentChat?.chat_id === chatId && activeFocusId === focusId) {
-                activeChatFocusStore.clearActiveFocus(chatId);
-                activeFocusId = null;
+                if (isProjectFocusId(focusId) || privateSpecialist) {
+                    activeChatFocusStore.clearActiveFocus(chatId);
+                    activeFocusId = null;
+                }
                 activeProjectFocusName = null;
             }
             return;
@@ -6069,11 +6083,22 @@
             });
             if (currentChat?.chat_id === chatId && activeFocusId === focusId) {
                 activeProjectFocusName = project.name || 'Project';
+                activeFocusProjectId = project.project_id;
+            }
+            if (privateSpecialist) {
+                const itemId = focusId.split(':')[2];
+                const { items } = await getProjectContents(project, { teamId: activeProjectFocus.team_id });
+                const item = items.find((candidate) => candidate.project_item_id === itemId);
+                if (currentChat?.chat_id === chatId && activeFocusId === focusId) {
+                    activeSpecialistFocusName = item
+                        ? String(item.metadata.focus_title || item.metadata.name || item.metadata.title || item.displayName || 'Focus')
+                        : 'Focus';
+                }
             }
         } catch (error) {
             console.warn('[ActiveChat] Could not decrypt active Project name:', error);
             if (currentChat?.chat_id === chatId && activeFocusId === focusId) {
-                activeProjectFocusName = 'Project';
+                activeProjectFocusName = null;
             }
         }
     }
@@ -6089,10 +6114,14 @@
             focusPillSetByEvent = false;
             activeFocusId = null;
             activeProjectFocusName = null;
+            activeSpecialistFocusName = null;
+            activeFocusProjectId = null;
         }
         if (!chatId) {
             activeFocusId = null;
             activeProjectFocusName = null;
+            activeSpecialistFocusName = null;
+            activeFocusProjectId = null;
             lastLoadedChatId = null;
             return;
         }
@@ -11849,8 +11878,8 @@
         // backend which consumes the pending context and fires a non-focus continuation task.
         // If the auto-confirm already ran, it falls back to deactivating the already-active mode.
         const focusModeRejectedHandler = async (event: CustomEvent) => {
-            const { focusId, focusModeName } = event.detail || {};
-            const chatId = currentChat?.chat_id;
+            const { focusId, focusModeName, embedId, chatId: originChatId } = event.detail || {};
+            const chatId = originChatId || currentChat?.chat_id;
             console.debug('[ActiveChat] Focus mode rejected:', focusId, focusModeName);
             
             // Send rejection to backend via WebSocket (new deferred activation protocol)
@@ -11863,6 +11892,7 @@
                     webSocketService.sendMessage('focus_mode_rejected', {
                         chat_id: chatId,
                         focus_id: focusId,
+                        ...(embedId ? { embed_id: embedId } : {}),
                     });
                     console.debug('[ActiveChat] Sent focus_mode_rejected to backend');
                 } catch (e) {
@@ -14787,10 +14817,14 @@
                                     activeFocusAppId={!showWelcome ? activeFocusAppId : null}
                                     activeFocusModeMetadata={!showWelcome ? activeFocusModeMetadata : null}
                                     activeProjectFocusName={!showWelcome ? activeProjectFocusName : null}
+                                    activeSpecialistFocusName={!showWelcome ? activeSpecialistFocusName : null}
                                     isIdeaBucketChat={!!currentChat?.ideabucket}
                                     onFocusPillDeepLink={() => {
                                         if (activeFocusAppId && activeFocusModeKey) {
                                             settingsDeepLink.set(`apps/${activeFocusAppId}/focus/${activeFocusModeKey}`);
+                                            panelState.openSettings();
+                                        } else if (activeFocusProjectId) {
+                                            settingsDeepLink.set(`projects/${activeFocusProjectId}`);
                                             panelState.openSettings();
                                         }
                                     }}

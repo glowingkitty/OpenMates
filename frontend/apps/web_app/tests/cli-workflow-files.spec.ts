@@ -14,10 +14,117 @@ const {
 const fs = require('node:fs');
 const path = require('node:path');
 const { parse, stringify } = require('yaml');
+const { randomUUID } = require('node:crypto');
+const { spawn } = require('node:child_process');
+const { copyRemoteHostSession, waitForFixtureEvent, stopFixtureProcess } = require('./helpers/project-remote-fixture');
 const { email, password, otpKey } = getTestAccount();
 
 test.describe('Workflow YAML files through CLI and REST', () => {
   test.setTimeout(180_000);
+
+  // contract-test: direct surface=gui.web assertions=workflows.portability.remote-project-save,workflows.portability.private-content-boundary
+  test('writes selected-folder YAML through the source bridge and updates it after browser Save', async ({ page }: { page: Page }) => {
+    skipWithoutCredentials(test, email, password, otpKey);
+    await skipIfFeaturesDisabled(test, page, ['platform:workflows', 'platform:projects']);
+    const apiUrl = workflowApiUrl();
+    const cliHome = createWorkflowCliHome('workflow-source-file');
+    const hostState = path.join(cliHome, 'remote-host');
+    let bridge: any = null;
+    let workflowId: string | null = null;
+    try {
+      await loginWorkflowCliViaPair(page, apiUrl, cliHome, 'CLI_WORKFLOW_SOURCE_FILE');
+      copyRemoteHostSession(path.join(cliHome, '.openmates'), hostState);
+      bridge = spawn('node', ['--experimental-strip-types', '--loader', './frontend/packages/openmates-cli/tests/loader.mjs',
+        'scripts/project_remote_access_live.mjs', 'serve-workflow', apiUrl], {
+        cwd: path.resolve(__dirname, '../../../..'), stdio: ['ignore', 'pipe', 'pipe'],
+        env: { ...process.env, OPENMATES_STATE_DIR: hostState, OPENMATES_REMOTE_HOST_SESSION: path.join(hostState, 'session.json') },
+      });
+      const fixture = await waitForFixtureEvent(bridge, 'fixture_ready');
+      expect(fixture.chat_id).toBeTruthy();
+      const created = await page.request.post(`${apiUrl}/v1/workflows`, { data: { title: 'Portable remote', enabled: false,
+        graph: { version: 2, trigger_node_id: null, nodes: [{ id: 'message', type: 'send_chat_message', config: { title: 'Remote note', message: 'Original remote message' } }], edges: [] } } });
+      expect(created.ok(), await created.text()).toBeTruthy();
+      workflowId = (await created.json()).workflow.id;
+      const saved = await runWorkflowCliJson(apiUrl, cliHome, ['workflows', workflowId!, 'add-to-project', fixture.project_id,
+        '--remote-copy', '--source', fixture.source_id, '--remote-folder', 'src', '--source-chat', fixture.chat_id], 'write portable remote file');
+      expect(saved.remote_file).toMatchObject({ status: 'saved', path: 'src/portable_remote.workflow.yml' });
+      const readFile = async () => {
+        const pending = waitForFixtureEvent(bridge, 'remote_file_state');
+        bridge.kill('SIGUSR2');
+        const result = await pending;
+        expect(result.path).toBe('src/portable_remote.workflow.yml');
+        return Buffer.from(result.content_base64, 'base64').toString('utf8');
+      };
+      const original = await readFile();
+      expect(parse(original).format).toBe('openmates-workflow');
+      expect(original).not.toContain(workflowId!);
+      await page.goto(`/#chat-id=${encodeURIComponent(fixture.chat_id)}&workflow-id=${encodeURIComponent(workflowId!)}&workflow-tab=details`, { waitUntil: 'domcontentloaded' });
+      const node = page.locator('.workflow-node[data-node-id="message"]').first();
+      await node.getByTestId('workflow-node-summary').click();
+      await node.getByTestId('workflow-message-template').fill('Updated remote message');
+      await node.getByTestId('workflow-node-save').click();
+      await expect.poll(async () => parse(await readFile()).workflow.graph.nodes[0].config.message).toBe('Updated remote message');
+      const external = waitForFixtureEvent(bridge, 'workflow_external_edit');
+      bridge.kill('SIGWINCH');
+      await external;
+      await node.getByTestId('workflow-node-summary').click();
+      await node.getByTestId('workflow-message-template').fill('Conflicting browser edit');
+      await node.getByTestId('workflow-node-save').click();
+      await expect(page.getByText(/remote YAML has changed/i).first()).toBeVisible();
+      const retained = await readFile();
+      expect(retained).toContain('External edit requires explicit reconciliation');
+      expect(parse(retained).workflow.graph.nodes[0].config.message).toBe('Updated remote message');
+      expect((await (await page.request.get(`${apiUrl}/v1/workflows/${workflowId}/runs`)).json()).runs).toEqual([]);
+    } finally {
+      if (workflowId) await page.request.delete(`${apiUrl}/v1/workflows/${workflowId}`);
+      if (bridge) await stopFixtureProcess(bridge);
+      removeWorkflowCliHome(cliHome);
+    }
+  });
+
+  // contract-test: direct surface=cli assertions=workflows.portability.remote-project-save
+  test('keeps a pending remote YAML save recoverable without duplicate Workflow links', async ({ page }: { page: Page }) => {
+    skipWithoutCredentials(test, email, password, otpKey);
+    await skipIfFeaturesDisabled(test, page, ['platform:workflows', 'platform:projects']);
+    const apiUrl = workflowApiUrl();
+    const cliHome = createWorkflowCliHome('workflow-pending-file');
+    let projectId: string | null = null;
+    let workflowId: string | null = null;
+    try {
+      await loginWorkflowCliViaPair(page, apiUrl, cliHome, 'CLI_WORKFLOW_PENDING_FILE');
+      const created = await runWorkflowCliJson(apiUrl, cliHome, ['projects', 'create', `Portable ${Date.now()}`, '--write-policy', 'apply_and_show'], 'create Project');
+      projectId = created.projectId ?? created.project_id ?? created.project?.project_id;
+      expect(projectId).toBeTruthy();
+      const now = Math.floor(Date.now() / 1000);
+      const sourceId = randomUUID();
+      const projectResponse = await page.request.get(`${apiUrl}/v1/projects/${projectId}`);
+      expect(projectResponse.ok()).toBeTruthy();
+      const projectCiphertext = (await projectResponse.json()).project;
+      const source = await page.request.post(`${apiUrl}/v1/projects/${projectId}/sources`, { data: {
+        source_id: sourceId, source_type: 'remote_folder', encrypted_display_name: projectCiphertext.encrypted_name, encrypted_metadata: projectCiphertext.encrypted_description,
+        capabilities: ['read', 'write_request'], status: 'offline', created_at: now, updated_at: now,
+      } });
+      expect(source.ok(), await source.text()).toBeTruthy();
+      const response = await page.request.post(`${apiUrl}/v1/workflows`, { data: { title: 'Pending remote file', enabled: false,
+        graph: { version: 2, trigger_node_id: null, nodes: [{ id: 'end', type: 'end', config: {} }], edges: [] } } });
+      expect(response.ok(), await response.text()).toBeTruthy();
+      workflowId = (await response.json()).workflow.id;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const saved = await runWorkflowCliJson(apiUrl, cliHome, ['workflows', workflowId!, 'add-to-project', projectId!, '--remote-copy', '--source', sourceId, '--remote-folder', 'automation'], 'save pending remote file');
+        expect(saved.remote_file.status).toBe('pending');
+        expect(saved.remote_file.path).toBeNull();
+      }
+      const items = await page.request.get(`${apiUrl}/v1/projects/${projectId}/items`);
+      expect(items.ok()).toBeTruthy();
+      expect((await items.json()).items.filter((item: any) => item.item_type === 'workflow')).toHaveLength(1);
+      const runs = await page.request.get(`${apiUrl}/v1/workflows/${workflowId}/runs`);
+      expect((await runs.json()).runs).toEqual([]);
+    } finally {
+      if (workflowId) await page.request.delete(`${apiUrl}/v1/workflows/${workflowId}`);
+      if (projectId) await page.request.delete(`${apiUrl}/v1/projects/${projectId}`);
+      removeWorkflowCliHome(cliHome);
+    }
+  });
 
   // contract-test: direct surface=cli assertions=workflows.portability.definition-roundtrip,workflows.portability.private-content-boundary,workflows.portability.disabled-validated-import,workflows.portability.cli-commands
   test('exports and imports independent saved definitions without running them', async ({ page, playwright }: { page: Page; playwright: Playwright }) => {

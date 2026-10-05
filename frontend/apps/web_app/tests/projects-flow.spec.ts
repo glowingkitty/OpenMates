@@ -116,6 +116,15 @@ test.describe('Projects v1 flow', () => {
     const initialEncryptedSettings = (await (await initialSettingsLoaded).json()).settings.encrypted_settings;
     expect(typeof initialEncryptedSettings).toBe('string');
     await expect(page.getByTestId('project-settings-write-mode-apply-and-show')).toBeDisabled();
+    // contract-test: direct surface=gui.web assertions=projects.focus.auto-selection-setting
+    const autoSelection = page.getByTestId('project-settings-auto-selection');
+    await expect(autoSelection).toHaveAttribute('aria-checked', 'true');
+    const savedAutoSelection = page.waitForResponse((response) => response.request().method() === 'PATCH'
+      && new URL(response.url()).pathname.endsWith(`/v1/projects/${projectId}/settings`) && response.ok());
+    await autoSelection.click();
+    expect((await savedAutoSelection).request().postDataJSON()).toMatchObject({ auto_selection: false });
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(autoSelection).toHaveAttribute('aria-checked', 'false');
 
     const savedAlwaysAsk = page.waitForResponse(
       (response) => response.request().method() === 'PATCH'

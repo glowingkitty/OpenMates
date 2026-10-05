@@ -20,6 +20,7 @@ from functools import lru_cache
 from pathlib import Path
 from toon_format import encode
 import yaml
+from backend.shared.python_utils.recent_work_summary_client import authoritative_context_turn_id
 from backend.shared.python_utils.calendar_action_journal import calendar_undo_payload
 
 # Import Pydantic models for type hinting
@@ -57,6 +58,18 @@ from backend.apps.ai.utils.llm_utils import (
     AllServersFailedError,
     _transform_message_history_for_llm,
 )
+from backend.apps.ai.processing import agentic_context
+from backend.apps.ai.processing.rule_context import applied_rule_receipt
+from backend.shared.python_utils.rule_loader import applied_rule_set_key
+from backend.apps.ai.processing.related_work import (
+    RelatedWorkCandidate, fetch_related_chat_summaries, fetch_related_task_candidates, select_related_work,
+    fetch_direction_task_context,
+)
+from backend.apps.ai.processing.chat_direction import (
+    DirectionAuthority, CorrectionDeliveryReceipt,
+    assemble_direction_context, assess_chat_direction, chat_direction_correction_coordinator,
+)
+from backend.apps.ai.processing.chat_direction_review import review_chat_direction as _review_chat_direction
 from backend.apps.ai.utils.embeds_map_view import (
     EMBEDS_MAP_VIEW_INSTRUCTION,
     should_include_embeds_results_view_instruction,
@@ -114,6 +127,7 @@ from backend.apps.ai.processing.task_queue_continuation import (
     task_queue_post_turn_prompt,
 )
 from backend.apps.ai.processing.task_tool_context import build_task_context_prompt, refresh_task_tool_context, resolve_task_tool_context
+
 from backend.apps.ai.processing.task_tool_executor import (
     TASK_TOOL_CANONICAL_NAMES,
     TASK_TOOL_RESOLVER_APP_ID,
@@ -179,6 +193,138 @@ from backend.shared.python_utils.chat_recovery_context import RequiredRecoveryOu
 from backend.shared.python_utils.billing_utils import calculate_total_credits, MINIMUM_CREDITS_CHARGED
 from backend.shared.python_utils.skill_provider_attribution import resolve_skill_usage_provider_id
 
+
+def _trusted_focus_override(overrides: UserOverrides | None, focus_id: str) -> bool:
+    return bool(overrides and any(f"{app_id}-{identifier}" == focus_id
+                                 for app_id, identifier in overrides.focus_modes))
+
+
+def _forward_agentic_context(request: AskSkillRequest) -> dict:
+    return {field: getattr(request, field, []) for field in (
+        "accepted_plan_context", "custom_rule_documents", "project_focus_catalog", "project_focus_documents",
+        "project_context_documents", "related_task_candidates",
+    )}
+
+
+async def _load_main_agentic_context(
+    *, request: Any, task_id: str, preprocessing: Any, directus: Any, cache: Any,
+    secrets_manager: Any, eligible_app_ids: list[str], vault_key_id: str | None,
+    decision_model: str, effective_instructions: str, active_phase: str,
+    initial: bool, explicit_dependency_task_ids: frozenset[str] = frozenset(),
+) -> tuple[str, list]:
+    """Load bounded fresh references after authority; references grant no tools."""
+    if not agentic_context.first_party(request):
+        return "", []
+    async def rules():
+        selected = getattr(preprocessing, "relevant_rules", None)
+        if initial and selected is not None:
+            from backend.apps.ai.processing.context_preselection import reload_preselected_rules
+            return await reload_preselected_rules(request, directus, cache, eligible_app_ids, selected)
+        return await agentic_context.select_rule_guides(
+            request=request, directus=directus, cache=cache, eligible_app_ids=eligible_app_ids,
+            model_id=decision_model, secrets_manager=secrets_manager,
+            effective_instructions=effective_instructions, active_phase=active_phase,
+        )
+    async def workflows():
+        selected = getattr(preprocessing, "relevant_workflows", None)
+        if initial and selected is not None:
+            from backend.apps.ai.processing.context_preselection import reload_preselected_workflows
+            return await reload_preselected_workflows(request, cache, selected)
+        return await agentic_context.select_existing_workflows(
+            request=request, model_id=decision_model, secrets_manager=secrets_manager,
+            vault_key_id=vault_key_id, effective_instructions=effective_instructions,
+        )
+    async def related():
+        chats = await fetch_related_chat_summaries(request, task_id, cache, directus)
+        tasks = await fetch_related_task_candidates(
+            request, directus, client_summaries=getattr(request, "related_task_candidates", []),
+            explicit_dependency_task_ids=explicit_dependency_task_ids,
+        )
+        candidates = [RelatedWorkCandidate.from_chat_summary(item, authorized=True) for item in chats] + tasks
+        project = request.current_project or {}
+        selected = await select_related_work(
+            candidates=candidates, owner_id=request.user_id, current_project_id=project.get("project_id"),
+            current_chat_id=request.chat_id, request=request.current_user_content or "",
+            model_id=decision_model, secrets_manager=secrets_manager,
+        )
+        return [item.as_context() for item in selected]
+    outcomes = await asyncio.gather(
+        rules(), workflows(), related(), agentic_context.selected_project_documents(
+            request=request, directus=directus, cache=cache, model_id=decision_model,
+            secrets_manager=secrets_manager, effective_instructions=effective_instructions,
+        ), return_exceptions=True,
+    )
+    guides, graphs, references, documents = [value if isinstance(value, list) else [] for value in outcomes]
+    # Keep complete graphs/documents, never truncated executable definitions.
+    bounded_graphs = []
+    graph_chars = 0
+    for graph in graphs[:3]:
+        size = len(json.dumps(graph, ensure_ascii=False))
+        if graph_chars + size <= 32_000:
+            bounded_graphs.append(graph)
+            graph_chars += size
+    return agentic_context.context_prompt(rules=guides, workflows=bounded_graphs,
+                                          documents=documents, related=references), guides
+
+
+_DIRECTION_DELIVERY_CAS = """
+if redis.call('GET', KEYS[1]) ~= ARGV[1] then return 0 end
+if redis.call('GET', KEYS[2]) ~= ARGV[2] then return 0 end
+return redis.call('SET', KEYS[3], ARGV[3], 'NX', 'EX', 1800) and 1 or 0
+"""
+
+
+async def _direction_authority_current(*, request, authority, task_id, cache, directus,
+                                       expected_plan_summary=None):
+    from backend.apps.ai.tasks.async_skill_continuation import async_skill_latest_user_turn_key
+    if (authority.owner_id != request.user_id or authority.chat_id != request.chat_id
+            or authority.turn_id != authoritative_context_turn_id(request)
+            or authority.goal_revision != agentic_context.goal_revision(request.message_history)):
+        return False
+    if (await cache.get_active_ai_task(request.chat_id) != task_id
+            or await cache.get(async_skill_latest_user_turn_key(request.user_id, request.chat_id)) != authority.turn_id):
+        return False
+    if expected_plan_summary is not None:
+        from backend.apps.ai.processing.accepted_plan_context import validate_accepted_plan_context
+        if await validate_accepted_plan_context(request, directus) != expected_plan_summary:
+            return False
+    return True
+
+
+async def _deliver_direction_instruction(
+    *, request: Any, task_id: str, authority: DirectionAuthority, cache: Any,
+    instruction: str, fingerprint: str, append: Callable[[str], None],
+    validate_context: Callable[[], Awaitable[bool]] | None = None,
+) -> CorrectionDeliveryReceipt:
+    """CAS the current task/user turn, then append synchronously without an await."""
+    from backend.apps.ai.tasks.async_skill_continuation import async_skill_latest_user_turn_key
+    if (authority.owner_id != request.user_id or authority.chat_id != request.chat_id
+            or authority.turn_id != authoritative_context_turn_id(request)
+            or authority.goal_revision != agentic_context.goal_revision(request.message_history)):
+        return CorrectionDeliveryReceipt(False, authority)
+    if validate_context is not None and not await validate_context():
+        return CorrectionDeliveryReceipt(False, authority)
+    client = await cache.client
+    if client is None:
+        return CorrectionDeliveryReceipt(False, authority)
+    delivery_id = str(uuid.uuid4())
+    accepted = await client.eval(_DIRECTION_DELIVERY_CAS, 3,
+        cache._get_active_task_key(request.chat_id),
+        async_skill_latest_user_turn_key(request.user_id, request.chat_id),
+        f"chat-direction-delivery:{fingerprint}", task_id, authority.turn_id, delivery_id)
+    if accepted != 1 or authority.goal_revision != agentic_context.goal_revision(request.message_history):
+        return CorrectionDeliveryReceipt(False, authority)
+    if validate_context is not None:
+        if not await validate_context():
+            return CorrectionDeliveryReceipt(False, authority)
+        still_current = await client.eval(
+            "if redis.call('GET',KEYS[1])~=ARGV[1] or redis.call('GET',KEYS[2])~=ARGV[2] then return 0 end return 1",
+            2, cache._get_active_task_key(request.chat_id),
+            async_skill_latest_user_turn_key(request.user_id, request.chat_id), task_id, authority.turn_id)
+        if still_current != 1:
+            return CorrectionDeliveryReceipt(False, authority)
+    append(instruction)
+    return CorrectionDeliveryReceipt(True, authority, delivery_id)
 
 logger = logging.getLogger(__name__)
 ORCHESTRATED_AI_MAX_OUTPUT_TOKENS = 8_192
@@ -3633,7 +3779,22 @@ async def handle_main_processing(
     if request_data.active_focus_id:
         try:
             # Parse focus mode ID (format: "app_id-focus_id" using hyphen for consistency with tool names)
-            app_id_of_focus, focus_id_in_app = request_data.active_focus_id.split('-', 1)
+            if request_data.active_focus_id.startswith("project-focus:"):
+                private = await agentic_context.private_focus_document(
+                    request_data, request_data.active_focus_id, directus_service, cache_service,
+                )
+                if not private:
+                    raise PermissionError("Private specialist Focus is no longer authorized")
+                active_focus_definition = parse_project_phase_focus(private["instruction"], request_data.active_focus_id)
+                if active_focus_definition:
+                    active_focus_prompt_text = active_focus_definition.system_prompt
+                else:
+                    from backend.shared.python_utils.focus_mode_skill_loader import _split_frontmatter_and_body, _parse_body_sections
+                    _metadata, body = _split_frontmatter_and_body(private["instruction"], "Private Project Focus")
+                    active_focus_prompt_text = _parse_body_sections(body).get("system_prompt", body).strip()
+                app_id_of_focus, focus_id_in_app = "", ""
+            else:
+                app_id_of_focus, focus_id_in_app = request_data.active_focus_id.split('-', 1)
             app_metadata_for_focus = discovered_apps_metadata.get(app_id_of_focus)
             if app_metadata_for_focus and app_metadata_for_focus.focuses:
                 for focus_def in app_metadata_for_focus.focuses:
@@ -3818,9 +3979,13 @@ async def handle_main_processing(
         for candidate in (getattr(request_data, "project_focus_candidates", None) or [])
         if isinstance(candidate, dict) and candidate.get("project_id") and candidate.get("name")
     }
+    private_candidates = {item["id"]: item for item in await agentic_context.private_focus_candidates(
+        request_data, directus_service, cache_service)} if agentic_context.first_party(request_data) else {}
+    relevant_focus_modes = [focus for focus in relevant_focus_modes
+        if not focus.startswith("project-focus:") or focus in private_candidates]
     relevant_focus_modes = [
         focus for focus in relevant_focus_modes
-        if not focus.startswith("project-") or (
+        if focus not in project_candidates or (
             not getattr(request_data, "project_access_declined", False)
             and focus in project_candidates
             and project_file_tools_enabled
@@ -3828,7 +3993,7 @@ async def handle_main_processing(
         )
     ]
     if has_active_focus_mode:
-        relevant_focus_modes = [focus for focus in relevant_focus_modes if focus in project_candidates]
+        relevant_focus_modes = [focus for focus in relevant_focus_modes if focus in project_candidates or focus in private_candidates]
     # Whether the user explicitly specified this focus mode via @focus:app:id mention
     user_requested_focus_only = getattr(preprocessing_results, 'user_requested_focus_only', False)
     
@@ -3836,10 +4001,14 @@ async def handle_main_processing(
         # Build enum and descriptions for activate_focus_mode tool
         focus_mode_descriptions = []
         for focus_id in relevant_focus_modes:
+            if focus_id in private_candidates:
+                candidate = private_candidates[focus_id]
+                focus_mode_descriptions.append(f"- {focus_id}: {candidate['title']}: {candidate['summary']}")
+                continue
             if focus_id in project_candidates:
                 focus_mode_descriptions.append(
                     f"- {focus_id}: Request access to Project {project_candidates[focus_id]['name']!r}. "
-                    "The client asks for explicit confirmation. You cannot access its files or "
+                    "The client shows a cancellable Focus countdown. You cannot access its files or "
                     "instructions until the user grants access. Never substitute a generic code tool."
                 )
                 continue
@@ -4237,7 +4406,7 @@ async def handle_main_processing(
     
     yield {
         "__debug_metadata__": True,
-        "system_prompt": full_system_prompt,
+        "system_prompt": ("[Transient private context omitted]" if agentic_context.first_party(request_data) else full_system_prompt),
         "system_prompt_char_count": len(full_system_prompt),
         "available_tools": debug_tool_summaries,
         "available_tools_count": len(available_tools_for_llm),
@@ -4252,7 +4421,9 @@ async def handle_main_processing(
     # we skip the normal flow (LLM deciding to call activate_focus_mode, 5s countdown) and
     # directly activate the focus mode with countdown=0 (immediate).
     # This mirrors the exact same activation pipeline used in the deferred path, but without delay.
-    if user_requested_focus_only and relevant_focus_modes and not has_active_focus_mode:
+    if (user_requested_focus_only and relevant_focus_modes and not has_active_focus_mode
+            and relevant_focus_modes[0] not in project_candidates
+            and _trusted_focus_override(user_overrides, relevant_focus_modes[0])):
         focus_id = relevant_focus_modes[0]  # Only one can be selected per the UI constraint
         logger.info(
             f"{log_prefix} [FOCUS_MODE_OVERRIDE] User explicitly requested focus mode '{focus_id}' via @mention. "
@@ -4344,6 +4515,8 @@ async def handle_main_processing(
                 pending_context = {
                     "focus_id": focus_id,
                     "focus_prompt": focus_prompt_text,
+                    "user_override": True,
+                    **_forward_agentic_context(request_data),
                     "embed_id": fm_embed_id,
                     "chat_id": request_data.chat_id,
                     "message_id": request_data.message_id,
@@ -4394,6 +4567,7 @@ async def handle_main_processing(
                 'apps.ai.tasks.focus_mode_auto_confirm',
                 kwargs={
                     "chat_id": request_data.chat_id,
+                    "request_id": fm_embed_id,
                 },
                 queue='app_ai',
                 countdown=0,  # Immediate — user explicitly requested this focus mode, no countdown needed
@@ -4583,7 +4757,7 @@ async def handle_main_processing(
             request_data.focus_phase_state = {r.state.focus_id: r.state.model_dump() for r in focus_phase_runtimes}
         yield phase_state_marker()
         # Report the effective phase after the user gate, matching actual inference.
-        yield {"__debug_metadata__": True, "system_prompt": full_system_prompt,
+        yield {"__debug_metadata__": True, "system_prompt": ("[Transient private context omitted]" if agentic_context.first_party(request_data) else full_system_prompt),
             "system_prompt_char_count": len(full_system_prompt),
             "available_tools": [{"name": t.get("function", {}).get("name", "unknown"),
                 "description_preview": str(t.get("function", {}).get("description", ""))[:TOOL_DESCRIPTION_PREVIEW_LENGTH]}
@@ -4591,6 +4765,74 @@ async def handle_main_processing(
             "available_tools_count": len(available_tools_for_llm),
             "message_history_sent_to_llm": debug_message_history,
             "message_history_total_count": len(current_message_history)}
+
+    agentic_section = ""
+    applied_guides = []
+    last_applied_rule_key = agentic_context.last_rule_set_key(request_data.message_history)
+    last_context_identity = None
+    pending_direction = None
+    applied_context_revision = 0
+    decision_model = ((skill_config_dict or {}).get("default_llms") or {}).get("decision_model") or "typesafe/jev-1.13"
+    review_model = ((skill_config_dict or {}).get("default_llms") or {}).get("preprocessing_model")
+
+    async def refresh_agentic_context(*, initial=False):
+        nonlocal agentic_section, applied_guides, last_context_identity
+        nonlocal full_system_prompt, answer_recovery_system_prompt
+        nonlocal active_project_focus, project_phase_prompt_section, active_focus_prompt_section
+        if agentic_context.first_party(request_data):
+            fresh = await agentic_context.fresh_project(request_data, directus_service, cache_service)
+            old_identity = (active_project_focus or {}).get("activation_id")
+            fresh_identity = (fresh or {}).get("activation_id")
+            if old_identity != fresh_identity or (fresh or {}).get("instruction") != (active_project_focus or {}).get("instruction"):
+                if project_phase_prompt_section:
+                    full_system_prompt = full_system_prompt.replace(project_phase_prompt_section, "", 1)
+                    answer_recovery_system_prompt = answer_recovery_system_prompt.replace(project_phase_prompt_section, "", 1)
+                active_project_focus = fresh
+                request_data.active_project_focus = fresh
+                request_data.current_project = ({key: fresh.get(key) for key in
+                    ("project_id", "project_id_hash", "team_id", "team_id_hash")} if fresh else None)
+                project_phase_prompt_section = build_project_focus_prompt(fresh, active_project_sources) if fresh else None
+                if project_phase_prompt_section:
+                    full_system_prompt += "\n\n" + project_phase_prompt_section
+                    answer_recovery_system_prompt += "\n\n" + project_phase_prompt_section
+                focus_phase_runtimes[:] = [r for r in focus_phase_runtimes
+                    if r.state.focus_id == request_data.active_focus_id]
+            if str(request_data.active_focus_id or "").startswith("project-focus:"):
+                private = await agentic_context.private_focus_document(
+                    request_data, request_data.active_focus_id, directus_service, cache_service)
+                if not private:
+                    if active_focus_prompt_section:
+                        full_system_prompt = full_system_prompt.replace(active_focus_prompt_section, "", 1)
+                        answer_recovery_system_prompt = answer_recovery_system_prompt.replace(active_focus_prompt_section, "", 1)
+                    active_focus_prompt_section = None
+                    request_data.active_focus_id = None
+                    focus_phase_runtimes[:] = [r for r in focus_phase_runtimes if not r.state.focus_id.startswith("project-focus:")]
+        identity = (request_data.active_focus_id, (request_data.current_project or {}).get("project_id"),
+                    (active_project_focus or {}).get("activation_id"),
+                    tuple((r.state.focus_id, r.state.phase_id) for r in focus_phase_runtimes))
+        if identity == last_context_identity:
+            return
+        eligible = sorted(set(discovered_apps_metadata) if assigned_app_ids is None
+                          else set(discovered_apps_metadata).intersection(assigned_app_ids))
+        section, guides = await _load_main_agentic_context(
+            request=request_data, task_id=task_id, preprocessing=preprocessing_results,
+            directus=directus_service, cache=cache_service, secrets_manager=secrets_manager,
+            eligible_app_ids=eligible, vault_key_id=user_vault_key_id, decision_model=decision_model,
+            effective_instructions="\n\n".join(filter(None, (active_focus_prompt_section, project_phase_prompt_section))),
+            active_phase=";".join(str(r.state.phase_id) for r in focus_phase_runtimes), initial=initial,
+            explicit_dependency_task_ids=frozenset(str(row.get("task_id") or row.get("id"))
+                for row in (task_tool_context.referenced_tasks if task_tool_context else [])),
+        )
+        for prior in (agentic_section,):
+            if prior:
+                full_system_prompt = full_system_prompt.replace("\n\n" + prior, "", 1)
+                answer_recovery_system_prompt = answer_recovery_system_prompt.replace("\n\n" + prior, "", 1)
+        agentic_section, applied_guides, last_context_identity = section, guides, identity
+        if section:
+            full_system_prompt += "\n\n" + section
+            answer_recovery_system_prompt += "\n\n" + section
+
+    await refresh_agentic_context(initial=True)
 
     for iteration in range(max_iterations_with_recovery):
         logger.info(f"{log_prefix} LLM call iteration {iteration + 1}/{max_iterations_with_recovery}, total_skill_calls={total_skill_calls}")
@@ -4635,6 +4877,7 @@ async def handle_main_processing(
             )
         
         iteration_tools = available_tools_for_llm if not force_no_tools else None
+        await refresh_agentic_context()
         # Build system prompt for this iteration
         # Inject budget warning if we've exceeded the soft limit
         iteration_system_prompt = answer_recovery_system_prompt if answer_recovery.active else full_system_prompt
@@ -4780,6 +5023,45 @@ async def handle_main_processing(
                     request_data=request_data,
                     directus_service=directus_service,
                 )
+                if pending_direction and review_model:
+                    context, assessment = pending_direction
+                    pending_direction = None
+                    async def still_current(authority):
+                        return await _direction_authority_current(
+                            request=request_data, authority=authority, task_id=task_id,
+                            cache=cache_service, directus=directus_service,
+                            expected_plan_summary=context.accepted_plan_summary)
+                    def append_correction(instruction):
+                        nonlocal full_system_prompt, answer_recovery_system_prompt, iteration_system_prompt
+                        section = "\n\n--- Internal direction instruction ---\n" + instruction
+                        full_system_prompt += section
+                        answer_recovery_system_prompt += section
+                        iteration_system_prompt += section
+                    event = await chat_direction_correction_coordinator.review_and_deliver(
+                        context=context, assessment=assessment,
+                        review=lambda c, a: _review_chat_direction(c, a, task_id=task_id,
+                            model_id=review_model, secrets_manager=secrets_manager),
+                        still_current=still_current,
+                        deliver=lambda authority, instruction: _deliver_direction_instruction(
+                            request=request_data, task_id=task_id, authority=authority, cache=cache_service,
+                            instruction=instruction, fingerprint=assessment.fingerprint, append=append_correction,
+                            validate_context=lambda: still_current(authority)),
+                    )
+                    if event:
+                        yield {"__chat_context_applied__": True,
+                               "receipt": agentic_context.receipt_event(request_data, event)}
+                if not agentic_section or agentic_section in iteration_system_prompt:
+                    receipt = applied_rule_receipt(applied_guides, previous_set_key=last_applied_rule_key)
+                    new_rule_key = applied_rule_set_key(applied_guides)
+                    if new_rule_key != last_applied_rule_key:
+                        applied_context_revision += 1
+                    last_applied_rule_key = new_rule_key
+                    if receipt:
+                        receipt["context_revision"] = str(applied_context_revision) + ":" + ";".join(
+                            f"{r.state.focus_id}:{r.state.run_id}:{r.state.version}" for r in focus_phase_runtimes)
+                    if receipt:
+                        yield {"__chat_context_applied__": True,
+                               "receipt": agentic_context.receipt_event(request_data, receipt)}
                 llm_stream = call_main_llm_stream(
                     task_id=task_id,
                     system_prompt=iteration_system_prompt,
@@ -6619,7 +6901,7 @@ async def handle_main_processing(
 
                     if skill_id == "activate_focus_mode":
                         focus_id = parsed_args.get("focus_id")
-                        if isinstance(focus_id, str) and focus_id.startswith("project-"):
+                        if focus_id in project_candidates:
                             from backend.apps.ai.tasks.async_skill_continuation import cache_async_skill_continuation_context
                             from backend.core.api.app.services.embed_service import EmbedService
                             from backend.core.api.app.services.project_focus_request_service import (
@@ -6648,17 +6930,11 @@ async def handle_main_processing(
                                 tool_arguments=parsed_args, requires_current_turn=True,
                                 defer_until_initial_response_complete=True, ttl_seconds=PROJECT_FOCUS_REQUEST_TTL,
                             )
-                            pending = {
-                                "request_id": request_id, "continuation_id": request_id,
-                                "project_id": candidate["project_id"], "user_id": request_data.user_id,
-                                "chat_id": request_data.chat_id, "message_id": request_data.message_id,
-                                "team_id": request_data.team_id, "expires_at": time.time() + PROJECT_FOCUS_REQUEST_TTL,
-                            }
-                            key = ProjectFocusRequestService.key(request_data.user_id, request_data.chat_id)
-                            if not await cache_service.set(key + ":" + request_id, pending, ttl=PROJECT_FOCUS_REQUEST_TTL):
-                                raise RuntimeError("Project consent cache unavailable")
-                            if not await cache_service.set(key, pending, ttl=PROJECT_FOCUS_REQUEST_TTL):
-                                raise RuntimeError("Project consent cache unavailable")
+                            pending = await ProjectFocusRequestService(cache_service, directus_service).create_pending(
+                                user_id=request_data.user_id, chat_id=request_data.chat_id,
+                                request_id=request_id, project_id=candidate["project_id"],
+                                message_id=request_data.message_id, team_id=request_data.team_id,
+                            )
                             redis_client = await cache_service.client
                             await redis_client.publish(f"user_cache_events:{request_data.user_id}", json.dumps({
                                 "event_type": "focus_mode_pending", "payload": ProjectFocusRequestService.pending_event(pending),
@@ -6666,6 +6942,15 @@ async def handle_main_processing(
                             yield f"```json\n{embed['embed_reference']}\n```\n\n"
                             yield {"__awaiting_focus_mode_confirmation__": True, "focus_id": focus_id, "chat_id": request_data.chat_id}
                             return
+                        if focus_id not in relevant_focus_modes:
+                            raise PermissionError("Focus activation was not offered for this turn")
+                        private_definition = None
+                        if focus_id in private_candidates:
+                            private_definition = await agentic_context.private_focus_document(
+                                request_data, focus_id, directus_service, cache_service, require_accepted=False,
+                            )
+                            if not private_definition:
+                                raise PermissionError("Private Focus proposal is no longer authorized")
                         logger.info(f"{log_prefix} [FOCUS_MODE] LLM requested focus mode activation: {focus_id}")
                         
                         # --- DEFERRED ACTIVATION ARCHITECTURE ---
@@ -6771,6 +7056,8 @@ async def handle_main_processing(
                         except Exception as e:
                             logger.error(f"{log_prefix} [FOCUS_MODE] Error loading focus prompt: {e}", exc_info=True)
                         
+                        if private_definition:
+                            focus_prompt_text = private_definition["instruction"]
                         # --- Store pending activation context in Redis ---
                         # This context is consumed by either the auto-confirm task (happy path)
                         # or the rejection WebSocket handler (user rejects)
@@ -6780,6 +7067,7 @@ async def handle_main_processing(
                                 pending_context = {
                                     "focus_id": focus_id,
                                     "focus_prompt": focus_prompt_text,
+                                    **_forward_agentic_context(request_data),
                                     "embed_id": fm_embed_id,
                                     "chat_id": request_data.chat_id,
                                     "message_id": request_data.message_id,
@@ -6831,6 +7119,7 @@ async def handle_main_processing(
                                 'apps.ai.tasks.focus_mode_auto_confirm',
                                 kwargs={
                                     "chat_id": request_data.chat_id,
+                                    "request_id": fm_embed_id,
                                 },
                                 queue='app_ai',
                                 countdown=FOCUS_MODE_AUTO_CONFIRM_COUNTDOWN,
@@ -6926,6 +7215,12 @@ async def handle_main_processing(
                         if active_focus_prompt_section in prompt_parts:
                             prompt_parts.remove(active_focus_prompt_section)
                         full_system_prompt = "\n\n".join(filter(None, prompt_parts))
+                        if agentic_section:
+                            full_system_prompt += "\n\n" + agentic_section
+                        if active_focus_prompt_section:
+                            answer_recovery_system_prompt = answer_recovery_system_prompt.replace(active_focus_prompt_section, "", 1)
+                        active_focus_prompt_section = None
+                        focus_phase_runtimes[:] = [r for r in focus_phase_runtimes if r.state.focus_id != previous_focus_id]
                         logger.info(f"{log_prefix} [FOCUS_MODE] Deactivated - continuing without focus mode instructions")
                         continue
 
@@ -9526,6 +9821,35 @@ async def handle_main_processing(
             "tools", f"{request_data.message_id}:{iteration}:tools", current_message_history,
         ):
             yield phase_state_marker()
+
+        if agentic_context.first_party(request_data):
+            from backend.shared.python_utils.recent_work_summary_client import mark_response_summary_active
+            await mark_response_summary_active(request_data, task_id)
+        if agentic_context.first_party(request_data) and iteration + 1 < max_iterations_with_recovery:
+            authority = DirectionAuthority(request_data.user_id, request_data.chat_id,
+                                           authoritative_context_turn_id(request_data), agentic_context.goal_revision(request_data.message_history))
+            actions = [{"id": message.get("tool_call_id", str(index)), "kind": message.get("role"),
+                        "summary": str(message.get("content", ""))[:1000], "source": "current_chat_tool_result"}
+                       for index, message in enumerate(current_message_history)
+                       if message.get("role") == "tool"][-12:]
+            from backend.apps.ai.processing.accepted_plan_context import validate_accepted_plan_context
+            accepted_plan_summary = await validate_accepted_plan_context(request_data, directus_service)
+            direction_tasks = await fetch_direction_task_context(
+                request_data, directus_service, visible_tasks=task_tool_context.visible_tasks if task_tool_context else [],
+                explicit_dependency_task_ids=frozenset(str(row.get("task_id"))
+                    for row in (task_tool_context.referenced_tasks if task_tool_context else []) if row.get("task_id")),
+            )
+            context = assemble_direction_context(
+                accepted_plan_summary=accepted_plan_summary,
+                explicit_dependencies=direction_tasks,
+                authority=authority, message_history=request_data.message_history, recent_actions=actions,
+                open_tasks=direction_tasks,
+                effective_focus="\n\n".join(filter(None, (active_focus_prompt_section, project_phase_prompt_section))),
+                effective_phase=";".join(str(r.state.phase_id) for r in focus_phase_runtimes),
+            )
+            assessment = await assess_chat_direction(context, model_id=decision_model, secrets_manager=secrets_manager)
+            if assessment.outcome == "material_drift":
+                pending_direction = context, assessment
 
         # === MAX ITERATIONS HANDLING ===
         # If we're on the second-to-last iteration and the LLM is still requesting tools,

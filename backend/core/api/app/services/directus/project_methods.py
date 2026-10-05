@@ -40,7 +40,7 @@ SOURCE_FIELDS = (
     "created_at,updated_at,last_indexed_at"
 )
 PROJECT_SETTINGS_FIELDS = (
-    "id,hashed_project_id,hashed_user_id,hashed_team_id,updated_by_user_hash,write_mode,default_focus_id_hash,"
+    "id,hashed_project_id,hashed_user_id,hashed_team_id,updated_by_user_hash,write_mode,auto_selection,default_focus_id_hash,"
     "encrypted_settings,updated_at"
 )
 PROJECT_KEY_WRAPPER_FIELDS = (
@@ -496,6 +496,9 @@ class ProjectMethods:
             record["write_mode"] = payload["write_mode"]
         elif existing:
             record["write_mode"] = existing.get("write_mode")
+        if "auto_selection" in payload and type(payload["auto_selection"]) is not bool:
+            return None
+        record["auto_selection"] = payload.get("auto_selection", (existing or {}).get("auto_selection", True)) is not False
         if "default_focus_id" in payload:
             canonical_focus_id = str(uuid.UUID(str(payload["default_focus_id"])))
             record["default_focus_id_hash"] = hash_id(canonical_focus_id)
@@ -783,6 +786,19 @@ class ProjectMethods:
             "project_items", item["id"],
             {"hashed_folder_id": hash_id(folder_id) if folder_id else None, "updated_at": updated_at},
         )
+
+    async def update_item_metadata(self, item: Dict[str, Any], patch: Dict[str, Any], *, conditional: bool = False) -> Optional[Dict[str, Any]]:
+        """Patch encrypted metadata without moving the item unless explicitly requested."""
+        if not set(patch).issubset({"encrypted_metadata", "updated_at", "hashed_folder_id"}):
+            return None
+        if conditional:
+            return await self.directus_service.update_item_if_version(
+                "project_items", item["id"], patch, int(item.get("updated_at") or 0), version_field="updated_at",
+                extra_filters={key: item.get(key) for key in (
+                    "encrypted_metadata", "encrypted_note", "target_id_hash", "deleted_target_state",
+                )},
+            )
+        return await self.directus_service.update_item("project_items", item["id"], patch)
 
     async def create_item(
         self,

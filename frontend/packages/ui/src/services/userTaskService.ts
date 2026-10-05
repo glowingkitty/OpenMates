@@ -280,6 +280,7 @@ export interface CreateUserTaskInput {
 }
 
 export interface ListUserTasksFilters {
+  teamId?: string;
   status?: UserTaskStatus;
   chatId?: string;
   externalChat?: ExternalChatContext;
@@ -300,7 +301,7 @@ function ensureTaskScope(): void {
 }
 
 function taskQueryKey(filters: ListUserTasksFilters): string {
-  return JSON.stringify([filters.status ?? null, filters.chatId ?? null, filters.projectId ?? null,
+  return JSON.stringify([filters.status ?? null, filters.chatId ?? null, filters.projectId ?? null, filters.teamId ?? null,
     filters.externalChat?.provider ?? null, filters.externalChat?.id ?? null]);
 }
 
@@ -446,6 +447,7 @@ export async function externalChatLookupHash(context: ExternalChatContext): Prom
 
 async function buildQuery(filters: ListUserTasksFilters): Promise<string> {
   const params = new URLSearchParams();
+  if (filters.teamId) params.set("team_id", filters.teamId);
   if (filters.status) params.set("status", filters.status);
   if (filters.chatId) params.set("chat_id", filters.chatId);
   if (filters.projectId) params.set("project_id", filters.projectId);

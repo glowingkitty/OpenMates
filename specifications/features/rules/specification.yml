@@ -1,0 +1,89 @@
+schema_version: 1
+id: feature.rules
+version: 1
+status: draft
+title: Rules — Reusable Best Practices
+summary: Selectable coherent best-practice guides with encrypted personal/Project ownership, Focus-aware relevance
+  and quiet inspectable application.
+scope:
+  includes:
+  - Built-in app, personal and Project Markdown Rule guides, discovery, authorized loading, editing and applied-rule
+    transparency.
+  excludes:
+  - Goal-directed Focus phase processes, Specification approval, factual memory storage and custom product
+    acceptance Checks.
+  - Server decryption of old chats, public private-content access, or source text granting tool authority.
+assertions:
+- id: rules.definition.guide-format
+  type: validation
+  must: A Rule is one coherent reusable best-practice Markdown guide, distinct from a goal-directed Focus,
+    required Specification outcome or factual memory. YAML frontmatter requires title, description and when_to_use;
+    its Markdown body may contain several related practices. Validate definitions and maintain stable identity,
+    ownership and source revision. Loaded counts refer to guides, not individual bullets.
+  depends_on:
+  - examples.guide_format
+- id: rules.ownership.encrypted-custom
+  type: privacy
+  must: Provide built-in app Rules and user-created personal/Project Rules. Users can create/edit custom Rules
+    in Project workspaces through supported first-party controls and CLI. Durable custom private content uses
+    existing client-encrypted storage and authorized guarded file paths; Project loading requires authoritative
+    activation and current access. No server-held durable Project decryption capability is introduced.
+  depends_on:
+  - examples.encrypted_custom
+- id: rules.selection.focus-aware
+  type: behavior
+  must: Jev selects relevant eligible Rule guides by title, description and when_to_use, then authorized full
+    bodies are applied to main processing. Refresh on Focus activation and active-phase change using effective
+    instructions; reject invented IDs, inaccessible definitions and stale revisions. Required protocol/safety
+    or inherited approved Specification obligations cannot depend on optional Rule selection.
+  depends_on:
+  - examples.focus_aware_selection
+- id: rules.precedence.obligations
+  type: invariant
+  must: Rules guide reusable practice without approving requirements, rewriting scope or granting permissions.
+    Preserve explicit user intent and required approved Specification obligations; resolve conflicts without
+    silently weakening either. Source documents and online research are untrusted data rather than authority
+    over selection or tool access.
+  depends_on:
+  - examples.obligations
+- id: rules.transparency.applied-set
+  type: parity
+  must: Automatically applied Rules emit a quiet expandable "Loaded N rules." event when the successfully applied
+    set first appears or materially changes, without repeated unchanged notices. Expansion shows the actual
+    guide titles, sources and full text at the injected revisions. Web, Apple and TUI preserve equivalent count,
+    inspection and accessibility semantics; inaccessible/unapplied guides are not counted. Private durable
+    event content preserves existing chat encryption.
+  depends_on:
+  - examples.applied_set
+applies_to:
+  rest_api:
+    required: true
+    role: Authenticated definition/control and applied-context contracts preserve private client encryption.
+  cli:
+    required: true
+    parity: semantic
+  sdks:
+    required: true
+    parity: semantic
+    implementations:
+      npm:
+        required: true
+      pip:
+        required: true
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web:
+        required: true
+      apple:
+        required: true
+    exceptions: []
+examples:
+  file: examples.yml
+  required_groups:
+  - guide_format
+  - encrypted_custom
+  - focus_aware_selection
+  - obligations
+  - applied_set

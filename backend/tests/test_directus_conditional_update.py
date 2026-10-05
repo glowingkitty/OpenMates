@@ -1,9 +1,16 @@
 """Conditional update acknowledgements preserve state and authorization guards."""
 
+import logging
 from unittest.mock import AsyncMock
 
 import httpx
 import pytest
+
+
+@pytest.fixture(autouse=True)
+def _capture_service_logs(monkeypatch, caplog):
+    logger = logging.getLogger("backend.core.api.app.services.directus.api_methods")
+    monkeypatch.setattr(logger, "handlers", [*logger.handlers, caplog.handler])
 
 
 def _service(response, candidate):

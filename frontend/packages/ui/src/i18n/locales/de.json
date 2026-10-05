@@ -14282,6 +14282,17 @@
         "text": "Sicherheitseinstellungen öffnen"
       }
     },
+    "project_authoring": {
+      "ready": {
+        "text": "Dein Projektergebnis ist bereit."
+      },
+      "view": {
+        "text": "Ergebnis ansehen"
+      },
+      "unavailable": {
+        "text": "Dieses Projektergebnis ist nicht mehr verfügbar."
+      }
+    },
     "credits_depleted": {
       "message": {
         "text": "Dein Guthaben ist aufgebraucht. Kaufe mehr, um OpenMates weiter zu nutzen."
@@ -14508,6 +14519,140 @@
       "repeat_heading": {
         "text": "Wiederholen?"
       }
+    }
+  },
+  "rules": {
+    "manage": {
+      "text": "Regel-Leitfäden"
+    },
+    "guide_description": {
+      "text": "Speichere wiederverwendbare Vorgehensweisen als einen Leitfaden. Verbindliches Produktverhalten gehört in eine Spezifikation."
+    },
+    "scope": {
+      "text": "Geltungsbereich"
+    },
+    "source_app": {
+      "text": "App-Leitfaden"
+    },
+    "source_personal": {
+      "text": "Persönliche Leitfäden"
+    },
+    "source_project": {
+      "text": "Projekt-Leitfäden"
+    },
+    "loaded": {
+      "text": "{count} Regeln geladen."
+    },
+    "revision": {
+      "text": "Revision"
+    },
+    "project_storage": {
+      "text": "Projekt-Leitfäden sind verschlüsselte Markdown-Dateien. Sie werden nur angewendet, solange dieser Chat aktiven Projektzugriff hat."
+    },
+    "activation_required": {
+      "text": "Aktiviere dieses Projekt in einem Chat, bevor du seine Leitfäden erstellst oder bearbeitest."
+    },
+    "title": {
+      "text": "Titel"
+    },
+    "description": {
+      "text": "Beschreibung"
+    },
+    "when_to_use": {
+      "text": "Wann anwenden"
+    },
+    "practices": {
+      "text": "Vorgehensweisen (Markdown)"
+    },
+    "empty": {
+      "text": "Hier sind noch keine Leitfäden gespeichert."
+    },
+    "new": {
+      "text": "Neuer Leitfaden"
+    },
+    "saved": {
+      "text": "Leitfaden gespeichert."
+    },
+    "invalid_document": {
+      "text": "Ergänze Titel, Beschreibung, Anwendungsbereich und Vorgehensweisen innerhalb der Feldgrenzen."
+    },
+    "save_failed": {
+      "text": "Die Leitfäden konnten nicht geladen oder gespeichert werden. Bitte versuche es erneut."
+    },
+    "authoring_suggestions": {
+      "text": "Vorgeschlagene Projektverbesserungen"
+    },
+    "create_focus": {
+      "text": "Fokus erstellen"
+    },
+    "update_focus": {
+      "text": "Fokus aktualisieren"
+    },
+    "create_workflow": {
+      "text": "Workflow erstellen"
+    },
+    "update_workflow": {
+      "text": "Workflow aktualisieren"
+    },
+    "authoring_started": {
+      "text": "Gestartet"
+    },
+    "authoring_failed": {
+      "text": "Diese Aktualisierung konnte nicht gestartet werden. Bitte versuche es erneut."
+    },
+    "expanded": {
+      "text": "Erweitert"
+    },
+    "collapsed": {
+      "text": "Eingeklappt"
+    },
+    "authoring_save_failed": {
+      "text": "Dieser Entwurf konnte nicht gespeichert werden. Bitte versuche es erneut."
+    },
+    "review_draft": {
+      "text": "Entwurf prüfen"
+    },
+    "save_draft": {
+      "text": "Entwurf speichern"
+    },
+    "job_running": {
+      "text": "Diese Verbesserung wird erstellt…"
+    },
+    "job_queued": {
+      "text": "Wartet auf den Start."
+    },
+    "job_needs_input": {
+      "text": "Weitere Informationen werden benötigt."
+    },
+    "job_needs_save": {
+      "text": "Entwurf bereit zum Prüfen und Speichern."
+    },
+    "job_needs_binding_save": {
+      "text": "Speichere die ausstehende Projekt-Dateiverknüpfung."
+    },
+    "job_pending_file": {
+      "text": "Wartet auf die verknüpfte Datei."
+    },
+    "job_partial": {
+      "text": "Einige Änderungen wurden abgeschlossen. Die übrigen Änderungen müssen geprüft werden."
+    },
+    "job_conflict": {
+      "text": "Die Quelle wurde geändert. Prüfe den Konflikt, bevor du fortfährst."
+    },
+    "job_ready": {
+      "text": "Projektverbesserung gespeichert."
+    },
+    "job_failed": {
+      "text": "Diese Verbesserung konnte nicht abgeschlossen werden."
+    },
+    "job_saved": {
+      "text": "Gespeichert."
+    },
+    "job_cancelled": {
+      "text": "Abgebrochen."
+    },
+    "job_waiting": {
+      "text": "Wartet auf eine Aktualisierung."
     }
   },
   "settings": {
@@ -22346,6 +22491,158 @@
     }
   },
   "workflows": {
+    "builder": {
+      "remote_file_conflict": {
+        "text": "Workflow im Projekt gespeichert. Die entfernte YAML-Datei wurde geändert. Importiere die Datei oder gleiche sie ab, bevor du erneut speicherst."
+      },
+      "remote_file_pending": {
+        "text": "Workflow im Projekt gespeichert. Die YAML-Datei steht noch aus. Verbinde die Quelle erneut oder bestätige den Schreibzugriff und versuche es im Projekt-Chat erneut."
+      },
+      "ai_new": {
+        "text": "Neu"
+      },
+      "ai_edit_placeholder": {
+        "text": "Workflow-Änderung beschreiben."
+      },
+      "ai_edit_submit": {
+        "text": "Workflow aktualisieren"
+      },
+      "ai_edit_submitting": {
+        "text": "Wird aktualisiert..."
+      },
+      "ai_changes_saved": {
+        "text": "KI-Änderungen gespeichert"
+      },
+      "ai_created_disabled": {
+        "text": "Als deaktiviert gespeichert. Aktiviere diesen Workflow, wenn du bereit bist."
+      },
+      "ai_removed": {
+        "text": "Entfernt:"
+      },
+      "ai_added_nodes": {
+        "text": "hinzugefügte Knoten unten hervorgehoben."
+      },
+      "ai_edited_nodes": {
+        "text": "bearbeitete Knoten unten hervorgehoben."
+      },
+      "ai_undo": {
+        "text": "KI-Änderungen rückgängig machen"
+      },
+      "ai_node_added": {
+        "text": "KI hinzugefügt"
+      },
+      "ai_node_edited": {
+        "text": "KI bearbeitet"
+      },
+      "voice_connecting": {
+        "text": "Mikrofon wird verbunden..."
+      },
+      "voice_listening": {
+        "text": "Hört zu..."
+      },
+      "voice_correcting": {
+        "text": "Transkript wird korrigiert..."
+      },
+      "voice_preview": {
+        "text": "Deine Worte erscheinen hier während du sprichst."
+      },
+      "voice_cancel": {
+        "text": "Abbrechen"
+      },
+      "voice_finish": {
+        "text": "Fertig"
+      },
+      "voice_dialog": {
+        "text": "Workflow-Anweisung aufnehmen"
+      },
+      "voice_microphone_unavailable": {
+        "text": "Mikrofon nicht verfügbar."
+      },
+      "voice_no_speech": {
+        "text": "Es wurde keine Sprache erkannt."
+      },
+      "voice_transcription_failed": {
+        "text": "Diese Aufnahme konnte nicht transkribiert werden. Bitte nimm erneut auf oder tippe deine Workflow-Anfrage."
+      },
+      "ai_draft_unsaved": {
+        "text": "Der Entwurf wurde nicht gespeichert. Bitte versuche es erneut."
+      },
+      "ai_failed": {
+        "text": "Der Workflow konnte nicht erstellt werden. Bitte versuche es erneut."
+      },
+      "ai_missing_result": {
+        "text": "Die Workflow-Anfrage wurde ohne gespeicherten Workflow abgeschlossen."
+      },
+      "ai_undo_failed": {
+        "text": "KI-Änderungen konnten nicht rückgängig gemacht werden."
+      },
+      "ai_undo_conflict": {
+        "text": "KI-Änderungen konnten nicht rückgängig gemacht werden. Öffne den Versionsverlauf, um den Workflow zu prüfen."
+      },
+      "ai_saving": {
+        "text": "Workflow vorbereitet. Wird jetzt gespeichert."
+      },
+      "ai_preview_label": {
+        "text": "Workflow-Vorschau"
+      },
+      "ai_preview_saving": {
+        "text": "Wird gespeichert..."
+      },
+      "ai_preview_pending": {
+        "text": "Diese Vorschau wartet noch auf den Abschluss des Speicherns."
+      },
+      "ai_preview_steps": {
+        "text": "Vorgeschlagene Schritte"
+      },
+      "ai_validated_step": {
+        "text": "{count} Schritt validiert"
+      },
+      "ai_validated_steps": {
+        "text": "{count} Schritte validiert"
+      },
+      "ai_stopping": {
+        "text": "Wird gestoppt…"
+      },
+      "ai_check_status": {
+        "text": "Speicherstatus prüfen"
+      },
+      "ai_create_submit": {
+        "text": "Workflow erstellen"
+      },
+      "ai_create_submitting": {
+        "text": "Wird erstellt..."
+      },
+      "website_text": {
+        "text": "Seitentext"
+      },
+      "website_has_changed": {
+        "text": "Seit dem letzten erfolgreichen Lesen geändert"
+      },
+      "website_changes": {
+        "text": "Änderungen seit dem letzten erfolgreichen Lesen"
+      },
+      "website_source_url": {
+        "text": "Website-Link"
+      },
+      "website_change_guidance": {
+        "text": "Das erste erfolgreiche Lesen speichert den Ausgangspunkt, ohne eine Nachricht zu senden. Spätere Ausführungen prüfen nur Änderungen. Fehlgeschlagene oder blockierte Leseversuche behalten die letzte erfolgreiche Version."
+      },
+      "website_read_blocked": {
+        "text": "Diese Website hat das Lesen blockiert. Die letzte erfolgreiche Version wurde beibehalten."
+      },
+      "website_read_unusable": {
+        "text": "Diese Website hat keinen brauchbaren, vollständigen Text geliefert. Die letzte erfolgreiche Version wurde beibehalten."
+      },
+      "website_change_too_large": {
+        "text": "Die Seite oder ihre Änderungen sind zu groß für eine vollständige Prüfung. Die letzte erfolgreiche Version wurde beibehalten."
+      },
+      "website_change_one_page": {
+        "text": "Verwende eine Website-URL pro Lesevorgang und eine Website-Änderungsquelle pro Bedingung."
+      },
+      "website_change_pending_limit": {
+        "text": "Zu viele Änderungen warten auf Auswertung oder Zustellung. Die letzte erfolgreiche Version wurde beibehalten."
+      }
+    },
     "sidebar": {
       "loading": {
         "text": "Workflows werden geladen..."
@@ -22586,152 +22883,6 @@
       },
       "restore_failed": {
         "text": "Ausgewählte Definition konnte nicht wiederhergestellt werden."
-      }
-    },
-    "builder": {
-      "ai_new": {
-        "text": "Neu"
-      },
-      "ai_edit_placeholder": {
-        "text": "Workflow-Änderung beschreiben."
-      },
-      "ai_edit_submit": {
-        "text": "Workflow aktualisieren"
-      },
-      "ai_edit_submitting": {
-        "text": "Wird aktualisiert..."
-      },
-      "ai_changes_saved": {
-        "text": "KI-Änderungen gespeichert"
-      },
-      "ai_created_disabled": {
-        "text": "Als deaktiviert gespeichert. Aktiviere diesen Workflow, wenn du bereit bist."
-      },
-      "ai_removed": {
-        "text": "Entfernt:"
-      },
-      "ai_added_nodes": {
-        "text": "hinzugefügte Knoten unten hervorgehoben."
-      },
-      "ai_edited_nodes": {
-        "text": "bearbeitete Knoten unten hervorgehoben."
-      },
-      "ai_undo": {
-        "text": "KI-Änderungen rückgängig machen"
-      },
-      "ai_node_added": {
-        "text": "KI hinzugefügt"
-      },
-      "ai_node_edited": {
-        "text": "KI bearbeitet"
-      },
-      "voice_connecting": {
-        "text": "Mikrofon wird verbunden..."
-      },
-      "voice_listening": {
-        "text": "Hört zu..."
-      },
-      "voice_correcting": {
-        "text": "Transkript wird korrigiert..."
-      },
-      "voice_preview": {
-        "text": "Deine Worte erscheinen hier während du sprichst."
-      },
-      "voice_cancel": {
-        "text": "Abbrechen"
-      },
-      "voice_finish": {
-        "text": "Fertig"
-      },
-      "voice_dialog": {
-        "text": "Workflow-Anweisung aufnehmen"
-      },
-      "voice_microphone_unavailable": {
-        "text": "Mikrofon nicht verfügbar."
-      },
-      "voice_no_speech": {
-        "text": "Es wurde keine Sprache erkannt."
-      },
-      "voice_transcription_failed": {
-        "text": "Diese Aufnahme konnte nicht transkribiert werden. Bitte nimm erneut auf oder tippe deine Workflow-Anfrage."
-      },
-      "ai_draft_unsaved": {
-        "text": "Der Entwurf wurde nicht gespeichert. Bitte versuche es erneut."
-      },
-      "ai_failed": {
-        "text": "Der Workflow konnte nicht erstellt werden. Bitte versuche es erneut."
-      },
-      "ai_missing_result": {
-        "text": "Die Workflow-Anfrage wurde ohne gespeicherten Workflow abgeschlossen."
-      },
-      "ai_undo_failed": {
-        "text": "KI-Änderungen konnten nicht rückgängig gemacht werden."
-      },
-      "ai_undo_conflict": {
-        "text": "KI-Änderungen konnten nicht rückgängig gemacht werden. Öffne den Versionsverlauf, um den Workflow zu prüfen."
-      },
-      "ai_saving": {
-        "text": "Workflow vorbereitet. Wird jetzt gespeichert."
-      },
-      "ai_preview_label": {
-        "text": "Workflow-Vorschau"
-      },
-      "ai_preview_saving": {
-        "text": "Wird gespeichert..."
-      },
-      "ai_preview_pending": {
-        "text": "Diese Vorschau wartet noch auf den Abschluss des Speicherns."
-      },
-      "ai_preview_steps": {
-        "text": "Vorgeschlagene Schritte"
-      },
-      "ai_validated_step": {
-        "text": "{count} Schritt validiert"
-      },
-      "ai_validated_steps": {
-        "text": "{count} Schritte validiert"
-      },
-      "ai_stopping": {
-        "text": "Wird gestoppt…"
-      },
-      "ai_check_status": {
-        "text": "Speicherstatus prüfen"
-      },
-      "ai_create_submit": {
-        "text": "Workflow erstellen"
-      },
-      "ai_create_submitting": {
-        "text": "Wird erstellt..."
-      },
-      "website_text": {
-        "text": "Seitentext"
-      },
-      "website_has_changed": {
-        "text": "Seit dem letzten erfolgreichen Lesen geändert"
-      },
-      "website_changes": {
-        "text": "Änderungen seit dem letzten erfolgreichen Lesen"
-      },
-      "website_source_url": {
-        "text": "Website-Link"
-      },
-      "website_change_guidance": {
-        "text": "Das erste erfolgreiche Lesen speichert den Ausgangspunkt, ohne eine Nachricht zu senden. Spätere Ausführungen prüfen nur Änderungen. Fehlgeschlagene oder blockierte Leseversuche behalten die letzte erfolgreiche Version."
-      },
-      "website_read_blocked": {
-        "text": "Diese Website hat das Lesen blockiert. Die letzte erfolgreiche Version wurde beibehalten."
-      },
-      "website_read_unusable": {
-        "text": "Diese Website hat keinen brauchbaren, vollständigen Text geliefert. Die letzte erfolgreiche Version wurde beibehalten."
-      },
-      "website_change_too_large": {
-        "text": "Die Seite oder ihre Änderungen sind zu groß für eine vollständige Prüfung. Die letzte erfolgreiche Version wurde beibehalten."
-      },
-      "website_change_one_page": {
-        "text": "Verwende eine Website-URL pro Lesevorgang und eine Website-Änderungsquelle pro Bedingung."
-      },
-      "website_change_pending_limit": {
-        "text": "Zu viele Änderungen warten auf Auswertung oder Zustellung. Die letzte erfolgreiche Version wurde beibehalten."
       }
     },
     "templates": {

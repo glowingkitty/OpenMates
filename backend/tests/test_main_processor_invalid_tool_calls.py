@@ -19,6 +19,10 @@ from types import SimpleNamespace
 
 import pytest
 
+# Context integration uses real immutable guide/source models. Load the main
+# module before the legacy dependency fallbacks so this file also runs alone.
+from backend.apps.ai.processing import main_processor as _context_main_processor
+
 
 _INSTALLED_STUB_MODULES: dict[str, types.ModuleType] = {}
 
@@ -217,7 +221,7 @@ async def _noop_credit_headroom(**_kwargs):
 billing_stub.ensure_credit_headroom = _noop_credit_headroom
 _install_stub("backend.shared.python_utils.billing_utils", billing_stub)
 
-main_processor = importlib.import_module("backend.apps.ai.processing.main_processor")
+main_processor = _context_main_processor
 for module_name, stub in list(_INSTALLED_STUB_MODULES.items()):
     if sys.modules.get(module_name) is stub:
         del sys.modules[module_name]
@@ -1021,3 +1025,23 @@ def test_diff_prompt_skips_when_no_prior_embed_reference_exists() -> None:
     )
 
     assert asyncio.run(_has_diffable_embeds_for_prompt(request)) is False
+
+
+async def test_rules_receipt_describes_only_guides_in_actual_dispatched_prompt(monkeypatch) -> None:
+    from backend.shared.python_utils.rule_loader import RuleDefinition
+    from unittest.mock import AsyncMock
+    guide = RuleDefinition(id="personal:guide", title="API practice", description="Review API changes",
+        when_to_use="Changing an API", body="Synthetic private guide sentinel", revision="a" * 64, source="personal")
+    section = "--- Practice guides ---\n" + guide.body
+    loader = AsyncMock(return_value=(section, [guide]))
+    monkeypatch.setattr(main_processor, "_load_main_agentic_context", loader)
+    output, calls = await _run_mocked_protocol_guard_main_processor(monkeypatch,
+        streams=[["A clear answer."]])
+    assert len(calls) == 1 and section in calls[0]["system_prompt"]
+    receipts = [chunk["receipt"] for chunk in output if isinstance(chunk, dict) and chunk.get("__chat_context_applied__")]
+    assert len(receipts) == 1 and receipts[0]["type"] == "rules_loaded"
+    assert receipts[0]["rules"][0]["revision"] == guide.revision
+    assert receipts[0]["rules"][0]["body"] == guide.body
+    debug = [chunk for chunk in output if isinstance(chunk, dict) and chunk.get("__debug_metadata__")]
+    assert all(guide.body not in str(chunk) for chunk in debug)
+    assert loader.await_count == 1

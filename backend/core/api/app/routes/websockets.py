@@ -583,6 +583,13 @@ async def listen_for_cache_events(app: FastAPI):
                                 logger.info(f"Redis Listener: Sent connected-account receipt {action_id} to user {user_id} (chat: {chat_id}) via WebSocket ({len(device_ids)} device(s))")
                             else:
                                 logger.warning(f"Redis Listener: User {user_id} has no active connections for connected-account receipt {action_id}")
+                    elif event_type in ("chat_context_applied", "project_authoring_available"):
+                        # These transient, owner-scoped events are encrypted by the
+                        # receiving client before any durable chat persistence.
+                        if payload.get("chat_id"):
+                            await manager.broadcast_to_user(
+                                message={"type": event_type, "payload": payload}, user_id=user_id,
+                            )
                     elif event_type == "focus_phases_updated":
                         if payload.get("chat_id") and isinstance(payload.get("states"), dict):
                             await manager.broadcast_to_user(

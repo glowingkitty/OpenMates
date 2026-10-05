@@ -96,6 +96,46 @@ describe("remote command origin client", () => {
     assert.match(output, /\\u001b\[2J/);
   });
 
+  // contract-test: supporting surface=cli assertions=code-run.remote.semantic-risk-review,code-run.remote.explicit-approval
+  it("keeps a semantically escalated command at explicit one-run review despite preset approval", async () => {
+    const escalated: RemoteCommandReview = { ...review, approval_requirement: "one_run" };
+    assert.match(renderRemoteCommandReview(escalated), /explicit one-run approval required/);
+    const handlers = new Map<string, (payload: unknown) => void>();
+    const sent: Array<{ type: string; payload: unknown }> = [];
+    const ws = {
+      onMessageType(type: string, handler: (payload: unknown) => void) { handlers.set(type, handler); return () => handlers.delete(type); },
+      onClose() { return () => {}; },
+      async sendAsync(type: string, payload: unknown) { sent.push({ type, payload }); },
+      notifyRemoteCommandReviewDeferred() {},
+    };
+    const key = new Uint8Array(32).fill(5);
+    const client = {
+      async getActiveProjectFocus() { return { project_id: review.project_id, team_id: null }; },
+      async getProject() { return { project: {} }; },
+      async decryptProjectKey() { return key; },
+    };
+    let reviewed: (() => void) | undefined;
+    const handled = new Promise<void>((resolve) => { reviewed = resolve; });
+    const stop = registerRemoteCommandOriginClient({
+      ws: ws as never, client: client as never, chatId: review.chat_id,
+      onReview: async () => {
+        reviewed?.();
+        return { kind: "preset", preset_id: "checks", definition_digest: "a".repeat(64) };
+      },
+    });
+    handlers.get("remote_command_review_required")?.(escalated);
+    await handled;
+    // Flush the async review handler through the Project-key lookup and denied preparation.
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(sent.length, 0);
+    stop();
+
+    const prepared = await prepareRemoteCommandApproval(escalated, key, { kind: "one_run" });
+    const decrypted = JSON.parse(await decryptWithAesGcmCombined(String(prepared.encrypted_request), key) ?? "null");
+    assert.deepEqual(decrypted.policy, escalated.command);
+    assert.deepEqual(decrypted.approval, { kind: "one_run" });
+  });
+
   // contract-test: supporting surface=cli assertions=code-run.remote.explicit-approval,code-run.remote.managed-jobs
   it("encrypts the exact portable request and includes approval in its Project-bound identity", async () => {
     const key = new Uint8Array(32).fill(7);

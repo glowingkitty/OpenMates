@@ -96,6 +96,33 @@ struct ProjectFileJob {
         self.leaseExpiresAt = leaseExpiresAt
     }
 
+    /// Internal hosted authoring adapter descriptor; this does not claim a
+    /// source lease or bypass authenticated Project/CAS commit authorization.
+    init(authoringOperationID: String, chatID: String, projectID: String, mutation: ProjectFileMutation) {
+        self.operationID = authoringOperationID
+        self.chatID = chatID
+        self.projectID = projectID
+        self.sourceID = nil
+        self.operation = mutation.operation
+        self.arguments = ["path": mutation.path]
+        self.leaseToken = ""
+        self.leaseGeneration = 0
+        self.leaseExpiresAt = 0
+    }
+
+    /// Same inert descriptor for selected owned context reads; no write lease.
+    init(contextChatID: String, projectID: String, path: String) {
+        self.operationID = UUID().uuidString.lowercased()
+        self.chatID = contextChatID
+        self.projectID = projectID
+        self.sourceID = nil
+        self.operation = "read_text"
+        self.arguments = ["path": path]
+        self.leaseToken = ""
+        self.leaseGeneration = 0
+        self.leaseExpiresAt = 0
+    }
+
     var scope: [String: Any] { ["protocol_version": 1, "operation_id": operationID,
                                 "chat_id": chatID, "project_id": projectID] }
     var resultScope: [String: Any] {

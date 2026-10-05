@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.notifications@1
+specification: feature.notifications@2
 
 settings_ack:
   - id: email-enable-awaits-ack
@@ -76,3 +76,20 @@ web_stacked_deck:
     surface: gui.web
     input: {active_in_app_notifications: 3, user_action: dismiss_front}
     expect: {front_interactive: true, back_items_inert: true, back_items_faded_scaled: true, smooth_transition: true, next_promoted: true}
+
+focus_authoring_route:
+- id: background-focus-ready-target
+  assertion_ids:
+  - notifications.project-authoring.result-route
+  given: Alice continues chatting while a Project Focus update saves successfully.
+  when: Its ready notification arrives and Alice opens it after reconnect.
+  then: It opens the authorized saved Focus embed, also accessible in the Project workspace. Duplicate completion
+    emits one result event; revoked access reveals no private content and failed save never claims ready.
+- id: background-workflow-ready-target
+  assertion_ids:
+  - notifications.project-authoring.result-route
+  given: A Project Workflow background update completes validation and its bound remote YAML has been saved.
+  when: Alice receives and opens the completion notification.
+  then: It routes to the authorized updated Workflow embed/Project workspace. Pending file persistence or a
+    partial update is shown as pending/partial rather than complete success; private graph/chat text stays
+    out of notification payloads.

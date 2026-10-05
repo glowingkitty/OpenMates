@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.notifications
-version: 1
-status: approved
+version: 2
+status: draft
 title: Notifications
 summary: >
   OpenMates notifications let authenticated users persist notification settings,
@@ -146,6 +146,17 @@ assertions:
     must: When multiple in-app web notifications are active, the front notification remains fully visible and interactive while the next two are visually stacked behind it with reduced opacity and scale, hidden from accessibility, and stack-state changes such as dismissal promote the next notification to the front with smooth transform and opacity transitions.
     depends_on: [applies_to.gui, examples.web_stacked_deck]
 
+  - id: notifications.project-authoring.result-route
+    type: behavior
+    must: A successfully saved Project Focus or Workflow authoring result emits an idempotent privacy-safe ready notification
+      with an authorized result embed target and Project workspace route. Respect existing delivery settings/history
+      semantics. Opening the notification resolves current access before exposing content; revoked/deleted results
+      use an unavailable state. Partial, failed, pending-file or conflicting authoring remains visible without a success notification,
+      and private chat, Focus instructions or Workflow configuration are excluded from payloads and durable metadata. Web/Apple/CLI history
+      preserve the same result identity and state.
+    depends_on:
+    - examples.focus_authoring_route
+
 applies_to:
   rest_api:
     required: true
@@ -171,4 +182,12 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [settings_ack, email_delivery, push_delivery, notification_history, privacy_boundaries, delivery_idempotency, web_stacked_deck]
+  required_groups:
+  - settings_ack
+  - email_delivery
+  - push_delivery
+  - notification_history
+  - privacy_boundaries
+  - delivery_idempotency
+  - web_stacked_deck
+  - focus_authoring_route

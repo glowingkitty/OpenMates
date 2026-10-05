@@ -12,7 +12,7 @@ vi.mock('../cryptoService', () => cryptoMocks);
 vi.mock('../projectService', () => ({ listProjects: vi.fn(async () => []) }));
 vi.mock('../encryption/ChatKeyManager', () => ({ chatKeyManager: { getKey: vi.fn(async () => null) } }));
 
-import { getUserPlan, listUserPlans, peekUserPlans, updateUserPlan, type EncryptedUserPlanRecord } from '../userPlanService';
+import { getFreshUserPlan, getUserPlan, listUserPlans, peekUserPlans, updateUserPlan, type EncryptedUserPlanRecord } from '../userPlanService';
 
 function planRecord(status: 'draft' | 'active' = 'draft', version = 1): EncryptedUserPlanRecord {
   return {
@@ -52,5 +52,21 @@ describe('userPlanService selected reads and query membership', () => {
     expect(peekUserPlans({ status: 'draft' })).toEqual([]);
     expect(peekUserPlans({ status: 'active' })?.map((candidate) => candidate.plan_id)).toEqual(['plan-1']);
     expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=plans.approval.revision-bound,chats.direction.context-assessment
+  it('bypasses warm workspace records for the exact current approved Plan snapshot', async () => {
+    userProfile.update((profile) => ({ ...profile, user_id: 'fresh-plan-reader' }));
+    const current = { ...planRecord('active', 9), approval_state: 'approved',
+      submitted_revision_id: 'revision-9', approved_revision_id: 'revision-9' };
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify({ plans: [planRecord('active', 1)] }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ plan: current }), { status: 200 }));
+    await listUserPlans({ status: 'active' });
+    const fresh = await getFreshUserPlan('plan-1', 'team-a');
+    expect(fresh.version).toBe(9);
+    expect(fresh.approvalState).toBe('approved');
+    expect(fresh.approvedRevisionId).toBe('revision-9');
+    expect(String(fetchMock.mock.calls[1]?.[0])).toBe('https://api.test/v1/user-plans/plan-1?team_id=team-a');
   });
 });

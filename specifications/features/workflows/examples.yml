@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.workflows@9
+specification: feature.workflows@10
 portable_definition:
 - id: cli-web-definition-roundtrip
   given: Alice has saved a Berlin weather Workflow whose Check reads the earlier weather result and whose Send message uses an input mapping and typed result references.
@@ -436,3 +436,38 @@ result_return:
   given: A one-time graph declares a bounded typed return projection.
   when: It completes without a Send node.
   then: The initiating owner chat receives run identity, status and the selected values, without full run context.
+
+relevance_discovery:
+- id: saved-workflow-current-chat
+  assertion_ids:
+  - workflows.chat.relevance-discovery
+  given: A Focus activation makes an existing permitted research-summary Workflow relevant to the current chat.
+  when: Jev shortlists it and main processing invokes it with an owned current-chat destination override.
+  then: The saved graph runs under existing admission/cancellation rules and delivers to this chat without
+    creating a regular new chat or modifying its saved destination.
+remote_project_save:
+- id: save-in-selected-remote-folder
+  assertion_ids:
+  - workflows.portability.remote-project-save
+  given: Alice saves a Workflow in the selected SocialHub remote folder docs/automations with write permission.
+  when: The portable YAML write succeeds, or the executor disconnects before writing.
+  then: Success leaves the canonical .workflow.yml file in docs/automations. Disconnection is pending/failed
+    rather than a claimed remote save; retry preserves one Workflow and respects file conflicts.
+
+project_update_recommendation:
+- id: inactive-workflow-full-assessment
+  assertion_ids:
+  - workflows.project.update-recommendation
+  given: SocialHub has a disabled Release checklist Workflow whose summary matches reusable guidance in a chat.
+  when: Catalog Jev selects it and a second assessment receives its authorized full saved graph.
+  then: Update appears only if the full graph benefits from a change. Existing Checks are inspected as configuration,
+    not executed; no authoring LLM is called before click.
+project_update_authoring:
+- id: background-workflow-update-versions
+  assertion_ids:
+  - workflows.project.update-authoring
+  given: A Release checklist run uses saved version 3 while the chat shows a confirmed Update recommendation.
+  when: Alice clicks Update, invoking the existing Jev + LLM Workflow authoring pipeline in the background, and its validated edit saves version 4.
+  then: Chat remains usable, one job edits the existing Workflow under its existing validation/encryption/conflict
+    guards, and saved completion links to its embed. Future runs use version 4; the current run keeps version
+    3.

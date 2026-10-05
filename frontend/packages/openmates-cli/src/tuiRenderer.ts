@@ -26,12 +26,15 @@ import { homeTuiApps, renderTuiAppsHome, renderTuiApp, renderTuiAppIdentity, ren
   type TuiApp, type TuiAppsTab, type TuiAppsSkillTab, type TuiAppsSkillDetails, type TuiAppsResultsPage, type TuiAppsSavedResult, type TuiAppsPreparedRun, type TuiAppsWorkflowPage } from "./tuiAppsWorkspace.js";
 import { parseMessageSegments } from "./messageSegments.js";
 import { formatEmbedPreviewLines } from "./embedRenderers.js";
+import { parseChatContextContent, chatContextSummary } from "./chatContextEvents.js";
+import type { ProjectFocusCountdown } from "./projectFocusCountdown.js";
 
 export type TuiScreen = "start" | "help" | "interests" | "examples" | "example" | "chats" | "chat" | "embed" | "apps" | "app" | "app-skill" | "app-result" | "projects" | "project" | "workflows" | "workflow" | "tasks" | "task" | "status";
 export type TuiWorkspace = "chats" | "apps" | "projects" | "tasks" | "workflows";
 export type TuiFocus = "composer" | "content" | "inspiration" | "sidebar" | "navigation";
 
 export type TuiMessage = {
+  id?: string;
   role: "user" | "assistant" | "system";
   content: string;
   title?: string | null;
@@ -129,6 +132,9 @@ export type TuiState = {
   expandedWorkflowRunNodeId: string | null;
   workflowEdit: TuiWorkflowEdit | null;
   messages: TuiMessage[];
+  projectFocusPending: ProjectFocusCountdown | null;
+  chatContextAuthoringControls: Record<string, { stop: () => void; approve?: () => void; reviewLines?: string[]; reviewed?: boolean; watching?: boolean }>;
+  chatContextAuthoringJobs: Record<string, { projectId: string; jobId: string | null; status: string; approvalDigest?: string }>;
   status: string | null;
   isBusy: boolean;
 };
@@ -185,6 +191,7 @@ export function createInitialTuiState(): TuiState {
     expandedWorkflowRunNodeId: null,
     workflowEdit: null,
     messages: [],
+    projectFocusPending: null, chatContextAuthoringJobs: {}, chatContextAuthoringControls: {},
     status: null,
     isBusy: false,
   };
@@ -466,11 +473,25 @@ function renderExampleChat(state: TuiState, width: number): string[] {
 
 function renderChat(state: TuiState, width: number): string[] {
   const lines = renderChatHeader(state, width);
+  let contextIndex = 0;
   for (const message of state.messages) {
+    const event = message.role === "system" ? parseChatContextContent(message.content) : null;
+    if (event) {
+      contextIndex++;
+      lines.push(`${chatContextSummary(event)} · /context ${contextIndex}`);
+      if (event.type === "project_authoring_recommendation") {
+        const job = state.chatContextAuthoringJobs[event.event_id];
+        lines.push(job ? `Authoring: ${job.status} · ${job.status === "needs_write_approval" ? "/authoring-save" : "/authoring-refresh"} ${contextIndex}`
+          : `[${event.action === "create" ? "Create" : "Update"} ${event.kind === "focus" ? "Focus" : "Workflow"}] /focus-author ${contextIndex}`);
+      }
+      lines.push("");
+      continue;
+    }
     lines.push(message.title ?? labelForRole(message.role));
     lines.push(...renderMessageContent(message.content, width));
     lines.push("");
   }
+  if (state.projectFocusPending) lines.push("Project access starts after the countdown. /project-focus-reject to cancel.");
   if (state.isBusy) lines.push("Sophia is typing...");
   if (state.followUpSuggestions.length) lines.push("", "Suggestions", ...state.followUpSuggestions.slice(0, 3).map((s, i) => `  ${i + 1}. ${s}`));
   if (state.status) lines.push("", state.status);

@@ -5813,6 +5813,10 @@ final class ChatSendPipeline {
                 outboundPayload["focus_phase_state"] = states
             }
         }
+        // Optional owned reference material is transient and never restores Project consent.
+        if let context = try? await NativeProjectAuthoringClient.shared.requestContext(chatID: chat.id, text: contentForSend) {
+            outboundPayload.merge(context, uniquingKeysWith: { _, new in new })
+        }
         let sendableEmbeds = preparedEmbeds.compactMap(\.serverPayload)
         if !sendableEmbeds.isEmpty {
             outboundPayload["embeds"] = sendableEmbeds
@@ -6498,7 +6502,7 @@ final class ChatSendPipeline {
                 "role": "system",
                 "encrypted_content": encryptedContent,
                 "created_at": createdAtUnix,
-                "status": "waiting_for_user"
+                "status": AgentContextEvent.parse(message.content ?? "") == nil ? "waiting_for_user" : "synced"
             ]
             if let userMessageId { systemMessage["user_message_id"] = userMessageId }
             do {
@@ -6510,6 +6514,7 @@ final class ChatSendPipeline {
                     ]
                 ))
                 completedAssistantStorageSent.insert(message.id)
+                PendingAssistantResponseQueue.shared.remove(messageId: message.id)
             } catch {
                 throw error
             }

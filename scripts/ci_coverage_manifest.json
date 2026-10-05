@@ -111,7 +111,9 @@
         "notification-email-preferences.spec.ts",
         "notification-email-links.spec.ts",
         "chat-sidebar-projects.spec.ts",
-        "maps-discovery-sdk.spec.ts"
+        "maps-discovery-sdk.spec.ts",
+        "cli-project-focus-settings.spec.ts",
+        "jev-project-context-api.spec.ts"
       ]
     },
     "external_integration": {
@@ -349,7 +351,10 @@
         "components/chat-project-navigation.spec.ts",
         "components/project-chat-previews.spec.ts",
         "components/settings-storage-overview.spec.ts",
-        "components/maps-discovery.spec.ts"
+        "components/maps-discovery.spec.ts",
+        "components/agent-context-message.spec.ts",
+        "components/project-focus-specialist.spec.ts",
+        "components/rule-document-manager.spec.ts"
       ]
     },
     "synthetic_artifact": {
@@ -687,7 +692,7 @@
     },
     "cli-images.spec.ts": {
       "dependency": "live_media_provider_and_storage",
-      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: image generation via chat: zero-knowledge pipeline create \u2192 embed show (JSON). Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress. Add isolated object storage/upload/scan and required media worker; preserve real image safety, transcription, file encryption, or PDF processing assertions.",
+      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: image generation via chat: zero-knowledge pipeline create → embed show (JSON). Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress. Add isolated object storage/upload/scan and required media worker; preserve real image safety, transcription, file encryption, or PDF processing assertions.",
       "user_input_required": true,
       "source_environment_names": [
         "PLAYWRIGHT_TEST_BASE_URL"
@@ -705,7 +710,7 @@
     },
     "cli-skills-pdf.spec.ts": {
       "dependency": "live_media_provider_and_storage",
-      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: pdf upload via web app \u2192 AI reads via CLI chats (pdf/read skill). Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress. Add isolated object storage/upload/scan and required media worker; preserve real image safety, transcription, file encryption, or PDF processing assertions.",
+      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: pdf upload via web app → AI reads via CLI chats (pdf/read skill). Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress. Add isolated object storage/upload/scan and required media worker; preserve real image safety, transcription, file encryption, or PDF processing assertions.",
       "user_input_required": true,
       "source_environment_names": [
         "PLAYWRIGHT_TEST_BASE_URL"
@@ -795,7 +800,7 @@
     },
     "deeplink-webhook-message.spec.ts": {
       "dependency": "original_live_inference",
-      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: deeplink-webhook-message \u2014 deep link to webhook chat shows system message + AI response. Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress.",
+      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: deeplink-webhook-message — deep link to webhook chat shows system message + AI response. Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress.",
       "user_input_required": true,
       "source_environment_names": [
         "PLAYWRIGHT_TEST_API_URL"
@@ -912,7 +917,7 @@
     },
     "newsletter-flow.spec.ts": {
       "dependency": "real_brevo_delivery_and_gmail_reader",
-      "next_action": "For newsletter: subscribe \u2192 confirm \u2192 unsubscribe \u2192 re-subscribe, provision dedicated approved Brevo delivery and Gmail inbox-reader credentials plus fresh per-run aliases. The current provider sends Brevo HTTP, so adding SMTP Mailpit alone does not preserve the original real delivery assertions. Core signup Redis verification is not email-delivery proof.",
+      "next_action": "For newsletter: subscribe → confirm → unsubscribe → re-subscribe, provision dedicated approved Brevo delivery and Gmail inbox-reader credentials plus fresh per-run aliases. The current provider sends Brevo HTTP, so adding SMTP Mailpit alone does not preserve the original real delivery assertions. Core signup Redis verification is not email-delivery proof.",
       "user_input_required": true,
       "source_environment_names": [
         "GMAIL_TEST_ADDRESS",
@@ -974,31 +979,31 @@
     },
     "reminder-button-settings.spec.ts": {
       "dependency": "reminder_scheduler_and_live_seed",
-      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: reminder \u2014 settings page: create reminder via top-bar button and verify it fires. Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress. Add actual reminder scheduling/beat and time-bounded fresh reminder cleanup; preserve firing/cancellation assertions.",
+      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: reminder — settings page: create reminder via top-bar button and verify it fires. Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress. Add actual reminder scheduling/beat and time-bounded fresh reminder cleanup; preserve firing/cancellation assertions.",
       "user_input_required": true,
       "source_environment_names": []
     },
     "reminder-email.spec.ts": {
       "dependency": "real_brevo_delivery_and_gmail_reader",
-      "next_action": "For reminder \u2014 email: reminder email arrives after browser is closed, provision dedicated approved Brevo delivery and Gmail inbox-reader credentials plus fresh per-run aliases. The current provider sends Brevo HTTP, so adding SMTP Mailpit alone does not preserve the original real delivery assertions. Core signup Redis verification is not email-delivery proof.",
+      "next_action": "For reminder — email: reminder email arrives after browser is closed, provision dedicated approved Brevo delivery and Gmail inbox-reader credentials plus fresh per-run aliases. The current provider sends Brevo HTTP, so adding SMTP Mailpit alone does not preserve the original real delivery assertions. Core signup Redis verification is not email-delivery proof.",
       "user_input_required": true,
       "source_environment_names": []
     },
     "reminder-new-chat.spec.ts": {
       "dependency": "reminder_scheduler_and_live_seed",
-      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: reminder \u2014 new-chat: reminder fires into a newly created chat. Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress. Add actual reminder scheduling/beat and time-bounded fresh reminder cleanup; preserve firing/cancellation assertions.",
+      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: reminder — new-chat: reminder fires into a newly created chat. Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress. Add actual reminder scheduling/beat and time-bounded fresh reminder cleanup; preserve firing/cancellation assertions.",
       "user_input_required": true,
       "source_environment_names": []
     },
     "reminder-redesign.spec.ts": {
       "dependency": "reminder_scheduler_and_live_seed",
-      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: reminder redesign \u2014 UI matches Figma: header, type dropdown, explainer, fields. Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress. Add actual reminder scheduling/beat and time-bounded fresh reminder cleanup; preserve firing/cancellation assertions.",
+      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: reminder redesign — UI matches Figma: header, type dropdown, explainer, fields. Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress. Add actual reminder scheduling/beat and time-bounded fresh reminder cleanup; preserve firing/cancellation assertions.",
       "user_input_required": true,
       "source_environment_names": []
     },
     "reminder-repeating-and-cancel.spec.ts": {
       "dependency": "reminder_scheduler_and_live_seed",
-      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: reminder \u2014 daily repeating cancellation prevents firing. Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress. Add actual reminder scheduling/beat and time-bounded fresh reminder cleanup; preserve firing/cancellation assertions.",
+      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: reminder — daily repeating cancellation prevents firing. Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress. Add actual reminder scheduling/beat and time-bounded fresh reminder cleanup; preserve firing/cancellation assertions.",
       "user_input_required": true,
       "source_environment_names": [
         "PLAYWRIGHT_TEST_BASE_URL"
@@ -1006,7 +1011,7 @@
     },
     "reminder-same-chat.spec.ts": {
       "dependency": "reminder_scheduler_and_live_seed",
-      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: reminder \u2014 same-chat: system message fires in the same chat. Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress. Add actual reminder scheduling/beat and time-bounded fresh reminder cleanup; preserve firing/cancellation assertions.",
+      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: reminder — same-chat: system message fires in the same chat. Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress. Add actual reminder scheduling/beat and time-bounded fresh reminder cleanup; preserve firing/cancellation assertions.",
       "user_input_required": true,
       "source_environment_names": []
     },
@@ -1160,7 +1165,7 @@
     },
     "skill-images-generate-safety-upload.spec.ts": {
       "dependency": "live_media_provider_and_storage",
-      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: uploaded photo + benign edit \u2192 safety pipeline allows, AI returns generated image. Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress. Add isolated object storage/upload/scan and required media worker; preserve real image safety, transcription, file encryption, or PDF processing assertions.",
+      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: uploaded photo + benign edit → safety pipeline allows, AI returns generated image. Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress. Add isolated object storage/upload/scan and required media worker; preserve real image safety, transcription, file encryption, or PDF processing assertions.",
       "user_input_required": true,
       "source_environment_names": []
     },
@@ -1325,7 +1330,7 @@
     },
     "webhook-incoming-chat.spec.ts": {
       "dependency": "original_live_inference",
-      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: webhook \u2014 create key, POST to /incoming, new chat appears with AI response. Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress.",
+      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: webhook — create key, POST to /incoming, new chat appears with AI response. Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress.",
       "user_input_required": true,
       "source_environment_names": [
         "PLAYWRIGHT_TEST_API_URL"

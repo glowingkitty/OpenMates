@@ -9,6 +9,7 @@
 //          frontend/packages/ui/src/components/embeds/diagrams/MermaidDiagramEmbedFullscreen.svelte
 //          frontend/packages/ui/src/components/embeds/math/MathPlotEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/math/MathPlotEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/focus_mode/FocusModeActivationEmbed.svelte
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
 //          TypographyTokens.generated.swift, GradientTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
@@ -16,8 +17,13 @@
 // Assertions: contracts.diagrams.private-rendering, contracts.diagrams.revision-pinned-editing
 // Specification: specifications/features/chats/specification.yml
 // Assertions: chats.surface.semantic-parity (MathPlot web/native rendering)
+// Specification: specifications/features/focus-modes/specification.yml
+// Assertions: focus-modes.countdown
+// Specification: specifications/features/projects/specification.yml
+// Assertions: projects.focus.inferred-consent, projects.files.no-server-decryption-authority
 
 import SwiftUI
+import Combine
 #if os(iOS)
 import UIKit
 #elseif os(macOS)
@@ -1560,9 +1566,151 @@ struct ReminderRenderer: View {
     }
 }
 
+/// Live server proposals only. Embed/history mounting cannot start activation.
+struct PendingProjectFocusRecord: Equatable {
+    let chatID: String
+    let embedID: String
+    let focusID: String
+    let projectID: String
+    let deadline: Date
+    let scope: UUID
+}
+
+@MainActor
+final class PendingProjectFocusStore: ObservableObject {
+    static let shared = PendingProjectFocusStore()
+    enum Status { case waiting, confirming, committing, activated, cancelled, failed }
+    struct Entry {
+        let record: PendingProjectFocusRecord
+        var status: Status
+    }
+    @Published private(set) var entries: [String: Entry] = [:]
+    private var scope: UUID?
+    private var tasks: [String: Task<Void, Never>] = [:]
+    private var currentByChat: [String: String] = [:]
+    private var complete: (@MainActor (PendingProjectFocusRecord) async throws -> Void)?
+    private var reject: (@MainActor (PendingProjectFocusRecord) async throws -> Void)?
+
+    func configure(scope: UUID,
+                   complete: @escaping @MainActor (PendingProjectFocusRecord) async throws -> Void,
+                   reject: @escaping @MainActor (PendingProjectFocusRecord) async throws -> Void) {
+        if self.scope != scope { reset() }
+        self.scope = scope
+        self.complete = complete
+        self.reject = reject
+    }
+
+    func reset() {
+        tasks.values.forEach { $0.cancel() }
+        tasks = [:]; entries = [:]; currentByChat = [:]
+        scope = nil; complete = nil; reject = nil
+    }
+
+    private func key(chatID: String, embedID: String) -> String { chatID + ":" + embedID }
+    func entry(chatID: String, embedID: String) -> Entry? { entries[key(chatID: chatID, embedID: embedID)] }
+    func isCurrent(_ record: PendingProjectFocusRecord) -> Bool {
+        let key = key(chatID: record.chatID, embedID: record.embedID)
+        guard scope == record.scope, currentByChat[record.chatID] == key,
+              let entry = entries[key], entry.record == record else { return false }
+        return entry.status == .waiting || entry.status == .confirming || entry.status == .committing
+    }
+
+    /// The final synchronous socket fence commits the accepted decision.
+    /// Cancellation remains effective throughout private loading, until this boundary.
+    func beginCommit(_ record: PendingProjectFocusRecord) throws {
+        let key = key(chatID: record.chatID, embedID: record.embedID)
+        guard isCurrent(record), entries[key]?.status == .confirming else { throw ProjectsWorkspaceError.invalidContext }
+        entries[key]?.status = .committing
+    }
+
+    func ingest(fields: [String: Any], scope: UUID) {
+        guard self.scope == scope, complete != nil, reject != nil,
+              let chatID = fields["chat_id"] as? String, !chatID.isEmpty,
+              let embedID = fields["embed_id"] as? String, UUID(uuidString: embedID) != nil,
+              let focusID = fields["focus_id"] as? String, focusID.hasPrefix("project-"),
+              let projectID = UUID(uuidString: String(focusID.dropFirst("project-".count))),
+              let expires = fields["expires_at"] as? Double, expires.isFinite else { return }
+        let key = key(chatID: chatID, embedID: embedID)
+        // Repeated transport delivery cannot replay a consumed countdown.
+        guard entries[key] == nil else { return }
+        if let previous = currentByChat[chatID], var old = entries[previous],
+           old.status == .waiting || old.status == .confirming || old.status == .committing {
+            old.status = .cancelled; entries[previous] = old
+        }
+        tasks[chatID]?.cancel()
+        let record = PendingProjectFocusRecord(chatID: chatID, embedID: embedID,
+            focusID: focusID, projectID: projectID.uuidString.lowercased(),
+            deadline: Date(timeIntervalSince1970: expires), scope: scope)
+        currentByChat[chatID] = key
+        entries[key] = Entry(record: record, status: .waiting)
+        tasks[chatID] = Task { [weak self] in
+            guard let self else { return }
+            do {
+                let remaining = max(0, record.deadline.timeIntervalSinceNow)
+                try await Task.sleep(for: .seconds(remaining))
+                guard !Task.isCancelled, self.isCurrent(record), let complete = self.complete else { return }
+                self.entries[key]?.status = .confirming
+                // The configured first-party callback confirms the server deadline
+                // before opening any private Project metadata or settings.
+                try await complete(record)
+                guard !Task.isCancelled, self.isCurrent(record) else { return }
+                self.entries[key]?.status = .activated
+            } catch {
+                guard self.isCurrent(record) else { return }
+                self.entries[key]?.status = .failed
+                if let reject = self.reject { try? await reject(record) }
+            }
+        }
+    }
+
+    func cancel(chatID: String, embedID: String) {
+        let key = key(chatID: chatID, embedID: embedID)
+        guard let entry = entries[key], isCurrent(entry.record),
+              entry.status == .waiting || entry.status == .confirming, let reject else { return }
+        entries[key]?.status = .cancelled
+        tasks[chatID]?.cancel()
+        Task { [weak self] in
+            guard let self, self.scope == entry.record.scope,
+                  self.entries[key]?.record == entry.record else { return }
+            try? await reject(entry.record)
+        }
+    }
+
+    /// Called only after the explicit first-party activation has been accepted.
+    /// Clear a prior declined timer association without deriving any new grant.
+    func clearForExplicitActivation(chatID: String) {
+        tasks.removeValue(forKey: chatID)?.cancel()
+        if let key = currentByChat.removeValue(forKey: chatID),
+           entries[key]?.status == .waiting || entries[key]?.status == .confirming || entries[key]?.status == .committing {
+            entries[key]?.status = .cancelled
+        }
+    }
+
+    /// A fresh metadata-only current-binding response established inactivity.
+    /// Later regular turns may proceed; live countdowns remain cancellable.
+    func clearAfterNoActiveBase(chatID: String) {
+        guard let key = currentByChat[chatID], let status = entries[key]?.status,
+              status == .cancelled || status == .failed else { return }
+        currentByChat.removeValue(forKey: chatID)
+        tasks.removeValue(forKey: chatID)?.cancel()
+    }
+
+    /// Waiting is shared with the live timer; it never implies a Project grant.
+    /// Callers still fetch the fresh authoritative active binding before loading.
+    func confirmBeforeContext(chatID: String) async throws {
+        guard let key = currentByChat[chatID], let initial = entries[key] else { return }
+        if let task = tasks[chatID] { await task.value }
+        guard scope == initial.record.scope, entries[key]?.record == initial.record,
+              entries[key]?.status == .activated else { throw ProjectsWorkspaceError.invalidContext }
+    }
+}
+
 struct FocusModeRenderer: View {
     let data: [String: AnyCodable]?
     let mode: EmbedDisplayMode
+    var embedID: String = ""
+    var chatID: String? = nil
+    @ObservedObject private var pending = PendingProjectFocusStore.shared
 
     private var focusID: String { data?["focus_id"]?.value as? String ?? "" }
     private var appID: String {
@@ -1570,6 +1718,19 @@ struct FocusModeRenderer: View {
     }
     private var focusName: String {
         data?["focus_mode_name"]?.value as? String ?? focusID
+    }
+    private var isProject: Bool { focusID.hasPrefix("project-") }
+    private var entry: PendingProjectFocusStore.Entry? {
+        guard let chatID else { return nil }
+        return pending.entry(chatID: chatID, embedID: embedID)
+    }
+    private var isCancellable: Bool { entry?.status == .waiting || entry?.status == .confirming }
+    private var isPending: Bool { isCancellable || entry?.status == .committing }
+    private var isActivated: Bool { !isProject || entry?.status == .activated }
+    private func status(at date: Date) -> String {
+        if isPending, let entry { return AppStrings.focusModeActivating(seconds: max(0, Int(ceil(entry.record.deadline.timeIntervalSince(date))))) }
+        if isActivated { return AppStrings.focusModeActivated }
+        return AppStrings.focusModeFocusOn
     }
 
     var body: some View {
@@ -1590,10 +1751,12 @@ struct FocusModeRenderer: View {
                             .font(.omP.weight(.semibold))
                             .foregroundStyle(Color.grey100)
                             .lineLimit(1)
-                        Text(AppStrings.focusModeActivated)
-                            .font(.omP.weight(.medium))
-                            .foregroundStyle(Color(hex: 0x34A853))
-                            .lineLimit(1)
+                        TimelineView(.periodic(from: .now, by: 0.1)) { timeline in
+                            Text(status(at: timeline.date))
+                                .font(.omP.weight(.medium))
+                                .foregroundStyle(isActivated ? Color.buttonPrimary : Color.fontSecondary)
+                                .lineLimit(1)
+                        }
                     }
                     .padding(.trailing, .spacing8)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -1602,17 +1765,28 @@ struct FocusModeRenderer: View {
                 .background(Color.grey30)
                 .clipShape(RoundedRectangle(cornerRadius: 30))
                 .accessibilityIdentifier("focus-mode-bar")
+                .overlay(alignment: .bottomLeading) {
+                    if isPending, let entry {
+                        TimelineView(.periodic(from: .now, by: 0.1)) { timeline in
+                            GeometryReader { geometry in
+                                Rectangle().fill(Color.buttonPrimary)
+                                    .frame(width: geometry.size.width * min(1, max(0, entry.record.deadline.timeIntervalSince(timeline.date) / 4)))
+                            }.frame(height: 3)
+                        }
+                        .accessibilityIdentifier("focus-progress-bar")
+                        .allowsHitTesting(false)
+                    }
+                }
             } else {
                 VStack(spacing: .spacing5) {
                     Circle()
                         .fill(AppIconView.gradient(forAppId: "ai"))
                         .frame(width: 72, height: 72)
                         .overlay {
-                            Text("✓")
-                                .font(.omH2)
+                            Icon(isActivated ? "check" : "insight", size: 32)
                                 .foregroundStyle(Color.fontButton)
                         }
-                    Text(AppStrings.focusModeActiveBanner)
+                    Text(isActivated ? AppStrings.focusModeActiveBanner : AppStrings.focusModeFocusOn)
                         .font(.omP)
                         .foregroundStyle(Color.fontSecondary)
                     Text(focusName)
@@ -1633,6 +1807,20 @@ struct FocusModeRenderer: View {
                 }
                 .accessibilityIdentifier("focus-mode-activation-fullscreen")
             }
+        }
+        .overlay(alignment: .bottomTrailing) {
+            if isCancellable, let chatID {
+                Button(AppStrings.cancel) { pending.cancel(chatID: chatID, embedID: embedID) }
+                    .buttonStyle(.plain)
+                    .font(.omXs)
+                    .foregroundStyle(Color.fontSecondary)
+                    .padding(.spacing3)
+                    .accessibilityIdentifier("focus-mode-cancel")
+                    .keyboardShortcut(.cancelAction)
+            }
+        }
+        .onTapGesture {
+            if isCancellable, let chatID { pending.cancel(chatID: chatID, embedID: embedID) }
         }
     }
 }

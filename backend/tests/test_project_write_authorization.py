@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
+import json
+import time
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
@@ -11,6 +14,7 @@ from pydantic import ValidationError
 from starlette.requests import Request
 
 from backend.tests.runtime_import_stubs import install_code_route_import_stubs
+from backend.tests.test_async_skill_continuation import async_skill_continuation  # noqa: F401
 
 install_code_route_import_stubs()
 
@@ -18,11 +22,13 @@ from backend.core.api.app.routes.projects import (  # noqa: E402
     ProjectCreateRequest,
     ProjectFocusActivateRequest,
     ProjectSettingsUpdateRequest,
+    ProjectItemMoveRequest,
     activate_project_focus,
     create_project,
     get_project_settings,
     serialize_project_settings,
     update_project_settings,
+    move_item_to_folder,
 )
 from backend.core.api.app.services.directus.project_methods import ProjectMethods, hash_id  # noqa: E402
 from backend.core.api.app.services.directus.team_methods import TeamPermissionError  # noqa: E402
@@ -65,6 +71,60 @@ class MemoryCache:
         return self.data.pop(key, None)
 
 
+class AtomicFocusCache(MemoryCache):
+    """In-memory Redis boundary: each eval completes without yielding to races."""
+    @property
+    def client(self):
+        async def ready():
+            return self
+        return ready()
+
+    async def eval(self, script, key_count, *values):
+        keys, args = values[:key_count], values[key_count:]
+        if "PROJECT_FOCUS_ACTIVATE" in script:
+            pending, current = self.data.get(keys[0]), self.data.get(keys[1])
+            if not pending or not current or pending["request_id"] != args[0] or current["request_id"] != args[0]:
+                return 0
+            if self.data.get(keys[2]) != args[4] or pending["activate_at"] > args[5] or pending["expires_at"] <= args[5]:
+                return 0
+            old = self.data.get(keys[3])
+            if (old.get("activation_id", "") if old else "") != pending.get("expected_base_activation_id", ""):
+                return 0
+            self.data[keys[3]] = json.loads(args[6])
+            return 1
+        if "PROJECT_FOCUS_CURRENT" in script:
+            binding = self.data.get(keys[0])
+            if not binding or binding["activation_id"] != args[0] or binding.get("activation_request_id") != args[1]:
+                return 0
+            receipt = self.data.get(keys[1])
+            if receipt:
+                return int(receipt["accepted"] and receipt["activation_id"] == args[0])
+            pending, current = self.data.get(keys[2]), self.data.get(keys[3])
+            return int(bool(pending and current and pending["request_id"] == args[1]
+                and current["request_id"] == args[1] and pending["message_id"] == self.data.get(keys[4])
+                and pending["expires_at"] > args[4]))
+        if "PROJECT_FOCUS_DECISION" in script:
+            pending, current = self.data.get(keys[0]), self.data.get(keys[1])
+            if not pending or not current or pending["request_id"] != args[0] or current["request_id"] != args[0]:
+                return None
+            if pending["message_id"] != self.data.get(keys[2]) or pending["expires_at"] <= args[3]:
+                return None
+            binding, accepted = self.data.get(keys[3]), args[4] == "true"
+            matches = bool(binding and binding.get("activation_request_id") == args[0])
+            if accepted and (not matches or pending["activate_at"] > args[3]):
+                return None
+            activation = binding["activation_id"] if matches else ""
+            if matches and not accepted:
+                self.data.pop(keys[3], None)
+                specialist = self.data.get(keys[5])
+                if specialist and specialist.get("base_activation_id") == activation:
+                    self.data.pop(keys[5], None)
+            self.data[keys[4]] = {"accepted": accepted, "activation_id": activation}
+            self.data.pop(keys[0])
+            return json.dumps(pending)
+        raise AssertionError("Unknown atomic boundary")
+
+
 def project_settings(write_mode: str | None = "apply_and_show", **overrides):
     return {
         "write_mode": write_mode,
@@ -101,6 +161,182 @@ def make_request(cache: MemoryCache, method: str = "POST") -> Request:
             "app": SimpleNamespace(state=SimpleNamespace(cache_service=cache)),
         }
     )
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.project-specialist-composition
+@pytest.mark.asyncio
+async def test_private_specialist_requires_live_project_and_current_item_revision():
+    from backend.core.api.app.services.project_recommendation_service import project_item_revision
+    project_id = "11111111-1111-4111-8111-111111111111"
+    item_id = "22222222-2222-4222-8222-222222222222"
+    item = {"item_type": "embed", "updated_at": 1, "encrypted_metadata": "cipher-v1"}
+    directus = SimpleNamespace(project=SimpleNamespace(get_item=AsyncMock(return_value=item)))
+    service = ProjectWriteAuthorizationService(directus, MemoryCache())
+    service.get_active_focus = AsyncMock(return_value={"project_id": project_id, "team_id": None, "activation_id": "base-activation"})
+    arguments = dict(user_id="user", chat_id="chat", focus_id=f"project-focus:{project_id}:{item_id}",
+                     instruction="---\nname: Debugging\ndescription: Diagnose code failures\npreprocessor_hint: Debugging software\n---\nCurrent specialist instructions", item_revision=project_item_revision(item))
+    with pytest.raises(ProjectWriteAuthorizationError, match="PROJECT_SPECIALIST_FOCUS_NOT_ACCEPTED"):
+        await service.validate_specialist_context(**arguments)
+    await service.accept_specialist_focus(user_id="user", chat_id="chat", focus_id=arguments["focus_id"])
+    assert (await service.validate_specialist_context(**arguments))["instruction"] == arguments["instruction"]
+    for malformed in ("An ordinary note", "---\nname: Missing metadata\n---\nBody",
+                      "---\nname: One\nname: Two\ndescription: Diagnose\nwhen_to_use: Debug\n---\nBody"):
+        with pytest.raises(ProjectWriteAuthorizationError, match="INVALID_PROJECT_FOCUS_INSTRUCTION"):
+            await service.validate_specialist_context(**{**arguments, "instruction": malformed})
+    item["encrypted_metadata"] = "cipher-v2"
+    with pytest.raises(ProjectWriteAuthorizationError, match="PROJECT_FOCUS_REVISION_STALE"):
+        await service.validate_specialist_context(**arguments)
+    await service.accept_specialist_focus(user_id="user", chat_id="chat", focus_id="code-debugging")
+    with pytest.raises(ProjectWriteAuthorizationError, match="PROJECT_SPECIALIST_FOCUS_NOT_ACCEPTED"):
+        await service.validate_specialist_context(**arguments)
+    service.get_active_focus.return_value = None
+    with pytest.raises(ProjectWriteAuthorizationError, match="PROJECT_FOCUS_REQUIRED"):
+        await service.validate_specialist_context(**arguments)
+
+
+# contract-test: supporting surface=rest_api assertions=projects.focus.existing-instructions,focus-modes.off-instruction
+@pytest.mark.asyncio
+async def test_private_base_instruction_revision_change_cannot_reuse_cached_content():
+    settings_ref = {"value": project_settings()}
+    service = ProjectWriteAuthorizationService(personal_directus(settings_ref), MemoryCache())
+    await activate(service)
+    assert await service.get_active_focus(user_id="user-1", chat_id="chat-a")
+    settings_ref["value"] = project_settings(encrypted_settings="cipher-new-instructions")
+    assert await service.get_active_focus(user_id="user-1", chat_id="chat-a") is None
+
+
+async def automatic_focus_authorization():
+    from backend.core.api.app.services.project_focus_request_service import ProjectFocusRequestService
+    from backend.apps.ai.tasks.async_skill_continuation import async_skill_latest_user_turn_key
+    cache = AtomicFocusCache()
+    directus = personal_directus({"value": project_settings()})
+    service = ProjectWriteAuthorizationService(directus, cache)
+    requests = ProjectFocusRequestService(cache, directus)
+    request_id = "22222222-2222-4222-8222-222222222222"
+    pending = {"request_id": request_id, "user_id": "user-1", "chat_id": "chat-a",
+        "project_id": "project-a", "team_id": None, "message_id": "turn", "activate_at": time.time()-1,
+        "expires_at": time.time()+1200}
+    pointer = requests.key("user-1", "chat-a")
+    await cache.set(pointer, pending)
+    await cache.set(pointer + ":" + request_id, pending)
+    await cache.set(async_skill_latest_user_turn_key("user-1", "chat-a"), "turn")
+    return service, requests, request_id
+
+
+@pytest.fixture
+def focus_continuation_import(async_skill_continuation, monkeypatch):  # noqa: F811 - imported pytest fixture
+    import sys
+    monkeypatch.setitem(sys.modules, "backend.apps.ai.tasks.async_skill_continuation", async_skill_continuation)
+
+
+# contract-test: supporting surface=rest_api assertions=projects.focus.inferred-consent,focus-modes.countdown
+@pytest.mark.asyncio
+async def test_cancel_while_permissions_awaited_cannot_write_project_authority(focus_continuation_import):
+    service, requests, request_id = await automatic_focus_authorization()
+    entered, release = asyncio.Event(), asyncio.Event()
+    async def delayed_settings(*args, **kwargs):
+        entered.set()
+        await release.wait()
+        return project_settings()
+    service.directus_service.project.get_project_settings.side_effect = delayed_settings
+    activation = asyncio.create_task(service.activate_focus(user_id="user-1", chat_id="chat-a",
+        project_id="project-a", focus_id=FOCUS_ID, instruction="Private base",
+        activation_request_id=request_id))
+    await entered.wait()
+    assert await requests.consume_decision(user_id="user-1", chat_id="chat-a", request_id=request_id, accepted=False)
+    release.set()
+    with pytest.raises(ProjectWriteAuthorizationError, match="PROJECT_FOCUS_REQUEST_EXPIRED"):
+        await activation
+    assert await service.cache_service.get(service._focus_key("user-1", "chat-a")) is None
+    assert await service.get_active_focus(user_id="user-1", chat_id="chat-a") is None
+
+
+# contract-test: supporting surface=rest_api assertions=projects.focus.inferred-consent,focus-modes.off-instruction
+@pytest.mark.asyncio
+async def test_cancel_after_automatic_write_revokes_only_its_activation(focus_continuation_import):
+    service, requests, request_id = await automatic_focus_authorization()
+    await service.activate_focus(user_id="user-1", chat_id="chat-a", project_id="project-a",
+        focus_id=FOCUS_ID, instruction="Automatic base", activation_request_id=request_id)
+    assert await service.get_active_focus(user_id="user-1", chat_id="chat-a")
+    assert await requests.consume_decision(user_id="user-1", chat_id="chat-a", request_id=request_id, accepted=False)
+    assert await service.get_active_focus(user_id="user-1", chat_id="chat-a") is None
+    # A later manually accepted binding cannot be cleared by an old decision.
+    service, requests, request_id = await automatic_focus_authorization()
+    await service.activate_focus(user_id="user-1", chat_id="chat-a", project_id="project-a",
+        focus_id=FOCUS_ID, instruction="Automatic base", activation_request_id=request_id)
+    newer = await service.activate_focus(user_id="user-1", chat_id="chat-a", project_id="project-a",
+        focus_id=FOCUS_ID, instruction="New explicit base")
+    assert await requests.consume_decision(user_id="user-1", chat_id="chat-a", request_id=request_id, accepted=False)
+    assert (await service.get_active_focus(user_id="user-1", chat_id="chat-a"))["activation_id"] == newer["activation_id"]
+
+
+# contract-test: supporting surface=rest_api assertions=projects.focus.inferred-consent,focus-modes.project-specialist-composition
+@pytest.mark.asyncio
+async def test_accepted_automatic_project_remains_authoritative_for_later_turns(focus_continuation_import):
+    from backend.apps.ai.tasks.async_skill_continuation import async_skill_latest_user_turn_key
+    service, requests, request_id = await automatic_focus_authorization()
+    binding = await service.activate_focus(user_id="user-1", chat_id="chat-a", project_id="project-a",
+        focus_id=FOCUS_ID, instruction="Accepted base", activation_request_id=request_id)
+    assert await requests.consume_decision(user_id="user-1", chat_id="chat-a", request_id=request_id, accepted=True)
+    await service.cache_service.set(async_skill_latest_user_turn_key("user-1", "chat-a"), "next-turn")
+    assert (await service.get_active_focus(user_id="user-1", chat_id="chat-a"))["activation_id"] == binding["activation_id"]
+
+
+# contract-test: supporting surface=rest_api assertions=projects.focus.inferred-consent,focus-modes.countdown
+@pytest.mark.asyncio
+async def test_old_countdown_cannot_overwrite_new_explicit_project_binding(focus_continuation_import):
+    service, requests, request_id = await automatic_focus_authorization()
+    newer = await service.activate_focus(user_id="user-1", chat_id="chat-a", project_id="project-a",
+        focus_id=FOCUS_ID, instruction="Explicit new binding")
+    with pytest.raises(ProjectWriteAuthorizationError, match="PROJECT_FOCUS_REQUEST_STALE"):
+        await service.activate_focus(user_id="user-1", chat_id="chat-a", project_id="project-a",
+            focus_id=FOCUS_ID, instruction="Old automatic binding", activation_request_id=request_id)
+    assert (await service.get_active_focus(user_id="user-1", chat_id="chat-a"))["activation_id"] == newer["activation_id"]
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.off-instruction,projects.focus.inferred-consent
+@pytest.mark.asyncio
+async def test_off_consumes_pending_countdown_without_recreating_authority(async_skill_continuation, monkeypatch):  # noqa: F811 - imported pytest fixture
+    import sys
+    monkeypatch.setitem(sys.modules, "backend.apps.ai.tasks.async_skill_continuation", async_skill_continuation)
+    async_skill_continuation.dispatch_async_skill_continuation = AsyncMock()
+    from backend.core.api.app.services.project_focus_request_service import ProjectFocusRequestService
+    cache = MemoryCache()
+    service = ProjectWriteAuthorizationService(personal_directus({"value": project_settings()}), cache)
+    pending_service = ProjectFocusRequestService(cache, service.directus_service)
+    pending = await pending_service.create_pending(user_id="user-1", chat_id="chat-a", request_id="request-1",
+                                                   project_id="project-a", message_id="turn")
+    await service.deactivate_focus(user_id="user-1", chat_id="chat-a")
+    assert await cache.get(pending_service.key("user-1", "chat-a") + ":" + pending["request_id"]) is None
+    assert await service.get_active_focus(user_id="user-1", chat_id="chat-a") is None
+    async_skill_continuation.dispatch_async_skill_continuation.assert_awaited_once()
+    assert async_skill_continuation.dispatch_async_skill_continuation.call_args.kwargs["completed_results"][0]["access_granted"] is False
+
+
+# contract-test: supporting surface=rest_api assertions=projects.lifecycle.encrypted-crud,projects.association.safe-metadata-encrypted-authority
+@pytest.mark.asyncio
+async def test_encrypted_item_metadata_patch_preserves_folder_and_rejects_changed_revision():
+    from backend.core.api.app.services.project_recommendation_service import project_item_revision
+    item = {"id": "row", "updated_at": 1, "encrypted_metadata": "cipher-old", "hashed_folder_id": "folder-hash"}
+    directus = SimpleNamespace(project=SimpleNamespace(
+        get_project=AsyncMock(return_value={"project_id": "project"}), get_item=AsyncMock(return_value=item),
+        update_item_metadata=AsyncMock(return_value={**item, "encrypted_metadata": "cipher-new"}),
+    ))
+    revision = project_item_revision(item)
+    arguments = dict(request=make_request(MemoryCache(), "PATCH"), project_id="project", project_item_id="item",
+                     current_user=SimpleNamespace(id="user"), directus_service=directus)
+    result = await move_item_to_folder(**arguments,
+        body=ProjectItemMoveRequest(encrypted_metadata="cipher-new", expected_item_revision=revision, updated_at=2))
+    assert result["item"]["hashed_folder_id"] == "folder-hash"
+    directus.project.update_item_metadata.assert_awaited_once_with(
+        item, {"encrypted_metadata": "cipher-new", "updated_at": 2}, conditional=True)
+    directus.project.update_item_metadata.reset_mock()
+    item["encrypted_metadata"] = "cipher-other"
+    with pytest.raises(HTTPException) as exc:
+        await move_item_to_folder(**arguments,
+            body=ProjectItemMoveRequest(encrypted_metadata="cipher-new", expected_item_revision=revision, updated_at=2))
+    assert exc.value.status_code == 409
+    directus.project.update_item_metadata.assert_not_awaited()
 
 
 # contract-test: direct surface=rest_api assertions=projects.files.write-policy-setup,projects.focus.default-owned
@@ -380,6 +616,7 @@ async def test_settings_missing_state_and_explicit_setup_contract() -> None:
     )
     assert missing["settings"] == {
         "write_mode": None,
+        "auto_selection": True,
         "selection_required": True,
         "default_focus_id_hash": None,
         "encrypted_settings": None,

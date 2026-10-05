@@ -409,7 +409,7 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
       const routing = (followupPreflight?.payload as { inference_request?: { project_focus_candidates?: Array<{ project_id: string }> } })?.inference_request;
       expect(routing?.project_focus_candidates?.some((candidate) => candidate.project_id === projectId),
         'natural-language routing must carry the existing Project without granting access').toBe(true);
-      await expect(page.getByTestId('project-focus-consent')).toBeVisible({ timeout: 240_000 });
+      await expect(page.getByTestId('focus-progress-bar')).toBeVisible({ timeout: 240_000 });
       await expect(page.getByTestId('focus-pill')).toHaveCount(0);
       const beforeConsent = await page.evaluate(async ({ apiBaseUrl, chatId }) => {
         const response = await fetch(`${apiBaseUrl}/v1/projects/focus/current?chat_id=${encodeURIComponent(chatId)}`, { credentials: 'include' });
@@ -417,7 +417,6 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
       }, { apiBaseUrl: API_BASE_URL, chatId: await currentChatId(page) });
       expect(beforeConsent).toBeNull();
       console.log('Hosted Project proof: natural-language request waits without Project authority.');
-      await page.getByTestId('project-focus-grant').click();
       await expectProjectFocusPill(page, projectName);
       await approvePendingWrite(page, path, 'updated');
       await expect.poll(() => sentWebSocketMessages.some((message) => {

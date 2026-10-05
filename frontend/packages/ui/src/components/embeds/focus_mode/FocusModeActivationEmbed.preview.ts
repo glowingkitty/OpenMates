@@ -26,7 +26,7 @@ export const variants = {
     appId: "projects",
     focusModeName: "Work on Garden notes",
     alreadyActive: false,
-    pendingUntil: Date.now() + 60_000,
+    pendingUntil: Date.now() + 4000,
     onAcceptProject: async () => {},
   },
   countdown: {

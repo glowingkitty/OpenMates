@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.focus-modes@1
+specification: feature.focus-modes@2
 project_write_gate:
 - id: model-cannot-mint-write-access
   given: The preprocessor recommends Work on OpenMates but its activation has not been accepted in this chat.
@@ -146,6 +146,7 @@ phases:
   expect: The requested earlier phase is current, a clickable system message records the return, and encrypted state
     restores it. Current instructions and requirements are full while other phases have IDs/titles only. Unmet or
     uncertain requirements retain the phase; stale decisions and the same rewind turn cannot bounce forward.
+
 learning_progress:
 - id: fraction-practice-no-answer-leak
   given: Learning mode asks the learner to try 1/5 + 1/2 and waits for an answer.
@@ -161,3 +162,68 @@ learning_progress:
     worked example.
   assertion_ids:
   - focus-modes.learning.progress-and-suggestions
+
+project_specialist:
+- id: debugging-specialist-layer
+  assertion_ids:
+  - focus-modes.project-specialist-composition
+  given: Work on SocialHub is active and its Debugging specialist becomes active.
+  when: The assistant investigates a retry bug on a narrow screen and then switches to Release preparation.
+  then: Project base instructions stay effective, one shortened Project-qualified specialist indicator is shown,
+    and the switch retains the authorized SocialHub binding.
+context_reselection:
+- id: focus-and-phase-refresh
+  assertion_ids:
+  - focus-modes.context-reselection
+  given: Trip planning activates in one chat; a Project Add new app skill Focus changes from research to implementation
+    in another.
+  when: Each authoritative transition prepares its continuation.
+  then: Eligible skills, saved Workflows and context are refreshed using the effective Focus/phase. A tool
+    result that leaves the phase unchanged adds no phase-triggered refresh.
+recommendation_catalog:
+- id: inactive-focus-candidate
+  assertion_ids:
+  - focus-modes.project-recommendation-catalog
+  given: SocialHub has active Debugging and inactive Release preparation Focuses.
+  when: A completed release-planning response is evaluated against their titles and summaries.
+  then: Release preparation may be selected for full inspection even though inactive; no authoring LLM runs.
+    Public app Focuses are excluded.
+- id: new-project-focus-recommendation
+  assertion_ids:
+  - focus-modes.project-recommendation-catalog
+  given: No existing SocialHub Focus covers a recurring release-retrospective process discussed in the chat.
+  when: Catalog Jev judges that a new non-overlapping Focus is useful.
+  then: Create focus mode may appear directly; creation waits for its button click.
+recommendation_full:
+- id: full-instructions-before-update
+  assertion_ids:
+  - focus-modes.project-recommendation-full-assessment
+  given: Catalog Jev selected the permitted Release preparation Focus because its summary appears relevant.
+  when: Its full instructions are loaded and a second Jev assessment compares them with the chat.
+  then: Update appears only if a useful improvement is confirmed. If the full instructions already cover the
+    process or the assessment is unavailable, no Update button appears.
+authoring_click:
+- id: click-starts-background-job
+  assertion_ids:
+  - focus-modes.project-authoring-click
+  given: A validated Update button is shown for SocialHub Release preparation.
+  when: Alice clicks it twice during reconnect, then continues chatting.
+  then: One background job receives permitted history and update instructions. Chat stays usable, no regular
+    authoring chat is created, and no authoring call occurred before the first click.
+authoring_persistence:
+- id: concurrent-focus-edit
+  assertion_ids:
+  - focus-modes.project-authoring-persistence
+  given: A background update began from Release preparation revision 3; Alice separately saves revision 4.
+  when: The job tries to save its generated revision.
+  then: It reports a conflict instead of overwriting revision 4 or sending a ready notification. Private content
+    stays within existing encrypted storage and recovery paths.
+updated_followup:
+- id: updated-active-focus-next-turn
+  assertion_ids:
+  - focus-modes.updated-followup-revision
+  given: SocialHub Debugging is active at revision 3, and a background update saves revision 4 while one response
+    is running.
+  when: Alice sends the next follow-up using that Focus.
+  then: The new request uses revision 4 and refreshed context; the already-running response finishes with revision
+    3.

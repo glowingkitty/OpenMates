@@ -180,6 +180,9 @@ enum AppStrings {
     static var weatherForecastRain: String { L("embeds.weather.forecast.rain") }
     static var financeCheckAccounts: String { L("app_skills.finance.check_accounts") }
     static var focusModeActivated: String { L("embeds.focus_mode.activated") }
+    static func focusModeActivating(seconds: Int) -> String {
+        LocalizationManager.shared.text("embeds.focus_mode.activating", replacements: ["seconds": String(seconds)])
+    }
     static var focusModeActiveBanner: String { L("embeds.focus_mode.active_banner") }
     static var focusModeFocusOn: String { L("embeds.focus_mode.focus_on") }
     static var financeNetCashFlow: String { L("embeds.finance.check_accounts.net_cash_flow") }

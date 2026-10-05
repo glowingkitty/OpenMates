@@ -719,6 +719,8 @@ async def remove_team_member(
         raise HTTPException(status_code=404, detail="Member not found")
     removed_at = int(body.removed_at if body and body.removed_at else time.time())
     await directus_service.team.deactivate_member(removable, removed_at=removed_at)
+    from backend.shared.python_utils.recent_work_summary_cache import recent_work_summary_cache
+    recent_work_summary_cache.revoke_owner(member_user_id)
     await ProjectRemoteAccessService(request.app.state.cache_service).revoke_member(
         team_id=team_id,
         member_user_id=member_user_id,

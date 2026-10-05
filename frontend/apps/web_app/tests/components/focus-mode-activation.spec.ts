@@ -20,20 +20,27 @@ const PROOF = defineVideoProof({
 });
 test.describe('Focus activation component history', () => {
     // contract-test: direct surface=gui.web assertions=projects.focus.inferred-consent
-    test('Project access waits for explicit confirmation beyond the catalog countdown', async ({ page }) => {
+    test('Project access uses the standard cancellable four-second countdown', async ({ page }) => {
         const query = new URLSearchParams({ chrome: '0', variant: 'projectConsent' });
         await page.goto(`/dev/preview/embeds/focus_mode/FocusModeActivationEmbed?${query}`);
         await waitForComponentPreview(page);
-        await expect(page.getByTestId('project-focus-consent')).toBeVisible();
-        await expect(page.getByTestId('focus-progress-bar')).toHaveCount(0);
+        await expect(page.getByTestId('focus-progress-bar')).toBeVisible();
+        await expect(page.getByTestId('focus-reject-hint')).toBeVisible();
+        await expect(page.getByTestId('project-focus-grant')).toHaveCount(0);
         await page.screenshot({ path: test.info().outputPath('project-focus-pending.png') });
-        await page.waitForTimeout(5_100);
-        await expect(page.getByTestId('project-focus-grant')).toBeVisible();
-        await expect(page.getByTestId('focus-status-value')).toHaveText('Waiting for your permission');
-        await page.getByTestId('project-focus-grant').click();
-        await expect(page.getByTestId('project-focus-consent')).toHaveCount(0);
         await expect(page.getByTestId('focus-status-value')).toHaveText('Focus activated');
+        await expect(page.getByTestId('focus-progress-bar')).toHaveCount(0);
         await page.screenshot({ path: test.info().outputPath('project-focus-consent.png') });
+    });
+    // contract-test: direct surface=gui.web assertions=projects.focus.inferred-consent,focus-modes.countdown
+    test('Project countdown is interrupted with Escape', async ({ page }) => {
+        await page.goto('/dev/preview/embeds/focus_mode/FocusModeActivationEmbed?chrome=0&variant=projectConsent');
+        await waitForComponentPreview(page);
+        await expect(page.getByTestId('focus-progress-bar')).toBeVisible();
+        await page.keyboard.press('Escape');
+        await expect(page.getByTestId('focus-mode-bar')).toHaveCount(0);
+        await page.waitForTimeout(4_100);
+        await expect(page.getByTestId('focus-mode-bar')).toHaveCount(0);
     });
     // contract-test: direct surface=gui.web assertions=projects.focus.inferred-consent,focus-modes.history-side-effects
     test('historical Project request does not expose a grant action', async ({ page }) => {

@@ -37,21 +37,22 @@ def isolated_continuation_import(monkeypatch, request):
 # contract-test: direct surface=rest_api assertions=projects.focus.inferred-consent
 @pytest.mark.asyncio
 async def test_candidates_filter_foreign_projects_and_strip_content():
-    directus = SimpleNamespace(project=SimpleNamespace(list_projects=AsyncMock(return_value=[{"project_id": PROJECT}])))
+    directus = SimpleNamespace(project=SimpleNamespace(list_projects=AsyncMock(return_value=[{"project_id": PROJECT}]),
+                                                      get_project_settings=AsyncMock(return_value=None)))
     result = await validated_project_candidates([
         {"project_id": PROJECT, "name": "Garden notes", "instruction": "secret", "content": "secret"},
         {"project_id": "33333333-3333-4333-8333-333333333333", "name": "Foreign"},
         {"project_id": PROJECT, "name": "Duplicate"},
     ], directus_service=directus, user_id="user", team_id=None)
-    assert result == [{"project_id": PROJECT, "name": "Garden notes"}]
+    assert result == [{"project_id": PROJECT, "name": "Garden notes", "summary": "", "auto_selection": True}]
 
 
 async def make_pending():
     from backend.apps.ai.tasks.async_skill_continuation import async_skill_latest_user_turn_key
     cache = MemoryCache()
-    service = ProjectFocusRequestService(cache, SimpleNamespace())
+    service = ProjectFocusRequestService(cache, SimpleNamespace(project=SimpleNamespace(get_project_settings=AsyncMock(return_value=None))))
     service.authorization._require_chat_access = AsyncMock()
-    service.authorization._require_project_access = AsyncMock()
+    service.authorization._require_project_access = AsyncMock(return_value=({}, None))
     pending = {"request_id": REQUEST, "user_id": "user", "project_id": PROJECT,
                "chat_id": "chat", "message_id": "turn", "expires_at": 9_999_999_999}
     await cache.set(service.key("user", "chat"), pending)
@@ -89,3 +90,36 @@ async def test_stale_or_unauthorized_request_cannot_activate(case):
         service.authorization._require_project_access.side_effect = ProjectWriteAuthorizationError("PROJECT_NOT_FOUND")
     with pytest.raises(ProjectWriteAuthorizationError):
         await service.require_pending(user_id="user", chat_id=chat, request_id=REQUEST, project_id=project)
+
+
+# contract-test: direct surface=rest_api assertions=projects.focus.inferred-consent,focus-modes.countdown
+@pytest.mark.asyncio
+async def test_countdown_deadline_is_authoritative_and_separate_from_expiry(monkeypatch):
+    cache, service, _ = await make_pending()
+    monkeypatch.setattr("backend.core.api.app.services.project_focus_request_service.time.time", lambda: 100)
+    pending = await service.create_pending(user_id="user", chat_id="chat", request_id=REQUEST,
+                                           project_id=PROJECT, message_id="turn")
+    assert service.pending_event(pending)["expires_at"] == 104
+    assert pending["expires_at"] > 104
+    with pytest.raises(ProjectWriteAuthorizationError, match="PROJECT_FOCUS_COUNTDOWN_PENDING"):
+        await service.require_pending(user_id="user", chat_id="chat", request_id=REQUEST, require_completed_countdown=True)
+    monkeypatch.setattr("backend.core.api.app.services.project_focus_request_service.time.time", lambda: 104)
+    assert await service.require_pending(user_id="user", chat_id="chat", request_id=REQUEST, require_completed_countdown=True) == pending
+    await cache.get_and_delete(service.key("user", "chat") + ":" + REQUEST)
+    with pytest.raises(ProjectWriteAuthorizationError, match="PROJECT_FOCUS_REQUEST_EXPIRED"):
+        await service.require_pending(user_id="user", chat_id="chat", request_id=REQUEST, require_completed_countdown=True)
+
+
+# contract-test: direct surface=rest_api assertions=projects.focus.auto-selection-setting
+@pytest.mark.asyncio
+async def test_auto_selection_uses_owner_settings_and_bounded_metadata():
+    directus = SimpleNamespace(project=SimpleNamespace(list_projects=AsyncMock(return_value=[{"project_id": PROJECT}]),
+                                                      get_project_settings=AsyncMock(return_value={"auto_selection": False})))
+    result = await validated_project_candidates([{"project_id": PROJECT, "name": "Garden", "summary": "x" * 1000,
+                                                "auto_selection": True}], directus_service=directus, user_id="user", team_id=None)
+    assert result[0]["auto_selection"] is False
+    assert len(result[0]["summary"]) == 640
+    from backend.core.api.app.services.project_focus_request_service import explicitly_named_project_focus_ids
+    assert explicitly_named_project_focus_ids("Work on Garden", result) == []
+    result[0]["auto_selection"] = True
+    assert explicitly_named_project_focus_ids("Work on Garden", result) == [f"project-{PROJECT}"]

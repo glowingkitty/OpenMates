@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 vi.mock("../projectService", () => ({
   activateProjectFocus: vi.fn(), deactivateProjectFocus: vi.fn(),
+  confirmProjectFocusCountdown: vi.fn(),
   getProject: vi.fn(), getProjectSettings: vi.fn(),
 }));
 import type {
@@ -36,6 +37,7 @@ function project(projectId: string): ProjectViewModel {
 
 function settings(focusId: string, instructions: string): ProjectSettingsViewModel {
   return {
+    autoSelection: true,
     writeMode: "apply_and_show",
     selectionRequired: false,
     settings: {
@@ -52,12 +54,26 @@ function settings(focusId: string, instructions: string): ProjectSettingsViewMod
 
 describe("Project focus send preflight", () => {
   // contract-test: supporting surface=gui.web assertions=projects.focus.inferred-consent
+  it("does not load private Project settings when the server rejects the countdown", async () => {
+    const getProject = vi.fn();
+    const getProjectSettings = vi.fn();
+    const activateProjectFocus = vi.fn();
+    await expect(activateProjectFocusAfterConsent({ projectId: "project-1", chatId: "chat-1", requestId: "request-1" }, {
+      confirmProjectFocusCountdown: vi.fn(async () => { throw new Error("PROJECT_FOCUS_REQUEST_STALE"); }),
+      getProject, getProjectSettings, activateProjectFocus,
+    })).rejects.toThrow("PROJECT_FOCUS_REQUEST_STALE");
+    expect(getProject).not.toHaveBeenCalled();
+    expect(getProjectSettings).not.toHaveBeenCalled();
+    expect(activateProjectFocus).not.toHaveBeenCalled();
+  });
+  // contract-test: supporting surface=gui.web assertions=projects.focus.inferred-consent
   it("binds inferred consent to the exact request and loads the current Project instruction", async () => {
     const focusId = "799f65ce-77a6-4207-89b2-db57515b8470";
     const activate = vi.fn(async () => ({ active: true, project_id: "project-1", focus_id: focusId } as ActiveProjectFocus));
     await activateProjectFocusAfterConsent(
       { projectId: "project-1", chatId: "chat-1", requestId: "request-1" },
-      { getProject: vi.fn(async () => project("project-1")),
+      { confirmProjectFocusCountdown: vi.fn(async () => undefined),
+        getProject: vi.fn(async () => project("project-1")),
         getProjectSettings: vi.fn(async () => settings(focusId, "Current instruction")),
         activateProjectFocus: activate },
     );
@@ -185,6 +201,7 @@ describe("Project focus send preflight", () => {
       {
         getProject: vi.fn(async () => project("project-1")),
         getProjectSettings: vi.fn(async (): Promise<ProjectSettingsViewModel> => ({
+          autoSelection: true,
           writeMode: "apply_and_show",
           selectionRequired: false,
           settings: {},

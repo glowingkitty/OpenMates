@@ -121,6 +121,7 @@ export interface ProjectSourceRecord extends ProjectSourceCreatePayload {
 }
 
 export interface ProjectSettingsRecord {
+  auto_selection?: boolean;
   write_mode?: ProjectWriteMode | null;
   selection_required?: boolean;
   default_focus_id_hash?: string | null;
@@ -129,6 +130,7 @@ export interface ProjectSettingsRecord {
 }
 
 export interface ProjectSettingsViewModel {
+  autoSelection: boolean;
   writeMode: ProjectWriteMode | null;
   selectionRequired: boolean;
   settings: Record<string, unknown>;
@@ -157,6 +159,7 @@ export interface ActiveProjectFocus {
   active: true;
   project_id: string;
   focus_id: string;
+  specialist_focus_id?: string | null;
   team_id: string | null;
   activated_at: number;
 }
@@ -1083,8 +1086,9 @@ export async function getProjectSettings(project: ProjectViewModel, context: Pro
 
 export async function updateProjectSettings(
   project: ProjectViewModel,
-  writeMode: ProjectWriteMode,
+  writeMode: ProjectWriteMode | null,
   context: ProjectApiContext = {},
+  autoSelection?: boolean,
 ): Promise<ProjectSettingsViewModel> {
   const data = await requestJson<{ settings: ProjectSettingsRecord }>(
     withProjectRemoteQuery(`/v1/projects/${project.project_id}/settings`, {
@@ -1093,12 +1097,21 @@ export async function updateProjectSettings(
     {
       method: "PATCH",
       body: JSON.stringify({
-        write_mode: writeMode,
+        ...(writeMode ? { write_mode: writeMode } : {}),
+        ...(autoSelection === undefined ? {} : { auto_selection: autoSelection }),
         updated_at: nowSeconds(),
       }),
     },
   );
   return decryptProjectSettings(data.settings, project.projectKey);
+}
+
+export async function confirmProjectFocusCountdown(
+  projectId: string, input: { chat_id: string; activation_request_id: string }, context: ProjectApiContext = {},
+): Promise<void> {
+  await requestJson(withProjectRemoteQuery(`/v1/projects/${projectId}/focus/countdown`, { team_id: context.teamId }), {
+    method: "POST", body: JSON.stringify(input),
+  });
 }
 
 export async function activateProjectFocus(
@@ -1258,6 +1271,7 @@ async function decryptProjectSource(source: ProjectSourceRecord, projectKey: Uin
 async function decryptProjectSettings(settings: ProjectSettingsRecord, projectKey: Uint8Array): Promise<ProjectSettingsViewModel> {
   const settingsText = await decryptOptional(settings.encrypted_settings, projectKey);
   return {
+    autoSelection: settings.auto_selection !== false,
     writeMode: normalizeProjectWriteMode(settings.write_mode),
     selectionRequired: settings.selection_required === true || normalizeProjectWriteMode(settings.write_mode) === null,
     settings: parseProjectMetadata(settingsText, "settings"),
@@ -1369,6 +1383,18 @@ export async function addExistingTargetToProject(
       created_at: timestamp,
       updated_at: timestamp,
       position: timestamp,
+    }),
+  });
+}
+
+/** Retain private Workflow file bindings only inside encrypted Project metadata. */
+export async function updateProjectItemMetadata(
+  project: ProjectViewModel, itemId: string, metadata: Record<string, unknown>, context: ProjectApiContext = {},
+): Promise<void> {
+  await requestJson(withProjectRemoteQuery(`/v1/projects/${encodeURIComponent(project.project_id)}/items/${encodeURIComponent(itemId)}`,
+    { team_id: context.teamId }), {
+    method: 'PATCH', body: JSON.stringify({
+      encrypted_metadata: await encryptWithEmbedKey(JSON.stringify(metadata), project.projectKey), updated_at: nowSeconds(),
     }),
   });
 }

@@ -34,6 +34,7 @@ import { loadWorkflowRunGraph } from "./tuiWorkflowWorkspace.js";
 import { prepareTuiMessage } from "./tuiAttachments.js";
 import { loadHomeData } from "./tuiHome.js";
 import { refreshTuiChatSidebar } from './tuiChatSidebar.js';
+import { parseChatContextContent } from "./chatContextEvents.js";
 
 export type CliDefaultMode = "tui" | "quickstart";
 export type TuiResult = { action: "exit" | "signup" };
@@ -75,6 +76,7 @@ export async function runTui(
     if (closed) return;
     if (state.screen !== "chat") client.clearInteractiveChatViewer();
     if (state.signedIn && typeof client.hasSession === "function" && !client.hasSession()) {
+      Object.values(state.chatContextAuthoringControls).forEach(control => control.stop());
       Object.assign(state, createInitialTuiState(), {routeVersion: state.routeVersion + 1, homeLoadVersion:state.homeLoadVersion+1,status: "Session ended. Sign in to reopen your work."});
       hydrateExamples(state);
     }
@@ -87,6 +89,7 @@ export async function runTui(
 
   const finish = (result: TuiResult) => {
     closed = true;
+    Object.values(state.chatContextAuthoringControls).forEach(control => control.stop());
     stopActivity?.(); clearTimeout(activityTimer); clearInterval(activityPoll); clearInterval(activityAnimation);
     client.endInteractiveViewerSession();
     if (renderTimer) clearTimeout(renderTimer);
@@ -504,6 +507,15 @@ async function sendTuiMessage(params: {
         projectId: state.selectedProjectId ?? undefined,
         preparedEmbeds: prepared.preparedEmbeds,
         messageHistory: history,
+        onProjectFocusPending: (countdown) => {
+          if (state.messages === messages) { state.projectFocusPending = countdown; render(); }
+        },
+        onChatContextApplied: (event) => {
+          if (state.messages !== messages || messages.some(message => message.id === event.event_id
+              || (message.role === "system" && parseChatContextContent(message.content)?.event_id === event.event_id))) return;
+          messages.push({ id: event.event_id, role: "system", content: JSON.stringify(event) });
+          render();
+        },
         onStream: (event: StreamEvent) => {
           if (state.messages === messages && event.taskId) state.aiTaskId = event.taskId;
           if (event.kind === "chunk" || event.kind === "done") {
@@ -530,6 +542,7 @@ async function sendTuiMessage(params: {
     if (state.messages === messages) {state.headerState="error";state.headerError=/credit/i.test(assistantMessage.content)?"Not enough credits":assistantMessage.content;}
   } finally {
     state.isBusy = false;
+    state.projectFocusPending = null;
     state.aiTaskId = null;
     render();
   }

@@ -220,6 +220,17 @@ async def handle_project_file_operation_result(
             )
             return
 
+        continuation_id = str(outcome["job"].get("continuation_task_id") or "")
+        if continuation_id.startswith("project-authoring:"):
+            # Independent Project authoring has no regular chat continuation.
+            # All lease, owner, scope and proposal-commitment checks above still
+            # apply before acknowledging its saved portable Workflow file.
+            from backend.core.api.app.routes.project_authoring import get_authoring
+            authoring = get_authoring(websocket)
+            authoring_job = await authoring.settle_file_operation(user_id=user_id, operation_id=submitted.operation_id)
+            await websocket.send_json({"type": "project_authoring_job", "payload": authoring_job})
+            return
+
         if outcome.get("replayed"):
             await websocket.send_json(
                 {
@@ -229,7 +240,6 @@ async def handle_project_file_operation_result(
             )
             return
 
-        continuation_id = str(outcome["job"].get("continuation_task_id") or "")
         safe_result = await _sanitize_project_result_for_model(
             outcome.get("result", submitted.result),
             operation_id=submitted.operation_id,
@@ -301,6 +311,11 @@ async def handle_project_file_operation_reject(
             project_id=rejected.project_id,
         )
         job = outcome["job"]
+        if str(job.get("continuation_task_id") or "").startswith("project-authoring:"):
+            from backend.core.api.app.routes.project_authoring import get_authoring
+            authoring_job = await get_authoring(websocket).settle_file_operation(user_id=user_id, operation_id=rejected.operation_id)
+            await websocket.send_json({"type": "project_authoring_job", "payload": authoring_job})
+            return
         if not outcome.get("replayed"):
             await dispatch_async_skill_continuation(
                 cache_service=cache_service,

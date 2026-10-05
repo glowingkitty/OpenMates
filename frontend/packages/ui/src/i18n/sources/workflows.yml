@@ -1,3 +1,15 @@
+builder.remote_file_conflict:
+  context: The saved Workflow is safe but its bound remote YAML changed and must be reconciled explicitly
+  en: "Workflow saved in the Project. Its remote YAML has changed. Import or reconcile that file before retrying the save."
+  de: "Workflow im Projekt gespeichert. Die entfernte YAML-Datei wurde geändert. Importiere die Datei oder gleiche sie ab, bevor du erneut speicherst."
+  verified_by_human: []
+
+builder.remote_file_pending:
+  context: A Workflow is safely saved and linked but its selected remote file needs recovery
+  en: "Workflow saved in the Project. Its YAML file is pending. Reconnect the source or resolve the write approval, then retry from the Project chat."
+  de: "Workflow im Projekt gespeichert. Die YAML-Datei steht noch aus. Verbinde die Quelle erneut oder bestätige den Schreibzugriff und versuche es im Projekt-Chat erneut."
+  verified_by_human: []
+
 sidebar.loading:
   context: Workflows sidebar loading state
   en: Loading workflows...

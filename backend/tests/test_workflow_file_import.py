@@ -19,6 +19,7 @@ from backend.core.api.app.services.workflow_service import (
     WorkflowBindingRequirementsUnresolvedError,
     WorkflowBindingRequirementUnresolvedError,
 )
+from backend.core.api.app.services.workflow_models import WorkflowNodeType, validate_workflow_composition_refs, validate_workflow_readiness
 from backend.tests.workflow_test_utils import workflow_service
 
 
@@ -32,6 +33,18 @@ def _route(name: str, namespace: dict):
     function.args.defaults = []
     function.args.kw_defaults = [None for _ in function.args.kw_defaults]
     for arg in function.args.args:
+        arg.annotation = None
+    function.returns = None
+    exec(compile(ast.fix_missing_locations(ast.Module(body=[function], type_ignores=[])), str(WORKFLOWS_PATH), "exec"), namespace)
+    return namespace[name]
+
+
+def _validation_helper(name: str, namespace: dict):
+    """Compile the actual route validation helper, preserving its defaults/body."""
+    function = next(item for item in ast.parse(WORKFLOWS_PATH.read_text()).body
+                    if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)) and item.name == name)
+    function.decorator_list = []
+    for arg in [*function.args.args, *function.args.kwonlyargs]:
         arg.annotation = None
     function.returns = None
     exec(compile(ast.fix_missing_locations(ast.Module(body=[function], type_ignores=[])), str(WORKFLOWS_PATH), "exec"), namespace)
@@ -230,7 +243,12 @@ async def test_file_route_returns_binding_review_and_chat_route_rejects_unowned_
     namespace = {"WorkflowFileService": WorkflowFileService, "run_in_threadpool": run_in_threadpool,
                  "_validate_workflow_ask_ai_nodes": no_ask_ai, "_handle_workflow_error": handle,
                  "WorkflowBindingRequirementUnresolvedError": WorkflowBindingRequirementUnresolvedError,
-                 "WorkflowNodeType": None}
+                 "WorkflowNodeType": WorkflowNodeType,
+                 "validate_workflow_composition_refs": validate_workflow_composition_refs,
+                 "validate_workflow_readiness": validate_workflow_readiness,
+                 "get_workflow_ai_service": lambda _request: SimpleNamespace()}
+    _validation_helper("_prevalidate_paid_workflow_save", namespace)
+    _validation_helper("_validate_workflow_ai_check_nodes", namespace)
     import_route = _route("import_workflow_file", namespace)
     complete_route = _route("complete_workflow_template_binding", namespace)
     response = await import_route(request, WorkflowFileDocument.model_validate(portable_file()), user, runtime)

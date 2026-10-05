@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.chats
-version: 2
+version: 3
 status: draft
 title: Chats
 summary: >
@@ -249,6 +249,47 @@ assertions:
     must: Web, Apple, and CLI preserve the same encryption-boundary, identity-idempotency, recovery-takeover, lease-fencing, pending-delivery, local-state, key-gating, ordered-stream, progressive-presentation, follow-up-retention, assistant-document, inline-entity, responsive-history, and visible-failure semantics where the surface applies; npm and pip SDKs cannot bypass server-authoritative recovery safety but are not user-facing takeover surfaces.
     depends_on: [models, examples, applies_to]
 
+  - id: chats.context.memory-only-summary
+    type: privacy
+    must: Active/recent related-chat summary copies are Vault-encrypted in server memory only, never written
+      to disk, Directus, snapshots, backups or content-bearing logs/jobs. Use authorized transient processing
+      summaries without extending full-transcript retention or escrowing client chat keys. Eligibility follows
+      active work and the last completed assistant response, with bounded expiry, deletion and access revocation;
+      relevance reads do not renew the window. Missing or expired copies stay unavailable without independent
+      server decryption of old durable chats. Long-term chat storage remains client-encrypted.
+    depends_on:
+    - examples.memory_only_summary
+  - id: chats.context.related-work-selection
+    type: behavior
+    must: Select useful bounded authorized summaries from same-Project work and cross-Project active chats or
+      chats whose last assistant response completed within thirty minutes; include in-progress Tasks and blocked/done
+      Tasks meaningfully changed within thirty minutes. Prefer same-Project candidates without injecting all.
+      Explicitly linked dependencies remain eligible outside discovery freshness. Preserve source, status and
+      revision/freshness; navigation cannot manufacture activity. Selected cross-Project context does not activate
+      another Project, expose its full files/instructions or claim Tasks.
+    depends_on:
+    - examples.related_work_selection
+  - id: chats.direction.context-assessment
+    type: behavior
+    must: Evaluate material drift using mechanically assembled original goal, actual user clarifications, available
+      accepted Plan summary, open Tasks, effective Focus/phase and recent actions. Do not author custom direction
+      Checks. Tasks cannot redefine the original goal. Distinguish useful causal discoveries/dependencies from
+      disconnected work, and treat missing/uncertain context as uncertainty. Assess changed response boundaries
+      and bounded progress checkpoints during long work, without idle polling.
+    depends_on:
+    - examples.direction_assessment
+  - id: chats.direction.reviewed-correction
+    type: behavior
+    must: When Jev identifies material drift, a separate LLM decides whether correction is warranted and, if
+      so, writes an internal correction instruction for the current chat. Deliver only under its still-current
+      goal/turn authority, once per unchanged assessment, without spoofing user approval or cancelling work.
+      Only accepted delivery shows "Chat is drifting too far away from the goals. Correction instruction was
+      sent." with a disclosure of the full delivered message. Declined, stale, failed or pending correction cannot
+      show a sent notice. Persist private correction history only through client-encrypted chat boundaries, with
+      Web/Apple/TUI semantic parity.
+    depends_on:
+    - examples.reviewed_correction
+
 applies_to:
   rest_api:
     required: false
@@ -272,4 +313,22 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [encryption_boundary, identity_idempotency, recovery_takeover, lease_fencing, pending_completion, local_state_precedence, key_gated_recovery, conversation_fork, streaming_delivery, streaming_presentation, follow_up_retention, assistant_rendering, inline_entities, responsive_history]
+  required_groups:
+  - encryption_boundary
+  - identity_idempotency
+  - recovery_takeover
+  - lease_fencing
+  - pending_completion
+  - local_state_precedence
+  - key_gated_recovery
+  - conversation_fork
+  - streaming_delivery
+  - streaming_presentation
+  - follow_up_retention
+  - assistant_rendering
+  - inline_entities
+  - responsive_history
+  - memory_only_summary
+  - related_work_selection
+  - direction_assessment
+  - reviewed_correction

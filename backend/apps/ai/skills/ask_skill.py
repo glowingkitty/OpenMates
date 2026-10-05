@@ -7,7 +7,7 @@ from typing import List, Dict, Any, Optional, Union
 from fastapi import HTTPException
 from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, field_serializer
 import time
 import uuid
 import hashlib
@@ -63,6 +63,17 @@ class AskSkillDefaultConfig(BaseModel):
 
 # --- Pydantic models for the /skill/ask endpoint (request/response) ---
 class AskSkillRequest(BaseModel):
+    @field_validator("message_history", mode="before")
+    @classmethod
+    def _admit_content_free_context_receipts(cls, value):
+        from backend.shared.python_utils.agent_context_history import project_agent_context_history
+        return project_agent_context_history(value) if isinstance(value, list) else value
+
+    @field_serializer("message_history")
+    def _serialize_content_free_context_receipts(self, value):
+        from backend.shared.python_utils.agent_context_history import project_agent_context_history
+        return project_agent_context_history(value)
+
     chat_id: str = Field(..., description="The ID of the chat session.")
     message_id: str = Field(..., description="The ID of the user's most recent message in the history.") # Clarified
     user_id: str = Field(..., description="Actual ID of the user.")
@@ -87,6 +98,15 @@ class AskSkillRequest(BaseModel):
     focus_phase_state: Optional[Dict[str, Any]] = Field(default=None, description="Client-decrypted phase state; transient inference context only.")
     current_project: Optional[Dict[str, Any]] = Field(default=None, description="Server-derived current Project routing metadata for this chat.")
     project_focus_candidates: List[Dict[str, Any]] = Field(default_factory=list, max_length=40, description="Client-decrypted Project names for routing only; server ownership checks precede selection. No file contents or instructions.")
+    accepted_plan_context: Optional[Dict[str, Any]] = Field(default=None, repr=False, exclude=True, description="Bounded client-decrypted accepted existing Plan snapshot; fresh server approval/version/linkage required.")
+    custom_rule_documents: List[Dict[str, Any]] = Field(default_factory=list, exclude=True, repr=False, max_length=24, description="Transient client-decrypted private Rule Markdown; fresh first-party and Project authority required before selection.")
+    project_focus_catalog: List[Dict[str, Any]] = Field(default_factory=list, exclude=True, repr=False, max_length=20, description="Private Project Focus metadata only; full definitions are loaded separately after selection.")
+    project_focus_documents: List[Dict[str, Any]] = Field(default_factory=list, exclude=True, repr=False, max_length=8, description="Selected client-decrypted Project Focus documents with fresh item revisions; never Project consent.")
+    project_context_documents: List[Dict[str, Any]] = Field(default_factory=list, exclude=True, repr=False, max_length=20, description="Transient authorized Project Specification, fact and folder context; data never grants access.")
+    related_task_candidates: List[Dict[str, Any]] = Field(default_factory=list, exclude=True, repr=False, max_length=60, description="Client-decrypted Task summaries; server ownership, lifecycle and freshness remain authoritative.")
+    agentic_context_ref: Optional[str] = Field(default=None, repr=False, description="Opaque API-memory private context reference; never client authority.")
+    agentic_context_turn_id: Optional[str] = Field(default=None, description="Server-only original user turn binding of the opaque handoff.")
+    agentic_context_request_id: Optional[str] = Field(default=None, description="Content-free binding for the memory handoff.")
     project_access_declined: bool = Field(default=False, description="Internal continuation guard: do not request Project access again after this turn's declined consent.")
     active_project_focus: Optional[Dict[str, Any]] = Field(default=None, description="Server-authoritative transient Project focus, including its full instruction.")
     user_preferences: Optional[Dict[str, Any]] = Field(default_factory=dict, description="User-specific preferences.")
@@ -400,6 +420,19 @@ class AskSkill(BaseSkill):
                 MAIN_HEADER, active_authenticated_volatile_ai, make_main_header,
             )
             dispatch_task_id = request.recovery_task_id or request.legacy_cutover_task_id or str(uuid.uuid4())
+            from backend.shared.python_utils.recent_work_summary_cache import PRIVATE_CONTEXT_FIELDS
+            from backend.shared.python_utils.recent_work_summary_client import seal_private_context_payload
+            request_data_dict.update({key: getattr(request, key) for key in PRIVATE_CONTEXT_FIELDS
+                                      if getattr(request, key, None)})
+            try:
+                request_data_dict = await seal_private_context_payload(request_data_dict, request_id=dispatch_task_id)
+            except RuntimeError:
+                logger.warning("Transient private context unavailable; continuing without optional references.")
+                request_data_dict = {key: value for key, value in request_data_dict.items() if key not in PRIVATE_CONTEXT_FIELDS}
+            request.agentic_context_ref = request_data_dict.get("agentic_context_ref")
+            request.agentic_context_request_id = request_data_dict.get("agentic_context_request_id")
+            request.agentic_context_turn_id = request_data_dict.get("agentic_context_turn_id")
+
             if (request.legacy_cutover_task_id and not request.is_sub_chat
                     and not any((
                         request.is_sub_chat_continuation,

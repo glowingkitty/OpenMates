@@ -39,6 +39,9 @@
 //              height:40px; font-weight:500 }
 //            .action-buttons { position:absolute; bottom:1rem; left:1rem; right:1rem }
 //
+// Specification: specifications/features/rules/specification.yml — rules.transparency.applied-set
+// Specification: specifications/features/chats/specification.yml — chats.direction.reviewed-correction
+// Specification: specifications/features/focus-modes/specification.yml — focus-modes.project-authoring-click
 // messageList:
 //   Svelte:  frontend/packages/ui/src/components/ChatHistory.svelte
 //            frontend/packages/ui/src/components/ActiveChat.svelte
@@ -4923,6 +4926,7 @@ struct ChatMessageRenderPresentation {
     let displayContent: String
     let progressiveContent: String
     let stableRenderDocument: ChatHistoryRenderDocument?
+    let agentContextEvent: AgentContextEvent?
     let topLevelAppSkillEmbeds: [EmbedRecord]
     let hiddenInlineEmbedIds: Set<String>
 
@@ -4954,6 +4958,7 @@ struct ChatMessageRenderPresentation {
         } else {
             stableRenderDocument = nil
         }
+        agentContextEvent = message.role == .system ? AgentContextEvent.parse(displayContent) : nil
         topLevelAppSkillEmbeds = message.role == .assistant
             ? parentResolver(embeds, allEmbedRecords, displayContent) : []
         hiddenInlineEmbedIds = Set(topLevelAppSkillEmbeds.map(\.id))
@@ -5405,7 +5410,14 @@ struct MessageBubble: View {
 
     private func systemContent(_ presentation: ChatMessageRenderPresentation) -> some View {
         Group {
-            if let event = FocusPhaseEvent.parse(presentation.displayContent) {
+            if let event = presentation.agentContextEvent {
+                AgentContextNoticeView(event: event, onAuthoring: subChatStore.map { store in
+                    { recommendation in
+                        guard recommendation.chatID == chatId else { throw ProjectsWorkspaceError.invalidContext }
+                        try await NativeProjectAuthoringClient.shared.start(recommendation, messages: store.messages(for: chatId))
+                    }
+                })
+            } else if let event = FocusPhaseEvent.parse(presentation.displayContent) {
                 FocusPhaseNoticeView(event: event)
             } else {
                 RichMarkdownView(

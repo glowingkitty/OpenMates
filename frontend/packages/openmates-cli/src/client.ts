@@ -91,6 +91,10 @@ import {
   type TaskUpdateProposalEvent,
 } from "./ws.js";
 import type { FocusPhaseState } from "../../ui/src/types/focusPhases.js";
+import { registerChatContextEvents, parseChatContextContent, type ChatContextEvent } from "./chatContextEvents.js";
+import { prepareCliJevContext, type CliJevContext, type FocusAuthoringDocument } from "./cliJevContext.js";
+import { registerProjectFocusCountdown, type ProjectFocusCountdown } from "./projectFocusCountdown.js";
+import { assessCliProjectAuthoring, boundedAuthoringHistory } from "./cliProjectAuthoring.js";
 import type { MentionContext, AppInfo, MemoryEntryInfo } from "./mentions.js";
 import { CHAT_MODELS } from "./mentions.js";
 import type { EncryptedEmbed, EmbedKeyWrapper, PreparedEmbed } from "./embedCreator.js";
@@ -741,6 +745,8 @@ export interface WorkflowAuthoringWarning {
 }
 
 export interface WorkflowSummary {
+  /** Authoritative record revision used for Project authoring proposals. */
+  version?: number;
   id: string;
   slug?: string | null;
   encrypted_slug?: string | null;
@@ -850,6 +856,7 @@ export interface ProjectSettingsRecord {
   default_focus_id_hash: string | null;
   encrypted_settings: string | null;
   updated_at: number | null;
+  auto_selection?: boolean;
 }
 
 export interface ActiveProjectFocus {
@@ -858,6 +865,7 @@ export interface ActiveProjectFocus {
   focus_id: string;
   team_id: string | null;
   activated_at: number;
+  specialist_focus_id?: string | null;
 }
 
 export interface ProjectRemoteAccessRequestInput {
@@ -1098,6 +1106,10 @@ export interface UserPlanRecord {
   encrypted_context?: string | null;
   encrypted_linked_project_ids?: string | null;
   status: UserPlanStatus;
+  /** Server-issued approval metadata; never writable through Plan create/update. */
+  approval_state?: string;
+  submitted_revision_id?: string | null;
+  approved_revision_id?: string | null;
   primary_chat_id?: string | null;
   linked_project_ids?: string[] | null;
   key_wrappers?: Array<Record<string, unknown>> | null;
@@ -1109,8 +1121,8 @@ export interface UserPlanRecord {
   history?: WorkspaceHistoryResult | null;
 }
 
-export type UserPlanCreateInput = Omit<UserPlanRecord, "version" | "completed_at"> & { version?: number };
-export type UserPlanUpdateInput = Partial<Omit<UserPlanRecord, "plan_id" | "created_at">> & { version?: number };
+export type UserPlanCreateInput = Omit<UserPlanRecord, "version" | "completed_at" | "approval_state" | "submitted_revision_id" | "approved_revision_id"> & { version?: number };
+export type UserPlanUpdateInput = Partial<Omit<UserPlanRecord, "plan_id" | "created_at" | "approval_state" | "submitted_revision_id" | "approved_revision_id">> & { version?: number };
 
 export interface UserPlanCriterionRecord {
   criterion_id: string;
@@ -7502,6 +7514,10 @@ export class OpenMatesClient {
     chatId?: string;
     /** Explicit user-selected Project; activates its focus before inference preflight. */
     projectId?: string;
+    /** Already authorized private snapshots; inaccessible Project documents are omitted. */
+    jevContext?: CliJevContext;
+    onChatContextApplied?: (event: ChatContextEvent) => void | Promise<void>;
+    onProjectFocusPending?: (countdown: ProjectFocusCountdown | null) => void;
     onProjectWriteApproval?: (request: ProjectWriteApprovalRequest) => boolean | Promise<boolean>;
     onProjectReadApproval?: (request: ProjectReadApprovalRequest) => boolean | Promise<boolean>;
     /** Observe committed hosted Project file versions after the normal approval flow. */
@@ -7815,6 +7831,24 @@ export class OpenMatesClient {
     // client does. The next request restores this field; history is not authority.
     let focusPersistence = Promise.resolve();
     let focusPersistenceError: unknown = null;
+    const chatContextEvents = !params.incognito && chatKeyBytes ? registerChatContextEvents({
+      ws, chatId, chatKey: chatKeyBytes,
+      existingMessageIds: savedPrivacyHistory?.messages.map(message => message.id) ?? [],
+      previousRulesSetKey: savedPrivacyHistory?.messages.filter(message => message.role === "system")
+        .map(message => parseChatContextContent(message.content))
+        .filter((event): event is Extract<ChatContextEvent, { type: "rules_loaded" }> => event?.type === "rules_loaded")
+        .at(-1)?.set_key,
+      onApplied: params.onChatContextApplied,
+    }) : null;
+    let projectAuthoringAvailable: { chat_id: string; project_id: string; user_message_id: string } | null = null;
+    if (!params.incognito) ws.onMessageType("project_authoring_available", value => {
+      if (!value || typeof value !== "object") return;
+      const frame = value as Record<string, unknown>;
+      if (frame.chat_id === chatId && frame.user_message_id === messageId && typeof frame.project_id === "string")
+        projectAuthoringAvailable = { chat_id: chatId, project_id: frame.project_id, user_message_id: messageId };
+    });
+    const projectFocusCountdown = !params.incognito ? registerProjectFocusCountdown({ client: this, ws, chatId, teamId,
+      onPending: params.onProjectFocusPending, onError: error => { focusPersistenceError = error; } }) : null;
     ws.onMessageType<{ chat_id?: string; focus_id?: string }>("focus_mode_activated", (event) => {
       if (event.chat_id !== chatId || !event.focus_id || !chatKeyBytes || params.incognito) return;
       const focusId = event.focus_id;
@@ -7898,6 +7932,8 @@ export class OpenMatesClient {
         chat_has_title: Boolean(params.chatId),
       },
     };
+    if (!params.incognito) Object.assign(messagePayload,
+      await prepareCliJevContext(this, chatId, { teamId, personal: !teamId }, params.jevContext, finalMessage));
     if (params.testMockMarker !== undefined) {
       const { capacityReplayMarker } = await import("./capacityReplayMarker.js");
       messagePayload.test_mock_marker = capacityReplayMarker(
@@ -8152,6 +8188,11 @@ export class OpenMatesClient {
             createdAt,
             activateFocus: () => activateCliProjectFocus(this, params.projectId!, chatId, teamId),
           });
+          // Explicit Project activation changes the authorized private snapshot.
+          const focusedContext = await prepareCliJevContext(this, chatId,
+            { teamId, personal: !teamId }, params.jevContext, finalMessage);
+          Object.assign(messagePayload, focusedContext);
+          Object.assign(preflightInferenceRequest, focusedContext);
         }
         const preflightAck = ws.waitForMessage(
           "chat_turn_preflight_ack",
@@ -8704,7 +8745,9 @@ export class OpenMatesClient {
             await persistCompressionCheckpoints(resp.compressionCheckpoints);
             await persistTaskEventSystemMessages(taskEvents);
             await recoverCurrentTurnOutputs();
+            await projectFocusCountdown?.flush();
             await focusPersistence;
+            await chatContextEvents?.flush();
             if (focusPersistenceError) throw focusPersistenceError;
             const mateName = category ? (MATE_NAMES[category] ?? null) : null;
             return {
@@ -8931,8 +8974,19 @@ export class OpenMatesClient {
           clearSyncCache(teamId);
         }
       } finally {
-        await focusPersistence;
-        ws.close();
+        try {
+          await projectFocusCountdown?.flush();
+          await focusPersistence;
+          if (projectAuthoringAvailable && assistant && chatContextEvents) {
+            try {
+              const history = boundedAuthoringHistory([...(messageHistoryForRequest ?? []),
+                { role: "user", content: finalMessage }, { role: "assistant", content: assistant }]);
+              const recommendations = await assessCliProjectAuthoring(this, projectAuthoringAvailable, history);
+              for (const event of recommendations) chatContextEvents.persist(event);
+            } catch { /* Optional uncertain/unavailable assessment emits no authoring button. */ }
+          }
+          await chatContextEvents?.flush();
+        } finally { projectFocusCountdown?.(); chatContextEvents?.stop(); ws.close(); }
       }
       if (focusPersistenceError) throw focusPersistenceError;
     }
@@ -10924,6 +10978,7 @@ export class OpenMatesClient {
     default_focus_id?: string;
     encrypted_settings?: string;
     updated_at?: number;
+    auto_selection?: boolean;
   }, options: TeamContextOptions = {}): Promise<ProjectSettingsRecord> {
     this.requireSession();
     const response = await this.http.patch<{ settings: ProjectSettingsRecord }>(
@@ -10935,7 +10990,7 @@ export class OpenMatesClient {
   }
 
   async activateProjectFocus(projectId: string, input: {
-    chat_id: string; focus_id: string; instruction: string;
+    chat_id: string; focus_id: string; instruction: string; activation_request_id?: string;
   }, options: TeamContextOptions = {}): Promise<ActiveProjectFocus> {
     this.requireSession();
     const response = await this.http.post<{ focus: ActiveProjectFocus }>(
@@ -10944,6 +10999,136 @@ export class OpenMatesClient {
     );
     if (!response.ok || !response.data.focus) throw this.projectRequestError("focus activation", response);
     return response.data.focus;
+  }
+
+  async confirmProjectFocusCountdown(projectId: string, input: {
+    chat_id: string; activation_request_id: string;
+  }, options: TeamContextOptions = {}): Promise<void> {
+    this.requireSession();
+    const response = await this.http.post(
+      this.appendTeamQuery(`/v1/projects/${encodeURIComponent(projectId)}/focus/countdown`, options),
+      input, this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw this.projectRequestError("focus countdown confirmation", response);
+  }
+
+  async getCustomRuleDocuments(): Promise<NonNullable<CliJevContext["custom_rule_documents"]>> {
+    const user = await this.whoAmI();
+    const settings = await this.decryptSettingsRecord(user.encrypted_settings);
+    if (!Array.isArray(settings.rule_documents)) return [];
+    let chars = 0;
+    const documents: NonNullable<CliJevContext["custom_rule_documents"]> = [];
+    for (const value of settings.rule_documents.slice(0, 24)) {
+      if (!value || typeof value !== "object" || (value.source !== undefined && value.source !== "personal")
+          || typeof value.id !== "string" || !value.id || value.id.length > 128 || typeof value.document !== "string" || value.document.length > 24_000) continue;
+      if (chars + value.document.length > 64_000) continue;
+      chars += value.document.length;
+      documents.push({ id: value.id, source: "personal", document: value.document });
+    }
+    return documents;
+  }
+
+  async decryptTaskContextRecord(record: UserTaskRecord, options: TeamContextOptions = {}) {
+    const { decryptUserTask } = await import("./tasksCli.js");
+    const teamId = this.resolveTeamContext(options);
+    if (!teamId) return decryptUserTask(record, this.getMasterKeyBytes());
+    const key = await this.loadTeamKeyBytes(teamId);
+    const teamHash = createHash("sha256").update(teamId).digest("hex");
+    const wrapper = record.key_wrappers?.find(row => row.key_type === "team" && row.hashed_team_id === teamHash && row.team_key_epoch === 1);
+    if (!key) throw new Error("This Team Task key is unavailable.");
+    if (typeof wrapper?.encrypted_task_key === "string") return decryptUserTask({ ...record, encrypted_task_key: wrapper.encrypted_task_key }, key);
+    // Legacy Team records may expose the authorized wrapper in the main field.
+    // An owner can still read their own master-wrapped record; neither path
+    // broadens the server's team-scoped Task inventory or grants write access.
+    try { return await decryptUserTask(record, key); }
+    catch { return decryptUserTask(record, this.getMasterKeyBytes()); }
+  }
+
+  async selectProjectContext(projectId: string, input: { chat_id: string; text: string;
+    candidates: Array<{ kind: "focus" | "rule" | "spec" | "fact" | "folder"; id: string; title: string; description: string; when_to_use: string; revision: string }>;
+  }, options: TeamContextOptions = {}): Promise<Array<{ id: string; kind: string; revision: string }>> {
+    this.requireSession();
+    const response = await this.http.post<{ selected?: Array<{ id: string; kind: string; revision: string }> }>(
+      this.appendTeamQuery(`/v1/projects/${encodeURIComponent(projectId)}/context/select`, options), input, this.getCliRequestHeaders());
+    if (!response.ok) throw this.projectRequestError("private context selection", response);
+    return response.data.selected ?? [];
+  }
+
+  async requestProjectAuthoringRecommendations(projectId: string, input: {
+    chat_id: string; message_id: string; team_id?: string | null;
+    catalog: Array<{ kind: "focus" | "workflow"; id: string; title: string; summary: string; revision: string }>;
+    history: Array<{ role: "user" | "assistant"; content: string }>;
+  }): Promise<Array<Record<string, unknown>>> {
+    this.requireSession();
+    const response = await this.http.post<{ recommendations?: Array<Record<string, unknown>> }>(
+      `/v1/projects/${encodeURIComponent(projectId)}/authoring/recommend`, input, this.getCliRequestHeaders());
+    if (!response.ok) throw this.projectRequestError("authoring assessment", response);
+    return response.data.recommendations ?? [];
+  }
+
+  async inspectProjectFocusRecommendation(projectId: string, input: {
+    assessment_id: string; history: Array<{ role: "user" | "assistant"; content: string }>; document: FocusAuthoringDocument;
+  }): Promise<Record<string, unknown> | null> {
+    this.requireSession();
+    const response = await this.http.post<{ recommendation?: Record<string, unknown> | null }>(
+      `/v1/projects/${encodeURIComponent(projectId)}/authoring/inspect`, input, this.getCliRequestHeaders());
+    if (!response.ok) throw this.projectRequestError("Focus recommendation inspection", response);
+    return response.data.recommendation ?? null;
+  }
+
+  async startProjectAuthoringJob(projectId: string, input: {
+    recommendation_id: string; expected_revision: string | null;
+    history: Array<{ role: "user" | "assistant"; content: string }>; target?: FocusAuthoringDocument;
+    remote_binding?: Record<string, unknown>; timezone?: string;
+  }): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.post<{ job?: Record<string, unknown> }>(
+      `/v1/projects/${encodeURIComponent(projectId)}/authoring/jobs`, input, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.job) throw this.projectRequestError("authoring start", response);
+    return response.data.job;
+  }
+
+  async getProjectAuthoringJob(projectId: string, jobId: string): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.get<{ job?: Record<string, unknown> }>(
+      `/v1/projects/${encodeURIComponent(projectId)}/authoring/jobs/${encodeURIComponent(jobId)}`, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.job) throw this.projectRequestError("authoring job", response);
+    return response.data.job;
+  }
+
+  async getChatEncryptionKey(chatId: string, options: TeamContextOptions = {}): Promise<Uint8Array> {
+    const teamId = this.resolveTeamContext(options);
+    const cache = await this.ensureSynced(true, [chatId], options);
+    const chat = cache.chats.find(row => String(row.details.id ?? "") === chatId);
+    if (!chat) throw new Error("The authoring chat is unavailable.");
+    const wrappingKey = await this.getChatWrappingKey(teamId, this.getMasterKeyBytes());
+    const key = await this.resolveChatKey(cache, chat, wrappingKey, teamId);
+    if (!key) throw new Error("The authoring chat key is unavailable.");
+    return key;
+  }
+
+  async openProjectAuthoringWebSocket(): Promise<OpenMatesWsClient> {
+    return (await this.openWsClient({ taskUpdateJobs: false, projectFileJobs: true })).ws;
+  }
+
+  async commitHostedProjectFileRevision(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const { ws } = await this.openWsClient({ taskUpdateJobs: false });
+    const requestId = randomUUID();
+    try {
+      const pending = ws.waitForMessage("commit_embed_revision_result", value => (value as Record<string, unknown>).request_id === requestId, 30_000);
+      try { await ws.sendAsync("commit_embed_revision", { ...payload, request_id: requestId }); }
+      catch (error) { void pending.catch(() => {}); throw error; }
+      return (await pending).payload as Record<string, unknown>;
+    } finally { ws.close(); }
+  }
+
+  async acknowledgeProjectAuthoringSave(projectId: string, jobId: string, kind: "focus" | "workflow", input: Record<string, unknown>): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const suffix = kind === "focus" ? "saved" : "workflow-saved";
+    const response = await this.http.post<{ job?: Record<string, unknown> }>(
+      `/v1/projects/${encodeURIComponent(projectId)}/authoring/jobs/${encodeURIComponent(jobId)}/${suffix}`, input, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.job) throw this.projectRequestError("authoring save acknowledgement", response);
+    return response.data.job;
   }
 
   async getActiveProjectFocus(chatId: string): Promise<ActiveProjectFocus | null> {
@@ -11287,6 +11472,13 @@ export class OpenMatesClient {
     const response = await this.http.patch(this.appendTeamQuery(`/v1/projects/${encodeURIComponent(projectId)}/items/${encodeURIComponent(itemId)}`, options),
       { folder_id: folderId, updated_at: Math.floor(Date.now() / 1000) }, this.getCliRequestHeaders());
     if (!response.ok) throw this.projectRequestError('folder move', response);
+  }
+
+  async updateProjectItemMetadata(projectId: string, itemId: string, metadataEncrypted: string, options: TeamContextOptions = {}, expectedRevision?: string): Promise<void> {
+    this.requireSession();
+    const response = await this.http.patch(this.appendTeamQuery(`/v1/projects/${encodeURIComponent(projectId)}/items/${encodeURIComponent(itemId)}`, options),
+      { encrypted_metadata: metadataEncrypted, updated_at: Math.floor(Date.now() / 1000), ...(expectedRevision ? { expected_item_revision: expectedRevision } : {}) }, this.getCliRequestHeaders());
+    if (!response.ok) throw this.projectRequestError("item metadata update", response);
   }
 
   async createProjectFolder(projectId: string, input: Record<string, unknown>, options: TeamContextOptions = {}): Promise<void> {
@@ -11660,9 +11852,9 @@ export class OpenMatesClient {
     return response.data;
   }
 
-  async getTaskDependencies(taskId: string): Promise<{ dependencies: WorkDependencyRecord[]; blockers: WorkDependencyRecord[] }> {
+  async getTaskDependencies(taskId: string, options: TeamContextOptions = {}): Promise<{ dependencies: WorkDependencyRecord[]; blockers: WorkDependencyRecord[] }> {
     this.requireSession();
-    const response = await this.http.get<{ dependencies?: WorkDependencyRecord[]; blockers?: WorkDependencyRecord[] }>(`/v1/user-tasks/${encodeURIComponent(taskId)}/dependencies`, this.getCliRequestHeaders());
+    const response = await this.http.get<{ dependencies?: WorkDependencyRecord[]; blockers?: WorkDependencyRecord[] }>(this.appendTeamQuery(`/v1/user-tasks/${encodeURIComponent(taskId)}/dependencies`, options), this.getCliRequestHeaders());
     if (!response.ok) throw new Error(`Task dependency list failed with HTTP ${response.status}`);
     return { dependencies: response.data.dependencies ?? [], blockers: response.data.blockers ?? [] };
   }
@@ -11734,6 +11926,42 @@ export class OpenMatesClient {
       throw new Error(`User plan list failed with HTTP ${response.status}`);
     }
     return response.data.plans ?? [];
+  }
+
+  async getUserPlan(planId: string, options: TeamContextOptions = {}): Promise<UserPlanRecord> {
+    this.requireSession();
+    const response = await this.http.get<{ plan?: UserPlanRecord }>(
+      this.appendTeamQuery(`/v1/user-plans/${encodeURIComponent(planId)}`, options), this.getCliRequestHeaders());
+    if (!response.ok || !response.data.plan) throw new Error(`Plan read failed with HTTP ${response.status}`);
+    return response.data.plan;
+  }
+
+  /** Decrypt only the selected Plan's direction summary fields, without authoring or changing approval. */
+  async decryptPlanContextSummary(record: UserPlanRecord, options: TeamContextOptions = {}): Promise<string> {
+    const teamId = this.resolveTeamContext(options);
+    let key: Uint8Array | null = null;
+    if (teamId) {
+      const teamKey = await this.loadTeamKeyBytes(teamId);
+      const teamHash = createHash("sha256").update(teamId).digest("hex");
+      const wrapper = record.key_wrappers?.find(row => row.key_type === "team" && row.hashed_team_id === teamHash && row.team_key_epoch === 1);
+      if (teamKey && typeof wrapper?.encrypted_plan_key === "string") key = await decryptBytesWithAesGcm(wrapper.encrypted_plan_key, teamKey);
+    }
+    if (!key) key = await planKeyFromRecord(record, this.getMasterKeyBytes());
+    const entries: Array<[string, string | null | undefined, number]> = [
+      ["Title", record.encrypted_title, 200], ["Goal", record.encrypted_goal, 1800],
+      ["In scope", record.encrypted_scope_in, 700], ["Out of scope", record.encrypted_scope_out, 500],
+      ["Constraints", record.encrypted_constraints, 600],
+    ];
+    const lines: string[] = [];
+    for (const [label, ciphertext, limit] of entries) {
+      if (!ciphertext) continue;
+      const plaintext = await decryptWithAesGcmCombined(ciphertext, key);
+      if (plaintext === null) throw new Error("The accepted Plan summary is unavailable.");
+      if (label === "Goal" && !plaintext.trim()) throw new Error("The accepted Plan has no available goal.");
+      if (plaintext.trim()) lines.push(`${label}: ${plaintext.trim().slice(0, limit)}`);
+    }
+    if (!lines.some(line => line.startsWith("Goal: "))) throw new Error("The accepted Plan has no available goal.");
+    return lines.join("\n").slice(0, 4000);
   }
 
   async createUserPlan(input: UserPlanCreateInput): Promise<UserPlanRecord> {

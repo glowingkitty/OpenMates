@@ -1,0 +1,2159 @@
+schema_version: 2
+id: jev-agentic-project-work
+title: Broader Jev decision support for agentic project work
+status: implementing
+goal: 'Make better use of Jev to drastically improve the agentic working and coding capabilities of OpenMates. Investigate
+  the code base, then discuss ten rounds of questions, one question per round, updating the implementation and testing
+  plan after each answer. After ten questions summarize the implementation plan and needed spec changes, then implement
+  after user approval.
+
+  '
+tracking:
+  authority: OpenMates Tasks
+  task: TASK-8443
+  task_id: 2aff5eb1-896a-4396-83e3-c8f2b044dc20
+  external_chat: codex:01a0fd2e-67b3-7342-b062-c00ab5fc4d1a
+  session: 0f58
+  workspace: /home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-0f58
+scope:
+  in:
+  - Relevant project and related-task summaries for each chat.
+  - Vault-encrypted in-memory active/recent chat summaries, preserving client-encrypted long-term storage and server
+    inability to decrypt old chats independently.
+  - Separate focus instructions and phases from executable workflows and decisions.
+  - Project-scoped Specification/rule selection, focus modes, workflows and folder context; new Project memories
+    are deferred.
+  - Workflow selection and execution with current-chat or subchat delivery.
+  - Saving a remote-access Project Workflow also writes its portable YAML definition into the selected remote folder.
+  - Dynamic chat-direction evaluation against the user goal, linked Plan and Tasks, allowing relevant discoveries.
+  - LLM-reviewed drift correction instructions with an expandable, truthful chat notice after delivery.
+  - Built-in app, personal and Project Rules as reusable best practices, selected through Jev with quiet inspectable
+    cross-client loading events.
+  - User-authorized subagent research and brainstorming of current best practices for Code, Design and other applicable
+    existing apps, producing app-specific Rule catalogs after final approval.
+  - Terminal command risk evaluation alongside deterministic authorization and confinement.
+  - User-triggered background Focus authoring jobs, completion notifications linking to Focus embeds, and fresh
+    saved Focus revisions on later follow-ups.
+  - Focused testing, real-provider evaluation, and approved specification updates.
+  - Project-only two-stage Focus improvement recommendations and catalog-based creation recommendations; only a
+    button click triggers background LLM authoring.
+  - Project Workflow updates use the same metadata shortlist, authorized full-definition second Jev assessment and
+    click-triggered background authoring/notification flow as Focus updates.
+  out:
+  - Product implementation before ten answered questions and final user approval.
+  - Treating Jev as a generator of summaries, instructions, fixes or arbitrary structured text.
+  - Custom natural-language chat-direction Check authoring in this expansion; use mechanically assembled existing
+    context instead.
+  - A new Project-memory storage or ownership model; retain existing personal/team memories.
+  - Public/app Focus improvement proposals and personal/global Focus authoring suggestions outside user Projects.
+  - Project creation suggestions, anonymous app-skill contributions and admin messaging in this expansion.
+  - Wholesale implementation of the separate Specification/Plan/Check product lifecycle, custom quality Check authoring
+    or automatic test-repair loops.
+discovery:
+  jev:
+  - Existing typed decisions serve preprocessing, safety, ranking, workflow authoring and postprocessing.
+  - Client limits calls to 160 questions, 80000 serialized state characters and 120000 total request characters.
+  - Generative models still write summaries, instructions and proposed changes.
+  project_context:
+  - Chat routing supplies at most forty authorized project IDs/names, without descriptions or summaries.
+  - Standard focus modes use a four-second cancellable countdown with authoritative server activation; Projects
+    currently special-case activation with explicit Grant access rather than that countdown.
+  - Project activation injects one full focus instruction; client-side decryption is required for Project-owned
+    private context.
+  - Task context supplies chat-attached or mentioned lifecycle metadata without project task titles/descriptions.
+  - Encrypted app memories have personal/team scope; new Project memories are deferred.
+  - Current checkout now implements focus phases, Jev requirement/completion/rewind decisions and permission-scoped
+    app/workflow tool reselection on phase transitions; broader context and saved-Workflow discovery must build
+    on this existing path.
+  - AppInstructionDefinition already supports instruction text with category/embed gating and skill-dependent prompt
+    loading; no first-class selectable Rule catalog or user-visible Rules-loaded event was found.
+  - Existing Focus Markdown uses name/description/preprocessor-hint frontmatter; the agreed Rule format uses title/description/when_to_use,
+    so reuse parsing primitives without treating Rules as Focus definitions.
+  current_decision_areas:
+  - Preprocessing routes model reasoning/task area, topic/language/temperature and previews, detects topic shifts/user
+    dissatisfaction/safety concerns, and shortlists skills/focuses/memory categories.
+  - Request safety confirms allow/block/uncertain, harm category and requested action, with evidence selected from
+    actual user-text spans.
+  - External text and structured skill outputs use Jev prompt-injection gates; ambiguous or flagged structured output
+    goes to the existing exact-span generative sanitizer.
+  - Optional public search relevance ranks bounded candidates against user criteria; skill-owned hard filters and
+    result limits remain authoritative.
+  - Event search uses semantic specialist-provider selection for ambiguous requests alongside deterministic routing.
+  - Workflow authoring shortlists registry capabilities/inputs and saved targets, checks authored AI questions/instructions,
+    and recommends earlier-value references; configured runtime AI Checks use typed branch outcomes.
+  - Focus phases use bounded completion/rewind decisions and app/workflow tool reselection at phase changes.
+  - Postprocessing rates response safety and ranks useful apps; generative models still produce summaries, titles
+    and suggestions.
+  workflows_and_terminal:
+  - Workflow AI Checks already use bounded explicit earlier values and return true, false or Unsure.
+  - Workflow execution follows a validated saved graph; node types, configured inputs, graph edges and branch outcomes
+    govern execution.
+  - AI Checks judge explicit earlier values and select configured branches; workflow shortlisting cannot invent
+    or rewrite runtime steps.
+  - Assistant-facing workflows.run already supports trusted source_chat_id, per-run message_destination_overrides
+    and selected return_outputs; saved-graph mutation is not required for these invocation options.
+  - Automatic selection and same-chat/subchat continuation still need integration semantics; reuse existing owned
+    invocation/delivery rather than assuming a new chat is required.
+  - Workflow capabilities currently exclude async/sandbox and approval-required skills.
+  - Terminal safety uses exact approval and OS confinement; the model explanation has no approval authority.
+  - Product Checks have a draft revision-bound specification; implementation was not found in this investigation.
+  - Web Workflow-to-Project saves currently create an encrypted Project item; CLI remote-copy flags emit a writes_files=false
+    proposal rather than writing the remote YAML.
+  - Portable Workflow import/export already defines a versioned openmates-workflow document and .workflow.yml filename;
+    reuse this format for Project files.
+  - The chat activity endpoint reports running AI tasks; general chat timestamps also change for user messages,
+    imports or edits and cannot alone prove a recent completed assistant response.
+  - Tasks expose status, linked Project hashes, version and updated_at, with encrypted titles and activity summaries;
+    context selection must preserve client-owned decryption.
+  - Existing AI message cache is Vault-encrypted with a three-chat LRU and seventy-two-hour TTL, separate from client-encrypted
+    sync/durable storage; do not expand full-message retention to implement summary routing.
+  - Postprocessing already produces the latest summary before client encryption/persistence; this is a candidate
+    point to populate a separate short-lived summary cache.
+  - Shared Dragonfly cache configuration mounts cache-data; a mount alone does not establish memory-only retention,
+    so new summary entries need verified exclusion from disk persistence and backups.
+  - Unified notifications already provide user-scoped Redis/SSE events with safe translation keys and routing metadata;
+    current assistant/mention routing is chat-oriented, so Focus-result routing needs an extension.
+  source_paths:
+  - backend/shared/providers/typesafe/client.py
+  - backend/apps/ai/processing/jev_preprocessing.py
+  - backend/apps/ai/processing/postprocessor.py
+  - backend/apps/ai/processing/chat_request_safety.py
+  - backend/apps/ai/processing/content_sanitization.py
+  - backend/apps/ai/processing/focus_phases.py
+  - backend/shared/python_utils/structured_content_sanitization.py
+  - backend/shared/python_utils/search_relevance.py
+  - backend/apps/events/skills/provider_routing.py
+  - backend/apps/ai/processing/task_tool_context.py
+  - backend/core/api/app/services/project_focus_request_service.py
+  - frontend/packages/ui/src/services/projectFocusSendPreflight.ts
+  - backend/shared/python_schemas/app_metadata_schemas.py
+  - backend/core/api/app/services/workflow_ai_service.py
+  - backend/core/api/app/services/workflow_registry_planner.py
+  - backend/core/api/app/services/workflow_authoring_preselection.py
+  - backend/core/api/app/services/workflow_action_adapter.py
+  - backend/core/api/app/services/workflow_runner.py
+  - backend/apps/workflows/skills/run_skill.py
+  - backend/core/api/app/services/remote_command_service.py
+  - frontend/packages/ui/src/components/embeds/focus_mode/FocusModeActivationEmbed.svelte
+  - backend/apps/ai/tasks/focus_mode_auto_confirm_task.py
+  - frontend/packages/ui/src/components/settings/SettingsProjects.svelte
+  - frontend/packages/openmates-cli/src/cli.ts
+  - backend/core/api/app/services/workflow_input_service.py
+  - backend/core/api/app/services/workflow_input_planner.py
+  - backend/core/api/app/services/workflow_authoring_compiler.py
+  - backend/core/api/app/services/workflow_authoring_transaction.py
+  - backend/core/api/app/routes/workflows.py
+  provider_references:
+  - https://docs.typesafe.ai/api
+  - https://docs.typesafe.ai/models
+  - https://openrouter.ai/typesafe/jev-1.13
+  instruction_loading:
+  - Mindmaps app instructions currently have no skill/category/embed gating and are loaded whenever the app is eligible;
+    Jev does not select mind-map instructions.
+  - Interactive-question protocol is always included in the main prompt; the main processor decides when/how to
+    ask. Focus instructions and the subchat ask_user_input tool can also guide clarification.
+  - Other app instruction definitions support relevant skill, conversation-category and for_embed_types gating.
+    Selecting these two protocols is not added to the approved expansion by the informational follow-up.
+proposed_workstreams:
+- Authorized Project/task/Specification/rule/folder context selection; new Project memories deferred.
+- Focus-mode lifecycle, project scope, active phases and instruction precedence.
+- Workflow discovery, triggering, chat/subchat routing and execution lifecycle.
+- Dynamic chat-direction feedback anchored to user intent and linked work.
+- Built-in app, personal and Project Rule Markdown definitions, bounded selection, ownership and quiet cross-client
+  transparency.
+- Terminal semantic risk classification integrated with deterministic permissions.
+- Shared budgets, confidence handling, observability and real-provider evaluation.
+specification_candidates:
+  existing:
+  - feature.projects
+  - feature.focus-modes
+  - feature.chats
+  - feature.workflows
+  - feature.notifications
+  additional_paths:
+  - specifications/features/app-skills/code-run
+  note: Seven owning drafts are validated and ready for exact-fingerprint review; dependencies do not authorize
+    their separate full planned runtimes.
+  identified_changes:
+  - Replace projects.focus.inferred-consent's explicit-confirmation/no-timer behavior with the standard cancellable
+    focus activation countdown.
+  - Extend projects.focus.default-owned and focus-modes.countdown with one Work on (project name) focus per Project
+    and the Project data-loading boundary.
+  - Define Project auto-selection settings with default on, matching web/CLI behavior, and manual mention access
+    when disabled.
+  - Preserve cancellation, stale-turn, chat-scope and access-revocation protections; test them against countdown
+    activation.
+  - Extend focus lifecycle and prompt composition to keep the Project base active while one specialized focus is
+    active, instead of clearing the Project binding.
+  - Define one visible specialized focus title combining Project name and focus name, with responsive shortening
+    that preserves the underlying full identity.
+  - Integrate Jev context selection with the planned Specification/Plan/Check chain rather than storing design requirements
+    as separate Project memories.
+  - Extend regular and Project-specific focus activation with a focus-aware Jev reselection of eligible app skills,
+    existing executable workflows and other permitted context.
+  - Extend phased focus lifecycle with the same reselection after an authoritative active-phase change; refresh
+    against the new active instructions.
+  - 'Adapt focus-modes.full-instruction to the planned phase model: full active-phase instructions with other phases
+    represented by titles, while preserving the Project base.'
+  - Preserve the owning deterministic Workflow graph/Check contract; focus instructions and Specification requirements
+    are separate objects.
+  - Extend Tasks/Projects context contracts with bounded related chat/Task discovery and Jev relevance selection,
+    including active/recent cross-Project candidates without activating those Projects.
+  - Define a reliable assistant-response completion timestamp and meaningful Task-change freshness for candidate
+    filtering; navigation or list reordering must not manufacture relevant activity.
+  - Extend Workflow portability and Project file-save behavior so saving a Workflow in a selected remote Project
+    folder writes its portable YAML through the existing authorized file path and reports partial failure honestly.
+  - Extend chats.persistence.client-encrypted with an explicit memory-only Vault-encrypted active/recent summary
+    cache boundary, expiry and access revocation; expired cache entries cannot be reconstructed by server decryption
+    of durable chat records.
+  - 'Define chat-direction evaluation separately from revision-bound product acceptance Checks: linked work is context,
+    relevant discoveries remain permissible, and dynamic relevance cannot grant scope expansion or rewrite the user
+    goal.'
+  - Define Jev drift assessment followed by an LLM correction/no-correction decision, internal instruction delivery
+    and an expandable notice bound to the actual delivered instruction.
+  - Add a Rules Specification for built-in app, personal and Project guidance with Markdown title/description/when_to_use
+    frontmatter, authorized selection, precedence and quiet Web/Apple/TUI loaded-rule transparency.
+  - Extend Focus authoring with button-triggered background create/update jobs, no authoring LLM call before the
+    click, independent chat continuation and saved-result availability in the Project workspace.
+  - Extend notification target references/actions with authorized Focus embed routing and privacy-safe completion/failure
+    state; reuse existing delivery preferences/history instead of creating a separate notification system.
+  - Resolve authoritative saved Focus revisions on follow-up requests and invalidate stale instruction/phase/selection
+    caches while preserving each already-running response's input snapshot.
+  - Project-only catalog assessment includes inactive Focus titles/summaries; authorized selected full definitions
+    undergo a second Jev improvement assessment before Update is offered. First-pass Create is permitted.
+  - Terminal elevated/uncertain risk requires review before otherwise preapproved execution; no risk decision replaces
+    deterministic permission/confinement.
+  - Extend Project Workflow updates with the same catalog/full-definition Jev stages, button-gated background editing
+    and ready notification; preserve deterministic graphs, existing authoring validation/enabled-state/partial-result
+    semantics and immutable active-run versions.
+  new:
+  - feature.rules
+  unchanged_dependencies:
+  - feature.tasks
+  - feature.specifications
+  - feature.plans
+  - feature.checks
+  - feature.app-memories
+  - feature.ai-model-routing
+agreed_behavior:
+  project_activation:
+    catalog: Each Project has one associated Work on (project name) focus mode.
+    routing: The preprocessor shortlists potentially relevant focus modes including eligible Project focuses; the
+      main processor decides whether to activate one.
+    presentation: Use the existing standard focus-mode countdown, click/ESC interruption and authoritative activation
+      lifecycle.
+    accepted: Only after the countdown completes without rejection, activate the Project focus and begin loading
+      its instructions and other Project-specific processing/data.
+    rejected: Do not load that focus or perform its Project-specific context selection/loading; continue without
+      the proposed Project.
+    preference: Project auto-selection defaults to on; expose a toggle in web settings and CLI Project settings.
+    disabled: Automatic selection/activation is unavailable; the user must manually mention the Project.
+    manual: Reuse the existing explicit Project-mention path rather than introducing a second confirmation flow.
+    routing_boundary: Minimal Project discovery metadata remains necessary before activation; detailed Project context
+      and project-specific decisions wait until activation.
+    implementation_note: Reuse the standard lifecycle while retaining client-owned decryption; define how the connected
+      client responds to authoritative countdown completion.
+  specialized_focus:
+    composition: Keep the Project base and its instructions active; one specialized focus adds its instructions
+      and current-phase guidance.
+    switching: Switching the specialized focus retains the active Project base and authorized Project association.
+    visible_indicator: Once a specialized focus is active, show only that specialized active focus indicator; do
+      not show a second active Work on Project indicator.
+    title_format: Project name | Specialized focus name
+    title_examples:
+    - SocialHub | Debugging
+    - OpenMates | Add new app skill
+    narrow_layout: Render the combined title shortened when space is insufficient, retaining the full Project/focus
+      identity in state.
+    off_and_switch: Switching specialists retains the Project base. Disabling the Project clears its specialist
+      and future Project instruction/context authority; shared off behavior remains authoritative.
+  specification_ownership:
+    design_guidelines: Design guidelines belong to their governing Specifications rather than a second Project memory
+      representation.
+    context_selection: Prefer selecting applicable Specification references/requirements alongside relevant Plans,
+      Tasks, workflows and source context.
+    approval_boundary: Relevance selection cannot approve a draft requirement, change the approved revision or discard
+      deterministically required inherited obligations.
+    project_memories: Deferred by the user in round ten. Preserve existing personal/team memory selection and authorized
+      encrypted Project fact documents without duplicating Specs.
+  concept_boundaries:
+    focus: LLM instructions for reaching a specific goal in a chat, optionally organized into phases.
+    specification: A detailed requirements document describing approved product behavior and design obligations.
+    workflow: A predefined validated executable graph with deterministic steps and control flow; configured bounded
+      AI Checks may select branches.
+    selection: Jev may rank/shortlist existing workflow definitions; only an authorized invocation runs their configured
+      graph. A focus's natural-language process is not itself a Workflow.
+  post_focus_reselection:
+    trigger: Every authoritative focus activation, including regular/global, Project-base and Project-specific specialized
+      focuses.
+    state: Bounded user goal/chat context, the effective activated focus instructions/purpose/current phase, and
+      permission-scoped candidate catalogs.
+    decisions: Reselect relevant app skills, existing workflows and other permitted context using the now-active
+      focus as decision context.
+    main_processor: Receives the updated candidates and decides which tools/workflows to use; relevance scores do
+      not execute workflows or grant authority.
+    rejected: A rejected or stale activation does not start this activation-dependent selection pass or load rejected
+      Project context.
+    current_reuse: Regular focus auto-confirm already starts a new ask_skill continuation; add effective focus context
+      to its decision processing instead of scheduling a redundant unrestricted agent process.
+    phase_transition: Run the same focus-aware reselection when an already active focus changes instruction phase,
+      using the new phase as decision context.
+    ordinary_progress: Phase-triggered reselection is not an additional trigger for every ordinary tool result inside
+      an unchanged phase; normal message preprocessing remains.
+    implementation_details: Exact data projection, selection budgets, candidate-cache reuse and spec-driven-development
+      integration remain to be settled.
+  related_work:
+    direction: Jev chooses relevant bounded chat/Task summaries from deterministic eligible candidates, rather than
+      injecting every same-Project summary or excluding all cross-Project work.
+    same_project: Prefer same-Project work in the candidate pool; selected summaries still require relevance to
+      the current goal and active focus/phase.
+    cross_project_chats: Include active chats and chats whose latest completed assistant response is within the
+      proposed thirty-minute discovery window, within the authorized current personal/team context.
+    cross_project_tasks: Include active Tasks and recently changed blocked/done Tasks; thirty minutes is the user's
+      proposed starting window.
+    proposed_details:
+    - Define active Tasks as in_progress, and active chats as work currently processing or explicitly awaiting continuation
+      rather than any open browser tab.
+    - Keep explicitly mentioned/linked dependencies eligible outside the discovery window, including older same-Project
+      blockers.
+    - Use authoritative completion/change metadata rather than generic navigation timestamps; preserve status, source
+      references and freshness with summaries.
+    - Bound and prioritize the candidate pool before Jev; use the agreed Vault-encrypted memory-only active/recent
+      summary cache, not full other-chat transcripts or background client decryption of old chats.
+    authority: Selecting a cross-Project summary does not activate that Project, load its files/focus instructions,
+      claim a Task or create a second work owner.
+    implementation_details: Use in_progress Tasks, currently processing or explicitly awaiting-continuation chats,
+      authoritative assistant-completion and meaningful Task-change clocks, thirty-minute discovery freshness and
+      explicit older links. Bound/paginate candidates under provider limits; missing private summaries remain absent.
+  related_chat_summary_cache:
+    requirement: Extend the existing server cache with Vault-encrypted summaries of eligible active chats and chats
+      with a completed assistant response in the last thirty minutes.
+    location: Memory only; never write this server-decryptable summary copy to disk, Directus, snapshots, backups,
+      task receipts or content-bearing logs.
+    durable_storage: Long-term summaries and chat content remain encrypted by the client with client-owned chat
+      keys; do not escrow chat/master keys or add a server decryption path.
+    population: Populate from authorized transient processing context and newly generated summaries; evaluate the
+      existing postprocessing summary path for cache updates.
+    lifetime: Bind eligibility and eviction to active work and the last completed assistant response, with bounded
+      retention and access/deletion revocation; Jev reads must not perpetually extend eligibility.
+    inference: Decrypt only eligible bounded summaries transiently for the permitted Jev request; do not retain
+      the assembled plaintext request in logs or durable jobs.
+    missing_or_expired: Treat an unavailable summary as unavailable; no server-side reconstruction by decrypting
+      old Directus chats. Explicit user/client reopening of an old chat retains its existing separate authorization
+      path.
+    isolation: Preserve owner/team/chat access boundaries, source revision/freshness and revocation checks.
+    proposed_details: Final cache key/index design, active-work expiry, restart behavior and how the shared cache
+      excludes these entries from disk persistence remain implementation design work.
+  remote_project_workflows:
+    required: Saving a Workflow in a remote-access Project must also save its YAML definition in the selected remote
+      folder.
+    format: Reuse the portable openmates-workflow format and .workflow.yml filename convention.
+    write_path: Resolve the selected source/folder and use existing Project file-write authorization, write policy,
+      protected-path and version/conflict guards.
+    completion: An encrypted Project item or remote-copy proposal alone is not proof that the YAML file was written;
+      distinguish linked, pending and file-saved states and retain recoverable failure details.
+    implementation_details: Write canonical portable YAML to the selected folder and refresh bound files on later
+      saves under existing guards. External edits require explicit import/reconciliation; no bidirectional watcher
+      is added.
+  chat_direction:
+    user_intent: Regularly evaluate whether a chat with linked Tasks/Plan still serves its goal or drifts into disconnected
+      or irrelevant work, while allowing useful related discoveries and fixes.
+    agreed_default: A reusable Jev direction evaluator over deterministically assembled context; do not define custom
+      checks yet.
+    anchor: Preserve the user's actual goal, current user clarifications and accepted Plan scope independently of
+      the evolving Task list; drifted Tasks cannot redefine success merely by existing.
+    state: Mechanically project bounded fields from existing goal/Plan summaries, open Tasks, actual user clarifications,
+      active focus/phase and recent assistant actions/tool outcomes; retain source/version references and distinguish
+      unavailable fields. No new generative check-definition/context-authoring pass is required.
+    decisions: Classify on_track, justified_related_discovery, material_drift or insufficient_context; optionally
+      select supporting evidence IDs from supplied candidates.
+    custom_checks: Deferred; no mandatory or optional custom chat-direction Check definitions/authoring/storage
+      in the current expansion.
+    related_discoveries: A newly found causal issue, necessary dependency or regression risk can remain relevant
+      when supported by evidence; a different main objective requires an actual user scope change.
+    recommended_timing: Evaluate at completed-response boundaries when relevant progress/Tasks/Plan state changes,
+      plus bounded checkpoints during long-running work; avoid blind inference polling of idle chats.
+    drift_review: When Jev identifies material drift, an LLM reviews the original direction, current context and
+      assessment to decide whether a correction instruction should be sent and, if so, writes the instruction.
+    correction_delivery: Deliver the generated correction into the current chat's agent context using an internal
+      continuation/event path; preserve its generated provenance rather than fabricating a user instruction or approval.
+    visible_notice: Chat is drifting too far away from the goals. Correction instruction was sent.
+    expansion: The notice has a dropdown/disclosure icon exposing the full LLM-generated correction instruction
+      actually sent.
+    delivery_truthfulness: Show the sent notice only after accepted delivery; no notice claiming correction delivery
+      when the LLM declines, generation fails or delivery remains pending/failed.
+    authority: A correction instruction adds guidance under existing user/scope/permission authority; it does not
+      cancel work, delete Tasks, approve scope changes or prove acceptance criteria by itself.
+    implementation_details: Exact cadence, reviewer model, internal delivery/wake behavior, deduplication and private
+      event retention remain implementation decisions.
+  rules:
+    status: Rule concept, ownership, Markdown shape and quiet transparency agreed in round seven; runtime/editing
+      details remain draft.
+    concept: Reusable general best practices for how to work, such as JavaScript/Svelte/Python guidance, without
+      a step-by-step goal process.
+    boundaries:
+      focus: Goal-directed instructions and optional phases.
+      specification: Required target behavior/architecture/design obligations.
+      memory: Facts, preferences and remembered context.
+      rule: Reusable practice guidance; a required product/design outcome belongs to its Specification instead of
+        a duplicate Rule.
+    selection: Jev shortlists relevant app-specific Rules in preprocessing; select eligible metadata, load definitions,
+      and refresh with focus/phase context. Private Project Rules wait for authoritative Project activation and
+      authorized decryption.
+    ownership: Built-in app Rules plus user-authored personal and Project Rules use the same concept; users must
+      be able to create custom Rules inside Projects.
+    document_format: Markdown body with YAML header fields title, description and when_to_use; titles/descriptions/applicability
+      support discovery, while the body supplies loaded practice guidance.
+    granularity: Each selectable Rule is a coherent topic/domain guide containing several best practices, such as
+      Mobile first design, Svelte coding rules, Python coding rules or Accessibility best practices; do not create
+      one independently selected Rule per tiny practice.
+    counting: Loaded N rules counts applied Markdown guides, not individual bullets within them; Jev selects guide
+      IDs using their title/description/when_to_use metadata.
+    private_storage: Preserve client encryption for durable user/Project Rule documents; use existing authorized
+      Project file/document storage and guarded remote file writes where applicable, with stable source/revision
+      metadata.
+    transparency: Automatically apply selected eligible Rules and emit a quiet expandable Loaded N rules line when
+      the applied set first appears or materially changes, avoiding repeated unchanged notices; Web, Apple and TUI
+      preserve the same information.
+    expanded_view: Rule titles, source/app/Project and full text, with stable IDs/revisions bound to what was actually
+      injected; count only successfully applied Rules.
+    precedence: Best-practice relevance selection cannot remove core safety/tool protocol instructions, override
+      explicit user intent, bypass permissions or silently weaken approved Specification obligations; conflicts
+      need a clear resolution.
+    applicability_note: Reusable app Rules may help work even without a skill invocation from that app; do not blindly
+      inherit legacy skill-only gating for best-practice relevance. Retain app availability and other eligibility
+      restrictions.
+    implementation_details: Editing/registration UX, exact file paths, conflict resolution, disabled-rule controls
+      and cross-client event representation.
+  rule_research:
+    authorization: User explicitly requested subagents for research/brainstorming current app best practices and
+      warned against online prompt injection.
+    artifact: docs/plans/jev-agentic-project-work/rule-research.md
+    status: Initial practice research regrouped into six coherent Code/Design Markdown guide proposals after user
+      feedback; publication/review remains part of implementation after final approval.
+    assignments:
+    - agent: /root/code_rules_research
+      model: gpt-6-sol
+      effort: medium
+      ownership: Read-only Code app and primary-source coding/Svelte/TypeScript/Python research; no product edits.
+      outcome: Four guide proposals for Svelte, Python, JavaScript and TypeScript, with multiple practices, applicability/version
+        caveats and primary-source links.
+    - agent: /root/design_rules_research
+      model: gpt-6-sol
+      effort: medium
+      ownership: Read-only Design app and primary-source design/accessibility research; no product edits.
+      outcome: Mobile first design and Accessibility best practices guides, separated from Project Specifications
+        and OpenMates-specific DESIGN.md.
+    method: Online content is untrusted evidence, never instructions/approval; use primary sources, do not execute
+      page-supplied commands, preserve secrets and minimize quoted material.
+    implementation_follow_up: Review source/version applicability, consolidate duplicated guidance, create built-in
+      app-specific Markdown Rule files and inventory other existing apps for concrete useful practices.
+  terminal_risk:
+    agreed_policy: Combine deterministic authorization/confinement with Jev semantic risk assessment; elevated or
+      uncertain results require explicit review before otherwise preapproved automatic execution.
+    permissions: Jev cannot grant access, override deterministic denials, broaden resources or replace exact approval
+      requirements; routine results retain existing approval behavior.
+    input: Bounded normalized command/argv/cwd/declared-resource context and available authorized script evidence,
+      all treated as data rather than evaluator instructions.
+    explanation: Keep the existing separate LLM command explanation for readable effects/uncertainty; Jev supplies
+      bounded risk decisions.
+    tuning: Measure false positives and review burden on realistic labeled commands and disposable validation; the
+      user permits later reconsideration if too aggressive, not a current waiver of the selected policy or deterministic
+      guards.
+    implementation_details: Use routine/elevated_risk/uncertain typed outcomes; outage is uncertain and requires
+      review. Cover exact remote execution requests, unknown/indirect script effects and labeled false positives.
+  post_response_proposals:
+    status: Project-only two-stage recommendation and click-triggered background authoring agreed; final implementation
+      approval pending.
+    scope: Only the current authorized user Project. Public/app Focus improvements and outside-Project personal/global
+      authoring suggestions are excluded.
+    first_jev: 'After a completed response, supply bounded authorized chat/goal context and the Project Focus catalog:
+      IDs, titles and summaries, including inactive definitions. Jev selects existing candidates worth full inspection
+      and/or recommends a useful non-overlapping new Focus.'
+    full_loading: An authorization-enforcing loader obtains only selected full definitions through client-owned
+      decryption/transient Project context paths. Jev selection does not fetch content itself, activate a Focus
+      or grant access.
+    second_jev: Assess the full selected Focus instructions against the chat. Only a confirmed useful improvement
+      exposes Update. No-change, unavailable, failed or uncertain evaluation produces no Update button.
+    create_button: The first catalog decision can expose Create focus mode directly when no existing definition
+      adequately covers the reusable goal/process.
+    generative_trigger: Only pressing Create/Update starts the validated scoped authoring LLM job. Neither Jev assessment
+      nor full-definition loading triggers generative authoring.
+    authoring_input: Snapshot authorized chat history at click plus dedicated Focus create/update instructions,
+      Project target, and full expected base revision for updates. A late click needing expired history requires
+      explicit authorized client supply; never server decryption of old chats.
+    background_execution: Run independently of normal chat responses without creating a separate regular chat. The
+      originating chat remains usable.
+    persistence: Validate the document, ownership, permissions and base revision; persist via existing client-encrypted
+      Project/content and applicable file-write paths. Concurrent edits cannot be silently overwritten.
+    completion: Only a saved reachable result is ready. Notify with an authorized Focus embed link and expose the
+      result in the regular Project workspace.
+    privacy: Durable notification/job metadata contain safe state/routing references, not plaintext private instructions
+      or chat history. Preserve encrypted content/recovery boundaries.
+    revision_freshness: Next follow-up using the updated Focus resolves its saved revision and refreshes effective
+      instructions, compatible phase state and selected context. Already-running responses retain their prior snapshot.
+    activation: Creation does not implicitly activate a Focus; updating an active Focus takes effect on its next
+      follow-up.
+    reliability: Bind recommendations/jobs to Project, chat and revisions; deduplicate unchanged recommendations
+      and clicks/retries. Revoked/deleted targets and failed/conflicting saves produce no success notification.
+    example: SocialHub release planning can shortlist the inactive Release preparation Focus for full assessment.
+      A missing reusable release process can justify Create directly from catalog assessment.
+  project_memory_scope:
+    status: Deferred by the user in round ten.
+    decision: No new Project-memory store or authoring/settings lifecycle in this expansion.
+    existing_context: Reselect existing personal/team memories under current permissions; authorized encrypted Project
+      fact documents remain available after activation.
+  post_response_workflow_updates:
+    status: Explicit follow-up user direction after round ten; no additional question round.
+    catalog: First Jev reviews authorized current-Project Workflow IDs, titles and summaries, including inactive/disabled
+      definitions; pick candidates worth full inspection, not only Workflows already used in the chat.
+    full_assessment: Load selected saved definitions under Workflow/Project access. A second Jev compares the full
+      graph, inputs, steps, configured Checks and delivery settings with authorized chat context. Show Update only
+      for a confirmed useful improvement; assessment does not execute a graph, node or Check.
+    click: Only Update click starts an idempotent background invocation of that existing authoring pipeline, using
+      permitted chat history, full target/base revision and dedicated Workflow editing instructions. No regular
+      new chat; chat continues independently. Recommendation Jev stages precede the click; existing authoring Jev
+      and LLM stages run only after it.
+    validation: Reuse existing Workflow capability/input/reference/graph validation, expected-revision guards, atomic
+      update and visible partial/failed-result semantics. Preserve existing enabled state only on a successful valid
+      update; do not mint execution/resource grants.
+    storage: Preserve the existing encrypted Workflow ownership/content lifecycle and guarded Project file binding;
+      a bound remote Workflow save also updates its selected-folder YAML. Do not durably retain plaintext input
+      chat history.
+    completion: Saved reachable completion notifies with its Workflow embed/Project workspace link; pending remote
+      writes and failed/conflicting/partial updates do not claim complete success.
+    versions: Future invocations resolve the new saved definition under normal admission rules; an already-running
+      Workflow retains its immutable pinned version.
+    scope: Update recommendations are Project-specific. Existing user-requested Workflow creation is unchanged;
+      this addition does not introduce automatic new-Workflow recommendations.
+    authoring_pipeline: Update click invokes the existing AI-powered Workflow creation/editing Jev + LLM pipeline
+      through WorkflowInputService and its registered planner/preselection/compiler/transaction path. Reuse its
+      validation, billing, idempotency and partial-result handling; no parallel Workflow authoring engine.
+    clarification: Existing authoring needs-clarification or failure becomes a visible pending/needs-input/failed
+      job state, without automatically creating another regular chat or claiming success.
+discussion:
+  completed_rounds: 10
+  total_rounds: 10
+  current_round: 10
+  question_format: One question per round, always including concrete examples and a recommendation.
+  current_question: null
+  discussion_method: Each remaining round follows a concrete user flow, explicitly mapping processing order, Jev
+    input/projections/questions/output, main-processor actions and failure/cancellation branches; recommendations
+    are proposals until accepted.
+  answers:
+  - round: 1
+    question: When the user has not mentioned @project, should a strong Project match activate automatically or
+      require explicit confirmation?
+    answer: 'Use the same UI logic as focus modes. The preprocessor selects potentially relevant focuses, including
+      one Work on (project name) focus per Project. The main processor chooses a focus and the usual countdown appears.
+      Interruption prevents loading the focus and Project-related processing/data. Without rejection, activate and
+      work on the Project. Auto-selection defaults to on and can be disabled in web Project settings or CLI settings,
+      requiring a manual Project mention.
+
+      '
+    recommendation_disposition: The user rejected the proposed opt-in default and specified the existing focus-mode
+      countdown with an opt-out setting.
+  - round: 2
+    question: After Project activation, how should a specialized focus such as UI implementation combine with Work
+      on Storefront?
+    answer: 'Keep the Project base plus one specialized focus as recommended. The user sees only the specialized
+      focus active, whose title includes the Project name, for example SocialHub | Debugging or OpenMates | Add
+      new app skill. Render it shortened if the UI has insufficient space. Clarify step four further with concrete
+      examples and questions about processing/Jev requests.
+
+      '
+    recommendation_disposition: Accepted layered Project base plus one specialized focus, with a single Project-qualified
+      visible specialized indicator.
+  - round: 3
+    question: Should context selection follow the main processor's actual focus activation or be bundled into the
+      initial focus shortlist?
+    answer: 'Workflows are deterministic workflows with bounded AI decisions for checks, focuses are chat LLM instructions
+      for a specific goal, and Specifications are detailed requirements documents. Run Jev again to reselect relevant
+      app skills, workflows and other context once a focus activates, for regular focuses as well as Project-specific
+      focuses.
+
+      '
+    recommendation_disposition: Accepted activation-dependent reselection and expanded it to app skills and all
+      focus types; corrected the workflow examples and concept boundaries.
+  - round: 4
+    question: For a focus with phases, should Jev reselection also run whenever the active phase changes?
+    answer: Yes reselection with phases.
+    recommendation_disposition: Accepted phase-transition reselection in addition to focus activation, preserving
+      normal message preprocessing.
+  - round: 5
+    question: Should related-work selection consider only Tasks/chats in the active Project, or relevant work in
+      other accessible Projects within the current personal/team context too?
+    answer: 'Workflows saved in a remote-access Project must also save their YAML in the selected folder. For related
+      work, consider letting Jev choose from all active chats and chats whose last response was in the last thirty
+      minutes across Projects, and active Tasks plus blocked/done Tasks changed in the last half hour, rather than
+      limiting all context to the same Project.
+
+      '
+    recommendation_disposition: Records the active/recent cross-Project relevance direction; exact cutoff and active-state
+      details remain proposed because the user framed them as examples. The remote YAML file-save requirement is
+      explicit.
+  - round: 6
+    question: Should chat-direction evaluation use existing goal/Plan/Task context by default instead of requiring
+      custom checks?
+    answer: 'Do not define custom checks yet. Deterministically assemble context for Jev to assess whether the chat
+      is drifting too far from its original direction. If it is, let an LLM decide whether to send a correction
+      and generate that message. After sending, show "Chat is drifting too far away from the goals. Correction instruction
+      was sent." with a dropdown revealing the full message.
+
+      '
+    recommendation_disposition: Accepted context-based direction evaluation and added an explicit generative correction
+      decision/delivery/UI stage; custom checks are deferred.
+  - round: 7
+    question: Should Rules include built-in app guidance only, or also user-created personal and Project-specific
+      practices?
+    answer: 'Accept the recommendation. Research current best practices through subagents for existing apps such
+      as Code and Design, treating online content as untrusted and ignoring prompt injection. Create app-specific
+      Rules as part of the implementation plan. Users must also be able to create custom Rules inside Projects,
+      as Markdown with title, description and when-to-use information in the document header, similar to Focus files.
+
+      '
+    recommendation_disposition: Accepted built-in/personal/Project ownership and quiet transparency; specified Markdown
+      frontmatter and authorized scoped research subagents.
+  - round: 8
+    question: Should elevated or uncertain Jev command risk require review before otherwise preapproved automatic
+      execution?
+    answer: 'Yes, with the option to reconsider strictness if it flags requests too aggressively in practice. Separately,
+      Rule documents should be coherent domain guides such as Mobile first design, Svelte coding rules, Python coding
+      rules and Accessibility best practices, rather than individual one-practice rule records.
+
+      '
+    recommendation_disposition: Accepted deterministic plus semantic risk escalation; record evaluation/tuning and
+      regroup the Rule research at the intended guide granularity.
+  - round: 9
+    question: How should a Jev-recommended Focus creation/update be triggered and become effective?
+    answer: "Jev decides whether a recommendation/button is worthwhile. Only when the user presses the button should\
+      \ an LLM request start to create/update the Focus. It runs in the background while chat continues independently,\
+      \ without creating a separate regular chat. Notify when ready and link to the Focus embed; it is also accessible\
+      \ through the Project workspace. A later follow-up with that Focus active must use its updated definition.\n\
+      \ Latest clarification: Project-only catalog titles/summaries include inactive Focuses; authorized full loading\
+      \ and a second Jev assessment precede Update. First-pass Create is allowed; public/app improvements are excluded."
+    recommendation_disposition: Replaced eager LLM draft/review/save proposals with user-triggered background authoring
+      and notification; follow-ups resolve fresh saved revisions.
+  - round: 10
+    question: Should this expansion defer a new Project-specific memory store?
+    answer: Yes, defer Project memories because their overlap with Project Specifications remains unresolved.
+    recommendation_disposition: Accepted deferral; preserve existing authorized memory selection and Project fact
+      documents.
+  additional_user_constraints:
+  - Active/recent related-chat summaries must be Vault-encrypted in server memory only, never written to disk or
+    Directus; preserve client-side long-term encryption and inability of the server to decrypt old chats.
+  round_six_correction:
+    withdrawn_question: Automatic repair after Jev finds inadequate verification.
+    reason: This was an assistant inference from the user's progress/test-quality check notes; the user questioned
+      its origin and has not requested an automatic repair loop.
+    status: Round six settled by the user's later context-only evaluator and LLM-reviewed correction direction;
+      this does not revive a bespoke test-repair loop.
+  round_six_user_clarification:
+    intent: When an assistant links Tasks or a Plan to a chat, regularly evaluate whether the chat stays focused
+      rather than drifting into irrelevant/disconnected work; do not suppress important related discoveries or fixes.
+    latest_alternative: Use the open Tasks and Plan summary as input for a reusable Jev on-track question instead
+      of requiring newly authored checks each time.
+    disposition: User subsequently accepted context-driven evaluation, explicitly deferred custom checks and specified
+      LLM-reviewed correction with an expandable sent notice. Cadence and runtime details remain open.
+  round_three_clarification:
+    answer_status: Answered by the user's subsequent instruction to reselect after every focus activation, for regular
+      and Project-specific focuses.
+    user_constraint: Design guidelines are Specifications in the planned spec-driven-development implementation;
+      separate Project memories may overlap and must not be assumed.
+    research: The draft feature.specifications defines approved immutable revisions, private summaries and requirement
+      references; feature.plans/feature.checks already supply the intended work/proof chain. This remains planned
+      product behavior rather than a claim that the full runtime is implemented.
+  status: complete
+flow_proposals:
+- id: FLOW-1
+  status: project_activation_and_focus_composition_agreed_context_selection_proposed
+  user_request: Fix the checkout layout in Storefront using its design system.
+  steps:
+  - order: 1
+    processor: existing_foreground_preprocessor
+    jev_call: J-1
+    state: Bounded current request, recent chat/summary, available global focus/skill candidates and permission-scoped
+      Project routing names/summaries; detailed Project context is excluded.
+    questions: Which supplied focus/skill candidates are materially relevant to this request, including eligible
+      Work on Project focuses?
+    output: Shortlisted existing candidate IDs; no activation or permission grant.
+    deterministic_work: Filter inaccessible, archived or auto-selection-disabled Projects from automatic candidates;
+      preserve explicit mentions.
+  - order: 2
+    processor: main_processor
+    action: Choose Work on Storefront from the shortlist and initiate the existing standard focus-mode countdown.
+    jev_call: none
+  - order: 3
+    processor: authoritative_focus_lifecycle_and_owner_client
+    action: On rejection continue without Storefront. On confirmed countdown completion activate its focus and allow
+      authorized client-side decryption/context preparation, then perform the agreed focus-aware Jev reselection.
+    jev_call: post_activation_reselection
+    boundary: Reject, stale user turn, wrong chat or revoked access cannot load the focus or start Project-specific
+      context selection.
+  - order: 4
+    processor: project_context_selection
+    jev_call: J-2
+    state: Current goal and bounded Storefront-owned catalogs for focus modes, workflows, Specification/rule summaries,
+      Plans, related tasks and source/folder descriptions after activation.
+    questions: Which supplied project-specific focus, workflow, Specification/conditional rule, Plan, related-task
+      and source/folder candidates materially help the current request?
+    output: Relevant existing candidate IDs and scores; generative suggestions and arbitrary file names are not
+      Jev output.
+    proposed_batching: Batch independent selection questions into one bounded request where limits permit; do not
+      treat every decision as a separate model call.
+    baseline_rules: Approved always-applicable Project instructions and required governing Specification obligations
+      are loaded deterministically after activation; Jev selects additional applicable Specification sections and
+      conditional guidance.
+    implementation_details: Bounded authorized metadata and source/revision projections; load only available selected
+      artifacts. New Project memories are deferred.
+  - order: 5
+    processor: main_processor
+    action: Load permitted selected context and choose whether to use a project-specific UI implementation focus;
+      its authoritative activation triggers reselection before choosing a supported saved workflow or direct tools.
+    jev_call: none_for_execution_choice
+    agreed_focus_composition: Retain Work on Storefront as the Project base; add one specialized focus and show
+      only its Storefront-qualified active title.
+  agreed_order: Authoritative focus activation precedes focus-aware reselection of app skills, existing executable
+    workflows and permitted context; apply this to regular focuses too.
+  implementation_gap: Existing focus activation tooling treats active Project/catalog focus as exclusive, and catalog
+    auto-confirm explicitly revokes the Project binding. Layered focus behavior therefore needs an intentional lifecycle/spec
+    change.
+- id: FLOW-2
+  status: illustrates_agreed_post_activation_reselection
+  user_request: SocialHub publishes the same scheduled post twice. Find and fix the cause.
+  starting_state: Work on SocialHub has activated through the agreed Project countdown; detailed Project selection
+    can now begin.
+  recommended_order:
+  - step: J-2 specialized-focus shortlisting
+    state: Current request, bounded recent conversation and Project focus catalog descriptions.
+    candidates:
+    - Debugging
+    - Add a feature
+    - Write a social campaign
+    question: Which supplied specialized focus candidates materially match this task?
+    output: Existing focus IDs and relevance answers; a shortlist rather than activation.
+  - step: Main processor chooses specialist
+    action: Choose Debugging, establish its current investigation phase through the focus lifecycle, and present
+      SocialHub | Debugging while retaining the Project base.
+  - step: J-3 context selection
+    state: Current goal, effective activated specialist/current phase and bounded catalogs for eligible app skills,
+      existing executable workflows, Specifications/conditional rules, Plans, related tasks and source/folder descriptions.
+    questions:
+    - Which approved Specification requirements and linked Plan candidates are relevant to duplicate scheduled-post
+      investigation?
+    - Which eligible app skills and existing executable workflow definitions materially help the current investigation
+      phase?
+    - Which conditional rules, related-task summaries and source/folder candidates are useful now?
+    illustrative_selected_candidates:
+    - Scheduled-post delivery Specification
+    - Prior duplicate-delivery Task
+    - Scheduler source folder
+    illustrative_unselected_candidates:
+    - Brand presentation Specification
+    output: Relevant existing candidate IDs and uncertainty; no generated summaries, invented file paths or executed
+      workflows.
+  - step: Main processor proceeds
+    action: Load permitted selected content and use permitted tools to investigate; only propose an existing deterministic
+      workflow if its actual graph, capability prerequisites and invocation contract fit the task.
+  pending_later_decisions: Candidate content projection, update/reselection cadence, context budgets, distinct Project
+    memory scope and workflow execution semantics remain open.
+  implementation_details: Use agreed freshness/cadence/Workflow semantics, existing authorized context and no new
+    Project-memory model; implementation fits typed provider limits.
+- id: FLOW-3
+  status: concrete_workflow_example_within_the_agreed_concept_boundaries
+  user_request: Plan an outdoor day in Berlin.
+  active_focus: Trip planning, with instructions to consider the weather.
+  selection_pass: After the focus activates, Jev shortlists permitted weather skills and, if present in the user's
+    catalog, a saved weather-warning workflow.
+  illustrative_workflow_graph:
+  - Fetch the configured date's Berlin weather forecast through the supported weather app skill.
+  - Evaluate the configured AI Check over selected forecast values for whether rain is expected.
+  - Follow its authored true/false/Unsure branch, which may send a predefined message containing selected forecast
+    outputs.
+  main_processor_role: Choose whether to invoke that actual saved graph through workflows.run, providing validated
+    start inputs and per-run owned chat destinations/selected returned outputs as appropriate.
+  graph_boundary: The focus does not turn the workflow into a free-form planning agent; graph edges, Check outcomes
+    and configured actions govern the run.
+  return_boundary: The chat may use the workflow's selected results when planning; result delivery alone does not
+    authorize new actions or imply a new chat.
+- id: FLOW-4
+  status: phase_refresh_reuses_existing_authority
+  active_focus: OpenMates | Add new app skill
+  phases:
+  - Research the provider
+  - Implement the integration
+  - Verify the integration
+  first_phase: Focus activation invokes Jev with the provider-research instructions; eligible documentation/search
+    skills and relevant provider Specifications can be selected.
+  transition: The existing Focus-phase evaluator authoritatively changes Research the provider to Implement the
+    integration under its requirement/user-confirmation guards.
+  agreed_refresh: Rerun the focus-aware Jev selector with implementation-phase instructions and the same user goal,
+    updating permitted tool/workflow/context candidates before implementation continues.
+  ordinary_progress: Avoid an additional phase-triggered pass for every ordinary tool result inside the same phase;
+    keep normal message preprocessing.
+  implementation_details: Reuse current completion/rewind/uncertainty semantics rather than introducing a second
+    phase authority.
+- id: FLOW-5
+  status: active_recent_cross_project_direction_recorded_details_proposed
+  user_request: Fix duplicate scheduled posts in SocialHub.
+  active_focus: SocialHub | Debugging
+  candidate_tasks:
+  - project: SocialHub
+    task: Change scheduler retry logic
+    context: Another chat is modifying the worker that handles scheduled posts.
+  - project: Shared infrastructure
+    task: Migrate the shared Redis queue
+    context: Another chat is changing the queue used by the SocialHub scheduler.
+  - project: Personal travel
+    task: Plan a holiday
+    context: Unrelated work with no task dependency or shared resource relevant to this bug.
+  jev_input: Current goal, active focus/phase, permission-scoped bounded Task candidate descriptions, confirmed
+    statuses/latest changed outcomes and available explicit dependency or shared-resource metadata.
+  decision: Select existing Task/chat references whose work materially overlaps, constrains, or informs this request.
+  proposed_output: Relevant existing IDs only; the main processor receives bounded selected Task summaries and linked
+    chat summaries where permitted, with source/status/freshness retained.
+  candidate_filter: Same-Project work plus authorized cross-Project active chats/Tasks and recently completed chats
+    or changed blocked/done Tasks, using the proposed thirty-minute window and preserving explicit older dependencies.
+  example_selection: Retain scheduler-retry work and a recently changed shared Redis migration if relevant; exclude
+    a recent holiday Task. An hour-old unrelated completed chat is not a global discovery candidate.
+  recommendation: Let Jev select relevant summaries from this bounded active/recent pool, favoring same-Project
+    work and explicit dependencies; do not inject every eligible summary.
+  permission_boundary: Relevance does not expand team membership, activate another Project, load its detailed files/focus
+    instructions, move Tasks, claim work or create a second execution owner.
+  implementation_details: Final active-state definitions, candidate limits, freshness timestamps, same-Project history
+    and no-active-Project loading remain to be specified.
+- id: FLOW-6
+  status: context_driven_direction_and_llm_correction_agreed_details_pending
+  user_request: Fix duplicate scheduled posts in SocialHub and verify the change.
+  proposed_processing:
+  - An assistant links a Plan and Tasks for identifying, fixing and verifying duplicate scheduled posts in SocialHub.
+  - Build bounded Jev state from the user's goal and clarifications, accepted Plan summary, open Tasks and recent
+    work; do not use the evolving Task list as the sole authority for the goal.
+  - A newly discovered retry-worker race can be classified as justified_related_discovery when its causal relevance
+    is evidenced.
+  - Starting a dashboard redesign can be classified as material_drift if no relation to duplicate scheduling or
+    user-requested scope change is established.
+  - Select typed direction and supporting supplied evidence IDs, with insufficient_context available; no custom
+    checks are defined.
+  - On material drift, an LLM reviews the context and decides whether a correction is warranted; it generates the
+    correction instruction if so.
+  - Deliver the correction as internal agent guidance in the current chat, retaining generated provenance and respecting
+    current user/scope/permission boundaries.
+  - After accepted delivery, show the exact agreed sent notice with a disclosure exposing the full generated correction
+    message; a no-correction decision produces no false sent notice.
+  distinction: Direction feedback evaluates whether work serves the goal; it neither proves the fix correct nor
+    substitutes for deterministic acceptance tests, and a useful discovery is not automatically drift.
+  implementation_details: Cadence, reviewer model, deduplication, internal continuation behavior and privacy-safe
+    persistence.
+- id: FLOW-7
+  status: rule_ownership_format_and_transparency_agreed_runtime_details_pending
+  user_request: Fix the SocialHub settings page, a Svelte/TypeScript implementation task.
+  proposed_processing:
+  - Preprocessing sees bounded eligible Rule metadata and the user goal, then Jev selects relevant app-provided
+    best-practice Rules.
+  - Select/load private SocialHub Rules only after its Project focus activates and the authorized client prepares
+    permitted context.
+  - Inject selected Rule definitions alongside active Focus guidance and governing Specifications; rules do not
+    change the goal or create a workflow.
+  - Emit one quiet expandable Loaded 4 rules event when four definitions are actually applied; reveal each rule's
+    title, source and full text on expansion.
+  - An unchanged set emits no repeated notice; a changed selection after phase transition updates the applied-set
+    event without repeated alerts.
+  examples:
+  - Svelte coding rules
+  - TypeScript coding rules
+  - Mobile first design
+  - Accessibility best practices
+  implementation_details: Precise Rule editing/registration, catalog loading, rule-source storage and revision/event
+    behavior.
+- id: FLOW-8
+  status: deterministic_authority_and_jev_review_escalation_agreed_details_pending
+  user_request: Run relevant terminal commands while fixing the SocialHub scheduler.
+  proposed_processing:
+  - Deterministically validate current Project/chat/source authority, requested argv/cwd/resources, protected paths,
+    confinement and exact user grants; denied requests remain denied.
+  - For eligible commands, Jev evaluates a bounded normalized request and available authorized script/context as
+    untrusted data, classifying routine, elevated_risk or uncertain; it does not author explanations or grant permissions.
+  - Reuse the existing separate generative command explanation; no additional generative effects-extraction stage
+    is assumed necessary merely for Jev risk classification.
+  - Routine classification preserves existing permission/approval behavior; elevated/uncertain outcomes require
+    explicit review before otherwise preapproved automatic execution.
+  - Preserve exact requested command/resources in any review; risk confidence cannot authorize a denied command,
+    broaden resource access or grant future commands.
+  examples:
+  - A preapproved project-scoped source search remains routine under its existing permission/confinement boundaries.
+  - Test or maintenance code with unclear side effects is uncertain rather than being assumed safe from its command
+    name.
+  - A command deleting a Project data directory is elevated risk even if it appears in an enabled automatic-command
+    list.
+  implementation_details: Thresholds, false-positive evaluation, uncertainty/outage behavior and supported terminal
+    contexts.
+- id: FLOW-9
+  status: Project_only_two_stage_recommendation_and_click_authoring_agreed
+  user_request: Continue investigating the SocialHub scheduling bug under its Debugging Focus.
+  proposed_processing:
+  - 'J-F1: After a response, provide chat context and eligible Project Focus IDs/titles/summaries, including inactive
+    definitions; select candidates for inspection and/or recommend a non-overlapping new Focus.'
+  - 'L-F: Load selected full definitions through the authorized client/transient Project context path; this does
+    not activate them.'
+  - 'J-F2: Assess full instructions against the chat; only confirmed useful improvement shows Update. No-change/failed/unavailable/uncertain
+    outcomes show no Update.'
+  - A first-pass creation recommendation may show Create directly. Neither path starts an authoring LLM before click.
+  - 'Click: Snapshot authorized chat history and dedicated create/update instructions with expected target revision;
+    start one idempotent background job without a regular new chat.'
+  - Validate and persist client-encrypted Project content under ownership/write/conflict guards while chat continues
+    independently.
+  - Saved reachable completion notifies with the Focus embed link; the result also appears in the Project workspace.
+  - Next active-Focus follow-up resolves the saved revision and refreshes effective instructions/phase/context.
+    In-flight responses retain their snapshot.
+  - Without an authorized Project, skip this flow. Never suggest improvements to public/app Focuses.
+  example: SocialHub release planning may improve inactive Release preparation after full assessment; a missing
+    recurring process can justify first-pass Create.
+- id: FLOW-10
+  status: Project_memory_model_deferred
+  user_request: Remember that SocialHub's sandbox workspace is Demo Team for later work.
+  proposed_processing:
+  - Keep this factual context separate from Specs, development Rule guides and Focus instruction phases.
+  - Use authorized existing encrypted Project fact documents after activation; no new Project-memory model.
+  - Continue focus-aware reselection of existing personal/team app memories under their existing conversation permission
+    rules.
+- id: FLOW-11
+  status: Project_Workflow_update_flow_agreed
+  user_request: Continue work on SocialHub release preparation; a saved Release checklist Workflow can benefit from
+    repeated user guidance.
+  proposed_processing:
+  - 'J-W1: After a response, provide authorized chat context and current-Project saved Workflow titles/summaries,
+    including disabled/inactive definitions; select worthwhile full-inspection IDs.'
+  - 'L-W: Load selected full saved graphs under existing owner/Project access. Do not run nodes or AI Checks.'
+  - 'J-W2: Compare full graph/inputs/Checks/delivery settings with chat context; show Update workflow only for confirmed
+    useful improvement.'
+  - 'Click: Invoke the existing WorkflowInputService Jev + LLM creation/editing pipeline in the background with
+    permitted history, editing instructions and expected target revision. Reuse its validation, billing, checkpoints
+    and transactions; no separate authoring engine or regular new chat.'
+  - Reuse existing capability/typed-reference/graph validation, atomic save, enabled-state preservation and visible
+    partial/conflict semantics; update bound remote YAML under existing file guards.
+  - After saved reachable completion, notify with Workflow embed/Project link. Future runs use the new saved version;
+    already-running graph stays pinned to its prior version.
+  example: Release checklist omitted a conditional step that the user repeatedly requests. The full assessment can
+    identify that reusable graph improvement without running the release Workflow.
+scenarios:
+- id: S-1
+  title: Agreed Jev-assisted project work
+  given:
+  - A user has multiple encrypted Projects
+  - related Tasks and available workflows.
+  when:
+  - OpenMates routes a turn
+  - prepares context
+  - evaluates work or proposes a next action.
+  then:
+  - It follows the activation
+  - evidence
+  - scope
+  - permission and failure policies agreed during the ten discussion rounds.
+- id: S-2
+  title: Automatic Project focus uses the existing cancellable countdown
+  given:
+  - Storefront has auto-selection enabled and its Work on Storefront focus is shortlisted for a checkout request.
+  when:
+  - The main processor chooses that focus and the usual countdown completes without interruption.
+  then:
+  - Activate Work on Storefront and only then load detailed Project context or run Project-specific selection.
+- id: S-3
+  title: Rejection and manual-only selection are honored
+  given:
+  - A Project activation is pending
+  - or Storefront has auto-selection disabled.
+  when:
+  - The user interrupts the pending countdown
+  - or submits a new checkout request without mentioning the disabled Project.
+  then:
+  - No automatic Project focus or Project-specific context processing occurs; a manual structured Project mention
+    still activates its own default focus.
+- id: S-4
+  title: Project base and specialist compose with one visible title
+  given:
+  - Work on SocialHub is active and the main processor activates its Debugging specialist.
+  when:
+  - An assistant turn uses the specialist
+  - or the focus title is rendered in a narrow UI.
+  then:
+  - The Project base and specialized instructions both apply
+  - and the single active indicator reads SocialHub | Debugging
+  - shortened visually as needed without changing identity.
+- id: S-5
+  title: Any activated focus refreshes useful capabilities and context
+  given:
+  - A regular Trip planning focus or Project-specific Debugging focus is authoritatively activated.
+  when:
+  - The assistant prepares its continuation under the activated instructions.
+  then:
+  - Jev reselects relevant eligible app skills
+  - existing executable workflows and permitted context before the main processor resumes; rejected activation does
+    not run this pass.
+- id: S-6
+  title: A focus phase change refreshes useful capabilities and context
+  given:
+  - OpenMates | Add new app skill is active in its provider-research phase.
+  when:
+  - The active instruction phase authoritatively changes to implementation.
+  then:
+  - Jev reselects relevant permitted skills/workflows/context using the new phase before main processing continues;
+    unchanged-phase tool results do not independently trigger this phase-change pass.
+- id: S-7
+  title: Related-work relevance includes active and recent cross-Project context
+  given:
+  - SocialHub debugging overlaps an active scheduler Task and a recently changed shared-queue Task
+  - alongside unrelated active work.
+  when:
+  - Authorized bounded candidates are filtered and evaluated by Jev against the current request.
+  then:
+  - Select useful scheduler and shared-queue summaries with status/freshness
+  - exclude unrelated work
+  - and preserve access and Project activation boundaries.
+- id: S-8
+  title: Saving a Workflow to a remote Project folder writes a real YAML file
+  given:
+  - A user saves a Workflow into a selected authorized remote Project source/folder.
+  when:
+  - The portable definition is saved through the existing Project write path.
+  then:
+  - The selected folder contains the portable Workflow YAML
+  - or the UI/CLI reports pending/failed file persistence without claiming a successful remote save.
+- id: S-9
+  title: Recent chat summaries expire without weakening durable encryption
+  given:
+  - A completed response produces an authorized summary used for related-work discovery.
+  when:
+  - It is cached
+  - selected for Jev
+  - then expires or access is revoked.
+  then:
+  - The cache stores Vault ciphertext in memory only
+  - eligible summaries are decrypted transiently
+  - and eviction prevents further routing use without server decryption of old client-encrypted chats.
+- id: S-10
+  title: Chat-direction feedback preserves relevant discoveries and detects disconnected work
+  given:
+  - A chat links a Plan and Tasks for fixing duplicate scheduled posts.
+  when:
+  - Recent work discovers a causal retry race or instead starts unrelated dashboard redesign.
+  then:
+  - The direction evaluator distinguishes useful discoveries from drift using deterministic context; an LLM decides
+    whether to send a correction
+  - and accepted delivery shows the exact notice with expandable generated instruction without automatic cancellation.
+- id: S-11
+  title: Relevant best-practice Rules load with inspectable quiet context
+  given:
+  - Eligible app Rules and authorized personal/Project Markdown Rules exist for a Svelte/TypeScript task.
+  when:
+  - Jev selects applicable Rules and the definitions are applied to main processing.
+  then:
+  - One compact loaded-count event expands to actual Rule titles/sources/text
+  - unchanged selections avoid repeated notices
+  - and private Project Rule access respects authoritative Project activation.
+- id: S-12
+  title: Terminal semantic risk supplements deterministic authority
+  given:
+  - An eligible command matches an enabled exact automatic-command grant
+  - or is deterministically denied.
+  when:
+  - Jev classifies its declared effects as routine
+  - elevated risk or uncertain.
+  then:
+  - Preserve deterministic denials and ordinary grants while requiring explicit review for elevated/uncertain automatic
+    execution; a risk label never grants new access and false positives inform later policy tuning.
+- id: S-13
+  title: A recommended Focus update starts only on click and is fresh on later follow-ups
+  given:
+  - An authorized Project has active Debugging and inactive Release preparation Focuses; a release conversation
+    may improve the latter.
+  when:
+  - Catalog Jev selects Release preparation, its full definition is loaded with authorization, and the second Jev
+    confirms a useful update; the user clicks Update.
+  then:
+  - Only click starts background LLM authoring. Saved completion links to the Focus/Project item and later follow-ups
+    use the new revision. First-pass Create is allowed; public/app improvements never enter this flow.
+- id: S-14
+  title: Project Workflow update recommendation uses full inspection and click-gated authoring
+  given:
+  - A Project contains an inactive Release checklist Workflow whose title/summary matches reusable guidance in the
+    chat.
+  when:
+  - The catalog Jev selects it, authorized full graph inspection confirms an improvement, and the user clicks Update.
+  then:
+  - One background LLM edit uses existing graph validation and revision guards; saved completion links to the Workflow.
+    Future runs use the new version and active runs retain their pinned version; no click means no authoring.
+acceptance_criteria:
+- id: AC-1
+  scenario: S-1
+  text: Final agreed behavior has concrete examples and coverage for relevance, privacy, phase/workflow lifecycle,
+    evidence quality, command safety and uncertainty.
+  required: false
+  status: pending
+  coverage_status: uncovered
+  verification_scope: custom
+- id: AC-2
+  scenario: S-2
+  text: Exactly one Project-owned focus is routed through preprocessor shortlisting, main-processor selection and
+    the standard countdown, with detailed Project context loaded only after authoritative activation.
+  required: true
+  status: pending
+  coverage_status: uncovered
+  verification_scope: custom
+  specification_assertions:
+  - projects.focus.inferred-consent
+- id: AC-3
+  scenario: S-3
+  text: Rejection, stale requests and revoked access prevent activation/context loading; default-on auto-selection
+    can be disabled in both web and CLI while explicit Project mentions continue to work.
+  required: true
+  status: pending
+  coverage_status: uncovered
+  verification_scope: custom
+  specification_assertions:
+  - projects.focus.auto-selection-setting
+  - projects.focus.inferred-consent
+- id: AC-4
+  scenario: S-4
+  text: Project base instructions and association persist alongside one specialized focus; only the Project-qualified
+    specialist is shown active, with responsive shortening preserving full identity.
+  required: true
+  status: pending
+  coverage_status: uncovered
+  verification_scope: custom
+  specification_assertions:
+  - focus-modes.project-specialist-composition
+- id: AC-5
+  scenario: S-5
+  text: Every authoritative focus activation triggers bounded focus-aware reselection of app skills, existing workflows
+    and permitted context, for regular and Project focuses, with rejection preventing activation-dependent work.
+  required: true
+  status: pending
+  coverage_status: uncovered
+  verification_scope: custom
+  specification_assertions:
+  - focus-modes.context-reselection
+  - workflows.chat.relevance-discovery
+- id: AC-6
+  scenario: S-6
+  text: Authoritative phase transitions trigger bounded Jev reselection using the new active phase instructions
+    and preserve the active Project/focus association and normal message preprocessing.
+  required: true
+  status: pending
+  coverage_status: uncovered
+  verification_scope: custom
+  specification_assertions:
+  - focus-modes.context-reselection
+- id: AC-7
+  scenario: S-7
+  text: Related-work selection considers authorized same-Project and active/recent cross-Project candidates, chooses
+    useful bounded summaries with provenance, and preserves explicit dependencies and Project data-loading boundaries.
+  required: true
+  status: pending
+  coverage_status: uncovered
+  verification_scope: custom
+  specification_assertions:
+  - chats.context.related-work-selection
+- id: AC-8
+  scenario: S-8
+  text: Saving a Workflow in a selected remote Project folder writes the existing portable YAML format using guarded
+    file persistence and reports denied, disconnected or conflicting writes without false success or loss of the
+    saved Workflow.
+  required: true
+  status: pending
+  coverage_status: uncovered
+  verification_scope: custom
+  specification_assertions:
+  - workflows.portability.remote-project-save
+- id: AC-9
+  scenario: S-9
+  text: Related-chat summaries are Vault-encrypted in memory only with bounded active/recent eligibility; no server-decryptable
+    disk/Directus copy, content logging or old-chat decryption fallback is introduced, and durable client encryption
+    remains intact.
+  required: true
+  status: pending
+  coverage_status: uncovered
+  verification_scope: custom
+  specification_assertions:
+  - chats.context.memory-only-summary
+  - chats.persistence.client-encrypted
+- id: AC-10
+  scenario: S-10
+  text: Jev evaluates mechanically assembled original-goal/Plan/Task/recent-work context without custom checks;
+    material drift triggers LLM correction review, and an accepted correction delivery produces the exact agreed
+    expandable sent notice with generated provenance and no forced cancellation.
+  required: true
+  status: pending
+  coverage_status: uncovered
+  verification_scope: custom
+  specification_assertions:
+  - chats.direction.context-assessment
+  - chats.direction.reviewed-correction
+- id: AC-11
+  scenario: S-11
+  text: Rules support coherent multi-practice built-in and personal/Project Markdown guides with title/description/when_to_use
+    headers; Jev selects guide IDs, preserves authority/Project privacy and provides quiet inspectable loaded-guide
+    information with Web/Apple/TUI semantic parity.
+  required: true
+  status: pending
+  coverage_status: uncovered
+  verification_scope: custom
+  specification_assertions:
+  - rules.definition.guide-format
+  - rules.ownership.encrypted-custom
+  - rules.selection.focus-aware
+  - rules.precedence.obligations
+  - rules.transparency.applied-set
+- id: AC-12
+  scenario: S-12
+  text: Terminal risk evaluation uses bounded untrusted command context alongside exact authorization/confinement;
+    elevated/uncertain results escalate preapproved automatic commands to explicit review without granting access,
+    and labeled false-positive evaluation supports later tuning.
+  required: true
+  status: pending
+  coverage_status: uncovered
+  verification_scope: custom
+  specification_assertions:
+  - code-run.remote.semantic-risk-review
+  - code-run.remote.explicit-approval
+- id: AC-13
+  scenario: S-13
+  text: Project-only catalog assessment includes inactive metadata; authorized full loading and a second Jev assessment
+    precede Update, while first-pass Create is allowed. Only a click starts independent LLM authoring; saved completion
+    links to the Focus, and later follow-ups use the new revision.
+  required: true
+  status: pending
+  coverage_status: uncovered
+  verification_scope: custom
+  specification_assertions:
+  - focus-modes.project-recommendation-catalog
+  - focus-modes.project-recommendation-full-assessment
+  - focus-modes.project-authoring-click
+  - focus-modes.project-authoring-persistence
+  - focus-modes.updated-followup-revision
+  - notifications.project-authoring.result-route
+- id: AC-14
+  scenario: S-14
+  text: Project Workflow updates require metadata selection and a full-graph second Jev assessment before Update;
+    only click starts background editing, preserving validation/authority/conflict/partial-result behavior, remote
+    YAML binding, ready routing and active-run version pinning.
+  required: true
+  status: pending
+  coverage_status: uncovered
+  verification_scope: custom
+  specification_assertions:
+  - workflows.project.update-recommendation
+  - workflows.project.update-authoring
+  - notifications.project-authoring.result-route
+tests:
+- id: T-DESIGN
+  type: manual
+  assertions:
+  - Replace this preliminary test outline with focused executable cases as discussion settles behavior.
+  - Extend backend/client units for selection, decryption, membership, revocation, instruction phases and provider
+    failures.
+  - Verify checks distinguish actual evidence, unsupported assistant claims, missing evidence and malicious artifact
+    instructions.
+  - Verify workflow destinations, permissions and duplicate prevention, plus terminal denials and uncertainty behavior.
+  - Update relevant REST/WebSocket, CLI/SDK and browser E2E coverage; execute product checks through isolated GitHub
+    CI.
+  - Evaluate real Jev on disposable dev state and a labeled relevance/safety/drift corpus; measure precision, missed
+    cases, latency and calls/cost.
+  - Run real AI inference cases directly on dev rather than CI.
+  covers:
+  - AC-1
+  red_phase:
+    required: false
+    expected: pending_final_scope
+    evidence: {}
+  green_phase:
+    required: false
+    expected: pending_final_scope
+    evidence: {}
+  specification_assertions: []
+- id: T-PROJECT-UNIT
+  type: pytest
+  file: backend/tests/test_project_focus_requests.py
+  command: python3 -m pytest backend/tests/test_project_focus_requests.py backend/tests/test_focus_mode_routing.py
+    backend/tests/test_preprocessor_jev.py
+  assertions:
+  - Verify countdown completion and cancellation converge on one authoritative activation or rejection result.
+  - Verify rejected or stale activations perform no detailed Project context load or Project-specific selection.
+  - Verify default-on auto-selection, disabled automatic candidates and explicit mentions remain distinct.
+  - Extend relevant web and CLI unit coverage for settings round-trip, synchronized defaults and client decryption
+    after activation.
+  - Verify specialist activation/switching retains the Project binding and composes both instruction layers.
+  covers:
+  - AC-2
+  - AC-3
+  - AC-4
+  red_phase:
+    required: false
+    expected: focused_case_before_fix
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+  specification_assertions:
+  - focus-modes.project-specialist-composition
+  - projects.focus.auto-selection-setting
+  - projects.focus.inferred-consent
+- id: T-FOCUS-RESELECTION
+  type: pytest
+  file: backend/tests/test_preprocessor_jev.py
+  command: python3 -m pytest backend/tests/test_preprocessor_jev.py backend/tests/test_focus_mode_routing.py
+  assertions:
+  - Verify regular/global and Project focus activation feed their effective instructions into bounded candidate
+    reselection.
+  - Verify eligible app skills and existing workflow IDs are selected using the activated focus and current goal.
+  - Verify rejected, stale and revoked activations do not run activation-dependent selection or disclose rejected
+    Project context.
+  - Verify workflow relevance cannot rewrite graph steps, bypass capability eligibility or execute a candidate directly.
+  - Verify phase transitions use the new instruction phase, update relevant candidates and reject results for a
+    superseded focus/phase.
+  - Verify ordinary tool results without a phase change do not create extra phase-transition selection calls.
+  - Extend focus-mode activation/rejection and Project product E2E coverage for the updated continuation under isolated
+    GitHub CI.
+  covers:
+  - AC-5
+  - AC-6
+  red_phase:
+    required: false
+    expected: focused_case_before_fix
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+  specification_assertions:
+  - focus-modes.context-reselection
+  - workflows.chat.relevance-discovery
+- id: T-PROJECT-UI
+  type: playwright
+  file: frontend/apps/web_app/tests/projects-flow.spec.ts
+  command: python3 scripts/ci_coordinator.py submit --session 0f58 --source <immutable-source> --mode e2e --spec
+    projects-flow.spec.ts
+  target: github-isolated://localhost:5173/
+  execution_environment: isolated_github_ci
+  assertions:
+  - Replace explicit Grant access expectations with the standard live Project focus countdown and activation.
+  - Add rejection and expiry/stale-turn cases and assert no Project data/job activity before authoritative activation.
+  - Verify web Project auto-selection defaults to on and disabling it requires a manual mention for subsequent activation.
+  - Verify matching CLI settings and explicit mention behavior through the isolated product coordinator with dedicated
+    test state.
+  - Verify only one specialized active focus indicator, Project-qualified titles and responsive shortening with
+    full identity preserved.
+  covers:
+  - AC-2
+  - AC-3
+  - AC-4
+  red_phase:
+    required: false
+    expected: focused_case_before_fix
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+  specification_assertions:
+  - focus-modes.project-specialist-composition
+  - projects.focus.auto-selection-setting
+  - projects.focus.inferred-consent
+  supporting_files:
+  - frontend/apps/web_app/tests/cli-project-focus-settings.spec.ts
+  - frontend/apps/web_app/tests/components/project-focus-specialist.spec.ts
+  - frontend/apps/web_app/tests/components/focus-mode-activation.spec.ts
+  real_inference_support:
+    file: frontend/apps/web_app/tests/projects-chat-file-executor.spec.ts
+    execution_environment: dev_real_inference_only
+    reason: This existing Project file chat spec strictly needs real AI and explicitly rejects CI execution; settings/component/product
+      HTTP coverage stays isolated.
+- id: T-RELATED-WORK
+  type: pytest
+  file: backend/tests/test_preprocessor_jev.py
+  command: python3 -m pytest backend/tests/test_preprocessor_jev.py
+  assertions:
+  - Verify same-Project preference, active/recent candidate eligibility, relevance exclusions and explicit older
+    dependency retention.
+  - Verify thirty-minute boundary cases against assistant completion and meaningful Task changes rather than navigation/list
+    edits.
+  - Verify authorization, transient summary decryption, bounded candidate/state size, stale results and no implicit
+    other-Project activation or Task claim.
+  - Update isolated product E2E with multiple disposable Projects, useful and unrelated chats/Tasks, and independent
+    chat-only work.
+  covers:
+  - AC-7
+  red_phase:
+    required: false
+    expected: focused_case_before_fix
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+  specification_assertions:
+  - chats.context.related-work-selection
+- id: T-REMOTE-WORKFLOW-FILE
+  type: manual
+  assertions:
+  - Extend Workflow portability and Project file-save units with selected source/folder resolution and valid portable
+    YAML round-trip.
+  - Verify actual file creation/update, denied or disconnected persistence, stale-base conflict and retry without
+    duplicate Project items or Workflows.
+  - Verify web and CLI product coverage in isolated GitHub CI confirms a real file write rather than only encrypted
+    linking or a remote-copy proposal.
+  covers:
+  - AC-8
+  red_phase:
+    required: false
+    expected: focused_case_before_fix
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+  specification_assertions:
+  - workflows.portability.remote-project-save
+- id: T-SUMMARY-CACHE-PRIVACY
+  type: manual
+  assertions:
+  - Unit-test Vault encryption before cache writes, bounded summary reads and owner/team/revocation/deletion isolation.
+  - Verify expiry and active/recent eligibility cannot be extended indefinitely by Jev reads and stale completions
+    cannot overwrite newer summaries.
+  - Verify expired or missing summaries remain unavailable without server decryption of client-encrypted Directus
+    records or background old-chat rehydration.
+  - Verify persistence configuration and isolated restart/snapshot tests exclude these cache entries from disk and
+    backup recovery.
+  - Verify durable writes retain only client ciphertext and relevant logs/jobs/debug paths do not persist the new
+    plaintext summary projections.
+  covers:
+  - AC-9
+  red_phase:
+    required: false
+    expected: focused_case_before_fix
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+  specification_assertions:
+  - chats.context.memory-only-summary
+  - chats.persistence.client-encrypted
+- id: T-CHAT-DIRECTION
+  type: manual
+  assertions:
+  - Unit-test bounded goal/Plan/Task/activity projections, supplied evidence IDs, evaluator uncertainty/outage and
+    stale goal/Plan revisions.
+  - Cover a direct causal discovery, necessary dependency, user-requested scope change, unrelated new Task, repeated
+    disconnected work and sparse evidence.
+  - Verify changing the Task list alone cannot authorize a new goal or mark the original objective complete.
+  - Verify deterministic projection without custom Check authoring and Jev typed outcomes followed by the distinct
+    LLM correction/no-correction stage.
+  - Verify the generated correction is delivered once under its source goal/turn revision; stale user changes, failed
+    delivery and no-correction decisions do not produce a false sent notice.
+  - Verify exact notice text and disclosure of the actual generated instruction, preserving internal provenance
+    and client-encrypted durable event content.
+  - Add focused isolated product/UI coverage for correction delivery and expansion, with cadence/deduplication cases
+    once settled; no forced cancellation or unrelated repair loop is added.
+  - Evaluate a labeled real-Jev direction corpus on disposable dev state, including false drift alarms for important
+    discoveries; use mocked provider outcomes for isolated product E2E.
+  covers:
+  - AC-10
+  red_phase:
+    required: false
+    expected: focused_case_before_fix
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+  specification_assertions:
+  - chats.direction.context-assessment
+  - chats.direction.reviewed-correction
+- id: T-RULES
+  type: manual
+  assertions:
+  - Add Markdown/YAML parsing and definition validation coverage for required header fields, bounded body/metadata,
+    malformed/duplicate keys and applicable version/source identity.
+  - Verify creation/editing of personal/Project Rules, client-encrypted persistence, membership/revocation and private
+    Rule loading only after Project activation.
+  - Verify bounded selection, app eligibility, precedence and selected-versus-applied identity/revision accuracy;
+    consolidate overlapping built-in practices.
+  - Verify guide-level selection/counting with multiple body practices and framework/platform applicability; do
+    not treat each bullet as an independent Rule record.
+  - Extend Web/Apple/TUI event/interaction coverage for collapsed/expanded loaded-rule details, accessibility and
+    unchanged-set deduplication.
+  - Reuse existing app instruction gating and focus/phase reselection rather than making required safety/tool protocol
+    guidance depend on optional relevance selection.
+  covers:
+  - AC-11
+  red_phase:
+    required: false
+    expected: focused_case_before_fix
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+  specification_assertions:
+  - rules.definition.guide-format
+  - rules.ownership.encrypted-custom
+  - rules.precedence.obligations
+  - rules.selection.focus-aware
+  - rules.transparency.applied-set
+- id: T-TERMINAL-RISK
+  type: manual
+  assertions:
+  - Verify routine outcomes retain existing grants/approval behavior and elevated/uncertain outcomes require explicit
+    review before automatic execution; preserve deterministic denials.
+  - Cover routine search, destructive effects, unknown scripts, indirect effects, model uncertainty/outage and injection
+    attempts embedded in command/script text.
+  - Verify changed argv/resources/cwd cannot inherit an unrelated grant and semantic review cannot widen permissions.
+  - Extend isolated terminal-review/CLI product E2E for the chosen risk presentation and execution behavior; evaluate
+    real risk labels on disposable dev state.
+  - Measure false positives on realistic benign commands alongside missed risky/indirect effects, with no private
+    command/script content in durable telemetry.
+  covers:
+  - AC-12
+  red_phase:
+    required: false
+    expected: focused_case_before_fix
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+  specification_assertions:
+  - code-run.remote.explicit-approval
+  - code-run.remote.semantic-risk-review
+- id: T-FOCUS-PROPOSAL
+  type: manual
+  assertions:
+  - Verify metadata includes inactive Project Focuses and excludes public/app/outside-Project authoring targets;
+    selected IDs and catalog overlap are validated.
+  - Verify only selected authorized full definitions are loaded and assessed by a second Jev; no-change/uncertainty/unavailable/failed
+    outcomes show no Update.
+  - Verify Create can arise from catalog assessment; instrument no authoring LLM before button click in either recommendation
+    path.
+  - Verify one click/replayed click starts one idempotent job, normal chat can continue, and no regular authoring
+    chat is created.
+  - Verify client-encrypted persistence, revocation/deletion, stale base conflicts, pending/failed states and retry
+    without duplicate Focuses or success notices.
+  - Verify safe completion notifications route to the authorized Focus embed and the result appears in its Project
+    workspace.
+  - Verify a follow-up resolves the new Focus revision and invalidates stale instruction/selection/phase cache;
+    an in-flight response retains its prior snapshot.
+  - Extend isolated product/UI coverage for button-triggered authoring, notification navigation, independent chat
+    continuation and updated-instruction follow-up; real generation/inference evaluation runs on disposable dev
+    state.
+  covers:
+  - AC-13
+  red_phase:
+    required: false
+    expected: focused_case_before_fix
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+  specification_assertions:
+  - focus-modes.project-authoring-click
+  - focus-modes.project-authoring-persistence
+  - focus-modes.project-recommendation-catalog
+  - focus-modes.project-recommendation-full-assessment
+  - focus-modes.updated-followup-revision
+  - notifications.project-authoring.result-route
+- id: T-WORKFLOW-PROPOSAL
+  type: manual
+  assertions:
+  - Verify Project-only inactive/saved Workflow metadata selection, authorized full-definition second assessment
+    and no Update on no-change/uncertain/inaccessible outcomes.
+  - Verify assessment never executes graph nodes or AI Checks and no authoring LLM call occurs before click; replayed
+    click starts one job without creating a regular chat.
+  - Verify button-triggered editing calls the existing WorkflowInputService Jev + LLM pipeline with the selected
+    existing Workflow and permitted context; do not duplicate authoring or bypass its billing/validation/transaction
+    guards.
+  - Verify existing capability/typed-reference/graph validation, enabled-state and partial-result semantics, permission
+    revocation and concurrent edit conflict handling.
+  - Verify encrypted retained Workflow content, transient input history, selected-folder YAML persistence truthfulness,
+    safe ready notification and authorized Workflow navigation.
+  - Verify later runs resolve the new saved version while in-flight runs keep their pinned graph and normal invocation/resource
+    approvals remain required.
+  - Extend isolated product/UI coverage for independent chat continuation and ready routing; real authoring evaluation
+    uses disposable dev state.
+  covers:
+  - AC-14
+  red_phase:
+    required: false
+    expected: focused_case_before_fix
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+  specification_assertions:
+  - notifications.project-authoring.result-route
+  - workflows.project.update-authoring
+  - workflows.project.update-recommendation
+tasks:
+- id: TASK-8443
+  title: Expand Jev support for agentic project work
+  status: in_progress
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    - S-2
+    - S-3
+    - S-4
+    - S-5
+    - S-6
+    - S-7
+    - S-8
+    - S-9
+    - S-10
+    - S-11
+    - S-12
+    - S-13
+    - S-14
+    acceptance_criteria:
+    - AC-1
+    - AC-2
+    - AC-3
+    - AC-4
+    - AC-5
+    - AC-6
+    - AC-7
+    - AC-8
+    - AC-9
+    - AC-10
+    - AC-11
+    - AC-12
+    - AC-13
+    - AC-14
+  expected_files:
+  - docs/plans/jev-agentic-project-work/plan.yml
+  - docs/plans/jev-agentic-project-work/rule-research.md
+  - specifications/features
+  - docs/plans/jev-agentic-project-work/review.md
+  verification_ids:
+  - T-DESIGN
+  - T-PROJECT-UNIT
+  - T-PROJECT-UI
+  - T-FOCUS-RESELECTION
+  - T-RELATED-WORK
+  - T-REMOTE-WORKFLOW-FILE
+  - T-SUMMARY-CACHE-PRIVACY
+  - T-CHAT-DIRECTION
+  - T-RULES
+  - T-TERMINAL-RISK
+  - T-FOCUS-PROPOSAL
+  - T-WORKFLOW-PROPOSAL
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - docs/plans/jev-agentic-project-work
+    shared_files: []
+- id: TASK-3783
+  title: Load coherent Rule guides and show applied Rules
+  status: in_progress
+  phase: working_tasks
+  covers:
+    acceptance_criteria:
+    - AC-11
+  verification_ids:
+  - T-RULES
+  expected_files: &id001
+  - backend/apps/ai/processing/rule_context.py
+  - backend/shared/python_utils/rule_loader.py
+  - frontend/packages/ui/src/services/ruleDocumentService.ts
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files: *id001
+    shared_files: []
+- id: TASK-4326
+  title: Activate Projects with Focus countdown and refresh phase context
+  status: in_progress
+  phase: working_tasks
+  covers:
+    acceptance_criteria:
+    - AC-2
+    - AC-3
+    - AC-4
+    - AC-5
+    - AC-6
+  verification_ids:
+  - T-PROJECT-UNIT
+  - T-PROJECT-UI
+  - T-FOCUS-RESELECTION
+  expected_files: &id002
+  - backend/apps/ai/processing/preprocessor.py
+  - backend/apps/ai/processing/main_processor.py
+  - backend/core/api/app/services/project_focus_request_service.py
+  dependencies:
+  - TASK-3783
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files: *id002
+    shared_files:
+    - backend/apps/ai/processing/main_processor.py
+- id: TASK-4880
+  title: Select related work from memory-only recent summaries
+  status: in_progress
+  phase: working_tasks
+  covers:
+    acceptance_criteria:
+    - AC-7
+    - AC-9
+  verification_ids:
+  - T-RELATED-WORK
+  - T-SUMMARY-CACHE-PRIVACY
+  expected_files: &id003
+  - backend/shared/python_utils/recent_work_summary_cache.py
+  - backend/apps/ai/processing/related_work.py
+  dependencies:
+  - TASK-4326
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files: *id003
+    shared_files: []
+- id: TASK-1119
+  title: Correct material chat drift with inspectable instructions
+  status: in_progress
+  phase: working_tasks
+  covers:
+    acceptance_criteria:
+    - AC-10
+  verification_ids:
+  - T-CHAT-DIRECTION
+  expected_files: &id004
+  - backend/apps/ai/processing/chat_direction.py
+  - backend/apps/ai/processing/main_processor.py
+  dependencies:
+  - TASK-4880
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files: *id004
+    shared_files:
+    - backend/apps/ai/processing/main_processor.py
+- id: TASK-599
+  title: Discover saved Workflows and save their remote YAML files
+  status: in_progress
+  phase: working_tasks
+  covers:
+    acceptance_criteria:
+    - AC-5
+    - AC-8
+  verification_ids:
+  - T-FOCUS-RESELECTION
+  - T-REMOTE-WORKFLOW-FILE
+  expected_files: &id005
+  - backend/apps/workflows/skills/saved_workflow_context.py
+  - backend/core/api/app/services/workflow_remote_file_service.py
+  dependencies:
+  - TASK-4326
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files: *id005
+    shared_files: []
+- id: TASK-5367
+  title: Escalate terminal risk using Jev under exact grants
+  status: in_progress
+  phase: working_tasks
+  covers:
+    acceptance_criteria:
+    - AC-12
+  verification_ids:
+  - T-TERMINAL-RISK
+  expected_files: &id006
+  - backend/apps/code/terminal_command_risk.py
+  - backend/apps/code/skills/run_code_skill.py
+  dependencies:
+  - TASK-4326
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files: *id006
+    shared_files: []
+- id: TASK-8917
+  title: Recommend and author Project Focus and Workflow updates
+  status: in_progress
+  phase: working_tasks
+  covers:
+    acceptance_criteria:
+    - AC-13
+    - AC-14
+  verification_ids:
+  - T-FOCUS-PROPOSAL
+  - T-WORKFLOW-PROPOSAL
+  expected_files: &id007
+  - backend/core/api/app/services/project_authoring_service.py
+  - backend/core/api/app/services/project_recommendation_service.py
+  - frontend/packages/ui/src/services/projectAuthoringClientService.ts
+  dependencies:
+  - TASK-4326
+  - TASK-599
+  - TASK-4880
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files: *id007
+    shared_files: []
+implementation_state:
+  subject_commit: dddd8603019aa93a83f294c660e56cfe61da337d
+  product_changes_made: true
+approvals:
+  specification:
+    status: approved
+    approved_at: '2026-10-04T19:10:16Z'
+    source: 'User: Ok approved. Implement and test incl real inference testing'
+  plan:
+    status: approved
+    approved_at: '2026-10-04T19:10:16Z'
+    source: 'User: Ok approved. Implement and test incl real inference testing'
+decisions:
+- id: D-1
+  status: active
+  decision: Complete ten discussion rounds with examples and recommendations, then obtain final approval before
+    implementing.
+  reason: Explicit user instructions; update the draft after each answer and research further as needed.
+  decided_at: '2026-10-02T00:00:00Z'
+- id: D-2
+  status: active
+  decision: Project focus auto-selection defaults to on and follows the existing cancellable countdown; rejection
+    prevents Project context processing/loading, and disabling auto-selection in web/CLI requires manual mention.
+  reason: Explicit round-one user direction; earlier proposed opt-in/always-confirm choices are not the intended
+    behavior.
+  decided_at: '2026-10-02T16:56:54Z'
+- id: D-3
+  status: active
+  decision: Keep the Project base active with one specialized focus, showing only the specialist's Project-qualified
+    title and shortening it responsively.
+  reason: Explicit round-two user choice and title examples; instruction composition is separate from the single
+    visible active indicator.
+  decided_at: '2026-10-03T10:27:37Z'
+- id: D-4
+  status: superseded
+  decision: Treat design guidance as Specification-owned; do not assume distinct Project memories in the selection
+    architecture while their usefulness remains unresolved.
+  reason: User flagged overlap with planned spec-driven development while requesting clarification of round three;
+    this does not answer the request-order question or authorize product implementation.
+  decided_at: '2026-10-03T10:40:00Z'
+- id: D-5
+  status: active
+  decision: Reselect relevant app skills, existing deterministic workflows and permitted context through Jev once
+    any regular or Project-specific focus is authoritatively activated.
+  reason: Explicit round-three user direction; workflow graph execution, chat focus instructions and Specification
+    requirements remain separate concepts.
+  decided_at: '2026-10-03T10:47:35Z'
+- id: D-6
+  status: active
+  decision: Rerun focus-aware Jev reselection when the active instruction phase changes, in addition to authoritative
+    focus activation.
+  reason: Explicit round-four user answer; phase-specific instructions can require a different tool, workflow and
+    context selection.
+  decided_at: '2026-10-03T10:59:26Z'
+- id: D-7
+  status: active
+  decision: Saving a Workflow into a selected remote-access Project folder must also persist its portable YAML file
+    there.
+  reason: Explicit user requirement in round five; current encrypted linking and remote-copy proposals do not write
+    a file.
+  decided_at: '2026-10-03T11:20:47Z'
+- id: D-8
+  status: active
+  decision: Keep related active/recent chat summary copies Vault-encrypted in server memory only, preserving client-encrypted
+    long-term storage and no independent server decryption of old chats.
+  reason: Explicit additional user requirement; expanding Jev context must not widen the durable chat decryption
+    boundary.
+  decided_at: '2026-10-04T16:36:24Z'
+- id: D-9
+  status: active
+  decision: Use deterministically assembled context for Jev chat-direction assessment with no custom checks; an
+    LLM reviews material drift, decides whether to send a correction and generates it, with the exact expandable
+    notice after accepted delivery.
+  reason: Explicit round-six user choice, including the correction-message disclosure UI; useful related discoveries
+    remain permitted.
+  decided_at: '2026-10-04T17:14:16Z'
+- id: D-10
+  status: active
+  decision: Support built-in app and user-created personal/Project Rules with Markdown title/description/when_to_use
+    frontmatter and quiet expandable loaded-rule events; use user-authorized research subagents to prepare current
+    best-practice app catalogs.
+  reason: Explicit round-seven acceptance, custom Project Rule format requirement and prompt-injection caution;
+    research proposals do not authorize pre-approval product implementation.
+  decided_at: '2026-10-04T17:33:40Z'
+- id: D-11
+  status: active
+  decision: Jev elevated/uncertain terminal risk escalates otherwise preapproved automatic commands to review, alongside
+    unchanged deterministic authorization/confinement; measure false positives before reconsidering strictness.
+  reason: Explicit round-eight acceptance and permission to reconsider overly aggressive flagging based on observed
+    behavior.
+  decided_at: '2026-10-04T17:58:21Z'
+- id: D-12
+  status: active
+  decision: A selectable Rule is a coherent Markdown guide such as Svelte coding rules, Python coding rules, Mobile
+    first design or Accessibility best practices, containing multiple related practices.
+  reason: User corrected the initial micro-rule catalog; six regrouped guide proposals now replace eighteen independently
+    suggested practice documents.
+  decided_at: '2026-10-04T17:58:21Z'
+- id: D-13
+  status: active
+  decision: Jev recommends Focus creation/update via a button; only a user click starts background LLM authoring
+    without a separate regular chat, then completion links to the saved Focus embed/Project item and later active-Focus
+    follow-ups use the updated revision.
+  reason: Explicit round-nine user clarification; eager generative drafts and a subsequent Apply step are not the
+    requested flow.
+  decided_at: '2026-10-04T18:17:28Z'
+- id: D-14
+  status: active
+  decision: Project-only Focus catalog assessment includes inactive definitions; authorized full loading and a second
+    Jev decision precede Update; first-pass Create is allowed and public/app improvements are excluded.
+  reason: Latest explicit user clarification.
+  decided_at: '2026-10-04T18:33:28Z'
+- id: D-15
+  status: active
+  decision: Defer new Project-memory storage; preserve existing memories and available encrypted Project fact documents.
+  reason: Explicit round-ten answer about possible Specification overlap.
+  decided_at: '2026-10-04T18:33:28Z'
+- id: D-16
+  status: active
+  decision: Apply the same Project-only catalog/full-definition Jev update recommendation and button-triggered background
+    authoring/notification flow to saved deterministic Workflows; preserve active-run version pinning and existing
+    graph/save authority.
+  reason: Explicit follow-up user direction after round ten.
+  decided_at: '2026-10-04T18:51:37Z'
+- id: D-17
+  status: active
+  decision: Workflow Update click reuses the existing AI-powered Workflow creation/editing Jev + LLM pipeline; add
+    recommendation/background/notification orchestration rather than a separate authoring engine.
+  reason: Explicit latest user clarification; source inspection confirms WorkflowInputService and its planner/compiler/transaction
+    path.
+  decided_at: '2026-10-04T18:51:37Z'
+- id: D-OPTIONAL-PLAN-SPEC
+  status: active
+  decision: Do not depend on unfinished Plan/Specification product lifecycles. Jev drift works from actual user
+    goal, clarifications, existing open Tasks, Focus/phase and recent actions. Genuine approved revision-bound existing
+    Plan summaries and authorized Spec documents are optional context; unavailable context is absent, never synthesized
+    approval.
+  reason: 'User asked how to handle unfinished Plans/Specs during approved expansion; preserves existing approved
+    scope and deferred lifecycle boundary. Explicit user follow-up: Yes sounds good your approach.'
+  decided_at: '2026-10-04T23:43:35.446010+00:00'
+- id: D-NATIVE-HANDOFF
+  status: active
+  decision: Publish and verify the approved dev backend/Web/CLI expansion; provide a precise source/Task handoff
+    for native compilation and runtime verification in a separate Apple-focused agent chat. Do not claim native
+    runtime parity or bypass the guarded helper.
+  reason: User explicitly requested an Apple-focused separate-agent handoff after deploy when existing typed build
+    helper rejected Xcode/Simulator operations.
+  decided_at: '2026-10-04T23:43:35.446010+00:00'
+attempts:
+- id: ATTEMPT-1
+  task_id: TASK-8443
+  approach: Inspect Jev processing and delegate bounded read-only project-context and workflow/safety investigations.
+  outcome: succeeded
+  recorded_at: '2026-10-02T00:00:00Z'
+handoff:
+  current_task_id: TASK-8443
+  next_action: Implement approved slices, run focused isolated product checks and disposable real inference, then
+    verify all required acceptance criteria.
+  command: openmates tasks show TASK-8443
+  expected_outcome: One explicit approval of the Plan and linked Specification revisions authorizes implementation;
+    do not repeat settled design questions.
+  last_verified_commit: dddd8603019aa93a83f294c660e56cfe61da337d
+  blocker: null
+implementation_sequence:
+- step: 1
+  outcome: Shared bounded decision projections, stable revisions and Rule document/catalog primitives; publish six
+    reviewed Code/Design guides.
+  depends_on: []
+  verification:
+  - T-RULES
+- step: 2
+  outcome: Default-on Project setting, cancellable activation, base/specialist layering and Focus/phase reselection
+    of eligible skills, Workflows and context.
+  depends_on:
+  - 1
+  verification:
+  - T-PROJECT-UNIT
+  - T-PROJECT-UI
+  - T-FOCUS-RESELECTION
+  - T-RULES
+- step: 3
+  outcome: Vault-encrypted memory-only summary index, reliable freshness, related chat/Task selection, expiry and
+    revocation.
+  depends_on:
+  - 1
+  - 2
+  verification:
+  - T-SUMMARY-CACHE-PRIVACY
+  - T-RELATED-WORK
+- step: 4
+  outcome: Deterministic direction context, Jev drift assessment, separate LLM correction review and expandable
+    encrypted sent event.
+  depends_on:
+  - 2
+  - 3
+  verification:
+  - T-CHAT-DIRECTION
+- step: 5
+  outcome: Saved Workflow discovery/delivery and actual selected-folder YAML writes; terminal risk review before
+    automatic execution.
+  depends_on:
+  - 2
+  verification:
+  - T-REMOTE-WORKFLOW-FILE
+  - T-TERMINAL-RISK
+- step: 6
+  outcome: Project-only catalog/full-definition assessment, buttons, click-triggered authoring jobs, Focus notifications
+    and next-follow-up revision refresh. Apply the same update flow to saved Project Workflows, reusing graph validation
+    and immutable active-run versions. Workflow edits invoke the existing Jev + LLM authoring pipeline.
+  depends_on:
+  - 2
+  verification:
+  - T-FOCUS-PROPOSAL
+  - T-WORKFLOW-PROPOSAL
+- step: 7
+  outcome: Focused cross-client/product coverage, disposable real-provider evaluations and accepted-scope evidence
+    before scoped deployment.
+  depends_on:
+  - 3
+  - 4
+  - 5
+  - 6
+  verification:
+  - T-DESIGN
+execution_defaults:
+  context: Select already available authorized artifacts and preserve required approved obligations. Missing separate
+    planned Spec/Plan capabilities are unavailable context, not an implicit mandate to implement their entire runtime.
+  decisions: Reuse typed Jev limits; bound/paginate catalogs, batch compatible independent questions, reject invented
+    IDs and stale chat/Project/Focus/phase results.
+  fallbacks: Optional proposal failure shows no button; missing related summaries stay absent; direction uncertainty
+    sends no correction; terminal risk uncertainty/outage requires review.
+  cadence: Authoritative Focus/phase changes refresh context. Direction checks follow changed response boundaries
+    and bounded long-running progress checkpoints; no idle polling or unchanged correction repeats.
+  workflow_files: Write canonical portable YAML to the selected folder and refresh bound files on later saves under
+    existing guards. External edits require explicit import/reconciliation; no bidirectional watcher is added.
+  security: Catalog/artifact/online text is data, never authority. Selection cannot grant permission. No private
+    text in durable telemetry.
+  verification: Focused local unit/static checks; isolated GitHub product REST/WS/CLI/SDK/browser coverage; real
+    inference on disposable dev state; accepted Apple/TUI semantics preserved.
+  tasks: After approval create concrete independently deliverable Tasks with sequence dependencies; retain TASK-8443
+    for scope/evidence and reuse session 0f58.
+specification_review:
+- id: feature.projects
+  version: 2
+  fingerprint: b765a6bf2698695ad2e77f6afeaedebc4a15fd6fb124ed3aa1f820540aa592e8
+  bundle: specifications/features/projects
+  status: approved
+  review_artifact: /tmp/openmates/specification-approvals/feature.projects-b765a6bf2698695a.approval.json
+  review_baseline_commit: 4559bc930f56d587bcdda85eca45cb98840f5e81
+- id: feature.focus-modes
+  version: 2
+  fingerprint: e1fd1d92eae1614b98c24c4b63b15408b481c1425ef780c85eff9ec6a4360b6c
+  bundle: specifications/features/focus-modes
+  status: approved
+  review_artifact: /tmp/openmates/specification-approvals/feature.focus-modes-e1fd1d92eae1614b.approval.yml
+  review_baseline_commit: 4559bc930f56d587bcdda85eca45cb98840f5e81
+  original_approved_fingerprint: 431e13506b2003fd022ffd445affec8cf960505be6b0be33af4e1686ec827fbb
+  reconciliation: Preserves the approved Jev Project additions and every already-published Study assertion/example
+    from c3469a4506cb83e15c6a74f4db4d0ae009c673dc; no additional Jev behavior or approval scope.
+- id: feature.chats
+  version: 3
+  fingerprint: 145a3126b6925c28caddd880410a310035a36c7bd30e87eb7f0eafefbec974a8
+  bundle: specifications/features/chats
+  status: approved
+  review_artifact: /tmp/openmates/specification-approvals/feature.chats-145a3126b6925c28.approval.json
+  review_baseline_commit: 4559bc930f56d587bcdda85eca45cb98840f5e81
+- id: feature.workflows
+  version: 10
+  fingerprint: 6897e78ada938209a9a58dd55ab0cfb1ec956b91677c1b79efd4c061f0a48ae7
+  bundle: specifications/features/workflows
+  status: approved
+  review_artifact: /tmp/openmates/specification-approvals/feature.workflows-6897e78ada938209.approval.json
+  review_baseline_commit: 4559bc930f56d587bcdda85eca45cb98840f5e81
+- id: feature.app-skill.code-run
+  version: 2
+  fingerprint: d00aa66084de21e29e2b33f13e80a4b51b08c769346df4734b64679db11a6164
+  bundle: specifications/features/app-skills/code-run
+  status: approved
+  review_artifact: /tmp/openmates/specification-approvals/feature.app-skill.code-run-d00aa66084de21e2.approval.json
+  review_baseline_commit: 4559bc930f56d587bcdda85eca45cb98840f5e81
+- id: feature.notifications
+  version: 2
+  fingerprint: fb31378179aa94e054fdceaba04e2b76be4c10d69d3fed37d8361b46abf4bc93
+  bundle: specifications/features/notifications
+  status: approved
+  review_artifact: /tmp/openmates/specification-approvals/feature.notifications-fb31378179aa94e0.approval.json
+  review_baseline_commit: 4559bc930f56d587bcdda85eca45cb98840f5e81
+- id: feature.rules
+  version: 1
+  fingerprint: 8c267eaee54e55a2faafc3ca8f079b48d271a41f15cb13232c6378342995f098
+  bundle: specifications/features/rules
+  status: approved
+  review_artifact: /tmp/openmates/specification-approvals/feature.rules-8c267eaee54e55a2.approval.json
+  review_baseline_commit: 4559bc930f56d587bcdda85eca45cb98840f5e81
+review_validation:
+  plan_schema: passed
+  seven_specification_bundles: passed
+  generated_registry_and_coverage: passed
+  diff_whitespace: passed
+  review_receipt_fingerprints: passed
+  rendered_pdf_inspection:
+    status: passed
+    pages:
+    - 'Projects page 18: inline green/red changes and neutral unchanged text; concrete countdown examples.'
+    - 'Focus modes page 18: catalog/full-assessment requirements with adjacent examples.'
+    - 'Workflows page 26: full-graph recommendation and existing Jev + LLM authoring reuse with example.'
+    - 'Rules page 3: coherent guide definition and readable example.'
+  product_implementation: in_progress
+  product_tests: focused_units_passed_isolated_and_live_pending
+approved_by_user: true
+implementation_progress:
+  workspace_migration:
+    status: complete
+    workspace: /home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-0f58
+    preserved_files: 19
+    backup: logs/jev-agentic-project-work/root-migration-20261004T191948Z
+    canonical_tracked_clean: true
+    capacity:
+      free_gib: 39.86
+      used_percent: 82.64
+      method: Lease-protected unused Docker build-cache and dangling-image cleanup; uv cache cleanup.
+    instructions: AGENTS.md automatic capacity recovery guidance
+  native_verification:
+    status: deferred_user_accepted_handoff
+    attempt: python3 scripts/apple_remote.py build-ios
+    result: 'UNSUPPORTED_REMOTE_OPERATION: Apple helper ''build-ios'' is not admitted; no deletion requested.'
+    reason: Existing Mac helper admits static readiness only; source staging/Xcode/Simulator workloads are closed
+      because descendant Seatbelt violations cannot be reliably observed. Do not bypass with raw SSH. Native source
+      and tests remain included; runtime parity is unproven.
+    user_direction: You can also hand me later at the end an instruction after deploy to reference the changes you
+      made and the task for the Apple app focused separate agent chat.
+    handoff_required: true
+    runtime_parity_claimed: false
+    follow_up_task:
+      task_id: f2650723-16e9-4b77-b4c9-30a73bf33ae7
+      slug: verify-apple-parity-for-the-jev-project-context-expansion
+      status: todo
+      handoff: docs/plans/jev-agentic-project-work/apple-handoff.md
+  accepted_plan_context:
+    status: implemented_optional
+    reason: Close AC-10 by supplying mechanically assembled summaries of currently approved, revision-bound existing
+      linked Plans through the same transient Vault-encrypted private-context handoff. No new Plan lifecycle.
+progress:
+  integration_reconciliation:
+    source: c3469a4506cb83e15c6a74f4db4d0ae009c673dc
+    focus_bundle_fingerprint: e1fd1d92eae1614b98c24c4b63b15408b481c1425ef780c85eff9ec6a4360b6c
+    outcome: Retained every published Study assertion/example and all seven approved Project Focus assertions. CI
+      candidate includes all changed source; deploy inventory explicitly tracks transport, schema and history sanitization.

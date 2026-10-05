@@ -85,7 +85,8 @@ def _load_ask_skill_config_from_app_yml() -> Dict[str, Any]:
 
 async def _async_focus_mode_auto_confirm(
     chat_id: str,
-    task_id: str
+    task_id: str,
+    request_id: str | None = None,
 ) -> None:
     """
     Async implementation of the focus mode auto-confirm logic.
@@ -109,12 +110,17 @@ async def _async_focus_mode_auto_confirm(
     
     # Step 1: Atomically get and delete the pending context
     # If the user rejected first, this returns None (race-safe via GETDEL)
-    pending_context = await cache_service.get_and_delete_pending_focus_activation(chat_id)
+    pending_context = await cache_service.get_and_delete_pending_focus_activation(
+        chat_id, embed_id=request_id, require_completed_countdown=True,
+    )
     
     if not pending_context:
         logger.info(f"{log_prefix} No pending focus activation found — user likely rejected. No-op.")
         return
     
+    from backend.shared.python_utils.recent_work_summary_client import restore_private_context_payload
+    pending_context = await restore_private_context_payload(pending_context)
+
     focus_id = pending_context.get("focus_id")
     user_id = pending_context.get("user_id")
     user_id_hash = pending_context.get("user_id_hash", "")
@@ -135,6 +141,36 @@ async def _async_focus_mode_auto_confirm(
     encryption_service = EncryptionService()
     directus_service = DirectusService()
     await directus_service.ensure_auth_token()
+
+    # Private specialist acceptance revalidates current Project authority and the
+    # saved item revision. The pending client snapshot is transient; no private
+    # ciphertext is decrypted by the server to recover missing instructions.
+    if isinstance(focus_id, str) and focus_id.startswith("project-focus:"):
+        from backend.apps.ai.tasks.async_skill_continuation import async_skill_latest_user_turn_key
+        from backend.core.api.app.services.project_write_authorization_service import (
+            ProjectWriteAuthorizationError, ProjectWriteAuthorizationService,
+        )
+        document = next((value for value in pending_context.get("project_focus_documents", [])
+                         if isinstance(value, dict) and value.get("item_id") == focus_id.split(":")[-1]), None)
+        try:
+            latest = await cache_service.get(async_skill_latest_user_turn_key(user_id, chat_id))
+            if latest != message_id or not document:
+                raise ProjectWriteAuthorizationError("PROJECT_FOCUS_REQUEST_STALE", status_code=409)
+            await ProjectWriteAuthorizationService(directus_service, cache_service).validate_specialist_context(
+                user_id=user_id, chat_id=chat_id, focus_id=focus_id,
+                instruction=document.get("document"), item_revision=document.get("revision"),
+                require_accepted=False,
+            )
+        except ProjectWriteAuthorizationError:
+            logger.info(f"{log_prefix} Private Focus proposal no longer authorized")
+            from backend.core.api.app.routes.handlers.websocket_handlers.focus_mode_rejected_handler import _trigger_continuation_without_focus
+            await _trigger_continuation_without_focus(cache_service, directus_service, encryption_service, pending_context, log_prefix)
+            return
+
+    from backend.core.api.app.services.project_write_authorization_service import ProjectWriteAuthorizationService
+    await ProjectWriteAuthorizationService(directus_service, cache_service).accept_specialist_focus(
+        user_id=user_id, chat_id=chat_id, focus_id=focus_id, request_id=pending_context.get("embed_id"),
+    )
 
     # A specialist adds its instructions to the already authorized Project base.
     # It never grants additional Project permissions.
@@ -269,7 +305,14 @@ async def _async_focus_mode_auto_confirm(
             "chat_has_title": chat_has_title,
             "is_incognito": is_incognito,
             "mate_id": mate_id,
+            "agentic_context_ref": pending_context.get("agentic_context_ref"),
+            "agentic_context_request_id": pending_context.get("agentic_context_request_id"),
+            "agentic_context_turn_id": pending_context.get("agentic_context_turn_id"),
             "active_focus_id": focus_id,  # Focus mode is NOW active for this continuation
+            **{key: pending_context.get(key, []) for key in (
+                "accepted_plan_context", "project_focus_documents", "project_focus_catalog", "custom_rule_documents",
+                "project_context_documents", "related_task_candidates", "project_focus_candidates",
+            )},
             "recovery_inference_task_id": pending_context.get("recovery_inference_task_id"),
             "recovery_preflight_id": pending_context.get("recovery_preflight_id"),
             "recovery_turn_id": pending_context.get("recovery_turn_id"),
@@ -298,6 +341,10 @@ async def _async_focus_mode_auto_confirm(
             "is_focus_mode_continuation": True,
         }
         
+        from backend.shared.python_utils.recent_work_summary_client import seal_private_context_payload
+        request_data_dict = await seal_private_context_payload(
+            request_data_dict, request_id=pending_context.get("embed_id", ""),
+        )
         task = process_ai_skill_ask_task.apply_async(
             kwargs={
                 "request_data_dict": request_data_dict,
@@ -323,7 +370,7 @@ async def _async_focus_mode_auto_confirm(
     soft_time_limit=60,
     time_limit=90,
 )
-def focus_mode_auto_confirm_task(self, chat_id: str):
+def focus_mode_auto_confirm_task(self, chat_id: str, request_id: str | None = None):
     """
     Celery task that auto-confirms focus mode activation after the countdown.
     
@@ -343,7 +390,7 @@ def focus_mode_auto_confirm_task(self, chat_id: str):
     try:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        loop.run_until_complete(_async_focus_mode_auto_confirm(chat_id, task_id))
+        loop.run_until_complete(_async_focus_mode_auto_confirm(chat_id, task_id, request_id))
     except Exception as e:
         logger.error(f"{log_prefix} Error in auto-confirm task: {e}", exc_info=True)
         raise

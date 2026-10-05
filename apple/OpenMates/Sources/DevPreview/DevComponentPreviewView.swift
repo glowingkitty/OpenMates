@@ -493,7 +493,13 @@ private struct DevComponentPreviewCanvas: View {
                 WorkflowShortTemplatePreviewHost()
             }
         case .message:
-            if configuration.variant.hasPrefix("selected-text") {
+            if configuration.variant == "project-focus-commit" {
+                DevProjectFocusCommitFixture()
+            } else if configuration.variant.hasPrefix("agent-context-") {
+                AgentContextNoticeView(event: DevAgentContextFixture.event(configuration.variant), onAuthoring: { recommendation in
+                    lastAction = "authoring-click-" + recommendation.id
+                }).padding(.spacing5)
+            } else if configuration.variant.hasPrefix("selected-text") {
                 DevMessageSelectionFixture(variant: configuration.variant)
             } else if configuration.variant == "fork-settings" {
                 DevMessageForkSettingsFixture()
@@ -974,3 +980,66 @@ private struct DevNativeJSONExportDocument: FileDocument {
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper { FileWrapper(regularFileWithContents: data) }
 }
 #endif
+
+/// Public, disconnected fixtures exercise the production receipt and click controls.
+private enum DevAgentContextFixture {
+    static func event(_ variant: String) -> AgentContextEvent {
+        switch variant {
+        case "agent-context-rules":
+            return .rulesLoaded(setKey: "public-fixture", rules: [AppliedRuleGuide(
+                id: "public-rule", title: "Public project guide", source: "project",
+                revision: String(repeating: "a", count: 64),
+                body: "Keep the original research goal visible and cite every factual claim.",
+                appID: nil, projectID: "11111111-1111-4111-8111-111111111111")])
+        case "agent-context-direction":
+            return .directionCorrection(
+                notice: "Chat is drifting too far away from the goals. Correction instruction was sent.",
+                instruction: "Return to the original research question before considering unrelated ideas.", deliveryID: "public-delivery")
+        default:
+            return .authoring([ProjectAuthoringRecommendation(id: "public-recommendation",
+                chatID: "22222222-2222-4222-8222-222222222222",
+                projectID: "11111111-1111-4111-8111-111111111111", kind: "focus", action: "create",
+                targetID: nil, expectedRevision: nil, title: "Research guide", expiresAt: nil)])
+        }
+    }
+}
+
+/// No account, Project API or socket: explicitly staged acknowledgment exercises production UI.
+private struct DevProjectFocusCommitFixture: View {
+    @ObservedObject private var store = PendingProjectFocusStore.shared
+    @State private var scope = UUID()
+    @State private var requestID = UUID().uuidString.lowercased()
+    @State private var record: PendingProjectFocusRecord?
+    @State private var acknowledgment: CheckedContinuation<Void, Never>?
+    @State private var configured = false
+    private let chatID = "22222222-2222-4222-8222-222222222222"
+    private let projectID = "11111111-1111-4111-8111-111111111111"
+
+    var body: some View {
+        VStack(spacing: .spacing5) {
+            FocusModeRenderer(data: ["focus_id": AnyCodable("project-" + projectID),
+                                    "focus_mode_name": AnyCodable("Public research Project")],
+                              mode: .preview, embedID: requestID, chatID: chatID)
+            Button("Commit fixture decision") {
+                if let record { try? store.beginCommit(record) }
+            }.buttonStyle(.plain).disabled(record == nil || store.entry(chatID: chatID, embedID: requestID)?.status != .confirming)
+                .accessibilityIdentifier("dev-focus-commit")
+            Button("Acknowledge fixture decision") {
+                acknowledgment?.resume(); acknowledgment = nil
+            }.buttonStyle(.plain).disabled(store.entry(chatID: chatID, embedID: requestID)?.status != .committing)
+                .accessibilityIdentifier("dev-focus-ack")
+            Text(store.entry(chatID: chatID, embedID: requestID).map { String(describing: $0.status) } ?? "unconfigured")
+                .accessibilityIdentifier("dev-focus-state")
+        }.padding(.spacing5)
+        .onAppear {
+            guard !configured else { return }; configured = true
+            store.configure(scope: scope, complete: { current in
+                record = current
+                await withCheckedContinuation { acknowledgment = $0 }
+            }, reject: { _ in })
+            store.ingest(fields: ["chat_id": chatID, "embed_id": requestID, "focus_id": "project-" + projectID,
+                                  "expires_at": Date().timeIntervalSince1970 - 1], scope: scope)
+        }
+        .onDisappear { acknowledgment?.resume(); acknowledgment = nil; store.reset() }
+    }
+}

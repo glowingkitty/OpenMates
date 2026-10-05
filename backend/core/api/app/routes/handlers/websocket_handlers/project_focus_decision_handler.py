@@ -19,12 +19,14 @@ async def handle_project_focus_decision(
     try:
         if not manager.can_execute_project_file_job(user_id, device_fingerprint_hash, chat_id):
             raise ProjectWriteAuthorizationError("PROJECT_EXECUTOR_NOT_READY")
-        pending = await service.require_pending(user_id=user_id, chat_id=chat_id, request_id=request_id)
+        pending = await service.require_pending(user_id=user_id, chat_id=chat_id, request_id=request_id,
+                                                require_completed_countdown=accepted)
         if accepted:
             focus = await service.authorization.get_active_focus(user_id=user_id, chat_id=chat_id)
             if not focus or focus.get("project_id") != pending["project_id"] or focus.get("team_id") != pending.get("team_id"):
                 raise ProjectWriteAuthorizationError("PROJECT_FOCUS_REQUIRED")
-        consumed = await cache_service.get_and_delete(service.key(user_id, chat_id) + ":" + request_id)
+        consumed = await service.consume_decision(user_id=user_id, chat_id=chat_id,
+                                                  request_id=request_id, accepted=accepted)
         if not isinstance(consumed, dict) or consumed.get("request_id") != request_id:
             raise ProjectWriteAuthorizationError("PROJECT_FOCUS_REQUEST_EXPIRED", status_code=409)
         await dispatch_async_skill_continuation(

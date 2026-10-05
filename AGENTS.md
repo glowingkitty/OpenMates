@@ -18,6 +18,12 @@ and binding, including in child agents; do not start another. Otherwise obtain o
 before editing with `python3 scripts/sessions.py start --mode bug --task "<outcome>"`
 (use feature/docs/testing as appropriate). Never borrow another task's workspace.
 
+If disk storage runs low, resolve capacity before stopping work. Inspect disposable
+build caches, safely removable old worktrees, and other cache/build files. Use
+guarded cleanup tools, preserve unfinished work and recovery evidence, and respect
+shared runtime leases. Keep capacity guards intact. When the value or safety of
+deletion is uncertain, ask the user for consent before deleting it.
+
 Publish with `python3 scripts/sessions.py deploy --title "type: description"
 --message "Why and verification"`; pass the supplied `--session` for administrative
 or SSH use. Scoped dev deployment is authorized for assigned implementation work.

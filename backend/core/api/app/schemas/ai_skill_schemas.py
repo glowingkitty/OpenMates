@@ -3,10 +3,21 @@
 # that might be shared between the core API and the AI app services.
 
 from typing import List, Dict, Any, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, field_serializer
 from backend.core.api.app.schemas.chat import AIHistoryMessage
 
 class AskSkillRequest(BaseModel):
+    @field_validator("message_history", mode="before")
+    @classmethod
+    def _admit_content_free_context_receipts(cls, value):
+        from backend.shared.python_utils.agent_context_history import project_agent_context_history
+        return project_agent_context_history(value) if isinstance(value, list) else value
+
+    @field_serializer("message_history")
+    def _serialize_content_free_context_receipts(self, value):
+        from backend.shared.python_utils.agent_context_history import project_agent_context_history
+        return project_agent_context_history(value)
+
     chat_id: str = Field(..., description="The ID of the chat session.")
     message_id: str = Field(..., description="The ID of the user's most recent message in the history.")
     user_id: str = Field(..., description="Actual ID of the user.")
@@ -25,7 +36,17 @@ class AskSkillRequest(BaseModel):
     is_incognito: bool = Field(default=False, description="Whether this is an incognito chat. Incognito chats skip persistence and post-processing.")
     mate_id: Optional[str] = Field(default=None, description="The ID of the Mate to use. If None, AI will select.")
     active_focus_id: Optional[str] = Field(default=None, description="The ID of the currently active focus, if any.")
+    focus_phase_state: Optional[Dict[str, Any]] = Field(default=None, description="Client-decrypted Focus phase state; server authority is rechecked.")
     project_focus_candidates: List[Dict[str, Any]] = Field(default_factory=list, max_length=40, description="Transient client-decrypted Project names for ownership-filtered routing; never consent or file contents.")
+    agentic_context_ref: Optional[str] = Field(default=None, repr=False, description="Opaque memory-only handoff; server-generated and owner/turn bound.")
+    agentic_context_turn_id: Optional[str] = Field(default=None, description="Server-only original user turn binding of the opaque handoff.")
+    agentic_context_request_id: Optional[str] = Field(default=None, description="Server handoff binding.")
+    accepted_plan_context: Optional[Dict[str, Any]] = Field(default=None, repr=False, description="Bounded client-decrypted accepted existing Plan snapshot; fresh server approval/version/linkage required.")
+    custom_rule_documents: List[Dict[str, Any]] = Field(default_factory=list, repr=False, max_length=24, description="Transient client-decrypted private Rule Markdown; fresh first-party and Project authority required before selection.")
+    project_focus_catalog: List[Dict[str, Any]] = Field(default_factory=list, repr=False, max_length=20, description="Private Project Focus metadata only; full definitions are loaded separately after selection.")
+    project_focus_documents: List[Dict[str, Any]] = Field(default_factory=list, repr=False, max_length=8, description="Selected client-decrypted Project Focus documents with fresh item revisions; never Project consent.")
+    project_context_documents: List[Dict[str, Any]] = Field(default_factory=list, repr=False, max_length=20, description="Transient authorized Project Specification, fact and folder context; data never grants access.")
+    related_task_candidates: List[Dict[str, Any]] = Field(default_factory=list, repr=False, max_length=60, description="Client-decrypted Task summaries; server ownership, lifecycle and freshness remain authoritative.")
     project_access_declined: bool = Field(default=False, description="Internal continuation guard preventing another Project consent request in the same turn.")
     current_project: Optional[Dict[str, Any]] = Field(default=None, description="Server-derived current Project routing metadata for this chat.")
     active_project_focus: Optional[Dict[str, Any]] = Field(default=None, description="Server-authoritative transient Project focus, including its full instruction.")

@@ -1,5 +1,10 @@
 /** Discoverable workspace actions shared by the palette and input completion. */
 export const TUI_ACTIONS = [
+  { label: "Inspect applied chat context", command: "/context" },
+  { label: "Start recommended Project authoring", command: "/focus-author" },
+  { label: "Refresh Project authoring job", command: "/authoring-refresh" },
+  { label: "Save reviewed authoring file", command: "/authoring-save" },
+  { label: "Cancel Project access countdown", command: "/project-focus-reject" },
   { label: "Stop active response", command: "/stop" },
   { label: "Retry last message", command: "/retry" },
   { label: "New chat", command: "/new" },

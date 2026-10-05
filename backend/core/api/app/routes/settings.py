@@ -4404,6 +4404,8 @@ async def delete_account(
         
         # Logout user immediately (delete sessions)
         try:
+            from backend.shared.python_utils.recent_work_summary_cache import recent_work_summary_cache
+            recent_work_summary_cache.revoke_owner(user_id)
             await _broadcast_force_logout(cache_service, user_id, "account_deleted")
             await directus_service.logout_all_sessions(user_id)
             # Clear cache
@@ -5535,6 +5537,8 @@ async def update_ai_model_defaults(
         raise HTTPException(status_code=500, detail="An error occurred while saving default model setting")
 
 
+# First-party owner-only opaque account settings; existing rate/size limits also apply.
+@router.post("/encrypted-account", response_model=SimpleSuccessResponse, include_in_schema=False)
 @router.post("/topic-preferences", response_model=SimpleSuccessResponse, include_in_schema=False)
 @limiter.limit("30/minute")
 async def update_topic_preferences(

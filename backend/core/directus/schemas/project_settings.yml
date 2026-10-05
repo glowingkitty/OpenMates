@@ -38,6 +38,11 @@ project_settings:
       nullable: true
       note: "SHA256 of the opaque Project-owned default focus UUID. The focus name and instructions remain encrypted."
 
+    auto_selection:
+      type: boolean
+      default: true
+      note: "Allow automatic Project focus suggestions with the standard cancellable countdown. Explicit mentions remain available when false."
+
     encrypted_settings:
       type: text
       note: "[Encrypted] Project focus content, permission settings, protected paths, and automated check overrides encrypted with the project key."

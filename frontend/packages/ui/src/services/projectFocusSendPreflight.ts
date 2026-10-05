@@ -1,5 +1,6 @@
 import {
   activateProjectFocus,
+  confirmProjectFocusCountdown,
   deactivateProjectFocus,
   getProject,
   getProjectSettings,
@@ -47,6 +48,7 @@ export function isProjectFocusId(focusId: string | null | undefined): focusId is
 }
 
 interface ProjectFocusSendDependencies {
+  confirmProjectFocusCountdown?(projectId: string, input: { chat_id: string; activation_request_id: string }, context?: { teamId?: string | null }): Promise<void>;
   getProject(projectId: string, context?: { teamId?: string | null }): Promise<ProjectViewModel>;
   getProjectSettings(
     project: ProjectViewModel,
@@ -64,6 +66,7 @@ interface ProjectFocusDeactivateDependencies {
 }
 
 const defaultDependencies: ProjectFocusSendDependencies = {
+  confirmProjectFocusCountdown,
   getProject,
   getProjectSettings,
   activateProjectFocus,
@@ -176,6 +179,10 @@ async function activateProjectDefaultFocus(
   requestId?: string,
 ): Promise<ProjectFocusActivationPresentation> {
   const context = { teamId: input.teamId ?? null };
+  if (requestId) {
+    if (!dependencies.confirmProjectFocusCountdown) throw new ProjectFocusSendPreflightError("PROJECT_FOCUS_UNAVAILABLE");
+    await dependencies.confirmProjectFocusCountdown(projectId, { chat_id: input.chatId, activation_request_id: requestId }, context);
+  }
   const project = await dependencies.getProject(projectId, context);
   const settings = await dependencies.getProjectSettings(project, context);
   const focus = readDefaultFocus(settings);

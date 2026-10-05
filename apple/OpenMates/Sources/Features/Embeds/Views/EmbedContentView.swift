@@ -10,6 +10,8 @@
 // Specification: specifications/features/chats/specification.yml
 //                specifications/features/app-skills/code-run/specification.yml
 // Assertions: chats.rendering.assistant-document-convergence, code-run.surface-parity
+// Specification: specifications/features/focus-modes/specification.yml
+// Assertions: focus-modes.countdown
 
 import SwiftUI
 
@@ -359,7 +361,7 @@ struct EmbedContentView: View {
 
             // Misc
             case .focusModeActivation:
-                FocusModeRenderer(data: rawData, mode: mode)
+                FocusModeRenderer(data: rawData, mode: mode, embedID: embed.id, chatID: chatId)
             case .reminderSet:
                 ReminderRenderer(data: rawData, mode: mode)
             case .reminderList, .reminderCancel:

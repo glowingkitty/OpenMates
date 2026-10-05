@@ -71,6 +71,8 @@ final class DeepLinkHandler: ObservableObject {
     @Published var pendingMessageText: String?
     @Published var pendingWorkflowTemplate: WorkflowTemplateLink?
     @Published var pendingWorkflowWidgetRun: WidgetWorkflowRunRoute?
+    @Published var pendingProjectID: String?
+    @Published var pendingWorkflowID: String?
     @Published var pendingWorkflowsWorkspace = false
     @Published var pendingTasksWorkspace = false
     @Published var pendingTaskID: String?
@@ -91,6 +93,8 @@ final class DeepLinkHandler: ObservableObject {
         pendingWorkflowTemplate = nil
         pendingWorkflowWidgetRun = nil
         pendingWorkflowsWorkspace = false
+        pendingProjectID = nil
+        pendingWorkflowID = nil
         pendingActiveChatsWidgetLink = nil
         // Public recipient decryption is independent of the signed-in account
         // and selected server. Keep the full fragment inside the native viewer.
@@ -126,8 +130,11 @@ final class DeepLinkHandler: ObservableObject {
             pendingNewChat = true
         case "tasks":
             pendingTasksWorkspace = true
+        case "projects":
+            if url.pathComponents.count == 2, let id = url.pathComponents.last, UUID(uuidString: id) != nil { pendingProjectID = id }
         case "workflows":
-            pendingWorkflowsWorkspace = true
+            if url.pathComponents.count == 2, let id = url.pathComponents.last, UUID(uuidString: id) != nil { pendingWorkflowID = id }
+            else { pendingWorkflowsWorkspace = true }
         case "task":
             if url.pathComponents.count == 2,
                let id = url.pathComponents.last, UUID(uuidString: id) != nil { pendingTaskID = id }

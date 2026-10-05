@@ -1274,7 +1274,7 @@ class DirectusService:
         if owner_hash_field and owner_hash:
             params[f"filter[{owner_hash_field}][_eq]"] = owner_hash
         for field, value in (extra_filters or {}).items():
-            params[f"filter[{field}][_eq]"] = value
+            params[f"filter[{field}][{'_null' if value is None else '_eq'}]"] = True if value is None else value
 
         headers = {}
         if admin_required:

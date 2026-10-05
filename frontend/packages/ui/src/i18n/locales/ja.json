@@ -2435,6 +2435,7 @@
       }
     }
   },
+  "apple": {},
   "apps": {
     "file": {
       "text": "File",
@@ -12559,6 +12560,7 @@
       }
     }
   },
+  "live_activities": {},
   "login": {
     "login": {
       "text": "ログイン"
@@ -13496,6 +13498,7 @@
       }
     }
   },
+  "rules": {},
   "settings": {
     "account": {
       "username": {

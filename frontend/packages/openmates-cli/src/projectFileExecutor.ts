@@ -19,7 +19,7 @@ import { loadProjectFilePrivacy } from "../../ui/src/services/projectFilePrivacy
 import type { ProjectFilePrivacy } from "../../ui/src/services/projectFilePrivacy.js";
 import type { PIIMappingGeneric } from "../../ui/src/components/enter_message/services/piiDetectionService.js";
 
-function projectPrivatePaths(settingsText: string | null): string[] {
+export function projectPrivatePaths(settingsText: string | null): string[] {
   if (!settingsText) return [];
   let settings: unknown;
   try { settings = JSON.parse(settingsText); }
@@ -40,15 +40,19 @@ function projectPrivatePaths(settingsText: string | null): string[] {
   return privatePaths;
 }
 
-export async function activateCliProjectFocus(client: OpenMatesClient, projectId: string, chatId: string, teamId: string | null): Promise<void> {
+export async function activateCliProjectFocus(client: OpenMatesClient, projectId: string, chatId: string, teamId: string | null, activationRequestId?: string, isCurrent?: () => boolean): Promise<void> {
   const context = { teamId, personal: !teamId };
   const [detail, settings] = await Promise.all([client.getProject(projectId, context), client.getProjectSettings(projectId, context)]);
+  if (isCurrent && !isCurrent()) return;
   const key = await client.decryptProjectKey(detail.project, context);
   if (!settings.encrypted_settings || settings.selection_required) throw new Error("Choose this Project's write policy in Project settings before starting work.");
+  if (isCurrent && !isCurrent()) return;
   const text = await decryptWithAesGcmCombined(settings.encrypted_settings, key);
   const focus = text ? (JSON.parse(text) as { default_focus?: { focus_id?: string; instructions?: string } }).default_focus : undefined;
   if (!focus?.focus_id || typeof focus.instructions !== "string") throw new Error("The Project's default focus is unavailable.");
-  await client.activateProjectFocus(projectId, { chat_id: chatId, focus_id: focus.focus_id, instruction: focus.instructions }, context);
+  if (isCurrent && !isCurrent()) return;
+  await client.activateProjectFocus(projectId, { chat_id: chatId, focus_id: focus.focus_id, instruction: focus.instructions,
+    ...(activationRequestId ? { activation_request_id: activationRequestId } : {}) }, context);
 }
 
 /**

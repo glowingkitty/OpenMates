@@ -4,16 +4,36 @@ const mocks = vi.hoisted(() => ({
   addExistingTargetToProject: vi.fn(),
   getProject: vi.fn(),
   createUserPlan: vi.fn(),
+  listProjectSources: vi.fn(async () => []),
+  getProjectContents: vi.fn(async () => ({ items: [], folders: [] })),
+  updateProjectItemMetadata: vi.fn(),
+  workflowApiRequest: vi.fn(),
+  getActiveProjectFocus: vi.fn(),
+  requestProjectRemoteAccess: vi.fn(),
+  getProjectSettings: vi.fn(),
+  approveProjectWrite: vi.fn(),
+  activeChatGet: vi.fn(() => null),
   pendingMentionValue: null as unknown,
 }));
 
 vi.mock("../projectService", () => ({
   addExistingTargetToProject: mocks.addExistingTargetToProject,
   getProject: mocks.getProject,
+  listProjectSources: mocks.listProjectSources,
+  getProjectContents: mocks.getProjectContents,
+  updateProjectItemMetadata: mocks.updateProjectItemMetadata,
+  getActiveProjectFocus: mocks.getActiveProjectFocus,
+  requestProjectRemoteAccess: mocks.requestProjectRemoteAccess,
+  getProjectSettings: mocks.getProjectSettings,
+  approveProjectWrite: mocks.approveProjectWrite,
 }));
+vi.mock('../../stores/workflowWorkspaceStore', () => ({ workflowApiRequest: mocks.workflowApiRequest }));
+vi.mock('../../stores/userProfile', async () => ({ userProfile: (await import('svelte/store')).writable({ user_id: 'owner' }) }));
+vi.mock('../../stores/projectFileApprovalStore', () => ({ requestProjectWriteApproval: vi.fn(async () => false), recordProjectFileChange: vi.fn() }));
+vi.mock('../../i18n/translations', async () => ({ text: (await import('svelte/store')).writable((key: string) => key) }));
 
 vi.mock("../../stores/activeChatStore", () => ({
-  activeChatStore: { clearActiveChat: vi.fn() },
+  activeChatStore: { clearActiveChat: vi.fn(), get: mocks.activeChatGet },
 }));
 
 vi.mock("../../stores/pendingMentionStore", () => {
@@ -50,6 +70,7 @@ import {
   prepareProjectWorkflowNavigation,
   projectWorkflowAssociationWarning,
   saveWorkflowToProjectTarget,
+  WorkflowRemoteFilePendingError,
 } from "../projectCreationNavigation";
 
 describe("project creation navigation", () => {
@@ -166,4 +187,38 @@ describe("project creation navigation", () => {
       { teamId: "team-4" },
     );
   });
+
+  // contract-test: supporting surface=gui.web assertions=workflows.portability.remote-project-save
+  it('retains one encrypted association and shows pending when its remote source cannot write', async () => {
+    const project = { project_id: 'project-1', projectKey: new Uint8Array(32) };
+    mocks.getProject.mockResolvedValue(project);
+    mocks.listProjectSources.mockResolvedValue([{ source_id: 'remote-1', source_type: 'remote_folder', sourceSessionId: null }] as never);
+    mocks.workflowApiRequest.mockResolvedValue({ workflow: { id: 'workflow-3', current_version_id: 'v1' } });
+    await expect(saveWorkflowToProjectTarget({ projectId: 'project-1', projectName: 'Launch', sourceId: 'remote-1', folderPath: 'automation' },
+      'workflow-3', 'Review')).rejects.toBeInstanceOf(WorkflowRemoteFilePendingError);
+    expect(mocks.addExistingTargetToProject).toHaveBeenCalledWith(project, 'workflow-3', 'workflow', 'Review', undefined,
+      expect.objectContaining({ remote_file_status: 'pending', remote_workflow_file: {
+        project_id: 'project-1', source_id: 'remote-1', folder_path: 'automation',
+      } }), { teamId: null });
+    expect(mocks.requestProjectRemoteAccess).not.toHaveBeenCalled();
+  });
+  // contract-test: supporting surface=gui.web assertions=workflows.portability.remote-project-save
+  it('retries the previously bound source when other remote sources are available', async () => {
+    const project = { project_id: 'project-1', projectKey: new Uint8Array(32) };
+    const binding = { project_id: 'project-1', source_id: 'remote-1', folder_path: 'automation' };
+    mocks.getProject.mockResolvedValue(project);
+    mocks.listProjectSources.mockResolvedValue([
+      { source_id: 'remote-1', source_type: 'remote_folder', status: 'offline' },
+      { source_id: 'remote-2', source_type: 'remote_folder', status: 'online' },
+    ] as never);
+    mocks.getProjectContents.mockResolvedValue({ folders: [], items: [{ project_item_id: 'item-1',
+      item_type: 'workflow', target_id: 'workflow-3', metadata: { remote_workflow_file: binding } }] } as never);
+    mocks.workflowApiRequest.mockResolvedValue({ workflow: { id: 'workflow-3', current_version_id: 'v1' } });
+    await expect(saveWorkflowToProjectTarget({ projectId: 'project-1', projectName: 'Launch' },
+      'workflow-3', 'Review')).rejects.toBeInstanceOf(WorkflowRemoteFilePendingError);
+    expect(mocks.updateProjectItemMetadata).toHaveBeenCalledWith(project, 'item-1',
+      expect.objectContaining({ remote_file_error: 'source_offline', remote_workflow_file: binding }), { teamId: null });
+    expect(mocks.addExistingTargetToProject).not.toHaveBeenCalled();
+  });
+
 });

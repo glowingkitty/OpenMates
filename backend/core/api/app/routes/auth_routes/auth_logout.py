@@ -20,6 +20,7 @@ from backend.core.api.app.services.session_security_state import (
     get_session_state_cached, revoke_logical_session, revoke_all_user_sessions,
 )
 from backend.core.api.app.utils.session_refresh import resolve_session_credential
+from backend.shared.python_utils.recent_work_summary_cache import recent_work_summary_cache
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -65,6 +66,7 @@ async def logout(
 
             if user_id:
                 revoked_hashes = await revoke_logical_session(directus_service, cache_service, token_hash, user_id)
+                recent_work_summary_cache.revoke_owner(user_id)
 
             if user_id:
                 device_hash, _, _, _, _, _, _, _ = generate_device_fingerprint_hash(request, user_id=user_id)

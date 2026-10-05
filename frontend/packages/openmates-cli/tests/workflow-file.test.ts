@@ -2,6 +2,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { buildWorkflowFile, validateWorkflowFile, workflowFileName } from "../../workflowFile.ts";
+import { persistWorkflowRemoteFile } from '../../workflowRemoteFile.ts';
+import { applyProjectFilePatch } from '../../ui/src/utils/projectFilePatch.ts';
 
 // contract-test: supporting surface=cli assertions=workflows.portability.definition-roundtrip,workflows.portability.private-content-boundary
 test("portable export keeps mapped inputs, graph data and references without source IDs", () => {
@@ -30,6 +32,38 @@ test("portable export keeps mapped inputs, graph data and references without sou
   assert.doesNotMatch(JSON.stringify(exported), /private-/);
   assert.equal(source.graph.nodes[1].config.chat_id, "private-chat");
   assert.deepEqual(validateWorkflowFile(exported), exported);
+});
+
+// contract-test: supporting surface=cli assertions=workflows.portability.remote-project-save,workflows.portability.definition-roundtrip
+test('canonical remote saves create and update only the selected bound file under its previous hash', async () => {
+  const workflow = { title: 'Morning', current_version_id: 'v1', graph: {
+    version: 1, trigger_node_id: null, nodes: [{ id: 'private-step', type: 'end', config: {} }], edges: [],
+  } };
+  let content = '';
+  const options = { workflow, binding: { project_id: 'project', source_id: 'source', folder_path: 'automation' },
+    expectedVersionId: 'v1', operationId: 'save-1', serialize: JSON.stringify,
+    currentVersion: async () => workflow.current_version_id,
+    execute: async (mutation: any) => {
+      assert.equal(mutation.path, 'automation/morning.workflow.yml');
+      if (mutation.operation === 'create_file') { assert.equal(mutation.expected_base, null); content = mutation.content; }
+      else { assert.equal(mutation.expected_base, first.binding.base_hash); content = applyProjectFilePatch(content, mutation.patch, mutation.path).content; }
+      return { status: 'completed' };
+    },
+  };
+  const first = await persistWorkflowRemoteFile(options);
+  assert.equal(first.status, 'saved');
+  assert.equal(JSON.parse(content).format, 'openmates-workflow');
+  assert.doesNotMatch(content, /private-step/);
+  workflow.title = 'Updated title';
+  workflow.current_version_id = 'v2';
+  const second = await persistWorkflowRemoteFile({ ...options, binding: first.binding, expectedVersionId: 'v2', operationId: 'save-2' });
+  assert.equal(second.status, 'saved');
+  assert.equal(second.binding.file_path, first.binding.file_path);
+  assert.equal(JSON.parse(content).workflow.title, 'Updated title');
+  const pending = await persistWorkflowRemoteFile({ ...options, binding: second.binding, expectedVersionId: 'v2', execute: async () => ({ status: 'awaiting_approval' }) });
+  assert.equal(pending.status, 'pending');
+  assert.deepEqual(pending.binding, second.binding);
+  await assert.rejects(persistWorkflowRemoteFile({ ...options, binding: { ...second.binding, file_path: '../escape.workflow.yml' }, expectedVersionId: 'v2' }), /invalid_workflow_folder/);
 });
 
 // contract-test: supporting surface=cli assertions=workflows.portability.definition-roundtrip

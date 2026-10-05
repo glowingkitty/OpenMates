@@ -191,7 +191,9 @@ def test_ai_deactivation_removes_instruction_before_next_inference():
     tree = ast.parse(Path("backend/apps/ai/processing/main_processor.py").read_text())
     branch = next(n for n in ast.walk(tree) if isinstance(n, ast.If) and isinstance(n.test, ast.Compare) and isinstance(n.test.left, ast.Name) and n.test.left.id == "skill_id" and any(isinstance(v, ast.Constant) and v.value == "deactivate_focus_mode" for v in n.test.comparators))
     body = [n for n in branch.body if not isinstance(n, ast.Continue)]
-    function = ast.AsyncFunctionDef(name="run_branch", args=ast.arguments(posonlyargs=[], args=[], kwonlyargs=[], kw_defaults=[], defaults=[]), body=body + [ast.Return(value=ast.Call(func=ast.Name(id="locals", ctx=ast.Load()), args=[], keywords=[]))], decorator_list=[])
+    function = ast.AsyncFunctionDef(name="run_branch", args=ast.arguments(posonlyargs=[], args=[
+        ast.arg(arg="active_focus_prompt_section"), ast.arg(arg="answer_recovery_system_prompt"),
+        ast.arg(arg="agentic_section")], kwonlyargs=[], kw_defaults=[], defaults=[]), body=body + [ast.Return(value=ast.Call(func=ast.Name(id="locals", ctx=ast.Load()), args=[], keywords=[]))], decorator_list=[])
     module = ast.fix_missing_locations(ast.Module(body=[function], type_ignores=[]))
     instruction = "Full focus instruction"
     focus_part = f"--- Active Focus: jobs-career_insights ---\n{instruction}\n--- End Active Focus ---"
@@ -200,9 +202,10 @@ def test_ai_deactivation_removes_instruction_before_next_inference():
     from backend.apps.ai.processing.focus_phases import invalidate_phase_runtime
     scope["invalidate_phase_runtime"] = invalidate_phase_runtime
     exec(compile(module, "production-focus-deactivate", "exec"), scope)
-    result = asyncio.run(scope["run_branch"]())
+    result = asyncio.run(scope["run_branch"](focus_part, scope["full_system_prompt"], ""))
     assert scope["request_data"].active_focus_id is None
     assert instruction not in result.get("full_system_prompt", scope["full_system_prompt"])
+    assert instruction not in result["answer_recovery_system_prompt"]
     transitions = [message for message in scope["current_message_history"] if message["role"] == "system"]
     assert len(transitions) == 1
     assert "jobs-career_insights" in transitions[0]["content"]

@@ -41,7 +41,7 @@ presets:
 `;
 
 describe("remote command permission definitions", () => {
-  // contract-test: supporting surface=cli assertions=code-run.remote.command-lists,code-run.remote.explicit-approval
+  // contract-test: supporting surface=cli assertions=code-run.remote.command-lists,code-run.remote.explicit-approval,code-run.remote.semantic-risk-review
   it("requires a trusted active grant bound to the exact repository definition", () => {
     const config = parseRemoteCommandPermissions(YAML);
     assert.deepEqual(config.file_access.private_paths, [".secrets/**", "/config/private.json"]);
@@ -63,6 +63,19 @@ describe("remote command permission definitions", () => {
       policy: changed.presets[0]!.commands[0]!,
       activeGrants: [{ project_id: "project-1", preset_id: "checks", definition_digest: digest, enabled: true }],
     }), null);
+    // A routine semantic label supplies no grant and cannot widen an existing
+    // exact definition to another argv, directory, access mode or resource set.
+    const activeGrants = [{ project_id: "project-1", preset_id: "checks", definition_digest: digest, enabled: true as const }];
+    for (const changedPolicy of [
+      { ...policy, argv: [...policy.argv, "--changed"] },
+      { ...policy, cwd: "src" },
+      { ...policy, source_access: "read_write" as const },
+      { ...policy, writable_profiles: [] },
+      { ...policy, network_profile: "packages" },
+      { ...policy, credential_profiles: ["staging"] },
+    ]) {
+      assert.equal(matchEnabledRemoteCommandPreset({ config, projectId: "project-1", policy: changedPolicy, activeGrants }), null);
+    }
   });
 
   // contract-test: supporting surface=cli assertions=code-run.remote.command-lists,code-run.remote.resource-profiles
