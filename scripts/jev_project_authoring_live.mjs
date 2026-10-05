@@ -82,6 +82,21 @@ function record(step, values = {}) {
   process.stdout.write(JSON.stringify(entry) + '\n');
   writeFileSync(evidencePath, JSON.stringify({ api_url: apiUrl, fixture_project_id: fixture.projectId, steps }, null, 2), { mode: 0o600 });
 }
+// Shape-only evidence covers the actual automatic CLI assessment too. Never
+// retain message prose or provider request/response payloads in live receipts.
+const requestRecommendations = client.requestProjectAuthoringRecommendations.bind(client);
+client.requestProjectAuthoringRecommendations = async (projectId, input) => {
+  record('recommendation_history_shape', {
+    history: input.history.map(row => ({ role: row.role, content_length: row.content.length,
+      explicit_reusable_focus: row.content.includes('reusable Project Debugging Playbook Focus'),
+      established_old_guide: row.content.includes('established old guide'),
+      proven_source_marker: row.content.includes('SOURCE-PROVENANCE-47'),
+      synthetic_case_marker: row.content.includes('SYNTHETIC-CASE-52') })),
+    catalog_count: input.catalog.length,
+    catalog_kinds: input.catalog.map(row => row.kind),
+  });
+  return requestRecommendations(projectId, input);
+};
 async function waitUntil(probe, code, timeout = 300_000) {
   const deadline = Date.now() + timeout;
   while (Date.now() < deadline) { const value = await probe(); if (value) return value; await delay(1_500); }

@@ -142,6 +142,40 @@ async def test_create_first_pass_and_uncertain_full_graph_does_not_show_update()
     assert len(jev.calls) == 2
 
 
+# contract-test: direct surface=rest_api assertions=focus-modes.project-recommendation-catalog,focus-modes.project-recommendation-full-assessment
+@pytest.mark.asyncio
+async def test_likely_metadata_match_requires_stronger_full_definition_update():
+    cache, access = Cache(), Access()
+    jev = Jev([{"candidate_0": .8, "create_focus": .89}, {"useful_update": .8}])
+    service = ProjectRecommendationService(access=access, cache=cache, jev=jev)
+    await permit(cache, service)
+    proposals = await service.assess(user_id="owner", chat_id="chat", project_id="project", catalog=catalog(),
+                                     history=HISTORY, message_id="turn-1")
+    assert [proposal["action"] for proposal in proposals] == ["inspect"]
+    update = await service.inspect_focus(user_id="owner", project_id="project",
+        assessment_id=proposals[0]["recommendation_id"], history=HISTORY, document=DOCUMENT)
+    assert update is None
+    assert len(jev.calls) == 2
+    assert "Sensitive conversation" not in json.dumps(cache.values)
+
+
+# contract-test: direct surface=rest_api assertions=focus-modes.project-recommendation-catalog
+@pytest.mark.asyncio
+async def test_catalog_questions_scope_selection_to_individual_definitions():
+    cache, access = Cache(), Access()
+    entries = [*catalog(), ProjectCatalogEntry(kind="focus", id="unrelated-focus", title="Music practice",
+        summary="Compose music", revision="revision-1")]
+    jev = Jev([{"candidate_0": .8, "candidate_1": .1, "create_focus": 0}])
+    service = ProjectRecommendationService(access=access, cache=cache, jev=jev)
+    await permit(cache, service)
+    proposals = await service.assess(user_id="owner", chat_id="chat", project_id="project", catalog=entries,
+                                     history=HISTORY, message_id="turn-1")
+    assert [proposal["target_id"] for proposal in proposals] == ["focus-1"]
+    questions = jev.calls[0]["questions"]
+    assert "catalog[0]" in questions["candidate_0"]["instructions"]
+    assert "catalog[1]" in questions["candidate_1"]["instructions"]
+
+
 # contract-test: direct surface=rest_api assertions=focus-modes.project-recommendation-full-assessment
 @pytest.mark.asyncio
 async def test_unselected_focus_never_loads_and_stale_inspection_fails_closed():
