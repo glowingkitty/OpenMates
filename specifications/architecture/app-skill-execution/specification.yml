@@ -67,7 +67,7 @@ models:
       type: array
       required: true
       items: identified_external_text_unit
-      constraints: {server_assigned_unique_ids: true, max_batch_text_chars: 50000, max_unit_chars: 4000, max_model_calls: 2, max_decision_gate_calls: 1, max_exact_span_calls: 1, partition_order: source_order, source_context_preserved: true, silent_truncation: forbidden, oversized_input: return_cleaned_content_and_log_unscanned}
+      constraints: {server_assigned_unique_ids: true, max_batch_text_chars: 50000, max_unit_chars: 4000, max_physical_batches: 8, max_estimated_jev_input_tokens_per_batch: 30000, max_parallel_batches: 3, max_model_calls_per_batch: 2, max_decision_gate_calls_per_batch: 1, max_exact_span_calls_per_batch: 1, partition_order: source_order, source_context_preserved: true, complete_partition_before_calls: required, silent_truncation: forbidden, oversized_input: return_cleaned_content_and_log_unscanned}
     decisions:
       type: array
       required: true
@@ -201,7 +201,7 @@ assertions:
     depends_on: [models.AppSkillOutputSafety, examples.output_safety]
   - id: app-skills.output.batch-equivalent
     type: security
-    must: One bounded Jev gate clears confidently safe batches without generative output. Otherwise one bounded GPT exact-span call returns a safe, injection, or uncertain decision for every server-assigned unit ID. Injection decisions require exact uniquely located quotes; deterministic application replaces only those spans with a fixed warning and preserves surrounding text and result structure. Safe and uncertain text remains unchanged after ASCII cleanup. Unknown, duplicate, missing, or invalid decisions invalidate the scan atomically and return cleaned input with an unscanned log. No model-authored replacement text, serialized-structure redaction, retry, or further model call is permitted.
+    must: One logical scan partitions every selected passage into at most eight physical batches before any model call, preserving source order, stable IDs and neighboring context across boundaries. Each batch stays below the estimated Jev input budget and receives one bounded Jev gate; a confident safe verdict requires no generative output. Otherwise that batch receives at most one bounded GPT exact-span call returning a safe, injection, or uncertain decision for every unit ID. At most three batches run concurrently within the existing overall deadline. Injection decisions require exact uniquely located quotes; deterministic application replaces only those spans with a fixed warning and preserves surrounding text and result structure. Safe and uncertain text remains unchanged after ASCII cleanup. Unknown, duplicate, missing, or invalid decisions in any batch invalidate the entire scan atomically and return cleaned input with an unscanned log. No model-authored replacement text, serialized-structure redaction, retry, silent truncation, or model call beyond the bounded partition is permitted.
     depends_on: [models.SemanticScanBatch, examples.jev_first_safety]
   - id: app-skills.output.single-boundary
     type: security

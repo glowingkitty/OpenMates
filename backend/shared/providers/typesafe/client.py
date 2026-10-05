@@ -17,6 +17,7 @@ from pydantic import ValidationError
 
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.shared.providers.typesafe.models import DecisionResponse
+from backend.shared.providers.typesafe.budget import MAX_ESTIMATED_INPUT_TOKENS, estimate_request_tokens
 
 
 logger = logging.getLogger(__name__)
@@ -84,7 +85,7 @@ class JevDecisionClient:
         return value.strip().strip('"')
 
     @staticmethod
-    def _validate_request(state: Any, questions: Mapping[str, Mapping[str, Any]]) -> None:
+    def _validate_request(state: Any, questions: Mapping[str, Mapping[str, Any]]) -> int:
         if not questions:
             raise DecisionProviderError("at least one decision question is required")
         if len(questions) > MAX_QUESTIONS:
@@ -119,6 +120,15 @@ class JevDecisionClient:
             raise DecisionRequestTooLarge(
                 f"decision request exceeds {MAX_SERIALIZED_REQUEST_CHARS} serialized characters"
             )
+        try:
+            estimated_tokens = estimate_request_tokens(state, questions)
+        except ImportError as exc:
+            raise DecisionProviderUnavailable("Jev input tokenizer is unavailable") from exc
+        if estimated_tokens > MAX_ESTIMATED_INPUT_TOKENS:
+            raise DecisionRequestTooLarge(
+                f"decision request exceeds {MAX_ESTIMATED_INPUT_TOKENS} estimated input tokens"
+            )
+        return estimated_tokens
 
     async def evaluate(
         self,
@@ -126,7 +136,7 @@ class JevDecisionClient:
         state: Any,
         questions: Mapping[str, Mapping[str, Any]],
     ) -> DecisionResponse:
-        self._validate_request(state, questions)
+        estimated_tokens = self._validate_request(state, questions)
         api_key = await self._api_key()
         payload = {"model": self._model, "state": state, "questions": dict(questions)}
         headers = {
@@ -147,6 +157,9 @@ class JevDecisionClient:
                         raise DecisionProviderUnavailable("Jev transport unavailable") from exc
                     await asyncio.sleep(0.05 * (2**attempt))
                     continue
+
+                if response.status_code >= 400 and _is_context_overflow(response):
+                    raise DecisionRequestTooLarge("Jev provider rejected the input context size")
 
                 if response.status_code in RETRYABLE_STATUS_CODES:
                     if attempt >= self._max_retries:
@@ -172,6 +185,8 @@ class JevDecisionClient:
                 missing = set(questions) - set(parsed.answers)
                 if missing:
                     raise DecisionResponseInvalid("Jev response omitted requested answers")
+                logger.info("Jev decision completed: estimated_input_tokens=%d input_tokens=%d questions=%d",
+                            estimated_tokens, parsed.usage.input_tokens, len(questions))
                 return parsed
         finally:
             if owns_client:
@@ -187,3 +202,23 @@ class JevDecisionClient:
         except DecisionProviderError:
             return False
         return True
+
+
+def _is_context_overflow(response: httpx.Response) -> bool:
+    """Classify size errors without retaining or logging private provider text."""
+    if response.status_code == 413:
+        return True
+    if response.status_code not in {400, 422, 500, 502, 503}:
+        return False
+    try:
+        body = response.json()
+    except ValueError:
+        return False
+    if not isinstance(body, dict) or "error" not in body:
+        return False
+    error = json.dumps(body["error"], ensure_ascii=False)[:8_000].lower()
+    return any(marker in error for marker in (
+        "context_length_exceeded", "context_window_exceeded", "input_too_long",
+        "request_too_large", "maximum context", "context length", "context window",
+        "too many tokens", "input token limit", "token limit exceeded",
+    ))

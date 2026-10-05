@@ -24,6 +24,10 @@ import time
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from backend.shared.providers.typesafe import JevDecisionClient  # noqa: E402
+from backend.shared.providers.typesafe.batching import candidate_batches, evaluate_batches  # noqa: E402
+from backend.shared.providers.typesafe.budget import (  # noqa: E402
+    MAX_ESTIMATED_INPUT_TOKENS, OPENROUTER_CONTEXT_TOKENS, estimate_request_tokens,
+)
 from backend.core.api.app.utils.secrets_manager import SecretsManager  # noqa: E402
 
 
@@ -110,15 +114,44 @@ async def test_latency(api_key: str) -> dict:
     }
 
 
-TESTS = {"choice": test_choice, "safety": test_safety, "latency": test_latency}
+async def test_context_batches(api_key: str) -> dict:
+    """Calibrate proxy estimates against reported usage on synthetic dense text."""
+    rows = [(f"item_{i}", {"id": f"item_{i}", "text": "😀" * 3_600}) for i in range(8)]
+    questions = {key: {"type": "noul", "instructions":
+        f"Does candidate {key} contain emoji characters?"} for key, _ in rows}
+    batches = candidate_batches(state={"task": "Synthetic context-budget probe"},
+                                field="candidates", candidates=rows, questions=questions)
+    client = JevDecisionClient(secrets_manager=StaticSecrets(api_key), max_retries=0)
+    measurements = []
+
+    async def evaluate(*, state, questions):
+        estimate = estimate_request_tokens(state, questions)
+        assert estimate <= MAX_ESTIMATED_INPUT_TOKENS
+        result = await client.evaluate(state=state, questions=questions)
+        assert 0 < result.usage.input_tokens <= OPENROUTER_CONTEXT_TOKENS
+        measurements.append({"estimated_input_tokens": estimate,
+                             "reported_input_tokens": result.usage.input_tokens,
+                             "questions": len(questions)})
+        return result
+
+    started = time.perf_counter()
+    result = await evaluate_batches(batches, evaluate)
+    assert set(result.answers) == set(questions)
+    assert len(batches) > 1
+    assert max(row["estimated_input_tokens"] for row in measurements) >= 29_000
+    return {"status": "pass", "batches": len(batches), "coverage": len(result.answers),
+            "latency_ms": round((time.perf_counter() - started) * 1000, 1),
+            "input_tokens": result.usage.input_tokens,
+            "measurements": sorted(measurements, key=lambda row: row["questions"])}
+
+
+TESTS = {"choice": test_choice, "safety": test_safety, "latency": test_latency,
+         "context_batches": test_context_batches}
 
 
 async def load_api_key(manual_key: str | None) -> str:
     if manual_key:
         return manual_key
-    environment_key = os.getenv("SECRET__OPENROUTER__API_KEY")
-    if environment_key:
-        return environment_key
     manager = SecretsManager()
     try:
         await manager.initialize()
@@ -128,8 +161,14 @@ async def load_api_key(manual_key: str | None) -> str:
         )
         if value:
             return value
+    except Exception:
+        # Match the runtime client: Vault first, environment only on failure.
+        pass
     finally:
         await manager.aclose()
+    environment_key = os.getenv("SECRET__OPENROUTER__API_KEY")
+    if environment_key:
+        return environment_key
     raise SystemExit("OpenRouter API key unavailable from Vault, environment, or --api-key")
 
 

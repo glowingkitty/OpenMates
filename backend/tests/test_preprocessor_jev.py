@@ -123,3 +123,44 @@ async def test_oversized_catalog_rejected_before_any_partial_provider_call(monke
         await jev_preprocessing._evaluate_preprocessing_questions(state={"request": "Code"},
             questions=questions, secrets_manager=None, model_id="jev")
     evaluate.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_latest_request_suffix_preserved_while_optional_history_yields(monkeypatch):
+    captured = []
+    latest = "😀" * 12_000 + " FINAL USER INSTRUCTION"
+    messages = jev_preprocessing._messages([
+        {"role": "user", "content": "😀" * 8_000},
+        {"role": "assistant", "content": "😀" * 8_000},
+        {"role": "user", "content": latest},
+    ])
+    assert messages[-1]["content"] == latest
+
+    async def evaluate(**kwargs):
+        captured.append(kwargs["state"])
+        return DecisionResponse(model="jev", answers={"ok": {"type": "noul", "noul": .9}})
+
+    monkeypatch.setattr(jev_preprocessing, "evaluate_jev_decisions", evaluate)
+    await jev_preprocessing._evaluate_preprocessing_questions(
+        state={"messages": messages, "conversation_summary": {"text": "😀" * 4_000}},
+        questions={"ok": {"type": "noul", "instructions": "route"}},
+        secrets_manager=None, model_id="jev",
+    )
+    assert captured[0]["messages"] == [{"role": "user", "content": latest}]
+    assert "conversation_summary" not in captured[0]
+
+
+@pytest.mark.asyncio
+async def test_essential_latest_request_too_large_never_sends_a_prefix(monkeypatch):
+    from unittest.mock import AsyncMock
+    from backend.shared.providers.typesafe.client import DecisionRequestTooLarge
+    evaluate = AsyncMock()
+    monkeypatch.setattr(jev_preprocessing, "evaluate_jev_decisions", evaluate)
+    with pytest.raises(DecisionRequestTooLarge):
+        await jev_preprocessing._evaluate_preprocessing_questions(
+            state={"messages": jev_preprocessing._messages([
+                {"role": "user", "content": "😀" * 16_000 + "important suffix"},
+            ])}, questions={"ok": {"type": "noul", "instructions": "route"}},
+            secrets_manager=None, model_id="jev",
+        )
+    evaluate.assert_not_awaited()

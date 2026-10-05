@@ -17,7 +17,8 @@ from typing import Any, Callable, Dict, Generic, List, Mapping, Optional, Sequen
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from backend.core.api.app.utils.secrets_manager import SecretsManager
-from backend.shared.providers.typesafe.client import DecisionProviderError, JevDecisionClient
+from backend.shared.providers.typesafe.client import DecisionProviderError, DecisionRequestTooLarge, JevDecisionClient
+from backend.shared.providers.typesafe.batching import candidate_batches, evaluate_batches
 from backend.shared.providers.typesafe.models import ScoreAnswer
 
 
@@ -442,7 +443,7 @@ async def rank_search_candidates(
     profile: str,
     secrets_manager: Optional[SecretsManager],
 ) -> SearchRelevanceRankingResult[T]:
-    """Use one typed Jev decision to reorder a bounded candidate list.
+    """Use complete bounded Jev decisions to reorder a candidate list.
 
     Candidate text is public third-party data and is explicitly labeled as
     untrusted. The result always contains the original objects, never model output.
@@ -500,10 +501,12 @@ async def rank_search_candidates(
 
     started = time.perf_counter()
     try:
-        response = await JevDecisionClient(secrets_manager=secrets_manager).evaluate(
-            state=state,
+        batches = candidate_batches(
+            state={key: value for key, value in state.items() if key != "candidates"},
+            field="candidates", candidates=[(item["candidate_id"], item) for item in candidate_state],
             questions=questions,
         )
+        response = await evaluate_batches(batches, JevDecisionClient(secrets_manager=secrets_manager).evaluate)
         elapsed_ms = (time.perf_counter() - started) * 1_000
         if not set(questions).issubset(response.answers):
             return _fallback(original, reason="incomplete_response", latency_ms=elapsed_ms)
@@ -543,6 +546,9 @@ async def rank_search_candidates(
             output_tokens=response.usage.output_tokens,
             latency_ms=elapsed_ms,
         )
+    except DecisionRequestTooLarge:
+        elapsed_ms = (time.perf_counter() - started) * 1_000
+        return _fallback(original, reason="context_overflow", latency_ms=elapsed_ms)
     except DecisionProviderError:
         elapsed_ms = (time.perf_counter() - started) * 1_000
         return _fallback(original, reason="provider_failure", latency_ms=elapsed_ms)

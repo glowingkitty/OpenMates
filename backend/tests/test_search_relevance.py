@@ -87,6 +87,46 @@ def test_events_profile_requires_query_topic_fit_and_defensible_relevance() -> N
     assert profile.criteria[0].startswith("No credible relationship")
 
 
+# contract-test: direct surface=rest_api assertions=app-skills.search-relevance.bounded-and-conditional,app-skills.search-relevance.safe-finalization
+@pytest.mark.anyio
+@pytest.mark.parametrize("fail_later", [False, True])
+async def test_token_dense_candidates_partition_and_keep_global_stable_order(monkeypatch, fail_later):
+    calls = []
+
+    class FakeClient:
+        def __init__(self, **kwargs):
+            pass
+
+        async def evaluate(self, *, state, questions):
+            from backend.shared.providers.typesafe.client import DecisionRequestTooLarge
+            calls.append((state, questions))
+            assert {candidate["candidate_id"] for candidate in state["candidates"]} == set(questions)
+            if fail_later and "candidate_049" in questions:
+                raise DecisionRequestTooLarge("upstream context overflow")
+            return DecisionResponse(model="jev", answers={
+                key: _score(float(int(key[-3:]) % 5)) for key in questions
+            }, usage={"input_tokens": 10, "output_tokens": 2})
+
+    monkeypatch.setattr(search_relevance, "JevDecisionClient", FakeClient)
+    candidates = [{"id": index} for index in range(50)]
+    result = await search_relevance.rank_search_candidates(
+        candidates=candidates,
+        candidate_projections=[{"title": "😀" * 600, "description": "😀" * 600} for _ in candidates],
+        relevance_criteria="best evidence", search_parameters={"query": "topic"},
+        profile="web", secrets_manager=None,
+    )
+    assert len(calls) > 1
+    assert [key for _, questions in calls for key in questions] == [f"candidate_{i:03d}" for i in range(50)]
+    if fail_later:
+        assert result.candidates == candidates
+        assert result.applied is False
+        assert result.fallback_reason == "context_overflow"
+    else:
+        assert result.applied is True
+        assert result.candidates == sorted(candidates, key=lambda row: (-(row["id"] % 5), row["id"]))
+        assert result.input_tokens == 10 * len(calls)
+
+
 # contract-test: direct surface=rest_api assertions=app-skills.search-relevance.safe-finalization
 @pytest.mark.anyio
 @pytest.mark.parametrize("failure", ["missing", "unavailable", "timeout", "invalid_score"])

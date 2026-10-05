@@ -101,8 +101,66 @@ async def test_implicit_result_formatting_can_use_available_ask_ai_builtin():
 
 @pytest.mark.asyncio
 async def test_missing_relevance_answer_does_not_silently_drop_skill():
-    with pytest.raises(ValueError, match="omitted skill relevance"):
+    from backend.shared.providers.typesafe.client import DecisionResponseInvalid
+    with pytest.raises(DecisionResponseInvalid, match="IDs do not match"):
         await WorkflowAuthoringPreselector(jev_client=Decisions(malformed=True), registry=Registry()).select("Forecast Graz")
+
+
+@pytest.mark.asyncio
+async def test_large_registry_batches_all_skills_and_counts_physical_calls():
+    class LargeRegistry:
+        def list_capabilities(self):
+            return [capability(), *[capability(f"other.skill{i}") for i in range(170)]]
+
+    jev = Decisions()
+    result = await WorkflowAuthoringPreselector(jev_client=jev, registry=LargeRegistry()).select("Forecast Graz")
+    assert len(jev.requests) > 1
+    assert result.metrics["jev_calls"] == len(jev.requests)
+    assert len(result.scores) == 171
+    assert result.metrics["input_tokens"] == 100 * len(jev.requests)
+    assert [cap.id for cap in result.capabilities] == ["weather.forecast"]
+
+
+@pytest.mark.asyncio
+async def test_essential_workflow_graph_cannot_be_split_or_truncated():
+    from backend.shared.providers.typesafe.client import DecisionRequestTooLarge
+    jev = Decisions()
+    with pytest.raises(DecisionRequestTooLarge):
+        await WorkflowAuthoringPreselector(jev_client=jev, registry=Registry()).select(
+            "Update this workflow", selected_workflow={"graph": {"full_user_instruction": "😀" * 16_000}},
+        )
+    assert jev.requests == []
+
+
+@pytest.mark.asyncio
+async def test_workflow_target_metadata_partitions_without_losing_last_target():
+    from backend.core.api.app.services.workflow_registry_planner import WorkflowRegistryPlanner
+    from backend.core.api.app.services.workflow_authoring_preselection import WorkflowPreselection
+
+    class Targets:
+        def __init__(self):
+            self.calls = []
+
+        async def evaluate(self, *, state, questions):
+            self.calls.append((state, questions))
+            assert {row["id"] for row in state["existing_workflows"]} == set(questions)
+            return DecisionResponse(model="jev", answers={
+                key: {"type": "noul", "noul": .9 if key == "workflow_39" else .01} for key in questions
+            }, usage={"input_tokens": 100})
+
+    jev = Targets()
+    overview = [{"id": f"workflow_{i}", "title": "Public automation", "description": "😀" * 1_500}
+                for i in range(40)]
+    metrics = {"jev_calls": 0, "estimated_cost_usd": 0.0}
+    selection = WorkflowPreselection([], "update", "none", False, {}, {})
+    planner = WorkflowRegistryPlanner(secrets_manager=None, registry=Registry())
+    result = await planner._targets("Update workflow 39", {
+        "workflows": overview, "_load_workflow": lambda identifier: {"id": identifier, "graph": {}},
+    }, selection, jev, metrics)
+    assert len(jev.calls) > 1
+    assert metrics["jev_calls"] == len(jev.calls)
+    assert set(result) == {"workflow_39"}
+    assert [key for _, questions in jev.calls for key in questions] == [row["id"] for row in overview]
 
 
 @pytest.mark.asyncio

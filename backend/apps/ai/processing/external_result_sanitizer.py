@@ -26,6 +26,7 @@ from backend.shared.python_utils.structured_content_sanitization import (
     classify_text_units,
     serialized_units_size,
 )
+from backend.shared.providers.typesafe.batching import MAX_DECISION_BATCHES
 
 
 SEMANTIC_SCAN_BATCH_TARGET_CHARS = 50_000
@@ -293,10 +294,10 @@ async def sanitize_long_text_fields_in_payload(
     """
     Sanitize long external text fields in a nested payload.
 
-    Selected fields share one bounded model call. Exact evidence is validated
+    Selected fields share one logical scan with bounded provider batches. Exact evidence is validated
     before editing a copy. Uncertainty and technical failure preserve cleaned
     text; external task cancellation still propagates. max_parallel is retained
-    for existing callers but never creates additional model calls.
+    for existing callers; concurrency and batch count are bounded centrally.
     """
     payload, _ = sanitize_text_payload_for_ascii_smuggling(payload)
     candidates: List[Tuple[str, str]] = []
@@ -338,7 +339,7 @@ async def sanitize_long_text_fields_in_payload(
             _set_path_value(sanitized, path, cleaned)
         return sanitized
     try:
-        if serialized_units_size(units) > SEMANTIC_SCAN_BATCH_TARGET_CHARS:
+        if serialized_units_size(units) > SEMANTIC_SCAN_BATCH_TARGET_CHARS * MAX_DECISION_BATCHES:
             raise StructuredScanError("OUTPUT_SAFETY_TOO_LARGE")
         decisions_by_id = await asyncio.wait_for(
             classify_text_units(units, task_id=task_id, secrets_manager=secrets_manager, cache_service=cache_service),

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from typing import Any, Iterable, Mapping, Optional
 
 from backend.apps.ai.processing.jev_decisions import (
@@ -11,9 +10,9 @@ from backend.apps.ai.processing.jev_decisions import (
     noul_value,
 )
 from backend.core.api.app.utils.secrets_manager import SecretsManager
-from backend.shared.providers.typesafe.client import (
-    MAX_QUESTIONS, MAX_SERIALIZED_REQUEST_CHARS, MAX_SERIALIZED_STATE_CHARS,
-    DecisionRequestTooLarge,
+from backend.shared.providers.typesafe.client import DecisionRequestTooLarge
+from backend.shared.providers.typesafe.batching import (
+    MAX_DECISION_BATCHES, DecisionRequest, evaluate_batches, question_batches,
 )
 from backend.shared.providers.typesafe.models import DecisionResponse
 
@@ -36,7 +35,7 @@ PREVIEW_TYPES = {
     "music": "Music or audio composition output.",
 }
 MAX_CONVERSATION_SUMMARY_CHARS = 4_000
-MAX_PREPROCESSING_DECISION_BATCHES = 8
+MAX_PREPROCESSING_DECISION_BATCHES = MAX_DECISION_BATCHES
 ICONS = {
     "message-circle": "General conversation",
     "code": "Software or code",
@@ -73,7 +72,12 @@ def _messages(message_history: list[Any]) -> list[dict[str, str]]:
         else:
             role, content = getattr(message, "role", None), getattr(message, "content", None)
         if role in {"user", "assistant"} and isinstance(content, str) and content.strip():
-            result.append({"role": role, "content": content.strip()[:8_000]})
+            result.append({"role": role, "content": content.strip()})
+    latest_user = next((index for index in reversed(range(len(result)))
+                        if result[index]["role"] == "user"), None)
+    for index, message in enumerate(result):
+        if index != latest_user:
+            message["content"] = message["content"][:8_000]
     return result
 
 
@@ -105,47 +109,33 @@ def _add_multi_select_questions(
 
 def _question_batches(state: dict[str, Any], questions: dict[str, dict[str, Any]]) -> list[dict[str, dict[str, Any]]]:
     """Keep every eligible candidate and all required routing/safety decisions."""
-    def encode(value):
-        return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
-    if len(encode(state)) > MAX_SERIALIZED_STATE_CHARS:
-        raise DecisionRequestTooLarge("preprocessing state exceeds the shared provider budget")
-    batches: list[dict[str, dict[str, Any]]] = []
-    current: dict[str, dict[str, Any]] = {}
-    for key, question in questions.items():
-        proposed = {**current, key: question}
-        if len(proposed) > MAX_QUESTIONS or len(encode({"state": state, "questions": proposed})) > MAX_SERIALIZED_REQUEST_CHARS:
-            if not current:
-                raise DecisionRequestTooLarge("one preprocessing question exceeds the shared provider budget")
-            batches.append(current)
-            current = {key: question}
-            if len(encode({"state": state, "questions": current})) > MAX_SERIALIZED_REQUEST_CHARS:
-                raise DecisionRequestTooLarge("one preprocessing question exceeds the shared provider budget")
-        else:
-            current = proposed
-    if current:
-        batches.append(current)
-    # Validate all batches before calling the provider; never evaluate an
-    # arbitrary prefix and silently omit Project or safety candidates.
-    if len(batches) > MAX_PREPROCESSING_DECISION_BATCHES:
-        raise DecisionRequestTooLarge("preprocessing catalogue exceeds the bounded batch budget")
-    return batches
+    return [dict(batch.questions) for batch in question_batches(state, questions)]
 
 
 async def _evaluate_preprocessing_questions(*, state: dict[str, Any], questions: dict[str, dict[str, Any]],
                                            secrets_manager: Optional[SecretsManager], model_id: str) -> DecisionResponse:
-    batches = _question_batches(state, questions)
-    answers = {}
-    input_tokens = output_tokens = 0
-    for batch in batches:
-        response = await evaluate_jev_decisions(state=state, questions=batch,
-            secrets_manager=secrets_manager, model_id=model_id)
-        if set(batch) - response.answers.keys():
-            raise ValueError("preprocessing batch has missing decisions")
-        answers.update({key: response.answers[key] for key in batch})
-        input_tokens += response.usage.input_tokens
-        output_tokens += response.usage.output_tokens
-    return DecisionResponse(model=model_id, answers=answers,
-        usage={"input_tokens": input_tokens, "output_tokens": output_tokens})
+    # Reduce only optional older context. Never slice the latest user request or
+    # evaluate a prefix of the catalog when a complete partition cannot fit.
+    state = dict(state)
+    state["messages"] = list(state.get("messages", []))
+    while True:
+        try:
+            batches = _question_batches(state, questions)
+            break
+        except DecisionRequestTooLarge:
+            if len(state["messages"]) > 1 and state["messages"][0]["role"] != "user":
+                state["messages"].pop(0)
+            elif len(state["messages"]) > 1 and any(row["role"] == "user" for row in state["messages"][1:]):
+                state["messages"].pop(0)
+            elif "conversation_summary" in state:
+                state.pop("conversation_summary")
+            else:
+                raise
+
+    async def evaluate(**kwargs):
+        return await evaluate_jev_decisions(**kwargs, secrets_manager=secrets_manager, model_id=model_id)
+
+    return await evaluate_batches([DecisionRequest(state, batch) for batch in batches], evaluate)
 
 
 async def decide_preprocessing_with_jev(

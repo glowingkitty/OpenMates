@@ -35,6 +35,7 @@ from backend.shared.providers.typesafe.client import (
     OPENROUTER_SECRET_KEY, OPENROUTER_SECRET_PATH, DecisionProviderError, JevDecisionClient,
 )
 from backend.shared.providers.typesafe.models import NoulAnswer
+from backend.shared.providers.typesafe.batching import candidate_batches, evaluate_batches
 
 MAX_WORKFLOWS = 8
 CLARIFICATION = "I could not build a valid workflow for every part of this request. Let's clarify the details in chat."
@@ -147,14 +148,17 @@ class WorkflowRegistryPlanner:
                      "New workflows are not existing targets. Select all requested edit targets, "
                      "but do not select similar unrelated workflows."} for item in overview}
         started = time.perf_counter()
-        decision_call = jev.evaluate(state={"request": text, "implicit_target_id": (selected or {}).get("id"),
-                                            "existing_workflows": [{"id": item["id"], "title": item.get("title"),
-                                                                     "description": item.get("description")}
-                                                                    for item in overview]}, questions=questions)
+        batches = candidate_batches(
+            state={"request": text, "implicit_target_id": (selected or {}).get("id")},
+            field="existing_workflows", candidates=[(item["id"], {
+                "id": item["id"], "title": item.get("title"), "description": item.get("description"),
+            }) for item in overview], questions=questions,
+        )
+        decision_call = evaluate_batches(batches, jev.evaluate)
         response = (await decision_call if isinstance(jev, MeteredJevClient)
                     else await asyncio.wait_for(decision_call, timeout=3.2))
         metrics["target_selection_seconds"] = round(time.perf_counter() - started, 3)
-        metrics["jev_calls"] += 1
+        metrics["jev_calls"] += len(batches)
         metrics["estimated_cost_usd"] += response.usage.input_tokens * JEV_INPUT_PRICE
         ids = []
         for item in overview:

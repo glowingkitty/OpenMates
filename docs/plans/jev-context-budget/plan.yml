@@ -1,0 +1,270 @@
+schema_version: 2
+id: jev-context-budget
+title: Bound Jev context and batch independent decisions
+status: implementing
+goal: Implement and test splitting larger Jev requests into requests below the 32,000-token
+  context limit with a safety margin and TikToken estimates.
+scope:
+  in:
+  - Shared 30,000 estimated-token working budget, retaining serialized-size and question-count
+    bounds.
+  - Complete question and independent-candidate batching with stable IDs, bounded
+    concurrency and deadlines.
+  - Complete latest preprocessing request; optional older context yields before essential
+    input.
+  - Complete external-text safety batches with neighbor context and atomic failure
+    handling.
+  - Typed upstream context errors, privacy-safe sizing metrics, and regression coverage.
+  - Whole-artifact decisions retain independent fallback or uncertainty when essential
+    input cannot fit.
+  out:
+  - Changes to answer-model context, provider transport, safety thresholds, authorization
+    or encryption.
+  - Arbitrary partitioning of whole-artifact judgments or silent input truncation.
+authorization: User approved implementation and testing after reviewing the batching
+  design in this chat.
+approved_by_user: true
+scenarios:
+- id: S-1
+  title: Complete bounded decisions on large input
+  given:
+  - A request exceeds one Jev input budget.
+  when:
+  - The caller partitions independent questions or candidates.
+  then:
+  - All IDs are covered within bounded calls or the caller uses its existing fallback.
+acceptance_criteria:
+- id: AC-1
+  scenario: S-1
+  text: Dense input and upstream context errors are rejected without overflow retries;
+    every physical request respects the shared estimate and character bounds.
+  required: true
+  status: satisfied
+  coverage_status: covered
+  verification_scope: related_backend
+  verification_ids:
+  - T-UNIT
+  - T-LIVE
+- id: AC-2
+  scenario: S-1
+  text: Question and candidate batches preserve IDs and sum usage; later failures
+    invalidate the aggregate and cancel unfinished work; the latest preprocessing
+    request is complete.
+  required: true
+  status: satisfied
+  coverage_status: covered
+  verification_scope: related_backend
+  verification_ids:
+  - T-UNIT
+- id: AC-3
+  scenario: S-1
+  text: REST external-output safety covers every selected passage with neighboring
+    context and atomic fallback inside the existing deadline.
+  required: true
+  status: satisfied
+  coverage_status: covered
+  verification_scope: related_backend
+  verification_ids:
+  - T-REST
+tests:
+- id: T-UNIT
+  type: pytest
+  file: backend/tests/test_jev_context_budget.py
+  command: Focused local pytest for context budget, transport, preprocessing, search,
+    scanner, terminal and workflow callers.
+  assertions:
+  - Typed rejection
+  - complete stable coverage
+  - summed usage
+  - cancellation
+  - latest request preserved.
+  covers:
+  - AC-1
+  - AC-2
+  red_phase:
+    required: false
+    expected: Existing audit and oversized synthetic reproductions suffice.
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      timestamp: '2026-10-05T12:58:00Z'
+      command: /home/superdev/projects/OpenMates/.venv/bin/python -m pytest -q
+        backend/tests/test_jev_context_budget.py backend/tests/test_typesafe_decisions.py
+        backend/tests/test_preprocessor_jev.py backend/tests/test_search_relevance.py
+        backend/tests/test_structured_content_sanitization.py backend/tests/test_single_pass_output_safety.py
+        backend/tests/test_external_result_sanitizer.py backend/tests/test_external_result_sanitizer_batching.py
+        backend/tests/test_terminal_output_safety.py backend/tests/test_workflow_authoring_preselection.py
+        backend/tests/test_workflow_registry_planner.py backend/tests/test_content_sanitization.py
+      run_id: local-jev-context-30k-345
+      subject_commit: 710b602a4947d12e4505177e08f4183210cedc39
+      tests: 345
+      seconds: 21.98
+      result: Focused transport, budget, preprocessing, search, scanner, terminal
+        and workflow pytest checks.
+- id: T-REST
+  type: pytest
+  file: backend/tests/test_app_skill_rest_context.py
+  command: Isolated GitHub CI via ci_coordinator for the actual REST dispatch and
+    bounded transport regression.
+  assertions:
+  - Full passage coverage and exact redaction
+  - later overflow and failed fallback preserve entire cleaned result.
+  covers:
+  - AC-3
+  red_phase:
+    required: false
+    expected: Existing audit suffices.
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      timestamp: '2026-10-05T13:02:00Z'
+      command: python3 scripts/ci_coordinator.py submit --session 1d5b
+        --source 710b602a4947d12e4505177e08f4183210cedc39 --mode pytest --no-prepared-builds
+        --spec backend/tests/test_app_skill_rest_context.py (and the twelve focused
+        unit files listed in T-UNIT)
+      run_id: '37313520988'
+      coordinator_id: 67aa4117964106252ed09dc3ea8a8d9a129155e433c419de822368cd7055cb2b
+      subject_commit: 710b602a4947d12e4505177e08f4183210cedc39
+      harness_commit: 75ce599e5786db6e472cb0b1315742834d6a3a3d
+      execution_environment: isolated_github_ci
+      profile: pytest
+      tests: 256
+      seconds: 7.7758
+      result: Both large REST transport cases passed, with complete coverage,
+        exact redaction, and entire cleaned-result preservation on later context
+        overflow plus failed exact-span fallback. All collected selected tests
+        passed with no skipped cases.
+      artifacts:
+      - https://github.com/glowingkitty/OpenMates/actions/runs/37313520988/artifacts/11345839976
+- id: T-LIVE
+  type: manual
+  assertions:
+  - Synthetic physical batches fit the provider context and report actual usage for
+    proxy calibration.
+  covers:
+  - AC-1
+  red_phase:
+    required: false
+    expected: Existing advertised model context verified.
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      timestamp: '2026-10-05T12:56:00Z'
+      reason: Real inference is required to compare proxy estimates with native
+        reported input usage. Synthetic input ran in an isolated candidate process
+        without modifying the shared runtime; deployed verification remains pending.
+      command: docker exec -i api python - < /tmp/openmates/jev-context-budget/context-30k-probe.py
+      run_id: context-30k-probe
+      subject_commit: 710b602a4947d12e4505177e08f4183210cedc39
+      environment: dev api container, isolated candidate process
+      batches: 2
+      coverage: 8
+      latency_ms: 1274.2
+      estimated_input_tokens:
+      - 29192
+      - 29192
+      reported_input_tokens:
+      - 29219
+      - 29219
+      interpretation: Synthetic sample supports margin; native-tokenizer equivalence
+        remains unproven.
+verification:
+- Focused local unit tests for token sizing, candidate coverage, response merging,
+  cancellation and safety boundaries.
+- Isolated GitHub CI for affected backend integration and REST/CLI regression coverage.
+- Bounded synthetic real-provider sizing and batching probe on dev after scoped deployment.
+decisions:
+- id: D-1
+  status: active
+  decision: Use the larger TikToken proxy with 2,000 tokens of headroom; bound encoding
+    fragments and physical batches.
+  reason: Jev's native tokenizer is undocumented; limits and typed fallback remain
+    essential.
+  decided_at: '2026-10-05'
+- id: D-2
+  status: active
+  decision: Preserve complete safety coverage and current failure policy; do not split
+    whole-artifact judgments.
+  reason: Chunking must not change the decision or imply unscanned input is safe.
+  decided_at: '2026-10-05'
+implementation_state:
+  subject_commit: 710b602a4947d12e4505177e08f4183210cedc39
+approvals:
+  plan:
+    status: approved
+    approved_at: '2026-10-05'
+    basis: User said go ahead and implement and test those changes.
+  specification:
+    status: approved
+    approved_at: '2026-10-05'
+    basis: User approved the presented architecture and Web Search safety contracts
+      and explicitly amended the working budget to 30,000 estimated tokens with
+      "Let's make more use of the context limit, going closer to the 30k. And yes approved".
+      The only contract amendment after presentation is 24,000 to 30,000 in each
+      per-batch token constraint. Exact current hashes are recorded through
+      Plan-backed batch approval; approval does not claim the amended hashes were
+      presented in the earlier PDFs.
+tasks:
+- id: TASK-4878
+  title: Prevent Jev context overflow with bounded decision batching
+  status: in_progress
+  phase: running_checks
+  covers:
+    scenarios:
+    - S-1
+    acceptance_criteria:
+    - AC-1
+    - AC-2
+    - AC-3
+  expected_files:
+  - backend/shared/providers/typesafe
+  - backend/tests
+  - specifications
+  - docs/apis/typesafe-jev.md
+  verification_ids:
+  - T-UNIT
+  - T-REST
+  - T-LIVE
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - backend/shared/providers/typesafe
+    - backend/tests
+    shared_files:
+    - specifications
+    owner: root
+attempts:
+- id: attempt-1
+  task_id: TASK-4878
+  approach: Shared proxy budget and complete independent partitioning with existing
+    fallback policies.
+  outcome: planned
+  recorded_at: '2026-10-05'
+handoff:
+  current_task_id: TASK-4878
+  next_action: Finish isolated REST CI and assess existing safety-quality evidence
+    before scoped publication.
+  command: python3 scripts/sessions.py ci-source --session 1d5b
+  expected_outcome: Reviewable implementation with truthful verification evidence.
+  last_verified_commit: workspace-1d5b
+  blocker: null
+review_artifacts:
+  architecture.app-skill-execution:
+    fingerprint: 4bba99ed78415e056954e4f5f266d5d578f2621506b56f2ea3ee669e08df97b5
+    presented_fingerprint: 8092371cf1726f5cdb52e38d5d977a82773a6dafa46cc674ecab7aafcf854916
+    receipt: /tmp/openmates/specification-approvals/architecture.app-skill-execution-8092371cf1726f5c.approval.json
+  feature.app-skill.web-search:
+    fingerprint: 84a5178658b821f1f22fe23489cc5ca8f9874f2ebb48ff74316db1482e479833
+    presented_fingerprint: 25e5b81e37a74fbaf1fcd23429a21e321595c4fd42641c8c9c3b3ac035c8127e
+    receipt: /tmp/openmates/specification-approvals/feature.app-skill.web-search-25e5b81e37a74fba.approval.json

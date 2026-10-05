@@ -167,13 +167,13 @@ async_polling:
     private_result_returned: false
 
 jev_first_safety:
-  - id: confident-safe-decision
-    given: A retrieved result contains ordinary public text and benign API documentation.
-    when: The single Jev decision confidently finds no injection in any selected passage.
-    then: All cleaned text is preserved, with no GPT classification call.
-    assertion_ids: [app-skills.output.batch-equivalent]
-  - id: exact-span-review
-    given: Useful retrieved text surrounds an instruction to leak private messages.
-    when: Jev flags or cannot confidently clear the batch, and GPT identifies the exact offending text.
-    then: Only that text is replaced with a warning; both calls have no retry and stay within the overall deadline.
-    assertion_ids: [app-skills.output.batch-equivalent]
+  - id: complete-large-result
+    given: A retrieved transcript exceeds one Jev request and contains an injection across a later unit boundary.
+    when: The complete text fits in at most eight physical batches and the relevant units retain their neighboring context.
+    then: Every unit is classified exactly once; verified injection spans are redacted only after all batches succeed, within the existing deadline.
+    assertion_ids: [app-skills.output.batch-equivalent, app-skills.output.single-boundary]
+  - id: later-batch-failure
+    given: Several batches are confidently safe but a later batch fails or omits an ID.
+    when: The shared scanner cannot establish complete coverage.
+    then: The entire ASCII-cleaned input is returned with an unscanned status; no partial scan is reported as complete, and pending work is cancelled.
+    assertion_ids: [app-skills.output.batch-equivalent, app-skills.output.bounded-failure]
