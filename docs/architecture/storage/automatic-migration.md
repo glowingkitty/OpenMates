@@ -51,6 +51,34 @@ heads remain in PostgreSQL. Legacy whole-graph migration is held pending its
 metadata retention policy. Updates never automatically restore a database backup
 over newer writes.
 
+## First upgrade from an older CLI
+
+`openmates server update` updates server images or source; it does not upgrade
+the globally installed CLI. The migration-aware host updater and monitor
+installer are part of that CLI. Before the first rollout, publish and verify a
+stable npm package containing these changes, then upgrade the CLI from the same
+administrator environment that owns the registered installation:
+
+```sh
+openmates upgrade --channel stable
+openmates version
+```
+
+For an older CLI without `upgrade`, use `npm install -g openmates@latest`
+instead. Development installations can use `openmates upgrade --channel dev`
+after verifying the intended alpha package. Preserve the existing registration
+and `OPENMATES_STATE_DIR`; upgrading the executable does not transfer ownership
+or recreate user data.
+
+The main-branch CLI publication workflow skips a stable version already present
+on npm. A release must therefore use a new configured stable version and verify
+its publication; merging CLI source alone cannot replace an existing npm
+version. Verify the intended backend images and exact-source eligibility are
+available before the server update. Stable image updates resolve the published
+GitHub release by default; source updates pull their registered branch. An
+explicit immutable `--image-tag sha-<40-character-source>` can select the
+intended published image, but it still needs its own release qualification.
+
 ## Supported commands
 
 From the administrator shell, a fresh self-host installation using stable images is:

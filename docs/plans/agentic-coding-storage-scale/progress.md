@@ -1239,3 +1239,59 @@ certificate issuance or real-user pruning was performed. The earlier two real
 CLI/web canaries remain the only inference runs (58 credits total). Team payer
 and warning/expiry choices and supported native proof remain open. The next run
 uses the existing two-user replay, not a new harness or a capacity claim.
+
+
+## Migration-aware CLI release prerequisite and dev activation
+
+Release `d63b7cc5e00fd54ea948489053e6e4700aff2206` published the official-cloud
+billing admission guard and repaired the replay test readback header. Its
+Specification, lint, locale and exact 42-case backend publication gates passed.
+Coordinated dev restart `docker-eed4fbc6` refreshed all 16 backend services without
+a dependency or image rebuild. The API is healthy; the loaded guard hash matches
+the published source; all six archive opt-outs remain zero and both personal
+billing flags remain one. Production is unchanged.
+
+A read-only supported-path audit found no further updater omission: target
+schema precedes writers, the monitor renews complete inventory, eligibility
+retries automatically, and initial eligible pruning retains PostgreSQL source
+for 24 hours. The first rollout must also upgrade the global CLI. Server updates
+do not self-update it, and main's npm workflow skips a stable version that
+already exists. Publish a new stable CLI version containing the migration-aware
+updater, verify it, then run the registered server update with the intended
+qualified images/source. This release sequencing is documented in
+`docs/architecture/storage/automatic-migration.md`.
+
+GitHub's repository runner inventory currently contains zero registered
+self-hosted runners. The full target requires the dedicated `openmates-capacity`
+runner labels plus passing same-source calibration and measured resource
+admission; no 500-concurrent or 1000-heavy-user-day result is claimed. The
+existing dev host reports approximately 32 GB total RAM and 36 GB free disk;
+these observations do not establish target capacity or justify using shared dev
+services for product testing. Team payer/notice policy and native proof remain
+open. Existing real canaries are not repeated.
+
+The immutable public release configuration is stable base `0.27.0`; the npm
+registry currently reports stable `0.26.0` and alpha `0.27.0-alpha.27`. Thus the
+configured main release is a new stable version, and the existing CLI workflow
+should publish it automatically after a successful qualifying main push. Verify
+the successful publication, upgrade each host CLI, check `openmates version`,
+and then update its registered server. A version bump is not needed solely for
+this prerequisite while `0.27.0` remains unpublished.
+
+The replay request `0837838601b9593496bf0a888b0a1e823e46ca16b5358d978f1581932610b1cf`
+prepared in run `37365927430`, but consumer `37366539285` failed without receiving
+a GitHub-hosted runner. GitHub reports runner ID zero and no executed steps. No
+application test, workload, callback, billing probe or cleanup ran. The normal
+coordinator correctly rejected this run as execution evidence. This establishes
+an infrastructure failure, not a new product defect.
+
+GitHub's official status at `2026-10-05T19:50:50Z` confirms degraded Actions
+performance and incident `3q1yb5m7ltvb` investigating hosted-runner assignment
+delays since `19:11:58Z`. One same-source replay retry is queued under request
+`6af5b376eb9c3428293c5c96633a1014d24b93193763842fdcb9eb51cf1e74e8`,
+using the same preparation key. No further run is dispatched until its outcome
+is known; repeated runner-acquisition failure requires waiting for infrastructure
+recovery. The next four-slot calibration and full target remain unexecuted.
+
+References: [GitHub Actions incident](https://www.githubstatus.com/incidents/3q1yb5m7ltvb),
+normal coordinator requests and bounded private receipts in session 2f80.
