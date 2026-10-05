@@ -1151,3 +1151,45 @@ source; no final-source equivalence or 500-execution capacity is claimed.
 
 Team payer/notice/expiry decisions, native-reader eligibility and full capacity
 proof remain open. Production and real-user archive pruning remain unchanged.
+
+
+## Team proof accepted; calibration stopped at first version updates
+
+After publishing local result-reader correction `09e01ba`, normal coordinator
+retrieval accepted the existing Team run `37351907220` on exact source/harness
+`2432ffe`: one expected test, zero skipped, failed or flaky tests, 13.851 seconds,
+artifact `11362688707`, verified container/volume/private-state cleanup. The
+backend tree for the tested source and `09e01ba` is identical. This is Team
+portability proof, not full-source or capacity equivalence.
+
+P-7 run `37351901002` used the same successful preparation. Startup, its archive
+PostgreSQL/S3 preliminary probe and one browser test passed. The eight-user,
+four-slot calibration expected 240 rounds, 32 embeds and 32 versions; it stopped
+after 60 rounds, 16 embeds and four initial versions. Four first-update failures
+reported `version_callback_count`. The old adapter combined response completion
+and callback-count checks without retaining either value, so no product root
+cause or calibration admission is established. Cleanup verified zero containers,
+zero volumes and private account-state removal. The guarded private driver report
+and rows are retained in session 2f80's `p7-2432ffee/manifest.json`. Its partial
+421.886-second measurements cannot size the full 500-execution host.
+
+The narrow diagnostic change preserves every completion, exact callback,
+content and revision assertion. It retains only documented response-state enums,
+bounded callback counts and expected revision in the existing private report;
+raw response bodies, arbitrary codes, account identifiers and keys are excluded.
+Six focused shape/privacy checks, Ruff, Node syntax and patch checks passed.
+The next diagnostic uses the existing two-user/two-thread replay selector
+(60 rounds, eight embeds, eight versions), explicitly a smoke check, rather than
+another full calibration or any real-inference test. No new test harness is added.
+
+The dev additive schema application completed through coordinated `cms-setup`
+operation `docker-36d9718f`. Runtime operation `docker-df1ad6a2` activated the
+coherent generation across all 16 backend services and verified health. The
+post-rebuild check exposed absent persistent dev archive opt-outs: unset flags
+use default-on copy behavior, while unknown source and missing eligibility still
+hold read/prune activation. The six explicit zeros were restored in canonical
+`.env`, followed by a coordinated same-code recreation without a new build.
+All 16 effective container environments verify archive copy/read/prune off and
+personal logical-storage billing/expiry on. Production remains unchanged; no
+certificate or real-user pruning is issued. Team payer/expiry choices, supported
+native proof and required full capacity admission remain open.

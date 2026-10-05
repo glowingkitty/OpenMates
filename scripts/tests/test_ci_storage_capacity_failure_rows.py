@@ -40,3 +40,30 @@ def test_private_failure_receipt_absent_when_no_worker_fails(tmp_path, monkeypat
     results.write_text(json.dumps({"kind": "round", "user": 0, "number": 0}) + "\n")
     assert retain_capacity_failure_rows(results, private) == 0
     assert not (tmp_path / "ci-capacity-private").exists()
+
+
+def test_private_failure_shape_allowlist_rejects_untrusted_values(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(ci_run_tests, "RESULTS", tmp_path)
+    private = tmp_path / "private"
+    private.mkdir(mode=0o700)
+    results = tmp_path / "results.jsonl"
+    rows = [
+        {"kind": "failure", "response_status": "waiting_for_user", "callback_count": 0,
+         "expected_revision": 2, "assistant": "private-response-body", "embed_id": "private-id"},
+        {"kind": "failure", "response_status": "private-status", "callback_count": True,
+         "expected_revision": -1},
+        {"kind": "failure", "response_status": {"secret": "private-token"}, "callback_count": 1001,
+         "expected_revision": 1_000_001},
+    ]
+    results.write_text("\n".join(json.dumps(row) for row in rows) + "\n")
+    assert retain_capacity_failure_rows(results, private) == 3
+    destination = tmp_path / "ci-capacity-private" / "capacity-failure-rows.jsonl"
+    saved = [json.loads(line) for line in destination.read_text().splitlines()]
+    base_fields = {"phase", "error_class", "source_location", "reason"}
+    assert set(saved[0]) == base_fields | {"response_status", "callback_count", "expected_revision"}
+    assert saved[0]["response_status"] == "waiting_for_user"
+    assert saved[0]["callback_count"] == 0
+    assert saved[0]["expected_revision"] == 2
+    assert all(set(row) == base_fields for row in saved[1:])
+    assert "private-" not in destination.read_text()
+    assert destination.stat().st_mode & 0o777 == 0o600

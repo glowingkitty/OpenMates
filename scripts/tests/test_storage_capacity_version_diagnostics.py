@@ -88,3 +88,53 @@ def test_version_readback_keeps_exact_gate_and_content_free_diagnostics() -> Non
     assert "content_matches=true revision_matches=false expected_revision=1 actual_revision=2" in results[2]["message"]
     assert "content_matches=true revision_matches=false expected_revision=1 actual_revision_type=string" in results[3]["message"]
     assert "synthetic-secret" not in json.dumps(results)
+
+
+def test_callback_failure_retains_only_response_enum_and_bounded_counts() -> None:
+    adapter = Path(__file__).resolve().parents[1] / "storage_capacity_version_adapter.mjs"
+    script = r"""
+import { pathToFileURL } from 'node:url';
+const { writeVersion, sanitizeVersionDiagnostics } = await import(pathToFileURL(process.argv[1]).href);
+const cases = [
+  ['completed', 0], ['waiting_for_user', 0], ['completed', 2],
+  ['private-status-token', 0], [undefined, 0], ['completed', 1001],
+];
+const results = [];
+for (const [status, count] of cases) {
+  try {
+    await writeVersion({
+      project: { projectId: 'private-project-id', revision: 1, currentContent: 'a', embedId: 'private-embed-id' },
+      chatId: 'private-chat-id', content: 'b', client: {
+        sendMessage: async ({ onHostedVersionCommitted }) => {
+          for (let i = 0; i < count; i++) onHostedVersionCommitted({ embed_id: 'private-embed-id', revision: 2 });
+          return { status, assistant: 'private-response-body', error: 'private-error-token' };
+        },
+      },
+    });
+    throw new Error('Expected the strict callback gate to reject');
+  } catch (error) {
+    results.push({ phase: error.capacityPhase, diagnostic: error.capacityDiagnostics });
+  }
+}
+const malformed = sanitizeVersionDiagnostics({
+  response_status: 'private-status-token', callback_count: -1, expected_revision: true,
+  assistant: 'private-response-body', embed_id: 'private-embed-id',
+});
+process.stdout.write(JSON.stringify({ results, malformed }));
+"""
+    result = subprocess.run(
+        ["node", "--input-type=module", "--eval", script, str(adapter)],
+        capture_output=True, text=True, check=True,
+    )
+    observed = json.loads(result.stdout)
+    assert all(row["phase"] == "version_callback_count" for row in observed["results"])
+    assert [row["diagnostic"] for row in observed["results"]] == [
+        {"response_status": "completed", "callback_count": 0, "expected_revision": 2},
+        {"response_status": "waiting_for_user", "callback_count": 0, "expected_revision": 2},
+        {"response_status": "completed", "callback_count": 2, "expected_revision": 2},
+        {"response_status": "other", "callback_count": 0, "expected_revision": 2},
+        {"response_status": "missing", "callback_count": 0, "expected_revision": 2},
+        {"response_status": "completed", "callback_count": 1000, "expected_revision": 2},
+    ]
+    assert observed["malformed"] == {}
+    assert "private-" not in result.stdout

@@ -5,6 +5,7 @@
  * by their owning storage phases; absence aborts before any workload writes.
  */
 
+import { sanitizeVersionDiagnostics } from './storage_capacity_version_adapter.mjs';
 import { createHash, randomUUID } from 'node:crypto';
 import { createWriteStream, readFileSync } from 'node:fs';
 import { once } from 'node:events';
@@ -87,6 +88,7 @@ function failureRow(error, fallbackPhase) {
   const sourceLocation = error?.capacitySourceLocation || (frame
     ? `${frame[1]}:${frame[2]}` : 'storage_capacity_client.mjs:unavailable');
   return { kind: 'failure', phase, error_class: errorClass, source_location: sourceLocation,
+    ...sanitizeVersionDiagnostics(error?.capacityDiagnostics),
     // This field is restricted to the mode-0600 runner-private result and
     // bounded diagnostic artifact; verification never copies it to public JSON.
     reason: String(error?.message || error).slice(0, 200) };

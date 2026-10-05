@@ -17,6 +17,22 @@ function stageFailure(phase, error) {
   return failure;
 }
 
+/** Only documented response states and bounded counts may cross the diagnostic boundary. */
+export function sanitizeVersionDiagnostics(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const result = {};
+  if (new Set(['completed', 'waiting_for_user', 'missing', 'other']).has(value.response_status)) {
+    result.response_status = value.response_status;
+  }
+  if (Number.isInteger(value.callback_count) && value.callback_count >= 0 && value.callback_count <= 1000) {
+    result.callback_count = value.callback_count;
+  }
+  if (Number.isSafeInteger(value.expected_revision) && value.expected_revision >= 1 && value.expected_revision <= 1000000) {
+    result.expected_revision = value.expected_revision;
+  }
+  return result;
+}
+
 /** Keep the independent ledger's exact equality gate and reveal only shape on failure. */
 export function assertVersionReadback(fetched, expectedContent, expectedRevision) {
   const contentMatches = fetched?.content === expectedContent;
@@ -99,7 +115,14 @@ export async function writeVersion({ client, chatId, project, content }) {
     throw stageFailure('version_send', error);
   }
   if (response?.status !== 'completed' || committed.length !== 1) {
-    throw stageFailure('version_callback_count', new Error('Authorized Project tool did not commit exactly one version'));
+    const failure = stageFailure('version_callback_count', new Error('Authorized Project tool did not commit exactly one version'));
+    failure.capacityDiagnostics = sanitizeVersionDiagnostics({
+      response_status: response?.status == null ? 'missing' :
+        ['completed', 'waiting_for_user'].includes(response.status) ? response.status : 'other',
+      callback_count: Math.min(committed.length, 1000),
+      expected_revision: project.revision + 1,
+    });
+    throw failure;
   }
   const { embed_id: embedId, revision } = committed[0];
   if (!embedId || !Number.isInteger(revision) || revision !== project.revision + 1 ||

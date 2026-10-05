@@ -1579,8 +1579,17 @@ def retain_capacity_failure_rows(results_path: Path, private: Path) -> int:
                 continue
             if not isinstance(row, dict) or row.get("kind") != "failure":
                 continue
-            rows.append({name: str(row.get(name, ""))[:200] for name in
-                         ("phase", "error_class", "source_location", "reason")})
+            retained = {name: str(row.get(name, ""))[:200] for name in
+                        ("phase", "error_class", "source_location", "reason")}
+            if isinstance(row.get("response_status"), str) and row["response_status"] in {
+                    "completed", "waiting_for_user", "missing", "other"}:
+                retained["response_status"] = row["response_status"]
+            for name, upper_bound in (("callback_count", 1000), ("expected_revision", 1_000_000)):
+                value = row.get(name)
+                minimum = 0 if name == "callback_count" else 1
+                if type(value) is int and minimum <= value <= upper_bound:
+                    retained[name] = value
+            rows.append(retained)
     if not rows:
         return 0
     if not private.is_dir() or private.is_symlink():
