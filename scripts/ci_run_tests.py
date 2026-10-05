@@ -732,8 +732,11 @@ def prepare_storage_billing_fixture(account: dict, profile_name: str) -> tuple[d
     try:
         completed = compose(*command, capture=True, timeout=300)
     except subprocess.CalledProcessError as exc:
-        (private / f"probe-{fixture_id}.stderr.log").write_text((exc.stderr or "")[-200_000:])
-        raise RuntimeError("Isolated storage billing fixture preparation failed") from None
+        stderr = str(exc.stderr or "")
+        (private / f"probe-{fixture_id}.stderr.log").write_text(stderr[-200_000:])
+        codes = re.findall(r"(?m)^storage_billing_fixture_failed:([a-z][a-z0-9_]{0,180})$", stderr[-4096:])
+        code = codes[-1] if codes else "probe_failed"
+        raise RuntimeError("Isolated storage billing fixture preparation failed:" + code) from None
     try:
         summary = json.loads(completed.stdout.splitlines()[-1])
         legacy = summary["legacy_upload_bytes"]

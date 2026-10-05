@@ -219,3 +219,32 @@ def test_billing_probe_fails_before_user_lookup_if_profile_is_not_exact(tmp_path
         runner.prepare_storage_billing_fixture(
             {"OPENMATES_TEST_ACCOUNT_EMAIL": "ci-one@example.com"}, "legacy"
         )
+
+
+@pytest.mark.parametrize("marker,expected", [
+    ("storage_billing_fixture_failed:storage_billing_upload_not_verified", "storage_billing_upload_not_verified"),
+    ("storage_billing_fixture_failed:private-owner@example.com", "probe_failed"),
+])
+def test_fixture_process_failure_exposes_only_static_diagnostic(tmp_path, monkeypatch, marker, expected):
+    import subprocess
+    runner = _runner(monkeypatch)
+    profile = ci_environment.compose_profile("a" * 40, billing_profile="legacy")
+    private = tmp_path / "storage-billing"
+    private.mkdir(mode=0o700)
+    compose_path = tmp_path / "compose.json"
+    compose_path.write_text(json.dumps(profile))
+    monkeypatch.setattr(runner, "COMPOSE_PATH", compose_path)
+    monkeypatch.setattr(runner, "require_runner", lambda: None)
+    monkeypatch.setattr(runner, "cms_admin_token", lambda _: "private-admin-token")
+    user_id = "4da92a23-c566-4f02-a4a6-d36aeb8a88e2"
+    hashed_email = base64.b64encode(hashlib.sha256(b"ci-one@example.com").digest()).decode()
+    monkeypatch.setattr(runner, "request", lambda *_args, **_kwargs: {"data": [{
+        "id": user_id, "email": hashed_email + "@example.com", "hashed_email": hashed_email,
+    }]})
+    def compose(*args, **_kwargs):
+        raise subprocess.CalledProcessError(1, args, stderr=f"secret-token {user_id}\n{marker}\n")
+    monkeypatch.setattr(runner, "compose", compose)
+    with pytest.raises(RuntimeError) as failure:
+        runner.prepare_storage_billing_fixture({"OPENMATES_TEST_ACCOUNT_EMAIL": "ci-one@example.com"}, "legacy")
+    assert str(failure.value).endswith(":" + expected)
+    assert all(value not in str(failure.value) for value in (user_id, "secret-token", "private-owner@example.com"))
