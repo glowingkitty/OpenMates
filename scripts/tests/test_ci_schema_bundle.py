@@ -486,3 +486,71 @@ def test_verify_image_rejects_manifest_normalized_fingerprint_mismatch(monkeypat
     monkeypatch.setattr(bundle, "carrier_payload", lambda image: (manifest, dump))
     with pytest.raises(RuntimeError, match="manifest normalized fingerprint mismatch"):
         bundle.verify_image("schema:test")
+
+
+def test_producer_roundtrip_preserves_postgres_dump_bytes_and_exact_comparator(monkeypatch):
+    original = (
+        b"CREATE INDEX due_idx ON public.jobs USING btree (id) "
+        b"WHERE (((warning_count >= 1) AND (warning_count <= 3)) AND (closed_at IS NULL));\n"
+        b"COPY public.items (value) FROM stdin;\nexact\t \n\\.\n"
+    )
+    restored = original.replace(
+        b"(((warning_count >= 1) AND (warning_count <= 3)) AND",
+        b"((warning_count >= 1) AND (warning_count <= 3) AND",
+    )
+    calls = []
+    def fake_compose(*args, input_bytes=None):
+        calls.append((args, input_bytes))
+        if "psql" in args:
+            assert input_bytes == original
+            assert "ON_ERROR_STOP=1" in args
+        return subprocess.CompletedProcess(args, 0, restored if "pg_dump" in args else b"", b"")
+    monkeypatch.setattr(bundle, "compose", fake_compose)
+    assert bundle.stable_restored_dump(original) == restored
+    assert [args[3] for args, _ in calls] == ["createdb", "psql", "pg_dump", "dropdb"]
+    assert "--template=template0" in calls[0][0]
+    # The consumer comparator still rejects this structural difference. The
+    # producer obtains its stable reference by an actual PostgreSQL round trip.
+    assert bundle.normalized_dump(original) != bundle.normalized_dump(restored)
+
+
+@pytest.mark.parametrize("failure", ["createdb", "psql", "pg_dump"])
+def test_producer_roundtrip_fails_closed_and_cleans_only_its_created_database(monkeypatch, failure):
+    commands = []
+    def fake_compose(*args, input_bytes=None):
+        command = args[3]
+        commands.append(command)
+        if command == failure:
+            raise subprocess.CalledProcessError(1, args)
+        return subprocess.CompletedProcess(args, 0, b"schema", b"")
+    monkeypatch.setattr(bundle, "compose", fake_compose)
+    with pytest.raises(subprocess.CalledProcessError):
+        bundle.stable_restored_dump(b"schema")
+    assert (commands[-1] == "dropdb") is (failure != "createdb")
+
+
+def test_generation_requires_roundtrip_before_writing_carrier(monkeypatch, tmp_path):
+    monkeypatch.setattr(bundle, "require_runner", lambda: None)
+    monkeypatch.setattr(bundle, "run", lambda *args: subprocess.CompletedProcess(args, 0, b"a" * 40, b""))
+    monkeypatch.setattr(bundle, "write_profile", lambda profile: None)
+    monkeypatch.setattr(bundle, "database_dump", lambda: b"source schema")
+    monkeypatch.setattr(bundle, "MANIFEST", tmp_path / "manifest.json")
+    commands = []
+    def fake_compose(*args, input_bytes=None):
+        commands.append(args)
+        return subprocess.CompletedProcess(args, 0, b"runtime@example.com\n", b"")
+    monkeypatch.setattr(bundle, "compose", fake_compose)
+    output = tmp_path / "schema.sql.gz"
+    def failed_roundtrip(dump):
+        assert dump == b"source schema"
+        raise RuntimeError("restore rejected")
+    monkeypatch.setattr(bundle, "stable_restored_dump", failed_roundtrip)
+    with pytest.raises(RuntimeError, match="restore rejected"):
+        bundle.generate(output)
+    assert not output.exists()
+    assert not bundle.MANIFEST.exists()
+    assert commands[-1] == ("down", "--volumes", "--remove-orphans")
+    monkeypatch.setattr(bundle, "stable_restored_dump", lambda dump: b"stable schema")
+    bundle.generate(output)
+    assert gzip.decompress(output.read_bytes()) == b"stable schema"
+    assert json.loads(bundle.MANIFEST.read_text())["normalized_dump_sha256"] == bundle.normalized_dump_sha256(b"stable schema")

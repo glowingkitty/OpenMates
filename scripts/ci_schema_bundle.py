@@ -478,6 +478,24 @@ def database_dump() -> bytes:
     return compose("exec", "-T", "cms-database", *PG_DUMP_ARGS).stdout
 
 
+def stable_restored_dump(dump: bytes) -> bytes:
+    """Use PostgreSQL itself to stabilize the sanitized schema's restore rendering.
+
+    BETWEEN predicates can dump with nested AND nodes before their first SQL
+    round trip. Preserve the complete serialized schema and rows by restoring
+    into a fresh template0 database rather than normalizing predicate text.
+    """
+    database = "openmates_schema_roundtrip"
+    compose("exec", "-T", "cms-database", "createdb", "-U", "openmates",
+            "--template=template0", database)
+    try:
+        compose("exec", "-T", "cms-database", "psql", "-v", "ON_ERROR_STOP=1",
+                "-U", "openmates", "-d", database, input_bytes=dump)
+        return compose("exec", "-T", "cms-database", *PG_DUMP_ARGS[:-1], database).stdout
+    finally:
+        compose("exec", "-T", "cms-database", "dropdb", "-U", "openmates", database)
+
+
 def wait_for_restored_schema() -> None:
     """Wait past the entrypoint's temporary server until the schema is queryable."""
     for _ in range(90):
@@ -569,6 +587,7 @@ def generate(output: Path = OUTPUT) -> Path:
             b"runtime@example.com", b""
         ):
             raise RuntimeError("Prepared schema contains non-bootstrap account data")
+        dump = stable_restored_dump(dump)
         output.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         compressed = gzip.compress(dump, compresslevel=9, mtime=0)
         output.write_bytes(compressed)

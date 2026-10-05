@@ -214,8 +214,8 @@ services:
   task-worker:
     container_name: task-worker
     build:
-      context: ./api
-      dockerfile: Dockerfile.celery
+      context: ../../
+      dockerfile: backend/core/api/Dockerfile.celery
     restart: unless-stopped
     user: root
     env_file: ../../.env
@@ -382,8 +382,8 @@ services:
   workflow-worker:
     container_name: workflow-worker
     build:
-      context: ./api
-      dockerfile: Dockerfile.celery
+      context: ../../
+      dockerfile: backend/core/api/Dockerfile.celery
     restart: unless-stopped
     user: root
     env_file: ../../.env
@@ -438,8 +438,8 @@ services:
   task-scheduler:
     container_name: task-scheduler
     build:
-      context: ./api
-      dockerfile: Dockerfile.celery
+      context: ../../
+      dockerfile: backend/core/api/Dockerfile.celery
     restart: unless-stopped
     env_file: ../../.env
     environment:
@@ -482,8 +482,8 @@ services:
   app-ai-worker:
     container_name: app-ai-worker
     build:
-      context: ./api
-      dockerfile: Dockerfile.celery
+      context: ../../
+      dockerfile: backend/core/api/Dockerfile.celery
     restart: unless-stopped
     user: root
     env_file: ../../.env
@@ -547,8 +547,8 @@ services:
   app-images-worker:
     container_name: app-images-worker
     build:
-      context: ./api
-      dockerfile: Dockerfile.celery
+      context: ../../
+      dockerfile: backend/core/api/Dockerfile.celery
     restart: unless-stopped
     user: root
     env_file: ../../.env
@@ -610,8 +610,8 @@ services:
   app-music-worker:
     container_name: app-music-worker
     build:
-      context: ./api
-      dockerfile: Dockerfile.celery
+      context: ../../
+      dockerfile: backend/core/api/Dockerfile.celery
     restart: unless-stopped
     user: root
     env_file: ../../.env
@@ -670,8 +670,8 @@ services:
   app-videos-worker:
     container_name: app-videos-worker
     build:
-      context: ./api
-      dockerfile: Dockerfile.celery
+      context: ../../
+      dockerfile: backend/core/api/Dockerfile.celery
     restart: unless-stopped
     user: root
     env_file: ../../.env
@@ -730,8 +730,8 @@ services:
   app-pdf-worker:
     container_name: app-pdf-worker
     build:
-      context: ./api
-      dockerfile: Dockerfile.celery
+      context: ../../
+      dockerfile: backend/core/api/Dockerfile.celery
     restart: unless-stopped
     user: root
     env_file: ../../.env
@@ -844,8 +844,8 @@ services:
   app-code-worker:
     container_name: app-code-worker
     build:
-      context: ./api
-      dockerfile: Dockerfile.celery
+      context: ../../
+      dockerfile: backend/core/api/Dockerfile.celery
     restart: unless-stopped
     user: root
     env_file: ../../.env
@@ -902,8 +902,8 @@ services:
   app-social-media-worker:
     container_name: app-social-media-worker
     build:
-      context: ./api
-      dockerfile: Dockerfile.celery
+      context: ../../
+      dockerfile: backend/core/api/Dockerfile.celery
     restart: unless-stopped
     user: root
     env_file: ../../.env
