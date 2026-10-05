@@ -27,8 +27,26 @@ variables, health-check output or secrets. The controlled cold execution of
 compose readiness took 487.334 seconds, including 461.665 seconds of CMS setup.
 The independent publisher then found a compatible keyed image in six seconds in
 [run 37360392442](https://github.com/glowingkitty/OpenMates/actions/runs/37360392442).
-Warm browser measurements are being collected on two different source commits
-with the same schema key.
+The same browser spec passed twice with prepared schema reuse on two source
+commits. Both receipts attest the selected spec, source and harness, healthy API,
+and removal of disposable containers, volumes and private account files.
+
+| Run | Source | Backend readiness | CMS setup | API starts after |
+| --- | --- | ---: | ---: | ---: |
+| [Cold 37356953151](https://github.com/glowingkitty/OpenMates/actions/runs/37356953151) | d902d69 | 487.334 s | 461.665 s | 471.672 s |
+| [Warm 37362427975](https://github.com/glowingkitty/OpenMates/actions/runs/37362427975) | d902d69 | 44.396 s | 14.164 s | 25.723 s |
+| [Warm 37361931398](https://github.com/glowingkitty/OpenMates/actions/runs/37361931398) | 08cfaa8 | 45.537 s | 10.334 s | 27.905 s |
+
+Backend readiness improved by 90.9% and 90.7%. All three executions had schema key
+`cbe7ae099fbde2f13ec33e3182a19a992fd9e596da08c254ee91bcd5b9f3eeb6`.
+Both warm consumers resolved and validated immutable registry images; the
+compatible key had been republished between their discoveries, so their image
+digests differ. Each consumer pins its own verified digest.
+
+These are backend startup improvements, not a 91% reduction of whole CI requests.
+The warm jobs themselves took 302 and 331 seconds; preparation waits were 503 and
+447 seconds. Frontend preparation, image transfer, browser setup and hosted
+runner availability remain material workflow costs.
 
 ## Storage admission and retention (R2)
 

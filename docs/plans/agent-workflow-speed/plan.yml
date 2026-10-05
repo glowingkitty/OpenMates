@@ -2,7 +2,7 @@ schema_version: 2
 profile: concise
 id: agent-workflow-speed
 title: Implement approved workflow speed improvements R1 R2 R4
-status: implementing
+status: verified
 goal: Reduce approved CI bootstrap, storage admission, and hosted-job capacity bottlenecks.
 approval: User approved R1, R2 and R4 on 2026-10-05; confirmed GitHub Free with 20 hosted jobs.
 task: e3ac5482-44c2-42ed-909e-e97afc7476be
@@ -33,3 +33,5 @@ evidence:
   - Independent schema publisher run 37360392442 found a compatible content-keyed image in six seconds.
   - Corrected resource inventory reported 35.00 GiB of worktrees, 1.68 GiB of candidates, 12.49 GiB of results and zero eligible reclamation.
   - Safe admission cleanup enabled after fresh matching review; no current payload was deleted. Fast activation review took 2.36 seconds and 94 resource/result checks passed.
+  - Warm composer browser runs 37362427975 and 37361931398 passed on d902d69 and 08cfaa8 with prepared schema reuse; backend readiness 44.396 and 45.537 seconds versus cold 487.334, with verified isolated cleanup.
+  - Detailed measured outcomes and remaining frontend, transfer and storage costs are recorded in results.md.
