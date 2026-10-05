@@ -29,4 +29,6 @@ verification_order:
   - Apple source parity audit and native verification or documented Mac agent instructions.
 task: TASK-4743
 specification: feature.app-skill.maps-search@1
-evidence: []
+evidence:
+  - docs/plans/maps-geoapify-discovery/verification.md
+  - docs/plans/maps-geoapify-discovery/apple-handoff.md

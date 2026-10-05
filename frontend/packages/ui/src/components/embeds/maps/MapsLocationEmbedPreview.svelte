@@ -85,6 +85,7 @@
       localLocationType = locationTypeProp ?? 'area';
       localPlaceType = placeTypeProp ?? '';
       localMapImageUrl = mapImageUrlProp;
+      imageError = false;
       localStatus = statusProp ?? 'processing';
       localTaskId = taskIdProp;
     }
@@ -172,6 +173,7 @@
           class="map-preview-image"
           class:mobile={isMobileLayout}
           loading="lazy"
+          onerror={() => { imageError = true; }}
         />
         {#if name}
           <div class="map-location-name-overlay" class:mobile={isMobileLayout}>

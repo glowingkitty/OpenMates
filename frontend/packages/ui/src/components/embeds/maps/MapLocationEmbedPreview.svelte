@@ -39,6 +39,8 @@
     userRatingCount?: number;
     /** Place category/type (e.g. "Coffee Shop") */
     placeType?: string;
+    dataSource?: string;
+    distanceMeters?: number;
     /** Place photo URL (Google Places photo/media URL) */
     imageUrl?: string;
     /** Whether this is the currently selected/highlighted place */
@@ -58,6 +60,8 @@
     rating,
     userRatingCount,
     placeType,
+    dataSource,
+    distanceMeters,
     imageUrl,
     isSelected = false,
     status = 'finished',
@@ -90,7 +94,7 @@
   showSkillIcon={false}
 >
   {#snippet details({ isMobile: isMobileLayout })}
-    <div class="place-card" class:mobile={isMobileLayout} class:selected={isSelected}>
+    <div class="place-card" data-testid="maps-place-card" class:mobile={isMobileLayout} class:selected={isSelected}>
       {#if proxiedImageUrl}
         <img class="place-image" src={proxiedImageUrl} alt={displayName || $text('common.location')} loading="lazy" />
       {/if}
@@ -117,6 +121,12 @@
       <!-- Address -->
       {#if formattedAddress}
         <div class="place-address">{formattedAddress}</div>
+      {/if}
+      {#if distanceMeters != null && Number.isFinite(distanceMeters)}
+        <div class="place-address" data-testid="maps-place-distance">{distanceMeters < 1000 ? `${Math.round(distanceMeters)} m` : `${(distanceMeters / 1000).toFixed(1)} km`}</div>
+      {/if}
+      {#if dataSource}
+        <div class="place-address" data-testid="maps-place-source">{dataSource}</div>
       {/if}
     </div>
   {/snippet}

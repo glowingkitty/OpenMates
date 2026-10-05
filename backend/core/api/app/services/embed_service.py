@@ -6745,7 +6745,7 @@ class EmbedService:
                         if key in safe_request_metadata:
                             parent_content[key] = safe_request_metadata[key]
                     if app_id == "maps" and skill_id == "search":
-                        for key in ("warnings", "filter_summary", "coverage", "search_context"):
+                        for key in ("warnings", "filter_summary", "coverage", "search_context", "error", "search_status"):
                             if key in safe_request_metadata:
                                 parent_content[key] = safe_request_metadata[key]
                 if hosting_graph:

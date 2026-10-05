@@ -61,13 +61,14 @@
 
   function firstMapsGroup(content: Record<string, unknown> | undefined): Record<string, unknown> | undefined {
     if (!content) return undefined;
-    if (content.filter_summary || content.warnings) return content;
+    if (content.filter_summary || content.filter_summary_status || content.warnings || content.error) return content;
     const groups = Array.isArray(content.results) ? content.results : [];
     const firstGroup = asRecord(groups[0]);
-    return firstGroup?.filter_summary || firstGroup?.warnings ? firstGroup : content;
+    return firstGroup ? firstGroup : content;
   }
 
   function stringArray(value: unknown): string[] {
+    if (typeof value === 'string') return value.split('|').filter(item => item.trim().length > 0);
     return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0) : [];
   }
 
@@ -91,9 +92,15 @@
   let embedIds = $derived(data.decodedContent?.embed_ids ?? data.embedData?.embed_ids);
   let initialChildEmbedId = $derived(data.focusChildEmbedId ?? undefined);
   let warningMessages = $derived(stringArray(searchGroup.warnings));
-  let filterSummary = $derived(asRecord(searchGroup.filter_summary) as MapsFilterSummary | undefined);
+  let filterSummary = $derived((asRecord(searchGroup.filter_summary) ?? (searchGroup.filter_summary_status ? {
+    status: searchGroup.filter_summary_status,
+    required: searchGroup.filter_summary_required,
+    candidate_count: searchGroup.filter_summary_candidate_count,
+    verified_count: searchGroup.filter_summary_verified_count,
+  } : undefined)) as MapsFilterSummary | undefined);
   let requiredAmenities = $derived(stringArray(filterSummary?.required).map(humanizeAmenity));
   let noVerifiedResults = $derived(filterSummary?.status === 'no_verified_results');
+  let searchError = $derived(typeof searchGroup.error === 'string' ? searchGroup.error : undefined);
   let hasChildEmbeds = $derived(hasEmbedRefs(embedIds));
 
   let viaProvider = $derived(`${$text('embeds.via')} ${provider}`);
@@ -133,7 +140,10 @@
         <div class="no-results" data-testid="maps-no-results">
           <p>{$text('embeds.no_results')}</p>
 
-          {#if noVerifiedResults || warningMessages.length > 0}
+          {#if searchError}
+            <p data-testid="maps-search-error">{searchError}</p>
+          {/if}
+          {#if noVerifiedResults}
             <section class="maps-enrichment-status" data-testid="maps-enrichment-status">
               {#if noVerifiedResults}
                 <h3 data-testid="maps-no-verified-results-title">{$text('embeds.maps.search.no_verified_amenities')}</h3>
@@ -150,12 +160,16 @@
                 {/if}
               {/if}
 
-              {#each warningMessages as warning}
-                <p class="maps-warning" data-testid="maps-enrichment-warning">{warning}</p>
-              {/each}
             </section>
           {/if}
         </div>
+      {/if}
+      {#if warningMessages.length > 0}
+        <section class="maps-enrichment-status" data-testid="maps-enrichment-status">
+          {#each warningMessages as warning}
+            <p class="maps-warning" data-testid="maps-enrichment-warning">{warning}</p>
+          {/each}
+        </section>
       {/if}
     </div>
   {/snippet}
@@ -218,6 +232,7 @@
     flex-direction: column;
     min-height: 0;
     height: 100%;
+    max-width: none;
     border: 0;
     border-radius: 0;
     box-shadow: none;
@@ -253,6 +268,25 @@
       overflow: auto;
       border-right: 1px solid var(--color-grey-20, #f3f3f3);
       border-bottom: 0;
+    }
+
+    :global(.maps-search-fullscreen-body .map-view-carousel) {
+      flex-direction: column;
+      height: 100%;
+      overflow-x: hidden;
+      overflow-y: auto;
+      scroll-snap-type: y proximity;
+    }
+
+    :global(.maps-search-fullscreen-body .map-view-card) {
+      flex: 0 0 200px;
+      width: 100%;
+    }
+
+    :global(.maps-search-fullscreen-body .map-view-card .unified-embed-preview.desktop) {
+      width: 100%;
+      min-width: 0;
+      max-width: none;
     }
 
     :global(.maps-search-fullscreen-body .map-view-map),

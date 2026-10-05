@@ -38,6 +38,7 @@ from backend.apps.ai.processing.search_skill_reliability import (
 )
 from backend.apps.ai.utils.mate_utils import MateConfig
 from backend.apps.ai.utils.main_processing_failure import main_processing_failure
+from backend.apps.ai.utils.app_skill_result_groups import is_request_group_failure, maps_result_parent_metadata
 from backend.apps.ai.utils.answer_recovery import (
     ANSWER_RECOVERY_INSTRUCTION,
     AnswerRecoveryState,
@@ -8922,9 +8923,7 @@ async def handle_main_processing(
                                 if app_id == "maps" and skill_id == "search":
                                     # Each request can use a different provider. Preserve maps
                                     # warnings and coverage on its parent, including zero hits.
-                                    for maps_key in ("provider", "warnings", "filter_summary", "coverage", "search_context"):
-                                        if maps_key in grouped_result:
-                                            request_metadata_with_provider[maps_key] = grouped_result[maps_key]
+                                    request_metadata_with_provider.update(maps_result_parent_metadata(grouped_result))
                                 
                                 # CRITICAL: Ensure query is present for UI rendering, even if request metadata is missing
                                 # Some LLMs omit "query" in requests array; fall back to grouped_result fields if needed.
@@ -8971,13 +8970,7 @@ async def handle_main_processing(
                                 # embed_service.update_embed_with_results(results=[]) — that
                                 # function already handles the empty case via
                                 # _finalize_embed_no_results() (status="finished", no error).
-                                has_explicit_error = bool(grouped_result.get("error"))
-                                has_results_field = "results" in grouped_result
-                                is_hosting_group = app_id == "hosting" and skill_id == "search_domains"
-                                request_is_real_failure = (
-                                    (has_explicit_error or not has_results_field)
-                                    and not (is_hosting_group and has_results_field)
-                                )
+                                request_is_real_failure = is_request_group_failure(app_id, skill_id, grouped_result)
 
                                 if request_is_real_failure:
                                     # Request failed - update placeholder to error or create error embed

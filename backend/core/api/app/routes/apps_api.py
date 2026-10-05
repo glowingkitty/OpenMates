@@ -3142,7 +3142,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                     class WrappedSkillResponse(BaseModel):
                         """Response wrapper for skill execution"""
                         success: bool
-                        data: Optional[SkillResponseDataModel] = Field(None, description="The skill execution result (only present when success=True)")
+                        data: Optional[SkillResponseDataModel] = Field(None, description="Skill result data, including grouped error details where provided")
                         error: Optional[str] = Field(None, description="Error message if execution failed")
                         credits_charged: Optional[int] = Field(None, description="Credits charged for this execution")
                     
@@ -3300,10 +3300,22 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                             except Exception as e:
                                 logger.warning(f"Could not parse result into {SkillResponseModel.__name__}: {e}, using raw result")
                                 skill_response = result
+
+                            maps_discovery_failed = (
+                                captured_app_id == "maps"
+                                and captured_skill.id == "search"
+                                and not execution_successful
+                                and any(
+                                    isinstance(item, dict)
+                                    and (item.get("categories") is not None or item.get("area") is not None)
+                                    for item in request_dict.get("requests", [])
+                                )
+                            )
                             
                             return WrappedSkillResponse(
-                                success=True,
+                                success=not maps_discovery_failed,
                                 data=skill_response,
+                                error=result.get("error") if maps_discovery_failed and isinstance(result, dict) else None,
                                 credits_charged=None if _team_skill_worker_bills(user_info, captured_app_id, captured_skill.id) else credits_charged
                             )
                             

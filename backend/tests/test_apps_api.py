@@ -249,6 +249,79 @@ def test_dynamic_rest_schema_preserves_app_yml_field_constraints(monkeypatch) ->
     assert "relevance_criteria" not in item_schema["required"]
 
 
+# contract-test: supporting surface=rest_api assertions=maps-search.discovery.bounded-provider-routing,maps-search.compatibility.regular-search
+def test_maps_discovery_error_envelope_keeps_group_and_skips_charge(monkeypatch) -> None:
+    captured: dict[str, object] = {"charges": [], "priced": []}
+    user_info = {
+        "user_id": "user-1",
+        "api_key_encrypted_name": "key-name",
+        "api_key_hash": "api-key-hash",
+        "api_key_metadata": {"allowed_app_skills": ["maps.search"]},
+        "device_hash": "device-hash",
+    }
+
+    async def fake_call_app_skill(**kwargs):
+        request = kwargs["input_data"]["requests"][0]
+        if request.get("categories") is not None:
+            return {
+                "provider": "Geoapify",
+                "results": [{
+                    "id": request["id"], "results": [], "provider": "Geoapify",
+                    "status": "invalid_request", "error": "area.latitude: Input should be less than or equal to 90",
+                }],
+                "error": "area.latitude: Input should be less than or equal to 90",
+            }
+        return {"provider": "Google Maps", "results": [{"id": request["id"], "results": [{"name": "Cafe"}]}]}
+
+    async def fake_calculate_skill_credits(**kwargs):
+        captured["priced"].append(kwargs["result_data"]["provider"])
+        return 0
+
+    async def fake_charge_credits_via_internal_api(**kwargs):
+        captured["charges"].append(kwargs)
+
+    app_yml_data = yaml.safe_load((REPO_ROOT / "apps/maps/app.yml").read_text(encoding="utf-8"))
+    app_yml_data["icon_image"] = app_yml_data["icon_image"].strip()
+    app_yml = AppYAML.model_validate(app_yml_data)
+    app = FastAPI()
+    app.dependency_overrides[apps_api.get_session_or_api_key_info] = lambda: user_info
+    app.dependency_overrides[apps_api.get_cache_service] = lambda: object()
+    app.dependency_overrides[apps_api.get_directus_service] = lambda: object()
+    monkeypatch.setattr(apps_api, "call_app_skill", fake_call_app_skill)
+    monkeypatch.setattr(apps_api, "calculate_skill_credits", fake_calculate_skill_credits)
+    monkeypatch.setattr(apps_api, "charge_credits_via_internal_api", fake_charge_credits_via_internal_api)
+    apps_api.register_app_and_skill_routes(app, {"maps": app_yml})
+    client = TestClient(app)
+
+    failed = client.post("/v1/apps/maps/skills/search", json={"requests": [{
+        "id": "invalid-area", "query": "Ruins near Berlin", "categories": ["ruins"],
+        "area": {"latitude": 91, "longitude": 13.405, "radiusMeters": 10000},
+    }]})
+    assert failed.status_code == 200
+    body = failed.json()
+    assert body["success"] is False
+    assert body["credits_charged"] == 0
+    assert "latitude" in body["error"]
+    assert body["data"]["provider"] == "Geoapify"
+    assert "latitude" in body["data"]["error"]
+    assert body["data"]["results"] == [{
+        "id": "invalid-area", "results": [], "provider": "Geoapify",
+        "status": "invalid_request", "error": "area.latitude: Input should be less than or equal to 90",
+    }]
+    assert captured == {"charges": [], "priced": []}
+
+    regular = client.post("/v1/apps/maps/skills/search", json={"requests": [{
+        "id": "regular", "query": "cafes in Berlin",
+    }]})
+    assert regular.status_code == 200
+    regular_body = regular.json()
+    assert regular_body["success"] is True
+    assert regular_body["error"] is None
+    assert regular_body["data"]["provider"] == "Google Maps"
+    assert regular_body["data"]["results"][0]["id"] == "regular"
+    assert captured == {"charges": [], "priced": ["Google Maps"]}
+
+
 # contract-test: direct surface=rest_api assertions=billing.credits.idempotent-charge
 def test_image_to_html_processing_response_defers_billing_to_worker() -> None:
     credits = apps_api.get_variable_result_credits(

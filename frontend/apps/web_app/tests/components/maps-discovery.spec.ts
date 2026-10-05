@@ -12,7 +12,7 @@ async function preview(page: Page, component: string, variant = '', width = 1100
   await waitForComponentPreview(page);
 }
 
-for (const width of [390, 1100]) {
+for (const width of [390, 800, 1100]) {
   for (const variant of ['', 'discovery']) {
     // contract-test: supporting surface=gui.web assertions=maps-search.gui.place-rendering,maps-search.compatibility.regular-search
     test(`${variant || 'regular'} search renders place cards and markers at ${width}px`, async ({ page }, testInfo) => {
@@ -35,6 +35,20 @@ for (const width of [390, 1100]) {
       }
       await cards.nth(1).click();
       await expect(cards.nth(1)).toHaveAttribute('data-selected', 'true');
+      if (width > 720) {
+        const selected = await cards.nth(1).boundingBox();
+        const list = await page.getByTestId('embeds-map-view-list').boundingBox();
+        const map = await page.getByTestId('embed-leaflet-map').boundingBox();
+        expect(selected).not.toBeNull();
+        expect(list).not.toBeNull();
+        expect(map).not.toBeNull();
+        expect(selected!.x).toBeGreaterThanOrEqual(list!.x);
+        expect(selected!.x + selected!.width).toBeLessThanOrEqual(list!.x + list!.width + 1);
+        const previewCard = await cards.nth(1).locator('.unified-embed-preview').boundingBox();
+        expect(previewCard).not.toBeNull();
+        expect(previewCard!.x + previewCard!.width).toBeLessThanOrEqual(list!.x + list!.width + 1);
+        expect(map!.x + map!.width).toBeGreaterThanOrEqual(width - 2);
+      }
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width + 1);
       await testInfo.attach('maps-search-' + (variant || 'regular') + '-' + width, {
         body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png',
@@ -74,6 +88,10 @@ test('empty, quota and unverified amenity states stay readable', async ({ page }
   await preview(page, 'MapsSearchEmbedFullscreen', 'noVerifiedAmenityMatches');
   await expect(page.getByTestId('maps-no-verified-results-title')).toBeVisible();
   await expect(page.getByTestId('maps-enrichment-warning')).toContainText('No Geoapify/OSM-verified matches');
+  await expect(page.getByTestId('maps-required-amenities')).toContainText('air conditioning, internet access');
+  await expect(page.getByTestId('maps-filter-summary')).toContainText('0 verified matches');
+  await preview(page, 'MapsSearchEmbedPreview', 'quotaExhausted', 390);
+  await expect(page.getByTestId('maps-search-preview-error')).toContainText('daily search allowance is exhausted');
 });
 
 // contract-test: supporting surface=gui.web assertions=maps-search.gui.place-rendering,maps-search.compatibility.regular-search

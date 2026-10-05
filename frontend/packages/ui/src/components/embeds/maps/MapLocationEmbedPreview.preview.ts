@@ -23,6 +23,12 @@ export default defaultProps;
 
 /** Named variants for different component states */
 export const variants = {
+  discovery: {
+    ...defaultProps,
+    id: 'preview-map-place-discovery', displayName: 'Historic ruins', placeType: 'Ruins',
+    rating: undefined, userRatingCount: undefined, formattedAddress: undefined,
+    dataSource: 'OpenStreetMap via Geoapify', distanceMeters: 1240,
+  },
   /** Selected / highlighted state */
   selected: {
     ...defaultProps,
